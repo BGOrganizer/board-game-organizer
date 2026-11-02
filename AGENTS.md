@@ -619,10 +619,15 @@ pending invitations of that immutable type; requests do not qualify. Invitations
 capabilities before explicit acceptance. Search retains approved public
 Group discovery. BGO moderation remains a contextual Group destination. Group lists share
 platform-specific page/search/filter patterns.
-The main Events list contains participation, administration and demonstrations; standalone creation
-starts there and grouped creation is contextual to Groups. Past/Future uses the chosen local day;
-unchosen dates belong to both. Do not repeat a page or section title inside tab
-content; main navigation already identifies the section.
+Main Events has My events / Available top tabs. My events contains active own Table registrations
+(accepted, invitations or requests) and demonstrations; administration alone does not qualify.
+Available contains non-participating Events of accepted Group members/creators and own admin-only
+standalone Events. Public non-members and pending Group memberships/invitations never grant Event
+access. Main Tables has My tables / Pending top tabs: seated/frozen participants and demonstrators
+are My tables; pending invitations/requests and accepted queued players are Pending. Admin-only
+Tables are absent, including after confirmation. Demonstration takes precedence over waiting.
+Standalone creation returns to Available; grouped creation stays contextual to its Group. Past/Future
+uses the chosen local day; unchosen dates belong to both. Do not repeat page titles inside tab content.
 
 Use `@heroui/react` and Tailwind CSS. When HeroUI provides an appropriate component, use it instead
 of a custom or native substitute. For unsupported components, build a small accessible custom
@@ -735,8 +740,11 @@ literal that produces a hashed fallback.
   Every icon-only action needs an accessible label.
 - On native mobile and mobile-width web layouts, repeated list-row action buttons are icon-only and
   must retain an accessible label. Section-level creation actions may keep a compact text label.
-- Search runs automatically after 300 ms, requires at least four characters, and has a clear button;
-  do not add a submit button.
+- Discovery/search runs automatically after 300 ms, requires at least four characters, and has a clear
+  button; do not add a submit button. Main Events/Tables, owned Private/Public Groups and Group-context
+  Events instead use labeled Filter inputs: no minimum length, 300 ms debounce, clear action and brief
+  filter help. Their escaped name query stays inside the selected authorized list before paging; it
+  never discovers unrelated resources. Group Search retains its four-character discovery minimum.
 - For every variable-length list, default to paginated data and virtualized rendering: use
   `FlatList` or `SectionList` on mobile and pagination (plus windowing when large) on web. Load
   further pages as the user scrolls; do not render an entire address book, search result set, or

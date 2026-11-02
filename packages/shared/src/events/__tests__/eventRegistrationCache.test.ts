@@ -102,6 +102,20 @@ describe("acknowledged Table participation", () => {
       ).gameVoteCounts?.["1"].YES,
     ).toBe(0);
   });
+  it("reconciles explicit canonical position metadata without guessing a seat from an acknowledgement", () => {
+    const queued = acknowledgeTableRegistration(
+      table,
+      { ...registration, position: "WAITING" },
+      "owner",
+    );
+    expect(queued.myPosition).toBe("WAITING");
+    const seated = acknowledgeTableRegistration(
+      queued,
+      { ...registration, version: 3, position: "SEATED" },
+      "owner",
+    );
+    expect(seated.myPosition).toBe("SEATED");
+  });
   it("ignores foreign actors, resources and older acknowledgements", () => {
     expect(acknowledgeTableRegistration(table, registration, undefined)).toBe(table);
     expect(

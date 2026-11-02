@@ -249,6 +249,8 @@ export type PlannedEventResponse = Omit<
     role: "admin" | "participant" | "invited" | "member" | "demonstrator";
     /** Own source positions only; absent on older cache entries and incomplete mutation receipts. */
     myRegistrations: (TableRegistration & { position?: TableSeatPosition })[];
+    /** Complete own duty projection, including when the viewer is also administrator. */
+    myDemonstrator?: boolean;
     myVotes?: Pick<EventVoter, "dateVotes" | "locationVotes">;
     voteCounts?: {
       dates: Record<string, EventVoteCounts>;

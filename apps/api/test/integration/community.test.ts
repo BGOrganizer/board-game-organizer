@@ -1279,11 +1279,15 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     const invitation = await transaction((s) =>
       s.plannedEventService.register(OWNER, event.id, secondId, OTHER),
     );
-    const first = await services().plannedEventService.personalTables(OTHER, { limit: 1 });
+    const first = await services().plannedEventService.personalTables(OTHER, {
+      limit: 1,
+      section: "waiting",
+    });
     expect(first.items).toHaveLength(1);
     expect(first.nextCursor).not.toBeNull();
     const second = await services().plannedEventService.personalTables(OTHER, {
       limit: 1,
+      section: "waiting",
       cursor: first.nextCursor ?? undefined,
     });
     const rows = [...first.items, ...second.items];
@@ -1305,7 +1309,11 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     });
     expect(
       (
-        await services().plannedEventService.personalTables(OTHER, { limit: 20, query: "first" })
+        await services().plannedEventService.personalTables(OTHER, {
+          limit: 20,
+          query: "first",
+          section: "waiting",
+        })
       ).items.map((row) => row.id),
     ).toEqual([tableId]);
     expect(
@@ -1775,6 +1783,205 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     }
     return group;
   }
+  it("partitions Events before paging by accepted Group access and actual registrations/demonstrations, including admin-only standalone availability", async () => {
+    const privateClub = await privateGroup();
+    const make = async (groupId: string | null, name: string, demonstratorUserId?: string) => {
+      const input = plannedInput(groupId);
+      input.name = name;
+      input.tables[0].id = randomUUID();
+      if (demonstratorUserId) input.tables[0].demonstratorUserId = demonstratorUserId;
+      if (groupId === publicClub.id) {
+        input.endsAt = "2030-06-03T20:00:00Z";
+        input.bookingClosesAt = "2030-06-02T18:00:00Z";
+      }
+      const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+      return { event, tableId: input.tables[0].id! };
+    };
+    const at = new Date().toISOString();
+    const publicClub = groupRecordSchema.parse({
+      id: randomUUID(),
+      type: "PUBLIC",
+      adminUserId: OWNER,
+      approved: { name: "Public member club", logoAssetId: randomUUID(), location },
+      reservedNames: ["public member club"],
+      version: 1,
+      createdAt: at,
+      updatedAt: at,
+    });
+    await db.collection(COLLECTIONS.GROUPS).insertOne(publicClub);
+    for (const [userId, kind, status] of [
+      [GUEST, "REQUEST", "ACCEPTED"],
+      [OTHER, "INVITATION", "PENDING"],
+      [DEMO, "REQUEST", "PENDING"],
+    ] as const)
+      await db.collection(COLLECTIONS.GROUP_MEMBERSHIPS).insertOne({
+        id: randomUUID(),
+        groupId: publicClub.id,
+        userId,
+        invitedBy: OWNER,
+        kind,
+        status,
+        version: 1,
+        createdAt: at,
+        updatedAt: at,
+      });
+    const available = await make(privateClub.id, "Alpha available");
+    const active = await make(privateClub.id, "Beta participating");
+    const invited = await make(privateClub.id, "Gamma invitation");
+    const standalone = await make(null, "Standalone administration");
+    const demonstration = await make(publicClub.id, "Public demonstration", GUEST);
+    const ownerDemo = await make(publicClub.id, "Public owner demonstration", OWNER);
+    await transaction((s) =>
+      s.plannedEventService.register(GUEST, active.event.id, active.tableId),
+    );
+    const invitation = await transaction((s) =>
+      s.plannedEventService.register(OWNER, invited.event.id, invited.tableId, GUEST),
+    );
+    const list = async (user: string, section: "mine" | "available", query?: string) =>
+      (await services().plannedEventService.list(user, { limit: 20, section, query })).items;
+    expect((await list(GUEST, "mine")).map((r) => r.id).sort()).toEqual(
+      [active.event.id, invited.event.id, demonstration.event.id].sort(),
+    );
+    expect((await list(GUEST, "available")).map((r) => r.id).sort()).toEqual(
+      [available.event.id, ownerDemo.event.id].sort(),
+    );
+    expect((await list(OWNER, "mine")).map((r) => r.id)).toEqual([ownerDemo.event.id]);
+    expect((await list(OWNER, "available")).some((r) => r.id === standalone.event.id)).toBe(true);
+    expect((await list(OWNER, "mine"))[0]).toMatchObject({ role: "admin", myDemonstrator: true });
+    expect(
+      (await services().plannedEventService.personalTables(OWNER, { limit: 20 })).items.map(
+        (r) => r.id,
+      ),
+    ).toEqual([ownerDemo.tableId]);
+    expect(
+      (await services().plannedEventService.personalTables(GUEST, { limit: 20 })).items.some(
+        (r) => r.id === demonstration.tableId,
+      ),
+    ).toBe(true);
+    for (const user of [OTHER, DEMO, OUTSIDER])
+      for (const section of ["mine", "available"] as const)
+        expect((await list(user, section)).some((r) => r.groupId === publicClub.id)).toBe(false);
+    for (const user of [OTHER, DEMO, OUTSIDER])
+      await expect(
+        services().plannedEventService.detail(user, ownerDemo.event.id),
+      ).rejects.toMatchObject({ code: "GROUP_MEMBER_REQUIRED" });
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await services().plannedEventService.list(GUEST, {
+        limit: 1,
+        section: "mine",
+        query: "a",
+        cursor,
+      });
+      seen.push(...page.items.map((r) => r.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(seen.sort()).toEqual([active.event.id, invited.event.id, demonstration.event.id].sort());
+    expect(await list(GUEST, "mine", ".*")).toEqual([]);
+    await transaction((s) =>
+      s.plannedEventService.registrationAction(GUEST, invitation.id, {
+        action: "decline",
+        version: invitation.version,
+      }),
+    );
+    expect((await list(GUEST, "mine")).some((r) => r.id === invited.event.id)).toBe(false);
+    expect((await list(GUEST, "available")).some((r) => r.id === invited.event.id)).toBe(true);
+    expect(
+      (
+        await services().unifiedGroupService.list(GUEST, "mine", {
+          limit: 20,
+          query: "n",
+          roles: ["accepted"],
+        })
+      ).items.map((r) => r.id),
+    ).toEqual([privateClub.id]);
+    await transaction((s) =>
+      s.unifiedGroupService.ban(OWNER, publicClub.id, { userId: GUEST, until: null }),
+    );
+    for (const section of ["mine", "available"] as const)
+      expect((await list(GUEST, section)).some((r) => r.groupId === publicClub.id)).toBe(false);
+  });
+
+  it("fills sparse personal Table sections across source chunks without gaps, duplicate rows, admin seats or guessed agreement positions", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.tables = Array.from({ length: 6 }, (_, i) => ({
+      ...input.tables[0],
+      id: randomUUID(),
+      name: i === 1 ? "Seat .* alpha" : `Seat ${i}`,
+    }));
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    const ids = input.tables.map((r) => r.id!);
+    expect(
+      (await services().plannedEventService.personalTables(OWNER, { limit: 1 })).items,
+    ).toEqual([]);
+    for (const [i, id] of ids.entries()) {
+      await db
+        .collection(COLLECTIONS.EVENT_TABLES)
+        .updateOne(
+          { id },
+          { $set: { createdAt: new Date(Date.now() - 100000 + i * 1000).toISOString() } },
+        );
+      if (i < 3) await transaction((s) => s.plannedEventService.register(GUEST, event.id, id));
+    }
+    for (const user of [OWNER, OTHER, GUEST])
+      await transaction((s) => s.plannedEventService.register(user, event.id, ids[3]));
+    await transaction((s) => s.plannedEventService.register(OWNER, event.id, ids[4], GUEST));
+    const historical = await transaction((s) =>
+      s.plannedEventService.register(OWNER, event.id, ids[5], GUEST),
+    );
+    await db
+      .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+      .updateOne({ id: historical.id }, { $set: { kind: "SELF" } });
+    for (const [section, expected] of [
+      ["mine", ids.slice(0, 3)],
+      ["waiting", ids.slice(3)],
+    ] as const) {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await services().plannedEventService.personalTables(GUEST, {
+          limit: 1,
+          section,
+          cursor,
+        });
+        expect(page.items).toHaveLength(1);
+        seen.push(...page.items.map((r) => r.id));
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      expect(seen).toHaveLength(3);
+      expect(new Set(seen)).toEqual(new Set(expected));
+    }
+    expect(
+      (
+        await services().plannedEventService.personalTables(GUEST, { limit: 1, query: ".*" })
+      ).items.map((r) => r.id),
+    ).toEqual([ids[1]]);
+    expect(
+      (await services().plannedEventService.tables(OWNER, event.id, { limit: 20 })).items,
+    ).toHaveLength(6);
+    const waiting = await services().plannedEventService.personalTables(GUEST, {
+      limit: 20,
+      section: "waiting",
+    });
+    expect(waiting.items.find((r) => r.id === ids[3])).toMatchObject({
+      myPosition: "WAITING",
+      myRegistration: { status: "ACCEPTED" },
+    });
+    expect(waiting.items.find((r) => r.id === ids[4])).toMatchObject({
+      myRegistration: { kind: "INVITATION", status: "PENDING" },
+    });
+    expect(waiting.items.find((r) => r.id === ids[5])).toMatchObject({
+      myRegistration: { kind: "SELF", status: "PENDING" },
+    });
+    expect(
+      (await services().plannedEventService.personalTables(OTHER, { limit: 20 })).items.map(
+        (r) => r.id,
+      ),
+    ).toEqual([ids[3]]);
+  });
+
   async function voteYes(eventId: string, user: string, target = tableId) {
     await transaction((s) =>
       s.plannedEventService.vote(user, eventId, { kind: "date", optionId: dateId, vote: "YES" }),

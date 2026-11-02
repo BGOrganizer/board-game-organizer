@@ -47,6 +47,24 @@ it("debounces trimmed searches, clears undersized input, and restores canonical 
   unmount();
 });
 
+it("debounces one-character filtering independently of four-character discovery", () => {
+  vi.useFakeTimers();
+  const { result, rerender } = renderHook(({ min }) => useListSearch(available, min), {
+    initialProps: { min: 0 },
+  });
+  act(() => result.current.setQuery(" a "));
+  act(() => vi.advanceTimersByTime(299));
+  expect(result.current.search).toBe("");
+  act(() => vi.advanceTimersByTime(1));
+  expect(result.current.search).toBe("a");
+  rerender({ min: 4 });
+  act(() => vi.advanceTimersByTime(300));
+  expect(result.current.search).toBe("");
+  rerender({ min: 0 });
+  act(() => vi.advanceTimersByTime(300));
+  expect(result.current.search).toBe("a");
+});
+
 it("shares labeled search, help, conditional inline clear and compact selected icon filters", async () => {
   const change = vi.fn(),
     toggle = vi.fn();
@@ -87,4 +105,12 @@ it("shares labeled search, help, conditional inline clear and compact selected i
   expect(screen.queryByRole("button", { name: "Admin" })).toBeNull();
   view.rerender(<ListSearch {...props} query=" " />);
   expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
+  view.rerender(<ListSearch {...props} mode="filter" query="a" />);
+  expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Search things: Filter help" }));
+  expect(screen.getByText("Filter this list by name. No minimum length.")).toBeTruthy();
+  fireEvent.click(screen.getAllByRole("button", { name: "Dismiss" })[0]);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.click(screen.getByRole("button", { name: "Clear filter" }));
+  expect(change).toHaveBeenLastCalledWith("");
 });

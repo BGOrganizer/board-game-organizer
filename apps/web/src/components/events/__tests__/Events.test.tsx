@@ -96,15 +96,24 @@ it("keeps failure observable and retries without displaying an empty success sta
   expect(await screen.findByText("No events found")).not.toBeNull();
   expect(screen.queryByRole("link", { name: "Create event" })).toBeNull();
 });
-it("requires four search characters, then automatically queries after debounce", async () => {
+it("filters its own source list from one character after debounce, never a discovery search", async () => {
   const fetch = vi.fn(async (_url: string) => new Response('{"items":[],"nextCursor":null}'));
   vi.stubGlobal("fetch", fetch);
   render();
   await screen.findByText("No events found");
   const search = screen.getByRole("searchbox");
-  fireEvent.change(search, { target: { value: "abc" } });
+  fireEvent.change(search, { target: { value: "a" } });
   await new Promise((resolve) => setTimeout(resolve, 350));
-  expect(fetch.mock.calls.filter(([url]) => String(url).includes("/events?")).length).toBe(1);
+  expect(fetch.mock.calls.filter(([url]) => String(url).includes("/events?")).length).toBe(2);
+  expect(fetch.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "a")).toBe(
+    true,
+  );
+  expect(search.getAttribute("placeholder")).toBe("Filter events");
+  expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Filter: Filter help" }));
+  expect(await screen.findByText("Filter this list by name. No minimum length.")).toBeTruthy();
+  fireEvent.click(screen.getAllByRole("button", { name: "Dismiss" })[0]);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(fetch.mock.calls.filter(([url]) => String(url).includes("/groups?")).length).toBe(1);
   fireEvent.change(search, { target: { value: "friday" } });
   await waitFor(() =>

@@ -40,6 +40,7 @@ import {
   hasOtherAcceptedTable,
   hasPublicTableConflict,
   normalizeMatchScore,
+  personalTableSection,
   plannedTableInterval,
   projectReservedPlaces,
   publicBookingIsClosed,
@@ -279,12 +280,17 @@ export class EventRecordsService {
       nextTableOrder: _order,
       ...visible
     } = event;
+    const myDemonstrator = tables.some(
+      (table) =>
+        table.demonstratorUserId === userId &&
+        (event.status === "PLANNING" || Boolean(table.confirmed)),
+    );
     const role: PlannedEventResponse["role"] =
       event.adminUserId === userId
         ? "admin"
         : own.some((row) => row.status === "ACCEPTED")
           ? "participant"
-          : tables.some((table) => table.demonstratorUserId === userId)
+          : myDemonstrator
             ? "demonstrator"
             : own.some((row) => row.status === "PENDING")
               ? "invited"
@@ -308,6 +314,7 @@ export class EventRecordsService {
       groupType: group?.type ?? null,
       role,
       myRegistrations: positioned,
+      myDemonstrator,
       ...(detail
         ? {
             voteCounts,
@@ -951,15 +958,26 @@ export class EventRecordsService {
     };
   }
   async personalTables(userId: string, page: EventRecordPage) {
-    const rows = await this.events.personalTables(userId, page);
     const items: PlannedTableResponse[] = [];
-    for (const row of rows.slice(0, page.limit))
-      items.push(await this.tableDetail(userId, row.eventId, row.id));
-    const last = items.at(-1);
-    return {
-      items,
-      nextCursor: rows.length > page.limit && last ? `${last.createdAt}|${last.id}` : null,
-    };
+    let cursor = page.cursor;
+    // Agreement can move accepted players between seats and queue. Reuse the canonical projection
+    // in bounded source chunks, before emitting a page; never filter an already paginated UI page.
+    // ponytail: sparse sections can scan extra chunks; materialize agreement positions only if measured necessary.
+    while (true) {
+      const rows = await this.events.personalTables(userId, { ...page, cursor });
+      for (const row of rows.slice(0, page.limit)) {
+        const table = await this.tableDetail(userId, row.eventId, row.id);
+        if (personalTableSection(table, userId) !== (page.section ?? "mine")) continue;
+        items.push(table);
+        if (items.length > page.limit) {
+          const last = items[page.limit - 1];
+          return { items: items.slice(0, page.limit), nextCursor: `${last.createdAt}|${last.id}` };
+        }
+      }
+      if (rows.length <= page.limit) return { items, nextCursor: null };
+      const last = rows[page.limit - 1];
+      cursor = `${last.createdAt}|${last.id}`;
+    }
   }
   private async registrationTarget(
     event: EventRecord,

@@ -107,6 +107,7 @@ export function groupRecordsPageQuery(
           `groups?scope=${scope}${scope === "mine" ? `&roles=${selected.join(",")}` : ""}${type ? `&type=${encodeURIComponent(type)}` : ""}`,
           query,
           pageParam,
+          scope === "mine" ? 1 : 4,
         ),
         "GET",
         undefined,

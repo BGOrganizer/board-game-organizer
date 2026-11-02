@@ -98,6 +98,32 @@ it("shows three exclusive tabs, with typed member lists distinct from four-chara
   fireEvent.click(screen.getByRole("tab", { name: "Private groups" }));
   await screen.findByRole("link", { name: "Open group: Friday group" });
 });
+it.each(["private", "public"] as const)(
+  "filters owned %s groups from a single character without invoking public discovery",
+  async (section) => {
+    const fetcher = vi.fn(async (_url: string) => Response.json({ items: [], nextCursor: null }));
+    vi.stubGlobal("fetch", fetcher);
+    renderGroups(section);
+    await screen.findByText("No groups found");
+    const field = screen.getByRole("searchbox", { name: "Filter" });
+    expect(field.getAttribute("placeholder")).toBe("Filter groups");
+    fireEvent.change(field, { target: { value: "q" } });
+    await waitFor(() =>
+      expect(
+        fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "q"),
+      ).toBe(true),
+    );
+    for (const [url] of fetcher.mock.calls) {
+      const p = new URL(url).searchParams;
+      expect(p.get("scope")).toBe("mine");
+      expect(p.get("type")).toBe(section === "private" ? "PRIVATE" : "PUBLIC");
+    }
+    expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filter" }));
+    expect((field as HTMLInputElement).value).toBe("");
+  },
+);
+
 it("keeps public membership paging source-filtered by type and roles, without crossing into discovery", async () => {
   const cursor = `${publicGroup.createdAt}|${publicGroup.id}`;
   const fetcher = vi.fn(async (input: string) => {

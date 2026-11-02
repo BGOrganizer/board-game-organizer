@@ -32,10 +32,10 @@ it("hides excluded Tables from personal cache immediately but keeps the full Eve
     ...plannedTable,
     id: "included",
     eventStatus: "CONFIRMED" as const,
-    confirmed: { gameId: 1, playerIds: ["one", "two"], startsAt: "2030-06-03T18:00:00Z" },
+    confirmed: { gameId: 1, playerIds: ["owner", "two"], startsAt: "2030-06-03T18:00:00Z" },
   };
   const rows: PlannedTableResponse[] = [
-    plannedTable,
+    { ...plannedTable, myRegistration: seat("owner"), myPosition: "SEATED" },
     included,
     { ...plannedTable, id: "excluded-confirmed", eventStatus: "CONFIRMED" },
     { ...plannedTable, id: "excluded-terminated", eventStatus: "TERMINATED" },
@@ -64,6 +64,18 @@ it("canonicalizes equivalent first-page keys and scopes identities by API/user/r
   );
   expect(recordTablesQuery(o, eventId, { periods: ["past"] }).queryKey).toEqual(
     recordTablesQuery(o, eventId, { periods: ["future"] }).queryKey,
+  );
+  expect(eventRecordsQuery(o, { section: "available" }).queryKey).not.toEqual(
+    eventRecordsQuery(o).queryKey,
+  );
+  expect(recordTablesQuery(o, null, { section: "waiting" }).queryKey).not.toEqual(
+    recordTablesQuery(o, null).queryKey,
+  );
+  expect(eventRecordsQuery(o, { groupId: "group", section: "available" }).queryKey).toEqual(
+    eventRecordsQuery(o, { groupId: "group" }).queryKey,
+  );
+  expect(recordTablesQuery(o, eventId, { section: "waiting" }).queryKey).toEqual(
+    recordTablesQuery(o, eventId).queryKey,
   );
 });
 it("source-pages event lists with fresh credentials and abortable requests", async () => {

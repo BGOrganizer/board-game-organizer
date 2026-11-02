@@ -53,9 +53,10 @@ export async function communityRequest<T>(
   }
   return response.json();
 }
-export function communityPagePath(path: string, query: string, cursor: string) {
+/** Discovery keeps its minimum; scoped list filters explicitly opt into one character. */
+export function communityPagePath(path: string, query: string, cursor: string, minLength = 4) {
   const params = new URLSearchParams({ limit: "20" });
-  if (query.length >= 4) params.set("query", query);
+  if (query.length >= minLength) params.set("query", query);
   if (cursor) params.set("cursor", cursor);
   return `${path}${path.includes("?") ? "&" : "?"}${params}`;
 }

@@ -1,119 +1,44 @@
-import {
-  communityAccessDenied,
-  useEventRecords,
-  useGroupRecords,
-  useListSearch,
-} from "@board-game-organizer/shared";
-import { useRouter } from "expo-router";
-import { Button } from "heroui-native/button";
-import { useThemeColor } from "heroui-native/hooks";
-import { Skeleton } from "heroui-native/skeleton";
-import { Typography } from "heroui-native/text";
-import { CalendarDays, History, Plus } from "lucide-react-native";
-import { FlatList, View } from "react-native";
-import { FloatingActions } from "@/components/common/ui/FloatingActions";
-import { ListSearch } from "@/components/common/ui/ListSearch";
-import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import type { EventListSection } from "@board-game-organizer/schemas";
+import { Tabs } from "heroui-native/tabs";
+import { useState } from "react";
+import { View } from "react-native";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { useT } from "@/lib/i18n";
-import { useCommunityApi } from "@/lib/useCommunityApi";
-import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
-import { EventCard } from "./EventCard";
-export function Events({ groupId, canCreate = true }: { groupId?: string; canCreate?: boolean }) {
-  const t = useT(),
-    router = useRouter(),
-    o = useCommunityApi(),
-    layout = useFloatingActionLayout(),
-    accent = useThemeColor("accent-foreground"),
-    filters = useListSearch(["past", "future"] as const),
-    list = useEventRecords(o, { groupId, periods: filters.selected, query: filters.search });
-  // Warm the same source-filtered first page used by the creation picker; never scan all Groups.
-  useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
-    "admin",
-  ]);
+import { EventList } from "./EventList";
+
+export function Events({
+  groupId,
+  canCreate = true,
+  initialSection = "mine",
+}: {
+  groupId?: string;
+  canCreate?: boolean;
+  initialSection?: EventListSection;
+}) {
+  const t = useT();
+  const [section, setSection] = useState<EventListSection>(initialSection);
+  if (groupId) return <EventList groupId={groupId} canCreate={canCreate} />;
   return (
-    <NotificationAttentionScope
-      options={o}
-      targets={(communityAccessDenied(list.error) ? [] : list.items)
-        .filter((row) => !row.optimistic)
-        .map((row) => ({ kind: "event", id: row.id }))}
+    <Tabs
+      value={section}
+      onValueChange={(value) => {
+        if (value === "mine" || value === "available") setSection(value);
+      }}
+      style={{ flex: 1 }}
     >
-      <View style={{ flex: 1 }}>
-        <FlatList
-          style={{ flex: 1 }}
-          data={communityAccessDenied(list.error) ? [] : list.items}
-          keyExtractor={(row) => row.id}
-          contentContainerStyle={{
-            padding: 20,
-            gap: 12,
-            flexGrow: 1,
-            paddingBottom: layout.paddingBottom,
-          }}
-          ListHeaderComponent={
-            <ListSearch
-              query={filters.query}
-              onQueryChange={filters.setQuery}
-              label={t("Search events")}
-              placeholder={t("Search events")}
-              selected={filters.selected}
-              onToggle={filters.toggle}
-              options={[
-                { key: "past", label: t("Past"), icon: History },
-                { key: "future", label: t("Future"), icon: CalendarDays },
-              ]}
-            />
-          }
-          renderItem={({ item }) => (
-            <EventCard
-              event={item}
-              context={groupId ? "group" : "personal"}
-              checking={list.isFetching}
-              onVerify={() => void list.refetch({ cancelRefetch: false })}
-            />
-          )}
-          onEndReached={() => {
-            if (list.hasNextPage && !list.isFetchingNextPage && !list.isFetchNextPageError)
-              void list.fetchNextPage();
-          }}
-          ListEmptyComponent={
-            list.isPending ? (
-              <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
-            ) : !list.isError ? (
-              <Typography className="text-foreground">{t("No events found")}</Typography>
-            ) : null
-          }
-          ListFooterComponent={
-            <View style={{ gap: 12 }}>
-              {list.isError ? (
-                <>
-                  <Typography accessibilityRole="alert" className="text-danger">
-                    {t("Could not load events")}
-                  </Typography>
-                  <Button variant="outline" onPress={() => void list.refetch()}>
-                    <Button.Label>{t("Try again")}</Button.Label>
-                  </Button>
-                </>
-              ) : null}
-              {list.isFetchingNextPage ? (
-                <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
-              ) : list.hasNextPage ? (
-                <Button variant="outline" onPress={() => void list.fetchNextPage()}>
-                  <Button.Label>{t("Load more")}</Button.Label>
-                </Button>
-              ) : null}
-            </View>
-          }
-        />
-        {canCreate ? (
-          <FloatingActions
-            label={t("Create event")}
-            onPress={() =>
-              router.push({ pathname: "/event/wizard", params: groupId ? { groupId } : {} })
-            }
-          >
-            <Plus size={24} color={accent} />
-          </FloatingActions>
-        ) : null}
+      <View style={{ alignSelf: "center", marginTop: 16, maxWidth: "100%" }}>
+        <TabBar>
+          <Tabs.Trigger value="mine">
+            <Tabs.Label numberOfLines={1}>{t("My events")}</Tabs.Label>
+          </Tabs.Trigger>
+          <Tabs.Trigger value="available">
+            <Tabs.Label numberOfLines={1}>{t("Available events")}</Tabs.Label>
+          </Tabs.Trigger>
+        </TabBar>
       </View>
-    </NotificationAttentionScope>
+      <View style={{ flex: 1 }}>
+        <EventList key={section} section={section} canCreate={canCreate} />
+      </View>
+    </Tabs>
   );
 }

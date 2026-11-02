@@ -1,11 +1,13 @@
 import type {
   CreatePlannedEventInput,
   EditPlannedEventInput,
+  EventListSection,
   GroupRecordResponse,
   PlannedEventResponse,
 } from "@board-game-organizer/schemas";
 import { type ClientRecord, type CreationIntent, creationState } from "../common/clientMutation";
 import { eventLocalDateTime } from "./eventForm";
+import { personalEventSection } from "./eventList";
 import type { EventRecordDraft } from "./eventRecordForm";
 
 export type CreateEventVariables = CreatePlannedEventInput & {
@@ -63,10 +65,21 @@ export function eventCreationRecord(
 /** Match unified source paging: unchosen non-public dates belong to both periods. */
 export function eventCreationMatches(
   row: PlannedEventResponse,
-  filters: { groupId?: string; query?: string; periods?: readonly ("past" | "future")[] },
+  filters: {
+    groupId?: string;
+    query?: string;
+    periods?: readonly ("past" | "future")[];
+    section?: EventListSection;
+  },
   now = Date.now(),
 ) {
   if (filters.groupId && filters.groupId !== row.groupId) return false;
+  if (
+    !filters.groupId &&
+    filters.section &&
+    personalEventSection(row, row.adminUserId) !== filters.section
+  )
+    return false;
   if (filters.query && !row.name.toLowerCase().includes(filters.query.trim().toLowerCase()))
     return false;
   const periods = filters.periods;

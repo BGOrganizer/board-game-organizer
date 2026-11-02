@@ -33,7 +33,7 @@ export function GroupList({
     layout = useFloatingActionLayout(),
     muted = useThemeColor("muted"),
     accentForeground = useThemeColor("accent-foreground");
-  const filters = useListSearch(groupRecordMemberRoles),
+  const filters = useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4),
     list = useGroupRecords(options, scope, filters.search, filters.selected, type);
   const searchable = scope !== "public" || Boolean(filters.search);
   return (
@@ -61,8 +61,9 @@ export function GroupList({
               <ListSearch
                 query={filters.query}
                 onQueryChange={filters.setQuery}
-                label={t("Search groups")}
-                placeholder={t("Search groups")}
+                label={scope === "mine" ? t("Filter") : t("Search groups")}
+                placeholder={scope === "mine" ? t("Filter groups") : t("Search groups")}
+                mode={scope === "mine" ? "filter" : "search"}
                 selected={filters.selected}
                 onToggle={filters.toggle}
                 options={

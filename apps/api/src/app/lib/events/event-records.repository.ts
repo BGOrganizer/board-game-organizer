@@ -15,6 +15,7 @@ export interface EventRecordPage {
   cursor?: string;
   query?: string;
   periods?: readonly ("past" | "future")[];
+  section?: "mine" | "available" | "waiting";
 }
 export class EventRecordsRepository {
   private events;
@@ -474,7 +475,20 @@ export class EventRecordsRepository {
             from: COLLECTIONS.TABLE_REGISTRATIONS,
             localField: "id",
             foreignField: "eventId",
-            pipeline: [{ $match: { userId, status: "ACCEPTED" } }, { $limit: 1 }],
+            pipeline: [
+              { $match: { userId, status: { $in: ["PENDING", "ACCEPTED"] } } },
+              {
+                $lookup: {
+                  from: COLLECTIONS.EVENT_TABLES,
+                  localField: "tableId",
+                  foreignField: "id",
+                  pipeline: [{ $match: { removedAt: { $exists: false } } }],
+                  as: "activeTable",
+                },
+              },
+              { $match: { "activeTable.0": { $exists: true } } },
+              { $limit: 1 },
+            ],
             as: "myRegistration",
           },
         },
@@ -483,21 +497,39 @@ export class EventRecordsRepository {
             from: COLLECTIONS.EVENT_TABLES,
             localField: "id",
             foreignField: "eventId",
+            let: { eventStatus: "$status" },
             pipeline: [
-              { $match: { demonstratorUserId: userId, removedAt: { $exists: false } } },
+              {
+                $match: {
+                  demonstratorUserId: userId,
+                  removedAt: { $exists: false },
+                  $expr: {
+                    $or: [
+                      { $eq: ["$$eventStatus", "PLANNING"] },
+                      { $ne: [{ $ifNull: ["$confirmed", null] }, null] },
+                    ],
+                  },
+                },
+              },
               { $limit: 1 },
             ],
             as: "myDemonstration",
           },
         },
         {
-          $match: {
-            $or: [
-              { adminUserId: userId },
-              { "myRegistration.0": { $exists: true } },
-              { "myDemonstration.0": { $exists: true } },
-            ],
-          },
+          $match:
+            page.section === "available"
+              ? {
+                  "myRegistration.0": { $exists: false },
+                  "myDemonstration.0": { $exists: false },
+                  $or: [{ groupId: { $ne: null } }, { adminUserId: userId }],
+                }
+              : {
+                  $or: [
+                    { "myRegistration.0": { $exists: true } },
+                    { "myDemonstration.0": { $exists: true } },
+                  ],
+                },
         },
       );
     }
@@ -558,24 +590,22 @@ export class EventRecordsRepository {
         },
       },
       {
-        $match: {
-          $or: [
-            { ownRows: { $elemMatch: { status: { $in: ["PENDING", "ACCEPTED"] } } } },
-            {
-              $and: [
-                { "event.status": "CONFIRMED" },
-                { confirmed: { $exists: true } },
-                {
-                  $or: [
-                    { "event.adminUserId": userId },
-                    { "confirmed.playerIds": userId },
-                    { demonstratorUserId: userId },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
+        // Prune known nonmembers of this section before the candidate page. Accepted queue/seat
+        // distinctions still use the shared exact agreement projection in the service.
+        $match:
+          page.section === "waiting"
+            ? {
+                "ownRows.0": { $exists: true },
+                demonstratorUserId: { $ne: userId },
+                $nor: [{ "event.status": { $ne: "PLANNING" }, "confirmed.playerIds": userId }],
+              }
+            : {
+                $or: [
+                  { ownRows: { $elemMatch: { status: "ACCEPTED" } } },
+                  { demonstratorUserId: userId },
+                  { "event.status": { $ne: "PLANNING" }, "confirmed.playerIds": userId },
+                ],
+              },
       },
       { $set: { originalTable: "$$ROOT", groupId: "$event.groupId" } },
       ...this.visibleGroups(userId, new Date().toISOString()),

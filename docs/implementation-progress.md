@@ -1,5 +1,44 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Personal list sections and scoped name filtering
+
+- Implemented the [main-list contract](groups-events-refactor.md#events-and-tables) on both clients:
+  My events / Available and My tables / Pending. Accepted Group access remains mandatory even for
+  public Groups; pending Group invitations/requests never expose Events. Admin-only standalone
+  Events remain manageable in Available, while admin-only Tables never enter either personal section.
+  Complete own demonstrator metadata handles administrators who also demonstrate, without new
+  persisted state, Event membership or authorization grants.
+- Event membership/duty partitioning and escaped name/period filters precede source cursors/limits.
+  Table candidate queries remove known incompatible roles first; exact shared agreement/reservation/
+  frozen-roster projections classify the remaining seat/queue candidates in bounded source chunks
+  before emitting a response page. No client-only filtering of an already paginated API response,
+  approximation of agreement, invented seats or full-list client scans were introduced. Sparse
+  sections can require extra chunks; materialization remains deferred until measured necessary.
+- Query factories distinguish main sections but reuse contextual Event/Group keys. Canonical own
+  registration positions reconcile Table caches after acknowledgment, and provisional standalone
+  creation/verification uses Available; grouped creation remains in its Group. Fresh tokens, aborts,
+  optimistic intent ownership, uncertain-write verification and selective rollback remain unchanged.
+- Owned Group tabs and Event/Table lists retain clear controls, help, chips and Table count legend,
+  but use Filter / Filtra with 300 ms debounce and no minimum length. Only these scoped calls opt
+  into one-character transport filtering; public Group discovery and other shared-helper callers
+  retain four characters. A real-request regression caught the shared path helper dropping short
+  Group filters; fixed centrally rather than patching each client. Existing search help stays intact.
+- Added 13 EN/IT messages, validated against extraction while retaining manual native entries and all
+  1,272 earlier compiled key/value pairs. HeroUI default palettes are unchanged. Actual Chromium
+  caught an Italian Pending tab label wrapping; new tab labels explicitly stay on one line.
+- Checks: 2,308 covered units (shared 405, schemas 123, API 764, mobile 297, web 719) and full real
+  replica-set integration 106/106 pass. Deterministic classification, registration/creation cache
+  logic and shared transport retain per-file 100% gates. Integration covers membership/pending/
+  exclusions, admin-plus-demo, standalone administration, literal short filters, exact source cursors
+  and sparse seat/waiting pages. New public fixtures initially lacked reserved names and violated
+  the location-derived local-day end constraint; fixtures were corrected, not schemas or gates.
+- API/web builds and Android export pass with generated references restored exactly and seven
+  protected inputs unchanged. Isolated actual-component/production-CSS browser checks cover 390/1280,
+  light/dark, EN/IT, keyboard tabs, filter/clear/help, preserved chips/legend, separate public Group
+  discovery, contextual Group Events, no overflow and zero presentation writes. These are not
+  authenticated Playwright or native/device acceptance. Those remain unverified; retained E2E
+  suites/jobs and installed APK testing are unchanged. No provider, dependency, database or CI change.
+
 ## Static unread dots and independent pending decisions
 
 - Replaced card/contact accent borders and precise-item pulse overlays with static semantic accent

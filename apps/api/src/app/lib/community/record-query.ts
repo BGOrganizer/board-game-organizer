@@ -1,6 +1,8 @@
 import {
+  eventListSections,
   groupRecordListRoles,
   groupTypeSchema,
+  tableListSections,
   targetUserIdSchema,
 } from "@board-game-organizer/schemas";
 import { z } from "zod";
@@ -26,8 +28,10 @@ export const recordPageQuery = z
   })
   .strict();
 export const groupInviteesQuery = recordPageQuery.extend({ cursor: targetUserIdSchema.optional() });
+const filterQuery = z.string().trim().min(1).max(120).optional();
 export const groupListQuery = recordPageQuery
   .extend({
+    query: filterQuery,
     scope: z.enum(["mine", "public", "moderation"]).default("mine"),
     type: groupTypeSchema.optional(),
     roles: z
@@ -40,7 +44,8 @@ export const groupListQuery = recordPageQuery
   .refine(
     (value) =>
       (value.scope === "mine" || (value.roles === undefined && value.type === undefined)) &&
-      (value.scope !== "public" || Boolean(value.query)),
+      (value.scope !== "public" || Boolean(value.query)) &&
+      (value.scope === "mine" || value.query === undefined || value.query.length >= 4),
   );
 export const groupPeopleQuery = recordPageQuery
   .extend({
@@ -48,8 +53,8 @@ export const groupPeopleQuery = recordPageQuery
     cursor: z.union([cursor, z.literal("owner")]).optional(),
   })
   .refine((value) => value.cursor !== "owner" || value.mode === "accepted");
-export const eventListQuery = recordPageQuery.extend({
-  groupId: id.optional(),
+const eventFilterPageQuery = recordPageQuery.extend({
+  query: filterQuery,
   periods: z
     .string()
     .max(40)
@@ -58,6 +63,15 @@ export const eventListQuery = recordPageQuery.extend({
       (["past", "future"] as const).filter((period) => value.split(",").includes(period)),
     )
     .optional(),
+});
+export const eventListQuery = eventFilterPageQuery
+  .extend({
+    groupId: id.optional(),
+    section: z.enum(eventListSections).optional(),
+  })
+  .refine((value) => !value.groupId || value.section === undefined);
+export const personalTablesQuery = eventFilterPageQuery.extend({
+  section: z.enum(tableListSections).optional(),
 });
 export const eventTablesQuery = recordPageQuery.extend({
   cursor: z

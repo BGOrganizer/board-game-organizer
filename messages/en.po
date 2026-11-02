@@ -5355,3 +5355,42 @@ msgstr "Open Members to approve or reject membership requests."
 
 msgid "Open details to accept or decline your invitation."
 msgstr "Open details to accept or decline your invitation."
+
+msgid "My events"
+msgstr "My events"
+
+msgid "Available events"
+msgstr "Available"
+
+msgid "My tables"
+msgstr "My tables"
+
+msgid "Pending tables"
+msgstr "Pending"
+
+msgid "Events navigation"
+msgstr "Events navigation"
+
+msgid "Tables navigation"
+msgstr "Tables navigation"
+
+msgid "Filter"
+msgstr "Filter"
+
+msgid "Filter events"
+msgstr "Filter events"
+
+msgid "Filter tables"
+msgstr "Filter tables"
+
+msgid "Filter groups"
+msgstr "Filter groups"
+
+msgid "Filter this list by name. No minimum length."
+msgstr "Filter this list by name. No minimum length."
+
+msgid "Clear filter"
+msgstr "Clear filter"
+
+msgid "Filter help"
+msgstr "Filter help"

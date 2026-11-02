@@ -81,7 +81,7 @@ it("deletion cancels held/queued children and their provisional rows, without lo
     () => ({
       events: useEventRecordActions(options, ""),
       groups: useGroupRecordActions(options, groupRecord.id),
-      list: useEventRecords(options),
+      list: useEventRecords(options, { section: "available" }),
     }),
     { wrapper },
   );
@@ -138,7 +138,7 @@ it.each([403, 404])(
       ({ readParent }) => ({
         events: useEventRecordActions(options, ""),
         parent: useGroupRecord({ ...options, enabled: readParent }, groupRecord.id),
-        list: useEventRecords({ ...options, enabled: false }),
+        list: useEventRecords({ ...options, enabled: false }, { section: "available" }),
       }),
       { wrapper, initialProps: { readParent: false } },
     );
@@ -185,7 +185,7 @@ it.each([200, 403, 404, 503])(
     const hook = renderHook(
       () => ({
         events: useEventRecordActions(options, ""),
-        list: useEventRecords({ ...options, enabled: false }),
+        list: useEventRecords({ ...options, enabled: false }, { section: "available" }),
       }),
       { wrapper },
     );
@@ -225,7 +225,7 @@ it.each([403, 404, 200])(
     const hook = renderHook(
       () => ({
         events: useEventRecordActions(options, ""),
-        list: useEventRecords({ ...options, enabled: false }),
+        list: useEventRecords({ ...options, enabled: false }, { section: "available" }),
       }),
       { wrapper },
     );

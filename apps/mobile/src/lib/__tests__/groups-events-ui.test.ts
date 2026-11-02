@@ -11,7 +11,9 @@ it("owns three top Group tabs, limits owned lists to member roles, and confines 
   expect(tabs).toContain('value="public"');
   expect(tabs.indexOf('value="private"')).toBeLessThan(tabs.indexOf('value="public"'));
   expect(tabs.indexOf('value="public"')).toBeLessThan(tabs.indexOf('value="search"'));
-  expect(source("groups", "GroupList")).toContain("useListSearch(groupRecordMemberRoles)");
+  expect(source("groups", "GroupList")).toContain(
+    'useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4)',
+  );
   expect(source("groups", "GroupList")).toContain('key: "invited"');
   expect(tabs).toContain('value="search"');
   expect(tabs).toContain('section === "search" ? "public" : "mine"');
@@ -24,7 +26,8 @@ it("uses first-step header back, compact reachable counters, row game selection 
   expect(wizard).toContain("step > 0 ? (");
   expect(wizard).toContain("...headerBackOptions(() => router.back())");
   expect(wizard).toContain("<CalendarPlus");
-  expect(wizard).toContain('router.dismissTo("/(tabs)/events")');
+  expect(wizard).toContain('params: { section: "available" }');
+  expect(wizard).toContain('pathname: "/(tabs)/events"');
   expect(source("groups", "GroupWizard")).toContain('"/(tabs)/groups"');
   const editor = source("events", "EventDraftTableEditor");
   expect(editor).not.toContain('t("Add game")');
@@ -99,14 +102,14 @@ it("places Table Settings help before the identity card and keeps limits inside 
 });
 it("shares one Table card across personal/Event lists with only the parent metadata row varying", () => {
   const card = source("events", "EventTableCard");
-  expect(source("events", "Tables")).toContain('context="personal"');
+  expect(source("events", "TableList")).toContain('context="personal"');
   expect(source("events", "EventDetail")).toContain('context="event"');
   expect(card).toContain('context === "personal"');
   expect(card).toContain('variant="planets"');
   expect(card).toContain("leadingActions=");
   expect(card).not.toContain("<IconLegend");
   expect(source("events", "TableListHeading")).toContain("<IconLegend");
-  expect(source("events", "Tables")).toContain("<TableListHeading");
+  expect(source("events", "TableList")).toContain("<TableListHeading");
   expect(source("events", "EventDetail")).toContain("<TableListHeading");
   expect(card).toContain("horizontal");
   for (const field of [

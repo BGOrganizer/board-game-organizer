@@ -6,7 +6,13 @@
 Web and native mobile clients for board-game contacts, collections, groups, events and tables,
 backed by a shared TypeScript API. Main navigation is Tables / Events / Groups / Contacts.
 Groups has Private / Public / Search tabs; Private/Public show administered, joined and pending
-invited Groups of that type, while Search retains public discovery.
+invited Groups of that type, while Search retains public discovery. Events has My events / Available:
+registrations/invitations/requests or demonstrations belong to My events; other accessible member-Group
+Events and own admin-only standalone Events belong to Available. Public non-members and pending Group
+memberships never grant Event access. Tables has My tables / Pending: seats/demonstrations versus
+invitations, requests and accepted queue places, never administration alone. These lists and Group's
+Events filter their own authorized scope by name with no minimum length; Group Search remains discovery
+with its four-character minimum.
 
 ## Current functionality
 

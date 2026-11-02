@@ -1,5 +1,81 @@
+import type {
+  PlannedEventResponse,
+  PlannedTableResponse,
+  TableRegistration,
+} from "@board-game-organizer/schemas";
 import { expect, it } from "vitest";
-import { eventMatchesFilters, isPersonalEventTableVisible } from "../eventList";
+import {
+  eventMatchesFilters,
+  isPersonalEventTableVisible,
+  personalEventSection,
+  personalTableSection,
+} from "../eventList";
+
+it("partitions Events by real own participation, never administration or another user's registration", () => {
+  const event = {
+    groupId: null,
+    adminUserId: "owner",
+    role: "admin",
+    myRegistrations: [],
+  } as unknown as PlannedEventResponse;
+  expect(personalEventSection(event, "owner")).toBe("available");
+  expect(personalEventSection(event, "other")).toBeNull();
+  expect(personalEventSection({ ...event, groupId: "group" }, "other")).toBe("available");
+  expect(personalEventSection({ ...event, myDemonstrator: true }, "owner")).toBe("mine");
+  expect(personalEventSection({ ...event, role: "demonstrator" }, "other")).toBe("mine");
+  for (const status of ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED"] as const) {
+    const own = { userId: "owner", status } as TableRegistration;
+    expect(personalEventSection({ ...event, myRegistrations: [own] }, "owner")).toBe(
+      status === "PENDING" || status === "ACCEPTED" ? "mine" : "available",
+    );
+    expect(personalEventSection({ ...event, myRegistrations: [own] }, "other")).toBeNull();
+  }
+});
+
+it("splits seated/frozen/demonstrator Tables from invitations, requests and queue; unknown/foreign/admin-only are absent", () => {
+  const table = {
+    eventStatus: "PLANNING",
+    myRegistration: null,
+    myPosition: null,
+  } as PlannedTableResponse;
+  expect(personalTableSection(table, "owner")).toBeNull();
+  expect(personalTableSection({ ...table, demonstratorUserId: "owner" }, "owner")).toBe("mine");
+  const confirmed = { gameId: 1, playerIds: ["owner"], startsAt: "2030-01-01T00:00:00Z" };
+  for (const eventStatus of ["CONFIRMED", "TERMINATED"] as const) {
+    expect(personalTableSection({ ...table, eventStatus }, "owner")).toBeNull();
+    expect(personalTableSection({ ...table, eventStatus, confirmed }, "owner")).toBe("mine");
+    expect(personalTableSection({ ...table, eventStatus, confirmed }, "other")).toBeNull();
+  }
+  expect(personalTableSection({ ...table, confirmed }, "owner")).toBeNull();
+  for (const kind of ["INVITATION", "SELF"] as const) {
+    const own = { userId: "owner", kind, status: "PENDING" } as TableRegistration;
+    expect(
+      personalTableSection({ ...table, myRegistration: own, myPosition: "SEATED" }, "owner"),
+    ).toBe("waiting");
+    expect(personalTableSection({ ...table, myRegistration: own }, "other")).toBeNull();
+    expect(
+      personalTableSection({ ...table, myRegistration: own, demonstratorUserId: "owner" }, "owner"),
+    ).toBe("mine");
+    for (const status of ["ACCEPTED", "DECLINED", "CANCELLED"] as const) {
+      for (const myPosition of [undefined, null, "SEATED", "WAITING", "FROZEN"] as const) {
+        const row = {
+          ...table,
+          myRegistration: { ...own, status },
+          myPosition,
+        } as PlannedTableResponse;
+        expect(personalTableSection(row, "owner")).toBe(
+          status !== "ACCEPTED"
+            ? null
+            : myPosition === "WAITING"
+              ? "waiting"
+              : myPosition === "SEATED" || myPosition === "FROZEN"
+                ? "mine"
+                : null,
+        );
+      }
+    }
+  }
+});
 
 it("hides excluded confirmed/terminated Tables but retains planning Tables and frozen outcomes", () => {
   for (const eventStatus of ["PLANNING", "CONFIRMED", "TERMINATED"] as const) {

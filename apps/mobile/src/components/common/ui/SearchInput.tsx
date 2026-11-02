@@ -7,6 +7,7 @@ export function SearchInput({
   onChange,
   label,
   placeholder,
+  clearLabel,
   testID,
   maxLength,
   inputStyle,
@@ -19,6 +20,7 @@ export function SearchInput({
   onChange: (value: string) => void;
   label: string;
   placeholder: string;
+  clearLabel?: string;
   testID?: string;
   maxLength?: number;
   inputStyle?: ComponentProps<typeof SearchField.Input>["style"];
@@ -43,7 +45,10 @@ export function SearchInput({
           onFocus={onFocus}
           onBlur={onBlur}
         />
-        <SearchField.ClearButton accessibilityLabel={t("Clear search")} style={clearButtonStyle} />
+        <SearchField.ClearButton
+          accessibilityLabel={clearLabel ?? t("Clear search")}
+          style={clearButtonStyle}
+        />
         {children}
       </SearchField.Group>
     </SearchField>

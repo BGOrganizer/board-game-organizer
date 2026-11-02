@@ -9,6 +9,7 @@ export function SearchInput({
   onChange,
   label,
   placeholder,
+  clearLabel,
   name,
   inputProps,
   children,
@@ -17,6 +18,7 @@ export function SearchInput({
   onChange: (value: string) => void;
   label: ReactNode;
   placeholder: string;
+  clearLabel?: string;
   name?: string;
   inputProps?: Omit<
     ComponentProps<typeof SearchField.Input>,
@@ -31,7 +33,7 @@ export function SearchInput({
       <SearchField.Group>
         <SearchField.SearchIcon />
         <SearchField.Input {...inputProps} placeholder={placeholder} />
-        {value ? <SearchField.ClearButton aria-label={t`Clear search`} /> : null}
+        {value ? <SearchField.ClearButton aria-label={clearLabel ?? t`Clear search`} /> : null}
         {/* Independent HeroUI button actions must set slot={null}, not inherit search clear. */}
         {children}
       </SearchField.Group>

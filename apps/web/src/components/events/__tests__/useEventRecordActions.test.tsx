@@ -152,7 +152,7 @@ it.each([
     const rows = action === "invite" ? [invitation] : [];
     const pendingKey = [...eventRecordKeys.root(options), "seats", eventId, tableId, true, ""];
     client.setQueryData(eventRecordKeys.table(options, eventId, tableId), before);
-    client.setQueryData(eventRecordKeys.tables(options, null), {
+    client.setQueryData(eventRecordKeys.tables(options, eventId), {
       pages: [{ items: [before], nextCursor: null }],
       pageParams: [""],
     });
@@ -184,7 +184,7 @@ it.each([
             releaseRoster = resolve;
           });
         }
-        return url.includes("/api/tables?")
+        return url.includes(`/events/${eventId}/tables?`)
           ? Response.json({ items: [saved], nextCursor: null })
           : Response.json(saved);
       }),
@@ -195,7 +195,7 @@ it.each([
         return {
           actions: useEventRecordActions(options, eventId),
           table,
-          cards: useRecordTables(options, null),
+          cards: useRecordTables(options, eventId),
           roster: useEventTableRoster(options, table.data ?? before),
         };
       },
@@ -247,7 +247,8 @@ it.each([
 );
 it("stages registration feedback before POST and reconciles metadata in background without blocking another Event", async () => {
   const { client, options, wrapper } = setup();
-  const registration = { ...seat("owner"), gameVotes: { "1": "YES" as const } };
+  const { position: _position, ...raw } = seat("owner");
+  const registration = { ...raw, gameVotes: { "1": "YES" as const } };
   let release!: (response: Response) => void;
   let releaseWrite!: (response: Response) => void;
   vi.stubGlobal(

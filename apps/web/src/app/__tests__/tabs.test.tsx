@@ -10,7 +10,9 @@ vi.mock("@/components/groups/GroupDetail", () => ({
   GroupDetail: ({ groupId }: { groupId: string }) => <p>{groupId}</p>,
 }));
 vi.mock("@/components/events/Tables", () => ({ Tables: () => <p>tables</p> }));
-vi.mock("@/components/events/Events", () => ({ Events: () => <p>events</p> }));
+vi.mock("@/components/events/Events", () => ({
+  Events: ({ initialSection }: { initialSection?: string }) => <p>events:{initialSection}</p>,
+}));
 vi.mock("@/components/events/EventDetail", () => ({
   EventDetail: ({ eventId }: { eventId: string }) => <p>{eventId}</p>,
 }));
@@ -29,18 +31,27 @@ import OldMatches from "../(tabs)/matches/page";
 import OldOrganizations from "../(tabs)/organizations/page";
 import Tables from "../(tabs)/tables/page";
 
-it("owns four client section entrypoints and public search", () => {
+it("owns four client section entrypoints and public search", async () => {
   render(
     <>
       <Groups />
       <Search />
       <Tables />
-      <Events />
+      {await Events({ searchParams: Promise.resolve({}) })}
     </>,
   );
-  for (const value of ["groups:mine", "groups:public", "tables", "events"])
+  for (const value of ["groups:mine", "groups:public", "tables", "events:mine"])
     expect(screen.getByText(value)).not.toBeNull();
 });
+it.each(["available", "unknown"])(
+  "main Event navigation validates the presentation-only section %s",
+  async (section) => {
+    render(await Events({ searchParams: Promise.resolve({ section }) }));
+    expect(
+      screen.getByText(`events:${section === "available" ? "available" : "mine"}`),
+    ).toBeTruthy();
+  },
+);
 it("awaits framework params for unified detail routes", async () => {
   render(
     <>

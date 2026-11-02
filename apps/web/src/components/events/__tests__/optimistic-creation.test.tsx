@@ -58,7 +58,7 @@ vi.mock("@/components/games/SearchGamePage", () => ({
   ),
 }));
 const clients: QueryClient[] = [];
-const filters = { periods: ["future"] as const };
+const filters = { periods: ["future"] as const, section: "available" as const };
 const realId = "66666666-6666-4666-8666-666666666666";
 function PreviewList() {
   const list = useEventRecords(m.options, filters);
@@ -165,7 +165,7 @@ it("leaves the actual wizard, toasts and paints a draft before POST; a GET-befor
   review(wizard, "Nonblocking event");
   expect(fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
   fireEvent.click(wizard.getByRole("button", { name: "Create event" }));
-  expect(m.replace).toHaveBeenCalledWith("/events");
+  expect(m.replace).toHaveBeenCalledWith("/events?section=available");
   await waitFor(() => expect(releasePost).toBeDefined());
   expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledWith("create_event");
   expect(options.feedback.onSuccess).not.toHaveBeenCalled();
@@ -230,7 +230,7 @@ it("retains a rejected raw draft after immediate navigation, restores all editor
   const wizard = renderWizard();
   review(wizard, "Recoverable event");
   fireEvent.click(wizard.getByRole("button", { name: "Create event" }));
-  expect(m.replace).toHaveBeenCalledWith("/events");
+  expect(m.replace).toHaveBeenCalledWith("/events?section=available");
   await waitFor(() => expect(posts).toHaveLength(1));
   await list.findByRole("link", { name: "Saving: Recoverable event" });
   await act(async () =>
@@ -356,7 +356,7 @@ it("keeps an unknown creation read-only, never retries the write and verifies a 
   const wizard = renderWizard();
   review(wizard, "Unverified event");
   fireEvent.click(wizard.getByRole("button", { name: "Create event" }));
-  expect(m.replace).toHaveBeenCalledWith("/events");
+  expect(m.replace).toHaveBeenCalledWith("/events?section=available");
   await waitFor(() => expect(release).toBeDefined());
   await act(async () => release(Response.json({ error: "UPSTREAM_UNAVAILABLE" }, { status: 503 })));
   const check = await list.findByRole("button", { name: "Check saved changes" });

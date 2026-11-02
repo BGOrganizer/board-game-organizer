@@ -164,6 +164,10 @@ describe("fresh scoped community requests", () => {
   });
   it("encodes query/cursor and ignores undersized searches", () => {
     expect(communityPagePath("organizations", "abc", "")).toBe("organizations?limit=20");
+    expect(communityPagePath("groups?scope=mine", "q", "", 1)).toBe(
+      "groups?scope=mine&limit=20&query=q",
+    );
+    expect(communityPagePath("groups?scope=mine", "", "", 1)).toBe("groups?scope=mine&limit=20");
     expect(communityPagePath("organizations?scope=public", "club", "a|b")).toBe(
       "organizations?scope=public&limit=20&query=club&cursor=a%7Cb",
     );

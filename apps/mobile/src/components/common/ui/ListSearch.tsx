@@ -11,6 +11,7 @@ export function ListSearch<Filter extends string>({
   onQueryChange,
   label,
   placeholder,
+  mode = "search",
   options,
   selected,
   onToggle,
@@ -19,6 +20,7 @@ export function ListSearch<Filter extends string>({
   onQueryChange: (value: string) => void;
   label: string;
   placeholder: string;
+  mode?: "search" | "filter";
   options: readonly { key: Filter; label: string; icon: LucideIcon }[];
   selected: readonly Filter[];
   onToggle: (key: Filter) => void;
@@ -26,17 +28,26 @@ export function ListSearch<Filter extends string>({
   const t = useT();
   return (
     <View style={{ gap: 12, marginBottom: 8 }}>
-      <SearchHelpLabel label={label} help={t("Type at least 4 characters to search")} />
+      <SearchHelpLabel
+        label={label}
+        helpTitle={mode === "filter" ? t("Filter help") : undefined}
+        help={
+          mode === "filter"
+            ? t("Filter this list by name. No minimum length.")
+            : t("Type at least 4 characters to search")
+        }
+      />
       <SearchInput
         value={query}
         onChange={onQueryChange}
         label={label}
         placeholder={placeholder}
+        clearLabel={mode === "filter" ? t("Clear filter") : undefined}
         testID="list-search-input"
         maxLength={120}
       />
       <FilterChips options={options} selected={selected} onToggle={onToggle} />
-      {query.trim().length > 0 && query.trim().length < 4 ? (
+      {mode === "search" && query.trim().length > 0 && query.trim().length < 4 ? (
         <Typography className="text-sm text-muted">
           {t("Enter at least 4 characters to search")}
         </Typography>

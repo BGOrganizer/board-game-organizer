@@ -1,9 +1,13 @@
-import type { PlannedTableResponse, TableRegistration } from "@board-game-organizer/schemas";
+import type {
+  PlannedTableResponse,
+  TableRegistration,
+  TableSeatPosition,
+} from "@board-game-organizer/schemas";
 
 /** Reconcile acknowledged participation, never an inferred seat or permission grant. */
 export function acknowledgeTableRegistration(
   table: PlannedTableResponse,
-  registration: TableRegistration,
+  registration: TableRegistration & { position?: TableSeatPosition },
   userId: string | null | undefined,
 ): PlannedTableResponse {
   if (
@@ -32,6 +36,7 @@ export function acknowledgeTableRegistration(
   return {
     ...table,
     myRegistration: { ...before, ...registration },
+    ...(registration.position !== undefined ? { myPosition: registration.position } : {}),
     canRegister: false,
     canRespond: registration.status === "PENDING" ? table.canRespond : false,
     ...(registration.status === "CANCELLED" || registration.status === "DECLINED"

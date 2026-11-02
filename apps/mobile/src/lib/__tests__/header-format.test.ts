@@ -40,7 +40,7 @@ it("keeps the centered indicator outside card navigation and one Table legend pe
   expect(card).toContain("width: 64");
   expect(card).toContain('alignItems: "center"');
   expect(source("events/EventTableCard")).not.toContain("<HelpPopover");
-  for (const path of ["events/Tables", "events/EventDetail"])
+  for (const path of ["events/TableList", "events/EventDetail"])
     expect(source(path)).toContain("<TableListHeading");
   expect(source("events/TableListHeading")).toContain('t("Table list")');
   expect(source("events/TableListHeading")).toContain('t("Table legend")');

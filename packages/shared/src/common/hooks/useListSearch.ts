@@ -3,14 +3,17 @@
 import { useEffect, useState } from "react";
 
 /** Local search/filter state only; remote rows remain owned by Query. */
-export function useListSearch<Filter extends string>(available: readonly Filter[]) {
+export function useListSearch<Filter extends string>(available: readonly Filter[], minLength = 4) {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Filter[]>(() => [...available]);
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(query.trim().length >= 4 ? query.trim() : ""), 300);
+    const timer = setTimeout(
+      () => setSearch(query.trim().length >= minLength ? query.trim() : ""),
+      300,
+    );
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, minLength]);
   return {
     query,
     setQuery,

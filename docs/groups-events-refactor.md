@@ -80,13 +80,29 @@ The [old contract](organizations-events.md) is retained as a historical deployme
 - An event may be standalone or belong to a group. Only the group creator/admin creates grouped
   events. Standalone invitations are friend-only; grouped participants must be accepted members.
   Successful grouped creation returns to that Group's Events tab; standalone creation returns to
-  main Events and edits retain their Event detail destination. Creation selects an optional Group
+  main Events' Available tab and edits retain their Event detail destination. Creation selects an optional Group
   inline through the platform HeroUI Select, with searchable source-paged Group items and explicit
   No group; no separate Group search screen. Launching from a Group presets and locks that selection;
   existing Event Group identity remains immutable.
-- Main Tables source-pages the viewer's accepted seated/waiting registrations and pending invitations
-  in planning, confirmed and terminated Events, retaining confirmed organizer/demonstrator duties.
-  Declined/left registrations do not qualify. Existing Group visibility checks remain authoritative.
+- Main Events has My events / Available top tabs (Italian: I miei / Disponibili). My events includes
+  active own registrations (accepted, pending invitation or request) at a nonremoved Table, or an
+  actual demonstrator duty. Available includes other accessible Events of accepted Group members/
+  creators, plus own admin-only standalone Events. Administration alone is not participation. Public
+  non-members, pending Group invitations/requests and live exclusions grant neither section access;
+  existing membership/detail/write guards remain unchanged. Demonstration counts even for an admin.
+- Main Tables has My tables / Pending top tabs (Italian: I miei / In attesa). My tables contains
+  seated/frozen participants and demonstrators; Pending contains invitations awaiting response,
+  historical pending participation requests and accepted queued players. Demonstration/frozen duty
+  takes precedence, so sections never duplicate a Table. Admin-only Tables never qualify, including
+  confirmed/terminated ones. Declined/left rows and excluded frozen-event Tables do not qualify.
+  Canonical agreement/reservation/frozen-roster projections determine seats, never an admin role,
+  a guessed acceptance position or a partially fetched list. The API walks bounded authorized source
+  chunks before emitting a full section page; sparse seat sections may require additional chunks.
+- Main Event/Table sections, owned Private/Public Group tabs and Group-context Events retain chips,
+  clear input and help but use Filter / Filtra, named placeholders and brief filtering help, with no
+  character minimum. Queries debounce 300 ms and filter escaped names inside that authorized scope
+  before response pagination. Group Search remains separate discovery with its four-character minimum.
+  Group-context Events remain one contextual list, not another copy of the main section tabs.
 - PLANNING / CONFIRMED / TERMINATED. There is no persisted server draft or event cancellation.
   The organizer plays only through explicit table registration, never an automatic seat.
 - Standalone and PUBLIC Group Events have exactly one date/time and one verified location.

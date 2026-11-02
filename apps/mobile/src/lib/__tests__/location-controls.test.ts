@@ -99,7 +99,7 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
   expect(fab).toContain("bottom: layout.bottom");
   expect(fab).not.toContain("extraBottom");
   for (const [path, component] of [
-    ["../../components/events/Events.tsx", "FlatList"],
+    ["../../components/events/EventList.tsx", "FlatList"],
     ["../../components/groups/GroupWizard.tsx", "FlatList"],
     ["../../components/groups/GroupList.tsx", "FlatList"],
   ] as const) {

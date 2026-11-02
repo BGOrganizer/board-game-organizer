@@ -5355,3 +5355,42 @@ msgstr "Apri Membri per approvare o rifiutare le richieste di partecipazione al 
 
 msgid "Open details to accept or decline your invitation."
 msgstr "Apri i dettagli per accettare o rifiutare il tuo invito."
+
+msgid "My events"
+msgstr "I miei"
+
+msgid "Available events"
+msgstr "Disponibili"
+
+msgid "My tables"
+msgstr "I miei"
+
+msgid "Pending tables"
+msgstr "In attesa"
+
+msgid "Events navigation"
+msgstr "Navigazione eventi"
+
+msgid "Tables navigation"
+msgstr "Navigazione tavoli"
+
+msgid "Filter"
+msgstr "Filtra"
+
+msgid "Filter events"
+msgstr "Filtra eventi"
+
+msgid "Filter tables"
+msgstr "Filtra tavoli"
+
+msgid "Filter groups"
+msgstr "Filtra gruppi"
+
+msgid "Filter this list by name. No minimum length."
+msgstr "Filtra questa lista per nome. Non è richiesta una lunghezza minima."
+
+msgid "Clear filter"
+msgstr "Cancella filtro"
+
+msgid "Filter help"
+msgstr "Aiuto filtro"

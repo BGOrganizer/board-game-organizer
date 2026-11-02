@@ -180,7 +180,7 @@ function Editor({
         pathname: "/group/[groupId]",
         params: { groupId: targetGroup, tab: "events" },
       });
-    else router.dismissTo("/(tabs)/events");
+    else router.dismissTo({ pathname: "/(tabs)/events", params: { section: "available" } });
   };
   const pickerHeader = (
     <Stack.Screen

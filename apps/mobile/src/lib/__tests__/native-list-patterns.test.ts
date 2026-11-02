@@ -16,8 +16,8 @@ it.each([
   expect(s).toContain("useSafeAreaInsets");
 });
 it.each([
-  "Events",
-  "Tables",
+  "EventList",
+  "TableList",
   "EventDetail",
   "EventTableResults",
   "EventTableLeaderboard",

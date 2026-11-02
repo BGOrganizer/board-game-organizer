@@ -6,6 +6,7 @@ import {
   eventSeatsQuery,
   groupListQuery,
   groupPeopleQuery,
+  personalTablesQuery,
   recordPageQuery,
   recordQuery,
 } from "../record-query";
@@ -61,6 +62,39 @@ describe("unified request boundaries", () => {
     ).toBe(true);
     expect(recordQuery(req(), eventSeatsQuery).pending).toBe(false);
     expect(recordQuery(req("x-vercel-protection-bypass=opaque"), emptyRecordQuery)).toEqual({});
+  });
+  it("accepts one-character list filters and strict section partitions without weakening discovery", () => {
+    for (const query of ["a", "ab", "abc", ".*"]) {
+      expect(recordQuery(req(`query=${encodeURIComponent(query)}`), eventListQuery).query).toBe(
+        query,
+      );
+      expect(
+        recordQuery(req(`query=${encodeURIComponent(query)}`), personalTablesQuery).query,
+      ).toBe(query);
+      expect(
+        recordQuery(req(`scope=mine&query=${encodeURIComponent(query)}`), groupListQuery).query,
+      ).toBe(query);
+      expect(() =>
+        recordQuery(req(`scope=public&query=${encodeURIComponent(query)}`), groupListQuery),
+      ).toThrow("INVALID_QUERY");
+    }
+    expect(recordQuery(req("section=mine"), eventListQuery).section).toBe("mine");
+    expect(recordQuery(req("section=available"), eventListQuery).section).toBe("available");
+    expect(recordQuery(req("section=waiting"), personalTablesQuery).section).toBe("waiting");
+    expect(() => recordQuery(req("section=waiting"), eventListQuery)).toThrow("INVALID_QUERY");
+    expect(() => recordQuery(req("section=available"), personalTablesQuery)).toThrow(
+      "INVALID_QUERY",
+    );
+    expect(() => recordQuery(req(`groupId=${id}&section=mine`), eventListQuery)).toThrow(
+      "INVALID_QUERY",
+    );
+    expect(() => recordQuery(req("section=mine&section=available"), eventListQuery)).toThrow(
+      "INVALID_QUERY",
+    );
+    expect(() => recordQuery(req("query="), eventListQuery)).toThrow("INVALID_QUERY");
+    expect(() => recordQuery(req("query=" + "a".repeat(121)), personalTablesQuery)).toThrow(
+      "INVALID_QUERY",
+    );
   });
   it.each(["PRIVATE", "PUBLIC"])(
     "accepts a source type filter only for owned Group lists (%s)",
