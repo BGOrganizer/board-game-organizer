@@ -11,7 +11,7 @@ import { type ClientSession, type Db, type Document, ObjectId } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { EventRecordsRepository } from "../events/event-records.repository";
 import { GroupRecordsRepository } from "../groups/group-records.repository";
-import { itemFacet, remainingItemTableIds } from "./notification-item-pipeline";
+import { itemFacet, itemOwnerIds } from "./notification-item-pipeline";
 import { NotificationsRepository } from "./notifications.repository";
 
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -171,7 +171,23 @@ export class NotificationAttentionRepository {
               now,
               moderator,
             ),
-            { $project: { _id: 0, id: 1 } },
+            {
+              $project: {
+                _id: 0,
+                id: 1,
+                memberReadable: {
+                  $and: [
+                    { $eq: [{ $size: "$readBan" }, 0] },
+                    {
+                      $or: [
+                        { $eq: ["$adminUserId", userId] },
+                        { $eq: [{ $arrayElemAt: ["$readMembership.status", 0] }, "ACCEPTED"] },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
           ],
           as: "_group",
         },
@@ -200,7 +216,37 @@ export class NotificationAttentionRepository {
               {
                 $or: [
                   { $eq: ["$_kind", "contact"] },
-                  { $and: [{ $eq: ["$_kind", "group"] }, { $ne: ["$_groupId", null] }] },
+                  {
+                    $and: [
+                      { $eq: ["$_kind", "group"] },
+                      { $ne: ["$_groupId", null] },
+                      {
+                        $or: [
+                          { $eq: [{ $arrayElemAt: ["$_group.memberReadable", 0] }, true] },
+                          {
+                            $not: [
+                              {
+                                $anyElementTrue: [
+                                  {
+                                    $map: {
+                                      input: { $ifNull: ["$attentionItems", []] },
+                                      as: "item",
+                                      in: {
+                                        $regexMatch: {
+                                          input: "$$item.id",
+                                          regex: '^\\[\\s*"group"\\s*,[^,]+,\\s*"members?"\\s*,',
+                                        },
+                                      },
+                                    },
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
                   { $and: [{ $eq: ["$_kind", "event"] }, { $ne: ["$_eventId", null] }] },
                   {
                     $and: [
@@ -218,6 +264,55 @@ export class NotificationAttentionRepository {
         },
       },
       {
+        $lookup: {
+          from: COLLECTIONS.GROUP_MEMBERSHIPS,
+          localField: "actorUserId",
+          foreignField: "userId",
+          let: { group: "$_groupId", notifiedAt: "$createdAt" },
+          pipeline: [
+            {
+              $match: {
+                status: "ACCEPTED",
+                $expr: {
+                  $and: [
+                    { $eq: ["$groupId", "$$group"] },
+                    {
+                      $ne: [
+                        {
+                          $convert: {
+                            input: "$updatedAt",
+                            to: "date",
+                            onError: null,
+                            onNull: null,
+                          },
+                        },
+                        null,
+                      ],
+                    },
+                    {
+                      $lte: [
+                        {
+                          $convert: {
+                            input: "$updatedAt",
+                            to: "date",
+                            onError: null,
+                            onNull: null,
+                          },
+                        },
+                        "$$notifiedAt",
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+            { $project: { version: 1 } },
+          ],
+          as: "_member",
+        },
+      },
+      {
         $set: {
           _items: {
             $filter: {
@@ -226,16 +321,62 @@ export class NotificationAttentionRepository {
                   "$attentionItems",
                   {
                     $cond: [
-                      { $in: ["$kind", ["group_invitation", "table_invitation"]] },
+                      {
+                        $and: [
+                          { $eq: ["$_kind", "group"] },
+                          { $eq: [{ $arrayElemAt: ["$_group.memberReadable", 0] }, true] },
+                          {
+                            $in: [
+                              "$kind",
+                              ["group_membership_updated", "group_invitation_accepted"],
+                            ],
+                          },
+                          { $gt: [{ $size: "$_member" }, 0] },
+                          {
+                            $regexMatch: {
+                              input: { $ifNull: ["$actorUserId", ""] },
+                              regex: "^[A-Za-z0-9_-]+$",
+                            },
+                          },
+                        ],
+                      },
                       [
                         {
                           id: {
-                            $concat: ['["', "$_kind", '","', "$_idTarget", '","invitation",null]'],
+                            $concat: [
+                              '["group","',
+                              "$_groupId",
+                              '","member","',
+                              "$actorUserId",
+                              '"]',
+                            ],
                           },
-                          tableIds: { $cond: [{ $eq: ["$_kind", "table"] }, ["$_idTarget"], []] },
+                          sectionId: { $concat: ['["group","', "$_groupId", '","members",null]'] },
+                          revision: { $arrayElemAt: ["$_member.version", 0] },
                         },
                       ],
-                      [],
+                      {
+                        $cond: [
+                          { $in: ["$kind", ["group_invitation", "table_invitation"]] },
+                          [
+                            {
+                              id: {
+                                $concat: [
+                                  '["',
+                                  "$_kind",
+                                  '","',
+                                  "$_idTarget",
+                                  '","invitation",null]',
+                                ],
+                              },
+                              tableIds: {
+                                $cond: [{ $eq: ["$_kind", "table"] }, ["$_idTarget"], []],
+                              },
+                            },
+                          ],
+                          [],
+                        ],
+                      },
                     ],
                   },
                 ],
@@ -262,13 +403,9 @@ export class NotificationAttentionRepository {
                   {
                     $cond: [
                       { $gt: [{ $size: "$_items" }, 0] },
-                      remainingItemTableIds,
+                      itemOwnerIds("$_items", "table"),
                       {
-                        $cond: [
-                          { $eq: ["$_kind", "table"] },
-                          ["$_idTarget"],
-                          { $ifNull: [{ $arrayElemAt: ["$_event.tableIds", 0] }, []] },
-                        ],
+                        $cond: [{ $eq: ["$_kind", "table"] }, ["$_idTarget"], []],
                       },
                     ],
                   },
@@ -285,6 +422,20 @@ export class NotificationAttentionRepository {
           _groupId: {
             $cond: [{ $in: ["$_kind", ["group", "event", "table"]] }, "$_groupId", null],
           },
+          _ownerEvents: {
+            $cond: [
+              { $and: [{ $ne: ["$_kind", null] }, { $gt: [{ $size: "$_items" }, 0] }] },
+              { $setIntersection: [itemOwnerIds("$_items", "event"), ["$_eventId"]] },
+              { $cond: [{ $eq: ["$_kind", "event"] }, ["$_eventId"], []] },
+            ],
+          },
+          _ownerGroups: {
+            $cond: [
+              { $and: [{ $ne: ["$_kind", null] }, { $gt: [{ $size: "$_items" }, 0] }] },
+              { $setIntersection: [itemOwnerIds("$_items", "group"), ["$_groupId"]] },
+              { $cond: [{ $eq: ["$_kind", "group"] }, ["$_groupId"], []] },
+            ],
+          },
         },
       },
     ];
@@ -297,8 +448,8 @@ export class NotificationAttentionRepository {
       };
     if (target.kind === "table") return { _tableIds: target.id };
     if (target.kind === "contacts") return { _section: target.id };
-    if (target.kind === "event") return { _eventId: target.id };
-    if (target.kind === "group") return { _groupId: target.id };
+    if (target.kind === "event") return { _ownerEvents: target.id };
+    if (target.kind === "group") return { _ownerGroups: target.id };
     return { _kind: target.kind, _idTarget: target.id };
   }
   async snapshot(
@@ -318,8 +469,8 @@ export class NotificationAttentionRepository {
             _id: null,
             inbox: { $sum: 1 },
             tables: sum({ $gt: [{ $size: "$_tableIds" }, 0] }),
-            events: sum({ $ne: ["$_eventId", null] }),
-            groups: sum({ $ne: ["$_groupId", null] }),
+            events: sum({ $gt: [{ $size: "$_ownerEvents" }, 0] }),
+            groups: sum({ $gt: [{ $size: "$_ownerGroups" }, 0] }),
             contacts: sum({ $eq: ["$_kind", "contact"] }),
             requests: sum({ $eq: ["$_section", "requests"] }),
             connections: sum({ $eq: ["$_section", "connections"] }),
@@ -343,6 +494,20 @@ export class NotificationAttentionRepository {
                 groupId: "$_groupId",
                 section: "$_section",
                 tableIds: "$_tableIds",
+                itemIds: {
+                  $setDifference: [{ $setUnion: ["$_items.id", "$_items.sectionId"] }, [null]],
+                },
+                containers: {
+                  $concatArrays: [
+                    { $map: { input: "$_tableIds", as: "id", in: { kind: "table", id: "$$id" } } },
+                    {
+                      $map: { input: "$_ownerEvents", as: "id", in: { kind: "event", id: "$$id" } },
+                    },
+                    {
+                      $map: { input: "$_ownerGroups", as: "id", in: { kind: "group", id: "$$id" } },
+                    },
+                  ],
+                },
               },
             },
           ]
@@ -373,7 +538,7 @@ export class NotificationAttentionRepository {
                     ],
                   },
             ),
-            events: sum({ $ne: ["$_eventId", null] }),
+            events: { $sum: 0 },
             requests: sum({ $eq: ["$_section", "requests"] }),
             connections: sum({ $eq: ["$_section", "connections"] }),
             eventId: { $first: "$_eventId" },
@@ -431,14 +596,14 @@ export class NotificationAttentionRepository {
               summary: {
                 ...emptyAttentionSummary(),
                 tables: row?.tables ?? 0,
-                events: row?.eventId ? row.unread : 0,
-                groups: row?.groupId ? row.unread : 0,
+                events: row?.events ?? 0,
+                groups: row?.groups ?? 0,
               },
               targets: (result?.[`e${i}`] ?? []).map((value: Document) => ({
                 target: value._id,
                 count: value.count,
                 direct: value._id.kind === "item" ? value.count : 0,
-                events: value._id.kind === "group" && row?.eventId ? value.count : 0,
+                events: 0,
               })),
             },
           };
@@ -466,17 +631,57 @@ export class NotificationAttentionRepository {
         ...(row.groupId ? { groupId: row.groupId } : {}),
         ...(row.section ? { section: row.section } : {}),
         ...(row.tableIds?.length ? { tableIds: row.tableIds } : {}),
+        ...(row.itemIds?.length ? { itemIds: row.itemIds } : {}),
+        containers: row.containers,
       });
     return { snapshot, references };
+  }
+  /** Bounded IDs only: generic entry must never consume a derived historical member point. */
+  private async readDirect(userId: string, target: NotificationAttentionTarget, filter: Document) {
+    const actor = await this.db
+      .collection(COLLECTIONS.USERS)
+      .findOne({ clerkId: userId }, this.opts);
+    let modifiedCount = 0;
+    while (true) {
+      const ids = await this.db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .aggregate<{ _id: ObjectId }>(
+          [
+            { $match: filter },
+            ...this.routing(userId, new Date().toISOString(), actor?.bgoRole === "ADMIN"),
+            {
+              $match: {
+                ...this.matches(target),
+                attentionItems: { $exists: false },
+                _items: { $size: 0 },
+              },
+            },
+            { $limit: 100 },
+            { $project: { _id: 1 } },
+          ],
+          this.opts,
+        )
+        .toArray();
+      if (!ids.length) return { modifiedCount };
+      const result = await this.db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .updateMany(
+          { ...filter, _id: { $in: ids.map((row) => row._id) } },
+          { $set: { readAt: new Date() } },
+          this.opts,
+        );
+      modifiedCount += result.modifiedCount;
+    }
   }
   async read(userId: string, input: ReadNotificationAttentionInput) {
     const { target } = input;
     const before = await this.snapshot(userId, [target]);
     const row = before.snapshot.targets[0];
-    const affected = [target];
-    if (target.kind === "table" && row.eventId) affected.push({ kind: "event", id: row.eventId });
-    if ((target.kind === "table" || target.kind === "event") && row.groupId)
-      affected.push({ kind: "group", id: row.groupId });
+    const affected: NotificationAttentionTarget[] = [target];
+    if (target.kind === "item")
+      for (const effect of row.readEffect?.targets ?? [])
+        if (!affected.some((value) => attentionKey(value) === attentionKey(effect.target)))
+          affected.push(effect.target);
     const filter: Document = {
       recipientUserId: userId,
       readAt: { $exists: false },
@@ -503,29 +708,15 @@ export class NotificationAttentionRepository {
       });
     else if (target.kind !== "item") throw new Error("Invalid read target");
     // Resource entry reads must not consume structured item attention or pending invitations.
-    const result =
-      target.kind === "item"
+    const result = !row.direct
+      ? { modifiedCount: 0 }
+      : target.kind === "item"
         ? await new NotificationsRepository(this.db, this.session).acknowledgeItems(
             userId,
             [target.id],
             input.through,
           )
-        : await this.db.collection(COLLECTIONS.NOTIFICATIONS).updateMany(
-            {
-              ...filter,
-              attentionItems: { $exists: false },
-              ...(target.kind === "contacts"
-                ? {}
-                : {
-                    $and: [
-                      { kind: filter.kind },
-                      { kind: { $nin: ["table_invitation", "group_invitation"] } },
-                    ],
-                  }),
-            },
-            { $set: { readAt: new Date() } },
-            this.opts,
-          );
+        : await this.readDirect(userId, target, filter);
     return {
       updated: result.modifiedCount,
       snapshot: (

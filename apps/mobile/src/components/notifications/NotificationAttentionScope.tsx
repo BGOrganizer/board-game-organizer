@@ -44,13 +44,14 @@ function AttentionState({
   const current = useRef({ attention, target });
   current.current = { attention, target };
   const kind = target?.kind,
-    id = target?.id;
+    id = target?.id,
+    ready = attention?.ready;
   useFocusEffect(
     useCallback(() => {
       const { attention, target } = current.current;
-      if (target && attention?.owner === owner && target.kind === kind && target.id === id)
+      if (ready && target && attention?.owner === owner && target.kind === kind && target.id === id)
         attention.read(target);
-    }, [owner, kind, id]),
+    }, [owner, kind, id, ready]),
   );
   return attention?.error ? (
     <View accessibilityRole="alert">

@@ -28,7 +28,8 @@ it.each([
       screen.getByText("Details").previousElementSibling?.classList.contains("lucide-info"),
     ).toBe(true);
     expect(heading.previousElementSibling?.classList.contains("lucide-calendar-days")).toBe(true);
-    expect(heading.nextElementSibling?.className).toContain("chip");
+    expect(heading.parentElement?.className).toContain("basis-52");
+    expect(heading.parentElement?.nextElementSibling?.className).toContain("chip");
     expect(
       within(card as HTMLElement)
         .getByText(label)
@@ -86,7 +87,8 @@ it.each([true, false])(
     expect(help.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(heading.previousElementSibling?.classList.contains("lucide-dices")).toBe(true);
     expect(heading.className).toContain("break-words");
-    expect(heading.nextElementSibling).toBe(
+    expect(heading.parentElement?.className).toContain("basis-52");
+    expect(heading.parentElement?.nextElementSibling).toBe(
       within(card as HTMLElement).getByRole("img", {
         name: enabled ? "Rating enabled" : "Rating disabled",
       }),

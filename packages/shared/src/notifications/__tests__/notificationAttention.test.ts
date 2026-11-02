@@ -59,7 +59,7 @@ function snapshot(): NotificationAttentionSnapshot {
   };
 }
 
-describe("notification attention ownership and hierarchy", () => {
+describe("notification attention entity ownership", () => {
   it("uses explicit server references first and never guesses parents or actor IDs", () => {
     expect(attentionReference({ kind: "table_invitation", href: "/wrong", attention: table })).toBe(
       table,
@@ -104,11 +104,11 @@ describe("notification attention ownership and hierarchy", () => {
     ])
       expect(attentionReference({ kind: "organization_invitation", href })).toBeUndefined();
   });
-  it("propagates once per ancestor but direct resource reads never consume descendants", () => {
+  it("marks only the affected entity; ancestry never creates unread points", () => {
     expect(attentionMatches(undefined, table.target)).toBe(false);
     expect(attentionMatches(table, table.target, true)).toBe(true);
-    expect(attentionMatches(table, target("event", eventId))).toBe(true);
-    expect(attentionMatches(table, target("group", groupId))).toBe(true);
+    expect(attentionMatches(table, target("event", eventId))).toBe(false);
+    expect(attentionMatches(table, target("group", groupId))).toBe(false);
     expect(attentionMatches(table, target("event", eventId), true)).toBe(false);
     expect(attentionMatches(table, target("group", eventId))).toBe(false);
     expect(
@@ -122,10 +122,10 @@ describe("notification attention ownership and hierarchy", () => {
     const original = snapshot(),
       next = projectAttentionSnapshot(original, table, 2)!;
     expect(next.unreadCount).toBe(10);
-    expect(next.summary).toEqual({ ...original.summary, tables: 2, events: 5, groups: 7 });
+    expect(next.summary).toEqual({ ...original.summary, tables: 2 });
     expect(next.targets[0]).toMatchObject({ count: 6, direct: 0 });
-    expect(next.targets[1]).toMatchObject({ count: 6, direct: 2 });
-    expect(next.targets[2]).toMatchObject({ count: 6, direct: 2, events: 3 });
+    expect(next.targets[1]).toBe(original.targets[1]);
+    expect(next.targets[2]).toBe(original.targets[2]);
     expect(next.targets[3]).toBe(original.targets[3]);
     const ownGroup = projectAttentionSnapshot(original, readReference(original.targets[2]), 2)!;
     expect(ownGroup.targets[2]).toMatchObject({ count: 6, direct: 0, events: 5 });

@@ -11,7 +11,7 @@ export function NotificationUnreadDot({ active }: { active: boolean }) {
       accessibilityRole="image"
       accessibilityLabel={t("Unread updates")}
       pointerEvents="none"
-      className="bg-accent"
+      className="bg-danger"
       style={{ width: 8, height: 8, borderRadius: 4, flexShrink: 0 }}
     />
   );

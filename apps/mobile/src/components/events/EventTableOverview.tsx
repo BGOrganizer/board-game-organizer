@@ -106,12 +106,7 @@ export function EventTableOverview({
     table.myRegistration?.status === "ACCEPTED";
   const header = (
     <View style={{ gap: 16 }}>
-      <NotificationItem
-        itemId={notificationItemId(table.id, "overview", undefined, "table")}
-        readOnly
-      >
-        <EventTableInfo table={table} />
-      </NotificationItem>
+      <EventTableInfo table={table} />
       {context === "personal" ? (
         <View style={{ gap: 8 }}>
           <Typography accessibilityRole="header" className="font-semibold text-foreground">

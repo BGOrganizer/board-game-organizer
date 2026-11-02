@@ -81,7 +81,7 @@ it("preserves paging and immutable read times, handles ISO precision equally and
     previous: string | null = null,
   ) => ({
     id: String(n),
-    kind: "table_invitation" as const,
+    kind: "event_booking_removed" as const,
     title: "Fixture",
     description: "Fixture",
     href: `/events/${id}/tables/${id}`,

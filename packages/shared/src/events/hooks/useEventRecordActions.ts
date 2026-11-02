@@ -48,11 +48,14 @@ import {
   versionedCommunityChange,
 } from "../../community/queryCache";
 import { groupRecordDetailQuery, groupRecordKeys } from "../../groups/hooks/useGroupRecords";
+import { attentionKey } from "../../notifications/notificationAttention";
 import {
   cachedAttention,
   notificationFilters,
+  notificationReadAliases,
 } from "../../notifications/notificationAttentionCache";
 import { projectNotificationItemRead } from "../../notifications/notificationItemRead";
+import { beginNotificationItemRead } from "../../notifications/notificationReadOperation";
 import {
   captureEventConsent,
   type EventConsentSnapshot,
@@ -251,6 +254,8 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         : value.tableId === expected.tableId && value.userId === expected.userId;
     if (context?.operation.active && value.eventId === context.eventId && matches)
       context.acknowledgedVersion = eventVersion;
+    if (context?.operation.active && value.eventId === context.eventId && matches)
+      context.attentionOperation?.commit();
     return reconcileRegistration(registration, availability, context);
   }
   function currentEvent() {
@@ -752,20 +757,29 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       const context = await begin("set_event_vote", undefined, ["vote"], (data) =>
         optimisticEventVote(data, id, o.userId, input),
       );
-      if (attention?.row.count)
-        context.attentionOperation = await beginOptimisticOperation(
-          client,
-          ["notifications", o.apiUrl, o.userId, "target", target.id],
-          notificationFilters(o),
-          (data, key) =>
-            projectNotificationItemRead(
-              data,
-              key,
-              attention.row,
-              attention.snapshot.asOf,
-              new Date().toISOString(),
-            ),
-        );
+      if (attention?.row.count) {
+        try {
+          context.attentionOperation = await beginOptimisticOperation(
+            client,
+            ["notifications", o.apiUrl, o.userId, "target", attentionKey(target)],
+            notificationFilters(o),
+            (data, key) =>
+              projectNotificationItemRead(
+                data,
+                key,
+                attention.row,
+                attention.snapshot.asOf,
+                new Date().toISOString(),
+              ),
+            notificationReadAliases(client, o, target, attention.snapshot.asOf),
+          );
+        } catch (error) {
+          await context.operation.reject(
+            error instanceof Error ? error : new Error("Invalid notification"),
+          );
+          throw error;
+        }
+      }
       return context;
     },
     onSuccess: eventReceiptSuccess,
@@ -968,6 +982,26 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         ["registration", registrationId],
       );
       context.consent = consent;
+      if (
+        table &&
+        (input.action === "accept" || input.action === "decline") &&
+        table.myRegistration?.userId === o.userId
+      ) {
+        try {
+          const read = await beginNotificationItemRead(
+            client,
+            o,
+            notificationItemId(table.id, "invitation", undefined, "table"),
+          );
+          context.attentionOperation = read?.operation;
+          if (read) input.attentionThrough = read.through;
+        } catch (error) {
+          await context.operation.reject(
+            error instanceof Error ? error : new Error("Invalid notification"),
+          );
+          throw error;
+        }
+      }
       return context;
     },
     onSuccess: (value, { registrationId, input }, context) =>

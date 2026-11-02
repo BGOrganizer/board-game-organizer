@@ -66,7 +66,7 @@ async function seedUser(
   });
 }
 
-describe("source-paged hierarchical notification attention", () => {
+describe("source-paged entity notification attention", () => {
   const groupId = "11111111-1111-4111-8111-111111111111",
     eventId = "22222222-2222-4222-8222-222222222222",
     tableId = "33333333-3333-4333-8333-333333333333";
@@ -138,8 +138,8 @@ describe("source-paged hierarchical notification attention", () => {
     const repository = new NotificationAttentionRepository(db);
     const first = (await repository.snapshot(ACTOR, [...targets, date, location])).snapshot;
     expect(first.unreadCount).toBe(1);
-    expect(first.summary).toMatchObject({ tables: 1, events: 1, groups: 1 });
-    expect(first.targets[0].count).toBe(1);
+    expect(first.summary).toMatchObject({ tables: 0, events: 1, groups: 0 });
+    expect(first.targets[0].count).toBe(0);
     expect(first.targets.find((row) => row.target.id === date.id)?.readEffect?.unread).toBe(0);
     expect(
       (await repository.read(ACTOR, { target: targets[1], through: first.asOf })).updated,
@@ -158,6 +158,156 @@ describe("source-paged hierarchical notification attention", () => {
         (point) => point.readAt,
       ),
     ).toBe(true);
+  });
+  it("clears each actual container of a mixed Event/Table notice as its own last point is read", async () => {
+    await seedAttentionResources();
+    const date = { kind: "item", id: notificationItemId(eventId, "date", groupId) } as const;
+    const game = { kind: "item", id: notificationItemId(tableId, "game", 1) } as const;
+    await new NotificationsRepository(db).notifyMany([
+      {
+        kind: "event_updated",
+        actorUserId: TARGET,
+        recipientUserId: ACTOR,
+        resourceName: "Mixed change",
+        resourceHref: `/events/${eventId}`,
+        attentionItems: [date, game].map((point) => ({
+          id: point.id,
+          revision: 2,
+          eventId,
+          groupId,
+          tableIds: [tableId],
+        })),
+      },
+    ]);
+    const repository = new NotificationAttentionRepository(db);
+    const first = (await repository.snapshot(ACTOR, [...targets, date, game])).snapshot;
+    expect(first.summary).toMatchObject({ tables: 1, events: 1, groups: 0 });
+    const effect = first.targets.find((row) => row.target.id === date.id)?.readEffect;
+    expect(effect).toMatchObject({ unread: 0, summary: { tables: 0, events: 1, groups: 0 } });
+    expect(effect?.targets.some((row) => row.target.kind === "event")).toBe(true);
+    expect(
+      effect?.targets.some((row) => row.target.kind === "table" || row.target.kind === "group"),
+    ).toBe(false);
+    await repository.read(ACTOR, { target: date, through: first.asOf });
+    const partial = (await repository.snapshot(ACTOR, [...targets, game])).snapshot;
+    expect(partial.unreadCount).toBe(1);
+    expect(partial.summary).toMatchObject({ tables: 1, events: 0, groups: 0 });
+    expect(partial.targets.slice(0, 3).map((row) => row.count)).toEqual([1, 0, 0]);
+    expect(partial.targets.find((row) => row.target.id === game.id)?.readEffect).toMatchObject({
+      unread: 1,
+      summary: { tables: 1, events: 0, groups: 0 },
+    });
+    await repository.read(ACTOR, { target: game, through: partial.asOf });
+    expect((await repository.snapshot(ACTOR, targets)).snapshot.unreadCount).toBe(0);
+  });
+  it("attributes accepted members precisely, protects historical points from entry reads and retains later arrivals", async () => {
+    await seedAttentionResources();
+    await db.collection(COLLECTIONS.GROUP_MEMBERSHIPS).insertOne({
+      groupId,
+      userId: TARGET,
+      kind: "INVITATION",
+      status: "ACCEPTED",
+      version: 2,
+      updatedAt: "2019-01-01T00:00:00.000Z",
+    });
+    const member = { kind: "item", id: notificationItemId(groupId, "member", TARGET) } as const;
+    const members = { kind: "item", id: notificationItemId(groupId, "members") } as const;
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertMany([
+      note("group_membership_updated", `/groups/${groupId}`, { recipientUserId: THIRD }),
+      note("group_membership_updated", `/groups/${groupId}`, {
+        recipientUserId: THIRD,
+        actorUserId: FOURTH,
+      }),
+    ]);
+    await new NotificationsRepository(db).notifyMany([
+      {
+        kind: "group_membership_updated",
+        actorUserId: TARGET,
+        recipientUserId: THIRD,
+        resourceName: "Accepted member",
+        resourceHref: `/groups/${groupId}`,
+        attentionItems: [{ id: member.id, sectionId: members.id, revision: 2, groupId }],
+      },
+    ]);
+    const repository = new NotificationAttentionRepository(db);
+    const first = (await repository.snapshot(THIRD, [...targets, member, members])).snapshot;
+    expect(first.unreadCount).toBe(3);
+    expect(first.targets.slice(0, 3).map((row) => [row.count, row.direct])).toEqual([
+      [0, 0],
+      [0, 0],
+      [3, 1],
+    ]);
+    expect(first.targets.slice(-2).map((row) => row.count)).toEqual([2, 2]);
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("group_membership_updated", `/groups/${groupId}`, {
+        recipientUserId: THIRD,
+        createdAt: new Date(),
+      }),
+    );
+    expect(
+      (await repository.read(THIRD, { target: targets[2], through: first.asOf })).updated,
+    ).toBe(1);
+    expect((await repository.snapshot(THIRD, [member])).snapshot.targets[0].count).toBe(3);
+    expect((await repository.read(THIRD, { target: member, through: first.asOf })).updated).toBe(2);
+    const after = (await repository.snapshot(THIRD, [...targets, member, members])).snapshot;
+    expect(after.unreadCount).toBe(1);
+    expect(after.targets.slice(-2).map((row) => row.count)).toEqual([1, 1]);
+    expect(after.summary).toMatchObject({ groups: 1, events: 0, tables: 0 });
+    expect((await repository.read(THIRD, { target: members, through: after.asOf })).updated).toBe(
+      1,
+    );
+    expect((await repository.snapshot(THIRD, [member, members])).snapshot.unreadCount).toBe(0);
+    expect(
+      await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments({ recipientUserId: THIRD }),
+    ).toBe(4);
+  });
+  it("never grants member-point visibility through pending Group invitations or public discovery", async () => {
+    await seedAttentionResources();
+    await db.collection(COLLECTIONS.GROUP_MEMBERSHIPS).insertOne({
+      groupId,
+      userId: TARGET,
+      kind: "INVITATION",
+      status: "ACCEPTED",
+      version: 2,
+      updatedAt: "2019-01-01T00:00:00.000Z",
+    });
+    const member = { kind: "item", id: notificationItemId(groupId, "member", TARGET) } as const;
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertOne(note("group_membership_updated", `/groups/${groupId}`));
+    await new NotificationsRepository(db).notifyMany([
+      {
+        kind: "group_membership_updated",
+        actorUserId: TARGET,
+        recipientUserId: ACTOR,
+        resourceName: "Accepted member",
+        resourceHref: `/groups/${groupId}`,
+        attentionItems: [{ id: member.id, revision: 2, groupId }],
+      },
+    ]);
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId, userId: ACTOR }, { $set: { status: "PENDING" } });
+    const repository = new NotificationAttentionRepository(db);
+    for (const type of ["PRIVATE", "PUBLIC"]) {
+      await db.collection(COLLECTIONS.GROUPS).updateOne({ id: groupId }, { $set: { type } });
+      const ids = (
+        await db
+          .collection(COLLECTIONS.NOTIFICATIONS)
+          .find({ recipientUserId: ACTOR })
+          .project({ _id: 1 })
+          .toArray()
+      ).map((row) => String(row._id));
+      const result = await repository.snapshot(ACTOR, [member], ids);
+      expect(result.snapshot.targets[0].count).toBe(0);
+      expect(
+        [...result.references.values()].every((row) => !row.itemIds?.includes(member.id)),
+      ).toBe(true);
+      expect(result.snapshot.summary.groups).toBe(1); // Generic historical notice, never inferred member identity.
+    }
+    await db.collection(COLLECTIONS.GROUP_BANS).insertOne({ groupId, userId: ACTOR, until: null });
+    expect((await repository.snapshot(ACTOR, [member])).snapshot.summary.groups).toBe(0);
+    expect(await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments()).toBe(2);
   });
   it("returns stable per-item unread signals, advancing only for a matching new notice or retargeted revision", async () => {
     await seedAttentionResources();
@@ -321,7 +471,7 @@ describe("source-paged hierarchical notification attention", () => {
       await session.endSession();
     }
   });
-  it("counts all unread source rows beyond inbox pages, once at each permitted hierarchy level", async () => {
+  it("counts all unread source rows beyond inbox pages, only for their actual entity", async () => {
     await seedAttentionResources();
     const tableNote = note("table_invitation", `/events/${eventId}/tables/${tableId}`);
     await db
@@ -350,15 +500,15 @@ describe("source-paged hierarchical notification attention", () => {
     );
     expect(result.snapshot.unreadCount).toBe(141);
     expect(result.snapshot.summary).toEqual({
-      tables: 133,
-      events: 133,
-      groups: 136,
+      tables: 131,
+      events: 2,
+      groups: 3,
       contacts: 4,
       sections: { requests: 2, connections: 2, search: 0 },
     });
-    expect(result.snapshot.targets.map((row) => row.count)).toEqual([133, 133, 136, 4, 2, 2]);
+    expect(result.snapshot.targets.map((row) => row.count)).toEqual([131, 2, 3, 4, 2, 2]);
     expect(result.snapshot.targets.map((row) => row.direct)).toEqual([0, 2, 3, 4, 2, 2]);
-    expect(result.snapshot.targets[2].events).toBe(133);
+    expect(result.snapshot.targets[2].events).toBe(0);
     expect(result.snapshot.targets[0]).toMatchObject({ eventId, groupId });
     expect(result.snapshot.targets[1]).toMatchObject({ eventId, groupId });
     for (const reference of result.references.values())
@@ -394,7 +544,7 @@ describe("source-paged hierarchical notification attention", () => {
             .updated,
         ).toBe(1);
         const result = (await repository.snapshot(ACTOR, targets)).snapshot;
-        expect(result.targets.map((row) => row.count)).toEqual([2, 2, 2, 2, 1, 1]);
+        expect(result.targets.map((row) => row.count)).toEqual([1, 1, 0, 2, 1, 1]);
         expect(
           (await repository.read(ACTOR, { target: targets[1], through: new Date().toISOString() }))
             .updated,
@@ -511,7 +661,7 @@ describe("source-paged hierarchical notification attention", () => {
       .updateOne({ id: tableId }, { $set: { removedAt: new Date().toISOString() } });
     expect(
       (await repository.snapshot(ACTOR, targets)).snapshot.targets.map((row) => row.count),
-    ).toEqual([0, 1, 2, 0, 0, 0]);
+    ).toEqual([0, 1, 1, 0, 0, 0]);
     await db.collection(COLLECTIONS.GROUP_BANS).insertOne({ groupId, userId: ACTOR, until: null });
     expect(
       (await repository.snapshot(ACTOR, targets)).snapshot.targets.every((row) => row.count === 0),
@@ -538,7 +688,7 @@ describe("source-paged hierarchical notification attention", () => {
       version: 1,
     });
     const invited = (await repository.snapshot(ACTOR, targets)).snapshot;
-    expect(invited.summary).toMatchObject({ tables: 2, events: 2, groups: 0 });
+    expect(invited.summary).toMatchObject({ tables: 1, events: 1, groups: 0 });
     expect(invited.targets[0]).not.toHaveProperty("groupId");
     await db
       .collection(COLLECTIONS.TABLE_REGISTRATIONS)
@@ -547,7 +697,7 @@ describe("source-paged hierarchical notification attention", () => {
     await db
       .collection(COLLECTIONS.EVENTS)
       .updateOne({ id: eventId }, { $set: { adminUserId: ACTOR } });
-    expect((await repository.snapshot(ACTOR, targets)).snapshot.summary.events).toBe(2);
+    expect((await repository.snapshot(ACTOR, targets)).snapshot.summary.events).toBe(1);
   });
   it("keeps public review attention contextual and rolls scoped reads back atomically", async () => {
     await seedAttentionResources();

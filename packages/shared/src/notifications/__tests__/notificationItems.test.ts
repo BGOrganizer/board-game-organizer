@@ -55,7 +55,7 @@ const table: TableRecord = {
   createdAt: event.createdAt,
   updatedAt: event.updatedAt,
 };
-it("preserves source-owned item and table ancestry for explicit reads/deletions and does not read a resource on navigation", () => {
+it("preserves routing ancestry but never attributes event points to child Tables or parents", () => {
   const point = notificationItemId(id, "date", other),
     section = notificationItemId(id, "dates");
   const target = { kind: "event" as const, id },
@@ -78,9 +78,9 @@ it("preserves source-owned item and table ancestry for explicit reads/deletions 
   expect(
     attentionMatches({ target: { kind: "item", id: point } }, { kind: "item", id: point }),
   ).toBe(true);
-  expect(attentionMatches(reference, tableTarget)).toBe(true);
+  expect(attentionMatches(reference, tableTarget)).toBe(false);
   expect(attentionMatches(reference, tableTarget, true)).toBe(false);
-  expect(subtractAttention({ ...emptyAttentionSummary(), tables: 2 }, source, 1).tables).toBe(1);
+  expect(subtractAttention({ ...emptyAttentionSummary(), tables: 2 }, source, 1).tables).toBe(2);
   expect(
     readReference({
       target,

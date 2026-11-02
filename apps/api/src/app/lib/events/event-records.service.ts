@@ -1167,7 +1167,7 @@ export class EventRecordsService {
       await this.notifications.acknowledgeItems(
         userId,
         [notificationItemId(row.tableId, "invitation", undefined, "table")],
-        new Date().toISOString(),
+        input.attentionThrough ?? new Date().toISOString(),
       );
     if (input.action === "accept" && input.participation.availability)
       await this.events.saveVoter({

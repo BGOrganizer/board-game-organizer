@@ -27,6 +27,12 @@ self.addEventListener("notificationclick", (event) => {
         typeof point[1] === "string" &&
         url.pathname.endsWith(`/${point[1]}`)
       ) {
+        if (
+          point[0] === "group" &&
+          ["member", "members"].includes(point[2]) &&
+          url.pathname === `/groups/${point[1]}`
+        )
+          url.searchParams.set("tab", "members");
         url.searchParams.set("attention", itemId);
         url.hash = `attention-${encodeURIComponent(itemId)}`;
       }

@@ -38,7 +38,7 @@ it("renders a fixed static semantic dot without pulse state, listeners, animatio
   );
   expect(render({ active: false })).toBeNull();
   const dot = render({ active: true });
-  expect(dot.props.className).toBe("bg-accent");
+  expect(dot.props.className).toBe("bg-danger");
   expect(dot.props.accessibilityLabel).toBe("Unread updates");
   expect(dot.props.pointerEvents).toBe("none");
   expect(dot.props.style).toEqual({ width: 8, height: 8, borderRadius: 4, flexShrink: 0 });

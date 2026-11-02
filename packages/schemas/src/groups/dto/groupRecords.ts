@@ -66,6 +66,7 @@ export const decideGroupMembershipSchema = z
   .object({
     action: z.enum(["accept", "decline", "approve", "reject", "cancel", "remove"]),
     version: z.number().int().positive(),
+    attentionThrough: z.iso.datetime({ precision: 3 }).optional(),
   })
   .strict();
 export type DecideGroupMembershipInput = z.infer<typeof decideGroupMembershipSchema>;

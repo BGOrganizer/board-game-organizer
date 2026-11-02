@@ -1,17 +1,46 @@
 import type { Document } from "mongodb";
 
-const tableIds = (input: string) => ({
-  $reduce: {
-    input,
-    initialValue: [],
-    in: { $setUnion: ["$$value", { $ifNull: ["$$this.tableIds", []] }] },
-  },
-});
+/** Decode only canonical resource identity, never notification text or cross-entity ancestry. */
+export function itemOwnerIds(input: string, resource: "event" | "table" | "group") {
+  return {
+    $reduce: {
+      input,
+      initialValue: [],
+      in: {
+        $let: {
+          vars: {
+            owner: {
+              $regexFind: {
+                input: "$$this.id",
+                regex: `^\\[\\s*"${resource}"\\s*,\\s*"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"\\s*,`,
+                options: "i",
+              },
+            },
+          },
+          in: {
+            $cond: [
+              { $ne: ["$$owner", null] },
+              { $setUnion: ["$$value", [{ $arrayElemAt: ["$$owner.captures", 0] }]] },
+              "$$value",
+            ],
+          },
+        },
+      },
+    },
+  };
+}
 export function itemFacet(id: string): { total: Document[]; effects: Document[] } {
-  const effect = (kind: string, value: string, condition: unknown) => ({
-    $cond: [condition, [{ kind, id: value }], []],
-  });
   const complete = { $eq: [{ $size: "$_afterItems" }, 0] };
+  const lost = (before: string, after: string) => ({
+    $and: [{ $gt: [{ $size: before }, 0] }, { $eq: [{ $size: after }, 0] }],
+  });
+  const removed = (kind: string, before: string, after: string) => ({
+    $map: {
+      input: { $setDifference: [before, after] },
+      as: "id",
+      in: { kind, id: "$$id" },
+    },
+  });
   const start: Document[] = [
     { $match: { $or: [{ "_items.id": id }, { "_items.sectionId": id }], _kind: { $ne: null } } },
     {
@@ -32,7 +61,13 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
     },
     {
       $set: {
-        _afterTables: { $setIntersection: [tableIds("$_afterItems"), "$_tableIds"] },
+        _afterTables: { $setIntersection: [itemOwnerIds("$_afterItems", "table"), "$_tableIds"] },
+        _afterEvents: {
+          $setIntersection: [itemOwnerIds("$_afterItems", "event"), "$_ownerEvents"],
+        },
+        _afterGroups: {
+          $setIntersection: [itemOwnerIds("$_afterItems", "group"), "$_ownerGroups"],
+        },
         _pulseAt: {
           $max: {
             $map: {
@@ -74,20 +109,9 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
             },
           },
           unread: { $sum: { $cond: [complete, 1, 0] } },
-          tables: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $gt: [{ $size: "$_tableIds" }, 0] },
-                    { $eq: [{ $size: "$_afterTables" }, 0] },
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
+          tables: { $sum: { $cond: [lost("$_tableIds", "$_afterTables"), 1, 0] } },
+          events: { $sum: { $cond: [lost("$_ownerEvents", "$_afterEvents"), 1, 0] } },
+          groups: { $sum: { $cond: [lost("$_ownerGroups", "$_afterGroups"), 1, 0] } },
           eventId: { $first: "$_eventId" },
           groupId: { $first: "$_groupId" },
         },
@@ -100,7 +124,6 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
           targets: {
             $setUnion: [
               [{ kind: "item", id }],
-
               {
                 $map: {
                   input: {
@@ -113,15 +136,9 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
                   in: { kind: "item", id: "$$id" },
                 },
               },
-              effect("event", "$_eventId", { $and: [complete, { $ne: ["$_eventId", null] }] }),
-              effect("group", "$_groupId", { $and: [complete, { $ne: ["$_groupId", null] }] }),
-              {
-                $map: {
-                  input: { $setDifference: ["$_tableIds", "$_afterTables"] },
-                  as: "id",
-                  in: { kind: "table", id: "$$id" },
-                },
-              },
+              removed("event", "$_ownerEvents", "$_afterEvents"),
+              removed("group", "$_ownerGroups", "$_afterGroups"),
+              removed("table", "$_tableIds", "$_afterTables"),
             ],
           },
         },
@@ -131,4 +148,3 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
     ],
   };
 }
-export const remainingItemTableIds = tableIds("$_items");

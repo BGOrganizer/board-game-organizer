@@ -120,6 +120,28 @@ describe("mobile push notifications", () => {
       "/notifications",
     );
   });
+  it("opens accepted-member inbox and push hints in Members without performing a domain action", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const point = notificationItemId(id, "member", "user_member");
+    const expected = `/group/${id}?tab=members&attention=${encodeURIComponent(point)}`;
+    expect(
+      notificationItemHref({
+        href: `/groups/${id}`,
+        kind: "group_membership_updated",
+        attentionItems: [{ id: point, revision: 2, readAt: null }],
+      }),
+    ).toBe(expected);
+    expect(
+      notificationHref({
+        href: `/groups/${id}`,
+        kind: "group_membership_updated",
+        attentionItemId: point,
+      }),
+    ).toBe(expected);
+    expect(
+      notificationHref({ href: `https://evil.test/groups/${id}`, attentionItemId: point }),
+    ).toBe("/notifications");
+  });
   it("configures foreground notification behavior", async () => {
     configureNotificationHandler();
     const handler = mocks.setNotificationHandler.mock.calls[0]?.[0];

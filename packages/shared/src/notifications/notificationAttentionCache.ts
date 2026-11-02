@@ -49,6 +49,35 @@ export function cachedAttention(
     )
     .sort((a, b) => b.updatedAt - a.updatedAt)[0];
 }
+function genericInformation(notification: NotificationListResponse["notifications"][number]) {
+  return (
+    notification.attentionItems === undefined &&
+    !notification.attention?.itemIds?.length &&
+    notification.kind !== "group_invitation" &&
+    notification.kind !== "table_invitation"
+  );
+}
+/** Only actual shared source notices are dependencies; never serialize an owner's whole inbox. */
+export function notificationReadAliases(
+  client: QueryClient,
+  o: CommunityApiOptions,
+  target: NotificationAttentionTarget,
+  through: string,
+) {
+  return client
+    .getQueriesData<InfiniteData<NotificationListResponse>>({
+      queryKey: ["notifications", o.apiUrl, o.userId],
+    })
+    .flatMap(([, data]) => data?.pages.flatMap((page) => page.notifications) ?? [])
+    .filter(
+      (notification) =>
+        !notification.readAt &&
+        Date.parse(notification.createdAt) <= Date.parse(through) &&
+        (target.kind === "item" || genericInformation(notification)) &&
+        attentionMatches(attentionReference(notification), target, true),
+    )
+    .map((notification) => ["notifications", o.apiUrl, o.userId, "item", notification.id]);
+}
 export function projectAttentionRead(
   data: unknown,
   key: QueryKey,
@@ -69,6 +98,7 @@ export function projectAttentionRead(
       ...(page.attention ? { attention: subtractAttention(page.attention, reference, count) } : {}),
       notifications: page.notifications.map((notification) =>
         Date.parse(notification.createdAt) <= Date.parse(through) &&
+        genericInformation(notification) &&
         attentionMatches(attentionReference(notification), reference.target, true)
           ? { ...notification, readAt: notification.readAt ?? readAt }
           : notification,

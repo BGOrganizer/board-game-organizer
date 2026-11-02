@@ -38,6 +38,7 @@ export default defineConfig({
       include: [
         ...[
           "common/hooks/useListSearch.ts",
+          "notifications/hooks/useNotificationItemDwell.ts",
           "organizations/hooks/useOrganizationPeople.ts",
           "organizations/hooks/useOrganizationSocialActions.ts",
           "community/hooks/usePeopleSocialActions.ts",
@@ -91,6 +92,12 @@ export default defineConfig({
       ],
       thresholds: {
         "src/components/common/ui/{NotificationUnreadDot,ArtworkStatusPopover}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/notifications/hooks/useNotificationItemDwell.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

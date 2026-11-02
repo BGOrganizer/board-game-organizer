@@ -63,6 +63,7 @@ function toDto(notification: Notification, locale?: "en" | "it"): NotificationDt
             id: item.id,
             revision: item.revision,
             ...(item.sectionId ? { sectionId: item.sectionId } : {}),
+            ...(item.changedAt ? { changedAt: item.changedAt.toISOString() } : {}),
             readAt: (notification.readAt ?? item.readAt)?.toISOString() ?? null,
           })),
         }
@@ -234,7 +235,62 @@ export class NotificationsRepository {
   }
 
   /** Called in the same transaction as a successful vote/decision; never acknowledges later arrivals. */
-  acknowledgeItems(recipientUserId: string, itemIds: readonly string[], through: string) {
+  async acknowledgeItems(recipientUserId: string, itemIds: readonly string[], through: string) {
+    const cutoff = new Date(Math.min(Date.parse(through), Date.now()));
+    let legacyRead = 0;
+    const members: Record<string, unknown>[] = [];
+    for (const id of itemIds) {
+      const [resource, groupId, field, userId] = JSON.parse(id) as string[];
+      if (resource === "group" && field === "members") {
+        // ponytail: stream historical notices; aggregate eligible IDs if bulk section reads become hot.
+        const cursor = this.db
+          .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
+          .find(
+            {
+              recipientUserId,
+              kind: { $in: ["group_membership_updated", "group_invitation_accepted"] },
+              href: `/groups/${groupId}`,
+              actorUserId: { $regex: "^[A-Za-z0-9_-]+$" },
+              attentionItems: { $exists: false },
+              readAt: { $exists: false },
+              createdAt: { $lte: cutoff },
+            },
+            this.opts,
+          )
+          .project({ _id: 1, actorUserId: 1, createdAt: 1 });
+        for await (const note of cursor) {
+          const membership = await this.db
+            .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+            .findOne({ groupId, userId: note.actorUserId, status: "ACCEPTED" }, this.opts);
+          if (
+            !membership?.updatedAt ||
+            !Number.isFinite(Date.parse(membership.updatedAt)) ||
+            new Date(membership.updatedAt) > note.createdAt
+          )
+            continue;
+          const result = await this.db
+            .collection(COLLECTIONS.NOTIFICATIONS)
+            .updateOne(
+              { _id: note._id, recipientUserId, readAt: { $exists: false } },
+              { $set: { readAt: new Date() } },
+              this.opts,
+            );
+          legacyRead += result.modifiedCount;
+        }
+      }
+      if (resource !== "group" || field !== "member") continue;
+      const membership = await this.db
+        .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+        .findOne({ groupId, userId, status: "ACCEPTED" }, this.opts);
+      if (!membership?.updatedAt || !Number.isFinite(Date.parse(membership.updatedAt))) continue;
+      members.push({
+        kind: { $in: ["group_membership_updated", "group_invitation_accepted"] },
+        href: `/groups/${groupId}`,
+        actorUserId: userId,
+        attentionItems: { $exists: false },
+        createdAt: { $gte: new Date(membership.updatedAt) },
+      });
+    }
     const invitations = itemIds.flatMap((id) => {
       const [resource, scope, field] = JSON.parse(id) as [string, string, string];
       if (field !== "invitation") return [];
@@ -250,11 +306,11 @@ export class NotificationsRepository {
         },
       ];
     });
-    return this.db.collection<Notification>(COLLECTIONS.NOTIFICATIONS).updateMany(
+    const result = await this.db.collection<Notification>(COLLECTIONS.NOTIFICATIONS).updateMany(
       {
         recipientUserId,
         readAt: { $exists: false },
-        createdAt: { $lte: new Date(Math.min(Date.parse(through), Date.now())) },
+        createdAt: { $lte: cutoff },
         $or: [
           {
             attentionItems: {
@@ -265,6 +321,7 @@ export class NotificationsRepository {
             },
           },
           ...invitations,
+          ...members,
         ],
       },
       [
@@ -285,10 +342,7 @@ export class NotificationsRepository {
                           ],
                         },
                         {
-                          $lte: [
-                            { $ifNull: ["$$item.changedAt", "$createdAt"] },
-                            new Date(Math.min(Date.parse(through), Date.now())),
-                          ],
+                          $lte: [{ $ifNull: ["$$item.changedAt", "$createdAt"] }, cutoff],
                         },
                       ],
                     },
@@ -322,6 +376,7 @@ export class NotificationsRepository {
       ],
       this.opts,
     );
+    return { ...result, modifiedCount: result.modifiedCount + legacyRead };
   }
 
   markRead(recipientUserId: string, notificationId: string) {

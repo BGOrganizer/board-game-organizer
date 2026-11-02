@@ -1,4 +1,4 @@
-import type { PlannedTableResponse } from "@board-game-organizer/schemas";
+import { notificationItemId, type PlannedTableResponse } from "@board-game-organizer/schemas";
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
@@ -7,6 +7,7 @@ import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
 
@@ -31,15 +32,33 @@ export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 16, padding: 16 }}>
           <AnimatedDicebearArtwork seed={table.id} variant="planets" />
           <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-              <Dices size={16} color={muted} accessible={false} style={{ marginTop: 2 }} />
-              <Typography
-                accessibilityRole="header"
-                className="text-base font-semibold text-foreground"
-                style={{ flex: 1 }}
+            <View
+              style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: 8 }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexBasis: 208,
+                  flexGrow: 1,
+                  flexShrink: 1,
+                  minWidth: 0,
+                  alignItems: "flex-start",
+                  gap: 8,
+                }}
               >
-                {table.name}
-              </Typography>
+                <Dices size={16} color={muted} accessible={false} style={{ marginTop: 2 }} />
+                <Typography
+                  accessibilityRole="header"
+                  className="text-base font-semibold text-foreground"
+                  style={{ flex: 1, minWidth: 0 }}
+                >
+                  {table.name}
+                </Typography>
+                <NotificationItem
+                  itemId={notificationItemId(table.id, "overview", undefined, "table")}
+                  readOnly
+                />
+              </View>
               <EventTableRatingBadge enabled={table.rankingEnabled} />
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 16 }}>

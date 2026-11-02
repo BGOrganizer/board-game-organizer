@@ -1,11 +1,12 @@
 "use client";
-import type { GroupRecordResponse } from "@board-game-organizer/schemas";
+import { type GroupRecordResponse, notificationItemId } from "@board-game-organizer/schemas";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarDays, LockKeyhole, LockKeyholeOpen, MapPin, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { InfoSection } from "@/components/common/ui/InfoSection";
 import { LocationListRow } from "@/components/locations/LocationListRow";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { GroupArtwork } from "./GroupArtwork";
 import { GroupStatusBadge } from "./GroupStatusBadge";
 export function GroupDetailsCard({
@@ -30,7 +31,13 @@ export function GroupDetailsCard({
         <GroupedRow className="gap-4 p-4">
           <GroupArtwork group={group} />
           <div className="min-w-0 flex-1 space-y-2">
-            <p className="break-words font-semibold">{group.name}</p>
+            <div className="flex min-w-0 items-center gap-2">
+              <p className="min-w-0 flex-1 break-words font-semibold">{group.name}</p>
+              <NotificationItem
+                itemId={notificationItemId(group.id, "overview", undefined, "group")}
+                readOnly
+              />
+            </div>
             <p className="flex items-center gap-1 text-sm text-muted">
               <Visibility className="size-4" aria-hidden />
               {group.type === "PUBLIC" ? t`Public` : t`Private`}

@@ -6,11 +6,11 @@ import { Platform } from "react-native";
 export function notificationItemHref(
   notification: Pick<NotificationDto, "href" | "kind" | "attention" | "attentionItems">,
 ): ReturnType<typeof notificationHref> {
-  const { href, itemId } = notificationDestination(notification);
+  const { href, itemId, section } = notificationDestination(notification);
   const route = notificationHref({ href, kind: notification.kind });
   return (
     itemId
-      ? `${route}${route.includes("?") ? "&" : "?"}attention=${encodeURIComponent(itemId)}`
+      ? `${route}${route.includes("?") ? "&" : "?"}${section ? `tab=${section}&` : ""}attention=${encodeURIComponent(itemId)}`
       : route
   ) as ReturnType<typeof notificationHref>;
 }
@@ -91,12 +91,18 @@ export function notificationHref(
     attentionItemId?: unknown;
   };
   if (typeof href === "string" && notificationItemIdSchema.safeParse(attentionItemId).success) {
-    const [, scope] = JSON.parse(attentionItemId as string) as [string, string];
+    const [resource, scope, field] = JSON.parse(attentionItemId as string) as [
+      string,
+      string,
+      string,
+    ];
+    const section =
+      resource === "group" && ["member", "members"].includes(field) ? "tab=members&" : "";
     // Route hints never replace server authorization; accept only a hint for the linked resource.
     if (href.endsWith(`/${scope}`)) {
       const route = notificationHref({ href, kind });
       if (route !== "/notifications")
-        return `${route}${route.includes("?") ? "&" : "?"}attention=${encodeURIComponent(attentionItemId as string)}` as ReturnType<
+        return `${route}${route.includes("?") ? "&" : "?"}${section}attention=${encodeURIComponent(attentionItemId as string)}` as ReturnType<
           typeof notificationHref
         >;
     }

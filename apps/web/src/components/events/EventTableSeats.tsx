@@ -166,15 +166,17 @@ export function EventTableSeats({
                     key={item.key}
                     className="[contain-intrinsic-size:auto_4rem] [content-visibility:auto]"
                   >
-                    <NotificationItem
-                      itemId={
-                        own && pending
-                          ? notificationItemId(table.id, "invitation", undefined, "table")
-                          : undefined
-                      }
-                      readOnly={!table.canRespond || closed}
-                    />
                     <UserIdentity
+                      titleAccessory={
+                        <NotificationItem
+                          itemId={
+                            own && pending
+                              ? notificationItemId(table.id, "invitation", undefined, "table")
+                              : undefined
+                          }
+                          readOnly={!table.canRespond || closed}
+                        />
+                      }
                       name={name}
                       avatarUrl={row.avatarUrl}
                       secondary={

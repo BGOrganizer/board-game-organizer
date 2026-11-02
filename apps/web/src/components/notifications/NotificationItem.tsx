@@ -18,7 +18,7 @@ export function NotificationItem({
 }) {
   const attention = useNotificationAttentionContext(),
     { t } = useLingui();
-  const element = useRef<HTMLDivElement>(null),
+  const element = useRef<HTMLElement>(null),
     positioned = useRef<string | null>(null);
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("attention");
@@ -31,9 +31,12 @@ export function NotificationItem({
   const count = target ? attention?.get(target)?.count : undefined;
   if (!target) return <>{children}</>;
   if (!children && !count) return null;
+  const Item = children ? "div" : "span";
   return (
-    <div
-      ref={element}
+    <Item
+      ref={(node) => {
+        element.current = node;
+      }}
       id={`attention-${target.id}`}
       className={`flex min-w-0 scroll-mt-24 items-center gap-2 ${children ? "w-full" : "shrink-0"}`}
     >
@@ -51,6 +54,6 @@ export function NotificationItem({
           <Check className="size-4" aria-hidden />
         </Button>
       ) : null}
-    </div>
+    </Item>
   );
 }

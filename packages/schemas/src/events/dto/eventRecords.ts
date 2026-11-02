@@ -201,12 +201,14 @@ export const decideTableRegistrationSchema = z.discriminatedUnion("action", [
       version: z.number().int().positive(),
       action: z.literal("accept"),
       participation: joinTableSchema,
+      attentionThrough: z.iso.datetime({ precision: 3 }).optional(),
     })
     .strict(),
   z
     .object({
       version: z.number().int().positive(),
       action: z.enum(["decline", "cancel", "remove"]),
+      attentionThrough: z.iso.datetime({ precision: 3 }).optional(),
     })
     .strict(),
 ]);

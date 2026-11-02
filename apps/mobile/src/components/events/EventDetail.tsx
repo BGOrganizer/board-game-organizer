@@ -177,9 +177,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const header = (
     <View style={{ gap: 12 }}>
       <View style={{ gap: 8 }}>
-        <NotificationItem itemId={notificationItemId(event.id, "overview")} readOnly>
-          <EventDetailsCard event={event} />
-        </NotificationItem>
+        <EventDetailsCard event={event} />
       </View>
       {event.groupId && fromGroup !== event.groupId ? (
         <EventGroupLink groupId={event.groupId} name={event.groupName} />

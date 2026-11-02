@@ -73,13 +73,34 @@ describe("precise notification item identity", () => {
       notificationItemId(scope, "overview", undefined, "table"),
     );
     for (const [resource, field] of [
-      ["group", "overview"],
+      ["group", "dates"],
       ["event", "game"],
       ["table", "date"],
       ["event", "invitation"],
     ])
       expect(
         notificationItemIdSchema.safeParse(JSON.stringify([resource, scope, field, null])).success,
+      ).toBe(false);
+  });
+  it("validates Group member identities without granting member fields to Events or Tables", () => {
+    for (const field of ["members", "overview"] as const)
+      expect(
+        notificationItemIdSchema.safeParse(notificationItemId(scope, field, undefined, "group"))
+          .success,
+      ).toBe(true);
+    expect(notificationItemIdSchema.parse(notificationItemId(scope, "member", "user_member"))).toBe(
+      notificationItemId(scope, "member", "user_member"),
+    );
+    for (const resource of ["event", "table"] as const)
+      expect(
+        notificationItemIdSchema.safeParse(
+          notificationItemId(scope, "member", "user_member", resource),
+        ).success,
+      ).toBe(false);
+    for (const value of [null, "", " ", "x".repeat(256)])
+      expect(
+        notificationItemIdSchema.safeParse(JSON.stringify(["group", scope, "member", value]))
+          .success,
       ).toBe(false);
   });
   it("admits an optional source cutoff only with a valid vote, retaining every original validation", () => {

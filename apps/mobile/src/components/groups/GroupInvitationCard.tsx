@@ -1,15 +1,19 @@
+import { notificationItemId } from "@board-game-organizer/schemas";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { Check, X } from "lucide-react-native";
 import { View } from "react-native";
 import { ListCard } from "@/components/common/ui/ListCard";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 export function GroupInvitationCard({
+  groupId,
   busy,
   onAccept,
   onDecline,
 }: {
+  groupId: string;
   busy: boolean;
   onAccept: () => void;
   onDecline: () => void;
@@ -20,12 +24,18 @@ export function GroupInvitationCard({
     <View style={{ alignSelf: "center", width: "100%", maxWidth: 420, marginTop: 16 }}>
       <ListCard>
         <View style={{ padding: 16, gap: 12 }}>
-          <Typography
-            accessibilityRole="header"
-            className="text-center font-semibold text-foreground"
+          <View
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}
           >
-            {t("Invitation received")}
-          </Typography>
+            <Typography
+              accessibilityRole="header"
+              className="text-center font-semibold text-foreground"
+              style={{ flexShrink: 1 }}
+            >
+              {t("Invitation received")}
+            </Typography>
+            <NotificationItem itemId={notificationItemId(groupId, "invitation")} readOnly={false} />
+          </View>
           <Typography className="text-center text-sm text-muted">
             {t(
               "Membership pending. Events, rankings and group social actions are unavailable until acceptance.",

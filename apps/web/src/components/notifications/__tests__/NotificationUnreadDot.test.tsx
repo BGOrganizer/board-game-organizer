@@ -25,12 +25,12 @@ beforeEach(() => {
   state.read.mockReset();
 });
 
-it("renders only a static accent dot; has no animation, observers, store or acknowledgement", () => {
+it("renders only a static danger dot; has no animation, observers, store or acknowledgement", () => {
   const q = renderWithI18n(<NotificationUnreadDot active={false} />);
   expect(screen.queryByRole("img")).toBeNull();
   q.rerender(<NotificationUnreadDot active />);
   const dot = screen.getByRole("img", { name: "Unread updates" });
-  expect(dot.className).toContain("badge--accent");
+  expect(dot.className).toContain("badge--danger");
   expect(dot.style.width).toBe("8px");
   expect(dot.style.position).toBe("relative");
   expect(dot.style.transform).toBe("none");

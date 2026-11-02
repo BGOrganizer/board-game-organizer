@@ -1,5 +1,48 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Entity-scoped danger dots and accepted-member viewing
+
+- Applied the [notification contract](groups-events-refactor.md#notification-attention) on web/native:
+  every unread dot uses stock HeroUI danger and remains inside its own card/item. Event/Table title
+  groups wrap their existing chips when necessary, retaining readable long names and 44px read
+  controls. Browser geometry and screenshots caught title compression; fixed both platforms without
+  application palette overrides, dependencies, new wording or catalog changes.
+- Removed automatic Group/Event/Table count propagation. Canonical item resource identities, not
+  historical tableIds/ancestry, determine actual owners. Mixed notices retain independent per-owner
+  completion effects: reading the last Event point clears Event navigation while an unread Table
+  point and the single inbox notice remain. Whole-notice reads preserve unrelated generic counts.
+  Ancestry remains authorization/routing metadata, and recipient/current resource access still gates
+  counts. No Event visibility, consent, reservations, capabilities, pending decisions or results change.
+- Accepted Group memberships emit the real member point and Members section. Only the actual
+  visible row acknowledges its captured source after five continuous seconds; hidden, unfocused,
+  background or covered time does not count. Web installs observers only for unread members;
+  native uses FlatList viewability, AppState and screen focus. Later signals restart the window.
+  Inbox/push links open Members; departed/excluded members retarget to existing Group Overview.
+- Historical membership attribution requires a current accepted actor membership predating its
+  notice and current member visibility. Otherwise notices stay generic. Pending invitations,
+  public discovery and moderation alone cannot expose member points. Generic entry reads exclude
+  derived historical points; bounded source IDs/streaming preserve source paging and exact cutoffs,
+  including explicit section reads, without backfill, migration or deleting inbox history.
+- Captured read effects project source items and all related active/inactive container, navigation
+  and bell caches before HTTP. Known Group/Table invitation ACKs commit immediately, without waiting
+  for detail refresh. Loaded-notice aliases coordinate actual dependencies, never an owner's whole
+  inbox; failures roll back selectively and uncertain outcomes retain verification/no blind retry.
+  Source changedAt protects newer retargeted revisions. Scope entry waits for its own metadata:
+  regression testing caught an older cached parent read cancelling unread-member discovery.
+- Local checks: 2,338 covered units (shared 413, schemas 125, API 766, mobile 300, web 734), workspace
+  typecheck and full real replica-set integration 109/109 pass. Changed deterministic notification
+  helpers, the new read operation/pipeline builder and shared dwell hook retain per-file 100% gates.
+  Tests cover mixed ownership/completion, authorization, temporal historical fallback, partial reads,
+  consent ACK/rollback, inactive/foreign caches, actual visibility/focus callbacks and later revisions.
+- API/web production builds and Android export pass; generated references restore byte-for-byte and
+  seven protected inputs remain unchanged. Isolated Chromium checks cover 390/1280, light/dark and
+  EN/IT, actual stock danger colors, internal marker/read-target geometry, readable long titles,
+  entity-only indicators and five-second member/navigation clearing with no domain writes.
+  These use Query-seeded components and simulated notification transport, not authenticated E2E
+  or native/device acceptance. Existing suites/jobs and installed APK testing remain unchanged.
+- This supersedes historical accent-dot and hierarchical propagation presentation below. No provider,
+  authentication configuration, production data, dependency, CI/CD or palette changes were made.
+
 ## Personal list sections and scoped name filtering
 
 - Implemented the [main-list contract](groups-events-refactor.md#events-and-tables) on both clients:

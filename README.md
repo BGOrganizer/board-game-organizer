@@ -29,10 +29,12 @@ with its four-character minimum.
 - Exact public-event cutoffs, verified locations/favorites, BGG/manual durations, overlap checks,
   atomic whole-event results and GLOBAL/GROUP OpenSkill ratings. Pending invitees never vote.
 - MongoDB-backed BoardGameGeek catalog search, account linking and collection synchronization.
-- Durable notification inbox with a counted bell and static numberless dots. Card/contact dots follow
-  titles/names; precise changes use fixed inline dots without borders, pulses or wrapping labels.
-  Pending Group request review and invitation replies remain visible independently of unread state.
-  Successful votes acknowledge only their displayed change; container entry preserves child attention.
+- Durable notification inbox with a counted bell and static danger dots inside affected cards/items,
+  after shrinkable titles/names. No automatic Group/Event/Table propagation, borders or pulses.
+  Accepted members mark Members and their actual row, clearing after five continuously visible
+  seconds. Known source reads/decisions immediately reconcile their related navigation indicators.
+  Pending Group request review and invitation replies remain independent of unread state.
+  Successful votes acknowledge only their displayed change; container entry preserves precise attention.
   Optional push, light/dark and EN/IT. Reading never grants invitation consent.
 - HeroUI-token-only light/dark UI across native navigation, headers, controls and custom surfaces.
   Theme changes preserve drafts and selection. Both clients inherit the installed HeroUI default

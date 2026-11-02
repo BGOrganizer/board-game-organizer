@@ -14,7 +14,7 @@ import type {
   GroupRecordListRole,
   GroupRecordResponse,
 } from "@board-game-organizer/schemas";
-import { groupRecordListRoles } from "@board-game-organizer/schemas";
+import { groupRecordListRoles, notificationItemId } from "@board-game-organizer/schemas";
 import {
   hashKey,
   infiniteQueryOptions,
@@ -53,6 +53,7 @@ import {
 } from "../../community/queryCache";
 import type { ContactUser } from "../../contacts/hooks/useContacts";
 import { notificationFilters } from "../../notifications/notificationAttentionCache";
+import { beginNotificationItemRead } from "../../notifications/notificationReadOperation";
 import { revokeCachedGroupAccess } from "../groupAccessCache";
 import { belongsToDeletedGroup, removeDeletedGroupData } from "../groupDeletionCache";
 import {
@@ -376,6 +377,9 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
       id,
       owner: { apiUrl: options.apiUrl, userId: options.userId },
       requestOptions: options,
+      attentionOperation: undefined as
+        | Awaited<ReturnType<typeof beginOptimisticOperation>>
+        | undefined,
     };
   }
   async function failure(error: Error, context: Awaited<ReturnType<typeof begin>> | undefined) {
@@ -384,6 +388,7 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         error,
         optimisticFailureAction(error, context.action),
       );
+    await context?.attentionOperation?.reject(error);
     await context?.operation.reject(error);
     if (context?.operation.active) await context.operation.wait();
   }
@@ -394,6 +399,7 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         ? undefined
         : (_data, key) => optimisticBaseData(client, key),
     );
+    context.attentionOperation?.commit();
     if (!context.announced) context.requestOptions.feedback?.onSuccess?.(context.action);
   }
   function settle(
@@ -463,6 +469,7 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
           value.groupId === context.id
         ) {
           const membership = value as GroupMembership;
+          context.attentionOperation?.commit();
           if (["PENDING", "ACCEPTED"].includes(membership.status))
             for (const [key] of client.getQueriesData({
               queryKey: groupRecordKeys.root(context.owner),
@@ -859,18 +866,15 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         context,
         variables,
       ),
-    onMutate: ({ id, userId, input }) =>
-      begin(
+    onMutate: async ({ id, userId, input }) => {
+      const context = await begin(
         groupMembershipFeedback(input.action),
         id,
         undefined,
         (person) =>
           person.userId === userId &&
           person.membership &&
-          (input.action === "remove" ||
-            input.action === "cancel" ||
-            input.action === "reject" ||
-            input.action === "decline")
+          ["remove", "cancel", "reject", "decline"].includes(input.action)
             ? {
                 ...person,
                 membership: {
@@ -882,7 +886,25 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
             : person,
         undefined,
         userId,
-      ),
+      );
+      if (userId === options.userId && (input.action === "accept" || input.action === "decline")) {
+        try {
+          const read = await beginNotificationItemRead(
+            client,
+            options,
+            notificationItemId(id, "invitation"),
+          );
+          context.attentionOperation = read?.operation;
+          if (read) input.attentionThrough = read.through;
+        } catch (error) {
+          await context.operation.reject(
+            error instanceof Error ? error : new Error("Invalid notification"),
+          );
+          throw error;
+        }
+      }
+      return context;
+    },
     onSuccess: membershipSuccess,
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,

@@ -66,6 +66,15 @@ export const notificationAttentionReferenceSchema = z
     groupId: z.uuid().optional(),
     section: z.enum(contactNotificationSections).optional(),
     tableIds: z.array(z.uuid()).max(20).optional(),
+    /** Source-authorized entities owning the unread points, never their ancestry. */
+    containers: z
+      .array(
+        notificationAttentionTargetSchema.refine((target) =>
+          ["group", "event", "table"].includes(target.kind),
+        ),
+      )
+      .max(22)
+      .optional(),
     itemIds: z.array(notificationItemIdSchema).max(1000).optional(),
   })
   .strict();

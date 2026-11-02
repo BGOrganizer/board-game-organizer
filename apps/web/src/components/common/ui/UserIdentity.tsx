@@ -8,12 +8,14 @@ export function UserIdentity({
   avatarUrl,
   secondary,
   badge,
+  titleAccessory,
   children,
 }: {
   name: string;
   avatarUrl?: string | null;
   secondary?: string | null;
   badge?: ReactNode;
+  titleAccessory?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -26,7 +28,10 @@ export function UserIdentity({
         {badge}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{name}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="min-w-0 truncate font-medium">{name}</span>
+          {titleAccessory}
+        </span>
         {secondary ? <span className="block truncate text-sm text-muted">{secondary}</span> : null}
         {children}
       </span>

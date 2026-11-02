@@ -93,12 +93,7 @@ export function EventTableOverview({
     table.myRegistration?.status === "ACCEPTED";
   return (
     <div className="mx-auto max-w-4xl space-y-5 pb-24">
-      <NotificationItem
-        itemId={notificationItemId(table.id, "overview", undefined, "table")}
-        readOnly
-      >
-        <EventTableInfo table={table} />
-      </NotificationItem>
+      <EventTableInfo table={table} />
       {context === "personal" ? (
         <section className="space-y-2" aria-label={t`Event`}>
           <h2 className="font-semibold">{t`Event`}</h2>

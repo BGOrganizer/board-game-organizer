@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   notificationAttentionQuerySchema,
   notificationAttentionReceiptSchema,
+  notificationAttentionReferenceSchema,
   notificationAttentionSnapshotSchema,
   notificationAttentionTargetSchema,
   readNotificationAttentionSchema,
@@ -52,6 +53,23 @@ describe("notification attention boundaries", () => {
       notificationAttentionQuerySchema.safeParse({ targets: "[]", recipientUserId: "other" })
         .success,
     ).toBe(false);
+  });
+  it("accepts only entity containers, never contacts or an invalid resource scope", () => {
+    const target = { kind: "group", id };
+    expect(
+      notificationAttentionReferenceSchema.parse({
+        target,
+        containers: [{ kind: "event", id }, { kind: "table", id }, target],
+      }).containers,
+    ).toHaveLength(3);
+    for (const containers of [
+      [{ kind: "contact", id: "user_friend" }],
+      [{ kind: "table", id: "unknown" }],
+      Array.from({ length: 23 }, () => target),
+    ])
+      expect(notificationAttentionReferenceSchema.safeParse({ target, containers }).success).toBe(
+        false,
+      );
   });
   it("pins direct reads to a timestamp and forbids a whole person's cross-section read", () => {
     for (const target of [

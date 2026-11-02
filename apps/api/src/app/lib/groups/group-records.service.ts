@@ -12,6 +12,7 @@ import {
   type GroupRecord,
   type GroupRecordResponse,
   groupRecordSchema,
+  type NotificationItem,
   notificationItemId,
 } from "@board-game-organizer/schemas";
 import {
@@ -68,6 +69,7 @@ export class GroupRecordsService {
     group: GroupRecord,
     actor: string,
     recipients: string[],
+    attentionItems?: NotificationItem[],
   ) {
     await this.notifications.notifyMany(
       [...new Set(recipients)].map((recipientUserId) => ({
@@ -77,6 +79,7 @@ export class GroupRecordsService {
         resourceName: group.proposal?.name ?? group.approved?.name ?? "",
         resourceHref:
           kind === "group_review_requested" ? `/moderation/${group.id}` : `/groups/${group.id}`,
+        ...(attentionItems ? { attentionItems } : {}),
       })),
     );
   }
@@ -423,13 +426,37 @@ export class GroupRecordsService {
       await this.notifications.acknowledgeItems(
         userId,
         [notificationItemId(group.id, "invitation")],
-        new Date().toISOString(),
+        input.attentionThrough ?? new Date().toISOString(),
       );
-    if (status === "LEFT") await this.departure(id, target, "LEFT");
-    await this.notify("group_membership_updated", group, userId, [
-      own ? group.adminUserId : target,
-    ]);
+    if (status === "LEFT") {
+      await this.retargetMember(id, target, next.version);
+      await this.departure(id, target, "LEFT");
+    }
+    await this.notify(
+      "group_membership_updated",
+      group,
+      userId,
+      [own ? group.adminUserId : target],
+      status === "ACCEPTED"
+        ? [
+            {
+              id: notificationItemId(id, "member", target),
+              sectionId: notificationItemId(id, "members"),
+              revision: next.version,
+              groupId: id,
+            },
+          ]
+        : undefined,
+    );
     return next;
+  }
+  private retargetMember(groupId: string, userId: string, revision: number) {
+    return this.notifications.retargetItems([
+      {
+        from: notificationItemId(groupId, "member", userId),
+        to: { id: notificationItemId(groupId, "overview", undefined, "group"), revision, groupId },
+      },
+    ]);
   }
   async ban(userId: string, id: string, input: BanGroupUserInput) {
     const group = await this.required(id, true);
@@ -458,6 +485,7 @@ export class GroupRecordsService {
         version: membership.version + 1,
         updatedAt: at,
       });
+    await this.retargetMember(id, input.userId, (membership?.version ?? 0) + 1);
     await this.departure(id, input.userId, "BAN");
     await this.notify("group_banned", group, userId, [input.userId]);
     return row;

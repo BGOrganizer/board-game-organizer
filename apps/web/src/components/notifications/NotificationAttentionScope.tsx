@@ -42,12 +42,13 @@ function AttentionState({
   const current = useRef({ attention, target });
   current.current = { attention, target };
   const kind = target?.kind,
-    id = target?.id;
+    id = target?.id,
+    ready = attention?.ready;
   useEffect(() => {
     const { attention, target } = current.current;
-    if (target && attention?.owner === owner && target.kind === kind && target.id === id)
+    if (ready && target && attention?.owner === owner && target.kind === kind && target.id === id)
       attention.read(target);
-  }, [owner, kind, id]);
+  }, [owner, kind, id, ready]);
   return attention?.error ? (
     <div role="alert">
       <p className="text-danger">{t`Could not load notifications`}</p>

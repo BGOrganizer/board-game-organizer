@@ -17,10 +17,9 @@ import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
-import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
+import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
@@ -84,6 +83,8 @@ export function GroupDetail({
       targets={[
         { kind: "group", id: group.id },
         { kind: "item", id: notificationItemId(group.id, "invitation") },
+        { kind: "item", id: notificationItemId(group.id, "members") },
+        { kind: "item", id: notificationItemId(group.id, "overview", undefined, "group") },
       ]}
       readOnOpen={{ kind: "group", id: group.id }}
     >
@@ -133,6 +134,7 @@ export function GroupDetail({
               {group.canViewMembers ? (
                 <Tabs.Tab id="members" className="gap-2">
                   {t`Members`}
+                  <GroupMembersBadge groupId={group.id} />
                   {group.role === "admin" && (group.pendingRequestCount ?? 0) > 0 ? (
                     <span
                       role="img"
@@ -147,7 +149,6 @@ export function GroupDetail({
               {group.canViewEvents ? (
                 <Tabs.Tab id="events" className="gap-2">
                   {t`Events`}
-                  <GroupEventsBadge groupId={group.id} />
                 </Tabs.Tab>
               ) : null}
               {group.canViewRankings ? <Tabs.Tab id="rankings">{t`Rankings`}</Tabs.Tab> : null}
@@ -167,16 +168,15 @@ export function GroupDetail({
               />
             ) : null}
             {group.role === "invited" ? (
-              <NotificationItem itemId={notificationItemId(group.id, "invitation")}>
-                <GroupInvitationCard
-                  busy={ownBusy}
-                  onAccept={() => void run("accept")}
-                  onDecline={() => {
-                    setError(false);
-                    setConfirm("decline");
-                  }}
-                />
-              </NotificationItem>
+              <GroupInvitationCard
+                groupId={group.id}
+                busy={ownBusy}
+                onAccept={() => void run("accept")}
+                onDecline={() => {
+                  setError(false);
+                  setConfirm("decline");
+                }}
+              />
             ) : null}
           </Tabs.Panel>
           {group.canViewMembers ? (
@@ -245,7 +245,13 @@ export function GroupDetail({
     </NotificationAttentionScope>
   );
 }
-function GroupEventsBadge({ groupId }: { groupId: string }) {
+function GroupMembersBadge({ groupId }: { groupId: string }) {
   const attention = useNotificationAttentionContext();
-  return <NotificationCountBadge count={attention?.get({ kind: "group", id: groupId })?.events} />;
+  return (
+    <NotificationUnreadDot
+      active={Boolean(
+        attention?.get({ kind: "item", id: notificationItemId(groupId, "members") })?.count,
+      )}
+    />
+  );
 }

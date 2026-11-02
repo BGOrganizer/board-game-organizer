@@ -29,7 +29,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/app/lib/notifications/notification-copy.ts": {
+        "src/app/lib/notifications/{notification-copy,notification-item-pipeline}.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

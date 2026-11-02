@@ -73,7 +73,7 @@ describe("notification operation projection", () => {
     expect(source.pages[0].nextCursor).toBe("one");
     expect(optimisticNotificationData(undefined, "delete", undefined, at, false)).toBeUndefined();
   });
-  it("coordinates hierarchy summaries on single read/delete and bulk actions without changing unknown or already-read slices", () => {
+  it("coordinates actual entity summaries on single read/delete and bulk actions without changing unknown or already-read slices", () => {
     const summary = { ...emptyAttentionSummary(), tables: 4, events: 4, groups: 4 };
     const source = { ...data, pages: data.pages.map((page) => ({ ...page, attention: summary })) };
     const reference = {
@@ -91,7 +91,7 @@ describe("notification operation projection", () => {
         true,
         reference,
       ) as typeof source;
-      expect(changed.pages[0].attention).toEqual({ ...summary, tables: 3, events: 3, groups: 3 });
+      expect(changed.pages[0].attention).toEqual({ ...summary, tables: 3 });
       expect(
         (
           optimisticNotificationData(

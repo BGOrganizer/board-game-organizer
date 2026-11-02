@@ -36,6 +36,7 @@ import {
   attentionRoot,
   cachedAttention,
   notificationFilters,
+  notificationReadAliases,
   projectAttentionRead,
 } from "../notificationAttentionCache";
 import { projectNotificationItemRead } from "../notificationItemRead";
@@ -102,6 +103,7 @@ export function useNotificationAttention(
   return {
     get: (target: NotificationAttentionTarget): NotificationAttentionCount | undefined =>
       rows.get(attentionKey(target)) ?? cachedAttention(client, options, target)?.row,
+    ready: queries.every((query) => query.data !== undefined),
     error: queries.find((query) => query.isError)?.error,
     refetch: () => Promise.all(queries.map((query) => query.refetch())),
   };
@@ -149,24 +151,12 @@ export function useReadNotificationAttention(options: CommunityApiOptions) {
         throw new CommunityApiError(400, "Invalid read target");
       const reference = readReference(row),
         readAt = new Date().toISOString();
-      const aliases = client
-        .getQueriesData<InfiniteData<NotificationListResponse>>({
-          queryKey: ["notifications", variables.owner.apiUrl, variables.owner.userId],
-        })
-        .flatMap(([, data]) => data?.pages.flatMap((page) => page.notifications) ?? [])
-        .filter(
-          (notification) =>
-            !notification.readAt &&
-            Date.parse(notification.createdAt) <= Date.parse(variables.snapshot.asOf) &&
-            attentionMatches(attentionReference(notification), variables.target, true),
-        )
-        .map((notification) => [
-          "notifications",
-          variables.owner.apiUrl,
-          variables.owner.userId,
-          "item",
-          notification.id,
-        ]);
+      const aliases = notificationReadAliases(
+        client,
+        variables.owner,
+        variables.target,
+        variables.snapshot.asOf,
+      );
       const operation = await beginOptimisticOperation(
         client,
         [
@@ -210,7 +200,7 @@ export function useReadNotificationAttention(options: CommunityApiOptions) {
       });
     },
   });
-  const read = (target: NotificationAttentionTarget) => {
+  const read = (target: NotificationAttentionTarget, captured?: NotificationAttentionSnapshot) => {
     if (
       !options.apiUrl ||
       !options.userId ||
@@ -235,6 +225,15 @@ export function useReadNotificationAttention(options: CommunityApiOptions) {
         )
     )
       return;
+    if (captured) {
+      if (
+        captured.targets.some(
+          (row) => attentionKey(row.target) === attentionKey(target) && row.direct > 0,
+        )
+      )
+        mutation.mutate({ target, snapshot: captured, owner: { ...options } });
+      return;
+    }
     const found = cachedAttention(client, options, target);
     const foundQuery =
       found &&

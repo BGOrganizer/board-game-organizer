@@ -1,4 +1,4 @@
-import type { GroupRecordResponse } from "@board-game-organizer/schemas";
+import { type GroupRecordResponse, notificationItemId } from "@board-game-organizer/schemas";
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
@@ -14,6 +14,7 @@ import { View } from "react-native";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { InfoSection } from "@/components/common/ui/InfoSection";
 import { LocationListRow } from "@/components/locations/LocationListRow";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { GroupArtwork } from "./GroupArtwork";
 import { GroupStatusBadge } from "./GroupStatusBadge";
@@ -51,7 +52,18 @@ export function GroupDetailsCard({
           >
             <GroupArtwork group={group} />
             <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-              <Typography className="font-semibold text-foreground">{group.name}</Typography>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Typography
+                  className="font-semibold text-foreground"
+                  style={{ flex: 1, minWidth: 0 }}
+                >
+                  {group.name}
+                </Typography>
+                <NotificationItem
+                  itemId={notificationItemId(group.id, "overview", undefined, "group")}
+                  readOnly
+                />
+              </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Visibility size={14} color={muted} accessible={false} />
                 <Typography className="text-muted">

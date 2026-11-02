@@ -180,61 +180,62 @@ export function EventTableSeats({
                 : t("Accepted player");
             return (
               <GroupedList>
-                <NotificationItem
-                  itemId={
-                    own && pending
-                      ? notificationItemId(table.id, "invitation", undefined, "table")
-                      : undefined
+                <UserListRow
+                  titleAccessory={
+                    <NotificationItem
+                      itemId={
+                        own && pending
+                          ? notificationItemId(table.id, "invitation", undefined, "table")
+                          : undefined
+                      }
+                      readOnly={!table.canRespond || closed}
+                    />
                   }
-                  readOnly={!table.canRespond || closed}
-                >
-                  <UserListRow
-                    name={name}
-                    avatarUrl={row.avatarUrl}
-                    secondary={
-                      table.eventStatus === "CONFIRMED"
-                        ? row.email
-                        : pending && waiting
-                          ? `${status} · ${t("Waiting list")}`
-                          : status
-                    }
-                    badge={{
-                      icon: Icon,
-                      label: status,
-                      color: pending || waiting ? "warning" : "success",
-                    }}
-                    actions={
-                      <>
-                        {own && table.canRespond && pending && !closed && table.myRegistration ? (
-                          <EventTableInvitationActions
-                            eventId={table.eventId}
-                            registration={table.myRegistration}
-                          />
-                        ) : null}
-                        {!closed &&
-                        (own ? table.canLeave && row.status === "ACCEPTED" : table.canInvite) ? (
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="danger-soft"
-                            style={{ minWidth: 44, minHeight: 44 }}
-                            isDisabled={a.blocking}
-                            accessibilityLabel={
-                              own ? t("Leave table") : `${t("Remove player")}: ${name}`
-                            }
-                            onPress={() => onRemove(row, own)}
-                          >
-                            {own ? (
-                              <LogOut size={18} color={danger} />
-                            ) : (
-                              <UserRoundX size={18} color={danger} />
-                            )}
-                          </Button>
-                        ) : null}
-                      </>
-                    }
-                  />
-                </NotificationItem>
+                  name={name}
+                  avatarUrl={row.avatarUrl}
+                  secondary={
+                    table.eventStatus === "CONFIRMED"
+                      ? row.email
+                      : pending && waiting
+                        ? `${status} · ${t("Waiting list")}`
+                        : status
+                  }
+                  badge={{
+                    icon: Icon,
+                    label: status,
+                    color: pending || waiting ? "warning" : "success",
+                  }}
+                  actions={
+                    <>
+                      {own && table.canRespond && pending && !closed && table.myRegistration ? (
+                        <EventTableInvitationActions
+                          eventId={table.eventId}
+                          registration={table.myRegistration}
+                        />
+                      ) : null}
+                      {!closed &&
+                      (own ? table.canLeave && row.status === "ACCEPTED" : table.canInvite) ? (
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="danger-soft"
+                          style={{ minWidth: 44, minHeight: 44 }}
+                          isDisabled={a.blocking}
+                          accessibilityLabel={
+                            own ? t("Leave table") : `${t("Remove player")}: ${name}`
+                          }
+                          onPress={() => onRemove(row, own)}
+                        >
+                          {own ? (
+                            <LogOut size={18} color={danger} />
+                          ) : (
+                            <UserRoundX size={18} color={danger} />
+                          )}
+                        </Button>
+                      ) : null}
+                    </>
+                  }
+                />
               </GroupedList>
             );
           }}

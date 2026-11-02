@@ -9,7 +9,7 @@ export function NotificationUnreadDot({ active }: { active: boolean }) {
   if (!active) return null;
   return (
     <Badge
-      color="accent"
+      color="danger"
       size="sm"
       role="img"
       aria-label={t`Unread updates`}

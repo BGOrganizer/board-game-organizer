@@ -22,7 +22,8 @@ function isSectionChild(id: string, section: string) {
       option === null &&
       ((field === "date" && parentField === "dates") ||
         (field === "location" && parentField === "locations") ||
-        (field === "game" && parentField === "games"))
+        (field === "game" && parentField === "games") ||
+        (field === "member" && parentField === "members"))
     );
   } catch {
     return false;
@@ -53,6 +54,15 @@ export function projectNotificationItemRead(
   if (!data || !effect) return data;
   if (key[0] === "notification-attention") {
     const snapshot = data as NotificationAttentionSnapshot;
+    if (
+      snapshot.targets.some(
+        (value) =>
+          attentionKey(value.target) === attentionKey(row.target) &&
+          value.signal &&
+          Date.parse(value.signal.slice(0, 24)) > Date.parse(through),
+      )
+    )
+      return data;
     return {
       ...snapshot,
       unreadCount: Math.max(0, snapshot.unreadCount - effect.unread),
@@ -80,6 +90,22 @@ export function projectNotificationItemRead(
     };
   }
   const inbox = data as InfiniteData<NotificationListResponse>;
+  if (
+    inbox.pages.some((page) =>
+      page.notifications.some(
+        (notification) =>
+          !notification.readAt &&
+          Date.parse(notification.createdAt) <= Date.parse(through) &&
+          notification.attentionItems?.some(
+            (item) =>
+              !item.readAt &&
+              (item.id === row.target.id || item.sectionId === row.target.id) &&
+              Date.parse(item.changedAt ?? notification.createdAt) > Date.parse(through),
+          ),
+      ),
+    )
+  )
+    return data;
   return {
     ...inbox,
     pages: inbox.pages.map((page) => ({
@@ -88,16 +114,26 @@ export function projectNotificationItemRead(
       ...(page.attention ? { attention: subtract(page.attention, effect.summary) } : {}),
       notifications: page.notifications.map((notification) => {
         if (
+          !notification.readAt &&
+          !notification.attentionItems?.length &&
+          Date.parse(notification.createdAt) <= Date.parse(through) &&
+          notification.attention?.itemIds?.includes(row.target.id)
+        )
+          return { ...notification, readAt };
+        if (
           notification.readAt ||
           Date.parse(notification.createdAt) > Date.parse(through) ||
           !notification.attentionItems?.some(
             (item) =>
-              (item.id === row.target.id || item.sectionId === row.target.id) && !item.readAt,
+              (item.id === row.target.id || item.sectionId === row.target.id) &&
+              !item.readAt &&
+              Date.parse(item.changedAt ?? notification.createdAt) <= Date.parse(through),
           )
         )
           return notification;
         const attentionItems = notification.attentionItems.map((item) =>
-          item.id === row.target.id || item.sectionId === row.target.id
+          (item.id === row.target.id || item.sectionId === row.target.id) &&
+          Date.parse(item.changedAt ?? notification.createdAt) <= Date.parse(through)
             ? { ...item, readAt }
             : item,
         );

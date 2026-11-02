@@ -417,8 +417,13 @@ push-subscription synchronization, logout, profile completion, and background sy
 show user-action toasts.
 
 The bell alone retains its unread count; navigation tabs retain numberless attention dots.
-Cards/contact rows use static accent dots after their titles/names; precise item dots have a fixed
-slot beside content, never a wrapping novelty label. No attention borders or pulse animations.
+All unread dots use stock HeroUI danger, never accent. Card/item dots remain inside their layout
+after shrinkable titles/names, never outside cards or in a wrapping label. No borders or pulses.
+Unread attention belongs only to actual affected entities/items, never automatic Group/Event/Table
+ancestry. Accepted Group-member points mark Members and the real row, then acknowledge only their
+captured cutoff after five continuously visible seconds; hidden/unfocused time does not count.
+Known source reads/decision ACKs reconcile related navigation/card/bell caches immediately, including
+inactive caches, without waiting for detail refresh. Preserve unrelated/later work and selective rollback.
 Unread state is separate from pending decisions: Group admins see source-complete actionable request
 indicators; recipients see pending invitation reply indicators even after notification reads. Table
 SELF registration is already accepted, not an organizer approval workflow. Event reply attention

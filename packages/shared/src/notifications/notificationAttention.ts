@@ -23,8 +23,27 @@ export function attentionReference(
   if (notification.attention !== undefined) {
     if (!notification.attention) return undefined;
     if (!notification.attentionItems?.length) return notification.attention;
+    const reference = notification.attention;
+    const allowed = reference.containers ?? [
+      reference.target,
+      ...(reference.tableIds ?? []).map((id) => ({ kind: "table" as const, id })),
+      ...(reference.eventId ? [{ kind: "event" as const, id: reference.eventId }] : []),
+      ...(reference.groupId ? [{ kind: "group" as const, id: reference.groupId }] : []),
+    ];
+    const containers: NotificationAttentionTarget[] = [];
+    for (const item of notification.attentionItems.filter((item) => !item.readAt)) {
+      try {
+        const [kind, id] = JSON.parse(item.id) as ["event" | "table" | "group", string];
+        const target = allowed.find((value) => value.kind === kind && value.id === id);
+        if (target && !containers.some((value) => attentionKey(value) === attentionKey(target)))
+          containers.push(target);
+      } catch {
+        /* Malformed historical metadata never grants a container. */
+      }
+    }
     return {
-      ...notification.attention,
+      ...reference,
+      containers,
       itemIds: [
         ...new Set(
           notification.attentionItems
@@ -58,13 +77,10 @@ export function attentionMatches(
       attentionKey(reference.target) === attentionKey(target) ||
       Boolean(reference.itemIds?.includes(target.id))
     );
-  if (attentionKey(reference.target) === attentionKey(target)) return true;
-  if (direct) return false;
-  if (target.kind === "table" && reference.tableIds?.includes(target.id)) return true;
-  return (
-    (target.kind === "event" && reference.eventId === target.id) ||
-    (target.kind === "group" && reference.groupId === target.id)
-  );
+  const containers = reference.containers ?? [reference.target];
+  if (direct && !reference.containers)
+    return attentionKey(reference.target) === attentionKey(target);
+  return containers.some((value) => attentionKey(value) === attentionKey(target));
 }
 export function subtractAttention(
   summary: NotificationAttentionSummary,
@@ -72,11 +88,12 @@ export function subtractAttention(
   count: number,
 ): NotificationAttentionSummary {
   const next = { ...summary, sections: { ...summary.sections } };
-  if (reference.target.kind === "table" || reference.tableIds?.length)
+  const containers = reference.containers ?? [reference.target];
+  if (containers.some((value) => value.kind === "table"))
     next.tables = Math.max(0, next.tables - count);
-  if (reference.target.kind === "event" || reference.eventId)
+  if (containers.some((value) => value.kind === "event"))
     next.events = Math.max(0, next.events - count);
-  if (reference.target.kind === "group" || reference.groupId)
+  if (containers.some((value) => value.kind === "group"))
     next.groups = Math.max(0, next.groups - count);
   if (reference.target.kind === "contact" || reference.target.kind === "contacts") {
     next.contacts = Math.max(0, next.contacts - count);
@@ -127,13 +144,10 @@ export function projectAttentionSnapshot(
         ...row,
         count: Math.max(0, row.count - count),
         direct:
-          own || row.target.kind === "contacts" || row.target.kind === "item"
+          row.target.kind === "item" ||
+          (!reference.itemIds?.length && (own || row.target.kind === "contacts"))
             ? Math.max(0, row.direct - count)
             : row.direct,
-        events:
-          row.target.kind === "group" && reference.target.kind !== "group"
-            ? Math.max(0, row.events - count)
-            : row.events,
         sections: section
           ? { ...row.sections, [section]: Math.max(0, row.sections[section] - count) }
           : row.sections,
@@ -145,6 +159,7 @@ export function readReference(row: NotificationAttentionCount): NotificationAtte
   const kind = row.target.kind;
   return {
     target: row.target,
+    ...(row.containers ? { containers: row.containers } : {}),
     ...(row.tableIds ? { tableIds: row.tableIds } : {}),
     eventId: kind === "table" ? row.eventId : kind === "event" ? row.target.id : undefined,
     groupId:

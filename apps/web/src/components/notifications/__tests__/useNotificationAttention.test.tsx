@@ -47,7 +47,7 @@ function row(
     target,
     count,
     direct,
-    events: target.kind === "group" ? 3 : 0,
+    events: 0,
     sections: { connections: 0, requests: 0, search: 0 },
     ...(target.kind === "table" || target.kind === "event" ? { eventId, groupId } : {}),
   };
@@ -81,7 +81,7 @@ function notification(n: number, target: "table" | "event" | "group"): Notificat
     id: n.toString(16).padStart(24, "0"),
     kind:
       target === "table"
-        ? "table_invitation"
+        ? "event_booking_removed"
         : target === "event"
           ? "event_confirmed"
           : "group_membership_updated",
@@ -139,7 +139,7 @@ function useObservedAttention(owner = options) {
   };
 }
 
-it("projects Table reads to each ancestor and bell before HTTP, but never reads direct Event/Group notes or later arrivals", async () => {
+it("projects Table reads to their own container and bell before HTTP, never Event/Group ancestry or later arrivals", async () => {
   const { client, wrapper } = setup();
   const foreign = { ...options, userId: "other" };
   client.setQueryData(notificationAttentionQuery(foreign, targets).queryKey, original());
@@ -158,14 +158,12 @@ it("projects Table reads to each ancestor and bell before HTTP, but never reads 
   act(() => hook.result.current.read.read(table));
   await waitFor(() => expect(release).toBeTypeOf("function"));
   expect(hook.result.current.counts.get(table)?.count).toBe(0);
-  expect(hook.result.current.counts.get(event)?.count).toBe(1);
-  expect(hook.result.current.counts.get(group)?.count).toBe(2);
+  expect(hook.result.current.counts.get(event)?.count).toBe(3);
+  expect(hook.result.current.counts.get(group)?.count).toBe(4);
   expect(hook.result.current.inbox.unreadCount).toBe(6);
   expect(hook.result.current.inbox.attention).toEqual({
     ...original().summary,
     tables: 0,
-    events: 1,
-    groups: 2,
   });
   expect(
     hook.result.current.inbox.notifications
@@ -178,22 +176,18 @@ it("projects Table reads to each ancestor and bell before HTTP, but never reads 
   const pending = original();
   pending.asOf = "2027-01-01T00:00:01.000Z";
   pending.unreadCount++;
-  pending.summary = { ...pending.summary, tables: 3, events: 4, groups: 5 };
-  for (const value of pending.targets.slice(0, 3)) {
-    value.count++;
-    if (value.target.kind === "table") value.direct++;
-  }
+  pending.summary = { ...pending.summary, tables: 3 };
+  pending.targets[0].count++;
+  pending.targets[0].direct++;
   server = structuredClone(pending);
   await act(async () => {
     await client.fetchQuery({ ...notificationAttentionQuery(options, targets), staleTime: 0 });
   });
   await waitFor(() => expect(hook.result.current.counts.get(table)?.count).toBe(1));
   server.unreadCount -= 2;
-  server.summary = { ...server.summary, tables: 1, events: 2, groups: 3 };
-  for (const value of server.targets.slice(0, 3)) {
-    value.count -= 2;
-    if (value.target.kind === "table") value.direct -= 2;
-  }
+  server.summary = { ...server.summary, tables: 1 };
+  server.targets[0].count -= 2;
+  server.targets[0].direct -= 2;
   await act(async () => release(Response.json({ updated: 2, snapshot: server })));
   await waitFor(() => expect(hook.result.current.inbox.busy).toBe(false));
   expect(hook.result.current.counts.get(table)?.count).toBe(1);
@@ -223,7 +217,7 @@ it("keeps direct Group reads independent from Table reads and rolls back only re
   });
   await waitFor(() => expect(releases.size).toBe(2));
   expect(hook.result.current.inbox.unreadCount).toBe(5);
-  expect(hook.result.current.counts.get(group)?.count).toBe(1);
+  expect(hook.result.current.counts.get(group)?.count).toBe(3);
   await act(async () =>
     releases.get("table")?.(Response.json({ error: "Denied" }, { status: 409 })),
   );
@@ -238,7 +232,7 @@ it("keeps direct Group reads independent from Table reads and rolls back only re
   await act(async () => releases.get("group")?.(Response.json({ updated: 1, snapshot: server })));
   await waitFor(() => expect(hook.result.current.inbox.busy).toBe(false));
   expect(hook.result.current.counts.get(table)?.count).toBe(2);
-  expect(hook.result.current.counts.get(group)?.events).toBe(3);
+  expect(hook.result.current.counts.get(group)?.events).toBe(0);
 });
 it("reads only selected Contact section and keeps each person's other section unread", async () => {
   const { wrapper } = setup();

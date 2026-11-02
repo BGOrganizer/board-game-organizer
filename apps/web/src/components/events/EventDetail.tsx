@@ -165,9 +165,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             </Link>
           </HeaderActions>
         ) : null}
-        <NotificationItem itemId={notificationItemId(event.id, "overview")} readOnly>
-          <EventDetailsCard event={event} />
-        </NotificationItem>
+        <EventDetailsCard event={event} />
         {event.groupId && fromGroup !== event.groupId ? (
           <EventGroupLink groupId={event.groupId} name={event.groupName} />
         ) : null}

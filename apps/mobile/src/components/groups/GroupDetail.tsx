@@ -18,12 +18,11 @@ import { View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
-import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
+import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
@@ -125,6 +124,8 @@ export function GroupDetail({
       targets={[
         { kind: "group", id: group.id },
         { kind: "item", id: notificationItemId(group.id, "invitation") },
+        { kind: "item", id: notificationItemId(group.id, "members") },
+        { kind: "item", id: notificationItemId(group.id, "overview", undefined, "group") },
       ]}
       readOnOpen={{ kind: "group", id: group.id }}
     >
@@ -169,7 +170,7 @@ export function GroupDetail({
                 .map(([key, label]) => (
                   <Tabs.Trigger key={key} value={key} style={{ flexDirection: "row", gap: 6 }}>
                     <Tabs.Label>{label}</Tabs.Label>
-                    {key === "events" ? <GroupEventsBadge groupId={group.id} /> : null}
+                    {key === "members" ? <GroupMembersBadge groupId={group.id} /> : null}
                     {key === "members" &&
                     group.role === "admin" &&
                     (group.pendingRequestCount ?? 0) > 0 ? (
@@ -205,16 +206,15 @@ export function GroupDetail({
                   />
                 ) : null}
                 {group.role === "invited" ? (
-                  <NotificationItem itemId={notificationItemId(group.id, "invitation")}>
-                    <GroupInvitationCard
-                      busy={ownBusy}
-                      onAccept={() => void run("accept")}
-                      onDecline={() => {
-                        setError(false);
-                        setConfirm("decline");
-                      }}
-                    />
-                  </NotificationItem>
+                  <GroupInvitationCard
+                    groupId={group.id}
+                    busy={ownBusy}
+                    onAccept={() => void run("accept")}
+                    onDecline={() => {
+                      setError(false);
+                      setConfirm("decline");
+                    }}
+                  />
                 ) : null}
               </ScreenScrollView>
             )}
@@ -276,7 +276,13 @@ export function GroupDetail({
     </NotificationAttentionScope>
   );
 }
-function GroupEventsBadge({ groupId }: { groupId: string }) {
+function GroupMembersBadge({ groupId }: { groupId: string }) {
   const attention = useNotificationAttentionContext();
-  return <NotificationCountBadge count={attention?.get({ kind: "group", id: groupId })?.events} />;
+  return (
+    <NotificationUnreadDot
+      active={Boolean(
+        attention?.get({ kind: "item", id: notificationItemId(groupId, "members") })?.count,
+      )}
+    />
+  );
 }

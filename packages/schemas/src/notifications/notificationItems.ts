@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { targetUserIdSchema } from "../common/dto/common";
 
 export const notificationItemFields = [
   "date",
@@ -10,6 +11,8 @@ export const notificationItemFields = [
   "games",
   "overview",
   "tables",
+  "member",
+  "members",
 ] as const;
 export type NotificationItemField = (typeof notificationItemFields)[number];
 const parts = z.tuple([
@@ -26,7 +29,10 @@ export const notificationItemIdSchema = z
       const result = parts.safeParse(JSON.parse(value));
       if (!result.success) return false;
       const [resource, , field, option] = result.data;
-      if (resource === "group" && field !== "invitation") return false;
+      if (resource === "group" && !["invitation", "member", "members", "overview"].includes(field))
+        return false;
+      if (["member", "members"].includes(field) && resource !== "group") return false;
+      if (field === "member") return targetUserIdSchema.safeParse(option).success;
       if (["game", "games"].includes(field) && resource !== "table") return false;
       if (
         ["date", "dates", "location", "locations", "tables"].includes(field) &&
@@ -47,7 +53,9 @@ export function notificationItemId(
   scopeId: string,
   field: NotificationItemField,
   optionId?: string | number,
-  resource: "event" | "table" | "group" = field === "invitation"
+  resource: "event" | "table" | "group" = field === "invitation" ||
+  field === "member" ||
+  field === "members"
     ? "group"
     : field === "game" || field === "games"
       ? "table"
@@ -74,5 +82,6 @@ export interface NotificationItemDto {
   id: string;
   revision: number;
   sectionId?: string;
+  changedAt?: string;
   readAt: string | null;
 }

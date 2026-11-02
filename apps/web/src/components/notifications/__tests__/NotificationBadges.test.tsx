@@ -117,17 +117,26 @@ it("places static unread dots after card titles inside navigation, including per
     ).toBe(true);
     expect(link.contains(badge)).toBe(true);
     expect(badge.previousElementSibling?.textContent).toBe(name.split(": ")[1]);
-    expect(badge.className).toContain("badge--accent");
+    expect(badge.className).toContain("badge--danger");
     expect(badge.style.width).toBe("8px");
     expect(badge.style.position).not.toBe("absolute");
   }
   expect(screen.queryByRole("button", { name: /Accept invitation|Decline invitation/ })).toBeNull();
 });
-it("marks direct Group attention on actual detail entry, retaining Events tab and child badges", async () => {
+it("marks direct Group attention on entry, retaining only actual Members-tab attention, never Events ancestry", async () => {
   const client = setup();
   client.setQueryData(groupRecordKeys.detail(options, groupRecord.id), groupRecord);
+  const members = { kind: "item", id: notificationItemId(groupRecord.id, "members") } as const;
+  const memberRow: NotificationAttentionCount = {
+    target: members,
+    count: 1,
+    direct: 1,
+    events: 0,
+    sections: { connections: 0, requests: 0, search: 0 },
+  };
   let source = counts(),
     release!: (value: Response) => void;
+  source.targets.push(memberRow);
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === "PATCH")
       return new Promise<Response>((resolve) => {
@@ -164,12 +173,16 @@ it("marks direct Group attention on actual detail entry, retaining Events tab an
     </QueryClientProvider>,
   );
   await waitFor(() => expect(release).toBeTypeOf("function"));
-  expect(
-    within(screen.getByRole("tab", { name: /Events/ })).getByRole("img", {
-      name: "Needs attention",
-    }),
-  ).toBeTruthy();
+  expect(within(screen.getByRole("tab", { name: /Events/ })).queryByRole("img")).toBeNull();
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole("tab", { name: /Members/ })).getByRole("img", {
+        name: "Unread updates",
+      }),
+    ).toBeTruthy(),
+  );
   source = counts();
+  source.targets.push(memberRow);
   source.unreadCount = 3;
   source.summary.groups = 3;
   source.targets[2].count = 3;
@@ -177,9 +190,10 @@ it("marks direct Group attention on actual detail entry, retaining Events tab an
   await act(async () => release(Response.json({ updated: 1, snapshot: source })));
   fireEvent.click(screen.getByRole("tab", { name: /Events/ }));
   await screen.findByRole("link", { name: `Open event: ${plannedEvent.name}` });
+  expect(within(screen.getByRole("tab", { name: /Events/ })).queryByRole("img")).toBeNull();
   expect(
-    within(screen.getByRole("tab", { name: /Events/ })).getByRole("img", {
-      name: "Needs attention",
+    within(screen.getByRole("tab", { name: /Members/ })).getByRole("img", {
+      name: "Unread updates",
     }),
   ).toBeTruthy();
   expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);

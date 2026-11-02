@@ -60,6 +60,7 @@ export * from "./matches/matchContactState";
 export * from "./matches/matchParticipants";
 export * from "./matches/matchResults";
 export * from "./notifications/hooks/useNotificationAttention";
+export * from "./notifications/hooks/useNotificationItemDwell";
 export * from "./notifications/hooks/useNotifications";
 export * from "./notifications/NotificationAttentionProvider";
 export * from "./notifications/notificationAttention";

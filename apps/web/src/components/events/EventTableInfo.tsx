@@ -1,11 +1,12 @@
 "use client";
 
-import type { PlannedTableResponse } from "@board-game-organizer/schemas";
+import { notificationItemId, type PlannedTableResponse } from "@board-game-organizer/schemas";
 import { useLingui } from "@lingui/react/macro";
 import { Dices, Settings2, UserRoundCheck, UsersRound } from "lucide-react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
 
 export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
@@ -25,9 +26,15 @@ export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
         <div className="flex min-w-0 items-start gap-4 p-4">
           <AnimatedDicebearArtwork seed={table.id} variant="planets" />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex items-start gap-2">
-              <Dices className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
-              <h1 className="min-w-0 flex-1 break-words text-base font-semibold">{table.name}</h1>
+            <div className="flex flex-wrap items-start gap-2">
+              <div className="flex min-w-0 flex-1 basis-52 items-start gap-2">
+                <Dices className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
+                <h1 className="min-w-0 flex-1 break-words text-base font-semibold">{table.name}</h1>
+                <NotificationItem
+                  itemId={notificationItemId(table.id, "overview", undefined, "table")}
+                  readOnly
+                />
+              </div>
               <EventTableRatingBadge enabled={table.rankingEnabled} />
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
