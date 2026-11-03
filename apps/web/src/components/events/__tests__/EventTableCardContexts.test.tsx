@@ -59,10 +59,11 @@ it("uses exactly the same card/controls in both lists, changing only the inline 
   expect(artwork).toBe(
     `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: table.id, size: 72 }).toString())}`,
   );
-  const event = screen.getByText(table.eventName),
-    group = screen.getByText(groupRecord.name);
+  const event = screen.getByText(`Event: ${table.eventName}`),
+    group = screen.getByText(`Group: ${groupRecord.name}`);
   expect(event.parentElement?.parentElement).toBe(group.parentElement?.parentElement);
-  expect(event.parentElement?.nextElementSibling?.textContent).toBe("·");
+  expect(event.parentElement?.nextElementSibling).toBe(group.parentElement);
+  expect(event.parentElement?.nextElementSibling?.textContent).toBe(`Group: ${groupRecord.name}`);
   expect(screen.getByText("First table").className).toContain("font-semibold");
   expect(screen.getByText("First table").parentElement?.nextElementSibling).toBe(
     screen.getByRole("img", { name: "Rating enabled" }),
@@ -73,8 +74,8 @@ it("uses exactly the same card/controls in both lists, changing only the inline 
       <EventTableCard table={table} context="event" />
     </>,
   );
-  expect(screen.queryByText(table.eventName)).toBeNull();
-  expect(screen.queryByText(groupRecord.name)).toBeNull();
+  expect(screen.queryByText(`Event: ${table.eventName}`)).toBeNull();
+  expect(screen.queryByText(`Group: ${groupRecord.name}`)).toBeNull();
   expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
   const link = screen.getByRole("link", { name: "Open table: First table" });
   expect(link.getAttribute("href")).toContain(`/tables/${table.id}`);
@@ -157,7 +158,12 @@ it.each([1, 2])(
         table={{ ...plannedTable, gamesDetail: [...plannedTable.gamesDetail, ...extra] }}
       />,
     );
-    expect(screen.getByText(`Chess · +${count} ${count === 1 ? "game" : "games"}`)).not.toBeNull();
+    expect(screen.getByText(/Chess/).textContent).toBe(
+      `Chess · +${count} ${count === 1 ? "game" : "games"}`,
+    );
+    expect(screen.getByText(`+${count} ${count === 1 ? "game" : "games"}`).className).toContain(
+      "text-accent-soft-foreground",
+    );
     expect(screen.queryByText("Other game 0")).toBeNull();
   },
 );

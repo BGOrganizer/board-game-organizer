@@ -1,10 +1,9 @@
 "use client";
 import type { ClientEventRecord } from "@board-game-organizer/shared";
 import {
-  eventDateWall,
   eventParticipation,
   eventPendingAction,
-  eventRecordPreviewDate,
+  eventRecordSchedulePreview,
   useEventCutoff,
   useNotificationAttentionContext,
 } from "@board-game-organizer/shared";
@@ -14,9 +13,9 @@ import { CalendarDays, Dices, RefreshCw, UsersRound } from "lucide-react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
-import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
+import { EventCardSchedule } from "./EventCardSchedule";
 import { EventStatusBadge } from "./EventStatusBadge";
 export function EventCard({
   event,
@@ -30,7 +29,6 @@ export function EventCard({
   checking?: boolean;
 }) {
   const { t, i18n } = useLingui(),
-    date = eventRecordPreviewDate(event),
     number = new Intl.NumberFormat(i18n.locale);
   const attention = useNotificationAttentionContext(),
     attentionTarget = { kind: "event", id: event.id } as const;
@@ -40,7 +38,6 @@ export function EventCard({
   );
   const participation = eventParticipation(event.myRegistrations);
   const indicator = participation === null && event.role === "admin" ? "admin" : participation;
-  const planning = event.status === "PLANNING";
   const local = event.optimistic,
     status = useClientRecordStatus(local?.phase);
   const href = local
@@ -93,31 +90,12 @@ export function EventCard({
         {event.groupName ? (
           <p className="flex items-center gap-1 text-sm text-muted">
             <UsersRound className="size-4 shrink-0" aria-hidden />
-            <span className="min-w-0 break-words">{event.groupName}</span>
+            <span className="min-w-0 break-words">
+              {t`Group`}: {event.groupName}
+            </span>
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-1.5 text-sm">
-          {date ? (
-            <div className="min-w-0">
-              <DateTimeInfo startsAt={`${eventDateWall(event, date)}Z`} timeZone="UTC" />
-            </div>
-          ) : (
-            <p>{t`Dates to agree`}</p>
-          )}
-          {planning && event.dates.length > 1 ? (
-            <span
-              className="text-accent-soft-foreground"
-              role="img"
-              aria-label={i18n._({
-                id: "event.proposedDatesCount",
-                message: "{count} proposed dates",
-                values: { count: number.format(event.dates.length) },
-              })}
-            >
-              +{number.format(event.dates.length)}
-            </span>
-          ) : null}
-        </div>
+        <EventCardSchedule schedule={eventRecordSchedulePreview(event)} />
         <div
           className={`flex flex-wrap items-center gap-3 text-sm ${local?.phase === "verifying" && onVerify ? "pr-10" : ""}`}
         >

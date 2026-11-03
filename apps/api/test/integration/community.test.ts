@@ -1383,6 +1383,15 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     });
     const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
     expect((await services().eventRecords.find(event.id))?.dates).toEqual(input.dates);
+    expect(
+      (await services().plannedEventService.tables(OWNER, event.id, { limit: 1 })).items[0]
+        .eventSchedule,
+    ).toMatchObject({
+      localStartsAt: "2030-06-03T18:15",
+      location: { id: input.locations[0].id },
+      dateCount: 2,
+      locationCount: 2,
+    });
     for (const user of [OWNER, GUEST]) {
       await transaction((s) => s.plannedEventService.register(user, event.id, tableId));
       // Establish a positive date before rejecting another option.
@@ -1433,6 +1442,14 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect((await services().eventRecords.table(tableId))?.confirmed?.startsAt).toBe(
       "2030-06-04T02:30:00.000Z",
     );
+    expect(
+      (await services().plannedEventService.tableDetail(OWNER, event.id, tableId)).eventSchedule,
+    ).toMatchObject({
+      localStartsAt: "2030-06-03T22:30",
+      location: { id: newVenue },
+      dateCount: 1,
+      locationCount: 1,
+    });
     const reopened = await transaction((s) =>
       s.plannedEventService.transition(OWNER, event.id, {
         action: "replan",

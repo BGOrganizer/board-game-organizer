@@ -1172,6 +1172,45 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     expect(f.ratings.currentForPlayers).not.toHaveBeenCalled();
     expect(g.ratings.currentForPlayers).not.toHaveBeenCalled();
   });
+  it("projects the authorized parent Event schedule in list/detail Table responses without guessing a Table start", async () => {
+    const f = setup("PRIVATE"),
+      event = await f.create();
+    const stored = f.events.get(event.id);
+    if (!stored) throw new Error("Missing Event fixture");
+    const secondLocation = {
+      ...location,
+      id: other,
+      name: "Other venue",
+      timeZone: "America/New_York",
+    };
+    stored.dates.push({ id: other, day: "2027-01-04", startTime: "16:45" });
+    stored.locations.push(secondLocation);
+    const table = f.tables.get(id);
+    if (!table) throw new Error("Missing Table fixture");
+    table.startsAt = "2027-01-04T23:00:00Z";
+    const proposed = {
+      localStartsAt: "2027-01-03T09:00",
+      location: stored.locations[0],
+      dateCount: 2,
+      locationCount: 2,
+    };
+    expect((await f.service.tableDetail(owner, event.id, id)).eventSchedule).toEqual(proposed);
+    expect((await f.service.tables(owner, event.id, { limit: 20 })).items[0].eventSchedule).toEqual(
+      proposed,
+    );
+    stored.status = "CONFIRMED";
+    stored.confirmed = { dateId: other, locationId: other, at: stored.updatedAt };
+    expect((await f.service.tableDetail(owner, event.id, id)).eventSchedule).toEqual({
+      localStartsAt: "2027-01-04T16:45",
+      location: secondLocation,
+      dateCount: 1,
+      locationCount: 1,
+    });
+    f.groups.membership.mockResolvedValue(null as never);
+    await expect(f.service.tableDetail("outsider", event.id, id)).rejects.toMatchObject({
+      code: "GROUP_MEMBER_REQUIRED",
+    });
+  });
   it("projects approved Group identity and complete accepted/pending totals separately from seat/queue counts", async () => {
     const f = setup("PRIVATE"),
       event = await f.create();

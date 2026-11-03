@@ -1,9 +1,8 @@
 import type { ClientEventRecord } from "@board-game-organizer/shared";
 import {
-  eventDateWall,
   eventParticipation,
   eventPendingAction,
-  eventRecordPreviewDate,
+  eventRecordSchedulePreview,
   useEventCutoff,
   useNotificationAttentionContext,
 } from "@board-game-organizer/shared";
@@ -17,10 +16,10 @@ import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
-import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { useT } from "@/lib/i18n";
+import { EventCardSchedule } from "./EventCardSchedule";
 import { EventStatusBadge } from "./EventStatusBadge";
 export function EventCard({
   event,
@@ -37,8 +36,7 @@ export function EventCard({
     { i18n } = useLingui(),
     router = useRouter();
   const [fg, muted] = useThemeColor(["foreground", "muted"]);
-  const date = eventRecordPreviewDate(event),
-    number = new Intl.NumberFormat(i18n.locale);
+  const number = new Intl.NumberFormat(i18n.locale);
   const attention = useNotificationAttentionContext(),
     attentionTarget = { kind: "event", id: event.id } as const;
   const closed = useEventCutoff(
@@ -47,7 +45,6 @@ export function EventCard({
   );
   const participation = eventParticipation(event.myRegistrations);
   const indicator = participation === null && event.role === "admin" ? "admin" : participation;
-  const planning = event.status === "PLANNING";
   const local = event.optimistic,
     status = useClientRecordStatus(local?.phase);
   return (
@@ -106,29 +103,11 @@ export function EventCard({
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <UsersRound size={16} color={muted} accessible={false} />
             <Typography className="text-sm text-muted" style={{ flex: 1 }}>
-              {event.groupName}
+              {t("Group")}: {event.groupName}
             </Typography>
           </View>
         ) : null}
-        <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-          {date ? (
-            <DateTimeInfo startsAt={`${eventDateWall(event, date)}Z`} timeZone="UTC" />
-          ) : (
-            <Typography className="text-foreground">{t("Dates to agree")}</Typography>
-          )}
-          {planning && event.dates.length > 1 ? (
-            <Typography
-              className="text-sm text-accent-soft-foreground"
-              accessibilityLabel={i18n._({
-                id: "event.proposedDatesCount",
-                message: "{count} proposed dates",
-                values: { count: number.format(event.dates.length) },
-              })}
-            >
-              +{number.format(event.dates.length)}
-            </Typography>
-          ) : null}
-        </View>
+        <EventCardSchedule schedule={eventRecordSchedulePreview(event)} />
         <View
           style={{
             flexDirection: "row",
@@ -140,13 +119,13 @@ export function EventCard({
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <Dices size={16} color={muted} accessible={false} />
-            <Typography className="text-foreground">
+            <Typography className="text-sm text-foreground">
               {t("Tables")}: {number.format(event.tableCount)}
             </Typography>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <UsersRound size={16} color={muted} accessible={false} />
-            <Typography className="text-foreground">
+            <Typography className="text-sm text-foreground">
               {t("Players")}: {number.format(event.participantCount)}
             </Typography>
           </View>

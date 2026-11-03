@@ -58,6 +58,12 @@ export const plannedTable: PlannedTableResponse = {
   createdAt: plannedEvent.createdAt,
   updatedAt: plannedEvent.updatedAt,
   eventName: plannedEvent.name,
+  eventSchedule: {
+    localStartsAt: "2030-06-03T20:00",
+    location: plannedEvent.locations[0],
+    dateCount: 1,
+    locationCount: 1,
+  },
   groupName: null,
   acceptedCount: 0,
   pendingRegistrationCount: 0,

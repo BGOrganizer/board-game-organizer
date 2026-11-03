@@ -47,6 +47,9 @@ with its four-character minimum.
   Logout/account or session changes purge owned disk/key and cancel RAM work. No optimistic intents,
   raw address-book scans, credentials or offline write replay persist. Storage failures retain usable
   RAM/network behavior and show a nonblocking localized warning.
+- Consistent Group/Event/Table cards: shared title/body typography, explicit parent labels and
+  human-readable Event schedules/venues, with accent option counts. Tables inside their Event omit
+  redundant parent/schedule metadata; older cached responses retain partial loading placeholders.
 - HeroUI-token-only light/dark UI across native navigation, headers, controls and custom surfaces.
   Theme changes preserve drafts and selection. Both clients inherit the installed HeroUI default
   palettes without app theme-variable overrides. Static provider artwork retains its brand contrast.

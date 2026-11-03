@@ -10,21 +10,28 @@ export function DateTimeInfo({
   endsAt,
   timeZone,
   timeLabel,
+  dateStyle,
 }: {
   startsAt: string;
   endsAt?: string;
   timeZone?: string;
   timeLabel?: string;
+  dateStyle?: Intl.DateTimeFormatOptions["dateStyle"];
 }) {
   const t = useT();
   const { i18n } = useLingui();
   const muted = useThemeColor("muted");
-  const date = new Intl.DateTimeFormat(i18n.locale, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    timeZone,
-  });
+  const date = new Intl.DateTimeFormat(
+    i18n.locale,
+    dateStyle
+      ? { dateStyle, timeZone }
+      : {
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit",
+          timeZone,
+        },
+  );
   const time = new Intl.DateTimeFormat(i18n.locale, {
     hour: "2-digit",
     minute: "2-digit",

@@ -224,7 +224,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/events/EventCard.tsx": {
+        "src/components/events/{EventCard,EventCardSchedule}.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,

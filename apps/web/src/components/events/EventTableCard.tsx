@@ -24,8 +24,9 @@ import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebear
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
+import { EventCardSchedule } from "./EventCardSchedule";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
-/** One Table item in both feeds; only the parent-context row varies. */
+/** Parent identity/schedule appears only in the personal feed, never inside its Event. */
 export function EventTableCard({
   table,
   context = "personal",
@@ -97,27 +98,29 @@ export function EventTableCard({
       >
         <div className="space-y-2">
           {context === "personal" ? (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                <CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />
-                <span className="min-w-0 break-words">{table.eventName}</span>
-              </span>
-              {table.groupId ? (
-                <>
-                  <span aria-hidden className="text-muted">
-                    ·
+            <>
+              <div className="space-y-2 text-sm">
+                <span className="flex min-w-0 items-center gap-1">
+                  <CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />
+                  <span className="min-w-0 break-words">
+                    {t`Event`}: {table.eventName}
                   </span>
-                  <span className="inline-flex min-w-0 max-w-full items-center gap-1 text-muted">
+                </span>
+                {table.groupId ? (
+                  <span className="flex min-w-0 items-center gap-1 text-muted">
                     <UsersRound className="size-4 shrink-0" aria-hidden />
                     {table.groupName ? (
-                      <span className="min-w-0 break-words">{table.groupName}</span>
+                      <span className="min-w-0 break-words">
+                        {t`Group`}: {table.groupName}
+                      </span>
                     ) : (
                       <Skeleton className="h-4 w-28 rounded" />
                     )}
                   </span>
-                </>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
+              <EventCardSchedule schedule={table.eventSchedule} />
+            </>
           ) : null}
           <div className="flex flex-nowrap items-center gap-3 overflow-x-auto text-sm tabular-nums">
             {counts.map(({ icon: Icon, label, value }) => (
@@ -140,12 +143,14 @@ export function EventTableCard({
                 <>
                   {" "}
                   ·{" "}
-                  <Plural
-                    id="event.table.moreGames"
-                    value={remaining}
-                    one="+# game"
-                    other="+# games"
-                  />
+                  <span className="text-accent-soft-foreground">
+                    <Plural
+                      id="event.table.moreGames"
+                      value={remaining}
+                      one="+# game"
+                      other="+# games"
+                    />
+                  </span>
                 </>
               ) : null}
             </span>

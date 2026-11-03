@@ -9,7 +9,7 @@ it("opens unified event and shows planning metadata without invented organizer s
   expect(screen.getByRole("link", { name: "Open event: Friday games" }).getAttribute("href")).toBe(
     `/events/${plannedEvent.id}`,
   );
-  expect(screen.getByText("06/03/30")).not.toBeNull();
+  expect(screen.getByText("June 3, 2030")).not.toBeNull();
   expect(screen.getByText("Tables: 1")).not.toBeNull();
   expect(screen.getByText("Players: 0")).not.toBeNull();
   expect(screen.getByText("Planning").closest(".chip")?.className).toContain("chip--warning");
@@ -36,7 +36,7 @@ it("shows the first proposal, total date count and each selected clock without t
       }}
     />,
   );
-  const day = screen.getByText("06/03/30"),
+  const day = screen.getByText("June 3, 2030"),
     time = screen.getByText(
       new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(
         new Date("2030-06-03T18:15:00Z"),
@@ -68,7 +68,7 @@ it("shows selected local day and confirmed status", () => {
   expect(screen.getByText("Confirmed")).not.toBeNull();
   expect(screen.getByText("Confirmed").closest(".chip")?.className).toContain("chip--success");
   expect(screen.queryByText(/^\+\d/)).toBeNull();
-  expect(screen.getByText("06/03/30")).not.toBeNull();
+  expect(screen.getByText("June 3, 2030")).not.toBeNull();
 });
 it("retains terminated/group context", () => {
   renderWithI18n(
@@ -77,7 +77,7 @@ it("retains terminated/group context", () => {
     />,
   );
   expect(screen.getByText("Terminated")).not.toBeNull();
-  const group = screen.getByText("Club");
+  const group = screen.getByText("Group: Club");
   expect(group.previousElementSibling?.classList.contains("lucide-users-round")).toBe(true);
   expect(screen.queryByText(/Europe\/Rome/)).toBeNull();
 });

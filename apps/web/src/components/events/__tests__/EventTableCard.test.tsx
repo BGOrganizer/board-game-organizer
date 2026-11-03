@@ -196,11 +196,11 @@ it("shows Event/Group identity and separate minimum, maximum, accepted and pendi
       }}
     />,
   );
-  const event = screen.getByText(plannedTable.eventName);
+  const event = screen.getByText(`Event: ${plannedTable.eventName}`);
   expect(event.previousElementSibling?.classList.contains("lucide-calendar-days")).toBe(true);
   expect(event.nextElementSibling).toBeNull();
   expect(screen.queryByText("Planning")).toBeNull();
-  const group = screen.getByText(groupRecord.name);
+  const group = screen.getByText(`Group: ${groupRecord.name}`);
   expect(group.previousElementSibling?.classList.contains("lucide-users-round")).toBe(true);
   expect(event.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   let row: HTMLElement | null = null;
@@ -234,7 +234,7 @@ it("keeps old cached identity while missing new Group/total fields use skeletons
       }}
     />,
   );
-  expect(screen.getByText(plannedTable.eventName)).not.toBeNull();
+  expect(screen.getByText(`Event: ${plannedTable.eventName}`)).not.toBeNull();
   expect(container.querySelectorAll(".skeleton")).toHaveLength(3);
   expect(
     screen.getByText("Accepted players:").parentElement?.querySelector(".skeleton"),

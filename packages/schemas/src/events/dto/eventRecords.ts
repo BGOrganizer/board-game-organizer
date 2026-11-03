@@ -299,8 +299,17 @@ export type TableLeaderboardResponse = {
   nextCursor: string | null;
 };
 export type TableSeatPosition = "SEATED" | "WAITING" | "FROZEN";
+/** Display-only parent metadata. A proposal preview never grants agreement or a Table seat. */
+export type EventSchedulePreview = {
+  localStartsAt: string | null;
+  location: EventRecord["locations"][number] | null;
+  dateCount: number;
+  locationCount: number;
+};
 export type PlannedTableResponse = TableRecord & {
   eventName: string;
+  /** Missing on older cached responses; no per-card parent requests are required. */
+  eventSchedule?: EventSchedulePreview;
   /** Optional for cached responses predating the list metadata projection. */
   groupName?: string | null;
   acceptedCount?: number;

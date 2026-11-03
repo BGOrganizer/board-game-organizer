@@ -1,5 +1,39 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Group/Event/Table card metadata — local implementation
+
+- Reused each platform's `ListCardBody` for Group titles, including the leading Users icon. Group
+  visibility, venue and member/Event counts now match Event/Table body typography; titles retain
+  the same platform-owned font/size/weight. Event cards explicitly label their Group.
+- Added platform-owned `EventCardSchedule`, reused by Event cards and personal Table cards. Long
+  localized dates, clock/venue rows and accent proposal counts derive from the parent Event, never
+  a guessed Table start. Personal Tables label Event and Group on separate icon-bearing rows;
+  Event-context Tables omit redundant parents and schedule. Additional-game `+n` uses the same
+  stock accent token. No palette, navigation, attention ownership or consent changes.
+- API Table responses include optional `eventSchedule`, projected during existing authorized reads
+  without per-card fetches. Shared policy preserves first proposals while planning, chosen options
+  after confirmation/termination, and existing total-proposal `+n` meaning. Missing old-cache
+  schedule metadata keeps known content and bounded partial skeletons, not invented choices.
+- EN/IT catalogs add only the missing venue fallback/count messages; compiled catalogs updated.
+  Both DateTimeInfo implementations retain previous defaults for other callers.
+- Local validation: 2,405 covered units (mobile 350, web 743, API 767, schemas 126, shared 419),
+  102 policy tests, typecheck, API/web builds and fresh x86_64 Android release APK passed. New web
+  schedule and existing deterministic shared-policy coverage gates pass at 100%. Twelve isolated
+  real-component/production-CSS browser cases cover 320/390/1280px × EN/IT × light/dark, including
+  typography, long names, accent counts, chosen options, old caches and contextual omissions.
+  These previews are not authenticated E2E/native acceptance.
+- Added explicitly manual real-fixture Playwright configuration/scenario and Maestro flow 15;
+  canonical E2E jobs/suites remain unchanged. Playwright discovery and Maestro 2.11 syntax pass,
+  not execution. Mongo integration could not start: `Could not find a working container runtime
+  strategy`; no integration test executed. No connected adb device or supplied authenticated card
+  fixtures: native layout, authenticated browser and device acceptance remain incomplete.
+- Generated references restored; seven protected inputs and unrelated dirt preserved. No commit,
+  push, provider reconfiguration, database reset or fixture mutation for this change.
+- Skills used: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `expo-overview`, `heroui-react`,
+  `heroui-native`, `uniwind`, `lingui-best-practices`, `playwright-best-practices`, `clerk`,
+  `clerk-testing`, `maestro-mobile-testing`, `web-design-guidelines`, `context-mode`, `ponytail`.
+
 ## Native top tabs and encrypted Query persistence — local implementation
 
 - Corrected native runtime translation lookups to `Registered` / `Available` (Iscritti /

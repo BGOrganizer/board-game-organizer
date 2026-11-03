@@ -37,7 +37,7 @@ export function GroupCard({
 }) {
   const t = useT(),
     router = useRouter(),
-    muted = useThemeColor("muted");
+    [fg, muted] = useThemeColor(["foreground", "muted"]);
   const attention = useNotificationAttentionContext(),
     attentionTarget = { kind: "group", id: group.id } as const;
   const invited =
@@ -98,21 +98,22 @@ export function GroupCard({
       <GroupArtwork group={group} status="none" />
       <ListCardBody
         title={group.name}
+        titleIcon={<UsersRound size={18} color={fg} accessible={false} />}
         unread={!local && Boolean(attention?.get(attentionTarget)?.count)}
         titleAccessory={
           local ? <ClientRecordBadge phase={local.phase} /> : <GroupStatusBadge group={group} />
         }
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <Visibility size={14} color={muted} accessible={false} />
-          <Typography className="text-muted" style={{ fontSize: 12 }}>
+          <Visibility size={16} color={muted} accessible={false} />
+          <Typography className="text-sm text-foreground">
             {group.type === "PUBLIC" ? t("Public") : t("Private")}
           </Typography>
         </View>
         {group.location ? (
           <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}>
-            <MapPin size={14} color={muted} accessible={false} />
-            <Typography className="text-muted" style={{ fontSize: 13, flex: 1, flexShrink: 1 }}>
+            <MapPin size={16} color={muted} accessible={false} />
+            <Typography className="text-sm text-foreground" style={{ flex: 1, flexShrink: 1 }}>
               {formatLocationAddress(group.location.address)}
             </Typography>
           </View>
@@ -127,15 +128,15 @@ export function GroupCard({
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <UsersRound size={14} color={muted} accessible={false} />
-            <Typography className="text-muted" style={{ fontSize: 13 }}>
+            <UsersRound size={16} color={muted} accessible={false} />
+            <Typography className="text-sm text-foreground">
               {group.memberCount} {t("members")}
             </Typography>
           </View>
           {group.canViewEvents && group.eventCount !== null ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <CalendarDays size={14} color={muted} accessible={false} />
-              <Typography className="text-muted" style={{ fontSize: 13 }}>
+              <CalendarDays size={16} color={muted} accessible={false} />
+              <Typography className="text-sm text-foreground">
                 {group.eventCount} {t("Events")}
               </Typography>
             </View>

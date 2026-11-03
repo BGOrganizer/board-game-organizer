@@ -75,6 +75,24 @@ and [operational gates](../../../docs/organizations-events-operations.md), not t
 
 ## Additional isolated scenarios
 
+`15-card-metadata.yaml` is a manual real-device card scenario, outside the unchanged canonical
+CI fixture set. Start already authenticated, with a PRIVATE Group, a Registered Event with two
+proposed dates/venues, and a personal Table with two games. Supply `CARD_LOCALE` (`en`/`it`),
+`CARD_GROUP_NAME`, `CARD_EVENT_NAME`, `CARD_TABLE_NAME`, `CARD_VENUE` (displayed venue substring),
+`CARD_EVENT_DATE_LABEL` (localized long date) and `CARD_EVENT_TIME_LABEL` (localized clock).
+Missing inputs fail. The flow filters real first-page rows, requires parent/date/venue/count text,
+then captures Event-context Tables without repeated parent labels. Inspect its screenshots for
+native typeface/size, icon order, wrapping and accent color in both themes/locales; parsing or VM
+checks are not native geometry evidence. It neither creates fixtures nor writes votes/registrations.
+
+Web parity has an explicit manual Playwright configuration, `apps/web/e2e/card-metadata.config.ts`.
+Run `pnpm --filter web exec playwright test --config e2e/card-metadata.config.ts` against the isolated
+Preview, with the same named fixture, `E2E_EMAIL`, Development Clerk test credentials,
+`CARD_LOCALE`, `CARD_VENUE`, `CARD_EVENT_DAY` (`YYYY-MM-DD`) and `CARD_EVENT_TIME` (`HH:mm`).
+It uses real auth/reads and computed typography at 390/1280px; no routes are mocked. The
+`.scenario.ts` extension keeps it out of default canonical suites; both real manual runs remain
+separate acceptance requirements, not claims inferred from isolated component previews.
+
 `14-query-cache.yaml` is a manual scenario outside the unchanged 13-report CI fixture set.
 Use a freshly built MMKV/Nitro APK, two isolated already-onboarded EN accounts and a device with
 working Android airplane-mode controls. Actor A starts authenticated with unique visible first-page

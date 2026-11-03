@@ -28,6 +28,7 @@ import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopove
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { useT } from "@/lib/i18n";
+import { EventCardSchedule } from "./EventCardSchedule";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
 export function EventTableCard({
   table,
@@ -112,26 +113,23 @@ export function EventTableCard({
       >
         <View style={{ gap: 8 }}>
           {context === "personal" ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  flexShrink: 1,
-                  maxWidth: "100%",
-                }}
-              >
-                <CalendarDays size={16} color={muted} accessible={false} />
-                <Typography className="text-sm text-foreground" style={{ flexShrink: 1 }}>
-                  {table.eventName}
-                </Typography>
-              </View>
-              {table.groupId ? (
-                <>
-                  <Typography className="text-muted" accessible={false}>
-                    ·
+            <>
+              <View style={{ gap: 8 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    flexShrink: 1,
+                    maxWidth: "100%",
+                  }}
+                >
+                  <CalendarDays size={16} color={muted} accessible={false} />
+                  <Typography className="text-sm text-foreground" style={{ flexShrink: 1 }}>
+                    {t("Event")}: {table.eventName}
                   </Typography>
+                </View>
+                {table.groupId ? (
                   <View
                     style={{
                       flexDirection: "row",
@@ -144,15 +142,16 @@ export function EventTableCard({
                     <UsersRound size={16} color={muted} accessible={false} />
                     {table.groupName ? (
                       <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
-                        {table.groupName}
+                        {t("Group")}: {table.groupName}
                       </Typography>
                     ) : (
                       <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
                     )}
                   </View>
-                </>
-              ) : null}
-            </View>
+                ) : null}
+              </View>
+              <EventCardSchedule schedule={table.eventSchedule} />
+            </>
           ) : null}
           <ScrollView
             horizontal
@@ -181,9 +180,18 @@ export function EventTableCard({
             <Dices size={16} color={muted} accessible={false} />
             <Typography className="text-sm text-foreground" style={{ flex: 1 }}>
               {games[0]?.name ?? t("Unknown")}
-              {remaining > 0
-                ? ` · ${i18n._({ id: "event.table.moreGames", message: "{remaining, plural, one {+# game} other {+# games}}", values: { remaining } })}`
-                : ""}
+              {remaining > 0 ? (
+                <>
+                  {" · "}
+                  <Typography className="text-sm text-accent-soft-foreground">
+                    {i18n._({
+                      id: "event.table.moreGames",
+                      message: "{remaining, plural, one {+# game} other {+# games}}",
+                      values: { remaining },
+                    })}
+                  </Typography>
+                </>
+              ) : null}
             </Typography>
           </View>
           {table.demonstratorUserId ? (

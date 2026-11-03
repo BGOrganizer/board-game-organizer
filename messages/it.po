@@ -5401,3 +5401,13 @@ msgstr "Aiuto filtro"
 
 msgid "Local storage is unavailable. Data will be refreshed online."
 msgstr "Archivio locale non disponibile. I dati verranno aggiornati online."
+
+#: apps/web/src/components/events/EventCardSchedule.tsx
+msgid "Locations to agree"
+msgstr "Luoghi da concordare"
+
+#. js-lingui-explicit-id
+#: apps/mobile/src/components/events/EventCardSchedule.tsx
+#: apps/web/src/components/events/EventCardSchedule.tsx
+msgid "event.proposedLocationsCount"
+msgstr "{count} luoghi proposti"

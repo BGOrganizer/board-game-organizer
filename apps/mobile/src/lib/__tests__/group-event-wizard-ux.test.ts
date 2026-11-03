@@ -62,10 +62,8 @@ it("keeps date/time proposals and verified location add slots available only for
   expect(badge).toContain('<Chip.Label>{t("Rating")}</Chip.Label>');
   const preview = source("events", "EventCard");
   expect(preview).toContain("titleAccessory=");
-  expect(preview).toContain("eventRecordPreviewDate(event)");
-  expect(preview).toContain(
-    '<DateTimeInfo startsAt={`${eventDateWall(event, date)}Z`} timeZone="UTC" />',
-  );
+  expect(preview).toContain("<EventCardSchedule schedule={eventRecordSchedulePreview(event)} />");
+  expect(source("events", "EventCardSchedule")).toMatch(/timeZone="UTC"\s+dateStyle="long"/);
   expect(preview).not.toContain("eventRecordDisplayTimeZone");
   expect(preview).toMatch(/<UsersRound[^>]*\/>\s*<Typography/);
   expect(preview).toContain("<UsersRound");

@@ -8,6 +8,7 @@ import {
   eventRecordDisplayTimeZone,
   eventRecordPeriods,
   eventRecordPreviewDate,
+  eventRecordSchedulePreview,
   hasPublicTableConflict,
   plannedTableInterval,
   publicBookingIsClosed,
@@ -182,6 +183,60 @@ it("previews proposed or chosen clocks without turning proposals into an agreed 
   expect(eventRecordDisplayTimeZone(multi, "PRIVATE")).toBeNull();
   expect(eventRecordDisplayTimeZone(multi, "PUBLIC")).toBe("UTC");
   expect(eventRecordDisplayTimeZone({ ...multi, status: "CONFIRMED" }, "PRIVATE")).toBe("UTC");
+});
+it("projects one Event schedule for cards without exposing an unchosen proposal as confirmation", () => {
+  const secondDate = { id: other, day: "2027-01-04", startTime: "16:45" };
+  const secondLocation = {
+    ...event.locations[0],
+    id: other,
+    name: "Second venue",
+    timeZone: "America/New_York",
+  };
+  const proposed = {
+    ...event,
+    dates: [...event.dates, secondDate],
+    locations: [...event.locations, secondLocation],
+  };
+  expect(eventRecordSchedulePreview(proposed)).toEqual({
+    localStartsAt: "2027-01-02T09:00",
+    location: event.locations[0],
+    dateCount: 2,
+    locationCount: 2,
+  });
+  const chosen = {
+    ...proposed,
+    status: "CONFIRMED" as const,
+    confirmed: { dateId: other, locationId: other, at },
+  };
+  expect(eventRecordSchedulePreview(chosen)).toEqual({
+    localStartsAt: "2027-01-04T16:45",
+    location: secondLocation,
+    dateCount: 1,
+    locationCount: 1,
+  });
+  expect(eventRecordSchedulePreview({ ...chosen, status: "TERMINATED" })).toEqual(
+    eventRecordSchedulePreview(chosen),
+  );
+  expect(eventRecordSchedulePreview({ ...chosen, status: "PLANNING" })).toEqual(
+    eventRecordSchedulePreview(proposed),
+  );
+  expect(eventRecordSchedulePreview({ ...chosen, confirmed: undefined })).toMatchObject({
+    localStartsAt: "2027-01-02T09:00",
+    location: event.locations[0],
+  });
+  expect(
+    eventRecordSchedulePreview({
+      ...chosen,
+      confirmed: { dateId: "missing", locationId: "missing", at },
+    }),
+  ).toMatchObject({ localStartsAt: "2027-01-02T09:00", location: event.locations[0] });
+  for (const status of ["PLANNING", "CONFIRMED"] as const)
+    expect(eventRecordSchedulePreview({ ...event, status, dates: [], locations: [] })).toEqual({
+      localStartsAt: null,
+      location: null,
+      dateCount: 0,
+      locationCount: 0,
+    });
 });
 describe("local day periods", () => {
   it("places unchosen dates in BOTH periods, independently of proposed dates", () => {

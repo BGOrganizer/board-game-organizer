@@ -1,5 +1,6 @@
 import type {
   EventRecord,
+  EventSchedulePreview,
   PlannedEventCapabilities,
   TableRecord,
   TableRegistration,
@@ -22,6 +23,23 @@ export function eventRecordPreviewDate(
       ? event.dates.find((date) => date.id === event.confirmed?.dateId)
       : undefined) ?? event.dates[0]
   );
+}
+/** One canonical, bounded preview for Event cards and the Table response projection. */
+export function eventRecordSchedulePreview(
+  event: Pick<EventRecord, "dates" | "locations" | "startTime" | "status" | "confirmed">,
+): EventSchedulePreview {
+  const date = eventRecordPreviewDate(event);
+  const location =
+    (event.status !== "PLANNING" && event.confirmed
+      ? event.locations.find((row) => row.id === event.confirmed?.locationId)
+      : undefined) ?? event.locations[0];
+  return {
+    localStartsAt: date ? eventDateWall(event, date) : null,
+    location: location ?? null,
+    // Keep the existing total-proposals +n convention; frozen Events expose only their choice.
+    dateCount: event.status === "PLANNING" ? event.dates.length : Number(Boolean(date)),
+    locationCount: event.status === "PLANNING" ? event.locations.length : Number(Boolean(location)),
+  };
 }
 /** A private proposal has no single display zone until a venue is chosen. */
 export function eventRecordDisplayTimeZone(

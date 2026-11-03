@@ -159,8 +159,17 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   ordered-list icon). Its accessible popover explains that state. The trigger is a sibling of the
   navigation link/pressable, never an interactive child of it; opening it does not navigate, accept
   consent or acknowledge notification attention.
-  Right-side rows show bold name/Dices with Rating at far right; Event/calendar and Group/people
-  separated by a dot only in Main Tables; then five distinct icon/counts for minimum, maximum,
+  Group/Event/Table cards share title typography and leading identity icons. Group visibility,
+  venue and member/Event counts use the same body typography as Event/Table metadata.
+  Right-side Table rows show bold name/Dices with Rating at far right. Only Main Tables shows
+  separate labeled Event/calendar and Group/people rows, then the parent Event's localized,
+  human-readable date/time and verified venue; Event-context cards omit those redundant parent
+  rows and schedule. Event cards likewise label their associated Group and show their own schedule.
+  Planning previews retain the first proposed date/time/venue and the existing total-proposals `+n`
+  convention; confirmed/terminated cards use the chosen date/time/venue only. Every `+n`, including
+  additional games, uses the same stock HeroUI accent foreground. Missing old cached schedule fields
+  remain partial skeletons until reconciliation, never guessed dates/venues or per-card parent reads.
+  Following rows retain five distinct icon/counts for minimum, maximum,
   accepted registrations, waiting places and pending registrations. Accepted/pending totals include
   queued registrations; existing seat/queue counters retain their meanings. Missing cached metadata
   uses partial skeletons, never guessed counts. One Table list / Lista Tavoli heading and count-legend

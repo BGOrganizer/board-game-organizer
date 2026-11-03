@@ -18,7 +18,7 @@ import {
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
-import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
+import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { GroupArtwork } from "./GroupArtwork";
 import { GroupStatusBadge } from "./GroupStatusBadge";
 export function GroupCard({
@@ -92,38 +92,36 @@ export function GroupCard({
       }
     >
       <GroupArtwork group={group} status="none" />
-      <span className="min-w-0 flex-1 space-y-1">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="min-w-0 truncate font-semibold">{group.name}</span>
-            <NotificationUnreadDot
-              active={!local && Boolean(attention?.get(attentionTarget)?.count)}
-            />
-          </span>
-          {local ? <ClientRecordBadge phase={local.phase} /> : <GroupStatusBadge group={group} />}
-        </span>
-        <span className="flex items-center gap-1 text-xs text-muted">
-          <Visibility className="size-3" aria-hidden />
+      <ListCardBody
+        title={group.name}
+        titleIcon={<UsersRound className="size-4 shrink-0" aria-hidden />}
+        unread={!local && Boolean(attention?.get(attentionTarget)?.count)}
+        titleAccessory={
+          local ? <ClientRecordBadge phase={local.phase} /> : <GroupStatusBadge group={group} />
+        }
+      >
+        <span className="flex items-center gap-1 text-sm text-foreground">
+          <Visibility className="size-4 text-muted" aria-hidden />
           {group.type === "PUBLIC" ? t`Public` : t`Private`}
         </span>
         {group.location ? (
-          <span className="flex items-center gap-2 text-sm text-muted">
-            <MapPin className="size-4 shrink-0" aria-hidden />
+          <span className="flex items-center gap-1 text-sm text-foreground">
+            <MapPin className="size-4 shrink-0 text-muted" aria-hidden />
             <span className="min-w-0 flex-1 break-words">
               {formatLocationAddress(group.location.address)}
             </span>
           </span>
         ) : null}
         <span
-          className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted ${local?.phase === "verifying" && onVerify ? "pr-10" : ""}`}
+          className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-foreground ${local?.phase === "verifying" && onVerify ? "pr-10" : ""}`}
         >
           <span className="flex items-center gap-1">
-            <UsersRound className="size-4" aria-hidden />
+            <UsersRound className="size-4 text-muted" aria-hidden />
             {group.memberCount} {t`members`}
           </span>
           {group.canViewEvents && group.eventCount !== null ? (
             <span className="flex items-center gap-1">
-              <CalendarDays className="size-4" aria-hidden />
+              <CalendarDays className="size-4 text-muted" aria-hidden />
               {group.eventCount} {t`Events`}
             </span>
           ) : null}
@@ -133,7 +131,7 @@ export function GroupCard({
         ) : group.role === "requested" ? (
           <span className="block text-xs text-warning">{t`Membership requested`}</span>
         ) : null}
-      </span>
+      </ListCardBody>
     </LinkedListCard>
   );
 }
