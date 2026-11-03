@@ -118,7 +118,7 @@ it.each(["personal", "event"] as const)(
   },
 );
 it.each([false, true])(
-  "shows a separate explained waiting section only after primary capacity is full (full=%s)",
+  "always shows a separate explained waiting section, with an action only at full capacity (full=%s)",
   async (full) => {
     const s = setup(full);
     renderWithI18n(s.wrap(<EventTableOverview eventId={eventId} tableId={tableId} />));
@@ -127,7 +127,9 @@ it.each([false, true])(
       await waitFor(() =>
         expect(within(primary).getAllByRole("button", { name: "Free place" })).toHaveLength(4),
       );
-      expect(screen.queryByRole("region", { name: "Waiting list" })).toBeNull();
+      const waiting = screen.getByRole("region", { name: "Waiting list" });
+      expect(await within(waiting).findByText("No players waiting")).toBeTruthy();
+      expect(within(waiting).queryByRole("button", { name: "Join waiting list" })).toBeNull();
       return;
     }
     const waiting = await screen.findByRole("region", { name: "Waiting list" });

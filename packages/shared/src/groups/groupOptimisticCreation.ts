@@ -8,7 +8,13 @@ import { type ClientRecord, type CreationIntent, creationState } from "../common
 export type GroupCreationDraft = {
   name?: string;
   logoPreview?: string | null;
-  friends?: Array<{ id: string; name: string; email: string | null; avatarUrl: string | null }>;
+  friends?: Array<{
+    id: string;
+    name: string;
+    username?: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+  }>;
 };
 export type CreateGroupVariables = CreateGroupRecordInput & { clientDraft?: GroupCreationDraft };
 export type EditGroupVariables = {

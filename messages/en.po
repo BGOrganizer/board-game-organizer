@@ -5549,8 +5549,8 @@ msgstr "Victory milestone"
 msgid "View all activities"
 msgstr "View all activities"
 
-msgid "Win rate"
-msgstr "Win rate"
+msgid "Win %"
+msgstr "Win %"
 
 msgid "Won"
 msgstr "Won"
@@ -5570,3 +5570,27 @@ msgstr "{unit, select, year {{count, plural, one {# year} other {# years}}} mont
 #: packages/shared/src/profile/profileMetrics.ts
 msgid "profile.activity.relative"
 msgstr "{direction, select, past {{duration} ago} future {in {duration}} other {just now}}"
+
+msgid "Number of players"
+msgstr "Number of players"
+
+msgid "Choose the minimum on the left and maximum on the right. At least two players are required, and the minimum cannot exceed the maximum."
+msgstr "Choose the minimum on the left and maximum on the right. At least two players are required, and the minimum cannot exceed the maximum."
+
+msgid "No players waiting"
+msgstr "No players waiting"
+
+msgid "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves."
+msgstr "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves."
+
+msgid "Accepted waiting players may vote. Pending invitations do not vote or count toward agreement."
+msgstr "Accepted waiting players may vote. Pending invitations do not vote or count toward agreement."
+
+msgid "Pending invitations reserve a place but do not vote or count toward agreement."
+msgstr "Pending invitations reserve a place but do not vote or count toward agreement."
+
+msgid "Free places allow joining or invitations. Places are not assigned physical seats."
+msgstr "Free places allow joining or invitations. Places are not assigned physical seats."
+
+msgid "Username unavailable"
+msgstr "Username unavailable"

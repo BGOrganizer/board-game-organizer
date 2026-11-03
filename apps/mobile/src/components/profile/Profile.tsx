@@ -103,7 +103,7 @@ export function Profile({ userId }: { userId?: string }) {
                       { label: t("Games played"), value: number.format(data.player.gamesPlayed) },
                       { label: t("Games won"), value: number.format(data.player.gamesWon) },
                       {
-                        label: t("Win rate"),
+                        label: t("Win %"),
                         value:
                           data.player.winRate === null
                             ? "—"

@@ -61,7 +61,7 @@ it("caps the compact native option viewport while retaining loading/error space"
   }
 });
 it.each([false, true])(
-  "keeps a single virtualized native list, with waiting after the seat section only when supplied (waiting=%s)",
+  "keeps a single virtualized native list, with waiting always after seats (waiting=%s)",
   (waiting) => {
     const seats = [{ key: "main" }],
       queued = waiting ? [{ key: "queued" }] : [];
@@ -69,11 +69,12 @@ it.each([false, true])(
       roster: { seatRows: seats, waitingRows: queued },
       t: (value: string) => value,
     });
-    expect(sections.map((section: { title: string }) => section.title)).toEqual(
-      waiting ? ["Seats list", "Waiting list"] : ["Seats list"],
-    );
+    expect(sections.map((section: { title: string }) => section.title)).toEqual([
+      "Seats list",
+      "Waiting list",
+    ]);
     expect(sections[0].data).toBe(seats);
-    if (waiting) expect(sections[1].data).toBe(queued);
+    expect(sections[1].data).toBe(queued);
   },
 );
 it.each(["personal", "event"] as const)(

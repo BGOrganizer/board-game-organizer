@@ -24,6 +24,7 @@ export default function GroupFriendSearchScreen() {
           setPendingUser(slotId, {
             id: person.id,
             name: person.name,
+            username: person.username,
             email: person.email,
             avatarUrl: person.avatarUrl,
           });

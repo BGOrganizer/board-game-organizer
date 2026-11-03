@@ -1,5 +1,23 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Player identities and Table labels — local follow-up
+
+- Web/native Profile uses localized Win % / % di vittorie. Registered-user display rows and
+  missing-name header fallbacks use usernames rather than email; login, email search and contact
+  synchronization retain their existing inputs. Group selection drafts and score editors retain usernames.
+- Table drafts retain name help and both bounded counters below one Number of players heading/help.
+  Seats and Waiting list always have separate headings/help. Free capacity shows a centered,
+  non-interactive waiting empty state; full capacity retains the existing queue action. Loading,
+  failed reads and incomplete full-roster pages never masquerade as an empty waiting list.
+- Local checks: **1,559 units** (mobile 364, web 771, shared 424), full typecheck, scoped Biome
+  (zero errors; seven existing warnings and six informational helper diagnostics), and API/web
+  production builds passed. Generated Next references were restored byte-for-byte.
+- Explicit real-fixture Playwright Table/player configuration and Maestro flow 19 were added;
+  discovery, Maestro 2.11 syntax and EN/IT/required-input helper VM checks passed. These are not
+  authenticated E2E or native-device acceptance. No new APK or database/provider operation
+  was performed. The operator separately authorized signed commit/push after these checks.
+  Canonical E2E suites/jobs remain unchanged.
+
 ## Profiles, statistics and activities — local implementation; acceptance incomplete
 
 - The existing web/native Profile now shares its platform-owned UI with social View profile

@@ -66,7 +66,15 @@ export function useEventResultsForm(options: CommunityApiOptions, eventId: strin
   const players = (table.data?.confirmed?.playerIds ?? []).flatMap((id) => {
     const person = seats.items.find((row) => row.userId === id);
     return person
-      ? [{ id, name: person.name ?? id, email: person.email ?? null, avatarUrl: person.avatarUrl }]
+      ? [
+          {
+            id,
+            name: person.name ?? id,
+            username: person.username ?? null,
+            email: person.email ?? null,
+            avatarUrl: person.avatarUrl,
+          },
+        ]
       : [];
   });
   const ready = Boolean(

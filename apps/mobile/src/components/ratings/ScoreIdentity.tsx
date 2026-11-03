@@ -64,7 +64,7 @@ export function ScoreIdentity({
           <GameRating rating={gameRating} showDelta />
         ) : (
           <Typography className="text-xs text-muted" numberOfLines={1}>
-            {player.email ?? t("Email unavailable")}
+            {player.username ?? t("Username unavailable")}
           </Typography>
         )}
       </View>

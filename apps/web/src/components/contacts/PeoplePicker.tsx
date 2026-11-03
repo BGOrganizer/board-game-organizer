@@ -96,9 +96,7 @@ export function PeoplePicker({
               </Avatar>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{person.name}</span>
-                <span className="block truncate text-xs text-muted">
-                  {person.username ?? person.email}
-                </span>
+                <span className="block truncate text-xs text-muted">{person.username}</span>
               </span>
               <Button
                 isIconOnly

@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
 const target = {
   id: "user_2",
   name: "Target User",
+  username: "target-player",
   email: "target@example.com",
   avatarUrl: null,
   presence: { online: true, lastActiveAt: "2026-01-01T00:00:00.000Z" },
@@ -273,6 +274,8 @@ describe("Contacts tabs", () => {
     mocks.friends = true;
     renderWithI18n(<Contacts />);
     expect(screen.getAllByText("Target User")).toHaveLength(1);
+    expect(screen.getByText("target-player")).toBeTruthy();
+    expect(screen.queryByText("target@example.com")).toBeNull();
     expect(screen.getByRole("img", { name: "Friends" })).toBeTruthy();
     expect(screen.getAllByRole("list")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Remove friend" })).toBeNull();

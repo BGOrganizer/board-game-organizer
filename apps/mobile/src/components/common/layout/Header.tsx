@@ -22,7 +22,7 @@ export function Header() {
       <Show when="signed-in">
         <View className="flex-row items-center gap-2">
           <Typography className="text-sm text-muted">
-            {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
+            {user?.firstName || user?.username}
           </Typography>
           <UserButton />
         </View>

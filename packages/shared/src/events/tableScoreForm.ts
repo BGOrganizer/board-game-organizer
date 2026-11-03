@@ -4,6 +4,7 @@ export type TableScoreInput = Omit<FinalizeEventInput["results"][number], "table
 export type ScorePlayer = {
   id: string;
   name: string;
+  username?: string | null;
   email: string | null;
   avatarUrl: string | null;
 };

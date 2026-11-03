@@ -590,7 +590,7 @@ export default function ContactsScreen() {
       titleAccessory={<ContactAttentionBadge userId={user.id} />}
       name={user.name}
       avatarUrl={user.avatarUrl}
-      secondary={user.email}
+      secondary={user.username}
       online={user.presence.online}
       badge={badge}
       actions={

@@ -73,25 +73,32 @@ export function EventDraftTableEditor({
           </Typography>
         ) : null}
       </View>
-      <View style={{ flexDirection: "row", gap: 12 }}>
-        <PlayerCount
-          label={t("Minimum players")}
-          help={t("At least two players are required. The minimum cannot exceed the maximum.")}
-          value={row.minPlayers}
-          min={2}
-          max={row.maxPlayers}
-          busy={busy}
-          onChange={(minPlayers) => onChange({ minPlayers })}
+      <View style={{ gap: 8 }}>
+        <SearchHelpLabel
+          label={t("Number of players")}
+          helpTitle={helpTitle}
+          help={t(
+            "Choose the minimum on the left and maximum on the right. At least two players are required, and the minimum cannot exceed the maximum.",
+          )}
         />
-        <PlayerCount
-          label={t("Maximum players")}
-          help={t("Set the table capacity at or above the minimum number of players.")}
-          value={row.maxPlayers}
-          min={row.minPlayers}
-          max={Number.MAX_SAFE_INTEGER}
-          busy={busy}
-          onChange={(maxPlayers) => onChange({ maxPlayers })}
-        />
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <PlayerCount
+            label={t("Minimum players")}
+            value={row.minPlayers}
+            min={2}
+            max={row.maxPlayers}
+            busy={busy}
+            onChange={(minPlayers) => onChange({ minPlayers })}
+          />
+          <PlayerCount
+            label={t("Maximum players")}
+            value={row.maxPlayers}
+            min={row.minPlayers}
+            max={Number.MAX_SAFE_INTEGER}
+            busy={busy}
+            onChange={(maxPlayers) => onChange({ maxPlayers })}
+          />
+        </View>
       </View>
       {fieldError("minPlayers") || fieldError("maxPlayers") ? (
         <Typography accessibilityRole="alert" className="text-sm text-danger">
@@ -304,7 +311,6 @@ export function EventDraftTableEditor({
 }
 function PlayerCount({
   label,
-  help,
   value,
   min,
   max,
@@ -312,7 +318,6 @@ function PlayerCount({
   onChange,
 }: {
   label: string;
-  help: string;
   value: number;
   min: number;
   max: number;
@@ -322,8 +327,7 @@ function PlayerCount({
   const t = useT(),
     foreground = useThemeColor("accent-foreground");
   return (
-    <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-      <SearchHelpLabel label={label} help={help} helpTitle={t("Field help")} />
+    <View style={{ flex: 1, minWidth: 0 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
         <Button
           isIconOnly

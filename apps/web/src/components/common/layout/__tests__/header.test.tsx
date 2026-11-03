@@ -8,6 +8,7 @@ const { useUserMock } = vi.hoisted(() => ({
     () => {
       user: {
         firstName: string;
+        username?: string | null;
         publicMetadata?: Record<string, unknown>;
         emailAddresses: { emailAddress: string }[];
       } | null;
@@ -120,6 +121,21 @@ describe("Header", () => {
     expect(screen.queryByText("Alessandro")).toBeNull();
   });
 
+  it.each(["player-handle", null])(
+    "never falls back to email when first name is absent (username=%s)",
+    (username) => {
+      useUserMock.mockReturnValue({
+        user: {
+          firstName: "",
+          username,
+          emailAddresses: [{ emailAddress: "hidden@example.test" }],
+        },
+      });
+      renderWithI18n(<Header />);
+      expect(screen.queryByText("hidden@example.test")).toBeNull();
+      if (username) expect(screen.getByText(username)).toBeTruthy();
+    },
+  );
   it("toggles the mobile menu", () => {
     useUserMock.mockReturnValue({ user: null });
     renderWithI18n(<Header />);

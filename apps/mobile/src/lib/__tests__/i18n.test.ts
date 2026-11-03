@@ -54,6 +54,11 @@ describe("createAppI18n", () => {
 
 describe("translate (runtime)", () => {
   it.each([
+    ["Win %", "% di vittorie"],
+    ["Table name", "Nome tavolo"],
+    ["Number of players", "Numero giocatori"],
+    ["No players waiting", "Nessun utente in lista d'attesa"],
+    ["Username unavailable", "Nome utente non disponibile"],
     ["Registered", "Iscritti"],
     ["Available", "Disponibili"],
     [

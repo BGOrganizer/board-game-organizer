@@ -23,10 +23,17 @@ interface Props {
   getToken?: () => Promise<string | null>;
   protectionBypass?: string | null;
   excludeIds?: string[];
-  members?: Array<{ id: string; name: string; email: string | null; avatarUrl: string | null }>;
+  members?: Array<{
+    id: string;
+    name: string;
+    username?: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+  }>;
   onSelect: (user: {
     id: string;
     name: string;
+    username?: string | null;
     email: string | null;
     avatarUrl: string | null;
   }) => void;
@@ -173,7 +180,7 @@ export function SearchUserPage({
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{u.name}</p>
-              <p className="truncate text-xs text-muted">{u.email}</p>
+              <p className="truncate text-xs text-muted">{u.username}</p>
             </div>
             <Button
               isIconOnly
@@ -182,7 +189,13 @@ export function SearchUserPage({
               variant="primary"
               aria-label={`${t`Add`}: ${u.name}`}
               onPress={() =>
-                onSelect({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl })
+                onSelect({
+                  id: u.id,
+                  name: u.name,
+                  username: u.username,
+                  email: u.email,
+                  avatarUrl: u.avatarUrl,
+                })
               }
             >
               <UserPlus className="h-4 w-4" />

@@ -14,6 +14,7 @@ import { EventResults } from "../EventResults";
 const m = vi.hoisted(() => ({
   replace: vi.fn(),
   back: vi.fn(),
+  scorePlayers: vi.fn(),
   feedback: { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() },
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => m }));
@@ -32,20 +33,23 @@ vi.mock("../TableScoreEditor", () => ({
   }: {
     players: ScorePlayer[];
     onSubmit: (value: TableScoreInput) => void;
-  }) => (
-    <button
-      type="button"
-      onClick={() =>
-        onSubmit({
-          lowerWins: false,
-          entries: players.map((p) => ({ userId: p.id, score: null })),
-          tieBreaks: [],
-        })
-      }
-    >
-      Draft all ND
-    </button>
-  ),
+  }) => {
+    m.scorePlayers(players);
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          onSubmit({
+            lowerWins: false,
+            entries: players.map((p) => ({ userId: p.id, score: null })),
+            tieBreaks: [],
+          })
+        }
+      >
+        Draft all ND
+      </button>
+    );
+  },
 }));
 let fail = false,
   fetcher: ReturnType<typeof vi.fn>;
@@ -107,7 +111,13 @@ function mount(
 it("uses only app-header Back for selected/loading editors and route Back for the list", async () => {
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
-  await screen.findByRole("heading", { name: "Register Table Result" });
+  await screen.findByRole("button", { name: "Draft all ND" });
+  expect(m.scorePlayers).toHaveBeenLastCalledWith(
+    expect.arrayContaining([
+      expect.objectContaining({ id: "owner", username: "owner" }),
+      expect.objectContaining({ id: "guest", username: "guest" }),
+    ]),
+  );
   const back = screen.getByRole("button", { name: "Back" });
   expect(document.getElementById("page-header-actions")?.contains(back)).toBe(true);
   expect(screen.queryByRole("button", { name: "Back to tables" })).toBeNull();

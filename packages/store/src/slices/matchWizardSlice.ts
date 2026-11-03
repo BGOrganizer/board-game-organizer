@@ -11,6 +11,7 @@ import type { StateCreator } from "zustand";
 export interface SelectedUser {
   id: string;
   name: string;
+  username?: string | null;
   email: string | null;
   avatarUrl: string | null;
 }

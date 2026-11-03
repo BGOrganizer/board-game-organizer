@@ -30,7 +30,13 @@ import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupLogoPicker } from "./GroupLogoPicker";
 
-type Friend = { id: string; name: string; email: string | null; avatarUrl: string | null };
+type Friend = {
+  id: string;
+  name: string;
+  username?: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+};
 export function GroupWizard({ groupId, draftId }: { groupId?: string; draftId?: string }) {
   const options = useCommunityApi(),
     { t } = useLingui();
@@ -278,7 +284,7 @@ function Editor({
                 </Avatar>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm">{user.name}</span>
-                  <span className="block truncate text-xs text-muted">{user.email}</span>
+                  <span className="block truncate text-xs text-muted">{user.username}</span>
                 </span>
                 <Button
                   isIconOnly

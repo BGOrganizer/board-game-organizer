@@ -84,6 +84,16 @@ No canonical journey or CI job is replaced/enabled by these files. Syntax/VM/dis
 real provider, authenticated or native-device acceptance.
 
 
+`19-table-player-ux.yaml` and `apps/web/e2e/table-player-ux.config.ts` inspect real waiting states,
+usernames, localized Profile statistics and unsaved Table drafts; no save/enrollment or mocks.
+Use an owned Development/Preview actor in the selected `TABLE_UX_LOCALE` (`en`/`it`). Supply
+`TABLE_UX_FREE_PATH`, `TABLE_UX_FULL_PATH`, `TABLE_UX_CONFIRMED_PATH` as `/events/<uuid>/tables/<uuid>`:
+FREE belongs to an editable, valid future PLANNING Event with one small Table and available places;
+FULL is a small full PLANNING Table where the actor can join/invite; CONFIRMED includes a first-page
+player with `TABLE_UX_USERNAME` and `TABLE_UX_EMAIL`. Web additionally requires `E2E_EMAIL` and existing
+Development Clerk test keys. Run `pnpm --filter web exec playwright test --config e2e/table-player-ux.config.ts`.
+Missing inputs fail. Repeat both themes and enlarged text; syntax/discovery is not device acceptance.
+
 `16-table-schedule.yaml` and `apps/web/e2e/table-schedule.config.ts` are explicit manual,
 read-only detail scenarios, outside canonical suites/jobs. Use an isolated Development API and an
 already onboarded actor authorized for four real fixtures: an included CONFIRMED PUBLIC Table with

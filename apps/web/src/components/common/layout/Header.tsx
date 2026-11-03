@@ -117,7 +117,7 @@ export function Header() {
 
           <div className="flex min-w-0 shrink-0 items-center gap-2">
             <p className="hidden max-w-40 truncate text-sm text-muted sm:block">
-              {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
+              {user?.firstName || user?.username}
             </p>
             <NotificationBell />
             <Link href="/profile" aria-label={t`Profile`} className={headerControlClassName}>

@@ -69,6 +69,37 @@ it.each([false, true])(
   },
 );
 
+it("retains the selected friend's username from picker to unsaved Group draft without showing email", async () => {
+  const friend = {
+    id: "friend",
+    name: "Known Friend",
+    username: "friend-handle",
+    email: "hidden@example.test",
+    avatarUrl: null,
+    presence: { online: false, lastActiveAt: "" },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.includes("/relationships")
+          ? {
+              rows: [{ fromUserId: "owner", toUserId: friend.id, profile: friend }],
+              nextCursor: null,
+            }
+          : { items: [], nextCursor: null },
+      ),
+    ),
+  );
+  renderWithI18n(<GroupWizard />);
+  fireEvent.click(screen.getByRole("button", { name: "Add friend" }));
+  expect(await screen.findByText("friend-handle")).toBeTruthy();
+  expect(screen.queryByText("hidden@example.test")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Select user: Known Friend" }));
+  expect(screen.getByText("friend-handle")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Remove invite: Known Friend" })).toBeTruthy();
+  expect(screen.queryByText("hidden@example.test")).toBeNull();
+});
 it.each([409, 503])(
   "retains a rejected Group edit outside Query pages, closes before HTTP and prevents unknown-outcome retries: %s",
   async (status) => {

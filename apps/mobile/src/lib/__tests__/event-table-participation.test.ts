@@ -76,6 +76,73 @@ it.each(["EventDetail", "EventTableOverview", "EventInvitationPicker"])(
   "uses exact boundary timer in %s instead of waiting for a list refetch",
   (name) => expect(source(name)).toContain("useEventCutoff"),
 );
+it.each([
+  [{}, true],
+  [{ isPending: true }, false],
+  [{ isError: true }, false],
+  [{ queueOpen: true, hasNextPage: true }, false],
+  [{ queueOpen: true, hasNextPage: false }, true],
+  [{ waitingRows: [{ key: "queued" }] }, false],
+] as const)(
+  "keeps an always-present native waiting section without false empty states: %j",
+  (state, showEmpty) => {
+    const file = ts.createSourceFile(
+      "seats.tsx",
+      source("EventTableSeats"),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    const expressions: Record<string, string> = {};
+    function visit(node: ts.Node) {
+      if (
+        ts.isJsxAttribute(node) &&
+        ["sections", "renderSectionFooter"].includes(node.name.getText(file)) &&
+        node.initializer &&
+        ts.isJsxExpression(node.initializer)
+      )
+        expressions[node.name.getText(file)] = node.initializer.expression?.getText(file) ?? "";
+      ts.forEachChild(node, visit);
+    }
+    visit(file);
+    const roster = {
+      seatRows: [],
+      waitingRows: [],
+      isPending: false,
+      isError: false,
+      queueOpen: false,
+      hasNextPage: false,
+      ...state,
+    };
+    const evaluate = (expression: string) =>
+      runInNewContext(
+        ts.transpileModule(`(${expression})`, {
+          compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React },
+        }).outputText,
+        {
+          roster,
+          t: (text: string) => text,
+          muted: "muted",
+          EmptyList: "EmptyList",
+          Clock3: "Clock3",
+          React: {
+            createElement: (type: string, props: unknown, ...children: unknown[]) => ({
+              type,
+              props,
+              children,
+            }),
+          },
+        },
+      );
+    const sections = evaluate(expressions.sections);
+    expect(sections.map((section: { key: string }) => section.key)).toEqual(["seats", "waiting"]);
+    const footer = evaluate(expressions.renderSectionFooter);
+    expect(footer({ section: sections[0] })).toBeNull();
+    const empty = footer({ section: sections[1] });
+    expect(Boolean(empty)).toBe(showEmpty);
+    if (showEmpty) expect(empty.children).toContain("No players waiting");
+  },
+);
 it("never creates a synthetic Match or organizer seat from a table link", () => {
   for (const name of ["EventTable", "EventInvitationPicker", "EventResults", "EventWizard"]) {
     expect(source(name)).not.toContain("useMatch");

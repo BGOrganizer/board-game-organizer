@@ -62,26 +62,31 @@ export function EventDraftTableEditor({
           >{t`Enter a table name between 1 and 120 characters.`}</p>
         ) : null}
       </TextField>
-      <div className="flex flex-wrap gap-4">
-        <PlayerCount
-          label={t`Minimum players`}
-          help={t`At least two players are required. The minimum cannot exceed the maximum.`}
-          value={row.minPlayers}
-          min={2}
-          max={row.maxPlayers}
-          busy={busy}
-          onChange={(minPlayers) => onChange({ minPlayers })}
+      <fieldset className="space-y-2" aria-label={t`Number of players`}>
+        <SearchHelpLabel
+          label={t`Number of players`}
+          helpTitle={helpTitle}
+          help={t`Choose the minimum on the left and maximum on the right. At least two players are required, and the minimum cannot exceed the maximum.`}
         />
-        <PlayerCount
-          label={t`Maximum players`}
-          help={t`Set the table capacity at or above the minimum number of players.`}
-          value={row.maxPlayers}
-          min={row.minPlayers}
-          max={Number.MAX_SAFE_INTEGER}
-          busy={busy}
-          onChange={(maxPlayers) => onChange({ maxPlayers })}
-        />
-      </div>
+        <div className="flex gap-4">
+          <PlayerCount
+            label={t`Minimum players`}
+            value={row.minPlayers}
+            min={2}
+            max={row.maxPlayers}
+            busy={busy}
+            onChange={(minPlayers) => onChange({ minPlayers })}
+          />
+          <PlayerCount
+            label={t`Maximum players`}
+            value={row.maxPlayers}
+            min={row.minPlayers}
+            max={Number.MAX_SAFE_INTEGER}
+            busy={busy}
+            onChange={(maxPlayers) => onChange({ maxPlayers })}
+          />
+        </div>
+      </fieldset>
       {fieldError("minPlayers") || fieldError("maxPlayers") ? (
         <p
           role="alert"
@@ -305,7 +310,6 @@ export function EventDraftTableEditor({
 }
 function PlayerCount({
   label,
-  help,
   value,
   min,
   max,
@@ -313,7 +317,6 @@ function PlayerCount({
   onChange,
 }: {
   label: string;
-  help: string;
   value: number;
   min: number;
   max: number;
@@ -322,8 +325,7 @@ function PlayerCount({
 }) {
   const { t } = useLingui();
   return (
-    <div className="min-w-0 flex-1 space-y-2">
-      <SearchHelpLabel label={label} help={help} helpTitle={t`Field help`} />
+    <div className="min-w-0 flex-1">
       <div className="flex items-center gap-3">
         <Button
           isIconOnly

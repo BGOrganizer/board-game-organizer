@@ -262,8 +262,10 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   Clerk ID. This cache subscription starts no additional profile request and grants no participation
   or position. Other actors' cached profiles cannot supply self identity.
 - Both clients show grouped games and places in Table details. Places start at the maximum capacity;
-  occupied capacity retains an additional queue entry. Once primary places are exhausted, a separate
-  Waiting list section follows Seats list with its own explanation popover. Anonymous/unloaded primary
+  occupied capacity retains an additional queue entry. A separate Waiting list section always follows
+  Seats list, each with its own explanation popover. While primary places remain available, Waiting list
+  shows a centered non-interactive empty state; its existing queue action appears only at full capacity.
+  Anonymous/unloaded primary
   reservations precede queued people too, including across render pages. Local saving intent is never
   assigned a seat or queue priority. Large rosters/placeholder ranges are source-paged and rendered
   progressively; native uses one SectionList, never nested same-direction lists. Empty places enroll the viewer; organizers first choose self-enrollment

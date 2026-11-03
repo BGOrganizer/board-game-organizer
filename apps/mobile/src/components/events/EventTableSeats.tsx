@@ -19,6 +19,7 @@ import { type ScrollView, SectionList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { IconLegend } from "@/components/common/ui/IconLegend";
@@ -44,7 +45,7 @@ export function EventTableSeats({
     o = useCommunityApi(),
     router = useRouter(),
     insets = useSafeAreaInsets(),
-    danger = useThemeColor("danger"),
+    [danger, muted] = useThemeColor(["danger", "muted"]),
     a = useEventRecordActions(o, table.eventId);
   const roster = useEventTableRoster(o, table),
     closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
@@ -68,9 +69,7 @@ export function EventTableSeats({
           }}
           sections={[
             { key: "seats", title: t("Seats list"), data: roster.seatRows },
-            ...(roster.waitingRows.length
-              ? [{ key: "waiting", title: t("Waiting list"), data: roster.waitingRows }]
-              : []),
+            { key: "waiting", title: t("Waiting list"), data: roster.waitingRows },
           ]}
           stickySectionHeadersEnabled={false}
           keyExtractor={(row) => row.key}
@@ -95,28 +94,37 @@ export function EventTableSeats({
                 width={300}
               >
                 {section.key === "waiting" ? (
-                  <Typography className="text-sm text-foreground">
-                    {t(
-                      "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves. Pending invitations do not count toward agreement.",
-                    )}
-                  </Typography>
+                  <>
+                    <Typography className="text-sm text-foreground">
+                      {t(
+                        "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves.",
+                      )}
+                    </Typography>
+                    <Typography className="text-sm text-foreground">
+                      {t(
+                        "Accepted waiting players may vote. Pending invitations do not vote or count toward agreement.",
+                      )}
+                    </Typography>
+                    <Typography className="text-sm text-foreground">
+                      {t("Only the organizer and recipient can see pending invitation identities.")}
+                    </Typography>
+                  </>
                 ) : (
                   <>
                     <IconLegend
                       items={[
                         { icon: UserRoundCheck, description: t("Accepted player") },
                         { icon: Mail, description: t("Invitation pending") },
-                        { icon: Clock3, description: t("Waiting list") },
                       ]}
                     />
                     <Typography className="text-sm text-foreground">
                       {t(
-                        "Pending invitations reserve a place but do not vote or count toward agreement. Accepted waiting players may vote.",
+                        "Pending invitations reserve a place but do not vote or count toward agreement.",
                       )}
                     </Typography>
                     <Typography className="text-sm text-foreground">
                       {t(
-                        "Free places allow joining or invitations. When capacity is reserved, an extra place lets new players join the queue. Places are not assigned physical seats.",
+                        "Free places allow joining or invitations. Places are not assigned physical seats.",
                       )}
                     </Typography>
                     <Typography className="text-sm text-foreground">
@@ -127,6 +135,17 @@ export function EventTableSeats({
               </HelpPopover>
             </View>
           )}
+          renderSectionFooter={({ section }) =>
+            section.key === "waiting" &&
+            !section.data.length &&
+            !roster.isPending &&
+            !roster.isError &&
+            (!roster.queueOpen || !roster.hasNextPage) ? (
+              <EmptyList icon={<Clock3 size={28} color={muted} />}>
+                {t("No players waiting")}
+              </EmptyList>
+            ) : null
+          }
           renderItem={({ item }) => {
             if (item.kind === "pending") {
               const label =
@@ -195,7 +214,7 @@ export function EventTableSeats({
                   avatarUrl={row.avatarUrl}
                   secondary={
                     table.eventStatus === "CONFIRMED"
-                      ? row.email
+                      ? row.username
                       : pending && waiting
                         ? `${status} · ${t("Waiting list")}`
                         : status

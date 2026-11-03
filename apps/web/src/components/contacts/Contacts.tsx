@@ -51,7 +51,7 @@ function protectionBypass(): string | undefined {
 function ContactCard({
   userId,
   name,
-  email,
+  username,
   avatarUrl,
   online,
   menu,
@@ -59,7 +59,7 @@ function ContactCard({
 }: {
   userId: string;
   name: string;
-  email: string | null;
+  username?: string | null;
   avatarUrl: string | null;
   online: boolean;
   menu?: React.ReactNode;
@@ -98,7 +98,7 @@ function ContactCard({
               active={Boolean(attention?.get({ kind: "contact", id: userId })?.count)}
             />
           </div>
-          {email ? <p className="truncate text-sm text-muted">{email}</p> : null}
+          {username ? <p className="truncate text-sm text-muted">{username}</p> : null}
         </div>
       </div>
       {menu ? (
@@ -338,7 +338,7 @@ export function Contacts() {
       key={`${friendRequest ?? "contact"}-${user.id}`}
       userId={user.id}
       name={user.name}
-      email={user.email}
+      username={user.username}
       avatarUrl={user.avatarUrl}
       online={user.presence.online}
       badge={badge}

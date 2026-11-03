@@ -8,8 +8,8 @@ import { messages as itMessages } from "../../../../../../messages/it.js";
 import { TableScoreEditor } from "../TableScoreEditor";
 
 const players = [
-  { id: "a", name: "Alice", email: "a@example.test", avatarUrl: null },
-  { id: "b", name: "Bob", email: "b@example.test", avatarUrl: null },
+  { id: "a", name: "Alice", username: "alice", email: "a@example.test", avatarUrl: null },
+  { id: "b", name: "Bob", username: "bob", email: "b@example.test", avatarUrl: null },
 ];
 it.each([
   ["en", en, "Score: Alice", "Enter a score", "Close"],
@@ -53,7 +53,8 @@ it("preserves exact decimal ties and uses explicit table draft confirmation, not
       onSubmit={submit}
     />,
   );
-  expect(screen.getByText("a@example.test")).not.toBeNull();
+  expect(screen.getByText("alice")).not.toBeNull();
+  expect(screen.queryByText("a@example.test")).toBeNull();
   expect(screen.queryByRole("button", { name: "Back to tables" })).toBeNull();
   expect(screen.getByRole("button", { name: "Resolve tie" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Use table scores" }));
@@ -70,6 +71,16 @@ it("preserves exact decimal ties and uses explicit table draft confirmation, not
     tieBreaks: [],
   });
 });
+it.each([null, undefined])(
+  "does not fall back to a player's email when username is %s",
+  (username) => {
+    renderWithI18n(
+      <TableScoreEditor players={[{ ...players[0], username }]} busy={false} onSubmit={vi.fn()} />,
+    );
+    expect(screen.getByText("Username unavailable")).not.toBeNull();
+    expect(screen.queryByText("a@example.test")).toBeNull();
+  },
+);
 it("allows all-ND tables and prevents incomplete/repeated submissions", () => {
   const submit = vi.fn();
   renderWithI18n(

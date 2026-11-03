@@ -565,6 +565,30 @@ it("offers an invite-only modal when organizer already joined, routes to the exi
   );
   expect(m.push).toHaveBeenCalledWith(`/events/${eventId}/tables/${tableId}/invite`);
 });
+it("always shows an empty, non-interactive waiting list after seats while places remain free", async () => {
+  mount();
+  const empty = await screen.findByText("No players waiting"),
+    waiting = screen.getByRole("region", { name: "Waiting list" }),
+    seats = screen.getByRole("region", { name: "Seats list" });
+  expect(seats.nextElementSibling).toBe(waiting);
+  expect(waiting.contains(empty)).toBe(true);
+  expect(empty.parentElement?.className).toContain("items-center");
+  expect(empty.parentElement?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+  expect(within(waiting).queryByRole("list")).toBeNull();
+  expect(within(waiting).getAllByRole("button")).toHaveLength(1);
+  expect(within(waiting).getByRole("button", { name: "Waiting list: Field help" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Join waiting list" })).toBeNull();
+  expect(within(seats).getAllByRole("button", { name: "Free place" }).length).toBeGreaterThan(0);
+});
+it("does not report an empty queue while a full roster still has another source page", async () => {
+  paged = true;
+  rows.push({ ...player("guest", tableId), position: "WAITING" });
+  table = { ...table, maxPlayers: 2, seatedCount: 2, waitingCount: 1 };
+  mount();
+  await screen.findByRole("button", { name: "Load more" });
+  expect(screen.getByRole("heading", { name: "Waiting list" })).not.toBeNull();
+  expect(screen.queryByText("No players waiting")).toBeNull();
+});
 it("retains a queue entry beyond capacity and shows pending, accepted and waiting avatar badges without filter tabs", async () => {
   rows.push(
     { ...player("guest", tableId), position: "WAITING" },
@@ -709,12 +733,13 @@ it("keeps seat read failures visible, retries and renders empty places rather th
   );
   mount();
   await screen.findByText("Could not load players");
+  expect(screen.queryByText("No players waiting")).toBeNull();
   broken = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await screen.findByText("You");
   expect(screen.queryByText("owner")).toBeNull();
 });
-it("shows confirmed email/timing and exclusion without voting or open-place actions", async () => {
+it("shows confirmed username/timing and exclusion without email, voting or open-place actions", async () => {
   table = {
     ...table,
     groupType: "PUBLIC",
@@ -733,7 +758,8 @@ it("shows confirmed email/timing and exclusion without voting or open-place acti
     },
   };
   mount();
-  expect(await screen.findByText("owner@example.test")).not.toBeNull();
+  expect(await screen.findByText("owner")).not.toBeNull();
+  expect(screen.queryByText("owner@example.test")).toBeNull();
   expect(screen.getByText(/Guide/)).not.toBeNull();
   expect(screen.getByRole("region", { name: "Table schedule" }).previousElementSibling).toBe(
     screen.getByRole("region", { name: "Settings" }),

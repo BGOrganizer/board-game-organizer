@@ -41,7 +41,13 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { GroupLogoPicker } from "./GroupLogoPicker";
 
-type Friend = { id: string; name: string; email: string | null; avatarUrl: string | null };
+type Friend = {
+  id: string;
+  name: string;
+  username?: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+};
 export function GroupWizard({ groupId, draftId }: { groupId?: string; draftId?: string }) {
   const t = useT(),
     options = useCommunityApi();
@@ -336,7 +342,7 @@ function Editor({
             <UserListRow
               name={user.name}
               avatarUrl={user.avatarUrl}
-              secondary={user.email}
+              secondary={user.username}
               actions={
                 <Button
                   isIconOnly

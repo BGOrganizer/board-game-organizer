@@ -104,7 +104,7 @@ export function PeoplePicker({
           <UserListRow
             name={person.name}
             avatarUrl={person.avatarUrl}
-            secondary={person.username ?? person.email}
+            secondary={person.username}
             onPress={select}
             isDisabled={disabled || unavailable}
             accessibilityLabel={`${t("Select user")}: ${person.name}`}

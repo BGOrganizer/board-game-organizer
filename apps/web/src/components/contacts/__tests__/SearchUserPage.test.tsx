@@ -10,7 +10,7 @@ afterEach(() => vi.unstubAllGlobals());
 const friend = (id: string, name: string) => ({
   fromUserId: "user_viewer",
   toUserId: id,
-  profile: { id, name, email: `${id}@example.com`, avatarUrl: null },
+  profile: { id, name, username: `${id}-handle`, email: `${id}@example.com`, avatarUrl: null },
 });
 
 function renderPicker(onSelect = vi.fn()) {
@@ -77,6 +77,8 @@ it("renders cached first-page friends, excludes invited users, and loads the nex
   vi.stubGlobal("fetch", fetchMock);
   const onSelect = renderPicker();
   expect(await screen.findByText("E2E Target")).toBeTruthy();
+  expect(screen.getByText("user_friend-handle")).toBeTruthy();
+  expect(screen.queryByText("user_friend@example.com")).toBeNull();
   expect(screen.queryByText("Already invited")).toBeNull();
   expect(fetchMock).toHaveBeenCalledTimes(1);
   await waitFor(() => expect(onIntersect).toBeDefined());
@@ -90,7 +92,9 @@ it("renders cached first-page friends, excludes invited users, and loads the nex
   expect(add.closest("li")?.className).toContain("p-3 pl-4");
   expect(add.closest("ul")?.className).toContain("rounded-xl bg-surface");
   fireEvent.click(add);
-  expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "user_friend" }));
+  expect(onSelect).toHaveBeenCalledWith(
+    expect.objectContaining({ id: "user_friend", username: "user_friend-handle" }),
+  );
   const search = screen.getByPlaceholderText(/Search users/i) as HTMLInputElement;
   fireEvent.change(search, { target: { value: "E2E Target" } });
   fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
