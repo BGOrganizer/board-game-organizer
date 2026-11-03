@@ -122,6 +122,34 @@ it("prioritizes exact Group/Event/Table details and separates inbox page from be
     expect(settled(client, path)).toBe(true);
   client.clear();
 });
+it("shows restored data while refreshing and waits for missing Table detail only", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seed(client);
+  let resolve!: (value: object) => void;
+  const refresh = client.fetchQuery({
+    queryKey: recordTablesQuery(o, null).queryKey,
+    queryFn: () =>
+      new Promise<object>((done) => {
+        resolve = done;
+      }),
+  });
+  expect(isStartupEssentialsSettled(client, apiUrl, userId)).toBe(true);
+  resolve({ pages: [], pageParams: [] });
+  await refresh;
+  let reject!: (error: Error) => void;
+  const detail = client.fetchQuery({
+    queryKey: eventRecordKeys.table(o, "e", "t"),
+    queryFn: () =>
+      new Promise((_, fail) => {
+        reject = fail;
+      }),
+  });
+  expect(settled(client, "/event/table")).toBe(false);
+  reject(new Error("offline"));
+  await expect(detail).rejects.toThrow("offline");
+  expect(settled(client, "/event/table")).toBe(true);
+  client.clear();
+});
 it("treats an observable API error as settled but never a pending request", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   let reject!: (reason: Error) => void;

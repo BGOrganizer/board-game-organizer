@@ -1,4 +1,3 @@
-import { QueryProvider } from "@board-game-organizer/query";
 import { useAppStore } from "@board-game-organizer/store";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
@@ -24,6 +23,7 @@ import "../../global.css";
 
 import { headerBackOptions } from "@/components/common/layout/HeaderBackButton";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { MobileQueryProvider } from "@/components/common/providers/MobileQueryProvider";
 import { NavigationTheme } from "@/components/common/providers/NavigationTheme";
 import { Startup } from "@/components/common/startup/Startup";
 import { RuntimeError } from "@/components/common/ui/RuntimeError";
@@ -121,7 +121,7 @@ function RootNavigator() {
   >();
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <QueryProvider>
+      <MobileQueryProvider startedAt={startupStartedAt}>
         <ThemeSync />
         <PushNotificationRouter onInitialResponse={setInitialNotificationHref} />
         <Stack screenOptions={({ navigation }) => headerBackOptions(() => navigation.goBack())}>
@@ -172,7 +172,7 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
         <Startup startedAt={startupStartedAt} initialNotificationHref={initialNotificationHref} />
-      </QueryProvider>
+      </MobileQueryProvider>
     </ClerkProvider>
   );
 }

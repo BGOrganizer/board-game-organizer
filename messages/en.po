@@ -5398,3 +5398,6 @@ msgstr "Clear filter"
 
 msgid "Filter help"
 msgstr "Filter help"
+
+msgid "Local storage is unavailable. Data will be refreshed online."
+msgstr "Local storage is unavailable. Data will be refreshed online."

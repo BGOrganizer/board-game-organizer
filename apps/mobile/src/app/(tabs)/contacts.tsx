@@ -39,11 +39,11 @@ import { AppState, FlatList, Linking, Pressable, Share, View } from "react-nativ
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { MainTabBar } from "@/components/common/ui/MainTabBar";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
-import { TabBar } from "@/components/common/ui/TabBar";
 import {
   type UserActionConfirmation,
   UserActionsSheet,
@@ -632,7 +632,7 @@ export default function ContactsScreen() {
         ].map((user) => ({ kind: "contact" as const, id: user.id })),
       ]}
     >
-      <View style={{ flex: 1, padding: 20 }}>
+      <View style={{ flex: 1 }}>
         <Tabs
           style={{ flex: 1 }}
           value={tab}
@@ -643,8 +643,8 @@ export default function ContactsScreen() {
           }}
           variant="primary"
         >
-          <TabBar style={{ overflow: "visible", marginTop: 8, marginRight: 8 }}>
-            <Tabs.Trigger value="connections" style={{ flex: 1, overflow: "visible" }}>
+          <MainTabBar>
+            <Tabs.Trigger value="connections" style={{ flexDirection: "row", gap: 6 }}>
               <Tabs.Label>{t("Connections")}</Tabs.Label>
               <ContactSectionBadge
                 section="connections"
@@ -653,7 +653,7 @@ export default function ContactsScreen() {
                   .flatMap((row) => row.users.map((user) => user.id))}
               />
             </Tabs.Trigger>
-            <Tabs.Trigger value="requests" style={{ flex: 1, overflow: "visible" }}>
+            <Tabs.Trigger value="requests" style={{ flexDirection: "row", gap: 6 }}>
               <Tabs.Label>{t("Requests")}</Tabs.Label>
               <ContactSectionBadge
                 section="requests"
@@ -662,16 +662,19 @@ export default function ContactsScreen() {
                 )}
               />
             </Tabs.Trigger>
-            <Tabs.Trigger value="search" style={{ flex: 1, overflow: "visible" }}>
+            <Tabs.Trigger value="search" style={{ flexDirection: "row", gap: 6 }}>
               <Tabs.Label>{t("Search")}</Tabs.Label>
               <ContactSectionBadge
                 section="search"
                 userIds={[...searchResults, ...bgoContacts].map((user) => user.id)}
               />
             </Tabs.Trigger>
-          </TabBar>
+          </MainTabBar>
 
-          <Tabs.Content value="search" style={{ flex: 1 }}>
+          <Tabs.Content
+            value="search"
+            style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 20 }}
+          >
             <FlatList
               style={{ flex: 1 }}
               contentContainerStyle={{ gap: 8, paddingTop: 8, paddingRight: 8, paddingBottom: 24 }}
@@ -857,7 +860,10 @@ export default function ContactsScreen() {
             />
           </Tabs.Content>
 
-          <Tabs.Content value="requests" style={{ flex: 1 }}>
+          <Tabs.Content
+            value="requests"
+            style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20 }}
+          >
             <ContactLegend
               title={t("Requests")}
               icon={Mail}
@@ -900,7 +906,10 @@ export default function ContactsScreen() {
             />
           </Tabs.Content>
 
-          <Tabs.Content value="connections" style={{ flex: 1 }}>
+          <Tabs.Content
+            value="connections"
+            style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20 }}
+          >
             <ContactLegend
               title={t("Connections")}
               icon={UsersRound}
@@ -1002,7 +1011,6 @@ function ContactSectionBadge({
         attention?.get({ kind: "contacts", id: section })?.count ||
         Number(userIds.some((id) => (attention?.get({ kind: "contact", id })?.count ?? 0) > 0))
       }
-      corner
     />
   );
 }

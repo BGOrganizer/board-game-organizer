@@ -4,7 +4,7 @@ export * from "./common/hooks/listFilters";
 export * from "./common/hooks/useClientMutationDraft";
 export * from "./common/hooks/useListSearch";
 export * from "./common/mutationFeedback";
-export { clearSessionQueryCache } from "./common/optimisticOperation";
+export { clearSessionQueryCache, optimisticBaseData } from "./common/optimisticOperation";
 export * from "./common/startupQueries";
 export * from "./common/types";
 export * from "./community/communityApi";

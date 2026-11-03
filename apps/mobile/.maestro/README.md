@@ -75,6 +75,21 @@ and [operational gates](../../../docs/organizations-events-operations.md), not t
 
 ## Additional isolated scenarios
 
+`14-query-cache.yaml` is a manual scenario outside the unchanged 13-report CI fixture set.
+Use a freshly built MMKV/Nitro APK, two isolated already-onboarded EN accounts and a device with
+working Android airplane-mode controls. Actor A starts authenticated with unique visible first-page
+`CACHE_TABLE_NAME`, `CACHE_GROUP_NAME` (Private), and `CACHE_EVENT_NAME` (Registered). Actor B uses
+`EMAIL_2` / `PASSWORD_2` and has empty personal Tables, Private Groups and Registered Events.
+Run the flow directly; missing inputs fail. It records the three main tab strips, kills the actual
+process without clearing data, requires the same real rows after an offline restart, reconnects,
+then performs real logout/sign-in and requires B's completed empty responses without A's rows.
+Confirm airplane mode really disables networking on the owned device; Clerk must restore a known
+identity before any private cache can appear. The completion hook restores networking on exit.
+Screenshots require native geometry/inline-dot review; source/VM tests and screenshots from a web
+fixture are not substitutes. Repeat visual review in IT/light/dark and with enlarged text. Storage
+corruption/key loss, deferred responses, pending mutations, selective rollback and deadlines also
+have deterministic adapter/lifecycle tests; these are not device acceptance.
+
 `11-match-join-requests.yaml` is explicitly outside the 13-report CI fixture set.
 Run it with an isolated primary-owned PUBLIC PLANNING match (`PUBLIC_MATCH_LINK`),
 free capacity, no target invitation, and the four actor inputs above. It exercises

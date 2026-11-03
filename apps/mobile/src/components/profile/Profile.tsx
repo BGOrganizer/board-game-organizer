@@ -27,6 +27,7 @@ import { useCallback, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
 import { ScopedTheme } from "uniwind";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
+import { useMobileCache } from "@/lib/cache/mobileCacheContext";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -102,6 +103,7 @@ function BggAttribution() {
 export function Profile() {
   const { getToken, signOut, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
+  const cache = useMobileCache();
   const feedback = useMutationFeedback();
   const [accent, accentForeground, danger, dangerForeground] = useThemeColor([
     "accent",
@@ -137,14 +139,14 @@ export function Profile() {
   const handleLogout = useCallback(async () => {
     try {
       setIsSigningOut(true);
-      await signOut();
+      await cache.signOut(() => signOut());
       router.replace("/");
     } catch {
       // Clerk keeps the session when sign-out fails.
     } finally {
       setIsSigningOut(false);
     }
-  }, [signOut, router]);
+  }, [signOut, router, cache]);
 
   const synchronize = () => {
     if (!username.trim() || bgg.busy) return;

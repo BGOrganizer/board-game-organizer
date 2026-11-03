@@ -38,6 +38,15 @@ with its four-character minimum.
   Pending Group request review and invitation replies remain independent of unread state.
   Successful votes acknowledge only their displayed change; container entry preserves precise attention.
   Optional push, light/dark and EN/IT. Reading never grants invitation consent.
+- Native cache-first restart: authoritative TanStack Query data persists in account/API-scoped,
+  AES-256 MMKV with random device-only SecureStore keys. Restore waits for Clerk identity; it is not
+  offline authentication. Snapshots retain up to 24 hours, 200 queries and an 8 MiB conservative
+  serialized budget; older entries are evicted. Native infinite refreshes restart at page one.
+  Combined personal Tables remains first in the existing three-worker priority warmup; four first
+  datasets gate splash, never beyond five total seconds. Cached content stays visible during refresh.
+  Logout/account or session changes purge owned disk/key and cancel RAM work. No optimistic intents,
+  raw address-book scans, credentials or offline write replay persist. Storage failures retain usable
+  RAM/network behavior and show a nonblocking localized warning.
 - HeroUI-token-only light/dark UI across native navigation, headers, controls and custom surfaces.
   Theme changes preserve drafts and selection. Both clients inherit the installed HeroUI default
   palettes without app theme-variable overrides. Static provider artwork retains its brand contrast.
@@ -64,7 +73,9 @@ and [deployment isolation](docs/organizations-events-operations.md).
 | Quality | Biome, Vitest 3.2, Playwright, Maestro, commitlint |
 | TypeScript | 7 in non-mobile workspaces; Expo-compatible 6 on mobile |
 
-Expo web is not a supported product target. Native MapLibre requires a development build, not Expo Go.
+Expo web is not a supported product target. Native MapLibre and MMKV/Nitro require a fresh native
+build, not Expo Go or a JavaScript-only update. Native cache/device acceptance remains recorded in
+the [verification checkpoint](docs/implementation-progress.md).
 
 ## Repository and component structure
 

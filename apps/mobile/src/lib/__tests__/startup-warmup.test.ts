@@ -40,6 +40,7 @@ function bindings() {
     queryClient: {},
     canWarm: true,
     ready: true,
+    restoring: false,
     eligible: true,
     warmedSession: { current: null },
     backgroundSession: { current: null },

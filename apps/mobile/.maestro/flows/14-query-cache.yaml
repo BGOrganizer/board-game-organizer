@@ -1,0 +1,80 @@
+appId: com.bgo.mobile
+name: Encrypted query cache cold restart and account isolation
+tags: [manual, cache]
+onFlowComplete:
+  - setAirplaneMode: disabled
+---
+# Manual, isolated fixture. No resets, provider setup or domain writes.
+# Actor A already authenticated; CACHE_TABLE_NAME/GROUP_NAME/EVENT_NAME are unique,
+# visible first-page rows. Actor B (EMAIL_2/PASSWORD_2) has empty Tables/Private Groups/Registered Events.
+# Both actors use EN. Run on a fresh MMKV-capable native build.
+- runScript: ../helpers/cache-inputs.js
+- setAirplaneMode: disabled
+- launchApp:
+    clearState: false
+- openLink: bgo:///tables
+- extendedWaitUntil:
+    visible: ${output.cacheTablePattern}
+    timeout: 120000
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible: ${output.cacheGroupPattern}
+    timeout: 120000
+- takeScreenshot: cache-groups-reference
+- openLink: bgo:///events
+- assertVisible: ${output.registeredLabel}
+- assertVisible: ${output.availableLabel}
+- extendedWaitUntil:
+    visible: ${output.cacheEventPattern}
+    timeout: 120000
+- takeScreenshot: cache-events-tabs
+- openLink: bgo:///contacts
+- assertVisible: ${output.connectionsLabel}
+- takeScreenshot: cache-contacts-tabs
+# Actual process death + offline native launch: RAM cannot satisfy these rows.
+- setAirplaneMode: enabled
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: bgo:///tables
+- extendedWaitUntil:
+    visible: ${output.cacheTablePattern}
+    timeout: 15000
+- openLink: bgo:///groups
+- assertVisible: ${output.cacheGroupPattern}
+- openLink: bgo:///events
+- assertVisible: ${output.cacheEventPattern}
+- setAirplaneMode: disabled
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: bgo:///tables
+- extendedWaitUntil:
+    visible: ${output.cacheTablePattern}
+    timeout: 120000
+# Real logout/reauthentication, no clearState shortcut.
+- runFlow: ../helpers/logout.yaml
+- runFlow:
+    file: ../helpers/sign-in.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL_2}
+      AUTH_PASSWORD: ${PASSWORD_2}
+- openLink: bgo:///profile
+- extendedWaitUntil:
+    visible: ${output.authEmailPattern}
+    timeout: 120000
+- openLink: bgo:///tables
+- extendedWaitUntil:
+    visible: ${output.noTablesLabel}
+    timeout: 120000
+- assertNotVisible: ${output.cacheTablePattern}
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible: "No groups found"
+    timeout: 120000
+- assertNotVisible: ${output.cacheGroupPattern}
+- openLink: bgo:///events
+- extendedWaitUntil:
+    visible: "No events found"
+    timeout: 120000
+- assertNotVisible: ${output.cacheEventPattern}

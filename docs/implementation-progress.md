@@ -1,5 +1,52 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Native top tabs and encrypted Query persistence — local implementation
+
+- Corrected native runtime translation lookups to `Registered` / `Available` (Iscritti /
+  Disponibili), without changing Babel or the global translator. Main Groups, Events and Contacts
+  now share the Groups-reference strip geometry through native `MainTabBar`; Contacts uses natural
+  trigger widths, inline danger dots and one content inset. Other detail/picker tabs, counts and read
+  targets remain unchanged. Native pixel geometry is not yet device-verified.
+- Added mobile-only MMKV 4.3.2 / Nitro 0.37.1 / Expo Crypto 57.0.4, using TanStack's hydration and
+  Persister contract. API/user namespaces use AES-256 and random device-only SecureStore keys.
+  Pending/unverified Clerk sessions neither expose private snapshots nor masquerade as logout.
+  The web Query provider and authentication configuration remain unchanged.
+- Restore precedes ordinary Query observers and imperative warmup within the existing total
+  five-second splash budget. A late disk read uses Query timestamps without overwriting newer data,
+  resurrecting locally removed/denied entries, or hiding observed network failures. Restored queries
+  are explicitly invalidated, including recent snapshots. Native infinite refreshes fetch page one,
+  not every restored page; further pages remain on demand. Combined personal Tables stays first in
+  the unchanged four-dataset/three-worker priority warmup; background reads retain one worker.
+- Disk stores authoritative optimistic-journal bases, never pending overlays, mutations, uncertain
+  receipts, credentials, raw device contacts/contact-sync submissions or transient geocoding results.
+  Confirmed updates/pages persist continuously, with a synchronous background flush. Retention is
+  bounded by per-query/snapshot age of 24 hours, 200 queries and a conservative 8 MiB serialized
+  budget. Transport failures retain usable confirmed data; access denials/removals are excluded.
+- Centralized logout/account/session cancellation, local pending-selection cleanup and owned disk/key
+  purging. Stopped generations cannot write again. A durable purge tombstone survives interruptions;
+  a hung key-store deletion cannot prevent Clerk logout or permit subsequent disk restoration.
+  Failed sign-out retains its Clerk account and restarts its cache lifecycle. Corrupt/incompatible or
+  missing-key snapshots fall back safely; storage failures show a localized nonblocking warning.
+- Local checks: **2,395 covered unit tests** (mobile 346, web 739, API 766, schemas 126, shared 418),
+  **102 policy tests**, workspace typecheck, API/web builds and a fresh **x86_64 release APK** passed.
+  Both new deterministic adapters and startup retain **100% statements/branches/functions/lines**
+  gates. Scoped Biome has zero errors and 34 warnings (including new test non-null assertions,
+  helper style and the intentional same-account retry effect dependency).
+  EN/IT catalogs add one warning message (1,286 → 1,287); all prior values are unchanged.
+  All seven protected inputs and three generated references were preserved/restored byte-for-byte.
+- New dependencies pass peer and targeted Expo checks. The broad Expo check still reports ten
+  pre-existing patch-level mismatches; no incidental SDK-family upgrade was applied.
+  The manual `14-query-cache.yaml` scenario passes Maestro syntax validation and remains outside
+  the unchanged canonical CI fixture set. **No connected device was available:** actual offline
+  cold-start/account-isolation, EN/IT/theme/enlarged-text geometry and authenticated Maestro
+  acceptance remain unverified. Native compilation and VM/adapter tests are not device acceptance.
+  No database/provider configuration, CI jobs, PR or deployment was changed.
+- Task guides used: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-native-skills`, `expo-overview`, `expo-router`, `expo-data-fetching`,
+  `expo-dev-client`, `heroui-native`, `uniwind`, `lingui-best-practices`,
+  `tanstack-query-development`, `clerk`, `clerk-expo`, `maestro-mobile-testing`,
+  `context-mode` and `ponytail`.
+
 ## Combined personal Tables and scoped top-tab attention
 
 - Applied the [current main-list contract](groups-events-refactor.md#events-and-tables) on web/native:

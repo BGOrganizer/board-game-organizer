@@ -2,7 +2,7 @@ import type { EventListSection } from "@board-game-organizer/schemas";
 import { Tabs } from "heroui-native/tabs";
 import { useState } from "react";
 import { View } from "react-native";
-import { TabBar } from "@/components/common/ui/TabBar";
+import { MainTabBar } from "@/components/common/ui/MainTabBar";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
@@ -37,18 +37,16 @@ export function Events({
         }}
         style={{ flex: 1 }}
       >
-        <View style={{ alignSelf: "center", marginTop: 8, maxWidth: "100%" }}>
-          <TabBar>
-            <Tabs.Trigger value="mine" style={{ flexDirection: "row", gap: 6 }}>
-              <Tabs.Label numberOfLines={1}>{t("Registered events")}</Tabs.Label>
-              <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
-            </Tabs.Trigger>
-            <Tabs.Trigger value="available" style={{ flexDirection: "row", gap: 6 }}>
-              <Tabs.Label numberOfLines={1}>{t("Available events")}</Tabs.Label>
-              <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
-            </Tabs.Trigger>
-          </TabBar>
-        </View>
+        <MainTabBar>
+          <Tabs.Trigger value="mine" style={{ flexDirection: "row", gap: 6 }}>
+            <Tabs.Label numberOfLines={1}>{t("Registered")}</Tabs.Label>
+            <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
+          </Tabs.Trigger>
+          <Tabs.Trigger value="available" style={{ flexDirection: "row", gap: 6 }}>
+            <Tabs.Label numberOfLines={1}>{t("Available")}</Tabs.Label>
+            <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
+          </Tabs.Trigger>
+        </MainTabBar>
         <View style={{ flex: 1 }}>
           <EventList key={section} section={section} canCreate={canCreate} />
         </View>

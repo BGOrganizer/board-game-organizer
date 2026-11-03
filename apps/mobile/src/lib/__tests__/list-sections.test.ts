@@ -83,12 +83,24 @@ it("native Tables has one combined list, no section tabs or source section filte
   expect(list).toContain("useRecordTables(o, null, { query: f.search, periods: f.selected })");
   expect(list).not.toContain("TableListSection");
 });
-it("native tabbed filters use the Contacts eight-point top spacing without changing horizontal padding", () => {
-  for (const name of ["events/Events", "groups/Groups", "groups/GroupDetail"]) {
+it("main native strips share Groups geometry while detail tabs retain independent spacing", () => {
+  const shared = readFileSync(
+    new URL("../../components/common/ui/MainTabBar.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(shared).toContain('alignSelf: "center", marginTop: 8, maxWidth: "100%"');
+  for (const name of ["events/Events", "groups/Groups"]) {
     const text = readFileSync(new URL(`../../components/${name}.tsx`, import.meta.url), "utf8");
-    expect(text).toContain("marginTop: 8");
+    expect(text).toContain("<MainTabBar>");
     expect(text).toContain("NotificationTabBadge");
   }
+  const contacts = readFileSync(new URL("../../app/(tabs)/contacts.tsx", import.meta.url), "utf8");
+  expect(contacts).toContain("<MainTabBar>");
+  expect(contacts).not.toContain('style={{ flex: 1, overflow: "visible" }}');
+  expect(contacts).not.toMatch(/<NotificationCountBadge[^>]*\bcorner\b/s);
+  expect(
+    readFileSync(new URL("../../components/groups/GroupDetail.tsx", import.meta.url), "utf8"),
+  ).toContain("marginTop: 8");
   const code = expression("events/EventList", "FlatList", "contentContainerStyle");
   expect(
     runInNewContext(code, { groupId: undefined, layout: { paddingBottom: 32 } }),

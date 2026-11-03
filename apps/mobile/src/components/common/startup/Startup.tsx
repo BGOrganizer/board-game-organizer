@@ -1,6 +1,5 @@
 import { getMobileNumber } from "@board-game-organizer/schemas";
 import {
-  clearSessionQueryCache,
   resolveApiUrl,
   warmStartupBackground,
   warmStartupPriority,
@@ -8,7 +7,7 @@ import {
 import { useAuth, useUser } from "@clerk/expo";
 import { useLingui } from "@lingui/react";
 import * as Sentry from "@sentry/react-native";
-import { useQueryClient } from "@tanstack/react-query";
+import { useIsRestoring, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
 import { usePathname } from "expo-router";
@@ -46,10 +45,10 @@ export function Startup({
   const { i18n } = useLingui();
   const locale = i18n.locale.startsWith("it") ? "it" : "en";
   const queryClient = useQueryClient();
+  const restoring = useIsRestoring();
   const pathname = usePathname();
   const [ready, setReady] = useState(() => remainingSplashMs(startedAt, Date.now()) === 0);
   const [initialLink, setInitialLink] = useState<string | null | undefined>();
-  const previousSession = useRef<string | null>(null);
   const warmedSession = useRef<string | null>(null);
   const backgroundSession = useRef<string | null>(null);
   const syncedSession = useRef<string | null>(null);
@@ -65,6 +64,7 @@ export function Startup({
   const deepLink = Boolean(initialNotificationHref || initialLink?.startsWith("bgo:"));
   const canWarm =
     eligible &&
+    !restoring &&
     initialNotificationHref !== undefined &&
     (initialLink !== undefined || ready) &&
     (!deepLink || ready);
@@ -89,14 +89,11 @@ export function Startup({
   }, [startedAt]);
 
   useEffect(() => {
-    if (!isAuthLoaded) return;
-    if (previousSession.current && previousSession.current !== sessionId)
-      clearSessionQueryCache(queryClient);
-    previousSession.current = sessionId ?? null;
-  }, [isAuthLoaded, sessionId, queryClient]);
-
-  useEffect(() => {
-    if (ready || isStartupAuthPending(isAuthLoaded, isRestoredSignedIn, isSignedIn, isUserLoaded))
+    if (
+      ready ||
+      restoring ||
+      isStartupAuthPending(isAuthLoaded, isRestoredSignedIn, isSignedIn, isUserLoaded)
+    )
       return;
     if (!eligible) {
       setReady(true); // Sign-in/onboarding never waits for list requests.
@@ -123,6 +120,7 @@ export function Startup({
     };
   }, [
     ready,
+    restoring,
     isAuthLoaded,
     isRestoredSignedIn,
     isSignedIn,
@@ -160,7 +158,7 @@ export function Startup({
   }, [canWarm, userId, sessionId, getToken, queryClient]);
 
   useEffect(() => {
-    if (!ready || !eligible || !userId || !sessionId) return;
+    if (!ready || restoring || !eligible || !userId || !sessionId) return;
     const owner = JSON.stringify([sessionId, locale]);
     if (backgroundSession.current === owner) return;
     backgroundSession.current = owner;
@@ -199,10 +197,18 @@ export function Startup({
       active = false;
       if (!completed) backgroundSession.current = null;
     };
-  }, [ready, eligible, userId, sessionId, locale, getToken, queryClient]);
+  }, [ready, restoring, eligible, userId, sessionId, locale, getToken, queryClient]);
 
   useEffect(() => {
-    if (!ready || !eligible || !sessionId || !userId || syncedSession.current === sessionId) return;
+    if (
+      !ready ||
+      restoring ||
+      !eligible ||
+      !sessionId ||
+      !userId ||
+      syncedSession.current === sessionId
+    )
+      return;
     syncedSession.current = sessionId;
     let cancelled = false;
     void warmRegisteredContacts(userId, apiUrl, getToken, () => !cancelled)
@@ -221,7 +227,7 @@ export function Startup({
     return () => {
       cancelled = true;
     };
-  }, [ready, eligible, userId, sessionId, getToken, queryClient]);
+  }, [ready, restoring, eligible, userId, sessionId, getToken, queryClient]);
 
   return ready ? <NotificationBadgeSync /> : <AnimatedStartupSplash startedAt={startedAt} />;
 }

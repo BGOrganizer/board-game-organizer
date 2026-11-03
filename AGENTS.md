@@ -394,6 +394,14 @@ snapshot: finish the scan before syncing in the background.
 
 Apply the same bounded, cache-first navigation policy on web without adding a web splash.
 
+Native Query data additionally persists through the mobile-only encrypted MMKV adapter. Restore
+only after Clerk identifies its API/user owner, before ordinary reads; restore never grants auth,
+consent or capability. Persist authoritative journal bases, not optimistic overlays or mutations;
+exclude credentials, raw address-book scans and transient provider searches. Logout, definitive
+session termination and account/session switches cancel RAM work and purge the owned disk/key;
+late callbacks must never recreate purged data. Keep the total five-second splash limit and refresh
+restored data in the existing bounded workers. See README for retention and native-build limits.
+
 Reuse cached data between lists and details when the server-authorized response actually contains
 all required fields. Fetch missing Event/Table/Group detail through its individual endpoint, prefetch likely next
 details with bounded concurrency, and keep cached fields visible while missing fields load.

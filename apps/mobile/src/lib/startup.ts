@@ -30,7 +30,9 @@ export function isStartupAuthPending(
 }
 function settled(client: QueryClient, key: readonly unknown[]) {
   const s = client.getQueryState(key);
-  return Boolean(s && s.status !== "pending" && s.fetchStatus === "idle");
+  return Boolean(
+    s && (s.data !== undefined || (s.status !== "pending" && s.fetchStatus === "idle")),
+  );
 }
 export function isStartupDestinationSettled(
   client: QueryClient,
@@ -51,7 +53,11 @@ export function isStartupDestinationSettled(
     return client
       .getQueryCache()
       .findAll({ queryKey: [...eventRecordKeys.root(o), "table"] })
-      .some((q) => q.state.status !== "pending" && q.state.fetchStatus === "idle");
+      .some(
+        (q) =>
+          q.state.data !== undefined ||
+          (q.state.status !== "pending" && q.state.fetchStatus === "idle"),
+      );
   if (pathname === "/tables" || pathname === "/matches")
     return settled(client, eventRecordKeys.tables(o, null));
   if (pathname === "/groups")

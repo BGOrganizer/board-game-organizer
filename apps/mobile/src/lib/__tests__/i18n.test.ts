@@ -54,6 +54,12 @@ describe("createAppI18n", () => {
 
 describe("translate (runtime)", () => {
   it.each([
+    ["Registered", "Iscritti"],
+    ["Available", "Disponibili"],
+    [
+      "Local storage is unavailable. Data will be refreshed online.",
+      "Archivio locale non disponibile. I dati verranno aggiornati online.",
+    ],
     ["Favorite locations", "Location preferite"],
     ["Select a favorite location", "Seleziona una location preferita"],
     ["No favorite locations", "Nessuna location preferita"],
