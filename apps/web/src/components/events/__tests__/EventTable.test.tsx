@@ -717,6 +717,7 @@ it("keeps seat read failures visible, retries and renders empty places rather th
 it("shows confirmed email/timing and exclusion without voting or open-place actions", async () => {
   table = {
     ...table,
+    groupType: "PUBLIC",
     eventStatus: "CONFIRMED",
     canRegister: false,
     canInvite: false,
@@ -734,6 +735,9 @@ it("shows confirmed email/timing and exclusion without voting or open-place acti
   mount();
   expect(await screen.findByText("owner@example.test")).not.toBeNull();
   expect(screen.getByText(/Guide/)).not.toBeNull();
+  expect(screen.getByRole("region", { name: "Table schedule" }).previousElementSibling).toBe(
+    screen.getByRole("region", { name: "Settings" }),
+  );
   expect(screen.queryByRole("button", { name: /Chess:/ })).toBeNull();
 });
 it("does not present an excluded table as confirmed or show all candidate games as one frozen choice", async () => {
@@ -836,8 +840,10 @@ it.each([false, true])(
         : {}),
     };
     mount();
-    expect(await screen.findByText(/Duration: 0/)).not.toBeNull();
-    expect(screen.getByText("Demonstrator: Unknown")).not.toBeNull();
+    await screen.findByRole("heading", { name: table.name, level: 1 });
+    if (missing) expect(await screen.findByText("Duration: Unknown")).not.toBeNull();
+    else expect(screen.queryByRole("region", { name: "Table schedule" })).toBeNull();
+    expect(screen.queryByText("Demonstrator")).toBeNull();
   },
 );
 it.each(["accept", "decline"])(

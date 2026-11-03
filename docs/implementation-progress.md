@@ -1,5 +1,36 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Included Table schedule card — local implementation
+
+- Web/native Overview now puts a separate schedule card immediately below Settings for included
+  CONFIRMED Tables, preserving the same immutable information in TERMINATED history. PLANNING
+  and excluded Tables do not acquire a finalized schedule. No writer, capability or Query ownership
+  changes: the card uses existing authorized Table/Event reads.
+- Shared `eventTableSchedule` selects the frozen Table start/end and only its chosen game's saved
+  duration. Private Tables no longer depend on optional public-only `table.startsAt`. Dates use long
+  localized formatting and the Event zone; missing cached zone stays a partial skeleton, never the
+  device zone. Unknown selected duration stays Unknown, not zero or the longest proposed game.
+- PUBLIC-only assigned demonstrators use existing grouped avatar/name identity rows (web
+  `UserIdentity`, native `UserListRow`), not a plain name string or invented profile/relationship action.
+  Three EN/IT messages were added and compiled; existing catalog values are unchanged.
+- Local validation: 2,413 covered units (mobile 353, web 747, API 767, schemas 126, shared 420),
+  102 policy tests, typecheck, API/web builds and fresh x86_64 Android release APK passed.
+  Scoped Biome: zero errors, five warnings and six informational diagnostics. Shared deterministic policy
+  and the new web schedule card meet 100% gates. Twelve isolated real-component/production-CSS
+  browser cases cover 320/390/1280px × EN/IT × light/dark, selected versus proposed starts/durations,
+  user identities, exclusions/planning, retained history, missing cached zones and layout order.
+- Manual Playwright schedule configuration/scenario and Maestro flow 16 require four real isolated
+  fixtures and fail on missing inputs. Discovery and Maestro 2.11 syntax passed, not execution.
+  Canonical suites/jobs remain unchanged. No adb device or authenticated fixture set was supplied;
+  actual native rendering/touch and authenticated E2E acceptance remain unverified. API integration
+  was not rerun for this read-only client change. Generated references and seven protected inputs
+  were preserved; no database/provider mutation, commit or push.
+- Skills used: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `expo-overview`, `heroui-react`,
+  `heroui-native`, `uniwind`, `lingui-best-practices`, `clerk`, `clerk-testing`,
+  `playwright-best-practices`, `maestro-mobile-testing`, `web-design-guidelines`, `context-mode`,
+  `ponytail`.
+
 ## Group/Event/Table card metadata — local implementation
 
 - Reused each platform's `ListCardBody` for Group titles, including the leading Users icon. Group

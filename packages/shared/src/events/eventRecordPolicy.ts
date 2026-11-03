@@ -2,6 +2,7 @@ import type {
   EventRecord,
   EventSchedulePreview,
   PlannedEventCapabilities,
+  PlannedTableResponse,
   TableRecord,
   TableRegistration,
 } from "@board-game-organizer/schemas";
@@ -39,6 +40,32 @@ export function eventRecordSchedulePreview(
     // Keep the existing total-proposals +n convention; frozen Events expose only their choice.
     dateCount: event.status === "PLANNING" ? event.dates.length : Number(Boolean(date)),
     locationCount: event.status === "PLANNING" ? event.locations.length : Number(Boolean(location)),
+  };
+}
+/** Included frozen Tables only; retain their immutable schedule in terminated history too. */
+export function eventTableSchedule(
+  table: Pick<
+    PlannedTableResponse,
+    | "eventStatus"
+    | "confirmed"
+    | "games"
+    | "groupType"
+    | "demonstratorUserId"
+    | "demonstratorName"
+    | "demonstratorAvatarUrl"
+  >,
+) {
+  const confirmed = table.confirmed;
+  if (table.eventStatus === "PLANNING" || !confirmed) return null;
+  return {
+    startsAt: confirmed.startsAt,
+    endsAt: confirmed.endsAt,
+    durationMinutes:
+      table.games.find((game) => game.gameId === confirmed.gameId)?.durationMinutes ?? null,
+    demonstrator:
+      table.groupType === "PUBLIC" && table.demonstratorUserId
+        ? { name: table.demonstratorName, avatarUrl: table.demonstratorAvatarUrl }
+        : null,
   };
 }
 /** A private proposal has no single display zone until a venue is chosen. */

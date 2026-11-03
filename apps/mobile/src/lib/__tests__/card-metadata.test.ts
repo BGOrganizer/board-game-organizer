@@ -57,6 +57,9 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
   };
   for (const [path, component] of [
     ["@/components/common/ui/LinkedListCard", "LinkedListCard"],
+    ["@/components/common/ui/ListCard", "ListCard"],
+    ["@/components/common/ui/GroupedList", "GroupedList"],
+    ["@/components/common/ui/UserListRow", "UserListRow"],
     ["@/components/common/ui/ArtworkStatusPopover", "ArtworkStatusPopover"],
     ["@/components/common/ui/AnimatedDicebearArtwork", "AnimatedDicebearArtwork"],
     ["./GroupArtwork", "GroupArtwork"],
@@ -160,6 +163,92 @@ it("keeps missing native cached metadata as partial skeletons and known empty op
   });
   expect(text(empty)).toContain("Date da concordare");
   expect(text(empty)).toContain("Luoghi da concordare");
+});
+it.each(["en", "it"] as const)(
+  "renders the included native Table schedule and public user item in %s",
+  (locale) => {
+    const table = {
+      ...plannedTable,
+      eventStatus: "CONFIRMED",
+      groupType: "PUBLIC",
+      startsAt: "2030-06-01T10:00:00Z",
+      confirmed: { gameId: 2, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
+      games: [
+        { gameId: 1, durationMinutes: 120 },
+        { gameId: 2, durationMinutes: 30 },
+      ],
+      demonstratorUserId: "demo",
+      demonstratorName: "Guide",
+      demonstratorAvatarUrl: "https://example.test/guide.png",
+    };
+    const tree = evaluate("events/EventTableScheduleCard", "EventTableScheduleCard", locale, {
+      table,
+      timeZone: "Asia/Tokyo",
+    });
+    const date = new Intl.DateTimeFormat(locale, {
+      dateStyle: "long",
+      timeZone: "Asia/Tokyo",
+    }).format(new Date(table.confirmed.startsAt));
+    expect(text(tree)).toContain(date);
+    expect(text(tree)).toContain(locale === "it" ? "Durata: 30 minuti" : "Duration: 30 minutes");
+    expect(text(tree)).not.toContain("120");
+    const row = nodes(tree).find((n) => n.type === "UserListRow");
+    expect(row?.props).toMatchObject({
+      name: "Guide",
+      avatarUrl: table.demonstratorAvatarUrl,
+      secondary: locale === "it" ? "Dimostratore" : "Demonstrator",
+    });
+    expect(row?.props.onPress).toBeUndefined();
+    for (const groupType of ["PRIVATE", null]) {
+      const other = evaluate("events/EventTableScheduleCard", "EventTableScheduleCard", locale, {
+        table: { ...table, groupType },
+        timeZone: "UTC",
+      });
+      expect(nodes(other).some((n) => n.type === "UserListRow")).toBe(false);
+    }
+    expect(
+      evaluate("events/EventTableScheduleCard", "EventTableScheduleCard", locale, {
+        table: { ...table, eventStatus: "PLANNING" },
+        timeZone: "UTC",
+      }),
+    ).toBeNull();
+    expect(
+      evaluate("events/EventTableScheduleCard", "EventTableScheduleCard", locale, {
+        table: { ...table, confirmed: undefined },
+        timeZone: "UTC",
+      }),
+    ).toBeNull();
+  },
+);
+it("does not fabricate native cached dates or unknown selected durations", () => {
+  const table = {
+    ...plannedTable,
+    eventStatus: "CONFIRMED",
+    confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
+    games: [{ gameId: 1 }],
+    groupType: "PUBLIC",
+    demonstratorUserId: "demo",
+  };
+  const tree = evaluate("events/EventTableScheduleCard", "EventTableScheduleCard", "it", { table });
+  expect(text(tree)).toContain("Durata: Non indicato");
+  expect(nodes(tree).some((n) => n.type === "Skeleton")).toBe(true);
+  expect(nodes(tree).some((n) => n.type === "CalendarDays")).toBe(false);
+  expect(nodes(tree).find((n) => n.type === "UserListRow")?.props.name).toBe("Non indicato");
+  const source = readFileSync(
+    new URL("../../components/events/EventTableOverview.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(source.indexOf("<EventTableScheduleCard")).toBeGreaterThan(
+    source.indexOf("<EventTableInfo"),
+  );
+  expect(source.indexOf("<EventTableScheduleCard")).toBeLessThan(
+    source.indexOf('context === "personal"'),
+  );
+  const single = evaluate("events/EventTableScheduleCard", "EventTableScheduleCard", "it", {
+    table: { ...table, games: [{ gameId: 1, durationMinutes: 1 }], demonstratorUserId: undefined },
+    timeZone: "UTC",
+  });
+  expect(text(single)).toContain("Durata: 1 minuto");
 });
 it("uses the real common native title component and normal body size for Group metadata", () => {
   const group = { ...groupRecord, location: plannedEvent.locations[0] };

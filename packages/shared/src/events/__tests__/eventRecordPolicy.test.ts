@@ -9,6 +9,7 @@ import {
   eventRecordPeriods,
   eventRecordPreviewDate,
   eventRecordSchedulePreview,
+  eventTableSchedule,
   hasPublicTableConflict,
   plannedTableInterval,
   publicBookingIsClosed,
@@ -80,6 +81,42 @@ const frozen: EventRecord = {
   status: "CONFIRMED",
   confirmed: { dateId: id, locationId: id, at },
 };
+
+it("projects only included frozen schedules, selected-game duration and public demonstrators", () => {
+  const input = {
+    ...table,
+    eventStatus: "CONFIRMED" as const,
+    groupType: "PUBLIC" as const,
+    confirmed: {
+      gameId: 1,
+      playerIds: ["owner", "guest"],
+      startsAt: "2027-01-02T11:00:00Z",
+      endsAt: "2027-01-02T11:30:00Z",
+    },
+    demonstratorUserId: "demo",
+    demonstratorName: "Guide",
+    demonstratorAvatarUrl: "https://example.test/guide.png",
+  };
+  expect(eventTableSchedule(input)).toEqual({
+    startsAt: input.confirmed.startsAt,
+    endsAt: input.confirmed.endsAt,
+    durationMinutes: 30,
+    demonstrator: { name: "Guide", avatarUrl: input.demonstratorAvatarUrl },
+  });
+  expect(eventTableSchedule({ ...input, eventStatus: "PLANNING" })).toBeNull();
+  expect(eventTableSchedule({ ...input, confirmed: undefined })).toBeNull();
+  expect(eventTableSchedule({ ...input, eventStatus: "TERMINATED" })?.startsAt).toBe(
+    input.confirmed.startsAt,
+  );
+  expect(eventTableSchedule({ ...input, groupType: "PRIVATE" })?.demonstrator).toBeNull();
+  expect(eventTableSchedule({ ...input, groupType: null })?.demonstrator).toBeNull();
+  expect(eventTableSchedule({ ...input, demonstratorUserId: undefined })?.demonstrator).toBeNull();
+  expect(
+    eventTableSchedule({ ...input, confirmed: { ...input.confirmed, gameId: 99 } })
+      ?.durationMinutes,
+  ).toBeNull();
+  expect(eventTableSchedule({ ...input, games: [{ gameId: 1 }] })?.durationMinutes).toBeNull();
+});
 
 describe("exact public cutoff and state rights", () => {
   it("blocks user actions AND administrator invitations at the exact cutoff", () => {

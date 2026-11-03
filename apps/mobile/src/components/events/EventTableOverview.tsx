@@ -17,7 +17,6 @@ import { useState } from "react";
 import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
-import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
@@ -26,6 +25,7 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableInfo } from "./EventTableInfo";
+import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
@@ -96,7 +96,6 @@ export function EventTableOverview({
     });
     setConfirm(null);
   };
-  const confirmed = table.confirmed;
   const gameVotes = table.myRegistration?.gameVotes ?? {};
   const canVote =
     table.eventStatus === "PLANNING" &&
@@ -107,6 +106,10 @@ export function EventTableOverview({
   const header = (
     <View style={{ gap: 16 }}>
       <EventTableInfo table={table} />
+      <EventTableScheduleCard
+        table={table}
+        timeZone={event.data?.timeZone ?? table.eventSchedule?.location?.timeZone}
+      />
       {context === "personal" ? (
         <View style={{ gap: 8 }}>
           <Typography accessibilityRole="header" className="font-semibold text-foreground">
@@ -163,28 +166,6 @@ export function EventTableOverview({
             <Button.Label>{t("Try again")}</Button.Label>
           </Button>
         </View>
-      ) : null}
-      {table.startsAt ? (
-        <View style={{ gap: 4 }}>
-          <DateTimeInfo
-            startsAt={table.startsAt}
-            endsAt={table.confirmed?.endsAt}
-            timeZone={event.data?.timeZone}
-          />
-          <Typography className="text-foreground">
-            {t("Duration")}:{" "}
-            {(confirmed
-              ? table.games.find((game) => game.gameId === confirmed.gameId)?.durationMinutes
-              : undefined) ??
-              Math.max(0, ...table.games.map((game) => game.durationMinutes ?? 0))}{" "}
-            {t("minutes")}
-          </Typography>
-        </View>
-      ) : null}
-      {table.demonstratorUserId ? (
-        <Typography className="text-foreground">
-          {t("Demonstrator")}: {table.demonstratorName ?? t("Unknown")}
-        </Typography>
       ) : null}
       <NotificationItem itemId={notificationItemId(table.id, "games")} readOnly>
         <Typography accessibilityRole="header" className="font-semibold text-foreground">

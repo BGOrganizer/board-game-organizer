@@ -420,6 +420,12 @@ there are no repeated identical notifications or player reminders to change vote
 - Confirm/reopen-planning dialog actions have semantic icons. In confirmed Events the organizer's
   icon-only result-registration action lives in the app header; reopen planning is a bottom-right,
   secondary icon-only FAB. Existing capabilities, busy/version guards and exact cutoffs remain.
+- An included confirmed Table shows a schedule card immediately below Settings, also retained in
+  terminated history. Date/time comes from its frozen confirmation snapshot, formatted readably in
+  the Event venue's time zone; duration belongs only to the selected game, never the longest proposal
+  or an invented zero. Missing duration stays Unknown; missing cached zone stays a partial skeleton
+  until the existing Event query resolves. Only PUBLIC Tables with an assigned demonstrator show the
+  usual grouped avatar/name user item. Planning and excluded Tables have no finalized schedule card.
 - Confirmed Table detail has Overview and Ranking top tabs. Terminated detail additionally has
   Results, with immutable standings/ND and GLOBAL/GROUP deltas only when ratings were enabled.
   Current ranking is always available for the selected frozen game and every frozen player, including

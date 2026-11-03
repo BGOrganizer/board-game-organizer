@@ -15,7 +15,6 @@ import { useLingui } from "@lingui/react/macro";
 import { useState } from "react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
-import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
@@ -23,6 +22,7 @@ import { GameListRow } from "@/components/games/GameListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableInfo } from "./EventTableInfo";
+import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
@@ -83,7 +83,6 @@ export function EventTableOverview({
     });
     setConfirm(null);
   };
-  const confirmed = table.confirmed;
   const gameVotes = table.myRegistration?.gameVotes ?? {};
   const canVote =
     table.eventStatus === "PLANNING" &&
@@ -94,6 +93,10 @@ export function EventTableOverview({
   return (
     <div className="mx-auto max-w-4xl space-y-5 pb-24">
       <EventTableInfo table={table} />
+      <EventTableScheduleCard
+        table={table}
+        timeZone={event.data?.timeZone ?? table.eventSchedule?.location?.timeZone}
+      />
       {context === "personal" ? (
         <section className="space-y-2" aria-label={t`Event`}>
           <h2 className="font-semibold">{t`Event`}</h2>
@@ -123,28 +126,6 @@ export function EventTableOverview({
           <p className="text-danger">{t`Could not load event`}</p>
           <Button onPress={() => void event.refetch()}>{t`Try again`}</Button>
         </div>
-      ) : null}
-      {table.startsAt ? (
-        <div className="space-y-1">
-          <DateTimeInfo
-            startsAt={table.startsAt}
-            endsAt={table.confirmed?.endsAt}
-            timeZone={event.data?.timeZone}
-          />
-          <p>
-            {t`Duration`}:{" "}
-            {(confirmed
-              ? table.games.find((game) => game.gameId === confirmed.gameId)?.durationMinutes
-              : undefined) ??
-              Math.max(0, ...table.games.map((game) => game.durationMinutes ?? 0))}{" "}
-            {t`minutes`}
-          </p>
-        </div>
-      ) : null}
-      {table.demonstratorUserId ? (
-        <p>
-          {t`Demonstrator`}: {table.demonstratorName ?? t`Unknown`}
-        </p>
       ) : null}
       <section className="space-y-3" aria-label={t`Board games`}>
         <NotificationItem itemId={notificationItemId(table.id, "games")} readOnly>

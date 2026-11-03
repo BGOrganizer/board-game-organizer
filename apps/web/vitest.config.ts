@@ -141,7 +141,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/events/{EventDetailsCard,EventStatusBadge,EventTableInfo,EventVoteLegend}.tsx":
+        "src/components/events/{EventDetailsCard,EventStatusBadge,EventTableInfo,EventTableScheduleCard,EventVoteLegend}.tsx":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/components/events/{EventDraftTableCard,EventTableRatingBadge}.tsx": {
           lines: 100,

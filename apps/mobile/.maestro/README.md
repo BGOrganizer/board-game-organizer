@@ -75,6 +75,22 @@ and [operational gates](../../../docs/organizations-events-operations.md), not t
 
 ## Additional isolated scenarios
 
+`16-table-schedule.yaml` and `apps/web/e2e/table-schedule.config.ts` are explicit manual,
+read-only detail scenarios, outside canonical suites/jobs. Use an isolated Development API and an
+already onboarded actor authorized for four real fixtures: an included CONFIRMED PUBLIC Table with
+known selected duration and demonstrator; an included PRIVATE Table with unknown selected duration;
+an excluded CONFIRMED Table; and a PLANNING Table. No seeding, reset, consent bypass or API mocks.
+Maestro additionally needs unique `SCHEDULE_PUBLIC_NAME`, `SCHEDULE_PRIVATE_NAME`,
+`SCHEDULE_EXCLUDED_NAME`, `SCHEDULE_PLANNING_NAME` to wait for the correct detail after each link.
+Both use `SCHEDULE_LOCALE` (`en`/`it`), `SCHEDULE_PUBLIC_PATH`, `SCHEDULE_PRIVATE_PATH`,
+`SCHEDULE_EXCLUDED_PATH`, `SCHEDULE_PLANNING_PATH` (each `/events/<uuid>/tables/<uuid>`), localized
+`SCHEDULE_PUBLIC_DATE`, `SCHEDULE_PRIVATE_DATE`, `SCHEDULE_PUBLIC_TIME`, `SCHEDULE_PRIVATE_TIME`
+and `SCHEDULE_DEMONSTRATOR`. Maestro also needs the complete localized `SCHEDULE_DURATION_LABEL`;
+web needs numeric `SCHEDULE_MINUTES`, `E2E_EMAIL` and existing Development Clerk test keys.
+Run web with `pnpm --filter web exec playwright test --config e2e/table-schedule.config.ts`.
+Missing inputs fail. Native screenshot review must verify actual avatar/user-row rendering, metadata
+order below Settings, EN/IT, themes and enlarged text; syntax and VM checks do not prove these.
+
 `15-card-metadata.yaml` is a manual real-device card scenario, outside the unchanged canonical
 CI fixture set. Start already authenticated, with a PRIVATE Group, a Registered Event with two
 proposed dates/venues, and a personal Table with two games. Supply `CARD_LOCALE` (`en`/`it`),
