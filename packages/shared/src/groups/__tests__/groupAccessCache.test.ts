@@ -46,6 +46,14 @@ function setup() {
   client.setQueryData(["events", "foreign-api", owner.userId, "detail", event], { groupId: group });
   client.setQueryData(["groups", owner.apiUrl, "foreign-user", "detail", group], { id: group });
   client.setQueryData(["profile", owner.apiUrl, owner.userId], { id: group });
+  client.setQueryData(
+    ["profile", owner.apiUrl, owner.userId, "activities", "subject"],
+    page([{ id: "protected", groupId: group }, { id: "unrelated" }]),
+  );
+  client.setQueryData(
+    ["profile", owner.apiUrl, "foreign-user", "activities", "subject"],
+    page([{ id: "protected", groupId: group }]),
+  );
   return { client, detail, mine, discovery, eventDetail, events, other };
 }
 
@@ -86,6 +94,12 @@ describe("verified Group access loss", () => {
         client.getQueryData(["groups", owner.apiUrl, "foreign-user", "detail", group]),
       ).toEqual({ id: group });
       expect(client.getQueryData(["profile", owner.apiUrl, owner.userId])).toEqual({ id: group });
+      expect(
+        client.getQueryData(["profile", owner.apiUrl, owner.userId, "activities", "subject"]),
+      ).toEqual(page([{ id: "unrelated" }]));
+      expect(
+        client.getQueryData(["profile", owner.apiUrl, "foreign-user", "activities", "subject"]),
+      ).toEqual(page([{ id: "protected", groupId: group }]));
     },
   );
   it("cancels a revoked Event writer but preserves another Event's pending operation and rollback", async () => {

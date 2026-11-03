@@ -75,6 +75,15 @@ and [operational gates](../../../docs/organizations-events-operations.md), not t
 
 ## Additional isolated scenarios
 
+`17-profiles.yaml` covers real social View profile navigation, owner-only controls, ordinal GLOBAL
+rating, visible/private activity filtering, an empty subject and both block directions. `18-profile-bgg-logout.yaml`
+uses a separately acknowledged owned UNLINKED Development/Preview account for real provider failure,
+publication, disconnect consent and confirmed cache-safe logout. Inputs and web counterpart are defined in
+[Profiles](../../../docs/profiles.md#acceptance). Run EN/IT, both themes and enlarged text; missing inputs fail.
+No canonical journey or CI job is replaced/enabled by these files. Syntax/VM/discovery checks are not
+real provider, authenticated or native-device acceptance.
+
+
 `16-table-schedule.yaml` and `apps/web/e2e/table-schedule.config.ts` are explicit manual,
 read-only detail scenarios, outside canonical suites/jobs. Use an isolated Development API and an
 already onboarded actor authorized for four real fixtures: an included CONFIRMED PUBLIC Table with

@@ -20,7 +20,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/{groups/models/groupRecord,groups/models/groupAssets,groups/dto/groupRecords,events/models/eventRecord,events/dto/eventRecords,games/dto/boardGames}.ts":
+        "src/{groups/models/groupRecord,groups/models/groupAssets,groups/dto/groupRecords,events/models/eventRecord,events/dto/eventRecords,games/dto/boardGames,profile/dto/profileView}.ts":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/{games/models/boardGames,locations/models/locations,ratings/models/results}.ts": {
           lines: 100,

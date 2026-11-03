@@ -100,6 +100,23 @@ export class EventRecordsService {
       throw new CommunityError(404, "EVENT_NOT_FOUND");
     return { event, group, own };
   }
+  /** Feed reads share the exact detail authorization, without expensive detail projections. */
+  async activityResource(userId: string, eventId: string, tableId?: string) {
+    const { event } = await this.context(userId, eventId);
+    if (!tableId)
+      return {
+        name: event.name,
+        href: `/events/${eventId}`,
+        ...(event.groupId ? { groupId: event.groupId } : {}),
+      };
+    const table = await this.events.table(tableId);
+    if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    return {
+      name: table.name,
+      href: `/events/${eventId}/tables/${tableId}`,
+      ...(event.groupId ? { groupId: event.groupId } : {}),
+    };
+  }
   private open(event: EventRecord, group: GroupRecord | null) {
     if (event.status !== "PLANNING") throw new CommunityError(409, "EVENT_NOT_PLANNING");
     if (publicBookingIsClosed(event, group?.type ?? null, Date.now()))

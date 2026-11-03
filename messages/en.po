@@ -5425,3 +5425,148 @@ msgstr "Table schedule"
 #: apps/mobile/src/components/events/EventTableScheduleCard.tsx
 msgid "event.table.durationMinutes"
 msgstr "{duration, plural, one {# minute} other {# minutes}}"
+
+msgid "Activities"
+msgstr "Activities"
+
+msgid "Activity type"
+msgstr "Activity type"
+
+msgid "All activity types"
+msgstr "All activity types"
+
+msgid "Change BGG username"
+msgstr "Change BGG username"
+
+msgid "Classified games"
+msgstr "Classified games"
+
+msgid "Collection up to date"
+msgstr "Collection up to date"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Could not load activities"
+msgstr "Could not load activities"
+
+msgid "Could not load profile"
+msgstr "Could not load profile"
+
+msgid "Could not load rating history"
+msgstr "Could not load rating history"
+
+msgid "Could not sign out. Try again."
+msgstr "Could not sign out. Try again."
+
+msgid "Could not synchronize BGG collection. Your previous collection is retained."
+msgstr "Could not synchronize BGG collection. Your previous collection is retained."
+
+msgid "Current rating"
+msgstr "Current rating"
+
+msgid "Earlier rated games"
+msgstr "Earlier rated games"
+
+msgid "Enter a BGG username"
+msgstr "Enter a BGG username"
+
+msgid "Filter games"
+msgstr "Filter games"
+
+msgid "Game played"
+msgstr "Game played"
+
+msgid "Joined a group"
+msgstr "Joined a group"
+
+msgid "Joined a table"
+msgstr "Joined a table"
+
+msgid "Joined an event"
+msgstr "Joined an event"
+
+msgid "Last rated game change"
+msgstr "Last rated game change"
+
+msgid "Last successful sync"
+msgstr "Last successful sync"
+
+msgid "Link your BGG username to use your collection when choosing games."
+msgstr "Link your BGG username to use your collection when choosing games."
+
+msgid "New follower"
+msgstr "New follower"
+
+msgid "New friendship"
+msgstr "New friendship"
+
+msgid "No activities yet"
+msgstr "No activities yet"
+
+msgid "No rated games yet"
+msgstr "No rated games yet"
+
+msgid "Not enough ranked games for a chart"
+msgstr "Not enough ranked games for a chart"
+
+msgid "OpenSkill rating history"
+msgstr "OpenSkill rating history"
+
+msgid "OpenSkill statistics"
+msgstr "OpenSkill statistics"
+
+msgid "Powered by BGG"
+msgstr "Powered by BGG"
+
+msgid "Powered by BGG — open BoardGameGeek"
+msgstr "Powered by BGG — open BoardGameGeek"
+
+msgid "Profile navigation"
+msgstr "Profile navigation"
+
+msgid "Profile unavailable"
+msgstr "Profile unavailable"
+
+msgid "Recent activities"
+msgstr "Recent activities"
+
+msgid "Sign out"
+msgstr "Sign out"
+
+msgid "Sign out of your account"
+msgstr "Sign out of your account"
+
+msgid "Sign out of your account?"
+msgstr "Sign out of your account?"
+
+msgid "Sync collection"
+msgstr "Sync collection"
+
+msgid "Victory milestone"
+msgstr "Victory milestone"
+
+msgid "View all activities"
+msgstr "View all activities"
+
+msgid "Win rate"
+msgstr "Win rate"
+
+msgid "Won"
+msgstr "Won"
+
+msgid "You will need to sign in again to access your account."
+msgstr "You will need to sign in again to access your account."
+
+msgid "Your BGG collection"
+msgstr "Your BGG collection"
+
+#. js-lingui-explicit-id
+#: packages/shared/src/profile/profileMetrics.ts
+msgid "profile.activity.duration"
+msgstr "{unit, select, year {{count, plural, one {# year} other {# years}}} month {{count, plural, one {# month} other {# months}}} day {{count, plural, one {# day} other {# days}}} hour {{count, plural, one {# hour} other {# hours}}} minute {{count, plural, one {# minute} other {# minutes}}} other {{count, plural, one {# second} other {# seconds}}}}"
+
+#. js-lingui-explicit-id
+#: packages/shared/src/profile/profileMetrics.ts
+msgid "profile.activity.relative"
+msgstr "{direction, select, past {{duration} ago} future {in {duration}} other {just now}}"

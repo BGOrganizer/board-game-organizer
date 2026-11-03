@@ -136,6 +136,14 @@ function RootNavigator() {
           />
           <Stack.Screen name="notifications" options={titleOptions(t("Notifications"), Bell)} />
           <Stack.Screen name="profile" options={titleOptions(t("Profile"), UserRound)} />
+          <Stack.Screen
+            name="user/[userId]/index"
+            options={titleOptions(t("Profile"), UserRound)}
+          />
+          <Stack.Screen
+            name="user/[userId]/activities"
+            options={titleOptions(t("Activities"), UsersRound)}
+          />
           <Stack.Screen name="group/wizard" options={titleOptions(t("New group"), UsersRound)} />
           <Stack.Screen
             name="group/[groupId]"

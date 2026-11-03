@@ -17,6 +17,7 @@ import {
   contactSnapshotPresence,
   optimisticContactData,
   optimisticPeopleSocialData,
+  optimisticProfileSocialData,
 } from "./contactOptimistic";
 
 /** Presence snapshot attached to a contact (Phase 2). */
@@ -375,7 +376,11 @@ export function useContacts(
   const owned = {
     predicate: ({ queryKey: key }: { queryKey: readonly unknown[] }) =>
       (key[0] === "contacts" && key[2] === apiUrl && key[3] === (currentUserId ?? token)) ||
-      (key[0] === "groups" && key[1] === apiUrl && key[2] === currentUserId && key[3] === "people"),
+      (key[0] === "groups" &&
+        key[1] === apiUrl &&
+        key[2] === currentUserId &&
+        key[3] === "people") ||
+      (key[0] === "profile" && key[1] === apiUrl && key[2] === currentUserId),
   };
   const enabled = Boolean(apiUrl) && Boolean(token);
 
@@ -482,7 +487,9 @@ export function useContacts(
         (data, key) =>
           key[0] === "contacts"
             ? optimisticContactData(key, data, action, variables, currentUserId)
-            : optimisticPeopleSocialData(data, action, variables.targetUserId),
+            : key[0] === "profile"
+              ? optimisticProfileSocialData(key, data, action, variables, currentUserId)
+              : optimisticPeopleSocialData(data, action, variables.targetUserId),
       );
       feedback?.onOptimisticUpdate?.(action);
       return operation;
@@ -512,6 +519,7 @@ export function useContacts(
     ) => {
       if (operation?.signal.aborted) return;
       void queryClient.invalidateQueries({ queryKey: ["contacts"], refetchType: "none" });
+      void queryClient.invalidateQueries({ queryKey: ["profile", apiUrl, currentUserId] });
       // A cancelled first page has no data to update optimistically. Resume it,
       // without refetching loaded lists or another API/user's private cache.
       void queryClient.refetchQueries({

@@ -111,6 +111,7 @@ export const EVENT_RECORD_INDEXES = [
 ] as const;
 export const TABLE_RECORD_INDEXES = [
   { key: { id: 1 }, unique: true },
+  { key: { "results.entries.userId": 1, "confirmed.gameId": 1 } },
   {
     key: { eventId: 1, order: 1 },
     unique: true,

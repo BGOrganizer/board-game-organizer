@@ -50,6 +50,11 @@ describe("mobile push notifications", () => {
       "/moderation",
     );
     expect(notificationHref({ href: 123 })).toBe("/notifications");
+    expect(notificationHref({ href: "/profiles/user_viewed" })).toBe("/user/user_viewed");
+    expect(notificationHref({ href: "/profiles/../profile" })).toBe("/notifications");
+    expect(notificationHref({ href: "https://evil.test/profiles/user_viewed" })).toBe(
+      "/notifications",
+    );
     for (const href of [
       `https://evil.test/organizations/${id}`,
       "/organizations/invalid",

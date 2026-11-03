@@ -78,7 +78,14 @@ export function useBggAccount({
   const busy = resourceBusy();
   const begin = (unlink = false) =>
     beginOptimisticOperation(client, key, { queryKey: key, exact: true }, (data) =>
-      unlink && data ? empty : data,
+      unlink && data
+        ? empty
+        : data
+          ? {
+              ...(data as BggAccountResponse),
+              lastAttempt: { status: "syncing", at: new Date().toISOString() },
+            }
+          : data,
     );
   const request = (method = "GET", path = "account", input?: unknown, signal?: AbortSignal) =>
     requestBggAccount(options, method, path, input, signal);
@@ -133,7 +140,7 @@ export function useBggAccount({
       if (!operation?.active) return;
       operation.commit(() => data);
       if (typeof input === "boolean") {
-        if (data.pending?.status === "failed")
+        if (data.pending?.status === "failed" || data.lastAttempt?.status === "error")
           feedback?.onError?.(new Error("BGG_SYNC_FAILED"), "sync_bgg");
       }
       if (data.active)
@@ -183,5 +190,10 @@ export function useBggAccount({
     const timer = setTimeout(() => sync.mutate({ retry: false, silent: true }), delay);
     return () => clearTimeout(timer);
   }, [enabled, account.data, sync.isPending, sync.mutate, busy]);
-  return { account, link, sync, unlink, busy };
+  const reset = () => {
+    link.reset();
+    sync.reset();
+    unlink.reset();
+  };
+  return { account, link, sync, unlink, busy, reset };
 }

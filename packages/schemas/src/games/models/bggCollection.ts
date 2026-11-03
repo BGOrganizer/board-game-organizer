@@ -10,6 +10,7 @@ export interface BggAccount {
   _id: ObjectId;
   userId: string;
   active?: BggIdentity & { snapshot: string; syncedAt: Date };
+  lastAttempt?: { status: "syncing" | "success" | "error"; at: Date };
   pending?: BggIdentity & {
     snapshot: string;
     status: "syncing" | "failed";

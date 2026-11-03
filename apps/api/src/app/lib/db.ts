@@ -33,6 +33,7 @@ export async function withTransaction<T>(
 
 export const COLLECTIONS = {
   USERS: "users",
+  PROFILE_ACTIVITIES: "profileActivities",
   FOLLOWS: "follows",
   FRIEND_REQUESTS: "friendRequests",
   BLOCKS: "blocks",

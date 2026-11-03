@@ -5425,3 +5425,148 @@ msgstr "Programma del tavolo"
 #: apps/mobile/src/components/events/EventTableScheduleCard.tsx
 msgid "event.table.durationMinutes"
 msgstr "{duration, plural, one {# minuto} other {# minuti}}"
+
+msgid "Activities"
+msgstr "Attività"
+
+msgid "Activity type"
+msgstr "Tipo di attività"
+
+msgid "All activity types"
+msgstr "Tutti i tipi di attività"
+
+msgid "Change BGG username"
+msgstr "Cambia username BGG"
+
+msgid "Classified games"
+msgstr "Partite classificate"
+
+msgid "Collection up to date"
+msgstr "Collezione aggiornata"
+
+msgid "Completed"
+msgstr "Completata"
+
+msgid "Could not load activities"
+msgstr "Impossibile caricare le attività"
+
+msgid "Could not load profile"
+msgstr "Impossibile caricare il profilo"
+
+msgid "Could not load rating history"
+msgstr "Impossibile caricare lo storico del rating"
+
+msgid "Could not sign out. Try again."
+msgstr "Impossibile uscire dall'account. Riprova."
+
+msgid "Could not synchronize BGG collection. Your previous collection is retained."
+msgstr "Impossibile sincronizzare la collezione BGG. La collezione precedente è conservata."
+
+msgid "Current rating"
+msgstr "Rating attuale"
+
+msgid "Earlier rated games"
+msgstr "Partite classificate precedenti"
+
+msgid "Enter a BGG username"
+msgstr "Inserisci uno username BGG"
+
+msgid "Filter games"
+msgstr "Filtra giochi"
+
+msgid "Game played"
+msgstr "Partita giocata"
+
+msgid "Joined a group"
+msgstr "Ingresso in un gruppo"
+
+msgid "Joined a table"
+msgstr "Partecipazione a un tavolo"
+
+msgid "Joined an event"
+msgstr "Partecipazione a un evento"
+
+msgid "Last rated game change"
+msgstr "Variazione dell'ultima partita classificata"
+
+msgid "Last successful sync"
+msgstr "Ultima sincronizzazione riuscita"
+
+msgid "Link your BGG username to use your collection when choosing games."
+msgstr "Collega il tuo username BGG per usare la tua collezione quando scegli i giochi."
+
+msgid "New follower"
+msgstr "Nuovo follower"
+
+msgid "New friendship"
+msgstr "Nuova amicizia"
+
+msgid "No activities yet"
+msgstr "Ancora nessuna attività"
+
+msgid "No rated games yet"
+msgstr "Ancora nessuna partita classificata"
+
+msgid "Not enough ranked games for a chart"
+msgstr "Partite classificate insufficienti per il grafico"
+
+msgid "OpenSkill rating history"
+msgstr "Andamento del rating OpenSkill"
+
+msgid "OpenSkill statistics"
+msgstr "Statistiche OpenSkill"
+
+msgid "Powered by BGG"
+msgstr "Powered by BGG"
+
+msgid "Powered by BGG — open BoardGameGeek"
+msgstr "Powered by BGG — apri BoardGameGeek"
+
+msgid "Profile navigation"
+msgstr "Navigazione profilo"
+
+msgid "Profile unavailable"
+msgstr "Profilo non disponibile"
+
+msgid "Recent activities"
+msgstr "Attività recenti"
+
+msgid "Sign out"
+msgstr "Esci"
+
+msgid "Sign out of your account"
+msgstr "Esci dall'account"
+
+msgid "Sign out of your account?"
+msgstr "Uscire dall'account?"
+
+msgid "Sync collection"
+msgstr "Sincronizza collezione"
+
+msgid "Victory milestone"
+msgstr "Traguardo di vittorie"
+
+msgid "View all activities"
+msgstr "Visualizza tutte le attività"
+
+msgid "Win rate"
+msgstr "Percentuale di vittorie"
+
+msgid "Won"
+msgstr "Vinta"
+
+msgid "You will need to sign in again to access your account."
+msgstr "Dovrai accedere nuovamente per utilizzare il tuo account."
+
+msgid "Your BGG collection"
+msgstr "La tua collezione BGG"
+
+#. js-lingui-explicit-id
+#: packages/shared/src/profile/profileMetrics.ts
+msgid "profile.activity.duration"
+msgstr "{unit, select, year {{count, plural, one {# anno} other {# anni}}} month {{count, plural, one {# mese} other {# mesi}}} day {{count, plural, one {# giorno} other {# giorni}}} hour {{count, plural, one {# ora} other {# ore}}} minute {{count, plural, one {# minuto} other {# minuti}}} other {{count, plural, one {# secondo} other {# secondi}}}}"
+
+#. js-lingui-explicit-id
+#: packages/shared/src/profile/profileMetrics.ts
+msgid "profile.activity.relative"
+msgstr "{direction, select, past {{duration} fa} future {tra {duration}} other {ora}}"

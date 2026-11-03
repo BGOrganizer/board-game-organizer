@@ -141,12 +141,13 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/{events/eventRecordPolicy,groups/groupPolicy,groups/groupBanForm}.ts": {
-          lines: 100,
-          functions: 100,
-          branches: 100,
-          statements: 100,
-        },
+        "src/{events/eventRecordPolicy,groups/groupPolicy,groups/groupBanForm,profile/profileMetrics}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "src/events/eventAgreement.ts": {
           lines: 100,
           functions: 100,

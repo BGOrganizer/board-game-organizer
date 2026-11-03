@@ -2,13 +2,10 @@ import { updatePreferredLanguageSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
 import { enrichSingleUser } from "@/app/lib/clerk";
-import { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
-import { RelationshipService } from "@/app/lib/contacts/relationship.service";
 import { corsJson, corsOptions, getCorsHeaders } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
 import { ensureCurrentUser } from "@/app/lib/ensureCurrentUser";
-import { GroupsRepository } from "@/app/lib/groups/groups.repository";
-import { MatchesRepository } from "@/app/lib/matches/matches.repository";
+import { ProfileRepository } from "@/app/lib/profile/profile.repository";
 import { UsersRepository } from "@/app/lib/users/users.repository";
 
 export async function GET(request: NextRequest) {
@@ -34,21 +31,11 @@ export async function GET(request: NextRequest) {
   }
 
   const db = await getDb();
-  const relationships = new RelationshipService(new RelationshipRepository(db));
-  const groupsRepository = new GroupsRepository(db);
-  const [friends, followers, following, playedMatches, groups] = await Promise.all([
-    relationships.list(userId, "friends"),
-    relationships.list(userId, "followers"),
-    relationships.list(userId, "following"),
-    new MatchesRepository(db).countPlayedByUser(userId),
-    groupsRepository.listInvitationsForUser(userId).then((invitations) =>
-      groupsRepository.listForUser(
-        userId,
-        invitations
-          .filter((invitation) => invitation.status === "ACCEPTED")
-          .map((invitation) => invitation.groupId),
-      ),
-    ),
+  const profiles = new ProfileRepository(db);
+  const [social, player, groups] = await Promise.all([
+    profiles.social(userId),
+    profiles.player(userId),
+    profiles.groupCounts(userId),
   ]);
 
   const profile = {
@@ -60,14 +47,9 @@ export async function GET(request: NextRequest) {
     avatarUrl: clerkProfile.imageUrl ?? "",
     preferredLanguage: (await new UsersRepository(db).findById(userId))?.preferredLanguage ?? "en",
     plan: "free",
-    stats: {
-      friends: friends.length,
-      followers: followers.length,
-      following: following.length,
-      playedMatches,
-      adminGroups: groups.filter((group) => group.adminUserId === userId).length,
-      joinedGroups: groups.filter((group) => group.adminUserId !== userId).length,
-    },
+    social,
+    player,
+    stats: { ...social, playedMatches: player.gamesPlayed, ...groups },
   };
 
   return Response.json(profile, { headers: corsHeaders });

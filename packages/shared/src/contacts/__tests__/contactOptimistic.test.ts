@@ -4,6 +4,7 @@ import {
   contactSnapshotPresence,
   optimisticContactData,
   optimisticPeopleSocialData,
+  optimisticProfileSocialData,
 } from "../hooks/contactOptimistic";
 import type { ContactUser } from "../hooks/useContacts";
 
@@ -32,6 +33,56 @@ const applyUsers = (view: string, action: ContactAction) =>
     variables,
     "viewer",
   ) as { users: ContactUser[]; hasContacts: boolean };
+
+it("projects only owned profile counters and hides known blocked targets without replacing independent data", () => {
+  const key = ["profile", "api", "viewer", "view", "viewer"],
+    data = { id: "viewer", social: { friends: 0, followers: 0, following: 0 } };
+  const apply = (
+    key: readonly unknown[],
+    data: unknown,
+    action: ContactAction = "follow",
+    value = variables,
+  ) => optimisticProfileSocialData(key, data, action, value, "viewer");
+  for (const absent of [undefined, null, false, "text"]) expect(apply(key, absent)).toBe(absent);
+  expect(apply(key, data)).toMatchObject({ social: { friends: 0, followers: 0, following: 1 } });
+  expect(apply(["profile", "api", "viewer", "view", "target"], data)).toMatchObject({
+    social: { followers: 1 },
+  });
+  expect(apply(["profile", "api", "viewer"], { stats: data.social })).toMatchObject({
+    stats: { following: 1 },
+  });
+  expect(apply(["profile", "api", "viewer", "view", "other"], data)).toBe(data);
+  expect(apply(["profile", "api", "viewer", "rating", "viewer"], data)).toBe(data);
+  expect(apply(key, { ...data, stats: { ...data.social, playedMatches: 7 } })).toEqual({
+    ...data,
+    social: { ...data.social, following: 1 },
+    stats: { ...data.social, following: 1, playedMatches: 7 },
+  });
+  expect(apply(key, {})).toEqual({});
+  expect(apply(key, { social: { friends: "wrong" } })).toEqual({ social: { friends: "wrong" } });
+  expect(apply(["profile", "api", "viewer", "activities", "target"], data, "block")).toBeNull();
+  expect(apply(key, data, "accept_friend_request")).toMatchObject({
+    social: { friends: 1, followers: 1, following: 1 },
+  });
+  const followingTarget = {
+    ...variables,
+    targetUser: { ...target, isFriend: true, isFollowing: true, isFollower: true },
+  };
+  expect(apply(key, data, "block", followingTarget)).toMatchObject({
+    social: { friends: 0, followers: 0, following: 0 },
+  });
+  const feed = {
+    pages: [
+      { items: [{ href: "/profiles/target" }, { href: null }, { href: "/profiles/other" }] },
+      {},
+    ],
+    pageParams: [""],
+  };
+  expect(apply(["profile", "api", "viewer", "activities", "viewer"], feed, "block")).toEqual({
+    ...feed,
+    pages: [{ items: [{ href: null }, { href: "/profiles/other" }] }, { items: undefined }],
+  });
+});
 
 describe("optimisticContactData", () => {
   it("reconciles empty/full contact snapshots without manufacturing missing cache data", () => {

@@ -23,6 +23,14 @@ export class BggAccountRepository {
   async get(userId: string): Promise<BggAccountResponse> {
     const account = await this.accounts.findOne({ userId });
     return {
+      ...(account?.lastAttempt
+        ? {
+            lastAttempt: {
+              status: account.lastAttempt.status,
+              at: account.lastAttempt.at.toISOString(),
+            },
+          }
+        : {}),
       active: account?.active
         ? { ...account.active, syncedAt: account.active.syncedAt.toISOString() }
         : null,
@@ -46,6 +54,7 @@ export class BggAccountRepository {
       {
         $set: {
           pending: { ...identity, snapshot, status: "syncing" as const, attempts: 0 },
+          lastAttempt: { status: "syncing", at: new Date() },
         },
         $setOnInsert: { userId },
       },
@@ -93,7 +102,7 @@ export class BggAccountRepository {
   async failed(userId: string, snapshot: string) {
     await this.accounts.updateOne(
       { userId, "pending.snapshot": snapshot },
-      { $unset: { pending: "" } },
+      { $unset: { pending: "" }, $set: { lastAttempt: { status: "error", at: new Date() } } },
     );
     const current = await this.accounts.findOne({ userId }, { projection: { active: 1 } });
     if (current?.active?.snapshot !== snapshot)
@@ -160,7 +169,10 @@ export class BggAccountRepository {
     const updated = await this.accounts.updateOne(
       { userId, "pending.snapshot": snapshot, "pending.status": "syncing" },
       {
-        $set: { active: { ...identity, snapshot, syncedAt: new Date() } },
+        $set: {
+          active: { ...identity, snapshot, syncedAt: new Date() },
+          lastAttempt: { status: "success", at: new Date() },
+        },
         $unset: { pending: "" },
       },
     );

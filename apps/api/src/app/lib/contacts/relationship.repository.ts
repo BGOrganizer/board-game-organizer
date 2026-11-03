@@ -7,6 +7,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
+import { ProfileActivitiesRepository } from "../profile/profile-activities.repository";
 
 export interface RelationshipEdge {
   fromUserId: string;
@@ -36,15 +37,24 @@ export class RelationshipRepository {
     );
   }
 
-  follow(fromUserId: string, toUserId: string) {
+  async follow(fromUserId: string, toUserId: string) {
     const createdAt = new Date();
-    return this.db
+    const result = await this.db
       .collection<Follow>(COLLECTIONS.FOLLOWS)
       .updateOne(
         { fromUserId, toUserId },
         { $setOnInsert: { fromUserId, toUserId, createdAt } },
         { upsert: true, ...this.opts },
       );
+    if (result.upsertedCount)
+      await new ProfileActivitiesRepository(this.db, this.session).record({
+        source: `follow:${result.upsertedId}`,
+        userId: toUserId,
+        otherUserId: fromUserId,
+        kind: "follower",
+        occurredAt: createdAt.toISOString(),
+      });
+    return result;
   }
 
   unfollow(fromUserId: string, toUserId: string) {
@@ -97,11 +107,28 @@ export class RelationshipRepository {
   }
 
   async becomeFriends(a: string, b: string) {
+    const existing = await this.isFriend(a, b);
     // MongoDB sessions cannot run concurrent operations.
-    await this.setFriendRequest(a, b, "accepted");
+    const request = await this.setFriendRequest(a, b, "accepted");
+    if (!request) throw new Error("Friendship receipt missing");
     await this.setFriendRequest(b, a, "accepted");
     await this.follow(a, b);
     await this.follow(b, a);
+    if (!existing) {
+      const activities = new ProfileActivitiesRepository(this.db, this.session),
+        occurredAt = new Date().toISOString();
+      for (const [userId, otherUserId] of [
+        [a, b],
+        [b, a],
+      ])
+        await activities.record({
+          source: `friendship:${request._id}`,
+          userId,
+          otherUserId,
+          kind: "friendship",
+          occurredAt,
+        });
+    }
   }
 
   unfriend(a: string, b: string) {

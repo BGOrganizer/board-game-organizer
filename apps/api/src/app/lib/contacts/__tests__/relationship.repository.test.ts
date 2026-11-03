@@ -14,7 +14,11 @@ function setup(rows: Record<string, Array<Record<string, unknown>>> = {}) {
       countDocuments: vi.fn(async () => 0),
       findOne: vi.fn(async () => null),
       findOneAndUpdate: vi.fn(async () => null),
-      updateOne: vi.fn(async () => ({ acknowledged: true })),
+      updateOne: vi.fn(async () => ({
+        acknowledged: true,
+        upsertedCount: 0,
+        upsertedId: null as string | null,
+      })),
       deleteOne: vi.fn(async () => ({ deletedCount: 1 })),
       deleteMany: vi.fn(async () => ({ deletedCount: 2 })),
       find: vi.fn(() => cursor),
@@ -72,6 +76,30 @@ describe("RelationshipRepository", () => {
     );
   });
 
+  it("records only a newly created follower using its actual receipt id", async () => {
+    const fake = setup();
+    fake.col("follows").updateOne.mockResolvedValueOnce({
+      acknowledged: true,
+      upsertedCount: 1,
+      upsertedId: "follow-receipt",
+    });
+    const repo = new RelationshipRepository(fake.db as never);
+    await repo.follow("a", "b");
+    await repo.follow("a", "b");
+    expect(fake.col("profileActivities").updateOne).toHaveBeenCalledOnce();
+    expect(fake.col("profileActivities").updateOne).toHaveBeenCalledWith(
+      { userId: "b", source: "follow:follow-receipt", kind: "follower" },
+      expect.objectContaining({ $setOnInsert: expect.objectContaining({ otherUserId: "a" }) }),
+      { upsert: true },
+    );
+  });
+  it("fails closed when a friendship write has no canonical receipt", async () => {
+    const fake = setup();
+    await expect(
+      new RelationshipRepository(fake.db as never).becomeFriends("a", "b"),
+    ).rejects.toThrow("Friendship receipt missing");
+    expect(fake.col("profileActivities").updateOne).not.toHaveBeenCalled();
+  });
   it("finds, creates, responds to, and deletes friend requests", async () => {
     const fake = setup();
     const repo = new RelationshipRepository(fake.db as never);
@@ -119,7 +147,7 @@ describe("RelationshipRepository", () => {
     const calls: string[] = [];
     vi.spyOn(repo, "setFriendRequest").mockImplementation(async (from, to) => {
       calls.push(`request:${from}:${to}`);
-      return null;
+      return { _id: "friendship-receipt", updatedAt: new Date(), respondedAt: new Date() } as never;
     });
     vi.spyOn(repo, "follow").mockImplementation(async (from, to) => {
       calls.push(`follow:${from}:${to}`);
@@ -129,6 +157,10 @@ describe("RelationshipRepository", () => {
     await repo.becomeFriends("a", "b");
     await repo.unfriend("a", "b");
     expect(calls).toEqual(["request:a:b", "request:b:a", "follow:a:b", "follow:b:a"]);
+    expect(fake.col("profileActivities").updateOne).toHaveBeenCalledTimes(2);
+    vi.spyOn(repo, "isFriend").mockResolvedValue(true);
+    await repo.becomeFriends("a", "b");
+    expect(fake.col("profileActivities").updateOne).toHaveBeenCalledTimes(2);
     expect(fake.col("friendRequests").deleteMany).toHaveBeenCalledWith(
       expect.objectContaining({ status: "accepted" }),
       {},

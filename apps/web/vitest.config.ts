@@ -91,6 +91,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/profile/{ProfileActivityRow,ProfileRatingChart,ProfileStats}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/notifications/NotificationTabBadge.tsx": {
           lines: 100,
           functions: 100,

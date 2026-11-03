@@ -11,7 +11,12 @@ vi.mock("@/app/lib/db", () => ({
       {
         collection: vi.fn(() => ({
           findOne: vi.fn(async () => null),
-          findOneAndUpdate: vi.fn(async () => null),
+          countDocuments: vi.fn(async () => 0),
+          findOneAndUpdate: vi.fn(async () => ({
+            _id: "friendship-receipt",
+            updatedAt: new Date(),
+            respondedAt: new Date(),
+          })),
           updateOne: vi.fn(async () => ({ acknowledged: true })),
           insertOne: vi.fn(async () => ({ insertedId: "id" })),
           find: vi.fn(() => ({
@@ -28,6 +33,7 @@ vi.mock("@/app/lib/db", () => ({
     FRIEND_REQUESTS: "friendRequests",
     BLOCKS: "blocks",
     INVITES: "invites",
+    PROFILE_ACTIVITIES: "profileActivities",
   },
 }));
 vi.mock("@/app/lib/invites/invites.repository", async () => {

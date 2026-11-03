@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import { UserMenu } from "@/components/contacts/UserMenu";
 import { renderWithI18n } from "@/test-utils";
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ push }),
+}));
+
 const user: ContactUser = {
   id: "user_2",
   name: "Target User",
@@ -18,6 +24,20 @@ async function openMenu() {
 }
 
 describe("UserMenu", () => {
+  it("opens the existing profile without a social mutation, never enables a known blocked profile", async () => {
+    const onAction = vi.fn(),
+      first = renderWithI18n(<UserMenu user={user} onAction={onAction} />);
+    await openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "View profile" }));
+    expect(push).toHaveBeenCalledWith("/profiles/user_2");
+    expect(onAction).not.toHaveBeenCalled();
+    first.unmount();
+    renderWithI18n(<UserMenu user={{ ...user, blockedMe: true }} onAction={onAction} />);
+    await openMenu();
+    expect(
+      screen.getByRole("menuitem", { name: "View profile" }).getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
   it("runs immediate follow and unfollow actions", async () => {
     const onAction = vi.fn();
     const first = renderWithI18n(<UserMenu user={user} onAction={onAction} />);

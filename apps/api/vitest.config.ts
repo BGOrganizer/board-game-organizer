@@ -53,6 +53,13 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/app/lib/profile/{profile-statistics,profile.http,profile.repository,profile.service,profile-activities.repository}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "src/app/lib/ratings/table-statistics.ts": {
           lines: 100,
           functions: 100,

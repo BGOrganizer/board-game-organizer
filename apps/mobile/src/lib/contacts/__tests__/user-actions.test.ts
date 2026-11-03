@@ -58,10 +58,9 @@ describe("userActionKeys", () => {
   });
 
   it("allows only safe cleanup when the other user blocked the viewer", () => {
-    expect(userActionKeys({ ...user, blockedMe: true }, true)).toEqual(["profile"]);
+    expect(userActionKeys({ ...user, blockedMe: true }, true)).toEqual([]);
     expect(userActionKeys({ ...user, blockedMe: true, isFollowing: true }, true)).toEqual([
       "unfollow",
-      "profile",
     ]);
   });
 });

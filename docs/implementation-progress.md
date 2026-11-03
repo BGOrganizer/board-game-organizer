@@ -1,5 +1,55 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Profiles, statistics and activities — local implementation; acceptance incomplete
+
+- The existing web/native Profile now shares its platform-owned UI with social View profile
+  navigation and authenticated direct links. Compact identity, internal Activities/Player tabs,
+  owner-only real BGG controls and confirmed cache-safe logout reuse existing components and tokens.
+  No Community destination, new dependency, Babel configuration or offline mode was introduced.
+  [Profiles](profiles.md) defines access, statistics, cache and real-fixture acceptance inputs.
+- API profiles deny both block directions and omit other-user email/phone/account/role metadata.
+  Unified physical outcome aggregates include rating-disabled games but exclude ND, invalid
+  finishers, removed/unconfirmed Tables and off-roster rows. GLOBAL OpenSkill snapshots/history
+  retain their algorithm; graphs expose ordinal points only, not private dates or resource details.
+- Transactional, receipt-deduplicated activities start with the new writers, not a historical
+  backfill or notification copy. Source authorization precedes visible five/ten-row pagination;
+  private parent Group access remains mandatory. Actual winning Tables own crossed milestones.
+  Existing sorted per-user transaction locks prevent missed crossings across games/unrated Events.
+  Source deletion clears dependent records; existing terminated saves never manufacture old activity.
+- Query owns server data and existing encrypted native MMKV persistence; Zustand holds scoped
+  tab/game/filter UI only. Optimistic changes retain selective rollback and fresh tokens. Known
+  blocks/child-read denials quarantine subject caches; Group access loss preserves unrelated rows.
+  Activities never acknowledge notifications. BGG retains last-success data across failed attempts
+  and never claims a failed outcome while verification remains pending. Lingui relative labels do
+  not require Hermes RelativeTimeFormat; native useT remains single-argument/runtime-based.
+- Local checks: **2,472 covered units** (mobile 353, web 763, API 803, schemas 129, shared 424),
+  **102 policy tests**, typecheck, scoped Biome, API/web builds and a fresh x86_64 release APK.
+  New API profile modules, schema/pure metrics and pure web presentation enforce 100% gates.
+  Forty-seven EN/IT entries were added/compiled with all 1,292 prior catalog values preserved.
+  Twelve isolated real-component/production-CSS cases cover owner/other, EN/IT, light/dark,
+  320/390/1280px, ordinal graph, consent cancellation and narrow layout. These use layout-only
+  data and are not authenticated/provider/native acceptance.
+- Real MongoDB replica-set validation initially failed to start without Docker. After the operator
+  started Docker, execution exposed an unsafe array operand on incomplete outcomes and duplicate
+  physical-order fixture values. Expressions now guard their own array operands independently of
+  MongoDB match reordering; fixtures respect the unique Event/Table-order index. All **117 API
+  integration tests in four files pass, with zero skips**, including five new profile cases and
+  concurrent unrated milestone crossings. Earlier failed/blocked attempts are not counted as passes.
+- No connected adb device or owned authenticated profile/BGG fixture set is available. Playwright
+  discovery and Maestro 2.11 syntax/VM checks passed for the explicit manual scenarios, not
+  execution. Canonical E2E suites/jobs are unchanged; authenticated/provider/device acceptance
+  remains incomplete.
+- Deployment requires the normal migration for activity receipt/paging/source and Table-outcome
+  indexes. Validation migrated and mutated only ephemeral Testcontainers databases, never the
+  application database. No provider configuration or real BGG operation was performed. Generated
+  references and seven protected inputs remain unchanged. Commit/push was separately authorized
+  by the operator after the successful integration run.
+- Skills used: bgo-component-architecture, vercel-composition-patterns, vercel-react-best-practices,
+  vercel-react-native-skills, expo-overview, expo-router, expo-data-fetching, heroui-react,
+  heroui-native, uniwind, tanstack-query-development, zustand-state-management, lingui-best-practices,
+  clerk, clerk-expo, clerk-testing, playwright-best-practices, maestro-mobile-testing,
+  web-design-guidelines, context-mode and ponytail.
+
 ## Included Table schedule card — local implementation
 
 - Web/native Overview now puts a separate schedule card immediately below Settings for included

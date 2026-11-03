@@ -1,0 +1,99 @@
+appId: com.bgo.mobile
+name: Real owner and visible, empty or blocked profiles
+# Authenticated Development/Preview build; owned real fixtures in selected EN/IT locale.
+# Read-only: opening Profile/Activities never acknowledges source notifications.
+tags: [manual, profile]
+---
+- runScript: ../helpers/profile-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo:///profile
+- extendedWaitUntil:
+    visible: ${output.profile.owner}
+    timeout: 120000
+- assertVisible: ${output.profile.bgg}
+- scrollUntilVisible:
+    element: ${output.profile.logout}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.profile.logout}
+- assertVisible: ${output.profile.logoutTitle}
+- tapOn: ${output.profile.cancel}
+- assertNotVisible: ${output.profile.logoutTitle}
+- openLink: bgo:///contacts?tab=search
+- extendedWaitUntil:
+    visible:
+      id: contact-search-input
+    timeout: 120000
+- tapOn:
+    id: contact-search-input
+- eraseText: 120
+- inputText: ${output.profile.targetQuery}
+- extendedWaitUntil:
+    visible: ${output.profile.target}
+    timeout: 120000
+- tapOn: ${output.profile.actions}
+- tapOn: ${output.profile.view}
+- extendedWaitUntil:
+    visible: ${output.profile.target}
+    timeout: 120000
+- assertNotVisible: ${output.profile.bgg}
+- assertNotVisible: ${output.profile.logout}
+- tapOn: ${output.profile.player}
+- scrollUntilVisible:
+    element: ${output.profile.boardGame}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.profile.boardGame}
+- tapOn: ${output.profile.filterGames}
+- inputText: ${output.profile.gameName}
+- extendedWaitUntil:
+    visible: ${output.profile.game}
+    timeout: 120000
+- tapOn: ${output.profile.game}
+- scrollUntilVisible:
+    element: ${output.profile.chart}
+    direction: DOWN
+    timeout: 120000
+- takeScreenshot: profile-real-ordinal-openskill-chart
+- scrollUntilVisible:
+    element: ${output.profile.activity}
+    direction: UP
+    timeout: 120000
+- tapOn: ${output.profile.activity}
+- scrollUntilVisible:
+    element: ${output.profile.publicActivity}
+    direction: DOWN
+    timeout: 120000
+- assertNotVisible: ${output.profile.privateActivity}
+- scrollUntilVisible:
+    element: ${output.profile.all}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.profile.all}
+- extendedWaitUntil:
+    visible: ${output.profile.type}
+    timeout: 120000
+- assertVisible: ${output.profile.publicActivity}
+- assertNotVisible: ${output.profile.privateActivity}
+- takeScreenshot: profile-real-authorized-activities
+- openLink: ${output.profile.emptyLink}
+- extendedWaitUntil:
+    visible: ${output.profile.empty}
+    timeout: 120000
+- assertVisible: ${output.profile.noActivities}
+- tapOn: ${output.profile.player}
+- extendedWaitUntil:
+    visible: ${output.profile.noGames}
+    timeout: 120000
+- takeScreenshot: profile-empty-player
+- openLink: ${output.profile.blockedLink}
+- extendedWaitUntil:
+    visible: ${output.profile.unavailable}
+    timeout: 120000
+- assertNotVisible: ${output.profile.bgg}
+- openLink: ${output.profile.blockingLink}
+- extendedWaitUntil:
+    visible: ${output.profile.unavailable}
+    timeout: 120000
+- assertNotVisible: ${output.profile.bgg}

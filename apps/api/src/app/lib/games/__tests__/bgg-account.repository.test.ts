@@ -48,7 +48,7 @@ it("removes a failed pending account while keeping the previous active collectio
   await new BggAccountRepository(db).failed("viewer", "failed-snapshot");
   expect(updateOne).toHaveBeenCalledWith(
     { userId: "viewer", "pending.snapshot": "failed-snapshot" },
-    { $unset: { pending: "" } },
+    { $unset: { pending: "" }, $set: { lastAttempt: { status: "error", at: expect.any(Date) } } },
   );
   expect(deleteMany).toHaveBeenCalledWith({ userId: "viewer", snapshot: "failed-snapshot" });
 });
@@ -67,7 +67,7 @@ it("drops the pending item after exhausting queued-export retries", async () => 
   await new BggAccountRepository(db).queued("viewer", "snap", 5000);
   expect(updateOne).toHaveBeenCalledWith(
     { userId: "viewer", "pending.snapshot": "snap" },
-    { $unset: { pending: "" } },
+    { $unset: { pending: "" }, $set: { lastAttempt: { status: "error", at: expect.any(Date) } } },
   );
   expect(deleteMany).toHaveBeenCalledWith({ userId: "viewer", snapshot: "snap" });
 });

@@ -14,6 +14,7 @@ import {
   UserRoundX,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 
@@ -48,7 +49,8 @@ export function UserMenu({
   blockLabel?: string;
   onAction: (key: UserActionKey) => void;
 }) {
-  const { t } = useLingui();
+  const { t } = useLingui(),
+    router = useRouter();
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
 
   const items: Array<{
@@ -104,7 +106,7 @@ export function UserMenu({
               key: "profile",
               label: t`View profile`,
               icon: <Eye className="h-4 w-4" />,
-              disabled: true,
+              disabled: false,
             },
           ]
         : [
@@ -159,11 +161,15 @@ export function UserMenu({
               key: "profile",
               label: t`View profile`,
               icon: <Eye className="h-4 w-4" />,
-              disabled: true,
+              disabled: false,
             },
           ];
 
   const handle = (key: UserActionKey) => {
+    if (key === "profile") {
+      router.push(`/profiles/${encodeURIComponent(user.id)}`);
+      return;
+    }
     if (
       key === "block" ||
       key === "unblock" ||

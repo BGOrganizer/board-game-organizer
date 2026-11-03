@@ -8,6 +8,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
+import { ProfileActivitiesRepository } from "../profile/profile-activities.repository";
 import { eventPeriodStages } from "./event-periods";
 
 export interface EventRecordPage {
@@ -51,15 +52,22 @@ export class EventRecordsRepository {
     return event;
   }
   async save(event: EventRecord) {
+    const previous = event.status === "TERMINATED" ? await this.find(event.id) : null;
     await this.events.replaceOne(
       { id: event.id, status: { $in: ["PLANNING", "CONFIRMED", "TERMINATED"] } },
       event,
       this.opts,
     );
+    if (event.status === "TERMINATED" && previous?.status === "CONFIRMED")
+      await new ProfileActivitiesRepository(this.db, this.opts.session).finalized(
+        event,
+        await this.allTables(event.id),
+      );
     return event;
   }
   /** Caller holds the Event (and Group when present) lock in this transaction. */
   async remove(id: string) {
+    await this.db.collection(COLLECTIONS.PROFILE_ACTIVITIES).deleteMany({ eventId: id }, this.opts);
     for (const collection of [
       COLLECTIONS.TABLE_REGISTRATIONS,
       COLLECTIONS.EVENT_VOTES,
@@ -285,10 +293,30 @@ export class EventRecordsRepository {
     );
   }
   async saveRegistration(row: TableRegistration) {
+    const previous =
+      row.status === "ACCEPTED" ? await this.userRegistration(row.tableId, row.userId) : null;
     await this.registrations.replaceOne({ tableId: row.tableId, userId: row.userId }, row, {
       ...this.opts,
       upsert: true,
     });
+    if (row.status === "ACCEPTED" && previous?.status !== "ACCEPTED") {
+      const activities = new ProfileActivitiesRepository(this.db, this.opts.session);
+      await activities.record({
+        source: `registration:${row.id}:${row.version}`,
+        userId: row.userId,
+        kind: "table_join",
+        occurredAt: row.updatedAt,
+        eventId: row.eventId,
+        tableId: row.tableId,
+      });
+      await activities.record({
+        source: `event:${row.eventId}`,
+        userId: row.userId,
+        kind: "event_join",
+        occurredAt: row.updatedAt,
+        eventId: row.eventId,
+      });
+    }
     return row;
   }
   async cancelUser(eventId: string, userId: string, at: string) {

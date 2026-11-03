@@ -5,6 +5,7 @@ import type { BggSearchItem } from "./boardGames";
 export const bggUsernameSchema = z.string().trim().min(1).max(64);
 
 export interface BggAccountResponse {
+  lastAttempt?: { status: "syncing" | "success" | "error"; at: string };
   active: (BggIdentity & { snapshot: string; syncedAt: string }) | null;
   pending:
     | (BggIdentity & {

@@ -1,0 +1,106 @@
+# Profiles, statistics and activities
+
+Implemented locally on web and native mobile; authenticated/device acceptance remains incomplete.
+The [unified domain](groups-events-refactor.md) remains authoritative for source access, consent,
+physical results, deletion and OpenSkill. This feature adds no Community destination or offline mode.
+
+## Access and presentation
+
+- The existing owner Profile and social **View profile** action use the same platform-owned UI.
+  Web additionally exposes `/profiles/[userId]`; native uses `/user/[userId]`.
+- Every profile endpoint requires a fully authenticated viewer. A block in either direction or a
+  missing subject returns `404 PROFILE_NOT_FOUND`, including direct profile/activity/rating URLs.
+- Other-user responses contain public identity, aggregate counters and GLOBAL ratings only: no
+  email, phone, BGO moderation role, Clerk account metadata or BGG account data. Mirror email
+  fallbacks are not exposed as profile/activity display names.
+- The compact identity precedes the owner-only BGG card, then Activities / Player internal tabs.
+  Tab, game and activity-filter selections belong to scoped local UI state. Logout is owner-only,
+  remains reachable on profile failure, and requires confirmation. Native retains cache-safe signout.
+
+## Aggregate and rating rules
+
+- Social counts derive from current edges, accepted mutual friendships and both block directions.
+- Played/won/win-rate use physical unified Tables in TERMINATED Events, including rating-disabled
+  results. ND, off-roster entries, removed/unconfirmed Tables and outcomes with fewer than two
+  scored roster finishers never enter these aggregates. All rank-one finishers count as winners.
+  An empty denominator produces no percentage, not an invented zero-percent record.
+- These aggregates and GLOBAL OpenSkill values may incorporate inaccessible private games.
+  No private activity detail becomes visible because its aggregate is visible.
+- Game selection source-pages GLOBAL personal skill snapshots with positive gamesPlayed. A retained
+  snapshot remains selectable after its source history is deleted; it does not recreate that history.
+- Curves use surviving classified unified Table rating events only, preserving existing OpenSkill
+  and ND treatment. Internal ordering uses authoritative after.gamesPlayed, not wall-clock ordering.
+  Responses expose ordinal/rating/delta points, never source dates, Event/Table IDs, titles or links.
+  Current rating and last-game delta retain their meaning when earlier pages are requested.
+  A missing last-game receipt or a receipt not matching the current snapshot's gamesPlayed produces
+  no delta, never the change from an older surviving game. Empty/one-point histories do not fabricate a curve. Web/native SVG share only pure geometry.
+
+## Durable activities and privacy
+
+- Recording starts with the new backend writers; there is no historical backfill or notification-copy
+  migration. Successful follows, new friendships, accepted Group membership/creation, accepted Table
+  participation and CONFIRMED-to-TERMINATED finalization append domain receipts in their source
+  transaction. Pending invitations/requests are not participation.
+- One played activity contains its outcome; there is no duplicate ordinary victory record. Milestones
+  occur at 5, 10, 25, 50, 100, then each multiple of 100. Crossed milestones reference the actual
+  physical winning Table, in frozen start/order sequence, and share that source's access requirements.
+  Existing per-user transaction locks serialize aggregate threshold crossings across different games
+  and rating-disabled Events; locks are acquired in stable order.
+- Unique user/source/kind indexes deduplicate receipts. Source Group/Event deletion removes dependent
+  activities. Existing terminated records do not generate activities merely when saved again.
+- Stored receipts contain source identifiers, not display names or reusable public authorization.
+  Each feed read resolves current source access, including accepted parent Group membership for
+  Events/Tables. Private, banned/departed, blocked and removed sources are omitted completely.
+  Public Group discovery never makes its Events public.
+- Authorization precedes the visible page limit: latest five, full pages of ten, seven type filters,
+  descending instant/UUID cursors. Bounded source chunks may be scanned to fill an authorized page;
+  cursors refer only to returned visible rows. No browsing action acknowledges source notifications.
+
+## State, BGG and deployment
+
+TanStack Query owns server data, scoped by API/viewer/subject. Existing encrypted native MMKV
+persistence backs its canonical cache; it is not another Zustand data store. Social counters and
+known access loss use the existing optimistic journal and selective rollback. Fresh child-read
+permission denials quarantine the subject's cached profile scopes; another actor/API/subject is not
+purged. Confirmed Group access loss removes only that Group's activity rows. Notification changes
+invalidate affected authenticated profile caches without fetching inactive queries.
+
+BGG uses the existing real server link/sync/unlink endpoints. The client requests a username, never
+a BGG password or application token. Last-success metadata is distinct from the latest attempt;
+failed publication preserves a previous active snapshot. Mutation errors are reset for a subsequent
+explicit action. Existing linked Powered by BGG artwork uses a HeroUI light surface scope.
+
+Run the normal API migration against the intended replica set **before enabling these writers**:
+new profileActivities receipt/paging/source indexes and a per-player Table-outcome index are required.
+No application database migration, deletion/reset, provider provisioning or real BGG operation was
+performed. Integration validation migrated and mutated only ephemeral Testcontainers databases.
+Existing deployment isolation and operational gates apply.
+
+## Acceptance
+
+Unit checks cover API privacy, strict queries/Preview bypass, ND/roster rules, receipt deduplication,
+ordinal history, milestones, selective cache behavior, localization and owner/other UI paths.
+`test/integration/profile.test.ts` requires a real isolated MongoDB replica-set container. All 117
+API integration tests in four files now pass with zero skips, including five profile cases, partial
+stored outcomes and concurrent unrated milestone crossings. This is not authenticated UI/provider
+or native-device acceptance.
+
+Explicit real-fixture web run: `pnpm --filter web exec playwright test --config e2e/profile.config.ts`.
+Set PROFILE_LOCALE=en|it, PROFILE_THEME=light|dark, PROFILE_API_URL (local/Preview origin), E2E_EMAIL,
+PROFILE_OWNER_NAME, PROFILE_TARGET_ID/NAME, PROFILE_EMPTY_ID/NAME, PROFILE_BLOCKED_BY_ME_ID,
+PROFILE_BLOCKED_ME_ID, PROFILE_GAME_ID/NAME and PROFILE_PUBLIC_ACTIVITY_TEXT/PRIVATE_ACTIVITY_TEXT.
+The target has at least two surviving rated outcomes; the empty subject has no history/activity;
+block fixtures represent both directions. The public text must appear within the first authorized
+five rows; private text must belong to a source the viewer cannot access.
+
+The real BGG/logout test additionally requires PROFILE_BGG_USERNAME (canonical real public username),
+PROFILE_BGG_INVALID_USERNAME (valid syntax but nonexistent) and
+PROFILE_MUTABLE_BGG_FIXTURE_ACK=owned-unlinked-development-account. It mutates only that explicitly
+owned test account through normal UI/API actions. Run separately from the read-only scenarios when
+sharing a fixture. Development Clerk keys and local/Preview targets are mandatory; no response mocks.
+
+Native manual flows 17/18 use the same named fixtures in an already authenticated Development/Preview
+build and selected EN/IT locale. Flow 17 needs the profile fixtures except API_URL/THEME/GAME_ID;
+flow 18 needs LOCALE/OWNER_NAME and the BGG inputs/acknowledgment above. Run both themes and locales.
+See the [Maestro guide](../apps/mobile/.maestro/README.md). Syntax/discovery, isolated browser layouts
+and compilation do not prove authenticated, provider or native-device acceptance.

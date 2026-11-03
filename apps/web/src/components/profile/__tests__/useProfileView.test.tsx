@@ -1,0 +1,179 @@
+import type { ProfileView } from "@board-game-organizer/schemas";
+import {
+  optimisticProfileSocialData,
+  profileActivitiesQuery,
+  profileViewKeys,
+  profileViewQuery,
+  useProfileActivities,
+  useProfileRating,
+  useProfileRatingGames,
+  useProfileView,
+} from "@board-game-organizer/shared";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach, expect, it, vi } from "vitest";
+import { beginOptimisticOperation } from "../../../../../../packages/shared/src/common/optimisticOperation";
+
+const data: ProfileView = {
+  id: "owner",
+  name: "Owner",
+  username: "owner",
+  avatarUrl: null,
+  social: { friends: 1, followers: 2, following: 3 },
+  player: { gamesPlayed: 2, gamesWon: 1, winRate: 50 },
+};
+const setup = () => {
+  const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    }),
+    getToken = vi.fn(async () => "fresh"),
+    options = { apiUrl: "https://api.test", userId: "owner", getToken },
+    wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+  return { client, options, wrapper };
+};
+afterEach(() => vi.unstubAllGlobals());
+it("keys profiles by API/viewer/subject, not rotating tokens, and resolves a new token for each request", async () => {
+  const { client, options } = setup(),
+    fetch = vi.fn(async (_url: string, _init?: RequestInit) => Response.json(data));
+  vi.stubGlobal("fetch", fetch);
+  options.getToken.mockResolvedValueOnce("first").mockResolvedValueOnce("second");
+  const query = profileViewQuery(options, "subject");
+  await client.fetchQuery({ ...query, staleTime: 0 });
+  await client.fetchQuery({ ...query, staleTime: 0 });
+  expect(query.queryKey).toEqual(["profile", "https://api.test", "owner", "view", "subject"]);
+  expect(profileViewKeys.view({ ...options, userId: "other" }, "subject")).not.toEqual(
+    query.queryKey,
+  );
+  expect(options.getToken).toHaveBeenCalledTimes(2);
+  expect(
+    fetch.mock.calls.map((call) => new Headers(call[1]?.headers).get("Authorization")),
+  ).toEqual(["Bearer first", "Bearer second"]);
+});
+it("reuses complete owner snapshots but immediately revalidates a known stale root without concealing cached content", async () => {
+  const { client, options, wrapper } = setup(),
+    fetch = vi.fn(async () => Response.json(data));
+  vi.stubGlobal("fetch", fetch);
+  client.setQueryData(profileViewKeys.root(options), data);
+  const first = renderHook(() => useProfileView(options, "owner"), { wrapper });
+  expect(first.result.current.data).toEqual(data);
+  expect(fetch).not.toHaveBeenCalled();
+  first.unmount();
+  client.removeQueries({ queryKey: profileViewKeys.view(options, "owner"), exact: true });
+  await client.invalidateQueries({ queryKey: profileViewKeys.root(options), refetchType: "none" });
+  const second = renderHook(() => useProfileView(options, "owner"), { wrapper });
+  expect(second.result.current.data).toEqual(data);
+  await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+});
+it("never seeds another subject, anonymous sessions or incomplete legacy snapshots as an authorized detail", async () => {
+  const { client, options, wrapper } = setup();
+  client.setQueryData(profileViewKeys.root(options), data);
+  const hook = renderHook(() => useProfileView({ ...options, enabled: false }, "other"), {
+    wrapper,
+  });
+  expect(hook.result.current.data).toBeUndefined();
+  hook.unmount();
+  client.setQueryData(profileViewKeys.root(options), { id: "owner", stats: {} });
+  const old = renderHook(() => useProfileView({ ...options, enabled: false }, "owner"), {
+    wrapper,
+  });
+  expect(old.result.current.data).toBeUndefined();
+});
+it("source-pages activity types/cursors at five or ten using current credentials", async () => {
+  const { options, wrapper } = setup(),
+    cursor = "2030-06-03T12:00:00.000Z|11111111-1111-4111-8111-111111111111";
+  let reads = 0;
+  const fetch = vi.fn(async (_url: string, _init?: RequestInit) =>
+    Response.json({ items: [], nextCursor: ++reads === 1 ? cursor : null }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const hook = renderHook(() => useProfileActivities(options, "subject", "played", 10), {
+    wrapper,
+  });
+  await waitFor(() => expect(hook.result.current.isSuccess).toBe(true));
+  await act(async () => {
+    await hook.result.current.fetchNextPage();
+  });
+  expect(fetch.mock.calls).toHaveLength(2);
+  const url = new URL(fetch.mock.calls[1][0]);
+  expect(url.searchParams.get("cursor")).toBe(cursor);
+  expect(url.searchParams.get("kind")).toBe("played");
+  expect(url.searchParams.get("limit")).toBe("10");
+  await waitFor(() => expect(hook.result.current.hasNextPage).toBe(false));
+  expect(profileActivitiesQuery(options, "subject", undefined, 5).queryKey).toEqual([
+    "profile",
+    options.apiUrl,
+    "owner",
+    "activities",
+    "subject",
+    null,
+    5,
+  ]);
+});
+it("keeps game and history pages distinct, propagates cursor zero safely and never sends scope or time filters", async () => {
+  const { options, wrapper } = setup(),
+    fetch = vi.fn(async (url: string, _init?: RequestInit) =>
+      Response.json(
+        url.includes("/games?")
+          ? { items: [], nextCursor: url.includes("cursor=0") ? 20 : null }
+          : { points: [], nextCursor: url.includes("cursor=101") ? null : 101 },
+      ),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const games = renderHook(() => useProfileRatingGames(options, "subject", "[Chess]"), { wrapper });
+  await waitFor(() => expect(games.result.current.isSuccess).toBe(true));
+  await act(async () => {
+    await games.result.current.fetchNextPage();
+  });
+  expect(
+    fetch.mock.calls.some(
+      ([url]) => new URL(url).searchParams.get("query") === "[Chess]" && url.includes("cursor=20"),
+    ),
+  ).toBe(true);
+  const history = renderHook(() => useProfileRating(options, "subject", 7), { wrapper });
+  await waitFor(() => expect(history.result.current.isSuccess).toBe(true));
+  await act(async () => {
+    await history.result.current.fetchNextPage();
+  });
+  expect(fetch.mock.calls.some(([url]) => url.endsWith("/games/7?cursor=101"))).toBe(true);
+  expect(fetch.mock.calls.every(([url]) => !url.includes("scope=") && !url.includes("date="))).toBe(
+    true,
+  );
+});
+it("applies blocking to actual cached queries immediately, preserves unrelated profile rows and restores only the failed intent", async () => {
+  const { client, options } = setup(),
+    key = profileViewKeys.view(options, "target"),
+    self = profileViewKeys.view(options, "owner");
+  client.setQueryData(key, { ...data, id: "target" });
+  client.setQueryData(self, data);
+  const target = {
+    id: "target",
+    name: "Target",
+    email: null,
+    avatarUrl: null,
+    presence: { online: false, lastActiveAt: "" },
+    isFollowing: true,
+    isFollower: false,
+    isFriend: false,
+  };
+  const operation = await beginOptimisticOperation(
+    client,
+    ["contacts", options.apiUrl, "owner", "target"],
+    { queryKey: profileViewKeys.root(options) },
+    (current, query) =>
+      optimisticProfileSocialData(
+        query,
+        current,
+        "block",
+        { targetUserId: "target", targetUser: target },
+        "owner",
+      ),
+  );
+  expect(client.getQueryData(key)).toBeNull();
+  expect(client.getQueryData<ProfileView>(self)?.social.following).toBe(2);
+  operation.rollback();
+  expect(client.getQueryData(key)).toEqual({ ...data, id: "target" });
+  expect(client.getQueryData(self)).toEqual(data);
+});

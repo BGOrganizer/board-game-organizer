@@ -44,7 +44,11 @@ it("announces the request before HTTP without inventing a verified BGG identity 
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0].body).toBe(JSON.stringify({ username: "alice" }));
   expect(feedback.onOptimisticUpdate).toHaveBeenCalledOnce();
-  expect(hook.result.current.account.data).toEqual({ active: null, pending: null });
+  expect(hook.result.current.account.data).toMatchObject({
+    active: null,
+    pending: null,
+    lastAttempt: { status: "syncing" },
+  });
   const identity = { id: 42, username: "alice", avatarUrl: null };
   await act(async () =>
     writes[0].resolve(

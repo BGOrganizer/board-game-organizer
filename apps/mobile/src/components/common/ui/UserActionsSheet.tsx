@@ -33,6 +33,8 @@ export interface UserActionItem {
   disabled?: boolean;
 }
 
+import { useRouter } from "expo-router";
+
 export function UserActionsSheet({
   visible,
   user,
@@ -56,7 +58,8 @@ export function UserActionsSheet({
   onClose: () => void;
   onAction: (key: UserActionKey) => Promise<void>;
 }) {
-  const t = useT();
+  const t = useT(),
+    router = useRouter();
   const insets = useSafeAreaInsets();
   const [foreground, danger, accentForeground, muted] = useThemeColor([
     "foreground",
@@ -99,6 +102,13 @@ export function UserActionsSheet({
     key === "cancel_friend_request";
   const run = (key: UserActionKey) => {
     if (busy) return;
+    if (key === "profile") {
+      if (user && !user.blockedByMe && !user.blockedMe) {
+        onClose();
+        router.push({ pathname: "/user/[userId]", params: { userId: user.id } });
+      }
+      return;
+    }
     const result = onAction(key);
     onClose();
     // Query mutation owns rollback and localized feedback.
@@ -188,11 +198,11 @@ export function UserActionsSheet({
                       <Button
                         key={key}
                         variant="ghost"
-                        isDisabled={busy || key === "profile"}
+                        isDisabled={busy}
                         style={{ justifyContent: "flex-start", minHeight: 44 }}
                         onPress={() => {
-                          if (key === "profile" || busy) return;
-                          if (key === "follow" || key === "unfollow") run(key);
+                          if (busy) return;
+                          if (key === "follow" || key === "unfollow" || key === "profile") run(key);
                           else setConfirmAction(key);
                         }}
                       >

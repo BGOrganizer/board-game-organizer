@@ -17,7 +17,10 @@ with its four-character minimum.
 
 ## Current functionality
 
-- Clerk authentication, required post-signup mobile-number step, profile and logout.
+- Clerk authentication and required post-signup mobile-number step.
+- [Authenticated profiles](docs/profiles.md), block-aware activity history, unified participation
+  statistics, GLOBAL OpenSkill progression, owner-only BGG synchronization and confirmed logout
+  (local implementation; authenticated/device acceptance incomplete).
 - Friends, follows, requests, blocks, user search, presence, permission-gated mobile contact
   suggestions, and shareable seven-day invites.
 - Immutable private/public Groups, friend invitations and consent, public membership requests,

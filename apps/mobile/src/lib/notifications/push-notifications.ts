@@ -76,6 +76,7 @@ export function notificationHref(
   | "/tables"
   | "/groups"
   | "/notifications"
+  | `/user/${string}`
   | `/match/${string}`
   | `/group/${string}`
   | `/organization/${string}`
@@ -108,6 +109,8 @@ export function notificationHref(
     }
   }
   if (typeof href === "string") {
+    const profile = /^\/profiles\/([A-Za-z0-9_-]{1,128})$/.exec(href);
+    if (profile) return `/user/${profile[1]}`;
     const detail =
       /^\/(matches|groups)\/([a-f\d]{24}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.exec(href);
     if (detail) return detail[1] === "matches" ? "/tables" : `/group/${detail[2]}`;

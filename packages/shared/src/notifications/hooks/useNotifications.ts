@@ -166,6 +166,10 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     );
     if (!incoming.length) return;
     previous.latest = incoming[0] ?? null;
+    void queryClient.invalidateQueries({
+      queryKey: ["profile", options.apiUrl, options.userId],
+      refetchType: "active",
+    });
     // The old watermark fell beyond this bounded page; unseen kinds may be missing.
     const gap = Boolean(latest && page.nextCursor && incoming.length === page.notifications.length);
     if (gap || incoming.some((row) => /^(follow|friend|block|contact)/.test(row.kind)))

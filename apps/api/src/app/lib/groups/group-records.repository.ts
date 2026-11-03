@@ -8,6 +8,7 @@ import type {
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { EventRecordsRepository } from "../events/event-records.repository";
+import { ProfileActivitiesRepository } from "../profile/profile-activities.repository";
 
 export interface GroupRecordPage {
   limit: number;
@@ -181,6 +182,13 @@ export class GroupRecordsRepository {
   }
   async create(group: GroupRecord) {
     await this.groups.insertOne({ ...group }, this.opts);
+    await new ProfileActivitiesRepository(this.db, this.opts.session).record({
+      source: `group:${group.id}`,
+      userId: group.adminUserId,
+      kind: "group_join",
+      occurredAt: group.createdAt,
+      groupId: group.id,
+    });
     return group;
   }
   async save(group: GroupRecord) {
@@ -202,6 +210,7 @@ export class GroupRecordsRepository {
     // ponytail: one atomic transaction; use a separately designed deletion job if group size exceeds MongoDB transaction limits.
     const records = new EventRecordsRepository(this.db, this.opts.session);
     for (const { id: eventId } of events) await records.remove(eventId as string);
+    await this.db.collection(COLLECTIONS.PROFILE_ACTIVITIES).deleteMany({ groupId }, this.opts);
     await this.memberships.deleteMany({ groupId }, this.opts);
     await this.bans.deleteMany({ groupId }, this.opts);
     await this.db.collection(COLLECTIONS.GROUP_ASSETS).deleteMany({ groupId }, this.opts);
@@ -222,10 +231,20 @@ export class GroupRecordsRepository {
     return this.memberships.findOne({ groupId, userId }, { ...this.opts, projection: { _id: 0 } });
   }
   async saveMembership(row: GroupMembership) {
+    const previous =
+      row.status === "ACCEPTED" ? await this.membership(row.groupId, row.userId) : null;
     await this.memberships.replaceOne({ groupId: row.groupId, userId: row.userId }, row, {
       ...this.opts,
       upsert: true,
     });
+    if (row.status === "ACCEPTED" && previous?.status !== "ACCEPTED")
+      await new ProfileActivitiesRepository(this.db, this.opts.session).record({
+        source: `membership:${row.id}:${row.version}`,
+        userId: row.userId,
+        kind: "group_join",
+        occurredAt: row.updatedAt,
+        groupId: row.groupId,
+      });
     return row;
   }
   ban(groupId: string, userId: string) {

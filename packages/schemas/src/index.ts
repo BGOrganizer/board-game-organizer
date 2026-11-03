@@ -35,6 +35,7 @@ export * from "./notifications/notificationItems";
 export * from "./organizations/dto/organizationList";
 export * from "./organizations/dto/organizations";
 export * from "./organizations/models/organizations";
+export * from "./profile/dto/profileView";
 export * from "./profile/dto/user";
 export * from "./profile/models/users";
 export * from "./ratings/models/ratings";

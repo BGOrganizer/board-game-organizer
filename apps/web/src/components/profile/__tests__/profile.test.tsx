@@ -1,241 +1,269 @@
-import type { BggAccountResponse } from "@board-game-organizer/schemas";
-import type { UserProfile } from "@board-game-organizer/shared";
-import { fireEvent, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { Profile } from "@/components/profile/Profile";
+import { useAppStore } from "@board-game-organizer/store";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
+import { Profile } from "../Profile";
+import { ProfileActivities } from "../ProfileActivities";
 
-vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({
-    isLoaded: true,
-    isSignedIn: true,
-    getToken: vi.fn().mockResolvedValue("test-token"),
+const m = vi.hoisted(() => ({ signOut: vi.fn(), getToken: vi.fn(async () => "fresh-token") }));
+vi.mock("@/lib/useCommunityApi", () => ({
+  useCommunityApi: () => ({
+    apiUrl: "https://api.test",
+    userId: "owner",
+    enabled: true,
+    getToken: m.getToken,
   }),
-  useClerk: () => ({ signOut: vi.fn().mockResolvedValue(undefined) }),
 }));
-
-const profile: UserProfile = {
-  id: "user_1",
+vi.mock("@clerk/nextjs", () => ({ useClerk: () => ({ signOut: m.signOut }) }));
+const view = {
+  id: "owner",
   name: "Alessandro",
-  email: "a@b.it",
-  avatarUrl: "https://example.com/a.png",
-  preferredLanguage: "it",
-  plan: "free",
-  stats: {
-    friends: 4,
-    followers: 6,
-    following: 2,
-    playedMatches: 12,
-    adminGroups: 3,
-    joinedGroups: 7,
-  },
+  username: "alex",
+  avatarUrl: null,
+  social: { friends: 4, followers: 6, following: 2 },
+  player: { gamesPlayed: 12, gamesWon: 3, winRate: 25 },
 };
-
-const { useProfileQueryMock, useBggAccountMock } = vi.hoisted(() => ({
-  useProfileQueryMock: vi.fn(),
-  useBggAccountMock: vi.fn(() => ({
-    account: {
-      data: {
-        active: null as BggAccountResponse["active"],
-        pending: null as BggAccountResponse["pending"],
-      },
-      isError: false,
-      refetch: vi.fn(),
-    },
-    link: { mutateAsync: vi.fn(), isPending: false },
-    sync: { mutate: vi.fn(), isPending: false },
-    unlink: { mutate: vi.fn(), isPending: false },
-  })),
-}));
-
-vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
-  resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
-  useProfileQuery: () => useProfileQueryMock(),
-  useBggAccount: () => {
-    const result = useBggAccountMock();
-    return { ...result, link: { ...result.link, mutate: result.link.mutateAsync } };
-  },
-}));
-
-describe("Profile", () => {
-  it("shows a loading state while the query is pending", () => {
-    useProfileQueryMock.mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-    renderWithI18n(<Profile />);
-    // Loading state renders a skeleton profile card (no text).
-    expect(document.querySelector('[class*="skeleton"]')).toBeTruthy();
+const active = {
+  id: 1,
+  username: "alice",
+  avatarUrl: null,
+  snapshot: "snapshot",
+  syncedAt: "2030-06-03T12:00:00Z",
+};
+const activity = {
+  id: "11111111-1111-4111-8111-111111111111",
+  kind: "played",
+  occurredAt: "2030-06-03T12:00:00Z",
+  outcome: "won",
+  context: "My Table",
+  href: "/events/11111111-1111-4111-8111-111111111111/tables/22222222-2222-4222-8222-222222222222",
+};
+let bgg: Record<string, unknown>,
+  failProfile: number,
+  failGames: number,
+  failLink: boolean,
+  failSync: boolean,
+  failFeed: boolean,
+  deferredProfile: boolean,
+  requests: ReturnType<typeof vi.fn>;
+beforeEach(() => {
+  vi.clearAllMocks();
+  useAppStore.getState().clearProfileViews();
+  m.signOut.mockResolvedValue(undefined);
+  bgg = { active: null, pending: null };
+  failProfile = 0;
+  failGames = 0;
+  failLink = false;
+  failSync = false;
+  failFeed = false;
+  deferredProfile = false;
+  requests = vi.fn(async (url: string, init?: RequestInit) => {
+    if (/\/bgg\/account$/.test(url)) {
+      if (init?.method === "DELETE") bgg = { active: null, pending: null };
+      if (init?.method === "POST") {
+        if (failLink) return Response.json({ error: "BGG user not found" }, { status: 404 });
+        const { username } = JSON.parse(String(init.body));
+        bgg = {
+          ...bgg,
+          pending: { ...active, username, status: "syncing", error: null, nextAttemptAt: null },
+          lastAttempt: { status: "syncing", at: new Date().toISOString() },
+        };
+      }
+      return Response.json(bgg);
+    }
+    if (url.includes("/bgg/account/sync")) {
+      bgg = failSync
+        ? { ...bgg, pending: null, lastAttempt: { status: "error", at: new Date().toISOString() } }
+        : {
+            active,
+            pending: null,
+            lastAttempt: { status: "success", at: new Date().toISOString() },
+          };
+      return Response.json(bgg);
+    }
+    if (url.includes("/activities?"))
+      return failFeed
+        ? Response.json({ error: "Unavailable" }, { status: 503 })
+        : Response.json({
+            items: [activity],
+            nextCursor: new URL(url).searchParams.has("cursor")
+              ? null
+              : `${activity.occurredAt}|${activity.id}`,
+          });
+    if (failGames && /\/games[/?]/.test(url))
+      return Response.json({ error: "PROFILE_NOT_FOUND" }, { status: failGames });
+    if (/\/games\/1/.test(url))
+      return Response.json({
+        game: { id: 1, name: "Chess", imageUrl: null },
+        rating: 512,
+        delta: 2,
+        stats: { gamesPlayed: 8, gamesWon: 2, winRate: 25 },
+        points: [
+          { ordinal: 1, rating: 500, delta: 0 },
+          { ordinal: 2, rating: 512, delta: 12 },
+        ],
+        nextCursor: null,
+      });
+    if (url.includes("/games?"))
+      return Response.json({ items: [{ id: 1, name: "Chess", imageUrl: null }], nextCursor: null });
+    if (deferredProfile) return new Promise<Response>(() => {});
+    return failProfile
+      ? Response.json({ error: "PROFILE_NOT_FOUND" }, { status: failProfile })
+      : Response.json({ ...view, id: url.includes("guest") ? "guest" : "owner" });
   });
-
-  it("shows an error state with retry when the query fails", () => {
-    useProfileQueryMock.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      error: new Error("HTTP 500"),
-      refetch: vi.fn(),
-    });
-    renderWithI18n(<Profile />);
-    expect(screen.getByText(/Error while loading the profile:/)).toBeTruthy();
-    expect(screen.getByText(/HTTP 500/)).toBeTruthy();
-    expect(screen.getByText("Retry")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Logout" }).className).toContain("button--danger");
+  vi.stubGlobal("fetch", requests);
+});
+afterEach(() => vi.unstubAllGlobals());
+it("keeps logout reachable while loading and exposes network failures with retry", async () => {
+  deferredProfile = true;
+  const q = renderWithI18n(<Profile />);
+  expect(q.container.querySelector(".skeleton")).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Sign out of your account" })).not.toBeNull();
+  q.unmount();
+  deferredProfile = false;
+  failProfile = 503;
+  renderWithI18n(<Profile />);
+  await screen.findByText("Could not load profile");
+  failProfile = 0;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await screen.findByText("Alessandro");
+});
+it("shows a compact identity, persistent tabs and real ordinal GLOBAL rating data", async () => {
+  renderWithI18n(<Profile />);
+  await screen.findByText("Alessandro");
+  expect(screen.getByText("@alex")).not.toBeNull();
+  expect(screen.queryByText("Plan:")).toBeNull();
+  await screen.findByText("Recent activities");
+  expect(
+    screen.getByRole("link", { name: "Game played: My Table" }).getAttribute("href"),
+  ).toContain("/tables/");
+  fireEvent.click(screen.getByRole("tab", { name: "Player" }));
+  await screen.findByText("Current rating: 512");
+  expect(screen.getByText("Last rated game change: +2")).not.toBeNull();
+  expect(screen.getByRole("img", { name: "OpenSkill rating history" })).not.toBeNull();
+  expect(screen.queryByText("2030-06-03")).toBeNull();
+  expect(screen.getByText("Win rate")).not.toBeNull();
+  expect(
+    useAppStore.getState().profileViews[JSON.stringify(["https://api.test", "owner", "owner"])]
+      ?.tab,
+  ).toBe("player");
+});
+it("quarantines all subject data after a denied child read and permits a fresh authorized retry", async () => {
+  failGames = 404;
+  renderWithI18n(<Profile userId="guest" />);
+  await screen.findByText("Alessandro");
+  fireEvent.click(screen.getByRole("tab", { name: "Player" }));
+  await screen.findByText("Profile unavailable");
+  expect(screen.queryByText("Alessandro")).toBeNull();
+  expect(screen.queryByText("Win rate")).toBeNull();
+  failGames = 0;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await screen.findByText("Alessandro");
+  await screen.findByText("Current rating: 512");
+});
+it("never fetches BGG or renders owner actions on another user's profile", async () => {
+  renderWithI18n(<Profile userId="guest" />);
+  await screen.findByText("Alessandro");
+  expect(screen.queryByText("Your BGG collection")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Sign out of your account" })).toBeNull();
+  expect(requests.mock.calls.some(([url]) => url.includes("bgg"))).toBe(false);
+});
+it.each([401, 403, 404])("does not reveal blocked/missing profile details (%s)", async (status) => {
+  failProfile = status;
+  renderWithI18n(<Profile userId="guest" />);
+  await screen.findByText("Profile unavailable");
+  expect(screen.queryByText("Alessandro")).toBeNull();
+  expect(requests.mock.calls.some(([url]) => url.includes("bgg"))).toBe(false);
+});
+it("asks only for a username, closes before verification, keeps failed input and validates blank submission", async () => {
+  failLink = true;
+  renderWithI18n(<Profile />);
+  await screen.findByText("Alessandro");
+  const sync = await screen.findByRole("button", { name: "Sync collection" });
+  fireEvent.click(sync);
+  let dialog = await screen.findByRole("dialog", { name: "BGG username" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Sync collection" }));
+  expect(within(dialog).getByText("Enter a BGG username")).not.toBeNull();
+  fireEvent.change(within(dialog).getByRole("textbox", { name: "BGG username" }), {
+    target: { value: "unknown" },
   });
-
-  it("closes the BGG form before account validation and retains its username on explicit reopening", async () => {
-    HTMLDialogElement.prototype.showModal = function () {
-      this.setAttribute("open", "");
-    };
-    HTMLDialogElement.prototype.close = function () {
-      this.removeAttribute("open");
-    };
-    useProfileQueryMock.mockReturnValue({
-      data: profile,
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    const link = vi.fn();
-    useBggAccountMock.mockReturnValue({
-      account: {
-        data: { active: null, pending: null },
-        isError: false,
-        refetch: vi.fn(),
-      },
-      link: { mutateAsync: link, isPending: false },
-      sync: { mutate: vi.fn(), isPending: false },
-      unlink: { mutate: vi.fn(), isPending: false },
-    });
-    renderWithI18n(<Profile />);
-    const linkButton = screen.getByRole("button", { name: "Sync with BoardGameGeek" });
-    expect(linkButton.className).toContain("button--primary");
-    expect(linkButton.querySelector("span")?.style.color).toBe("");
-    expect(linkButton.querySelector(".text-white")).toBeNull();
-    expect(linkButton.getAttribute("style")).toBeNull();
-    fireEvent.click(linkButton);
-    expect(screen.getByPlaceholderText("BGG username")).toBeTruthy();
-    const syncButton = screen.getByRole("button", { name: "Sync", hidden: true });
-    expect(syncButton.className).toContain("button--primary");
-    expect(syncButton.querySelector("span")?.style.color).toBe("");
-    expect(syncButton.querySelector(".text-white")).toBeNull();
-    fireEvent.change(screen.getByRole("textbox", { name: "BGG username" }), {
-      target: { value: "unknown" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Sync", hidden: true }));
-    expect(screen.queryByRole("dialog", { name: "Sync with BoardGameGeek" })).toBeNull();
-    expect(link).toHaveBeenCalledWith({ username: "unknown", synchronize: true });
-    fireEvent.click(linkButton);
-    expect((screen.getByRole("textbox", { name: "BGG username" }) as HTMLInputElement).value).toBe(
-      "unknown",
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Cancel", hidden: true }));
-  });
-
-  it("shows a muted account row and a spinner while syncing, not a message", () => {
-    useProfileQueryMock.mockReturnValue({ data: profile, isLoading: false, isError: false });
-    useBggAccountMock.mockReturnValue({
-      account: {
-        data: {
-          active: null,
-          pending: {
-            id: 41,
-            username: "alice",
-            avatarUrl: null,
-            status: "syncing",
-            error: null,
-            nextAttemptAt: null,
-          },
-        },
-        isError: false,
-        refetch: vi.fn(),
-      },
-      link: { mutateAsync: vi.fn(), isPending: false },
-      sync: { mutate: vi.fn(), isPending: false },
-      unlink: { mutate: vi.fn(), isPending: false },
-    });
-    renderWithI18n(<Profile />);
-    expect(screen.getByText("alice").closest('[aria-busy="true"]')?.className).toContain(
-      "opacity-60",
-    );
-    expect(screen.getByLabelText("Syncing BoardGameGeek collection")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Sync with BoardGameGeek" })).toBeNull();
-  });
-
-  it("shows a linked account and hides sync until confirmed unlink", () => {
-    useProfileQueryMock.mockReturnValue({ data: profile, isLoading: false, isError: false });
-    const unlink = vi.fn();
-    useBggAccountMock.mockReturnValue({
-      account: {
-        data: {
-          active: {
-            id: 41,
-            username: "alice",
-            avatarUrl: null,
-            snapshot: "snap",
-            syncedAt: "2026-09-01",
-          },
-          pending: null,
-        },
-        isError: false,
-        refetch: vi.fn(),
-      },
-      link: { mutateAsync: vi.fn(), isPending: false },
-      sync: { mutate: vi.fn(), isPending: false },
-      unlink: { mutate: unlink, isPending: false },
-    });
-    renderWithI18n(<Profile />);
-    expect(screen.getByText("alice")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Sync with BoardGameGeek" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Disconnect BoardGameGeek" }));
-    expect(screen.getByRole("dialog", { name: "Disconnect BoardGameGeek?" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Disconnect", hidden: true }));
-    expect(unlink).toHaveBeenCalledOnce();
-  });
-
-  it("renders the profile data when loaded", () => {
-    useBggAccountMock.mockReturnValue({
-      account: { data: { active: null, pending: null }, isError: false, refetch: vi.fn() },
-      link: { mutateAsync: vi.fn(), isPending: false },
-      sync: { mutate: vi.fn(), isPending: false },
-      unlink: { mutate: vi.fn(), isPending: false },
-    });
-    useProfileQueryMock.mockReturnValue({
-      data: profile,
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-    renderWithI18n(<Profile />);
-    expect(screen.getByText("Alessandro")).toBeTruthy();
-    expect(screen.getByText("a@b.it")).toBeTruthy();
-    for (const label of [
-      "Friends: 4",
-      "Followers: 6",
-      "Following: 2",
-      "Matches played: 12",
-      "Admin groups: 3",
-      "Joined groups: 7",
-    ])
-      expect(screen.getByRole("group", { name: label })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Sync with BoardGameGeek" })).toBeTruthy();
-    const logo = screen.getByRole("img", { name: "Powered by BoardGameGeek" });
-    const logout = screen.getByRole("button", { name: "Logout" });
-    expect(logo.compareDocumentPosition(logout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(logout.className).toContain("button--danger");
-    expect(logout.className).toContain("justify-center");
-    expect(logout.querySelector("svg")?.style.color).toBe("");
-    expect(logout.querySelector("span")?.style.color).toBe("");
-    expect(logout.querySelector(".text-white")).toBeNull();
-    expect(logout.style.backgroundColor).toBe("");
-    expect(logo.closest('[data-theme="light"]')?.className).toContain("bg-surface");
-    expect(
-      screen.getByRole("group", { name: "Friends: 4" }).querySelector(".min-w-5"),
-    ).toBeTruthy();
-  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Sync collection" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await screen.findByText(
+    "Could not synchronize BGG collection. Your previous collection is retained.",
+  );
+  expect(
+    JSON.parse(String(requests.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body)),
+  ).toEqual({ username: "unknown" });
+  fireEvent.click(sync);
+  dialog = await screen.findByRole("dialog", { name: "BGG username" });
+  expect((within(dialog).getByRole("textbox") as HTMLInputElement).value).toBe("unknown");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+});
+it("retains successful collection metadata across a failed real sync and confirms unlink", async () => {
+  bgg = { active, pending: null };
+  failSync = true;
+  renderWithI18n(<Profile />);
+  await screen.findByText("alice");
+  expect(
+    screen.getByRole("link", { name: "Powered by BGG — open BoardGameGeek" }).getAttribute("href"),
+  ).toBe("https://boardgamegeek.com");
+  fireEvent.click(screen.getByRole("button", { name: "Sync collection" }));
+  await screen.findByText(
+    "Could not synchronize BGG collection. Your previous collection is retained.",
+  );
+  expect(screen.getByText("alice")).not.toBeNull();
+  expect(screen.getByText("Last successful sync")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Disconnect BoardGameGeek" }));
+  const dialog = await screen.findByRole("dialog", { name: "Disconnect BoardGameGeek?" });
+  expect(requests.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Disconnect" }));
+  await waitFor(() => expect(screen.queryByText("alice")).toBeNull());
+});
+it("clears prior mutation errors when a later confirmed unlink succeeds", async () => {
+  bgg = { active, pending: null };
+  failLink = true;
+  renderWithI18n(<Profile />);
+  await screen.findByText("alice");
+  fireEvent.click(screen.getByRole("button", { name: "Sync collection" }));
+  await screen.findByText(
+    "Could not synchronize BGG collection. Your previous collection is retained.",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Disconnect BoardGameGeek" }));
+  const dialog = await screen.findByRole("dialog", { name: "Disconnect BoardGameGeek?" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Disconnect" }));
+  await waitFor(() => expect(screen.queryByText("alice")).toBeNull());
+  expect(
+    screen.queryByText(
+      "Could not synchronize BGG collection. Your previous collection is retained.",
+    ),
+  ).toBeNull();
+});
+it("confirms logout, leaves cancellation untouched and preserves the observable failure path", async () => {
+  m.signOut.mockRejectedValueOnce(new Error("unavailable"));
+  renderWithI18n(<Profile />);
+  const logout = screen.getByRole("button", { name: "Sign out of your account" });
+  fireEvent.click(logout);
+  let dialog = await screen.findByRole("dialog", { name: "Sign out of your account?" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  expect(m.signOut).not.toHaveBeenCalled();
+  fireEvent.click(logout);
+  dialog = await screen.findByRole("dialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Sign out" }));
+  await screen.findByText("Could not sign out. Try again.");
+  fireEvent.click(logout);
+  dialog = await screen.findByRole("dialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Sign out" }));
+  await waitFor(() => expect(m.signOut).toHaveBeenLastCalledWith({ redirectUrl: "/" }));
+});
+it("source-pages activities by ten and keeps failures separate from an empty feed", async () => {
+  failFeed = true;
+  renderWithI18n(<ProfileActivities userId="owner" />);
+  await screen.findByText("Could not load activities");
+  expect(screen.queryByText("No activities yet")).toBeNull();
+  failFeed = false;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await screen.findByRole("link", { name: "Game played: My Table" });
+  const read = requests.mock.calls.find(([url]) => url.includes("/activities?"));
+  expect(new URL(String(read?.[0])).searchParams.get("limit")).toBe("10");
 });

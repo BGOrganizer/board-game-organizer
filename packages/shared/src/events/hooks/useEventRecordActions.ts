@@ -180,6 +180,10 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       refetchType: "active",
     });
     void client.invalidateQueries({ ...notificationFilters(owner), refetchType: "active" });
+    void client.invalidateQueries({
+      queryKey: ["profile", owner.apiUrl, owner.userId],
+      refetchType: "active",
+    });
   }
   function complete(context: Awaited<ReturnType<typeof begin>> | undefined) {
     if (!context?.operation.active) return;

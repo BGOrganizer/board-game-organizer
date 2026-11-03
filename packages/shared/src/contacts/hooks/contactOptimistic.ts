@@ -112,6 +112,51 @@ export function optimisticPeopleSocialData(
   });
 }
 
+/** Rebase profile counters with the same social intent; never expose a known-blocked profile. */
+export function optimisticProfileSocialData(
+  key: QueryKey,
+  data: unknown,
+  action: ContactAction,
+  variables: ContactMutationVariables,
+  currentUserId?: string | null,
+): unknown {
+  if (!data || typeof data !== "object") return data;
+  const subject = key.length === 3 ? currentUserId : key[4];
+  if (action === "block" && subject === variables.targetUserId) return null;
+  if (key[3] === "activities" && action === "block" && "pages" in data && Array.isArray(data.pages))
+    return {
+      ...data,
+      pages: data.pages.map((page: { items?: Array<{ href?: string | null }> }) => ({
+        ...page,
+        items: page.items?.filter((item) => item.href !== `/profiles/${variables.targetUserId}`),
+      })),
+    };
+  if (key.length !== 3 && key[3] !== "view") return data;
+  if (subject !== currentUserId && subject !== variables.targetUserId) return data;
+  const row = data as { social?: Record<string, number>; stats?: Record<string, number> };
+  const field = row.social ? "social" : "stats",
+    stats = row[field];
+  if (!stats || typeof stats.friends !== "number") return data;
+  const before = variables.targetUser,
+    after = optimisticContactUser(before, action);
+  const following = Number(Boolean(after.isFollowing)) - Number(Boolean(before.isFollowing));
+  const followers =
+    Number(action === "block" ? false : Boolean(after.isFollower)) -
+    Number(Boolean(before.isFollower));
+  const friends = Number(Boolean(after.isFriend)) - Number(Boolean(before.isFriend));
+  const own = subject === currentUserId;
+  const counters = {
+    friends: Math.max(0, stats.friends + friends),
+    followers: Math.max(0, stats.followers + (own ? followers : following)),
+    following: Math.max(0, stats.following + (own ? following : followers)),
+  };
+  return {
+    ...data,
+    [field]: { ...stats, ...counters },
+    ...(field === "social" && row.stats ? { stats: { ...row.stats, ...counters } } : {}),
+  };
+}
+
 /** Applies one deterministic social action to any cached contacts view. */
 export function optimisticContactData(
   queryKey: QueryKey,

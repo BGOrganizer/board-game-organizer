@@ -344,19 +344,31 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
           ? `person:${row.userId}`
           : `${"adminUserId" in row && "type" in row ? "group" : "invitee"}:${row.id}`,
     );
+    const losingProfileAccess =
+      action === "delete_group" ||
+      (personId === options.userId &&
+        ["leave_group", "remove_group_member", "decline_group_invitation"].includes(action));
     const operation = await beginOptimisticOperation(
       client,
       [...root, id || "new", ...lane],
       {
-        queryKey: root,
-        predicate: (query) => query.queryKey[3] === "list" || query.queryKey[4] === id,
+        predicate: (query) =>
+          query.queryKey[1] === options.apiUrl &&
+          query.queryKey[2] === options.userId &&
+          ((query.queryKey[0] === "groups" &&
+            (query.queryKey[3] === "list" || query.queryKey[4] === id)) ||
+            (losingProfileAccess &&
+              query.queryKey[0] === "profile" &&
+              query.queryKey[3] === "activities")),
       },
       (data, key) =>
-        action === "delete_group" && id && key[3] === "list"
+        losingProfileAccess && id && key[0] === "profile"
           ? removeDeletedGroupData(data, id, new Set())
-          : ["list", "detail", "invitees", "people"].includes(String(key[3]))
-            ? guarded.change(data, key)
-            : data,
+          : action === "delete_group" && id && key[3] === "list"
+            ? removeDeletedGroupData(data, id, new Set())
+            : ["list", "detail", "invitees", "people"].includes(String(key[3]))
+              ? guarded.change(data, key)
+              : data,
       [],
       (key) => {
         // A rejected write alone does not imply lost read access. A fresh denial
@@ -410,6 +422,10 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
   ) {
     const owner = context?.owner ?? options;
     void client.invalidateQueries({ ...notificationFilters(owner), refetchType: "active" });
+    void client.invalidateQueries({
+      queryKey: ["profile", owner.apiUrl, owner.userId],
+      refetchType: "active",
+    });
     void client.invalidateQueries(
       {
         queryKey: groupRecordKeys.root(owner),
@@ -726,7 +742,8 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
           const key = query.queryKey;
           if (key[1] !== owner.apiUrl || key[2] !== owner.userId) return false;
           if (key[0] === "groups") return key[3] === "list" || key[4] === deleted.id;
-          if (key[0] === "notifications") return true;
+          if (key[0] === "notifications" || (key[0] === "profile" && key[3] === "activities"))
+            return true;
           if (key[0] !== "events" && key[0] !== "tables") return false;
           if (key[3] === "list") {
             const filters = key[4];
@@ -767,6 +784,10 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         }
       });
       // Acknowledged deletion already reconciles cached rows; refresh remaining lists in background.
+      void client.invalidateQueries({
+        queryKey: ["profile", owner.apiUrl, owner.userId],
+        refetchType: "active",
+      });
       void client.invalidateQueries({
         predicate: (query) =>
           owned.predicate(query) &&

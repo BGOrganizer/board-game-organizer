@@ -153,7 +153,8 @@ organizations, and events across web and native mobile clients.
 Implemented product areas:
 
 - Clerk authentication on web and mobile.
-- Profile display and logout.
+- Authenticated, block-aware [Profiles](docs/profiles.md), source-authorized future-only activities,
+  unified statistics, GLOBAL OpenSkill progression and confirmed owner logout (acceptance incomplete).
 - Social graph: follows, friend requests, friendships, blocks, user search, presence, and
   contact-based suggestions.
 - Shareable invites with seven-day expiry and authenticated claim flow.
