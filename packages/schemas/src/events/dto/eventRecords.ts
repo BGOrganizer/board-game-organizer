@@ -4,7 +4,6 @@ import type { CommunityPageResponse } from "../../community/dto/communityRespons
 import type { BggSearchItem } from "../../games/dto/boardGames";
 import { verifiedLocationSchema } from "../../locations/models/locations";
 import type { MatchGameRating } from "../../matches/dto/matches";
-import { scoreSchema, tieBreakSchema } from "../../ratings/models/results";
 import {
   type EventRecord,
   type EventVote,
@@ -16,6 +15,7 @@ import {
   type TableRecord,
   type TableRegistration,
   tableRegistrationSchema,
+  tableResultDraftSchema,
 } from "../models/eventRecord";
 
 const zoneSchema = z
@@ -213,16 +213,14 @@ export const decideTableRegistrationSchema = z.discriminatedUnion("action", [
     .strict(),
 ]);
 export type DecideTableRegistrationInput = z.infer<typeof decideTableRegistrationSchema>;
-export const tableResultsInputSchema = z
-  .object({
-    tableId: z.uuid(),
-    lowerWins: z.boolean(),
-    entries: z
-      .array(z.object({ userId: targetUserIdSchema, score: scoreSchema.nullable() }).strict())
-      .min(1),
-    tieBreaks: z.array(tieBreakSchema),
-  })
-  .strict();
+export const tableResultsInputSchema = tableResultDraftSchema.extend({ tableId: z.uuid() });
+export const saveTableResultSchema = tableResultDraftSchema.extend({
+  version: z.number().int().positive(),
+});
+export type SaveTableResultInput = z.infer<typeof saveTableResultSchema>;
+export const finalizeSavedEventSchema = z.object({ version: z.number().int().positive() }).strict();
+export type FinalizeSavedEventInput = z.infer<typeof finalizeSavedEventSchema>;
+export type SaveTableResultResponse = { event: PlannedEventResponse; table: PlannedTableResponse };
 export type TableResultsInput = z.infer<typeof tableResultsInputSchema>;
 export const finalizeEventSchema = z
   .object({
@@ -240,6 +238,8 @@ export interface PlannedEventCapabilities {
   canConfirm: boolean;
   canReplan: boolean;
   canFinalize: boolean;
+  /** Authoritative readiness; older cached responses require a detail refresh. */
+  resultsReady?: boolean;
 }
 export type PlannedEventResponse = Omit<
   EventRecord,
@@ -308,6 +308,8 @@ export type EventSchedulePreview = {
 };
 export type PlannedTableResponse = TableRecord & {
   eventName: string;
+  /** Parent epoch at this authorized Table read; absent on historical cache entries. */
+  eventVersion?: number;
   /** Missing on older cached responses; no per-card parent requests are required. */
   eventSchedule?: EventSchedulePreview;
   /** Optional for cached responses predating the list metadata projection. */

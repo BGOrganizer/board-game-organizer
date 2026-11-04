@@ -57,11 +57,13 @@ it("preserves exact decimal ties and uses explicit table draft confirmation, not
   expect(screen.queryByText("a@example.test")).toBeNull();
   expect(screen.queryByRole("button", { name: "Back to tables" })).toBeNull();
   expect(screen.getByRole("button", { name: "Resolve tie" })).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Use table scores" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save result" }));
   const dialog = screen.getByRole("dialog");
-  expect(dialog.textContent).toContain("Nothing is saved until you finalize the whole event.");
+  expect(dialog.textContent).toContain(
+    "Ratings and statistics update only when the event is finalized.",
+  );
   expect(submit).not.toHaveBeenCalled();
-  fireEvent.click(within(dialog).getByRole("button", { name: "Use table scores" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save result" }));
   expect(submit).toHaveBeenCalledWith({
     lowerWins: false,
     entries: [
@@ -98,10 +100,8 @@ it("allows all-ND tables and prevents incomplete/repeated submissions", () => {
       onSubmit={submit}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Use table scores" }));
-  fireEvent.click(
-    within(screen.getByRole("dialog")).getByRole("button", { name: "Use table scores" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Save result" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Save result" }));
   expect(submit).toHaveBeenCalledWith({
     lowerWins: false,
     entries: [
@@ -113,9 +113,9 @@ it("allows all-ND tables and prevents incomplete/repeated submissions", () => {
 });
 it("requires every frozen player entry and disables editing while mutation is pending", () => {
   renderWithI18n(<TableScoreEditor players={players} busy onSubmit={vi.fn()} />);
-  expect(
-    (screen.getByRole("button", { name: "Use table scores" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+  expect((screen.getByRole("button", { name: "Save result" }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
   expect((screen.getByRole("button", { name: "Score: Alice" }) as HTMLButtonElement).disabled).toBe(
     true,
   );

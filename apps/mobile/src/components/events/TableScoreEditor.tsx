@@ -38,6 +38,7 @@ function ScoreInput({
       <Typography className="text-foreground">{t("Score")}</Typography>
       <Input
         accessibilityLabel={`${t("Score")}: ${name}`}
+        testID={`table-score-input-${row.userId}`}
         placeholder={t("Enter a score")}
         keyboardType={Platform.OS === "android" ? "numeric" : "numbers-and-punctuation"}
         editable={!row.notParticipated}
@@ -248,6 +249,7 @@ export function TableScoreEditor({
                   isIconOnly
                   size="sm"
                   accessibilityLabel={`${t("Score")}: ${player.name}`}
+                  testID={`table-score-open-${player.id}`}
                   isDisabled={busy}
                   onPress={() => setScoreId(id)}
                 >
@@ -269,12 +271,13 @@ export function TableScoreEditor({
       />
       <View style={{ padding: 16, paddingBottom: insets.bottom + 16 }}>
         <Button
+          testID="table-save-result"
           isDisabled={!preview.valid || busy || Boolean(editing) || Boolean(scoreId)}
           onPress={() =>
             onSubmit({ lowerWins, entries: preview.entries, tieBreaks: preview.tieBreaks })
           }
         >
-          <Button.Label>{t("Use table scores")}</Button.Label>
+          <Button.Label>{t("Save result")}</Button.Label>
         </Button>
       </View>
       <BottomSheet

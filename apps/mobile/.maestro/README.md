@@ -167,6 +167,29 @@ real recipient/creator/moderator identities. Their required inputs are documente
 in file headers. They are not silently skipped or represented by canonical reports.
 Do not claim these scenarios passed without their own real runtime evidence.
 
+## Provisional Table results — manual, mutating
+
+`21-table-results.yaml` and web `e2e/table-results.config.ts` are explicitly outside canonical
+suites/jobs. They **save scores and irreversibly finalize an owned disposable Event**; never run
+against Production. Verify the APK/web API target first. Supply an authenticated administrator,
+selected `RESULTS_LOCALE` (`en`/`it`), `RESULTS_EVENT_ID`, `RESULTS_TABLE_ID`,
+`RESULTS_EXCLUDED_TABLE_ID`, and `RESULTS_FIXTURE_ACK=owned-unfinalized-development-event`.
+The confirmed fixture must contain exactly one included, unsaved two-player Table and one excluded
+Table, with distinct mirrored player names and no blocking; every run needs a fresh fixture.
+The scenario never seeds/resets data or bypasses consent. Real score inputs/navigation actions have
+stable test IDs; no synthetic visibility markers or animation overrides are introduced.
+
+Native additionally requires `RESULTS_BUILD_ACK=owned-preview-build`, `RESULTS_EVENT_NAME`,
+`RESULTS_TABLE_NAME`, `RESULTS_EXCLUDED_NAME`, `RESULTS_PLAYER_1_ID`, `RESULTS_PLAYER_2_ID`.
+It checks excluded-action absence, saves, restarts without clearing authentication, reloads/edits
+saved scores, then finalizes from the Event header and opens immutable Results.
+Web additionally requires `RESULTS_API_URL`, `E2E_EMAIL` and Development Clerk test keys:
+`pnpm --filter web exec playwright test --config e2e/table-results.config.ts`.
+It checks cancellation, persistence/editing across reload, unchanged player statistics before
+finalization, excluded Table non-contribution, and updated statistics after finalization.
+Missing/invalid inputs fail. Syntax/discovery/helper checks are not authenticated/device acceptance;
+repeat actual runtime review in both locales/themes and with enlarged text.
+
 ## Evidence
 
 YAML parsing and source-policy tests validate structure, not product acceptance.

@@ -23,7 +23,8 @@ it("owns date/location votes on event and game votes only on accepted table regi
 });
 it("keeps manual agreement confirmation/replanning independent of cutoff and terminal result editing", () => {
   const event = source("EventDetail");
-  for (const cap of ["canConfirm", "canReplan", "canFinalize"]) expect(event).toContain(cap);
+  for (const cap of ["canConfirm", "canReplan"]) expect(event).toContain(cap);
+  expect(source("EventFinalizeAction")).toContain("canFinalize");
   expect(event).toContain(
     "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended.",
   );

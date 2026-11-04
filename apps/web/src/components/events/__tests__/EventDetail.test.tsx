@@ -248,13 +248,20 @@ it("keeps one usable date/location independently and still allows switching Yes 
     ).toBe(true),
   );
 });
-it("puts confirmed-owner result registration in the header and icon-only replan in a bottom-right secondary FAB", async () => {
-  event = { ...event, status: "CONFIRMED", canEdit: false, canReplan: true, canFinalize: true };
+it("puts confirmed-owner finalization in the header and icon-only replan in a bottom-right secondary FAB", async () => {
+  event = {
+    ...event,
+    status: "CONFIRMED",
+    canEdit: false,
+    canReplan: true,
+    canFinalize: true,
+    resultsReady: true,
+  };
   mount();
-  const register = await screen.findByRole("link", { name: "Register results" });
-  expect(document.getElementById("page-header-actions")?.contains(register)).toBe(true);
-  expect(register.textContent).toBe("");
-  expect(register.querySelector("svg.lucide-clipboard-pen-line")).not.toBeNull();
+  const finalize = await screen.findByRole("button", { name: "Finalize event" });
+  expect(document.getElementById("page-header-actions")?.contains(finalize)).toBe(true);
+  expect(finalize.textContent).toBe("");
+  expect(finalize.querySelector("svg.lucide-flag")).not.toBeNull();
   const reopen = screen.getByRole("button", { name: "Reopen planning" });
   expect(reopen.className).toContain("fixed");
   expect(reopen.className).toContain("right-4");
@@ -267,8 +274,8 @@ it("puts confirmed-owner result registration in the header and icon-only replan 
       .querySelector("svg.lucide-rotate-ccw"),
   ).not.toBeNull();
 });
-it("blocks confirmed header navigation while only cached summary data is available, then enables the same link", async () => {
-  event = { ...event, status: "CONFIRMED", canEdit: false, canFinalize: true };
+it("blocks header finalization while only cached summary data is available, then enables confirmed server readiness", async () => {
+  event = { ...event, status: "CONFIRMED", canEdit: false, canFinalize: true, resultsReady: true };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(eventRecordKeys.list({ apiUrl: "https://api.test", userId: "owner" }), {
     pages: [{ items: [event], nextCursor: null }],
@@ -284,14 +291,14 @@ it("blocks confirmed header navigation while only cached summary data is availab
       : original(url, init),
   );
   mount(client);
-  const link = await screen.findByRole("link", { name: "Register results" });
-  expect(fireEvent.click(link)).toBe(false);
+  const button = await screen.findByRole("button", { name: "Finalize event" });
+  expect((button as HTMLButtonElement).disabled).toBe(true);
   await act(async () => {
     resolve(new Response(JSON.stringify(event)));
   });
-  await waitFor(() => expect(link.getAttribute("aria-disabled")).toBe("false"));
-  document.addEventListener("click", (e) => e.preventDefault(), { once: true });
-  fireEvent.click(link);
+  await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(button);
+  expect(screen.getByRole("dialog").textContent).toContain("immutable together");
 });
 it("never exposes confirmed owner header/FAB actions to another viewer through inconsistent capabilities", async () => {
   event = {
@@ -475,7 +482,7 @@ it("retries uncached event and table failures instead of turning them into empty
 it("honors a results-only capability without showing an unavailable planning action", async () => {
   event = { ...event, status: "CONFIRMED", canReplan: false, canFinalize: true };
   mount();
-  expect(await screen.findByRole("link", { name: "Register results" })).not.toBeNull();
+  expect(await screen.findByRole("button", { name: "Finalize event" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Reopen planning" })).toBeNull();
 });
 it("confirms manually, permits replan after cutoff, and keeps failed transitions actionable", async () => {
@@ -500,9 +507,8 @@ it("confirms manually, permits replan after cutoff, and keeps failed transitions
   };
   mount();
   expect(await screen.findByRole("link", { name: "Open group: Our group" })).not.toBeNull();
-  expect(screen.getByRole("link", { name: "Register results" }).getAttribute("href")).toContain(
-    "/results",
-  );
+  expect(screen.getByRole("button", { name: "Finalize event" })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Register results" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Reopen planning" }));
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));

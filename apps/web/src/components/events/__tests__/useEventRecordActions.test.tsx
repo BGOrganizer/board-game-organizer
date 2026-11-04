@@ -472,20 +472,7 @@ it("marks current Table rankings stale after finalization without refetching unr
   );
   const q = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
   await act(async () => {
-    await q.result.current.finalize.mutateAsync({
-      version: 1,
-      results: [
-        {
-          tableId,
-          lowerWins: false,
-          entries: [
-            { userId: "owner", score: null },
-            { userId: "guest", score: null },
-          ],
-          tieBreaks: [],
-        },
-      ],
-    });
+    await q.result.current.finalize.mutateAsync({ version: 1 });
   });
   expect(client.getQueryState(owned)?.isInvalidated).toBe(true);
   expect(client.getQueryState(foreign)?.isInvalidated).toBe(false);

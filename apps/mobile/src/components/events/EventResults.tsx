@@ -1,115 +1,99 @@
 import { communityAccessDenied, useEventResultsForm } from "@board-game-organizer/shared";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
-import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Flag } from "lucide-react-native";
 import { useCallback } from "react";
-import { BackHandler, FlatList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BackHandler, View } from "react-native";
 import { HeaderBackButton, headerBackOptions } from "@/components/common/layout/HeaderBackButton";
-import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
-import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { EventResultTableCard } from "./EventResultTableCard";
 import { TableScoreEditor } from "./TableScoreEditor";
-export function EventResults({ eventId }: { eventId: string }) {
+export function EventResults({ eventId, tableId }: { eventId: string; tableId: string }) {
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
-    insets = useSafeAreaInsets(),
-    f = useEventResultsForm(o, eventId),
-    event = communityAccessDenied(f.event.error) ? undefined : f.event.data;
-  const accentForeground = useThemeColor("accent-foreground");
+    f = useEventResultsForm(o, eventId, tableId);
+  const denied = communityAccessDenied(f.event.error) || communityAccessDenied(f.table.error),
+    busy = f.actions.busy || f.checking;
   useFocusEffect(
     useCallback(() => {
-      if (!f.selected) return;
-      const listener = BackHandler.addEventListener("hardwareBackPress", () => {
-        if (!f.actions.busy) f.close();
-        return true;
-      });
+      const listener = BackHandler.addEventListener("hardwareBackPress", () => f.actions.busy);
       return () => listener.remove();
-    }, [f.selected, f.actions.busy, f.close]),
+    }, [f.actions.busy]),
   );
-  const screenHeader = (
-    <Stack.Screen
-      options={{
-        title: f.selected ? t("Register Table Result") : t("Register Tables Results"),
-        ...headerBackOptions(() => router.back()),
-        ...(f.selected
-          ? {
-              headerLeft: () => (
-                <HeaderBackButton
-                  label={t("Back to tables")}
-                  disabled={f.actions.busy}
-                  onPress={f.close}
-                />
-              ),
-            }
-          : {}),
-      }}
-    />
-  );
-  const tableError = f.table.isError ? (
-    <View style={{ gap: 8 }}>
-      <Typography accessibilityRole="alert" className="text-danger">
-        {t("Could not load table")}
-      </Typography>
-      <Button onPress={() => void f.table.refetch()}>
-        <Button.Label>{t("Try again")}</Button.Label>
-      </Button>
-    </View>
-  ) : null;
-  const finish = () => {
-    if (f.finalize()) router.dismissTo({ pathname: "/event/[eventId]", params: { eventId } });
-  };
-  if (!event)
-    return (
-      <View style={{ padding: 20 }}>
-        {screenHeader}
-        {f.event.isPending ? (
-          <Skeleton style={{ width: "100%", height: 160, borderRadius: 12 }} />
-        ) : (
+  return (
+    <View style={{ flex: 1 }}>
+      <Stack.Screen
+        options={{
+          title: t("Register result"),
+          ...headerBackOptions(() => router.back()),
+          headerLeft: () => (
+            <HeaderBackButton
+              label={t("Back")}
+              disabled={f.actions.busy}
+              onPress={() => router.back()}
+            />
+          ),
+        }}
+      />
+      <View style={{ gap: 12, padding: 20 }}>
+        {!denied && f.table.data ? (
+          <Typography accessibilityRole="header" className="font-semibold text-foreground">
+            {f.table.data.name}
+          </Typography>
+        ) : null}
+        {f.event.isError || f.table.isError ? (
           <>
             <Typography accessibilityRole="alert" className="text-danger">
-              {t("Could not load event")}
+              {t("Could not load table")}
             </Typography>
-            <Button onPress={() => void f.event.refetch()}>
+            <Button
+              onPress={() => {
+                void f.event.refetch();
+                void f.table.refetch();
+              }}
+            >
               <Button.Label>{t("Try again")}</Button.Label>
             </Button>
           </>
-        )}
-      </View>
-    );
-  if (!event.canFinalize && !f.actions.busy)
-    return (
-      <Typography accessibilityRole="alert" className="text-danger">
-        {t("Only an authorized organizer can finalize a confirmed event.")}
-      </Typography>
-    );
-  if (f.selected)
-    return f.playersReady ? (
-      <>
-        {screenHeader}
-        {tableError}
-        <TableScoreEditor
-          key={f.selected}
-          players={f.players}
-          initial={f.scores[f.selected]}
-          busy={f.actions.busy}
-          onSubmit={f.save}
-        />
-      </>
-    ) : (
-      <View style={{ padding: 20, gap: 12 }}>
-        {screenHeader}
-        {tableError}
-        {f.table.isPending || f.seats.isPending ? (
+        ) : null}
+        {f.event.data &&
+        f.table.data &&
+        !f.event.isError &&
+        !f.table.isError &&
+        !f.allowed &&
+        !denied ? (
+          <Typography accessibilityRole="alert" className="text-danger">
+            {t("Only an authorized organizer can record results for an included confirmed table.")}
+          </Typography>
+        ) : null}
+        {f.allowed ? (
+          <Typography className="text-muted">
+            {t(
+              "Saved scores remain editable. Ratings and statistics update only when the event is finalized.",
+            )}
+          </Typography>
+        ) : null}
+        {f.checking ? (
+          <Typography accessibilityLiveRegion="polite" className="text-foreground">
+            {t("Checking saved changes")}
+          </Typography>
+        ) : null}
+        {f.conflict ? (
+          <Typography accessibilityRole="alert" className="text-danger">
+            {t("This event changed. Go back and reopen the editor before saving.")}
+          </Typography>
+        ) : null}
+        {f.error ? (
+          <Typography accessibilityRole="alert" className="text-danger">
+            {t("Could not save table result")}
+          </Typography>
+        ) : null}
+        {!f.playersReady && f.loading ? (
           <Skeleton style={{ width: "100%", height: 160, borderRadius: 12 }} />
         ) : null}
-        {f.seats.isError ? (
+        {f.allowed && (f.seats.isError || f.playersIncomplete) ? (
           <>
             <Typography accessibilityRole="alert" className="text-danger">
               {t("Could not load players")}
@@ -119,7 +103,7 @@ export function EventResults({ eventId }: { eventId: string }) {
             </Button>
           </>
         ) : null}
-        {f.seats.hasNextPage ? (
+        {f.allowed && f.seats.hasNextPage ? (
           <Button
             isDisabled={f.seats.isFetchingNextPage}
             onPress={() => void f.seats.fetchNextPage()}
@@ -128,105 +112,18 @@ export function EventResults({ eventId }: { eventId: string }) {
           </Button>
         ) : null}
       </View>
-    );
-  return (
-    <View style={{ flex: 1 }}>
-      {screenHeader}
-      <FlatList
-        data={f.included}
-        keyExtractor={(row) => row.id}
-        onEndReached={() => {
-          if (
-            f.tables.hasNextPage &&
-            !f.tables.isFetchingNextPage &&
-            !f.tables.isFetchNextPageError
-          )
-            void f.tables.fetchNextPage({ cancelRefetch: false });
-        }}
-        onEndReachedThreshold={0.5}
-        contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 24 }}
-        ListHeaderComponent={
-          <View style={{ gap: 12 }}>
-            <SearchHelpLabel
-              label={t("Tables list")}
-              helpTitle={t("Field help")}
-              help={t(
-                "Record results for every table to finalize the event. Finalization is irreversible. All-ND tables do not change ratings or statistics.",
-              )}
-            />
-            {f.checking ? (
-              <Typography accessibilityLiveRegion="polite" className="text-foreground">
-                {t("Checking saved changes")}
-              </Typography>
-            ) : null}
-            {f.conflict ? (
-              <Typography accessibilityRole="alert" className="text-danger">
-                {t("This event changed. Go back and reopen the editor before saving.")}
-              </Typography>
-            ) : null}
-          </View>
-        }
-        renderItem={({ item }) => (
-          <EventResultTableCard
-            table={item}
-            ready={f.isScoreCurrent(item.id)}
-            busy={f.actions.busy}
-            onPress={() => f.open(item.id)}
-          />
-        )}
-        ListFooterComponent={
-          <View style={{ gap: 12 }}>
-            {f.tables.isPending ? (
-              <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
-            ) : null}
-            {f.tables.isError ? (
-              <>
-                <Typography accessibilityRole="alert" className="text-danger">
-                  {t("Could not load tables")}
-                </Typography>
-                <Button onPress={() => void f.tables.refetch()}>
-                  <Button.Label>{t("Try again")}</Button.Label>
-                </Button>
-              </>
-            ) : null}
-            {f.tables.hasNextPage ? (
-              <Button
-                isDisabled={f.tables.isFetchingNextPage}
-                onPress={() => void f.tables.fetchNextPage()}
-              >
-                <Button.Label>{t("Load more tables")}</Button.Label>
-              </Button>
-            ) : null}
-          </View>
-        }
-      />
-      <View style={{ padding: 20, paddingBottom: insets.bottom + 16 }}>
-        <Button isDisabled={!f.ready || f.actions.busy} onPress={() => f.setConfirm(true)}>
-          <Flag size={18} color={accentForeground} accessible={false} />
-          <Button.Label>{t("Finalize event")}</Button.Label>
-        </Button>
-      </View>
-      {f.confirm ? (
-        <ConfirmDialog
-          title={t("Finalize event?")}
-          description={t("Results and ratings for all included tables become immutable together.")}
-          busy={f.actions.busy}
-          onCancel={() => f.setConfirm(false)}
-          actions={[
-            {
-              label: t("Finalize event"),
-              variant: "primary",
-              icon: <Flag size={16} color={accentForeground} accessible={false} />,
-              onPress: () => void finish(),
-            },
-          ]}
-        >
-          {f.error ? (
-            <Typography accessibilityRole="alert" className="text-danger">
-              {t("Could not verify event finalization. Refresh the event before retrying.")}
-            </Typography>
-          ) : null}
-        </ConfirmDialog>
+      {f.playersReady && !denied ? (
+        <TableScoreEditor
+          key={tableId}
+          players={f.players}
+          initial={f.initial}
+          busy={busy || f.conflict}
+          onSubmit={(input) =>
+            f.save(input, () =>
+              router.dismissTo({ pathname: "/event/table", params: { eventId, tableId } }),
+            )
+          }
+        />
       ) : null}
     </View>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import type { FinalizeEventInput } from "@board-game-organizer/schemas";
+import type { SaveTableResultInput } from "@board-game-organizer/schemas";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useClientMutationDraft } from "../../common/hooks/useClientMutationDraft";
 import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
@@ -8,61 +9,69 @@ import type { TableScoreInput } from "../tableScoreForm";
 import { useEventRecordActions } from "./useEventRecordActions";
 import {
   eventRecordKeys,
-  useEventRecord,
-  useRecordTable,
-  useRecordTables,
+  eventRecordQuery,
+  recordTableQuery,
   useTableSeats,
 } from "./useEventRecords";
-export function useEventResultsForm(options: CommunityApiOptions, eventId: string) {
-  const event = useEventRecord(options, eventId),
-    tables = useRecordTables(options, eventId),
+
+export function useEventResultsForm(
+  options: CommunityApiOptions,
+  eventId: string,
+  tableId: string,
+) {
+  // Review one matching parent/Table epoch; separately cached snapshots can belong to different confirmations.
+  const event = useQuery({ ...eventRecordQuery(options, eventId), staleTime: 0 }),
+    table = useQuery({ ...recordTableQuery(options, eventId, tableId), staleTime: 0 }),
+    seats = useTableSeats(options, eventId, tableId),
     actions = useEventRecordActions(options, eventId);
-  const draft = useClientMutationDraft<FinalizeEventInput>(
-    [...eventRecordKeys.mutation(options, eventId), "finalize"],
+  const draft = useClientMutationDraft<{ tableId: string; input: SaveTableResultInput }>(
+    [...eventRecordKeys.mutation(options, eventId), "save-result"],
     communityAccessDenied(event.error) || event.isPlaceholderData ? undefined : event.data?.version,
+    (variables) => variables?.tableId === tableId,
   );
-  const recovered = draft?.variables;
-  const scope = JSON.stringify([options.apiUrl, options.userId, eventId]);
-  const [owner, setOwner] = useState(scope),
-    [selected, setSelected] = useState<string | null>(null),
-    [scores, setScores] = useState<Record<string, TableScoreInput>>(() =>
-      Object.fromEntries(
-        (recovered?.results ?? []).map(({ tableId, ...score }) => [tableId, score]),
-      ),
-    ),
-    [scoreVersions, setScoreVersions] = useState<Record<string, number>>(() =>
-      Object.fromEntries(
-        (recovered?.results ?? []).map((row) => [row.tableId, recovered?.version ?? 0]),
-      ),
-    ),
-    [baseVersion, setBaseVersion] = useState<number | null>(recovered?.version ?? null),
-    [confirm, setConfirm] = useState(false);
-  const submitted = useRef(false);
-  const sameOwner = owner === scope;
+  const scope = JSON.stringify([options.apiUrl, options.userId, eventId, tableId]);
+  const [base, setBase] = useState<{ scope: string; version: number } | null>(() =>
+    event.data && table.data?.eventVersion === event.data.version
+      ? { scope, version: event.data.version }
+      : null,
+  );
+  const currentScope = useRef(scope),
+    submitted = useRef(false);
+  currentScope.current = scope;
   useEffect(() => {
-    if (owner === scope) return;
-    setOwner(scope);
-    setSelected(null);
-    setScores({});
-    setScoreVersions({});
-    setBaseVersion(null);
-    setConfirm(false);
-    submitted.current = false;
-  }, [owner, scope]);
-  const table = useRecordTable(
-      { ...options, enabled: options.enabled !== false && sameOwner && !!selected },
-      eventId,
-      sameOwner ? (selected ?? "") : "",
-    ),
-    seats = useTableSeats(
-      { ...options, enabled: options.enabled !== false && sameOwner && !!selected },
-      eventId,
-      sameOwner ? (selected ?? "") : "",
-    );
-  const included = tables.items.filter((row) => Boolean(row.confirmed));
-  const currentScores = sameOwner ? scores : {};
-  const isScoreCurrent = (id: string) =>
-    Boolean(sameOwner && scores[id] && scoreVersions[id] === event.data?.version);
+    if (
+      (!base || base.scope !== scope) &&
+      event.data &&
+      table.data &&
+      !event.isPlaceholderData &&
+      !table.isPlaceholderData &&
+      table.data.eventVersion === event.data.version &&
+      !communityAccessDenied(event.error) &&
+      !communityAccessDenied(table.error)
+    ) {
+      setBase({ scope, version: event.data.version });
+      submitted.current = false;
+    }
+  }, [
+    base,
+    scope,
+    event.data,
+    table.data,
+    event.isPlaceholderData,
+    table.isPlaceholderData,
+    event.isFetching,
+    table.isFetching,
+    event.error,
+    table.error,
+  ]);
+  const allowed = Boolean(
+    event.data?.adminUserId === options.userId &&
+      event.data?.status === "CONFIRMED" &&
+      event.data.canFinalize &&
+      table.data?.confirmed &&
+      !communityAccessDenied(event.error) &&
+      !communityAccessDenied(table.error),
+  );
   const players = (table.data?.confirmed?.playerIds ?? []).flatMap((id) => {
     const person = seats.items.find((row) => row.userId === id);
     return person
@@ -77,71 +86,78 @@ export function useEventResultsForm(options: CommunityApiOptions, eventId: strin
         ]
       : [];
   });
-  const ready = Boolean(
-    sameOwner &&
-      included.length &&
-      !tables.hasNextPage &&
-      !tables.isPending &&
-      !tables.isError &&
-      included.every((row) => isScoreCurrent(row.id)) &&
-      event.data?.canFinalize &&
-      baseVersion === event.data.version &&
-      draft?.phase !== "saving" &&
-      draft?.phase !== "verifying",
+  const conflict = Boolean(
+    (base?.scope === scope && event.data && base.version !== event.data.version) ||
+      (allowed &&
+        event.data &&
+        table.data &&
+        !event.isFetching &&
+        !table.isFetching &&
+        table.data.eventVersion !== event.data.version),
   );
-  const open = (id: string) => {
-    if (!sameOwner || !event.data) return;
-    // Opening/reviewing a current frozen roster is explicit; old Table drafts keep
-    // their own version and all must be reviewed again after an Event change.
-    setBaseVersion(event.data.version);
-    setSelected(id);
-  };
-  const save = (input: TableScoreInput) => {
-    if (!selected || !sameOwner || !event.data || baseVersion === null) return;
-    setScores((old) => ({ ...old, [selected]: input }));
-    setScoreVersions((old) => ({ ...old, [selected]: baseVersion }));
-    setSelected(null);
-  };
-  const finalize = () => {
-    if (submitted.current || !ready || !event.data || actions.busy) return false;
+  const checking =
+    draft?.variables?.tableId === tableId &&
+    (draft.phase === "saving" || draft.phase === "verifying");
+  const recovered = draft?.variables?.tableId === tableId ? draft.variables.input : undefined;
+  const playersReady = Boolean(
+    allowed &&
+      base?.scope === scope &&
+      players.length === table.data?.confirmed?.playerIds.length &&
+      !seats.isError &&
+      !table.isPlaceholderData,
+  );
+  const save = (input: TableScoreInput, onSaved: () => void) => {
+    if (
+      !playersReady ||
+      !base ||
+      base.scope !== scope ||
+      conflict ||
+      submitted.current ||
+      actions.busy ||
+      checking ||
+      event.isPlaceholderData ||
+      table.isPlaceholderData
+    )
+      return;
     submitted.current = true;
-    actions.finalize.mutate({
-      version: baseVersion ?? event.data.version,
-      results: included.map((row) => ({ tableId: row.id, ...scores[row.id] })),
-    });
-    setConfirm(false);
-    return true;
+    actions.saveResult.mutate(
+      { tableId, input: { ...input, version: base.version } },
+      {
+        onSuccess: () => {
+          if (currentScope.current === scope) onSaved();
+        },
+        onSettled: () => {
+          if (currentScope.current === scope) submitted.current = false;
+        },
+      },
+    );
   };
   return {
     event,
-    tables,
-    selected: sameOwner ? selected : null,
     table,
     seats,
     players,
-    included,
-    scores: currentScores,
-    isScoreCurrent,
-    ready,
     actions,
-    error: draft?.phase === "failed",
-    checking: draft?.phase === "verifying",
-    confirm: sameOwner && confirm,
-    setConfirm,
-    open,
+    allowed,
+    conflict,
+    checking,
     save,
-    close: () => setSelected(null),
-    finalize,
-    playersReady: Boolean(
-      table.data?.confirmed &&
-        !communityAccessDenied(table.error) &&
-        players.length === table.data.confirmed.playerIds.length &&
-        !seats.isError,
+    initial: recovered?.version === event.data?.version ? recovered : table.data?.resultDraft,
+    error: draft?.phase === "failed",
+    playersReady,
+    loading: Boolean(
+      event.isPending ||
+        table.isPending ||
+        (allowed && !playersReady && (seats.isPending || table.isFetching || event.isFetching)),
     ),
-    conflict: Boolean(
-      sameOwner &&
-        event.data &&
-        Object.keys(scores).some((id) => scoreVersions[id] !== event.data.version),
+    playersIncomplete: Boolean(
+      allowed &&
+        base?.scope === scope &&
+        !playersReady &&
+        !seats.isPending &&
+        !seats.hasNextPage &&
+        !seats.isError &&
+        !table.isFetching,
     ),
   };
 }

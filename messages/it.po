@@ -5606,3 +5606,41 @@ msgstr "Terminati"
 
 msgid "Clear selected game"
 msgstr "Azzera gioco selezionato"
+
+msgid "Register result"
+msgstr "Registra Risultato"
+
+msgid "Save result"
+msgstr "Salva risultato"
+
+msgid "Save result?"
+msgstr "Salvare il risultato?"
+
+msgid "Only an authorized organizer can record results for an included confirmed table."
+msgstr "Solo l'amministratore autorizzato può registrare il risultato di un tavolo confermato e incluso nell'evento."
+
+msgid "This event changed. Close this confirmation and review the saved results."
+msgstr "Questo evento è cambiato. Chiudi questa conferma e ricontrolla i risultati salvati."
+
+msgid "Why finalization is unavailable"
+msgstr "Perché la finalizzazione non è disponibile"
+
+msgid "Save results for every included table before finalizing. Excluded tables do not require results."
+msgstr "Salva i risultati di tutti i tavoli inclusi prima di finalizzare. I tavoli esclusi non richiedono risultati."
+
+msgid "Saved scores remain editable. Ratings and statistics update only when the event is finalized."
+msgstr "I punteggi salvati restano modificabili. Classifiche e statistiche si aggiornano solo alla finalizzazione dell'evento."
+
+msgid "Could not save table result"
+msgstr "Impossibile salvare il risultato del tavolo"
+
+msgid "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended. Confirming again discards saved provisional scores."
+msgstr "Voti, inviti e priorità della lista d'attesa vengono mantenuti. La scadenza delle iscrizioni non viene estesa. Una nuova conferma elimina i punteggi provvisori salvati."
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.save_table_result.success"
+msgstr "Risultato del tavolo salvato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.save_table_result.error"
+msgstr "Impossibile salvare il risultato del tavolo"

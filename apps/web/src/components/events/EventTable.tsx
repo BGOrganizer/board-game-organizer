@@ -7,6 +7,8 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { ClipboardPenLine } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -35,6 +37,23 @@ export function EventTable({
   const header =
     table && event.data ? (
       <HeaderActions>
+        {event.data.adminUserId === o.userId &&
+        event.data.status === "CONFIRMED" &&
+        event.data.canFinalize &&
+        table.eventStatus === "CONFIRMED" &&
+        table.confirmed ? (
+          <Link
+            href={`/events/${eventId}/tables/${tableId}/results`}
+            aria-label={t`Register result`}
+            aria-disabled={q.isPlaceholderData || event.isPlaceholderData}
+            onClick={(e) => {
+              if (q.isPlaceholderData || event.isPlaceholderData) e.preventDefault();
+            }}
+            className="button button--primary button--icon-only size-9 min-h-9 min-w-9"
+          >
+            <ClipboardPenLine className="size-5" aria-hidden />
+          </Link>
+        ) : null}
         <EventDeleteAction
           event={event.data}
           table={table}

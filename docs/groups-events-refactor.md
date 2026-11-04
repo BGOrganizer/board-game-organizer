@@ -424,9 +424,11 @@ there are no repeated identical notifications or player reminders to change vote
 
 ## Results, lists and transport
 
-- Confirm/reopen-planning dialog actions have semantic icons. In confirmed Events the organizer's
-  icon-only result-registration action lives in the app header; reopen planning is a bottom-right,
-  secondary icon-only FAB. Existing capabilities, busy/version guards and exact cutoffs remain.
+- Confirm/reopen-planning dialog actions have semantic icons. In confirmed Events the administrator's
+  icon-only Finalize event action lives in the app header, top right. It requires saved results for
+  every included frozen Table; excluded Tables never require results. Registration lives only in the
+  included confirmed Table's detail header and remains administrator-only. Reopen planning stays a
+  bottom-right, secondary icon-only FAB. Capabilities, busy/version guards and exact cutoffs remain.
 - An included confirmed Table shows a schedule card immediately below Settings, also retained in
   terminated history. Date/time comes from its frozen confirmation snapshot, formatted readably in
   the Event venue's time zone; duration belongs only to the selected game, never the longest proposal
@@ -447,15 +449,24 @@ there are no repeated identical notifications or player reminders to change vote
   with Selected game and its normal game row, then Ranking and current player cards. Its game
   cannot be overridden by a query parameter. Navigation revalidates cache-first; a changed-game response
   never populates the wrong cache key and retry refreshes only the owned Table metadata.
-- Result registration keeps per-Table unsaved drafts within one Event workflow. The list header is
-  Register Tables Results; each Table editor uses Register Table Result. Cards reuse stable artwork,
-  identity and frozen player counts; completed drafts show a success check at artwork bottom-right.
-  Tables list help explains all-table completion, irreversible finalization and all-ND non-contribution.
+- Result registration opens one Table editor titled Register result / Registra Risultato. Save result
+  persists provisional `resultDraft` scores on that Table, with the complete frozen roster, exact
+  decimals/ND, lower-wins and tie-break validation. Only the Event administrator can read/write these
+  provisional scores; they never populate immutable `results`, ratings, statistics, activities or
+  finalization notifications. Saves remain editable and survive navigation/restart. Event version
+  checks serialize saves against concurrent saves, replanning and finalization; stale editors must
+  reopen and explicitly review the current roster. Table reads expose their parent Event epoch;
+  editors never combine a Table snapshot from one confirmation with another Event version.
+  The finalization dialog captures API/user/Event identity and version when opened; changed data
+  requires a new explicit review/confirmation. Duplicate submissions and uncertain-outcome replay
+  remain blocked without trapping navigation. A new confirmation discards previous provisional
+  scores, including those on newly excluded Tables. No server Event planning drafts are introduced.
+  Table-detail registration is absent for excluded, planning and terminated Tables and non-admins;
+  direct requests enforce the same authorization. Finalization reads saved scores on the server,
+  not a client-supplied whole-event score bundle, and commits all included Tables atomically.
   Finalization and its confirmation share a terminal-state icon. Back belongs only to the app header
-  (and native hardware Back), not a duplicate editor/body button. Selected-editor Back returns to the
-  list without discarding other Table drafts; web list Back uses ordinary route history. No server Event drafts
-  or independent per-Table result writes are introduced. Score inputs have a localized placeholder
-  on both clients. Native score-input focus first registers the keyboard target, then explicitly
+  (and native hardware Back), not a duplicate editor/body button. Score inputs have a localized
+  placeholder on both clients. Native score-input focus first registers the keyboard target, then explicitly
   calls the sheet's public `snapToPosition("80%")` method. A provided 80% snap point and `extend`
   keep keyboard events on that detent instead of `fillParent` forcing full height. `restore` handles
   keyboard dismissal, and the top safe-area inset bounds expansion. Android keeps its existing resize mode. Local drafts and automatic content sizing stay

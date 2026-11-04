@@ -26,6 +26,7 @@ export const COMMUNITY_FEEDBACK_MESSAGES = {
   },
   delete_event: { success: "Event deleted", error: "Could not delete event" },
   delete_table: { success: "Table deleted", error: "Could not delete table" },
+  save_table_result: { success: "Table result saved", error: "Could not save table result" },
   finalize_event: {
     success: "Event results registered",
     error: "Could not register event results",

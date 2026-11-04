@@ -87,6 +87,7 @@ export function TableScoreEditor({
   };
   const submit = () => {
     if (!preview.valid || busy || editingTie || scoreEditor) return;
+    setConfirm(false);
     onSubmit({ lowerWins, entries: preview.entries, tieBreaks: preview.tieBreaks });
   };
   const closeScore = (id: string) => {
@@ -364,16 +365,16 @@ export function TableScoreEditor({
           isDisabled={!preview.valid || busy || Boolean(editingTie) || Boolean(scoreEditor)}
           onPress={() => setConfirm(true)}
         >
-          {t`Use table scores`}
+          {t`Save result`}
         </Button>
       </div>
       {confirm && (
         <ContactConfirmDialog
-          title={t`Use table scores?`}
-          description={t`These are draft scores. Nothing is saved until you finalize the whole event.`}
+          title={t`Save result?`}
+          description={t`Saved scores remain editable. Ratings and statistics update only when the event is finalized.`}
           busy={busy}
           onCancel={() => setConfirm(false)}
-          actions={[{ label: t`Use table scores`, onPress: submit }]}
+          actions={[{ label: t`Save result`, onPress: submit }]}
         />
       )}
     </div>

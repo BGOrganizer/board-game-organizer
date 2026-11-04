@@ -13,15 +13,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import {
-  ArrowLeft,
-  CalendarCheck,
-  Check,
-  ClipboardPenLine,
-  Dices,
-  Pencil,
-  RotateCcw,
-} from "lucide-react";
+import { ArrowLeft, CalendarCheck, Check, Dices, Pencil, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
@@ -41,6 +33,7 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailsCard } from "./EventDetailsCard";
+import { EventFinalizeAction } from "./EventFinalizeAction";
 import { EventGroupLink } from "./EventGroupLink";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
@@ -150,19 +143,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             </div>
           </HeaderActions>
         ) : null}
-        {event.adminUserId === o.userId && event.status === "CONFIRMED" && event.canFinalize ? (
+        {event.adminUserId === o.userId && event.status === "CONFIRMED" ? (
           <HeaderActions>
-            <Link
-              href={`/events/${event.id}/results`}
-              aria-label={t`Register results`}
-              aria-disabled={a.busy || q.isPlaceholderData}
-              onClick={(e) => {
-                if (a.busy || q.isPlaceholderData) e.preventDefault();
-              }}
-              className="button button--primary button--icon-only size-9 min-h-9 min-w-9"
-            >
-              <ClipboardPenLine className="size-4" aria-hidden />
-            </Link>
+            <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
           </HeaderActions>
         ) : null}
         <EventDetailsCard event={event} />
@@ -379,7 +362,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             description={
               confirm === "confirm"
                 ? t`Only agreed tables and accepted players are frozen. Other tables and invitations are retained but excluded.`
-                : t`Votes, invitations and waiting priorities are retained. The booking cutoff is not extended.`
+                : t`Votes, invitations and waiting priorities are retained. The booking cutoff is not extended. Confirming again discards saved provisional scores.`
             }
             busy={a.busy}
             onCancel={() => setConfirm(null)}

@@ -246,6 +246,22 @@ export function useRecordTables(
   );
   return { ...q, items };
 }
+export function recordTableQuery(o: CommunityApiOptions, id: string, table: string) {
+  return queryOptions({
+    queryKey: eventRecordKeys.table(o, id, table),
+    queryFn: ({ signal }) =>
+      communityRequest<PlannedTableResponse>(
+        o,
+        `events/${encodeURIComponent(id)}/tables/${encodeURIComponent(table)}`,
+        "GET",
+        undefined,
+        signal,
+      ),
+    enabled: enabled(o) && Boolean(id && table),
+    staleTime: 30_000,
+    gcTime: 30 * 60_000,
+  });
+}
 export function useRecordTable(o: CommunityApiOptions, id: string, table: string) {
   const client = useQueryClient();
   const cached = client
@@ -261,18 +277,7 @@ export function useRecordTable(o: CommunityApiOptions, id: string, table: string
     )
     .find(({ row }) => row.id === table && row.eventId === id);
   const q = useQuery({
-    queryKey: eventRecordKeys.table(o, id, table),
-    queryFn: ({ signal }) =>
-      communityRequest<PlannedTableResponse>(
-        o,
-        `events/${encodeURIComponent(id)}/tables/${encodeURIComponent(table)}`,
-        "GET",
-        undefined,
-        signal,
-      ),
-    enabled: enabled(o) && Boolean(id && table),
-    staleTime: 30_000,
-    gcTime: 30 * 60_000,
+    ...recordTableQuery(o, id, table),
     ...(cached
       ? cached.row.gameVoteCounts &&
         (cached.row.eventStatus !== "TERMINATED" || cached.row.resultProfiles)

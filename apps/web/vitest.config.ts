@@ -127,6 +127,12 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/components/events/{EventResults,EventFinalizeAction}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/events/{EventResultTableCard,EventTableResults,EventTableLeaderboard,EventPlayerCard,EventJoinSheet}.tsx":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "../../packages/shared/src/events/hooks/{useTableLeaderboard,useEventJoinForm}.ts": {

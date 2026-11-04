@@ -15,14 +15,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import {
-  CalendarCheck,
-  Check,
-  ClipboardPenLine,
-  Dices,
-  Pencil,
-  RotateCcw,
-} from "lucide-react-native";
+import { CalendarCheck, Check, Dices, Pencil, RotateCcw } from "lucide-react-native";
 import { useRef, useState } from "react";
 import { FlatList, type ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -43,6 +36,7 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailsCard } from "./EventDetailsCard";
+import { EventFinalizeAction } from "./EventFinalizeAction";
 import { EventGroupLink } from "./EventGroupLink";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
@@ -117,25 +111,8 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               </Button>
               <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
             </View>
-          ) : event?.adminUserId === o.userId &&
-            event?.status === "CONFIRMED" &&
-            event.canFinalize ? (
-            <Button
-              {...headerButtonProps}
-              variant="primary"
-              hitSlop={4}
-              accessibilityLabel={t("Register results")}
-              isDisabled={a.busy || q.isPlaceholderData}
-              onPress={() =>
-                router.push({ pathname: "/event/results", params: { eventId: event.id } })
-              }
-            >
-              <ClipboardPenLine
-                size={HEADER_ICON_SIZE}
-                color={accentForeground}
-                accessible={false}
-              />
-            </Button>
+          ) : event?.adminUserId === o.userId && event?.status === "CONFIRMED" ? (
+            <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
           ) : null,
       }}
     />
@@ -437,7 +414,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                       "Only agreed tables and accepted players are frozen. Other tables and invitations are retained but excluded.",
                     )
                   : t(
-                      "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended.",
+                      "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended. Confirming again discards saved provisional scores.",
                     )
               }
               busy={a.busy}

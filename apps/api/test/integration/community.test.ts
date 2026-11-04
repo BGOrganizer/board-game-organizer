@@ -1803,6 +1803,113 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     }
     return group;
   }
+  it("saves admin-only provisional Table results without ratings or activities, excludes unconfirmed Tables and finalizes saved scores only", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id),
+      includedId = input.tables[0].id!,
+      excludedId = randomUUID();
+    input.tables.push({ ...input.tables[0], id: excludedId, name: "Excluded empty Table" });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OWNER, GUEST]) {
+      await transaction((s) => s.plannedEventService.register(user, event.id, includedId));
+      await voteYes(event.id, user, includedId);
+    }
+    let current = await confirm(event.id);
+    const scores = {
+      lowerWins: false,
+      entries: [
+        { userId: OWNER, score: "2" },
+        { userId: GUEST, score: "1" },
+      ],
+      tieBreaks: [],
+    };
+    const beforeActivities = await db
+      .collection(COLLECTIONS.PROFILE_ACTIVITIES)
+      .countDocuments({ eventId: event.id });
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.saveResult(GUEST, event.id, includedId, {
+          ...scores,
+          version: current.version,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.saveResult(OWNER, event.id, excludedId, {
+          ...scores,
+          version: current.version,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_CONFIRMED" });
+    let saved = await transaction((s) =>
+      s.plannedEventService.saveResult(OWNER, event.id, includedId, {
+        ...scores,
+        version: current.version,
+      }),
+    );
+    expect(saved.event).toMatchObject({ status: "CONFIRMED", resultsReady: true });
+    expect(
+      (await services().plannedEventService.tableDetail(OWNER, event.id, includedId)).resultDraft,
+    ).toEqual(scores);
+    expect(
+      (await services().plannedEventService.tableDetail(GUEST, event.id, includedId)).resultDraft,
+    ).toBeUndefined();
+    expect(
+      await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ eventId: event.id }),
+    ).toBe(0);
+    expect(
+      await db.collection(COLLECTIONS.PROFILE_ACTIVITIES).countDocuments({ eventId: event.id }),
+    ).toBe(beforeActivities);
+    expect(
+      await db.collection(COLLECTIONS.EVENT_TABLES).findOne({ id: includedId }),
+    ).not.toHaveProperty("results");
+    await transaction((s) =>
+      s.plannedEventService.transition(OWNER, event.id, {
+        action: "replan",
+        version: saved.event.version,
+      }),
+    );
+    current = await confirm(event.id);
+    expect(
+      (await services().plannedEventService.tableDetail(OWNER, event.id, includedId)).resultDraft,
+    ).toBeUndefined();
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.finalize(OWNER, event.id, { version: current.version }),
+      ),
+    ).rejects.toMatchObject({ code: "EVERY_INCLUDED_TABLE_RESULT_REQUIRED" });
+    saved = await transaction((s) =>
+      s.plannedEventService.saveResult(OWNER, event.id, includedId, {
+        ...scores,
+        version: current.version,
+      }),
+    );
+    const ended = await transaction((s) =>
+      s.plannedEventService.finalize(OWNER, event.id, { version: saved.event.version }),
+    );
+    expect(ended.status).toBe("TERMINATED");
+    const table = await db.collection(COLLECTIONS.EVENT_TABLES).findOne({ id: includedId });
+    expect(table).toHaveProperty("results");
+    expect(table).not.toHaveProperty("resultDraft");
+    expect(
+      await db.collection(COLLECTIONS.EVENT_TABLES).findOne({ id: excludedId }),
+    ).not.toHaveProperty("results");
+    expect(
+      await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ eventId: event.id }),
+    ).toBeGreaterThan(0);
+    expect(
+      await db.collection(COLLECTIONS.PROFILE_ACTIVITIES).countDocuments({ eventId: event.id }),
+    ).toBeGreaterThan(beforeActivities);
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.saveResult(OWNER, event.id, includedId, {
+          ...scores,
+          version: ended.version,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "EVENT_NOT_CONFIRMED" });
+  });
   it("source-filters lifecycle chips together with literal names before Event/Table cursors without granting Group access", async () => {
     const group = await privateGroup(),
       cases = [

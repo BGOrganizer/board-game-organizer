@@ -1,4 +1,4 @@
-import { finalizeEventSchema } from "@board-game-organizer/schemas";
+import { finalizeSavedEventSchema } from "@board-game-organizer/schemas";
 import { communityBody, communityId, runRecordOperation } from "@/app/lib/community/record-http";
 import { emptyRecordQuery, recordQuery } from "@/app/lib/community/record-query";
 import { corsOptions } from "@/app/lib/cors";
@@ -9,7 +9,7 @@ export function POST(request: Request, context: { params: Promise<{ eventId: str
     return events.finalize(
       userId,
       communityId((await context.params).eventId),
-      await communityBody(request, finalizeEventSchema),
+      await communityBody(request, finalizeSavedEventSchema),
     );
   });
 }

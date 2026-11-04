@@ -1,5 +1,5 @@
-import { EventResults } from "@/components/events/EventResults";
+import { redirect } from "next/navigation";
 export default async function Page({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
-  return <EventResults eventId={eventId} />;
+  redirect(`/events/${encodeURIComponent(eventId)}`);
 }

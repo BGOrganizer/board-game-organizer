@@ -290,6 +290,122 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     confirm,
   };
 }
+async function resultFixture() {
+  const f = setup("PRIVATE"),
+    created = await f.create();
+  const event = { ...f.events.get(created.id)!, status: "CONFIRMED" as const, version: 10 };
+  f.events.set(event.id, event);
+  const included = {
+    ...f.tables.get(id)!,
+    confirmed: { gameId: 1, playerIds: [owner, guest], startsAt: "2027-01-03T09:00:00Z" },
+  };
+  f.tables.set(id, included);
+  f.tables.set(other, { ...included, id: other, order: 1, confirmed: undefined });
+  f.notifications.notifyMany.mockClear();
+  return { ...f, event };
+}
+const draftScores = () => ({
+  lowerWins: false,
+  entries: [
+    { userId: owner, score: "2" },
+    { userId: guest, score: "1" },
+  ],
+  tieBreaks: [],
+});
+it("persists editable admin-only provisional scores, ignores excluded tables, then finalizes saved results atomically", async () => {
+  const f = await resultFixture();
+  await expect(f.service.finalize(owner, f.event.id, { version: 10 })).rejects.toMatchObject({
+    message: "EVERY_INCLUDED_TABLE_RESULT_REQUIRED",
+  });
+  expect((await f.service.detail(owner, f.event.id)).resultsReady).toBe(false);
+  const saved = await f.service.saveResult(owner, f.event.id, id, {
+    ...draftScores(),
+    version: 10,
+  });
+  expect(saved.event).toMatchObject({ status: "CONFIRMED", version: 11, resultsReady: true });
+  expect(saved.table.resultDraft).toEqual(draftScores());
+  expect(f.tables.get(id)?.results).toBeUndefined();
+  expect(f.ratings.applyTableResult).not.toHaveBeenCalled();
+  expect(f.notifications.notifyMany).not.toHaveBeenCalled();
+  expect((await f.service.tableDetail(guest, f.event.id, id)).resultDraft).toBeUndefined();
+  const edited = { ...draftScores(), lowerWins: true };
+  await f.service.saveResult(owner, f.event.id, id, { ...edited, version: 11 });
+  const ended = await f.service.finalize(owner, f.event.id, { version: 12 });
+  expect(ended.status).toBe("TERMINATED");
+  expect(f.tables.get(id)?.results).toMatchObject({
+    lowerWins: true,
+    entries: expect.arrayContaining([expect.objectContaining({ userId: guest, rank: 1 })]),
+  });
+  expect(f.tables.get(id)?.resultDraft).toBeUndefined();
+  expect(f.tables.get(other)?.results).toBeUndefined();
+  expect(f.ratings.applyTableResult).toHaveBeenCalledOnce();
+  await expect(
+    f.service.saveResult(owner, f.event.id, id, { ...edited, version: ended.version }),
+  ).rejects.toMatchObject({ message: "EVENT_NOT_CONFIRMED" });
+});
+it("rejects non-admin, excluded, stale and malformed provisional result writes without side effects", async () => {
+  const f = await resultFixture(),
+    input = { ...draftScores(), version: 10 };
+  await expect(f.service.saveResult(guest, f.event.id, id, input)).rejects.toMatchObject({
+    message: "EVENT_ADMIN_REQUIRED",
+  });
+  await expect(f.service.saveResult(owner, f.event.id, other, input)).rejects.toMatchObject({
+    message: "TABLE_NOT_CONFIRMED",
+  });
+  await expect(
+    f.service.saveResult(owner, f.event.id, id, { ...input, version: 9 }),
+  ).rejects.toMatchObject({ message: "EVENT_CHANGED" });
+  await expect(
+    f.service.saveResult(owner, f.event.id, id, { ...input, entries: [input.entries[0]] }),
+  ).rejects.toMatchObject({ message: "RESULTS_REQUIRE_EVERY_PLAYER_ONCE" });
+  await expect(
+    f.service.saveResult(owner, f.event.id, id, {
+      ...input,
+      tieBreaks: [{ score: "2", orderedUserIds: [owner, guest] }],
+    }),
+  ).rejects.toMatchObject({ message: "INVALID_TIE_BREAK" });
+  f.repo.table.mockResolvedValueOnce(null);
+  await expect(f.service.saveResult(owner, f.event.id, id, input)).rejects.toMatchObject({
+    message: "TABLE_NOT_FOUND",
+  });
+  const stored = f.tables.get(id);
+  if (!stored) throw new Error("Missing included Table fixture");
+  f.repo.table.mockResolvedValueOnce({ ...stored, eventId: other });
+  await expect(f.service.saveResult(owner, f.event.id, id, input)).rejects.toMatchObject({
+    message: "TABLE_NOT_FOUND",
+  });
+  f.tables.set(id, {
+    ...stored,
+    results: {
+      ...draftScores(),
+      entries: [
+        { userId: owner, score: "2", rank: 1 },
+        { userId: guest, score: "1", rank: 2 },
+      ],
+      finalizedAt: "2027-01-03T10:00:00Z",
+    },
+  });
+  await expect(f.service.saveResult(owner, f.event.id, id, input)).rejects.toMatchObject({
+    message: "TABLE_RESULTS_IMMUTABLE",
+  });
+  expect(f.tables.get(id)?.resultDraft).toBeUndefined();
+  expect(f.events.get(f.event.id)?.version).toBe(10);
+  expect(f.ratings.applyTableResult).not.toHaveBeenCalled();
+});
+it("does not finalize when one of several included tables lacks a saved result", async () => {
+  const f = await resultFixture();
+  f.tables.set(other, { ...f.tables.get(other)!, confirmed: f.tables.get(id)!.confirmed });
+  const saved = await f.service.saveResult(owner, f.event.id, id, {
+    ...draftScores(),
+    version: 10,
+  });
+  expect(saved.event.resultsReady).toBe(false);
+  await expect(f.service.finalize(owner, f.event.id, { version: 11 })).rejects.toMatchObject({
+    message: "EVERY_INCLUDED_TABLE_RESULT_REQUIRED",
+  });
+  expect(f.ratings.applyTableResult).not.toHaveBeenCalled();
+  expect(f.tables.get(id)?.results).toBeUndefined();
+});
 it("projects only own source seats into Event summaries, matching Table reads without persisting positions", async () => {
   const f = setup(),
     event = await f.create();

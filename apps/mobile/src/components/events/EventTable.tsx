@@ -4,12 +4,15 @@ import {
   useEventRecord,
   useRecordTable,
 } from "@board-game-organizer/shared";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
+import { ClipboardPenLine } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
@@ -31,7 +34,9 @@ export function EventTable({
   const t = useT(),
     o = useCommunityApi(),
     q = useRecordTable(o, eventId, tableId),
-    event = useEventRecord(o, eventId);
+    event = useEventRecord(o, eventId),
+    router = useRouter(),
+    foreground = useThemeColor("accent-foreground");
   const [tab, setTab] = useState("overview");
   const table =
     communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
@@ -41,11 +46,31 @@ export function EventTable({
         title: table?.name ?? t("Table details"),
         headerRight: () =>
           table && event.data ? (
-            <EventDeleteAction
-              event={event.data}
-              table={table}
-              disabled={q.isPlaceholderData || event.isPlaceholderData}
-            />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              {event.data.adminUserId === o.userId &&
+              event.data.status === "CONFIRMED" &&
+              event.data.canFinalize &&
+              table.eventStatus === "CONFIRMED" &&
+              table.confirmed ? (
+                <Button
+                  {...headerButtonProps}
+                  variant="primary"
+                  accessibilityLabel={t("Register result")}
+                  testID="table-register-result"
+                  isDisabled={q.isPlaceholderData || event.isPlaceholderData}
+                  onPress={() =>
+                    router.push({ pathname: "/event/results", params: { eventId, tableId } })
+                  }
+                >
+                  <ClipboardPenLine size={HEADER_ICON_SIZE} color={foreground} accessible={false} />
+                </Button>
+              ) : null}
+              <EventDeleteAction
+                event={event.data}
+                table={table}
+                disabled={q.isPlaceholderData || event.isPlaceholderData}
+              />
+            </View>
           ) : null,
       }}
     />

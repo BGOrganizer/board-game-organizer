@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { clientRequestIdSchema, targetUserIdSchema } from "../../common/dto/common";
 import { verifiedLocationSchema } from "../../locations/models/locations";
-import { resultsSchema } from "../../ratings/models/results";
+import { resultsSchema, scoreSchema, tieBreakSchema } from "../../ratings/models/results";
 
 export const eventStateSchema = z.enum(["PLANNING", "CONFIRMED", "TERMINATED"]);
 export const eventVoteSchema = z.enum(["UNKNOWN", "YES", "NO", "IF_NEEDED"]);
@@ -48,6 +48,16 @@ export const tableGameOptionSchema = z
     durationSource: z.enum(["BGG", "MANUAL"]).optional(),
   })
   .strict();
+// Provisional scores never populate immutable results or rating/statistics readers.
+export const tableResultDraftSchema = z
+  .object({
+    lowerWins: z.boolean(),
+    entries: z
+      .array(z.object({ userId: targetUserIdSchema, score: scoreSchema.nullable() }).strict())
+      .min(1),
+    tieBreaks: z.array(tieBreakSchema),
+  })
+  .strict();
 export const tableRecordSchema = z
   .object({
     id: z.uuid(),
@@ -69,6 +79,7 @@ export const tableRecordSchema = z
       })
       .strict()
       .optional(),
+    resultDraft: tableResultDraftSchema.optional(),
     results: resultsSchema.optional(),
     removedAt: z.iso.datetime({ offset: true }).optional(),
     createdAt: z.iso.datetime({ offset: true }),

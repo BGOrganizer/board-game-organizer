@@ -6,10 +6,12 @@ import type {
   DecideTableRegistrationInput,
   DeletedPlannedEventResponse,
   DeletePlannedRecordInput,
-  FinalizeEventInput,
+  FinalizeSavedEventInput,
   JoinTableInput,
   PlannedEventResponse,
   PlannedTableResponse,
+  SaveTableResultInput,
+  SaveTableResultResponse,
   TableInviteeResponse,
   TableRegistration,
   TableRegistrationReceipt,
@@ -1033,12 +1035,72 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
+  const saveResult = useMutation({
+    mutationKey: [...mutationKey, "save-result"],
+    gcTime: 30 * 60_000,
+    scope,
+    networkMode: "always",
+    mutationFn: (variables: { tableId: string; input: SaveTableResultInput }, context) =>
+      write<SaveTableResultResponse>(
+        `events/${id}/tables/${variables.tableId}/results`,
+        "PUT",
+        variables.input,
+        context,
+        variables,
+      ),
+    onMutate: ({ tableId, input }) => {
+      const { version: _version, ...resultDraft } = input;
+      return begin("save_table_result", (row) =>
+        "games" in row && row.id === tableId ? { ...row, resultDraft } : row,
+      );
+    },
+    onSuccess: (value, variables, context) => {
+      if (!context?.operation.active) return;
+      if (
+        value.event.id !== context.eventId ||
+        value.table.id !== variables.tableId ||
+        value.table.eventId !== context.eventId ||
+        value.table.eventVersion !== value.event.version
+      )
+        throw new Error("MUTATION_READ_UNVERIFIED");
+      notifyManager.batch(() => {
+        for (const [key] of client.getQueriesData({
+          queryKey: eventRecordKeys.root(context.owner),
+          predicate: (q) => q.queryKey[3] === "table" || q.queryKey[3] === "tables",
+        }))
+          updateOptimisticBase(client, key, (data) =>
+            mapCommunityCache<PlannedTableResponse>(data, (row) =>
+              row.id === value.table.id &&
+              row.eventId === context.eventId &&
+              (row.eventVersion ?? 0) <= (value.table.eventVersion ?? 0) &&
+              row.updatedAt <= value.table.updatedAt
+                ? value.table
+                : row,
+            ),
+          );
+        eventReceiptSuccess(value.event, variables, context);
+      });
+    },
+    onError: (e, _v, c) => failure(e, c),
+    onSettled: (_data, _error, _input, context) => {
+      if (context?.operation.signal.aborted) return;
+      void client.invalidateQueries(
+        {
+          queryKey: eventRecordKeys.root(context?.owner ?? o),
+          predicate: (q) =>
+            ["list", "detail", "table", "tables"].includes(String(q.queryKey[3])) &&
+            affected(q.queryKey, context?.eventId ?? id),
+        },
+        { cancelRefetch: false },
+      );
+    },
+  });
   const finalize = useMutation({
     mutationKey: [...mutationKey, "finalize"],
     gcTime: 30 * 60_000,
     scope,
     networkMode: "always",
-    mutationFn: (input: FinalizeEventInput, context) =>
+    mutationFn: (input: FinalizeSavedEventInput, context) =>
       write<PlannedEventResponse>(`events/${id}/results`, "POST", input, context),
     onMutate: () =>
       begin("finalize_event", (row) =>
@@ -1069,6 +1131,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     invite,
     respond,
     transition,
+    saveResult,
     finalize,
     busy,
     blocking,

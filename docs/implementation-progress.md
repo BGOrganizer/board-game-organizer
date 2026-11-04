@@ -1,5 +1,46 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Provisional Table results — implemented; acceptance incomplete
+
+- Web/native result registration moves from the Event to each included confirmed Table's detail
+  header, remains administrator-only and uses Register result / Registra Risultato. The existing
+  score editor saves provisional scores on the server independently of Event finalization.
+  Excluded Tables (insufficient players or no agreement) never gain registration and never count
+  toward finalization readiness; included rating-disabled/all-ND Tables retain their existing rules.
+- `PUT /api/events/[eventId]/tables/[tableId]/results` validates the complete frozen roster, exact
+  decimals/ND/ties, administrator, state and Event version. Its private `resultDraft` is returned only
+  to the administrator and never populates immutable results, ratings, statistics or activities.
+  Saves remain editable across navigation/restart. No new collection, index or migration is needed.
+- The Event's upper-right header now owns Finalize event and its irreversible confirmation.
+  `POST /api/events/[eventId]/results` accepts only an Event version and derives every included
+  result from server drafts; client-supplied whole-event scores are rejected. Existing transactional
+  finalization, GLOBAL/GROUP OpenSkill, profiles and immutable results remain one atomic commit.
+  A new confirmation clears provisional scores; reopening planning explicitly warns about this.
+- Table reads carry the parent Event epoch. Editors do not mix separately cached confirmations;
+  open editors and finalization confirmations remain bound to their reviewed version/API/user/Event.
+  Duplicate submissions, stale receipts and uncertain-outcome replay stay guarded. Unknown saves
+  remain observable without false failure/navigation; selective optimistic rollback and owner purge
+  remain intact. Save reconciliation touches Event/Table caches, not unrelated profiles or ratings.
+- Local checks: **2,564 covered units** (mobile 376, web 809, API 816, schemas 139, shared 424),
+  full typecheck, scoped Biome (zero errors; 91 warnings/11 infos), and API/web production builds
+  pass. New web registration/finalization components have per-file 100% coverage gates, without
+  weakening existing gates. Twelve EN/IT entries compile with all 1,351 previous values preserved.
+  Generated Next references were restored byte-for-byte.
+- One new real MongoDB replica-set integration case passes: administrator-only persisted/editable
+  drafts, excluded Table denial/non-contribution, unchanged ratings/activities before finalization,
+  invalidation on reconfirmation, and atomic final results with rating/activity updates afterward.
+  Forty-five other cases were explicitly filtered out; the full integration suite was not rerun.
+  Only disposable Testcontainers databases were migrated/mutated, never the application database.
+- Manual real-fixture Playwright configuration/scenario and Maestro flow 21 include persistence,
+  editing/restart, excluded-action absence and Event-header finalization. They require an owned
+  disposable Development/Preview fixture and explicit irreversible-write acknowledgments.
+  Discovery (one scenario plus Clerk setup), Maestro 2.11 syntax and EN/IT helper VM/guard checks
+  pass, not real authenticated/device execution. No fresh APK or provider operation;
+  canonical E2E suites/jobs remain unchanged. Subsequent operator authorization covers signed commit
+  and push on the existing `feat/social-api-refactor` branch only, not a new PR or deployment.
+  See [the domain contract](groups-events-refactor.md#results-lists-and-transport)
+  and [manual fixture instructions](../apps/mobile/.maestro/README.md#provisional-table-results--manual-mutating).
+
 ## Lifecycle filters and Profile controls — local implementation; acceptance incomplete
 
 - Web/native main Tables and main/Group-context Events now use Confirmed, Planning and Terminated

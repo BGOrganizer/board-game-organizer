@@ -10,16 +10,19 @@ import type {
   EditPlannedEventInput,
   EventRecord,
   FinalizeEventInput,
+  FinalizeSavedEventInput,
   GroupRecord,
   JoinTableInput,
   NotificationItem,
   PlannedEventResponse,
   PlannedTableInput,
   PlannedTableResponse,
+  SaveTableResultInput,
   TableInviteeResponse,
   TableLeaderboardResponse,
   TableRecord,
   TableRegistration,
+  TableResultsInput,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import { MAX_EVENT_OPTIONS, notificationItemId } from "@board-game-organizer/schemas";
@@ -329,6 +332,15 @@ export class EventRecordsService {
         Date.now(),
       ),
       ...counts,
+      ...(event.adminUserId === userId && event.status === "CONFIRMED"
+        ? {
+            resultsReady:
+              tables.some((table) => table.confirmed) &&
+              tables
+                .filter((table) => table.confirmed)
+                .every((table) => Boolean(table.resultDraft)),
+          }
+        : {}),
       groupName: group?.approved?.name ?? null,
       groupType: group?.type ?? null,
       role,
@@ -813,14 +825,22 @@ export class EventRecordsService {
       base.seated.map((row) => row.id),
       table.confirmed?.playerIds ?? [],
     );
+    const { resultDraft, ...visibleTable } = table;
     return {
-      ...table,
+      ...visibleTable,
+      ...(event.adminUserId === userId &&
+      event.status === "CONFIRMED" &&
+      table.confirmed &&
+      resultDraft
+        ? { resultDraft }
+        : {}),
       winners,
       resultProfiles,
       groupRatingChanges,
       ratingChanges,
       myPosition,
       eventName: event.name,
+      eventVersion: event.version,
       eventSchedule: eventRecordSchedulePreview(event),
       groupName: group?.approved?.name ?? null,
       acceptedCount: registrations.filter((row) => row.status === "ACCEPTED").length,
@@ -1331,7 +1351,8 @@ export class EventRecordsService {
     if (!location) throw new CommunityError(409, "INVALID_EVENT_TIME");
     // Legacy plans keep their stored clock until explicitly edited; never reinterpret old snapshots.
     const scheduled = { ...event, timeZone: location.timeZone ?? event.timeZone };
-    for (const table of tables) {
+    for (const stored of tables) {
+      const { resultDraft: _draft, ...table } = stored;
       const included = plan.includedTables.find((row) => row.tableId === table.id);
       if (included)
         await this.events.saveTable({
@@ -1471,15 +1492,76 @@ export class EventRecordsService {
       await this.saveSituation(next, group, group.adminUserId);
     }
   }
-  async finalize(userId: string, id: string, input: FinalizeEventInput) {
+  private validateResult(table: TableRecord, result: Omit<TableResultsInput, "tableId">) {
+    const roster = new Set(table.confirmed?.playerIds ?? []);
+    if (
+      !roster.size ||
+      result.entries.length !== roster.size ||
+      new Set(result.entries.map((entry) => entry.userId)).size !== roster.size ||
+      result.entries.some(
+        (entry) =>
+          !roster.has(entry.userId) ||
+          (entry.score !== null && normalizeMatchScore(entry.score) !== entry.score),
+      )
+    )
+      throw new CommunityError(400, "RESULTS_REQUIRE_EVERY_PLAYER_ONCE");
+    const ties = new Map<string, string[]>();
+    for (const entry of result.entries)
+      if (entry.score !== null)
+        ties.set(entry.score, [...(ties.get(entry.score) ?? []), entry.userId]);
+    const seen = new Set<string>();
+    for (const tie of result.tieBreaks) {
+      const people = ties.get(tie.score);
+      if (
+        !people ||
+        people.length < 2 ||
+        seen.has(tie.score) ||
+        tie.orderedUserIds.length !== people.length ||
+        new Set(tie.orderedUserIds).size !== people.length ||
+        tie.orderedUserIds.some((user) => !people.includes(user))
+      )
+        throw new CommunityError(400, "INVALID_TIE_BREAK");
+      seen.add(tie.score);
+    }
+  }
+  async saveResult(userId: string, id: string, tableId: string, input: SaveTableResultInput) {
+    const { event, group, own } = await this.context(userId, id, true, true);
+    if (event.status !== "CONFIRMED") throw new CommunityError(409, "EVENT_NOT_CONFIRMED");
+    if (event.version !== input.version) throw new CommunityError(409, "EVENT_CHANGED");
+    const table = await this.events.table(tableId);
+    if (!table || table.eventId !== id) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    if (!table.confirmed) throw new CommunityError(409, "TABLE_NOT_CONFIRMED");
+    if (table.results) throw new CommunityError(409, "TABLE_RESULTS_IMMUTABLE");
+    const { version: _version, ...resultDraft } = input;
+    this.validateResult(table, resultDraft);
+    const at = new Date().toISOString();
+    const saved = { ...table, resultDraft, updatedAt: at };
+    await this.events.saveTable(saved);
+    const next = { ...event, version: event.version + 1, updatedAt: at };
+    await this.events.save(next);
+    return {
+      event: await this.response(next, group, userId, own, true),
+      table: await this.tableResponse(next, group, saved, userId, undefined, true),
+    };
+  }
+  async finalize(userId: string, id: string, input: FinalizeEventInput | FinalizeSavedEventInput) {
     const { event, group } = await this.context(userId, id, true, true);
     if (event.status !== "CONFIRMED") throw new CommunityError(409, "EVENT_NOT_CONFIRMED");
     if (event.version !== input.version) throw new CommunityError(409, "EVENT_CHANGED");
     const tables = (await this.events.allTables(id)).filter((table) => table.confirmed);
+    const savedResults =
+      "results" in input
+        ? input.results
+        : tables.map((table) => {
+            if (!table.resultDraft)
+              throw new CommunityError(409, "EVERY_INCLUDED_TABLE_RESULT_REQUIRED");
+            return { tableId: table.id, ...table.resultDraft };
+          });
     if (
-      input.results.length !== tables.length ||
-      new Set(input.results.map((row) => row.tableId)).size !== tables.length ||
-      input.results.some((row) => !tables.some((table) => table.id === row.tableId))
+      !tables.length ||
+      savedResults.length !== tables.length ||
+      new Set(savedResults.map((row) => row.tableId)).size !== tables.length ||
+      savedResults.some((row) => !tables.some((table) => table.id === row.tableId))
     )
       throw new CommunityError(400, "EVERY_INCLUDED_TABLE_RESULT_REQUIRED");
     const at = new Date().toISOString();
@@ -1490,45 +1572,18 @@ export class EventRecordsService {
         a.order - b.order,
     );
     for (const table of tables) {
-      const result = input.results.find((row) => row.tableId === table.id);
+      const result = savedResults.find((row) => row.tableId === table.id);
       if (!result || !table.confirmed || table.results)
         throw new CommunityError(409, "TABLE_RESULTS_IMMUTABLE");
-      const roster = new Set(table.confirmed.playerIds);
-      if (
-        result.entries.length !== roster.size ||
-        new Set(result.entries.map((entry) => entry.userId)).size !== roster.size ||
-        result.entries.some(
-          (entry) =>
-            !roster.has(entry.userId) ||
-            (entry.score !== null && normalizeMatchScore(entry.score) !== entry.score),
-        )
-      )
-        throw new CommunityError(400, "RESULTS_REQUIRE_EVERY_PLAYER_ONCE");
-      const ties = new Map<string, string[]>();
-      for (const entry of result.entries)
-        if (entry.score !== null)
-          ties.set(entry.score, [...(ties.get(entry.score) ?? []), entry.userId]);
-      const seen = new Set<string>();
-      for (const tie of result.tieBreaks) {
-        const people = ties.get(tie.score);
-        if (
-          !people ||
-          people.length < 2 ||
-          seen.has(tie.score) ||
-          tie.orderedUserIds.length !== people.length ||
-          new Set(tie.orderedUserIds).size !== people.length ||
-          tie.orderedUserIds.some((user) => !people.includes(user))
-        )
-          throw new CommunityError(400, "INVALID_TIE_BREAK");
-        seen.add(tie.score);
-      }
+      this.validateResult(table, result);
       const results = {
         lowerWins: result.lowerWins,
         entries: rankMatchResults(result),
         tieBreaks: result.tieBreaks,
         finalizedAt: at,
       };
-      await this.events.saveTable({ ...table, results, updatedAt: at });
+      const { resultDraft: _draft, ...finished } = table;
+      await this.events.saveTable({ ...finished, results, updatedAt: at });
       if (table.rankingEnabled && results.entries.some((entry) => entry.score !== null))
         await this.ratings.applyTableResult(event, table, results);
     }

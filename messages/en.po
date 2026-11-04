@@ -5606,3 +5606,41 @@ msgstr "Terminated tables"
 
 msgid "Clear selected game"
 msgstr "Clear selected game"
+
+msgid "Register result"
+msgstr "Register result"
+
+msgid "Save result"
+msgstr "Save result"
+
+msgid "Save result?"
+msgstr "Save result?"
+
+msgid "Only an authorized organizer can record results for an included confirmed table."
+msgstr "Only an authorized organizer can record results for an included confirmed table."
+
+msgid "This event changed. Close this confirmation and review the saved results."
+msgstr "This event changed. Close this confirmation and review the saved results."
+
+msgid "Why finalization is unavailable"
+msgstr "Why finalization is unavailable"
+
+msgid "Save results for every included table before finalizing. Excluded tables do not require results."
+msgstr "Save results for every included table before finalizing. Excluded tables do not require results."
+
+msgid "Saved scores remain editable. Ratings and statistics update only when the event is finalized."
+msgstr "Saved scores remain editable. Ratings and statistics update only when the event is finalized."
+
+msgid "Could not save table result"
+msgstr "Could not save table result"
+
+msgid "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended. Confirming again discards saved provisional scores."
+msgstr "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended. Confirming again discards saved provisional scores."
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.save_table_result.success"
+msgstr "Table result saved"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.save_table_result.error"
+msgstr "Could not save table result"

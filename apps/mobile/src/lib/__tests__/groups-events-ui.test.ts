@@ -75,8 +75,8 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(detail).not.toContain("eventRecordDisplayTimeZone");
   expect(identity).toContain('className="text-base font-normal text-foreground"');
   expect(identity.indexOf("<EventVoteLegend")).toBeLessThan(identity.indexOf("<ListCard>"));
-  expect(detail).toMatch(/event\?\.status\s*===\s*"CONFIRMED"[\s\S]*?event.canFinalize/);
-  expect(detail).toContain("<ClipboardPenLine");
+  expect(detail).toMatch(/event\?\.status\s*===\s*"CONFIRMED"[\s\S]*?<EventFinalizeAction/);
+  expect(source("events", "EventFinalizeAction")).toContain("event.canFinalize");
   expect(detail).toContain("<RotateCcw");
   expect(detail).toContain("<CalendarCheck");
   expect(detail).toContain("<GroupedList");

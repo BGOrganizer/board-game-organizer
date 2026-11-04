@@ -151,9 +151,14 @@ it("never creates a synthetic Match or organizer seat from a table link", () => 
   expect(source("EventWizard")).toContain("organizer has no automatic playing seat");
 });
 it("preserves whole-event immutable result finalization with per-table draft scores and genuine sheet interactions", () => {
-  expect(source("EventResults")).toContain("Finalization is irreversible.");
-  expect(source("EventResults")).toContain("f.finalize()");
-  expect(source("EventResults")).toContain("<ConfirmDialog");
+  expect(source("EventFinalizeAction")).toContain(
+    "Results and ratings for all included tables become immutable together.",
+  );
+  expect(source("EventFinalizeAction")).toMatch(
+    /a\.finalize\.mutate\(\s*\{\s*version: confirm.version/,
+  );
+  expect(source("EventFinalizeAction")).toContain("<ConfirmDialog");
+  expect(source("EventResults")).toContain("f.save(input");
   expect(source("TableScoreEditor")).toMatch(/onSubmit\(\{\s*lowerWins/);
   expect(source("TableScoreEditor")).toContain("previewTableResults");
   expect(source("TableScoreEditor")).toContain("useBottomSheetAwareHandlers");

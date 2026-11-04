@@ -27,6 +27,7 @@ import * as oldBookings from "../[eventId]/tables/[tableId]/bookings/route";
 import * as invitation from "../[eventId]/tables/[tableId]/invitations/route";
 import * as leaderboard from "../[eventId]/tables/[tableId]/leaderboard/route";
 import * as registration from "../[eventId]/tables/[tableId]/registrations/route";
+import * as tableResult from "../[eventId]/tables/[tableId]/results/route";
 import * as table from "../[eventId]/tables/[tableId]/route";
 import * as seats from "../[eventId]/tables/[tableId]/seats/route";
 import * as tables from "../[eventId]/tables/route";
@@ -84,6 +85,7 @@ const events = {
   vote: vi.fn(),
   transition: vi.fn(),
   finalize: vi.fn(),
+  saveResult: vi.fn(),
   personalTables: vi.fn(),
   tableLeaderboard: vi.fn(),
   invitationCandidates: vi.fn(),
@@ -360,26 +362,30 @@ it("delegates voting, authoritative state transitions and whole-event results wi
   expect(events.register).not.toHaveBeenCalled();
   await state.PATCH(request("PATCH", { action: "confirm", version: 2 }), context);
   expect(events.transition).toHaveBeenCalledWith("actor", id, { action: "confirm", version: 2 });
-  const outcome = {
+  const score = {
     version: 3,
-    results: [
-      {
-        tableId,
-        lowerWins: false,
-        entries: [
-          { userId: "actor", score: "12.50" },
-          { userId: "guest", score: null },
-        ],
-        tieBreaks: [],
-      },
+    lowerWins: false,
+    entries: [
+      { userId: "actor", score: "12.5" },
+      { userId: "guest", score: null },
     ],
+    tieBreaks: [],
   };
-  await result.POST(request("POST", outcome), context);
-  expect(events.finalize).toHaveBeenCalledWith(
-    "actor",
-    id,
-    expect.objectContaining({ version: 3, results: expect.any(Array) }),
+  expect((await tableResult.PUT(request("PUT", score), context)).status).toBe(200);
+  expect(events.saveResult).toHaveBeenCalledWith("actor", id, tableId, score);
+  await result.POST(request("POST", { version: 4 }), context);
+  expect(events.finalize).toHaveBeenCalledWith("actor", id, { version: 4 });
+  expect(
+    (await result.POST(request("POST", { version: 4, results: [{ tableId, ...score }] }), context))
+      .status,
+  ).toBe(400);
+  expect(events.finalize).toHaveBeenCalledTimes(1);
+  expect((await tableResult.PUT(request("PUT", { ...score, version: 0 }), context)).status).toBe(
+    400,
   );
+  expect((await tableResult.OPTIONS(request("OPTIONS"))).status).toBe(204);
+  mocks.auth.mockResolvedValueOnce({ userId: null });
+  expect((await tableResult.PUT(request("PUT", score), context)).status).toBe(401);
   expect(
     (await vote.PATCH(request("PATCH", { ...choice, participantIds: ["forged"] }), context)).status,
   ).toBe(400);

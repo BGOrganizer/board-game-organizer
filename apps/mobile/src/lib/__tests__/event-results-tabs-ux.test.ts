@@ -29,30 +29,31 @@ it("owns confirmed/terminated Table top tabs with platform-specific virtualized 
   expect(results).toContain('t("Global ranking")');
   expect(source("events", "EventTableLeaderboard")).toContain("table.confirmed?.gameId");
 });
-it("keeps owner-only icon header registration/replan FAB and semantic confirmation/finalization icons", () => {
+it("places admin result registration on included confirmed Tables and finalization in the Event header", () => {
   const detail = source("events", "EventDetail"),
-    results = source("events", "EventResults");
-  for (const icon of ["CalendarCheck", "RotateCcw", "ClipboardPenLine"])
-    expect(detail).toContain(`<${icon}`);
-  expect(detail).toContain("event.adminUserId === o.userId");
+    table = source("events", "EventTable"),
+    action = source("events", "EventFinalizeAction");
+  expect(detail).toContain("<EventFinalizeAction");
+  expect(detail).not.toContain("<ClipboardPenLine");
+  expect(table).toContain("<ClipboardPenLine");
+  expect(table).toContain("event.data.adminUserId === o.userId");
+  expect(table).toContain("table.confirmed");
+  expect(table).toContain('table.eventStatus === "CONFIRMED"');
+  expect(action).toContain("event.resultsReady !== true");
+  expect(action).toContain("<ConfirmDialog");
+  expect(action).toContain("Excluded tables do not require results.");
+  expect(action).toContain("<Flag");
   expect(detail).toContain('variant="secondary"');
-  expect(detail).not.toContain('<Button.Label>{t("Reopen planning")}</Button.Label>');
-  expect(results).toContain("<Flag");
-  expect(results).toContain("<ConfirmDialog");
-  expect(results).toContain('t("Tables list")');
-  expect(results).toContain("Record results for every table to finalize the event.");
-  expect(results).toContain("All-ND tables do not change ratings or statistics.");
 });
-it("keeps staged table-result cards, explicit completion artwork and plural/singular screen titles without discarding other drafts", () => {
+it("edits one server-backed Table result with a singular header and no Event finalization control", () => {
   const results = source("events", "EventResults"),
     card = source("events", "EventResultTableCard");
-  expect(results).toContain('t("Register Table Result")');
-  expect(results).toContain('t("Register Tables Results")');
-  expect(results).toContain("<EventResultTableCard");
-  expect(results).toContain("ready={f.isScoreCurrent(item.id)}");
-  expect(results).toContain("hardwareBackPress");
-  expect(results).toContain("f.close()");
-  expect(results).toContain("headerLeft:");
+  expect(results).toContain('t("Register result")');
+  expect(results).toContain("useEventResultsForm(o, eventId, tableId)");
+  expect(results).toContain("f.save(input");
+  expect(results).not.toContain("f.finalize()");
+  expect(results).not.toContain("<EventResultTableCard");
+  expect(results).toContain("headerBackOptions");
   expect(source("events", "TableScoreEditor")).not.toContain('t("Back to tables")');
   expect(source("events", "EventTableOverview")).toContain('t("Event")');
   expect(source("events", "EventTableOverview")).toContain('variant="constellation"');
@@ -60,7 +61,7 @@ it("keeps staged table-result cards, explicit completion artwork and plural/sing
   expect(source("events", "EventJoinSheet")).toContain('value="games"');
   expect(source("events", "EventJoinSheet")).toContain("form.requiresAvailability");
   expect(source("events", "EventDetail")).toContain("eventAvailabilityVoteIsAllowed");
-  expect(results).toContain("f.finalize()");
+  expect(source("events", "TableScoreEditor")).toContain('t("Save result")');
   expect(card).toContain("<ListCard>");
   expect(card).toContain("<ListCardBody");
   expect(card).toContain("<CircleCheck");

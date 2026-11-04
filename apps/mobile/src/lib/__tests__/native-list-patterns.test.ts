@@ -21,7 +21,6 @@ it.each([
   "EventDetail",
   "EventTableResults",
   "EventTableLeaderboard",
-  "EventResults",
   "EventWizard",
   "TableScoreEditor",
 ])("virtualizes event workflow %s with safe bottom spacing", (name) => {
@@ -46,6 +45,12 @@ it.each([
   }
   visit(file);
   expect(scrollViews).toEqual([]);
+});
+it("composes the single-Table result screen with its virtualized score editor, not a nested list", () => {
+  const text = source("components/events/EventResults.tsx");
+  expect(text).toContain("<TableScoreEditor");
+  expect(text).not.toContain("<ScrollView");
+  expect(text).not.toContain("<FlatList");
 });
 it.each([
   "components/events/EventCard.tsx",

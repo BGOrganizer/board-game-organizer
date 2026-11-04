@@ -5,7 +5,7 @@ import {
   type TableScoreInput,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { eventId, plannedEvent, plannedTable, seat, tableId } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -29,65 +29,79 @@ vi.mock("@/lib/useCommunityApi", () => ({
 vi.mock("../TableScoreEditor", () => ({
   TableScoreEditor: ({
     players,
+    initial,
+    busy,
     onSubmit,
   }: {
     players: ScorePlayer[];
+    initial?: TableScoreInput;
+    busy: boolean;
     onSubmit: (value: TableScoreInput) => void;
   }) => {
     m.scorePlayers(players);
     return (
-      <button
-        type="button"
-        onClick={() =>
-          onSubmit({
-            lowerWins: false,
-            entries: players.map((p) => ({ userId: p.id, score: null })),
-            tieBreaks: [],
-          })
-        }
-      >
-        Draft all ND
-      </button>
+      <>
+        <p data-testid="saved-input">{JSON.stringify(initial ?? null)}</p>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            onSubmit({
+              lowerWins: false,
+              entries: players.map((p) => ({ userId: p.id, score: null })),
+              tieBreaks: [],
+            })
+          }
+        >
+          Save all ND
+        </button>
+      </>
     );
   },
 }));
-let fail = false,
-  fetcher: ReturnType<typeof vi.fn>;
+let fail: boolean,
+  fetcher: ReturnType<typeof vi.fn>,
+  event: typeof plannedEvent,
+  table: typeof plannedTable;
 beforeEach(() => {
   vi.clearAllMocks();
   const header = document.createElement("header");
   header.id = "page-header-actions";
   document.body.append(header);
   fail = false;
-  const event = {
-      ...plannedEvent,
-      status: "CONFIRMED",
-      canFinalize: true,
-      canEdit: false,
-      canRegister: false,
-    },
-    table = {
-      ...plannedTable,
-      eventStatus: "CONFIRMED",
-      confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
-    };
+  event = {
+    ...plannedEvent,
+    status: "CONFIRMED",
+    canFinalize: true,
+    canEdit: false,
+    canRegister: false,
+    resultsReady: false,
+  };
+  table = {
+    ...plannedTable,
+    eventStatus: "CONFIRMED",
+    eventVersion: 1,
+    confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
+  };
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
-    if (init?.method === "POST")
-      return fail
-        ? new Response('{"error":"EVENT_CHANGED"}', { status: 409 })
-        : new Response(
-            JSON.stringify({ ...event, status: "TERMINATED", canFinalize: false, version: 2 }),
-          );
-    return new Response(
-      JSON.stringify(
-        url.includes("/seats?")
-          ? { items: [seat("owner"), { ...seat("guest"), id: tableId }], nextCursor: null }
-          : url.includes("/tables?")
-            ? { items: [table], nextCursor: null }
-            : url.includes(`/tables/${tableId}`)
-              ? table
-              : event,
-      ),
+    if (init?.method === "PUT") {
+      if (fail) return Response.json({ error: "EVENT_CHANGED" }, { status: 409 });
+      const { version, ...resultDraft } = JSON.parse(String(init.body));
+      event = { ...event, version: version + 1, resultsReady: true };
+      table = {
+        ...table,
+        resultDraft,
+        eventVersion: version + 1,
+        updatedAt: "2030-06-02T10:00:00Z",
+      };
+      return Response.json({ event, table });
+    }
+    return Response.json(
+      url.includes("/seats?")
+        ? { items: [seat("owner"), { ...seat("guest"), id: tableId }], nextCursor: null }
+        : url.includes(`/tables/${tableId}`)
+          ? table
+          : event,
     );
   });
   vi.stubGlobal("fetch", fetcher);
@@ -103,241 +117,209 @@ function mount(
 ) {
   const view = renderWithI18n(
     <QueryClientProvider client={client}>
-      <EventResults eventId={eventId} />
+      <EventResults eventId={eventId} tableId={tableId} />
     </QueryClientProvider>,
   );
   return { ...view, client };
 }
-it("uses only app-header Back for selected/loading editors and route Back for the list", async () => {
-  mount();
-  fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
-  await screen.findByRole("button", { name: "Draft all ND" });
+it("opens the selected Table directly, uses singular header and saves only that Table on the server", async () => {
+  const { client } = mount();
+  const save = await screen.findByRole("button", { name: "Save all ND" });
+  expect(screen.getByRole("heading", { name: "Register result" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Finalize event" })).toBeNull();
   expect(m.scorePlayers).toHaveBeenLastCalledWith(
     expect.arrayContaining([
       expect.objectContaining({ id: "owner", username: "owner" }),
       expect.objectContaining({ id: "guest", username: "guest" }),
     ]),
   );
-  const back = screen.getByRole("button", { name: "Back" });
-  expect(document.getElementById("page-header-actions")?.contains(back)).toBe(true);
-  expect(screen.queryByRole("button", { name: "Back to tables" })).toBeNull();
-  fireEvent.click(back);
-  await screen.findByRole("heading", { name: "Register Tables Results" });
-  expect(m.back).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  expect(m.back).toHaveBeenCalledOnce();
-});
-it("requires scores for every included frozen table, then posts one atomic finalization after explicit consent", async () => {
-  mount();
-  expect(await screen.findByRole("heading", { name: "Register Tables Results" })).not.toBeNull();
-  const finalize = await screen.findByRole("button", { name: "Finalize event" });
-  expect(finalize.querySelector("svg.lucide-flag")).not.toBeNull();
-  expect((finalize as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByRole("button", { name: "Tables list: Field help" }));
-  expect(
-    await screen.findByText(
-      "Record results for every table to finalize the event. Finalization is irreversible. All-ND tables do not change ratings or statistics.",
-    ),
-  ).not.toBeNull();
-  expect(screen.queryByRole("img", { name: "Scores ready" })).toBeNull();
-  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
-  expect(await screen.findByRole("heading", { name: "Register Table Result" })).not.toBeNull();
-  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
-  expect(await screen.findByRole("heading", { name: "Register Tables Results" })).not.toBeNull();
-  const badge = screen.getByRole("img", { name: "Scores ready" });
-  expect(badge.className).toContain("bottom-0");
-  expect(badge.className).toContain("right-0");
-  expect(badge.className).toContain("text-success");
-  expect(badge.parentElement?.querySelector("img")).not.toBeNull();
-  expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  fireEvent.click(save);
   await waitFor(() =>
-    expect(
-      (screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement).disabled,
-    ).toBe(false),
+    expect(m.replace).toHaveBeenCalledWith(`/events/${eventId}/tables/${tableId}`),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
-  expect(screen.getByRole("dialog").textContent).toContain("immutable together");
-  expect(
-    within(screen.getByRole("dialog"))
-      .getByRole("button", { name: "Finalize event" })
-      .querySelector("svg.lucide-flag"),
-  ).not.toBeNull();
-  fireEvent.click(
-    within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
-  );
-  await waitFor(() => expect(m.replace).toHaveBeenCalledWith(`/events/${eventId}`));
-  const posts = fetcher.mock.calls.filter(([, init]) => init?.method === "POST");
-  expect(posts).toHaveLength(1);
-  expect(JSON.parse(String(posts[0][1]?.body))).toEqual({
+  const puts = fetcher.mock.calls.filter(([, init]) => init?.method === "PUT");
+  expect(puts).toHaveLength(1);
+  expect(puts[0][0]).toBe(`https://api.test/api/events/${eventId}/tables/${tableId}/results`);
+  expect(JSON.parse(String(puts[0][1]?.body))).toEqual({
     version: 1,
-    results: [
-      {
-        tableId,
-        lowerWins: false,
-        entries: [
-          { userId: "owner", score: null },
-          { userId: "guest", score: null },
-        ],
-        tieBreaks: [],
-      },
+    lowerWins: false,
+    entries: [
+      { userId: "owner", score: null },
+      { userId: "guest", score: null },
     ],
+    tieBreaks: [],
   });
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  expect(
+    client.getQueryData(
+      eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+    ),
+  ).toMatchObject({ status: "CONFIRMED", resultsReady: true, version: 2 });
+  expect(m.feedback.onOptimisticUpdate).toHaveBeenCalledWith("save_table_result");
 });
-it("keeps each Table draft when switching screens and cannot finalize before every frozen Table has results", async () => {
-  const secondId = "77777777-7777-4777-8777-777777777777";
-  const first = {
-      ...plannedTable,
-      eventStatus: "CONFIRMED",
-      confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: plannedEvent.createdAt },
-    },
-    second = { ...first, id: secondId, name: "Second table" };
-  const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
-    if (url.includes("/tables?"))
-      return new Response(JSON.stringify({ items: [first, second], nextCursor: null }));
-    if (url.endsWith(`/tables/${secondId}`)) return new Response(JSON.stringify(second));
-    if (url.includes(`/tables/${secondId}/seats?`))
-      return new Response(
-        JSON.stringify({
-          items: [seat("owner"), { ...seat("guest"), id: secondId }],
-          nextCursor: null,
-        }),
-      );
-    if (init?.method === "POST")
-      return Response.json({
-        ...plannedEvent,
-        status: "TERMINATED",
-        canFinalize: false,
-        version: 4,
-      });
-    return original(url, init);
-  });
-  const { client } = mount();
-  fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
-  expect(await screen.findAllByRole("img", { name: "Scores ready" })).toHaveLength(1);
-  expect(
-    (screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
-  fireEvent.click(screen.getByRole("button", { name: "Edit scores: Second table" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
-  expect(await screen.findAllByRole("img", { name: "Scores ready" })).toHaveLength(2);
-  expect(
-    (screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement).disabled,
-  ).toBe(false);
-  const detailKey = eventRecordKeys.detail(
-    { apiUrl: "https://api.test", userId: "owner" },
-    eventId,
-  );
-  await act(async () =>
-    client.setQueryData(detailKey, (current) => (current ? { ...current, version: 3 } : current)),
-  );
-  await waitFor(() =>
-    expect(screen.queryAllByRole("img", { name: "Scores ready" })).toHaveLength(0),
-  );
-  expect(
-    screen.getByText("This event changed. Go back and reopen the editor before saving."),
-  ).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Edit scores: First table" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
-  expect(screen.getAllByRole("img", { name: "Scores ready" })).toHaveLength(1);
-  expect(
-    (screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
-  fireEvent.click(screen.getByRole("button", { name: "Edit scores: Second table" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
-  expect(screen.getAllByRole("img", { name: "Scores ready" })).toHaveLength(2);
-  fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
-  fireEvent.click(
-    within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
-  );
+it("reloads server scores after unmounting without retaining a local Event-wide workflow", async () => {
+  const first = mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Save all ND" }));
   await waitFor(() => expect(m.replace).toHaveBeenCalled());
-  const post = fetcher.mock.calls.find(([, init]) => init?.method === "POST")!;
-  expect(JSON.parse(String(post[1]?.body)).version).toBe(3);
-  expect(
-    JSON.parse(String(post[1]?.body)).results.map((row: { tableId: string }) => row.tableId),
-  ).toEqual([tableId, secondId]);
+  first.unmount();
+  clearSessionQueryCache(first.client);
+  mount();
+  await screen.findByRole("button", { name: "Save all ND" });
+  expect(screen.getByTestId("saved-input").textContent).toContain('"score":null');
 });
-it.each([403, 503])(
-  "keeps a selected Table read failure observable (%s) and never edits denied cached player data",
-  async (status) => {
-    const original = fetcher.getMockImplementation()!;
+it("keeps write failures observable, rolls back only the provisional overlay, and never navigates on failure", async () => {
+  fail = true;
+  const { client } = mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Save all ND" }));
+  await screen.findByText("Could not save table result");
+  expect(m.replace).not.toHaveBeenCalled();
+  expect(
+    client.getQueryData(
+      eventRecordKeys.table({ apiUrl: "https://api.test", userId: "owner" }, eventId, tableId),
+    ),
+  ).not.toHaveProperty("resultDraft");
+  expect(screen.getByRole("button", { name: "Save all ND" })).toBeTruthy();
+});
+it.each(["excluded", "member", "terminated", "capability"])(
+  "does not edit a %s Table",
+  async (kind) => {
+    if (kind === "excluded") table = { ...table, confirmed: undefined };
+    if (kind === "member") event = { ...event, adminUserId: "another_admin" };
+    if (kind === "capability") event = { ...event, canFinalize: false };
+    if (kind === "terminated") event = { ...event, status: "TERMINATED" };
+    mount();
+    await screen.findByText(
+      "Only an authorized organizer can record results for an included confirmed table.",
+    );
+    expect(screen.queryByRole("button", { name: "Save all ND" })).toBeNull();
+  },
+);
+it("fences an open editor when a newer Event version arrives", async () => {
+  const { client } = mount();
+  await screen.findByRole("button", { name: "Save all ND" });
+  event = { ...event, version: 4 };
+  await act(async () =>
+    client.setQueryData(
+      eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+      event,
+    ),
+  );
+  await screen.findByText("This event changed. Go back and reopen the editor before saving.");
+  expect((screen.getByRole("button", { name: "Save all ND" }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+});
+it.each(["error", "missing"])(
+  "keeps incomplete frozen-player reads observable and retries (%s)",
+  async (kind) => {
     let broken = true;
+    const original = fetcher.getMockImplementation()!;
     fetcher.mockImplementation((url: string, init?: RequestInit) =>
-      url.endsWith(`/tables/${tableId}`) && broken
-        ? Promise.resolve(new Response("{}", { status }))
+      url.includes("/seats?") && broken
+        ? Promise.resolve(
+            kind === "error"
+              ? Response.json({}, { status: 503 })
+              : Response.json({ items: [seat("owner")], nextCursor: null }),
+          )
         : original(url, init),
     );
     mount();
-    fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
-    expect(await screen.findByText("Could not load table")).not.toBeNull();
-    if (status === 403) expect(screen.queryByRole("button", { name: "Draft all ND" })).toBeNull();
+    await screen.findByText("Could not load players");
+    expect(screen.queryByRole("button", { name: "Save all ND" })).toBeNull();
     broken = false;
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByRole("button", { name: "Draft all ND" })).not.toBeNull();
+    await screen.findByRole("button", { name: "Save all ND" });
   },
 );
-it.each([409, 503])(
-  "closes and navigates before finalization HTTP, retains all Table scores and never retries an unknown result: status=%s",
-  async (status) => {
-    const original = fetcher.getMockImplementation();
-    if (!original) throw new Error("Missing API reader");
-    let release: ((response: Response) => void) | undefined;
-    fetcher.mockImplementation((url: string, init?: RequestInit) =>
-      init?.method === "POST"
-        ? new Promise<Response>((resolve) => {
-            release = resolve;
-          })
-        : original(url, init),
-    );
-    const { client, unmount } = mount();
-    fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
-    fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
-    fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
-    );
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(m.replace).toHaveBeenCalledWith(`/events/${eventId}`);
-    await waitFor(() => expect(release).toBeDefined());
-    const key = eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId);
-    expect(client.getQueryData(key)).toMatchObject({ status: "CONFIRMED", canFinalize: false });
-    expect(m.feedback.onOptimisticUpdate).toHaveBeenCalledWith("finalize_event");
-    unmount();
-    const respond = release;
-    if (!respond) throw new Error("Missing held finalization");
-    await act(async () =>
-      respond(Response.json({ error: status === 409 ? "EVENT_CHANGED" : "UNKNOWN" }, { status })),
-    );
-    await waitFor(() =>
-      expect(
-        client
-          .getMutationCache()
-          .getAll()
-          .some((mutation) => mutation.state.status === "error"),
-      ).toBe(true),
-    );
-    const restored = mount(client);
-    await screen.findByRole("img", { name: "Scores ready" });
-    expect(fetcher.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
-    const finalize = screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement;
-    if (status === 503) {
-      expect(finalize.disabled).toBe(true);
-      expect(screen.getByText("Checking saved changes")).toBeTruthy();
-    } else {
-      await waitFor(() => expect(finalize.disabled).toBe(false));
-      fetcher.mockImplementation(original);
-      fireEvent.click(finalize);
-      fireEvent.click(
-        within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
-      );
-      expect(screen.queryByRole("dialog")).toBeNull();
-      await waitFor(() => expect(client.getQueryData(key)).toMatchObject({ status: "TERMINATED" }));
-      expect(fetcher.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
-    }
-    restored.unmount();
-    clearSessionQueryCache(client);
+it("loads missing frozen players from the next source page before enabling the editor", async () => {
+  const original = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    url.includes("/seats?")
+      ? Promise.resolve(
+          Response.json(
+            new URL(url).searchParams.has("cursor")
+              ? { items: [seat("guest")], nextCursor: null }
+              : { items: [seat("owner")], nextCursor: "second" },
+          ),
+        )
+      : original(url, init),
+  );
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Load more players" }));
+  await screen.findByRole("button", { name: "Save all ND" });
+});
+it("does not repeat a save or navigate until the server acknowledges it", async () => {
+  let release: (() => Promise<void>) | undefined;
+  const original = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    init?.method === "PUT"
+      ? new Promise<Response>((resolve) => {
+          release = async () => resolve(await original(url, init));
+        })
+      : original(url, init),
+  );
+  mount();
+  const save = await screen.findByRole("button", { name: "Save all ND" });
+  fireEvent.click(save);
+  fireEvent.click(save);
+  await waitFor(() => expect(release).toBeDefined());
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(1);
+  expect(m.replace).not.toHaveBeenCalled();
+  await act(async () => {
+    await release!();
+  });
+  await waitFor(() => expect(m.replace).toHaveBeenCalledOnce());
+});
+it("keeps uncertain save outcomes in verification without replay, false failure or navigation", async () => {
+  const original = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    init?.method === "PUT"
+      ? Promise.resolve(Response.json({}, { status: 503 }))
+      : original(url, init),
+  );
+  const view = mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Save all ND" }));
+  await screen.findByText("Checking saved changes");
+  expect(screen.queryByText("Could not save table result")).toBeNull();
+  expect(m.replace).not.toHaveBeenCalled();
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(1);
+  expect((screen.getByRole("button", { name: "Save all ND" }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  view.unmount();
+  clearSessionQueryCache(view.client);
+});
+it.each([undefined, 2])(
+  "never combines a stale/missing Table epoch (%s) with the current Event version",
+  async (eventVersion) => {
+    table = { ...table, eventVersion };
+    mount();
+    await screen.findByText("This event changed. Go back and reopen the editor before saving.");
+    expect(screen.queryByRole("button", { name: "Save all ND" })).toBeNull();
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
   },
 );
+it("keeps Back in the app header", async () => {
+  mount();
+  await screen.findByRole("button", { name: "Save all ND" });
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(document.getElementById("page-header-actions")?.contains(back)).toBe(true);
+  fireEvent.click(back);
+  expect(m.back).toHaveBeenCalledOnce();
+});
+it.each([403, 503])("keeps denied or failed Table reads observable (%s)", async (status) => {
+  const original = fetcher.getMockImplementation()!;
+  let broken = true;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    url.endsWith(`/tables/${tableId}`) && broken
+      ? Promise.resolve(Response.json({}, { status }))
+      : original(url, init),
+  );
+  mount();
+  await screen.findByText("Could not load table");
+  expect(screen.queryByRole("button", { name: "Save all ND" })).toBeNull();
+  broken = false;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await screen.findByRole("button", { name: "Save all ND" });
+});
