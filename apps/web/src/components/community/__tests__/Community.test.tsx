@@ -4,6 +4,8 @@ import { useAppStore } from "@board-game-organizer/store";
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ActivityRow } from "@/components/activities/ActivityRow";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { ProfileActivityRow } from "@/components/profile/ProfileActivityRow";
 import { renderWithI18n } from "@/test-utils";
 import { Community } from "../Community";
 import { CommunityActivities } from "../CommunityActivities";
@@ -50,6 +52,11 @@ beforeEach(() => {
 it("keeps Activities/Marketplace and the network filter scoped while navigating", async () => {
   renderWithI18n(<Community />);
   expect(screen.getByRole("heading", { name: "Community" })).toBeTruthy();
+  for (const tab of screen.getAllByRole("tab")) {
+    expect(tab.className).toContain("flex-row");
+    expect(tab.className).toContain("whitespace-nowrap");
+    expect(tab.querySelector("svg")).not.toBeNull();
+  }
   fireEvent.click(screen.getByRole("tab", { name: "Marketplace" }));
   expect(screen.getByText("Coming soon")).toBeTruthy();
   expect(screen.getByText(/A place to buy, sell/)).toBeTruthy();
@@ -107,6 +114,52 @@ it("distinguishes failed reads, denied cached rows and genuine empty responses",
   m.q = { ...m.q, isError: false, error: null, data: { pages: [{ items: [] }] } };
   view.rerender(<CommunityActivities />);
   expect(screen.getByText("No activities yet")).toBeTruthy();
+});
+it.each(["friendship", "follower"] as const)(
+  "aligns %s identities under the same Profile label, without avatars or nested links",
+  (kind) => {
+    expect(ActivityRow).toBe(ProfileActivityRow);
+    const item = {
+      ...row(),
+      kind,
+      context: "New contact",
+      eventContext: undefined,
+      href: "/profiles/contact",
+    };
+    const { container } = renderWithI18n(
+      <GroupedList>
+        <ActivityRow
+          item={item}
+          author={{ ...item.author, avatarUrl: "https://avatar.test/friend.png" }}
+        />
+      </GroupedList>,
+    );
+    const label = screen.getByText(kind === "friendship" ? "New friendship" : "New follower");
+    const author = screen.getByRole("link", { name: "friend" });
+    const contact = screen.getByRole("link", {
+      name: `${kind === "friendship" ? "New friendship" : "New follower"}: New contact`,
+    });
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(container.querySelector("img")).toBeNull();
+    expect(author.parentElement).toBe(contact.parentElement);
+    expect(author.parentElement?.previousElementSibling).toBe(label);
+    expect(author.querySelector("a")).toBeNull();
+    expect(contact.querySelector("a")).toBeNull();
+  },
+);
+it.each([
+  { context: null, href: null },
+  { context: null, href: "/profiles/contact" },
+  { context: "Contact", href: null },
+])("keeps author/resource fallbacks truthful: %j", (fields) => {
+  const item = { ...row(), ...fields, eventContext: undefined };
+  renderWithI18n(
+    <GroupedList>
+      <ActivityRow item={item} author={item.author} />
+    </GroupedList>,
+  );
+  expect(screen.getByRole("link", { name: "friend" })).toBeTruthy();
+  expect(screen.getAllByRole("link")).toHaveLength(fields.href ? 2 : 1);
 });
 it("does not nest actor/resource links and uses safe identity fallbacks", () => {
   const view = renderWithI18n(

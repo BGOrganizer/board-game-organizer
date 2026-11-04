@@ -93,6 +93,11 @@ for (const width of [390, 1280])
         name: it ? "Attività della tua rete" : "Your network's activities",
       }),
     ).toBeVisible();
+    for (const tab of await main.getByRole("tab").all()) {
+      await expect(tab).toHaveCSS("flex-direction", "row");
+      await expect(tab).toHaveCSS("white-space", "nowrap");
+    }
+    await expect(main.locator("li img")).toHaveCount(0);
     for (const data of [all]) {
       const row = data.items[0];
       if (!row.href || !row.context) throw new Error("Authorized linked activity required");

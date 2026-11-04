@@ -59,8 +59,10 @@ information-read behavior; Community has no invented unread count, attention dot
 ## UI, cache and reconciliation
 
 Each app owns its activity renderer and navigation; Profile and Community share that renderer within
-that app. Community adds a public author/avatar link beside the resource link, never nested links.
-Rows stay compact, with relative time and localized local-calendar day headings. Native uses one
+that app, using the same GroupedList/GroupedRow structure. Public author and contact/resource names
+sit together beneath the activity label, without avatars or nested links. Profile/Community top-tab
+icons and labels share one horizontal row, with 44px minimum touch targets and compact labels at
+narrow widths. Rows stay compact, with relative time and localized local-calendar day headings. Native uses one
 SectionList and safe areas; web uses source-paged progressive loading with browser content visibility
 for off-screen sections. Loading, initial/next-page failures and true empty results remain distinct.
 

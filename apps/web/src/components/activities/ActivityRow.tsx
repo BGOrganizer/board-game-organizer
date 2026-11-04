@@ -5,7 +5,6 @@ import { useLingui } from "@lingui/react/macro";
 import { CalendarDays, Dices, Handshake, Trophy, UserRoundPlus, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
 
 export function ActivityRow({ item, author }: { item: ProfileActivity; author?: ActivityAuthor }) {
   const { t, i18n } = useLingui();
@@ -40,9 +39,31 @@ export function ActivityRow({ item, author }: { item: ProfileActivity; author?: 
               ? ` · ${new Intl.NumberFormat(i18n.locale).format(item.milestone)}`
               : ""}
         </span>
-        {item.context ? (
+        {author || item.context ? (
           <span className="block break-words text-sm text-foreground">
-            <strong>{item.context}</strong>
+            {author ? (
+              <>
+                <Link
+                  href={`/profiles/${encodeURIComponent(author.id)}`}
+                  className="inline-block min-h-11 max-w-full content-center rounded font-medium align-middle focus-visible:outline-2 focus-visible:outline-accent"
+                  aria-label={author.username || author.name || t`Username unavailable`}
+                >
+                  {author.username || author.name || t`Username unavailable`}
+                </Link>
+                {item.context ? " · " : null}
+              </>
+            ) : null}
+            {author && item.href ? (
+              <Link
+                href={item.href}
+                className="inline-block min-h-11 max-w-full content-center rounded align-middle focus-visible:outline-2 focus-visible:outline-accent"
+                aria-label={`${labels[item.kind]}: ${item.context ?? ""}`}
+              >
+                <strong>{item.context || labels[item.kind]}</strong>
+              </Link>
+            ) : (
+              <strong>{item.context}</strong>
+            )}
             {item.eventContext ? (
               <span className="block text-xs text-muted">{item.eventContext}</span>
             ) : null}
@@ -55,20 +76,8 @@ export function ActivityRow({ item, author }: { item: ProfileActivity; author?: 
     </>
   );
   return (
-    <GroupedRow className="flex-col items-stretch gap-1">
-      {author ? (
-        <Link
-          href={`/profiles/${encodeURIComponent(author.id)}`}
-          className="flex min-h-11 min-w-0 items-center gap-3 rounded focus-visible:outline-2 focus-visible:outline-accent"
-          aria-label={author.username || author.name || t`Username unavailable`}
-        >
-          <UserIdentity
-            name={author.username || author.name || t`Username unavailable`}
-            avatarUrl={author.avatarUrl}
-          />
-        </Link>
-      ) : null}
-      {item.href ? (
+    <GroupedRow>
+      {item.href && !author ? (
         <Link
           href={item.href}
           className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded focus-visible:outline-2 focus-visible:outline-accent"

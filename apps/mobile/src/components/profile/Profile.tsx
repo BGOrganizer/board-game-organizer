@@ -21,10 +21,10 @@ import { ProfileRecentActivities } from "./ProfileRecentActivities";
 import { ProfileStats } from "./ProfileStats";
 
 const tabStyle = {
-  flexDirection: "column",
+  flexDirection: "row",
   gap: 4,
-  minHeight: 56,
-  paddingHorizontal: 8,
+  minHeight: 44,
+  paddingHorizontal: 4,
   flexShrink: 1,
   minWidth: 0,
 } as const;
@@ -87,11 +87,11 @@ export function Profile({ userId }: { userId?: string }) {
                   color={tab === "activity" ? accent : muted}
                   accessible={false}
                 />
-                <Tabs.Label>{t("Activities")}</Tabs.Label>
+                <Tabs.Label className="text-xs sm:text-sm">{t("Activities")}</Tabs.Label>
               </Tabs.Trigger>
               <Tabs.Trigger value="player" style={tabStyle}>
                 <Gamepad2 size={16} color={tab === "player" ? accent : muted} accessible={false} />
-                <Tabs.Label>{t("Player")}</Tabs.Label>
+                <Tabs.Label className="text-xs sm:text-sm">{t("Player")}</Tabs.Label>
               </Tabs.Trigger>
               {own ? (
                 <Tabs.Trigger value="collection" style={tabStyle}>
@@ -100,7 +100,7 @@ export function Profile({ userId }: { userId?: string }) {
                     color={tab === "collection" ? accent : muted}
                     accessible={false}
                   />
-                  <Tabs.Label>{t("Collection")}</Tabs.Label>
+                  <Tabs.Label className="text-xs sm:text-sm">{t("Collection")}</Tabs.Label>
                 </Tabs.Trigger>
               ) : null}
             </MainTabBar>

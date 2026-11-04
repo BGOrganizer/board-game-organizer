@@ -1,5 +1,22 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Community/Profile activity and tab alignment — implemented follow-up
+
+- Both clients retain their existing shared ActivityRow, GroupedList and GroupedRow components.
+  Community author/contact names now sit below the activity label, matching Profile context
+  placement, without avatars. Author and resource navigation remain distinct; Profile keeps its
+  original whole-row navigation. No data, cache, notification or authorization contract changes.
+- Profile and Community top tabs retain icons but use horizontal icon/label layout, responsive
+  compact text and minimum 44px targets. No theme changes or new components/dependencies/strings.
+- Web 824 and mobile 380 covered tests pass; strict thresholds remain intact. Scoped Biome has
+  zero errors/warnings, typecheck and web production build pass; generated Next reference restored.
+  All 28 isolated actual-component/production-CSS browser cases pass in EN/IT/light/dark, including
+  320px owner Profile tabs, name placement, no avatars/nested links and inline tab geometry.
+  Manual Playwright scenarios now assert horizontal tabs and avatar-free Community rows.
+  These checks are not authenticated/device acceptance; no fresh APK was built. Subsequent operator
+  authorization covers signed commit/push on the existing `feat/social-api-refactor` branch only,
+  not a new PR or deployment.
+
 ## Community and public read-only details — implemented; acceptance incomplete
 
 - Community is between Groups and Contacts on web/native, with standard Activities / Marketplace

@@ -22,8 +22,19 @@ it("uses platform tabs, one virtualized daily list, public identities and separa
   expect(feed).not.toContain("ScrollView");
   expect(feed).toContain("isFetchNextPageError");
   expect(feed).toContain("activitySections");
-  expect(row).toContain("UserAvatar");
+  expect(row).not.toContain("UserAvatar");
+  expect(row).not.toContain("avatarUrl");
   expect(row).toContain("author.id");
+  expect(row.indexOf("{labels[item.kind]}")).toBeLessThan(row.indexOf("{author ? ("));
+  expect(row).toContain("Identity = item.href && !author ? Pressable : View");
+  expect(feed).toContain("<GroupedList>");
+  expect(source("src/components/profile/ProfileRecentActivities.tsx")).toContain("<GroupedList>");
+  for (const tabs of [page, source("src/components/profile/Profile.tsx")]) {
+    const style = tabs.slice(tabs.indexOf("const tabStyle"), tabs.indexOf("export function"));
+    expect(style).toContain('flexDirection: "row"');
+    expect(style).toContain("minHeight: 44");
+    expect(style).not.toContain('flexDirection: "column"');
+  }
   expect(source("src/components/profile/ProfileActivityRow.tsx")).toContain(
     "../activities/ActivityRow",
   );

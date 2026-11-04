@@ -172,6 +172,11 @@ it("moves BGG into the third owner-only tab and preserves tab selection through 
     "Player",
     "Collection",
   ]);
+  for (const tab of screen.getAllByRole("tab")) {
+    expect(tab.className).toContain("flex-row");
+    expect(tab.className).toContain("whitespace-nowrap");
+    expect(tab.querySelector("svg")).not.toBeNull();
+  }
   expect(screen.queryByRole("heading", { name: "Your BGG collection" })).toBeNull();
   expect(requests.mock.calls.some(([url]) => url.includes("/bgg/"))).toBe(false);
   await openCollection();

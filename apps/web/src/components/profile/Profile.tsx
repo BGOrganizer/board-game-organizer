@@ -60,7 +60,7 @@ export function Profile({ userId }: { userId?: string }) {
               <Tabs.List aria-label={t`Profile navigation`} className="w-full">
                 <Tabs.Tab
                   id="activity"
-                  className="h-auto min-h-14 min-w-0 flex-1 flex-col gap-1 px-2 whitespace-normal"
+                  className="h-auto min-h-11 min-w-0 flex-1 flex-row gap-1 px-1 text-xs whitespace-nowrap sm:gap-2 sm:px-2 sm:text-sm"
                 >
                   <UsersRound className="size-4" aria-hidden />
                   {t`Activities`}
@@ -68,7 +68,7 @@ export function Profile({ userId }: { userId?: string }) {
                 </Tabs.Tab>
                 <Tabs.Tab
                   id="player"
-                  className="h-auto min-h-14 min-w-0 flex-1 flex-col gap-1 px-2 whitespace-normal"
+                  className="h-auto min-h-11 min-w-0 flex-1 flex-row gap-1 px-1 text-xs whitespace-nowrap sm:gap-2 sm:px-2 sm:text-sm"
                 >
                   <Gamepad2 className="size-4" aria-hidden />
                   {t`Player`}
@@ -77,7 +77,7 @@ export function Profile({ userId }: { userId?: string }) {
                 {own ? (
                   <Tabs.Tab
                     id="collection"
-                    className="h-auto min-h-14 min-w-0 flex-1 flex-col gap-1 px-2 whitespace-normal"
+                    className="h-auto min-h-11 min-w-0 flex-1 flex-row gap-1 px-1 text-xs whitespace-nowrap sm:gap-2 sm:px-2 sm:text-sm"
                   >
                     <LibraryBig className="size-4" aria-hidden />
                     {t`Collection`}

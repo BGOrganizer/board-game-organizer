@@ -9,7 +9,7 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 import { CommunityActivities } from "./CommunityActivities";
 import { CommunityMarketplace } from "./CommunityMarketplace";
 
-const tabStyle = { flexDirection: "column", gap: 4, minHeight: 56, paddingHorizontal: 12 } as const;
+const tabStyle = { flexDirection: "row", gap: 4, minHeight: 44, paddingHorizontal: 4 } as const;
 export function Community() {
   const t = useT(),
     o = useCommunityApi(),
@@ -29,11 +29,11 @@ export function Community() {
         <MainTabBar>
           <Tabs.Trigger value="activity" style={tabStyle}>
             <Activity size={16} color={tab === "activity" ? accent : muted} accessible={false} />
-            <Tabs.Label>{t("Activities")}</Tabs.Label>
+            <Tabs.Label className="text-xs sm:text-sm">{t("Activities")}</Tabs.Label>
           </Tabs.Trigger>
           <Tabs.Trigger value="market" style={tabStyle}>
             <Store size={16} color={tab === "market" ? accent : muted} accessible={false} />
-            <Tabs.Label>{t("Marketplace")}</Tabs.Label>
+            <Tabs.Label className="text-xs sm:text-sm">{t("Marketplace")}</Tabs.Label>
           </Tabs.Trigger>
         </MainTabBar>
         {tab === "activity" ? <CommunityActivities /> : <CommunityMarketplace />}

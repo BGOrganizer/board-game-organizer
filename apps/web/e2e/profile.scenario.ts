@@ -96,6 +96,10 @@ for (const width of [390, 1280]) {
     await page.goto("/profile");
     const main = page.getByRole("main");
     await expect(main.getByText(ownerName, { exact: true })).toBeVisible();
+    for (const tab of await main.getByRole("tab").all()) {
+      await expect(tab).toHaveCSS("flex-direction", "row");
+      await expect(tab).toHaveCSS("white-space", "nowrap");
+    }
     await main.getByRole("tab", { name: labels.collection, exact: true }).click();
     await expect(main.getByRole("heading", { name: labels.bgg })).toBeVisible();
     await expect(main.getByRole("button", { name: labels.logout, exact: true })).toBeVisible();
