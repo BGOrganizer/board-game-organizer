@@ -27,6 +27,7 @@ output.profileBgg = {
   username: required("PROFILE_BGG_USERNAME"),
   usernameText: literal(required("PROFILE_BGG_USERNAME")),
   invalidUsername: required("PROFILE_BGG_INVALID_USERNAME"),
+  collection: literal(it ? "Collezione" : "Collection"),
   sync: literal(it ? "Sincronizza collezione" : "Sync collection"),
   input: literal(it ? "Nome utente BGG" : "BGG username"),
   welcome: literal(it ? "Benvenuto in Board Game Organizer" : "Welcome to Board Game Organizer"),

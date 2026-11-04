@@ -11,6 +11,7 @@ tags: [manual, profile]
 - extendedWaitUntil:
     visible: ${output.profile.owner}
     timeout: 120000
+- tapOn: ${output.profile.collection}
 - assertVisible: ${output.profile.bgg}
 - scrollUntilVisible:
     element: ${output.profile.logout}
@@ -38,6 +39,7 @@ tags: [manual, profile]
     visible: ${output.profile.target}
     timeout: 120000
 - assertNotVisible: ${output.profile.bgg}
+- assertNotVisible: ${output.profile.collection}
 - assertNotVisible: ${output.profile.logout}
 - tapOn: ${output.profile.player}
 - scrollUntilVisible:
@@ -56,6 +58,14 @@ tags: [manual, profile]
     direction: DOWN
     timeout: 120000
 - takeScreenshot: profile-real-ordinal-openskill-chart
+- scrollUntilVisible:
+    element: ${output.profile.clearGame}
+    direction: UP
+    timeout: 120000
+- tapOn: ${output.profile.clearGame}
+- assertNotVisible: ${output.profile.chart}
+- assertNotVisible: ${output.profile.clearGame}
+- takeScreenshot: profile-real-empty-game-selection
 - scrollUntilVisible:
     element: ${output.profile.activity}
     direction: UP

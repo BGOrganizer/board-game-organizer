@@ -3,7 +3,7 @@ import { communityAccessDenied, useProfileView } from "@board-game-organizer/sha
 import { useAppStore } from "@board-game-organizer/store";
 import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Gamepad2, UsersRound } from "lucide-react";
+import { Gamepad2, LibraryBig, UsersRound } from "lucide-react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
@@ -21,8 +21,9 @@ export function Profile({ userId }: { userId?: string }) {
     own = Boolean(o.userId && subject === o.userId),
     q = useProfileView(o, subject);
   const viewKey = JSON.stringify([o.apiUrl, o.userId, subject]);
-  const tab = useAppStore((s) => s.profileViews[viewKey]?.tab ?? "activity"),
+  const storedTab = useAppStore((s) => s.profileViews[viewKey]?.tab ?? "activity"),
     setView = useAppStore((s) => s.setProfileView);
+  const tab = !own && storedTab === "collection" ? "activity" : storedTab;
   const data = communityAccessDenied(q.error) ? undefined : q.data;
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 });
   return (
@@ -48,25 +49,41 @@ export function Profile({ userId }: { userId?: string }) {
               />
             </GroupedRow>
           </GroupedList>
-          {own ? <ProfileBggCard /> : null}
           <Tabs
             selectedKey={tab}
             onSelectionChange={(value) => {
-              if (value === "activity" || value === "player") setView(viewKey, { tab: value });
+              if (value === "activity" || value === "player" || (own && value === "collection"))
+                setView(viewKey, { tab: value });
             }}
           >
-            <Tabs.ListContainer className="mt-2 w-fit max-w-full self-center">
-              <Tabs.List aria-label={t`Profile navigation`}>
-                <Tabs.Tab id="activity" className="whitespace-nowrap">
+            <Tabs.ListContainer className="mt-2 w-full max-w-full self-center">
+              <Tabs.List aria-label={t`Profile navigation`} className="w-full">
+                <Tabs.Tab
+                  id="activity"
+                  className="h-auto min-h-14 min-w-0 flex-1 flex-col gap-1 px-2 whitespace-normal"
+                >
                   <UsersRound className="size-4" aria-hidden />
                   {t`Activities`}
                   <Tabs.Indicator />
                 </Tabs.Tab>
-                <Tabs.Tab id="player" className="whitespace-nowrap">
+                <Tabs.Tab
+                  id="player"
+                  className="h-auto min-h-14 min-w-0 flex-1 flex-col gap-1 px-2 whitespace-normal"
+                >
                   <Gamepad2 className="size-4" aria-hidden />
                   {t`Player`}
                   <Tabs.Indicator />
                 </Tabs.Tab>
+                {own ? (
+                  <Tabs.Tab
+                    id="collection"
+                    className="h-auto min-h-14 min-w-0 flex-1 flex-col gap-1 px-2 whitespace-normal"
+                  >
+                    <LibraryBig className="size-4" aria-hidden />
+                    {t`Collection`}
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                ) : null}
               </Tabs.List>
             </Tabs.ListContainer>
             <Tabs.Panel id="activity" className="space-y-4 pt-0">
@@ -93,6 +110,11 @@ export function Profile({ userId }: { userId?: string }) {
               />
               <ProfilePlayer userId={subject} viewKey={viewKey} />
             </Tabs.Panel>
+            {own ? (
+              <Tabs.Panel id="collection" className="pt-0">
+                <ProfileBggCard />
+              </Tabs.Panel>
+            ) : null}
           </Tabs>
         </>
       ) : null}

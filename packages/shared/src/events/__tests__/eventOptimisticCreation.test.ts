@@ -123,6 +123,13 @@ describe("provisional Event creation", () => {
     expect(eventCreationMatches(row, { groupId })).toBe(false);
     expect(eventCreationMatches(row, { query: " FRIDAY " })).toBe(true);
     expect(eventCreationMatches(row, { query: "Other" })).toBe(false);
+    expect(eventCreationMatches(row, { statuses: [] })).toBe(false);
+    expect(eventCreationMatches(row, { statuses: ["CONFIRMED", "TERMINATED"] })).toBe(false);
+    expect(eventCreationMatches(row, { statuses: ["PLANNING"], query: "Friday" })).toBe(true);
+    expect(eventCreationMatches(row, { statuses: ["PLANNING"], query: "Other" })).toBe(false);
+    expect(
+      eventCreationMatches({ ...row, status: "TERMINATED" }, { statuses: ["TERMINATED"] }),
+    ).toBe(true);
     expect(eventCreationMatches(row, { periods: [] })).toBe(false);
     expect(eventCreationMatches(row, { periods: ["past"] })).toBe(true);
     expect(eventCreationMatches(row, { periods: ["future"] })).toBe(true);

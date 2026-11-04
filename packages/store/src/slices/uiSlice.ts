@@ -6,7 +6,11 @@ import type { StateCreator } from "zustand";
  */
 export type ThemePreference = "system" | "light" | "dark";
 
-export type ProfileUi = { tab: "activity" | "player"; gameId: number | null; activityKind: string };
+export type ProfileUi = {
+  tab: "activity" | "player" | "collection";
+  gameId: number | null;
+  activityKind: string;
+};
 export interface UiSlice {
   profileViews: Partial<Record<string, ProfileUi>>;
   setProfileView: (key: string, patch: Partial<ProfileUi>) => void;

@@ -1,3 +1,4 @@
+import { eventListStatuses } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useListSearch,
@@ -6,7 +7,7 @@ import {
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CalendarDays, History } from "lucide-react-native";
+import { CircleCheck, Clock3, Flag } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -19,8 +20,8 @@ export function TableList() {
   const t = useT(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets(),
-    f = useListSearch(["past", "future"] as const, 0),
-    q = useRecordTables(o, null, { query: f.search, periods: f.selected });
+    f = useListSearch(eventListStatuses, 0),
+    q = useRecordTables(o, null, { query: f.search, statuses: f.selected });
   return (
     <NotificationAttentionScope
       options={o}
@@ -51,8 +52,9 @@ export function TableList() {
               selected={f.selected}
               onToggle={f.toggle}
               options={[
-                { key: "past", label: t("Past"), icon: History },
-                { key: "future", label: t("Future"), icon: CalendarDays },
+                { key: "CONFIRMED", label: t("Confirmed tables"), icon: CircleCheck },
+                { key: "PLANNING", label: t("Planning"), icon: Clock3 },
+                { key: "TERMINATED", label: t("Terminated tables"), icon: Flag },
               ]}
             />
             <TableListHeading />

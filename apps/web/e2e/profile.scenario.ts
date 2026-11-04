@@ -43,6 +43,8 @@ const it = locale === "it",
   labels = {
     activities: it ? "Attività" : "Activities",
     player: it ? "Giocatore" : "Player",
+    collection: it ? "Collezione" : "Collection",
+    clearGame: it ? "Azzera gioco selezionato" : "Clear selected game",
     bgg: it ? "La tua collezione BGG" : "Your BGG collection",
     logout: it ? "Esci dall'account" : "Sign out of your account",
     sync: it ? "Sincronizza collezione" : "Sync collection",
@@ -94,6 +96,7 @@ for (const width of [390, 1280]) {
     await page.goto("/profile");
     const main = page.getByRole("main");
     await expect(main.getByText(ownerName, { exact: true })).toBeVisible();
+    await main.getByRole("tab", { name: labels.collection, exact: true }).click();
     await expect(main.getByRole("heading", { name: labels.bgg })).toBeVisible();
     await expect(main.getByRole("button", { name: labels.logout, exact: true })).toBeVisible();
     await page.goto("/contacts");
@@ -115,6 +118,7 @@ for (const width of [390, 1280]) {
     await expect(page).toHaveURL(new RegExp(`/profiles/${target}$`));
     await expect(main.getByText(targetName, { exact: true })).toBeVisible();
     await expect(main.getByRole("heading", { name: labels.bgg })).toHaveCount(0);
+    await expect(main.getByRole("tab", { name: labels.collection, exact: true })).toHaveCount(0);
     await expect(main.getByRole("button", { name: labels.logout, exact: true })).toHaveCount(0);
     await expect(main.getByText(publicText, { exact: true })).toBeVisible();
     await expect(main.getByText(privateText, { exact: true })).toHaveCount(0);
@@ -142,6 +146,12 @@ for (const width of [390, 1280]) {
     expect(history.body.points.length).toBeGreaterThanOrEqual(2);
     for (const point of history.body.points)
       expect(Object.keys(point).sort()).toEqual(["delta", "ordinal", "rating"]);
+    await main.getByRole("button", { name: labels.clearGame, exact: true }).click();
+    await expect(main.getByRole("img", { name: labels.chart })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: labels.clearGame, exact: true })).toHaveCount(0);
+    await main.getByRole("tab", { name: labels.activities, exact: true }).click();
+    await main.getByRole("tab", { name: labels.player, exact: true }).click();
+    await expect(main.getByRole("img", { name: labels.chart })).toHaveCount(0);
     await main.getByRole("tab", { name: labels.activities, exact: true }).click();
     await main.getByRole("button", { name: labels.all, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/profiles/${target}/activities$`));
@@ -187,6 +197,7 @@ test("real provider BGG failure/success/retained snapshot/unlink and confirmed l
   await page.goto("/profile");
   const main = page.getByRole("main");
   await expect(main.getByText(ownerName, { exact: true })).toBeVisible();
+  await main.getByRole("tab", { name: labels.collection, exact: true }).click();
   await expect(main.getByRole("button", { name: labels.sync, exact: true })).toBeEnabled();
   expect([...hosts]).toEqual([api.host]);
   const before = await read(page, "bgg/account");

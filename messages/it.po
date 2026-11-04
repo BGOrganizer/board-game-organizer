@@ -5592,5 +5592,17 @@ msgstr "Gli inviti in sospeso riservano un posto, ma non votano e non contano pe
 msgid "Free places allow joining or invitations. Places are not assigned physical seats."
 msgstr "I posti liberi consentono di iscriversi o invitare altri giocatori. I posti non corrispondono a sedute fisiche assegnate."
 
-msgid "Username unavailable"
-msgstr "Nome utente non disponibile"
+msgid "Confirmed events"
+msgstr "Confermati"
+
+msgid "Terminated events"
+msgstr "Terminati"
+
+msgid "Confirmed tables"
+msgstr "Confermati"
+
+msgid "Terminated tables"
+msgstr "Terminati"
+
+msgid "Clear selected game"
+msgstr "Azzera gioco selezionato"

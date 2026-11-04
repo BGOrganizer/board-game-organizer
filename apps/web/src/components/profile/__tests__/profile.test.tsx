@@ -114,6 +114,20 @@ beforeEach(() => {
   vi.stubGlobal("fetch", requests);
 });
 afterEach(() => vi.unstubAllGlobals());
+async function openCollection() {
+  fireEvent.click(await screen.findByRole("tab", { name: "Collection" }));
+  await waitFor(() =>
+    expect(
+      (screen.getByRole("button", { name: "Sync collection" }) as HTMLButtonElement).disabled,
+    ).toBe(false),
+  );
+}
+async function chooseChess() {
+  const trigger = await screen.findByRole("button", { name: /Board game/ });
+  await waitFor(() => expect((trigger as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole("option", { name: "Chess" }));
+}
 it("keeps logout reachable while loading and exposes network failures with retry", async () => {
   deferredProfile = true;
   const q = renderWithI18n(<Profile />);
@@ -138,6 +152,7 @@ it("shows a compact identity, persistent tabs and real ordinal GLOBAL rating dat
     screen.getByRole("link", { name: "Game played: My Table" }).getAttribute("href"),
   ).toContain("/tables/");
   fireEvent.click(screen.getByRole("tab", { name: "Player" }));
+  await chooseChess();
   await screen.findByText("Current rating: 512");
   expect(screen.getByText("Last rated game change: +2")).not.toBeNull();
   expect(screen.getByRole("img", { name: "OpenSkill rating history" })).not.toBeNull();
@@ -147,6 +162,53 @@ it("shows a compact identity, persistent tabs and real ordinal GLOBAL rating dat
     useAppStore.getState().profileViews[JSON.stringify(["https://api.test", "owner", "owner"])]
       ?.tab,
   ).toBe("player");
+});
+it("moves BGG into the third owner-only tab and preserves tab selection through confirmation cancellation", async () => {
+  renderWithI18n(<Profile />);
+  await screen.findByText("Alessandro");
+  expect(screen.getAllByRole("tab").map((tab) => tab.textContent?.trim())).toEqual([
+    "Activities",
+    "Player",
+    "Collection",
+  ]);
+  expect(screen.queryByRole("heading", { name: "Your BGG collection" })).toBeNull();
+  expect(requests.mock.calls.some(([url]) => url.includes("/bgg/"))).toBe(false);
+  await openCollection();
+  await screen.findByRole("heading", { name: "Your BGG collection" });
+  fireEvent.click(screen.getByRole("button", { name: "Sign out of your account" }));
+  fireEvent.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Cancel" }),
+  );
+  expect(screen.getByRole("tab", { name: "Collection" }).getAttribute("aria-selected")).toBe(
+    "true",
+  );
+  expect(m.signOut).not.toHaveBeenCalled();
+});
+it("starts with an empty game selection, clears it without stale history and stays empty after remount", async () => {
+  renderWithI18n(<Profile />);
+  await screen.findByText("Alessandro");
+  fireEvent.click(screen.getByRole("tab", { name: "Player" }));
+  await waitFor(() =>
+    expect(requests.mock.calls.some(([url]) => url.includes("/games?"))).toBe(true),
+  );
+  expect(requests.mock.calls.some(([url]) => url.includes("/games/1"))).toBe(false);
+  expect(screen.queryByRole("button", { name: "Clear selected game" })).toBeNull();
+  await chooseChess();
+  await screen.findByText("Current rating: 512");
+  fireEvent.click(screen.getByRole("button", { name: "Clear selected game" }));
+  expect(screen.queryByText("Current rating: 512")).toBeNull();
+  expect(screen.queryByRole("img", { name: "OpenSkill rating history" })).toBeNull();
+  expect(screen.queryByRole("listbox")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Clear selected game" })).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: /Board game/ }));
+  fireEvent.click(screen.getByRole("tab", { name: "Activities" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Player" }));
+  expect(screen.queryByText("Current rating: 512")).toBeNull();
+  expect(
+    useAppStore.getState().profileViews[JSON.stringify(["https://api.test", "owner", "owner"])]
+      ?.gameId,
+  ).toBeNull();
+  expect(requests.mock.calls.some(([url]) => url.includes("/games/null"))).toBe(false);
 });
 it("quarantines all subject data after a denied child read and permits a fresh authorized retry", async () => {
   failGames = 404;
@@ -159,12 +221,20 @@ it("quarantines all subject data after a denied child read and permits a fresh a
   failGames = 0;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await screen.findByText("Alessandro");
+  await chooseChess();
   await screen.findByText("Current rating: 512");
 });
-it("never fetches BGG or renders owner actions on another user's profile", async () => {
+it("never fetches BGG or renders owner actions on another user's profile, even with stale Collection selection", async () => {
+  useAppStore
+    .getState()
+    .setProfileView(JSON.stringify(["https://api.test", "owner", "guest"]), { tab: "collection" });
   renderWithI18n(<Profile userId="guest" />);
   await screen.findByText("Alessandro");
   expect(screen.queryByText("Your BGG collection")).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Collection" })).toBeNull();
+  expect(screen.getByRole("tab", { name: "Activities" }).getAttribute("aria-selected")).toBe(
+    "true",
+  );
   expect(screen.queryByRole("button", { name: "Sign out of your account" })).toBeNull();
   expect(requests.mock.calls.some(([url]) => url.includes("bgg"))).toBe(false);
 });
@@ -178,7 +248,7 @@ it.each([401, 403, 404])("does not reveal blocked/missing profile details (%s)",
 it("asks only for a username, closes before verification, keeps failed input and validates blank submission", async () => {
   failLink = true;
   renderWithI18n(<Profile />);
-  await screen.findByText("Alessandro");
+  await openCollection();
   const sync = await screen.findByRole("button", { name: "Sync collection" });
   fireEvent.click(sync);
   let dialog = await screen.findByRole("dialog", { name: "BGG username" });
@@ -204,6 +274,7 @@ it("retains successful collection metadata across a failed real sync and confirm
   bgg = { active, pending: null };
   failSync = true;
   renderWithI18n(<Profile />);
+  await openCollection();
   await screen.findByText("alice");
   expect(
     screen.getByRole("link", { name: "Powered by BGG — open BoardGameGeek" }).getAttribute("href"),
@@ -224,6 +295,7 @@ it("clears prior mutation errors when a later confirmed unlink succeeds", async 
   bgg = { active, pending: null };
   failLink = true;
   renderWithI18n(<Profile />);
+  await openCollection();
   await screen.findByText("alice");
   fireEvent.click(screen.getByRole("button", { name: "Sync collection" }));
   await screen.findByText(

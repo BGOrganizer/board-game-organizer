@@ -1,4 +1,5 @@
 "use client";
+import { eventListStatuses } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useListSearch,
@@ -6,7 +7,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarDays, History } from "lucide-react";
+import { CircleCheck, Clock3, Flag } from "lucide-react";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -17,8 +18,8 @@ import { TableListHeading } from "./TableListHeading";
 export function TableList() {
   const { t } = useLingui(),
     o = useCommunityApi(),
-    f = useListSearch(["past", "future"] as const, 0),
-    q = useRecordTables(o, null, { query: f.search, periods: f.selected }),
+    f = useListSearch(eventListStatuses, 0),
+    q = useRecordTables(o, null, { query: f.search, statuses: f.selected }),
     end = useInfiniteScroll({
       hasNextPage: !!q.hasNextPage,
       isFetchingNextPage: q.isFetchingNextPage,
@@ -43,8 +44,9 @@ export function TableList() {
           selected={f.selected}
           onToggle={f.toggle}
           options={[
-            { key: "past", label: t`Past`, icon: History },
-            { key: "future", label: t`Future`, icon: CalendarDays },
+            { key: "CONFIRMED", label: t`Confirmed tables`, icon: CircleCheck },
+            { key: "PLANNING", label: t`Planning`, icon: Clock3 },
+            { key: "TERMINATED", label: t`Terminated tables`, icon: Flag },
           ]}
         />
         <TableListHeading />

@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { eventPeriods, eventPeriodsSchema } from "../dto/eventList";
+import {
+  eventListStatuses,
+  eventListStatusesSchema,
+  eventPeriods,
+  eventPeriodsSchema,
+} from "../dto/eventList";
+
+it("normalizes explicit lifecycle selections, including all-off and repeated values", () => {
+  expect(eventListStatusesSchema.parse("TERMINATED,PLANNING,CONFIRMED")).toEqual(eventListStatuses);
+  expect(eventListStatusesSchema.parse("")).toEqual([]);
+  expect(eventListStatusesSchema.parse("PLANNING")).toEqual(["PLANNING"]);
+  expect(eventListStatusesSchema.parse("CONFIRMED,CONFIRMED")).toEqual(["CONFIRMED"]);
+});
+it.each([
+  "DRAFT",
+  "confirmed",
+  "CONFIRMED, PLANNING",
+  "CONFIRMED,",
+  "PLANNING,PLANNING,PLANNING,PLANNING",
+  "x".repeat(101),
+  null,
+  undefined,
+  [],
+])("rejects invalid lifecycle filters %j", (value) => {
+  expect(eventListStatusesSchema.safeParse(value).success).toBe(false);
+});
 
 describe("event list periods", () => {
   it("defaults to both periods and accepts explicit empty and individual selections", () => {

@@ -84,6 +84,18 @@ No canonical journey or CI job is replaced/enabled by these files. Syntax/VM/dis
 real provider, authenticated or native-device acceptance.
 
 
+`20-list-status.yaml` and `apps/web/e2e/list-status.config.ts` cover combined lifecycle/name filters
+without mocks, saves or resets. Use owned Development/Preview fixtures: the actor has a Registered
+Event and personal Table in each of CONFIRMED, PLANNING, TERMINATED, with names containing the same
+`STATUS_QUERY` (1–120 characters). Supply `STATUS_LOCALE` (`en`/`it`); native additionally needs
+`STATUS_EVENT_CONFIRMED`, `STATUS_EVENT_PLANNING`, `STATUS_EVENT_TERMINATED`,
+`STATUS_TABLE_CONFIRMED`, `STATUS_TABLE_PLANNING`, `STATUS_TABLE_TERMINATED` (unique first-page names).
+Web requires `STATUS_API_URL` (local/Preview), `STATUS_THEME` (`light`/`dark`), `E2E_EMAIL` and existing
+Development Clerk test credentials. Run `pnpm --filter web exec playwright test --config e2e/list-status.config.ts`.
+Every state fixture is mandatory; all-off must remain empty after clearing search. Repeat native
+EN/IT, light/dark and enlarged text. Profile flows 17/18 now enter Collection explicitly; 17 also
+checks that clearing the selected game removes its chart. Syntax/discovery is not runtime acceptance.
+
 `19-table-player-ux.yaml` and `apps/web/e2e/table-player-ux.config.ts` inspect real waiting states,
 usernames, localized Profile statistics and unsaved Table drafts; no save/enrollment or mocks.
 Use an owned Development/Preview actor in the selected `TABLE_UX_LOCALE` (`en`/`it`). Supply

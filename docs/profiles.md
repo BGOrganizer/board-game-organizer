@@ -13,9 +13,11 @@ physical results, deletion and OpenSkill. This feature adds no Community destina
 - Other-user responses contain public identity, aggregate counters and GLOBAL ratings only: no
   email, phone, BGO moderation role, Clerk account metadata or BGG account data. Mirror email
   fallbacks are not exposed as profile/activity display names.
-- The compact identity precedes the owner-only BGG card, then Activities / Player internal tabs.
-  Tab, game and activity-filter selections belong to scoped local UI state. Logout is owner-only,
-  remains reachable on profile failure, and requires confirmation. Native retains cache-safe signout.
+- The compact identity precedes Activities / Player internal tabs and an owner-only third Collection
+  tab containing the existing BGG synchronization card. Other-user profiles never expose that tab or
+  owner BGG controls. Tab, game and activity-filter selections belong to scoped local UI state.
+  Logout stays outside tabs, remains reachable on profile failure and requires confirmation; native
+  retains cache-safe signout.
 
 ## Aggregate and rating rules
 
@@ -26,8 +28,10 @@ physical results, deletion and OpenSkill. This feature adds no Community destina
   An empty denominator produces no percentage, not an invented zero-percent record.
 - These aggregates and GLOBAL OpenSkill values may incorporate inaccessible private games.
   No private activity detail becomes visible because its aggregate is visible.
-- Game selection source-pages GLOBAL personal skill snapshots with positive gamesPlayed. A retained
-  snapshot remains selectable after its source history is deleted; it does not recreate that history.
+- Game selection source-pages GLOBAL personal skill snapshots with positive gamesPlayed. Selection
+  starts empty and a separate accessible X action resets it to empty without automatically choosing
+  the first game or showing stale history. A retained snapshot remains selectable after its source
+  history is deleted; it does not recreate that history.
 - Curves use surviving classified unified Table rating events only, preserving existing OpenSkill
   and ND treatment. Internal ordering uses authoritative after.gamesPlayed, not wall-clock ordering.
   Responses expose ordinal/rating/delta points, never source dates, Event/Table IDs, titles or links.

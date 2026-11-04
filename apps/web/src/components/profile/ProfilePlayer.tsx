@@ -7,7 +7,8 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import { Button, Label, ListBox, Select, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -19,6 +20,7 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
     o = useCommunityApi();
   const gameId = useAppStore((s) => s.profileViews[viewKey]?.gameId ?? null),
     setView = useAppStore((s) => s.setProfileView);
+  const trigger = useRef<HTMLButtonElement>(null);
   const [search, setSearch] = useState(""),
     [query, setQuery] = useState("");
   useEffect(() => {
@@ -31,16 +33,13 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
     ? []
     : (games.data?.pages.flatMap((p) => p.items) ?? []);
   const data =
-    communityAccessDenied(games.error) || communityAccessDenied(history.error)
+    gameId === null || communityAccessDenied(games.error) || communityAccessDenied(history.error)
       ? undefined
       : history.data?.pages[0];
-  const selected = choices.find((g) => g.id === gameId) ?? data?.game;
+  const selected =
+    gameId === null ? undefined : (choices.find((g) => g.id === gameId) ?? data?.game);
   const options =
     selected && !choices.some((g) => g.id === selected.id) ? [selected, ...choices] : choices;
-  const first = choices[0]?.id;
-  useEffect(() => {
-    if (gameId === null && first) setView(viewKey, { gameId: first });
-  }, [gameId, first, setView, viewKey]);
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
   const points = [...(history.data?.pages ?? [])].reverse().flatMap((p) => p.points);
   return (
@@ -50,18 +49,34 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
         className="w-full"
         placeholder={t`Select a board game`}
         value={gameId === null ? null : String(gameId)}
-        onChange={(value) => {
-          if (value !== null) setView(viewKey, { gameId: Number(value) });
-        }}
+        onChange={(value) => setView(viewKey, { gameId: value === null ? null : Number(value) })}
       >
         <Label>{t`Board game`}</Label>
-        <Select.Trigger className="w-full">
-          <Select.Value className="sr-only" />
-          <span className="min-w-0 flex-1 truncate text-left" aria-hidden>
-            {selected?.name ?? t`Select a board game`}
-          </span>
-          <Select.Indicator />
-        </Select.Trigger>
+        <div className="flex items-center gap-2">
+          <Select.Trigger ref={trigger} className="min-w-0 flex-1">
+            <Select.Value className="sr-only" />
+            <span className="min-w-0 flex-1 truncate text-left" aria-hidden>
+              {selected?.name ?? t`Select a board game`}
+            </span>
+            <Select.Indicator />
+          </Select.Trigger>
+          {gameId !== null ? (
+            <Button
+              slot={null}
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="min-h-11 min-w-11 shrink-0"
+              aria-label={t`Clear selected game`}
+              onPress={() => {
+                setView(viewKey, { gameId: null });
+                trigger.current?.focus();
+              }}
+            >
+              <X className="size-4" aria-hidden />
+            </Button>
+          ) : null}
+        </div>
         <Select.Popover>
           <SearchInput
             value={search}
@@ -90,7 +105,7 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
         </Select.Popover>
       </Select>
       {games.isPending ? <Skeleton className="h-12 w-full rounded-xl" /> : null}
-      {games.isError || history.isError ? (
+      {games.isError || (gameId !== null && history.isError) ? (
         <div role="alert">
           <p className="text-danger">{t`Could not load rating history`}</p>
           <Button

@@ -217,6 +217,103 @@ it("keeps combined-list errors observable and retries/paginates the same canonic
   ).toBe(true);
 });
 
+it.each(["events", "tables"] as const)(
+  "combines %s lifecycle chips with debounced one-character search, paging and all-off",
+  async (resource) => {
+    const rows = (["CONFIRMED", "PLANNING", "TERMINATED"] as const).map((status, index) => {
+      const name = ["Alpha confirmed", "Beta planning", "Zeta terminated"][index];
+      return resource === "events"
+        ? {
+            ...plannedEvent,
+            id: status,
+            name,
+            status,
+            myRegistrations: [seat("owner")],
+          }
+        : {
+            ...plannedTable,
+            id: status,
+            name,
+            eventStatus: status,
+            myRegistration: seat("owner"),
+            ...(status === "PLANNING"
+              ? {}
+              : {
+                  confirmed: {
+                    gameId: 1,
+                    playerIds: ["owner", "guest"],
+                    startsAt: "2030-06-03T18:00:00Z",
+                  },
+                }),
+          };
+    });
+    const fetcher = vi.fn(async (url: string) => {
+      const u = new URL(url),
+        notification = attention(u);
+      if (notification) return notification;
+      if (!u.pathname.endsWith(`/${resource}`))
+        return Response.json({ items: [], nextCursor: null });
+      const statuses = u.searchParams.get("statuses")?.split(",") ?? [
+          "CONFIRMED",
+          "PLANNING",
+          "TERMINATED",
+        ],
+        query = (u.searchParams.get("query") ?? "").toLowerCase(),
+        selected = rows.filter(
+          (row) =>
+            statuses.includes("status" in row ? row.status : row.eventStatus) &&
+            row.name.toLowerCase().includes(query),
+        ),
+        offset = u.searchParams.has("cursor") ? 2 : 0;
+      return Response.json({
+        items: selected.slice(offset, offset + 2),
+        nextCursor: selected.length > offset + 2 ? "next" : null,
+      });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(resource === "events" ? <Events canCreate={false} /> : <Tables />);
+    const link = (name: string) =>
+        `${resource === "events" ? "Open event" : "Open table"}: ${name}`,
+      confirmed = resource === "events" ? "Confirmed events" : "Confirmed tables",
+      terminated = resource === "events" ? "Terminated events" : "Terminated tables";
+    await screen.findByRole("link", { name: link("Alpha confirmed") });
+    for (const name of [confirmed, "Planning", terminated])
+      expect(
+        screen.getByRole("button", { name, pressed: true }).querySelector("svg"),
+      ).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Past" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Future" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await screen.findByRole("link", { name: link("Zeta terminated") });
+    fireEvent.click(screen.getByRole("button", { name: confirmed, pressed: true }));
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: link("Alpha confirmed") })).toBeNull(),
+    );
+    await screen.findByRole("link", { name: link("Zeta terminated") });
+    const input = screen.getByRole("searchbox", { name: "Filter" });
+    fireEvent.change(input, { target: { value: "z" } });
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: link("Beta planning") })).toBeNull(),
+    );
+    await screen.findByRole("link", { name: link("Zeta terminated") });
+    expect(fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "z")).toBe(
+      true,
+    );
+    fireEvent.click(screen.getByRole("button", { name: terminated, pressed: true }));
+    await screen.findByText(resource === "events" ? "No events found" : "No tables found");
+    fireEvent.click(screen.getByRole("button", { name: "Planning", pressed: true }));
+    await waitFor(() =>
+      expect(
+        fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("statuses") === ""),
+      ).toBe(true),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Clear filter" }));
+    expect((input as HTMLInputElement).value).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: confirmed, pressed: false }));
+    await screen.findByRole("link", { name: link("Alpha confirmed") });
+    expect(screen.queryByRole("link", { name: link("Zeta terminated") })).toBeNull();
+  },
+);
 it("keeps combined-list empty state without unnecessary navigation", async () => {
   vi.stubGlobal(
     "fetch",

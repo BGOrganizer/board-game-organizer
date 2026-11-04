@@ -96,6 +96,30 @@ describe("unified request boundaries", () => {
       "INVALID_QUERY",
     );
   });
+  it.each(["", "CONFIRMED", "PLANNING,TERMINATED", "TERMINATED,CONFIRMED,PLANNING"])(
+    "combines lifecycle and literal name filters without changing cursors: %s",
+    (statuses) => {
+      const query = `statuses=${statuses}&query=${encodeURIComponent("a.*")}&cursor=${encodeURIComponent(cursor)}`;
+      const event = recordQuery(req(query), eventListQuery),
+        table = recordQuery(req(query), personalTablesQuery);
+      const expected = ["CONFIRMED", "PLANNING", "TERMINATED"].filter((status) =>
+        statuses.split(",").includes(status),
+      );
+      expect(event).toMatchObject({ statuses: expected, query: "a.*", cursor, limit: 20 });
+      expect(table).toMatchObject({ statuses: expected, query: "a.*", cursor, limit: 20 });
+    },
+  );
+  it.each([
+    "statuses=DRAFT",
+    "statuses=confirmed",
+    "statuses=CONFIRMED,",
+    "statuses=CONFIRMED&statuses=PLANNING",
+    "statuses=CONFIRMED,%20PLANNING",
+    "statuses=" + "x".repeat(101),
+  ])("rejects unsupported/duplicated lifecycle query: %s", (query) => {
+    expect(() => recordQuery(req(query), eventListQuery)).toThrow("INVALID_QUERY");
+    expect(() => recordQuery(req(query), personalTablesQuery)).toThrow("INVALID_QUERY");
+  });
   it.each(["PRIVATE", "PUBLIC"])(
     "accepts a source type filter only for owned Group lists (%s)",
     (type) => {

@@ -1,0 +1,49 @@
+appId: com.bgo.mobile
+---
+- tapOn: ${output.status.filter}
+- eraseText: 120
+- inputText: ${output.status.query}
+- hideKeyboard
+- scrollUntilVisible:
+    element: ${CONFIRMED_NAME}
+    direction: DOWN
+    timeout: 120000
+- scrollUntilVisible:
+    element:
+      id: list-filter-PLANNING
+    direction: UP
+    timeout: 120000
+- tapOn:
+    id: list-filter-PLANNING
+- tapOn:
+    id: list-filter-TERMINATED
+- extendedWaitUntil:
+    visible: ${CONFIRMED_NAME}
+    timeout: 120000
+- assertNotVisible: ${PLANNING_NAME}
+- assertNotVisible: ${TERMINATED_NAME}
+- tapOn:
+    id: list-filter-CONFIRMED
+- tapOn:
+    id: list-filter-PLANNING
+- extendedWaitUntil:
+    visible: ${PLANNING_NAME}
+    timeout: 120000
+- assertNotVisible: ${CONFIRMED_NAME}
+- assertNotVisible: ${TERMINATED_NAME}
+- tapOn:
+    id: list-filter-PLANNING
+- tapOn:
+    id: list-filter-TERMINATED
+- extendedWaitUntil:
+    visible: ${TERMINATED_NAME}
+    timeout: 120000
+- assertNotVisible: ${CONFIRMED_NAME}
+- assertNotVisible: ${PLANNING_NAME}
+- tapOn:
+    id: list-filter-TERMINATED
+- extendedWaitUntil:
+    visible: ${EMPTY_TEXT}
+    timeout: 120000
+- tapOn: ${output.status.clear}
+- assertVisible: ${EMPTY_TEXT}

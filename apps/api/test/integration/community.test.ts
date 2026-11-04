@@ -21,7 +21,10 @@ import { recordServices } from "../../src/app/lib/community/record-services";
 import { RelationshipRepository } from "../../src/app/lib/contacts/relationship.repository";
 import { COLLECTIONS } from "../../src/app/lib/db";
 import { deadlineServiceConfigured } from "../../src/app/lib/events/event-deadlines";
-import { EventRecordsRepository } from "../../src/app/lib/events/event-records.repository";
+import {
+  type EventRecordPage,
+  EventRecordsRepository,
+} from "../../src/app/lib/events/event-records.repository";
 import { EventsRepository } from "../../src/app/lib/events/events.repository";
 import { EventsService } from "../../src/app/lib/events/events.service";
 import { BoardGamesRepository } from "../../src/app/lib/games/boardGames.repository";
@@ -1800,6 +1803,121 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     }
     return group;
   }
+  it("source-filters lifecycle chips together with literal names before Event/Table cursors without granting Group access", async () => {
+    const group = await privateGroup(),
+      cases = [
+        ["PLANNING", "Beta planning"],
+        ["CONFIRMED", "Alpha .* confirmed"],
+        ["CONFIRMED", "Alpha confirmed second"],
+        ["TERMINATED", "Alpha terminated"],
+      ] as const;
+    const sources: Array<{ eventId: string; tableId: string; status: (typeof cases)[number][0] }> =
+      [];
+    for (const [status, name] of cases) {
+      const input = plannedInput(group.id),
+        id = randomUUID();
+      input.name = name;
+      input.tables[0] = { ...input.tables[0], id, name };
+      const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+      for (const user of [OWNER, GUEST]) {
+        await transaction((s) => s.plannedEventService.register(user, event.id, id));
+        await voteYes(event.id, user, id);
+      }
+      if (status !== "PLANNING") {
+        const frozen = await confirm(event.id);
+        if (status === "TERMINATED")
+          await transaction((s) =>
+            s.plannedEventService.finalize(OWNER, event.id, {
+              version: frozen.version,
+              results: [
+                {
+                  tableId: id,
+                  lowerWins: false,
+                  entries: [
+                    { userId: OWNER, score: "2" },
+                    { userId: GUEST, score: "1" },
+                  ],
+                  tieBreaks: [],
+                },
+              ],
+            }),
+          );
+      }
+      sources.push({ eventId: event.id, tableId: id, status });
+    }
+    const adminInput = plannedInput(group.id);
+    adminInput.name = "Alpha administration only";
+    adminInput.tables[0].id = randomUUID();
+    const adminOnly = await transaction((s) => s.plannedEventService.create(OWNER, adminInput));
+    const readers = [
+      (page: EventRecordPage) => services().plannedEventService.list(GUEST, page),
+      (page: EventRecordPage) => services().plannedEventService.personalTables(GUEST, page),
+      (page: EventRecordPage) => services().plannedEventService.list(GUEST, page, group.id),
+    ];
+    for (const [index, read] of readers.entries()) {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await read({
+          limit: 1,
+          statuses: ["CONFIRMED", "TERMINATED"],
+          query: "Alpha",
+          cursor,
+        });
+        expect(page.items).toHaveLength(1);
+        seen.push(...page.items.map((row) => row.id));
+        expect(seen.length).toBeLessThanOrEqual(3);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      expect(new Set(seen)).toEqual(
+        new Set(
+          sources
+            .filter((row) => row.status !== "PLANNING")
+            .map((row) => (index === 1 ? row.tableId : row.eventId)),
+        ),
+      );
+      expect(await read({ limit: 1, statuses: [], query: "Alpha" })).toEqual({
+        items: [],
+        nextCursor: null,
+      });
+      expect((await read({ limit: 20, statuses: ["PLANNING"] })).items).toHaveLength(
+        index === 2 ? 2 : 1,
+      );
+      expect((await read({ limit: 20, statuses: ["CONFIRMED"], query: ".*" })).items).toHaveLength(
+        1,
+      );
+    }
+    expect(
+      (
+        await services().plannedEventService.list(GUEST, {
+          limit: 20,
+          section: "available",
+          statuses: ["PLANNING"],
+          query: "Alpha",
+        })
+      ).items.map((row) => row.id),
+    ).toEqual([adminOnly.id]);
+    expect(
+      (
+        await services().plannedEventService.list(GUEST, {
+          limit: 20,
+          section: "available",
+          statuses: ["CONFIRMED"],
+        })
+      ).items,
+    ).toEqual([]);
+    expect(
+      (
+        await services().plannedEventService.personalTables(OUTSIDER, {
+          limit: 20,
+          statuses: ["PLANNING", "CONFIRMED", "TERMINATED"],
+        })
+      ).items,
+    ).toEqual([]);
+    await expect(
+      services().plannedEventService.list(OUTSIDER, { limit: 1, statuses: [] }, group.id),
+    ).rejects.toMatchObject({ code: "GROUP_MEMBER_REQUIRED" });
+  });
   it("partitions Events before paging by accepted Group access and actual registrations/demonstrations, including admin-only standalone availability", async () => {
     const privateClub = await privateGroup();
     const make = async (groupId: string | null, name: string, demonstratorUserId?: string) => {

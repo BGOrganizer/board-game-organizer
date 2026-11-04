@@ -5592,5 +5592,17 @@ msgstr "Pending invitations reserve a place but do not vote or count toward agre
 msgid "Free places allow joining or invitations. Places are not assigned physical seats."
 msgstr "Free places allow joining or invitations. Places are not assigned physical seats."
 
-msgid "Username unavailable"
-msgstr "Username unavailable"
+msgid "Confirmed events"
+msgstr "Confirmed events"
+
+msgid "Terminated events"
+msgstr "Terminated events"
+
+msgid "Confirmed tables"
+msgstr "Confirmed tables"
+
+msgid "Terminated tables"
+msgstr "Terminated tables"
+
+msgid "Clear selected game"
+msgstr "Clear selected game"

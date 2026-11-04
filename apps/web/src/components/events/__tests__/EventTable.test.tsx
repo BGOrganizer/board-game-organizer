@@ -580,6 +580,25 @@ it("always shows an empty, non-interactive waiting list after seats while places
   expect(screen.queryByRole("button", { name: "Join waiting list" })).toBeNull();
   expect(within(seats).getAllByRole("button", { name: "Free place" }).length).toBeGreaterThan(0);
 });
+it("shows an empty waiting list for a completely loaded full frozen roster without a queue action", async () => {
+  rows = [player("owner"), player("guest", tableId)].map((row) => ({ ...row, position: "FROZEN" }));
+  table = {
+    ...table,
+    eventStatus: "CONFIRMED",
+    maxPlayers: 2,
+    seatedCount: 2,
+    canRegister: false,
+    canInvite: false,
+    canLeave: false,
+    confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
+  };
+  mount();
+  await screen.findByText("No players waiting");
+  expect(screen.queryByRole("button", { name: "Join waiting list" })).toBeNull();
+  expect(
+    within(screen.getByRole("region", { name: "Waiting list" })).queryByRole("list"),
+  ).toBeNull();
+});
 it("does not report an empty queue while a full roster still has another source page", async () => {
   paged = true;
   rows.push({ ...player("guest", tableId), position: "WAITING" });

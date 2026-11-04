@@ -645,8 +645,11 @@ access. Main Tables has one combined source-paged list without inner tabs: expli
 participation, seated/frozen players, demonstrators, pending invitations/requests and accepted queue
 places. Admin-only Tables are absent, including after confirmation. Missing cached position does
 not hide explicit participation or prove a seat; canonical position and frozen-roster guards remain.
-Standalone creation returns to Available; grouped creation stays contextual to its Group. Past/Future
-uses the chosen local day; unchosen dates belong to both. Do not repeat page titles inside tab content.
+Standalone creation returns to Available; grouped creation stays contextual to its Group. Main Tables
+and main/Group-context Events use Confirmed / Planning / Terminated chips, initially all selected;
+selected states combine with OR and the name query with AND before source paging. All-off is empty.
+Table state derives from its parent Event. Legacy API period parameters retain local-day semantics,
+not current chip labels. Do not repeat page titles inside tab content.
 
 Use `@heroui/react` and Tailwind CSS. When HeroUI provides an appropriate component, use it instead
 of a custom or native substitute. For unsupported components, build a small accessible custom

@@ -2,6 +2,7 @@ import type {
   CreatePlannedEventInput,
   EditPlannedEventInput,
   EventListSection,
+  EventListStatus,
   GroupRecordResponse,
   PlannedEventResponse,
 } from "@board-game-organizer/schemas";
@@ -69,11 +70,13 @@ export function eventCreationMatches(
     groupId?: string;
     query?: string;
     periods?: readonly ("past" | "future")[];
+    statuses?: readonly EventListStatus[];
     section?: EventListSection;
   },
   now = Date.now(),
 ) {
   if (filters.groupId && filters.groupId !== row.groupId) return false;
+  if (filters.statuses && !filters.statuses.includes(row.status)) return false;
   if (
     !filters.groupId &&
     filters.section &&

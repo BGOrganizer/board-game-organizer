@@ -1,4 +1,4 @@
-import type { EventListSection } from "@board-game-organizer/schemas";
+import { type EventListSection, eventListStatuses } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useEventRecords,
@@ -10,7 +10,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CalendarDays, History, Plus } from "lucide-react-native";
+import { CalendarCheck2, CalendarClock, Flag, Plus } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -33,11 +33,11 @@ export function EventList({
     o = useCommunityApi(),
     layout = useFloatingActionLayout(),
     accent = useThemeColor("accent-foreground"),
-    filters = useListSearch(["past", "future"] as const, 0),
+    filters = useListSearch(eventListStatuses, 0),
     list = useEventRecords(o, {
       groupId,
       section: groupId ? undefined : section,
-      periods: filters.selected,
+      statuses: filters.selected,
       query: filters.search,
     });
   // Warm the same source-filtered first page used by the creation picker; never scan all Groups.
@@ -74,8 +74,9 @@ export function EventList({
               selected={filters.selected}
               onToggle={filters.toggle}
               options={[
-                { key: "past", label: t("Past"), icon: History },
-                { key: "future", label: t("Future"), icon: CalendarDays },
+                { key: "CONFIRMED", label: t("Confirmed events"), icon: CalendarCheck2 },
+                { key: "PLANNING", label: t("Planning"), icon: CalendarClock },
+                { key: "TERMINATED", label: t("Terminated events"), icon: Flag },
               ]}
             />
           }

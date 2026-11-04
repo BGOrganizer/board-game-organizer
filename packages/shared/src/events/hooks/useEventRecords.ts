@@ -3,12 +3,14 @@
 import type {
   CommunityPageResponse,
   EventListSection,
+  EventListStatus,
   PlannedEventResponse,
   PlannedTableResponse,
   TableInviteesPageResponse,
   TableListSection,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
+import { eventListStatuses } from "@board-game-organizer/schemas";
 import {
   infiniteQueryOptions,
   queryOptions,
@@ -37,6 +39,7 @@ type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
 type ListFilters = {
   groupId?: string;
   periods?: readonly ("past" | "future")[];
+  statuses?: readonly EventListStatus[];
   query?: string;
   section?: EventListSection;
 };
@@ -52,6 +55,9 @@ export const eventRecordKeys = {
         periods: (["past", "future"] as const).filter(
           (period) => !filters.periods || filters.periods.includes(period),
         ),
+        statuses: eventListStatuses.filter(
+          (status) => !filters.statuses || filters.statuses.includes(status),
+        ),
         query: filters.query?.trim() ?? "",
       },
     ] as const,
@@ -66,6 +72,11 @@ export const eventRecordKeys = {
           ? null
           : (["past", "future"] as const).filter(
               (period) => !filters.periods || filters.periods.includes(period),
+            ),
+        statuses: id
+          ? null
+          : eventListStatuses.filter(
+              (status) => !filters.statuses || filters.statuses.includes(status),
             ),
         query: filters.query?.trim() ?? "",
       },
@@ -98,6 +109,7 @@ export function eventRecordsQuery(o: CommunityApiOptions, filters: ListFilters =
             groupId: filters.groupId,
             section: filters.groupId ? undefined : (filters.section ?? "mine"),
             periods: filters.periods?.join(","),
+            statuses: filters.statuses?.join(","),
             query: filters.query || undefined,
           },
           pageParam,
@@ -122,10 +134,11 @@ export function useEventRecords(
     () =>
       (q.data?.pages.flatMap((p) => p.items) ?? []).filter(
         (row) =>
-          filters.groupId ||
-          personalEventSection(row, o.userId ?? "") === (filters.section ?? "mine"),
+          (!filters.statuses || filters.statuses.includes(row.status)) &&
+          (filters.groupId ||
+            personalEventSection(row, o.userId ?? "") === (filters.section ?? "mine")),
       ),
-    [q.data, filters.groupId, filters.section, o.userId],
+    [q.data, filters.groupId, filters.section, filters.statuses, o.userId],
   );
   const creations = useOptimisticCreations<CreateEventVariables, PlannedEventResponse>(
     eventRecordKeys.mutation(o, "", "create"),
@@ -192,7 +205,13 @@ export function recordTablesQuery(
           id ? `events/${encodeURIComponent(id)}/tables` : "tables",
           {
             query: filters.query || undefined,
-            ...(!id ? { periods: filters.periods?.join(","), section: filters.section } : {}),
+            ...(!id
+              ? {
+                  periods: filters.periods?.join(","),
+                  statuses: filters.statuses?.join(","),
+                  section: filters.section,
+                }
+              : {}),
           },
           pageParam,
         ),
@@ -218,11 +237,12 @@ export function useRecordTables(
       (q.data?.pages.flatMap((p) => p.items) ?? []).filter(
         (row) =>
           id !== null ||
-          (filters.section
-            ? personalTableSection(row, o.userId ?? "") === filters.section
-            : isPersonalTableParticipant(row, o.userId ?? "")),
+          ((!filters.statuses || filters.statuses.includes(row.eventStatus)) &&
+            (filters.section
+              ? personalTableSection(row, o.userId ?? "") === filters.section
+              : isPersonalTableParticipant(row, o.userId ?? ""))),
       ),
-    [q.data, id, o.userId, filters.section],
+    [q.data, id, o.userId, filters.section, filters.statuses],
   );
   return { ...q, items };
 }

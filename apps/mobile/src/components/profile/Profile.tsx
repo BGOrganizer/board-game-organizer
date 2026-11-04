@@ -6,7 +6,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { Gamepad2, UsersRound } from "lucide-react-native";
+import { Gamepad2, LibraryBig, UsersRound } from "lucide-react-native";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -20,6 +20,15 @@ import { ProfilePlayer } from "./ProfilePlayer";
 import { ProfileRecentActivities } from "./ProfileRecentActivities";
 import { ProfileStats } from "./ProfileStats";
 
+const tabStyle = {
+  flexDirection: "column",
+  gap: 4,
+  minHeight: 56,
+  paddingHorizontal: 8,
+  flexShrink: 1,
+  minWidth: 0,
+} as const;
+
 export function Profile({ userId }: { userId?: string }) {
   const t = useT(),
     { i18n } = useLingui(),
@@ -29,8 +38,9 @@ export function Profile({ userId }: { userId?: string }) {
     own = Boolean(o.userId && subject === o.userId),
     q = useProfileView(o, subject);
   const viewKey = JSON.stringify([o.apiUrl, o.userId, subject]);
-  const tab = useAppStore((s) => s.profileViews[viewKey]?.tab ?? "activity"),
+  const storedTab = useAppStore((s) => s.profileViews[viewKey]?.tab ?? "activity"),
     setView = useAppStore((s) => s.setProfileView);
+  const tab = !own && storedTab === "collection" ? "activity" : storedTab;
   const [accent, muted] = useThemeColor(["accent", "muted"]);
   const data = communityAccessDenied(q.error) ? undefined : q.data;
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 });
@@ -63,15 +73,15 @@ export function Profile({ userId }: { userId?: string }) {
               secondary={data.username ? `@${data.username}` : undefined}
             />
           </GroupedList>
-          {own ? <ProfileBggCard /> : null}
           <Tabs
             value={tab}
             onValueChange={(value) => {
-              if (value === "activity" || value === "player") setView(viewKey, { tab: value });
+              if (value === "activity" || value === "player" || (own && value === "collection"))
+                setView(viewKey, { tab: value });
             }}
           >
             <MainTabBar>
-              <Tabs.Trigger value="activity" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Trigger value="activity" style={tabStyle}>
                 <UsersRound
                   size={16}
                   color={tab === "activity" ? accent : muted}
@@ -79,10 +89,20 @@ export function Profile({ userId }: { userId?: string }) {
                 />
                 <Tabs.Label>{t("Activities")}</Tabs.Label>
               </Tabs.Trigger>
-              <Tabs.Trigger value="player" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Trigger value="player" style={tabStyle}>
                 <Gamepad2 size={16} color={tab === "player" ? accent : muted} accessible={false} />
                 <Tabs.Label>{t("Player")}</Tabs.Label>
               </Tabs.Trigger>
+              {own ? (
+                <Tabs.Trigger value="collection" style={tabStyle}>
+                  <LibraryBig
+                    size={16}
+                    color={tab === "collection" ? accent : muted}
+                    accessible={false}
+                  />
+                  <Tabs.Label>{t("Collection")}</Tabs.Label>
+                </Tabs.Trigger>
+              ) : null}
             </MainTabBar>
             <View style={{ gap: 16 }}>
               {tab === "activity" ? (
@@ -96,7 +116,7 @@ export function Profile({ userId }: { userId?: string }) {
                   />
                   <ProfileRecentActivities userId={subject} />
                 </>
-              ) : (
+              ) : tab === "player" ? (
                 <>
                   <ProfileStats
                     items={[
@@ -113,7 +133,9 @@ export function Profile({ userId }: { userId?: string }) {
                   />
                   <ProfilePlayer userId={subject} viewKey={viewKey} />
                 </>
-              )}
+              ) : own ? (
+                <ProfileBggCard />
+              ) : null}
             </View>
           </Tabs>
         </>

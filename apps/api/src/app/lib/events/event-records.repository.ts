@@ -1,4 +1,5 @@
 import type {
+  EventListStatus,
   EventRecord,
   EventVoter,
   GroupRecord,
@@ -16,6 +17,7 @@ export interface EventRecordPage {
   cursor?: string;
   query?: string;
   periods?: readonly ("past" | "future")[];
+  statuses?: readonly EventListStatus[];
   section?: "mine" | "available" | "waiting";
 }
 export class EventRecordsRepository {
@@ -540,7 +542,7 @@ export class EventRecordsRepository {
     const pipeline: Record<string, unknown>[] = [
       {
         $match: {
-          status: { $in: ["PLANNING", "CONFIRMED", "TERMINATED"] },
+          status: { $in: page.statuses ?? ["PLANNING", "CONFIRMED", "TERMINATED"] },
           ...(groupId ? { groupId } : {}),
         },
       },
@@ -607,7 +609,7 @@ export class EventRecordsRepository {
       { $unwind: "$event" },
       {
         $match: {
-          "event.status": { $in: ["PLANNING", "CONFIRMED", "TERMINATED"] },
+          "event.status": { $in: page.statuses ?? ["PLANNING", "CONFIRMED", "TERMINATED"] },
           $or: [{ "event.status": "PLANNING" }, { "confirmed.gameId": { $exists: true } }],
         },
       },

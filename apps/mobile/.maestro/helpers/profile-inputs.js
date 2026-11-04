@@ -55,6 +55,8 @@ output.profile = {
   privateActivity: literal(required("PROFILE_PRIVATE_ACTIVITY_TEXT")),
   activity: literal(it ? "Attività" : "Activities"),
   player: literal(it ? "Giocatore" : "Player"),
+  collection: literal(it ? "Collezione" : "Collection"),
+  clearGame: literal(it ? "Azzera gioco selezionato" : "Clear selected game"),
   bgg: literal(it ? "La tua collezione BGG" : "Your BGG collection"),
   logout: literal(it ? "Esci dall'account" : "Sign out of your account"),
   logoutTitle: literal(it ? "Uscire dall'account?" : "Sign out of your account?"),

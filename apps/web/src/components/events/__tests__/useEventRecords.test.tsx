@@ -59,6 +59,21 @@ it("canonicalizes equivalent first-page keys and scopes identities by API/user/r
   expect(recordTablesQuery(o, null).queryKey).toEqual(
     recordTablesQuery(o, null, { query: "", periods: ["past", "future"] }).queryKey,
   );
+  expect(
+    eventRecordsQuery(o, { statuses: ["TERMINATED", "CONFIRMED", "PLANNING"] }).queryKey,
+  ).toEqual(eventRecordsQuery(o).queryKey);
+  expect(
+    recordTablesQuery(o, null, { statuses: ["PLANNING", "TERMINATED", "CONFIRMED"] }).queryKey,
+  ).toEqual(recordTablesQuery(o, null).queryKey);
+  expect(eventRecordsQuery(o, { statuses: [] }).queryKey).not.toEqual(
+    eventRecordsQuery(o).queryKey,
+  );
+  expect(recordTablesQuery(o, null, { statuses: ["CONFIRMED"] }).queryKey).not.toEqual(
+    recordTablesQuery(o, null, { statuses: ["PLANNING"] }).queryKey,
+  );
+  expect(recordTablesQuery(o, eventId, { statuses: ["CONFIRMED"] }).queryKey).toEqual(
+    recordTablesQuery(o, eventId, { statuses: ["PLANNING"] }).queryKey,
+  );
   expect(eventRecordsQuery({ ...o, userId: "other" }).queryKey).not.toEqual(
     eventRecordsQuery(o).queryKey,
   );
@@ -80,6 +95,57 @@ it("canonicalizes equivalent first-page keys and scopes identities by API/user/r
   expect(recordTablesQuery(o, eventId, { section: "waiting" }).queryKey).toEqual(
     recordTablesQuery(o, eventId).queryKey,
   );
+});
+it("removes lifecycle-changed cached rows immediately without changing other filtered scopes", async () => {
+  const { client, options, wrapper } = setup(),
+    filters = { statuses: ["PLANNING"] as const };
+  const eventKey = eventRecordsQuery(options, filters).queryKey,
+    tableKey = recordTablesQuery(options, null, filters).queryKey;
+  const event = { ...plannedEvent, myRegistrations: [seat("owner")] },
+    table = { ...plannedTable, myRegistration: seat("owner") };
+  client.setQueryData(eventKey, {
+    pages: [{ items: [event], nextCursor: null }],
+    pageParams: [""],
+  });
+  client.setQueryData(tableKey, {
+    pages: [{ items: [table], nextCursor: null }],
+    pageParams: [""],
+  });
+  const events = renderHook(() => useEventRecords({ ...options, enabled: false }, filters), {
+    wrapper,
+  });
+  const tables = renderHook(() => useRecordTables({ ...options, enabled: false }, null, filters), {
+    wrapper,
+  });
+  expect(events.result.current.items).toHaveLength(1);
+  expect(tables.result.current.items).toHaveLength(1);
+  act(() => {
+    client.setQueryData(eventKey, {
+      pages: [{ items: [{ ...event, status: "CONFIRMED" }], nextCursor: null }],
+      pageParams: [""],
+    });
+    client.setQueryData(tableKey, {
+      pages: [
+        {
+          items: [
+            {
+              ...table,
+              eventStatus: "CONFIRMED",
+              confirmed: {
+                gameId: 1,
+                playerIds: ["owner", "guest"],
+                startsAt: "2030-06-03T18:00:00Z",
+              },
+            },
+          ],
+          nextCursor: null,
+        },
+      ],
+      pageParams: [""],
+    });
+  });
+  await waitFor(() => expect(events.result.current.items).toEqual([]));
+  expect(tables.result.current.items).toEqual([]);
 });
 it("does not borrow a legacy seat-only cache for the combined personal list and sends no section", async () => {
   const { client, options, wrapper } = setup();

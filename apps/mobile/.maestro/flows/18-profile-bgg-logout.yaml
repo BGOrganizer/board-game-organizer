@@ -11,6 +11,7 @@ tags: [manual, profile, bgg, auth]
 - extendedWaitUntil:
     visible: ${output.profileBgg.owner}
     timeout: 120000
+- tapOn: ${output.profileBgg.collection}
 - scrollUntilVisible:
     element: ${output.profileBgg.sync}
     direction: DOWN

@@ -52,7 +52,8 @@ it.each(["mine", "available"])(
       new URL("../../components/events/EventList.tsx", import.meta.url),
       "utf8",
     );
-    expect(text).toContain('useListSearch(["past", "future"] as const, 0)');
+    expect(text).toContain("useListSearch(eventListStatuses, 0)");
+    expect(text).toContain("statuses: filters.selected");
     expect(text).toContain("section: groupId ? undefined : section");
     expect(text).toContain('mode="filter"');
   },
@@ -80,7 +81,7 @@ it("native Tables has one combined list, no section tabs or source section filte
     new URL("../../components/events/TableList.tsx", import.meta.url),
     "utf8",
   );
-  expect(list).toContain("useRecordTables(o, null, { query: f.search, periods: f.selected })");
+  expect(list).toContain("useRecordTables(o, null, { query: f.search, statuses: f.selected })");
   expect(list).not.toContain("TableListSection");
 });
 it("main native strips share Groups geometry while detail tabs retain independent spacing", () => {
@@ -188,8 +189,11 @@ it("native list bodies retain a single virtualized list, filters, chips, legend 
     expect(text).toContain("<FlatList");
     expect(text).not.toContain("<ScrollView");
     expect(text).toContain('mode="filter"');
-    expect(text).toContain('key: "past"');
-    expect(text).toContain('key: "future"');
+    expect(text).toContain('key: "CONFIRMED"');
+    expect(text).toContain('key: "PLANNING"');
+    expect(text).toContain('key: "TERMINATED"');
+    expect(text).not.toContain('key: "past"');
+    expect(text).not.toContain('key: "future"');
     expect(text).toContain("fetchNextPage");
   }
   expect(

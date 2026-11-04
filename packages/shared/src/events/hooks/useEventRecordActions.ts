@@ -557,6 +557,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
               groupId?: string | null;
               query?: string;
               periods?: ("past" | "future")[];
+              statuses?: PlannedEventResponse["status"][];
             };
             return eventCreationMatches(canonical, {
               ...filters,

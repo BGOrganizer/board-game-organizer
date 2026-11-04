@@ -1,0 +1,36 @@
+appId: com.bgo.mobile
+name: Real Table and Event lifecycle filters
+# Owned Development/Preview actor, selected EN/IT locale, small source-paged real fixtures.
+# Each resource has one first-page visible row in every status matching STATUS_QUERY.
+# No saves, consent bypass, database reset or API mocks. Restart preserves authentication/cache.
+tags: [manual, tables, events]
+---
+- runScript: ../helpers/list-status-inputs.js
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: bgo:///tables
+- extendedWaitUntil:
+    visible: ${output.status.filter}
+    timeout: 120000
+- runFlow:
+    file: ../helpers/check-list-status.yaml
+    env:
+      CONFIRMED_NAME: ${output.status.TABLE.CONFIRMED}
+      PLANNING_NAME: ${output.status.TABLE.PLANNING}
+      TERMINATED_NAME: ${output.status.TABLE.TERMINATED}
+      EMPTY_TEXT: ${output.status.emptyTables}
+- takeScreenshot: table-lifecycle-all-off
+- openLink: bgo:///events
+- extendedWaitUntil:
+    visible: ${output.status.registered}
+    timeout: 120000
+- tapOn: ${output.status.registered}
+- runFlow:
+    file: ../helpers/check-list-status.yaml
+    env:
+      CONFIRMED_NAME: ${output.status.EVENT.CONFIRMED}
+      PLANNING_NAME: ${output.status.EVENT.PLANNING}
+      TERMINATED_NAME: ${output.status.EVENT.TERMINATED}
+      EMPTY_TEXT: ${output.status.emptyEvents}
+- takeScreenshot: event-lifecycle-all-off

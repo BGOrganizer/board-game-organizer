@@ -54,6 +54,13 @@ describe("createAppI18n", () => {
 
 describe("translate (runtime)", () => {
   it.each([
+    ["Confirmed events", "Confermati"],
+    ["Confirmed tables", "Confermati"],
+    ["Planning", "In pianificazione"],
+    ["Terminated events", "Terminati"],
+    ["Terminated tables", "Terminati"],
+    ["Collection", "Collezione"],
+    ["Clear selected game", "Azzera gioco selezionato"],
     ["Win %", "% di vittorie"],
     ["Table name", "Nome tavolo"],
     ["Number of players", "Numero giocatori"],

@@ -1,5 +1,6 @@
 import {
   eventListSections,
+  eventListStatusesSchema,
   groupRecordListRoles,
   groupTypeSchema,
   tableListSections,
@@ -55,6 +56,7 @@ export const groupPeopleQuery = recordPageQuery
   .refine((value) => value.cursor !== "owner" || value.mode === "accepted");
 const eventFilterPageQuery = recordPageQuery.extend({
   query: filterQuery,
+  statuses: eventListStatusesSchema.optional(),
   periods: z
     .string()
     .max(40)

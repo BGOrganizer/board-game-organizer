@@ -1,5 +1,5 @@
 "use client";
-import type { EventListSection } from "@board-game-organizer/schemas";
+import { type EventListSection, eventListStatuses } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useEventRecords,
@@ -8,7 +8,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarDays, History, Plus } from "lucide-react";
+import { CalendarCheck2, CalendarClock, Flag, Plus } from "lucide-react";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -27,11 +27,11 @@ export function EventList({
 }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
-    filters = useListSearch(["past", "future"] as const, 0),
+    filters = useListSearch(eventListStatuses, 0),
     list = useEventRecords(o, {
       groupId,
       section: groupId ? undefined : section,
-      periods: filters.selected,
+      statuses: filters.selected,
       query: filters.search,
     }),
     end = useInfiniteScroll({
@@ -61,8 +61,9 @@ export function EventList({
           selected={filters.selected}
           onToggle={filters.toggle}
           options={[
-            { key: "past", label: t`Past`, icon: History },
-            { key: "future", label: t`Future`, icon: CalendarDays },
+            { key: "CONFIRMED", label: t`Confirmed events`, icon: CalendarCheck2 },
+            { key: "PLANNING", label: t`Planning`, icon: CalendarClock },
+            { key: "TERMINATED", label: t`Terminated events`, icon: Flag },
           ]}
         />
         {(communityAccessDenied(list.error) ? [] : list.items).map((event) => (

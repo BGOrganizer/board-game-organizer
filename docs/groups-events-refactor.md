@@ -104,6 +104,11 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   character minimum. Queries debounce 300 ms and filter escaped names inside that authorized scope
   before response pagination. Group Search remains separate discovery with its four-character minimum.
   Group-context Events remain one contextual list, not another copy of the main section tabs.
+  Main Tables and main/Group-context Events replace date-period chips with Confirmed / Planning /
+  Terminated lifecycle chips (Confermati / In pianificazione / Terminati), initially all enabled.
+  Enabled states are combined with OR and the escaped name query with AND before source pagination;
+  disabling every state returns an empty list. Table state comes from its parent Event, never the
+  registration or a guessed date. Legacy API period parameters remain supported independently.
   Main Event/Group tab strips and Group detail contents use compact platform-owned spacing; Group
   destinations share the same content inset without nesting virtualized lists in scrolling parents.
 - PLANNING / CONFIRMED / TERMINATED. There is no persisted server draft or event cancellation.
@@ -465,9 +470,9 @@ there are no repeated identical notifications or player reminders to change vote
 - Personal tables expose explicit invitations and relevant table participation. CONFIRMED/TERMINATED
   Tables without a frozen confirmation snapshot are excluded at source before cursors/limits and
   suppressed from old personal-list caches. Their records remain in the parent Event's paged list
-  and detail; reopening planning restores ordinary planning visibility. Past/Future uses the chosen
-  local day; unchosen dates appear in both.
-- Search/role/period filters run before pagination. Lists, rosters, seats, game selection and group
+  and detail; reopening planning restores ordinary planning visibility. Legacy API Past/Future
+  parameters use the chosen local day; unchosen dates appear in both, but current list chips use state.
+- Search/role/state filters run before pagination. Lists, rosters, seats, game selection and group
   ranking selection do not download all records. Native uses virtualized lists and safe-area-aware
   controls. Cached usable fields remain visible while missing detail fields load.
 - DTOs: [Groups](../packages/schemas/src/groups/dto/groupRecords.ts) and

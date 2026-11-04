@@ -6,9 +6,11 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
+import { X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
 import { ListCard } from "@/components/common/ui/ListCard";
@@ -21,7 +23,8 @@ import { ProfileStats } from "./ProfileStats";
 export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: string }) {
   const t = useT(),
     { i18n } = useLingui(),
-    o = useCommunityApi();
+    o = useCommunityApi(),
+    muted = useThemeColor("muted");
   const gameId = useAppStore((s) => s.profileViews[viewKey]?.gameId ?? null),
     setView = useAppStore((s) => s.setProfileView);
   const [search, setSearch] = useState(""),
@@ -36,14 +39,11 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
     ? []
     : (games.data?.pages.flatMap((p) => p.items) ?? []);
   const data =
-    communityAccessDenied(games.error) || communityAccessDenied(history.error)
+    gameId === null || communityAccessDenied(games.error) || communityAccessDenied(history.error)
       ? undefined
       : history.data?.pages[0];
-  const selected = choices.find((g) => g.id === gameId) ?? data?.game;
-  const first = choices[0]?.id;
-  useEffect(() => {
-    if (gameId === null && first) setView(viewKey, { gameId: first });
-  }, [gameId, first, setView, viewKey]);
+  const selected =
+    gameId === null ? undefined : (choices.find((g) => g.id === gameId) ?? data?.game);
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
   const points = [...(history.data?.pages ?? [])].reverse().flatMap((p) => p.points);
   return (
@@ -53,16 +53,28 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
       </Typography>
       <Select
         value={selected ? { value: String(selected.id), label: selected.name } : undefined}
-        onValueChange={(v) => {
-          if (v) setView(viewKey, { gameId: Number(v.value) });
-        }}
+        onValueChange={(v) => setView(viewKey, { gameId: v ? Number(v.value) : null })}
       >
-        <Select.Trigger accessibilityLabel={t("Board game")}>
-          <Typography className="text-foreground" style={{ flex: 1 }}>
-            {selected?.name ?? t("Select a board game")}
-          </Typography>
-          <Select.TriggerIndicator />
-        </Select.Trigger>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Select.Trigger accessibilityLabel={t("Board game")} style={{ flex: 1 }}>
+            <Typography className="text-foreground" style={{ flex: 1 }}>
+              {selected?.name ?? t("Select a board game")}
+            </Typography>
+            <Select.TriggerIndicator />
+          </Select.Trigger>
+          {gameId !== null ? (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              style={{ minWidth: 44, minHeight: 44 }}
+              accessibilityLabel={t("Clear selected game")}
+              onPress={() => setView(viewKey, { gameId: null })}
+            >
+              <X size={18} color={muted} accessible={false} />
+            </Button>
+          ) : null}
+        </View>
         <Select.Portal>
           <Select.Overlay />
           <Select.Content presentation="popover" width="trigger">
@@ -110,7 +122,7 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
       {games.isPending ? (
         <Skeleton style={{ width: "100%", height: 52, borderRadius: 12 }} />
       ) : null}
-      {games.isError || history.isError ? (
+      {games.isError || (gameId !== null && history.isError) ? (
         <View style={{ gap: 8 }}>
           <Typography accessibilityRole="alert" className="text-danger">
             {t("Could not load rating history")}

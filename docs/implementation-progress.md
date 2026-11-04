@@ -1,5 +1,37 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Lifecycle filters and Profile controls — local implementation; acceptance incomplete
+
+- Web/native main Tables and main/Group-context Events now use Confirmed, Planning and Terminated
+  chips (Confermati, In pianificazione, Terminati), initially all selected. Selected states combine
+  with OR and literal name filtering with AND before authorized source pagination. All-off is empty;
+  Table state derives from its parent Event. Legacy API period filters retain their existing semantics.
+  Canonical Query keys, source factories, cached rows and optimistic creations use the same selection.
+- Profile has an owner-only Collection tab containing the existing BGG card; other profiles retain
+  Activities/Player only, including when scoped UI state contains a stale Collection selection.
+  Logout stays outside tabs. Player game selection starts empty and has an accessible clear action
+  on both clients; clearing removes stale history without immediately selecting the first game again.
+  Existing Query ownership, runtime native Lingui, BGG consent and authorization remain unchanged.
+- Local checks: **2,529 covered units** (mobile 376, web 777, API 813, schemas 139, shared 424),
+  full typecheck, scoped Biome (zero errors), and API/web production builds passed. Existing coverage
+  thresholds were preserved; generated Next references were restored byte-for-byte.
+  Prior PR CI failed its 100% branch gate at `EventTableSeats.tsx:234`, despite 771 passing tests.
+  The full frozen-roster empty-queue case covers that branch; a fresh pre-publication web run passes
+  all 777 tests with 111/111 branches covered in that component. No CI gate was weakened.
+- The new lifecycle/name/source-cursor integration case passed against a real ephemeral MongoDB
+  replica set; 44 other cases were excluded by its explicit name filter. An earlier full integration
+  attempt exceeded 15 minutes and its owned processes/test containers were stopped/cleaned.
+  The full integration suite is **not verified for this change**; no application database was touched.
+- Twelve isolated real-component/production-CSS browser cases cover 320/390/1280px, EN/IT and
+  light/dark: owner-only Collection, unclipped 44px-or-larger tabs, explicit game selection/reset,
+  focus restoration, no accidental menu opening, retained empty selection and logout cancellation.
+  No overflow, browser errors or remote requests occurred. These use layout-only data, not real auth.
+- Manual list-status Playwright scenarios and Maestro flow 20 cover real-fixture lifecycle filters;
+  Profile scenarios cover Collection/reset. Playwright discovery, Maestro 2.11 syntax for flows
+  17/18/20 and EN/IT helper VM/invalid-input checks passed, not authenticated/device execution.
+  No new APK or provider operation. The operator separately authorized signed commit/push after
+  review of the previous CI failure. Canonical E2E suites/jobs remain unchanged.
+
 ## Player identities and Table labels — local follow-up
 
 - Web/native Profile uses localized Win % / % di vittorie. Registered-user display rows and
