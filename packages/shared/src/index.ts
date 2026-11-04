@@ -69,6 +69,7 @@ export * from "./notifications/notificationItemChanges";
 export * from "./organizations/organizationActions";
 export * from "./organizations/organizationLogoUpload";
 export * from "./profile/activityFeed";
+export * from "./profile/activityNarrative";
 export * from "./profile/hooks/usePreferredLanguageSync";
 export * from "./profile/hooks/useProfile";
 export * from "./profile/hooks/useProfileView";

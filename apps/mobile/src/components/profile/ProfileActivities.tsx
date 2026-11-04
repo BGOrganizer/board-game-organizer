@@ -1,5 +1,9 @@
 import { type ProfileActivityKind, profileActivityKindSchema } from "@board-game-organizer/schemas";
-import { communityAccessDenied, useProfileActivities } from "@board-game-organizer/shared";
+import {
+  communityAccessDenied,
+  useProfileActivities,
+  useProfileView,
+} from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { Button } from "heroui-native/button";
 import { Select } from "heroui-native/select";
@@ -21,6 +25,7 @@ export function ProfileActivities({ userId }: { userId: string }) {
     setView = useAppStore((s) => s.setProfileView);
   const parsed = profileActivityKindSchema.safeParse(filter),
     kind = parsed.success ? parsed.data : undefined;
+  const subject = useProfileView(o, userId);
   const q = useProfileActivities(o, userId, kind, 10),
     denied = communityAccessDenied(q.error) || q.data === null;
   const rows = denied ? [] : (q.data?.pages.flatMap((p) => p.items) ?? []);
@@ -36,12 +41,15 @@ export function ProfileActivities({ userId }: { userId: string }) {
   return (
     <FlatList
       style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24, gap: 8 }}
+      contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
       data={rows}
       keyExtractor={(row) => row.id}
-      renderItem={({ item }) => (
-        <GroupedList>
-          <ProfileActivityRow item={item} />
+      renderItem={({ item, index }) => (
+        <GroupedList segment={{ index, count: rows.length }}>
+          <ProfileActivityRow
+            item={item}
+            author={communityAccessDenied(subject.error) ? undefined : (subject.data ?? undefined)}
+          />
         </GroupedList>
       )}
       onEndReached={() => {

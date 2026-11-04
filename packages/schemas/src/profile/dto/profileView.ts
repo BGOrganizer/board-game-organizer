@@ -69,6 +69,7 @@ export type ProfileActivity = Pick<
 > & {
   context: string | null;
   href: string | null;
+  author?: ActivityAuthor;
   groupId?: string;
   eventContext?: string;
   otherUserId?: string;

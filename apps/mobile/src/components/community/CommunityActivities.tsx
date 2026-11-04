@@ -50,12 +50,12 @@ export function CommunityActivities() {
   return (
     <SectionList
       style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24, gap: 8 }}
+      contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
       sections={sections}
       keyExtractor={(item) => item.id}
       stickySectionHeadersEnabled={false}
-      renderItem={({ item }) => (
-        <GroupedList>
+      renderItem={({ item, index, section }) => (
+        <GroupedList segment={{ index, count: section.data.length }}>
           <ActivityRow item={item} author={item.author} />
         </GroupedList>
       )}
@@ -63,7 +63,7 @@ export function CommunityActivities() {
         <Typography
           accessibilityRole="header"
           className="text-sm font-semibold text-muted"
-          style={{ marginTop: 12 }}
+          style={{ marginTop: 12, marginBottom: 8 }}
         >
           {section.title}
         </Typography>
@@ -73,7 +73,7 @@ export function CommunityActivities() {
           void q.fetchNextPage();
       }}
       ListHeaderComponent={
-        <View style={{ gap: 12 }}>
+        <View style={{ gap: 12, marginBottom: 12 }}>
           <Typography accessibilityRole="header" className="font-semibold text-foreground">
             {t("Your network's activities")}
           </Typography>

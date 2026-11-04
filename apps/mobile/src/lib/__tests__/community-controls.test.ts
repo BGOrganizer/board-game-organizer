@@ -24,16 +24,22 @@ it("uses platform tabs, one virtualized daily list, public identities and separa
   expect(feed).toContain("activitySections");
   expect(row).not.toContain("UserAvatar");
   expect(row).not.toContain("avatarUrl");
-  expect(row).toContain("author.id");
-  expect(row.indexOf("{labels[item.kind]}")).toBeLessThan(row.indexOf("{author ? ("));
-  expect(row).toContain("Identity = item.href && !author ? Pressable : View");
-  expect(feed).toContain("<GroupedList>");
+  expect(row).toContain("activityNarrative(item, author");
+  expect(row).toContain("id={story.id}");
+  expect(row).toContain('accessibilityRole={person.href ? "link" : undefined}');
+  expect(feed).toContain("<GroupedList segment={{ index, count: section.data.length }}>");
+  expect(feed).not.toContain("insets.bottom + 24, gap:");
+  expect(source("src/components/profile/ProfileActivities.tsx")).toContain(
+    "<GroupedList segment={{ index, count: rows.length }}>",
+  );
   expect(source("src/components/profile/ProfileRecentActivities.tsx")).toContain("<GroupedList>");
   for (const tabs of [page, source("src/components/profile/Profile.tsx")]) {
     const style = tabs.slice(tabs.indexOf("const tabStyle"), tabs.indexOf("export function"));
     expect(style).toContain('flexDirection: "row"');
     expect(style).toContain("minHeight: 44");
     expect(style).not.toContain('flexDirection: "column"');
+    expect(tabs).not.toContain("text-xs");
+    expect(tabs).not.toContain("sm:text-sm");
   }
   expect(source("src/components/profile/ProfileActivityRow.tsx")).toContain(
     "../activities/ActivityRow",

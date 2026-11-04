@@ -59,6 +59,10 @@ visibility with a current-network/time selection; no offline mode is enabled.
   readable by authenticated non-members in explicit read-only mode; bans, blocks and removed sources
   remain denied. Standalone sources retain existing access. Public reads grant no participation,
   voting, membership or editing capability. See the [Community visibility contract](community.md).
+- Profile and Community use the same localized full-sentence narratives, linked public identities,
+  compact text spacing and GroupedList rows. Follow receipts describe the other user following the
+  Profile subject, not the reverse. Safe author projections accompany current pages; cached older
+  Profile rows use the subject's existing query identity. Names render as React text, never markup.
 - Authorization precedes the visible page limit: latest five, full pages of ten, seven type filters,
   descending instant/UUID cursors. Bounded source chunks may be scanned to fill an authorized page;
   cursors refer only to returned visible rows. No browsing action acknowledges source notifications.

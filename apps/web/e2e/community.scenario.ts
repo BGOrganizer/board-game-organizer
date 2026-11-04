@@ -96,8 +96,14 @@ for (const width of [390, 1280])
     for (const tab of await main.getByRole("tab").all()) {
       await expect(tab).toHaveCSS("flex-direction", "row");
       await expect(tab).toHaveCSS("white-space", "nowrap");
+      await expect(tab).toHaveCSS("font-size", "14px");
     }
     await expect(main.locator("li img")).toHaveCount(0);
+    await expect(main.locator("li p").first()).toContainText(
+      it
+        ? /ha iniziato a seguire|ha stretto amicizia con|ha giocato|si è unito|fa ora parte|ha raggiunto/
+        : /started following|became friends with|played|joined|is now part of|reached/,
+    );
     for (const data of [all]) {
       const row = data.items[0];
       if (!row.href || !row.context) throw new Error("Authorized linked activity required");

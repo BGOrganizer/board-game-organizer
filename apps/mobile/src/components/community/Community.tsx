@@ -29,11 +29,11 @@ export function Community() {
         <MainTabBar>
           <Tabs.Trigger value="activity" style={tabStyle}>
             <Activity size={16} color={tab === "activity" ? accent : muted} accessible={false} />
-            <Tabs.Label className="text-xs sm:text-sm">{t("Activities")}</Tabs.Label>
+            <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
           </Tabs.Trigger>
           <Tabs.Trigger value="market" style={tabStyle}>
             <Store size={16} color={tab === "market" ? accent : muted} accessible={false} />
-            <Tabs.Label className="text-xs sm:text-sm">{t("Marketplace")}</Tabs.Label>
+            <Tabs.Label numberOfLines={1}>{t("Marketplace")}</Tabs.Label>
           </Tabs.Trigger>
         </MainTabBar>
         {tab === "activity" ? <CommunityActivities /> : <CommunityMarketplace />}

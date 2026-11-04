@@ -14,43 +14,49 @@ const base: ProfileActivity = {
   href: "/groups/source",
   outcome: "won",
 };
-it("renders one played result rather than a second victory activity and keeps all kinds semantic", () => {
+it("renders one complete sentence per result with all activity kinds and truthful fallbacks", () => {
   const view = renderWithI18n(
     <ul>
       <ProfileActivityRow item={base} />
     </ul>,
   );
   expect(screen.getAllByRole("listitem")).toHaveLength(1);
-  expect(screen.getByText("Game played · Won")).not.toBeNull();
+  expect(screen.getByRole("listitem").textContent).toContain(
+    "Someone played and won at table Authorized source.",
+  );
   expect(screen.getByRole("link").getAttribute("href")).toBe("/groups/source");
   view.rerender(
     <ul>
       <ProfileActivityRow item={{ ...base, outcome: "played", href: null, context: null }} />
     </ul>,
   );
-  expect(screen.getByText("Game played · Completed")).not.toBeNull();
+  expect(screen.getByRole("listitem").textContent).toContain(
+    "Someone played at table Unavailable source.",
+  );
   expect(screen.queryByRole("link")).toBeNull();
-  for (const [kind, label] of [
-    ["friendship", "New friendship"],
-    ["event_join", "Joined an event"],
-    ["table_join", "Joined a table"],
-    ["group_join", "Joined a group"],
-    ["follower", "New follower"],
+  for (const [kind, phrase] of [
+    ["friendship", "became friends with"],
+    ["event_join", "joined event"],
+    ["table_join", "joined table"],
+    ["group_join", "is now part of group"],
+    ["follower", "started following"],
   ] as const) {
     view.rerender(
       <ul>
         <ProfileActivityRow item={{ ...base, kind, href: "/profiles/user", context: null }} />
       </ul>,
     );
-    expect(screen.getByText(label)).not.toBeNull();
-    expect(screen.getByRole("link").getAttribute("aria-label")).toBe(`${label}: `);
+    expect(screen.getByRole("listitem").textContent).toContain(phrase);
+    expect(screen.getByRole("link").getAttribute("href")).toBe("/profiles/user");
   }
   view.rerender(
     <ul>
       <ProfileActivityRow item={{ ...base, kind: "milestone", milestone: 100 }} />
     </ul>,
   );
-  expect(screen.getByText("Victory milestone · 100")).not.toBeNull();
+  expect(screen.getByRole("listitem").textContent).toContain(
+    "reached 100 victories at table Authorized source.",
+  );
 });
 it("does not fabricate a curve with zero/one points and labels actual ordinal bounds", () => {
   const view = renderWithI18n(<ProfileRatingChart points={[]} />);

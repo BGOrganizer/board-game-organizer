@@ -121,7 +121,9 @@ export class ProfileService {
             }
             if (row.otherUserId) {
               const user = await author(row.otherUserId);
-              return user ? { name: user.name, href: `/profiles/${user.id}` } : null;
+              return user
+                ? { name: user.username || user.name, href: `/profiles/${user.id}` }
+                : null;
             }
             return null;
           } catch (error) {
@@ -144,8 +146,8 @@ export class ProfileService {
       authors.clear();
       for (const row of rows) {
         if (blocked.has(row.userId) || (row.otherUserId && blocked.has(row.otherUserId))) continue;
-        const identity = network ? await author(row.userId) : undefined;
-        if (network && !identity) continue;
+        const identity = await author(row.userId);
+        if (!identity) continue;
         const target = await resource(row);
         if (!target) continue;
         items.push({
@@ -158,7 +160,7 @@ export class ProfileService {
           ...(target.groupId ? { groupId: target.groupId } : {}),
           ...(target.eventContext ? { eventContext: target.eventContext } : {}),
           ...(row.otherUserId ? { otherUserId: row.otherUserId } : {}),
-          ...(identity ? { author: identity } : {}),
+          author: identity,
           ...(row.outcome ? { outcome: row.outcome } : {}),
           ...(row.milestone ? { milestone: row.milestone } : {}),
         });

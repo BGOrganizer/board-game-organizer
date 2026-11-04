@@ -26,7 +26,7 @@ export function Community() {
           <Tabs.List aria-label={t`Community navigation`} className="w-full">
             <Tabs.Tab
               id="activity"
-              className="h-auto min-h-11 min-w-0 flex-1 flex-row gap-1 px-1 text-xs whitespace-nowrap sm:gap-2 sm:px-2 sm:text-sm"
+              className="h-auto min-h-11 min-w-max flex-1 flex-row gap-2 px-2 text-sm whitespace-nowrap"
             >
               <Activity className="size-4" aria-hidden />
               {t`Activities`}
@@ -34,7 +34,7 @@ export function Community() {
             </Tabs.Tab>
             <Tabs.Tab
               id="market"
-              className="h-auto min-h-11 min-w-0 flex-1 flex-row gap-1 px-1 text-xs whitespace-nowrap sm:gap-2 sm:px-2 sm:text-sm"
+              className="h-auto min-h-11 min-w-max flex-1 flex-row gap-2 px-2 text-sm whitespace-nowrap"
             >
               <Store className="size-4" aria-hidden />
               {t`Marketplace`}

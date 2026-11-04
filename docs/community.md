@@ -59,12 +59,25 @@ information-read behavior; Community has no invented unread count, attention dot
 ## UI, cache and reconciliation
 
 Each app owns its activity renderer and navigation; Profile and Community share that renderer within
-that app, using the same GroupedList/GroupedRow structure. Public author and contact/resource names
-sit together beneath the activity label, without avatars or nested links. Profile/Community top-tab
-icons and labels share one horizontal row, with 44px minimum touch targets and compact labels at
-narrow widths. Rows stay compact, with relative time and localized local-calendar day headings. Native uses one
+that app, using the same GroupedList/GroupedRow structure and four-point text spacing. Both surfaces
+show complete EN/IT narratives with linked names/resources, not a heading plus separately spaced
+identity buttons. Named translation slots receive React text children, so names are never parsed as
+translation markup. A follower receipt belongs to the followee: the sentence correctly says that the
+other user started following the Profile subject. All seven activity kinds, won outcomes and milestone
+plurals retain their real meaning; no new activity types or fabricated counts are introduced.
+
+Native virtualized cells share contiguous group surfaces, separators and only the first/last outer
+corners, through the same GroupedList used by Profile. Day headings remain outside their groups;
+paging never nests an unbounded mapped list in the virtualizer. Profile/Community top-tab labels use
+the normal HeroUI font size, matching Groups/Events. Icons stay inline; narrow Profile tabs scroll
+horizontally rather than shrinking their text. Rows have no avatars or nested links, with relative
+time and localized local-calendar day headings. Native uses one
 SectionList and safe areas; web uses source-paged progressive loading with browser content visibility
 for off-screen sections. Loading, initial/next-page failures and true empty results remain distinct.
+
+Profile activity pages now include the same safe author projection as Community (ID, public name,
+username and avatar URL only). Older cached Profile rows use the already-owned Profile query identity
+while revalidating; identity is never inferred from the current viewer or duplicated into local state.
 
 TanStack Query owns remote data under the API/viewer Profile activity family, with a separate network
 and filter key. Existing fresh-token, cancellation, stale revalidation and encrypted native MMKV

@@ -1,3 +1,4 @@
+import type { ActivityAuthor } from "@board-game-organizer/schemas";
 import { communityAccessDenied, useProfileActivities } from "@board-game-organizer/shared";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -9,7 +10,13 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileActivityRow } from "./ProfileActivityRow";
 
-export function ProfileRecentActivities({ userId }: { userId: string }) {
+export function ProfileRecentActivities({
+  userId,
+  author,
+}: {
+  userId: string;
+  author?: ActivityAuthor;
+}) {
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -36,7 +43,7 @@ export function ProfileRecentActivities({ userId }: { userId: string }) {
       {items?.length ? (
         <GroupedList>
           {items.map((item) => (
-            <ProfileActivityRow key={item.id} item={item} />
+            <ProfileActivityRow key={item.id} item={item} author={author} />
           ))}
         </GroupedList>
       ) : !q.isPending && !q.isError ? (

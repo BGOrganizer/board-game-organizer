@@ -1,5 +1,35 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Readable activity narratives and standard tab typography — implemented; acceptance incomplete
+
+- Profile and Community reuse one activity renderer per platform and one pure narrative descriptor.
+  All seven kinds now describe actual actors/actions/resources in complete EN/IT sentences, with
+  won outcomes and truthful milestone plurals. Follow receipts are correctly reversed for prose:
+  the follower followed the Profile subject. Named rich-message slots receive React text children;
+  arbitrary names cannot inject or be swallowed as translation markup. No new activity type/writer.
+- Current Profile pages include Community's existing safe author projection. Older cached Profile
+  rows use the already-owned Profile query identity while revalidating. Display lookup prefers
+  public usernames; private email/phone/role fields, source visibility, cursors, notification reads,
+  optimistic reconciliation and persistence ownership are unchanged.
+- Native virtualized rows now use contiguous GroupedList segments, shared separators and only outer
+  first/last corners rather than isolated per-row cards. Both Profile history and Community use this
+  shared geometry without nested/unbounded mapped lists. One four-point sentence/context/time
+  layout replaces the old independently spaced identity controls on both platforms.
+- Profile/Community top tabs use Groups/Events' normal HeroUI font sizes, preserving inline icons.
+  Narrow Profile strips scroll rather than shrinking labels; default geometry of other tabs stays
+  unchanged. No theme, package, auth/provider or CI configuration change.
+- **2,613 covered units pass**: mobile 385, web 827, API 824, schemas 140, shared 437. New narrative
+  logic has per-file 100% coverage; existing gates remain intact. EN/IT rich text, pluralization,
+  direction/links, unknown identity/source/count fallbacks, literal markup-like names and virtual
+  group edge geometry are checked. Typecheck, API/web builds and scoped Biome pass with zero errors
+  or warnings; generated Next references restored.
+- Six real-Mongo Profile/network integration cases pass with zero skips, using disposable replica-set
+  Testcontainers only. Twenty-eight isolated actual-component/production-CSS browser cases pass
+  EN/IT/light/dark at narrow/desktop widths, asserting standard 14px web labels, inline geometry,
+  readable directed sentences, one daily list group and uniform spacing. These checks are not
+  authenticated/device acceptance; no fresh APK or provider operation. Operator subsequently
+  authorized signed commit/push on the existing `feat/social-api-refactor` branch only.
+
 ## Community/Profile activity and tab alignment — implemented follow-up
 
 - Both clients retain their existing shared ActivityRow, GroupedList and GroupedRow components.

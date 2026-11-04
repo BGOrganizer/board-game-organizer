@@ -99,6 +99,7 @@ for (const width of [390, 1280]) {
     for (const tab of await main.getByRole("tab").all()) {
       await expect(tab).toHaveCSS("flex-direction", "row");
       await expect(tab).toHaveCSS("white-space", "nowrap");
+      await expect(tab).toHaveCSS("font-size", "14px");
     }
     await main.getByRole("tab", { name: labels.collection, exact: true }).click();
     await expect(main.getByRole("heading", { name: labels.bgg })).toBeVisible();

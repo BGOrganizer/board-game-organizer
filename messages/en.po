@@ -5677,3 +5677,45 @@ msgstr "Yesterday"
 
 msgid "Public read-only view. Join the group to participate."
 msgstr "Public read-only view. Join the group to participate."
+
+msgid "Someone"
+msgstr "Someone"
+
+msgid "Unavailable source"
+msgstr "Unavailable source"
+
+#. js-lingui-explicit-id
+msgid "<actor/> started following <target/>."
+msgstr "<actor/> started following <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> became friends with <target/>."
+msgstr "<actor/> became friends with <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> played at table <target/>."
+msgstr "<actor/> played at table <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> played and won at table <target/>."
+msgstr "<actor/> played and won at table <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> joined table <target/>."
+msgstr "<actor/> joined table <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> joined event <target/>."
+msgstr "<actor/> joined event <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> is now part of group <target/>."
+msgstr "<actor/> is now part of group <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> reached {count, plural, one {# victory} other {# victories}} at table <target/>."
+msgstr "<actor/> reached {count, plural, one {# victory} other {# victories}} at table <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> reached a victory milestone at table <target/>."
+msgstr "<actor/> reached a victory milestone at table <target/>."

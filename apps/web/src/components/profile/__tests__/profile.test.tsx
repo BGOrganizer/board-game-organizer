@@ -149,9 +149,7 @@ it("shows a compact identity, persistent tabs and real ordinal GLOBAL rating dat
   expect(screen.getByText("@alex")).not.toBeNull();
   expect(screen.queryByText("Plan:")).toBeNull();
   await screen.findByText("Recent activities");
-  expect(
-    screen.getByRole("link", { name: "Game played: My Table" }).getAttribute("href"),
-  ).toContain("/tables/");
+  expect(screen.getByRole("link", { name: "My Table" }).getAttribute("href")).toContain("/tables/");
   fireEvent.click(screen.getByRole("tab", { name: "Player" }));
   await chooseChess();
   await screen.findByText("Current rating: 512");
@@ -341,7 +339,7 @@ it("source-pages activities by ten and keeps failures separate from an empty fee
   expect(screen.queryByText("No activities yet")).toBeNull();
   failFeed = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await screen.findByRole("link", { name: "Game played: My Table" });
+  await screen.findByRole("link", { name: "My Table" });
   const read = requests.mock.calls.find(([url]) => url.includes("/activities?"));
   expect(new URL(String(read?.[0])).searchParams.get("limit")).toBe("10");
 });

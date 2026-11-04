@@ -1,6 +1,10 @@
 "use client";
 import { type ProfileActivityKind, profileActivityKindSchema } from "@board-game-organizer/schemas";
-import { communityAccessDenied, useProfileActivities } from "@board-game-organizer/shared";
+import {
+  communityAccessDenied,
+  useProfileActivities,
+  useProfileView,
+} from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { Button, Label, ListBox, Select, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -17,6 +21,7 @@ export function ProfileActivities({ userId }: { userId: string }) {
     setView = useAppStore((s) => s.setProfileView);
   const parsed = profileActivityKindSchema.safeParse(filter),
     kind = parsed.success ? parsed.data : undefined;
+  const subject = useProfileView(o, userId);
   const q = useProfileActivities(o, userId, kind, 10),
     denied = communityAccessDenied(q.error) || q.data === null;
   const end = useInfiniteScroll({ ...q, hasNextPage: !denied && q.hasNextPage });
@@ -71,7 +76,13 @@ export function ProfileActivities({ userId }: { userId: string }) {
       {rows.length ? (
         <GroupedList>
           {rows.map((item) => (
-            <ProfileActivityRow key={item.id} item={item} />
+            <ProfileActivityRow
+              key={item.id}
+              item={item}
+              author={
+                communityAccessDenied(subject.error) ? undefined : (subject.data ?? undefined)
+              }
+            />
           ))}
         </GroupedList>
       ) : !q.isPending && !q.isError && !denied ? (

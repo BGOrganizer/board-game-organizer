@@ -168,6 +168,7 @@ it("resolves current resource authorization and excludes departed private groups
         kind: "follower",
         occurredAt: at,
         context: "public",
+        author: { id: "subject", name: "subject", username: null, avatarUrl: null },
         href: "/groups/public",
         groupId: "public",
         visibility: "public-group",

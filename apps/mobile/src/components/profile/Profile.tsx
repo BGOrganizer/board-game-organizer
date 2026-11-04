@@ -80,18 +80,18 @@ export function Profile({ userId }: { userId?: string }) {
                 setView(viewKey, { tab: value });
             }}
           >
-            <MainTabBar>
+            <MainTabBar scrollable>
               <Tabs.Trigger value="activity" style={tabStyle}>
                 <UsersRound
                   size={16}
                   color={tab === "activity" ? accent : muted}
                   accessible={false}
                 />
-                <Tabs.Label className="text-xs sm:text-sm">{t("Activities")}</Tabs.Label>
+                <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
               </Tabs.Trigger>
               <Tabs.Trigger value="player" style={tabStyle}>
                 <Gamepad2 size={16} color={tab === "player" ? accent : muted} accessible={false} />
-                <Tabs.Label className="text-xs sm:text-sm">{t("Player")}</Tabs.Label>
+                <Tabs.Label numberOfLines={1}>{t("Player")}</Tabs.Label>
               </Tabs.Trigger>
               {own ? (
                 <Tabs.Trigger value="collection" style={tabStyle}>
@@ -100,7 +100,7 @@ export function Profile({ userId }: { userId?: string }) {
                     color={tab === "collection" ? accent : muted}
                     accessible={false}
                   />
-                  <Tabs.Label className="text-xs sm:text-sm">{t("Collection")}</Tabs.Label>
+                  <Tabs.Label numberOfLines={1}>{t("Collection")}</Tabs.Label>
                 </Tabs.Trigger>
               ) : null}
             </MainTabBar>
@@ -114,7 +114,7 @@ export function Profile({ userId }: { userId?: string }) {
                       { label: t("Following"), value: number.format(data.social.following) },
                     ]}
                   />
-                  <ProfileRecentActivities userId={subject} />
+                  <ProfileRecentActivities userId={subject} author={data} />
                 </>
               ) : tab === "player" ? (
                 <>

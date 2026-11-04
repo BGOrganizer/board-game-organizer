@@ -1,4 +1,5 @@
 "use client";
+import type { ActivityAuthor } from "@board-game-organizer/schemas";
 import { communityAccessDenied, useProfileActivities } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -6,7 +7,13 @@ import { useRouter } from "next/navigation";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileActivityRow } from "./ProfileActivityRow";
-export function ProfileRecentActivities({ userId }: { userId: string }) {
+export function ProfileRecentActivities({
+  userId,
+  author,
+}: {
+  userId: string;
+  author?: ActivityAuthor;
+}) {
   const { t } = useLingui(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -25,7 +32,7 @@ export function ProfileRecentActivities({ userId }: { userId: string }) {
       {items?.length ? (
         <GroupedList>
           {items.map((item) => (
-            <ProfileActivityRow key={item.id} item={item} />
+            <ProfileActivityRow key={item.id} item={item} author={author} />
           ))}
         </GroupedList>
       ) : !q.isPending && !q.isError ? (

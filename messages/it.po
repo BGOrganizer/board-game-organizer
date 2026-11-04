@@ -5677,3 +5677,45 @@ msgstr "Ieri"
 
 msgid "Public read-only view. Join the group to participate."
 msgstr "Vista pubblica in sola lettura. Unisciti al gruppo per partecipare."
+
+msgid "Someone"
+msgstr "Qualcuno"
+
+msgid "Unavailable source"
+msgstr "Risorsa non disponibile"
+
+#. js-lingui-explicit-id
+msgid "<actor/> started following <target/>."
+msgstr "<actor/> ha iniziato a seguire <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> became friends with <target/>."
+msgstr "<actor/> ha stretto amicizia con <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> played at table <target/>."
+msgstr "<actor/> ha giocato al tavolo <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> played and won at table <target/>."
+msgstr "<actor/> ha giocato e vinto al tavolo <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> joined table <target/>."
+msgstr "<actor/> si è unito al tavolo <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> joined event <target/>."
+msgstr "<actor/> si è unito all'evento <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> is now part of group <target/>."
+msgstr "<actor/> fa ora parte del gruppo <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> reached {count, plural, one {# victory} other {# victories}} at table <target/>."
+msgstr "<actor/> ha raggiunto quota {count, plural, one {# vittoria} other {# vittorie}} al tavolo <target/>."
+
+#. js-lingui-explicit-id
+msgid "<actor/> reached a victory milestone at table <target/>."
+msgstr "<actor/> ha raggiunto un traguardo di vittorie al tavolo <target/>."

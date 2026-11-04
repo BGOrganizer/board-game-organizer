@@ -1,12 +1,16 @@
 import type { CommunityActivity } from "@board-game-organizer/schemas";
 import { CommunityApiError } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ActivityRow } from "@/components/activities/ActivityRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { ProfileActivityRow } from "@/components/profile/ProfileActivityRow";
 import { renderWithI18n } from "@/test-utils";
+import { messages as en } from "../../../../../../messages/en.js";
+import { messages as itMessages } from "../../../../../../messages/it.js";
 import { Community } from "../Community";
 import { CommunityActivities } from "../CommunityActivities";
 
@@ -81,9 +85,9 @@ it("shows only server rows, public author/profile links, resource context, day g
   expect(screen.getByRole("link", { name: "friend" }).getAttribute("href")).toBe(
     "/profiles/friend",
   );
-  expect(
-    screen.getByRole("link", { name: "Joined a table: Public table" }).getAttribute("href"),
-  ).toBe("/events/event/tables/table");
+  expect(screen.getByRole("link", { name: "Public table" }).getAttribute("href")).toBe(
+    "/events/event/tables/table",
+  );
   expect(screen.getByText("Public event")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Load more" }));
   expect(m.more).toHaveBeenCalledOnce();
@@ -116,7 +120,7 @@ it("distinguishes failed reads, denied cached rows and genuine empty responses",
   expect(screen.getByText("No activities yet")).toBeTruthy();
 });
 it.each(["friendship", "follower"] as const)(
-  "aligns %s identities under the same Profile label, without avatars or nested links",
+  "renders the same complete %s sentence and spacing as Profile, without avatars or nested links",
   (kind) => {
     expect(ActivityRow).toBe(ProfileActivityRow);
     const item = {
@@ -134,15 +138,17 @@ it.each(["friendship", "follower"] as const)(
         />
       </GroupedList>,
     );
-    const label = screen.getByText(kind === "friendship" ? "New friendship" : "New follower");
     const author = screen.getByRole("link", { name: "friend" });
-    const contact = screen.getByRole("link", {
-      name: `${kind === "friendship" ? "New friendship" : "New follower"}: New contact`,
-    });
+    const contact = screen.getByRole("link", { name: "New contact" });
+    expect(author.parentElement?.textContent).toBe(
+      kind === "friendship"
+        ? "friend became friends with New contact."
+        : "New contact started following friend.",
+    );
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     expect(container.querySelector("img")).toBeNull();
     expect(author.parentElement).toBe(contact.parentElement);
-    expect(author.parentElement?.previousElementSibling).toBe(label);
+    expect(author.parentElement?.tagName).toBe("P");
     expect(author.querySelector("a")).toBeNull();
     expect(contact.querySelector("a")).toBeNull();
   },
@@ -160,6 +166,51 @@ it.each([
   );
   expect(screen.getByRole("link", { name: "friend" })).toBeTruthy();
   expect(screen.getAllByRole("link")).toHaveLength(fields.href ? 2 : 1);
+});
+it.each(["en", "it"] as const)(
+  "renders rich %s narratives with safely linked names in one shared group",
+  (locale) => {
+    const i18n = setupI18n({ locale, messages: { [locale]: locale === "it" ? itMessages : en } });
+    const items = [row("friendship"), row("follower")].map((item) => ({
+      ...item,
+      kind: item.id as "friendship" | "follower",
+      context: "Other",
+      href: "/profiles/other",
+      eventContext: undefined,
+    }));
+    const { container } = renderWithI18n(
+      <I18nProvider i18n={i18n}>
+        <GroupedList>
+          {items.map((item) => (
+            <ActivityRow key={item.id} item={item} author={item.author} />
+          ))}
+        </GroupedList>
+      </I18nProvider>,
+    );
+    expect(container.querySelectorAll("ul")).toHaveLength(1);
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[0].textContent).toContain(
+      locale === "it"
+        ? "friend ha stretto amicizia con Other."
+        : "friend became friends with Other.",
+    );
+    expect(rows[1].textContent).toContain(
+      locale === "it" ? "Other ha iniziato a seguire friend." : "Other started following friend.",
+    );
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector("a a")).toBeNull();
+  },
+);
+it("does not interpret user names as rich-message markup", () => {
+  const item = { ...row(), context: "<script>bad</script>" };
+  const { container } = renderWithI18n(
+    <GroupedList>
+      <ActivityRow item={item} author={{ ...item.author, username: "<img src=x>" }} />
+    </GroupedList>,
+  );
+  expect(container.querySelector("img,script")).toBeNull();
+  expect(screen.getByRole("listitem").textContent).toContain("<img src=x>");
+  expect(screen.getByRole("listitem").textContent).toContain("<script>bad</script>");
 });
 it("does not nest actor/resource links and uses safe identity fallbacks", () => {
   const view = renderWithI18n(
@@ -179,5 +230,5 @@ it("does not nest actor/resource links and uses safe identity fallbacks", () => 
       />
     </ul>,
   );
-  expect(screen.getByRole("link", { name: "Username unavailable" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Someone" })).toBeTruthy();
 });

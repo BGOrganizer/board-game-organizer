@@ -89,7 +89,9 @@ it("main native strips share Groups geometry while detail tabs retain independen
     new URL("../../components/common/ui/MainTabBar.tsx", import.meta.url),
     "utf8",
   );
-  expect(shared).toContain('alignSelf: "center", marginTop: 8, maxWidth: "100%"');
+  for (const geometry of ['alignSelf: "center"', "marginTop: 8", 'maxWidth: "100%"'])
+    expect(shared).toContain(geometry);
+  expect(shared).toContain("scrollable = false");
   for (const name of ["events/Events", "groups/Groups"]) {
     const text = readFileSync(new URL(`../../components/${name}.tsx`, import.meta.url), "utf8");
     expect(text).toContain("<MainTabBar>");
