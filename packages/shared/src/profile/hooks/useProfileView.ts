@@ -1,6 +1,8 @@
 "use client";
 
 import type {
+  CommunityActivityPage,
+  CommunityNetwork,
   ProfileActivityKind,
   ProfileActivityPage,
   ProfileRatingGames,
@@ -19,10 +21,18 @@ import {
 import { useEffect } from "react";
 import { updateOptimisticBase } from "../../common/optimisticOperation";
 import {
+  CommunityApiError,
   type CommunityApiOptions,
   communityAccessDenied,
   communityRequest,
 } from "../../community/communityApi";
+import { ACTIVITY_FEED_POLICY, activityVisibilityVerified } from "../activityFeed";
+
+function verifiedActivityPage<T extends ProfileActivityPage>(page: T): T {
+  if (!activityVisibilityVerified(page))
+    throw new CommunityApiError(502, "ACTIVITY_VISIBILITY_UNVERIFIED");
+  return page;
+}
 
 /** A denied child read revokes this subject's cached profile, never another API/viewer/subject. */
 function useProfileReadGuard<T extends { error: unknown; isFetching: boolean; isEnabled: boolean }>(
@@ -102,7 +112,14 @@ export function profileActivitiesQuery(
   limit: 5 | 10,
 ) {
   return infiniteQueryOptions({
-    queryKey: [...profileViewKeys.root(o), "activities", subject, kind ?? null, limit] as const,
+    queryKey: [
+      ...profileViewKeys.root(o),
+      "activities",
+      subject,
+      kind ?? null,
+      limit,
+      ACTIVITY_FEED_POLICY,
+    ] as const,
     initialPageParam: "",
     queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams({
@@ -116,7 +133,7 @@ export function profileActivitiesQuery(
         "GET",
         undefined,
         signal,
-      );
+      ).then(verifiedActivityPage);
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     staleTime: 60_000,
@@ -133,6 +150,28 @@ export function useProfileActivities(
     enabled: o.enabled !== false && Boolean(o.userId && subject),
   });
   return useProfileReadGuard(o, subject, query);
+}
+export function communityActivitiesQuery(o: CommunityApiOptions, network: CommunityNetwork) {
+  return infiniteQueryOptions({
+    queryKey: [...profileViewKeys.root(o), "network", network, ACTIVITY_FEED_POLICY] as const,
+    initialPageParam: "",
+    queryFn: ({ pageParam, signal }) =>
+      communityRequest<CommunityActivityPage>(
+        o,
+        `community/activities?${new URLSearchParams({ network, limit: "10", ...(pageParam ? { cursor: pageParam } : {}) })}`,
+        "GET",
+        undefined,
+        signal,
+      ).then(verifiedActivityPage),
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    staleTime: 60_000,
+  });
+}
+export function useCommunityActivities(o: CommunityApiOptions, network: CommunityNetwork) {
+  return useInfiniteQuery({
+    ...communityActivitiesQuery(o, network),
+    enabled: o.enabled !== false && Boolean(o.userId),
+  });
 }
 export function useProfileRatingGames(o: CommunityApiOptions, subject: string, query: string) {
   const result = useInfiniteQuery({

@@ -134,7 +134,7 @@ it("filters current private/Event parent access before a visible page, denies ei
     groupId: publicId,
     adminUserId: subject,
     status: "PLANNING",
-    name: "Not discoverable from a public Group",
+    name: "Public event activity",
   });
   for (let i = 0; i < 60; i++)
     await activities.record({
@@ -161,13 +161,14 @@ it("filters current private/Event parent access before a visible page, denies ei
     });
   const first = await profiles.feed(viewer, subject, { limit: 10 });
   expect(first.items).toHaveLength(10);
-  expect(first.items.every((row) => row.kind === "friendship")).toBe(true);
+  expect(first.items[0]).toMatchObject({ kind: "event_join", context: "Public event activity" });
+  expect(first.items.slice(1).every((row) => row.kind === "friendship")).toBe(true);
   expect(first.nextCursor).not.toBeNull();
   const second = await profiles.feed(viewer, subject, {
     limit: 10,
     cursor: first.nextCursor ?? undefined,
   });
-  expect(second.items).toHaveLength(1);
+  expect(second.items).toHaveLength(2);
   expect(second.nextCursor).toBeNull();
   expect(JSON.stringify(first)).not.toContain("Private source");
   await db.collection(C.GROUP_MEMBERSHIPS).insertOne({
@@ -182,7 +183,7 @@ it("filters current private/Event parent access before a visible page, denies ei
   });
   expect(
     (await profiles.feed(viewer, subject, { limit: 5 })).items.every(
-      (row) => row.context === "Private source" && row.groupId === groupId,
+      (row) => row.groupId !== groupId,
     ),
   ).toBe(true);
   await db
@@ -190,7 +191,7 @@ it("filters current private/Event parent access before a visible page, denies ei
     .updateOne({ groupId, userId: viewer }, { $set: { status: "LEFT" } });
   expect(
     (await profiles.feed(viewer, subject, { limit: 5 })).items.every(
-      (row) => row.kind === "friendship",
+      (row) => row.groupId !== groupId,
     ),
   ).toBe(true);
   const relationships = new RelationshipRepository(db);
@@ -350,4 +351,179 @@ it("orders GLOBAL history by authoritative gamesPlayed, not clock or GROUP dupli
   await db.collection(C.RATING_EVENTS).deleteMany({ userId: subject });
   expect((await repo.games(subject, 0, "[")).items.map((game) => game.id)).toEqual([7]);
   expect(await repo.history(subject, 7)).toMatchObject({ rating: 510, delta: null, points: [] });
+});
+it("source-pages the current network since its live edge, deduplicates friendship/initial joins and excludes private activities even for members/owners", async () => {
+  const publicId = randomUUID(),
+    privateId = randomUUID(),
+    eventId = randomUUID(),
+    tableId = randomUUID(),
+    activities = new ProfileActivitiesRepository(db),
+    profiles = new ProfileService(db);
+  await db.collection(C.GROUPS).insertMany([
+    {
+      id: publicId,
+      type: "PUBLIC",
+      adminUserId: subject,
+      approved: { name: "Public network" },
+      version: 1,
+      createdAt: at,
+      updatedAt: at,
+    },
+    {
+      id: privateId,
+      type: "PRIVATE",
+      adminUserId: subject,
+      approved: { name: "NEVER PRIVATE" },
+      version: 1,
+      createdAt: at,
+      updatedAt: at,
+    },
+  ]);
+  await db.collection(C.FOLLOWS).insertMany([
+    { fromUserId: viewer, toUserId: subject, createdAt: new Date(at) },
+    { fromUserId: "third", toUserId: viewer, createdAt: new Date(at) },
+  ]);
+  await db.collection(C.FRIEND_REQUESTS).insertMany(
+    [
+      [viewer, "other"],
+      ["other", viewer],
+    ].map(([fromUserId, toUserId]) => ({
+      fromUserId,
+      toUserId,
+      status: "accepted",
+      createdAt: new Date(at),
+      updatedAt: new Date(at),
+      respondedAt: new Date(at),
+    })),
+  );
+  for (const [i, who] of Array.from({ length: 12 }, (_, i) => [i, subject] as const))
+    await activities.record({
+      userId: who,
+      kind: "group_join",
+      groupId: publicId,
+      source: `public:${i}`,
+      occurredAt: new Date(Date.parse(at) + i * 1000).toISOString(),
+    });
+  await activities.record({
+    userId: subject,
+    kind: "group_join",
+    groupId: publicId,
+    source: "before-follow",
+    occurredAt: "2030-06-03T11:59:59.999Z",
+  });
+  await activities.record({
+    userId: "third",
+    kind: "group_join",
+    groupId: publicId,
+    source: "incoming-only",
+    occurredAt: at,
+  });
+  const friendship = `friendship:${randomUUID()}`;
+  for (const [userId, otherUserId] of [
+    [subject, "other"],
+    ["other", subject],
+  ])
+    await activities.record({
+      userId,
+      otherUserId,
+      source: friendship,
+      kind: "friendship",
+      occurredAt: "2030-06-03T12:00:20.000Z",
+    });
+  await db.collection(C.EVENTS).insertOne({
+    id: eventId,
+    groupId: publicId,
+    adminUserId: subject,
+    status: "PLANNING",
+    name: "Public linked Event",
+  });
+  await db
+    .collection(C.EVENT_TABLES)
+    .insertOne({ id: tableId, eventId, name: "Public linked Table", order: 0 });
+  for (const kind of ["event_join", "table_join"] as const)
+    await activities.record({
+      userId: subject,
+      source: `${kind}:initial`,
+      kind,
+      eventId,
+      ...(kind === "table_join" ? { tableId } : {}),
+      occurredAt: "2030-06-03T12:00:30.000Z",
+    });
+  for (let i = 0; i < 60; i++)
+    await activities.record({
+      userId: subject,
+      kind: "group_join",
+      groupId: privateId,
+      source: `secret:${i}`,
+      occurredAt: "2030-06-03T12:01:00.000Z",
+    });
+  await db.collection(C.GROUP_MEMBERSHIPS).insertOne({
+    id: randomUUID(),
+    groupId: privateId,
+    userId: viewer,
+    status: "ACCEPTED",
+    kind: "INVITATION",
+    version: 1,
+    createdAt: at,
+    updatedAt: at,
+  });
+  const all = [];
+  let cursor: string | undefined;
+  do {
+    const page = await profiles.networkFeed(viewer, { network: "all", limit: 10, cursor });
+    expect(page.items.length).toBeLessThanOrEqual(10);
+    all.push(...page.items);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
+  expect(all).toHaveLength(14);
+  expect(new Set(all.map((i) => i.id)).size).toBe(14);
+  expect(all.filter((i) => i.kind === "friendship")).toHaveLength(1);
+  expect(all.filter((i) => i.kind === "event_join")).toHaveLength(0);
+  expect(all[0]).toMatchObject({
+    kind: "table_join",
+    eventContext: "Public linked Event",
+    context: "Public linked Table",
+  });
+  expect(
+    all.every(
+      (i) =>
+        i.author.id !== "third" &&
+        i.groupId !== privateId &&
+        Date.parse(i.occurredAt) >= Date.parse(at),
+    ),
+  ).toBe(true);
+  expect(JSON.stringify(all)).not.toContain("NEVER PRIVATE");
+  expect(JSON.stringify(all)).not.toContain("@private.test");
+  expect(
+    (await profiles.networkFeed(viewer, { network: "friends", limit: 10 })).items.map(
+      (i) => i.author.id,
+    ),
+  ).toEqual(["other"]);
+  expect(
+    (await profiles.networkFeed(viewer, { network: "following", limit: 10 })).items.every(
+      (i) => i.author.id === subject,
+    ),
+  ).toBe(true);
+  expect(
+    (await profiles.feed(subject, subject, { kind: "group_join", limit: 10 })).items.every(
+      (i) => i.groupId !== privateId,
+    ),
+  ).toBe(true);
+  await db
+    .collection(C.EVENT_TABLES)
+    .updateOne({ id: tableId }, { $set: { removedAt: "2030-06-03T12:02:00.000Z" } });
+  expect(
+    (await profiles.networkFeed(viewer, { network: "following", limit: 10 })).items[0],
+  ).toMatchObject({ kind: "event_join", context: "Public linked Event" });
+  await db
+    .collection(C.FOLLOWS)
+    .updateOne(
+      { fromUserId: viewer, toUserId: subject },
+      { $set: { createdAt: new Date("2030-06-04T00:00:00.000Z") } },
+    );
+  expect((await profiles.networkFeed(viewer, { network: "following", limit: 10 })).items).toEqual(
+    [],
+  );
+  await db.collection(C.FRIEND_REQUESTS).deleteOne({ fromUserId: "other", toUserId: viewer });
+  expect((await profiles.networkFeed(viewer, { network: "all", limit: 10 })).items).toEqual([]);
 });

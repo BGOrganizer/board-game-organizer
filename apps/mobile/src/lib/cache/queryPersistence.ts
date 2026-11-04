@@ -1,4 +1,8 @@
-import { communityAccessDenied, optimisticBaseData } from "@board-game-organizer/shared";
+import {
+  communityAccessDenied,
+  isRetiredActivityFeed,
+  optimisticBaseData,
+} from "@board-game-organizer/shared";
 import {
   dehydrate,
   hashKey,
@@ -23,6 +27,7 @@ export type CacheStorage = {
 
 /** No credentials, raw address-book values, transient drafts, or licensed provider searches. */
 export function ownsPersistedQuery(key: QueryKey, owner: CacheOwner) {
+  if (isRetiredActivityFeed(key)) return false;
   if (key[0] === "contacts") return key[2] === owner.apiUrl && key[3] === owner.userId;
   return (
     [
@@ -98,6 +103,8 @@ export function decodeCache(
     return undefined;
   const queries: PersistedClient["clientState"]["queries"] = [];
   for (const value of input.clientState.queries) {
+    if (record(value) && Array.isArray(value.queryKey) && isRetiredActivityFeed(value.queryKey))
+      continue;
     if (
       !record(value) ||
       !Array.isArray(value.queryKey) ||

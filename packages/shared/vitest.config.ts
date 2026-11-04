@@ -7,6 +7,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       include: [
+        "src/profile/activityFeed.ts",
         "src/common/startupQueries.ts",
         "src/common/optimisticOperation.ts",
         "src/common/clientMutation.ts",
@@ -64,6 +65,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/profile/activityFeed.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/community/pendingActions.ts": {
           lines: 100,
           functions: 100,

@@ -42,6 +42,8 @@ export function EventDeleteAction({
   const [confirm, setConfirm] = useState<number | null>(null),
     submitted = useRef(false);
   const allowed =
+    !event.readOnly &&
+    !table?.readOnly &&
     event.adminUserId === options.userId &&
     event.status === "PLANNING" &&
     (!table ||

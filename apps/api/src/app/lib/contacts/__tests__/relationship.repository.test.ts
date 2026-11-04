@@ -160,6 +160,7 @@ describe("RelationshipRepository", () => {
     expect(fake.col("profileActivities").updateOne).toHaveBeenCalledTimes(2);
     vi.spyOn(repo, "isFriend").mockResolvedValue(true);
     await repo.becomeFriends("a", "b");
+    expect(repo.setFriendRequest).toHaveBeenCalledTimes(2); // Preserve the accepted epoch on duplicate claims.
     expect(fake.col("profileActivities").updateOne).toHaveBeenCalledTimes(2);
     expect(fake.col("friendRequests").deleteMany).toHaveBeenCalledWith(
       expect.objectContaining({ status: "accepted" }),

@@ -40,7 +40,7 @@ function setup(wins = 0) {
   const db = {
     collection: (name: string) =>
       name === C.PROFILE_ACTIVITIES
-        ? { updateOne: writes, find: query }
+        ? { updateOne: writes, find: query, aggregate: query }
         : name === C.EVENTS
           ? { findOne: findEvent, replaceOne: replaceEvent }
           : name === C.USERS
@@ -149,18 +149,19 @@ it("source-pages fixed chunks with strict descending instant/UUID tie breaks and
   const m = setup(),
     repo = new ProfileActivitiesRepository(m.db);
   await repo.page("owner", undefined);
-  expect(m.query).toHaveBeenCalledWith({ userId: "owner" }, { projection: { _id: 0 } });
+  expect(m.query.mock.calls[0][0]).toContainEqual({ $match: { userId: "owner" } });
   await repo.page("owner", "played", `${at}|id`);
-  expect(m.query).toHaveBeenLastCalledWith(
-    {
+  expect(m.query.mock.calls[1][0]).toContainEqual({
+    $match: {
       userId: "owner",
       kind: "played",
       $or: [{ occurredAt: { $lt: at } }, { occurredAt: at, id: { $lt: "id" } }],
     },
-    { projection: { _id: 0 } },
-  );
-  expect(m.sort).toHaveBeenLastCalledWith({ occurredAt: -1, id: -1 });
-  expect(m.limit).toHaveBeenLastCalledWith(50);
+  });
+  expect(m.query.mock.calls[1][0]).toContainEqual({ $sort: { occurredAt: -1, id: -1 } });
+  expect(m.query.mock.calls[1][0]).toContainEqual({ $limit: 50 });
+  await repo.networkPage("owner", "all", []);
+  expect(m.query).toHaveBeenCalledTimes(3);
 });
 it("records only the actual CONFIRMED to TERMINATED transition, never historical terminated reads/saves", async () => {
   const m = setup();

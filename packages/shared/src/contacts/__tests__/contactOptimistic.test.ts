@@ -21,6 +21,37 @@ const row = (user: ContactUser | null = target) => ({
   toUserId: user?.id ?? target.id,
   profile: user,
 });
+it("optimistically removes network authors and related blocked people without inventing new activities", () => {
+  const value = {
+    pages: [
+      {
+        items: [
+          { id: "a", author: { id: "target" } },
+          { id: "b", author: { id: "safe" }, otherUserId: "target" },
+          { id: "c", author: { id: "safe" } },
+        ],
+      },
+    ],
+  };
+  expect(
+    optimisticProfileSocialData(
+      ["profile", "api", "viewer", "network", "all"],
+      value,
+      "block",
+      variables,
+      "viewer",
+    ),
+  ).toEqual({ pages: [{ items: [value.pages[0].items[2]] }] });
+  expect(
+    optimisticProfileSocialData(
+      ["profile", "api", "viewer", "activities", "safe"],
+      value,
+      "block",
+      variables,
+      "viewer",
+    ),
+  ).toEqual({ pages: [{ items: [value.pages[0].items[0], value.pages[0].items[2]] }] });
+});
 const applyRows = (view: string, action: ContactAction, rows = [row()]) =>
   optimisticContactData(["contacts", view], rows, action, variables, "viewer") as ReturnType<
     typeof row

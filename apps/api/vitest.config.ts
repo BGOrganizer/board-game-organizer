@@ -17,6 +17,18 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "src/app/lib/{profile/community-activity-query,users/public-user-name}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/api/community/activities/route.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/lib/community/{logo-upload-policy,request-diagnostics}.ts": {
           lines: 100,
           functions: 100,

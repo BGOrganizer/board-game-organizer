@@ -12,6 +12,7 @@ const m = vi.hoisted(() => ({
   blocked: vi.fn(),
   blockedIds: vi.fn(),
   page: vi.fn(),
+  network: vi.fn(),
   event: vi.fn(),
   group: vi.fn(),
 }));
@@ -25,7 +26,7 @@ vi.mock("../profile.repository", () => ({
   })),
 }));
 vi.mock("../profile-activities.repository", () => ({
-  ProfileActivitiesRepository: vi.fn(() => ({ page: m.page })),
+  ProfileActivitiesRepository: vi.fn(() => ({ page: m.page, networkPage: m.network })),
 }));
 vi.mock("../../contacts/relationship.repository", () => ({
   RelationshipRepository: vi.fn(() => ({ isBlocked: m.blocked, getBlockedUserIds: m.blockedIds })),
@@ -60,6 +61,7 @@ beforeEach(() => {
   m.blocked.mockResolvedValue(false);
   m.blockedIds.mockResolvedValue([]);
   m.page.mockResolvedValue([]);
+  m.network.mockResolvedValue([]);
 });
 it("returns only public identity and approved aggregate fields, never email/phone/account/role", async () => {
   const value = await service().profile("viewer", "subject");
@@ -153,6 +155,7 @@ it("resolves current resource authorization and excludes departed private groups
   m.group.mockImplementation(async (_viewer, id) => ({
     id,
     name: id,
+    approved: { name: id },
     type: id === "public" ? "PUBLIC" : "PRIVATE",
     canViewEvents: false,
   }));
@@ -167,11 +170,12 @@ it("resolves current resource authorization and excludes departed private groups
         context: "public",
         href: "/groups/public",
         groupId: "public",
+        visibility: "public-group",
       },
     ],
     nextCursor: null,
   });
-  expect(m.event).toHaveBeenCalledWith("viewer", "gone", undefined);
+  expect(m.event).toHaveBeenCalledWith("viewer", "gone", undefined, true);
 });
 it("keeps one played outcome and separate milestone, reuses source lookup and never consumes notification reads", async () => {
   m.page.mockResolvedValue([
@@ -192,6 +196,7 @@ it("keeps one played outcome and separate milestone, reuses source lookup and ne
   ]);
   m.event.mockResolvedValue({
     name: "Table",
+    eventContext: "Event",
     href: "/events/event/tables/table",
     groupId: "group",
   });
@@ -213,6 +218,35 @@ it("does not convert source transport/other domain failures to an empty feed", a
   });
   m.event.mockRejectedValue(new CommunityError(403, "GROUP_MEMBER_REQUIRED"));
   expect((await service().feed("viewer", "subject", { limit: 5 })).items).toEqual([]);
+});
+it("uses the same authorization for the network, projects safe author identity, hides missing/blocked people and private groups", async () => {
+  m.blockedIds.mockResolvedValue(["blocked"]);
+  m.network.mockResolvedValue([
+    row(1),
+    row(2, { userId: "missing" }),
+    row(3, { userId: "blocked" }),
+    row(4, { groupId: "private", otherUserId: undefined }),
+    row(5, { groupId: "pending", otherUserId: undefined }),
+  ]);
+  m.user.mockImplementation(async (id) =>
+    id === "missing"
+      ? null
+      : { name: "hidden@email", email: "hidden@email", username: id, avatarUrl: null },
+  );
+  m.group.mockImplementation(async (_viewer, id) => ({
+    id,
+    type: id === "private" ? "PRIVATE" : "PUBLIC",
+    canViewEvents: true,
+  }));
+  const result = await service().networkFeed("viewer", { network: "following", limit: 10 });
+  expect(result.items).toHaveLength(1);
+  expect(result.items[0]).toMatchObject({
+    author: { id: "subject", name: "subject", username: "subject", avatarUrl: null },
+    context: "other1",
+    otherUserId: "other1",
+  });
+  expect(JSON.stringify(result)).not.toContain("hidden@email");
+  expect(m.network).toHaveBeenCalledWith("viewer", "following", ["blocked"], undefined);
 });
 it("ends an exhausted full denied chunk without manufacturing an inaccessible next cursor", async () => {
   m.page

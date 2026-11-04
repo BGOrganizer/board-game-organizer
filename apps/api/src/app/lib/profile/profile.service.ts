@@ -1,4 +1,7 @@
 import type {
+  ActivityAuthor,
+  CommunityActivityPage,
+  CommunityNetwork,
   ProfileActivity,
   ProfileActivityKind,
   ProfileActivityPage,
@@ -9,6 +12,7 @@ import type { Db } from "mongodb";
 import { recordServices } from "../community/record-services";
 import { CommunityError } from "../community.error";
 import { RelationshipRepository } from "../contacts/relationship.repository";
+import { publicUserName } from "../users/public-user-name";
 import { ProfileRepository } from "./profile.repository";
 import { ProfileActivitiesRepository } from "./profile-activities.repository";
 
@@ -32,7 +36,7 @@ export class ProfileService {
     const user = await this.requireVisible(viewer, subject);
     return {
       id: subject,
-      name: user.name && user.name !== user.email ? user.name : (user.username ?? ""),
+      name: publicUserName(user),
       username: user.username ?? null,
       avatarUrl: user.avatarUrl ?? null,
       social: await this.profiles.social(subject),
@@ -53,34 +57,71 @@ export class ProfileService {
     input: { kind?: ProfileActivityKind; limit: number; cursor?: string },
   ): Promise<ProfileActivityPage> {
     await this.requireVisible(viewer, subject);
+    return this.readFeed(viewer, input, subject);
+  }
+  async networkFeed(
+    viewer: string,
+    input: { network: CommunityNetwork; limit: number; cursor?: string },
+  ): Promise<CommunityActivityPage> {
+    await this.requireVisible(viewer, viewer);
+    return this.readFeed(viewer, input, undefined, input.network);
+  }
+  /** Both surfaces resolve the same current source visibility before their visible page limit. */
+  private readFeed(
+    viewer: string,
+    input: { kind?: ProfileActivityKind; limit: number; cursor?: string },
+    subject: string,
+  ): Promise<ProfileActivityPage>;
+  private readFeed(
+    viewer: string,
+    input: { kind?: ProfileActivityKind; limit: number; cursor?: string },
+    subject: undefined,
+    network: CommunityNetwork,
+  ): Promise<CommunityActivityPage>;
+  private async readFeed(
+    viewer: string,
+    input: { kind?: ProfileActivityKind; limit: number; cursor?: string },
+    subject?: string,
+    network?: CommunityNetwork,
+  ) {
     const services = recordServices(this.db);
-    const resourceCache = new Map<
-      string,
-      Promise<{ name: string; href: string; groupId?: string } | null>
-    >();
+    type Resource = { name: string; href: string; groupId?: string; eventContext?: string };
+    const resources = new Map<string, Promise<Resource | null>>();
+    const authors = new Map<string, Promise<ActivityAuthor | null>>();
     const blocked = new Set(await this.relationships.getBlockedUserIds(viewer));
+    const author = (id: string) => {
+      let pending = authors.get(id);
+      if (!pending) {
+        pending = this.profiles.user(id).then((user) =>
+          user
+            ? {
+                id,
+                name: publicUserName(user),
+                username: user.username ?? null,
+                avatarUrl: user.avatarUrl ?? null,
+              }
+            : null,
+        );
+        authors.set(id, pending);
+      }
+      return pending;
+    };
     const resource = (row: ProfileActivityRecord) => {
       const key = `${row.eventId ?? ""}/${row.tableId ?? ""}/${row.groupId ?? ""}/${row.otherUserId ?? ""}`;
-      let pending = resourceCache.get(key);
+      let pending = resources.get(key);
       if (!pending) {
         pending = (async () => {
           try {
             if (row.eventId)
-              return await services.events.activityResource(viewer, row.eventId, row.tableId);
+              return await services.events.activityResource(viewer, row.eventId, row.tableId, true);
             if (row.groupId) {
               const group = await services.groups.detail(viewer, row.groupId);
-              if (group.type === "PRIVATE" && !group.canViewEvents) return null;
-              return { name: group.name, href: `/groups/${group.id}`, groupId: group.id };
+              if (group.type !== "PUBLIC" || !group.approved) return null;
+              return { name: group.approved.name, href: `/groups/${group.id}`, groupId: group.id };
             }
             if (row.otherUserId) {
-              if (blocked.has(row.otherUserId)) return null;
-              const user = await this.profiles.user(row.otherUserId);
-              return user
-                ? {
-                    name: user.name && user.name !== user.email ? user.name : (user.username ?? ""),
-                    href: `/profiles/${row.otherUserId}`,
-                  }
-                : null;
+              const user = await author(row.otherUserId);
+              return user ? { name: user.name, href: `/profiles/${user.id}` } : null;
             }
             return null;
           } catch (error) {
@@ -88,18 +129,23 @@ export class ProfileService {
             throw error;
           }
         })();
-        resourceCache.set(key, pending);
+        resources.set(key, pending);
       }
       return pending;
     };
-    const items: ProfileActivity[] = [];
+    const items: Array<ProfileActivity & { author?: ActivityAuthor }> = [];
     let cursor = input.cursor;
-    // Source chunks are bounded; authorize before applying the visible response page limit.
     while (items.length <= input.limit) {
-      const rows = await this.activities.page(subject, input.kind, cursor);
+      const rows = network
+        ? await this.activities.networkPage(viewer, network, [...blocked], cursor)
+        : await this.activities.page(subject as string, input.kind, cursor);
       if (!rows.length) break;
-      resourceCache.clear();
+      resources.clear();
+      authors.clear();
       for (const row of rows) {
+        if (blocked.has(row.userId) || (row.otherUserId && blocked.has(row.otherUserId))) continue;
+        const identity = network ? await author(row.userId) : undefined;
+        if (network && !identity) continue;
         const target = await resource(row);
         if (!target) continue;
         items.push({
@@ -108,7 +154,11 @@ export class ProfileService {
           occurredAt: row.occurredAt,
           context: target.name,
           href: target.href,
+          visibility: target.groupId ? "public-group" : "authorized",
           ...(target.groupId ? { groupId: target.groupId } : {}),
+          ...(target.eventContext ? { eventContext: target.eventContext } : {}),
+          ...(row.otherUserId ? { otherUserId: row.otherUserId } : {}),
+          ...(identity ? { author: identity } : {}),
           ...(row.outcome ? { outcome: row.outcome } : {}),
           ...(row.milestone ? { milestone: row.milestone } : {}),
         });

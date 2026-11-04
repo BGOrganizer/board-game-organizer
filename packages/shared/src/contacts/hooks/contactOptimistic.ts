@@ -1,6 +1,7 @@
 import type { GroupPersonResponse } from "@board-game-organizer/schemas";
 import type { QueryKey } from "@tanstack/react-query";
 import { mapCommunityCache } from "../../community/queryCache";
+import { optimisticNetworkActivities } from "../../profile/activityFeed";
 import type { ContactUser, RelationshipRow } from "./useContacts";
 
 export type ContactAction =
@@ -120,16 +121,24 @@ export function optimisticProfileSocialData(
   variables: ContactMutationVariables,
   currentUserId?: string | null,
 ): unknown {
+  if (key[3] === "network")
+    return optimisticNetworkActivities(data, action, variables.targetUserId);
   if (!data || typeof data !== "object") return data;
   const subject = key.length === 3 ? currentUserId : key[4];
   if (action === "block" && subject === variables.targetUserId) return null;
   if (key[3] === "activities" && action === "block" && "pages" in data && Array.isArray(data.pages))
     return {
       ...data,
-      pages: data.pages.map((page: { items?: Array<{ href?: string | null }> }) => ({
-        ...page,
-        items: page.items?.filter((item) => item.href !== `/profiles/${variables.targetUserId}`),
-      })),
+      pages: data.pages.map(
+        (page: { items?: Array<{ href?: string | null; otherUserId?: string }> }) => ({
+          ...page,
+          items: page.items?.filter(
+            (item) =>
+              item.href !== `/profiles/${variables.targetUserId}` &&
+              item.otherUserId !== variables.targetUserId,
+          ),
+        }),
+      ),
     };
   if (key.length !== 3 && key[3] !== "view") return data;
   if (subject !== currentUserId && subject !== variables.targetUserId) return data;

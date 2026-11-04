@@ -304,6 +304,118 @@ async function resultFixture() {
   f.notifications.notifyMany.mockClear();
   return { ...f, event };
 }
+it("allows authenticated non-members to read approved PUBLIC details without any write capability or draft/email disclosure", async () => {
+  const f = setup("PUBLIC"),
+    event = await f.create();
+  f.groups.membership.mockResolvedValue(null as never);
+  const view = await f.service.detail(guest, event.id);
+  expect(view).toMatchObject({
+    role: "viewer",
+    readOnly: true,
+    myRegistrations: [],
+    canEdit: false,
+    canInvite: false,
+    canRegister: false,
+    canVote: false,
+    canConfirm: false,
+    canReplan: false,
+    canFinalize: false,
+  });
+  expect(view.agreement).toBeUndefined();
+  expect(view.myVotes).toBeUndefined();
+  const stored = f.events.get(event.id),
+    table = f.tables.get(id);
+  if (!stored || !table) throw new Error("Missing public fixture");
+  f.events.set(event.id, { ...stored, status: "TERMINATED" });
+  f.tables.set(id, {
+    ...table,
+    confirmed: { gameId: 1, playerIds: [owner, waiter], startsAt: "2027-01-03T09:00:00.000Z" },
+    resultDraft: {
+      lowerWins: false,
+      entries: [
+        { userId: owner, score: "2" },
+        { userId: waiter, score: "1" },
+      ],
+      tieBreaks: [],
+    },
+    results: {
+      lowerWins: false,
+      entries: [
+        { userId: owner, score: "2", rank: 1 },
+        { userId: waiter, score: "1", rank: 2 },
+      ],
+      tieBreaks: [],
+      finalizedAt: "2027-01-03T15:00:00.000Z",
+    },
+  });
+  f.users.findByIds.mockImplementation(async (ids) =>
+    ids.map((userId) => ({
+      clerkId: userId,
+      name: "private@example.test",
+      email: "private@example.test",
+      username: "safe",
+    })),
+  );
+  const publicTable = await f.service.tableDetail(guest, event.id, id);
+  expect(publicTable.resultDraft).toBeUndefined();
+  expect(
+    publicTable.resultProfiles?.every((row) => row.email === null && row.name === "safe"),
+  ).toBe(true);
+  expect(JSON.stringify(publicTable)).not.toContain("private@example.test");
+  f.events.set(event.id, stored);
+  f.tables.set(id, table);
+  expect(await f.service.tableDetail(guest, event.id, id)).toMatchObject({
+    readOnly: true,
+    canRegister: false,
+    canInvite: false,
+    canLeave: false,
+    canRespond: false,
+    myRegistration: null,
+  });
+  expect(
+    (await f.service.tables(guest, event.id, { limit: 10, query: "" })).items[0].readOnly,
+  ).toBe(true);
+  await expect(
+    f.service.join(guest, event.id, id, { version: event.version, gameVotes: { "1": "YES" } }),
+  ).rejects.toMatchObject({ message: "GROUP_MEMBER_REQUIRED" });
+  await expect(
+    f.service.vote(guest, event.id, { kind: "game", tableId: id, gameId: 1, vote: "YES" }),
+  ).rejects.toMatchObject({ message: "GROUP_MEMBER_REQUIRED" });
+  await expect(
+    f.service.transition(guest, event.id, { version: event.version, action: "confirm" }),
+  ).rejects.toMatchObject({ message: "GROUP_MEMBER_REQUIRED" });
+  await expect(
+    f.service.saveResult(guest, event.id, id, {
+      version: event.version,
+      lowerWins: false,
+      entries: [],
+      tieBreaks: [],
+    }),
+  ).rejects.toMatchObject({ message: "GROUP_MEMBER_REQUIRED" });
+  f.events.set(event.id, { ...stored, adminUserId: guest });
+  await expect(
+    f.service.seats(guest, event.id, id, { limit: 10, query: "" }, true),
+  ).rejects.toMatchObject({ message: "EVENT_ADMIN_REQUIRED" });
+  f.events.set(event.id, stored);
+  f.relationships.isBlocked.mockResolvedValue(true);
+  await expect(f.service.detail(guest, event.id)).rejects.toMatchObject({ status: 404 });
+  f.relationships.isBlocked.mockResolvedValue(false);
+  f.groups.ban.mockResolvedValue({ until: null } as never);
+  await expect(f.service.detail(guest, event.id)).rejects.toMatchObject({
+    message: "GROUP_BANNED",
+  });
+});
+it("retains PRIVATE detail authorization and excludes its activities even for its own administrator", async () => {
+  const f = setup("PRIVATE"),
+    event = await f.create();
+  await expect(f.service.activityResource(owner, event.id, id, true)).rejects.toMatchObject({
+    status: 404,
+  });
+  f.groups.membership.mockResolvedValue(null as never);
+  await expect(f.service.detail(guest, event.id)).rejects.toMatchObject({
+    message: "GROUP_MEMBER_REQUIRED",
+  });
+});
 const draftScores = () => ({
   lowerWins: false,
   entries: [

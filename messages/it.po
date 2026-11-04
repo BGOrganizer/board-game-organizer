@@ -1267,8 +1267,8 @@ msgid "Collection"
 msgstr "Collezione"
 
 #: apps/web/src/app/(tabs)/organizations/page.tsx
-#~ msgid "Coming soon"
-#~ msgstr "Prossimamente"
+msgid "Coming soon"
+msgstr "Prossimamente"
 
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Common start time"
@@ -5644,3 +5644,36 @@ msgstr "Risultato del tavolo salvato"
 #. js-lingui-explicit-id
 msgid "organization.feedback.save_table_result.error"
 msgstr "Impossibile salvare il risultato del tavolo"
+
+msgid "Community navigation"
+msgstr "Navigazione Community"
+
+msgid "Marketplace"
+msgstr "Mercatino"
+
+msgid "A place to buy, sell and trade board games with the BGO community."
+msgstr "Uno spazio per acquistare, vendere e scambiare giochi da tavolo con la community di BGO."
+
+msgid "Your network's activities"
+msgstr "Attività della tua rete"
+
+msgid "Updates from friends and people you follow, since your connection began."
+msgstr "Novità di amici e utenti che segui, dall'inizio del vostro legame."
+
+msgid "All activities"
+msgstr "Tutte"
+
+msgid "Followed users"
+msgstr "Seguiti"
+
+msgid "Network"
+msgstr "Rete"
+
+msgid "Today"
+msgstr "Oggi"
+
+msgid "Yesterday"
+msgstr "Ieri"
+
+msgid "Public read-only view. Join the group to participate."
+msgstr "Vista pubblica in sola lettura. Unisciti al gruppo per partecipare."

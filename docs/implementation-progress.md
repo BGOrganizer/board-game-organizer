@@ -1,5 +1,51 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Community and public read-only details — implemented; acceptance incomplete
+
+- Community is between Groups and Contacts on web/native, with standard Activities / Marketplace
+  tabs. Marketplace is a localized placeholder only. Within each app, Profile and Community share
+  the promoted activity renderer, public identities, resource links and relative-time presentation.
+  Community adds local-calendar day groups, source pages of ten, a scoped All/Friends/Following
+  filter and native SectionList virtualization. No new UI system, theme palette or dependency.
+- The existing seven activity kinds remain unchanged; ordinary wins remain an outcome rather than
+  duplicate rows. Current reciprocal friendships/directed outgoing follows select the network,
+  excluding incoming-only followers and the viewer. Their real acceptance/creation epochs gate
+  activity timestamps; repeat friendship claims do not reset acceptance. One eligible deterministic
+  friendship receipt is returned. Initial simultaneous Table/Event joins share a Table row with
+  Event context, with the Event receipt retained as fallback if that Table is removed.
+- Shared server resolution now excludes PRIVATE Group activities on both surfaces, including own
+  and member Profiles. Approved PUBLIC Group Event/Table details are readable by authenticated
+  non-members, with explicit read-only metadata, no result drafts/emails/individual votes, and no
+  participation, vote, invitation, edit, result or finalization capability. Blocks, active bans,
+  removed/unapproved sources and privileged pending rosters remain denied. Main-list eligibility,
+  private details and Group-wide ranking authorization do not widen. Two historical integration
+  expectations for public detail denial were updated to assert read-only projections and continued
+  write denial; active-ban and post-expiry non-membership checks remain explicit.
+- API/viewer/filter Query factories retain fresh tokens, cancellation and bounded revalidation.
+  Existing optimistic journals remove affected social authors/targets, selectively roll back and
+  reconcile from server truth; no feed activities are fabricated. Profile invalidations cover the
+  new network scope, including inactive caches. Native encrypted MMKV persists canonical bases.
+  Policy-versioned keys selectively retire older activity snapshots without purging other data;
+  older API payloads cannot refill those caches with unverified private-source visibility. Public
+  observers do not acquire notification-read/attention scopes. No polling loop or splash gate added.
+- **2,592 covered units pass**: mobile 380, web 819, API 824, schemas 140, shared 429. Existing
+  thresholds remain intact; new deterministic activity/query/name helpers and web activity/feed
+  renderers have per-file 100% gates. Typecheck and API/web production builds pass; generated Next
+  references restored byte-for-byte. Scoped Biome has zero errors (103 warnings/5 infos across the
+  touched files). EN/IT catalogs compile; prior active translation values are retained.
+- **All 120 API integration tests in four files pass with zero skips**, on disposable replica-set
+  Testcontainers databases only. This includes network cutoffs, current-direction selection,
+  deduplication, private-member/owner omission, page boundaries, public read-only projections and
+  continued list/write/ban guards. No application migration/reset or provider operation occurred.
+- Sixteen isolated real-component/production-CSS browser cases pass at 320/390/1024/1280 widths,
+  EN/IT and light/dark: compact tabs, filter/Marketplace interaction, distinct actor/resource links,
+  no overflow, runtime errors or remote requests. These use layout-only fixture data, not real auth.
+  Playwright manual discovery (two width scenarios plus Clerk setup), Maestro 2.11 flow 22 syntax,
+  helper VM/invalid-input checks pass. No fresh APK or authenticated/device execution; canonical
+  suites/jobs unchanged. Subsequent operator authorization covers signed commit/push on the existing
+  `feat/social-api-refactor` branch only, not a new PR or deployment. See [Community](community.md) and the
+  [manual real-fixture instructions](../apps/mobile/.maestro/README.md#community--manual-read-only).
+
 ## Provisional Table results — implemented; acceptance incomplete
 
 - Web/native result registration moves from the Event to each included confirmed Table's detail

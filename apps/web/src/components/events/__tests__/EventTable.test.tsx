@@ -213,60 +213,78 @@ async function vote(label = "Chess", value = "Yes", current = "Choose your vote"
     }),
   );
 }
-it.each(["owner", "cached", "excluded", "guest", "planning", "terminated", "capability"])(
-  "offers result registration only on an included confirmed admin Table (%s)",
-  async (kind) => {
-    const header = document.createElement("header");
-    header.id = "page-header-actions";
-    document.body.append(header);
-    const status =
-      kind === "planning" ? "PLANNING" : kind === "terminated" ? "TERMINATED" : "CONFIRMED";
-    table = {
-      ...table,
-      eventStatus: status,
-      confirmed:
-        kind === "excluded"
-          ? undefined
-          : { gameId: 1, playerIds: ["owner", "guest"], startsAt: plannedEvent.createdAt },
+it.each([
+  "owner",
+  "cached",
+  "excluded",
+  "guest",
+  "planning",
+  "terminated",
+  "capability",
+  "public-planning",
+  "public-table",
+  "public-parent",
+])("offers result registration only on an included confirmed admin Table (%s)", async (kind) => {
+  const header = document.createElement("header");
+  header.id = "page-header-actions";
+  document.body.append(header);
+  const status =
+    kind === "planning" || kind === "public-planning"
+      ? "PLANNING"
+      : kind === "terminated"
+        ? "TERMINATED"
+        : "CONFIRMED";
+  table = {
+    ...table,
+    readOnly: kind === "public-planning" || kind === "public-table",
+    eventStatus: status,
+    confirmed:
+      kind === "excluded"
+        ? undefined
+        : { gameId: 1, playerIds: ["owner", "guest"], startsAt: plannedEvent.createdAt },
+  };
+  if (kind === "guest") m.actor = "guest";
+  const original = fetcher.getMockImplementation()!,
+    parent = {
+      ...plannedEvent,
+      status,
+      canFinalize: kind !== "capability",
+      readOnly: kind === "public-parent",
     };
-    if (kind === "guest") m.actor = "guest";
-    const original = fetcher.getMockImplementation()!,
-      parent = { ...plannedEvent, status, canFinalize: kind !== "capability" };
-    let resolve: ((value: Response) => void) | undefined;
-    fetcher.mockImplementation((url: string, init?: RequestInit) =>
-      new URL(url).pathname === `/api/events/${eventId}` && (!init?.method || init.method === "GET")
-        ? kind === "cached"
-          ? new Promise<Response>((done) => {
-              resolve = done;
-            })
-          : Response.json(parent)
-        : original(url, init),
-    );
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    if (kind === "cached")
-      client.setQueryData(eventRecordKeys.list({ apiUrl: "https://api.test", userId: "owner" }), {
-        pages: [{ items: [parent], nextCursor: null }],
-        pageParams: [""],
+  let resolve: ((value: Response) => void) | undefined;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    new URL(url).pathname === `/api/events/${eventId}` && (!init?.method || init.method === "GET")
+      ? kind === "cached"
+        ? new Promise<Response>((done) => {
+            resolve = done;
+          })
+        : Response.json(parent)
+      : original(url, init),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  if (kind === "cached")
+    client.setQueryData(eventRecordKeys.list({ apiUrl: "https://api.test", userId: "owner" }), {
+      pages: [{ items: [parent], nextCursor: null }],
+      pageParams: [""],
+    });
+  mount(client);
+  await screen.findByRole("heading", { name: "First table" });
+  if (kind === "owner" || kind === "cached") {
+    const link = await screen.findByRole("link", { name: "Register result" });
+    expect(header.contains(link)).toBe(true);
+    expect(link.getAttribute("href")).toBe(`/events/${eventId}/tables/${tableId}/results`);
+    if (kind === "cached") {
+      expect(link.getAttribute("aria-disabled")).toBe("true");
+      expect(fireEvent.click(link)).toBe(false);
+      await act(async () => {
+        resolve!(Response.json(parent));
       });
-    mount(client);
-    await screen.findByRole("heading", { name: "First table" });
-    if (kind === "owner" || kind === "cached") {
-      const link = await screen.findByRole("link", { name: "Register result" });
-      expect(header.contains(link)).toBe(true);
-      expect(link.getAttribute("href")).toBe(`/events/${eventId}/tables/${tableId}/results`);
-      if (kind === "cached") {
-        expect(link.getAttribute("aria-disabled")).toBe("true");
-        expect(fireEvent.click(link)).toBe(false);
-        await act(async () => {
-          resolve!(Response.json(parent));
-        });
-        await waitFor(() => expect(link.getAttribute("aria-disabled")).toBe("false"));
-      }
-      document.addEventListener("click", (e) => e.preventDefault(), { once: true });
-      fireEvent.click(link);
-    } else expect(screen.queryByRole("link", { name: "Register result" })).toBeNull();
-  },
-);
+      await waitFor(() => expect(link.getAttribute("aria-disabled")).toBe("false"));
+    }
+    document.addEventListener("click", (e) => e.preventDefault(), { once: true });
+    fireEvent.click(link);
+  } else expect(screen.queryByRole("link", { name: "Register result" })).toBeNull();
+});
 it.each([403, 503])("keeps uncached table errors observable (%s) and retries", async (status) => {
   const original = fetcher.getMockImplementation();
   let broken = true;

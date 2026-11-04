@@ -1267,8 +1267,8 @@ msgid "Collection"
 msgstr "Collection"
 
 #: apps/web/src/app/(tabs)/organizations/page.tsx
-#~ msgid "Coming soon"
-#~ msgstr "Coming soon"
+msgid "Coming soon"
+msgstr "Coming soon"
 
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Common start time"
@@ -5644,3 +5644,36 @@ msgstr "Table result saved"
 #. js-lingui-explicit-id
 msgid "organization.feedback.save_table_result.error"
 msgstr "Could not save table result"
+
+msgid "Community navigation"
+msgstr "Community navigation"
+
+msgid "Marketplace"
+msgstr "Marketplace"
+
+msgid "A place to buy, sell and trade board games with the BGO community."
+msgstr "A place to buy, sell and trade board games with the BGO community."
+
+msgid "Your network's activities"
+msgstr "Your network's activities"
+
+msgid "Updates from friends and people you follow, since your connection began."
+msgstr "Updates from friends and people you follow, since your connection began."
+
+msgid "All activities"
+msgstr "All activities"
+
+msgid "Followed users"
+msgstr "Followed users"
+
+msgid "Network"
+msgstr "Network"
+
+msgid "Today"
+msgstr "Today"
+
+msgid "Yesterday"
+msgstr "Yesterday"
+
+msgid "Public read-only view. Join the group to participate."
+msgstr "Public read-only view. Join the group to participate."

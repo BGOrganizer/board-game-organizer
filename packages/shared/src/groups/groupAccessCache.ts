@@ -22,7 +22,8 @@ export function revokeCachedGroupAccess(
       query.queryKey[1] === owner.apiUrl &&
       query.queryKey[2] === owner.userId &&
       (["groups", "events", "tables"].includes(String(query.queryKey[0])) ||
-        (query.queryKey[0] === "profile" && query.queryKey[3] === "activities")),
+        (query.queryKey[0] === "profile" &&
+          ["activities", "network"].includes(String(query.queryKey[3])))),
   });
   const eventIds = new Set(
     owned

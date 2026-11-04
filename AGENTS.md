@@ -141,7 +141,7 @@ secrets into images. Client `NEXT_PUBLIC_*`/`EXPO_PUBLIC_*` values are public ev
 **Current branch domain override:** [Unified Groups / Events / Tables](docs/groups-events-refactor.md)
 is the active implementation contract. PRIVATE/PUBLIC Groups replace Groups + Organizations;
 Events containing Tables replace operational Matches + Events. Navigation is Tables / Events /
-Groups / Contacts. The legacy domain notes explicitly labeled below are historical, not authority
+Groups / Community / Contacts. The legacy domain notes explicitly labeled below are historical, not authority
 for reintroducing old writers, archival/type conversion, server event drafts, automatic organizer
 seats or automatic deadline confirmation. No database deletion/reset or provider mutation is
 part of this refactor. Legacy documents remain intact and are excluded from unified readers.
@@ -631,7 +631,9 @@ complete CSV before enabling the search filter on an older catalog without `isEx
 interactive state or browser APIs. Auth middleware leaves `/`, sign-in, and sign-up public and
 protects application routes.
 
-Navigation exposes Tables, Events, Groups and Contacts, with Profile separate. Groups has Private,
+Navigation exposes Tables, Events, Groups, Community and Contacts, with Profile separate. Community
+has Activities / Marketplace top tabs; the latter is a placeholder only. Follow [Community](docs/community.md)
+for current-network cutoffs, activity privacy, source paging and cache reconciliation. Groups has Private,
 Public and Search top tabs: the first two source-page creator/admin, accepted memberships and
 pending invitations of that immutable type; requests do not qualify. Invitations confer no member
 capabilities before explicit acceptance. Search retains approved public
@@ -640,8 +642,10 @@ platform-specific page/search/filter patterns.
 Main Events has Registered / Available top tabs (Iscritti / Disponibili). Registered contains active own Table registrations
 (accepted, invitations or requests) and demonstrations; administration alone does not qualify.
 Available contains non-participating Events of accepted Group members/creators and own admin-only
-standalone Events. Public non-members and pending Group memberships/invitations never grant Event
-access. Main Tables has one combined source-paged list without inner tabs: explicit active
+standalone Events. Public non-members and pending Group memberships/invitations never grant participation or main-list
+eligibility. Authenticated non-members may read approved PUBLIC Group Event/Table details in explicit
+read-only mode; membership/write guards, bans, blocks, privileged rosters and Group-wide rankings remain
+unchanged. PRIVATE Group activities are absent from Profile and Community feeds, even for members. Main Tables has one combined source-paged list without inner tabs: explicit active
 participation, seated/frozen players, demonstrators, pending invitations/requests and accepted queue
 places. Admin-only Tables are absent, including after confirmation. Missing cached position does
 not hide explicit participation or prove a seat; canonical position and frozen-roster guards remain.

@@ -74,7 +74,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       options={{
         title: event?.name ?? t("Event details"),
         headerRight: () =>
-          event?.adminUserId === o.userId && event?.status === "PLANNING" ? (
+          !event?.readOnly && event?.adminUserId === o.userId && event?.status === "PLANNING" ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               {confirmationBlocked ? (
                 <HelpPopover
@@ -111,7 +111,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               </Button>
               <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
             </View>
-          ) : event?.adminUserId === o.userId && event?.status === "CONFIRMED" ? (
+          ) : !event?.readOnly &&
+            event?.adminUserId === o.userId &&
+            event?.status === "CONFIRMED" ? (
             <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
           ) : null,
       }}
@@ -155,6 +157,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     <View style={{ gap: 12 }}>
       <View style={{ gap: 8 }}>
         <EventDetailsCard event={event} />
+        {event.readOnly ? (
+          <Typography className="text-sm text-muted">
+            {t("Public read-only view. Join the group to participate.")}
+          </Typography>
+        ) : null}
       </View>
       {event.groupId && fromGroup !== event.groupId ? (
         <EventGroupLink groupId={event.groupId} name={event.groupName} />
@@ -316,15 +323,19 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   return (
     <NotificationAttentionScope
       options={o}
-      targets={[
-        { kind: "event", id: event.id },
-        ...eventItemTargets(event),
-        ...(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => ({
-          kind: "table" as const,
-          id: row.id,
-        })),
-      ]}
-      readOnOpen={{ kind: "event", id: event.id }}
+      targets={
+        event.readOnly
+          ? []
+          : [
+              { kind: "event", id: event.id },
+              ...eventItemTargets(event),
+              ...(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => ({
+                kind: "table" as const,
+                id: row.id,
+              })),
+            ]
+      }
+      readOnOpen={event.readOnly ? undefined : { kind: "event", id: event.id }}
     >
       <ScrollTargetContext.Provider value={scroll}>
         <View style={{ flex: 1 }}>

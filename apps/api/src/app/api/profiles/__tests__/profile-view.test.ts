@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { CommunityError } from "@/app/lib/community.error";
+import { GET as network } from "../../community/activities/route";
 import { GET as activities } from "../[userId]/activities/route";
 import { GET as history } from "../[userId]/games/[gameId]/route";
 import { GET as games } from "../[userId]/games/route";
@@ -11,6 +12,7 @@ const m = vi.hoisted(() => ({
   db: vi.fn(async () => ({})),
   profile: vi.fn(),
   feed: vi.fn(),
+  network: vi.fn(),
   games: vi.fn(),
   history: vi.fn(),
 }));
@@ -21,6 +23,7 @@ vi.mock("@/app/lib/profile/profile.service", () => ({
   ProfileService: vi.fn(() => ({
     profile: m.profile,
     feed: m.feed,
+    networkFeed: m.network,
     games: m.games,
     history: m.history,
   })),
@@ -35,6 +38,7 @@ beforeEach(() => {
   m.db.mockResolvedValue({});
   m.profile.mockResolvedValue({ id: "subject" });
   m.feed.mockResolvedValue({ items: [], nextCursor: null });
+  m.network.mockResolvedValue({ items: [], nextCursor: null });
   m.games.mockResolvedValue({ items: [], nextCursor: null });
   m.history.mockResolvedValue({ points: [], nextCursor: null });
 });
@@ -44,6 +48,7 @@ it("requires a fully authenticated viewer on all direct endpoints, independent o
     { isAuthenticated: true, userId: null },
   ]) {
     m.auth.mockResolvedValue(identity);
+    expect((await network(request())).status).toBe(401);
     for (const read of [profile, activities, games, history])
       expect((await read(request(), context())).status).toBe(401);
   }
@@ -105,6 +110,22 @@ it("validates defaults, numeric game ids, game paging and unsupported profile fi
   for (const id of ["0", "-1", "1.1", "no", "9007199254740992"])
     expect((await history(request(), context("subject", id))).status).toBe(400);
   expect((await profile(request(), context(""))).status).toBe(400);
+});
+it("authenticates network feeds from the session, not a supplied viewer, and validates network/cursor/limit", async () => {
+  const response = await network(
+    request("?network=friends&limit=10&x-vercel-protection-bypass=allowed"),
+  );
+  expect(response.status).toBe(200);
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  expect(m.network).toHaveBeenCalledWith("viewer", { network: "friends", limit: 10 });
+  for (const query of [
+    "?network=followers",
+    "?limit=5",
+    "?viewer=someone",
+    "?cursor=bad",
+    "?network=all&network=friends",
+  ])
+    expect((await network(request(query))).status).toBe(400);
 });
 it("keeps denial status while hiding unknown internal errors", async () => {
   m.profile.mockRejectedValueOnce(new CommunityError(404, "PROFILE_NOT_FOUND"));

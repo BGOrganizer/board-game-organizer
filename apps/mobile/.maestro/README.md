@@ -190,6 +190,31 @@ finalization, excluded Table non-contribution, and updated statistics after fina
 Missing/invalid inputs fail. Syntax/discovery/helper checks are not authenticated/device acceptance;
 repeat actual runtime review in both locales/themes and with enlarged text.
 
+## Community — manual, read-only
+
+Flow `22-community.yaml` uses an already authenticated owned Development/Preview build and the
+selected EN/IT locale. No provider provisioning, social writes, database reset or API mocks.
+Set `COMMUNITY_BUILD_ACK=owned-development-preview-build`, `COMMUNITY_LOCALE=en|it`,
+`COMMUNITY_EVENT_ID`, `COMMUNITY_TABLE_ID`, `COMMUNITY_TABLE_TEXT`, `COMMUNITY_VISIBLE_TEXT`,
+`COMMUNITY_FRIEND_TEXT`, `COMMUNITY_FOLLOWED_TEXT`, `COMMUNITY_PRIVATE_TEXT` and
+`COMMUNITY_BEFORE_TEXT`. Texts are literal, escaped by the helper. The visible texts belong to
+post-relation first-page activities; the recent private/pre-relation fixtures would otherwise fall
+inside that first page. Use a friend-only peer, a following-only peer and an incoming-only follower.
+The linked approved PUBLIC Group Event/Table must be owned fixtures of a Group this viewer has
+never joined; the scenario waits for real read-only detail data before asserting action absence.
+It covers tabs, filters, preserved navigation selections, restart/cache restore and source privacy.
+
+Web: `pnpm --filter web exec playwright test --config e2e/community.config.ts` additionally requires
+`COMMUNITY_THEME=light|dark`, `COMMUNITY_API_URL`, `E2E_EMAIL`, Development Clerk test keys,
+`COMMUNITY_FRIEND_ID`, `COMMUNITY_FOLLOWED_ID`, `COMMUNITY_INCOMING_ID`, `COMMUNITY_PRIVATE_TEXT`,
+`COMMUNITY_BEFORE_TEXT`, `COMMUNITY_PUBLIC_EVENT_PATH`, `COMMUNITY_PUBLIC_TABLE_PATH` and
+`COMMUNITY_TABLE_TEXT`. Canonical paths are `/events/<uuid>` and `/events/<uuid>/tables/<uuid>`.
+Have at least 11 authorized activities, with friend-only/followed-only examples on their respective
+first pages. It compares real source pages, checks distinct cursors, privacy, filter restoration,
+public read-only details and 390/1280-width layouts. Run both locales/themes and enlarged native text.
+Syntax/discovery, helper VM tests and isolated browser fixtures are not runtime acceptance.
+Canonical suites/jobs and their existing acceptance policy remain unchanged.
+
 ## Evidence
 
 YAML parsing and source-policy tests validate structure, not product acceptance.

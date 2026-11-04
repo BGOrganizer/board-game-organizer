@@ -66,8 +66,32 @@ export type ProfileActivityRecord = {
 export type ProfileActivity = Pick<
   ProfileActivityRecord,
   "id" | "kind" | "occurredAt" | "outcome" | "milestone"
-> & { context: string | null; href: string | null; groupId?: string };
+> & {
+  context: string | null;
+  href: string | null;
+  groupId?: string;
+  eventContext?: string;
+  otherUserId?: string;
+  visibility?: "public-group" | "authorized";
+};
+export const communityNetworkSchema = z.enum(["all", "friends", "following"]);
+export type CommunityNetwork = z.infer<typeof communityNetworkSchema>;
+export const communityActivityQuerySchema = profileActivityQuerySchema
+  .omit({ kind: true })
+  .extend({
+    network: communityNetworkSchema.default("all"),
+    limit: z.coerce.number().pipe(z.literal(10)).default(10),
+  })
+  .strict();
+export type ActivityAuthor = {
+  id: string;
+  name: string;
+  username: string | null;
+  avatarUrl: string | null;
+};
+export type CommunityActivity = ProfileActivity & { author: ActivityAuthor };
 export type ProfileActivityPage = { items: ProfileActivity[]; nextCursor: string | null };
+export type CommunityActivityPage = { items: CommunityActivity[]; nextCursor: string | null };
 export type ProfileRatingGame = { id: number; name: string; imageUrl: string | null };
 export type ProfileRatingGames = { items: ProfileRatingGame[]; nextCursor: number | null };
 export type ProfileRatingPoint = { ordinal: number; rating: number; delta: number };
@@ -85,4 +109,7 @@ export const PROFILE_ACTIVITY_INDEXES = [
   { key: { userId: 1, kind: 1, occurredAt: -1, id: -1 } },
   { key: { groupId: 1 } },
   { key: { eventId: 1 } },
+  { key: { occurredAt: -1, id: -1 } },
+  { key: { source: 1, kind: 1, id: -1 } },
+  { key: { userId: 1, eventId: 1, kind: 1, occurredAt: 1 } },
 ] as const;

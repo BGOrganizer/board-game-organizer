@@ -40,6 +40,7 @@ export function EventTable({
   const [tab, setTab] = useState("overview");
   const table =
     communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
+  const readOnly = Boolean(table?.readOnly || event.data?.readOnly);
   const header = (
     <Stack.Screen
       options={{
@@ -47,7 +48,8 @@ export function EventTable({
         headerRight: () =>
           table && event.data ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              {event.data.adminUserId === o.userId &&
+              {!readOnly &&
+              event.data.adminUserId === o.userId &&
               event.data.status === "CONFIRMED" &&
               event.data.canFinalize &&
               table.eventStatus === "CONFIRMED" &&
@@ -80,7 +82,7 @@ export function EventTable({
       <NotificationAttentionScope
         options={o}
         targets={
-          table
+          table && !readOnly
             ? [
                 { kind: "table", id: tableId },
                 { kind: "event", id: eventId },
@@ -88,7 +90,7 @@ export function EventTable({
               ]
             : []
         }
-        readOnOpen={table ? { kind: "table", id: tableId } : undefined}
+        readOnOpen={table && !readOnly ? { kind: "table", id: tableId } : undefined}
       >
         {header}
         <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
@@ -98,12 +100,16 @@ export function EventTable({
   return (
     <NotificationAttentionScope
       options={o}
-      targets={[
-        { kind: "table", id: tableId },
-        { kind: "event", id: eventId },
-        ...tableItemTargets(table),
-      ]}
-      readOnOpen={{ kind: "table", id: tableId }}
+      targets={
+        readOnly
+          ? []
+          : [
+              { kind: "table", id: tableId },
+              { kind: "event", id: eventId },
+              ...tableItemTargets(table),
+            ]
+      }
+      readOnOpen={readOnly ? undefined : { kind: "table", id: tableId }}
     >
       <View style={{ flex: 1 }}>
         {header}

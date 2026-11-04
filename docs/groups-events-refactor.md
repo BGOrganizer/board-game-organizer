@@ -4,10 +4,15 @@ This is the approved contract implemented on `feat/social-api-refactor` (existin
 It describes the current source, not a deployed or E2E-accepted release. Verification and remaining
 runtime limitations are recorded in [implementation progress](implementation-progress.md).
 The [old contract](organizations-events.md) is retained as a historical deployment reference only.
+The subsequently approved [Community extension](community.md) makes approved PUBLIC Group Event/Table
+**detail reads** available to authenticated non-members in read-only mode. It does not widen main
+lists, participation, writes, private Group details or Group-wide rankings. PRIVATE Group activities
+are now excluded from both activity surfaces, even for members; these explicit exceptions supersede
+older membership-only activity/detail statements below.
 
 ## Delivery and database scope
 
-- Web and native navigation: Tables / Events / Groups / Contacts. Contacts retain their own social
+- Web and native navigation: Tables / Events / Groups / Community / Contacts. Contacts retain their own social
   workflows. Profile and BGO moderation remain separate destinations.
 - No database cancellation, reset, collection deletion, account recreation or provider mutation is
   authorized. Existing legacy documents remain intact. Unified Group/Event readers and locks reject

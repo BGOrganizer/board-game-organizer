@@ -108,13 +108,18 @@ export class RelationshipRepository {
 
   async becomeFriends(a: string, b: string) {
     const existing = await this.isFriend(a, b);
-    // MongoDB sessions cannot run concurrent operations.
-    const request = await this.setFriendRequest(a, b, "accepted");
-    if (!request) throw new Error("Friendship receipt missing");
-    await this.setFriendRequest(b, a, "accepted");
+    // Preserve the accepted epoch on idempotent claims; Community cutoffs must not move.
+    let source: string | undefined;
+    if (!existing) {
+      // MongoDB sessions cannot run concurrent operations.
+      const request = await this.setFriendRequest(a, b, "accepted");
+      if (!request) throw new Error("Friendship receipt missing");
+      source = `friendship:${request._id}`;
+      await this.setFriendRequest(b, a, "accepted");
+    }
     await this.follow(a, b);
     await this.follow(b, a);
-    if (!existing) {
+    if (source) {
       const activities = new ProfileActivitiesRepository(this.db, this.session),
         occurredAt = new Date().toISOString();
       for (const [userId, otherUserId] of [
@@ -122,7 +127,7 @@ export class RelationshipRepository {
         [b, a],
       ])
         await activities.record({
-          source: `friendship:${request._id}`,
+          source,
           userId,
           otherUserId,
           kind: "friendship",

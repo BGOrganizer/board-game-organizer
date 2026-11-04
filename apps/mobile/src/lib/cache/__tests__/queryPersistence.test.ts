@@ -71,6 +71,35 @@ describe("account-owned canonical persistence", () => {
     ])
       expect(ownsPersistedQuery(candidate, owner)).toBe(false);
   });
+  it("retires old private activity snapshots selectively while retaining owned network pages and unrelated datasets", () => {
+    const old = ["profile", owner.apiUrl, owner.userId, "activities", "subject", null, 5],
+      current = ["profile", owner.apiUrl, owner.userId, "network", "all", "public-v1"],
+      now = Date.now();
+    expect(ownsPersistedQuery(old, owner)).toBe(false);
+    expect(ownsPersistedQuery(current, owner)).toBe(true);
+    const snapshot = decodeCache(
+      JSON.stringify({
+        buster: CACHE_BUSTER,
+        timestamp: now,
+        clientState: {
+          mutations: [],
+          queries: [old, current, key].map((queryKey) => ({
+            queryKey,
+            state: { data: { pages: [] }, dataUpdatedAt: now },
+          })),
+        },
+      }),
+      owner,
+      now,
+    );
+    expect(snapshot?.clientState.queries.map((q) => q.queryKey)).toEqual([current, key]);
+    const f = fixture();
+    f.client.setQueryData(current, { pages: [{ items: [{ id: "authorized" }] }] });
+    f.client.setQueryData(old, { pages: [{ items: [{ id: "NEVER_PRIVATE" }] }] });
+    f.persister.flush();
+    expect(f.data.get("queries")).toContain("authorized");
+    expect(f.data.get("queries")).not.toContain("NEVER_PRIVATE");
+  });
   it("saves pages, restores stale data without mutations, and preserves canonical timestamps inside DTOs", () => {
     const a = fixture();
     const pages = {

@@ -1,9 +1,11 @@
 import type { ProfileView } from "@board-game-organizer/schemas";
 import {
+  communityActivitiesQuery,
   optimisticProfileSocialData,
   profileActivitiesQuery,
   profileViewKeys,
   profileViewQuery,
+  useCommunityActivities,
   useProfileActivities,
   useProfileRating,
   useProfileRatingGames,
@@ -110,7 +112,74 @@ it("source-pages activity types/cursors at five or ten using current credentials
     "subject",
     null,
     5,
+    "public-v1",
   ]);
+});
+it("source-pages the network with owner/filter/policy keys, fresh tokens and cancellation", async () => {
+  const { client, options, wrapper } = setup(),
+    cursor = "2030-01-01T00:00:00.000Z|11111111-1111-4111-8111-111111111111";
+  const fetch = vi.fn(async (url: string, _init?: RequestInit) =>
+    Response.json({ items: [], nextCursor: url.includes("cursor=") ? null : cursor }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const hook = renderHook(
+    () => {
+      const q = useCommunityActivities(options, "friends");
+      return {
+        data: q.data,
+        hasNextPage: q.hasNextPage,
+        isSuccess: q.isSuccess,
+        fetchNextPage: q.fetchNextPage,
+      };
+    },
+    { wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.isSuccess).toBe(true));
+  await act(async () => {
+    await hook.result.current.fetchNextPage();
+  });
+  expect(options.getToken).toHaveBeenCalledTimes(2);
+  expect(new URL(fetch.mock.calls[1][0]).searchParams.get("cursor")).toBe(cursor);
+  expect(new URL(fetch.mock.calls[0][0]).pathname).toBe("/api/community/activities");
+  expect(fetch.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+  expect(communityActivitiesQuery(options, "following").queryKey).not.toEqual(
+    communityActivitiesQuery(options, "friends").queryKey,
+  );
+  await waitFor(() => expect(hook.result.current.hasNextPage).toBe(false));
+  hook.unmount();
+  const disabled = renderHook(() => useCommunityActivities({ ...options, enabled: false }, "all"), {
+    wrapper,
+  });
+  expect(disabled.result.current.isFetching).toBe(false);
+  disabled.unmount();
+  client.clear();
+});
+it("fails closed against old API activity permissions instead of caching formerly private rows", async () => {
+  const { client, options } = setup();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        items: [
+          {
+            id: "old",
+            kind: "group_join",
+            context: "NEVER PRIVATE",
+            groupId: "private",
+            href: "/groups/private",
+          },
+        ],
+        nextCursor: null,
+      }),
+    ),
+  );
+  const query = profileActivitiesQuery(options, "subject", undefined, 5);
+  await expect(client.fetchInfiniteQuery(query)).rejects.toMatchObject({
+    status: 502,
+    code: "ACTIVITY_VISIBILITY_UNVERIFIED",
+  });
+  expect(client.getQueryData(query.queryKey)).toBeUndefined();
+  client.clear();
 });
 it("keeps game and history pages distinct, propagates cursor zero safely and never sends scope or time filters", async () => {
   const { options, wrapper } = setup(),
@@ -148,6 +217,27 @@ it("applies blocking to actual cached queries immediately, preserves unrelated p
     self = profileViewKeys.view(options, "owner");
   client.setQueryData(key, { ...data, id: "target" });
   client.setQueryData(self, data);
+  const networkKey = communityActivitiesQuery(options, "all").queryKey,
+    foreignKey = communityActivitiesQuery({ ...options, userId: "other" }, "all").queryKey;
+  const network = {
+    pages: [
+      {
+        items: ["target", "safe"].map((id) => ({
+          id,
+          kind: "friendship" as const,
+          occurredAt: "2030-01-01T00:00:00.000Z",
+          context: "Peer",
+          href: "/profiles/peer",
+          visibility: "authorized" as const,
+          author: { id, name: id, username: null, avatarUrl: null },
+        })),
+        nextCursor: null,
+      },
+    ],
+    pageParams: [""],
+  };
+  client.setQueryData(networkKey, network);
+  client.setQueryData(foreignKey, network);
   const target = {
     id: "target",
     name: "Target",
@@ -173,7 +263,12 @@ it("applies blocking to actual cached queries immediately, preserves unrelated p
   );
   expect(client.getQueryData(key)).toBeNull();
   expect(client.getQueryData<ProfileView>(self)?.social.following).toBe(2);
+  expect(client.getQueryData<typeof network>(networkKey)?.pages[0].items.map((i) => i.id)).toEqual([
+    "safe",
+  ]);
+  expect(client.getQueryData(foreignKey)).toEqual(network);
   operation.rollback();
   expect(client.getQueryData(key)).toEqual({ ...data, id: "target" });
   expect(client.getQueryData(self)).toEqual(data);
+  expect(client.getQueryData(networkKey)).toEqual(network);
 });

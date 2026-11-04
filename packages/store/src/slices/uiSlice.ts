@@ -12,6 +12,13 @@ export type ProfileUi = {
   activityKind: string;
 };
 export interface UiSlice {
+  communityViews: Partial<
+    Record<string, { tab: "activity" | "market"; network: "all" | "friends" | "following" }>
+  >;
+  setCommunityView: (
+    key: string,
+    patch: Partial<{ tab: "activity" | "market"; network: "all" | "friends" | "following" }>,
+  ) => void;
   profileViews: Partial<Record<string, ProfileUi>>;
   setProfileView: (key: string, patch: Partial<ProfileUi>) => void;
   clearProfileViews: () => void;
@@ -20,6 +27,14 @@ export interface UiSlice {
 }
 
 export const createUiSlice: StateCreator<UiSlice, [], []> = (set) => ({
+  communityViews: {},
+  setCommunityView: (key, patch) =>
+    set((state) => ({
+      communityViews: {
+        ...state.communityViews,
+        [key]: { tab: "activity", network: "all", ...state.communityViews[key], ...patch },
+      },
+    })),
   profileViews: {},
   setProfileView: (key, patch) =>
     set((state) => ({
@@ -34,7 +49,7 @@ export const createUiSlice: StateCreator<UiSlice, [], []> = (set) => ({
         },
       },
     })),
-  clearProfileViews: () => set({ profileViews: {} }),
+  clearProfileViews: () => set({ profileViews: {}, communityViews: {} }),
   themePreference: "system",
   setThemePreference: (themePreference) => set({ themePreference }),
 });

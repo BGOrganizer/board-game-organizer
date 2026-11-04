@@ -36,6 +36,7 @@ const activity = {
   occurredAt: "2030-06-03T12:00:00Z",
   outcome: "won",
   context: "My Table",
+  visibility: "authorized",
   href: "/events/11111111-1111-4111-8111-111111111111/tables/22222222-2222-4222-8222-222222222222",
 };
 let bgg: Record<string, unknown>,

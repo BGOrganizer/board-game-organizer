@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ContactRound,
   Dices,
+  Network,
   ShieldCheck,
   UserRound,
   UsersRound,
@@ -115,6 +116,14 @@ export default function TabLayout() {
               <NotificationNavigationBadge section="groups" />
             </View>
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="community"
+        options={{
+          title: t("Community"),
+          headerTitle: () => <HeaderTitle title={t("Community")} icon={Network} />,
+          tabBarIcon: ({ color }) => <Network size={26} color={color} />,
         }}
       />
       <Tabs.Screen name="organizations" options={{ href: null }} />

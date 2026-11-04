@@ -89,15 +89,19 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   return (
     <NotificationAttentionScope
       options={o}
-      targets={[
-        { kind: "event", id: event.id },
-        ...eventItemTargets(event),
-        ...(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => ({
-          kind: "table" as const,
-          id: row.id,
-        })),
-      ]}
-      readOnOpen={{ kind: "event", id: event.id }}
+      targets={
+        event.readOnly
+          ? []
+          : [
+              { kind: "event", id: event.id },
+              ...eventItemTargets(event),
+              ...(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => ({
+                kind: "table" as const,
+                id: row.id,
+              })),
+            ]
+      }
+      readOnOpen={event.readOnly ? undefined : { kind: "event", id: event.id }}
     >
       <div className="mx-auto max-w-4xl space-y-3 pb-24">
         <Link
@@ -107,7 +111,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           <ArrowLeft className="size-4" aria-hidden />
           {t`Back`}
         </Link>
-        {event.adminUserId === o.userId && event.status === "PLANNING" ? (
+        {!event.readOnly && event.adminUserId === o.userId && event.status === "PLANNING" ? (
           <HeaderActions>
             <div className="flex items-center gap-1">
               {confirmationBlocked ? (
@@ -143,12 +147,15 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             </div>
           </HeaderActions>
         ) : null}
-        {event.adminUserId === o.userId && event.status === "CONFIRMED" ? (
+        {!event.readOnly && event.adminUserId === o.userId && event.status === "CONFIRMED" ? (
           <HeaderActions>
             <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
           </HeaderActions>
         ) : null}
         <EventDetailsCard event={event} />
+        {event.readOnly ? (
+          <p className="text-sm text-muted">{t`Public read-only view. Join the group to participate.`}</p>
+        ) : null}
         {event.groupId && fromGroup !== event.groupId ? (
           <EventGroupLink groupId={event.groupId} name={event.groupName} />
         ) : null}

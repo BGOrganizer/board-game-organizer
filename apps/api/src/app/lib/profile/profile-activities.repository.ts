@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type {
+  CommunityNetwork,
   EventRecord,
   ProfileActivityRecord,
   TableRecord,
@@ -8,6 +9,7 @@ import { profileWinMilestones } from "@board-game-organizer/shared";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { UsersRepository } from "../users/users.repository";
+import { communityActivityStages, joinedEventSuppression } from "./community-activity-query";
 import { ProfileRepository } from "./profile.repository";
 
 /** Append-only domain events in the source transaction, not a notification inbox mirror. */
@@ -79,22 +81,37 @@ export class ProfileActivitiesRepository {
         });
     }
   }
+  networkPage(viewer: string, network: CommunityNetwork, blocked: string[], cursor?: string) {
+    return this.db
+      .collection<ProfileActivityRecord>(COLLECTIONS.PROFILE_ACTIVITIES)
+      .aggregate<ProfileActivityRecord>(
+        communityActivityStages(viewer, network, blocked, cursor),
+        this.opts,
+      )
+      .toArray();
+  }
   page(userId: string, kind: ProfileActivityRecord["kind"] | undefined, cursor?: string) {
     const [occurredAt, id] = cursor?.split("|") ?? [];
     return this.db
       .collection<ProfileActivityRecord>(COLLECTIONS.PROFILE_ACTIVITIES)
-      .find(
-        {
-          userId,
-          ...(kind ? { kind } : {}),
-          ...(occurredAt && id
-            ? { $or: [{ occurredAt: { $lt: occurredAt } }, { occurredAt, id: { $lt: id } }] }
-            : {}),
-        },
-        { ...this.opts, projection: { _id: 0 } },
+      .aggregate<ProfileActivityRecord>(
+        [
+          {
+            $match: {
+              userId,
+              ...(kind ? { kind } : {}),
+              ...(occurredAt && id
+                ? { $or: [{ occurredAt: { $lt: occurredAt } }, { occurredAt, id: { $lt: id } }] }
+                : {}),
+            },
+          },
+          { $sort: { occurredAt: -1, id: -1 } },
+          ...joinedEventSuppression(),
+          { $limit: 50 },
+          { $project: { _id: 0, _tableJoin: 0 } },
+        ],
+        this.opts,
       )
-      .sort({ occurredAt: -1, id: -1 })
-      .limit(50)
       .toArray();
   }
 }

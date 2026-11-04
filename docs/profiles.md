@@ -2,7 +2,8 @@
 
 Implemented locally on web and native mobile; authenticated/device acceptance remains incomplete.
 The [unified domain](groups-events-refactor.md) remains authoritative for source access, consent,
-physical results, deletion and OpenSkill. This feature adds no Community destination or offline mode.
+physical results, deletion and OpenSkill. [Community](community.md) reuses these activities and source
+visibility with a current-network/time selection; no offline mode is enabled.
 
 ## Access and presentation
 
@@ -53,9 +54,11 @@ physical results, deletion and OpenSkill. This feature adds no Community destina
 - Unique user/source/kind indexes deduplicate receipts. Source Group/Event deletion removes dependent
   activities. Existing terminated records do not generate activities merely when saved again.
 - Stored receipts contain source identifiers, not display names or reusable public authorization.
-  Each feed read resolves current source access, including accepted parent Group membership for
-  Events/Tables. Private, banned/departed, blocked and removed sources are omitted completely.
-  Public Group discovery never makes its Events public.
+  Each feed read resolves current source access. PRIVATE Group activities are always omitted, even
+  for their creator or members. Approved PUBLIC Group activities and their Event/Table details are
+  readable by authenticated non-members in explicit read-only mode; bans, blocks and removed sources
+  remain denied. Standalone sources retain existing access. Public reads grant no participation,
+  voting, membership or editing capability. See the [Community visibility contract](community.md).
 - Authorization precedes the visible page limit: latest five, full pages of ten, seven type filters,
   descending instant/UUID cursors. Bounded source chunks may be scanned to fill an authorized page;
   cursors refer only to returned visible rows. No browsing action acknowledges source notifications.
@@ -84,8 +87,8 @@ Existing deployment isolation and operational gates apply.
 
 Unit checks cover API privacy, strict queries/Preview bypass, ND/roster rules, receipt deduplication,
 ordinal history, milestones, selective cache behavior, localization and owner/other UI paths.
-`test/integration/profile.test.ts` requires a real isolated MongoDB replica-set container. All 117
-API integration tests in four files now pass with zero skips, including five profile cases, partial
+`test/integration/profile.test.ts` requires a real isolated MongoDB replica-set container. All 120
+API integration tests in four files now pass with zero skips, including six profile/network cases, partial
 stored outcomes and concurrent unrated milestone crossings. This is not authenticated UI/provider
 or native-device acceptance.
 

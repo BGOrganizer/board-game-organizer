@@ -87,6 +87,40 @@ afterEach(() => {
   vi.unstubAllGlobals();
   document.getElementById("page-header-actions")?.remove();
 });
+it("renders a public observer without administration, voting or registration actions even when an old administrator identity remains", async () => {
+  event = {
+    ...event,
+    readOnly: true,
+    role: "viewer",
+    groupType: "PUBLIC",
+    canEdit: false,
+    canRegister: false,
+    canInvite: false,
+    canVote: false,
+    canConfirm: false,
+    canReplan: false,
+    canFinalize: false,
+  };
+  tables = tables.map((table) => ({
+    ...table,
+    readOnly: true,
+    canRegister: false,
+    canInvite: false,
+    canRespond: false,
+    canLeave: false,
+  }));
+  const client = mount();
+  await screen.findByText("Public read-only view. Join the group to participate.");
+  expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete event" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
+  expect(
+    fetcher.mock.calls
+      .filter(([url]) => url.includes("/events/"))
+      .every(([, init]) => !init?.method || init.method === "GET"),
+  ).toBe(true);
+  client.clear();
+});
 it("does not retain forbidden cached Table cards or submit their IDs for attention counts", async () => {
   const original = fetcher.getMockImplementation();
   if (!original) throw new Error("Missing adapter");
@@ -104,7 +138,9 @@ it("does not retain forbidden cached Table cards or submit their IDs for attenti
       queryKey: eventRecordKeys.tables({ apiUrl: "https://api.test", userId: "owner" }, eventId),
     });
   });
-  expect(screen.queryByRole("link", { name: `Open table: ${plannedTable.name}` })).toBeNull();
+  await waitFor(() =>
+    expect(screen.queryByRole("link", { name: `Open table: ${plannedTable.name}` })).toBeNull(),
+  );
   expect(screen.getByText("Could not load tables")).toBeTruthy();
   client.clear();
 });

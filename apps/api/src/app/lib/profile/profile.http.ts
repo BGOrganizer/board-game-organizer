@@ -9,7 +9,7 @@ import { ProfileService } from "./profile.service";
 
 export async function profileRead(
   request: Request,
-  subject: string,
+  subject: string | undefined,
   read: (viewer: string, userId: string, service: ProfileService) => Promise<unknown>,
 ) {
   const { userId, isAuthenticated } = await auth();
@@ -17,7 +17,7 @@ export async function profileRead(
   if (!isAuthenticated || !userId)
     return corsJson({ error: "Unauthorized" }, { status: 401, headers }, request);
   try {
-    const target = targetUserIdSchema.parse(subject);
+    const target = targetUserIdSchema.parse(subject ?? userId);
     const db = await getDb();
     await ensureCurrentUser(userId, db);
     return corsJson(await read(userId, target, new ProfileService(db)), { headers }, request);

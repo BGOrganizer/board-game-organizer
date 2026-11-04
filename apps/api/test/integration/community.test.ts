@@ -2103,10 +2103,37 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     for (const user of [OTHER, DEMO, OUTSIDER])
       for (const section of ["mine", "available"] as const)
         expect((await list(user, section)).some((r) => r.groupId === publicClub.id)).toBe(false);
-    for (const user of [OTHER, DEMO, OUTSIDER])
+    for (const user of [OTHER, DEMO, OUTSIDER]) {
+      expect(await services().plannedEventService.detail(user, ownerDemo.event.id)).toMatchObject({
+        role: "viewer",
+        readOnly: true,
+        canRegister: false,
+        canVote: false,
+        canEdit: false,
+        canInvite: false,
+        canConfirm: false,
+        canReplan: false,
+        canFinalize: false,
+      });
+      expect(
+        await services().plannedEventService.tableDetail(
+          user,
+          ownerDemo.event.id,
+          ownerDemo.tableId,
+        ),
+      ).toMatchObject({
+        readOnly: true,
+        canRegister: false,
+        canInvite: false,
+        canLeave: false,
+        canRespond: false,
+      });
       await expect(
-        services().plannedEventService.detail(user, ownerDemo.event.id),
+        transaction((s) =>
+          s.plannedEventService.register(user, ownerDemo.event.id, ownerDemo.tableId),
+        ),
       ).rejects.toMatchObject({ code: "GROUP_MEMBER_REQUIRED" });
+    }
     const seen: string[] = [];
     let cursor: string | undefined;
     do {
@@ -3716,11 +3743,25 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       services().unifiedGroupService.members(GUEST, group.id, "accepted", { limit: 20 }),
     ).rejects.toMatchObject({ code: "GROUP_NOT_FOUND" });
     expect(await services().eventRecords.table(tableId)).toEqual(terminated);
+    await expect(services().plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
+      code: "GROUP_BANNED",
+    });
     vi.setSystemTime(new Date(until));
     expect((await services().groupRecords.membership(group.id, GUEST))?.status).toBe("LEFT");
-    await expect(services().plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
-      code: "GROUP_MEMBER_REQUIRED",
+    expect(await services().plannedEventService.detail(GUEST, event.id)).toMatchObject({
+      role: "viewer",
+      readOnly: true,
+      canRegister: false,
+      canVote: false,
+      canEdit: false,
+      canInvite: false,
+      canConfirm: false,
+      canReplan: false,
+      canFinalize: false,
     });
+    await expect(
+      transaction((s) => s.plannedEventService.register(GUEST, event.id, tableId)),
+    ).rejects.toMatchObject({ code: "GROUP_MEMBER_REQUIRED" });
     const renewed = await transaction((s) => s.unifiedGroupService.request(GUEST, group.id));
     expect(renewed.status).toBe("PENDING");
     expect(renewed.kind).toBe("REQUEST");

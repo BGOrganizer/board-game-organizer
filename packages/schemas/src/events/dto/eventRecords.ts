@@ -248,7 +248,8 @@ export type PlannedEventResponse = Omit<
   PlannedEventCapabilities & {
     groupName: string | null;
     groupType: "PRIVATE" | "PUBLIC" | null;
-    role: "admin" | "participant" | "invited" | "member" | "demonstrator";
+    role: "admin" | "participant" | "invited" | "member" | "demonstrator" | "viewer";
+    readOnly?: boolean;
     /** Own source positions only; absent on older cache entries and incomplete mutation receipts. */
     myRegistrations: (TableRegistration & { position?: TableSeatPosition })[];
     /** Complete own duty projection, including when the viewer is also administrator. */
@@ -307,6 +308,7 @@ export type EventSchedulePreview = {
   locationCount: number;
 };
 export type PlannedTableResponse = TableRecord & {
+  readOnly?: boolean;
   eventName: string;
   /** Parent epoch at this authorized Table read; absent on historical cache entries. */
   eventVersion?: number;
