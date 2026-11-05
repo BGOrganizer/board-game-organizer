@@ -83,6 +83,37 @@ Expo web is not a supported product target. Native MapLibre and MMKV/Nitro requi
 build, not Expo Go or a JavaScript-only update. Native cache/device acceptance remains recorded in
 the [verification checkpoint](docs/implementation-progress.md).
 
+## Client responsiveness defaults
+
+Apply these best practices to every new or touched client flow; they are not optional optimizations
+reserved for the game picker. Existing ownership, privacy and authorization rules in
+[AGENTS.md](AGENTS.md#6-data-and-state-ownership) remain authoritative.
+
+- **Bound presentation independently from cache.** Keep source paging and virtualized rendering.
+  On entry/reentry, expose a bounded cached page/window and reveal more cached pages before fetching.
+  Derive only that window, not a full-cache flatten followed by a slice. Preserve cached pages,
+  stable row keys/callbacks, accessibility and loading/error states. Reset-to-top is acceptable when
+  the flow allows it. The mobile game picker exposes eight source items initially, retaining six-row
+  render batches and its seven-screen window. It reveals cached chunks on scroll or an accessible
+  load-more action, not on an automatic initial `onEndReached`. These are picker-specific budgets,
+  not universal constants or fixed-height assumptions.
+- **Optimistic feedback for explicit remote actions.** Use the shared scoped journal/intent layer
+  on web and native: cancel conflicting reads, project owned cached state or pending intent,
+  reconcile the real acknowledgment and roll back only the failed operation. Do not invent consent,
+  capabilities, server IDs, frozen results or records for a cold cache. Unknown outcomes require
+  verification, not blind replay. Reads, unsaved local edits and background/authentication workflows
+  retain their existing behavior; they do not acquire user-action toasts merely to look optimistic.
+- **Central encrypted MMKV persistence for eligible native Query data.** Reuse the account/API-owned
+  adapter described above, reviewing each query family's privacy and retention/budget eligibility.
+  Persist canonical bases only; never optimistic overlays, credentials, raw contacts or transient
+  provider searches. Restore does not grant authentication or permissions. Preserve logout/session
+  purge safeguards. No separate feature cache, duplicated Query state or web MMKV adapter.
+- **Measure both directions.** Faster list opening does not prove faster Back or selection return.
+  Cached data can still require rebuilding an editor's native controls; cache snapshots can still
+  require serialization. Profile JS work, React/native mount/commit and storage separately on a
+  current native build. Do not hide costs with arbitrary delays, disabled animations or unbounded
+  hidden lists. Unit/source checks and desktop timings are not device-frame acceptance.
+
 ## Repository and component structure
 
 There are three apps and six shared/configuration workspace packages, plus the root project.

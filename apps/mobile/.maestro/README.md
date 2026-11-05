@@ -276,12 +276,17 @@ Set `PICKER_BUILD_ACK=owned-development-preview-build`,
 `PICKER_EVENT_ID`, `PICKER_EVENT_NAME`, `PICKER_FIRST_GAME` and `PICKER_LATER_GAME`.
 The first name is the first selectable collection result; the later unique name must lie beyond
 at least ten source pages. Neither game may already be selected in the fixture Table.
-The flow loads later pages, closes/reopens from the start, traverses cached pages again, selects
-one game into the unsaved client draft and verifies exclusion when reopening. Stop discards that
+The flow first closes/reopens without scrolling, waits for the actual search input to disappear
+before checking the Table configuration, then loads later pages, closes/reopens from the start,
+traverses cached chunks again, selects one game into the unsaved client draft and verifies exclusion
+when reopening. Stop discards that
 client-only edit; no Save action, API mutation, provider setup or environment reset is performed.
 Run both locales/themes and enlarged text. Record JS/UI frame timings on the actual device with
-1/10/40 loaded pages when comparing entry latency and fast scrolling; unit callback checks and
-screenshots do not establish a frame-time improvement. Do not disable animations or replace cache
+1/10/40 loaded pages when comparing entry, immediate Back and fast scrolling. Initial presentation
+is capped at eight source items; initial layout callbacks do not expand it before a drag, and an
+accessible load-more action also works when those items fit without scrolling. Check that action on
+a tall viewport as well as normal scrolling. Unit callback checks and screenshots do not establish
+a frame-time improvement. Do not disable animations or replace cache
 contents to make the flow pass. Canonical acceptance suites/jobs remain unchanged.
 
 ## Evidence

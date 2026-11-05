@@ -33,26 +33,34 @@
 
 ## Native game picker reentry — bounded presentation; device timing acceptance pending
 
-- Reopening starts at the first source page even when Query retains many pages. A memoized local
-  presentation window reveals cached pages before requesting more; source records/cursors and the
-  encrypted canonical cache are never trimmed or copied into another store. Web already renders
-  one source page and is unchanged. Owner/API/snapshot/search/filter changes reset both budget and
-  scroll key before commit; late callbacks cannot grow or select from another query scope.
-- Stable derivation, selection/render callbacks and a memoized private identity/action row preserve
-  cached row references while typing. FlatList retains 12 initial items, uses batches of six and a
-  seven-screen window, without fixed row-height assumptions or disabled animations. Duplicate end
-  callbacks expose at most one extra cached page per committed viewport; remote requests respect
-  in-flight/background work and errors, with Query-level deduplication. Excluded/empty first pages
-  retain an explicit load-more path rather than a false empty state.
-- **411 mobile covered units pass, zero skips**, with per-file 100% coverage for deterministic
-  presentation logic. Root typecheck passes; Android production bundle exports successfully with
-  current Metro/Hermes configuration, without native dependency or Babel changes. Source-executed callback tests cover
-  1/10/40 cached pages, duplicate/end/background/error paths, newly fetched visibility, query-scope
-  reset, late callbacks, selection and exclusions. This proves bounded data work, not native frame
-  timing. Existing owned-fixture manual flow `24-game-picker-reentry.yaml` exercises scrolling,
-  reopen-from-start, cache reuse and unsaved selection without submitting the Event or syncing BGG.
-  Actual-device EN/IT/theme/large-text and frame-timing acceptance remain pending; CI jobs/suites,
-  API paging, dependencies, provider configuration and authentication are unchanged.
+- Opening/reopening exposes at most eight source items, even with 1/10/40 cached pages; limiting
+  `initialNumToRender` alone did not prevent the larger first cached page from filling the render
+  window. A memoized local presentation window now advances in eight-item chunks within source
+  pages before requesting more. Empty/excluded chunks consume bounded work and retain an explicit
+  load-more path. Source records/cursors and the encrypted canonical cache are never trimmed or
+  copied into another store. Web source paging is unchanged. Owner/API/snapshot/search/filter
+  changes reset budget, scroll intent and scroll key before commit; late callbacks cannot grow or
+  select from another query scope.
+- FlatList uses eight initial items, retaining six-row batches and its seven-screen window without
+  fixed row heights or disabled animations. Initial layout `onEndReached` callbacks cannot expand
+  the budget before a drag. An accessible load-more action also supports tall/non-scrolling
+  viewports; cached chunks remain usable during background/error states without hiding errors.
+  Duplicate
+  callbacks expose at most one extra chunk per committed viewport; remote requests retain Query
+  deduplication and existing in-flight/error guards. Stable derivation, callbacks and the memoized
+  private identity/action row preserve cached row references while typing.
+- **480 mobile covered units pass, zero failures/skips**, with unchanged per-file 100% coverage for
+  deterministic presentation logic. Scoped Biome, root typecheck, Android production bundle and
+  Maestro 2.11 syntax pass; generated Next/Expo references are restored byte-for-byte. Source-executed
+  checks cover hidden-item access, chunk/page boundaries, no growth without intent, footer/error/
+  loading states, 1/10/40 cached pages, scope resets, late callbacks and selection/exclusions.
+  The owned-fixture manual flow `24-game-picker-reentry.yaml` additionally covers immediate Back
+  without scrolling before its existing later-page/reentry/unsaved-selection paths. **It has not
+  been executed against an authenticated current native build for this follow-up.** Bounded source
+  work and bundle/syntax checks do not establish an actual entry/Back latency or frame improvement.
+  EN/IT/theme/large-text/tall-viewport and native timing acceptance remain pending; no Event form,
+  API, cache persistence, native dependency/Babel, provider configuration or canonical CI suite/job
+  is changed.
 
 ## Profile / Community presentation harmony — implemented; device acceptance incomplete
 

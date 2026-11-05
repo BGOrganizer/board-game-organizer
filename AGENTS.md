@@ -400,7 +400,11 @@ snapshot: finish the scan before syncing in the background.
 
 Apply the same bounded, cache-first navigation policy on web without adding a web splash.
 
-Native Query data additionally persists through the mobile-only encrypted MMKV adapter. Restore
+Native Query data additionally persists through the mobile-only encrypted MMKV adapter. This is
+an application-wide default for eligible server data, not an optional per-screen optimization: new
+or touched query families must reuse the central persistence policy and review owner isolation,
+privacy, retention and budget eligibility. Never add screen-local MMKV instances or parallel stores
+of Query data; web keeps its own Query cache, not a native MMKV adapter. Restore
 only after Clerk identifies its API/user owner, before ordinary reads; restore never grants auth,
 consent or capability. Persist authoritative journal bases, not optimistic overlays or mutations;
 exclude credentials, raw address-book scans and transient provider searches. Logout, definitive
@@ -420,9 +424,13 @@ inactive query.
 
 Every relationship mutation must mark the `['contacts']` prefix stale; if search is active,
 `useContacts` must rerun the last query so action state updates without manual refresh. Event/Table/registration
-mutations reconcile the affected `['events']` and `['groups']` scopes, not retired Match caches. Explicit remote mutations update owned Query caches
-optimistically when cached state exists, cancel conflicting requests first, then reconcile from the
-server response and refetch only affected active data when necessary. Show an action-specific
+mutations reconcile the affected `['events']` and `['groups']` scopes, not retired Match caches.
+Optimistic feedback is the project-wide default for explicit remote mutations on both clients,
+not a screen-by-screen opt-in. Reuse the existing scoped journal/intent layer: update owned Query
+caches when cached state exists, cancel conflicting requests first, then reconcile from the server
+response and refetch only affected active data when necessary. When authoritative facts cannot be
+projected safely, show action-specific pending intent rather than inventing accepted consent, roles,
+IDs, frozen rosters or final results. Cold caches do not justify fabricating server records. Show an action-specific
 default toast after the optimistic update; on failure restore affected cache snapshots and show an
 action-specific danger toast.
 
@@ -782,6 +790,18 @@ literal that produces a hashed fallback.
   feed with `ScrollView` plus `.map()`, and never nest a virtualized list in a same-direction
   `ScrollView`. Keep short, fixed-size lists simple. Preserve loading, empty, error, permission, and
   accessibility states while paging.
+- Retained infinite-query pages are not the initial render budget. On list/picker entry and reentry,
+  derive only a bounded visible page/window, reveal cached pages progressively before requesting
+  more, and keep the authoritative Query pages intact. Do not flatten/filter every cached page
+  before slicing. Reset local presentation for a changed API/user/query/snapshot; reject stale
+  callbacks, coalesce duplicate end events and guard any in-flight fetch. Reuse stable row identities,
+  callbacks and memoized derivation; tune virtualization without assuming fixed row heights.
+  Reset-to-top is valid when the flow allows it; do not keep a full hidden picker mounted solely
+  for speed. Follow [client responsiveness defaults](README.md#client-responsiveness-defaults).
+- Profile both entry/reentry and Back/selection-to-form transitions. Query/MMKV cache hits avoid
+  data reloads, not React/native subtree mounting, validation, serialization or layout work. Keep
+  expensive synchronous work out of navigation handlers; verify the destination as well as list
+  teardown. Source/unit measurements are not native frame-timing evidence.
 
 ## 12. Tests
 

@@ -18,6 +18,18 @@ tags: [manual, games, performance]
 - extendedWaitUntil:
     visible: ${output.picker.first}
     timeout: 120000
+- takeScreenshot: game-picker-immediate-entry
+- tapOn: ${output.picker.back}
+- extendedWaitUntil:
+    notVisible:
+      id: game-search-input
+    timeout: 120000
+- assertVisible: ${output.picker.choose}
+- takeScreenshot: game-picker-back-without-scroll
+- tapOn: ${output.picker.choose}
+- extendedWaitUntil:
+    visible: ${output.picker.first}
+    timeout: 120000
 - scrollUntilVisible:
     element: ${output.picker.later}
     direction: DOWN

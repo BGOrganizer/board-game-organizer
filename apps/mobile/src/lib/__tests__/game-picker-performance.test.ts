@@ -7,7 +7,7 @@ import { hashKey } from "@tanstack/react-query";
 import { memo } from "react";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
-import { gamePickerWindow } from "../games/gamePickerWindow";
+import { GAME_PICKER_CHUNK_SIZE, gamePickerWindow } from "../games/gamePickerWindow";
 
 // Execute real application derivation/callbacks without loading RN Flow modules.
 // These checks do not measure native frame time, image decoding or touch rendering.
@@ -115,6 +115,7 @@ function harness(pageCount = 3) {
     bggPickerQuery,
     hashKey,
     gamePickerWindow,
+    GAME_PICKER_CHUNK_SIZE,
     useState: (initial: unknown) => {
       const i = stateIndex++;
       if (!(i in states)) states[i] = initial;
@@ -179,6 +180,12 @@ function harness(pageCount = 3) {
     pending,
     Button,
     render,
+    scroll: () => {
+      const list = render();
+      list.props.onScrollBeginDrag();
+      list.props.onEndReached();
+      return render();
+    },
     debounce: () => timer?.(),
   };
 }
@@ -272,27 +279,73 @@ it("requires owned native fixtures and escapes real game names rather than treat
   ])
     expect(() => run(invalid)).toThrow();
 });
-it("reopens from 25 cached games rather than mounting an entire loaded collection", () => {
-  const h = harness(40),
+it.each([1, 10, 40])(
+  "opens/reopens with eight cached games and never expands before user intent: %s pages",
+  (pages) => {
+    const h = harness(pages),
+      first = h.render();
+    h.picker.hasNextPage = true;
+    expect(first.props.data).toHaveLength(8);
+    expect(first.props).toMatchObject({
+      initialNumToRender: 8,
+      maxToRenderPerBatch: 6,
+      windowSize: 7,
+    });
+    first.props.onEndReached();
+    first.props.onEndReached();
+    expect(h.render().props.data).toHaveLength(8);
+    expect(h.picker.fetchNextPage).not.toHaveBeenCalled();
+    first.props.onScrollBeginDrag();
+    first.props.onEndReached();
+    first.props.onEndReached();
+    expect(h.render().props.data).toHaveLength(16);
+    expect(h.picker.data.pages).toHaveLength(pages);
+    expect(h.picker.fetchNextPage).not.toHaveBeenCalled();
+    expect(harness(pages).render().props.data).toHaveLength(8);
+  },
+);
+it("offers an accessible explicit footer when a tall viewport cannot scroll, without automatic growth", () => {
+  const h = harness(2),
     first = h.render();
-  expect(first.props.data).toHaveLength(25);
-  expect(first.props).toMatchObject({
-    initialNumToRender: 12,
-    maxToRenderPerBatch: 6,
-    windowSize: 7,
-  });
+  const more = nodes(first.props.ListFooterComponent).find((n) => n.type === h.Button);
+  expect(more).toBeDefined();
+  expect(nodes(more).some((n) => n.children.includes("Load more games"))).toBe(true);
+  more?.props.onPress();
+  more?.props.onPress();
+  const next = h.render();
+  expect(next.props.data).toHaveLength(16);
+  next.props.onEndReached();
+  expect(h.render().props.data).toHaveLength(16);
   expect(h.picker.fetchNextPage).not.toHaveBeenCalled();
-  first.props.onEndReached();
-  first.props.onEndReached();
-  expect(h.render().props.data).toHaveLength(50);
-  expect(h.picker.data.pages).toHaveLength(40);
-  expect(h.picker.fetchNextPage).not.toHaveBeenCalled();
-  expect(harness(40).render().props.data).toHaveLength(25);
+});
+it("keeps the new footer's end, background/error and next-page loading states observable", () => {
+  const h = harness(1);
+  for (let chunk = 1; chunk < 4; chunk++) h.scroll();
+  expect(h.render().props.ListFooterComponent).toBeNull();
+  h.picker.hasNextPage = true;
+  for (const state of ["background", "error"]) {
+    h.picker.isFetching = state === "background";
+    h.picker.isError = state === "error";
+    const footer = h.render().props.ListFooterComponent;
+    expect(footer.type).toBe(h.Button);
+    expect(footer.props.isDisabled).toBe(true);
+    footer.props.onPress();
+    expect(h.picker.fetchNextPage).not.toHaveBeenCalled();
+  }
+  h.picker.isFetching = h.picker.isError = false;
+  const ready = h.render().props.ListFooterComponent;
+  expect(ready.props.isDisabled).toBe(false);
+  ready.props.onPress();
+  expect(h.picker.fetchNextPage).toHaveBeenCalledWith({ cancelRefetch: false });
+  h.picker.isFetching = h.picker.isFetchingNextPage = true;
+  const pending = h.render();
+  expect(pending.props.data).toHaveLength(25);
+  expect(pending.props.ListFooterComponent.type).toBe("Skeleton");
 });
 it("reveals cached pages first, then exposes a newly fetched page without needing another scroll event", () => {
   const h = harness(2);
   h.picker.hasNextPage = true;
-  h.render().props.onEndReached();
+  for (let chunk = 1; chunk < 8; chunk++) h.scroll();
   const second = h.render();
   expect(second.props.data).toHaveLength(50);
   second.props.onEndReached();
@@ -306,23 +359,26 @@ it("reveals cached pages first, then exposes a newly fetched page without needin
   expect(h.picker.fetchNextPage).toHaveBeenCalledTimes(calls);
   h.picker.data = { pages: [...h.picker.data.pages, page(2)] };
   h.picker.isFetching = h.picker.isFetchingNextPage = false;
-  expect(h.render().props.data).toHaveLength(75);
+  expect(h.render().props.data).toHaveLength(58);
+  expect(h.picker.data.pages).toHaveLength(3);
 });
 it.each(["background", "error", "end"])("does not start automatic requests during %s", (kind) => {
   const h = harness(1);
   h.picker.hasNextPage = kind !== "end";
   h.picker.isFetching = kind === "background";
   h.picker.isError = kind === "error";
-  h.render().props.onEndReached();
+  for (let chunk = 0; chunk < 4; chunk++) h.scroll();
+  expect(h.render().props.data).toHaveLength(25);
   expect(h.picker.fetchNextPage).not.toHaveBeenCalled();
 });
 it("keeps cached rows available during errors and retries only on the explicit action", () => {
   const h = harness(3);
   h.picker.isError = true;
   const list = h.render();
-  expect(list.props.data).toHaveLength(25);
+  expect(list.props.data).toHaveLength(8);
+  list.props.onScrollBeginDrag();
   list.props.onEndReached();
-  expect(h.render().props.data).toHaveLength(50);
+  expect(h.render().props.data).toHaveLength(16);
   const retry = nodes(list.props.ListHeaderComponent).find(
     (n) =>
       n.type === h.Button &&
@@ -343,9 +399,18 @@ it("does not present an excluded first page as empty and offers a path through f
     (n) => n.type === h.Button && nodes(n).some((c) => c.children.includes("Load more games")),
   );
   expect(more).toBeDefined();
-  more?.props.onPress();
+  for (let chunk = 1; chunk < 5; chunk++) {
+    const button = nodes(h.render().props.ListHeaderComponent).find((n) => n.type === h.Button);
+    expect(button).toBeDefined();
+    button?.props.onPress();
+  }
   expect(h.render().props.data[0].id).toBe(25);
   h.props.excludeIds = [...page(0).items, ...page(1).items].map((i) => i.id);
+  for (let chunk = 5; chunk < 8; chunk++) {
+    const button = nodes(h.render().props.ListHeaderComponent).find((n) => n.type === h.Button);
+    expect(button).toBeDefined();
+    button?.props.onPress();
+  }
   expect(nodes(h.render().props.ListHeaderComponent).some((n) => n.type === "EmptyList")).toBe(
     true,
   );
@@ -355,8 +420,9 @@ it.each(["snapshot", "owner", "filter", "search"])(
   (kind) => {
     const h = harness(3),
       first = h.render();
+    first.props.onScrollBeginDrag();
     first.props.onEndReached();
-    expect(h.render().props.data).toHaveLength(50);
+    expect(h.render().props.data).toHaveLength(16);
     const oldSelect = first.props.renderItem({ item: page(0).items[0] }).props.onSelect;
     if (kind === "snapshot") h.account.account.data.active.snapshot = "snapshot-two";
     if (kind === "owner") h.auth.userId = "other-owner";
@@ -372,15 +438,18 @@ it.each(["snapshot", "owner", "filter", "search"])(
       h.debounce();
     }
     const current = h.render();
-    expect(current.props.data).toHaveLength(25);
+    expect(current.props.data).toHaveLength(8);
     expect(current.props.key).not.toBe(first.props.key);
+    first.props.onScrollBeginDrag();
     first.props.onEndReached();
+    current.props.onEndReached();
     oldSelect(page(0).items[0]);
+    expect(h.render().props.data).toHaveLength(8);
     expect(h.picker.fetchNextPage).not.toHaveBeenCalled();
     expect(h.props.onSelect).not.toHaveBeenCalled();
     if (kind === "snapshot") {
       h.account.account.data.active.snapshot = "snapshot-one";
-      expect(h.render().props.data).toHaveLength(25);
+      expect(h.render().props.data).toHaveLength(8);
     }
   },
 );
@@ -394,6 +463,8 @@ it("keeps data/render/select references stable during input typing and guards du
   const next = h.render();
   expect(next.props.data).toBe(first.props.data);
   expect(next.props.renderItem).toBe(first.props.renderItem);
+  expect(next.props.onScrollBeginDrag).toBe(first.props.onScrollBeginDrag);
+  expect(next.props.onEndReached).toBe(first.props.onEndReached);
   const row = next.props.renderItem({ item: page(0).items[0] });
   row.props.onSelect(page(0).items[0]);
   row.props.onSelect(page(0).items[1]);
