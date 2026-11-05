@@ -1,0 +1,50 @@
+appId: com.bgo.mobile
+name: Owned cached collection paging and game picker reentry
+# Authenticated Development/Preview fixture, editable PLANNING Event with one Table.
+# Linked published collection has >250 games; first/later fixtures are not already selected.
+# Only unsaved client draft changes: never press Save or mutate/sync the collection.
+tags: [manual, games, performance]
+---
+- runScript: ../helpers/game-picker-inputs.js
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: ${output.picker.eventLink}
+- extendedWaitUntil:
+    visible: ${output.picker.eventName}
+    timeout: 120000
+- tapOn: ${output.picker.tables}
+- tapOn: ${output.picker.choose}
+- extendedWaitUntil:
+    visible: ${output.picker.first}
+    timeout: 120000
+- scrollUntilVisible:
+    element: ${output.picker.later}
+    direction: DOWN
+    timeout: 120000
+- takeScreenshot: game-picker-loaded-later-pages
+- tapOn: ${output.picker.back}
+- tapOn: ${output.picker.choose}
+- extendedWaitUntil:
+    visible: ${output.picker.first}
+    timeout: 120000
+- assertNotVisible: ${output.picker.later}
+- takeScreenshot: game-picker-reentry-from-start
+- scrollUntilVisible:
+    element: ${output.picker.later}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.picker.back}
+- tapOn: ${output.picker.choose}
+- extendedWaitUntil:
+    visible: ${output.picker.first}
+    timeout: 120000
+- tapOn: ${output.picker.selectFirst}
+- extendedWaitUntil:
+    visible: ${output.picker.choose}
+    timeout: 120000
+- assertVisible: ${output.picker.first}
+- tapOn: ${output.picker.choose}
+- assertNotVisible: ${output.picker.selectFirst}
+- takeScreenshot: game-picker-selected-game-excluded
+- stopApp

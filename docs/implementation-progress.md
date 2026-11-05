@@ -1,5 +1,28 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Native game picker reentry — bounded presentation; device timing acceptance pending
+
+- Reopening starts at the first source page even when Query retains many pages. A memoized local
+  presentation window reveals cached pages before requesting more; source records/cursors and the
+  encrypted canonical cache are never trimmed or copied into another store. Web already renders
+  one source page and is unchanged. Owner/API/snapshot/search/filter changes reset both budget and
+  scroll key before commit; late callbacks cannot grow or select from another query scope.
+- Stable derivation, selection/render callbacks and a memoized private identity/action row preserve
+  cached row references while typing. FlatList retains 12 initial items, uses batches of six and a
+  seven-screen window, without fixed row-height assumptions or disabled animations. Duplicate end
+  callbacks expose at most one extra cached page per committed viewport; remote requests respect
+  in-flight/background work and errors, with Query-level deduplication. Excluded/empty first pages
+  retain an explicit load-more path rather than a false empty state.
+- **411 mobile covered units pass, zero skips**, with per-file 100% coverage for deterministic
+  presentation logic. Root typecheck passes; Android production bundle exports successfully with
+  current Metro/Hermes configuration, without native dependency or Babel changes. Source-executed callback tests cover
+  1/10/40 cached pages, duplicate/end/background/error paths, newly fetched visibility, query-scope
+  reset, late callbacks, selection and exclusions. This proves bounded data work, not native frame
+  timing. Existing owned-fixture manual flow `24-game-picker-reentry.yaml` exercises scrolling,
+  reopen-from-start, cache reuse and unsaved selection without submitting the Event or syncing BGG.
+  Actual-device EN/IT/theme/large-text and frame-timing acceptance remain pending; CI jobs/suites,
+  API paging, dependencies, provider configuration and authentication are unchanged.
+
 ## Profile / Community presentation harmony — implemented; device acceptance incomplete
 
 - App-owned shared tab bars remove full-width stretching and the painted empty tail, center fitting

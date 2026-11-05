@@ -28,6 +28,12 @@ export default defineConfig({
       // targets the pure logic (i18n, and Phase 3: hooks/store/schemas).
       include: ["src/lib/**", "src/hooks/**", "src/store/**"],
       thresholds: {
+        "src/lib/games/gamePickerWindow.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/lib/navigationColors.ts": {
           lines: 100,
           functions: 100,

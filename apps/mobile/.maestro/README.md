@@ -237,6 +237,24 @@ public read-only details and 390/1280-width layouts. Run both locales/themes and
 Syntax/discovery, helper VM tests and isolated browser fixtures are not runtime acceptance.
 Canonical suites/jobs and their existing acceptance policy remain unchanged.
 
+## Game picker reentry — manual, unsaved draft only
+
+Flow `24-game-picker-reentry.yaml` requires an already authenticated owned Development/Preview
+account, a published linked BGG collection with >250 games and an editable PLANNING Event with
+one Table. Do not synchronize/link the collection or save the Event during this flow.
+Set `PICKER_BUILD_ACK=owned-development-preview-build`,
+`PICKER_FIXTURE_ACK=owned-planning-event-linked-collection`, `PICKER_LOCALE=en|it`,
+`PICKER_EVENT_ID`, `PICKER_EVENT_NAME`, `PICKER_FIRST_GAME` and `PICKER_LATER_GAME`.
+The first name is the first selectable collection result; the later unique name must lie beyond
+at least ten source pages. Neither game may already be selected in the fixture Table.
+The flow loads later pages, closes/reopens from the start, traverses cached pages again, selects
+one game into the unsaved client draft and verifies exclusion when reopening. Stop discards that
+client-only edit; no Save action, API mutation, provider setup or environment reset is performed.
+Run both locales/themes and enlarged text. Record JS/UI frame timings on the actual device with
+1/10/40 loaded pages when comparing entry latency and fast scrolling; unit callback checks and
+screenshots do not establish a frame-time improvement. Do not disable animations or replace cache
+contents to make the flow pass. Canonical acceptance suites/jobs remain unchanged.
+
 ## Evidence
 
 YAML parsing and source-policy tests validate structure, not product acceptance.
