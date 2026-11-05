@@ -12,6 +12,7 @@ import { ClipboardPenLine } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -101,18 +102,16 @@ export function EventTable({
       <div className="mx-auto w-full max-w-4xl pb-24">
         {header}
         <Tabs selectedKey={selected} onSelectionChange={(key) => setTab(String(key))}>
-          <Tabs.ListContainer className="mx-auto mb-4 w-fit max-w-full">
-            <Tabs.List aria-label={t`Table sections`}>
-              <Tabs.Tab id="overview" className="gap-2">
-                {t`Overview`}
-                <NotificationTabBadge target={{ kind: "table", id: tableId }} />
-              </Tabs.Tab>
-              {table.eventStatus === "TERMINATED" ? (
-                <Tabs.Tab id="results">{t`Results`}</Tabs.Tab>
-              ) : null}
-              <Tabs.Tab id="ranking">{t`Ranking`}</Tabs.Tab>
-            </Tabs.List>
-          </Tabs.ListContainer>
+          <TabBar label={t`Table sections`}>
+            <Tabs.Tab id="overview" className="gap-2">
+              {t`Overview`}
+              <NotificationTabBadge target={{ kind: "table", id: tableId }} />
+            </Tabs.Tab>
+            {table.eventStatus === "TERMINATED" ? (
+              <Tabs.Tab id="results">{t`Results`}</Tabs.Tab>
+            ) : null}
+            <Tabs.Tab id="ranking">{t`Ranking`}</Tabs.Tab>
+          </TabBar>
           <Tabs.Panel id="overview">
             <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
           </Tabs.Panel>

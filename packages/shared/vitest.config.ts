@@ -8,6 +8,7 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       include: [
         "src/profile/activityFeed.ts",
+        "src/profile/activityNarrative.ts",
         "src/common/startupQueries.ts",
         "src/common/optimisticOperation.ts",
         "src/common/clientMutation.ts",

@@ -54,8 +54,8 @@ it("validates manual real-fixture inputs, escaping literal resource text without
     COMMUNITY_TABLE_ID: "22222222-2222-4222-8222-222222222222",
     COMMUNITY_TABLE_TEXT: "Table [test]",
     COMMUNITY_VISIBLE_TEXT: "Visible [test]",
-    COMMUNITY_FRIEND_TEXT: "Friend",
-    COMMUNITY_FOLLOWED_TEXT: "Following",
+    COMMUNITY_ACTIVITY_KIND: "played",
+    COMMUNITY_FILTERED_TEXT: "You played [test]",
     COMMUNITY_PRIVATE_TEXT: "private",
     COMMUNITY_BEFORE_TEXT: "before",
   };
@@ -74,6 +74,20 @@ it("validates manual real-fixture inputs, escaping literal resource text without
     expect(new RegExp(data.visible).test(base.COMMUNITY_VISIBLE_TEXT)).toBe(true);
     expect(new RegExp(data.tableText).test("Table test")).toBe(false);
     expect(data.eventLink).toContain(base.COMMUNITY_EVENT_ID);
+    expect(new RegExp(data.filtered).test(base.COMMUNITY_FILTERED_TEXT)).toBe(true);
+    for (const kind of [
+      "played",
+      "friendship",
+      "event_join",
+      "table_join",
+      "group_join",
+      "follower",
+      "milestone",
+    ]) {
+      expect(run({ COMMUNITY_LOCALE: locale, COMMUNITY_ACTIVITY_KIND: kind }).kind).toMatch(
+        /^\^.+\$$/,
+      );
+    }
   }
   for (const bad of [
     { COMMUNITY_LOCALE: "bad" },
@@ -81,6 +95,9 @@ it("validates manual real-fixture inputs, escaping literal resource text without
     { COMMUNITY_TABLE_ID: "bad" },
     { COMMUNITY_EVENT_ID: "" },
     { COMMUNITY_VISIBLE_TEXT: "" },
+    { COMMUNITY_ACTIVITY_KIND: "bad" },
+    { COMMUNITY_ACTIVITY_KIND: "" },
+    { COMMUNITY_FILTERED_TEXT: "" },
   ])
     expect(() => run(bad)).toThrow();
 });

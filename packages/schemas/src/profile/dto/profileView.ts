@@ -78,7 +78,6 @@ export type ProfileActivity = Pick<
 export const communityNetworkSchema = z.enum(["all", "friends", "following"]);
 export type CommunityNetwork = z.infer<typeof communityNetworkSchema>;
 export const communityActivityQuerySchema = profileActivityQuerySchema
-  .omit({ kind: true })
   .extend({
     network: communityNetworkSchema.default("all"),
     limit: z.coerce.number().pipe(z.literal(10)).default(10),

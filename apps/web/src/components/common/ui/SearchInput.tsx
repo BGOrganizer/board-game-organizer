@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchField } from "@heroui/react";
+import { Label, SearchField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { ComponentProps, ReactNode } from "react";
 
@@ -29,7 +29,7 @@ export function SearchInput({
   const { t } = useLingui();
   return (
     <SearchField fullWidth name={name} value={value} onChange={onChange}>
-      {label}
+      {typeof label === "string" || typeof label === "number" ? <Label>{label}</Label> : label}
       <SearchField.Group>
         <SearchField.SearchIcon />
         <SearchField.Input {...inputProps} placeholder={placeholder} />

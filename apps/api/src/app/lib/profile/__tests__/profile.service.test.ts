@@ -247,7 +247,13 @@ it("uses the same authorization for the network, projects safe author identity, 
     otherUserId: "other1",
   });
   expect(JSON.stringify(result)).not.toContain("hidden@email");
-  expect(m.network).toHaveBeenCalledWith("viewer", "following", ["blocked"], undefined);
+  expect(m.network).toHaveBeenCalledWith("viewer", "following", ["blocked"], undefined, undefined);
+});
+it("forwards the activity type to the authorized network source pager", async () => {
+  m.network.mockResolvedValue([]);
+  m.blockedIds.mockResolvedValue(["blocked"]);
+  await service().networkFeed("viewer", { network: "all", kind: "played", limit: 10 });
+  expect(m.network).toHaveBeenCalledWith("viewer", "all", ["blocked"], undefined, "played");
 });
 it("ends an exhausted full denied chunk without manufacturing an inaccessible next cursor", async () => {
   m.page

@@ -17,12 +17,16 @@ import { CommunityActivities } from "../CommunityActivities";
 const m = vi.hoisted(() => ({
   q: {} as Record<string, unknown>,
   options: { apiUrl: "https://api.test", userId: "viewer", getToken: async () => "token" },
+  calls: vi.fn(),
   more: vi.fn(),
   refetch: vi.fn(),
 }));
 vi.mock("@board-game-organizer/shared", async (original) => ({
   ...(await original<typeof import("@board-game-organizer/shared")>()),
-  useCommunityActivities: () => m.q,
+  useCommunityActivities: (...args: unknown[]) => {
+    m.calls(...args);
+    return m.q;
+  },
 }));
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => m.options }));
 vi.mock("@/lib/useInfiniteScroll", () => ({ useInfiniteScroll: () => () => undefined }));
@@ -53,7 +57,7 @@ beforeEach(() => {
     isFetchNextPageError: false,
   };
 });
-it("keeps Activities/Marketplace and the network filter scoped while navigating", async () => {
+it("keeps Activities/Marketplace and the activity-type filter scoped while navigating", async () => {
   renderWithI18n(<Community />);
   expect(screen.getByRole("heading", { name: "Community" })).toBeTruthy();
   for (const tab of screen.getAllByRole("tab")) {
@@ -65,14 +69,25 @@ it("keeps Activities/Marketplace and the network filter scoped while navigating"
   expect(screen.getByText("Coming soon")).toBeTruthy();
   expect(screen.getByText(/A place to buy, sell/)).toBeTruthy();
   fireEvent.click(screen.getByRole("tab", { name: "Activities" }));
-  fireEvent.click(screen.getByRole("button", { name: /Network/ }));
-  fireEvent.click(await screen.findByRole("option", { name: "Friends" }));
+  fireEvent.click(screen.getByRole("button", { name: /Activity type/ }));
+  fireEvent.click(await screen.findByRole("option", { name: "Game played" }));
   expect(
-    useAppStore.getState().communityViews[JSON.stringify([m.options.apiUrl, "viewer"])]?.network,
-  ).toBe("friends");
+    useAppStore.getState().communityViews[JSON.stringify([m.options.apiUrl, "viewer"])]
+      ?.activityKind,
+  ).toBe("played");
   fireEvent.click(screen.getByRole("tab", { name: "Marketplace" }));
   fireEvent.click(screen.getByRole("tab", { name: "Activities" }));
-  expect(screen.getByRole("button", { name: /Network/ }).textContent).toContain("Friends");
+  expect(screen.getByRole("button", { name: /Activity type/ }).textContent).toContain(
+    "Game played",
+  );
+  expect(m.calls).toHaveBeenLastCalledWith(m.options, "all", "played");
+  fireEvent.click(screen.getByRole("button", { name: /Activity type/ }));
+  fireEvent.click(await screen.findByRole("option", { name: "All activity types" }));
+  expect(
+    useAppStore.getState().communityViews[JSON.stringify([m.options.apiUrl, "viewer"])]
+      ?.activityKind,
+  ).toBe("");
+  expect(m.calls).toHaveBeenLastCalledWith(m.options, "all", undefined);
 });
 it("shows only server rows, public author/profile links, resource context, day groups and incremental paging", () => {
   m.q = {

@@ -1,5 +1,6 @@
 import { ListGroup } from "heroui-native/list-group";
-import { Children, type ReactNode } from "react";
+import { Separator } from "heroui-native/separator";
+import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import type { ViewStyle } from "react-native";
 
 export function GroupedList({
@@ -9,22 +10,28 @@ export function GroupedList({
 }: {
   children: ReactNode;
   style?: ViewStyle;
-  /** Consecutive virtualized cells retain one group's surface and outer corners. */
   segment?: { index: number; count: number };
 }) {
-  if (Children.toArray(children).length === 0) return null;
+  const rows = Children.toArray(children);
+  if (!rows.length) return null;
   const first = !segment || segment.index === 0;
   const last = !segment || segment.index === segment.count - 1;
   return (
     <ListGroup
-      className={last ? undefined : "border-b border-muted/20"}
       style={{
         ...style,
+        padding: 0,
+        boxShadow: "none",
         ...(!first ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}),
         ...(!last ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : {}),
       }}
     >
-      {children}
+      {rows.map((row, index) => (
+        <Fragment key={isValidElement(row) ? row.key : index}>
+          {row}
+          {index < rows.length - 1 || !last ? <Separator /> : null}
+        </Fragment>
+      ))}
     </ListGroup>
   );
 }

@@ -215,13 +215,16 @@ Flow `22-community.yaml` uses an already authenticated owned Development/Preview
 selected EN/IT locale. No provider provisioning, social writes, database reset or API mocks.
 Set `COMMUNITY_BUILD_ACK=owned-development-preview-build`, `COMMUNITY_LOCALE=en|it`,
 `COMMUNITY_EVENT_ID`, `COMMUNITY_TABLE_ID`, `COMMUNITY_TABLE_TEXT`, `COMMUNITY_VISIBLE_TEXT`,
-`COMMUNITY_FRIEND_TEXT`, `COMMUNITY_FOLLOWED_TEXT`, `COMMUNITY_PRIVATE_TEXT` and
-`COMMUNITY_BEFORE_TEXT`. Texts are literal, escaped by the helper. The visible texts belong to
-post-relation first-page activities; the recent private/pre-relation fixtures would otherwise fall
+`COMMUNITY_ACTIVITY_KIND` (one of the seven canonical kinds), `COMMUNITY_FILTERED_TEXT`,
+`COMMUNITY_PRIVATE_TEXT` and `COMMUNITY_BEFORE_TEXT`. Texts are literal, escaped by the helper.
+The visible and kind-filtered texts belong to their post-relation first pages; the recent private/pre-relation fixtures would otherwise fall
 inside that first page. Use a friend-only peer, a following-only peer and an incoming-only follower.
 The linked approved PUBLIC Group Event/Table must be owned fixtures of a Group this viewer has
 never joined; the scenario waits for real read-only detail data before asserting action absence.
-It covers tabs, filters, preserved navigation selections, restart/cache restore and source privacy.
+It covers tabs, activity-kind filtering of the friend/follow union, preserved navigation selections,
+restart/cache restore and source privacy. Review screenshots for adjacent row surfaces and compact
+centered tab bars without an empty tail; repeat with enlarged text. Viewer-specific fixture narratives
+use Tu/You and the actual actor/recipient's grammar.
 
 Web: `pnpm --filter web exec playwright test --config e2e/community.config.ts` additionally requires
 `COMMUNITY_THEME=light|dark`, `COMMUNITY_API_URL`, `E2E_EMAIL`, Development Clerk test keys,

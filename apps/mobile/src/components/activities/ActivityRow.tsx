@@ -17,12 +17,23 @@ import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { useT } from "@/lib/i18n";
 import { notificationHref } from "@/lib/notifications/push-notifications";
 
-export function ActivityRow({ item, author }: { item: ProfileActivity; author?: ActivityAuthor }) {
+export function ActivityRow({
+  item,
+  author,
+  viewerId,
+}: {
+  item: ProfileActivity;
+  author?: ActivityAuthor;
+  viewerId?: string | null;
+}) {
   const t = useT(),
     { i18n } = useLingui(),
     muted = useThemeColor("muted"),
     router = useRouter();
-  const story = activityNarrative(item, author, t("Someone"), t("Unavailable source"));
+  const story = activityNarrative(item, author, t("Someone"), t("Unavailable source"), {
+    id: viewerId,
+    name: t("You"),
+  });
   const icons = {
     played: Dices,
     friendship: Handshake,

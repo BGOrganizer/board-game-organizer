@@ -44,6 +44,7 @@ import { NotificationCountBadge } from "@/components/common/ui/NotificationCount
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import {
   type UserActionConfirmation,
   UserActionsSheet,
@@ -644,7 +645,7 @@ export default function ContactsScreen() {
           variant="primary"
         >
           <MainTabBar>
-            <Tabs.Trigger value="connections" style={{ flexDirection: "row", gap: 6 }}>
+            <TabTrigger value="connections" style={{ flexDirection: "row", gap: 6 }}>
               <Tabs.Label>{t("Connections")}</Tabs.Label>
               <ContactSectionBadge
                 section="connections"
@@ -652,8 +653,8 @@ export default function ContactsScreen() {
                   .filter((row) => row.key !== "device")
                   .flatMap((row) => row.users.map((user) => user.id))}
               />
-            </Tabs.Trigger>
-            <Tabs.Trigger value="requests" style={{ flexDirection: "row", gap: 6 }}>
+            </TabTrigger>
+            <TabTrigger value="requests" style={{ flexDirection: "row", gap: 6 }}>
               <Tabs.Label>{t("Requests")}</Tabs.Label>
               <ContactSectionBadge
                 section="requests"
@@ -661,14 +662,14 @@ export default function ContactsScreen() {
                   row.profile ? [row.profile.id] : [],
                 )}
               />
-            </Tabs.Trigger>
-            <Tabs.Trigger value="search" style={{ flexDirection: "row", gap: 6 }}>
+            </TabTrigger>
+            <TabTrigger value="search" style={{ flexDirection: "row", gap: 6 }}>
               <Tabs.Label>{t("Search")}</Tabs.Label>
               <ContactSectionBadge
                 section="search"
                 userIds={[...searchResults, ...bgoContacts].map((user) => user.id)}
               />
-            </Tabs.Trigger>
+            </TabTrigger>
           </MainTabBar>
 
           <Tabs.Content

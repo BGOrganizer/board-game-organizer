@@ -1,6 +1,19 @@
 import { expect, it } from "vitest";
 import { communityActivityStages, joinedEventSuppression } from "../community-activity-query";
 
+it("filters activity kind at source without dropping network/block/cursor predicates", () => {
+  const pipeline = communityActivityStages(
+    "viewer",
+    "all",
+    ["blocked"],
+    "2030-01-01T00:00:00.000Z|id",
+    "played",
+  );
+  expect(pipeline[0].$match.kind).toBe("played");
+  expect(pipeline[0].$match.userId.$nin).toEqual(["viewer", "blocked"]);
+  expect(pipeline[0].$match.otherUserId.$nin).toEqual(["blocked"]);
+  expect(pipeline.findIndex((stage) => stage.$limit === 50)).toBeGreaterThan(0);
+});
 it.each(["all", "friends", "following"] as const)(
   "source-filters %s using directed live edges, reciprocal accepted dates, stable deduplication and a bounded response",
   (network) => {

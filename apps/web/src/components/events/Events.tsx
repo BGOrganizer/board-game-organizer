@@ -3,6 +3,7 @@ import type { EventListSection } from "@board-game-organizer/schemas";
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useState } from "react";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -30,20 +31,18 @@ export function Events({
       ]}
     >
       <Tabs selectedKey={section} onSelectionChange={(key) => setSection(String(key))}>
-        <Tabs.ListContainer className="mt-2 w-fit max-w-full self-center">
-          <Tabs.List aria-label={t`Events navigation`}>
-            <Tabs.Tab id="mine" className="whitespace-nowrap">
-              {t`Registered events`}
-              <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
-              <Tabs.Indicator />
-            </Tabs.Tab>
-            <Tabs.Tab id="available" className="whitespace-nowrap">
-              {t`Available events`}
-              <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
-              <Tabs.Indicator />
-            </Tabs.Tab>
-          </Tabs.List>
-        </Tabs.ListContainer>
+        <TabBar label={t`Events navigation`}>
+          <Tabs.Tab id="mine" className="whitespace-nowrap">
+            {t`Registered events`}
+            <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
+            <Tabs.Indicator />
+          </Tabs.Tab>
+          <Tabs.Tab id="available" className="whitespace-nowrap">
+            {t`Available events`}
+            <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
+            <Tabs.Indicator />
+          </Tabs.Tab>
+        </TabBar>
         <Tabs.Panel id="mine" className="pt-0">
           <EventList section="mine" canCreate={canCreate} />
         </Tabs.Panel>

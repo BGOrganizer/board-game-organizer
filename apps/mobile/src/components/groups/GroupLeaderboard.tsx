@@ -5,17 +5,16 @@ import Constants from "expo-constants";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Clock3, Dices, X } from "lucide-react-native";
+import { Clock3, Dices } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
-import { LeaderboardGameCover } from "@/components/ratings/LeaderboardGameCover";
 import { LeaderboardStat } from "@/components/ratings/LeaderboardStat";
+import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -72,87 +71,43 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <Typography className="mb-2 font-medium text-foreground">{t("Board game")}</Typography>
-      <View style={{ position: "relative" }}>
-        <Select
-          key={gameId ?? "none"}
-          style={{ width: "100%" }}
-          value={selected ? { value: String(selected.id), label: selected.name } : undefined}
-          onValueChange={(value) => setGameId(value ? Number(value.value) : null)}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSearch("");
-              setDebouncedSearch("");
-            }
-          }}
-        >
-          <Select.Trigger
-            accessibilityLabel={selected ? `${t("Board game")}: ${selected.name}` : t("Board game")}
-            style={selected ? { paddingRight: 52 } : undefined}
-          >
-            {selected ? <LeaderboardGameCover imageUrl={selected.imageUrl} /> : null}
-            <Typography
-              className={selected ? "text-foreground" : "text-muted"}
-              style={{ flex: 1 }}
-              numberOfLines={1}
+      <RatingGameSelect
+        selectedId={gameId}
+        value={selected}
+        games={filteredChoices}
+        onChange={setGameId}
+        onClose={() => {
+          setSearch("");
+          setDebouncedSearch("");
+        }}
+        onEndReached={() => {
+          if (games.hasNextPage && !games.isFetchingNextPage && !games.isFetchNextPageError)
+            void games.fetchNextPage();
+        }}
+        footer={
+          games.hasNextPage ? (
+            <Button
+              variant="secondary"
+              isDisabled={games.isFetchingNextPage}
+              onPress={() => void games.fetchNextPage()}
             >
-              {selected?.name ?? t("Select a board game")}
-            </Typography>
-            {!selected ? <Select.TriggerIndicator /> : null}
-          </Select.Trigger>
-          <Select.Portal>
-            <Select.Overlay />
-            <Select.Content presentation="popover" width="trigger">
-              <SearchHelpLabel
-                label={t("Search board games")}
-                help={t("Type at least 4 characters to search")}
-              />
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                label={t("Search board games")}
-                placeholder={t("Search board games")}
-              />
-              {filteredChoices.map((game) => (
-                <Select.Item key={game.id} value={String(game.id)} label={game.name}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                    <LeaderboardGameCover imageUrl={game.imageUrl} />
-                    <Typography className="text-foreground" style={{ flex: 1 }} numberOfLines={1}>
-                      {game.name}
-                    </Typography>
-                  </View>
-                  <Select.ItemIndicator />
-                </Select.Item>
-              ))}
-              {!filteredChoices.length ? (
-                <EmptyList icon={<Dices size={28} color={muted} />}>
-                  {t("No games found")}
-                </EmptyList>
-              ) : null}
-            </Select.Content>
-          </Select.Portal>
-        </Select>
-        {games.hasNextPage ? (
-          <Button
-            variant="outline"
-            isDisabled={games.isFetchingNextPage}
-            onPress={() => void games.fetchNextPage()}
-          >
-            <Button.Label>{t("Load more games")}</Button.Label>
-          </Button>
-        ) : null}
-        {selected ? (
-          <Button
-            isIconOnly
-            variant="ghost"
-            accessibilityLabel={t("Clear board game selection")}
-            style={{ position: "absolute", right: 2, bottom: 2, width: 44, height: 44 }}
-            onPress={() => setGameId(null)}
-          >
-            <X size={18} color={muted} />
-          </Button>
-        ) : null}
-      </View>
+              <Button.Label>{t("Load more games")}</Button.Label>
+            </Button>
+          ) : undefined
+        }
+        empty={<Typography className="text-muted">{t("No games found")}</Typography>}
+      >
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          label={t("Search board games")}
+          placeholder={t("Search board games")}
+        />
+        <SearchHelpLabel
+          label={t("Search board games")}
+          help={t("Type at least 4 characters to search")}
+        />
+      </RatingGameSelect>
       {gameId !== null ? (
         players.isPending ? (
           <Skeleton style={{ width: "100%", height: 130, borderRadius: 12, marginTop: 16 }} />

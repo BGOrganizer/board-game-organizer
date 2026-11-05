@@ -6,6 +6,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Gamepad2, LibraryBig, UsersRound } from "lucide-react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileBggCard } from "./ProfileBggCard";
@@ -56,36 +57,25 @@ export function Profile({ userId }: { userId?: string }) {
                 setView(viewKey, { tab: value });
             }}
           >
-            <Tabs.ListContainer className="mt-2 w-full max-w-full self-center">
-              <Tabs.List aria-label={t`Profile navigation`} className="w-full">
-                <Tabs.Tab
-                  id="activity"
-                  className="h-auto min-h-11 min-w-max flex-1 flex-row gap-2 px-2 text-sm whitespace-nowrap"
-                >
-                  <UsersRound className="size-4" aria-hidden />
-                  {t`Activities`}
+            <TabBar label={t`Profile navigation`}>
+              <Tabs.Tab id="activity" className="flex-row gap-2 whitespace-nowrap">
+                <UsersRound className="size-4" aria-hidden />
+                {t`Activities`}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              <Tabs.Tab id="player" className="flex-row gap-2 whitespace-nowrap">
+                <Gamepad2 className="size-4" aria-hidden />
+                {t`Player`}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              {own ? (
+                <Tabs.Tab id="collection" className="flex-row gap-2 whitespace-nowrap">
+                  <LibraryBig className="size-4" aria-hidden />
+                  {t`Collection`}
                   <Tabs.Indicator />
                 </Tabs.Tab>
-                <Tabs.Tab
-                  id="player"
-                  className="h-auto min-h-11 min-w-max flex-1 flex-row gap-2 px-2 text-sm whitespace-nowrap"
-                >
-                  <Gamepad2 className="size-4" aria-hidden />
-                  {t`Player`}
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-                {own ? (
-                  <Tabs.Tab
-                    id="collection"
-                    className="h-auto min-h-11 min-w-max flex-1 flex-row gap-2 px-2 text-sm whitespace-nowrap"
-                  >
-                    <LibraryBig className="size-4" aria-hidden />
-                    {t`Collection`}
-                    <Tabs.Indicator />
-                  </Tabs.Tab>
-                ) : null}
-              </Tabs.List>
-            </Tabs.ListContainer>
+              ) : null}
+            </TabBar>
             <Tabs.Panel id="activity" className="space-y-4 pt-0">
               <ProfileStats
                 items={[

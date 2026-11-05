@@ -15,6 +15,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
@@ -117,18 +118,18 @@ export function EventTable({
         <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
           <View style={{ alignItems: "center", paddingTop: 12 }}>
             <TabBar style={{ alignSelf: "center", width: "auto" }}>
-              <Tabs.Trigger value="overview" style={{ flexDirection: "row", gap: 6 }}>
+              <TabTrigger value="overview" style={{ flexDirection: "row", gap: 6 }}>
                 <Tabs.Label>{t("Overview")}</Tabs.Label>
                 <NotificationTabBadge target={{ kind: "table", id: tableId }} />
-              </Tabs.Trigger>
+              </TabTrigger>
               {table.eventStatus === "TERMINATED" ? (
-                <Tabs.Trigger value="results">
+                <TabTrigger value="results">
                   <Tabs.Label>{t("Results")}</Tabs.Label>
-                </Tabs.Trigger>
+                </TabTrigger>
               ) : null}
-              <Tabs.Trigger value="ranking">
+              <TabTrigger value="ranking">
                 <Tabs.Label>{t("Ranking")}</Tabs.Label>
-              </Tabs.Trigger>
+              </TabTrigger>
             </TabBar>
           </View>
           <View style={{ flex: 1 }}>

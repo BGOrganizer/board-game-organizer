@@ -67,6 +67,59 @@ it("retains wins and truthful milestone plurals without inventing missing counts
     }
   }
 });
+it.each([
+  "played",
+  "friendship",
+  "table_join",
+  "event_join",
+  "group_join",
+  "milestone",
+  "follower",
+] as const)("uses viewer identity and localized second person for %s", (kind) => {
+  const item = {
+    ...base,
+    kind,
+    otherUserId: kind === "follower" ? "viewer" : "contact",
+    milestone: kind === "milestone" ? 5 : undefined,
+  };
+  const subject = { ...author, id: kind === "follower" ? "subject" : "viewer" };
+  const story = activityNarrative(item, subject, "?", "?", { id: "viewer", name: "Tu" });
+  expect(story.id).toBe(`activity.self.${kind}`);
+  expect(story.actor).toEqual({ name: "Tu", href: null });
+  for (const [locale, messages] of [
+    ["en", en],
+    ["it", itMessages],
+  ] as const) {
+    const text = setupI18n({ locale, messages: { [locale]: messages } })._(story.id, { count: 5 });
+    expect(text).not.toBe(story.id);
+    if (locale === "it") expect(text).not.toContain("<actor/> ha ");
+  }
+});
+it("uses grammatical self outcomes, missing milestones and viewer targets without reversing follows", () => {
+  const viewer = { id: author.id, name: "You" };
+  expect(activityNarrative({ ...base, outcome: "won" }, author, "?", "?", viewer).id).toBe(
+    "activity.self.won",
+  );
+  expect(activityNarrative({ ...base, kind: "milestone" }, author, "?", "?", viewer).id).toBe(
+    "activity.self.milestoneUnknown",
+  );
+  expect(
+    activityNarrative({ ...base, kind: "follower", otherUserId: "other" }, author, "?", "?", viewer)
+      .id,
+  ).toBe("activity.followed-you");
+  expect(
+    activityNarrative({ ...base, kind: "friendship", otherUserId: "viewer" }, author, "?", "?", {
+      id: "viewer",
+      name: "You",
+    }).id,
+  ).toBe("activity.friends-with-you");
+  expect(activityNarrative(base, author, "?", "?", { id: "alice", name: "You" }).actor.name).toBe(
+    "alice",
+  );
+  expect(activityNarrative(base, author, "?", "?", { id: null, name: "You" }).actor.href).toBe(
+    "/profiles/subject",
+  );
+});
 it("uses canonical/cached subject fallbacks and never fabricates a missing link", () => {
   expect(activityNarrative(base, { ...author, id: "x/y", username: null }, "?", "?").actor).toEqual(
     { name: "Name", href: "/profiles/x%2Fy" },

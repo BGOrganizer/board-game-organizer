@@ -89,9 +89,15 @@ it("main native strips share Groups geometry while detail tabs retain independen
     new URL("../../components/common/ui/MainTabBar.tsx", import.meta.url),
     "utf8",
   );
-  for (const geometry of ['alignSelf: "center"', "marginTop: 8", 'maxWidth: "100%"'])
+  for (const geometry of ['alignSelf: "stretch"', "marginTop: 8", 'maxWidth: "100%"'])
     expect(shared).toContain(geometry);
-  expect(shared).toContain("scrollable = false");
+  expect(shared).not.toContain("scrollable");
+  const bar = readFileSync(
+    new URL("../../components/common/ui/TabBar.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(bar).toContain("Math.min(available, content + 6)");
+  expect(bar).toContain("flexGrow: 0");
   for (const name of ["events/Events", "groups/Groups"]) {
     const text = readFileSync(new URL(`../../components/${name}.tsx`, import.meta.url), "utf8");
     expect(text).toContain("<MainTabBar>");

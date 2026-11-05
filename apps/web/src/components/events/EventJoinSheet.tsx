@@ -6,6 +6,7 @@ import { UserRoundCheck } from "lucide-react";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -59,26 +60,24 @@ export function EventJoinSheet({
               <Skeleton className="h-40 w-full rounded-xl" />
             ) : (
               <Tabs defaultSelectedKey={form.initialTab}>
-                <Tabs.ListContainer className="mx-auto mb-3 w-fit">
-                  <Tabs.List aria-label={t`Availability`}>
-                    {!form.gamesOnly ? (
-                      <>
-                        <Tabs.Tab id="dates">
-                          {t`Dates`}
-                          <Tabs.Indicator />
-                        </Tabs.Tab>
-                        <Tabs.Tab id="locations">
-                          {t`Locations`}
-                          <Tabs.Indicator />
-                        </Tabs.Tab>
-                      </>
-                    ) : null}
-                    <Tabs.Tab id="games">
-                      {t`Games`}
-                      <Tabs.Indicator />
-                    </Tabs.Tab>
-                  </Tabs.List>
-                </Tabs.ListContainer>
+                <TabBar label={t`Availability`}>
+                  {!form.gamesOnly ? (
+                    <>
+                      <Tabs.Tab id="dates">
+                        {t`Dates`}
+                        <Tabs.Indicator />
+                      </Tabs.Tab>
+                      <Tabs.Tab id="locations">
+                        {t`Locations`}
+                        <Tabs.Indicator />
+                      </Tabs.Tab>
+                    </>
+                  ) : null}
+                  <Tabs.Tab id="games">
+                    {t`Games`}
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                </TabBar>
                 {!form.gamesOnly ? (
                   <>
                     <Tabs.Panel id="dates">

@@ -61,7 +61,12 @@ export class ProfileService {
   }
   async networkFeed(
     viewer: string,
-    input: { network: CommunityNetwork; limit: number; cursor?: string },
+    input: {
+      network: CommunityNetwork;
+      kind?: ProfileActivityKind;
+      limit: number;
+      cursor?: string;
+    },
   ): Promise<CommunityActivityPage> {
     await this.requireVisible(viewer, viewer);
     return this.readFeed(viewer, input, undefined, input.network);
@@ -139,7 +144,7 @@ export class ProfileService {
     let cursor = input.cursor;
     while (items.length <= input.limit) {
       const rows = network
-        ? await this.activities.networkPage(viewer, network, [...blocked], cursor)
+        ? await this.activities.networkPage(viewer, network, [...blocked], cursor, input.kind)
         : await this.activities.page(subject as string, input.kind, cursor);
       if (!rows.length) break;
       resources.clear();

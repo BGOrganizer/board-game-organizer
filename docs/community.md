@@ -12,8 +12,10 @@ There is no Elo algorithm, significant-rating-change activity, Table-creation ac
 ordinary victory. OpenSkill and physical-result/statistics rules remain unchanged. Provisional Table
 scores never publish played/milestone activities.
 
-All is the union of current accepted mutual friends and users the viewer follows. Friends and
-Following use those respective current relations; incoming followers alone never qualify. The viewer
+The visible feed always uses the union of current accepted mutual friends and users the viewer
+follows. Its activity-type selector matches Profile: all types or one of the seven kinds. The API
+retains All/Friends/Following network scopes for existing callers; no hidden saved network selection
+restricts the visible feed. Incoming followers alone never qualify. The viewer
 is not an author in their own Community feed. Each activity must occur at or after the corresponding
 current relation's start. Friends use the later acceptance timestamp of the reciprocal pair; follows
 use the directed edge's creation timestamp; All uses the earliest qualifying active relation. An
@@ -28,7 +30,8 @@ the Event receipt remains durable, and becomes a fallback if that Table is remov
 physical played results remain separate activities. No backfill or notification reconstruction.
 
 A session-authenticated `GET /api/community/activities` accepts `network=all|friends|following`,
-`limit=10` and the existing strict instant/UUID cursor. Current network/time predicates, blocks and
+`limit=10`, optional canonical `kind` and the existing strict instant/UUID cursor. Kind filtering runs
+before source paging, not over already-loaded rows. Current network/time predicates, blocks and
 receipt deduplication run in MongoDB. Fixed source chunks are then resolved through the same source
 visibility code as Profile before ten visible rows and their cursor are emitted. No hidden total or
 inaccessible placeholder is returned. Sparse networks/authorization can scan extra indexed chunks;
@@ -65,12 +68,17 @@ identity buttons. Named translation slots receive React text children, so names 
 translation markup. A follower receipt belongs to the followee: the sentence correctly says that the
 other user started following the Profile subject. All seven activity kinds, won outcomes and milestone
 plurals retain their real meaning; no new activity types or fabricated counts are introduced.
+Viewer IDs, not matching names, select You/Tu and correct verbs/pronouns. Self identities are not
+linked; reversed follower ownership still identifies the actual actor and recipient.
 
 Native virtualized cells share contiguous group surfaces, separators and only the first/last outer
 corners, through the same GroupedList used by Profile. Day headings remain outside their groups;
 paging never nests an unbounded mapped list in the virtualizer. Profile/Community top-tab labels use
 the normal HeroUI font size, matching Groups/Events. Icons stay inline; narrow Profile tabs scroll
-horizontally rather than shrinking their text. Rows have no avatars or nested links, with relative
+horizontally rather than shrinking their text. Shared platform tab bars center their intrinsic painted
+width when it fits and bound overflow without a trailing empty surface. Native triggers retain 44px
+minimum targets; native segmented groups have no per-cell padding/shadow or duplicate separators.
+Rows have no avatars or nested links, with relative
 time and localized local-calendar day headings. Native uses one
 SectionList and safe areas; web uses source-paged progressive loading with browser content visibility
 for off-screen sections. Loading, initial/next-page failures and true empty results remain distinct.

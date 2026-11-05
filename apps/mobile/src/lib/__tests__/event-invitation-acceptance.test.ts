@@ -32,6 +32,7 @@ function render(
     }).outputText,
     {
       props,
+      TabTrigger: "tab",
       useT: () => (text: string) => text,
       useCommunityApi: () => ({ apiUrl: "api" }),
       React: {

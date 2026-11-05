@@ -22,6 +22,7 @@ import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
@@ -154,7 +155,7 @@ export function GroupDetail({
           onValueChange={setTab}
           style={{ flex: 1 }}
         >
-          <View style={{ alignSelf: "center", marginTop: 8, maxWidth: "100%" }}>
+          <View style={{ alignSelf: "stretch", marginTop: 8, maxWidth: "100%" }}>
             <TabBar>
               {[
                 ["info", t("Overview")],
@@ -172,7 +173,7 @@ export function GroupDetail({
                         : group.canViewRankings),
                 )
                 .map(([key, label]) => (
-                  <Tabs.Trigger key={key} value={key} style={{ flexDirection: "row", gap: 6 }}>
+                  <TabTrigger key={key} value={key} style={{ flexDirection: "row", gap: 6 }}>
                     <Tabs.Label>{label}</Tabs.Label>
                     {key === "info" ? (
                       <NotificationTabBadge
@@ -194,7 +195,7 @@ export function GroupDetail({
                         <UserRoundPlus size={16} color={warning} accessible={false} />
                       </View>
                     ) : null}
-                  </Tabs.Trigger>
+                  </TabTrigger>
                 ))}
             </TabBar>
           </View>

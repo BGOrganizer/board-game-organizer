@@ -11,6 +11,7 @@ import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -25,8 +26,6 @@ const tabStyle = {
   gap: 4,
   minHeight: 44,
   paddingHorizontal: 4,
-  flexShrink: 1,
-  minWidth: 0,
 } as const;
 
 export function Profile({ userId }: { userId?: string }) {
@@ -80,28 +79,28 @@ export function Profile({ userId }: { userId?: string }) {
                 setView(viewKey, { tab: value });
             }}
           >
-            <MainTabBar scrollable>
-              <Tabs.Trigger value="activity" style={tabStyle}>
+            <MainTabBar>
+              <TabTrigger value="activity" style={tabStyle}>
                 <UsersRound
                   size={16}
                   color={tab === "activity" ? accent : muted}
                   accessible={false}
                 />
                 <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
-              </Tabs.Trigger>
-              <Tabs.Trigger value="player" style={tabStyle}>
+              </TabTrigger>
+              <TabTrigger value="player" style={tabStyle}>
                 <Gamepad2 size={16} color={tab === "player" ? accent : muted} accessible={false} />
                 <Tabs.Label numberOfLines={1}>{t("Player")}</Tabs.Label>
-              </Tabs.Trigger>
+              </TabTrigger>
               {own ? (
-                <Tabs.Trigger value="collection" style={tabStyle}>
+                <TabTrigger value="collection" style={tabStyle}>
                   <LibraryBig
                     size={16}
                     color={tab === "collection" ? accent : muted}
                     accessible={false}
                   />
                   <Tabs.Label numberOfLines={1}>{t("Collection")}</Tabs.Label>
-                </Tabs.Trigger>
+                </TabTrigger>
               ) : null}
             </MainTabBar>
             <View style={{ gap: 16 }}>

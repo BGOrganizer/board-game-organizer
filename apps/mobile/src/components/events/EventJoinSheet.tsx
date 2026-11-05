@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
@@ -87,17 +88,17 @@ export function EventJoinSheet({
               <TabBar style={{ alignSelf: "center", width: "auto" }}>
                 {!form.gamesOnly ? (
                   <>
-                    <Tabs.Trigger value="dates">
+                    <TabTrigger value="dates">
                       <Tabs.Label>{t("Dates")}</Tabs.Label>
-                    </Tabs.Trigger>
-                    <Tabs.Trigger value="locations">
+                    </TabTrigger>
+                    <TabTrigger value="locations">
                       <Tabs.Label>{t("Locations")}</Tabs.Label>
-                    </Tabs.Trigger>
+                    </TabTrigger>
                   </>
                 ) : null}
-                <Tabs.Trigger value="games">
+                <TabTrigger value="games">
                   <Tabs.Label>{t("Games")}</Tabs.Label>
-                </Tabs.Trigger>
+                </TabTrigger>
               </TabBar>
               {tab === "dates" ? (
                 <BottomSheetFlatList

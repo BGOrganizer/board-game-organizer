@@ -18,16 +18,13 @@ tags: [manual, community, profiles]
 - tapOn: ${output.community.market}
 - assertVisible: ${output.community.coming}
 - tapOn: ${output.community.activities}
-- tapOn: ${output.community.network}
-- tapOn: ${output.community.friends}
+- tapOn: ${output.community.type}
+- tapOn: ${output.community.kind}
 - extendedWaitUntil:
-    visible: ${output.community.friend}
+    visible: ${output.community.filtered}
     timeout: 120000
-- tapOn: ${output.community.network}
-- tapOn: ${output.community.following}
-- extendedWaitUntil:
-    visible: ${output.community.followed}
-    timeout: 120000
+- assertNotVisible: ${output.community.privateText}
+- assertNotVisible: ${output.community.beforeText}
 - openLink: ${output.community.eventLink}
 - extendedWaitUntil:
     visible: ${output.community.readOnly}
@@ -38,8 +35,11 @@ tags: [manual, community, profiles]
     timeout: 120000
 - assertNotVisible: ${output.community.register}
 - openLink: bgo:///community
-- assertVisible: ${output.community.following}
-- takeScreenshot: community-network-and-public-read-only
+- assertVisible: ${output.community.kind}
+- assertVisible: ${output.community.filtered}
+- takeScreenshot: community-activity-kind-and-public-read-only
+- tapOn: ${output.community.type}
+- tapOn: ${output.community.allTypes}
 - stopApp
 - launchApp:
     clearState: false

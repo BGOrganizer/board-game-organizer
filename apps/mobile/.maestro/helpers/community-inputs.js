@@ -15,18 +15,28 @@ var eventId = required("COMMUNITY_EVENT_ID"),
   uuid = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 if (!uuid.test(eventId) || !uuid.test(tableId)) throw new Error("Canonical fixture UUIDs required");
 var it = locale === "it";
+var kind = required("COMMUNITY_ACTIVITY_KIND");
+var kinds = {
+  played: it ? "Partita giocata" : "Game played",
+  friendship: it ? "Nuova amicizia" : "New friendship",
+  event_join: it ? "Partecipazione a un evento" : "Joined an event",
+  table_join: it ? "Partecipazione a un tavolo" : "Joined a table",
+  group_join: it ? "Ingresso in un gruppo" : "Joined a group",
+  follower: it ? "Nuovo follower" : "New follower",
+  milestone: it ? "Traguardo di vittorie" : "Victory milestone",
+};
+if (!Object.hasOwn(kinds, kind)) throw new Error("Select a canonical activity kind");
 output.community = {
   visible: literal(required("COMMUNITY_VISIBLE_TEXT")),
-  friend: literal(required("COMMUNITY_FRIEND_TEXT")),
-  followed: literal(required("COMMUNITY_FOLLOWED_TEXT")),
+  filtered: literal(required("COMMUNITY_FILTERED_TEXT")),
   privateText: literal(required("COMMUNITY_PRIVATE_TEXT")),
   beforeText: literal(required("COMMUNITY_BEFORE_TEXT")),
   activities: it ? "^Attività$" : "^Activities$",
   market: it ? "^Mercatino$" : "^Marketplace$",
   coming: it ? "^Prossimamente$" : "^Coming soon$",
-  network: it ? "^Rete$" : "^Network$",
-  friends: it ? "^Amici$" : "^Friends$",
-  following: it ? "^Seguiti$" : "^Followed users$",
+  type: it ? "^Tipo di attività$" : "^Activity type$",
+  kind: literal(kinds[kind]),
+  allTypes: it ? "^Tutti i tipi di attività$" : "^All activity types$",
   readOnly: literal(
     it
       ? "Vista pubblica in sola lettura. Unisciti al gruppo per partecipare."

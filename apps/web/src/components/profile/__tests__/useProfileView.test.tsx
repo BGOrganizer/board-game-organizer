@@ -54,6 +54,30 @@ it("keys profiles by API/viewer/subject, not rotating tokens, and resolves a new
     fetch.mock.calls.map((call) => new Headers(call[1]?.headers).get("Authorization")),
   ).toEqual(["Bearer first", "Bearer second"]);
 });
+it("keys and source-filters Community activity types without reusing another kind's page or token", async () => {
+  const { client, options } = setup();
+  const fetch = vi.fn(async (_url: string, _init?: RequestInit) =>
+    Response.json({ items: [], nextCursor: null }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  options.getToken.mockResolvedValueOnce("first").mockResolvedValueOnce("second");
+  const played = communityActivitiesQuery(options, "all", "played"),
+    friends = communityActivitiesQuery(options, "all", "friendship");
+  expect(played.queryKey).not.toEqual(friends.queryKey);
+  expect(played.queryKey.at(-1)).toBe("public-v1");
+  await client.fetchInfiniteQuery(played);
+  await client.fetchInfiniteQuery(friends);
+  expect(fetch.mock.calls.map(([url]) => new URL(url).searchParams.get("kind"))).toEqual([
+    "played",
+    "friendship",
+  ]);
+  expect(
+    fetch.mock.calls.map(([, init]) => new Headers(init?.headers).get("Authorization")),
+  ).toEqual(["Bearer first", "Bearer second"]);
+  expect(
+    fetch.mock.calls.every(([url]) => new URL(url).searchParams.get("network") === "all"),
+  ).toBe(true);
+});
 it("reuses complete owner snapshots but immediately revalidates a known stale root without concealing cached content", async () => {
   const { client, options, wrapper } = setup(),
     fetch = vi.fn(async () => Response.json(data));

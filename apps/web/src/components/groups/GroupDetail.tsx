@@ -19,6 +19,7 @@ import { headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
@@ -132,42 +133,40 @@ export function GroupDetail({
           }
           onSelectionChange={(key) => setTab(String(key))}
         >
-          <Tabs.ListContainer className="mt-2 w-fit max-w-full self-center">
-            <Tabs.List aria-label={t`Group sections`}>
-              <Tabs.Tab id="info" className="gap-2">
-                {t`Overview`}
-                <NotificationTabBadge
-                  target={{ kind: "group", id: group.id }}
-                  overviewItems={[
-                    notificationItemId(group.id, "invitation"),
-                    notificationItemId(group.id, "overview", undefined, "group"),
-                  ]}
-                />
+          <TabBar label={t`Group sections`}>
+            <Tabs.Tab id="info" className="gap-2">
+              {t`Overview`}
+              <NotificationTabBadge
+                target={{ kind: "group", id: group.id }}
+                overviewItems={[
+                  notificationItemId(group.id, "invitation"),
+                  notificationItemId(group.id, "overview", undefined, "group"),
+                ]}
+              />
+            </Tabs.Tab>
+            {group.canViewMembers ? (
+              <Tabs.Tab id="members" className="gap-2">
+                {t`Members`}
+                <GroupMembersBadge groupId={group.id} />
+                {isGroupManagerRole(group.role) && (group.pendingRequestCount ?? 0) > 0 ? (
+                  <span
+                    role="img"
+                    aria-label={t`Requests to review`}
+                    className="text-warning-soft-foreground"
+                  >
+                    <UserRoundPlus className="size-4" aria-hidden />
+                  </span>
+                ) : null}
               </Tabs.Tab>
-              {group.canViewMembers ? (
-                <Tabs.Tab id="members" className="gap-2">
-                  {t`Members`}
-                  <GroupMembersBadge groupId={group.id} />
-                  {isGroupManagerRole(group.role) && (group.pendingRequestCount ?? 0) > 0 ? (
-                    <span
-                      role="img"
-                      aria-label={t`Requests to review`}
-                      className="text-warning-soft-foreground"
-                    >
-                      <UserRoundPlus className="size-4" aria-hidden />
-                    </span>
-                  ) : null}
-                </Tabs.Tab>
-              ) : null}
-              {group.canViewEvents ? (
-                <Tabs.Tab id="events" className="gap-2">
-                  {t`Events`}
-                  <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />
-                </Tabs.Tab>
-              ) : null}
-              {group.canViewRankings ? <Tabs.Tab id="rankings">{t`Rankings`}</Tabs.Tab> : null}
-            </Tabs.List>
-          </Tabs.ListContainer>
+            ) : null}
+            {group.canViewEvents ? (
+              <Tabs.Tab id="events" className="gap-2">
+                {t`Events`}
+                <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />
+              </Tabs.Tab>
+            ) : null}
+            {group.canViewRankings ? <Tabs.Tab id="rankings">{t`Rankings`}</Tabs.Tab> : null}
+          </TabBar>
           <Tabs.Panel id="info" className="pt-0">
             <GroupDetailsCard group={group} />
             {bodyActions.length ? (

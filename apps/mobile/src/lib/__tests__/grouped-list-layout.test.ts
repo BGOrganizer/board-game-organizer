@@ -53,5 +53,12 @@ it.each([
   expect(style.borderTopRightRadius).toBe(first ? undefined : 0);
   expect(style.borderBottomLeftRadius).toBe(last ? undefined : 0);
   expect(style.borderBottomRightRadius).toBe(last ? undefined : 0);
-  expect(value("className", { last })).toBe(last ? undefined : "border-b border-muted/20");
+  expect(style.padding).toBe(0);
+  expect(style.boxShadow).toBe("none");
+  expect(text).toContain("<Separator");
+  const row = readFileSync(
+    new URL("../../components/common/ui/GroupedRow.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(row).not.toContain("border-b");
 });

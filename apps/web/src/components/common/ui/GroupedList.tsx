@@ -13,7 +13,7 @@ export function GroupedList({
   return (
     <ul
       style={style}
-      className={`overflow-hidden rounded-xl bg-surface divide-y divide-default-200 ${className}`}
+      className={`overflow-hidden rounded-xl bg-surface divide-y divide-separator ${className}`}
     >
       {children}
     </ul>

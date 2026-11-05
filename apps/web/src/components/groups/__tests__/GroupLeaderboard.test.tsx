@@ -88,7 +88,7 @@ it("filters by selected game and identifies provisional former members", async (
   expect(trigger.querySelector('[data-slot="selected-game-name"]')?.textContent?.trim()).toBe(
     "Azul",
   );
-  expect(trigger.parentElement?.parentElement).toBe(
+  expect(trigger.parentElement).toBe(
     screen.getByRole("button", { name: "Clear board game selection" }).parentElement,
   );
   expect(screen.getByText("@grace")).toBeTruthy();

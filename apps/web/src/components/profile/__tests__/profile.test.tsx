@@ -196,14 +196,14 @@ it("starts with an empty game selection, clears it without stale history and sta
     expect(requests.mock.calls.some(([url]) => url.includes("/games?"))).toBe(true),
   );
   expect(requests.mock.calls.some(([url]) => url.includes("/games/1"))).toBe(false);
-  expect(screen.queryByRole("button", { name: "Clear selected game" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Clear board game selection" })).toBeNull();
   await chooseChess();
   await screen.findByText("Current rating: 512");
-  fireEvent.click(screen.getByRole("button", { name: "Clear selected game" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear board game selection" }));
   expect(screen.queryByText("Current rating: 512")).toBeNull();
   expect(screen.queryByRole("img", { name: "OpenSkill rating history" })).toBeNull();
   expect(screen.queryByRole("listbox")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Clear selected game" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Clear board game selection" })).toBeNull();
   expect(document.activeElement).toBe(screen.getByRole("button", { name: /Board game/ }));
   fireEvent.click(screen.getByRole("tab", { name: "Activities" }));
   fireEvent.click(screen.getByRole("tab", { name: "Player" }));

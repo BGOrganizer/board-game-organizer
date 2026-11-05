@@ -43,7 +43,7 @@ export function ProfileRecentActivities({
       {items?.length ? (
         <GroupedList>
           {items.map((item) => (
-            <ProfileActivityRow key={item.id} item={item} author={author} />
+            <ProfileActivityRow key={item.id} item={item} author={author} viewerId={o.userId} />
           ))}
         </GroupedList>
       ) : !q.isPending && !q.isError ? (

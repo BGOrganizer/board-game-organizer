@@ -3,6 +3,7 @@ import { useAppStore } from "@board-game-organizer/store";
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Activity, Store } from "lucide-react";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { CommunityActivities } from "./CommunityActivities";
 import { CommunityMarketplace } from "./CommunityMarketplace";
@@ -22,26 +23,18 @@ export function Community() {
           if (value === "activity" || value === "market") setView(key, { tab: value });
         }}
       >
-        <Tabs.ListContainer className="mt-2 w-full max-w-full self-center">
-          <Tabs.List aria-label={t`Community navigation`} className="w-full">
-            <Tabs.Tab
-              id="activity"
-              className="h-auto min-h-11 min-w-max flex-1 flex-row gap-2 px-2 text-sm whitespace-nowrap"
-            >
-              <Activity className="size-4" aria-hidden />
-              {t`Activities`}
-              <Tabs.Indicator />
-            </Tabs.Tab>
-            <Tabs.Tab
-              id="market"
-              className="h-auto min-h-11 min-w-max flex-1 flex-row gap-2 px-2 text-sm whitespace-nowrap"
-            >
-              <Store className="size-4" aria-hidden />
-              {t`Marketplace`}
-              <Tabs.Indicator />
-            </Tabs.Tab>
-          </Tabs.List>
-        </Tabs.ListContainer>
+        <TabBar label={t`Community navigation`}>
+          <Tabs.Tab id="activity" className="flex-row gap-2 whitespace-nowrap">
+            <Activity className="size-4" aria-hidden />
+            {t`Activities`}
+            <Tabs.Indicator />
+          </Tabs.Tab>
+          <Tabs.Tab id="market" className="flex-row gap-2 whitespace-nowrap">
+            <Store className="size-4" aria-hidden />
+            {t`Marketplace`}
+            <Tabs.Indicator />
+          </Tabs.Tab>
+        </TabBar>
         <Tabs.Panel id="activity" className="pt-0">
           <CommunityActivities />
         </Tabs.Panel>

@@ -1,13 +1,14 @@
 "use client";
-import { type ProfileActivityKind, profileActivityKindSchema } from "@board-game-organizer/schemas";
+import { profileActivityKindSchema } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useProfileActivities,
   useProfileView,
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { Button, Label, ListBox, Select, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { ActivityTypeSelect } from "@/components/activities/ActivityTypeSelect";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -26,44 +27,13 @@ export function ProfileActivities({ userId }: { userId: string }) {
     denied = communityAccessDenied(q.error) || q.data === null;
   const end = useInfiniteScroll({ ...q, hasNextPage: !denied && q.hasNextPage });
   const rows = denied ? [] : (q.data?.pages.flatMap((p) => p.items) ?? []);
-  const labels: Record<ProfileActivityKind, string> = {
-    played: t`Game played`,
-    friendship: t`New friendship`,
-    event_join: t`Joined an event`,
-    table_join: t`Joined a table`,
-    group_join: t`Joined a group`,
-    follower: t`New follower`,
-    milestone: t`Victory milestone`,
-  };
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 p-5 pb-24">
       <h1 className="text-lg font-semibold">{t`Activities`}</h1>
-      <Select
-        value={kind ?? "all"}
-        onChange={(value) =>
-          setView(key, { activityKind: value === "all" || value === null ? "" : String(value) })
-        }
-      >
-        <Label>{t`Activity type`}</Label>
-        <Select.Trigger>
-          <Select.Value />
-          <Select.Indicator />
-        </Select.Trigger>
-        <Select.Popover>
-          <ListBox>
-            <ListBox.Item id="all" textValue={t`All activity types`}>
-              {t`All activity types`}
-              <ListBox.ItemIndicator />
-            </ListBox.Item>
-            {profileActivityKindSchema.options.map((value) => (
-              <ListBox.Item key={value} id={value} textValue={labels[value]}>
-                {labels[value]}
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            ))}
-          </ListBox>
-        </Select.Popover>
-      </Select>
+      <ActivityTypeSelect
+        value={kind}
+        onChange={(activityKind) => setView(key, { activityKind: activityKind ?? "" })}
+      />
       {q.isPending ? <Skeleton className="h-44 w-full rounded-xl" /> : null}
       {q.isError || denied ? (
         <div role="alert">
@@ -79,6 +49,7 @@ export function ProfileActivities({ userId }: { userId: string }) {
             <ProfileActivityRow
               key={item.id}
               item={item}
+              viewerId={o.userId}
               author={
                 communityAccessDenied(subject.error) ? undefined : (subject.data ?? undefined)
               }

@@ -1,0 +1,111 @@
+import type { ProfileRatingGame } from "@board-game-organizer/schemas";
+import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
+import { Select } from "heroui-native/select";
+import { Typography } from "heroui-native/text";
+import { X } from "lucide-react-native";
+import type { ReactNode } from "react";
+import { FlatList, View } from "react-native";
+import { useT } from "@/lib/i18n";
+import { LeaderboardGameCover } from "./LeaderboardGameCover";
+
+export function RatingGameSelect({
+  value,
+  selectedId,
+  games,
+  onChange,
+  onClose,
+  onEndReached,
+  children,
+  footer,
+  empty,
+}: {
+  value?: ProfileRatingGame | null;
+  selectedId: number | null;
+  games: readonly ProfileRatingGame[];
+  onChange: (id: number | null) => void;
+  onClose?: () => void;
+  onEndReached?: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  empty?: ReactNode;
+}) {
+  const t = useT(),
+    muted = useThemeColor("muted");
+  return (
+    <View style={{ gap: 8 }}>
+      <Typography className="font-medium text-foreground">{t("Board game")}</Typography>
+      <View style={{ position: "relative" }}>
+        <Select
+          key={selectedId ?? "none"}
+          value={
+            selectedId !== null
+              ? { value: String(selectedId), label: value?.name ?? t("Unknown") }
+              : undefined
+          }
+          onValueChange={(item) => onChange(item ? Number(item.value) : null)}
+          onOpenChange={(open) => {
+            if (!open) onClose?.();
+          }}
+        >
+          <Select.Trigger
+            accessibilityLabel={value ? `${t("Board game")}: ${value.name}` : t("Board game")}
+            style={selectedId !== null ? { paddingRight: 52 } : undefined}
+          >
+            {value ? <LeaderboardGameCover imageUrl={value.imageUrl} /> : null}
+            <Typography
+              className={value ? "text-foreground" : "text-muted"}
+              style={{ flex: 1 }}
+              numberOfLines={1}
+            >
+              {value?.name ?? (selectedId !== null ? t("Unknown") : t("Select a board game"))}
+            </Typography>
+            {selectedId === null ? <Select.TriggerIndicator /> : null}
+          </Select.Trigger>
+          <Select.Portal>
+            <Select.Overlay />
+            <Select.Content presentation="popover" width="trigger">
+              {children}
+              <FlatList
+                style={{ width: "100%", maxHeight: 280 }}
+                data={games}
+                keyExtractor={(game) => String(game.id)}
+                keyboardShouldPersistTaps="handled"
+                onEndReached={onEndReached}
+                ListFooterComponent={<>{footer}</>}
+                ListEmptyComponent={
+                  <>
+                    {empty ?? <Typography className="text-muted">{t("No games found")}</Typography>}
+                  </>
+                }
+                renderItem={({ item }) => (
+                  <Select.Item value={String(item.id)} label={item.name}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                      <LeaderboardGameCover imageUrl={item.imageUrl} />
+                      <Typography className="text-foreground" style={{ flex: 1 }} numberOfLines={1}>
+                        {item.name}
+                      </Typography>
+                    </View>
+                    <Select.ItemIndicator />
+                  </Select.Item>
+                )}
+              />
+            </Select.Content>
+          </Select.Portal>
+        </Select>
+        {selectedId !== null ? (
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            accessibilityLabel={t("Clear board game selection")}
+            style={{ position: "absolute", right: 2, top: 2, width: 44, height: 44 }}
+            onPress={() => onChange(null)}
+          >
+            <X size={18} color={muted} accessible={false} />
+          </Button>
+        ) : null}
+      </View>
+    </View>
+  );
+}

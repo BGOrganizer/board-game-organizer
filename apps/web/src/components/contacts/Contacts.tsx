@@ -32,6 +32,7 @@ import { NotificationCountBadge } from "@/components/common/ui/NotificationCount
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -390,42 +391,40 @@ export function Contacts() {
             if (key === "connections" || key === "requests" || key === "search") readSection(key);
           }}
         >
-          <Tabs.ListContainer style={{ overflow: "visible", paddingTop: 8, paddingRight: 8 }}>
-            <Tabs.List style={{ overflow: "visible" }}>
-              <Tabs.Tab
-                id="connections"
-                className="relative"
-                onPress={() => readSection("connections")}
-              >
-                {t`Connections`}
-                <ContactSectionBadge
-                  section="connections"
-                  userIds={connections
-                    .filter((row) => row.key !== "device")
-                    .flatMap((row) => row.users.map((user) => user.id))}
-                />
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              <Tabs.Tab id="requests" className="relative" onPress={() => readSection("requests")}>
-                {t`Requests`}
-                <ContactSectionBadge
-                  section="requests"
-                  userIds={[...pendingRows, ...sentRows].flatMap((row) =>
-                    row.profile ? [row.profile.id] : [],
-                  )}
-                />
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              <Tabs.Tab id="search" className="relative" onPress={() => readSection("search")}>
-                {t`Search`}
-                <ContactSectionBadge
-                  section="search"
-                  userIds={[...searchResults, ...bgoContacts].map((user) => user.id)}
-                />
-                <Tabs.Indicator />
-              </Tabs.Tab>
-            </Tabs.List>
-          </Tabs.ListContainer>
+          <TabBar label={t`Contacts`}>
+            <Tabs.Tab
+              id="connections"
+              className="relative"
+              onPress={() => readSection("connections")}
+            >
+              {t`Connections`}
+              <ContactSectionBadge
+                section="connections"
+                userIds={connections
+                  .filter((row) => row.key !== "device")
+                  .flatMap((row) => row.users.map((user) => user.id))}
+              />
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="requests" className="relative" onPress={() => readSection("requests")}>
+              {t`Requests`}
+              <ContactSectionBadge
+                section="requests"
+                userIds={[...pendingRows, ...sentRows].flatMap((row) =>
+                  row.profile ? [row.profile.id] : [],
+                )}
+              />
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="search" className="relative" onPress={() => readSection("search")}>
+              {t`Search`}
+              <ContactSectionBadge
+                section="search"
+                userIds={[...searchResults, ...bgoContacts].map((user) => user.id)}
+              />
+              <Tabs.Indicator />
+            </Tabs.Tab>
+          </TabBar>
 
           <Tabs.Panel id="search" className="space-y-3 pt-4">
             <SearchInput

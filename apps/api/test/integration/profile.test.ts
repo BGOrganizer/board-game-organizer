@@ -492,6 +492,31 @@ it("source-pages the current network since its live edge, deduplicates friendshi
         Date.parse(i.occurredAt) >= Date.parse(at),
     ),
   ).toBe(true);
+  const filtered = await profiles.networkFeed(viewer, {
+    network: "all",
+    kind: "group_join",
+    limit: 10,
+  });
+  expect(filtered.items).toHaveLength(10);
+  expect(filtered.items.every((row) => row.kind === "group_join" && row.groupId === publicId)).toBe(
+    true,
+  );
+  expect(filtered.nextCursor).not.toBeNull();
+  const tail = await profiles.networkFeed(viewer, {
+    network: "all",
+    kind: "group_join",
+    limit: 10,
+    cursor: filtered.nextCursor ?? undefined,
+  });
+  expect(tail.items).toHaveLength(2);
+  expect(tail.nextCursor).toBeNull();
+  expect(new Set([...filtered.items, ...tail.items].map((row) => row.id)).size).toBe(12);
+  expect(
+    (await profiles.networkFeed(viewer, { network: "all", kind: "friendship", limit: 10 })).items,
+  ).toHaveLength(1);
+  expect(
+    (await profiles.networkFeed(viewer, { network: "all", kind: "event_join", limit: 10 })).items,
+  ).toHaveLength(0);
   expect(JSON.stringify(all)).not.toContain("NEVER PRIVATE");
   expect(JSON.stringify(all)).not.toContain("@private.test");
   expect(
@@ -515,6 +540,9 @@ it("source-pages the current network since its live edge, deduplicates friendshi
   expect(
     (await profiles.networkFeed(viewer, { network: "following", limit: 10 })).items[0],
   ).toMatchObject({ kind: "event_join", context: "Public linked Event" });
+  expect(
+    (await profiles.networkFeed(viewer, { network: "all", kind: "event_join", limit: 10 })).items,
+  ).toHaveLength(1);
   await db
     .collection(C.FOLLOWS)
     .updateOne(

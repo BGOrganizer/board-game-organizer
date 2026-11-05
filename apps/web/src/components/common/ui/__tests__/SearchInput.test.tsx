@@ -65,6 +65,10 @@ it("opening help inside the field does not inherit the clear-button action", () 
   expect(input.value).toBe("Cascadia");
 });
 
+it.each(["Games", 42])("associates primitive label %s with the actual search field", (label) => {
+  renderWithI18n(<SearchInput value="" onChange={vi.fn()} label={label} placeholder="Filter" />);
+  expect(screen.getByRole("searchbox", { name: String(label) })).toBeTruthy();
+});
 it("does not impose a query length limit or threshold on local pickers", () => {
   renderWithI18n(
     <SearchInput

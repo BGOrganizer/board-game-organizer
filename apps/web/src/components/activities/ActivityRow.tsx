@@ -7,9 +7,20 @@ import { CalendarDays, Dices, Handshake, Trophy, UserRoundPlus, UsersRound } fro
 import Link from "next/link";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 
-export function ActivityRow({ item, author }: { item: ProfileActivity; author?: ActivityAuthor }) {
+export function ActivityRow({
+  item,
+  author,
+  viewerId,
+}: {
+  item: ProfileActivity;
+  author?: ActivityAuthor;
+  viewerId?: string | null;
+}) {
   const { t, i18n } = useLingui();
-  const story = activityNarrative(item, author, t`Someone`, t`Unavailable source`);
+  const story = activityNarrative(item, author, t`Someone`, t`Unavailable source`, {
+    id: viewerId,
+    name: t`You`,
+  });
   const icons = {
     played: Dices,
     friendship: Handshake,

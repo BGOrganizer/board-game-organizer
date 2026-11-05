@@ -174,7 +174,7 @@ it("always exposes native Dates/Locations/Games and never hides schedule tabs fo
   );
   const tabs: string[] = [];
   function visit(node: ts.Node) {
-    if (ts.isJsxOpeningElement(node) && node.tagName.getText(file) === "Tabs.Trigger") {
+    if (ts.isJsxOpeningElement(node) && node.tagName.getText(file) === "TabTrigger") {
       const value = node.attributes.properties
         .filter(ts.isJsxAttribute)
         .find((attribute) => attribute.name.getText(file) === "value");

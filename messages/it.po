@@ -5762,3 +5762,47 @@ msgstr "Gestisci membro"
 #: apps/web/src/components/groups/GroupMembers.tsx
 msgid "Remove moderator permissions? Group membership and event participation remain unchanged."
 msgstr "Revocare i permessi di moderatore? L'iscrizione al gruppo e la partecipazione agli eventi restano invariate."
+
+#. js-lingui-explicit-id
+msgid "activity.self.played"
+msgstr "<actor/> hai giocato al tavolo <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.won"
+msgstr "<actor/> hai giocato e vinto al tavolo <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.friendship"
+msgstr "<actor/> hai stretto amicizia con <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.follower"
+msgstr "<actor/> hai iniziato a seguire <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.table_join"
+msgstr "<actor/> ti sei unito al tavolo <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.event_join"
+msgstr "<actor/> ti sei unito all’evento <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.group_join"
+msgstr "<actor/> fai ora parte del gruppo <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.milestone"
+msgstr "<actor/> hai raggiunto {count, plural, one {# vittoria} other {# vittorie}} al tavolo <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.milestoneUnknown"
+msgstr "<actor/> hai raggiunto un traguardo di vittorie al tavolo <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.followed-you"
+msgstr "<actor/> ha iniziato a seguirti."
+
+#. js-lingui-explicit-id
+msgid "activity.friends-with-you"
+msgstr "<actor/> ha stretto amicizia con te."

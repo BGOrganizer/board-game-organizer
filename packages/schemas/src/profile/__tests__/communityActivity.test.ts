@@ -11,11 +11,25 @@ it("accepts only a ten-row, cursor-paged current-network selection", () => {
         cursor: "2030-01-01T00:00:00.000Z|11111111-1111-4111-8111-111111111111",
       }).network,
     ).toBe(network);
+  for (const kind of [
+    "played",
+    "friendship",
+    "event_join",
+    "table_join",
+    "group_join",
+    "follower",
+    "milestone",
+  ])
+    expect(communityActivityQuerySchema.parse({ kind })).toEqual({
+      network: "all",
+      kind,
+      limit: 10,
+    });
   for (const input of [
     { network: "followers" },
     { limit: 5 },
     { limit: 100 },
-    { kind: "played" },
+    { kind: "unknown" },
     { viewer: "other" },
     { cursor: "secret" },
     { cursor: "2030-01-01T00:00:00Z|11111111-1111-4111-8111-111111111111" },

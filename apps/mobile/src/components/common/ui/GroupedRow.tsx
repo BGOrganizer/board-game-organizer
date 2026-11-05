@@ -3,11 +3,7 @@ import type { ReactNode } from "react";
 
 export function GroupedRow({ children }: { children: ReactNode }) {
   return (
-    <ListGroup.Item
-      accessible={false}
-      className="border-b border-muted/20 last:border-b-0"
-      style={{ padding: 12, paddingLeft: 16, gap: 8 }}
-    >
+    <ListGroup.Item accessible={false} style={{ padding: 12, paddingLeft: 16, gap: 8 }}>
       {children}
     </ListGroup.Item>
   );

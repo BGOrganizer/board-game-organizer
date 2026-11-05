@@ -151,14 +151,24 @@ export function useProfileActivities(
   });
   return useProfileReadGuard(o, subject, query);
 }
-export function communityActivitiesQuery(o: CommunityApiOptions, network: CommunityNetwork) {
+export function communityActivitiesQuery(
+  o: CommunityApiOptions,
+  network: CommunityNetwork,
+  kind?: ProfileActivityKind,
+) {
   return infiniteQueryOptions({
-    queryKey: [...profileViewKeys.root(o), "network", network, ACTIVITY_FEED_POLICY] as const,
+    queryKey: [
+      ...profileViewKeys.root(o),
+      "network",
+      network,
+      ...(kind ? ["kind", kind] : []),
+      ACTIVITY_FEED_POLICY,
+    ] as const,
     initialPageParam: "",
     queryFn: ({ pageParam, signal }) =>
       communityRequest<CommunityActivityPage>(
         o,
-        `community/activities?${new URLSearchParams({ network, limit: "10", ...(pageParam ? { cursor: pageParam } : {}) })}`,
+        `community/activities?${new URLSearchParams({ network, limit: "10", ...(kind ? { kind } : {}), ...(pageParam ? { cursor: pageParam } : {}) })}`,
         "GET",
         undefined,
         signal,
@@ -167,9 +177,13 @@ export function communityActivitiesQuery(o: CommunityApiOptions, network: Commun
     staleTime: 60_000,
   });
 }
-export function useCommunityActivities(o: CommunityApiOptions, network: CommunityNetwork) {
+export function useCommunityActivities(
+  o: CommunityApiOptions,
+  network: CommunityNetwork,
+  kind?: ProfileActivityKind,
+) {
   return useInfiniteQuery({
-    ...communityActivitiesQuery(o, network),
+    ...communityActivitiesQuery(o, network, kind),
     enabled: o.enabled !== false && Boolean(o.userId),
   });
 }

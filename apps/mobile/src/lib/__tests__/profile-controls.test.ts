@@ -8,7 +8,13 @@ import { expect, it, vi } from "vitest";
 function source(name: string) {
   return ts.createSourceFile(
     name,
-    readFileSync(new URL(`../../components/profile/${name}.tsx`, import.meta.url), "utf8"),
+    readFileSync(
+      new URL(
+        `../../components/${name === "RatingGameSelect" ? "ratings" : "profile"}/${name}.tsx`,
+        import.meta.url,
+      ),
+      "utf8",
+    ),
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TSX,
@@ -64,17 +70,24 @@ it.each([undefined, { value: "7", label: "Chess" }])(
   "supports empty/selected native game values: %j",
   (value) => {
     const setView = vi.fn();
-    evaluate(attribute("ProfilePlayer", "Select", "onValueChange"), { setView, viewKey: "scope" })(
-      value,
-    );
+    const onChange = (gameId: number | null) =>
+      evaluate(attribute("ProfilePlayer", "RatingGameSelect", "onChange"), {
+        setView,
+        viewKey: "scope",
+      })(gameId);
+    evaluate(attribute("RatingGameSelect", "Select", "onValueChange"), { onChange })(value);
     expect(setView).toHaveBeenCalledWith("scope", { gameId: value ? 7 : null });
   },
 );
 it("clears native selection through a separate accessible action and hides cached history at null", () => {
   const setView = vi.fn();
-  evaluate(attribute("ProfilePlayer", "Button", "onPress", "Clear selected game"), {
-    setView,
-    viewKey: "scope",
+  const onChange = (gameId: number | null) =>
+    evaluate(attribute("ProfilePlayer", "RatingGameSelect", "onChange"), {
+      setView,
+      viewKey: "scope",
+    })(gameId);
+  evaluate(attribute("RatingGameSelect", "Button", "onPress", "Clear board game selection"), {
+    onChange,
   })();
   expect(setView).toHaveBeenCalledWith("scope", { gameId: null });
   const context = {

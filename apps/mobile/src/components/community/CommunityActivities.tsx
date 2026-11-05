@@ -1,4 +1,4 @@
-import { communityNetworkSchema } from "@board-game-organizer/schemas";
+import { profileActivityKindSchema } from "@board-game-organizer/schemas";
 import {
   activitySections,
   communityAccessDenied,
@@ -8,13 +8,13 @@ import { useAppStore } from "@board-game-organizer/store";
 import { useLingui } from "@lingui/react";
 import { useFocusEffect } from "expo-router";
 import { Button } from "heroui-native/button";
-import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { useCallback, useRef } from "react";
 import { SectionList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ActivityRow } from "@/components/activities/ActivityRow";
+import { ActivityTypeSelect } from "@/components/activities/ActivityTypeSelect";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -24,9 +24,11 @@ export function CommunityActivities() {
     o = useCommunityApi(),
     insets = useSafeAreaInsets(),
     key = JSON.stringify([o.apiUrl, o.userId]);
-  const network = useAppStore((s) => s.communityViews[key]?.network ?? "all"),
+  const filter = useAppStore((s) => s.communityViews[key]?.activityKind ?? ""),
     setView = useAppStore((s) => s.setCommunityView);
-  const q = useCommunityActivities(o, network),
+  const parsed = profileActivityKindSchema.safeParse(filter);
+  const kind = parsed.success ? parsed.data : undefined;
+  const q = useCommunityActivities(o, "all", kind),
     denied = communityAccessDenied(q.error);
   const sections = activitySections(
     denied ? [] : (q.data?.pages.flatMap((p) => p.items) ?? []),
@@ -34,11 +36,6 @@ export function CommunityActivities() {
     t("Today"),
     t("Yesterday"),
   );
-  const labels = {
-    all: t("All activities"),
-    friends: t("Friends"),
-    following: t("Followed users"),
-  };
   const refetch = q.refetch,
     refresh = useRef({ stale: q.isStale, fetching: q.isFetching });
   refresh.current = { stale: q.isStale, fetching: q.isFetching };
@@ -56,7 +53,7 @@ export function CommunityActivities() {
       stickySectionHeadersEnabled={false}
       renderItem={({ item, index, section }) => (
         <GroupedList segment={{ index, count: section.data.length }}>
-          <ActivityRow item={item} author={item.author} />
+          <ActivityRow item={item} author={item.author} viewerId={o.userId} />
         </GroupedList>
       )}
       renderSectionHeader={({ section }) => (
@@ -80,31 +77,10 @@ export function CommunityActivities() {
           <Typography className="text-sm text-muted">
             {t("Updates from friends and people you follow, since your connection began.")}
           </Typography>
-          <Select
-            value={{ value: network, label: labels[network] }}
-            onValueChange={(value) => {
-              const parsed = communityNetworkSchema.safeParse(value?.value);
-              if (parsed.success) setView(key, { network: parsed.data });
-            }}
-          >
-            <Select.Trigger accessibilityLabel={t("Network")}>
-              <Typography className="text-foreground" style={{ flex: 1 }}>
-                {labels[network]}
-              </Typography>
-              <Select.TriggerIndicator />
-            </Select.Trigger>
-            <Select.Portal>
-              <Select.Overlay />
-              <Select.Content presentation="popover" width="trigger">
-                {communityNetworkSchema.options.map((value) => (
-                  <Select.Item key={value} value={value} label={labels[value]}>
-                    <Typography className="text-foreground">{labels[value]}</Typography>
-                    <Select.ItemIndicator />
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Portal>
-          </Select>
+          <ActivityTypeSelect
+            value={kind}
+            onChange={(activityKind) => setView(key, { activityKind: activityKind ?? "" })}
+          />
           {q.isError ? (
             <View style={{ gap: 8 }}>
               <Typography accessibilityRole="alert" className="text-danger">

@@ -3,6 +3,7 @@ import { Tabs } from "heroui-native/tabs";
 import { useState } from "react";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
@@ -38,14 +39,14 @@ export function Events({
         style={{ flex: 1 }}
       >
         <MainTabBar>
-          <Tabs.Trigger value="mine" style={{ flexDirection: "row", gap: 6 }}>
+          <TabTrigger value="mine" style={{ flexDirection: "row", gap: 6 }}>
             <Tabs.Label numberOfLines={1}>{t("Registered")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
-          </Tabs.Trigger>
-          <Tabs.Trigger value="available" style={{ flexDirection: "row", gap: 6 }}>
+          </TabTrigger>
+          <TabTrigger value="available" style={{ flexDirection: "row", gap: 6 }}>
             <Tabs.Label numberOfLines={1}>{t("Available")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
-          </Tabs.Trigger>
+          </TabTrigger>
         </MainTabBar>
         <View style={{ flex: 1 }}>
           <EventList key={section} section={section} canCreate={canCreate} />

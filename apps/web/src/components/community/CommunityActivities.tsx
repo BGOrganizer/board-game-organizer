@@ -1,14 +1,15 @@
 "use client";
-import { communityNetworkSchema } from "@board-game-organizer/schemas";
+import { profileActivityKindSchema } from "@board-game-organizer/schemas";
 import {
   activitySections,
   communityAccessDenied,
   useCommunityActivities,
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { Button, Label, ListBox, Select, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ActivityRow } from "@/components/activities/ActivityRow";
+import { ActivityTypeSelect } from "@/components/activities/ActivityTypeSelect";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -17,13 +18,14 @@ export function CommunityActivities() {
   const { t, i18n } = useLingui(),
     o = useCommunityApi(),
     key = JSON.stringify([o.apiUrl, o.userId]);
-  const network = useAppStore((s) => s.communityViews[key]?.network ?? "all"),
+  const filter = useAppStore((s) => s.communityViews[key]?.activityKind ?? ""),
     setView = useAppStore((s) => s.setCommunityView);
-  const q = useCommunityActivities(o, network),
+  const parsed = profileActivityKindSchema.safeParse(filter);
+  const kind = parsed.success ? parsed.data : undefined;
+  const q = useCommunityActivities(o, "all", kind),
     denied = communityAccessDenied(q.error);
   const rows = denied ? [] : (q.data?.pages.flatMap((p) => p.items) ?? []);
   const sections = activitySections(rows, i18n.locale, t`Today`, t`Yesterday`);
-  const labels = { all: t`All activities`, friends: t`Friends`, following: t`Followed users` };
   const end = useInfiniteScroll({ ...q, hasNextPage: !denied && q.hasNextPage });
   return (
     <div className="space-y-4">
@@ -31,29 +33,10 @@ export function CommunityActivities() {
         <h2 className="font-semibold">{t`Your network's activities`}</h2>
         <p className="text-sm text-muted">{t`Updates from friends and people you follow, since your connection began.`}</p>
       </div>
-      <Select
-        value={network}
-        onChange={(value) => {
-          const parsed = communityNetworkSchema.safeParse(value);
-          if (parsed.success) setView(key, { network: parsed.data });
-        }}
-      >
-        <Label>{t`Network`}</Label>
-        <Select.Trigger>
-          <Select.Value />
-          <Select.Indicator />
-        </Select.Trigger>
-        <Select.Popover>
-          <ListBox>
-            {communityNetworkSchema.options.map((value) => (
-              <ListBox.Item key={value} id={value} textValue={labels[value]}>
-                {labels[value]}
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            ))}
-          </ListBox>
-        </Select.Popover>
-      </Select>
+      <ActivityTypeSelect
+        value={kind}
+        onChange={(activityKind) => setView(key, { activityKind: activityKind ?? "" })}
+      />
       {q.isPending && !q.data ? <Skeleton className="h-44 w-full rounded-xl" /> : null}
       {q.isError ? (
         <div role="alert" className="space-y-2">
@@ -70,7 +53,7 @@ export function CommunityActivities() {
           <h3 className="text-sm font-semibold text-muted">{section.title}</h3>
           <GroupedList>
             {section.data.map((item) => (
-              <ActivityRow key={item.id} item={item} author={item.author} />
+              <ActivityRow key={item.id} item={item} author={item.author} viewerId={o.userId} />
             ))}
           </GroupedList>
         </section>

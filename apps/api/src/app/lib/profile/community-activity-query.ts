@@ -1,4 +1,4 @@
-import type { CommunityNetwork } from "@board-game-organizer/schemas";
+import type { CommunityNetwork, ProfileActivityKind } from "@board-game-organizer/schemas";
 import type { Document } from "mongodb";
 import { COLLECTIONS as C } from "../db";
 
@@ -152,6 +152,7 @@ export function communityActivityStages(
   network: CommunityNetwork,
   blocked: string[],
   cursor?: string,
+  kind?: ProfileActivityKind,
 ): Document[] {
   const [at, id] = cursor?.split("|") ?? [];
   const visible = { userId: { $nin: [viewer, ...blocked] }, otherUserId: { $nin: blocked } };
@@ -159,6 +160,7 @@ export function communityActivityStages(
     {
       $match: {
         ...visible,
+        ...(kind ? { kind } : {}),
         ...(at && id
           ? { $or: [{ occurredAt: { $lt: at } }, { occurredAt: at, id: { $lt: id } }] }
           : {}),

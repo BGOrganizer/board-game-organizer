@@ -81,11 +81,17 @@ export class ProfileActivitiesRepository {
         });
     }
   }
-  networkPage(viewer: string, network: CommunityNetwork, blocked: string[], cursor?: string) {
+  networkPage(
+    viewer: string,
+    network: CommunityNetwork,
+    blocked: string[],
+    cursor?: string,
+    kind?: ProfileActivityRecord["kind"],
+  ) {
     return this.db
       .collection<ProfileActivityRecord>(COLLECTIONS.PROFILE_ACTIVITIES)
       .aggregate<ProfileActivityRecord>(
-        communityActivityStages(viewer, network, blocked, cursor),
+        communityActivityStages(viewer, network, blocked, cursor, kind),
         this.opts,
       )
       .toArray();

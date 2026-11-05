@@ -1,5 +1,38 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Profile / Community presentation harmony — implemented; device acceptance incomplete
+
+- App-owned shared tab bars remove full-width stretching and the painted empty tail, center fitting
+  content, preserve narrow overflow and align main/detail spacing. Native triggers keep 44px targets.
+  Profile preview/history and Community use contiguous grouped rows, one separator per boundary and
+  no native per-cell padding/shadow. No cross-platform JSX or replacement UI library was introduced.
+- Actual viewer IDs select You/Tu, correct actor/recipient verbs and unlinked self identities across
+  all seven narratives, wins and milestone plurals. Reversed follower ownership, literal names and
+  source privacy remain intact. Community now exposes Profile's same eight activity-kind choices;
+  optional `kind` filters MongoDB source paging and scoped Query keys. Visible network stays the
+  current friend/follow union; legacy API network scopes remain available without hidden UI filtering.
+- Profile Player and Group Rankings share platform presentation-only game selectors with artwork,
+  bounded options and a separate X within trigger bounds, not the load-more container. Retained IDs
+  remain clearable without metadata. Search results are not supplemented with unmatched selections;
+  GLOBAL/GROUP query ownership remains separate. Web search labels now bind primitive label text
+  correctly. Real Chromium checks also caught narrow popover overflow and focused-search Escape;
+  the selector bounds its popover and closes through its controlled HeroUI state.
+- **2,662 covered units pass, zero skips:** mobile 390, web 848, API 834, schemas 142, shared 448.
+  Deterministic activity narratives retain 100% per-file coverage; existing gates are unchanged.
+  **Six real disposable-Mongo Profile/network integrations pass, zero skips**, including kind-filtered
+  paging, deduplication and privacy. A full integration rerun hit its local 10-minute deadline after
+  passing repository cases; it is not claimed as a full-suite pass. The earlier moderator checkpoint's
+  full 123-test result below predates this change. No application DB/provider mutations ran.
+- **16 isolated actual-component/production-CSS Chromium cases pass:** 320/390/1024/1280, EN/IT,
+  light/dark; compact centered equal-height Profile/Community/Groups/Events tabs, zero row gaps across
+  preview/history/Community, correct own prose, identical kind options, covers, contained reset and
+  focus restoration. No overflow, runtime errors or external requests. These fixture checks are not
+  authenticated browser or native-device acceptance. Existing owned-fixture Playwright/Maestro
+  scenarios now follow kind filtering and canonical clear labels; canonical CI jobs remain unchanged.
+- Typecheck and API/web builds pass. Generated references were restored byte-for-byte. EN/IT catalogs
+  extracted/compiled with all 1,395 prior IDs/values retained and 11 new narrative IDs (1,406 total).
+  Native visual/large-text, authenticated acceptance and fresh APK verification remain outstanding.
+
 ## Delegated Group moderators and member action sheets — implemented; acceptance incomplete
 
 - Creator alone promotes/demotes accepted Group members with versioned confirmation. Optional

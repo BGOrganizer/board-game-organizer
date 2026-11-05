@@ -5,12 +5,12 @@ import {
   useProfileRatingGames,
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { Button, Label, ListBox, Select, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileRatingChart } from "./ProfileRatingChart";
 import { ProfileStats } from "./ProfileStats";
@@ -20,7 +20,6 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
     o = useCommunityApi();
   const gameId = useAppStore((s) => s.profileViews[viewKey]?.gameId ?? null),
     setView = useAppStore((s) => s.setProfileView);
-  const trigger = useRef<HTMLButtonElement>(null);
   const [search, setSearch] = useState(""),
     [query, setQuery] = useState("");
   useEffect(() => {
@@ -38,72 +37,42 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
       : history.data?.pages[0];
   const selected =
     gameId === null ? undefined : (choices.find((g) => g.id === gameId) ?? data?.game);
-  const options =
-    selected && !choices.some((g) => g.id === selected.id) ? [selected, ...choices] : choices;
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
   const points = [...(history.data?.pages ?? [])].reverse().flatMap((p) => p.points);
   return (
     <section className="space-y-3" aria-label={t`OpenSkill statistics`}>
       <h2 className="font-semibold">{t`OpenSkill statistics`}</h2>
-      <Select
-        className="w-full"
-        placeholder={t`Select a board game`}
-        value={gameId === null ? null : String(gameId)}
-        onChange={(value) => setView(viewKey, { gameId: value === null ? null : Number(value) })}
-      >
-        <Label>{t`Board game`}</Label>
-        <div className="flex items-center gap-2">
-          <Select.Trigger ref={trigger} className="min-w-0 flex-1">
-            <Select.Value className="sr-only" />
-            <span className="min-w-0 flex-1 truncate text-left" aria-hidden>
-              {selected?.name ?? t`Select a board game`}
-            </span>
-            <Select.Indicator />
-          </Select.Trigger>
-          {gameId !== null ? (
-            <Button
-              slot={null}
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              className="min-h-11 min-w-11 shrink-0"
-              aria-label={t`Clear selected game`}
-              onPress={() => {
-                setView(viewKey, { gameId: null });
-                trigger.current?.focus();
-              }}
-            >
-              <X className="size-4" aria-hidden />
-            </Button>
-          ) : null}
-        </div>
-        <Select.Popover>
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            label={t`Filter games`}
-            placeholder={t`Filter games`}
-          />
-          <ListBox
-            className="max-h-72 overflow-auto"
-            renderEmptyState={() => (games.isError ? null : t`No rated games yet`)}
-          >
-            {options.map((game) => (
-              <ListBox.Item key={game.id} id={String(game.id)} textValue={game.name}>
-                {game.name}
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            ))}
-          </ListBox>
-          {games.hasNextPage ? (
+      <RatingGameSelect
+        selectedId={gameId}
+        value={selected}
+        games={choices}
+        onChange={(id) => setView(viewKey, { gameId: id })}
+        footer={
+          games.hasNextPage ? (
             <Button
               variant="secondary"
               isDisabled={games.isFetchingNextPage}
               onPress={() => void games.fetchNextPage()}
             >{t`Load more games`}</Button>
-          ) : null}
-        </Select.Popover>
-      </Select>
+          ) : undefined
+        }
+        empty={
+          games.isPending ? (
+            <Skeleton className="h-11 w-full rounded-xl" />
+          ) : games.isError ? (
+            <Button variant="secondary" onPress={() => void games.refetch()}>{t`Try again`}</Button>
+          ) : (
+            <p className="text-muted">{t`No games found`}</p>
+          )
+        }
+      >
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          label={t`Filter games`}
+          placeholder={t`Filter games`}
+        />
+      </RatingGameSelect>
       {games.isPending ? <Skeleton className="h-12 w-full rounded-xl" /> : null}
       {games.isError || (gameId !== null && history.isError) ? (
         <div role="alert">

@@ -6,15 +6,13 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
-import { useThemeColor } from "heroui-native/hooks";
-import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { X } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { FlatList, View } from "react-native";
+import { View } from "react-native";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileRatingChart } from "./ProfileRatingChart";
@@ -23,8 +21,7 @@ import { ProfileStats } from "./ProfileStats";
 export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: string }) {
   const t = useT(),
     { i18n } = useLingui(),
-    o = useCommunityApi(),
-    muted = useThemeColor("muted");
+    o = useCommunityApi();
   const gameId = useAppStore((s) => s.profileViews[viewKey]?.gameId ?? null),
     setView = useAppStore((s) => s.setProfileView);
   const [search, setSearch] = useState(""),
@@ -51,74 +48,45 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
       <Typography accessibilityRole="header" className="font-semibold text-foreground">
         {t("OpenSkill statistics")}
       </Typography>
-      <Select
-        value={selected ? { value: String(selected.id), label: selected.name } : undefined}
-        onValueChange={(v) => setView(viewKey, { gameId: v ? Number(v.value) : null })}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Select.Trigger accessibilityLabel={t("Board game")} style={{ flex: 1 }}>
-            <Typography className="text-foreground" style={{ flex: 1 }}>
-              {selected?.name ?? t("Select a board game")}
-            </Typography>
-            <Select.TriggerIndicator />
-          </Select.Trigger>
-          {gameId !== null ? (
+      <RatingGameSelect
+        selectedId={gameId}
+        value={selected}
+        games={choices}
+        onChange={(id) => setView(viewKey, { gameId: id })}
+        onEndReached={() => {
+          if (games.hasNextPage && !games.isFetchingNextPage && !games.isFetchNextPageError)
+            void games.fetchNextPage();
+        }}
+        footer={
+          games.hasNextPage ? (
             <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              style={{ minWidth: 44, minHeight: 44 }}
-              accessibilityLabel={t("Clear selected game")}
-              onPress={() => setView(viewKey, { gameId: null })}
+              variant="secondary"
+              isDisabled={games.isFetchingNextPage}
+              onPress={() => void games.fetchNextPage()}
             >
-              <X size={18} color={muted} accessible={false} />
+              <Button.Label>{t("Load more games")}</Button.Label>
             </Button>
-          ) : null}
-        </View>
-        <Select.Portal>
-          <Select.Overlay />
-          <Select.Content presentation="popover" width="trigger">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              label={t("Filter games")}
-              placeholder={t("Filter games")}
-            />
-            <FlatList
-              style={{ width: "100%", maxHeight: 280 }}
-              data={choices}
-              keyExtractor={(g) => String(g.id)}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
-                <Select.Item value={String(item.id)} label={item.name}>
-                  <Typography className="text-foreground">{item.name}</Typography>
-                  <Select.ItemIndicator />
-                </Select.Item>
-              )}
-              onEndReached={() => {
-                if (games.hasNextPage && !games.isFetchingNextPage) void games.fetchNextPage();
-              }}
-              ListFooterComponent={
-                games.isFetchingNextPage ? (
-                  <Skeleton style={{ width: "100%", height: 44, borderRadius: 8 }} />
-                ) : null
-              }
-              ListEmptyComponent={
-                games.isPending ? (
-                  <Skeleton style={{ width: "100%", height: 44, borderRadius: 8 }} />
-                ) : games.isError ? null : (
-                  <Typography className="text-muted">{t("No rated games yet")}</Typography>
-                )
-              }
-            />
-            {games.isError ? (
-              <Button variant="secondary" onPress={() => void games.refetch()}>
-                <Button.Label>{t("Try again")}</Button.Label>
-              </Button>
-            ) : null}
-          </Select.Content>
-        </Select.Portal>
-      </Select>
+          ) : undefined
+        }
+        empty={
+          games.isPending ? (
+            <Skeleton style={{ width: "100%", height: 44, borderRadius: 8 }} />
+          ) : games.isError ? (
+            <Button variant="secondary" onPress={() => void games.refetch()}>
+              <Button.Label>{t("Try again")}</Button.Label>
+            </Button>
+          ) : (
+            <Typography className="text-muted">{t("No games found")}</Typography>
+          )
+        }
+      >
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          label={t("Filter games")}
+          placeholder={t("Filter games")}
+        />
+      </RatingGameSelect>
       {games.isPending ? (
         <Skeleton style={{ width: "100%", height: 52, borderRadius: 12 }} />
       ) : null}

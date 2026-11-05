@@ -5762,3 +5762,47 @@ msgstr "Manage member"
 #: apps/web/src/components/groups/GroupMembers.tsx
 msgid "Remove moderator permissions? Group membership and event participation remain unchanged."
 msgstr "Remove moderator permissions? Group membership and event participation remain unchanged."
+
+#. js-lingui-explicit-id
+msgid "activity.self.played"
+msgstr "<actor/> played at table <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.won"
+msgstr "<actor/> played and won at table <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.friendship"
+msgstr "<actor/> became friends with <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.follower"
+msgstr "<actor/> started following <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.table_join"
+msgstr "<actor/> joined table <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.event_join"
+msgstr "<actor/> joined event <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.group_join"
+msgstr "<actor/> are now part of group <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.milestone"
+msgstr "<actor/> reached {count, plural, one {# victory} other {# victories}} at table <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.self.milestoneUnknown"
+msgstr "<actor/> reached a victory milestone at table <target/>."
+
+#. js-lingui-explicit-id
+msgid "activity.followed-you"
+msgstr "<actor/> started following you."
+
+#. js-lingui-explicit-id
+msgid "activity.friends-with-you"
+msgstr "<actor/> became friends with you."

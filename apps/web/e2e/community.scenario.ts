@@ -39,9 +39,14 @@ if (
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_live_")
 )
   throw new Error("Development Clerk only");
-async function read(page: Page, network: string, cursor?: string): Promise<CommunityActivityPage> {
+async function read(
+  page: Page,
+  network: string,
+  cursor?: string,
+  kind?: string,
+): Promise<CommunityActivityPage> {
   const url = withProtectionBypass(
-    `${api.href.replace(/\/$/, "")}/api/community/activities?${new URLSearchParams({ network, limit: "10", ...(cursor ? { cursor } : {}) })}`,
+    `${api.href.replace(/\/$/, "")}/api/community/activities?${new URLSearchParams({ network, limit: "10", ...(cursor ? { cursor } : {}), ...(kind ? { kind } : {}) })}`,
     process.env.VERCEL_PROTECTION_BYPASS,
   );
   return page.evaluate(async (url) => {
@@ -119,11 +124,29 @@ for (const width of [390, 1280])
       main.getByText(it ? "Prossimamente" : "Coming soon", { exact: true }),
     ).toBeVisible();
     await main.getByRole("tab", { name: it ? "Attività" : "Activities", exact: true }).click();
-    await main.getByRole("button", { name: it ? "Rete" : "Network", exact: false }).click();
-    await page.getByRole("option", { name: it ? "Amici" : "Friends", exact: true }).click();
-    await expect(
-      main.getByRole("button", { name: it ? "Rete" : "Network", exact: false }),
-    ).toContainText(it ? "Amici" : "Friends");
+    const kind = all.items[0].kind;
+    const kindLabels = {
+      played: it ? "Partita giocata" : "Game played",
+      friendship: it ? "Nuova amicizia" : "New friendship",
+      event_join: it ? "Partecipazione a un evento" : "Joined an event",
+      table_join: it ? "Partecipazione a un tavolo" : "Joined a table",
+      group_join: it ? "Ingresso in un gruppo" : "Joined a group",
+      follower: it ? "Nuovo follower" : "New follower",
+      milestone: it ? "Traguardo di vittorie" : "Victory milestone",
+    };
+    const filter = main.getByRole("button", {
+      name: it ? "Tipo di attività" : "Activity type",
+      exact: false,
+    });
+    await filter.click();
+    await expect(page.getByRole("option")).toHaveCount(8);
+    await page.getByRole("option", { name: kindLabels[kind], exact: true }).click();
+    await expect(filter).toContainText(kindLabels[kind]);
+    const filtered = await read(page, "all", undefined, kind);
+    expect(filtered.items.length).toBeGreaterThan(0);
+    expect(filtered.items.every((item) => item.kind === kind)).toBe(true);
+    expect(JSON.stringify(filtered)).not.toContain(privateText);
+    expect(JSON.stringify(filtered)).not.toContain(beforeText);
     await page.goto(eventPath);
     await expect(
       page.getByText(
@@ -140,8 +163,8 @@ for (const width of [390, 1280])
     await expect(page.locator('a[href$="/results"]')).toHaveCount(0);
     await page.goto("/community");
     await expect(
-      page.getByRole("button", { name: it ? "Rete" : "Network", exact: false }),
-    ).toContainText(it ? "Amici" : "Friends");
+      page.getByRole("button", { name: it ? "Tipo di attività" : "Activity type", exact: false }),
+    ).toContainText(kindLabels[kind]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

@@ -18,7 +18,8 @@ visibility with a current-network/time selection; no offline mode is enabled.
   tab containing the existing BGG synchronization card. Other-user profiles never expose that tab or
   owner BGG controls. Tab, game and activity-filter selections belong to scoped local UI state.
   Logout stays outside tabs, remains reachable on profile failure and requires confirmation; native
-  retains cache-safe signout.
+  retains cache-safe signout. Profile, Community and existing main/detail destinations share each
+  platform's compact centered/overflowing tab geometry, normal text size and consistent spacing.
 
 ## Aggregate and rating rules
 
@@ -31,7 +32,10 @@ visibility with a current-network/time selection; no offline mode is enabled.
   No private activity detail becomes visible because its aggregate is visible.
 - Game selection source-pages GLOBAL personal skill snapshots with positive gamesPlayed. Selection
   starts empty and a separate accessible X action resets it to empty without automatically choosing
-  the first game or showing stale history. A retained snapshot remains selectable after its source
+  the first game or showing stale history. Profile Player and Group Rankings reuse a presentation-only
+  platform selector with covers, bounded options and an X inside the trigger's own control, separate
+  from paging controls. Missing metadata does not prevent clearing a retained ID. GLOBAL/GROUP
+  queries remain separate; selected metadata never invents a matching search result. A retained snapshot remains selectable after its source
   history is deleted; it does not recreate that history.
 - Curves use surviving classified unified Table rating events only, preserving existing OpenSkill
   and ND treatment. Internal ordering uses authoritative after.gamesPlayed, not wall-clock ordering.
@@ -62,7 +66,9 @@ visibility with a current-network/time selection; no offline mode is enabled.
 - Profile and Community use the same localized full-sentence narratives, linked public identities,
   compact text spacing and GroupedList rows. Follow receipts describe the other user following the
   Profile subject, not the reverse. Safe author projections accompany current pages; cached older
-  Profile rows use the subject's existing query identity. Names render as React text, never markup.
+  Profile rows use the subject's existing query identity. Viewer IDs select You/Tu, correct actor/
+  recipient grammar and unlinked self names, including reverse-owned follower receipts. Names
+  render as React text, never markup. Preview, history and Community retain continuous grouped rows.
 - Authorization precedes the visible page limit: latest five, full pages of ten, seven type filters,
   descending instant/UUID cursors. Bounded source chunks may be scanned to fill an authorized page;
   cursors refer only to returned visible rows. No browsing action acknowledges source notifications.
@@ -91,10 +97,12 @@ Existing deployment isolation and operational gates apply.
 
 Unit checks cover API privacy, strict queries/Preview bypass, ND/roster rules, receipt deduplication,
 ordinal history, milestones, selective cache behavior, localization and owner/other UI paths.
-`test/integration/profile.test.ts` requires a real isolated MongoDB replica-set container. All 120
-API integration tests in four files now pass with zero skips, including six profile/network cases, partial
-stored outcomes and concurrent unrated milestone crossings. This is not authenticated UI/provider
-or native-device acceptance.
+`test/integration/profile.test.ts` requires a real isolated MongoDB replica-set container. The current
+six profile/network cases pass with zero skips, including kind-filtered source paging, privacy,
+deduplication, partial stored outcomes and concurrent unrated milestone crossings. The preceding
+moderator checkpoint passed all 123 API integrations in four files; the current full rerun exceeded its
+local deadline and is not a new full-suite pass. This is not authenticated UI/provider or native-device
+acceptance.
 
 Explicit real-fixture web run: `pnpm --filter web exec playwright test --config e2e/profile.config.ts`.
 Set PROFILE_LOCALE=en|it, PROFILE_THEME=light|dark, PROFILE_API_URL (local/Preview origin), E2E_EMAIL,

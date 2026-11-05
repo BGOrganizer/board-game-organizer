@@ -2,14 +2,14 @@
 
 import { resolveApiUrl, useGroupLeaderboard } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Label, ListBox, Select, Skeleton, Table } from "@heroui/react";
+import { Avatar, Button, Skeleton, Table } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Clock3, Dices, X } from "lucide-react";
+import { Clock3, Dices } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
-import { LeaderboardGameCover } from "@/components/ratings/LeaderboardGameCover";
+import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
 
 const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 const protectionBypass = process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
@@ -84,81 +84,38 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-sm">
-        <Select
-          className="w-full"
-          placeholder={t`Select a board game`}
-          value={gameId === null ? null : String(gameId)}
-          onChange={(value) => setGameId(value === null ? null : Number(value))}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSearch("");
-              setDebouncedSearch("");
-            }
-          }}
-        >
-          <Label>{t`Board game`}</Label>
-          <Select.Trigger className={selectedGame ? "w-full items-center gap-2 pe-10" : "w-full"}>
-            {selectedGame ? <LeaderboardGameCover imageUrl={selectedGame.imageUrl} /> : null}
-            <Select.Value className="sr-only" />
-            <span
-              aria-hidden="true"
-              data-slot="selected-game-name"
-              className="min-w-0 flex-1 truncate text-left"
-            >
-              {selectedGame?.name ?? t`Select a board game`}
-            </span>
-            {!selectedGame ? <Select.Indicator /> : null}
-          </Select.Trigger>
-          <Select.Popover>
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder={t`Search board games`}
-              label={
-                <SearchHelpLabel
-                  label={t`Search board games`}
-                  help={t`Type at least 4 characters to search`}
-                />
-              }
+      <RatingGameSelect
+        selectedId={gameId}
+        value={selectedGame}
+        games={filteredGames ?? []}
+        onChange={setGameId}
+        onClose={() => {
+          setSearch("");
+          setDebouncedSearch("");
+        }}
+        footer={
+          games.hasNextPage ? (
+            <Button
+              variant="secondary"
+              isDisabled={games.isFetchingNextPage}
+              onPress={() => void games.fetchNextPage()}
+            >{t`Load more games`}</Button>
+          ) : undefined
+        }
+        empty={<p className="text-muted">{t`No games found`}</p>}
+      >
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          label={
+            <SearchHelpLabel
+              label={t`Search board games`}
+              help={t`Type at least 4 characters to search`}
             />
-            <ListBox
-              renderEmptyState={() => (
-                <EmptyList icon={<Dices className="size-7" />}>{t`No games found`}</EmptyList>
-              )}
-            >
-              {filteredGames?.map((game) => (
-                <ListBox.Item key={game.id} id={String(game.id)} textValue={game.name}>
-                  <span className="flex items-center gap-2">
-                    <LeaderboardGameCover imageUrl={game.imageUrl} />
-                    <span className="min-w-0 flex-1 truncate">{game.name}</span>
-                  </span>
-                  <ListBox.ItemIndicator />
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
-        </Select>
-        {games.hasNextPage ? (
-          <Button
-            variant="outline"
-            isDisabled={games.isFetchingNextPage}
-            onPress={() => void games.fetchNextPage()}
-          >{t`Load more games`}</Button>
-        ) : null}
-        {selectedGame ? (
-          <Button
-            isIconOnly
-            variant="ghost"
-            size="sm"
-            className="absolute end-1 bottom-1 z-10"
-            aria-label={t`Clear board game selection`}
-            onPress={() => setGameId(null)}
-          >
-            <X className="size-4" aria-hidden="true" />
-          </Button>
-        ) : null}
-      </div>
+          }
+          placeholder={t`Search board games`}
+        />
+      </RatingGameSelect>
       {gameId !== null ? (
         players.isPending ? (
           <Skeleton className="h-32 w-full rounded-xl" />

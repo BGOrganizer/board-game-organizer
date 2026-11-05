@@ -4,6 +4,7 @@ import { Tabs } from "heroui-native/tabs";
 import { Activity, Store } from "lucide-react-native";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { CommunityActivities } from "./CommunityActivities";
@@ -27,14 +28,14 @@ export function Community() {
         }}
       >
         <MainTabBar>
-          <Tabs.Trigger value="activity" style={tabStyle}>
+          <TabTrigger value="activity" style={tabStyle}>
             <Activity size={16} color={tab === "activity" ? accent : muted} accessible={false} />
             <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
-          </Tabs.Trigger>
-          <Tabs.Trigger value="market" style={tabStyle}>
+          </TabTrigger>
+          <TabTrigger value="market" style={tabStyle}>
             <Store size={16} color={tab === "market" ? accent : muted} accessible={false} />
             <Tabs.Label numberOfLines={1}>{t("Marketplace")}</Tabs.Label>
-          </Tabs.Trigger>
+          </TabTrigger>
         </MainTabBar>
         {tab === "activity" ? <CommunityActivities /> : <CommunityMarketplace />}
       </Tabs>
