@@ -29,7 +29,11 @@ export function RatingGameSelect({
   const { t } = useLingui();
   const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const openRef = useRef(false);
   const changeOpen = (next: boolean) => {
+    // Overlay dismissal and search Escape can request the same transition before React commits.
+    if (openRef.current === next) return;
+    openRef.current = next;
     setOpen(next);
     if (!next) onClose?.();
   };

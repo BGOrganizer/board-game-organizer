@@ -195,11 +195,14 @@ test("APK disk preparation removes unused hosted tools/images without deleting S
   assert(removed.includes("/usr/local/.ghcup"));
   assert(removed.includes("/usr/share/swift"));
   assert(removed.includes("/usr/local/share/powershell"));
-  assert(removed.includes("/usr/local/lib/android/sdk/ndk"));
+  assert(
+    !removed.some((path) => path.startsWith("/usr/local/lib/android")),
+    "EAS preflight needs the NDK referenced by the runner environment; preserve the entire SDK",
+  );
   for (const path of removed) {
     assert.match(
       path,
-      /^\/(usr\/share\/(dotnet|swift)|usr\/local\/(\.ghcup|share\/(boost|powershell)|lib\/android\/sdk\/ndk)|opt\/(ghc|hostedtoolcache\/(CodeQL|go|Python|Ruby)))$/,
+      /^\/(usr\/share\/(dotnet|swift)|usr\/local\/(\.ghcup|share\/(boost|powershell))|opt\/(ghc|hostedtoolcache\/(CodeQL|go|Python|Ruby)))$/,
     );
   }
   assert.match(result.stdout, /docker:image prune --all --force/);

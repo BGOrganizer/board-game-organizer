@@ -1,5 +1,5 @@
 import { fireEvent, screen } from "@testing-library/react";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { SearchInput } from "../common/ui/SearchInput";
@@ -71,6 +71,36 @@ it("keeps off-page metadata in the trigger without adding a false search result,
   fireEvent.keyDown(input, { key: "Escape" });
   expect(screen.queryByRole("searchbox")).toBeNull();
   expect(close).toHaveBeenCalledOnce();
+});
+it("notifies once when closing is requested again before React commits, then rearms on reopening", async () => {
+  let input: HTMLElement | null = null;
+  const close = vi.fn(() => {
+    // Overlay dismissal and focused-search Escape may request the same close in one event.
+    if (close.mock.calls.length === 1 && input) fireEvent.keyDown(input, { key: "Escape" });
+  });
+  renderWithI18n(
+    <StrictMode>
+      <RatingGameSelect selectedId={null} games={[]} onChange={vi.fn()} onClose={close}>
+        <SearchInput
+          value="casc"
+          onChange={vi.fn()}
+          label="Filter games"
+          placeholder="Filter games"
+        />
+      </RatingGameSelect>
+    </StrictMode>,
+  );
+  const trigger = screen.getByRole("button", { name: /Board game/ });
+  fireEvent.click(trigger);
+  input = await screen.findByRole("searchbox", { name: "Filter games" });
+  fireEvent.keyDown(input, { key: "Escape" });
+  expect(screen.queryByRole("searchbox")).toBeNull();
+  expect(close).toHaveBeenCalledTimes(1);
+  fireEvent.click(trigger);
+  input = await screen.findByRole("searchbox", { name: "Filter games" });
+  fireEvent.keyDown(input, { key: "Escape" });
+  expect(screen.queryByRole("searchbox")).toBeNull();
+  expect(close).toHaveBeenCalledTimes(2);
 });
 it("composes source loading/errors and paging without owning or starting requests", async () => {
   const retry = vi.fn();

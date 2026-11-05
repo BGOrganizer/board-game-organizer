@@ -68,9 +68,9 @@ runs:
       shell: bash
       run: |
         # Hosted runners carry unused toolchains/images; /opt/ghc alone misses current GHC installs.
-        # Keep the Android SDK, emulator and platform-tools. EAS installs its selected NDK again.
+        # Preserve the entire Android SDK/NDK: EAS checks the runner's NDK path before Gradle runs.
         sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
-          /usr/share/swift /usr/local/share/powershell /usr/local/lib/android/sdk/ndk \
+          /usr/share/swift /usr/local/share/powershell \
           /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/go /opt/hostedtoolcache/Python \
           /opt/hostedtoolcache/Ruby
         docker image prune --all --force
