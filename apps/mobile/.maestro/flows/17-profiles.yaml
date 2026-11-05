@@ -11,7 +11,6 @@ tags: [manual, profile]
 - extendedWaitUntil:
     visible: ${output.profile.owner}
     timeout: 120000
-- tapOn: ${output.profile.collection}
 - assertVisible: ${output.profile.bgg}
 - scrollUntilVisible:
     element: ${output.profile.logout}

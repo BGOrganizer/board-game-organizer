@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { renderWithI18n } from "@/test-utils";
-import { GroupBanDialog } from "../GroupBanDialog";
 
 afterEach(() => vi.restoreAllMocks());
 it("requires explicit dangerous confirmation, with ban icon and no manual timezone control", () => {

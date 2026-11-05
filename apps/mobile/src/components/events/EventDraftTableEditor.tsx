@@ -18,6 +18,7 @@ import { EventDateTimeField } from "./EventDateTimeField";
 export function EventDraftTableEditor({
   row,
   publicGroup,
+  privateGroup = false,
   timeZone,
   eventStartWall = "",
   eventEndWall = "",
@@ -30,6 +31,7 @@ export function EventDraftTableEditor({
 }: {
   row: EventTableDraft;
   publicGroup: boolean;
+  privateGroup?: boolean;
   timeZone: string;
   eventStartWall?: string;
   eventEndWall?: string;
@@ -129,6 +131,33 @@ export function EventDraftTableEditor({
           isDisabled={busy}
         />
       </View>
+      {privateGroup ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <SearchHelpLabel
+              label={t("Allow game proposals")}
+              helpTitle={helpTitle}
+              help={t(
+                "Only seated players may propose games for this table. Managers review each proposal.",
+              )}
+            />
+          </View>
+          <Switch
+            accessibilityLabel={t("Allow game proposals")}
+            hitSlop={12}
+            isSelected={Boolean(row.allowParticipantGames)}
+            isDisabled={busy}
+            onSelectedChange={(allowParticipantGames) => onChange({ allowParticipantGames })}
+          />
+        </View>
+      ) : null}
       {publicGroup ? (
         <>
           {day ? (

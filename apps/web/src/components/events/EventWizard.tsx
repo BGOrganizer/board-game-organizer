@@ -232,6 +232,7 @@ function Editor({
             <EventDraftTableEditor
               key={row.key}
               row={row}
+              privateGroup={form.flexibleSchedule}
               publicGroup={publicGroup}
               eventStartWall={draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : ""}
               eventEndWall={draft.endsWall}

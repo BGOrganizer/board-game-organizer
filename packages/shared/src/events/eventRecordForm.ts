@@ -15,6 +15,7 @@ export type EventTableDraft = {
   minPlayers: number;
   maxPlayers: number;
   rankingEnabled: boolean;
+  allowParticipantGames?: boolean;
   startsWall: string;
   demonstratorUserId?: string;
   demonstratorName?: string | null;
@@ -26,6 +27,8 @@ export type EventRecordDraft = {
   groupId: string | null;
   timeZone: string;
   startTime: string;
+  allowParticipantDates?: boolean;
+  allowParticipantLocations?: boolean;
   endsWall: string;
   cutoffWall: string;
   dates: PlannedEventResponse["dates"];
@@ -50,6 +53,7 @@ export function tableDraft(row: PlannedTableResponse, timeZone: string): EventTa
     minPlayers: row.minPlayers,
     maxPlayers: row.maxPlayers,
     rankingEnabled: row.rankingEnabled,
+    allowParticipantGames: row.allowParticipantGames ?? false,
     startsWall: row.startsAt ? eventLocalDateTime(row.startsAt, timeZone) : "",
     demonstratorUserId: row.demonstratorUserId,
     demonstratorName: row.demonstratorName,
@@ -84,6 +88,8 @@ export function eventDraft(data?: PlannedEventResponse, groupId?: string): Event
     groupId: data?.groupId ?? groupId ?? null,
     timeZone: zone,
     startTime: data?.startTime ?? "20:00",
+    allowParticipantDates: data?.allowParticipantDates ?? false,
+    allowParticipantLocations: data?.allowParticipantLocations ?? false,
     endsWall: data?.endsAt ? eventLocalDateTime(data.endsAt, zone) : "",
     cutoffWall: data?.bookingClosesAt ? eventLocalDateTime(data.bookingClosesAt, zone) : "",
     dates,
@@ -106,6 +112,10 @@ function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
     name: draft.name,
     timeZone: zone,
     startTime: draft.startTime,
+    allowParticipantDates: Boolean(draft.groupId && !publicGroup && draft.allowParticipantDates),
+    allowParticipantLocations: Boolean(
+      draft.groupId && !publicGroup && draft.allowParticipantLocations,
+    ),
     dates: draft.dates,
     locations: draft.locations,
     ...(publicGroup
@@ -120,6 +130,7 @@ function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
       minPlayers: row.minPlayers,
       maxPlayers: row.maxPlayers,
       rankingEnabled: row.rankingEnabled,
+      allowParticipantGames: Boolean(draft.groupId && !publicGroup && row.allowParticipantGames),
       games: row.games.map((game) => ({
         gameId: game.id,
         ...(game.manualDurationMinutes

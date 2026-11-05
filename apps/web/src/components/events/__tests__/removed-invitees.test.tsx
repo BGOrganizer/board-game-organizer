@@ -88,6 +88,15 @@ function setup(groupType: "PRIVATE" | "PUBLIC" | null = null) {
           .parse({ ...registration, status: "PENDING", version: 3, eventVersion: 3 }),
       );
     }
+    if (url.includes("/proposals?"))
+      return Response.json({
+        eventId,
+        groupId: optionId,
+        eventVersion: version,
+        mode: "mine",
+        items: [],
+        nextCursor: null,
+      });
     if (url.includes("/invitations?"))
       return new Promise<Response>((resolve) => {
         candidates.push({ resolve, url });

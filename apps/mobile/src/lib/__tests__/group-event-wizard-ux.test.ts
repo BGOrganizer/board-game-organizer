@@ -192,5 +192,5 @@ it("offers group bans only through roster actions, with a separate edit FAB and 
   expect(source("groups", "GroupDetail")).toContain("<FloatingActions");
   expect(source("groups", "GroupDetailsCard")).toContain("<GroupedRow");
   expect(source("groups", "GroupWizard")).toMatch(/<LocationListRow[\s\S]*?actions=\{/);
-  expect(source("groups", "GroupBanDialog")).toContain("<Ban");
+  expect(source("common/ui", "GroupBanDialog")).toContain("<Ban");
 });

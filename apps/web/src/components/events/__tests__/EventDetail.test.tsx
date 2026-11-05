@@ -2,6 +2,7 @@ import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-org
 import { eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { eventId, groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -17,6 +18,11 @@ vi.mock("@/lib/useCommunityApi", () => ({
     getToken: async () => "fresh",
     feedback: mocks.feedback,
   }),
+}));
+// jsdom has no layout; browser acceptance verifies the real Virtualizer separately.
+vi.mock("@heroui/react/rac", async (original) => ({
+  ...(await original<typeof import("@heroui/react/rac")>()),
+  Virtualizer: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 let event: PlannedEventResponse,
   tables: PlannedTableResponse[],
@@ -64,6 +70,14 @@ beforeEach(() => {
   failWrite = false;
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (fail) return new Response("{}", { status: 503 });
+    if (url.includes("/participants?"))
+      return Response.json({
+        items: [],
+        nextCursor: null,
+        eventVersion: event.version,
+        groupId: event.groupId,
+        status: event.status,
+      });
     if (url.includes("/groups/"))
       return Response.json({
         ...groupRecord,
@@ -137,6 +151,20 @@ it("renders a public observer without administration, voting or registration act
       .filter(([url]) => url.includes("/events/"))
       .every(([, init]) => !init?.method || init.method === "GET"),
   ).toBe(true);
+  fireEvent.click(screen.getByRole("tab", { name: "Participants" }));
+  expect(screen.getByText("Public read-only view. Join the group to participate.")).toBeTruthy();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/participants"))).toBe(false);
+  client.clear();
+});
+it("opens the participant tab without inventing owner attendance and keeps editing only on Details", async () => {
+  const client = mount();
+  await screen.findByRole("link", { name: "Edit event" });
+  fireEvent.click(screen.getByRole("tab", { name: "Participants" }));
+  await screen.findByText("No participants yet");
+  expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/participants?"))).toBe(true);
+  fireEvent.click(screen.getByRole("tab", { name: "Details" }));
+  expect(screen.getByRole("link", { name: "Edit event" })).toBeTruthy();
   client.clear();
 });
 it("does not retain forbidden cached Table cards or submit their IDs for attention counts", async () => {
@@ -149,6 +177,7 @@ it("does not retain forbidden cached Table cards or submit their IDs for attenti
       : original(url, init),
   );
   const client = mount();
+  fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
   await screen.findByRole("link", { name: `Open table: ${plannedTable.name}` });
   denied = true;
   await act(async () => {
@@ -543,6 +572,7 @@ it("hydrates missing agreement/table fields from a canonical list summary withou
   ).toBe(true);
   await waitFor(() => expect(release).toBeTypeOf("function"));
   await act(async () => release());
+  fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
   expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
 });
 it("retries uncached event and table failures instead of turning them into empty success", async () => {
@@ -552,7 +582,10 @@ it("retries uncached event and table failures instead of turning them into empty
   fail = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByRole("heading", { name: plannedEvent.name })).not.toBeNull();
-  const retry = screen.queryByRole("button", { name: "Try again" });
+  fireEvent.click(screen.getByRole("tab", { name: "Tables" }));
+  const retry = within(screen.getByRole("region", { name: "Table list" })).queryByRole("button", {
+    name: "Try again",
+  });
   if (retry) fireEvent.click(retry);
   expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
 });
@@ -658,8 +691,10 @@ it("renders pending/unavailable agreements, location votes, paging and manual co
   expect(confirmation.disabled).toBe(false);
   expect(screen.queryByText(/Pending invitations still reserve places/)).toBeNull();
   expect(screen.queryByText(/No compatible accepted players/)).toBeNull();
+  fireEvent.click(screen.getByRole("tab", { name: "Tables" }));
   fireEvent.click(screen.getByRole("button", { name: "Load more" }));
   expect(await screen.findByRole("link", { name: "Open table: Second table" })).not.toBeNull();
+  fireEvent.click(screen.getByRole("tab", { name: "Details" }));
   await selectVote(plannedEvent.locations[0].name);
   await waitFor(() =>
     expect(
@@ -680,7 +715,9 @@ it("opens unified event/table routes, one voting legend and guarded Event deleti
   expect(screen.getByRole("link", { name: "Edit event" }).getAttribute("href")).toBe(
     `/events/${eventId}/edit`,
   );
+  fireEvent.click(screen.getByRole("tab", { name: "Tables" }));
   expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
+  expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
   expect(screen.getByRole("button", { name: "Delete event" })).toBeTruthy();
   expect(
     (screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement).disabled,
@@ -741,6 +778,7 @@ it("keeps a missing agreement disabled even if an inconsistent capability says c
     },
   };
   mount();
+  fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
   await screen.findByRole("link", { name: "Open table: First table" });
   const confirmation = screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement;
   expect(confirmation.disabled).toBe(true);
@@ -834,6 +872,7 @@ it("shows a disabled owner confirmation in the app header, explains agreement an
     timeZone: "Europe/Rome",
   }).format(new Date("2030-06-03T18:00:00Z"));
   expect(screen.getByText(date).closest("li")).not.toBeNull();
+  fireEvent.click(screen.getByRole("tab", { name: "Tables" }));
   expect(await screen.findByText("No tables found")).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Why confirmation is unavailable" }));
   expect(

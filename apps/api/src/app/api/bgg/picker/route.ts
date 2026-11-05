@@ -70,7 +70,13 @@ export async function GET(request: Request) {
   if (includeCollection && snapshot) {
     const rows = await db
       .collection<BggCollectionGame>(COLLECTIONS.BGG_COLLECTION_GAMES)
-      .find({ userId, snapshot, ...(query ? { name: prefix } : {}) })
+      .find({
+        userId,
+        snapshot,
+        isExpansion: { $ne: true },
+        subtype: { $ne: "boardgameexpansion" },
+        ...(query ? { name: prefix } : {}),
+      })
       .sort({ name: 1, gameId: 1 })
       .skip(collectionOffset)
       .limit(collectionBudget + 1)
@@ -124,6 +130,8 @@ export async function GET(request: Request) {
                     userId,
                     snapshot,
                     gameId: { $in: batch.map((game) => game.id) },
+                    isExpansion: { $ne: true },
+                    subtype: { $ne: "boardgameexpansion" },
                     name: prefix,
                   })
                   .project<{ gameId: number }>({ gameId: 1 })

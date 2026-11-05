@@ -1,5 +1,5 @@
 "use client";
-import { communityAccessDenied, useProfileView } from "@board-game-organizer/shared";
+import { communityAccessDenied, useBggAccount, useProfileView } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -10,6 +10,7 @@ import { TabBar } from "@/components/common/ui/TabBar";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileBggCard } from "./ProfileBggCard";
+import { ProfileCollection } from "./ProfileCollection";
 import { ProfileLogout } from "./ProfileLogout";
 import { ProfilePlayer } from "./ProfilePlayer";
 import { ProfileRecentActivities } from "./ProfileRecentActivities";
@@ -21,10 +22,12 @@ export function Profile({ userId }: { userId?: string }) {
   const subject = userId ?? o.userId ?? "",
     own = Boolean(o.userId && subject === o.userId),
     q = useProfileView(o, subject);
+  const bgg = useBggAccount({ ...o, enabled: own });
+  const active = own && !communityAccessDenied(bgg.account.error) ? bgg.account.data?.active : null;
   const viewKey = JSON.stringify([o.apiUrl, o.userId, subject]);
   const storedTab = useAppStore((s) => s.profileViews[viewKey]?.tab ?? "activity"),
     setView = useAppStore((s) => s.setProfileView);
-  const tab = !own && storedTab === "collection" ? "activity" : storedTab;
+  const tab = storedTab === "collection" && !active ? "activity" : storedTab;
   const data = communityAccessDenied(q.error) ? undefined : q.data;
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 });
   return (
@@ -40,73 +43,74 @@ export function Profile({ userId }: { userId?: string }) {
         </div>
       ) : null}
       {data ? (
-        <>
-          <GroupedList>
-            <GroupedRow>
-              <UserIdentity
-                name={data.name || data.username || t`Unknown`}
-                avatarUrl={data.avatarUrl}
-                secondary={data.username ? `@${data.username}` : undefined}
-              />
-            </GroupedRow>
-          </GroupedList>
-          <Tabs
-            selectedKey={tab}
-            onSelectionChange={(value) => {
-              if (value === "activity" || value === "player" || (own && value === "collection"))
-                setView(viewKey, { tab: value });
-            }}
-          >
-            <TabBar label={t`Profile navigation`}>
-              <Tabs.Tab id="activity" className="flex-row gap-2 whitespace-nowrap">
-                <UsersRound className="size-4" aria-hidden />
-                {t`Activities`}
+        <GroupedList>
+          <GroupedRow>
+            <UserIdentity
+              name={data.name || data.username || t`Unknown`}
+              avatarUrl={data.avatarUrl}
+              secondary={data.username ? `@${data.username}` : undefined}
+            />
+          </GroupedRow>
+        </GroupedList>
+      ) : null}
+      {own ? <ProfileBggCard bgg={bgg} /> : null}
+      {data ? (
+        <Tabs
+          selectedKey={tab}
+          onSelectionChange={(value) => {
+            if (value === "activity" || value === "player" || (active && value === "collection"))
+              setView(viewKey, { tab: value });
+          }}
+        >
+          <TabBar label={t`Profile navigation`}>
+            <Tabs.Tab id="activity" className="flex-row gap-2 whitespace-nowrap">
+              <UsersRound className="size-4" aria-hidden />
+              {t`Activities`}
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="player" className="flex-row gap-2 whitespace-nowrap">
+              <Gamepad2 className="size-4" aria-hidden />
+              {t`Player`}
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            {active ? (
+              <Tabs.Tab id="collection" className="flex-row gap-2 whitespace-nowrap">
+                <LibraryBig className="size-4" aria-hidden />
+                {t`Collection`}
                 <Tabs.Indicator />
               </Tabs.Tab>
-              <Tabs.Tab id="player" className="flex-row gap-2 whitespace-nowrap">
-                <Gamepad2 className="size-4" aria-hidden />
-                {t`Player`}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              {own ? (
-                <Tabs.Tab id="collection" className="flex-row gap-2 whitespace-nowrap">
-                  <LibraryBig className="size-4" aria-hidden />
-                  {t`Collection`}
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-              ) : null}
-            </TabBar>
-            <Tabs.Panel id="activity" className="space-y-4 pt-0">
-              <ProfileStats
-                items={[
-                  { label: t`Friends`, value: number.format(data.social.friends) },
-                  { label: t`Followers`, value: number.format(data.social.followers) },
-                  { label: t`Following`, value: number.format(data.social.following) },
-                ]}
-              />
-              <ProfileRecentActivities userId={subject} author={data} />
-            </Tabs.Panel>
-            <Tabs.Panel id="player" className="space-y-4 pt-0">
-              <ProfileStats
-                items={[
-                  { label: t`Games played`, value: number.format(data.player.gamesPlayed) },
-                  { label: t`Games won`, value: number.format(data.player.gamesWon) },
-                  {
-                    label: t`Win %`,
-                    value:
-                      data.player.winRate === null ? "—" : `${number.format(data.player.winRate)}%`,
-                  },
-                ]}
-              />
-              <ProfilePlayer userId={subject} viewKey={viewKey} />
-            </Tabs.Panel>
-            {own ? (
-              <Tabs.Panel id="collection" className="pt-0">
-                <ProfileBggCard />
-              </Tabs.Panel>
             ) : null}
-          </Tabs>
-        </>
+          </TabBar>
+          <Tabs.Panel id="activity" className="space-y-4 pt-0">
+            <ProfileStats
+              items={[
+                { label: t`Friends`, value: number.format(data.social.friends) },
+                { label: t`Followers`, value: number.format(data.social.followers) },
+                { label: t`Following`, value: number.format(data.social.following) },
+              ]}
+            />
+            <ProfileRecentActivities userId={subject} author={data} />
+          </Tabs.Panel>
+          <Tabs.Panel id="player" className="space-y-4 pt-0">
+            <ProfileStats
+              items={[
+                { label: t`Games played`, value: number.format(data.player.gamesPlayed) },
+                { label: t`Games won`, value: number.format(data.player.gamesWon) },
+                {
+                  label: t`Win %`,
+                  value:
+                    data.player.winRate === null ? "—" : `${number.format(data.player.winRate)}%`,
+                },
+              ]}
+            />
+            <ProfilePlayer userId={subject} viewKey={viewKey} />
+          </Tabs.Panel>
+          {active ? (
+            <Tabs.Panel id="collection" className="pt-0">
+              <ProfileCollection snapshot={active.snapshot} counts={active.counts} />
+            </Tabs.Panel>
+          ) : null}
+        </Tabs>
       ) : null}
       {!data && !q.isPending && !q.isError ? (
         <p className="text-muted">{t`Profile unavailable`}</p>

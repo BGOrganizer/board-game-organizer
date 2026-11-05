@@ -1,7 +1,13 @@
 "use client";
 
 import type { BggAccountResponse } from "@board-game-organizer/schemas";
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type Query,
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useEffect } from "react";
 import { apiHeaders, withProtectionBypass } from "../../common/api";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
@@ -14,6 +20,13 @@ import {
 import { CommunityApiError } from "../../community/communityApi";
 
 const empty: BggAccountResponse = { active: null, pending: null };
+const collectionScope = (apiUrl: unknown, userId: unknown) => ({
+  predicate: (query: Query) =>
+    query.queryKey[1] === apiUrl &&
+    query.queryKey[2] === userId &&
+    (query.queryKey[0] === "bgg-collection" ||
+      (query.queryKey[0] === "bgg-picker" && query.queryKey[5] === true)),
+});
 type BggAccountOptions = {
   apiUrl: string;
   getToken: () => Promise<string | null>;
@@ -143,10 +156,14 @@ export function useBggAccount({
         if (data.pending?.status === "failed" || data.lastAttempt?.status === "error")
           feedback?.onError?.(new Error("BGG_SYNC_FAILED"), "sync_bgg");
       }
-      if (data.active)
+      if (data.active) {
         void client.invalidateQueries({
           queryKey: ["bgg-picker", operation.resource[1], operation.resource[2]],
         });
+        void client.invalidateQueries({
+          queryKey: ["bgg-collection", operation.resource[1], operation.resource[2]],
+        });
+      }
     },
     onError: async (error, input, operation) => {
       if (operation && !operation.active) return;
@@ -165,6 +182,7 @@ export function useBggAccount({
         await optimisticMutationSignal(client, context.mutationKey, input),
       ),
     onMutate: async () => {
+      await client.cancelQueries(collectionScope(apiUrl, userId));
       const operation = await begin(true);
       feedback?.onOptimisticUpdate?.("disconnect_bgg");
       return operation;
@@ -181,6 +199,7 @@ export function useBggAccount({
       void client.invalidateQueries({
         queryKey: ["bgg-picker", operation.resource[1], operation.resource[2]],
       });
+      client.removeQueries(collectionScope(operation.resource[1], operation.resource[2]));
     },
   });
   useEffect(() => {
@@ -190,6 +209,12 @@ export function useBggAccount({
     const timer = setTimeout(() => sync.mutate({ retry: false, silent: true }), delay);
     return () => clearTimeout(timer);
   }, [enabled, account.data, sync.isPending, sync.mutate, busy]);
+  useEffect(() => {
+    // Also cover verified uncertain unlink outcomes and authoritative remote unlink reads.
+    // An optimistic empty overlay is still busy and must retain the rollback cache.
+    if (!enabled || busy || !account.data || account.data.active) return;
+    client.removeQueries(collectionScope(apiUrl, userId));
+  }, [enabled, busy, account.data, client, apiUrl, userId]);
   const reset = () => {
     link.reset();
     sync.reset();

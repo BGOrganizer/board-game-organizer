@@ -28,7 +28,25 @@ export function revokeCachedGroupAccess(
   const eventIds = new Set(
     owned
       .filter((query) => query.queryKey[0] !== "groups")
-      .flatMap((query) => cachedGroupEventIds(optimisticBaseData(client, query.queryKey), groupId)),
+      .flatMap((query) => {
+        const data = optimisticBaseData(client, query.queryKey),
+          key = query.queryKey;
+        return [
+          ...cachedGroupEventIds(data, groupId),
+          ...(key[0] === "events" &&
+          key[3] === "proposals" &&
+          key[6] === groupId &&
+          typeof key[4] === "string"
+            ? [key[4]]
+            : []),
+          ...(key[0] === "events" &&
+          key[3] === "participants" &&
+          typeof key[4] === "string" &&
+          belongsToDeletedGroup(data, groupId, new Set())
+            ? [key[4]]
+            : []),
+        ];
+      }),
   );
   notifyManager.batch(() => {
     for (const id of eventIds)

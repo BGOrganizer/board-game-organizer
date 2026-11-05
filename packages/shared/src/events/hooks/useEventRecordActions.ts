@@ -71,6 +71,8 @@ import {
   eventCreationMatches,
 } from "../eventOptimisticCreation";
 import { optimisticEventVote } from "../eventOptimisticVote";
+import { projectEventParticipantRemoval } from "../eventParticipantCache";
+import { revokeProposalReview } from "../eventProposalCache";
 import { acknowledgeTableRegistration } from "../eventRegistrationCache";
 import { eventRecordKeys, eventRecordQuery, eventRecordsQuery } from "./useEventRecords";
 
@@ -108,7 +110,9 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const affected = (key: readonly unknown[], eventId = id) =>
     key[3] === "list" ||
     (key[3] === "tables" && (key[4] === null || key[4] === eventId)) ||
-    (["detail", "table", "seats", "leaderboard", "invitees"].includes(String(key[3])) &&
+    (["detail", "table", "seats", "leaderboard", "invitees", "participants"].includes(
+      String(key[3]),
+    ) &&
       key[4] === eventId);
   async function begin(
     action: MutationFeedbackAction,
@@ -241,6 +245,8 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         );
       complete(context);
     });
+    if (saved.canManage === false)
+      revokeProposalReview(client, context.owner, { eventId: saved.id });
   }
   function eventReceiptSuccess(...args: Parameters<typeof eventSuccess>) {
     const [value, , context] = args;
@@ -745,6 +751,64 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
+  const removeParticipant = useMutation({
+    mutationKey: [...mutationKey, "remove-participant"],
+    scope,
+    networkMode: "always",
+    mutationFn: async (input: DeletePlannedRecordInput & { userId: string }, context) => {
+      const saved = await write<PlannedEventResponse>(
+        `events/${id}/participants/${encodeURIComponent(input.userId)}`,
+        "DELETE",
+        { version: input.version },
+        context,
+        input,
+      );
+      if (saved.id !== id || saved.version !== input.version + 1)
+        throw new Error("MUTATION_READ_UNVERIFIED");
+      return saved;
+    },
+    onMutate: async (input) => {
+      const registrations = new Set<string>();
+      for (const [key, data] of client.getQueriesData({
+        queryKey: root,
+        predicate: (q) => affected(q.queryKey),
+      }))
+        mapCommunityCache<Row>(data, (row) => {
+          if (key[3] === "seats" && "userId" in row && row.userId === input.userId)
+            registrations.add(row.id);
+          if ("myRegistrations" in row)
+            for (const entry of row.myRegistrations)
+              if (entry.userId === input.userId) registrations.add(entry.id);
+          if ("myRegistration" in row && row.myRegistration?.userId === input.userId)
+            registrations.add(row.myRegistration.id);
+          return row;
+        });
+      const context = await begin("remove_event_player", undefined, ["write"], (data, key) =>
+        projectEventParticipantRemoval(data, key, id, input.userId, input.version, registrations),
+      );
+      return { ...context, registrations };
+    },
+    onSuccess: (saved, input, context) => {
+      if (!context?.operation.active) return;
+      for (const [key] of client.getQueriesData({
+        queryKey: eventRecordKeys.root(context.owner),
+        predicate: (q) => affected(q.queryKey, context.eventId),
+      }))
+        updateOptimisticBase(client, key, (data) =>
+          projectEventParticipantRemoval(
+            data,
+            key,
+            context.eventId,
+            input.userId,
+            input.version,
+            context.registrations,
+          ),
+        );
+      eventReceiptSuccess(saved, input, context);
+    },
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
   const vote = useMutation({
     mutationKey: [...mutationKey, "vote"],
     scope,
@@ -1127,6 +1191,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     update,
     remove,
     removeTable,
+    removeParticipant,
     vote,
     register,
     invite,

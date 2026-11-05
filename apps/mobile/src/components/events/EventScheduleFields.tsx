@@ -10,6 +10,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
+import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
 import { CalendarClock, X } from "lucide-react-native";
 import { View } from "react-native";
@@ -273,6 +274,45 @@ export function EventScheduleFields({
             )
           : null}
       </View>
+      {form.flexibleSchedule ? (
+        <View style={{ gap: 12 }}>
+          <Typography accessibilityRole="header" className="font-semibold text-foreground">
+            {t("Participant proposals")}
+          </Typography>
+          <Typography className="text-sm text-muted">
+            {t(
+              "Only seated participants may submit proposals. Managers review each proposal before it becomes an option.",
+            )}
+          </Typography>
+          {(
+            [
+              ["allowParticipantDates", t("Allow date proposals")],
+              ["allowParticipantLocations", t("Allow location proposals")],
+            ] as const
+          ).map(([key, label]) => (
+            <View
+              key={key}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <Typography className="text-foreground" style={{ flex: 1 }}>
+                {label}
+              </Typography>
+              <Switch
+                accessibilityLabel={label}
+                hitSlop={12}
+                isSelected={Boolean(draft[key])}
+                isDisabled={busy}
+                onSelectedChange={(value) => form.patch({ [key]: value })}
+              />
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }

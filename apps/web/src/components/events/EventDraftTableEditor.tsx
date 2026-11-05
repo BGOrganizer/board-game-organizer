@@ -12,6 +12,7 @@ import { GameListRow } from "@/components/games/GameListRow";
 export function EventDraftTableEditor({
   row,
   publicGroup,
+  privateGroup = false,
   eventStartWall = "",
   eventEndWall = "",
   busy,
@@ -23,6 +24,7 @@ export function EventDraftTableEditor({
 }: {
   row: EventTableDraft;
   publicGroup: boolean;
+  privateGroup?: boolean;
   eventStartWall?: string;
   eventEndWall?: string;
   busy: boolean;
@@ -112,6 +114,27 @@ export function EventDraftTableEditor({
           </Switch.Content>
         </Switch>
       </div>
+      {privateGroup ? (
+        <div className="flex items-center justify-between gap-3">
+          <SearchHelpLabel
+            label={t`Allow game proposals`}
+            helpTitle={helpTitle}
+            help={t`Only seated players may propose games for this table. Managers review each proposal.`}
+          />
+          <Switch
+            aria-label={t`Allow game proposals`}
+            isSelected={Boolean(row.allowParticipantGames)}
+            isDisabled={busy}
+            onChange={(allowParticipantGames) => onChange({ allowParticipantGames })}
+          >
+            <Switch.Content>
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Content>
+          </Switch>
+        </div>
+      ) : null}
       {publicGroup ? (
         <>
           <TextField

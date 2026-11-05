@@ -13,31 +13,42 @@ import {
   useEventRecordActions,
   useRecordTables,
 } from "@board-game-organizer/shared";
-import { Button, Skeleton } from "@heroui/react";
+import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, CalendarCheck, Check, Dices, Pencil, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarCheck,
+  Check,
+  Dices,
+  Info,
+  Pencil,
+  RotateCcw,
+  UsersRound,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
-import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailsCard } from "./EventDetailsCard";
 import { EventFinalizeAction } from "./EventFinalizeAction";
 import { EventGroupLink } from "./EventGroupLink";
-import { EventTableCard } from "./EventTableCard";
+import { EventParticipants } from "./EventParticipants";
+import { EventProposalSection } from "./EventProposalSection";
+import { EventTables } from "./EventTables";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
 import { TableListHeading } from "./TableListHeading";
@@ -49,13 +60,8 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     tables = useRecordTables(o, eventId),
     [confirm, setConfirm] = useState<"confirm" | "replan" | null>(null),
     [error, setError] = useState(false),
-    event = communityAccessDenied(q.error) ? undefined : q.data,
-    end = useInfiniteScroll({
-      hasNextPage: !!tables.hasNextPage,
-      isFetchingNextPage: tables.isFetchingNextPage,
-      isFetchNextPageError: tables.isFetchNextPageError,
-      fetchNextPage: tables.fetchNextPage,
-    });
+    event = communityAccessDenied(q.error) ? undefined : q.data;
+  const [tab, setTab] = useState("details");
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   const confirmationBlocked =
     a.busy || q.isPlaceholderData || !event?.canConfirm || event?.agreement?.agreed !== true;
@@ -156,143 +162,82 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
           </HeaderActions>
         ) : null}
-        <EventDetailsCard event={event} />
-        {event.readOnly ? (
-          <p className="text-sm text-muted">{t`Public read-only view. Join the group to participate.`}</p>
-        ) : null}
-        {event.groupId && fromGroup !== event.groupId ? (
-          <EventGroupLink groupId={event.groupId} name={event.groupName} />
-        ) : null}
-        <section
-          aria-label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
-          className="space-y-3"
+        <Tabs
+          selectedKey={tab}
+          onSelectionChange={(value) => setTab(String(value))}
+          className="flex flex-col"
         >
-          <NotificationItem itemId={notificationItemId(event.id, "dates")} readOnly>
-            <SearchHelpLabel
-              label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
-              helpTitle={t`Field help`}
-              help={t`Times are local to the location chosen for the event.`}
-            />
-          </NotificationItem>
-          <GroupedList>
-            {event.dates
-              .filter(
-                (row) =>
-                  event.status === "PLANNING" ||
-                  !event.confirmed ||
-                  row.id === event.confirmed.dateId,
-              )
-              .map((row) => (
-                <GroupedRow key={row.id} className="flex-wrap">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <DateTimeInfo
-                        startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                        timeZone={event.timeZone}
-                      />
-                      <NotificationItem
-                        itemId={notificationItemId(event.id, "date", row.id)}
-                        readOnly={!voteDates || !event.canVote || closed}
-                      />
-                    </div>
-                    {voteDates ? (
-                      <EventVoteCounts
-                        label={eventDateWall(event, row).replace("T", " ")}
-                        counts={event.voteCounts?.dates[row.id]}
-                      />
-                    ) : null}
-                  </div>
-                  {voteDates && event.canVote && !closed ? (
-                    <EventVoteButtons
-                      label={eventDateWall(event, row).replace("T", " ")}
-                      value={event.myVotes?.dateVotes[row.id]}
-                      disabledVotes={
-                        eventAvailabilityVoteIsAllowed(
-                          event.dates,
-                          event.myVotes?.dateVotes ?? {},
-                          row.id,
-                          "NO",
-                        )
-                          ? []
-                          : ["NO"]
-                      }
-                      busy={a.blocking || q.isPlaceholderData}
-                      onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
-                    />
-                  ) : null}
-                </GroupedRow>
-              ))}
-          </GroupedList>
-        </section>
-        {event.endsAt ? (
-          <section aria-label={t`End Date and Time`} className="space-y-3">
-            <SearchHelpLabel
-              label={t`End Date and Time`}
-              helpTitle={t`Field help`}
-              help={t`Choose a later time on the same day as the event start. All public tables must finish by this time.`}
-            />
-            <GroupedList>
-              <GroupedRow>
-                <DateTimeInfo
-                  startsAt={event.endsAt}
-                  timeZone={event.timeZone}
-                  timeLabel={t`End time`}
+          <TabBar label={t`Event details`}>
+            <Tabs.Tab id="details">
+              <Info className="size-4" aria-hidden />
+              {t`Details`}
+            </Tabs.Tab>
+            <Tabs.Tab id="participants">
+              <UsersRound className="size-4" aria-hidden />
+              {t`Participants`}
+            </Tabs.Tab>
+            <Tabs.Tab id="tables">
+              <Dices className="size-4" aria-hidden />
+              {t`Tables`}
+            </Tabs.Tab>
+          </TabBar>
+        </Tabs>
+        {tab === "details" ? (
+          <>
+            <EventDetailsCard event={event} />
+            {event.readOnly ? (
+              <p className="text-sm text-muted">{t`Public read-only view. Join the group to participate.`}</p>
+            ) : null}
+            {event.groupId && fromGroup !== event.groupId ? (
+              <EventGroupLink groupId={event.groupId} name={event.groupName} />
+            ) : null}
+            <section
+              aria-label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
+              className="space-y-3"
+            >
+              <NotificationItem itemId={notificationItemId(event.id, "dates")} readOnly>
+                <SearchHelpLabel
+                  label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
+                  helpTitle={t`Field help`}
+                  help={t`Times are local to the location chosen for the event.`}
                 />
-              </GroupedRow>
-            </GroupedList>
-          </section>
-        ) : null}
-        {event.bookingClosesAt ? (
-          <section aria-label={t`Registration Deadline Date and Time`} className="space-y-3">
-            <SearchHelpLabel
-              label={t`Registration Deadline Date and Time`}
-              helpTitle={t`Field help`}
-              help={t`Registration closes on a day before the event starts. A new event needs a future deadline.`}
-            />
-            <GroupedList>
-              <GroupedRow>
-                <DateTimeInfo
-                  startsAt={event.bookingClosesAt}
-                  timeZone={event.timeZone}
-                  timeLabel={t`Registration Deadline Date and Time`}
-                />
-              </GroupedRow>
-            </GroupedList>
-          </section>
-        ) : null}
-        <section aria-label={t`Locations`} className="space-y-3">
-          <NotificationItem itemId={notificationItemId(event.id, "locations")} readOnly>
-            <h2 className="font-semibold">{t`Locations`}</h2>
-          </NotificationItem>
-          <GroupedList>
-            {event.locations
-              .filter(
-                (row) =>
-                  event.status === "PLANNING" ||
-                  !event.confirmed ||
-                  row.id === event.confirmed.locationId,
-              )
-              .map((row) => (
-                <LocationListRow
-                  key={row.id}
-                  name={row.name}
-                  address={row.address}
-                  titleAccessory={
-                    <NotificationItem
-                      itemId={notificationItemId(event.id, "location", row.id)}
-                      readOnly={!voteLocations || !event.canVote || closed}
-                    />
-                  }
-                  actions={
-                    <>
-                      {voteLocations && event.canVote && !closed ? (
+              </NotificationItem>
+              <GroupedList>
+                {event.dates
+                  .filter(
+                    (row) =>
+                      event.status === "PLANNING" ||
+                      !event.confirmed ||
+                      row.id === event.confirmed.dateId,
+                  )
+                  .map((row) => (
+                    <GroupedRow key={row.id} className="flex-wrap">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <DateTimeInfo
+                            startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                            timeZone={event.timeZone}
+                          />
+                          <NotificationItem
+                            itemId={notificationItemId(event.id, "date", row.id)}
+                            readOnly={!voteDates || !event.canVote || closed}
+                          />
+                        </div>
+                        {voteDates ? (
+                          <EventVoteCounts
+                            label={eventDateWall(event, row).replace("T", " ")}
+                            counts={event.voteCounts?.dates[row.id]}
+                          />
+                        ) : null}
+                      </div>
+                      {voteDates && event.canVote && !closed ? (
                         <EventVoteButtons
-                          label={row.name}
-                          value={event.myVotes?.locationVotes[row.id]}
+                          label={eventDateWall(event, row).replace("T", " ")}
+                          value={event.myVotes?.dateVotes[row.id]}
                           disabledVotes={
                             eventAvailabilityVoteIsAllowed(
-                              event.locations,
-                              event.myVotes?.locationVotes ?? {},
+                              event.dates,
+                              event.myVotes?.dateVotes ?? {},
                               row.id,
                               "NO",
                             )
@@ -301,50 +246,127 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                           }
                           busy={a.blocking || q.isPlaceholderData}
                           onChange={(vote) =>
-                            a.vote.mutate({ kind: "location", optionId: row.id, vote })
+                            a.vote.mutate({ kind: "date", optionId: row.id, vote })
                           }
                         />
-                      ) : undefined}
-                    </>
-                  }
-                >
-                  {voteLocations ? (
-                    <EventVoteCounts
-                      label={row.name}
-                      counts={event.voteCounts?.locations[row.id]}
+                      ) : null}
+                    </GroupedRow>
+                  ))}
+              </GroupedList>
+            </section>
+            <EventProposalSection event={event} kind="date" disabled={q.isPlaceholderData} />
+            {event.endsAt ? (
+              <section aria-label={t`End Date and Time`} className="space-y-3">
+                <SearchHelpLabel
+                  label={t`End Date and Time`}
+                  helpTitle={t`Field help`}
+                  help={t`Choose a later time on the same day as the event start. All public tables must finish by this time.`}
+                />
+                <GroupedList>
+                  <GroupedRow>
+                    <DateTimeInfo
+                      startsAt={event.endsAt}
+                      timeZone={event.timeZone}
+                      timeLabel={t`End time`}
                     />
-                  ) : null}
-                </LocationListRow>
-              ))}
-          </GroupedList>
-        </section>
-        <section aria-label={t`Table list`} className="space-y-3">
-          <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
-            <TableListHeading />
-          </NotificationItem>
-          {(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => (
-            <EventTableCard key={row.id} table={row} context="event" />
-          ))}
-          {!tables.isPending && !tables.isError && !tables.items.length ? (
-            <EmptyList icon={<Dices className="size-7" />}>{t`No tables found`}</EmptyList>
-          ) : null}
-          {tables.isPending || tables.isFetchingNextPage ? (
-            <Skeleton className="h-32 w-full rounded-xl" />
-          ) : null}
-          {tables.isError ? (
-            <div role="alert">
-              <p className="text-danger">{t`Could not load tables`}</p>
-              <Button onPress={() => void tables.refetch()}>{t`Try again`}</Button>
-            </div>
-          ) : null}
-          <div ref={end} />
-          {tables.hasNextPage ? (
-            <Button
-              isDisabled={tables.isFetchingNextPage}
-              onPress={() => void tables.fetchNextPage()}
-            >{t`Load more`}</Button>
-          ) : null}
-        </section>
+                  </GroupedRow>
+                </GroupedList>
+              </section>
+            ) : null}
+            {event.bookingClosesAt ? (
+              <section aria-label={t`Registration Deadline Date and Time`} className="space-y-3">
+                <SearchHelpLabel
+                  label={t`Registration Deadline Date and Time`}
+                  helpTitle={t`Field help`}
+                  help={t`Registration closes on a day before the event starts. A new event needs a future deadline.`}
+                />
+                <GroupedList>
+                  <GroupedRow>
+                    <DateTimeInfo
+                      startsAt={event.bookingClosesAt}
+                      timeZone={event.timeZone}
+                      timeLabel={t`Registration Deadline Date and Time`}
+                    />
+                  </GroupedRow>
+                </GroupedList>
+              </section>
+            ) : null}
+            <section aria-label={t`Locations`} className="space-y-3">
+              <NotificationItem itemId={notificationItemId(event.id, "locations")} readOnly>
+                <h2 className="font-semibold">{t`Locations`}</h2>
+              </NotificationItem>
+              <GroupedList>
+                {event.locations
+                  .filter(
+                    (row) =>
+                      event.status === "PLANNING" ||
+                      !event.confirmed ||
+                      row.id === event.confirmed.locationId,
+                  )
+                  .map((row) => (
+                    <LocationListRow
+                      key={row.id}
+                      name={row.name}
+                      address={row.address}
+                      titleAccessory={
+                        <NotificationItem
+                          itemId={notificationItemId(event.id, "location", row.id)}
+                          readOnly={!voteLocations || !event.canVote || closed}
+                        />
+                      }
+                      actions={
+                        <>
+                          {voteLocations && event.canVote && !closed ? (
+                            <EventVoteButtons
+                              label={row.name}
+                              value={event.myVotes?.locationVotes[row.id]}
+                              disabledVotes={
+                                eventAvailabilityVoteIsAllowed(
+                                  event.locations,
+                                  event.myVotes?.locationVotes ?? {},
+                                  row.id,
+                                  "NO",
+                                )
+                                  ? []
+                                  : ["NO"]
+                              }
+                              busy={a.blocking || q.isPlaceholderData}
+                              onChange={(vote) =>
+                                a.vote.mutate({ kind: "location", optionId: row.id, vote })
+                              }
+                            />
+                          ) : undefined}
+                        </>
+                      }
+                    >
+                      {voteLocations ? (
+                        <EventVoteCounts
+                          label={row.name}
+                          counts={event.voteCounts?.locations[row.id]}
+                        />
+                      ) : null}
+                    </LocationListRow>
+                  ))}
+              </GroupedList>
+              <EventProposalSection event={event} kind="location" disabled={q.isPlaceholderData} />
+            </section>
+          </>
+        ) : null}
+        {tab === "participants" ? (
+          event.readOnly ? (
+            <p className="text-muted">{t`Public read-only view. Join the group to participate.`}</p>
+          ) : (
+            <EventParticipants event={event} actions={a} disabled={q.isPlaceholderData} />
+          )
+        ) : null}
+        {tab === "tables" ? (
+          <section aria-label={t`Table list`} className="space-y-3">
+            <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
+              <TableListHeading />
+            </NotificationItem>
+            <EventTables query={tables} />
+          </section>
+        ) : null}
         {canManageEvent(event, o.userId) && event.status === "CONFIRMED" && event.canReplan ? (
           <FloatingActions
             label={t`Reopen planning`}
@@ -358,7 +380,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <RotateCcw className="size-5" aria-hidden />
           </FloatingActions>
         ) : null}
-        {event.status === "PLANNING" && event.canEdit && !closed ? (
+        {tab === "details" && event.status === "PLANNING" && event.canEdit && !closed ? (
           <FloatingActions
             href={`/events/${event.id}/edit${fromGroup === event.groupId ? `?fromGroup=${encodeURIComponent(fromGroup)}` : ""}`}
             label={t`Edit event`}

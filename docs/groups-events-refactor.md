@@ -170,6 +170,23 @@ older membership-only activity/detail statements below.
   dice icon, only the first game and `+n` additional games (no suffix for a single game). The shared
   Rating badge is primary/accent when enabled and secondary/neutral when disabled, retaining its
   state icon and accessible label on both clients.
+- Event detail has Details / Participants / Tables top tabs. Details owns schedule/location voting
+  and the edit FAB; header lifecycle actions retain existing guards. Tables remain source-paged and
+  virtualized. Participants source-page distinct users across nonremoved Tables: ACCEPTED registrations
+  include queues, and genuine frozen rosters retain historical attendees. Pending/declined/cancelled
+  registrations, administration and demonstration alone never create a participant. A user with any
+  seated/frozen Table is not labeled waiting solely because another Table queues them. Public read-only
+  detail permission never grants this privileged Event roster endpoint. Rows disclose no email or ballots.
+- Current managers use the same platform member action sheet for Event participants. Remove from event
+  requires explicit, API/actor/Event-version-pinned confirmation while PLANNING and before any public
+  cutoff. One Group/Event-locked transaction cancels all target PENDING/ACCEPTED registrations in that
+  Event, advances its version once and recomputes agreement. It does not change Group membership, ban
+  the target, invent consent or prevent a later explicit join. Existing Event-seat management permits
+  removing a manager's registration; Group creator/peer protections apply separately to Group bans.
+  Ban from group uses the existing single Group exclusion transaction and frozen-public-duty guards,
+  never a second Event-removal request. TERMINATED history remains immutable. Menu/tab visibility never
+  triggers Group-member dwell or notification acknowledgments. Negative optimistic intent uses owned
+  caches only; later epochs/registrations survive, and uncertain outcomes require verification.
 - Event list/detail and parent links share stable-ID animated DiceBear Constellation artwork.
   Event detail starts with a Details label and voting-legend help above its artwork card:
   name and status first. When opened from the main Events list (or an unmarked direct link), a separate
@@ -348,6 +365,51 @@ older membership-only activity/detail statements below.
   table must agree; others remain present but excluded. Reopening preserves votes, invitations,
   priorities, participation and excluded tables except explicit removals/exclusions; it never
   silently extends the cutoff. TERMINATED events cannot reopen.
+
+### Participant option proposals
+
+Private Group Events expose opt-in `allowParticipantDates` / `allowParticipantLocations`, and
+Tables expose `allowParticipantGames`. Missing historical flags are off. New submissions require
+PLANNING, an enabled category and a current ACCEPTED effective seat: anywhere in the Event for
+its date/location, only the target Table for games. Pending reservations, accepted queues and
+management/demonstration alone do not qualify. Standalone/PUBLIC Events cannot enable these flags.
+
+Authenticated `GET /events/:id/proposals` source-pages `mine` or current-manager-only `review`
+scopes by category, with a Table ID required only for games. Private pending/rejected/decision
+metadata never enters ordinary Event options, public detail, participant responses or Community.
+Own pending duplicates are rejected without exposing another author's submissions. Explicit
+`POST` submissions carry Event version and request correlation; decisions at
+`POST /events/:id/proposals/:proposalId` carry Event/request versions and accept/reject only.
+`GET /events/:id/proposals/:proposalId` returns an authorized own/current-manager receipt; bounded
+own correlation reads also serialize with writes so lost responses are verified, not replayed.
+Group/Event locks serialize submissions, approval, confirmation, role changes and removals.
+
+Approval rechecks current management, proposer membership/seat, target, catalog and configuration,
+then reuses the canonical atomic Event edit. Existing IDs/votes remain; no consent, ballot, seat,
+result or rating is synthesized. Dates/locations retain their actual 20-option limits; no new game
+limit is imposed. A canonical duplicate resolves to its existing option rather than adding another.
+Rejection changes only the private request. Disabling a category stops new submissions, not review
+of existing pending requests during planning. Outside PLANNING decisions freeze; pending requests
+are neither automatically rejected nor confirmation blockers. Removed Tables retain private request
+history but cannot receive approvals; Event/Group deletion cascades requests. Notices go to current
+managers/the proposer; ordinary configuration notices occur only after canonical approval.
+
+Both clients expose private-only opt-ins in the existing Event/Table editor, and category-local
+proposal controls in Event dates/locations and Table games, not another top-level tab. Opening,
+selecting or cancelling a picker writes nothing; final explicit submission creates a private request.
+Managers see the authorized review queue; other participants see only their own proposals. Fixed
+five-row source pages bound presentation, including inside existing native lists. Failed unsent
+local drafts remain reviewable; a changed explicit retry gets a fresh correlation rather than replaying
+an old write. Current private single/correlated receipt reads verify uncertain outcomes without POST
+replay. Existing immutable results, consent, ballots and canonical gameplay statistics remain untouched.
+
+The existing scoped optimistic journal/Event FIFO owns transient intents and selective reconciliation;
+only known canonical proposal bases enter central encrypted native MMKV. Verified management loss
+clears manager-only pages, observers and review writers even when ordinary membership remains; own
+proposals and unrelated/foreign caches survive. Restore alone never enables a review action. Source
+failures remain observable, stale confirmations remain cancelable, and no proposal UI reads Group-member
+attention. Authenticated web/native runtime acceptance remains incomplete; see
+[the implementation checkpoint](implementation-progress.md).
 
 ## Location time zones
 

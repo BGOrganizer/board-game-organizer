@@ -797,7 +797,7 @@ msgstr "Torna ai tavoli"
 msgid "Ban"
 msgstr "Banna"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 #: apps/web/src/components/groups/GroupMembers.tsx
 msgid "Ban from group"
 msgstr "Banna dal gruppo"
@@ -1105,7 +1105,7 @@ msgstr "Scegli una data e un orario validi; questo orario locale potrebbe non es
 msgid "Choose a valid event start in the future."
 msgstr "Scegli una data e un orario di inizio validi e futuri."
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Choose a valid future date and time."
 msgstr "Scegli una data e un'ora future valide."
 
@@ -2391,7 +2391,7 @@ msgstr "Eventi"
 msgid "Exclude a user"
 msgstr "Escludi un utente"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 #: apps/web/src/components/groups/GroupMembers.tsx
 msgid "Exclude from group"
 msgstr "Escludi dal gruppo"
@@ -2415,7 +2415,7 @@ msgstr "Membro escluso"
 #~ msgid "Excluded members"
 #~ msgstr "Membri esclusi"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Excluded until"
 msgstr "Escluso fino al"
 
@@ -2628,7 +2628,7 @@ msgstr "Gruppo eliminato"
 msgid "Group details"
 msgstr "Dettaglio Gruppo"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Group exclusion is separate from global blocking. Membership and active registrations are removed; expiry or revocation never restores them. Historical results remain unchanged."
 msgstr "L'esclusione dal gruppo è distinta dal blocco globale. L'appartenenza e le iscrizioni attive vengono rimosse; la scadenza o la revoca non le ripristina. I risultati storici restano invariati."
 
@@ -4768,7 +4768,7 @@ msgstr "Tavoli"
 msgid "Tables list"
 msgstr "Lista tavoli"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Temporary exclusion"
 msgstr "Esclusione temporanea"
 
@@ -4979,7 +4979,7 @@ msgstr "Ora"
 msgid "Time zone"
 msgstr "Fuso orario"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Time zone: {zone}"
 msgstr "Fuso orario: {zone}"
 
@@ -5821,3 +5821,153 @@ msgstr "Le opzioni uniche si accettano con l'iscrizione. Solo le categorie con p
 
 msgid "Choose at least one game. Use the empty game slot to add another option. Players vote only when multiple games are proposed."
 msgstr "Scegli almeno un gioco. Usa lo spazio vuoto per aggiungere un'altra opzione. I giocatori votano solo quando sono proposti più giochi."
+
+msgid "Games without expansions"
+msgstr "Giochi senza espansioni"
+
+msgid "Games including expansions"
+msgstr "Giochi incluse le espansioni"
+
+msgid "Wishlist"
+msgstr "Lista desideri"
+
+msgid "N/A"
+msgstr "N/A"
+
+msgid "Synchronize again to include expansions and collection counts."
+msgstr "Sincronizza di nuovo per includere espansioni e conteggi della collezione."
+
+msgid "Filter collection"
+msgstr "Filtra collezione"
+
+msgid "Filter games in your collection"
+msgstr "Filtra giochi nella tua collezione"
+
+msgid "Could not load collection"
+msgstr "Impossibile caricare la collezione"
+
+msgid "Collection games"
+msgstr "Giochi della collezione"
+
+msgid "Personal BGG rating"
+msgstr "Voto personale BGG"
+
+msgid "Manage participant"
+msgstr "Gestisci partecipante"
+
+msgid "Remove from event"
+msgstr "Rimuovi dall’evento"
+
+msgid "No participants yet"
+msgstr "Ancora nessun partecipante"
+
+msgid "Could not load participants"
+msgstr "Impossibile caricare i partecipanti"
+
+msgid "Event details changed. Close and reopen this action."
+msgstr "I dettagli dell’evento sono cambiati. Chiudi e riapri questa azione."
+
+msgid "All active registrations for this person in this event will be removed. Group membership stays unchanged and they can join again."
+msgstr "Tutte le iscrizioni attive di questa persona in questo evento saranno rimosse. L’appartenenza al gruppo resta invariata e la persona può iscriversi di nuovo."
+
+msgid "Participant proposals"
+msgstr "Proposte dei partecipanti"
+
+msgid "Add proposal"
+msgstr "Aggiungi proposta"
+
+msgid "Could not send proposal"
+msgstr "Impossibile inviare la proposta"
+
+msgid "Sending proposal"
+msgstr "Invio della proposta"
+
+msgid "Review unsent proposal"
+msgstr "Rivedi proposta non inviata"
+
+msgid "Could not load proposals"
+msgstr "Impossibile caricare le proposte"
+
+msgid "No proposals"
+msgstr "Nessuna proposta"
+
+msgid "Accepting proposal"
+msgstr "Accettazione della proposta"
+
+msgid "Rejecting proposal"
+msgstr "Rifiuto della proposta"
+
+msgid "Rejected"
+msgstr "Rifiutata"
+
+msgid "Accept proposal"
+msgstr "Accetta proposta"
+
+msgid "Reject proposal"
+msgstr "Rifiuta proposta"
+
+msgid "Page"
+msgstr "Pagina"
+
+msgid "This proposal changed or the action is unavailable. Close and review current proposals."
+msgstr "Questa proposta è cambiata o l’azione non è disponibile. Chiudi e rivedi le proposte attuali."
+
+msgid "Propose a date and time"
+msgstr "Proponi data e ora"
+
+msgid "Propose a location"
+msgstr "Proponi un luogo"
+
+msgid "Propose a game"
+msgstr "Proponi un gioco"
+
+msgid "Proposals require an enabled category and your own seated participation in a private planning event."
+msgstr "Le proposte richiedono una categoria abilitata e un tuo posto a un tavolo di un evento privato in pianificazione."
+
+msgid "Submit explicitly. Your proposal stays private until managers approve its option."
+msgstr "Invia esplicitamente. La proposta resta privata finché i gestori non ne approvano l’opzione."
+
+msgid "Send proposal"
+msgstr "Invia proposta"
+
+msgid "Only seated participants may submit proposals. Managers review each proposal before it becomes an option."
+msgstr "Solo i partecipanti con un posto al tavolo possono inviare proposte. I gestori valutano ogni proposta prima che diventi un’opzione."
+
+msgid "Allow date proposals"
+msgstr "Consenti proposte di date"
+
+msgid "Allow location proposals"
+msgstr "Consenti proposte di luoghi"
+
+msgid "Allow game proposals"
+msgstr "Consenti proposte di giochi"
+
+msgid "Only seated players may propose games for this table. Managers review each proposal."
+msgstr "Solo i giocatori con un posto a questo tavolo possono proporre giochi. I gestori valutano ogni proposta."
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.propose_event_option.success"
+msgstr "Proposta inviata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.propose_event_option.error"
+msgstr "Impossibile inviare la proposta"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.accept_event_proposal.success"
+msgstr "Proposta accettata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.accept_event_proposal.error"
+msgstr "Impossibile accettare la proposta"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_event_proposal.success"
+msgstr "Proposta rifiutata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_event_proposal.error"
+msgstr "Impossibile rifiutare la proposta"
+
+msgid "Your proposals"
+msgstr "Le tue proposte"

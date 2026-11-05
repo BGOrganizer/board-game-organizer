@@ -39,6 +39,7 @@ export function ownsPersistedQuery(key: QueryKey, owner: CacheOwner) {
       "favoriteLocations",
       "bgg-account",
       "bgg-picker",
+      "bgg-collection",
     ].includes(String(key[0])) &&
     key[1] === owner.apiUrl &&
     key[2] === owner.userId

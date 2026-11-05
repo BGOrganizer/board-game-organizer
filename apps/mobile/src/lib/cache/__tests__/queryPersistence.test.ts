@@ -1,4 +1,9 @@
-import { CommunityApiError } from "@board-game-organizer/shared";
+import {
+  CommunityApiError,
+  eventProposalKeys,
+  projectProposalReview,
+  revokeProposalReview,
+} from "@board-game-organizer/shared";
 import { hashKey, hydrate, InfiniteQueryObserver, QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -51,10 +56,85 @@ describe("account-owned canonical persistence", () => {
     "favoriteLocations",
     "bgg-account",
     "bgg-picker",
+    "bgg-collection",
   ])("allows only the current API/user for %s", (family) => {
     expect(ownsPersistedQuery([family, owner.apiUrl, owner.userId], owner)).toBe(true);
     expect(ownsPersistedQuery([family, owner.apiUrl, "user-b"], owner)).toBe(false);
     expect(ownsPersistedQuery([family, "other-api", owner.userId], owner)).toBe(false);
+  });
+  it("round-trips canonical owned collection pages and purges their persisted payload on removal", () => {
+    const f = fixture();
+    const key = ["bgg-collection", owner.apiUrl, owner.userId, "snapshot", ""];
+    const payload = {
+      pages: [
+        {
+          snapshot: "snapshot",
+          counts: { withoutExpansions: 1, withExpansions: 2, wishlist: 1 },
+          items: [
+            { id: 1, name: "Owned game", userRating: 8.5, wishlist: true, isExpansion: false },
+            { id: 2, name: "Expansion", userRating: null, wishlist: false, isExpansion: true },
+          ],
+          nextCursor: null,
+        },
+      ],
+      pageParams: [""],
+    };
+    f.client.setQueryData(key, payload);
+    f.persister.flush();
+    expect(f.persister.restoreClient()?.clientState.queries[0]?.state.data).toEqual(payload);
+    f.client.removeQueries({ queryKey: ["bgg-collection", owner.apiUrl, owner.userId] });
+    f.persister.flush();
+    expect(f.persister.restoreClient()?.clientState.queries).toHaveLength(0);
+  });
+
+  it("persists canonical proposal bases only and purges manager-only disk data after verified demotion", async () => {
+    const f = fixture(),
+      scope = {
+        eventId: "event",
+        groupId: "group",
+        kind: "date" as const,
+        mode: "review" as const,
+      };
+    const review = eventProposalKeys.page(owner, scope),
+      own = eventProposalKeys.page(owner, { ...scope, mode: "mine" });
+    const row = {
+      id: "proposal",
+      eventId: "event",
+      version: 1,
+      status: "PENDING",
+      label: "Private candidate",
+    };
+    const payload = {
+      eventId: "event",
+      groupId: "group",
+      eventVersion: 1,
+      mode: "review",
+      items: [row],
+      nextCursor: null,
+    };
+    f.client.setQueryData(review, payload);
+    f.client.setQueryData(own, { ...payload, mode: "mine" });
+    const operation = await beginOptimisticOperation(
+      f.client,
+      ["events", owner.apiUrl, owner.userId, "event", "write"],
+      { queryKey: review },
+      (data) => projectProposalReview(data, "event", "proposal", 1, 1, "accept"),
+      [eventProposalKeys.reviewResource(owner, "event")],
+    );
+    expect(f.client.getQueryData<{ items: object[] }>(review)?.items[0]).toHaveProperty(
+      "clientAction",
+      "accept",
+    );
+    f.persister.flush();
+    expect(f.data.get("queries")).not.toContain("clientAction");
+    expect(f.persister.restoreClient()?.clientState.queries).toHaveLength(2);
+    revokeProposalReview(f.client, owner, { groupId: "group" });
+    f.persister.flush();
+    expect(operation.signal.aborted).toBe(true);
+    const saved = f.persister.restoreClient()?.clientState.queries;
+    expect(saved).toHaveLength(1);
+    expect(saved?.[0].queryKey).toEqual(own);
+    expect(saved?.[0].state.data).toEqual({ ...payload, mode: "mine" });
   });
   it("excludes local contacts, credentials, providers, retired domains and foreign contacts", () => {
     expect(ownsPersistedQuery(["contacts", "friends", owner.apiUrl, owner.userId], owner)).toBe(

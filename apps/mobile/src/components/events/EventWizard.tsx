@@ -319,6 +319,7 @@ function Editor({
           step === 1 ? (
             <EventDraftTableEditor
               row={row}
+              privateGroup={form.flexibleSchedule}
               publicGroup={publicGroup}
               timeZone={draft.timeZone}
               eventStartWall={draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : ""}

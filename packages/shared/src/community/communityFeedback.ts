@@ -27,6 +27,9 @@ export const COMMUNITY_FEEDBACK_MESSAGES = {
   },
   ban_group_member: { success: "Group ban applied", error: "Could not apply group ban" },
   revoke_group_ban: { success: "Group ban revoked", error: "Could not revoke group ban" },
+  propose_event_option: { success: "Proposal sent", error: "Could not send proposal" },
+  accept_event_proposal: { success: "Proposal accepted", error: "Could not accept proposal" },
+  reject_event_proposal: { success: "Proposal rejected", error: "Could not reject proposal" },
   confirm_event: { success: "Event confirmed", error: "Could not confirm event" },
   replan_event: {
     success: "Event returned to planning",

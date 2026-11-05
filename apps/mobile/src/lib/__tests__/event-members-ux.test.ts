@@ -82,7 +82,7 @@ it("keeps social blocking separate from group exclusions and prevents pending gr
   const members = source("groups/GroupMembers");
   expect(members).toContain("group.canSocialInteract");
   expect(members).toContain("GroupBanDialog");
-  expect(source("groups/GroupBanDialog")).toContain("global blocking");
+  expect(source("common/ui/GroupBanDialog")).toContain("global blocking");
   expect(source("groups/GroupDetail")).toContain("<GroupJoinRequest");
   expect(source("groups/GroupJoinRequest")).toContain("Membership pending.");
 });

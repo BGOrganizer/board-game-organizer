@@ -102,17 +102,36 @@ it("clears native selection through a separate accessible action and hides cache
     rating: 42,
   });
 });
-it.each([true, false])("allows Collection selection only for owner: %s", (own) => {
-  const setView = vi.fn();
-  const choose = evaluate(attribute("Profile", "Tabs", "onValueChange"), {
-    own,
-    setView,
-    viewKey: "scope",
-  });
-  choose("collection");
-  expect(setView).toHaveBeenCalledTimes(own ? 1 : 0);
-  if (own) expect(setView).toHaveBeenCalledWith("scope", { tab: "collection" });
-  expect(evaluate(initializer("Profile", "tab"), { own, storedTab: "collection" })).toBe(
-    own ? "collection" : "activity",
-  );
-});
+it.each([
+  { own: true, published: true, denied: false },
+  { own: true, published: false, denied: false },
+  { own: false, published: true, denied: false },
+  { own: true, published: true, denied: true },
+])(
+  "allows Collection only for an authorized owner's active snapshot: %j",
+  ({ own, published, denied }) => {
+    const setView = vi.fn();
+    const active = evaluate(initializer("Profile", "active"), {
+      own,
+      communityAccessDenied: () => denied,
+      bgg: {
+        account: {
+          data: { active: published ? { snapshot: "snapshot" } : null },
+          error: denied ? new Error("401") : null,
+        },
+      },
+    });
+    const allowed = own && published && !denied;
+    const choose = evaluate(attribute("Profile", "Tabs", "onValueChange"), {
+      active,
+      setView,
+      viewKey: "scope",
+    });
+    choose("collection");
+    expect(setView).toHaveBeenCalledTimes(allowed ? 1 : 0);
+    if (allowed) expect(setView).toHaveBeenCalledWith("scope", { tab: "collection" });
+    expect(evaluate(initializer("Profile", "tab"), { active, storedTab: "collection" })).toBe(
+      allowed ? "collection" : "activity",
+    );
+  },
+);

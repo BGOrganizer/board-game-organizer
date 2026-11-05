@@ -797,7 +797,7 @@ msgstr "Back to tables"
 msgid "Ban"
 msgstr "Ban"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 #: apps/web/src/components/groups/GroupMembers.tsx
 msgid "Ban from group"
 msgstr "Ban from group"
@@ -1105,7 +1105,7 @@ msgstr "Choose a valid date and time; this local time may not exist."
 msgid "Choose a valid event start in the future."
 msgstr "Choose a valid event start in the future."
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Choose a valid future date and time."
 msgstr "Choose a valid future date and time."
 
@@ -2391,7 +2391,7 @@ msgstr "Events"
 msgid "Exclude a user"
 msgstr "Exclude a user"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 #: apps/web/src/components/groups/GroupMembers.tsx
 msgid "Exclude from group"
 msgstr "Exclude from group"
@@ -2415,7 +2415,7 @@ msgstr "Excluded member"
 #~ msgid "Excluded members"
 #~ msgstr "Excluded members"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Excluded until"
 msgstr "Excluded until"
 
@@ -2628,7 +2628,7 @@ msgstr "Group deleted"
 msgid "Group details"
 msgstr "Group details"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Group exclusion is separate from global blocking. Membership and active registrations are removed; expiry or revocation never restores them. Historical results remain unchanged."
 msgstr "Group exclusion is separate from global blocking. Membership and active registrations are removed; expiry or revocation never restores them. Historical results remain unchanged."
 
@@ -4768,7 +4768,7 @@ msgstr "Tables"
 msgid "Tables list"
 msgstr "Tables list"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Temporary exclusion"
 msgstr "Temporary exclusion"
 
@@ -4979,7 +4979,7 @@ msgstr "Time"
 msgid "Time zone"
 msgstr "Time zone"
 
-#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Time zone: {zone}"
 msgstr "Time zone: {zone}"
 
@@ -5821,3 +5821,153 @@ msgstr "Single options are accepted when joining. Only categories with multiple 
 
 msgid "Choose at least one game. Use the empty game slot to add another option. Players vote only when multiple games are proposed."
 msgstr "Choose at least one game. Use the empty game slot to add another option. Players vote only when multiple games are proposed."
+
+msgid "Games without expansions"
+msgstr "Games without expansions"
+
+msgid "Games including expansions"
+msgstr "Games including expansions"
+
+msgid "Wishlist"
+msgstr "Wishlist"
+
+msgid "N/A"
+msgstr "N/A"
+
+msgid "Synchronize again to include expansions and collection counts."
+msgstr "Synchronize again to include expansions and collection counts."
+
+msgid "Filter collection"
+msgstr "Filter collection"
+
+msgid "Filter games in your collection"
+msgstr "Filter games in your collection"
+
+msgid "Could not load collection"
+msgstr "Could not load collection"
+
+msgid "Collection games"
+msgstr "Collection games"
+
+msgid "Personal BGG rating"
+msgstr "Personal BGG rating"
+
+msgid "Manage participant"
+msgstr "Manage participant"
+
+msgid "Remove from event"
+msgstr "Remove from event"
+
+msgid "No participants yet"
+msgstr "No participants yet"
+
+msgid "Could not load participants"
+msgstr "Could not load participants"
+
+msgid "Event details changed. Close and reopen this action."
+msgstr "Event details changed. Close and reopen this action."
+
+msgid "All active registrations for this person in this event will be removed. Group membership stays unchanged and they can join again."
+msgstr "All active registrations for this person in this event will be removed. Group membership stays unchanged and they can join again."
+
+msgid "Participant proposals"
+msgstr "Participant proposals"
+
+msgid "Add proposal"
+msgstr "Add proposal"
+
+msgid "Could not send proposal"
+msgstr "Could not send proposal"
+
+msgid "Sending proposal"
+msgstr "Sending proposal"
+
+msgid "Review unsent proposal"
+msgstr "Review unsent proposal"
+
+msgid "Could not load proposals"
+msgstr "Could not load proposals"
+
+msgid "No proposals"
+msgstr "No proposals"
+
+msgid "Accepting proposal"
+msgstr "Accepting proposal"
+
+msgid "Rejecting proposal"
+msgstr "Rejecting proposal"
+
+msgid "Rejected"
+msgstr "Rejected"
+
+msgid "Accept proposal"
+msgstr "Accept proposal"
+
+msgid "Reject proposal"
+msgstr "Reject proposal"
+
+msgid "Page"
+msgstr "Page"
+
+msgid "This proposal changed or the action is unavailable. Close and review current proposals."
+msgstr "This proposal changed or the action is unavailable. Close and review current proposals."
+
+msgid "Propose a date and time"
+msgstr "Propose a date and time"
+
+msgid "Propose a location"
+msgstr "Propose a location"
+
+msgid "Propose a game"
+msgstr "Propose a game"
+
+msgid "Proposals require an enabled category and your own seated participation in a private planning event."
+msgstr "Proposals require an enabled category and your own seated participation in a private planning event."
+
+msgid "Submit explicitly. Your proposal stays private until managers approve its option."
+msgstr "Submit explicitly. Your proposal stays private until managers approve its option."
+
+msgid "Send proposal"
+msgstr "Send proposal"
+
+msgid "Only seated participants may submit proposals. Managers review each proposal before it becomes an option."
+msgstr "Only seated participants may submit proposals. Managers review each proposal before it becomes an option."
+
+msgid "Allow date proposals"
+msgstr "Allow date proposals"
+
+msgid "Allow location proposals"
+msgstr "Allow location proposals"
+
+msgid "Allow game proposals"
+msgstr "Allow game proposals"
+
+msgid "Only seated players may propose games for this table. Managers review each proposal."
+msgstr "Only seated players may propose games for this table. Managers review each proposal."
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.propose_event_option.success"
+msgstr "Proposal sent"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.propose_event_option.error"
+msgstr "Could not send proposal"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.accept_event_proposal.success"
+msgstr "Proposal accepted"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.accept_event_proposal.error"
+msgstr "Could not accept proposal"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_event_proposal.success"
+msgstr "Proposal rejected"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_event_proposal.error"
+msgstr "Could not reject proposal"
+
+msgid "Your proposals"
+msgstr "Your proposals"

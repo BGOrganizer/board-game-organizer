@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
@@ -35,7 +36,6 @@ import { UserMenu } from "@/components/contacts/UserMenu";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
-import { GroupBanDialog } from "./GroupBanDialog";
 import { GroupMemberActions } from "./GroupMemberActions";
 import { GroupMemberAttention } from "./GroupMemberAttention";
 export function GroupMembers({ group }: { group: GroupRecordResponse }) {

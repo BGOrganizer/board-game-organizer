@@ -82,6 +82,13 @@ beforeEach(() => {
           };
       return Response.json(bgg);
     }
+    if (url.includes("/bgg/collection?"))
+      return Response.json({
+        snapshot: "snapshot",
+        counts: { withoutExpansions: 0, withExpansions: 0, wishlist: 0 },
+        items: [],
+        nextCursor: null,
+      });
     if (url.includes("/activities?"))
       return failFeed
         ? Response.json({ error: "Unavailable" }, { status: 503 })
@@ -115,13 +122,16 @@ beforeEach(() => {
   vi.stubGlobal("fetch", requests);
 });
 afterEach(() => vi.unstubAllGlobals());
-async function openCollection() {
-  fireEvent.click(await screen.findByRole("tab", { name: "Collection" }));
+async function readySync() {
   await waitFor(() =>
     expect(
       (screen.getByRole("button", { name: "Sync collection" }) as HTMLButtonElement).disabled,
     ).toBe(false),
   );
+}
+async function openCollection() {
+  fireEvent.click(await screen.findByRole("tab", { name: "Collection" }));
+  await readySync();
 }
 async function chooseChess() {
   const trigger = await screen.findByRole("button", { name: /Board game/ });
@@ -162,9 +172,10 @@ it("shows a compact identity, persistent tabs and real ordinal GLOBAL rating dat
       ?.tab,
   ).toBe("player");
 });
-it("moves BGG into the third owner-only tab and preserves tab selection through confirmation cancellation", async () => {
+it("keeps sync on the main owner profile and shows Collection only for an active snapshot, preserving selection on cancellation", async () => {
+  bgg = { active, pending: null };
   renderWithI18n(<Profile />);
-  await screen.findByText("Alessandro");
+  await screen.findByRole("tab", { name: "Collection" });
   expect(screen.getAllByRole("tab").map((tab) => tab.textContent?.trim())).toEqual([
     "Activities",
     "Player",
@@ -175,10 +186,14 @@ it("moves BGG into the third owner-only tab and preserves tab selection through 
     expect(tab.className).toContain("whitespace-nowrap");
     expect(tab.querySelector("svg")).not.toBeNull();
   }
-  expect(screen.queryByRole("heading", { name: "Your BGG collection" })).toBeNull();
-  expect(requests.mock.calls.some(([url]) => url.includes("/bgg/"))).toBe(false);
+  expect(screen.getByRole("heading", { name: "Your BGG collection" })).not.toBeNull();
+  expect(requests.mock.calls.some(([url]) => url.includes("/bgg/account"))).toBe(true);
+  expect(requests.mock.calls.some(([url]) => url.includes("/bgg/collection?"))).toBe(false);
   await openCollection();
-  await screen.findByRole("heading", { name: "Your BGG collection" });
+  expect(
+    within(screen.getByRole("tabpanel")).queryByRole("heading", { name: "Your BGG collection" }),
+  ).toBeNull();
+  await screen.findByText("Games without expansions");
   fireEvent.click(screen.getByRole("button", { name: "Sign out of your account" }));
   fireEvent.click(
     within(await screen.findByRole("dialog")).getByRole("button", { name: "Cancel" }),
@@ -252,7 +267,8 @@ it.each([401, 403, 404])("does not reveal blocked/missing profile details (%s)",
 it("asks only for a username, closes before verification, keeps failed input and validates blank submission", async () => {
   failLink = true;
   renderWithI18n(<Profile />);
-  await openCollection();
+  await readySync();
+  expect(screen.queryByRole("tab", { name: "Collection" })).toBeNull();
   const sync = await screen.findByRole("button", { name: "Sync collection" });
   fireEvent.click(sync);
   let dialog = await screen.findByRole("dialog", { name: "BGG username" });

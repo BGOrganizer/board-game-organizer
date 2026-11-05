@@ -34,6 +34,12 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/lib/games/useGameListWindow.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/lib/navigationColors.ts": {
           lines: 100,
           functions: 100,

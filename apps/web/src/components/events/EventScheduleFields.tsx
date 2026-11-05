@@ -7,7 +7,7 @@ import {
   publicEventBounds,
   type useEventRecordForm,
 } from "@board-game-organizer/shared";
-import { Button, Input, Skeleton, TextField } from "@heroui/react";
+import { Button, Input, Skeleton, Switch, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarClock, Plus, X } from "lucide-react";
 import { useId } from "react";
@@ -311,6 +311,35 @@ export function EventScheduleFields({
             )
           : null}
       </section>
+      {form.flexibleSchedule ? (
+        <section className="space-y-3" aria-label={t`Participant proposals`}>
+          <h2 className="font-semibold">{t`Participant proposals`}</h2>
+          <p className="text-sm text-muted">{t`Only seated participants may submit proposals. Managers review each proposal before it becomes an option.`}</p>
+          {(
+            [
+              ["allowParticipantDates", t`Allow date proposals`],
+              ["allowParticipantLocations", t`Allow location proposals`],
+            ] as const
+          ).map(([key, label]) => (
+            <Switch
+              key={key}
+              name={key}
+              className="w-full"
+              aria-label={label}
+              isSelected={Boolean(draft[key])}
+              isDisabled={busy}
+              onChange={(value) => form.patch({ [key]: value })}
+            >
+              <Switch.Content className="flex w-full items-center justify-between gap-3">
+                {label}
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
+              </Switch.Content>
+            </Switch>
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

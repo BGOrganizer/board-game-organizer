@@ -1,0 +1,171 @@
+import type { BggCollectionGame, BggCollectionQuery } from "@board-game-organizer/schemas";
+import type { Db } from "mongodb";
+import { describe, expect, it, vi } from "vitest";
+import { BggAccountRepository } from "../bgg-account.repository";
+
+const input: BggCollectionQuery = { snapshot: "snapshot", query: "", limit: 2 };
+const counts = { withoutExpansions: 2, withExpansions: 3, wishlist: 1 };
+function fixture(
+  rows: Partial<BggCollectionGame>[] = [],
+  nextSnapshot = "snapshot",
+  legacy = false,
+) {
+  const active = {
+    id: 1,
+    username: "owned",
+    avatarUrl: null,
+    snapshot: "snapshot",
+    syncedAt: new Date(),
+    ...(legacy ? {} : { counts }),
+  };
+  const accounts = {
+    findOne: vi
+      .fn()
+      .mockResolvedValueOnce({ active })
+      .mockResolvedValue({ active: { ...active, snapshot: nextSnapshot } }),
+  };
+  const cursor = {
+    sort: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    toArray: vi.fn().mockResolvedValue(rows),
+  };
+  const find = vi.fn().mockReturnValue(cursor);
+  const db = {
+    collection: (name: string) =>
+      name === "bggAccounts"
+        ? accounts
+        : name === "bggCollectionGames"
+          ? { find }
+          : { find: () => ({ toArray: async () => [{ id: 1, average: 6, rank: 7 }] }) },
+  } as unknown as Db;
+  return { repository: new BggAccountRepository(db), accounts, find, cursor };
+}
+const row = (id: number): Partial<BggCollectionGame> => ({
+  gameId: id,
+  name: `Game ${id}`,
+  userId: "owner",
+  snapshot: "snapshot",
+  year: 2020,
+  imageUrl: null,
+  subtype: "boardgame",
+  isExpansion: false,
+  userRating: 8.5,
+  wishlist: false,
+  xml: "<private/>",
+});
+
+describe("owner collection pages", () => {
+  it("filters and keyset-pages before response, exposes personal rather than average rating and no XML", async () => {
+    const h = fixture([row(1), row(2), row(3)]);
+    const result = await h.repository.page("owner", { ...input, query: "[game]" });
+    expect(h.find).toHaveBeenCalledWith({
+      userId: "owner",
+      snapshot: "snapshot",
+      name: { $regex: "\\[game\\]", $options: "i" },
+    });
+    expect(h.cursor.sort).toHaveBeenCalledWith({ name: 1, gameId: 1 });
+    expect(h.cursor.limit).toHaveBeenCalledWith(3);
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0]).toMatchObject({
+      userRating: 8.5,
+      average: 6,
+      rank: 7,
+      source: "collection",
+    });
+    expect(result.counts).toEqual(counts);
+    expect(JSON.stringify(result)).not.toContain("private");
+    expect(result.items[0]).not.toHaveProperty("userId");
+    const next = fixture([row(3)]);
+    const last = await next.repository.page("owner", { ...input, cursor: result.nextCursor ?? "" });
+    expect(next.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        $or: [{ name: { $gt: "Game 2" } }, { name: "Game 2", gameId: { $gt: 2 } }],
+      }),
+    );
+    expect(last.nextCursor).toBeNull();
+  });
+  it("keeps expansions in collection, not as playable catalog rows, and reports genuine empty counts", async () => {
+    const h = fixture([
+      {
+        ...row(1),
+        isExpansion: true,
+        subtype: "boardgameexpansion",
+        userRating: null,
+        wishlist: true,
+      },
+    ]);
+    expect((await h.repository.page("owner", input)).items[0]).toMatchObject({
+      isExpansion: true,
+      wishlist: true,
+      userRating: null,
+    });
+    const empty = fixture();
+    empty.accounts.findOne.mockReset().mockResolvedValue({
+      active: {
+        id: 1,
+        snapshot: "snapshot",
+        syncedAt: new Date(),
+        counts: { withoutExpansions: 0, withExpansions: 0, wishlist: 0 },
+      },
+    });
+    expect(await empty.repository.page("owner", input)).toEqual({
+      snapshot: "snapshot",
+      counts: { withoutExpansions: 0, withExpansions: 0, wishlist: 0 },
+      items: [],
+      nextCursor: null,
+    });
+  });
+  it("reads legacy personal ratings per returned page but never invents full expansion/wishlist totals", async () => {
+    const h = fixture(
+      [
+        {
+          ...row(1),
+          isExpansion: undefined,
+          wishlist: undefined,
+          userRating: undefined,
+          xml: '<item objectid="1" subtype="boardgame"><name>Legacy</name><status wishlist="1"/><stats><rating value="7.25"><average value="4"/></rating></stats></item>',
+        },
+      ],
+      "snapshot",
+      true,
+    );
+    const result = await h.repository.page("owner", input);
+    expect(result.counts).toBeNull();
+    expect(result.items[0]).toMatchObject({ userRating: 7.25, wishlist: true, isExpansion: false });
+    const invalid = fixture([
+      { ...row(1), userRating: undefined, wishlist: undefined, xml: "invalid" },
+    ]);
+    expect((await invalid.repository.page("owner", input)).items[0].userRating).toBeNull();
+  });
+  it.each(["no-account", "wrong-snapshot", "changed-during-read"])(
+    "fails closed on %s",
+    async (kind) => {
+      const h = fixture([row(1)], kind === "changed-during-read" ? "other" : "snapshot");
+      if (kind === "no-account") h.accounts.findOne.mockReset().mockResolvedValue(null);
+      await expect(
+        h.repository.page("owner", {
+          ...input,
+          snapshot: kind === "wrong-snapshot" ? "other" : "snapshot",
+        }),
+      ).rejects.toMatchObject({ status: kind === "no-account" ? 404 : 409 });
+    },
+  );
+  it.each([
+    "bad",
+    Buffer.from(JSON.stringify({ snapshot: "snapshot", name: "x", gameId: 0 })).toString(
+      "base64url",
+    ),
+  ])("rejects malformed cursors %s", async (cursor) => {
+    await expect(fixture().repository.page("owner", { ...input, cursor })).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+  it("rejects a cursor belonging to another snapshot", async () => {
+    const cursor = Buffer.from(JSON.stringify({ snapshot: "old", name: "x", gameId: 1 })).toString(
+      "base64url",
+    );
+    await expect(fixture().repository.page("owner", { ...input, cursor })).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+});

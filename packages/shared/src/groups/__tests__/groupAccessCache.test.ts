@@ -102,6 +102,32 @@ describe("verified Group access loss", () => {
       ).toEqual(page([{ id: "protected", groupId: group }]));
     },
   );
+  it("purges owned roster-only snapshots and cancels their Event writer without leaking retained historical rosters", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
+    const key = [...eventRoot, "participants", event];
+    const data = {
+      pages: [
+        {
+          groupId: group,
+          status: "TERMINATED",
+          eventVersion: 3,
+          items: [{ userId: "private-member" }],
+        },
+      ],
+      pageParams: [""],
+    };
+    client.setQueryData(key, data);
+    const foreign = ["events", owner.apiUrl, "another-actor", "participants", event];
+    client.setQueryData(foreign, data);
+    const operation = await beginOptimisticOperation(client, [...eventRoot, event, "write"], {
+      queryKey: key,
+    });
+    revokeCachedGroupAccess(client, owner, group, true);
+    expect(client.getQueryData(key)).toBeUndefined();
+    expect(operation.signal.aborted).toBe(true);
+    expect(client.getQueryData(foreign)).toEqual(data);
+    client.clear();
+  });
   it("cancels a revoked Event writer but preserves another Event's pending operation and rollback", async () => {
     const { client, eventDetail, events, other } = setup();
     const revoked = await beginOptimisticOperation(client, [...eventRoot, event], {

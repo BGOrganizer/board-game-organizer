@@ -34,6 +34,7 @@ import {
   eventCreationMatches,
   eventCreationRecord,
 } from "../eventOptimisticCreation";
+import { revokeProposalReview } from "../eventProposalCache";
 
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
 type ListFilters = {
@@ -100,8 +101,8 @@ function enabled(o: CommunityApiOptions) {
 export function eventRecordsQuery(o: CommunityApiOptions, filters: ListFilters = {}) {
   return infiniteQueryOptions({
     queryKey: eventRecordKeys.list(o, filters),
-    queryFn: ({ pageParam, signal }) =>
-      communityRequest<CommunityPageResponse<PlannedEventResponse>>(
+    queryFn: async ({ pageParam, signal, client }) => {
+      const result = await communityRequest<CommunityPageResponse<PlannedEventResponse>>(
         o,
         path(
           "events",
@@ -117,7 +118,11 @@ export function eventRecordsQuery(o: CommunityApiOptions, filters: ListFilters =
         "GET",
         undefined,
         signal,
-      ),
+      );
+      for (const row of result.items)
+        if (row.canManage === false) revokeProposalReview(client, o, { eventId: row.id });
+      return result;
+    },
     enabled: enabled(o),
     initialPageParam: "",
     getNextPageParam: (p) => p.nextCursor ?? undefined,
@@ -164,14 +169,17 @@ export function useEventCreationDraft(o: CommunityApiOptions, draftId?: string) 
 export function eventRecordQuery(o: CommunityApiOptions, id: string) {
   return queryOptions({
     queryKey: eventRecordKeys.detail(o, id),
-    queryFn: ({ signal }) =>
-      communityRequest<PlannedEventResponse>(
+    queryFn: async ({ signal, client }) => {
+      const result = await communityRequest<PlannedEventResponse>(
         o,
         `events/${encodeURIComponent(id)}`,
         "GET",
         undefined,
         signal,
-      ),
+      );
+      if (result.canManage === false) revokeProposalReview(client, o, { eventId: id });
+      return result;
+    },
     enabled: enabled(o) && Boolean(id),
     staleTime: 30_000,
     gcTime: 30 * 60_000,
@@ -198,8 +206,8 @@ export function recordTablesQuery(
 ) {
   return infiniteQueryOptions({
     queryKey: eventRecordKeys.tables(o, id, filters),
-    queryFn: ({ pageParam, signal }) =>
-      communityRequest<CommunityPageResponse<PlannedTableResponse>>(
+    queryFn: async ({ pageParam, signal, client }) => {
+      const result = await communityRequest<CommunityPageResponse<PlannedTableResponse>>(
         o,
         path(
           id ? `events/${encodeURIComponent(id)}/tables` : "tables",
@@ -218,7 +226,11 @@ export function recordTablesQuery(
         "GET",
         undefined,
         signal,
-      ),
+      );
+      for (const row of result.items)
+        if (row.canManage === false) revokeProposalReview(client, o, { eventId: row.eventId });
+      return result;
+    },
     enabled: enabled(o) && id !== "",
     initialPageParam: "",
     getNextPageParam: (p) => p.nextCursor ?? undefined,
@@ -249,14 +261,17 @@ export function useRecordTables(
 export function recordTableQuery(o: CommunityApiOptions, id: string, table: string) {
   return queryOptions({
     queryKey: eventRecordKeys.table(o, id, table),
-    queryFn: ({ signal }) =>
-      communityRequest<PlannedTableResponse>(
+    queryFn: async ({ signal, client }) => {
+      const result = await communityRequest<PlannedTableResponse>(
         o,
         `events/${encodeURIComponent(id)}/tables/${encodeURIComponent(table)}`,
         "GET",
         undefined,
         signal,
-      ),
+      );
+      if (result.canManage === false) revokeProposalReview(client, o, { eventId: id });
+      return result;
+    },
     enabled: enabled(o) && Boolean(id && table),
     staleTime: 30_000,
     gcTime: 30 * 60_000,

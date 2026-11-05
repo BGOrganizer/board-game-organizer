@@ -5,6 +5,42 @@ journeys invoked by `.github/scripts/maestro-e2e.sh` and the three native CI job
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
 Do not run the helpers directory or treat helpers as independent test reports.
 
+## Manual participant proposals
+
+`28-event-proposals.yaml` and `apps/web/e2e/event-proposals.config.ts` are opt-in only.
+They do not change canonical discovery/CI. Use authenticated, owned disposable PRIVATE
+PLANNING fixtures and the matching current Development/Preview builds. Every submission
+or accept/reject is a real write and may survive a later failure; no fixture provisioning,
+provider synchronization, application migration or automatic reset is performed.
+
+Required: `EVENT_PROPOSAL_FIXTURE_ACK=owned-disposable-event-proposals`,
+`EVENT_PROPOSAL_LOCALE=en|it`, `EVENT_PROPOSAL_INPUT` JSON. Native additionally requires
+`EVENT_PROPOSAL_BUILD_ACK=owned-preview-build`; web requires `EVENT_PROPOSAL_API_URL`,
+`PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and normal Development Clerk test inputs. Production
+hosts/keys are rejected by the web scenario. APK ownership/API isolation is an explicit
+native operator prerequisite, not inferred from the fixture acknowledgment.
+
+JSON fields: `eventId`, `groupId` (web), `tableId`, `mode: submit-game|accept|reject`,
+`gameId`, `gameName`, `proposalOffset` (0–24). Submission also needs a unique catalog
+`gameQuery` of at least four characters. Review needs `proposalId` and username-first
+`proposerName`. Names must match the current EN/IT UI, not emails or provider-ID fallbacks.
+Use a fresh pending candidate for each destructive review run.
+
+- `submit-game`: ordinary accepted Group member with an actual own-Table seat, game proposals
+  enabled, candidate absent from canonical games and an empty own queue. Opening/selecting
+  then cancelling writes nothing; the second explicit send creates one private PENDING proposal.
+- `accept|reject`: current manager, no automatic seat assumed; target is pending at the declared
+  source offset and its proposer still has its own Table seat. Pages are fixed at five records.
+  Cancel preserves the request, then one versioned decision updates that exact server-ID row.
+  Acceptance adds the canonical game; rejection does not. Browser checks canonical receipts,
+  unchanged existing ballots and exactly one proposal POST. Native status assertions target the
+  real proposal row, never a generic Pending/Accepted label elsewhere in the roster.
+
+These are game-path execution scenarios, not exhaustive runtime acceptance. Actual authenticated
+runs, native date/location pickers, role-loss/offline/cache restoration, all themes/text sizes and
+platform layout/focus behavior still require owned runtime acceptance. Unit/API/disposable-Mongo
+and Maestro syntax results do not substitute for those runs.
+
 ## Manual Group moderator actions
 
 `23-group-moderators.yaml` is explicit opt-in, outside canonical jobs. Use a verified
@@ -288,6 +324,56 @@ accessible load-more action also works when those items fit without scrolling. C
 a tall viewport as well as normal scrolling. Unit callback checks and screenshots do not establish
 a frame-time improvement. Do not disable animations or replace cache
 contents to make the flow pass. Canonical acceptance suites/jobs remain unchanged.
+
+## Manual Profile collection
+
+`26-profile-collection.yaml` reads an already synchronized owned Development/Preview account;
+no sync, provider write, provisioning, reset or notification acknowledgment occurs. Set
+`COLLECTION_FIXTURE_ACK=owned-synchronized-bgg-collection`,
+`COLLECTION_BUILD_ACK=owned-preview-build`, `COLLECTION_LOCALE=en|it`, and
+`COLLECTION_INPUT` to JSON:
+
+```json
+{"owner":"owned-username","withoutExpansions":40,"withExpansions":45,"wishlist":7,"ratedGame":"Exact rated title","rating":8.5,"unratedGame":"Exact unrated title","laterGame":"Exact later-page title","laterOffset":30,"emptyQuery":"known-unmatched-filter"}
+```
+
+Values must match the full published snapshot, not owned-only or filtered counts. Use distinct
+unambiguous rated/unrated titles, the expected displayed personal rating (at most two decimals),
+and a known title at source offset >=25 (zero-based name/id order).
+The flow verifies counters, personal rather than public rating, N/A, automatic filtering, empty
+results, clear and scrolling beyond the first API page. Run EN/IT, light/dark, normal/enlarged text
+and normal/tall viewports. Also verify keyboard focus survives filtering and the explicit load-more
+action works on a viewport where initial rows fit. Syntax/unit checks are not device acceptance.
+Flows17/18 now read the sync card on main Profile; Collection requires a published snapshot.
+
+## Manual Event participants
+
+`27-event-participants.yaml` and web `event-participants.config.ts` use already owned disposable
+Development/Preview fixtures. Remove/ban are real destructive actions: use a **fresh fixture per mode**;
+no provisioning, reset, new users or provider operations run automatically.
+
+Set `EVENT_PEOPLE_FIXTURE_ACK=owned-disposable-event-participants`, `EVENT_PEOPLE_LOCALE=en|it`,
+`EVENT_PEOPLE_INPUT` to JSON below, and native `EVENT_PEOPLE_BUILD_ACK=owned-preview-build`.
+Web additionally requires `EVENT_PEOPLE_API_URL`, explicit local/Preview `PLAYWRIGHT_BASE_URL`,
+Development Clerk and `E2E_EMAIL`.
+
+```json
+{"eventId":"11111111-1111-4111-8111-111111111111","groupId":"22222222-2222-4222-8222-222222222222","eventName":"Owned planning event","groupName":"Owned group","targetId":"user_owned_target","targetName":"unique-target-name","firstTableName":"First table","targetOffset":30,"mode":"remove"}
+```
+
+Use a PRIVATE PLANNING Event, current creator/moderator without an accepted seat, and an ordinary
+accepted Group target with accepted Event attendance. Target must lie beyond the first20 source
+rows; web requires offset20–49 and >50 distinct accepted/frozen attendees, checked with one bounded
+50-row read. Names are username-first; no email/Clerk-ID display fallbacks. Native uses the same
+fixture with its Event/Group/Table display names. Repeat with `mode=ban` on another disposable fixture.
+
+Both paths verify top tabs, the Details-only edit action, later-page attendance, canceled
+confirmation and one explicit destructive action. Native remove checks retained Group membership;
+web reads authoritative membership/roster afterward and asserts exactly one Event DELETE **or** one
+Group-ban POST, never a non-atomic chain. Existing role/frozen-duty guards remain mandatory. Run EN/IT,
+light/dark, narrow/desktop (web), enlarged text and tall viewports. Separately exercise public read-only,
+empty, nonmanager, stale/revoked role, network/rollback and immutable-history paths on owned fixtures;
+unit/Mongo cases do not replace that runtime matrix. Syntax is not acceptance.
 
 ## Evidence
 

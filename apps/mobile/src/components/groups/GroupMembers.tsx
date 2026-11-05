@@ -36,6 +36,7 @@ import { AppState, type FlatListProps, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
+import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { UserActionsSheet } from "@/components/common/ui/UserActionsSheet";
 import { UserList } from "@/components/common/ui/UserList";
@@ -43,7 +44,6 @@ import { UserListRow } from "@/components/common/ui/UserListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { GroupBanDialog } from "./GroupBanDialog";
 import { GroupMemberActions } from "./GroupMemberActions";
 import { GroupMemberAttention } from "./GroupMemberAttention";
 export function GroupMembers({ group }: { group: GroupRecordResponse }) {

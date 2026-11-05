@@ -23,7 +23,8 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GameListRow } from "@/components/games/GameListRow";
-import { GAME_PICKER_CHUNK_SIZE, gamePickerWindow } from "@/lib/games/gamePickerWindow";
+import { GAME_PICKER_CHUNK_SIZE } from "@/lib/games/gamePickerWindow";
+import { useGameListWindow } from "@/lib/games/useGameListWindow";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -76,38 +77,13 @@ export default function GamePicker({
   const scope = hashKey(bggPickerQuery(pickerOptions).queryKey);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
-  const scrolledScope = useRef<string | null>(null);
-  const [visibleWindow, setVisibleWindow] = useState({ scope, chunks: 1 });
-  // Reset before committing a different owner/snapshot/filter, never paint its old budget.
-  if (visibleWindow.scope !== scope) {
-    scrolledScope.current = null;
-    setVisibleWindow({ scope, chunks: 1 });
-  }
-  const visibleChunks = visibleWindow.scope === scope ? visibleWindow.chunks : 1;
-  const { items, hasCachedMore } = useMemo(
-    () => gamePickerWindow(picker.data?.pages, visibleChunks, excludedIds),
-    [picker.data?.pages, visibleChunks, excludedIds],
-  );
-  const { hasNextPage, isFetching, isError, fetchNextPage } = picker;
-  const hasMore = hasCachedMore || hasNextPage;
-  const loadMore = useCallback(() => {
-    if (scopeRef.current !== scope) return;
-    if (!hasCachedMore && (!hasNextPage || isFetching || isError)) return;
-    // Duplicate callbacks from one committed viewport expose at most one additional chunk.
-    setVisibleWindow((current) =>
-      current.scope === scope && current.chunks < visibleChunks + 1
-        ? { scope, chunks: visibleChunks + 1 }
-        : current,
-    );
-    if (!hasCachedMore) void fetchNextPage({ cancelRefetch: false });
-  }, [scope, hasCachedMore, hasNextPage, isFetching, isError, fetchNextPage, visibleChunks]);
-  const beginScroll = useCallback(() => {
-    if (scopeRef.current === scope) scrolledScope.current = scope;
-  }, [scope]);
-  const endReached = useCallback(() => {
-    // A short initial viewport can fire onEndReached before any user scroll.
-    if (scrolledScope.current === scope) loadMore();
-  }, [scope, loadMore]);
+  const { items, hasCachedMore, hasMore, loadMore, beginScroll, endReached } = useGameListWindow({
+    scope,
+    pages: picker.data?.pages,
+    excludedIds,
+    ...picker,
+  });
+  const { isFetching, isError } = picker;
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 300);
     return () => clearTimeout(timer);

@@ -62,6 +62,7 @@ describe("Group deletion cache ownership", () => {
   it("matches Group data, related Event/Table data and precise inbox destinations, not unrelated records", () => {
     for (const value of [
       { id: deleted },
+      { pages: [{ groupId: deleted, eventVersion: 1, items: [] }] },
       { groupId: deleted },
       { id: "event" },
       { eventId: "event" },

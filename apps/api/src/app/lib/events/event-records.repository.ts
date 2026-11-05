@@ -1,5 +1,6 @@
 import type {
   EventListStatus,
+  EventProposal,
   EventRecord,
   EventVoter,
   GroupRecord,
@@ -73,6 +74,7 @@ export class EventRecordsRepository {
     for (const collection of [
       COLLECTIONS.TABLE_REGISTRATIONS,
       COLLECTIONS.EVENT_VOTES,
+      COLLECTIONS.EVENT_PROPOSALS,
       COLLECTIONS.EVENT_TABLES,
     ])
       await this.db.collection(collection).deleteMany({ eventId: id }, this.opts);
@@ -266,6 +268,102 @@ export class EventRecordsRepository {
         ],
         this.opts,
       )
+      .toArray();
+  }
+  /** Deduplicate actual accepted/frozen attendance BEFORE cursor and limit. No pending identities. */
+  participants(event: EventRecord, page: Pick<EventRecordPage, "limit" | "cursor">) {
+    return this.tables
+      .aggregate<{ userId: string; tableIds: string[] }>(
+        [
+          { $match: { eventId: event.id, removedAt: { $exists: false } } },
+          {
+            $lookup: {
+              from: COLLECTIONS.TABLE_REGISTRATIONS,
+              localField: "id",
+              foreignField: "tableId",
+              pipeline: [
+                { $match: { eventId: event.id, status: "ACCEPTED" } },
+                { $project: { _id: 0, userId: 1 } },
+              ],
+              as: "accepted",
+            },
+          },
+          {
+            $project: {
+              tableId: "$id",
+              users: {
+                $setUnion: [
+                  "$accepted.userId",
+                  event.status === "PLANNING"
+                    ? []
+                    : { $cond: [{ $isArray: "$confirmed.playerIds" }, "$confirmed.playerIds", []] },
+                ],
+              },
+            },
+          },
+          { $unwind: "$users" },
+          { $match: { users: { $type: "string", $ne: "" } } },
+          { $group: { _id: "$users", tableIds: { $addToSet: "$tableId" } } },
+          ...(page.cursor ? [{ $match: { _id: { $gt: page.cursor } } }] : []),
+          { $sort: { _id: 1 } },
+          { $limit: page.limit + 1 },
+          { $project: { _id: 0, userId: "$_id", tableIds: 1 } },
+        ],
+        this.opts,
+      )
+      .toArray();
+  }
+  proposal(id: string) {
+    return this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .findOne({ id }, { ...this.opts, projection: { _id: 0 } });
+  }
+  proposalRequest(eventId: string, userId: string, clientRequestId: string) {
+    return this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .findOne({ eventId, userId, clientRequestId }, { ...this.opts, projection: { _id: 0 } });
+  }
+  duplicateProposal(eventId: string, userId: string, payloadKey: string) {
+    return this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .findOne(
+        { eventId, userId, payloadKey, status: "PENDING" },
+        { ...this.opts, projection: { _id: 0 } },
+      );
+  }
+  async saveProposal(row: EventProposal) {
+    await this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .replaceOne({ id: row.id }, row, { ...this.opts, upsert: true });
+    return row;
+  }
+  proposals(
+    eventId: string,
+    userId: string | null,
+    page: {
+      limit: number;
+      cursor?: string;
+      kind: "date" | "location" | "game";
+      tableId?: string;
+      clientRequestId?: string;
+    },
+  ) {
+    const [at, id] = page.cursor?.split("|") ?? [];
+    return this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .find(
+        {
+          eventId,
+          "payload.kind": page.kind,
+          ...(userId !== null ? { userId } : {}),
+          ...(page.tableId ? { "payload.tableId": page.tableId } : {}),
+          ...(page.clientRequestId ? { clientRequestId: page.clientRequestId } : {}),
+          ...(at ? { $or: [{ createdAt: { $lt: at } }, { createdAt: at, id: { $lt: id } }] } : {}),
+        },
+        { ...this.opts, projection: { _id: 0 } },
+      )
+      .sort({ createdAt: -1, id: -1 })
+      .limit(page.limit + 1)
       .toArray();
   }
   allRegistrations(eventId: string) {

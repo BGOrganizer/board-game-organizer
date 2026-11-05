@@ -1,0 +1,86 @@
+appId: com.bgo.mobile
+name: Private own-Table game proposal or versioned manager decision
+# MANUAL: authenticated owned disposable Development fixture/current Preview APK.
+# submit-game requires an ordinary accepted seated actor and empty own queue.
+# accept/reject require a fresh PENDING own-Table proposal at declared offset0-24.
+# Real writes may survive failure. No provisioning, reset, mocked acceptance or optional required steps.
+tags: [manual, events, proposals]
+---
+- runScript: ../helpers/event-proposal-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.eventProposal.link}
+- runFlow:
+    when:
+      true: ${output.eventProposal.submitting}
+    commands:
+      - extendedWaitUntil:
+          visible: ${output.eventProposal.own}
+          timeout: 120000
+      - assertVisible: ${output.eventProposal.empty}
+      - tapOn: ${output.eventProposal.add}
+      - tapOn: ${output.eventProposal.choose}
+      - tapOn:
+          id: game-search-input
+      - inputText: ${output.eventProposal.query}
+      - scrollUntilVisible:
+          element: ${output.eventProposal.select}
+          direction: DOWN
+          timeout: 120000
+      - tapOn: ${output.eventProposal.select}
+      - assertVisible: ${output.eventProposal.game}
+      - tapOn: ${output.eventProposal.cancel}
+      - assertVisible: ${output.eventProposal.empty}
+      - tapOn: ${output.eventProposal.add}
+      - tapOn: ${output.eventProposal.choose}
+      - tapOn:
+          id: game-search-input
+      - inputText: ${output.eventProposal.query}
+      - scrollUntilVisible:
+          element: ${output.eventProposal.select}
+          direction: DOWN
+          timeout: 120000
+      - tapOn: ${output.eventProposal.select}
+      - tapOn: ${output.eventProposal.send}
+      - extendedWaitUntil:
+          visible:
+            id: ${output.eventProposal.rowId}
+            containsDescendants:
+              - text: ${output.eventProposal.game}
+              - text: ${output.eventProposal.pending}
+          timeout: 120000
+- runFlow:
+    when:
+      true: ${!output.eventProposal.submitting}
+    commands:
+      - runFlow:
+          when:
+            true: ${output.eventProposal.pages > 0}
+          commands:
+            - repeat:
+                times: ${output.eventProposal.pages}
+                commands:
+                  - scrollUntilVisible:
+                      element: ${output.eventProposal.next}
+                      direction: DOWN
+                      timeout: 120000
+                  - tapOn: ${output.eventProposal.next}
+      - scrollUntilVisible:
+          element: ${output.eventProposal.review}
+          direction: DOWN
+          timeout: 120000
+      - tapOn: ${output.eventProposal.review}
+      - assertVisible: ${output.eventProposal.title}
+      - tapOn:
+          id: confirmation-cancel
+      - assertVisible: ${output.eventProposal.review}
+      - tapOn: ${output.eventProposal.review}
+      - tapOn:
+          id: confirmation-action-0
+      - extendedWaitUntil:
+          visible:
+            text: ${output.eventProposal.result}
+            childOf:
+              id: ${output.eventProposal.rowId}
+          timeout: 120000
+- takeScreenshot: event-proposal-outcome

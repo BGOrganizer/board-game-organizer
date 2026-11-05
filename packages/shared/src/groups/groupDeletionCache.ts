@@ -44,6 +44,11 @@ export function belongsToDeletedGroup(value: unknown, id: string, eventIds: Read
   const row = value as Record<string, unknown>;
   if (row.id === id || row.groupId === id) return true;
   if (
+    Array.isArray(row.pages) &&
+    row.pages.some((page) => belongsToDeletedGroup(page, id, eventIds))
+  )
+    return true;
+  if (
     (typeof row.id === "string" && eventIds.has(row.id)) ||
     (typeof row.eventId === "string" && eventIds.has(row.eventId))
   )

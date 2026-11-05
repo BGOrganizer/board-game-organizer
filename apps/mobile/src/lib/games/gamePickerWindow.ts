@@ -3,12 +3,12 @@ import type { BggPickerItem } from "@board-game-organizer/schemas";
 export const GAME_PICKER_CHUNK_SIZE = 8;
 
 /** Limit presentation, not the canonical Query cache or its source cursors. */
-export function gamePickerWindow(
-  pages: readonly { items: readonly BggPickerItem[] }[] | undefined,
+export function gamePickerWindow<T extends BggPickerItem>(
+  pages: readonly { items: readonly T[] }[] | undefined,
   chunkCount: number,
   excludedIds: ReadonlySet<number>,
 ) {
-  const items: BggPickerItem[] = [];
+  const items: T[] = [];
   let remaining = chunkCount;
   let hasCachedMore = false;
   for (const page of pages ?? []) {

@@ -28,6 +28,8 @@ export const eventRecordSchema = z
     status: eventStateSchema,
     version: z.number().int().positive(),
     planningGeneration: z.number().int().positive(),
+    allowParticipantDates: z.boolean().optional(),
+    allowParticipantLocations: z.boolean().optional(),
     nextPriority: z.number().int().nonnegative(),
     nextTableOrder: z.number().int().nonnegative(),
     lastNotifiedSituation: z.string().optional(),
@@ -68,6 +70,7 @@ export const tableRecordSchema = z
     maxPlayers: z.number().int().min(2),
     games: z.array(tableGameOptionSchema).min(1),
     rankingEnabled: z.boolean(),
+    allowParticipantGames: z.boolean().optional(),
     startsAt: z.iso.datetime({ offset: true }).optional(),
     demonstratorUserId: targetUserIdSchema.optional(),
     confirmed: z

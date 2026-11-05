@@ -52,6 +52,11 @@ import {
   versionedCommunityChange,
 } from "../../community/queryCache";
 import type { ContactUser } from "../../contacts/hooks/useContacts";
+import {
+  participantGroupVersion,
+  projectGroupParticipantBan,
+} from "../../events/eventParticipantCache";
+import { revokeProposalReview } from "../../events/eventProposalCache";
 import { notificationFilters } from "../../notifications/notificationAttentionCache";
 import { beginNotificationItemRead } from "../../notifications/notificationReadOperation";
 import { revokeCachedGroupAccess } from "../groupAccessCache";
@@ -62,6 +67,7 @@ import {
   type EditGroupVariables,
   groupCreationRecord,
 } from "../groupOptimisticCreation";
+import { isGroupManagerRole } from "../groupPolicy";
 export type GroupRecordScope = "mine" | "public" | "moderation";
 export type GroupPeopleScope = "accepted" | "pending" | "bans";
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
@@ -101,8 +107,8 @@ export function groupRecordsPageQuery(
   const selected = groupRecordListRoles.filter((role) => roles.includes(role));
   return infiniteQueryOptions({
     queryKey: groupRecordKeys.list(options, scope, query, selected, type),
-    queryFn: ({ pageParam, signal }) =>
-      communityRequest<CommunityPageResponse<GroupRecordResponse>>(
+    queryFn: async ({ pageParam, signal, client }) => {
+      const result = await communityRequest<CommunityPageResponse<GroupRecordResponse>>(
         options,
         communityPagePath(
           `groups?scope=${scope}${scope === "mine" ? `&roles=${selected.join(",")}` : ""}${type ? `&type=${encodeURIComponent(type)}` : ""}`,
@@ -113,7 +119,13 @@ export function groupRecordsPageQuery(
         "GET",
         undefined,
         signal,
-      ),
+      );
+      if (scope !== "moderation")
+        for (const row of result.items)
+          if (!isGroupManagerRole(row.role))
+            revokeProposalReview(client, options, { groupId: row.id });
+      return result;
+    },
     enabled: Boolean(
       options.apiUrl &&
         options.userId &&
@@ -180,14 +192,18 @@ export function useGroupCreationDraft(options: CommunityApiOptions, draftId?: st
 export function groupRecordDetailQuery(options: CommunityApiOptions, id: string, review = false) {
   return queryOptions({
     queryKey: groupRecordKeys.detail(options, id, review),
-    queryFn: ({ signal }) =>
-      communityRequest<GroupRecordResponse>(
+    queryFn: async ({ signal, client }) => {
+      const result = await communityRequest<GroupRecordResponse>(
         options,
         `groups/${encodeURIComponent(id)}${review ? "/review" : ""}`,
         "GET",
         undefined,
         signal,
-      ),
+      );
+      if (!review && !isGroupManagerRole(result.role))
+        revokeProposalReview(client, options, { groupId: id });
+      return result;
+    },
     enabled: Boolean(options.apiUrl && options.userId && id && options.enabled !== false),
     staleTime: review ? 0 : 5 * 60_000,
     gcTime: 30 * 60_000,
@@ -322,6 +338,16 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
   ) {
     const lane: QueryKey = personId || inviteeId ? ["person", personId ?? inviteeId] : ["write"];
     if (id && resourceBusy([...root, id, ...lane])) throw new Error("MUTATION_IN_PROGRESS");
+    const participantPages = new Map<string, { key: QueryKey; through: number }>();
+    if (action === "ban_group_member" && id && personId) {
+      for (const [key] of client.getQueriesData({
+        queryKey: ["events", options.apiUrl, options.userId],
+        predicate: (q) => q.queryKey[3] === "participants",
+      })) {
+        const through = participantGroupVersion(optimisticBaseData(client, key), id);
+        if (through > 0) participantPages.set(hashKey(key), { key, through });
+      }
+    }
     type Row =
       | GroupRecordResponse
       | GroupPersonResponse
@@ -357,20 +383,28 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         predicate: (query) =>
           query.queryKey[1] === options.apiUrl &&
           query.queryKey[2] === options.userId &&
-          ((query.queryKey[0] === "groups" &&
-            (query.queryKey[3] === "list" || query.queryKey[4] === id)) ||
+          (participantPages.has(hashKey(query.queryKey)) ||
+            (query.queryKey[0] === "groups" &&
+              (query.queryKey[3] === "list" || query.queryKey[4] === id)) ||
             (losingProfileAccess &&
               query.queryKey[0] === "profile" &&
               query.queryKey[3] === "activities")),
       },
       (data, key) =>
-        losingProfileAccess && id && key[0] === "profile"
-          ? removeDeletedGroupData(data, id, new Set())
-          : action === "delete_group" && id && key[3] === "list"
+        key[0] === "events" && id && personId && participantPages.has(hashKey(key))
+          ? projectGroupParticipantBan(
+              data,
+              id,
+              personId,
+              participantPages.get(hashKey(key))?.through ?? 0,
+            )
+          : losingProfileAccess && id && key[0] === "profile"
             ? removeDeletedGroupData(data, id, new Set())
-            : ["list", "detail", "invitees", "people"].includes(String(key[3]))
-              ? guarded.change(data, key)
-              : data,
+            : action === "delete_group" && id && key[3] === "list"
+              ? removeDeletedGroupData(data, id, new Set())
+              : ["list", "detail", "invitees", "people"].includes(String(key[3]))
+                ? guarded.change(data, key)
+                : data,
       [],
       (key) => {
         // A rejected write alone does not imply lost read access. A fresh denial
@@ -389,6 +423,8 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
       guarded,
       action,
       id,
+      personId,
+      participantPages,
       owner: { apiUrl: options.apiUrl, userId: options.userId },
       requestOptions: options,
       attentionOperation: undefined as
@@ -408,6 +444,16 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
   }
   function complete(context: Awaited<ReturnType<typeof begin>> | undefined) {
     if (!context?.operation.active) return;
+    if (context.id && context.personId)
+      for (const { key, through } of context.participantPages.values())
+        updateOptimisticBase(client, key, (data) =>
+          projectGroupParticipantBan(
+            data,
+            context.id as string,
+            context.personId as string,
+            through,
+          ),
+        );
     context.operation.commit(
       context.action === "delete_group"
         ? undefined
@@ -441,6 +487,7 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         query.queryKey[1] === owner.apiUrl &&
         query.queryKey[2] === owner.userId &&
         (query.queryKey[3] === "list" ||
+          context?.participantPages.has(hashKey(query.queryKey)) ||
           Boolean(
             query.state.data &&
               typeof query.state.data === "object" &&

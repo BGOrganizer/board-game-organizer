@@ -20,6 +20,10 @@ vi.mock("@/app/lib/notifications/push", () => ({ dispatchNotifications: vi.fn() 
 import * as oldBooking from "../../event-bookings/[bookingId]/route";
 import * as response from "../../table-registrations/[registrationId]/route";
 import * as mine from "../../tables/route";
+import * as participant from "../[eventId]/participants/[userId]/route";
+import * as participants from "../[eventId]/participants/route";
+import * as proposal from "../[eventId]/proposals/[proposalId]/route";
+import * as proposals from "../[eventId]/proposals/route";
 import * as result from "../[eventId]/results/route";
 import * as detail from "../[eventId]/route";
 import * as state from "../[eventId]/state/route";
@@ -89,6 +93,12 @@ const events = {
   personalTables: vi.fn(),
   tableLeaderboard: vi.fn(),
   invitationCandidates: vi.fn(),
+  participants: vi.fn(),
+  removeParticipant: vi.fn(),
+  proposals: vi.fn(),
+  submitProposal: vi.fn(),
+  reviewProposal: vi.fn(),
+  proposalDetail: vi.fn(),
 };
 beforeEach(() => {
   vi.clearAllMocks();
@@ -99,6 +109,89 @@ beforeEach(() => {
   for (const method of Object.values(events)) method.mockReset().mockResolvedValue({ id });
 });
 afterEach(() => vi.restoreAllMocks());
+it("validates private proposal scopes, explicit payloads and versioned decisions before service writes", async () => {
+  const target = { params: Promise.resolve({ eventId: id, proposalId: tableId }) };
+  expect((await proposal.GET(request(), target)).status).toBe(200);
+  expect(events.proposalDetail).toHaveBeenCalledWith("actor", id, tableId);
+  expect((await proposal.GET(request("GET", undefined, "?userId=other"), target)).status).toBe(400);
+  expect(
+    (await proposals.GET(request("GET", undefined, "?kind=date&mode=mine&limit=1"), context))
+      .status,
+  ).toBe(200);
+  expect(events.proposals).toHaveBeenCalledWith("actor", id, {
+    kind: "date",
+    mode: "mine",
+    limit: 1,
+  });
+  for (const query of [
+    "?kind=game",
+    `?kind=date&tableId=${tableId}`,
+    "?kind=date&userId=other",
+    "?kind=date&mode=all",
+    "?kind=date&limit=51",
+    "?kind=date&kind=game",
+    "?kind=date&cursor=bad",
+    `?kind=date&mode=review&clientRequestId=${id}`,
+  ])
+    expect((await proposals.GET(request("GET", undefined, query), context)).status).toBe(400);
+  const submission = {
+    eventVersion: 3,
+    clientRequestId: id,
+    payload: { kind: "game", tableId, gameId: 2 },
+  };
+  expect((await proposals.POST(request("POST", submission), context)).status).toBe(201);
+  expect(events.submitProposal).toHaveBeenCalledWith("actor", id, submission);
+  for (const body of [
+    undefined,
+    {},
+    {
+      eventVersion: 1,
+      clientRequestId: id,
+      payload: { kind: "date", day: "2030-06-03", startTime: "99:00" },
+    },
+    { ...submission, status: "ACCEPTED" },
+  ])
+    expect((await proposals.POST(request("POST", body), context)).status).toBe(400);
+  const decision = { eventVersion: 3, version: 1, action: "accept" };
+  expect((await proposal.POST(request("POST", decision), target)).status).toBe(200);
+  expect(events.reviewProposal).toHaveBeenCalledWith("actor", id, tableId, decision);
+  for (const body of [
+    undefined,
+    {},
+    { ...decision, version: 0 },
+    { ...decision, action: "delete" },
+    { ...decision, votes: {} },
+  ])
+    expect((await proposal.POST(request("POST", body), target)).status).toBe(400);
+  expect((await proposals.OPTIONS(request("OPTIONS"))).status).toBe(204);
+  expect((await proposal.OPTIONS(request("OPTIONS"))).status).toBe(204);
+  mocks.auth.mockResolvedValue({ userId: null });
+  expect((await proposals.GET(request("GET", undefined, "?kind=date"), context)).status).toBe(401);
+  expect((await proposals.POST(request("POST", submission), context)).status).toBe(401);
+  expect((await proposal.POST(request("POST", decision), target)).status).toBe(401);
+  expect((await proposal.GET(request(), target)).status).toBe(401);
+});
+it("validates source participant paging and versioned Event-only deletion before service writes", async () => {
+  const target = { params: Promise.resolve({ eventId: id, userId: "user_target" }) };
+  expect(
+    (await participants.GET(request("GET", undefined, "?limit=2&cursor=user_before"), context))
+      .status,
+  ).toBe(200);
+  expect(events.participants).toHaveBeenCalledWith("actor", id, {
+    limit: 2,
+    cursor: "user_before",
+  });
+  for (const query of ["?query=target", "?limit=51", "?limit=2&limit=3"])
+    expect((await participants.GET(request("GET", undefined, query), context)).status).toBe(400);
+  for (const input of [undefined, {}, { version: 0 }, { version: 1, groupId: id }])
+    expect((await participant.DELETE(request("DELETE", input), target)).status).toBe(400);
+  expect(events.removeParticipant).not.toHaveBeenCalled();
+  expect((await participant.DELETE(request("DELETE", { version: 3 }), target)).status).toBe(200);
+  expect(events.removeParticipant).toHaveBeenCalledWith("actor", id, "user_target", { version: 3 });
+  mocks.auth.mockResolvedValue({ userId: null });
+  expect((await participants.GET(request(), context)).status).toBe(401);
+  expect((await participant.DELETE(request("DELETE", { version: 3 }), target)).status).toBe(401);
+});
 it.each(["event", "table"] as const)(
   "validates versioned %s deletion, rejects malformed/extra input and requires authentication",
   async (kind) => {

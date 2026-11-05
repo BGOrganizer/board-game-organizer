@@ -11,7 +11,7 @@ tags: [manual, profile, bgg, auth]
 - extendedWaitUntil:
     visible: ${output.profileBgg.owner}
     timeout: 120000
-- tapOn: ${output.profileBgg.collection}
+- assertNotVisible: ${output.profileBgg.collection}
 - scrollUntilVisible:
     element: ${output.profileBgg.sync}
     direction: DOWN
@@ -43,7 +43,16 @@ tags: [manual, profile, bgg, auth]
     timeout: 300000
 - assertVisible: ${output.profileBgg.usernameText}
 - assertVisible: ${output.profileBgg.lastSuccess}
+- scrollUntilVisible:
+    element: ${output.profileBgg.collection}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.profileBgg.collection}
 - takeScreenshot: profile-real-bgg-published
+- scrollUntilVisible:
+    element: ${output.profileBgg.disconnect}
+    direction: UP
+    timeout: 120000
 - tapOn: ${output.profileBgg.disconnect}
 - tapOn:
     id: confirmation-cancel
@@ -58,6 +67,7 @@ tags: [manual, profile, bgg, auth]
     timeout: 120000
 - assertNotVisible: ${output.profileBgg.usernameText}
 - assertNotVisible: ${output.profileBgg.failed}
+- assertNotVisible: ${output.profileBgg.collection}
 - scrollUntilVisible:
     element: ${output.profileBgg.logout}
     direction: DOWN

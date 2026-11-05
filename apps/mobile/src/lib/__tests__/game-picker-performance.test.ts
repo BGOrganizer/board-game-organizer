@@ -8,6 +8,22 @@ import { memo } from "react";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
 import { GAME_PICKER_CHUNK_SIZE, gamePickerWindow } from "../games/gamePickerWindow";
+import { useGameListWindow } from "../games/useGameListWindow";
+
+type TestHooks = {
+  useState: (initial: unknown) => unknown;
+  useRef: (initial: unknown) => unknown;
+  useMemo: (factory: () => unknown, deps: unknown[]) => unknown;
+  useCallback: (callback: unknown, deps: unknown[]) => unknown;
+};
+const hooks = vi.hoisted(() => ({ current: undefined as TestHooks | undefined }));
+vi.mock("react", async (original) => ({
+  ...(await original<typeof import("react")>()),
+  useState: (initial: unknown) => hooks.current?.useState(initial),
+  useRef: (initial: unknown) => hooks.current?.useRef(initial),
+  useMemo: (factory: () => unknown, deps: unknown[]) => hooks.current?.useMemo(factory, deps),
+  useCallback: (callback: unknown, deps: unknown[]) => hooks.current?.useCallback(callback, deps),
+}));
 
 // Execute real application derivation/callbacks without loading RN Flow modules.
 // These checks do not measure native frame time, image decoding or touch rendering.
@@ -115,6 +131,7 @@ function harness(pageCount = 3) {
     bggPickerQuery,
     hashKey,
     gamePickerWindow,
+    useGameListWindow,
     GAME_PICKER_CHUNK_SIZE,
     useState: (initial: unknown) => {
       const i = stateIndex++;
@@ -166,6 +183,7 @@ function harness(pageCount = 3) {
     for (let i = 0; i < 5; i++) {
       stateIndex = refIndex = memoIndex = callbackIndex = 0;
       changed = false;
+      hooks.current = context;
       const node = runInNewContext(code, context) as Node;
       if (!changed) return node;
     }
@@ -442,6 +460,7 @@ it.each(["snapshot", "owner", "filter", "search"])(
     expect(current.props.key).not.toBe(first.props.key);
     first.props.onScrollBeginDrag();
     first.props.onEndReached();
+    first.props.ListFooterComponent.props.onPress();
     current.props.onEndReached();
     oldSelect(page(0).items[0]);
     expect(h.render().props.data).toHaveLength(8);

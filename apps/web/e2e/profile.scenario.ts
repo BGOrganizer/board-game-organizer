@@ -101,8 +101,12 @@ for (const width of [390, 1280]) {
       await expect(tab).toHaveCSS("white-space", "nowrap");
       await expect(tab).toHaveCSS("font-size", "14px");
     }
-    await main.getByRole("tab", { name: labels.collection, exact: true }).click();
     await expect(main.getByRole("heading", { name: labels.bgg })).toBeVisible();
+    const account = await read(page, "bgg/account");
+    expect(account.status).toBe(200);
+    await expect(main.getByRole("tab", { name: labels.collection, exact: true })).toHaveCount(
+      account.body.active ? 1 : 0,
+    );
     await expect(main.getByRole("button", { name: labels.logout, exact: true })).toBeVisible();
     await page.goto("/contacts");
     await main.getByRole("tab", { name: it ? "Ricerca" : "Search", exact: true }).click();
@@ -202,7 +206,8 @@ test("real provider BGG failure/success/retained snapshot/unlink and confirmed l
   await page.goto("/profile");
   const main = page.getByRole("main");
   await expect(main.getByText(ownerName, { exact: true })).toBeVisible();
-  await main.getByRole("tab", { name: labels.collection, exact: true }).click();
+  await expect(main.getByRole("tab", { name: labels.collection, exact: true })).toHaveCount(0);
+  await expect(main.getByRole("heading", { name: labels.bgg })).toBeVisible();
   await expect(main.getByRole("button", { name: labels.sync, exact: true })).toBeEnabled();
   expect([...hosts]).toEqual([api.host]);
   const before = await read(page, "bgg/account");
@@ -224,6 +229,82 @@ test("real provider BGG failure/success/retained snapshot/unlink and confirmed l
   const published = await read(page, "bgg/account");
   expect(published.body.active.username).toBe(username);
   expect(published.body.lastAttempt.status).toBe("success");
+  expect(published.body.active.counts).toEqual({
+    withoutExpansions: expect.any(Number),
+    withExpansions: expect.any(Number),
+    wishlist: expect.any(Number),
+  });
+  await main.getByRole("tab", { name: labels.collection, exact: true }).click();
+  for (const label of [
+    it ? "Giochi senza espansioni" : "Games without expansions",
+    it ? "Giochi incluse le espansioni" : "Games including expansions",
+    it ? "Lista desideri" : "Wishlist",
+  ])
+    await expect(main.getByText(label, { exact: true })).toBeVisible();
+  const collectionPage = await read(
+    page,
+    `bgg/collection?snapshot=${encodeURIComponent(published.body.active.snapshot)}&limit=1`,
+  );
+  expect(collectionPage.status).toBe(200);
+  expect(collectionPage.body.counts).toEqual(published.body.active.counts);
+  if (collectionPage.body.items.length) {
+    const first = collectionPage.body.items[0];
+    const row = main
+      .getByRole("option")
+      .filter({ has: page.getByText(first.name, { exact: true }) });
+    const rating =
+      first.userRating === null
+        ? "N/A"
+        : new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(first.userRating);
+    await expect(
+      row.getByText(`${it ? "Voto personale BGG" : "Personal BGG rating"}: ${rating}`, {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(row.getByRole("button", { name: /Select:|Seleziona:/ })).toHaveCount(0);
+    const filter = main.getByRole("searchbox", {
+      name: it ? "Filtra collezione" : "Filter collection",
+      exact: true,
+    });
+    expect(first.name.length).toBeLessThanOrEqual(120);
+    const filtered = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        url.pathname === "/api/bgg/collection" &&
+        url.searchParams.get("query") === first.name &&
+        response.request().method() === "GET"
+      );
+    });
+    await filter.fill(first.name);
+    expect((await filtered).status()).toBe(200);
+    await expect(row).toBeVisible();
+    const unmatched = `__missing_${crypto.randomUUID()}`;
+    await filter.fill(unmatched);
+    await expect(
+      main.getByText(it ? "Nessun gioco trovato" : "No games found", { exact: true }),
+    ).toBeVisible();
+    for (const [label, value] of [
+      [
+        it ? "Giochi senza espansioni" : "Games without expansions",
+        published.body.active.counts.withoutExpansions,
+      ],
+      [
+        it ? "Giochi incluse le espansioni" : "Games including expansions",
+        published.body.active.counts.withExpansions,
+      ],
+      [it ? "Lista desideri" : "Wishlist", published.body.active.counts.wishlist],
+    ] as const)
+      await expect(main.getByText(label, { exact: true }).locator("..")).toContainText(
+        new Intl.NumberFormat(locale).format(value),
+      );
+    await main
+      .getByRole("button", { name: it ? "Pulisci ricerca" : "Clear search", exact: true })
+      .click();
+    await expect(row).toBeVisible();
+  } else
+    await expect(
+      main.getByText(it ? "Nessun gioco trovato" : "No games found", { exact: true }),
+    ).toBeVisible();
   await main
     .getByRole("button", { name: it ? "Cambia username BGG" : "Change BGG username" })
     .click();
@@ -232,6 +313,7 @@ test("real provider BGG failure/success/retained snapshot/unlink and confirmed l
   await dialog.getByRole("button", { name: labels.sync, exact: true }).click();
   await expect(main.getByText(labels.failed, { exact: true })).toBeVisible();
   expect((await read(page, "bgg/account")).body.active).toEqual(published.body.active);
+  await expect(main.getByRole("tab", { name: labels.collection, exact: true })).toBeVisible();
   await main.getByRole("button", { name: labels.disconnect, exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: labels.cancel, exact: true }).click();
   expect((await read(page, "bgg/account")).body.active).toEqual(published.body.active);
@@ -241,6 +323,7 @@ test("real provider BGG failure/success/retained snapshot/unlink and confirmed l
     .getByRole("button", { name: it ? "Scollega" : "Disconnect", exact: true })
     .click();
   await expect.poll(async () => (await read(page, "bgg/account")).body.active).toBeNull();
+  await expect(main.getByRole("tab", { name: labels.collection, exact: true })).toHaveCount(0);
   await main.getByRole("button", { name: labels.logout, exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: labels.cancel, exact: true }).click();
   await expect(main.getByText(ownerName, { exact: true })).toBeVisible();

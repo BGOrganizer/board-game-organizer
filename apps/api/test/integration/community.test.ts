@@ -1813,6 +1813,537 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     }
     return group;
   }
+  it("source-pages private participant proposals, isolates authors and atomically cascades Event requests", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.allowParticipantDates = true;
+    input.allowParticipantLocations = true;
+    input.tables[0] = { ...input.tables[0], maxPlayers: 4, allowParticipantGames: true };
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OWNER, GUEST, OTHER]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    const version = (await services().eventRecords.find(event.id))!.version;
+    for (const user of [GUEST, OTHER])
+      for (let day = 4; day <= 15; day++)
+        await transaction((s) =>
+          s.plannedEventService.submitProposal(user, event.id, {
+            eventVersion: version,
+            clientRequestId: randomUUID(),
+            payload: {
+              kind: "date",
+              day: `2030-06-${String(day).padStart(2, "0")}`,
+              startTime: "19:00",
+            },
+          }),
+        );
+    const own: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await transaction((s) =>
+        s.plannedEventService.proposals(GUEST, event.id, {
+          mode: "mine",
+          kind: "date",
+          limit: 5,
+          cursor,
+        }),
+      );
+      expect(page.items.every((p) => p.userId === GUEST)).toBe(true);
+      expect(JSON.stringify(page)).not.toMatch(/requestHash|payloadKey|email|gameVotes/);
+      own.push(...page.items.map((p) => p.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(new Set(own).size).toBe(12);
+    expect(own).toHaveLength(12);
+    const first = await transaction((s) =>
+      s.plannedEventService.proposals(OWNER, event.id, { mode: "review", kind: "date", limit: 20 }),
+    );
+    const last = await transaction((s) =>
+      s.plannedEventService.proposals(OWNER, event.id, {
+        mode: "review",
+        kind: "date",
+        limit: 20,
+        cursor: first.nextCursor!,
+      }),
+    );
+    expect(first.items).toHaveLength(20);
+    expect(last.items).toHaveLength(4);
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.proposals(GUEST, event.id, {
+          mode: "review",
+          kind: "date",
+          limit: 20,
+        }),
+      ),
+    ).rejects.toMatchObject({ message: "EVENT_ADMIN_REQUIRED" });
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.proposals(OUTSIDER, event.id, {
+          mode: "mine",
+          kind: "date",
+          limit: 20,
+        }),
+      ),
+    ).rejects.toMatchObject({ message: "GROUP_MEMBER_REQUIRED" });
+    const membership = await services().groupRecords.membership(group.id, GUEST);
+    await transaction((s) => s.plannedEventService.remove(OWNER, event.id, { version }));
+    expect(
+      await db.collection(COLLECTIONS.EVENT_PROPOSALS).countDocuments({ eventId: event.id }),
+    ).toBe(0);
+    expect(await services().groupRecords.membership(group.id, GUEST)).toEqual(membership);
+  });
+  it("serializes proposal submit/accept races, retains singleton consent and rolls private/configuration/notices back together", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.allowParticipantDates = true;
+    input.allowParticipantLocations = true;
+    input.tables[0].allowParticipantGames = true;
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OWNER, GUEST]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    const version = (await services().eventRecords.find(event.id))!.version;
+    const submission = {
+      eventVersion: version,
+      clientRequestId: randomUUID(),
+      payload: { kind: "date" as const, day: "2030-06-04", startTime: "19:00" },
+    };
+    const submitted = await Promise.all([
+      transaction((s) => s.plannedEventService.submitProposal(GUEST, event.id, submission)),
+      transaction((s) => s.plannedEventService.submitProposal(GUEST, event.id, submission)),
+    ]);
+    expect(submitted[0].id).toBe(submitted[1].id);
+    expect(
+      await db.collection(COLLECTIONS.EVENT_PROPOSALS).countDocuments({ eventId: event.id }),
+    ).toBe(1);
+    expect(
+      await db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .countDocuments({ kind: "event_proposal_created" }),
+    ).toBe(1);
+    const registrations = await services().eventRecords.allRegistrations(event.id),
+      ballots = await services().eventRecords.allVotes(event.id);
+    const decisions = await Promise.all([
+      transaction((s) =>
+        s.plannedEventService.reviewProposal(OWNER, event.id, submitted[0].id, {
+          eventVersion: version,
+          version: 1,
+          action: "accept",
+        }),
+      ),
+      transaction((s) =>
+        s.plannedEventService.reviewProposal(OWNER, event.id, submitted[0].id, {
+          eventVersion: version,
+          version: 1,
+          action: "accept",
+        }),
+      ),
+    ]);
+    expect(decisions[0].proposal).toEqual(decisions[1].proposal);
+    let current = (await services().eventRecords.find(event.id))!;
+    expect(current.version).toBe(version + 1);
+    expect(current.dates).toHaveLength(2);
+    expect(current.dates[0].id).toBe(dateId);
+    expect(await services().eventRecords.allRegistrations(event.id)).toEqual(registrations);
+    expect(await services().eventRecords.allVotes(event.id)).toEqual(ballots);
+    expect(
+      ballots.every(
+        (v) => !Object.keys(v.dateVotes).length && !Object.keys(v.locationVotes).length,
+      ),
+    ).toBe(true);
+    expect(
+      await db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .countDocuments({ kind: "event_proposal_accepted" }),
+    ).toBe(1);
+    const proposal = await transaction((s) =>
+      s.plannedEventService.submitProposal(GUEST, event.id, {
+        eventVersion: current.version,
+        clientRequestId: randomUUID(),
+        payload: {
+          kind: "location",
+          location: {
+            ...location,
+            id: randomUUID(),
+            address: "Another verified street",
+            longitude: 13,
+            timeZone: "Europe/Rome",
+          },
+        },
+      }),
+    );
+    current = (await services().eventRecords.find(event.id))!;
+    const notices = await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments({});
+    await expect(
+      transaction(async (s) => {
+        await s.plannedEventService.reviewProposal(OWNER, event.id, proposal.id, {
+          eventVersion: current.version,
+          version: 1,
+          action: "accept",
+        });
+        throw new Error("proposal rollback");
+      }),
+    ).rejects.toThrow("proposal rollback");
+    expect(await services().eventRecords.find(event.id)).toEqual(current);
+    expect((await services().eventRecords.proposal(proposal.id))?.status).toBe("PENDING");
+    expect(await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments({})).toBe(notices);
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({})).toBe(0);
+  });
+  it("serializes proposal approval against confirmation and current-role revocation without rewriting frozen state", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.allowParticipantDates = true;
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OWNER, GUEST]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    let version = (await services().eventRecords.find(event.id))!.version;
+    const proposal = await transaction((s) =>
+      s.plannedEventService.submitProposal(GUEST, event.id, {
+        eventVersion: version,
+        clientRequestId: randomUUID(),
+        payload: { kind: "date", day: "2030-06-05", startTime: "20:00" },
+      }),
+    );
+    const raced = await Promise.allSettled([
+      transaction((s) =>
+        s.plannedEventService.transition(OWNER, event.id, { action: "confirm", version }),
+      ),
+      transaction((s) =>
+        s.plannedEventService.reviewProposal(OWNER, event.id, proposal.id, {
+          eventVersion: version,
+          version: 1,
+          action: "accept",
+        }),
+      ),
+    ]);
+    expect(raced.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    let current = (await services().eventRecords.find(event.id))!;
+    if (current.status === "CONFIRMED") {
+      expect(current.dates).toHaveLength(1);
+      expect((await services().eventRecords.proposal(proposal.id))?.status).toBe("PENDING");
+      await transaction((s) =>
+        s.plannedEventService.transition(OWNER, event.id, {
+          action: "replan",
+          version: current.version,
+        }),
+      );
+    } else {
+      expect(current.status).toBe("PLANNING");
+      expect(current.dates).toHaveLength(2);
+    }
+    const member = (await services().groupRecords.membership(group.id, OTHER))!;
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, OTHER, {
+        action: "promote",
+        version: member.version,
+      }),
+    );
+    current = (await services().eventRecords.find(event.id))!;
+    const next = await transaction((s) =>
+      s.plannedEventService.submitProposal(GUEST, event.id, {
+        eventVersion: current.version,
+        clientRequestId: randomUUID(),
+        payload: { kind: "date", day: "2030-06-06", startTime: "20:00" },
+      }),
+    );
+    const moderator = (await services().groupRecords.membership(group.id, OTHER))!;
+    version = (await services().eventRecords.find(event.id))!.version;
+    await Promise.allSettled([
+      transaction((s) =>
+        s.unifiedGroupService.membershipAction(OWNER, group.id, OTHER, {
+          action: "demote",
+          version: moderator.version,
+        }),
+      ),
+      transaction((s) =>
+        s.plannedEventService.reviewProposal(OTHER, event.id, next.id, {
+          eventVersion: version,
+          version: 1,
+          action: "accept",
+        }),
+      ),
+    ]);
+    expect((await services().groupRecords.membership(group.id, OTHER))?.role).not.toBe("MODERATOR");
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.proposals(OTHER, event.id, {
+          kind: "date",
+          mode: "review",
+          limit: 20,
+        }),
+      ),
+    ).rejects.toMatchObject({ message: "EVENT_ADMIN_REQUIRED" });
+    expect((await services().eventRecords.proposal(next.id))?.status).toMatch(
+      /^(PENDING|ACCEPTED)$/,
+    );
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(0);
+  });
+  it("rechecks proposal games against real own seats/current catalog and preserves pending history for removed Tables", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.tables[0].allowParticipantGames = true;
+    input.tables.push({ ...input.tables[0], id: secondId, name: "Another game table" });
+    await db.collection(COLLECTIONS.BOARD_GAMES).insertMany([
+      { id: 2, name: "New base game", isExpansion: false },
+      { id: 3, name: "Expansion", isExpansion: true },
+    ]);
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OWNER, GUEST, OTHER]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    let version = (await services().eventRecords.find(event.id))!.version;
+    for (const [userId, target] of [
+      [GUEST, secondId],
+      [OTHER, tableId],
+    ])
+      await expect(
+        transaction((s) =>
+          s.plannedEventService.submitProposal(userId, event.id, {
+            eventVersion: version,
+            clientRequestId: randomUUID(),
+            payload: { kind: "game", tableId: target, gameId: 2 },
+          }),
+        ),
+      ).rejects.toMatchObject({ message: "PROPOSAL_SEAT_REQUIRED" });
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.submitProposal(GUEST, event.id, {
+          eventVersion: version,
+          clientRequestId: randomUUID(),
+          payload: { kind: "game", tableId, gameId: 3 },
+        }),
+      ),
+    ).rejects.toMatchObject({ message: "GAME_NOT_FOUND" });
+    const row = await transaction((s) =>
+      s.plannedEventService.submitProposal(GUEST, event.id, {
+        eventVersion: version,
+        clientRequestId: randomUUID(),
+        payload: { kind: "game", tableId, gameId: 2 },
+      }),
+    );
+    await db
+      .collection(COLLECTIONS.BOARD_GAMES)
+      .updateOne({ id: 2 }, { $set: { isExpansion: true } });
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.reviewProposal(OWNER, event.id, row.id, {
+          eventVersion: version,
+          version: 1,
+          action: "accept",
+        }),
+      ),
+    ).rejects.toMatchObject({ message: "GAME_NOT_FOUND" });
+    expect((await services().eventRecords.proposal(row.id))?.status).toBe("PENDING");
+    expect((await services().eventRecords.find(event.id))?.version).toBe(version);
+    await db
+      .collection(COLLECTIONS.BOARD_GAMES)
+      .updateOne({ id: 2 }, { $set: { isExpansion: false } });
+    await transaction((s) =>
+      s.plannedEventService.reviewProposal(OWNER, event.id, row.id, {
+        eventVersion: version,
+        version: 1,
+        action: "accept",
+      }),
+    );
+    expect(
+      (await services().eventRecords.table(tableId))?.games.map((game) => game.gameId),
+    ).toEqual([1, 2]);
+    expect((await services().eventRecords.userRegistration(tableId, GUEST))?.gameVotes).toEqual({});
+    await db
+      .collection(COLLECTIONS.BOARD_GAMES)
+      .insertOne({ id: 4, name: "Another base game", isExpansion: false });
+    version = (await services().eventRecords.find(event.id))!.version;
+    const pending = await transaction((s) =>
+      s.plannedEventService.submitProposal(GUEST, event.id, {
+        eventVersion: version,
+        clientRequestId: randomUUID(),
+        payload: { kind: "game", tableId, gameId: 4 },
+      }),
+    );
+    await transaction((s) =>
+      s.plannedEventService.removeTable(OWNER, event.id, tableId, { version }),
+    );
+    version = (await services().eventRecords.find(event.id))!.version;
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.reviewProposal(OWNER, event.id, pending.id, {
+          eventVersion: version,
+          version: 1,
+          action: "accept",
+        }),
+      ),
+    ).rejects.toMatchObject({ message: "TABLE_NOT_FOUND" });
+    expect((await services().eventRecords.proposal(pending.id))?.status).toBe("PENDING");
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(0);
+  });
+  it("verifies lost proposal receipts with private serialized reads and current manager authority", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.allowParticipantDates = true;
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    const choices = await participation(event.id, tableId);
+    await transaction((s) => s.plannedEventService.join(GUEST, event.id, tableId, choices));
+    const version = (await services().eventRecords.find(event.id))!.version;
+    const proposed = await transaction((s) =>
+      s.plannedEventService.submitProposal(GUEST, event.id, {
+        eventVersion: version,
+        clientRequestId: randomUUID(),
+        payload: { kind: "date", day: "2030-06-07", startTime: "20:00" },
+      }),
+    );
+    const correlation = await transaction((s) =>
+      s.plannedEventService.proposals(GUEST, event.id, {
+        mode: "mine",
+        kind: "date",
+        limit: 1,
+        clientRequestId: proposed.clientRequestId,
+      }),
+    );
+    expect(correlation.items.map((row) => row.id)).toEqual([proposed.id]);
+    const receipt = await transaction((s) =>
+      s.plannedEventService.reviewProposal(OWNER, event.id, proposed.id, {
+        eventVersion: version,
+        version: 1,
+        action: "accept",
+      }),
+    );
+    expect(
+      (await transaction((s) => s.plannedEventService.proposalDetail(GUEST, event.id, proposed.id)))
+        .proposal,
+    ).toEqual(receipt.proposal);
+    await expect(
+      transaction((s) => s.plannedEventService.proposalDetail(OTHER, event.id, proposed.id)),
+    ).rejects.toMatchObject({ message: "PROPOSAL_NOT_FOUND" });
+    const membership = (await services().groupRecords.membership(group.id, OTHER))!;
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, OTHER, {
+        action: "promote",
+        version: membership.version,
+      }),
+    );
+    expect(
+      (await transaction((s) => s.plannedEventService.proposalDetail(OTHER, event.id, proposed.id)))
+        .proposal.status,
+    ).toBe("ACCEPTED");
+    const moderator = (await services().groupRecords.membership(group.id, OTHER))!;
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, OTHER, {
+        action: "demote",
+        version: moderator.version,
+      }),
+    );
+    await expect(
+      transaction((s) => s.plannedEventService.proposalDetail(OTHER, event.id, proposed.id)),
+    ).rejects.toMatchObject({ message: "PROPOSAL_NOT_FOUND" });
+  });
+  it("pages Event participants at source and removes only Event attendance atomically under competing versions", async () => {
+    const group = await privateGroup();
+    const input = plannedInput(group.id);
+    input.tables.push({ ...input.tables[0], id: secondId, name: "Second participant table" });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OWNER, GUEST, OTHER]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    const secondChoices = await participation(event.id, secondId);
+    await transaction((s) => s.plannedEventService.join(GUEST, event.id, secondId, secondChoices));
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await transaction((s) =>
+        s.plannedEventService.participants(OWNER, event.id, { limit: 1, cursor }),
+      );
+      expect(page.items).toHaveLength(1);
+      expect(page.items[0]).not.toHaveProperty("email");
+      expect(page.items[0]).not.toHaveProperty("gameVotes");
+      if (page.items[0].userId === OTHER) expect(page.items[0].position).toBe("WAITING");
+      seen.push(page.items[0].userId);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(new Set(seen)).toEqual(new Set([OWNER, GUEST, OTHER]));
+    expect(seen).toHaveLength(3);
+    await expect(
+      transaction((s) => s.plannedEventService.participants(OUTSIDER, event.id, { limit: 20 })),
+    ).rejects.toMatchObject({ status: 403 });
+    const membership = await services().groupRecords.membership(group.id, GUEST);
+    const version = (await services().eventRecords.find(event.id))!.version;
+    const raced = await Promise.allSettled([
+      transaction((s) =>
+        s.plannedEventService.removeParticipant(OWNER, event.id, GUEST, { version }),
+      ),
+      transaction((s) =>
+        s.plannedEventService.removeParticipant(OWNER, event.id, GUEST, { version }),
+      ),
+    ]);
+    expect(raced.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(raced.find((result) => result.status === "rejected")).toMatchObject({
+      reason: { message: "EVENT_CHANGED" },
+    });
+    expect(await services().eventRecords.userRegistrations(event.id, GUEST)).toEqual([]);
+    expect(await services().groupRecords.membership(group.id, GUEST)).toEqual(membership);
+    expect(
+      await db
+        .collection(COLLECTIONS.GROUP_BANS)
+        .countDocuments({ groupId: group.id, userId: GUEST }),
+    ).toBe(0);
+    const choices = await participation(event.id, tableId);
+    await transaction((s) => s.plannedEventService.join(GUEST, event.id, tableId, choices));
+    const before = await services().eventRecords.find(event.id);
+    const notices = await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments({});
+    await expect(
+      transaction(async (s) => {
+        await s.plannedEventService.removeParticipant(OWNER, event.id, GUEST, {
+          version: before!.version,
+        });
+        throw new Error("participant rollback");
+      }),
+    ).rejects.toThrow("participant rollback");
+    expect(await services().eventRecords.find(event.id)).toEqual(before);
+    expect(await services().eventRecords.userRegistrations(event.id, GUEST)).toHaveLength(1);
+    expect(await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments({})).toBe(notices);
+  });
+  it("keeps frozen Event participants source-complete without mutable rows and refuses immutable removal", async () => {
+    const group = await privateGroup();
+    const event = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    for (const user of [OWNER, GUEST, OTHER]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    const version = (await services().eventRecords.find(event.id))!.version;
+    await transaction((s) =>
+      s.plannedEventService.transition(OWNER, event.id, { action: "confirm", version }),
+    );
+    await db
+      .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+      .deleteOne({ eventId: event.id, userId: GUEST });
+    const page = await transaction((s) =>
+      s.plannedEventService.participants(OWNER, event.id, { limit: 20 }),
+    );
+    expect(page.items.find((row) => row.userId === GUEST)).toMatchObject({
+      position: "FROZEN",
+      canRemove: false,
+    });
+    expect(page.items.find((row) => row.userId === OTHER)).toMatchObject({
+      position: "WAITING",
+      canRemove: false,
+    });
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.removeParticipant(OWNER, event.id, GUEST, {
+          version: page.eventVersion,
+        }),
+      ),
+    ).rejects.toMatchObject({ message: "EVENT_NOT_PLANNING" });
+    expect((await services().eventRecords.table(tableId))!.confirmed!.playerIds).toContain(GUEST);
+  });
   it("grants scoped Group moderators, protects creator and peers, preserves ownership and revokes historical Event authorship on demotion", async () => {
     const group = await privateGroup();
     for (const user of [GUEST, OTHER]) {

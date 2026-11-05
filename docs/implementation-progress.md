@@ -1,5 +1,112 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Participant option proposals — implemented locally; authenticated/device acceptance pending
+
+- Both clients expose default-off PRIVATE Group proposal settings in the existing Event/Table editor,
+  and category-local own/manager queues in Event date/location and Table game sections. No fourth tab
+  or separate dashboard is added. Existing date/verified-location/game pickers retain explicit final
+  submission: opening, selecting and cancelling write nothing. Five-row source pages bound native/web
+  presentation; unsent owned drafts remain recoverable without copying server state into another store.
+- Strict authenticated DTOs/source paging and Group/Event locks require current authority and actual
+  ACCEPTED effective seats, never pending reservations, queues or automatic manager/demonstrator seats.
+  Games are restricted to the proposer's own seated Table. Current catalog, clock/verified venue and
+  canonical limits remain enforced; no new game cap is invented. Private dedup reveals only one's own
+  pending duplicates. Single/correlated receipt reads verify uncertain writes without POST replay.
+- Approval reuses canonical atomic Event editing/agreement/notices, preserving identities, existing
+  votes, consent, registrations and immutable results/statistics. Rejection is private only. Disabling
+  categories stops new submissions; existing requests remain reviewable in planning and freeze outside
+  it without auto-rejection or confirmation blockers. Event/Group deletion cascades private requests;
+  removed Tables retain private history but cannot receive approvals. No automatic worker is introduced.
+- Shared scoped journal/Event FIFO projects only local intent/known pending markers, never fake API IDs,
+  accepted status, ballots or seats. ACK reconciliation preserves newer versions; stale dialogs remain
+  cancelable. Edited explicit retries replace only their failed owned local draft. Verified role loss
+  clears manager-only queries, active observers, review writers and disk payloads while ordinary accepted
+  membership/own proposals survive. Existing encrypted MMKV persists canonical bases only, with existing
+  owner/logout/generation/retention/budget safeguards; restore alone cannot enable a review action.
+- **2,949 covered units pass, zero skips:** schemas 145, shared 486, mobile 526, web 894, API 898.
+  New proposal editing/cache/label pure logic has 100% per-file all-metric gates; existing gates remain.
+  **Five selected real disposable-Mongo replica-set cases pass; 59 other community cases were outside
+  that run.** They cover private paging/cascades, concurrent submit/accept, exactly-once revisions/notices,
+  atomic rollback, unchanged singleton ballots, confirmation/role-revocation races, real own-Table seats,
+  changing expansion/catalog status, removed-target history and private receipt reads after demotion.
+  API/web production builds, Android production export, root typecheck and scoped Biome pass; generated
+  Next/Expo references remain byte-identical. EN/IT retain all 1,427 previous messages and add 32 (1,459).
+- [Opt-in owned-fixture game scenarios](../apps/mobile/.maestro/README.md#manual-participant-proposals)
+  cover explicit selection/cancel/send or paged manager cancel/accept/reject, with guarded real requests,
+  canonical receipts and exact row assertions. Maestro 2.11 syntax passes. **Authenticated current
+  browser/native execution has not run.** Native date/location picker behavior, complete theme/font/
+  focus/offline/revocation runtime matrices and Collection/participant acceptance remain unverified;
+  unit, VM, syntax, bundle and disposable-Mongo results are not substitutes. No new APK or native latency
+  claim is made. No application migration/reset, provider provisioning/synchronization or CI/discovery
+  change has run. Publication does not turn these remaining acceptance gaps into production evidence.
+
+## Event tabs and participants — implemented locally; authenticated/device acceptance pending
+
+- Web/native Event detail now has Details / Participants / Tables tabs. Only Details exposes editing;
+  guarded confirmation/finalization/replanning remain intact. Tables are virtualized on both platforms
+  with installed HeroUI primitives. Participants reveal bounded source pages before deriving rows,
+  gate scroll growth on actual intent, retain explicit load-more/error paths and reject stale callbacks.
+- Participant paging deduplicates ACCEPTED registrations across nonremoved Tables before cursor/limit,
+  includes accepted queues, and retains genuine frozen attendees even without mutable rows. Managers
+  and demonstrators receive no automatic attendance. Public nonmember detail reads never authorize
+  this privileged roster. Profiles expose username-first identity, no emails or private ballots.
+- The shared platform member sheet now serves Group and Event actions without loading another Group
+  roster/social workflow or acknowledging member attention. Event-only removal is version-pinned,
+  PLANNING/cutoff-guarded and transactional across all target registrations; membership remains intact,
+  rejoining is possible and frozen/results history stays immutable. Group ban uses exactly its existing
+  single transaction with creator/peer/frozen-duty guards, never a second Event-delete request.
+- Owned optimistic removals preserve newer epochs/registration IDs, unknown outcomes require readback,
+  and Group-ban projection excludes terminal history. Roster-only caches and dependent writers are
+  purged on verified access loss; catalog/foreign caches stay separate. Eligible pages use existing
+  encrypted MMKV canonical persistence, never a second store. Stale/placeholder confirmations grant
+  no management authority and always remain cancelable.
+- **2,886 covered units pass, zero skips:** schemas 142, shared 473, mobile 510, web 878, API 883.
+  Existing coverage gates are retained; new deterministic participant reconciliation has a 100%
+  per-file gate. **Two selected real disposable-Mongo replica-set cases pass; 57 other community cases
+  were outside that run.** They cover source dedup/paging/queue privacy, concurrent removal, complete
+  rollback, unchanged membership/rejoin and immutable frozen attendance. API/web production builds,
+  Android production export, typecheck, scoped Biome and Maestro 2.11 syntax pass. Generated references
+  remain byte-identical. EN/IT retain all 1,421 previous translations and add six (1,427 each).
+- [Owned-fixture Playwright and Maestro scenarios](../apps/mobile/.maestro/README.md#manual-event-participants)
+  cover tabs, later pages, cancel and distinct Event-remove/Group-ban requests. They **have not run
+  against authenticated current browser/native fixtures**. Real themes, text sizes, focus/scroll
+  behavior, public/revoked/failed-write and immutable-history runtime matrices remain acceptance work.
+  No live fixture/provider operations, app migrations or resets ran. Canonical E2E jobs/discovery remain
+  unchanged. These counts record the F3-stage evidence; the later proposal section above records
+  current combined implementation and checks without upgrading pending runtime acceptance.
+
+## Owner BGG collection — implemented locally; authenticated/device acceptance pending
+
+- Main owner Profile owns synchronization controls independently of tabs. Collection appears only
+  for a published owned snapshot (including an empty one); a failed later attempt retains the last
+  successful collection. Foreign profiles never enable private BGG reads. Selector-style rows show
+  personal BGG rating or N/A, never public average/OpenSkill in its place. Three overlapping counters
+  cover distinct base titles, all titles including expansions, and wishlist titles including expansions,
+  regardless of ownership status or the current filter.
+- Both provider partitions must complete before atomic snapshot/count publication. Expansion entries
+  remain private collection data and are excluded from playable catalog imports/picker results.
+  Source-filtered, snapshot-bound owner paging exposes no XML/comments. Historical snapshots retain
+  available personal ratings but show unknown counters until explicit synchronization, not false zeros.
+- Native uses one root FlatList and the existing bounded eight-item window, now shared with GamePicker;
+  web uses installed HeroUI React Aria virtualization. No dependency, alternate store or persistence
+  adapter was added. Eligible collection pages use central encrypted account/API-owned MMKV. Optimistic
+  unlink retains rollback data until acknowledgment/readback, then purges only private owned collection
+  caches; catalog-only and foreign caches remain untouched.
+- **2,854 covered units pass, zero skips:** schemas 142, shared 466, mobile 501, web 869, API 876.
+  Deterministic BGG parsing and native presentation helpers retain 100% per-file gates.
+  **Two selected real disposable-Mongo replica-set tests pass; 64 other repository cases were outside
+  that focused run.** Root typecheck, scoped Biome, API/web production builds, Android production
+  export and Maestro 2.11 syntax checks pass; generated Next/Expo references were restored byte-for-byte.
+  EN/IT retain all 1,411 prior messages and add ten (1,421 each). No application database/provider
+  synchronization, migration, reset or provisioning ran.
+- Real-fixture Playwright scenarios and native Profile flows 17/18 now follow the relocated card and
+  published-only tab. [Manual collection flow 26](../apps/mobile/.maestro/README.md#manual-profile-collection)
+  covers counters, personal/N/A scores, filter/empty/clear and later source pages. These scenarios
+  **have not run against authenticated current browser/native fixtures**. Device themes, enlarged text,
+  tall viewports, focus retention and frame timing remain acceptance work; units/builds/syntax do not
+  establish those outcomes. Canonical E2E discovery/jobs remain unchanged. These counts record the
+  Collection-stage evidence; current combined implementation/checks are recorded above.
+
 ## Singleton consent — implemented; authenticated/device acceptance pending
 
 - Explicit join/invitation acceptance accepts current Event/Table settings. Singleton date, venue

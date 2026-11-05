@@ -84,6 +84,55 @@ const table: PlannedTableResponse = {
   createdAt: event.createdAt,
   updatedAt: event.updatedAt,
 };
+it("retains opt-in proposal fields only for private Group drafts and defaults historical data off", () => {
+  expect(eventDraft(event)).toMatchObject({
+    allowParticipantDates: false,
+    allowParticipantLocations: false,
+  });
+  expect(tableDraft(table, event.timeZone).allowParticipantGames).toBe(false);
+  const source = {
+    ...event,
+    groupId: id,
+    groupType: "PRIVATE" as const,
+    allowParticipantDates: true,
+    allowParticipantLocations: true,
+  };
+  const draft = {
+    ...eventDraft(source),
+    tables: [tableDraft({ ...table, allowParticipantGames: true }, event.timeZone)],
+  };
+  expect(eventDraftInput(draft, false)).toMatchObject({
+    success: true,
+    data: {
+      allowParticipantDates: true,
+      allowParticipantLocations: true,
+      tables: [{ allowParticipantGames: true }],
+    },
+  });
+  const standalone = eventDraftInput({ ...draft, groupId: null }, false);
+  expect(standalone).toMatchObject({
+    success: true,
+    data: {
+      allowParticipantDates: false,
+      allowParticipantLocations: false,
+      tables: [{ allowParticipantGames: false }],
+    },
+  });
+  const publicDraft = {
+    ...draft,
+    endsWall: "2030-06-03T23:00",
+    cutoffWall: "2030-06-02T20:00",
+    tables: draft.tables.map((row) => ({ ...row, startsWall: "2030-06-03T20:00" })),
+  };
+  expect(eventDraftInput(publicDraft, true)).toMatchObject({
+    success: true,
+    data: {
+      allowParticipantDates: false,
+      allowParticipantLocations: false,
+      tables: [{ allowParticipantGames: false }],
+    },
+  });
+});
 it("projects live seats with optional name/email and immutable ND order without inventing profiles", () => {
   const row: TableSeatResponse = {
     id: tableId,

@@ -54,7 +54,12 @@ export function parseBggUser(body: string): BggIdentity | null {
   };
 }
 
-export function parseBggCollection(body: string, userId: string, snapshot: string) {
+export function parseBggCollection(
+  body: string,
+  userId: string,
+  snapshot: string,
+  expansion = false,
+) {
   const root = xml(body);
   if (root.tagName !== "items") throw new BggRemoteError("unavailable");
   const items = root.getElementsByTagName("item");
@@ -64,12 +69,16 @@ export function parseBggCollection(body: string, userId: string, snapshot: strin
   const serializer = new XMLSerializer();
   for (let i = 0; i < items.length; i++) {
     const item = items.item(i);
-    if (item?.getAttribute("subtype") !== "boardgame") continue;
+    const subtype = item?.getAttribute("subtype");
+    if (!item || (subtype !== "boardgame" && !(expansion && subtype === "boardgameexpansion")))
+      continue;
     const gameId = Number(item.getAttribute("objectid"));
     const name = item.getElementsByTagName("name").item(0)?.textContent?.trim();
     if (!Number.isSafeInteger(gameId) || gameId <= 0 || !name) continue;
     const rawYear = Number(item.getElementsByTagName("yearpublished").item(0)?.textContent);
     const xmlItem = serializer.serializeToString(item);
+    const rating = Number(item.getElementsByTagName("rating").item(0)?.getAttribute("value"));
+    const wishlist = item.getElementsByTagName("status").item(0)?.getAttribute("wishlist") === "1";
     games.set(gameId, {
       userId,
       snapshot,
@@ -77,7 +86,13 @@ export function parseBggCollection(body: string, userId: string, snapshot: strin
       name,
       year: Number.isSafeInteger(rawYear) && rawYear > 0 ? rawYear : null,
       imageUrl: trustedImage(item.getElementsByTagName("image").item(0)?.textContent),
-      subtype: "boardgame",
+      subtype: expansion ? "boardgameexpansion" : "boardgame",
+      isExpansion: expansion,
+      userRating:
+        Number.isFinite(rating) && rating >= 1 && rating <= 10
+          ? rating
+          : (games.get(gameId)?.userRating ?? null),
+      wishlist: wishlist || Boolean(games.get(gameId)?.wishlist),
       xml: xmlItem,
     });
   }
@@ -115,11 +130,31 @@ export async function fetchBggUser(username: string): Promise<BggIdentity | null
 }
 
 export async function fetchBggCollection(username: string, userId: string, snapshot: string) {
-  return parseBggCollection(
+  // Explicit partitions identify expansions even when the provider labels an item "boardgame".
+  // Publish neither partition until BOTH complete; 202/429 keep the previous active snapshot.
+  const base = parseBggCollection(
     await bggFetch(
       `collection?username=${encodeURIComponent(username)}&stats=1&excludesubtype=boardgameexpansion`,
     ),
     userId,
     snapshot,
   );
+  const expansions = parseBggCollection(
+    await bggFetch(
+      `collection?username=${encodeURIComponent(username)}&stats=1&subtype=boardgameexpansion`,
+    ),
+    userId,
+    snapshot,
+    true,
+  );
+  const merged = new Map(base.map((game) => [game.gameId, game]));
+  for (const game of expansions) {
+    const previous = merged.get(game.gameId);
+    merged.set(game.gameId, {
+      ...game,
+      wishlist: Boolean(game.wishlist || previous?.wishlist),
+      userRating: game.userRating ?? previous?.userRating ?? null,
+    });
+  }
+  return [...merged.values()];
 }

@@ -16,8 +16,17 @@ import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
+import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { CalendarCheck, Check, Dices, Pencil, RotateCcw } from "lucide-react-native";
+import {
+  CalendarCheck,
+  Check,
+  Dices,
+  Info,
+  Pencil,
+  RotateCcw,
+  UsersRound,
+} from "lucide-react-native";
 import { useRef, useState } from "react";
 import { FlatList, type ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,6 +40,8 @@ import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
@@ -40,6 +51,8 @@ import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailsCard } from "./EventDetailsCard";
 import { EventFinalizeAction } from "./EventFinalizeAction";
 import { EventGroupLink } from "./EventGroupLink";
+import { EventParticipants } from "./EventParticipants";
+import { EventProposalSection } from "./EventProposalSection";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
@@ -55,6 +68,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     [confirm, setConfirm] = useState<"confirm" | "replan" | null>(null),
     [error, setError] = useState(false),
     event = communityAccessDenied(q.error) ? undefined : q.data;
+  const [tab, setTab] = useState("details");
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
   const scroll = useRef<ScrollView>(null);
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   const [accentForeground, muted, foreground] = useThemeColor([
@@ -230,6 +246,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             ))}
         </GroupedList>
       </View>
+      <EventProposalSection event={event} kind="date" disabled={q.isPlaceholderData} />
       {event.endsAt ? (
         <View style={{ gap: 8 }}>
           <SearchHelpLabel
@@ -319,9 +336,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             </LocationListRow>
           ))}
       </GroupedList>
-      <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
-        <TableListHeading />
-      </NotificationItem>
+      <EventProposalSection event={event} kind="location" disabled={q.isPlaceholderData} />
     </View>
   );
   return (
@@ -344,52 +359,110 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       <ScrollTargetContext.Provider value={scroll}>
         <View style={{ flex: 1 }}>
           {screenHeader}
-          <FlatList
-            ref={(node) => {
-              scroll.current = node?.getNativeScrollRef() as ScrollView | null;
-            }}
-            data={communityAccessDenied(tables.error) ? [] : tables.items}
-            keyExtractor={(row) => row.id}
-            contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 112 }}
-            ListHeaderComponent={header}
-            ListEmptyComponent={
-              !tables.isPending && !tables.isError ? (
-                <EmptyList icon={<Dices size={28} color={muted} />}>
-                  {t("No tables found")}
-                </EmptyList>
-              ) : null
-            }
-            renderItem={({ item }) => <EventTableCard table={item} context="event" />}
-            onEndReached={() => {
-              if (tables.hasNextPage && !tables.isFetchingNextPage && !tables.isFetchNextPageError)
-                void tables.fetchNextPage();
-            }}
-            ListFooterComponent={
-              <View style={{ gap: 12 }}>
-                {tables.isPending || tables.isFetchingNextPage ? (
-                  <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
-                ) : null}
-                {tables.isError ? (
-                  <>
-                    <Typography accessibilityRole="alert" className="text-danger">
-                      {t("Could not load tables")}
-                    </Typography>
-                    <Button onPress={() => void tables.refetch()}>
-                      <Button.Label>{t("Try again")}</Button.Label>
-                    </Button>
-                  </>
-                ) : null}
-                {tables.hasNextPage ? (
-                  <Button
-                    isDisabled={tables.isFetchingNextPage}
-                    onPress={() => void tables.fetchNextPage()}
-                  >
-                    <Button.Label>{t("Load more")}</Button.Label>
-                  </Button>
-                ) : null}
+          <Tabs value={tab} onValueChange={setTab}>
+            <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+              <TabBar>
+                <TabTrigger value="details" style={{ flexDirection: "row", gap: 6 }}>
+                  <Info
+                    size={16}
+                    color={tab === "details" ? accentForeground : muted}
+                    accessible={false}
+                  />
+                  <Tabs.Label>{t("Details")}</Tabs.Label>
+                </TabTrigger>
+                <TabTrigger value="participants" style={{ flexDirection: "row", gap: 6 }}>
+                  <UsersRound
+                    size={16}
+                    color={tab === "participants" ? accentForeground : muted}
+                    accessible={false}
+                  />
+                  <Tabs.Label>{t("Participants")}</Tabs.Label>
+                </TabTrigger>
+                <TabTrigger value="tables" style={{ flexDirection: "row", gap: 6 }}>
+                  <Dices
+                    size={16}
+                    color={tab === "tables" ? accentForeground : muted}
+                    accessible={false}
+                  />
+                  <Tabs.Label>{t("Tables")}</Tabs.Label>
+                </TabTrigger>
+              </TabBar>
+            </View>
+          </Tabs>
+          {tab === "participants" ? (
+            event.readOnly ? (
+              <View style={{ padding: 20 }}>
+                <Typography className="text-muted">
+                  {t("Public read-only view. Join the group to participate.")}
+                </Typography>
               </View>
-            }
-          />
+            ) : (
+              <EventParticipants event={event} actions={a} disabled={q.isPlaceholderData} />
+            )
+          ) : (
+            <FlatList
+              key={tab}
+              ref={(node) => {
+                scroll.current = node?.getNativeScrollRef() as ScrollView | null;
+              }}
+              data={tab === "tables" && !communityAccessDenied(tables.error) ? tables.items : []}
+              keyExtractor={(row) => row.id}
+              contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 112 }}
+              ListHeaderComponent={
+                tab === "details" ? (
+                  header
+                ) : (
+                  <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
+                    <TableListHeading />
+                  </NotificationItem>
+                )
+              }
+              ListEmptyComponent={
+                tab === "tables" && !tables.isPending && !tables.isError ? (
+                  <EmptyList icon={<Dices size={28} color={muted} />}>
+                    {t("No tables found")}
+                  </EmptyList>
+                ) : null
+              }
+              renderItem={({ item }) => <EventTableCard table={item} context="event" />}
+              onEndReached={() => {
+                if (
+                  tabRef.current === "tables" &&
+                  tables.hasNextPage &&
+                  !tables.isFetching &&
+                  !tables.isFetchNextPageError
+                )
+                  void tables.fetchNextPage();
+              }}
+              ListFooterComponent={
+                tab === "tables" ? (
+                  <View style={{ gap: 12 }}>
+                    {tables.isPending || tables.isFetchingNextPage ? (
+                      <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
+                    ) : null}
+                    {tables.isError ? (
+                      <>
+                        <Typography accessibilityRole="alert" className="text-danger">
+                          {t("Could not load tables")}
+                        </Typography>
+                        <Button onPress={() => void tables.refetch()}>
+                          <Button.Label>{t("Try again")}</Button.Label>
+                        </Button>
+                      </>
+                    ) : null}
+                    {tables.hasNextPage ? (
+                      <Button
+                        isDisabled={tables.isFetchingNextPage}
+                        onPress={() => void tables.fetchNextPage()}
+                      >
+                        <Button.Label>{t("Load more")}</Button.Label>
+                      </Button>
+                    ) : null}
+                  </View>
+                ) : null
+              }
+            />
+          )}
           {canManageEvent(event, o.userId) && event.status === "CONFIRMED" && event.canReplan ? (
             <FloatingActions
               label={t("Reopen planning")}
@@ -403,9 +476,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               <RotateCcw size={20} color={foreground} accessible={false} />
             </FloatingActions>
           ) : null}
-          {event.status === "PLANNING" && event.canEdit && !closed ? (
+          {tab === "details" && event.status === "PLANNING" && event.canEdit && !closed ? (
             <FloatingActions
-              label="Edit event"
+              label={t("Edit event")}
               isDisabled={a.busy || q.isPlaceholderData}
               onPress={() =>
                 router.push({

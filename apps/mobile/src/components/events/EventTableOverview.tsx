@@ -25,6 +25,7 @@ import { GameListRow } from "@/components/games/GameListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventProposalSection } from "./EventProposalSection";
 import { EventTableInfo } from "./EventTableInfo";
 import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
@@ -230,6 +231,14 @@ export function EventTableOverview({
             />
           ))}
       </GroupedList>
+      {event.data ? (
+        <EventProposalSection
+          event={event.data}
+          kind="game"
+          table={table}
+          disabled={q.isPlaceholderData || event.isPlaceholderData}
+        />
+      ) : null}
     </View>
   );
   return (

@@ -3,11 +3,24 @@ import type {
   BggAccount,
   BggAccountResponse,
   BggCollectionGame,
+  BggCollectionQuery,
+  BggCollectionResponse,
   BggIdentity,
   BoardGame,
 } from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
+import { z } from "zod";
+import { CommunityError } from "@/app/lib/community.error";
 import { COLLECTIONS } from "@/app/lib/db";
+import { parseBggCollection } from "./bgg-collection";
+
+const collectionCursor = z
+  .object({
+    snapshot: z.string(),
+    name: z.string().min(1).max(1000),
+    gameId: z.number().int().positive(),
+  })
+  .strict();
 
 export class BggAccountRepository {
   constructor(private db: Db) {}
@@ -127,8 +140,10 @@ export class BggAccountRepository {
   ) {
     if ((await this.pending(userId))?.snapshot !== snapshot) return;
     const catalog = this.db.collection<BoardGame>(COLLECTIONS.BOARD_GAMES);
-    for (let i = 0; i < games.length; i += 250) {
-      const chunk = games.slice(i, i + 250);
+    const source = [...new Map(games.map((game) => [game.gameId, game])).values()];
+    const counts = { withoutExpansions: 0, withExpansions: source.length, wishlist: 0 };
+    for (let i = 0; i < source.length; i += 250) {
+      const chunk = source.slice(i, i + 250);
       const known = await catalog
         .find(
           { id: { $in: chunk.map((game) => game.gameId) } },
@@ -136,7 +151,17 @@ export class BggAccountRepository {
         )
         .toArray();
       const expansions = new Set(known.filter((game) => game.isExpansion).map((game) => game.id));
-      const visible = chunk.filter((game) => !expansions.has(game.gameId));
+      const stored = chunk.map((game) => ({
+        ...game,
+        userId,
+        snapshot,
+        isExpansion: Boolean(
+          game.isExpansion || game.subtype === "boardgameexpansion" || expansions.has(game.gameId),
+        ),
+      }));
+      const visible = stored.filter((game) => !game.isExpansion);
+      counts.withoutExpansions += visible.length;
+      counts.wishlist += stored.filter((game) => game.wishlist).length;
       if (visible.length) {
         await catalog.bulkWrite(
           visible.map((game) => ({
@@ -155,22 +180,22 @@ export class BggAccountRepository {
             },
           })),
         );
-        await this.collection.bulkWrite(
-          visible.map((game) => ({
-            updateOne: {
-              filter: { userId, snapshot, gameId: game.gameId },
-              update: { $set: game },
-              upsert: true,
-            },
-          })),
-        );
       }
+      await this.collection.bulkWrite(
+        stored.map((game) => ({
+          updateOne: {
+            filter: { userId, snapshot, gameId: game.gameId },
+            update: { $set: game },
+            upsert: true,
+          },
+        })),
+      );
     }
     const updated = await this.accounts.updateOne(
       { userId, "pending.snapshot": snapshot, "pending.status": "syncing" },
       {
         $set: {
-          active: { ...identity, snapshot, syncedAt: new Date() },
+          active: { ...identity, snapshot, syncedAt: new Date(), counts },
           lastAttempt: { status: "success", at: new Date() },
         },
         $unset: { pending: "" },
@@ -188,6 +213,94 @@ export class BggAccountRepository {
   async unlink(userId: string, session: ClientSession) {
     await this.accounts.deleteOne({ userId }, { session });
     await this.collection.deleteMany({ userId }, { session });
+  }
+
+  async page(userId: string, input: BggCollectionQuery): Promise<BggCollectionResponse> {
+    const account = await this.get(userId);
+    if (!account.active) throw new CommunityError(404, "BGG_COLLECTION_UNAVAILABLE");
+    if (account.active.snapshot !== input.snapshot)
+      throw new CommunityError(409, "BGG_COLLECTION_CHANGED");
+    let cursor: z.infer<typeof collectionCursor> | undefined;
+    if (input.cursor) {
+      try {
+        cursor = collectionCursor.parse(
+          JSON.parse(Buffer.from(input.cursor, "base64url").toString()),
+        );
+      } catch {
+        throw new CommunityError(400, "INVALID_CURSOR");
+      }
+      if (cursor.snapshot !== input.snapshot)
+        throw new CommunityError(409, "BGG_COLLECTION_CHANGED");
+    }
+    const escaped = input.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const rows = await this.collection
+      .find({
+        userId,
+        snapshot: input.snapshot,
+        ...(escaped ? { name: { $regex: escaped, $options: "i" } } : {}),
+        ...(cursor
+          ? {
+              $or: [
+                { name: { $gt: cursor.name } },
+                { name: cursor.name, gameId: { $gt: cursor.gameId } },
+              ],
+            }
+          : {}),
+      })
+      .sort({ name: 1, gameId: 1 })
+      .limit(input.limit + 1)
+      .toArray();
+    const visible = rows.slice(0, input.limit);
+    const catalog = visible.length
+      ? await this.db
+          .collection<BoardGame>(COLLECTIONS.BOARD_GAMES)
+          .find({ id: { $in: visible.map((row) => row.gameId) } })
+          .toArray()
+      : [];
+    const metadata = new Map(catalog.map((row) => [row.id, row]));
+    const current = await this.get(userId);
+    if (current.active?.snapshot !== input.snapshot)
+      throw new CommunityError(409, "BGG_COLLECTION_CHANGED");
+    return {
+      snapshot: input.snapshot,
+      counts: account.active.counts ?? null,
+      items: visible.map((row) => {
+        let legacy: Omit<BggCollectionGame, "_id"> | undefined;
+        if (row.userRating === undefined) {
+          try {
+            legacy = parseBggCollection(`<items>${row.xml}</items>`, userId, input.snapshot)[0];
+          } catch {
+            /* Missing legacy metadata remains N/A. */
+          }
+        }
+        const stats = metadata.get(row.gameId);
+        return {
+          id: row.gameId,
+          name: row.name,
+          year: row.year,
+          imageUrl: row.imageUrl,
+          source: "collection",
+          userRating: row.userRating ?? legacy?.userRating ?? null,
+          wishlist: row.wishlist ?? legacy?.wishlist ?? false,
+          isExpansion: row.isExpansion ?? row.subtype === "boardgameexpansion",
+          average: stats?.average ?? null,
+          rank: stats?.rank ?? null,
+          bayesAverage: stats?.bayesAverage ?? null,
+          minPlayMinutes: stats?.minPlayMinutes ?? null,
+          maxPlayMinutes: stats?.maxPlayMinutes ?? null,
+        };
+      }),
+      nextCursor:
+        rows.length > input.limit
+          ? Buffer.from(
+              JSON.stringify({
+                snapshot: input.snapshot,
+                name: visible[visible.length - 1].name,
+                gameId: visible[visible.length - 1].gameId,
+              }),
+            ).toString("base64url")
+          : null,
+    };
   }
 
   games(userId: string, snapshot: string) {

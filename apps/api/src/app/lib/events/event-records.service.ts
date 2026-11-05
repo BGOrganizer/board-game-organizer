@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type {
   ChangeEventStateInput,
   ChangeEventVoteInput,
@@ -8,6 +8,12 @@ import type {
   DeletedPlannedEventResponse,
   DeletePlannedRecordInput,
   EditPlannedEventInput,
+  EventParticipantResponse,
+  EventParticipantsResponse,
+  EventProposal,
+  EventProposalPayload,
+  EventProposalResponse,
+  EventProposalsResponse,
   EventRecord,
   FinalizeEventInput,
   FinalizeSavedEventInput,
@@ -17,7 +23,10 @@ import type {
   PlannedEventResponse,
   PlannedTableInput,
   PlannedTableResponse,
+  ReviewEventProposalInput,
+  ReviewEventProposalResponse,
   SaveTableResultInput,
+  SubmitEventProposalInput,
   TableInviteeResponse,
   TableLeaderboardResponse,
   TableRecord,
@@ -38,6 +47,7 @@ import {
   eventNotificationItems,
   eventOptionsRequireVote,
   eventOptionVotesAreComplete,
+  eventProposalEdit,
   eventRecordCapabilities,
   eventRecordSchedulePreview,
   eventVoteCounts,
@@ -364,6 +374,22 @@ export class EventRecordsService {
       ),
       canManage,
       readOnly,
+      canProposeDates:
+        !readOnly &&
+        group?.type === "PRIVATE" &&
+        event.status === "PLANNING" &&
+        Boolean(event.allowParticipantDates) &&
+        positioned.some(
+          (r) => r.status === "ACCEPTED" && "position" in r && r.position === "SEATED",
+        ),
+      canProposeLocations:
+        !readOnly &&
+        group?.type === "PRIVATE" &&
+        event.status === "PLANNING" &&
+        Boolean(event.allowParticipantLocations) &&
+        positioned.some(
+          (r) => r.status === "ACCEPTED" && "position" in r && r.position === "SEATED",
+        ),
       ...(readOnly
         ? {
             canEdit: false,
@@ -405,6 +431,351 @@ export class EventRecordsService {
   async detail(userId: string, id: string) {
     const { event, group, own, readOnly } = await this.context(userId, id, false, false, true);
     return this.response(event, group, userId, own, true, readOnly);
+  }
+  async proposalDetail(
+    userId: string,
+    id: string,
+    proposalId: string,
+  ): Promise<ReviewEventProposalResponse> {
+    const { event, group } = await this.context(userId, id, true);
+    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    const row = await this.events.proposal(proposalId);
+    if (
+      !row ||
+      row.eventId !== id ||
+      (row.userId !== userId && !(await this.manager(event, group, userId)))
+    )
+      throw new CommunityError(404, "PROPOSAL_NOT_FOUND");
+    return { proposal: await this.proposalResponse(row), event: await this.detail(userId, id) };
+  }
+  private async proposalResponse(row: EventProposal): Promise<EventProposalResponse> {
+    const { requestHash: _hash, payloadKey: _key, ...visible } = row;
+    const user = await this.users.findById(row.userId);
+    return { ...visible, authorName: user?.username || publicUserName(user) };
+  }
+  private async proposalGame(gameId: number) {
+    const [game] = await this.games.findByIds([gameId]);
+    if (!game || game.isExpansion) throw new CommunityError(400, "GAME_NOT_FOUND");
+    return game;
+  }
+  private async assertProposalSeat(
+    event: EventRecord,
+    group: GroupRecord,
+    userId: string,
+    tableId?: string,
+  ) {
+    await this.member(group, userId);
+    const tables = await this.events.allTables(event.id),
+      registrations = await this.events.allRegistrations(event.id);
+    if (tableId && !tables.some((table) => table.id === tableId))
+      throw new CommunityError(404, "TABLE_NOT_FOUND");
+    const plan = await this.agreement(event, group, tables, registrations);
+    for (const table of tables) {
+      if (tableId && table.id !== tableId) continue;
+      const chosen = plan.agreed
+        ? plan.includedTables.find((row) => row.tableId === table.id)?.participantIds
+        : undefined;
+      const seats = projectReservedPlaces(
+        registrations
+          .filter((row) => row.tableId === table.id)
+          .map((row) => ({
+            ...row,
+            status: row.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
+          })),
+        table.maxPlayers,
+        chosen,
+      ).seated;
+      if (seats.some((row) => row.userId === userId && row.status === "ACCEPTED")) return;
+    }
+    throw new CommunityError(403, "PROPOSAL_SEAT_REQUIRED");
+  }
+  async proposals(
+    userId: string,
+    id: string,
+    page: {
+      limit: number;
+      cursor?: string;
+      mode: "mine" | "review";
+      kind: "date" | "location" | "game";
+      tableId?: string;
+      clientRequestId?: string;
+    },
+  ): Promise<EventProposalsResponse> {
+    const { event, group } = await this.context(userId, id, Boolean(page.clientRequestId));
+    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    if (page.mode === "review" && !(await this.manager(event, group, userId)))
+      throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
+    if (page.tableId) {
+      const table = await this.events.table(page.tableId);
+      if (!table || table.eventId !== id) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    }
+    const rows = await this.events.proposals(id, page.mode === "mine" ? userId : null, page);
+    const items: EventProposalResponse[] = [];
+    for (const row of rows.slice(0, page.limit)) items.push(await this.proposalResponse(row));
+    const last = items.at(-1);
+    return {
+      eventId: id,
+      groupId: group.id,
+      eventVersion: event.version,
+      mode: page.mode,
+      items,
+      nextCursor: rows.length > page.limit && last ? `${last.createdAt}|${last.id}` : null,
+    };
+  }
+  async submitProposal(
+    userId: string,
+    id: string,
+    input: SubmitEventProposalInput,
+  ): Promise<EventProposalResponse> {
+    const { event, group } = await this.context(userId, id, true);
+    this.open(event, group);
+    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    const hash = createHash("sha256")
+      .update(JSON.stringify({ eventVersion: input.eventVersion, payload: input.payload }))
+      .digest("hex");
+    const previous = await this.events.proposalRequest(id, userId, input.clientRequestId);
+    if (previous) {
+      if (previous.requestHash !== hash) throw new CommunityError(409, "PROPOSAL_REQUEST_REUSED");
+      return this.proposalResponse(previous);
+    }
+    if (input.eventVersion !== event.version) throw new CommunityError(409, "EVENT_CHANGED");
+    let payload: EventProposalPayload = input.payload;
+    const table = payload.kind === "game" ? await this.events.table(payload.tableId) : null;
+    if (payload.kind === "game" && (!table || table.eventId !== id))
+      throw new CommunityError(404, "TABLE_NOT_FOUND");
+    const enabled =
+      payload.kind === "date"
+        ? event.allowParticipantDates
+        : payload.kind === "location"
+          ? event.allowParticipantLocations
+          : table?.allowParticipantGames;
+    if (!enabled) throw new CommunityError(403, "PROPOSALS_DISABLED");
+    await this.assertProposalSeat(
+      event,
+      group,
+      userId,
+      payload.kind === "game" ? payload.tableId : undefined,
+    );
+    let label: string;
+    if (payload.kind === "location") {
+      const location = await verifyCommunityLocation(payload.location, event.locations);
+      payload = { kind: "location", location };
+      label = location.name;
+    } else if (payload.kind === "game") {
+      label = (await this.proposalGame(payload.gameId)).name;
+    } else {
+      label = `${payload.day} ${payload.startTime}`;
+    }
+    const currentTables = await this.events.allTables(id);
+    let edit: ReturnType<typeof eventProposalEdit>;
+    try {
+      edit = eventProposalEdit(event, currentTables, payload, randomUUID());
+    } catch (error) {
+      throw new CommunityError(409, error instanceof Error ? error.message : "INVALID_PROPOSAL");
+    }
+    if (!edit.input) throw new CommunityError(409, "PROPOSAL_OPTION_EXISTS");
+    this.validateSchedule(
+      { ...event, dates: edit.input.dates, locations: edit.input.locations },
+      group,
+      false,
+    );
+    const identity =
+      payload.kind === "location"
+        ? {
+            kind: "location",
+            address: payload.location.address,
+            latitude: payload.location.latitude,
+            longitude: payload.location.longitude,
+          }
+        : payload;
+    const payloadKey = createHash("sha256").update(JSON.stringify(identity)).digest("hex");
+    if (await this.events.duplicateProposal(id, userId, payloadKey))
+      throw new CommunityError(409, "PROPOSAL_ALREADY_PENDING");
+    const at = new Date().toISOString();
+    const row: EventProposal = {
+      id: randomUUID(),
+      eventId: id,
+      groupId: group.id,
+      userId,
+      clientRequestId: input.clientRequestId,
+      requestHash: hash,
+      payloadKey,
+      payload,
+      label: label.slice(0, 1000),
+      status: "PENDING",
+      version: 1,
+      submittedEventVersion: event.version,
+      createdAt: at,
+      updatedAt: at,
+    };
+    await this.events.saveProposal(row);
+    await this.notify(
+      "event_proposal_created",
+      event,
+      userId,
+      await this.groups.managerIds(group),
+      payload.kind === "game" ? payload.tableId : undefined,
+    );
+    return this.proposalResponse(row);
+  }
+  async reviewProposal(
+    userId: string,
+    id: string,
+    proposalId: string,
+    input: ReviewEventProposalInput,
+  ): Promise<ReviewEventProposalResponse> {
+    const { event, group } = await this.context(userId, id, true, true);
+    this.open(event, group);
+    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    const row = await this.events.proposal(proposalId);
+    if (!row || row.eventId !== id) throw new CommunityError(404, "PROPOSAL_NOT_FOUND");
+    const status = input.action === "accept" ? ("ACCEPTED" as const) : ("REJECTED" as const);
+    if (row.status === status && row.version === input.version + 1)
+      return { proposal: await this.proposalResponse(row), event: await this.detail(userId, id) };
+    if (row.status !== "PENDING" || row.version !== input.version)
+      throw new CommunityError(409, "PROPOSAL_CHANGED");
+    if (event.version !== input.eventVersion) throw new CommunityError(409, "EVENT_CHANGED");
+    let saved: PlannedEventResponse | undefined, optionId: string | undefined;
+    if (input.action === "accept") {
+      await this.assertProposalSeat(
+        event,
+        group,
+        row.userId,
+        row.payload.kind === "game" ? row.payload.tableId : undefined,
+      );
+      if (row.payload.kind === "game") await this.proposalGame(row.payload.gameId);
+      const tables = await this.events.allTables(id);
+      let edit: ReturnType<typeof eventProposalEdit>;
+      try {
+        edit = eventProposalEdit(event, tables, row.payload, randomUUID());
+      } catch (error) {
+        throw new CommunityError(409, error instanceof Error ? error.message : "INVALID_PROPOSAL");
+      }
+      optionId = edit.optionId;
+      if (edit.input) saved = await this.update(userId, id, edit.input);
+    }
+    const next: EventProposal = {
+      ...row,
+      status,
+      version: row.version + 1,
+      reviewedBy: userId,
+      updatedAt: new Date().toISOString(),
+      ...(optionId ? { canonicalOptionId: optionId } : {}),
+    };
+    await this.events.saveProposal(next);
+    await this.notify(
+      status === "ACCEPTED" ? "event_proposal_accepted" : "event_proposal_rejected",
+      { ...event, ...saved },
+      userId,
+      [row.userId],
+      row.payload.kind === "game" ? row.payload.tableId : undefined,
+    );
+    return {
+      proposal: await this.proposalResponse(next),
+      event: saved ?? (await this.detail(userId, id)),
+    };
+  }
+  async participants(
+    userId: string,
+    id: string,
+    page: Pick<EventRecordPage, "limit" | "cursor">,
+  ): Promise<EventParticipantsResponse> {
+    // Public detail access is NOT privileged roster access.
+    const { event, group } = await this.context(userId, id);
+    const rows = await this.events.participants(event, page);
+    const selected = rows.slice(0, page.limit);
+    const profiles = await this.users.findByIds(selected.map((row) => row.userId));
+    const tables = await this.events.allTables(id);
+    const seated = new Set<string>();
+    const frozen = new Set(
+      tables.flatMap((table) =>
+        event.status === "PLANNING" ? [] : (table.confirmed?.playerIds ?? []),
+      ),
+    );
+    if (event.status === "PLANNING") {
+      const registrations = await this.events.allRegistrations(id);
+      const plan = await this.agreement(event, group, tables, registrations);
+      for (const table of tables) {
+        const chosen = plan.agreed
+          ? plan.includedTables.find((row) => row.tableId === table.id)?.participantIds
+          : undefined;
+        for (const row of projectReservedPlaces(
+          registrations
+            .filter((row) => row.tableId === table.id)
+            .map((row) => ({
+              ...row,
+              status: row.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
+            })),
+          table.maxPlayers,
+          chosen,
+        ).seated)
+          if (row.status === "ACCEPTED") seated.add(row.userId);
+      }
+    }
+    const manager = await this.manager(event, group, userId);
+    const removable =
+      manager &&
+      event.status === "PLANNING" &&
+      !publicBookingIsClosed(event, group?.type ?? null, Date.now());
+    const items: EventParticipantResponse[] = [];
+    for (const row of selected) {
+      const profile = profiles.find((value) => value.clerkId === row.userId);
+      let canBanGroup = false;
+      if (manager && group && row.userId !== userId && row.userId !== group.adminUserId) {
+        const membership = await this.groups.membership(group.id, row.userId);
+        const ban = await this.groups.ban(group.id, row.userId);
+        canBanGroup =
+          !groupBanIsActive(ban, Date.now()) &&
+          (group.adminUserId === userId || !isGroupModerator(membership));
+      }
+      items.push({
+        id: row.userId,
+        userId: row.userId,
+        name: publicUserName(profile),
+        username: profile?.username ?? null,
+        avatarUrl: profile?.avatarUrl ?? null,
+        position: frozen.has(row.userId) ? "FROZEN" : seated.has(row.userId) ? "SEATED" : "WAITING",
+        canRemove: removable,
+        canBanGroup,
+      });
+    }
+    return {
+      items,
+      eventVersion: event.version,
+      groupId: event.groupId,
+      status: event.status,
+      nextCursor: rows.length > page.limit ? selected[selected.length - 1].userId : null,
+    };
+  }
+  async removeParticipant(
+    userId: string,
+    id: string,
+    target: string,
+    input: DeletePlannedRecordInput,
+  ) {
+    const { event, group } = await this.context(userId, id, true, true);
+    this.open(event, group);
+    if (event.version !== input.version) throw new CommunityError(409, "EVENT_CHANGED");
+    const tables = await this.events.allTables(id);
+    const rows = await this.events.userRegistrations(id, target);
+    if (
+      !rows.some(
+        (row) => row.status === "ACCEPTED" && tables.some((table) => table.id === row.tableId),
+      )
+    )
+      throw new CommunityError(404, "EVENT_PARTICIPANT_NOT_FOUND");
+    const next = { ...event, version: event.version + 1, updatedAt: new Date().toISOString() };
+    await this.events.cancelUser(id, target, next.updatedAt);
+    await this.events.save(next);
+    await this.notify("event_booking_removed", next, userId, [target]);
+    await this.saveSituation(next, group, userId);
+    return this.response(
+      next,
+      group,
+      userId,
+      await this.events.userRegistrations(id, userId),
+      true,
+    );
   }
   async list(userId: string, page: EventRecordPage, groupId?: string) {
     if (groupId) await this.member(await this.group(groupId), userId);
@@ -495,6 +866,8 @@ export class EventRecordsService {
         maxPlayers: table.maxPlayers,
         games: options,
         rankingEnabled: table.rankingEnabled,
+        allowParticipantGames:
+          table.allowParticipantGames ?? current?.allowParticipantGames ?? false,
         ...(group?.type === "PUBLIC"
           ? {
               startsAt: table.startsAt
@@ -507,12 +880,19 @@ export class EventRecordsService {
         createdAt: current?.createdAt ?? at,
         updatedAt: at,
       };
+      if (group?.type !== "PRIVATE" && row.allowParticipantGames)
+        throw new CommunityError(400, "PROPOSALS_PRIVATE_GROUP_ONLY");
       if (group?.type === "PUBLIC") this.tableInterval(event, row, "PUBLIC");
       result.push(row);
     }
     return result;
   }
   private validateSchedule(event: EventRecord, group: GroupRecord | null, creating: boolean) {
+    if (
+      group?.type !== "PRIVATE" &&
+      (event.allowParticipantDates || event.allowParticipantLocations)
+    )
+      throw new CommunityError(400, "PROPOSALS_PRIVATE_GROUP_ONLY");
     if (group?.type !== "PRIVATE" && (event.dates.length !== 1 || event.locations.length !== 1))
       throw new CommunityError(400, "EVENT_FIXED_SCHEDULE_REQUIRED");
     if (
@@ -614,6 +994,8 @@ export class EventRecordsService {
       status: "PLANNING",
       version: 1,
       planningGeneration: 1,
+      allowParticipantDates: input.allowParticipantDates ?? false,
+      allowParticipantLocations: input.allowParticipantLocations ?? false,
       nextPriority: 0,
       nextTableOrder: 0,
       createdAt: at,
@@ -936,6 +1318,12 @@ export class EventRecordsService {
       canRespond: open && my?.status === "PENDING" && my.kind === "INVITATION",
       canLeave: open && my?.status === "ACCEPTED",
       canInvite: open && canManage,
+      canProposeGames:
+        open &&
+        group?.type === "PRIVATE" &&
+        Boolean(table.allowParticipantGames) &&
+        my?.status === "ACCEPTED" &&
+        myPosition === "SEATED",
       ...(includeProfiles && !readOnly
         ? {
             gameVoteCounts: eventVoteCounts(

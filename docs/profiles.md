@@ -14,9 +14,18 @@ visibility with a current-network/time selection; no offline mode is enabled.
 - Other-user responses contain public identity, aggregate counters and GLOBAL ratings only: no
   email, phone, BGO moderation role, Clerk account metadata or BGG account data. Mirror email
   fallbacks are not exposed as profile/activity display names.
-- The compact identity precedes Activities / Player internal tabs and an owner-only third Collection
-  tab containing the existing BGG synchronization card. Other-user profiles never expose that tab or
-  owner BGG controls. Tab, game and activity-filter selections belong to scoped local UI state.
+- The compact identity precedes the owner's BGG synchronization card and Activities / Player tabs.
+  The owner-only Collection tab appears only with a published active BGG snapshot, including a
+  successfully synchronized empty collection. A pending first sync does not qualify; a failed later
+  attempt does not hide the previous successful snapshot. Other-user profiles never expose that tab
+  or owner BGG controls. Collection shows three full-snapshot counters before its scoped 300-ms,
+  clearable name filter and source-paged virtualized list: unique titles without expansions, unique
+  titles including expansions, and wishlist titles including expansions. Counters do not change with
+  the filter or restrict to `own=1`; wishlist can overlap either total. Rows reuse the game-selection
+  identity/cover/catalog layout, replacing selection with the owner's personal BGG rating or `N/A`,
+  never the public BGG average or GLOBAL OpenSkill. Native uses one FlatList without a scrolling
+  parent, bounded eight-item cached chunks and an explicit non-scrolling load-more path; web uses
+  the installed HeroUI React Aria Virtualizer with measured variable row sizes. Tab, game and activity-filter selections belong to scoped local UI state.
   Logout stays outside tabs, remains reachable on profile failure and requires confirmation; native
   retains cache-safe signout. Profile, Community and existing main/detail destinations share each
   platform's compact centered/overflowing tab geometry, normal text size and consistent spacing.
@@ -84,8 +93,18 @@ invalidate affected authenticated profile caches without fetching inactive queri
 
 BGG uses the existing real server link/sync/unlink endpoints. The client requests a username, never
 a BGG password or application token. Last-success metadata is distinct from the latest attempt;
-failed publication preserves a previous active snapshot. Mutation errors are reset for a subsequent
-explicit action. Existing linked Powered by BGG artwork uses a HeroUI light surface scope.
+failed publication preserves a previous active snapshot. Explicit synchronization fetches complete
+base-game and expansion partitions before publishing either, because BGG can label expansions as
+`boardgame` in a combined collection. Snapshot publication stores personal ratings/wishlist and
+full-snapshot counters atomically with the active identity. Expansions remain unavailable in the
+playable game selector and are never imported as base games. Historical snapshots have no complete
+expansion/wishlist totals: the UI reports `N/A` and offers an explicit new sync, not invented zeros
+or an automatic resync/backfill. Collection API responses never expose stored XML/comments. Cursors
+and Query keys include the active snapshot; stale reads revalidate account metadata rather than mix
+snapshots. Native encrypted MMKV includes owned canonical Collection queries within existing
+retention/budget rules; authoritative unlink purges that scope, while optimistic unlink retains its
+rollback base until acknowledgment/verification. Mutation errors are reset for a subsequent explicit
+action. Existing linked Powered by BGG artwork uses a HeroUI light surface scope.
 
 Run the normal API migration against the intended replica set **before enabling these writers**:
 new profileActivities receipt/paging/source indexes and a per-player Table-outcome index are required.

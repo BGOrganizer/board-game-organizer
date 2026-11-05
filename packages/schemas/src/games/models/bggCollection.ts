@@ -6,10 +6,16 @@ export interface BggIdentity {
   avatarUrl: string | null;
 }
 
+export interface BggCollectionCounts {
+  withoutExpansions: number;
+  withExpansions: number;
+  wishlist: number;
+}
+
 export interface BggAccount {
   _id: ObjectId;
   userId: string;
-  active?: BggIdentity & { snapshot: string; syncedAt: Date };
+  active?: BggIdentity & { snapshot: string; syncedAt: Date; counts?: BggCollectionCounts };
   lastAttempt?: { status: "syncing" | "success" | "error"; at: Date };
   pending?: BggIdentity & {
     snapshot: string;
@@ -30,6 +36,10 @@ export interface BggCollectionGame {
   year: number | null;
   imageUrl: string | null;
   subtype: string;
+  /** Missing on historical snapshots; only a complete explicit sync publishes counts. */
+  isExpansion?: boolean;
+  userRating?: number | null;
+  wishlist?: boolean;
   /** Public BGG collection item, including status, ratings, comments and play counts. */
   xml: string;
 }

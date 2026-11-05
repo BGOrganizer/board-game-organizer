@@ -176,6 +176,60 @@ it("does not send an old account action after token resolution crosses a session
   expect(hook.result.current.busy).toBe(false);
 });
 
+it("purges only private owned collection caches after a verified lost unlink receipt, retaining rollback data until then", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const apiUrl = "https://api.test";
+  const accountKey = ["bgg-account", apiUrl, "owner"];
+  const active = {
+    id: 1,
+    username: "owned",
+    avatarUrl: null,
+    snapshot: "snapshot",
+    syncedAt: new Date().toISOString(),
+  };
+  const collectionKey = ["bgg-collection", apiUrl, "owner", "snapshot", ""];
+  const mixedKey = ["bgg-picker", apiUrl, "owner", "", false, true, "snapshot"];
+  const catalogKey = ["bgg-picker", apiUrl, "owner", "chess", true, false, "snapshot"];
+  const foreignKey = ["bgg-collection", apiUrl, "other", "snapshot", ""];
+  const cached = { pages: [{ items: [{ id: 1, userRating: 8 }] }], pageParams: [""] };
+  client.setQueryData(accountKey, { active, pending: null });
+  for (const key of [collectionKey, mixedKey, catalogKey, foreignKey])
+    client.setQueryData(key, cached);
+  let rejectDelete: ((error: Error) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((_url: string, init?: RequestInit) =>
+      init?.method === "DELETE"
+        ? new Promise<Response>((_resolve, reject) => {
+            rejectDelete = reject;
+          })
+        : Promise.resolve(Response.json({ active: null, pending: null })),
+    ),
+  );
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const hook = renderHook(
+    () => useBggAccount({ apiUrl, userId: "owner", getToken: async () => "fresh" }),
+    { wrapper },
+  );
+  act(() => hook.result.current.unlink.mutate());
+  await waitFor(() => expect(rejectDelete).toBeDefined());
+  expect(hook.result.current.account.data?.active).toBeNull();
+  expect(client.getQueryData(collectionKey)).toEqual(cached);
+  expect(client.getQueryData(mixedKey)).toEqual(cached);
+  await act(async () => rejectDelete?.(new Error("network")));
+  await waitFor(() => expect(client.getQueryData(collectionKey)).toBeUndefined());
+  expect(client.getQueryData(mixedKey)).toBeUndefined();
+  expect(client.getQueryData(catalogKey)).toEqual(cached);
+  expect(client.getQueryData(foreignKey)).toEqual(cached);
+  expect(hook.result.current.account.data?.active).toBeNull();
+  hook.unmount();
+  clearSessionQueryCache(client);
+});
+
 it("reads BGG account with fresh tokens and verifies a lost unlink response before restoring it", async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },

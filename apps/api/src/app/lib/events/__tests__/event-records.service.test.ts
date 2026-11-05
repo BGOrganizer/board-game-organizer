@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import type {
   CreatePlannedEventInput,
+  EventProposal,
   EventRecord,
   EventVoter,
   GroupMembership,
@@ -64,7 +66,8 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
   const events = new Map<string, EventRecord>(),
     tables = new Map<string, TableRecord>(),
     registrations = new Map<string, TableRegistration>(),
-    votes = new Map<string, EventVoter>();
+    votes = new Map<string, EventVoter>(),
+    proposals = new Map<string, EventProposal>();
   const active = (eventId: string) =>
     [...registrations.values()].filter(
       (row) => row.eventId === eventId && (row.status === "PENDING" || row.status === "ACCEPTED"),
@@ -78,6 +81,58 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
       } as GroupRecord)
     : null;
   const repo = {
+    proposal: vi.fn(async (key: string) => clone(proposals.get(key) ?? null)),
+    proposalRequest: vi.fn(async (eventId: string, userId: string, clientRequestId: string) =>
+      clone(
+        [...proposals.values()].find(
+          (p) =>
+            p.eventId === eventId && p.userId === userId && p.clientRequestId === clientRequestId,
+        ) ?? null,
+      ),
+    ),
+    duplicateProposal: vi.fn(async (eventId: string, userId: string, payloadKey: string) =>
+      clone(
+        [...proposals.values()].find(
+          (p) =>
+            p.eventId === eventId &&
+            p.userId === userId &&
+            p.payloadKey === payloadKey &&
+            p.status === "PENDING",
+        ) ?? null,
+      ),
+    ),
+    saveProposal: vi.fn(async (row: EventProposal) => {
+      proposals.set(row.id, clone(row));
+      return row;
+    }),
+    proposals: vi.fn(
+      async (
+        eventId: string,
+        userId: string | null,
+        page: {
+          kind: string;
+          limit: number;
+          cursor?: string;
+          tableId?: string;
+          clientRequestId?: string;
+        },
+      ) =>
+        clone(
+          [...proposals.values()]
+            .filter(
+              (p) =>
+                p.eventId === eventId &&
+                (userId === null || p.userId === userId) &&
+                p.payload.kind === page.kind &&
+                (!page.tableId ||
+                  (p.payload.kind === "game" && p.payload.tableId === page.tableId)) &&
+                (!page.clientRequestId || p.clientRequestId === page.clientRequestId) &&
+                (!page.cursor || `${p.createdAt}|${p.id}` < page.cursor),
+            )
+            .sort((a, b) => `${b.createdAt}|${b.id}`.localeCompare(`${a.createdAt}|${a.id}`))
+            .slice(0, page.limit + 1),
+        ),
+    ),
     find: vi.fn(async (key: string) => clone(events.get(key) ?? null)),
     lock: vi.fn(async (key: string) => clone(events.get(key) ?? null)),
     create: vi.fn(async (row: EventRecord) => {
@@ -105,6 +160,25 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
           .sort((a, b) => a.order - b.order),
       ),
     ),
+    participants: vi.fn(async (event: EventRecord, page: { limit: number; cursor?: string }) => {
+      const byUser = new Map<string, Set<string>>();
+      for (const table of tables.values())
+        if (table.eventId === event.id && !table.removedAt) {
+          const ids = [
+            ...active(event.id)
+              .filter((row) => row.tableId === table.id && row.status === "ACCEPTED")
+              .map((row) => row.userId),
+            ...(event.status === "PLANNING" ? [] : (table.confirmed?.playerIds ?? [])),
+          ];
+          for (const userId of ids)
+            byUser.set(userId, new Set([...(byUser.get(userId) ?? []), table.id]));
+        }
+      return [...byUser.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .filter(([userId]) => !page.cursor || userId > page.cursor)
+        .slice(0, page.limit + 1)
+        .map(([userId, ids]) => ({ userId, tableIds: [...ids] }));
+    }),
     allRegistrations: vi.fn(async (eventId: string) => clone(active(eventId))),
     userRegistrations: vi.fn(async (eventId: string, userId: string) =>
       clone(active(eventId).filter((row) => row.userId === userId)),
@@ -216,7 +290,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
   };
   const relationships = { isFriend: vi.fn(async () => true), isBlocked: vi.fn(async () => false) };
   const notifications = {
-      notifyMany: vi.fn(async () => []),
+      notifyMany: vi.fn(async (_rows: unknown[]) => []),
       retargetItems: vi.fn(async () => undefined),
       acknowledgeItems: vi.fn(async () => ({ modifiedCount: 1 })),
     },
@@ -302,6 +376,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     tables,
     registrations,
     votes,
+    proposals,
     repo,
     groups,
     games,
@@ -316,6 +391,132 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     confirm,
   };
 }
+describe("Event participant source and event-only removal", () => {
+  it("keeps an administrator-only Event empty until explicit accepted attendance exists", async () => {
+    const f = setup("PRIVATE"),
+      e = await f.create();
+    expect(await f.service.participants(owner, e.id, { limit: 20 })).toMatchObject({
+      items: [],
+      nextCursor: null,
+      eventVersion: e.version,
+    });
+    expect(f.users.findByIds).toHaveBeenCalledWith([]);
+  });
+  it("deduplicates accepted people, includes queues, hides pending identities and does not invent manager attendance", async () => {
+    const f = setup("PRIVATE"),
+      event = await f.create();
+    for (const user of [owner, guest, waiter])
+      await f.service.join(user, event.id, id, f.participation(event.id, id));
+    const pending = await f.service.register(owner, event.id, id, "pending-person");
+    const page = await f.service.participants(owner, event.id, { limit: 2 });
+    expect(page.items).toHaveLength(2);
+    expect(page.items.find((row) => row.userId === guest)).toMatchObject({
+      position: "SEATED",
+      canRemove: true,
+      canBanGroup: true,
+    });
+    expect(page.items.some((row) => row.userId === pending.userId)).toBe(false);
+    const second = await f.service.participants(owner, event.id, {
+      limit: 2,
+      cursor: page.nextCursor ?? "",
+    });
+    expect(second.items).toEqual([
+      expect.objectContaining({ userId: waiter, position: "WAITING" }),
+    ]);
+    expect(f.users.findByIds.mock.calls.at(-1)?.[0]).toEqual([waiter]);
+    expect(second.items[0]).not.toHaveProperty("email");
+    expect(second.items[0]).not.toHaveProperty("gameVotes");
+  });
+  it("denies PUBLIC nonmember roster reads and protects creator/peer Group bans separately from Event removal", async () => {
+    const f = setup("PUBLIC"),
+      event = await f.create();
+    f.groups.membership.mockResolvedValue(null);
+    await expect(f.service.participants(guest, event.id, { limit: 20 })).rejects.toMatchObject({
+      status: 403,
+      message: "GROUP_MEMBER_REQUIRED",
+    });
+    expect(f.repo.participants).not.toHaveBeenCalled();
+    const p = setup("PRIVATE"),
+      e = await p.create();
+    for (const user of [owner, guest, waiter])
+      await p.service.join(user, e.id, id, p.participation(e.id, id));
+    p.groups.membership.mockImplementation(async (_id, user) => ({
+      status: "ACCEPTED",
+      role: user === owner ? "MEMBER" : "MODERATOR",
+    }));
+    const list = await p.service.participants(guest, e.id, { limit: 20 });
+    expect(list.items.find((row) => row.userId === owner)).toMatchObject({
+      canRemove: true,
+      canBanGroup: false,
+    });
+    expect(list.items.find((row) => row.userId === waiter)?.canBanGroup).toBe(false);
+  });
+  it("removes every active target registration only from this Event and permits explicit rejoining", async () => {
+    const f = setup("PRIVATE"),
+      e = await f.create();
+    await f.service.join(guest, e.id, id, f.participation(e.id, id));
+    f.tables.set(other, { ...f.tables.get(id)!, id: other, order: 1 });
+    await f.service.register(owner, e.id, other, guest);
+    const version = f.events.get(e.id)!.version;
+    const saved = await f.service.removeParticipant(owner, e.id, guest, { version });
+    expect(saved.version).toBe(version + 1);
+    expect(await f.repo.userRegistrations(e.id, guest)).toEqual([]);
+    expect(f.registrations.size).toBe(2);
+    expect([...f.registrations.values()].every((row) => row.status === "CANCELLED")).toBe(true);
+    expect(f.repo.cancelUser).toHaveBeenCalledWith(e.id, guest, expect.any(String));
+    expect(f.notifications.notifyMany.mock.calls.flatMap(([rows]) => rows as unknown[])).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ recipientUserId: guest, kind: "event_booking_removed" }),
+      ]),
+    );
+    await f.service.join(guest, e.id, id, f.participation(e.id, id));
+    expect((await f.repo.userRegistrations(e.id, guest))[0].status).toBe("ACCEPTED");
+  });
+  it("rejects stale versions, non-managers, pending-only targets and closed/nonplanning changes before cancellation", async () => {
+    const f = setup("PRIVATE"),
+      e = await f.create();
+    await f.service.register(owner, e.id, id, guest);
+    const version = f.events.get(e.id)!.version;
+    await expect(
+      f.service.removeParticipant(owner, e.id, guest, { version: version - 1 }),
+    ).rejects.toMatchObject({ message: "EVENT_CHANGED" });
+    await expect(
+      f.service.removeParticipant(guest, e.id, owner, { version }),
+    ).rejects.toMatchObject({ message: "EVENT_ADMIN_REQUIRED" });
+    await expect(
+      f.service.removeParticipant(owner, e.id, guest, { version }),
+    ).rejects.toMatchObject({ message: "EVENT_PARTICIPANT_NOT_FOUND" });
+    for (const status of ["CONFIRMED", "TERMINATED"] as const) {
+      f.events.set(e.id, { ...f.events.get(e.id)!, status });
+      await expect(
+        f.service.removeParticipant(owner, e.id, guest, { version }),
+      ).rejects.toMatchObject({ message: "EVENT_NOT_PLANNING" });
+    }
+    const p = setup("PUBLIC"),
+      publicEvent = await p.create();
+    p.events.set(publicEvent.id, {
+      ...p.events.get(publicEvent.id)!,
+      bookingClosesAt: "2020-01-01T00:00:00Z",
+    });
+    await expect(
+      p.service.removeParticipant(owner, publicEvent.id, guest, { version: 1 }),
+    ).rejects.toMatchObject({ message: "EVENT_BOOKING_CLOSED" });
+    expect(f.repo.cancelUser).not.toHaveBeenCalled();
+    expect(p.repo.cancelUser).not.toHaveBeenCalled();
+  });
+  it("retains genuine frozen attendance even when mutable registrations are absent", async () => {
+    const f = setup("PRIVATE"),
+      e = await f.create();
+    f.events.set(e.id, { ...f.events.get(e.id)!, status: "TERMINATED" });
+    f.tables.set(id, {
+      ...f.tables.get(id)!,
+      confirmed: { gameId: 1, playerIds: [guest, waiter], startsAt: "2027-01-03T09:00:00Z" },
+    });
+    const list = await f.service.participants(owner, e.id, { limit: 20 });
+    expect(list.items).toHaveLength(2);
+    expect(list.items.every((row) => row.position === "FROZEN" && !row.canRemove)).toBe(true);
+  });
+});
 async function resultFixture() {
   const f = setup("PRIVATE"),
     created = await f.create();
@@ -2160,5 +2361,471 @@ describe("current Group management authority", () => {
     });
     await f.service.remove(owner, event.id, { version: event.version });
     expect(f.events.size).toBe(0);
+  });
+});
+
+describe("private participant proposals", () => {
+  const date = (day = "2027-01-05") => ({ kind: "date" as const, day, startTime: "16:00" });
+  async function prepared() {
+    const f = setup("PRIVATE"),
+      e = await f.create();
+    await f.service.update(owner, e.id, {
+      name: e.name,
+      timeZone: e.timeZone,
+      startTime: e.startTime,
+      dates: e.dates,
+      locations: e.locations,
+      version: e.version,
+      allowParticipantDates: true,
+      allowParticipantLocations: true,
+      tables: [{ ...body().tables[0], allowParticipantGames: true }],
+      removedTableIds: [],
+    });
+    return {
+      ...f,
+      e,
+      version: () => f.events.get(e.id)!.version,
+      submit: (
+        userId: string,
+        payload: import("@board-game-organizer/schemas").EventProposalPayload,
+        clientRequestId = randomUUID(),
+      ) =>
+        f.service.submitProposal(userId, e.id, {
+          eventVersion: f.events.get(e.id)!.version,
+          clientRequestId,
+          payload,
+        }),
+    };
+  }
+  it("defaults flags off and gives no proposal authority to management, pending reservations or accepted queues", async () => {
+    const defaults = setup("PRIVATE"),
+      e = await defaults.create();
+    expect(e).toMatchObject({
+      allowParticipantDates: false,
+      allowParticipantLocations: false,
+      canProposeDates: false,
+    });
+    await expect(
+      defaults.service.submitProposal(owner, e.id, {
+        eventVersion: e.version,
+        clientRequestId: randomUUID(),
+        payload: date(),
+      }),
+    ).rejects.toMatchObject({ code: "PROPOSALS_DISABLED" });
+    const f = await prepared();
+    await expect(f.submit(owner, date())).rejects.toMatchObject({ code: "PROPOSAL_SEAT_REQUIRED" });
+    const invitation = await f.service.register(owner, f.e.id, id, waiter);
+    await expect(f.submit(waiter, date())).rejects.toMatchObject({
+      code: "PROPOSAL_SEAT_REQUIRED",
+    });
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    await f.service.join(owner, f.e.id, id, f.participation(f.e.id, id));
+    await expect(f.submit(owner, date())).rejects.toMatchObject({ code: "PROPOSAL_SEAT_REQUIRED" });
+    expect((await f.service.detail(guest, f.e.id)).canProposeDates).toBe(true);
+    expect((await f.service.detail(owner, f.e.id)).canProposeDates).toBe(false);
+    expect((await f.service.tableDetail(guest, f.e.id, id)).canProposeGames).toBe(true);
+    expect((await f.service.tableDetail(waiter, f.e.id, id)).canProposeGames).toBe(false);
+    expect(f.registrations.get(invitation.id)?.status).toBe("PENDING");
+  });
+  it("allows multiple own pending proposals, deduplicates only own pending payloads and hides private hashes/other authors", async () => {
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    await f.service.join(owner, f.e.id, id, f.participation(f.e.id, id));
+    const first = await f.submit(guest, date());
+    await f.submit(guest, date("2027-01-06"));
+    await expect(f.submit(guest, date())).rejects.toMatchObject({
+      code: "PROPOSAL_ALREADY_PENDING",
+    });
+    await f.submit(owner, date()); // Hidden other-author duplicate does not leak existence.
+    expect(f.proposals.size).toBe(3);
+    const own = await f.service.proposals(guest, f.e.id, { mode: "mine", kind: "date", limit: 1 });
+    expect(own.items).toHaveLength(1);
+    expect(own.items[0].userId).toBe(guest);
+    expect(own.nextCursor).toBeTruthy();
+    const later = await f.service.proposals(guest, f.e.id, {
+      mode: "mine",
+      kind: "date",
+      limit: 1,
+      cursor: own.nextCursor!,
+    });
+    expect(later.items).toHaveLength(1);
+    expect(later.nextCursor).toBeNull();
+    expect(later.items[0].id).not.toBe(own.items[0].id);
+    const reviewed = await f.service.proposals(owner, f.e.id, {
+      mode: "review",
+      kind: "date",
+      limit: 20,
+    });
+    expect(reviewed.items).toHaveLength(3);
+    expect(JSON.stringify(reviewed)).not.toMatch(/requestHash|payloadKey|email|gameVotes/);
+    await expect(
+      f.service.proposals(guest, f.e.id, { mode: "review", kind: "date", limit: 20 }),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    expect(
+      (
+        await f.service.proposals(guest, f.e.id, {
+          mode: "mine",
+          kind: "date",
+          limit: 20,
+          clientRequestId: first.clientRequestId,
+        })
+      ).items.map((p) => p.id),
+    ).toEqual([first.id]);
+  });
+  it("reads one proposal receipt only for its authorized author or current manager", async () => {
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const row = await f.submit(guest, date());
+    expect((await f.service.proposalDetail(guest, f.e.id, row.id)).proposal).toEqual(row);
+    expect((await f.service.proposalDetail(owner, f.e.id, row.id)).proposal).toEqual(row);
+    await expect(f.service.proposalDetail(waiter, f.e.id, row.id)).rejects.toMatchObject({
+      code: "PROPOSAL_NOT_FOUND",
+    });
+    await expect(f.service.proposalDetail(guest, f.e.id, randomUUID())).rejects.toMatchObject({
+      code: "PROPOSAL_NOT_FOUND",
+    });
+    f.proposals.set(row.id, { ...f.proposals.get(row.id)!, eventId: other });
+    await expect(f.service.proposalDetail(guest, f.e.id, row.id)).rejects.toMatchObject({
+      code: "PROPOSAL_NOT_FOUND",
+    });
+    const publicFixture = setup("PUBLIC"),
+      e = await publicFixture.create();
+    await expect(publicFixture.service.proposalDetail(owner, e.id, row.id)).rejects.toMatchObject({
+      code: "PROPOSALS_PRIVATE_GROUP_ONLY",
+    });
+  });
+  it("correlates exact submissions without repeat notices and rejects request reuse or stale Event versions", async () => {
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const correlation = randomUUID(),
+      version = f.version(),
+      payload = date();
+    const first = await f.submit(guest, payload, correlation),
+      noticeCount = f.notifications.notifyMany.mock.calls.length;
+    expect(
+      await f.service.submitProposal(guest, f.e.id, {
+        clientRequestId: correlation,
+        eventVersion: version,
+        payload,
+      }),
+    ).toEqual(first);
+    expect(f.notifications.notifyMany).toHaveBeenCalledTimes(noticeCount);
+    await expect(f.submit(guest, date("2027-01-06"), correlation)).rejects.toMatchObject({
+      code: "PROPOSAL_REQUEST_REUSED",
+    });
+    await expect(
+      f.service.submitProposal(guest, f.e.id, {
+        clientRequestId: randomUUID(),
+        eventVersion: version - 1,
+        payload: date("2027-01-06"),
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_CHANGED" });
+    expect(f.proposals.size).toBe(1);
+  });
+  it("approves via canonical edit, preserves registrations and ballots and replays only same decision receipt", async () => {
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const row = await f.submit(guest, date()),
+      version = f.version(),
+      registrations = clone([...f.registrations.values()]),
+      votes = clone([...f.votes.values()]);
+    const reviewed = await f.service.reviewProposal(owner, f.e.id, row.id, {
+      eventVersion: version,
+      version: 1,
+      action: "accept",
+    });
+    expect(reviewed.proposal).toMatchObject({ status: "ACCEPTED", version: 2 });
+    expect(reviewed.event.version).toBe(version + 1);
+    expect(reviewed.event.dates).toHaveLength(2);
+    expect(reviewed.event.dates[0].id).toBe(id);
+    expect(reviewed.event.dates[1].id).toBe(reviewed.proposal.canonicalOptionId);
+    expect([...f.registrations.values()]).toEqual(registrations);
+    expect([...f.votes.values()]).toEqual(votes);
+    expect(
+      votes.every((v) => !Object.keys(v.dateVotes).length && !Object.keys(v.locationVotes).length),
+    ).toBe(true);
+    const notices = f.notifications.notifyMany.mock.calls.length;
+    expect(
+      (
+        await f.service.reviewProposal(owner, f.e.id, row.id, {
+          eventVersion: version,
+          version: 1,
+          action: "accept",
+        })
+      ).proposal,
+    ).toEqual(reviewed.proposal);
+    expect(f.notifications.notifyMany).toHaveBeenCalledTimes(notices);
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        eventVersion: version,
+        version: 1,
+        action: "reject",
+      }),
+    ).rejects.toMatchObject({ code: "PROPOSAL_CHANGED" });
+    await expect(f.submit(guest, date())).rejects.toMatchObject({ code: "PROPOSAL_OPTION_EXISTS" });
+  });
+  it("rejects privately, permits later explicit submission and reviews existing pending after category disabled", async () => {
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const row = await f.submit(guest, date()),
+      before = clone(f.events.get(f.e.id));
+    const rejected = await f.service.reviewProposal(owner, f.e.id, row.id, {
+      eventVersion: f.version(),
+      version: 1,
+      action: "reject",
+    });
+    expect(rejected.proposal.status).toBe("REJECTED");
+    expect(f.events.get(f.e.id)).toEqual(before);
+    expect(
+      (
+        await f.service.reviewProposal(owner, f.e.id, row.id, {
+          eventVersion: f.version(),
+          version: 1,
+          action: "reject",
+        })
+      ).proposal,
+    ).toEqual(rejected.proposal);
+    const pending = await f.submit(guest, date()),
+      e = f.events.get(f.e.id)!;
+    await f.service.update(owner, e.id, {
+      name: e.name,
+      timeZone: e.timeZone,
+      startTime: e.startTime,
+      dates: e.dates,
+      locations: e.locations,
+      version: e.version,
+      allowParticipantDates: false,
+      tables: [],
+      removedTableIds: [],
+    });
+    await expect(f.submit(guest, date("2027-01-06"))).rejects.toMatchObject({
+      code: "PROPOSALS_DISABLED",
+    });
+    expect(
+      (
+        await f.service.reviewProposal(owner, e.id, pending.id, {
+          eventVersion: f.version(),
+          version: 1,
+          action: "accept",
+        })
+      ).proposal.status,
+    ).toBe("ACCEPTED");
+  });
+  it("never turns pending into a confirmation blocker or automatically rejects outside planning", async () => {
+    const f = await prepared();
+    for (const user of [guest, owner])
+      await f.service.join(user, f.e.id, id, f.participation(f.e.id, id));
+    const row = await f.submit(guest, date());
+    await f.confirm(f.e.id);
+    for (const action of ["accept", "reject"] as const)
+      await expect(
+        f.service.reviewProposal(owner, f.e.id, row.id, {
+          eventVersion: f.version(),
+          version: 1,
+          action,
+        }),
+      ).rejects.toMatchObject({ code: "EVENT_NOT_PLANNING" });
+    expect(
+      (await f.service.proposals(guest, f.e.id, { kind: "date", mode: "mine", limit: 20 })).items[0]
+        .status,
+    ).toBe("PENDING");
+    expect(f.proposals.get(row.id)?.status).toBe("PENDING");
+  });
+  it("rechecks current manager, proposer membership and effective seat before approval; rejection remains possible", async () => {
+    const f = await prepared();
+    const registration = await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id)),
+      row = await f.submit(guest, date());
+    await expect(
+      f.service.reviewProposal(guest, f.e.id, row.id, {
+        eventVersion: f.version(),
+        version: 1,
+        action: "accept",
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    f.groups.membership.mockImplementation(async (_id, who) =>
+      who === guest ? null : { status: "ACCEPTED" },
+    );
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        eventVersion: f.version(),
+        version: 1,
+        action: "accept",
+      }),
+    ).rejects.toMatchObject({ code: "GROUP_MEMBER_REQUIRED" });
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED" });
+    await f.service.registrationAction(guest, registration.id, {
+      action: "cancel",
+      version: registration.version,
+    });
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        eventVersion: f.version(),
+        version: 1,
+        action: "accept",
+      }),
+    ).rejects.toMatchObject({ code: "PROPOSAL_SEAT_REQUIRED" });
+    expect(
+      (await f.service.proposals(guest, f.e.id, { kind: "date", mode: "mine", limit: 20 })).items[0]
+        .status,
+    ).toBe("PENDING");
+    expect(
+      (
+        await f.service.reviewProposal(owner, f.e.id, row.id, {
+          eventVersion: f.version(),
+          version: 1,
+          action: "reject",
+        })
+      ).proposal.status,
+    ).toBe("REJECTED");
+  });
+  it("restricts games to own seated Table and preserves existing durations on canonical approval", async () => {
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const e = f.events.get(f.e.id)!;
+    await f.service.update(owner, e.id, {
+      name: e.name,
+      timeZone: e.timeZone,
+      startTime: e.startTime,
+      dates: e.dates,
+      locations: e.locations,
+      version: e.version,
+      tables: [{ ...body().tables[0], id: other, allowParticipantGames: true }],
+      removedTableIds: [],
+    });
+    await expect(
+      f.submit(guest, { kind: "game", tableId: other, gameId: 2 }),
+    ).rejects.toMatchObject({ code: "PROPOSAL_SEAT_REQUIRED" });
+    const old = clone(f.tables.get(id)!.games),
+      row = await f.submit(guest, { kind: "game", tableId: id, gameId: 2 });
+    const receipt = await f.service.reviewProposal(owner, e.id, row.id, {
+      eventVersion: f.version(),
+      version: 1,
+      action: "accept",
+    });
+    expect(receipt.proposal.canonicalOptionId).toBe("2");
+    expect(f.tables.get(id)?.games).toEqual([
+      ...old,
+      { gameId: 2, durationMinutes: 60, durationSource: "BGG" },
+    ]);
+    expect(f.registrations.values().next().value?.gameVotes).toEqual({});
+    expect(
+      (
+        await f.service.proposals(guest, e.id, {
+          kind: "game",
+          tableId: id,
+          mode: "mine",
+          limit: 20,
+        })
+      ).items[0].id,
+    ).toBe(row.id);
+    await expect(
+      f.service.proposals(owner, e.id, {
+        kind: "game",
+        tableId: randomUUID(),
+        mode: "review",
+        limit: 20,
+      }),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+    await expect(
+      f.submit(guest, { kind: "game", tableId: randomUUID(), gameId: 2 }),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+  });
+  it("revalidates current playable catalog on submission and approval without consuming the pending request", async () => {
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const payload = { kind: "game" as const, tableId: id, gameId: 2 };
+    f.games.findByIds.mockResolvedValueOnce([]);
+    await expect(f.submit(guest, payload)).rejects.toMatchObject({ code: "GAME_NOT_FOUND" });
+    f.games.findByIds.mockResolvedValueOnce([
+      { id: 2, name: "Expansion", isExpansion: true },
+    ] as never);
+    await expect(f.submit(guest, payload)).rejects.toMatchObject({ code: "GAME_NOT_FOUND" });
+    const row = await f.submit(guest, payload),
+      version = f.version();
+    f.games.findByIds.mockResolvedValueOnce([]);
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        eventVersion: version,
+        version: 1,
+        action: "accept",
+      }),
+    ).rejects.toMatchObject({ code: "GAME_NOT_FOUND" });
+    f.games.findByIds.mockResolvedValueOnce([
+      { id: 2, name: "Expansion", isExpansion: true },
+    ] as never);
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        eventVersion: version,
+        version: 1,
+        action: "accept",
+      }),
+    ).rejects.toMatchObject({ code: "GAME_NOT_FOUND" });
+    expect(f.proposals.get(row.id)?.status).toBe("PENDING");
+    expect(f.version()).toBe(version);
+    expect(
+      (
+        await f.service.reviewProposal(owner, f.e.id, row.id, {
+          eventVersion: version,
+          version: 1,
+          action: "accept",
+        })
+      ).proposal.status,
+    ).toBe("ACCEPTED");
+  });
+  it("keeps source authority, stale decisions, canonical duplicates and removed targets guarded", async () => {
+    for (const type of [null, "PUBLIC"] as const) {
+      const f = setup(type),
+        e = await f.create();
+      await expect(
+        f.service.proposals(owner, e.id, { kind: "date", mode: "mine", limit: 20 }),
+      ).rejects.toMatchObject({ code: "PROPOSALS_PRIVATE_GROUP_ONLY" });
+      await expect(
+        f.service.submitProposal(owner, e.id, {
+          eventVersion: e.version,
+          clientRequestId: randomUUID(),
+          payload: date(),
+        }),
+      ).rejects.toMatchObject({ code: "PROPOSALS_PRIVATE_GROUP_ONLY" });
+      await expect(
+        f.service.reviewProposal(owner, e.id, id, {
+          eventVersion: e.version,
+          version: 1,
+          action: "accept",
+        }),
+      ).rejects.toMatchObject({ code: "PROPOSALS_PRIVATE_GROUP_ONLY" });
+    }
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const row = await f.submit(guest, { kind: "game", tableId: id, gameId: 2 });
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        eventVersion: f.version() - 1,
+        version: 1,
+        action: "accept",
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_CHANGED" });
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        eventVersion: f.version(),
+        version: 2,
+        action: "accept",
+      }),
+    ).rejects.toMatchObject({ code: "PROPOSAL_CHANGED" });
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, randomUUID(), {
+        eventVersion: f.version(),
+        version: 1,
+        action: "accept",
+      }),
+    ).rejects.toMatchObject({ code: "PROPOSAL_NOT_FOUND" });
+    f.tables.set(id, { ...f.tables.get(id)!, removedAt: "2027-01-01T00:00:00Z" });
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        eventVersion: f.version(),
+        version: 1,
+        action: "accept",
+      }),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+    expect(f.proposals.get(row.id)?.status).toBe("PENDING");
   });
 });

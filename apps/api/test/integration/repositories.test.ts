@@ -1419,6 +1419,59 @@ describe("direct Preview catalog import on MongoDB replica set", () => {
 });
 
 describe("BGG account collection snapshots on MongoDB replica set", () => {
+  it("source-pages the complete personal collection, counts expansions and isolates owners/snapshots", async () => {
+    const repository = new BggAccountRepository(db);
+    const identity = { id: 41, username: "alice", avatarUrl: null };
+    const snapshot = await repository.stage(ACTOR, identity);
+    const base = parseBggCollection(
+      '<items><item objectid="987601" subtype="boardgame"><name>Alpha [owned]</name><status own="0" wishlist="1"/><stats><rating value="8.5"><average value="3"/></rating></stats></item><item objectid="987602" subtype="boardgame"><name>Beta</name><status own="1"/></item></items>',
+      ACTOR,
+      snapshot,
+    );
+    const expansions = parseBggCollection(
+      '<items><item objectid="987603" subtype="boardgame"><name>Expansion</name><status wishlist="1"/><stats><rating value="N/A"/></stats></item></items>',
+      ACTOR,
+      snapshot,
+      true,
+    );
+    await repository.publish(ACTOR, snapshot, identity, [...base, ...expansions]);
+    const counts = { withoutExpansions: 2, withExpansions: 3, wishlist: 2 };
+    expect((await repository.get(ACTOR)).active?.counts).toEqual(counts);
+    expect(await repository.games(ACTOR, snapshot).toArray()).toHaveLength(3);
+    expect(await new BoardGamesRepository(db).findExistingIds([987601, 987602, 987603])).toEqual([
+      987601, 987602,
+    ]);
+    const input = { snapshot, query: "", limit: 1 };
+    const first = await repository.page(ACTOR, input);
+    expect(first.items[0]).toMatchObject({
+      id: 987601,
+      userRating: 8.5,
+      wishlist: true,
+      isExpansion: false,
+    });
+    expect(first.counts).toEqual(counts);
+    expect(JSON.stringify(first)).not.toContain("<stats>");
+    const second = await repository.page(ACTOR, { ...input, cursor: first.nextCursor ?? "" });
+    const third = await repository.page(ACTOR, { ...input, cursor: second.nextCursor ?? "" });
+    expect(second.items[0].id).toBe(987602);
+    expect(third.items[0]).toMatchObject({ id: 987603, isExpansion: true, userRating: null });
+    expect(third.nextCursor).toBeNull();
+    const filtered = await repository.page(ACTOR, { ...input, query: "[owned]" });
+    expect(filtered.items.map((row) => row.id)).toEqual([987601]);
+    expect(filtered.counts).toEqual(counts);
+    await expect(repository.page(TARGET, input)).rejects.toMatchObject({ status: 404 });
+    const next = await repository.stage(ACTOR, identity);
+    await repository.failed(ACTOR, next);
+    expect((await repository.get(ACTOR)).active?.counts).toEqual(counts);
+    const replacement = await repository.stage(ACTOR, identity);
+    await repository.publish(ACTOR, replacement, identity, []);
+    await expect(repository.page(ACTOR, input)).rejects.toMatchObject({ status: 409 });
+    expect((await repository.page(ACTOR, { ...input, snapshot: replacement })).counts).toEqual({
+      withoutExpansions: 0,
+      withExpansions: 0,
+      wishlist: 0,
+    });
+  });
   it("publishes only complete snapshots, preserves old data on failure, and unlinks privately", async () => {
     const repository = new BggAccountRepository(db);
     const alice = { id: 41, username: "alice", avatarUrl: null };
@@ -1430,6 +1483,11 @@ describe("BGG account collection snapshots on MongoDB replica set", () => {
     );
     await repository.publish(ACTOR, first, alice, games);
     expect((await repository.get(ACTOR)).active?.username).toBe("alice");
+    expect((await repository.get(ACTOR)).active?.counts).toEqual({
+      withoutExpansions: 1,
+      withExpansions: 1,
+      wishlist: 1,
+    });
     expect(await repository.games(ACTOR, first).toArray()).toHaveLength(1);
     expect(await new BoardGamesRepository(db).findExistingIds([987600])).toEqual([987600]);
 

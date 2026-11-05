@@ -50,6 +50,7 @@ export const plannedTableInputSchema = z
         "Games must be unique",
       ),
     rankingEnabled: z.boolean(),
+    allowParticipantGames: z.boolean().optional(),
     startsAt: z.iso.datetime({ offset: true }).optional(),
     demonstratorUserId: targetUserIdSchema.optional(),
   })
@@ -70,6 +71,8 @@ export const createPlannedEventSchema = z
     clientRequestId: clientRequestIdSchema.optional(),
     name: z.string().trim().min(5).max(120),
     timeZone: zoneSchema,
+    allowParticipantDates: z.boolean().optional(),
+    allowParticipantLocations: z.boolean().optional(),
     startTime: eventTimeSchema,
     endsAt: z.iso.datetime({ offset: true }).optional(),
     bookingClosesAt: z.iso.datetime({ offset: true }).optional(),
@@ -242,6 +245,8 @@ export interface PlannedEventCapabilities {
   canFinalize: boolean;
   /** Authoritative readiness; older cached responses require a detail refresh. */
   resultsReady?: boolean;
+  canProposeDates?: boolean;
+  canProposeLocations?: boolean;
 }
 export type PlannedEventResponse = Omit<
   EventRecord,
@@ -302,6 +307,23 @@ export type TableLeaderboardResponse = {
   nextCursor: string | null;
 };
 export type TableSeatPosition = "SEATED" | "WAITING" | "FROZEN";
+/** Accepted attendance only, deduplicated across live Tables; never invitation consent. */
+export interface EventParticipantResponse {
+  id: string;
+  userId: string;
+  name: string;
+  username: string | null;
+  avatarUrl: string | null;
+  position: TableSeatPosition;
+  canRemove: boolean;
+  /** Current Group authority only; frozen-duty checks still run at the Group ban writer. */
+  canBanGroup: boolean;
+}
+export type EventParticipantsResponse = CommunityPageResponse<EventParticipantResponse> & {
+  eventVersion: number;
+  groupId: string | null;
+  status: EventRecord["status"];
+};
 /** Display-only parent metadata. A proposal preview never grants agreement or a Table seat. */
 export type EventSchedulePreview = {
   localStartsAt: string | null;
@@ -311,6 +333,7 @@ export type EventSchedulePreview = {
 };
 export type PlannedTableResponse = TableRecord & {
   canManage?: boolean;
+  canProposeGames?: boolean;
   readOnly?: boolean;
   eventName: string;
   /** Parent epoch at this authorized Table read; absent on historical cache entries. */

@@ -28,7 +28,23 @@ export const recordPageQuery = z
     cursor: cursor.optional(),
   })
   .strict();
+export const eventProposalsQuery = recordPageQuery
+  .omit({ query: true })
+  .extend({
+    mode: z.enum(["mine", "review"]).default("mine"),
+    kind: z.enum(["date", "location", "game"]),
+    tableId: id.optional(),
+    clientRequestId: id.optional(),
+  })
+  .refine(
+    (value) =>
+      (value.kind === "game") === Boolean(value.tableId) &&
+      (!value.clientRequestId || value.mode === "mine"),
+  );
 export const groupInviteesQuery = recordPageQuery.extend({ cursor: targetUserIdSchema.optional() });
+export const eventParticipantsQuery = recordPageQuery
+  .omit({ query: true })
+  .extend({ cursor: targetUserIdSchema.optional() });
 const filterQuery = z.string().trim().min(1).max(120).optional();
 export const groupListQuery = recordPageQuery
   .extend({

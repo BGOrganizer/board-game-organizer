@@ -1,5 +1,5 @@
 "use client";
-import { useBggAccount } from "@board-game-organizer/shared";
+import { communityAccessDenied, type useBggAccount } from "@board-game-organizer/shared";
 import { Button, Input, Label, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { RefreshCw, Unlink2, UserRoundPen } from "lucide-react";
@@ -8,17 +8,14 @@ import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { ListCard } from "@/components/common/ui/ListCard";
-import { useCommunityApi } from "@/lib/useCommunityApi";
 
-export function ProfileBggCard() {
-  const { t } = useLingui(),
-    o = useCommunityApi(),
-    bgg = useBggAccount(o);
+export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> }) {
+  const { t } = useLingui();
   const [open, setOpen] = useState(false),
     [disconnect, setDisconnect] = useState(false),
     [username, setUsername] = useState(""),
     [invalid, setInvalid] = useState(false);
-  const data = bgg.account.data,
+  const data = communityAccessDenied(bgg.account.error) ? undefined : bgg.account.data,
     active = data?.active;
   const busy =
     bgg.busy ||

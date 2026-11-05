@@ -1,4 +1,4 @@
-import { useBggAccount } from "@board-game-organizer/shared";
+import { communityAccessDenied, type useBggAccount } from "@board-game-organizer/shared";
 import { Button } from "heroui-native/button";
 import { Dialog } from "heroui-native/dialog";
 import { useThemeColor } from "heroui-native/hooks";
@@ -13,17 +13,14 @@ import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { useT } from "@/lib/i18n";
-import { useCommunityApi } from "@/lib/useCommunityApi";
 
-export function ProfileBggCard() {
-  const t = useT(),
-    o = useCommunityApi(),
-    bgg = useBggAccount(o);
+export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> }) {
+  const t = useT();
   const [open, setOpen] = useState(false),
     [disconnect, setDisconnect] = useState(false),
     [username, setUsername] = useState("");
   const [accentForeground, danger, muted] = useThemeColor(["accent-foreground", "danger", "muted"]);
-  const data = bgg.account.data,
+  const data = communityAccessDenied(bgg.account.error) ? undefined : bgg.account.data,
     active = data?.active;
   const busy =
     bgg.busy ||
