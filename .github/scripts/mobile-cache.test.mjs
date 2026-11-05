@@ -165,6 +165,86 @@ test("cold native builds configure client and daemon memory separately without o
   }
 });
 
+test("APK disk preparation removes unused hosted tools/images without deleting SDK runtime tools or app data", () => {
+  const cleanup = build.runs.steps.find((step) => step.name === "🧹 Free disk space");
+  const setup = build.runs.steps.find((step) => step.uses === "./.github/actions/setup-pnpm");
+  assert(build.runs.steps.indexOf(cleanup) < build.runs.steps.indexOf(setup));
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const result = spawnSync(
+    bash,
+    [
+      "-e",
+      "-o",
+      "pipefail",
+      "-c",
+      `
+    sudo() { printf 'remove:%s\\n' "$@"; }
+    rm() { return 99; }
+    docker() { printf 'docker:%s\\n' "$*"; }
+    df() { echo disk-summary; }
+    ${cleanup.run}
+  `,
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const removed = result.stdout
+    .split("\n")
+    .filter((line) => line.startsWith("remove:/"))
+    .map((line) => line.slice(7));
+  assert(removed.includes("/usr/local/.ghcup"));
+  assert(removed.includes("/usr/share/swift"));
+  assert(removed.includes("/usr/local/share/powershell"));
+  assert(removed.includes("/usr/local/lib/android/sdk/ndk"));
+  for (const path of removed) {
+    assert.match(
+      path,
+      /^\/(usr\/share\/(dotnet|swift)|usr\/local\/(\.ghcup|share\/(boost|powershell)|lib\/android\/sdk\/ndk)|opt\/(ghc|hostedtoolcache\/(CodeQL|go|Python|Ruby)))$/,
+    );
+  }
+  assert.match(result.stdout, /docker:image prune --all --force/);
+  assert.match(result.stdout, /disk-summary/);
+  assert.doesNotMatch(cleanup.run, /continue-on-error|\|\| true/);
+});
+
+test("disk diagnostics run after failed APK builds without weakening build failure or exposing inputs", () => {
+  const compile = build.runs.steps.find((step) => step.name.startsWith("📱 Build"));
+  const report = build.runs.steps.find((step) => step.name === "💽 Report build disk usage");
+  assert(build.runs.steps.indexOf(report) > build.runs.steps.indexOf(compile));
+  assert.match(report.if, /^\$\{\{ always\(\) \}\}$/);
+  assert.equal(compile["continue-on-error"], undefined);
+  assert.doesNotMatch(compile.run, /eas build[\s\S]*\|\| true/);
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const result = spawnSync(
+    bash,
+    [
+      "-e",
+      "-o",
+      "pipefail",
+      "-c",
+      `
+    df() { printf 'df:%s\\n' "$*"; }
+    du() { printf 'du:%s\\n' "$*"; return 1; }
+    ${report.run}
+  `,
+    ],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HOME: "/runner-home",
+        RUNNER_TEMP: "/runner-temp",
+        EXPO_TOKEN: "private-disk-test-token",
+      },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /df:-h \/ \/tmp/);
+  assert.match(result.stdout, /df:-i \/ \/tmp/);
+  assert.match(result.stdout, /du:-sh \/runner-home\/\.gradle \/runner-temp \/tmp\/runner/);
+  assert.doesNotMatch(result.stdout + result.stderr, /private-disk-test-token/);
+});
+
 test("SDK cache prepares only its three directories before restoring root-owned runner tools", () => {
   const prepare = emulator.runs.steps.find((step) => step.name === "Resolve SDK cache path");
   const restore = emulator.runs.steps.find((step) => step.uses === "actions/cache/restore@v4");

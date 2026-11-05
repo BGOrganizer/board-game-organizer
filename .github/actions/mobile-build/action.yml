@@ -67,11 +67,13 @@ runs:
     - name: 🧹 Free disk space
       shell: bash
       run: |
-        # Keep /usr/local/lib/android (EAS local builds install NDK/CMake there).
-        # Remove other preinstalled toolchains to free ~7GB on the runner.
-        sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost \
+        # Hosted runners carry unused toolchains/images; /opt/ghc alone misses current GHC installs.
+        # Keep the Android SDK, emulator and platform-tools. EAS installs its selected NDK again.
+        sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
+          /usr/share/swift /usr/local/share/powershell /usr/local/lib/android/sdk/ndk \
           /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/go /opt/hostedtoolcache/Python \
           /opt/hostedtoolcache/Ruby
+        docker image prune --all --force
         df -h / | tail -1
 
     - name: 🧰 Setup workspace
@@ -177,3 +179,12 @@ runs:
         (cd build-output && sha256sum -- *.apk > apk.sha256)
         echo "✅ ${{ inputs.profile }} APK built:"
         ls -lh build-output/
+
+    - name: 💽 Report build disk usage
+      if: ${{ always() }}
+      shell: bash
+      run: |
+        df -h / /tmp
+        df -i / /tmp
+        # Sizes only: never emit build inputs, credentials or generated environment files.
+        du -sh "$HOME/.gradle" "$RUNNER_TEMP" /tmp/runner 2>/dev/null || true
