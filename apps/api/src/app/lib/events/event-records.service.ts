@@ -36,10 +36,12 @@ import {
   eventLocalDateTime,
   eventLocalToIso,
   eventNotificationItems,
+  eventOptionsRequireVote,
   eventOptionVotesAreComplete,
   eventRecordCapabilities,
   eventRecordSchedulePreview,
   eventVoteCounts,
+  eventVotingChoices,
   groupBanIsActive,
   hasOtherAcceptedTable,
   hasPublicTableConflict,
@@ -1176,7 +1178,12 @@ export class EventRecordsService {
       priorityAt: at,
       sequence: event.nextPriority++,
       version: (previous?.version ?? 0) + 1,
-      gameVotes: input?.gameVotes ?? {},
+      gameVotes: input
+        ? eventVotingChoices(
+            table.games.map((game) => ({ id: String(game.gameId) })),
+            input.gameVotes,
+          )
+        : {},
       createdAt: at,
       updatedAt: at,
     };
@@ -1185,8 +1192,8 @@ export class EventRecordsService {
       await this.events.saveVoter({
         eventId,
         userId,
-        dateVotes: availability.dateVotes,
-        locationVotes: availability.locationVotes,
+        dateVotes: eventVotingChoices(event.dates, availability.dateVotes),
+        locationVotes: eventVotingChoices(event.locations, availability.locationVotes),
         updatedAt: at,
       });
     event.version++;
@@ -1224,6 +1231,7 @@ export class EventRecordsService {
       throw new CommunityError(409, "REGISTRATION_CHANGED");
     const own = row.userId === userId,
       admin = await this.manager(event, group, userId);
+    let acceptedGameVotes = row.gameVotes;
     let status: TableRegistration["status"];
     if (input.action === "accept" || input.action === "decline") {
       if (!own || row.kind !== "INVITATION" || row.status !== "PENDING")
@@ -1239,6 +1247,10 @@ export class EventRecordsService {
         if (group?.type === "PRIVATE" && !participation.availability)
           throw new CommunityError(400, "EVENT_AVAILABILITY_REQUIRED");
         this.validateParticipation(event, group, table, participation);
+        acceptedGameVotes = eventVotingChoices(
+          table.games.map((game) => ({ id: String(game.gameId) })),
+          participation.gameVotes,
+        );
         if (
           group?.type === "PUBLIC" &&
           hasPublicTableConflict(
@@ -1265,7 +1277,7 @@ export class EventRecordsService {
       status,
       version: row.version + 1,
       updatedAt: new Date().toISOString(),
-      ...(input.action === "accept" ? { gameVotes: input.participation.gameVotes } : {}),
+      ...(input.action === "accept" ? { gameVotes: acceptedGameVotes } : {}),
     };
     await this.events.saveRegistration(next);
     if (own && (input.action === "accept" || input.action === "decline"))
@@ -1278,8 +1290,11 @@ export class EventRecordsService {
       await this.events.saveVoter({
         eventId: event.id,
         userId,
-        dateVotes: input.participation.availability.dateVotes,
-        locationVotes: input.participation.availability.locationVotes,
+        dateVotes: eventVotingChoices(event.dates, input.participation.availability.dateVotes),
+        locationVotes: eventVotingChoices(
+          event.locations,
+          input.participation.availability.locationVotes,
+        ),
         updatedAt: next.updatedAt,
       });
     event.version++;
@@ -1311,6 +1326,7 @@ export class EventRecordsService {
         throw new CommunityError(403, "ACCEPTED_REGISTRATION_REQUIRED");
       if (!table.games.some((row) => row.gameId === input.gameId))
         throw new CommunityError(400, "INVALID_VOTE_OPTION");
+      if (!eventOptionsRequireVote(table.games)) throw new CommunityError(409, "FIXED_OPTION");
       if (
         !eventAvailabilityVoteIsAllowed(
           table.games.map((game) => ({ id: String(game.gameId) })),
@@ -1331,6 +1347,7 @@ export class EventRecordsService {
       const options = input.kind === "date" ? event.dates : event.locations;
       if (!options.some((row) => row.id === input.optionId))
         throw new CommunityError(400, "INVALID_VOTE_OPTION");
+      if (!eventOptionsRequireVote(options)) throw new CommunityError(409, "FIXED_OPTION");
       const current = (await this.events.voter(id, userId)) ?? {
         eventId: id,
         userId,

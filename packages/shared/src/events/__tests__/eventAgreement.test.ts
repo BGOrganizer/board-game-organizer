@@ -10,10 +10,10 @@ import {
 
 function fixture(users = ["a", "b"], max = users.length): EventAgreementInput {
   return {
-    dateIds: ["d"],
-    locationIds: ["l"],
+    dateIds: ["d", "d-other"],
+    locationIds: ["l", "l-other"],
     fixedDateAndLocation: false,
-    tables: [{ id: "t", minPlayers: 2, maxPlayers: max, gameIds: [1], fixedGame: false }],
+    tables: [{ id: "t", minPlayers: 2, maxPlayers: max, gameIds: [1, 99], fixedGame: false }],
     registrations: users.map((userId, sequence) => ({
       id: userId,
       tableId: "t",
@@ -88,6 +88,16 @@ describe("reserved temporal places", () => {
 });
 
 describe("per-table agreement phases", () => {
+  it("never manufactures multiple-game preferences from a historical fixed-game hint", () => {
+    const input = fixture();
+    input.tables[0].fixedGame = true;
+    input.gameVotes = {};
+    expect(calculateEventAgreement(input).agreed).toBe(false);
+    input.gameVotes = { t: { a: { "1": "YES" }, b: { "1": "IF_NEEDED" } } };
+    const result = calculateEventAgreement(input);
+    expect(result.agreed).toBe(true);
+    expect(result.agreed && result.yesGameVotes).toBe(1);
+  });
   it("A uses seated players only; accepts IF_NEEDED and never imports waiting votes", () => {
     const input = votes(
       game(fixture(["a", "b", "c"], 2), "b", "IF_NEEDED"),
@@ -140,31 +150,64 @@ describe("per-table agreement phases", () => {
       expect(calculateEventAgreement(input).agreed).toBe(false);
   });
   it.each(["NO", "UNKNOWN"] as const)(
-    "fixed game identity never overrides an explicit %s ballot",
+    "a singleton game is accepted by seating, not blocked by a historical %s preference",
     (vote) => {
       const input = fixture();
-      input.tables = [{ ...input.tables[0], fixedGame: true }];
+      input.tables = [{ ...input.tables[0], gameIds: [1], fixedGame: true }];
       const result = calculateEventAgreement(game(input, "b", vote));
-      expect(result.agreed).toBe(false);
-      expect(result.tables[0].reason).toBe("GAME_DISAGREEMENT");
+      expect(result.agreed).toBe(true);
+      expect(result.agreed && result.yesGameVotes).toBe(0);
     },
   );
-  it("fixed public options imply YES only for accepted registrations", () => {
+  it("fixed public options establish accepted-only eligibility without inventing preference totals", () => {
     const input = {
       ...fixture(),
+      dateIds: ["d"],
+      locationIds: ["l"],
       fixedDateAndLocation: true,
-      tables: [{ ...fixture().tables[0], fixedGame: true }],
+      tables: [{ ...fixture().tables[0], gameIds: [1], fixedGame: true }],
       dateVotes: {},
       locationVotes: {},
       gameVotes: {},
     };
     const result = calculateEventAgreement(input);
-    expect(result.agreed && result.yesGameVotes).toBe(2);
+    expect(result.agreed && result.yesGameVotes).toBe(0);
     // Fixed choices establish eligibility, not preference votes that bias attendance.
     expect(result.agreed && result.yesDateLocationVotes).toBe(0);
     expect(calculateEventAgreement(pending(input, "a")).agreed).toBe(false);
   });
 });
+
+it.each(
+  Array.from(
+    { length: 8 },
+    (_, bits) => [Boolean(bits & 1), Boolean(bits & 2), Boolean(bits & 4)] as const,
+  ),
+)(
+  "handles singleton/multiple date=%s location=%s game=%s independently, without synthetic preferences",
+  (dates, locations, games) => {
+    const input = fixture();
+    input.dateIds = dates ? ["d", "d-other"] : ["d"];
+    input.locationIds = locations ? ["l", "l-other"] : ["l"];
+    input.tables = [{ ...input.tables[0], gameIds: games ? [1, 99] : [1] }];
+    input.dateVotes = dates ? { a: { d: "YES" }, b: { d: "YES" } } : {};
+    input.locationVotes = locations ? { a: { l: "YES" }, b: { l: "YES" } } : {};
+    input.gameVotes = games ? { t: { a: { "1": "YES" }, b: { "1": "YES" } } } : {};
+    const result = calculateEventAgreement(input);
+    expect(result.agreed).toBe(true);
+    expect(result.agreed && result.includedTables[0].participantIds).toEqual(["a", "b"]);
+    expect(result.agreed && result.yesDateLocationVotes).toBe(
+      Number(dates) * 2 + Number(locations) * 2,
+    );
+    expect(result.agreed && result.yesGameVotes).toBe(games ? 2 : 0);
+    expect(calculateEventAgreement(pending(input, "b")).agreed).toBe(false);
+    if (dates)
+      expect(calculateEventAgreement(votes(input, "dateVotes", "b", "NO")).agreed).toBe(false);
+    if (locations)
+      expect(calculateEventAgreement(votes(input, "locationVotes", "b", "NO")).agreed).toBe(false);
+    if (games) expect(calculateEventAgreement(game(input, "b", "NO")).agreed).toBe(false);
+  },
+);
 
 it("chooses more YES over more IF_NEEDED players; distinct attendance is only a vote tie-break", () => {
   const base = fixture(["a", "b", "c", "d"], 4);

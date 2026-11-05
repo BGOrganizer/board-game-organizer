@@ -6,6 +6,7 @@ import {
   eventDateWall,
   eventItemTargets,
   eventLocalToIso,
+  eventOptionsRequireVote,
   useEventCutoff,
   useEventRecord,
   useEventRecordActions,
@@ -138,6 +139,8 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         )}
       </View>
     );
+  const voteDates = event.groupType !== "PUBLIC" && eventOptionsRequireVote(event.dates);
+  const voteLocations = event.groupType !== "PUBLIC" && eventOptionsRequireVote(event.locations);
   const transition = () => {
     if (!confirm) return;
     if (
@@ -195,17 +198,17 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     </View>
                     <NotificationItem
                       itemId={notificationItemId(event.id, "date", row.id)}
-                      readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
+                      readOnly={!voteDates || !event.canVote || closed}
                     />
                   </View>
-                  {event.groupType !== "PUBLIC" ? (
+                  {voteDates ? (
                     <EventVoteCounts
                       label={eventDateWall(event, row).replace("T", " ")}
                       counts={event.voteCounts?.dates[row.id]}
                     />
                   ) : null}
                 </View>
-                {event.groupType !== "PUBLIC" && event.canVote && !closed ? (
+                {voteDates && event.canVote && !closed ? (
                   <EventVoteButtons
                     label={eventDateWall(event, row).replace("T", " ")}
                     value={event.myVotes?.dateVotes[row.id]}
@@ -284,13 +287,13 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               titleAccessory={
                 <NotificationItem
                   itemId={notificationItemId(event.id, "location", row.id)}
-                  readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
+                  readOnly={!voteLocations || !event.canVote || closed}
                 />
               }
               name={row.name}
               address={row.address}
               actions={
-                event.groupType !== "PUBLIC" && event.canVote && !closed ? (
+                voteLocations && event.canVote && !closed ? (
                   <EventVoteButtons
                     label={row.name}
                     value={event.myVotes?.locationVotes[row.id]}
@@ -310,7 +313,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 ) : undefined
               }
             >
-              {event.groupType !== "PUBLIC" ? (
+              {voteLocations ? (
                 <EventVoteCounts label={row.name} counts={event.voteCounts?.locations[row.id]} />
               ) : null}
             </LocationListRow>

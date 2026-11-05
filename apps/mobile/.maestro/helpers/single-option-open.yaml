@@ -1,0 +1,26 @@
+appId: com.bgo.mobile
+---
+- runFlow:
+    when:
+      true: ${output.single.mode === "join"}
+    commands:
+      - scrollUntilVisible:
+          element: ${output.single.free}
+          direction: DOWN
+          timeout: 120000
+      - tapOn: ${output.single.free}
+      - tapOn:
+          text: ${output.single.join}
+          below: ${output.single.description}
+- runFlow:
+    when:
+      true: ${output.single.mode === "accept"}
+    commands:
+      - scrollUntilVisible:
+          element: ${output.single.accept}
+          direction: DOWN
+          timeout: 120000
+      - tapOn: ${output.single.accept}
+- extendedWaitUntil:
+    visible: ${output.single.title}
+    timeout: 120000

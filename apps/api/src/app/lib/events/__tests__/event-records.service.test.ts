@@ -45,6 +45,15 @@ const body = (): CreatePlannedEventInput => ({
     },
   ],
 });
+const privateBody = (): CreatePlannedEventInput => ({
+  ...body(),
+  groupId: other,
+  dates: [
+    { id, day: "2027-01-03" },
+    { id: other, day: "2027-01-04" },
+  ],
+  locations: [location, { ...location, id: other, name: "Other venue" }],
+});
 const clone = <T>(value: T): T => structuredClone(value);
 const joinChoices = (availability: JoinEventAvailability) => ({
   version: availability.version,
@@ -240,9 +249,14 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     return service.create(owner, input);
   };
   const yes = async (eventId: string, userId: string, tableId = id) => {
-    await service.vote(userId, eventId, { kind: "date", optionId: id, vote: "YES" });
-    await service.vote(userId, eventId, { kind: "location", optionId: id, vote: "YES" });
-    await service.vote(userId, eventId, { kind: "game", tableId, gameId: 1, vote: "YES" });
+    const event = events.get(eventId)!,
+      table = tables.get(tableId)!;
+    if (event.dates.length > 1)
+      await service.vote(userId, eventId, { kind: "date", optionId: id, vote: "YES" });
+    if (event.locations.length > 1)
+      await service.vote(userId, eventId, { kind: "location", optionId: id, vote: "YES" });
+    if (table.games.length > 1)
+      await service.vote(userId, eventId, { kind: "game", tableId, gameId: 1, vote: "YES" });
   };
   const participation = (eventId: string, tableId: string): JoinTableInput => {
     const event = events.get(eventId)!,
@@ -250,15 +264,21 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     return {
       version: event.version,
       gameVotes: Object.fromEntries(
-        table.games.map((game) => [String(game.gameId), "YES" as const]),
+        table.games.length > 1
+          ? table.games.map((game) => [String(game.gameId), "YES" as const])
+          : [],
       ),
       ...(type === "PRIVATE"
         ? {
             availability: {
               version: event.version,
-              dateVotes: Object.fromEntries(event.dates.map((row) => [row.id, "YES" as const])),
+              dateVotes: Object.fromEntries(
+                event.dates.length > 1 ? event.dates.map((row) => [row.id, "YES" as const]) : [],
+              ),
               locationVotes: Object.fromEntries(
-                event.locations.map((row) => [row.id, "YES" as const]),
+                event.locations.length > 1
+                  ? event.locations.map((row) => [row.id, "YES" as const])
+                  : [],
               ),
             },
           }
@@ -587,9 +607,14 @@ it("uses immutable frozen rosters and leaves missing Table evidence unknown", as
 });
 
 it("acknowledges exactly the successfully voted item at the displayed source cutoff, never a rejected vote", async () => {
-  const f = setup(),
-    event = await f.create();
-  await f.service.join(owner, event.id, id, { version: event.version, gameVotes: { "1": "YES" } });
+  const f = setup("PRIVATE"),
+    input = privateBody();
+  input.tables[0].games.push({ gameId: 2 });
+  const event = await f.service.create(owner, input);
+  await f.service.join(owner, event.id, id, {
+    ...f.participation(event.id, id),
+    gameVotes: { "1": "YES", "2": "NO" },
+  });
   const through = "2026-01-01T00:00:00.000Z";
   await f.service.vote(owner, event.id, {
     kind: "date",
@@ -780,7 +805,6 @@ describe("atomic invitation acceptance", () => {
       const invalid: Array<{ input: JoinTableInput | undefined; code: string }> = [
         { input: undefined, code: "TABLE_GAME_AVAILABILITY_REQUIRED" },
         { input: { ...choices, version: choices.version - 1 }, code: "EVENT_CHANGED" },
-        { input: { ...choices, gameVotes: {} }, code: "INVALID_JOIN_GAME_VOTES" },
         { input: { ...choices, gameVotes: { "1": "NO" } }, code: "INVALID_JOIN_GAME_VOTES" },
         { input: { ...choices, gameVotes: { "2": "YES" } }, code: "INVALID_JOIN_GAME_VOTES" },
         {
@@ -800,7 +824,10 @@ describe("atomic invitation acceptance", () => {
             code: "EVENT_CHANGED",
           },
           {
-            input: { ...choices, availability: { ...availability, dateVotes: {} } },
+            input: {
+              ...choices,
+              availability: { ...availability, dateVotes: { [id]: "UNKNOWN" as never } },
+            },
             code: "INVALID_JOIN_AVAILABILITY",
           },
           {
@@ -863,7 +890,7 @@ describe("atomic invitation acceptance", () => {
         version: invite.version + 1,
         priorityAt: invite.priorityAt,
         sequence: invite.sequence,
-        gameVotes: { "1": "IF_NEEDED" },
+        gameVotes: {},
       });
       expect(f.registrations.size).toBe(1);
       if (type === "PRIVATE")
@@ -1054,11 +1081,18 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
   });
   it("requires explicit current game votes and protects the final positive game under the Event lock", async () => {
     const f = setup(),
-      event = await f.create();
+      input = body();
+    input.tables[0].games.push({ gameId: 2 });
+    const event = await f.service.create(owner, input);
     await expect(f.service.join(owner, event.id, id)).rejects.toMatchObject({
       code: "TABLE_GAME_AVAILABILITY_REQUIRED",
     });
-    for (const gameVotes of [{}, { "1": "NO" }, { "1": "UNKNOWN" }, { "2": "YES" }])
+    for (const gameVotes of [
+      {},
+      { "1": "NO", "2": "NO" },
+      { "1": "UNKNOWN", "2": "YES" },
+      { "3": "YES" },
+    ])
       await expect(
         f.service.join(owner, event.id, id, { version: event.version, gameVotes } as never),
       ).rejects.toMatchObject({ code: "INVALID_JOIN_GAME_VOTES" });
@@ -1071,9 +1105,9 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     expect(f.repo.saveRegistration).not.toHaveBeenCalled();
     const row = await f.service.join(owner, event.id, id, {
       version: event.version,
-      gameVotes: { "1": "YES" },
+      gameVotes: { "1": "YES", "2": "NO" },
     });
-    expect(row.gameVotes).toEqual({ "1": "YES" });
+    expect(row.gameVotes).toEqual({ "1": "YES", "2": "NO" });
     await expect(
       f.service.vote(owner, event.id, { kind: "game", tableId: id, gameId: 1, vote: "NO" }),
     ).rejects.toMatchObject({ code: "GAME_POSITIVE_AVAILABILITY_REQUIRED" });
@@ -1084,10 +1118,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       vote: "IF_NEEDED",
     });
     const table = f.tables.get(id)!;
-    f.tables.set(id, {
-      ...table,
-      games: [...table.games, { gameId: 2, durationMinutes: 60, durationSource: "MANUAL" }],
-    });
+
     await f.service.vote(owner, event.id, { kind: "game", tableId: id, gameId: 2, vote: "YES" });
     await f.service.vote(owner, event.id, { kind: "game", tableId: id, gameId: 1, vote: "NO" });
     await expect(
@@ -1101,10 +1132,10 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
         vote: "UNKNOWN",
       } as never),
     ).rejects.toMatchObject({ code: "INVALID_VOTE" });
-    f.tables.set(id, table);
+    f.tables.set(id, { ...table, games: table.games.slice(0, 1) });
     await expect(
       f.service.vote(owner, event.id, { kind: "game", tableId: id, gameId: 1, vote: "NO" }),
-    ).rejects.toMatchObject({ code: "GAME_POSITIVE_AVAILABILITY_REQUIRED" });
+    ).rejects.toMatchObject({ code: "FIXED_OPTION" });
   });
   it("reuses existing PRIVATE participation on another Table without replacing Event preferences", async () => {
     const f = setup("PRIVATE"),
@@ -1139,15 +1170,15 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
   });
   it("rejects removing the final positive date/venue, allowing positive switches and another current alternative", async () => {
     const f = setup("PRIVATE"),
-      event = await f.create();
+      event = await f.service.create(owner, privateBody());
     await f.service.join(
       guest,
       event.id,
       id,
       joinChoices({
         version: event.version,
-        dateVotes: { [id]: "YES" },
-        locationVotes: { [id]: "IF_NEEDED" },
+        dateVotes: { [id]: "YES", [other]: "NO" },
+        locationVotes: { [id]: "IF_NEEDED", [other]: "NO" },
       }),
     );
     for (const kind of ["date", "location"] as const) {
@@ -1157,12 +1188,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       await f.service.vote(guest, event.id, { kind, optionId: id, vote: "IF_NEEDED" });
       await f.service.vote(guest, event.id, { kind, optionId: id, vote: "YES" });
     }
-    const latest = f.events.get(event.id)!;
-    f.events.set(event.id, {
-      ...latest,
-      dates: [...latest.dates, { id: other, day: "2027-01-04" }],
-      locations: [...latest.locations, { ...latest.locations[0], id: other }],
-    });
+
     for (const kind of ["date", "location"] as const) {
       await f.service.vote(guest, event.id, { kind, optionId: other, vote: "IF_NEEDED" });
       await f.service.vote(guest, event.id, { kind, optionId: id, vote: "NO" });
@@ -1176,11 +1202,11 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     });
     await expect(
       f.service.vote(guest, event.id, { kind: "game", tableId: id, gameId: 1, vote: "NO" }),
-    ).rejects.toMatchObject({ code: "GAME_POSITIVE_AVAILABILITY_REQUIRED" });
+    ).rejects.toMatchObject({ code: "FIXED_OPTION" });
   });
   it("updates PRIVATE Event availability with a second Table join, enforcing the same complete positive choices", async () => {
     const f = setup("PRIVATE"),
-      event = await f.create();
+      event = await f.service.create(owner, privateBody());
     f.tables.set(other, { ...f.tables.get(id)!, id: other, order: 1 });
     await f.service.join(
       guest,
@@ -1188,14 +1214,14 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       id,
       joinChoices({
         version: event.version,
-        dateVotes: { [id]: "YES" },
-        locationVotes: { [id]: "IF_NEEDED" },
+        dateVotes: { [id]: "YES", [other]: "NO" },
+        locationVotes: { [id]: "IF_NEEDED", [other]: "NO" },
       }),
     );
     const availability = {
       version: f.events.get(event.id)!.version,
-      dateVotes: { [id]: "IF_NEEDED" as const },
-      locationVotes: { [id]: "YES" as const },
+      dateVotes: { [id]: "IF_NEEDED" as const, [other]: "NO" as const },
+      locationVotes: { [id]: "YES" as const, [other]: "NO" as const },
     };
     await expect(
       f.service.join(
@@ -1213,7 +1239,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     expect(row).toMatchObject({
       status: "ACCEPTED",
       tableId: other,
-      gameVotes: { "1": "IF_NEEDED" },
+      gameVotes: {},
     });
     expect(f.votes.get(`${event.id}|${guest}`)).toMatchObject({
       dateVotes: availability.dateVotes,
@@ -1223,11 +1249,11 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
   });
   it("requires complete current PRIVATE availability before voluntary enrollment writes", async () => {
     const f = setup("PRIVATE"),
-      event = await f.create();
+      event = await f.service.create(owner, privateBody());
     const availability = {
       version: event.version,
-      dateVotes: { [id]: "YES" as const },
-      locationVotes: { [id]: "IF_NEEDED" as const },
+      dateVotes: { [id]: "YES" as const, [other]: "NO" as const },
+      locationVotes: { [id]: "IF_NEEDED" as const, [other]: "NO" as const },
     };
     await expect(f.service.join(guest, event.id, id)).rejects.toMatchObject({
       code: "EVENT_AVAILABILITY_REQUIRED",
@@ -1264,7 +1290,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       userId: guest,
       kind: "SELF",
       status: "ACCEPTED",
-      gameVotes: { "1": "YES" },
+      gameVotes: {},
     });
     expect(f.votes.get(`${event.id}|${guest}`)).toMatchObject({
       dateVotes: availability.dateVotes,
@@ -1566,7 +1592,8 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
   });
   it("exposes aggregate votes only on details, counts each accepted event participant once and excludes pending ballots", async () => {
     const f = setup("PRIVATE"),
-      input = { ...body(), groupId: other };
+      input = privateBody();
+    input.tables[0].games.push({ gameId: 2 });
     input.tables[0].maxPlayers = 4;
     input.tables.push({ ...input.tables[0], id: other, name: "Second table" });
     const event = await f.service.create(owner, input);
@@ -1634,7 +1661,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       await f.service.register(user, event.id, id);
       await f.service.vote(user, event.id, { kind: "date", optionId: other, vote: "YES" });
       await f.service.vote(user, event.id, { kind: "location", optionId: other, vote: "YES" });
-      await f.service.vote(user, event.id, { kind: "game", tableId: id, gameId: 1, vote: "YES" });
+      // The single game is accepted by registration, not a synthetic ballot.
     }
     const ready = await f.service.detail(owner, event.id);
     expect(ready.agreement).toMatchObject({ agreed: true, dateId: other, locationId: other });
@@ -1837,12 +1864,14 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     expect(accepted.priorityAt).toBe(invite.priorityAt);
     expect(accepted.sequence).toBe(invite.sequence);
     await expect(f.accept(invite)).rejects.toMatchObject({ code: "REGISTRATION_CHANGED" });
-    await f.service.vote(guest, event.id, { kind: "game", tableId: id, gameId: 1, vote: "YES" });
+    await expect(
+      f.service.vote(guest, event.id, { kind: "game", tableId: id, gameId: 1, vote: "YES" }),
+    ).rejects.toMatchObject({ code: "FIXED_OPTION" });
     expect(f.registrations.get(invite.id)?.status).toBe("ACCEPTED");
   });
   it("preserves votes, waiters and excluded tables when returning to PLANNING", async () => {
-    const f = setup(),
-      input = body();
+    const f = setup("PRIVATE"),
+      input = privateBody();
     input.tables.push({ ...input.tables[0], id: other, name: "Excluded table" });
     const event = await f.service.create(owner, input);
     await f.service.register(owner, event.id, id);
@@ -1957,7 +1986,7 @@ describe("public scheduling, deadline and membership consequences", () => {
   });
   it("reopens an affected pre-cutoff confirmed event on ban, retaining the other players and votes", async () => {
     const f = setup("PRIVATE"),
-      event = await f.create();
+      event = await f.service.create(owner, privateBody());
     await f.service.register(owner, event.id, id);
     await f.service.register(guest, event.id, id);
     await f.yes(event.id, owner);
@@ -1974,6 +2003,88 @@ describe("public scheduling, deadline and membership consequences", () => {
     expect(f.votes.size).toBe(2);
   });
 });
+describe("singleton consent", () => {
+  it.each(Array.from({ length: 8 }, (_, mask) => mask))(
+    "requires ballots only for multiple options, for join and invitation acceptance: %s",
+    async (mask) => {
+      const f = setup("PRIVATE"),
+        input = privateBody();
+      if (!(mask & 1)) input.dates = input.dates.slice(0, 1);
+      if (!(mask & 2)) input.locations = input.locations.slice(0, 1);
+      if (mask & 4) input.tables[0].games.push({ gameId: 2 });
+      const event = await f.service.create(owner, input);
+      await f.service.join(owner, event.id, id, f.participation(event.id, id));
+      const invitation = await f.service.register(owner, event.id, id, guest);
+      expect(f.registrations.get(invitation.id)?.status).toBe("PENDING");
+      expect((await f.service.detail(owner, event.id)).agreement?.agreed).toBe(false);
+      const choices = f.participation(event.id, id);
+      const writes = f.repo.saveRegistration.mock.calls.length;
+      for (const dimension of ["date", "location", "game"] as const) {
+        const bit = dimension === "date" ? 1 : dimension === "location" ? 2 : 4;
+        if (!(mask & bit)) continue;
+        const invalid = clone(choices);
+        if (dimension === "game") invalid.gameVotes = {};
+        else invalid.availability![dimension === "date" ? "dateVotes" : "locationVotes"] = {};
+        await expect(
+          f.service.registrationAction(guest, invitation.id, {
+            action: "accept",
+            version: invitation.version,
+            participation: invalid,
+          }),
+        ).rejects.toMatchObject({
+          code: dimension === "game" ? "INVALID_JOIN_GAME_VOTES" : "INVALID_JOIN_AVAILABILITY",
+        });
+      }
+      expect(f.repo.saveRegistration).toHaveBeenCalledTimes(writes);
+      await f.service.registrationAction(guest, invitation.id, {
+        action: "accept",
+        version: invitation.version,
+        participation: choices,
+      });
+      expect(f.registrations.get(invitation.id)?.gameVotes).toEqual(
+        mask & 4 ? { "1": "YES", "2": "YES" } : {},
+      );
+      expect(f.votes.get(`${event.id}|${guest}`)).toMatchObject({
+        dateVotes: mask & 1 ? { [id]: "YES", [other]: "YES" } : {},
+        locationVotes: mask & 2 ? { [id]: "YES", [other]: "YES" } : {},
+      });
+      expect((await f.service.detail(owner, event.id)).agreement).toMatchObject({ agreed: true });
+      f.notifications.acknowledgeItems.mockClear();
+      for (const dimension of ["date", "location", "game"] as const) {
+        const bit = dimension === "date" ? 1 : dimension === "location" ? 2 : 4;
+        if (mask & bit) continue;
+        await expect(
+          f.service.vote(guest, event.id, {
+            ...(dimension === "game"
+              ? { kind: "game", tableId: id, gameId: 1 }
+              : { kind: dimension, optionId: id }),
+            vote: "YES",
+            attentionThrough: event.createdAt,
+          }),
+        ).rejects.toMatchObject({ code: "FIXED_OPTION" });
+      }
+      expect(f.notifications.acknowledgeItems).not.toHaveBeenCalled();
+      await f.confirm(event.id);
+      expect(f.tables.get(id)?.confirmed?.playerIds).toEqual([owner, guest]);
+    },
+  );
+  it.each([null, "PRIVATE", "PUBLIC"] as const)(
+    "accepts empty singleton ballots but rejects stale consent before writes: %s",
+    async (type) => {
+      const f = setup(type),
+        event = await f.create();
+      const choices = f.participation(event.id, id);
+      await expect(
+        f.service.join(owner, event.id, id, { ...choices, version: event.version + 1 }),
+      ).rejects.toMatchObject({ code: "EVENT_CHANGED" });
+      expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+      const accepted = await f.service.join(owner, event.id, id, choices);
+      expect(accepted.gameVotes).toEqual({});
+      expect(f.repo.saveVoter).toHaveBeenCalledTimes(type === "PRIVATE" ? 1 : 0);
+    },
+  );
+});
+
 describe("current Group management authority", () => {
   it("permits a current moderator to create grouped Events without implicit registrations", async () => {
     const f = setup("PRIVATE");

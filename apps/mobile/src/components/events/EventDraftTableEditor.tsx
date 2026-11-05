@@ -209,7 +209,7 @@ export function EventDraftTableEditor({
           label={t("Games")}
           helpTitle={helpTitle}
           help={t(
-            "Choose at least one game. Use the empty game slot to add another option. Players vote on these games.",
+            "Choose at least one game. Use the empty game slot to add another option. Players vote only when multiple games are proposed.",
           )}
         />
         <GroupedList>

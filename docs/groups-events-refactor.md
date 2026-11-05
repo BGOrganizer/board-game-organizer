@@ -245,10 +245,13 @@ older membership-only activity/detail statements below.
   the local draft and returns immediately without a separate game-detail request. Missing duration
   retains the existing explicit manual fallback; final server validation remains mandatory.
 - Accepting a Table invitation opens the existing availability sheet on both clients, without
-  changing participation. PRIVATE Group invitations require a YES/IF_NEEDED/NO response for every
-  current date, location and Table game, including when another Table is already accepted, with at
-  least one YES/IF_NEEDED per category. PUBLIC Group invitation sheets show only Table games;
-  standalone Events keep their fixed schedule read-only and require explicit game preferences.
+  changing participation. Accepting explicitly accepts the current Event and Table configuration.
+  Each category with one date, location or game is read-only, has no voting tab/buttons/totals and
+  requires no ballot. PRIVATE Group invitations require YES/IF_NEEDED/NO for every option only in
+  categories with multiple choices, including when another Table is accepted, with at least one
+  YES/IF_NEEDED per such category. PUBLIC/standalone schedules remain read-only; Table game voting
+  appears only for multiple games. If every category is singleton, the review has no voting tabs,
+  but still requires the explicit Accept action.
   Final confirmation PATCHes the existing registration with its version and `participation`
   (current Event version, game votes and PRIVATE availability). Consent and choices commit in one
   transaction; invalid/stale choices or a storage failure leave the invitation pending. Cancellation
@@ -275,14 +278,17 @@ older membership-only activity/detail statements below.
   approved Group membership, exclusions and standalone reciprocal friendship/block rules remain
   authoritative. Group candidate responses expose no email/presence.
 - Accepted members can enroll directly; no extra booking-approval workflow. Every voluntary join
-  opens a platform HeroUI bottom sheet with Dates/Locations/Games tabs. PUBLIC Group Events always
-  open Games initially. Other Events open Dates when the player has no other ACCEPTED Table in that
-  Event; otherwise Games opens initially. Metadata
-  must be known before choosing this default, which never overrides a later manual tab selection.
-  Pending/declined/cancelled registrations do not qualify as prior participation. Stored PRIVATE Event
-  preferences are prefilled and remain editable for any Table join; fixed non-private schedules remain
-  read-only in their visible tabs. Every current votable option needs YES/IF_NEEDED/NO, with at least
-  one YES/IF_NEEDED per dimension. Final confirmation pins the Event version and saves registration,
+  opens a platform HeroUI review sheet. Joining explicitly accepts the current Event and Table
+  configuration; singleton settings are shown read-only without voting tabs. Only multiple PRIVATE
+  dates/locations and multiple Table games expose their corresponding tabs. PUBLIC Group Events
+  prefer Games initially; other Events prefer Dates without another ACCEPTED Table, otherwise Games.
+  If that category has no vote, use the first available voting tab; with none, show only settings.
+  Known settings remain visible while missing Table metadata loads, but submission requires complete
+  authorized metadata. The default never overrides a later manual selection of an available tab;
+  if its category becomes singleton, fall back to an available category. Pending/declined/cancelled
+  registrations do not qualify as prior participation. Stored PRIVATE preferences are prefilled and
+  editable only for multiple-option categories. Every current votable option needs YES/IF_NEEDED/NO,
+  with at least one YES/IF_NEEDED per multiple-option dimension. Final confirmation pins the Event version and saves registration,
   this Table's game ballots and complete PRIVATE Event preferences in one transaction. Missing/stale/
   incomplete/foreign choices fail before writes. Invitation consent stays separate; pending invitations
   never receive manufactured votes. Opening, editing and canceling the sheet write nothing. Owned
@@ -304,8 +310,8 @@ older membership-only activity/detail statements below.
 - Detail preference controls offer only YES/IF_NEEDED/NO for dates, locations and games. UNKNOWN remains
   an internal readable missing/historical state, never a selectable choice, displayed total or legend
   item; an uncast ballot shows a neutral choice prompt, not a fabricated YES/NO. Event date/location
-  voting requires accepted participation; game voting requires acceptance at that Table, including
-  its sole fixed PUBLIC game. Fixed game identity is not changed by willingness voting. Each edit
+  voting requires accepted participation; game voting requires acceptance at that Table. Singleton
+  categories reject direct votes with `FIXED_OPTION`, even from an accepted player. Each edit
   retains at least one YES/IF_NEEDED among current options of its own dimension/Table. Positive states
   can interchange; NO is disabled when it would remove the final positive choice. The API enforces
   the same condition under the Event transaction lock, including concurrent game rejections. Removed
@@ -329,11 +335,14 @@ older membership-only activity/detail statements below.
   readable and are not migrated; an explicit planning edit must satisfy current rules. Player and
   demonstrator duties cannot overlap; half-open boundaries permit adjacent tables. Other modes do
   not restrict overlaps.
-- Accepted legacy/invitation participation retains implicit availability for fixed PUBLIC choices
-  only where no explicit ballot exists; fixed game identity never overrides an explicit NO/UNKNOWN.
-  New voluntary joins and invitation acceptances store explicit game preferences, not manufactured
-  votes. After
-  cutoff no user, including the administrator, may
+- Accepted registration supplies implicit compatibility independently for every singleton category,
+  including historical singleton NO/UNKNOWN ballots; those obsolete ballots neither block agreement
+  nor contribute invented YES preferences. Pending registrations still reserve capacity only.
+  New joins/acceptances store empty maps for singleton categories. Positive singleton payloads from
+  older clients remain readable inputs but normalize to empty maps; NO/UNKNOWN/foreign keys are
+  rejected. Multiple-option ballots remain complete and explicit. No historical data is rewritten.
+  Event/registration versions, authority, exact cutoffs and immutable frozen rosters remain unchanged.
+  After cutoff no user, including the administrator, may
   invite, register, vote, respond or leave. Confirmation/reopening remain manual operations.
 - Confirmation freezes selected date/location/games and accepted eligible rosters. At least one
   table must agree; others remain present but excluded. Reopening preserves votes, invitations,
@@ -440,8 +449,10 @@ A/B/C is evaluated per table, against one common event date/time and location:
    stopping at the earliest prefix enabling full agreement. Preserve higher-priority eligible
    players, capacity and pending reservations; displaced users remain waiting.
 
-The same eligible people must support all dimensions with YES/IF_NEEDED. UNKNOWN is not positive.
-YES preference wins before distinct-person count (one person across multiple tables counts once),
+The same eligible people must support every multiple-option dimension with YES/IF_NEEDED; UNKNOWN
+is not positive there. Accepted registration supplies compatibility for each singleton independently,
+without a persisted or counted YES preference. YES preference wins before distinct-person count
+(one person across multiple tables counts once),
 then original option order. Only considered players' votes count. Bounded exact search fails closed
 with `AGREEMENT_COMPLEXITY_LIMIT`, never with an approximate fabricated agreement. Confirmation
 rechecks authoritative inputs transactionally. Administrator notifications use semantic deduplication;

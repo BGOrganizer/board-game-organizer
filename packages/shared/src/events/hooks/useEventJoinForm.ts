@@ -5,11 +5,13 @@ import type {
   JoinEventAvailability,
   JoinTableInput,
 } from "@board-game-organizer/schemas";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
 import {
   eventJoinAvailabilityIsComplete,
+  eventOptionsRequireVote,
   eventOptionVotesAreComplete,
+  eventVotingChoices,
   hasOtherAcceptedTable,
 } from "../eventJoinAvailability";
 import { useEventCutoff } from "./useEventCutoff";
@@ -18,6 +20,7 @@ import { useEventRecordActions } from "./useEventRecordActions";
 import { useEventRecord, useRecordTable } from "./useEventRecords";
 
 type Choices = JoinEventAvailability["dateVotes"];
+type JoinTab = "dates" | "locations" | "games";
 export function useEventJoinForm(
   o: CommunityApiOptions,
   eventId: string,
@@ -45,12 +48,33 @@ export function useEventJoinForm(
     [dateVotes, setDates] = useState<Choices>({}),
     [locationVotes, setLocations] = useState<Choices>({}),
     [gameVotes, setGames] = useState<Choices>({}),
-    [initialTab, setInitialTab] = useState<"dates" | "games">();
+    [initialTab, setInitialTab] = useState<JoinTab>();
   const initialized = useRef({ scope, availability: false, games: false, submitted: false });
   const sameOwner = draftScope === scope;
   const requiresAvailability = event?.groupType === "PRIVATE",
     isInvitation = registrationId !== undefined,
     gamesOnly = isInvitation && event?.groupType === "PUBLIC";
+  const votingTabs = useMemo<JoinTab[]>(
+    () => [
+      ...(requiresAvailability && eventOptionsRequireVote(event.dates) ? ["dates" as const] : []),
+      ...(requiresAvailability && eventOptionsRequireVote(event.locations)
+        ? ["locations" as const]
+        : []),
+      ...(!tableQuery.isPlaceholderData && eventOptionsRequireVote(table?.games ?? [])
+        ? ["games" as const]
+        : []),
+    ],
+    [
+      requiresAvailability,
+      event?.dates,
+      event?.locations,
+      table?.games,
+      tableQuery.isPlaceholderData,
+    ],
+  );
+  const ready = Boolean(
+    sameOwner && event && !q.isPlaceholderData && event.myRegistrations !== undefined,
+  );
   const invitation = table?.myRegistration;
   const invitationAvailable = Boolean(
     table?.canRespond &&
@@ -76,7 +100,15 @@ export function useEventJoinForm(
       event.groupType === "PUBLIC" || hasOtherAcceptedTable(event.myRegistrations, tableId)
         ? "games"
         : "dates";
-    setInitialTab((current) => current ?? firstTab);
+    setInitialTab((current) =>
+      current && votingTabs.includes(current)
+        ? current
+        : firstTab === "games" && (!table || tableQuery.isPlaceholderData)
+          ? undefined
+          : votingTabs.includes(firstTab)
+            ? firstTab
+            : votingTabs[0],
+    );
     const explicit = (choices: Record<string, EventVote> | undefined): Choices =>
       Object.fromEntries(
         Object.entries(choices ?? {}).filter(([, vote]) => vote !== "UNKNOWN"),
@@ -89,13 +121,18 @@ export function useEventJoinForm(
     if (!table || tableQuery.isPlaceholderData || initialized.current.games) return;
     setGames(explicit(recovery?.gameVotes ?? table.myRegistration?.gameVotes));
     initialized.current.games = true;
-  }, [event, table, q.isPlaceholderData, tableQuery.isPlaceholderData, tableId, scope, recovery]);
+  }, [
+    event,
+    table,
+    q.isPlaceholderData,
+    tableQuery.isPlaceholderData,
+    tableId,
+    scope,
+    recovery,
+    votingTabs,
+  ]);
   const current = (options: Array<{ id: string }> | undefined, choices: Choices): Choices =>
-    Object.fromEntries(
-      (options ?? [])
-        .filter((option) => sameOwner && choices[option.id])
-        .map((option) => [option.id, choices[option.id]]),
-    );
+    sameOwner ? eventVotingChoices(options ?? [], choices) : {};
   const gameOptions = (table?.games ?? []).map((game) => ({ id: String(game.gameId) }));
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   const votes = {
@@ -126,7 +163,13 @@ export function useEventJoinForm(
       eventOptionVotesAreComplete(gameOptions, votes.gameVotes),
   );
   const choose = (kind: "date" | "location" | "game", id: string, vote: EventVote) => {
-    if (vote !== "UNKNOWN")
+    const options =
+      kind === "game"
+        ? gameOptions
+        : kind === "date"
+          ? (event?.dates ?? [])
+          : (event?.locations ?? []);
+    if (sameOwner && eventOptionsRequireVote(options) && vote !== "UNKNOWN")
       (kind === "date" ? setDates : kind === "location" ? setLocations : setGames)((previous) => ({
         ...previous,
         [id]: vote,
@@ -171,6 +214,8 @@ export function useEventJoinForm(
     gamesOnly,
     invitationUnavailable,
     initialTab: sameOwner ? initialTab : undefined,
+    votingTabs,
+    ready,
     votes,
     choose,
     canSubmit,

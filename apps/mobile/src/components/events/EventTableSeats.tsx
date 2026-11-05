@@ -300,7 +300,9 @@ export function EventTableSeats({
             description={
               table.canInvite
                 ? t("Join this table yourself or invite another player.")
-                : t("Choose your availability before joining this table.")
+                : t(
+                    "Joining accepts the current event and table settings. Vote only where multiple options are available.",
+                  )
             }
             busy={a.blocking}
             onCancel={() => setChoose(false)}

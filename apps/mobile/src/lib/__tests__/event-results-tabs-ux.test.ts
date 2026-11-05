@@ -59,7 +59,8 @@ it("edits one server-backed Table result with a singular header and no Event fin
   expect(source("events", "EventTableOverview")).toContain('variant="constellation"');
   expect(source("events", "EventTableSeats")).toContain("setJoining(true)");
   expect(source("events", "EventJoinSheet")).toContain('value="games"');
-  expect(source("events", "EventJoinSheet")).toContain("form.requiresAvailability");
+  expect(source("events", "EventJoinSheet")).toContain('votingTabs.includes("games")');
+  expect(source("events", "EventJoinSheet")).toContain("<FixedSettings");
   expect(source("events", "EventDetail")).toContain("eventAvailabilityVoteIsAllowed");
   expect(source("events", "TableScoreEditor")).toContain('t("Save result")');
   expect(card).toContain("<ListCard>");

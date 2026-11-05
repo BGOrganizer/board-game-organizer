@@ -3,6 +3,7 @@ import { notificationItemId, type TableSeatResponse } from "@board-game-organize
 import {
   communityAccessDenied,
   eventAvailabilityVoteIsAllowed,
+  eventOptionsRequireVote,
   hasOtherAcceptedTable,
   useEventCutoff,
   useEventRecord,
@@ -84,7 +85,9 @@ export function EventTableOverview({
     setConfirm(null);
   };
   const gameVotes = table.myRegistration?.gameVotes ?? {};
+  const votableGames = eventOptionsRequireVote(table.games);
   const canVote =
+    votableGames &&
     table.eventStatus === "PLANNING" &&
     event.data?.status === "PLANNING" &&
     event.data.canVote &&
@@ -154,10 +157,12 @@ export function EventTableOverview({
                 average={game.average}
                 rank={game.rank}
                 metadata={
-                  <EventVoteCounts
-                    label={game.name}
-                    counts={table.gameVoteCounts?.[String(game.id)]}
-                  />
+                  votableGames ? (
+                    <EventVoteCounts
+                      label={game.name}
+                      counts={table.gameVoteCounts?.[String(game.id)]}
+                    />
+                  ) : undefined
                 }
                 actions={
                   <>

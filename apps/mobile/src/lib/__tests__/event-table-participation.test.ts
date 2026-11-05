@@ -163,7 +163,7 @@ it("preserves whole-event immutable result finalization with per-table draft sco
   expect(source("TableScoreEditor")).toContain("previewTableResults");
   expect(source("TableScoreEditor")).toContain("useBottomSheetAwareHandlers");
 });
-it("always exposes native Dates/Locations/Games and never hides schedule tabs for repeat joins", () => {
+it("renders each native voting tab only when the shared form classifies multiple options", () => {
   const text = source("EventJoinSheet");
   const file = ts.createSourceFile(
     "join.tsx",
@@ -181,24 +181,29 @@ it("always exposes native Dates/Locations/Games and never hides schedule tabs fo
       if (!value?.initializer || !ts.isStringLiteral(value.initializer))
         throw new Error("Expected static tab value");
       tabs.push(value.initializer.text);
+      const conditions: string[] = [];
       for (let parent: ts.Node | undefined = node.parent; parent; parent = parent.parent)
-        if (ts.isConditionalExpression(parent))
-          expect(parent.condition.getText(file)).not.toContain("requiresAvailability");
+        if (ts.isConditionalExpression(parent)) conditions.push(parent.condition.getText(file));
+      expect(conditions).toContain(`votingTabs.includes("${value.initializer.text}")`);
     }
     ts.forEachChild(node, visit);
   }
   visit(file);
   expect(tabs).toEqual(["dates", "locations", "games"]);
-  expect(text).toContain("!form.initialTab");
+  expect(text).toContain("!form.ready");
+  expect(text).toContain("<FixedSettings");
 });
 it.each([
-  [null, "dates", "dates"],
-  [null, "games", "games"],
-  ["dates", "games", "dates"],
-  ["locations", "games", "locations"],
+  [null, "dates", ["dates", "locations", "games"], "dates"],
+  [null, "games", ["dates", "locations", "games"], "games"],
+  ["dates", "games", ["dates", "games"], "dates"],
+  ["locations", "games", ["locations", "games"], "locations"],
+  ["dates", "dates", ["games"], "games"],
+  ["games", "games", ["locations"], "locations"],
+  ["games", undefined, [], undefined],
 ])(
   "uses native initial-tab policy without overriding user selection (%s/%s)",
-  (selectedTab, initialTab, expected) => {
+  (selectedTab, initialTab, votingTabs, expected) => {
     const file = ts.createSourceFile(
       "join.tsx",
       source("EventJoinSheet"),
@@ -214,6 +219,8 @@ it.each([
     }
     visit(file);
     expect(expression).not.toBe("");
-    expect(runInNewContext(expression, { selectedTab, form: { initialTab } })).toBe(expected);
+    expect(runInNewContext(expression, { selectedTab, votingTabs, form: { initialTab } })).toBe(
+      expected,
+    );
   },
 );

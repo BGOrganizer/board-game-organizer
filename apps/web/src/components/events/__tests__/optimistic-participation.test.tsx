@@ -186,15 +186,16 @@ it.each([
           ? region(index).getAllByRole("button", { name: "Free place" })[0]
           : region(index).getByRole("button", { name: action }),
       );
-      const dialog = await screen.findByRole("dialog", { name: "Choose availability" });
-      fireEvent.click(await within(dialog).findByRole("button", { name: "Chess: Yes" }));
+      const dialog = await screen.findByRole("dialog", { name: "Review table settings" });
+      await within(dialog).findByText("Chess");
+      expect(within(dialog).queryAllByRole("tab")).toHaveLength(0);
       await waitFor(() =>
         expect(
           (within(dialog).getByRole("button", { name: action }) as HTMLButtonElement).disabled,
         ).toBe(false),
       );
       fireEvent.click(within(dialog).getByRole("button", { name: action }));
-      expect(screen.queryByRole("dialog", { name: "Choose availability" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "Review table settings" })).toBeNull();
       await waitFor(() => expect(region(index).getByText(caption)).toBeTruthy());
       expect(region(index).queryByText("Accepted player")).toBeNull();
     }
@@ -207,11 +208,11 @@ it.each([
     ).toEqual([]);
     expect(writes[0].input).toEqual(
       mode === "join"
-        ? { version: initialVersion, gameVotes: { "1": "YES" } }
+        ? { version: initialVersion, gameVotes: {} }
         : {
             action: "accept",
             version: 1,
-            participation: { version: initialVersion, gameVotes: { "1": "YES" } },
+            participation: { version: initialVersion, gameVotes: {} },
           },
     );
     function commit(id: string) {
@@ -223,7 +224,7 @@ it.each([
             : "77777777-7777-4777-8777-777777777777",
         tableId: id,
         name: "Guest",
-        gameVotes: { "1": "YES" },
+        gameVotes: {},
         status: "ACCEPTED",
         version: mode === "accept" ? 2 : 1,
         position: "SEATED",
@@ -261,11 +262,11 @@ it.each([
     expect(writes[1].tableId).toBe(secondId);
     expect(writes[1].input).toEqual(
       mode === "join"
-        ? { version: initialVersion + 1, gameVotes: { "1": "YES" } }
+        ? { version: initialVersion + 1, gameVotes: {} }
         : {
             action: "accept",
             version: 1,
-            participation: { version: initialVersion + 1, gameVotes: { "1": "YES" } },
+            participation: { version: initialVersion + 1, gameVotes: {} },
           },
     );
     expect(region(1).getByText(caption)).toBeTruthy();
@@ -292,12 +293,9 @@ it.each([
           ? region(1).getAllByRole("button", { name: "Free place" })[0]
           : region(1).getByRole("button", { name: action }),
       );
-      const restored = await screen.findByRole("dialog", { name: "Choose availability" });
-      await waitFor(() =>
-        expect(
-          within(restored).getByRole("button", { name: "Chess: Yes" }).getAttribute("aria-pressed"),
-        ).toBe("true"),
-      );
+      const restored = await screen.findByRole("dialog", { name: "Review table settings" });
+      await within(restored).findByText("Chess");
+      expect(within(restored).queryByRole("button", { name: "Chess: Yes" })).toBeNull();
       expect(
         within(restored).getByText(
           mode === "join" ? "Could not join table" : "Could not accept invitation",
@@ -310,15 +308,15 @@ it.each([
         ).toBe(false),
       );
       fireEvent.click(within(restored).getByRole("button", { name: action }));
-      expect(screen.queryByRole("dialog", { name: "Choose availability" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "Review table settings" })).toBeNull();
       await waitFor(() => expect(writes).toHaveLength(3));
       expect(writes[2].input).toEqual(
         mode === "join"
-          ? { version: server.version, gameVotes: { "1": "YES" } }
+          ? { version: server.version, gameVotes: {} }
           : {
               action: "accept",
               version: 1,
-              participation: { version: server.version, gameVotes: { "1": "YES" } },
+              participation: { version: server.version, gameVotes: {} },
             },
       );
       const recovered = commit(secondId);

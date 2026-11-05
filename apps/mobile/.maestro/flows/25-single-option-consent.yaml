@@ -1,0 +1,88 @@
+appId: com.bgo.mobile
+name: Explicit singleton and mixed-option Table consent
+# MUTATING, manual only. Already authenticated in selected EN/IT locale. Non-admin accepted
+# PRIVATE Group member; one owned disposable Event/Table, max=2, owner seated, no other own
+# registration. For accept, own invitation reserves remaining place. Run all masks 0..7
+# with fresh join/accept fixtures per locale/build. No provider mocks or automatic resets.
+tags: [manual, tables, consent]
+---
+- runScript: ../helpers/single-option-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.single.link}
+- extendedWaitUntil:
+    visible: ${output.single.name}
+    timeout: 120000
+- runFlow: ../helpers/single-option-open.yaml
+- tapOn:
+    id: table-consent-cancel
+- assertNotVisible: ${output.single.title}
+- assertNotVisible: ${output.single.leave}
+- runFlow: ../helpers/single-option-open.yaml
+- evalScript: ${output.category = 0}
+- repeat:
+    times: 3
+    commands:
+      - runFlow:
+          when:
+            true: ${!output.single.categories[output.category].multiple}
+          commands:
+            - assertNotVisible: ${output.single.categories[output.category].tab}
+            - assertNotVisible: ${output.single.categories[output.category].yes[0]}
+      - runFlow:
+          when:
+            true: ${output.single.categories[output.category].multiple}
+          commands:
+            - tapOn: ${output.single.categories[output.category].tab}
+            - evalScript: ${output.option = 0}
+            - repeat:
+                times: 2
+                commands:
+                  - evalScript: ${output.choice = output.single.categories[output.category].no[output.option]}
+                  - scrollUntilVisible:
+                      element: ${output.choice}
+                      direction: DOWN
+                      timeout: 30000
+                  - tapOn: ${output.choice}
+                  - evalScript: ${output.option = output.option + 1}
+            - assertVisible:
+                id: table-consent-submit
+                enabled: false
+      - evalScript: ${output.category = output.category + 1}
+- evalScript: ${output.category = 0}
+- repeat:
+    times: 3
+    commands:
+      - runFlow:
+          when:
+            true: ${output.single.categories[output.category].multiple}
+          commands:
+            - tapOn: ${output.single.categories[output.category].tab}
+            - evalScript: ${output.option = 0}
+            - repeat:
+                times: 2
+                commands:
+                  - evalScript: ${output.choice = output.single.categories[output.category].yes[output.option]}
+                  - scrollUntilVisible:
+                      element: ${output.choice}
+                      direction: DOWN
+                      timeout: 30000
+                  - tapOn: ${output.choice}
+                  - evalScript: ${output.option = output.option + 1}
+      - evalScript: ${output.category = output.category + 1}
+- extendedWaitUntil:
+    visible:
+      id: table-consent-submit
+      enabled: true
+    timeout: 120000
+- takeScreenshot: single-option-settings-before-explicit-consent
+- tapOn:
+    id: table-consent-submit
+- extendedWaitUntil:
+    notVisible: ${output.single.title}
+    timeout: 120000
+- scrollUntilVisible:
+    element: ${output.single.leave}
+    direction: DOWN
+    timeout: 120000
+- takeScreenshot: single-option-explicit-consent-accepted

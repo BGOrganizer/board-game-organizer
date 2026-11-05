@@ -13,6 +13,7 @@ export interface AgreementTable {
   minPlayers: number;
   maxPlayers: number;
   gameIds: readonly number[];
+  /** Legacy hint; implicit compatibility depends on the actual singleton game count. */
   fixedGame: boolean;
 }
 export interface EventAgreementInput {
@@ -110,10 +111,13 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
   }
   const dateLocation = (row: AgreementRegistration, d: string, l: string) =>
     input.fixedDateAndLocation ||
-    (positive(input.dateVotes[row.userId]?.[d]) && positive(input.locationVotes[row.userId]?.[l]));
+    ((input.dateIds.length === 1 || positive(input.dateVotes[row.userId]?.[d])) &&
+      (input.locationIds.length === 1 || positive(input.locationVotes[row.userId]?.[l])));
   const gameVote = (row: AgreementRegistration, game: number): AgreementVote | undefined =>
-    input.gameVotes[table.id]?.[row.userId]?.[String(game)] ??
-    (table.fixedGame ? "YES" : undefined);
+    // Implicit singleton consent grants eligibility, never an invented YES preference.
+    table.gameIds.length === 1
+      ? "IF_NEEDED"
+      : input.gameVotes[table.id]?.[row.userId]?.[String(game)];
   let seatedDateLocation = false;
   const options: Array<Candidate & { firstPrefix: number; waiting: AgreementRegistration[] }> = [];
   for (const [dateIndex, date] of input.dateIds.entries()) {
@@ -261,8 +265,10 @@ export function calculateEventAgreement(
       const dateLocationYes = (userId: string) =>
         input.fixedDateAndLocation
           ? 0
-          : Number(input.dateVotes[userId]?.[dateId] === "YES") +
-            Number(input.locationVotes[userId]?.[locationId] === "YES");
+          : Number(input.dateIds.length > 1 && input.dateVotes[userId]?.[dateId] === "YES") +
+            Number(
+              input.locationIds.length > 1 && input.locationVotes[userId]?.[locationId] === "YES",
+            );
       const score = (users: Set<string>) =>
         [...users].reduce((sum, id) => sum + dateLocationYes(id), 0);
       const visit = (

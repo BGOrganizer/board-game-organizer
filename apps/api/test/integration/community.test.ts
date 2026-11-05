@@ -143,14 +143,22 @@ async function participation(eventId: string, tableId: string): Promise<JoinTabl
   const group = event.groupId ? await s.groupRecords.find(event.groupId) : null;
   return {
     version: event.version,
-    gameVotes: Object.fromEntries(table.games.map((game) => [String(game.gameId), "YES" as const])),
+    gameVotes: Object.fromEntries(
+      table.games.length > 1
+        ? table.games.map((game) => [String(game.gameId), "YES" as const])
+        : [],
+    ),
     ...(group?.type === "PRIVATE"
       ? {
           availability: {
             version: event.version,
-            dateVotes: Object.fromEntries(event.dates.map((row) => [row.id, "YES" as const])),
+            dateVotes: Object.fromEntries(
+              event.dates.length > 1 ? event.dates.map((row) => [row.id, "YES" as const]) : [],
+            ),
             locationVotes: Object.fromEntries(
-              event.locations.map((row) => [row.id, "YES" as const]),
+              event.locations.length > 1
+                ? event.locations.map((row) => [row.id, "YES" as const])
+                : [],
             ),
           },
         }
@@ -1411,14 +1419,16 @@ describe("unified groups/events on the real MongoDB replica set", () => {
           vote: "YES",
         }),
       );
-      await transaction((s) =>
-        s.plannedEventService.vote(user, event.id, {
-          kind: "game",
-          tableId,
-          gameId: 1,
-          vote: "YES",
-        }),
-      );
+      await expect(
+        transaction((s) =>
+          s.plannedEventService.vote(user, event.id, {
+            kind: "game",
+            tableId,
+            gameId: 1,
+            vote: "YES",
+          }),
+        ),
+      ).rejects.toMatchObject({ code: "FIXED_OPTION" });
     }
     const pending = await transaction((s) =>
       s.plannedEventService.register(OWNER, event.id, tableId, OTHER),
@@ -1437,7 +1447,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       (await services().plannedEventService.tableDetail(OWNER, event.id, tableId)).gameVoteCounts?.[
         "1"
       ],
-    ).toEqual({ YES: 2, NO: 0, IF_NEEDED: 0, UNKNOWN: 0 });
+    ).toEqual({ YES: 0, NO: 0, IF_NEEDED: 0, UNKNOWN: 2 });
     await expect(
       services().plannedEventService.seats(GUEST, event.id, tableId, { limit: 20 }, true),
     ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
@@ -2453,24 +2463,29 @@ describe("unified groups/events on the real MongoDB replica set", () => {
   });
 
   async function voteYes(eventId: string, user: string, target = tableId) {
-    await transaction((s) =>
-      s.plannedEventService.vote(user, eventId, { kind: "date", optionId: dateId, vote: "YES" }),
-    );
-    await transaction((s) =>
-      s.plannedEventService.vote(user, eventId, {
-        kind: "location",
-        optionId: venueId,
-        vote: "YES",
-      }),
-    );
-    await transaction((s) =>
-      s.plannedEventService.vote(user, eventId, {
-        kind: "game",
-        tableId: target,
-        gameId: 1,
-        vote: "YES",
-      }),
-    );
+    const event = (await services().eventRecords.find(eventId))!;
+    const table = (await services().eventRecords.table(target))!;
+    if (event.dates.length > 1)
+      await transaction((s) =>
+        s.plannedEventService.vote(user, eventId, { kind: "date", optionId: dateId, vote: "YES" }),
+      );
+    if (event.locations.length > 1)
+      await transaction((s) =>
+        s.plannedEventService.vote(user, eventId, {
+          kind: "location",
+          optionId: venueId,
+          vote: "YES",
+        }),
+      );
+    if (table.games.length > 1)
+      await transaction((s) =>
+        s.plannedEventService.vote(user, eventId, {
+          kind: "game",
+          tableId: target,
+          gameId: 1,
+          vote: "YES",
+        }),
+      );
   }
   async function confirm(eventId: string) {
     const current = await services().eventRecords.find(eventId);
@@ -2991,6 +3006,113 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       "eventVersion",
     );
   });
+  it.each(Array.from({ length: 8 }, (_, mask) => mask))(
+    "commits explicit singleton consent and mixed ballots without synthetic votes on MongoDB: %s",
+    async (mask) => {
+      const group = await privateGroup(),
+        input = plannedInput(group.id);
+      if (mask & 1) input.dates.push({ id: secondId, day: "2030-06-04" });
+      if (mask & 2)
+        input.locations.push({ ...input.locations[0], id: secondId, name: "Second venue" });
+      if (mask & 4) {
+        await db
+          .collection(COLLECTIONS.BOARD_GAMES)
+          .insertOne({ id: 2, name: "Second game", isExpansion: false });
+        input.tables[0].games.push({ gameId: 2, manualDurationMinutes: 60 });
+      }
+      const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+      const ownerChoices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(OWNER, event.id, tableId, ownerChoices));
+      const invitation = await transaction((s) =>
+        s.plannedEventService.register(OWNER, event.id, tableId, GUEST),
+      );
+      expect((await services().plannedEventService.detail(OWNER, event.id)).agreement?.agreed).toBe(
+        false,
+      );
+      expect(await services().eventRecords.voter(event.id, GUEST)).toBeNull();
+      const choices = await participation(event.id, tableId);
+      const failure = vi
+        .spyOn(EventRecordsRepository.prototype, "saveVoter")
+        .mockRejectedValueOnce(new Error("Consent storage failed"));
+      try {
+        await expect(
+          transaction((s) =>
+            s.plannedEventService.registrationAction(GUEST, invitation.id, {
+              action: "accept",
+              version: invitation.version,
+              participation: choices,
+            }),
+          ),
+        ).rejects.toThrow("Consent storage failed");
+      } finally {
+        failure.mockRestore();
+      }
+      expect(await services().eventRecords.registration(invitation.id)).toMatchObject({
+        status: "PENDING",
+        version: invitation.version,
+        gameVotes: {},
+      });
+      expect(await services().eventRecords.voter(event.id, GUEST)).toBeNull();
+      expect((await services().eventRecords.find(event.id))?.version).toBe(choices.version);
+      await transaction((s) =>
+        s.plannedEventService.registrationAction(GUEST, invitation.id, {
+          action: "accept",
+          version: invitation.version,
+          participation: choices,
+        }),
+      );
+      const accepted = (await services().eventRecords.registration(invitation.id))!;
+      expect(accepted.gameVotes).toEqual(mask & 4 ? { "1": "YES", "2": "YES" } : {});
+      expect(await services().eventRecords.voter(event.id, GUEST)).toMatchObject({
+        dateVotes: mask & 1 ? { [dateId]: "YES", [secondId]: "YES" } : {},
+        locationVotes: mask & 2 ? { [venueId]: "YES", [secondId]: "YES" } : {},
+      });
+      const current = (await services().eventRecords.find(event.id))!;
+      for (const [kind, bit] of [
+        ["date", 1],
+        ["location", 2],
+        ["game", 4],
+      ] as const) {
+        if (mask & bit) continue;
+        await expect(
+          transaction((s) =>
+            s.plannedEventService.vote(GUEST, event.id, {
+              ...(kind === "game"
+                ? { kind, tableId, gameId: 1 }
+                : { kind, optionId: kind === "date" ? dateId : venueId }),
+              vote: "YES",
+              attentionThrough: current.updatedAt,
+            }),
+          ),
+        ).rejects.toMatchObject({ code: "FIXED_OPTION" });
+      }
+      expect((await services().eventRecords.find(event.id))?.version).toBe(current.version);
+      if (mask === 0) {
+        await services().eventRecords.saveRegistration({ ...accepted, gameVotes: { "1": "NO" } });
+        await services().eventRecords.saveVoter({
+          eventId: event.id,
+          userId: GUEST,
+          dateVotes: { [dateId]: "NO" },
+          locationVotes: { [venueId]: "UNKNOWN" },
+          updatedAt: current.updatedAt,
+        });
+      }
+      expect((await services().plannedEventService.detail(OWNER, event.id)).agreement?.agreed).toBe(
+        true,
+      );
+      expect((await services().eventRecords.find(event.id))?.status).toBe("PLANNING");
+      await confirm(event.id);
+      expect((await services().eventRecords.table(tableId))?.confirmed?.playerIds).toEqual([
+        OWNER,
+        GUEST,
+      ]);
+      if (mask === 0)
+        expect((await services().eventRecords.registration(invitation.id))?.gameVotes).toEqual({
+          "1": "NO",
+        });
+      expect(await db.collection(COLLECTIONS.MATCHES).countDocuments()).toBe(0);
+    },
+  );
   it("serializes concurrent game rejections and commits explicit join games atomically", async () => {
     const group = await privateGroup();
     await db
@@ -3061,14 +3183,16 @@ describe("unified groups/events on the real MongoDB replica set", () => {
           }),
         ),
       );
-      await transaction((s) =>
-        s.plannedEventService.vote(user, event.id, {
-          kind: "game",
-          tableId,
-          gameId: 1,
-          vote: "YES",
-        }),
-      );
+      await expect(
+        transaction((s) =>
+          s.plannedEventService.vote(user, event.id, {
+            kind: "game",
+            tableId,
+            gameId: 1,
+            vote: "YES",
+          }),
+        ),
+      ).rejects.toMatchObject({ code: "FIXED_OPTION" });
     }
     for (const kind of ["date", "location"] as const) {
       const ids = kind === "date" ? [dateId, secondId] : [venueId, secondId];
@@ -3134,12 +3258,14 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     const group = await privateGroup();
     const secondTableId = randomUUID(),
       input = plannedInput(group.id);
+    input.dates.push({ id: secondId, day: "2030-06-04" });
+    input.locations.push({ ...input.locations[0], id: secondId, name: "Second venue" });
     input.tables.push({ ...input.tables[0], id: secondTableId, name: "Second private table" });
     const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
     const availability = {
       version: event.version,
-      dateVotes: { [dateId]: "YES" as const },
-      locationVotes: { [venueId]: "IF_NEEDED" as const },
+      dateVotes: { [dateId]: "YES" as const, [secondId]: "NO" as const },
+      locationVotes: { [venueId]: "IF_NEEDED" as const, [secondId]: "NO" as const },
     };
     await expect(
       transaction((s) => s.plannedEventService.join(GUEST, event.id, tableId)),
@@ -3173,7 +3299,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       userId: GUEST,
       kind: "SELF",
       status: "ACCEPTED",
-      gameVotes: { "1": "YES" },
+      gameVotes: {},
     });
     expect(await services().eventRecords.voter(event.id, GUEST)).toMatchObject({
       dateVotes: availability.dateVotes,
@@ -3215,14 +3341,12 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         } as never),
       ),
     ).rejects.toMatchObject({ code: "INVALID_VOTE" });
-    expect((await services().eventRecords.userRegistration(tableId, GUEST))?.gameVotes["1"]).toBe(
-      "YES",
-    );
+    expect((await services().eventRecords.userRegistration(tableId, GUEST))?.gameVotes).toEqual({});
     const beforeRepeat = (await services().eventRecords.find(event.id))!;
     const updatedAvailability = {
       version: beforeRepeat.version,
-      dateVotes: { [dateId]: "YES" as const },
-      locationVotes: { [venueId]: "YES" as const },
+      dateVotes: { [dateId]: "YES" as const, [secondId]: "NO" as const },
+      locationVotes: { [venueId]: "YES" as const, [secondId]: "NO" as const },
     };
     const secondInput = {
       ...joinChoices(updatedAvailability),
@@ -3247,11 +3371,9 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       locationVotes: updatedAvailability.locationVotes,
     });
     expect(
-      (await services().eventRecords.userRegistration(secondTableId, GUEST))?.gameVotes["1"],
-    ).toBe("IF_NEEDED");
-    expect((await services().eventRecords.userRegistration(tableId, GUEST))?.gameVotes["1"]).toBe(
-      "YES",
-    );
+      (await services().eventRecords.userRegistration(secondTableId, GUEST))?.gameVotes,
+    ).toEqual({});
+    expect((await services().eventRecords.userRegistration(tableId, GUEST))?.gameVotes).toEqual({});
     expect(await db.collection(COLLECTIONS.MATCHES).countDocuments()).toBe(0);
   });
   it("reserves a pending seat without a vote or phantom participant; records no synthetic Match", async () => {

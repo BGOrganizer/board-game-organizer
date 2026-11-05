@@ -1,5 +1,36 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Singleton consent — implemented; authenticated/device acceptance pending
+
+- Explicit join/invitation acceptance accepts current Event/Table settings. Singleton date, venue
+  and game categories render read-only without voting tabs, controls or totals. Only multiple-choice
+  categories require complete positive-compatible ballots. All-singleton review still needs an
+  explicit action; opening/canceling never registers or accepts. Known Event choices survive missing
+  Table metadata, while incomplete/placeholder/error data cannot authorize submission. Native fixed
+  summaries scroll with the active list, including a review with no voting tabs.
+- API version/authorization/cutoff and invitation guards remain intact. Positive old-client singleton
+  payloads normalize to empty maps; NO/UNKNOWN/foreign choices remain invalid inputs. Accepted
+  historical singleton ballots do not block compatibility or invent YES preferences; no documents
+  are migrated or rewritten. Multiple-game compatibility never derives fabricated preferences from
+  an old fixed-game hint. Manual confirmation, pending reservations, queue priority, immutable rosters,
+  whole-Event results and OpenSkill writes retain their existing guards.
+- **2,782 covered units pass, zero skips:** mobile 472, web 865, API 845, schemas 142, shared 458.
+  Existing thresholds are unchanged, including 100% deterministic agreement/availability logic and
+  the measured join-form/review UI paths. **13 selected real disposable-Mongo integrations pass**:
+  all eight singleton/multiple combinations, atomic acceptance rollback, unchanged historical data,
+  direct-vote rejection, queue consent and concurrent positive-ballot protection. Other 44 community
+  cases were explicitly outside that focused run. A full community rerun exceeded its local 15-minute
+  deadline; it is not a new full-suite pass. No application database/provider changes ran.
+- Root typecheck, scoped Biome, API/web production builds, Android production bundle export and
+  Maestro 2.11 syntax checks pass. Generated Next/Expo references were restored byte-for-byte.
+  EN/IT retain all 1,406 prior translations and add five messages (1,411 total each).
+  [Owned-fixture Playwright/Maestro scenarios](../apps/mobile/.maestro/README.md#manual-singleton-consent)
+  cover cancel/reopen, absent singleton tabs, all-NO rejection and explicit join/acceptance across the
+  eight-category matrix. They are opt-in, outside unchanged canonical CI, and **not yet executed
+  against authenticated browser/native fixtures**. Bundles, syntax and VM callbacks are not device
+  acceptance. Picker fix `eeb3717` was signed/pushed before this feature began. Publication of this
+  implementation does not establish authenticated browser/native acceptance.
+
 ## Native game picker reentry — bounded presentation; device timing acceptance pending
 
 - Reopening starts at the first source page even when Query retains many pages. A memoized local

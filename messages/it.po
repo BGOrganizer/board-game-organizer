@@ -5806,3 +5806,18 @@ msgstr "<actor/> ha iniziato a seguirti."
 #. js-lingui-explicit-id
 msgid "activity.friends-with-you"
 msgstr "<actor/> ha stretto amicizia con te."
+
+msgid "Review table settings"
+msgstr "Rivedi le impostazioni del tavolo"
+
+msgid "Accepting this invitation accepts the current event and table settings. Vote only where multiple options are available."
+msgstr "Accettando questo invito accetti le impostazioni correnti dell'evento e del tavolo. Vota solo dove sono disponibili più opzioni."
+
+msgid "Joining accepts the current event and table settings. Vote only where multiple options are available."
+msgstr "Iscrivendoti accetti le impostazioni correnti dell'evento e del tavolo. Vota solo dove sono disponibili più opzioni."
+
+msgid "Single options are accepted when joining. Only categories with multiple options require votes."
+msgstr "Le opzioni uniche si accettano con l'iscrizione. Solo le categorie con più opzioni richiedono un voto."
+
+msgid "Choose at least one game. Use the empty game slot to add another option. Players vote only when multiple games are proposed."
+msgstr "Scegli almeno un gioco. Usa lo spazio vuoto per aggiungere un'altra opzione. I giocatori votano solo quando sono proposti più giochi."

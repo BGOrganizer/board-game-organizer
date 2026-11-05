@@ -17,6 +17,7 @@ export function EventVoteLegend() {
             {label}
           </p>
         ))}
+        <p className="text-sm text-muted">{t`Single options are accepted when joining. Only categories with multiple options require votes.`}</p>
         <p className="text-sm text-muted">{t`Only accepted players vote. Pending players keep a reserved place until accepted. Join at least one table to participate in the event.`}</p>
       </div>
     </HelpPopover>

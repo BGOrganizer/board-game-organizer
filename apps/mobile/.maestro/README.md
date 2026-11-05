@@ -24,6 +24,35 @@ syntax/discovery nor isolated component layouts prove authenticated/device accep
 Moderator/peer protection, live Event authority, immutable results and transactional
 revocation are also covered by service and disposable-Mongo tests; device execution remains required.
 
+## Manual singleton consent
+
+`25-single-option-consent.yaml` and web `apps/web/e2e/single-option-consent.config.ts` exercise
+real cancel/reopen, absent singleton voting tabs, all-NO rejection for multiple choices and explicit
+join/invitation acceptance. They remain outside canonical CI; no provider mocks or resets.
+Run all **eight masks × join/accept × EN/IT**, using a fresh disposable fixture per execution;
+web additionally uses widths 390 and 1280. Run native light/dark and enlarged text on a current build.
+These flows change real registrations; inspect partially completed fixtures before retrying.
+
+Require `SINGLE_OPTION_FIXTURE_ACK=owned-disposable-development-fixture`,
+`SINGLE_OPTION_LOCALE=en|it` and `SINGLE_OPTION_INPUT` JSON. Native additionally requires
+`SINGLE_OPTION_BUILD_ACK=owned-preview-build` and an already authenticated matching account.
+Web requires `SINGLE_OPTION_WIDTH=390|1280`, `E2E_EMAIL`, normal Development Clerk inputs and an
+explicit local/Preview `PLAYWRIGHT_BASE_URL`; missing inputs fail closed.
+
+Each fixture: non-admin accepted PRIVATE Group member, one future PLANNING Event/Table, max two
+players, owner already accepted, no other Table participation for the test actor. Join starts with
+one free place; accept starts with the actor's PENDING invitation reserving that place.
+JSON fields: `mask` (date=1, location=2, game=4; zero means all singleton), `mode` (`join|accept`),
+`path` (`/events/<event UUID>/tables/<table UUID>`), and `name` (Table name). Native also requires
+`dates`, `locations`, `games`: exact arrays of one or two accessible option labels matching each
+mask bit. Date vote labels use local `YYYY-MM-DD HH:mm`; location/game labels use their names.
+Names containing punctuation are escaped literally. Web verifies actual authorized API option
+counts, captures the real versioned request and checks singleton maps remain empty.
+
+See [current consent contract](../../../docs/groups-events-refactor.md#events-and-tables).
+Syntax, VM callbacks, bundles and disposable-Mongo tests do not replace authenticated browser/native
+execution. No provisioning or Production mutation is authorized by adding these scenarios.
+
 ## Fixtures and order
 
 This is an **ordered integration journey**, not 13 independently seeded tests.

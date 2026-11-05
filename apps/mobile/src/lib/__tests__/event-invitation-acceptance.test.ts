@@ -25,7 +25,11 @@ function render(
   const fn = file.statements.find(
     (node) => ts.isFunctionDeclaration(node) && node.name?.text === name,
   )!;
-  const code = `${fn.getText(file).replace(/^export /, "")}; ${name}(props);`;
+  const helpers = file.statements
+    .filter((node) => ts.isFunctionDeclaration(node) && node !== fn)
+    .map((node) => node.getText(file))
+    .join("\n");
+  const code = `${helpers}\n${fn.getText(file).replace(/^export /, "")}; ${name}(props);`;
   return runInNewContext(
     ts.transpileModule(code, {
       compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React },
@@ -113,21 +117,31 @@ it.each([false, true])(
     ).toBeNull();
   },
 );
-it.each([false, true])(
-  "native invitation sheet reuses shared form, PUBLIC gamesOnly=%s",
-  (gamesOnly) => {
+it.each(Array.from({ length: 16 }, (_, value) => [value % 8, value >= 8] as const))(
+  "native consent sheet renders only multi-option tabs and preserves explicit actions: mask=%s invitation=%s",
+  (mask, isInvitation) => {
+    const votingTabs = [
+      mask & 1 ? "dates" : null,
+      mask & 2 ? "locations" : null,
+      mask & 4 ? "games" : null,
+    ].filter((value) => value !== null);
     const onClose = vi.fn(),
       submit = vi.fn(),
-      table = { games: [{ gameId: 1 }], gamesDetail: [] };
+      table = {
+        games: mask & 4 ? [{ gameId: 1 }, { gameId: 2 }] : [{ gameId: 1 }],
+        gamesDetail: [],
+      };
     const form = {
       q: {},
       tableQuery: {},
       event: { dates: [], locations: [] },
       table,
-      initialTab: gamesOnly ? "games" : "dates",
-      isInvitation: true,
-      requiresAvailability: !gamesOnly,
-      gamesOnly,
+      initialTab: votingTabs[0],
+      votingTabs,
+      ready: true,
+      isInvitation,
+      requiresAvailability: true,
+      gamesOnly: false,
       checking: false,
       canSubmit: true,
       submit,
@@ -162,7 +176,7 @@ it.each([false, true])(
     const tree = render("EventJoinSheet", context, {
       eventId: "event",
       tableId: "table",
-      registrationId: "registration",
+      registrationId: isInvitation ? "registration" : undefined,
       onClose,
     });
     expect(useEventJoinForm).toHaveBeenCalledWith(
@@ -170,14 +184,20 @@ it.each([false, true])(
       "event",
       "table",
       onClose,
-      "registration",
+      isInvitation ? "registration" : undefined,
     );
     expect(
       nodes(tree)
         .filter((n) => n.type === "tab")
         .map((n) => n.props.value),
-    ).toEqual(gamesOnly ? ["games"] : ["dates", "locations", "games"]);
-    if (gamesOnly) expect(nodes(tree).find((n) => n.type === "list")?.props.data).toBe(table.games);
+    ).toEqual(votingTabs);
+    if (mask === 4)
+      expect(nodes(tree).find((n) => n.type === "list")?.props.data).toBe(table.games);
+    if (mask === 0) {
+      expect(nodes(tree).some((n) => n.type === "bar")).toBe(false);
+      expect(nodes(tree).find((n) => n.type === "list")?.props.data).toEqual([]);
+      expect(nodes(tree).find((n) => n.type === "list")?.props.ListHeaderComponent).toBeTruthy();
+    }
     const buttons = nodes(tree).filter((n) => n.type === Button);
     const confirm = buttons[buttons.length - 1];
     expect(confirm.props.isDisabled).toBe(false);

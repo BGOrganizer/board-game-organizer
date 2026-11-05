@@ -2,6 +2,9 @@ import { expect, it } from "vitest";
 import {
   eventAvailabilityVoteIsAllowed,
   eventJoinAvailabilityIsComplete,
+  eventOptionsRequireVote,
+  eventOptionVotesAreComplete,
+  eventVotingChoices,
   hasOtherAcceptedTable,
 } from "../eventJoinAvailability";
 
@@ -45,13 +48,41 @@ it("preserves a positive choice in the same dimension and ignores removed option
   expect(eventAvailabilityVoteIsAllowed(options, { one: "YES" }, "missing", "YES")).toBe(false);
   expect(eventAvailabilityVoteIsAllowed(options, {}, "one", "NO")).toBe(false);
 });
+it("omits singleton preferences without weakening foreign/missing/negative multi-option validation", () => {
+  const one = [{ id: "one" }],
+    many = [...one, { id: "two" }];
+  expect(eventOptionsRequireVote([])).toBe(false);
+  expect(eventOptionsRequireVote(one)).toBe(false);
+  expect(eventOptionsRequireVote(many)).toBe(true);
+  expect(eventOptionVotesAreComplete(one, {})).toBe(true);
+  for (const vote of ["YES", "IF_NEEDED"] as const)
+    expect(eventOptionVotesAreComplete(one, { one: vote })).toBe(true);
+  for (const choices of [
+    { one: "NO" },
+    { one: "UNKNOWN" },
+    { other: "YES" },
+    { one: "YES", other: "YES" },
+  ] as const)
+    expect(eventOptionVotesAreComplete(one, choices)).toBe(false);
+  expect(eventOptionVotesAreComplete(many, {})).toBe(false);
+  expect(eventOptionVotesAreComplete([], {})).toBe(false);
+  for (const vote of ["YES", "IF_NEEDED", "NO", "UNKNOWN"] as const)
+    expect(eventAvailabilityVoteIsAllowed(one, {}, "one", vote)).toBe(false);
+  const choices = { one: "YES", two: "NO", removed: "YES" } as const;
+  expect(eventVotingChoices(one, choices)).toEqual({});
+  expect(eventVotingChoices([], choices)).toEqual({});
+  expect(eventVotingChoices(many, choices)).toEqual({ one: "YES", two: "NO" });
+  expect(eventVotingChoices(many, { one: "YES" })).toEqual({ one: "YES" });
+  expect(choices).toEqual({ one: "YES", two: "NO", removed: "YES" });
+});
 const event = { dates: [{ id: "first" }, { id: "second" }], locations: [{ id: "venue" }] };
 const votes = {
   dateVotes: { first: "YES" as const, second: "NO" as const },
   locationVotes: { venue: "IF_NEEDED" as const },
 };
-it("requires explicit legal current choices for every option and at least one accepted date/venue", () => {
+it("requires complete legal multi-option choices while singleton locations need no ballot", () => {
   expect(eventJoinAvailabilityIsComplete(event, votes)).toBe(true);
+  expect(eventJoinAvailabilityIsComplete(event, { ...votes, locationVotes: {} })).toBe(true);
   expect(
     eventJoinAvailabilityIsComplete(event, {
       ...votes,
@@ -63,7 +94,6 @@ it("requires explicit legal current choices for every option and at least one ac
   ).toBe(true);
   for (const invalid of [
     { ...votes, dateVotes: {} },
-    { ...votes, locationVotes: {} },
     { ...votes, dateVotes: { first: "YES" } },
     { ...votes, dateVotes: { first: "NO", second: "NO" } },
     { ...votes, dateVotes: { first: "YES", stale: "NO" } },

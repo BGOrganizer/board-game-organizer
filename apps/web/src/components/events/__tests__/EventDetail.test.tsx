@@ -23,6 +23,24 @@ let event: PlannedEventResponse,
   fail = false,
   failWrite = false,
   fetcher: ReturnType<typeof vi.fn>;
+function multipleSchedule() {
+  const alternative = "99999999-9999-4999-8999-999999999999";
+  event = {
+    ...event,
+    groupType: "PRIVATE",
+    dates:
+      event.dates.length > 1
+        ? event.dates
+        : [...event.dates, { id: alternative, day: "2030-06-05" }],
+    locations:
+      event.locations.length > 1
+        ? event.locations
+        : [
+            ...event.locations,
+            { ...event.locations[0], id: alternative, name: "Alternative venue" },
+          ],
+  };
+}
 function mount(
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -207,6 +225,26 @@ it.each([true, false])(
     expect(mocks.feedback.onSuccess).not.toHaveBeenCalled();
   },
 );
+it("keeps singleton dates and venues read-only without totals, even for accepted historical ballots", async () => {
+  event = {
+    ...event,
+    groupType: "PRIVATE",
+    canVote: true,
+    myVotes: {
+      dateVotes: { [event.dates[0].id]: "NO" },
+      locationVotes: { [event.locations[0].id]: "UNKNOWN" },
+    },
+    voteCounts: {
+      dates: { [event.dates[0].id]: { YES: 1, NO: 1, IF_NEEDED: 0, UNKNOWN: 0 } },
+      locations: { [event.locations[0].id]: { YES: 0, NO: 0, IF_NEEDED: 0, UNKNOWN: 2 } },
+    },
+  };
+  mount();
+  await screen.findByText("Club venue");
+  expect(screen.queryByRole("button", { name: /2030-06-03 20:00:|Club venue:/ })).toBeNull();
+  expect(screen.queryAllByLabelText(/^Votes:/)).toHaveLength(0);
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+});
 it("allows No only when another current location stays usable, independent of the date votes", async () => {
   const second = "77777777-7777-4777-8777-777777777777",
     first = event.locations[0].id;
@@ -220,6 +258,7 @@ it("allows No only when another current location stays usable, independent of th
       locationVotes: { [first]: "YES", [second]: "IF_NEEDED" },
     },
   };
+  multipleSchedule();
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Club venue: Yes" }));
   expect((screen.getByRole("button", { name: "No" }) as HTMLButtonElement).disabled).toBe(false);
@@ -245,6 +284,7 @@ it("keeps one usable date/location independently and still allows switching Yes 
       locationVotes: { [venue]: "IF_NEEDED" },
     },
   };
+  multipleSchedule();
   const client = mount();
   fireEvent.click(await screen.findByRole("button", { name: "2030-06-03 20:00: Yes" }));
   expect((screen.getByRole("button", { name: "No" }) as HTMLButtonElement).disabled).toBe(false);
@@ -438,6 +478,7 @@ it("places aggregate votes beneath date/time and location identities without ena
       locations: { [event.locations[0].id]: { YES: 1, NO: 1, IF_NEEDED: 0, UNKNOWN: 2 } },
     },
   };
+  multipleSchedule();
   mount();
   const date = await screen.findByLabelText("Votes: 2030-06-03 20:00"),
     location = screen.getByLabelText("Votes: Club venue");
@@ -571,6 +612,7 @@ it("confirms manually, permits replan after cutoff, and keeps failed transitions
   ).toBe(true);
 });
 it("renders pending/unavailable agreements, location votes, paging and manual confirmation", async () => {
+  multipleSchedule();
   event = {
     ...event,
     canVote: true,
@@ -650,6 +692,7 @@ it("opens unified event/table routes, one voting legend and guarded Event deleti
   ).toBe(true);
 });
 it("only accepted players may vote, and voting never creates a table registration", async () => {
+  multipleSchedule();
   event = { ...event, canVote: true };
   mount();
   await selectVote("2030-06-03 20:00");
