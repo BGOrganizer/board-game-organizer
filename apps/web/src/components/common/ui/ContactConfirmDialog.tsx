@@ -2,7 +2,7 @@
 
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 interface DialogAction {
@@ -35,15 +35,19 @@ export function ContactConfirmDialog({
 }) {
   const { t } = useLingui();
   const [mounted, setMounted] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const descriptionId = `${titleId}-description`;
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel, busy]);
+    if (!mounted) return;
+    const element = dialog.current;
+    element?.showModal();
+    cancelButton.current?.focus();
+    return () => element?.close();
+  }, [mounted]);
 
   if (!mounted) return null;
   const buttonClassName = actionsInRow
@@ -53,6 +57,7 @@ export function ContactConfirmDialog({
     <Button
       className={cancelLast && actionsInRow ? "min-h-11" : buttonClassName}
       variant="ghost"
+      ref={cancelButton}
       isDisabled={busy}
       onPress={onCancel}
     >
@@ -61,22 +66,29 @@ export function ContactConfirmDialog({
     </Button>
   );
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <dialog
+      ref={dialog}
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!busy) onCancel();
+      }}
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-transparent p-4 backdrop:bg-transparent"
+    >
       <div
         className="absolute inset-0 bg-backdrop"
         onClick={busy ? undefined : onCancel}
         aria-hidden="true"
       />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="contact-confirm-title"
-        className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-overlay p-4 text-overlay-foreground shadow-overlay sm:p-5"
-      >
-        <h2 id="contact-confirm-title" className="text-lg font-semibold text-overlay-foreground">
+      <div className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-overlay p-4 text-overlay-foreground shadow-overlay sm:p-5">
+        <h2 id={titleId} className="text-lg font-semibold text-overlay-foreground">
           {title}
         </h2>
-        <p className="mt-2 text-sm text-muted">{description}</p>
+        <p id={descriptionId} className="mt-2 text-sm text-muted">
+          {description}
+        </p>
         {children ? <div className="mt-4">{children}</div> : null}
         <div
           className={
@@ -105,7 +117,7 @@ export function ContactConfirmDialog({
         </div>
         {cancelLast && actionsInRow ? <div className="mt-3 flex justify-end">{cancel}</div> : null}
       </div>
-    </div>,
+    </dialog>,
     document.body,
   );
 }

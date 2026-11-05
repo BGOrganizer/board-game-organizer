@@ -17,6 +17,14 @@ export const COMMUNITY_FEEDBACK_MESSAGES = {
     error: "Could not reject membership",
   },
   remove_group_member: { success: "Group member removed", error: "Could not remove group member" },
+  promote_group_moderator: {
+    success: "Group moderator appointed",
+    error: "Could not appoint group moderator",
+  },
+  demote_group_moderator: {
+    success: "Group moderator demoted",
+    error: "Could not demote group moderator",
+  },
   ban_group_member: { success: "Group ban applied", error: "Could not apply group ban" },
   revoke_group_ban: { success: "Group ban revoked", error: "Could not revoke group ban" },
   confirm_event: { success: "Event confirmed", error: "Could not confirm event" },

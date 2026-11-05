@@ -1,6 +1,7 @@
 import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
+  isGroupManagerRole,
   ownGroupActions,
   useGroupRecord,
   useGroupRecordActions,
@@ -51,24 +52,24 @@ export function GroupDetail({
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
   const ownBusy = a.isPersonBusy(groupId, o.userId ?? "");
+  const canDelete = group?.role === "admin";
   const header = (
     <Stack.Screen
       options={{
         title: group?.name ?? t("Group details"),
         headerRight: () =>
-          group?.canEdit ||
-          (group?.role === "accepted" && group.myMembership?.status === "ACCEPTED") ? (
+          canDelete || group?.myMembership?.status === "ACCEPTED" ? (
             <Button
               {...headerButtonProps}
               variant="danger"
-              isDisabled={group?.canEdit ? a.busy : ownBusy}
-              accessibilityLabel={group?.canEdit ? t("Delete group") : t("Leave group")}
+              isDisabled={canDelete ? a.busy : ownBusy}
+              accessibilityLabel={canDelete ? t("Delete group") : t("Leave group")}
               onPress={() => {
                 setError(false);
-                setConfirm(group?.canEdit ? "delete" : "cancel");
+                setConfirm(canDelete ? "delete" : "cancel");
               }}
             >
-              {group?.canEdit ? (
+              {canDelete ? (
                 <Trash2 size={HEADER_ICON_SIZE} color={dangerForeground} />
               ) : (
                 <LogOut size={HEADER_ICON_SIZE} color={dangerForeground} />
@@ -98,7 +99,7 @@ export function GroupDetail({
     );
   const run = (action: "request" | "accept" | "decline" | "cancel" | "delete") => {
     if (action === "delete") {
-      if (!group.canEdit || a.isBusy(group.id)) return;
+      if (!canDelete || a.isBusy(group.id)) return;
       a.remove.mutate({ id: group.id, input: { version: group.version, deleteEvents: true } });
       setConfirm(null);
       router.replace("/(tabs)/groups");
@@ -117,7 +118,8 @@ export function GroupDetail({
     setConfirm(null);
   };
   const bodyActions = ownGroupActions(group).filter(
-    (action) => action === "request" || (action === "cancel" && group.role !== "accepted"),
+    (action) =>
+      action === "request" || (action === "cancel" && group.myMembership?.status !== "ACCEPTED"),
   );
   return (
     <NotificationAttentionScope
@@ -186,7 +188,7 @@ export function GroupDetail({
                     ) : null}
                     {key === "members" ? <GroupMembersBadge groupId={group.id} /> : null}
                     {key === "members" &&
-                    group.role === "admin" &&
+                    isGroupManagerRole(group.role) &&
                     (group.pendingRequestCount ?? 0) > 0 ? (
                       <View accessible accessibilityLabel={t("Requests to review")}>
                         <UserRoundPlus size={16} color={warning} accessible={false} />
@@ -200,7 +202,10 @@ export function GroupDetail({
             {tab === "members" && group.canViewMembers ? (
               <GroupMembers group={group} />
             ) : tab === "events" && group.canViewEvents ? (
-              <Events groupId={group.id} canCreate={group.role === "admin" && group.canInvite} />
+              <Events
+                groupId={group.id}
+                canCreate={isGroupManagerRole(group.role) && group.canInvite}
+              />
             ) : tab === "rankings" && group.canViewRankings ? (
               <View style={{ flex: 1, paddingHorizontal: 20 }}>
                 <GroupLeaderboard groupId={group.id} />
@@ -245,12 +250,12 @@ export function GroupDetail({
             <Pencil size={24} color={accentForeground} />
           </FloatingActions>
         ) : null}
-        {confirm && (confirm !== "delete" || group.canEdit) ? (
+        {confirm && (confirm !== "delete" || canDelete) ? (
           <ConfirmDialog
             title={
               confirm === "delete"
                 ? t("Delete group")
-                : group.role === "accepted"
+                : group.myMembership?.status === "ACCEPTED"
                   ? t("Leave group")
                   : t("Cancel membership")
             }

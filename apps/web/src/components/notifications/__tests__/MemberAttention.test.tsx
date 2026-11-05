@@ -161,6 +161,28 @@ it("pauses when a modal hides the row's ancestor from interaction", async () => 
   act(() => vi.advanceTimersByTime(5_000));
   expect(state.read).toHaveBeenCalledTimes(1);
 });
+it("restarts dwell around a native sibling modal even without aria-hidden ancestor changes", async () => {
+  const captured = source();
+  render();
+  enter();
+  const modal = document.createElement("dialog");
+  modal.setAttribute("aria-modal", "true");
+  document.body.append(modal);
+  try {
+    act(() => vi.advanceTimersByTime(4_000));
+    // Native showModal changes open, not the background's aria-hidden attribute.
+    await act(async () => modal.setAttribute("open", ""));
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(state.read).not.toHaveBeenCalled();
+    await act(async () => modal.removeAttribute("open"));
+    act(() => vi.advanceTimersByTime(4_999));
+    expect(state.read).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(state.read).toHaveBeenCalledExactlyOnceWith(target, captured);
+  } finally {
+    modal.remove();
+  }
+});
 it("restarts on a new revision and never consumes it using the earlier visibility window", () => {
   source();
   const view = render();

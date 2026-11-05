@@ -231,6 +231,8 @@ export const finalizeEventSchema = z
 export type FinalizeEventInput = z.infer<typeof finalizeEventSchema>;
 export type EventVoteCounts = Record<EventVote, number>;
 export interface PlannedEventCapabilities {
+  /** Current server-authorized manager, not historical Event authorship. */
+  canManage?: boolean;
   canEdit: boolean;
   canInvite: boolean;
   canRegister: boolean;
@@ -308,6 +310,7 @@ export type EventSchedulePreview = {
   locationCount: number;
 };
 export type PlannedTableResponse = TableRecord & {
+  canManage?: boolean;
   readOnly?: boolean;
   eventName: string;
   /** Parent epoch at this authorized Table read; absent on historical cache entries. */

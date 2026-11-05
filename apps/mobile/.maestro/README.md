@@ -5,6 +5,25 @@ journeys invoked by `.github/scripts/maestro-e2e.sh` and the three native CI job
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
 Do not run the helpers directory or treat helpers as independent test reports.
 
+## Manual Group moderator actions
+
+`23-group-moderators.yaml` is explicit opt-in, outside canonical jobs. Use a verified
+Development/Preview APK and a signed-in Group creator with one ordinary accepted target.
+Ban/Remove confirmations are cancelled; promotion/demotion changes real server state.
+Failure can leave the target promoted; creator must inspect and restore its original role.
+No provisioning, reset or Production use is authorized by running this flow.
+
+Required: `GROUP_ROLE_FIXTURE_ACK=owned-development-moderator-group`,
+`GROUP_ROLE_BUILD_ACK=owned-preview-build`, `GROUP_ROLE_LOCALE=en|it`,
+`GROUP_ROLE_GROUP_ID`, `GROUP_ROLE_GROUP_NAME`, `GROUP_ROLE_TARGET_NAME` (confirmation
+name) and `GROUP_ROLE_TARGET_MENU_NAME` (username-first action label). Run the explicit
+flow with Maestro 2.11. Web counterpart: `apps/web/e2e/group-moderators.config.ts`,
+with the same fixture ACK/locale/Group ID plus `GROUP_ROLE_API_URL`,
+`GROUP_ROLE_TARGET_ID`, `E2E_EMAIL` and normal owned Playwright/Clerk inputs. Neither
+syntax/discovery nor isolated component layouts prove authenticated/device acceptance.
+Moderator/peer protection, live Event authority, immutable results and transactional
+revocation are also covered by service and disposable-Mongo tests; device execution remains required.
+
 ## Fixtures and order
 
 This is an **ordered integration journey**, not 13 independently seeded tests.

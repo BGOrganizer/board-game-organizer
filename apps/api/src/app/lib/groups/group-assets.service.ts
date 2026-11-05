@@ -5,7 +5,7 @@ import {
   type StartGroupLogoInput,
   type UploadGroupLogoChunkInput,
 } from "@board-game-organizer/schemas";
-import { canReadGroup } from "@board-game-organizer/shared";
+import { canReadGroup, groupBanIsActive, isGroupModerator } from "@board-game-organizer/shared";
 import { logoUploadQuotaEnabled } from "../community/logo-upload-policy";
 import { CommunityError } from "../community.error";
 import { requireBgoModerator } from "../organizations/community-role";
@@ -97,7 +97,13 @@ export class GroupAssetsService {
       } else {
         if (group.type !== "PUBLIC" || group.proposal?.logoAssetId !== id)
           throw new CommunityError(404, "LOGO_NOT_FOUND");
-        await requireBgoModerator(userId);
+        const membership = await this.groups.membership(group.id, userId);
+        const ban = await this.groups.ban(group.id, userId);
+        if (
+          groupBanIsActive(ban, Date.now()) ||
+          (group.adminUserId !== userId && !isGroupModerator(membership))
+        )
+          await requireBgoModerator(userId);
       }
     }
     return { id, preview: `data:image/webp;base64,${asset.previewBase64}` };

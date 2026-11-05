@@ -1,5 +1,44 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Delegated Group moderators and member action sheets — implemented; acceptance incomplete
+
+- Creator alone promotes/demotes accepted Group members with versioned confirmation. Optional
+  historical roles default to ordinary membership. Moderators edit Group content, manage ordinary
+  members/invitations/requests/exclusions and administer Group Events/Tables under existing guards.
+  Group deletion stays creator-only; moderators cannot remove/ban creator or peers. Global BGO
+  reviewers and Clerk roles remain independent. Moderator edits never transfer creator identity.
+- Group transaction locks serialize delegation/revocation with Event writers. Current accepted
+  Group authority controls management, not historical Event authorship. Departure/removal/ban
+  clears moderator status; reinvitation does not restore it. Delegation creates no seat or vote;
+  provisional scores still apply no ratings/statistics before immutable Event finalization.
+- Both clients replace repeated Ban/Remove controls with one accent icon action and platform-owned
+  bottom sheet, icon-bearing rows, role badges and separate confirmations. Existing ban deadlines,
+  focused-member dwell suppression, action-specific feedback and selective optimistic rollback stay
+  intact. Role changes also invalidate owned Group/Event reads without fabricating Event authority.
+- **2,637 covered units pass**: mobile 385, web 838, API 832, schemas 142, shared 440. Covered paths
+  include creator/moderator/ordinary/peer permissions, pinned versions, protected deletion,
+  confirmation/cancel/double-submit behavior, optimistic role display and selective failure rollback.
+  Typecheck and API/web production builds pass; generated references restored byte-for-byte.
+  EN/IT catalogs extracted/compiled with every prior translation value retained.
+- **All 123 disposable-Mongo integration tests across four files pass, zero skips**, including scoped
+  delegation/protected peers and owner identity, current authority after demoting a historical Event
+  author, delegated confirmation/results without seating/rating the manager, and concurrent demotion
+  versus Event editing. Earlier runs stalled; after restoring the local Docker runtime, a bounded
+  full run completes. No application database migration/reset or provider operation ran.
+- A keyboard check reproduced focus outside the old confirmation after Drawer handoff. The shared
+  custom portal now uses native HTML dialog modality with existing HeroUI surfaces/actions, safe
+  initial cancellation focus, unique accessible labels/descriptions, native Escape/busy guards and
+  cleanup. It adds no library or custom focus-trap engine. Existing confirmation callers retain their
+  controlled actions/layouts. Member dwell also observes native modal open/close, because browser
+  inertness does not add background aria-hidden attributes; hidden time never accrues toward reads.
+  **16 real Chromium component/CSS keyboard-layout cases pass**, widths
+  320/390/1024/1280, EN/IT and light/dark: initial focus, background isolation, Escape, trigger focus
+  restoration, explicit confirmations, role replacement, no overflow/errors/remote requests. These
+  isolated response fixtures are not authenticated browser or native-device acceptance.
+- Manual Playwright Group-role scenario and Maestro 2.11 flow 23 add explicit owned Preview/build
+  guards; discovery, Maestro syntax and helper-input checks pass. Authenticated browser/device
+  execution remains pending. Canonical suites/jobs stay unchanged; publication does not attest runtime acceptance.
+
 ## Readable activity narratives and standard tab typography — implemented; acceptance incomplete
 
 - Profile and Community reuse one activity renderer per platform and one pure narrative descriptor.

@@ -64,7 +64,16 @@ export type DecideGroupReviewInput = z.infer<typeof decideGroupReviewSchema>;
 export const inviteGroupMemberSchema = z.object({ userId: targetUserIdSchema }).strict();
 export const decideGroupMembershipSchema = z
   .object({
-    action: z.enum(["accept", "decline", "approve", "reject", "cancel", "remove"]),
+    action: z.enum([
+      "accept",
+      "decline",
+      "approve",
+      "reject",
+      "cancel",
+      "remove",
+      "promote",
+      "demote",
+    ]),
     version: z.number().int().positive(),
     attentionThrough: z.iso.datetime({ precision: 3 }).optional(),
   })
@@ -93,7 +102,7 @@ export const uploadGroupLogoChunkSchema = z
   .strict();
 export type UploadGroupLogoChunkInput = z.infer<typeof uploadGroupLogoChunkSchema>;
 export const revokeGroupBanSchema = z.object({ userId: targetUserIdSchema }).strict();
-export type GroupViewerRole = "admin" | "accepted" | "invited" | "requested" | "none";
+export type GroupViewerRole = "admin" | "moderator" | "accepted" | "invited" | "requested" | "none";
 export interface GroupCapabilities {
   canViewMembers: boolean;
   canViewEvents: boolean;
@@ -112,7 +121,7 @@ export type GroupRecordResponse = GroupRecord &
     memberCount: number;
     eventCount: number | null;
     myMembership: GroupMembership | null;
-    /** Complete actionable REQUEST count for the sole admin; null for every other viewer. */
+    /** Complete actionable REQUEST count for Group managers; null for other viewers. */
     pendingRequestCount?: number | null;
   };
 export interface GroupPersonResponse {

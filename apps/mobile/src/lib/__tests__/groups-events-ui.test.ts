@@ -46,7 +46,7 @@ it("uses first-step header back, compact reachable counters, row game selection 
 it("resets header confirmation on access loss, preserves cutoff/manual version guards and labels metadata", () => {
   const detail = source("events", "EventDetail");
   expect(detail.indexOf("headerRight:")).toBeLessThan(detail.indexOf("if (!event)"));
-  expect(detail).toContain("event?.adminUserId === o.userId");
+  expect(detail).toContain("canManageEvent(event, o.userId)");
   expect(detail).toContain("confirmationBlocked");
   expect(detail).toContain("event?.agreement?.agreed !== true");
   expect(detail).toContain("{...headerButtonProps}");

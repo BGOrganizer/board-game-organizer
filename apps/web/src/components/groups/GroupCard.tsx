@@ -44,7 +44,7 @@ export function GroupCard({
         ? "invitation"
         : group.role === "requested"
           ? "request"
-          : group.role === "accepted"
+          : group.role === "accepted" || group.role === "moderator"
             ? "member"
             : null;
   const Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
@@ -65,11 +65,13 @@ export function GroupCard({
             kind={indicator}
             action={local ? null : groupPendingAction(group)}
             label={
-              indicator === "admin"
-                ? t`Group admin`
-                : indicator === "request"
-                  ? t`Membership requested`
-                  : undefined
+              group.role === "moderator"
+                ? t`Group moderator`
+                : indicator === "admin"
+                  ? t`Group admin`
+                  : indicator === "request"
+                    ? t`Membership requested`
+                    : undefined
             }
           />
         ) : undefined

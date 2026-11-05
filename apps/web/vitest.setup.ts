@@ -18,6 +18,13 @@ class ResizeObserverStub {
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
 // jsdom has no Web Animations; React Aria inspects running animations on tab changes.
 Element.prototype.getAnimations ??= () => [];
+// Native modal behavior/focus containment is verified in real Chromium, not simulated here.
+HTMLDialogElement.prototype.showModal = function () {
+  this.open = true;
+};
+HTMLDialogElement.prototype.close = function () {
+  this.open = false;
+};
 
 if (!globalThis.matchMedia) {
   // jsdom + HeroUI dark-mode toggles read `matchMedia("(prefers-color-scheme: dark)")`.

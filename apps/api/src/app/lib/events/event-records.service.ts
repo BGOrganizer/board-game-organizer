@@ -43,6 +43,7 @@ import {
   groupBanIsActive,
   hasOtherAcceptedTable,
   hasPublicTableConflict,
+  isGroupModerator,
   isPersonalTableParticipant,
   normalizeMatchScore,
   personalTableSection,
@@ -89,6 +90,14 @@ export class EventRecordsService {
     )
       throw new CommunityError(403, "GROUP_MEMBER_REQUIRED");
   }
+  private async manager(event: EventRecord, group: GroupRecord | null, userId: string) {
+    if (!group) return event.adminUserId === userId;
+    if (groupBanIsActive(await this.groups.ban(group.id, userId), Date.now())) return false;
+    return (
+      group.adminUserId === userId ||
+      isGroupModerator(await this.groups.membership(group.id, userId))
+    );
+  }
   private async context(
     userId: string,
     id: string,
@@ -112,7 +121,7 @@ export class EventRecordsService {
     } else if (group) await this.member(group, userId);
     const event = lock ? await this.events.lock(id) : initial;
     if (!event) throw new CommunityError(404, "EVENT_NOT_FOUND");
-    if (admin && event.adminUserId !== userId)
+    if (admin && !(await this.manager(event, group, userId)))
       throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
     const own = await this.events.userRegistrations(id, userId);
     if (!group && event.adminUserId !== userId && !own.length)
@@ -227,7 +236,7 @@ export class EventRecordsService {
         plan.agreed ? "event_agreement_ready" : "event_agreement_blocked",
         event,
         actor,
-        [event.adminUserId],
+        group ? await this.groups.managerIds(group) : [event.adminUserId],
       );
     }
     return plan;
@@ -326,16 +335,16 @@ export class EventRecordsService {
         table.demonstratorUserId === userId &&
         (event.status === "PLANNING" || Boolean(table.confirmed)),
     );
-    const role: PlannedEventResponse["role"] =
-      event.adminUserId === userId
-        ? "admin"
-        : own.some((row) => row.status === "ACCEPTED")
-          ? "participant"
-          : myDemonstrator
-            ? "demonstrator"
-            : own.some((row) => row.status === "PENDING")
-              ? "invited"
-              : "member";
+    const canManage = !readOnly && (await this.manager(event, group, userId));
+    const role: PlannedEventResponse["role"] = canManage
+      ? "admin"
+      : own.some((row) => row.status === "ACCEPTED")
+        ? "participant"
+        : myDemonstrator
+          ? "demonstrator"
+          : own.some((row) => row.status === "PENDING")
+            ? "invited"
+            : "member";
     return {
       ...visible,
       locations: visible.locations.map((location) => ({
@@ -349,7 +358,9 @@ export class EventRecordsService {
         Boolean(group) && !readOnly,
         readOnly ? [] : own,
         Date.now(),
+        canManage,
       ),
+      canManage,
       readOnly,
       ...(readOnly
         ? {
@@ -363,7 +374,7 @@ export class EventRecordsService {
           }
         : {}),
       ...counts,
-      ...(!readOnly && event.adminUserId === userId && event.status === "CONFIRMED"
+      ...(!readOnly && canManage && event.status === "CONFIRMED"
         ? {
             resultsReady:
               tables.some((table) => table.confirmed) &&
@@ -567,8 +578,14 @@ export class EventRecordsService {
   }
   async create(userId: string, input: CreatePlannedEventInput) {
     const group = input.groupId ? await this.group(input.groupId, true) : null;
-    if (group && group.adminUserId !== userId)
-      throw new CommunityError(403, "GROUP_ADMIN_REQUIRED");
+    if (group) {
+      await this.member(group, userId);
+      if (
+        group.adminUserId !== userId &&
+        !isGroupModerator(await this.groups.membership(group.id, userId))
+      )
+        throw new CommunityError(403, "GROUP_ADMIN_REQUIRED");
+    }
     const at = new Date().toISOString();
     const locations = [];
     for (const location of input.locations)
@@ -863,15 +880,13 @@ export class EventRecordsService {
       base.seated.map((row) => row.id),
       table.confirmed?.playerIds ?? [],
     );
+    const canManage = !readOnly && (await this.manager(event, group, userId));
     const { resultDraft, ...visibleTable } = table;
     return {
       ...visibleTable,
+      canManage,
       readOnly,
-      ...(!readOnly &&
-      event.adminUserId === userId &&
-      event.status === "CONFIRMED" &&
-      table.confirmed &&
-      resultDraft
+      ...(!readOnly && canManage && event.status === "CONFIRMED" && table.confirmed && resultDraft
         ? { resultDraft }
         : {}),
       winners,
@@ -918,7 +933,7 @@ export class EventRecordsService {
       canRegister: open && !my && (Boolean(group) || event.adminUserId === userId),
       canRespond: open && my?.status === "PENDING" && my.kind === "INVITATION",
       canLeave: open && my?.status === "ACCEPTED",
-      canInvite: open && event.adminUserId === userId,
+      canInvite: open && canManage,
       ...(includeProfiles && !readOnly
         ? {
             gameVoteCounts: eventVoteCounts(
@@ -1181,7 +1196,11 @@ export class EventRecordsService {
       kind === "INVITATION" ? "table_invitation" : "event_booking_confirmed",
       event,
       userId,
-      [kind === "INVITATION" ? user : event.adminUserId],
+      kind === "INVITATION"
+        ? [user]
+        : group
+          ? await this.groups.managerIds(group)
+          : [event.adminUserId],
       tableId,
     );
     await this.saveSituation(event, group, userId);
@@ -1204,7 +1223,7 @@ export class EventRecordsService {
     )
       throw new CommunityError(409, "REGISTRATION_CHANGED");
     const own = row.userId === userId,
-      admin = event.adminUserId === userId;
+      admin = await this.manager(event, group, userId);
     let status: TableRegistration["status"];
     if (input.action === "accept" || input.action === "decline") {
       if (!own || row.kind !== "INVITATION" || row.status !== "PENDING")
@@ -1270,7 +1289,7 @@ export class EventRecordsService {
       status === "ACCEPTED" ? "event_booking_confirmed" : "event_booking_removed",
       event,
       userId,
-      [own ? event.adminUserId : row.userId],
+      own ? (group ? await this.groups.managerIds(group) : [event.adminUserId]) : [row.userId],
       row.tableId,
     );
     await this.saveSituation(event, group, userId);
@@ -1438,7 +1457,7 @@ export class EventRecordsService {
     const { event, group, readOnly } = await this.context(userId, eventId, false, false, true);
     const table = await this.events.table(tableId);
     if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
-    if (pending && (readOnly || event.adminUserId !== userId))
+    if (pending && (readOnly || !(await this.manager(event, group, userId))))
       throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
     const rows = await this.events.registrationsPage(
       tableId,

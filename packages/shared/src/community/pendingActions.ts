@@ -11,7 +11,11 @@ export type PendingAction = "reply" | "review";
 export function groupPendingAction(
   group: Pick<GroupRecordResponse, "role" | "pendingRequestCount" | "myMembership">,
 ): PendingAction | null {
-  if (group.role === "admin" && (group.pendingRequestCount ?? 0) > 0) return "review";
+  if (
+    (group.role === "admin" || group.role === "moderator") &&
+    (group.pendingRequestCount ?? 0) > 0
+  )
+    return "review";
   return group.role === "invited" &&
     group.myMembership?.kind === "INVITATION" &&
     group.myMembership.status === "PENDING"

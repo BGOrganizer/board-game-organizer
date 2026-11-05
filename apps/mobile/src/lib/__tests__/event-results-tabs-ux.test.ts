@@ -36,7 +36,7 @@ it("places admin result registration on included confirmed Tables and finalizati
   expect(detail).toContain("<EventFinalizeAction");
   expect(detail).not.toContain("<ClipboardPenLine");
   expect(table).toContain("<ClipboardPenLine");
-  expect(table).toContain("event.data.adminUserId === o.userId");
+  expect(table).toContain("canManageEvent(event.data, o.userId)");
   expect(table).toContain("table.confirmed");
   expect(table).toContain('table.eventStatus === "CONFIRMED"');
   expect(action).toContain("event.resultsReady !== true");

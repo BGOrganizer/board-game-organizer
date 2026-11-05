@@ -93,6 +93,12 @@ export function publicBookingIsClosed(
     now >= Date.parse(event.bookingClosesAt)
   );
 }
+export function canManageEvent(
+  record: { canManage?: boolean; adminUserId: string; readOnly?: boolean } | undefined,
+  userId: string | null | undefined,
+) {
+  return Boolean(record && !record.readOnly && (record.canManage ?? record.adminUserId === userId));
+}
 export function eventRecordCapabilities(
   event: EventRecord,
   groupType: EventGroupType,
@@ -100,8 +106,9 @@ export function eventRecordCapabilities(
   member: boolean,
   registrations: readonly TableRegistration[],
   now: number,
+  manager?: boolean,
 ): PlannedEventCapabilities {
-  const admin = event.adminUserId === userId;
+  const admin = manager ?? event.adminUserId === userId;
   const planning = event.status === "PLANNING";
   const open = planning && !publicBookingIsClosed(event, groupType, now);
   const accepted = registrations.some((row) => row.userId === userId && row.status === "ACCEPTED");

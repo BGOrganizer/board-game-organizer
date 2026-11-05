@@ -5719,3 +5719,46 @@ msgstr "<actor/> reached {count, plural, one {# victory} other {# victories}} at
 #. js-lingui-explicit-id
 msgid "<actor/> reached a victory milestone at table <target/>."
 msgstr "<actor/> reached a victory milestone at table <target/>."
+
+#. js-lingui-explicit-id
+#~ msgid "organization.feedback.promote_group_moderator.success"
+#~ msgstr "Group moderator appointed"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.feedback.promote_group_moderator.error"
+#~ msgstr "Could not appoint group moderator"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.feedback.demote_group_moderator.success"
+#~ msgstr "Group moderator demoted"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.feedback.demote_group_moderator.error"
+#~ msgstr "Could not demote group moderator"
+
+#: apps/web/src/components/groups/GroupMemberActions.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Demote to member"
+msgstr "Demote to member"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Grant group and event management permissions? Only the creator can change moderator roles. Moderators cannot delete the group or remove or ban its creator or other moderators."
+msgstr "Grant group and event management permissions? Only the creator can change moderator roles. Moderators cannot delete the group or remove or ban its creator or other moderators."
+
+#: apps/web/src/components/groups/GroupCard.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Group moderator"
+msgstr "Group moderator"
+
+#: apps/web/src/components/groups/GroupMemberActions.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Make moderator"
+msgstr "Make moderator"
+
+#: apps/web/src/components/groups/GroupMemberActions.tsx
+msgid "Manage member"
+msgstr "Manage member"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Remove moderator permissions? Group membership and event participation remain unchanged."
+msgstr "Remove moderator permissions? Group membership and event participation remain unchanged."

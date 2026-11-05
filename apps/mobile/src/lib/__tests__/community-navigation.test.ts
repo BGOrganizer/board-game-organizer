@@ -54,7 +54,7 @@ it("keeps pending group permissions gated and event creation contextual or stand
   const group = source("components/groups/GroupDetail.tsx");
   for (const cap of ["canViewMembers", "canViewEvents", "canViewRankings"])
     expect(group).toContain(cap);
-  expect(group).toMatch(/canCreate=\{group\.role\s*===\s*"admin"\s*&&\s*group\.canInvite\}/);
+  expect(group).toContain("canCreate={isGroupManagerRole(group.role) && group.canInvite}");
   expect(source("components/events/EventList.tsx")).toContain("FloatingActions");
   expect(source("components/groups/GroupWizard.tsx")).not.toContain("/match/search-user");
 });

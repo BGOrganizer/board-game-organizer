@@ -32,6 +32,24 @@ older membership-only activity/detail statements below.
 
 - One immutable creator/administrator; no transfer, additional administrators, archiving or type
   conversion. PRIVATE/PUBLIC is fixed at creation.
+- Creator alone may promote/demote accepted members to/from Group moderator, with explicit
+  confirmation and the captured membership version. Missing historical membership roles mean
+  ordinary members. Group moderators are neither Clerk roles nor global BGO review staff.
+  Moderators can edit Group information, manage invitations/requests and exclusions, and fully
+  administer its Events/Tables within existing state, cutoff, consent and result guards. Only the
+  creator can delete the Group. A moderator cannot remove/ban the creator or another moderator,
+  nor promote/demote anybody; creator may remove/ban moderators subject to the same frozen-duty
+  protections. Creator identity never transfers on moderator edits.
+- Current accepted Group authority governs grouped Event/Table management, not historical Event
+  authorship. Demotion, departure or exclusion revokes delegated management even on Events created
+  by that user; the creator retains management. Promotion/demotion and Event writers share the
+  Group transaction lock. Leaving/removal/ban clears moderator status; reinvitation never restores
+  it. Management alone creates no seat, vote, participation statistic or rating.
+- Member management uses one accent icon action, opening a bottom sheet with icon-bearing Ban,
+  Remove and Make moderator/Demote rows as authorized. Each action requires its own confirmation;
+  cancellation performs no mutation. Role changes use ordinary action-specific optimistic feedback
+  and selective rollback. Managers receive Group administration/request notices without inventing
+  member attention or broadening global moderation.
 - Main Groups has Private / Public / Search top tabs (Italian: Privati / Pubblici / Ricerca).
   Private/Public source-filter the viewer's administered Groups, accepted memberships and pending
   invitations by immutable type before pagination; requests, departed members and active exclusions
@@ -60,7 +78,8 @@ older membership-only activity/detail statements below.
   Favorites retain an opaque selection key while storing canonical location fields, so both the
   original selection and verified point support owner-scoped status/removal. Existing rows stay readable.
 - Invitations are friend-only and require individual acceptance. Public membership requests require
-  administrator approval. Pending invitees/requesters can read permitted group information and
+  creator/moderator approval. Invitations use the inviting manager's own eligible friends.
+  Pending invitees/requesters can read permitted group information and
   accepted members, but not group events, rankings or group-scoped social actions. Approved PUBLIC
   Groups also expose the accepted roster before a membership request, without social state/actions;
   private, unapproved and actively excluded access remains protected. Request and pending-request
@@ -82,8 +101,9 @@ older membership-only activity/detail statements below.
 
 ## Events and Tables
 
-- An event may be standalone or belong to a group. Only the group creator/admin creates grouped
-  events. Standalone invitations are friend-only; grouped participants must be accepted members.
+- An event may be standalone or belong to a group. Current creator/admin and accepted Group
+  moderators create and manage grouped events. Standalone administration remains creator-only.
+  Standalone invitations are friend-only; grouped participants must be accepted members.
   Successful grouped creation returns to that Group's Events tab; standalone creation returns to
   main Events' Available tab and edits retain their Event detail destination. Creation selects an optional Group
   inline through the platform HeroUI Select, with searchable source-paged Group items and explicit

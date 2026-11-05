@@ -1803,6 +1803,206 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     }
     return group;
   }
+  it("grants scoped Group moderators, protects creator and peers, preserves ownership and revokes historical Event authorship on demotion", async () => {
+    const group = await privateGroup();
+    for (const user of [GUEST, OTHER]) {
+      const membership = (await services().groupRecords.membership(group.id, user))!;
+      await transaction((s) =>
+        s.unifiedGroupService.membershipAction(OWNER, group.id, user, {
+          action: "promote",
+          version: membership.version,
+        }),
+      );
+    }
+    expect(await services().unifiedGroupService.detail(GUEST, group.id)).toMatchObject({
+      role: "moderator",
+      canEdit: true,
+      canInvite: true,
+      adminUserId: OWNER,
+    });
+    expect(
+      (
+        await services().unifiedGroupService.list(GUEST, "mine", { roles: ["admin"], limit: 5 })
+      ).items.map((g) => g.id),
+    ).toContain(group.id);
+    for (const action of ["promote", "demote", "remove"] as const) {
+      const peer = (await services().groupRecords.membership(group.id, OTHER))!;
+      await expect(
+        transaction((s) =>
+          s.unifiedGroupService.membershipAction(GUEST, group.id, OTHER, {
+            action,
+            version: peer.version,
+          }),
+        ),
+      ).rejects.toMatchObject({
+        code: action === "remove" ? "GROUP_MANAGER_PROTECTED" : "GROUP_ADMIN_REQUIRED",
+      });
+    }
+    await expect(
+      transaction((s) =>
+        s.unifiedGroupService.ban(GUEST, group.id, { userId: OWNER, until: null }),
+      ),
+    ).rejects.toMatchObject({ code: "GROUP_ADMIN_CANNOT_LEAVE" });
+    await expect(
+      transaction((s) =>
+        s.unifiedGroupService.ban(GUEST, group.id, { userId: OTHER, until: null }),
+      ),
+    ).rejects.toMatchObject({ code: "GROUP_MANAGER_PROTECTED" });
+    await expect(
+      transaction((s) =>
+        s.unifiedGroupService.remove(GUEST, group.id, {
+          version: group.version,
+          deleteEvents: true,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "GROUP_ADMIN_REQUIRED" });
+    const edited = await transaction((s) =>
+      s.unifiedGroupService.save(
+        GUEST,
+        { name: "Managed private club", version: group.version },
+        group.id,
+      ),
+    );
+    expect(edited.adminUserId).toBe(OWNER);
+    await transaction((s) => s.relationships.becomeFriends(GUEST, OUTSIDER));
+    const invite = await transaction((s) =>
+      s.unifiedGroupService.invite(GUEST, group.id, OUTSIDER),
+    );
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OUTSIDER, group.id, OUTSIDER, {
+        action: "accept",
+        version: invite.version,
+      }),
+    );
+    const event = await transaction((s) =>
+      s.plannedEventService.create(GUEST, plannedInput(group.id)),
+    );
+    expect(event).toMatchObject({ canManage: true, participantCount: 0, adminUserId: GUEST });
+    const membership = (await services().groupRecords.membership(group.id, GUEST))!;
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+        action: "demote",
+        version: membership.version,
+      }),
+    );
+    expect(await services().plannedEventService.detail(GUEST, event.id)).toMatchObject({
+      canManage: false,
+      canEdit: false,
+      canConfirm: false,
+      role: "member",
+    });
+    expect(await services().plannedEventService.detail(OWNER, event.id)).toMatchObject({
+      canManage: true,
+      canEdit: true,
+    });
+    await expect(
+      transaction((s) => s.plannedEventService.remove(GUEST, event.id, { version: event.version })),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    await expect(
+      services().plannedEventService.seats(GUEST, event.id, tableId, { limit: 5 }, true),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    expect((await services().groupRecords.find(group.id))?.adminUserId).toBe(OWNER);
+  });
+  it("delegates confirmation and immutable Event results without seating the moderator or changing ratings before finalization", async () => {
+    const group = await privateGroup(),
+      membership = (await services().groupRecords.membership(group.id, GUEST))!;
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+        action: "promote",
+        version: membership.version,
+      }),
+    );
+    const event = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    for (const user of [OWNER, OTHER]) {
+      await transaction((s) => s.plannedEventService.register(user, event.id, tableId));
+      await voteYes(event.id, user, tableId);
+    }
+    const version = (await services().eventRecords.find(event.id))!.version;
+    const frozen = await transaction((s) =>
+      s.plannedEventService.transition(GUEST, event.id, { action: "confirm", version }),
+    );
+    expect((await services().eventRecords.table(tableId))?.confirmed?.playerIds).toEqual([
+      OWNER,
+      OTHER,
+    ]);
+    const saved = await transaction((s) =>
+      s.plannedEventService.saveResult(GUEST, event.id, tableId, {
+        version: frozen.version,
+        lowerWins: false,
+        entries: [
+          { userId: OWNER, score: "5" },
+          { userId: OTHER, score: "3" },
+        ],
+        tieBreaks: [],
+      }),
+    );
+    expect(saved.table.resultDraft).toBeDefined();
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(0);
+    const done = await transaction((s) =>
+      s.plannedEventService.finalize(GUEST, event.id, { version: saved.event.version }),
+    );
+    expect(done.status).toBe("TERMINATED");
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ userId: GUEST })).toBe(
+      0,
+    );
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(4);
+    expect(
+      await db
+        .collection(COLLECTIONS.PROFILE_ACTIVITIES)
+        .countDocuments({ eventId: event.id, userId: GUEST }),
+    ).toBe(0);
+  });
+  it("serializes moderator demotion against Event edits through the existing Group transaction lock", async () => {
+    const group = await privateGroup(),
+      member = (await services().groupRecords.membership(group.id, GUEST))!;
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+        action: "promote",
+        version: member.version,
+      }),
+    );
+    const event = await transaction((s) =>
+      s.plannedEventService.create(GUEST, plannedInput(group.id)),
+    );
+    const current = (await services().groupRecords.membership(group.id, GUEST))!;
+    const { groupId: _groupId, ...input } = plannedInput(group.id);
+    const results = await Promise.allSettled([
+      transaction((s) =>
+        s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+          action: "demote",
+          version: current.version,
+        }),
+      ),
+      transaction((s) =>
+        s.plannedEventService.update(GUEST, event.id, {
+          ...input,
+          version: event.version,
+          removedTableIds: [],
+          name: "Concurrent moderator edit",
+        }),
+      ),
+    ]);
+    expect(results[0].status).toBe("fulfilled");
+    if (results[1].status === "rejected")
+      expect(results[1].reason).toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    expect((await services().groupRecords.membership(group.id, GUEST))?.role).toBe("MEMBER");
+    const next = (await services().eventRecords.find(event.id))!;
+    expect(next.adminUserId).toBe(GUEST);
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.update(GUEST, event.id, {
+          ...input,
+          version: next.version,
+          removedTableIds: [],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    expect(await services().plannedEventService.detail(OWNER, event.id)).toMatchObject({
+      canManage: true,
+    });
+  });
   it("saves admin-only provisional Table results without ratings or activities, excludes unconfirmed Tables and finalizes saved scores only", async () => {
     const group = await privateGroup(),
       input = plannedInput(group.id),

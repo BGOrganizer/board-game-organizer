@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useClientMutationDraft } from "../../common/hooks/useClientMutationDraft";
 import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
+import { canManageEvent } from "../eventRecordPolicy";
 import type { TableScoreInput } from "../tableScoreForm";
 import { useEventRecordActions } from "./useEventRecordActions";
 import {
@@ -65,7 +66,7 @@ export function useEventResultsForm(
     table.error,
   ]);
   const allowed = Boolean(
-    event.data?.adminUserId === options.userId &&
+    canManageEvent(event.data, options.userId) &&
       event.data?.status === "CONFIRMED" &&
       event.data.canFinalize &&
       table.data?.confirmed &&

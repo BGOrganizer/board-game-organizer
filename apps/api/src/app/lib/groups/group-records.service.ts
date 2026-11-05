@@ -20,6 +20,8 @@ import {
   groupBanIsActive,
   groupCapabilities,
   groupViewerRole,
+  isGroupManagerRole,
+  isGroupModerator,
   normalizeOrganizationName,
 } from "@board-game-organizer/shared";
 import { MongoServerError } from "mongodb";
@@ -53,6 +55,12 @@ export class GroupRecordsService {
   }
   private admin(group: GroupRecord, userId: string) {
     if (group.adminUserId !== userId) throw new CommunityError(403, "GROUP_ADMIN_REQUIRED");
+  }
+  private async manager(group: GroupRecord, userId: string) {
+    if (group.adminUserId === userId) return;
+    await this.noBan(group.id, userId);
+    if (!isGroupModerator(await this.groups.membership(group.id, userId)))
+      throw new CommunityError(403, "GROUP_ADMIN_REQUIRED");
   }
   async remove(userId: string, id: string, input: DeleteGroupRecordInput) {
     const group = await this.required(id, true);
@@ -92,7 +100,7 @@ export class GroupRecordsService {
     const ban = await this.groups.ban(group.id, userId);
     if (!canReadGroup(group, userId, membership, ban, Date.now(), moderator))
       throw new CommunityError(404, "GROUP_NOT_FOUND");
-    const owner = group.adminUserId === userId;
+    const owner = isGroupManagerRole(groupViewerRole(group, userId, membership));
     const located = { ...group };
     const readableRevisions =
       owner || moderator ? (["approved", "proposal"] as const) : (["approved"] as const);
@@ -192,7 +200,7 @@ export class GroupRecordsService {
   async save(userId: string, input: CreateGroupRecordInput | EditGroupRecordInput, id?: string) {
     const current = id ? await this.required(id, true) : undefined;
     if (current) {
-      this.admin(current, userId);
+      await this.manager(current, userId);
       if (!("version" in input) || input.version !== current.version)
         throw new CommunityError(409, "GROUP_CHANGED");
     }
@@ -213,7 +221,13 @@ export class GroupRecordsService {
           ),
         )
       : undefined;
-    if (input.logoAssetId && !(await this.assets.claim(input.logoAssetId, userId, groupId)))
+    if (
+      input.logoAssetId &&
+      ![current?.approved?.logoAssetId, current?.proposal?.logoAssetId].includes(
+        input.logoAssetId,
+      ) &&
+      !(await this.assets.claim(input.logoAssetId, userId, groupId))
+    )
       throw new CommunityError(400, "INVALID_LOGO");
     const revision = {
       name: input.name,
@@ -224,7 +238,7 @@ export class GroupRecordsService {
     const next = groupRecordSchema.parse({
       id: groupId,
       ...(clientRequestId ? { clientRequestId } : {}),
-      adminUserId: userId,
+      adminUserId: current?.adminUserId ?? userId,
       type,
       ...(type === "PRIVATE"
         ? { approved: revision }
@@ -290,7 +304,7 @@ export class GroupRecordsService {
           };
     await this.groups.save(next);
     await this.releaseLogos(current, next);
-    await this.notify("group_reviewed", next, userId, [next.adminUserId]);
+    await this.notify("group_reviewed", next, userId, await this.groups.managerIds(next));
     return this.response(next, userId, true);
   }
   private async friend(actor: string, target: string) {
@@ -304,7 +318,7 @@ export class GroupRecordsService {
   }
   async invitationCandidates(userId: string, id: string, page: GroupRecordPage) {
     const group = await this.required(id);
-    this.admin(group, userId);
+    await this.manager(group, userId);
     if (!group.approved) throw new CommunityError(409, "GROUP_NOT_APPROVED");
     const rows = await this.groups.invitationCandidates(id, userId, page);
     return {
@@ -322,7 +336,7 @@ export class GroupRecordsService {
   }
   async invite(userId: string, id: string, target: string) {
     const group = await this.required(id, true);
-    this.admin(group, userId);
+    await this.manager(group, userId);
     if (!group.approved) throw new CommunityError(409, "GROUP_NOT_APPROVED");
     await this.friend(userId, target);
     return this.pending(group, userId, target, "INVITATION");
@@ -373,7 +387,13 @@ export class GroupRecordsService {
           ],
         },
       ]);
-    else await this.notify("group_membership_requested", group, actor, [group.adminUserId]);
+    else
+      await this.notify(
+        "group_membership_requested",
+        group,
+        actor,
+        await this.groups.managerIds(group),
+      );
     return row;
   }
   async membershipAction(
@@ -388,8 +408,28 @@ export class GroupRecordsService {
     const current = await this.groups.membership(id, target);
     if (!current) throw new CommunityError(404, "MEMBERSHIP_NOT_FOUND");
     if (current.version !== input.version) throw new CommunityError(409, "MEMBERSHIP_CHANGED");
-    const own = userId === target,
-      admin = userId === group.adminUserId;
+    const own = userId === target;
+    const admin =
+      group.adminUserId === userId || isGroupModerator(await this.groups.membership(id, userId));
+    if (admin) await this.noBan(id, userId);
+    if (input.action === "promote" || input.action === "demote") {
+      this.admin(group, userId);
+      if (current.status !== "ACCEPTED") throw new CommunityError(409, "MEMBERSHIP_CHANGED");
+      const role = input.action === "promote" ? ("MODERATOR" as const) : ("MEMBER" as const);
+      if ((current.role ?? "MEMBER") === role) throw new CommunityError(409, "MEMBERSHIP_CHANGED");
+      const next = {
+        ...current,
+        role,
+        version: current.version + 1,
+        updatedAt: new Date().toISOString(),
+      };
+      await this.groups.saveMembership(next);
+      await this.notify("group_membership_updated", group, userId, [
+        ...(await this.groups.managerIds(group)),
+        target,
+      ]);
+      return next;
+    }
     let status: GroupMembership["status"];
     if (input.action === "accept" || input.action === "decline") {
       if (!own || current.kind !== "INVITATION")
@@ -411,6 +451,8 @@ export class GroupRecordsService {
       status = "LEFT";
     } else {
       if (!admin) throw new CommunityError(403, "GROUP_ADMIN_REQUIRED");
+      if (userId !== group.adminUserId && isGroupModerator(current))
+        throw new CommunityError(403, "GROUP_MANAGER_PROTECTED");
       if (current.status !== "PENDING" && current.status !== "ACCEPTED")
         throw new CommunityError(409, "MEMBERSHIP_CHANGED");
       status = "LEFT";
@@ -418,6 +460,7 @@ export class GroupRecordsService {
     const next = {
       ...current,
       status,
+      role: "MEMBER" as const,
       version: current.version + 1,
       updatedAt: new Date().toISOString(),
     };
@@ -436,7 +479,7 @@ export class GroupRecordsService {
       "group_membership_updated",
       group,
       userId,
-      [own ? group.adminUserId : target],
+      own ? await this.groups.managerIds(group) : [target],
       status === "ACCEPTED"
         ? [
             {
@@ -460,8 +503,12 @@ export class GroupRecordsService {
   }
   async ban(userId: string, id: string, input: BanGroupUserInput) {
     const group = await this.required(id, true);
-    this.admin(group, userId);
-    if (input.userId === userId) throw new CommunityError(403, "GROUP_ADMIN_CANNOT_LEAVE");
+    await this.manager(group, userId);
+    if (input.userId === group.adminUserId || input.userId === userId)
+      throw new CommunityError(403, "GROUP_ADMIN_CANNOT_LEAVE");
+    const membership = await this.groups.membership(id, input.userId);
+    if (userId !== group.adminUserId && isGroupModerator(membership))
+      throw new CommunityError(403, "GROUP_MANAGER_PROTECTED");
     if (!(await this.users.findById(input.userId))) throw new CommunityError(404, "USER_NOT_FOUND");
     if (input.until !== null && Date.parse(input.until) <= Date.now())
       throw new CommunityError(400, "BAN_EXPIRY_MUST_BE_FUTURE");
@@ -477,11 +524,11 @@ export class GroupRecordsService {
       updatedAt: at,
     };
     await this.groups.saveBan(row);
-    const membership = await this.groups.membership(id, input.userId);
     if (membership)
       await this.groups.saveMembership({
         ...membership,
         status: "LEFT",
+        role: "MEMBER",
         version: membership.version + 1,
         updatedAt: at,
       });
@@ -492,7 +539,7 @@ export class GroupRecordsService {
   }
   async revoke(userId: string, id: string, target: string) {
     const group = await this.required(id, true);
-    this.admin(group, userId);
+    await this.manager(group, userId);
     const ban = await this.groups.ban(id, target);
     if (!ban || ban.revokedAt) throw new CommunityError(404, "BAN_NOT_FOUND");
     const next = {
@@ -516,7 +563,7 @@ export class GroupRecordsService {
     if (!canReadGroup(group, userId, membership, ban, Date.now()))
       throw new CommunityError(404, "GROUP_NOT_FOUND");
     const capabilities = groupCapabilities(group, userId, membership, ban, Date.now());
-    const admin = group.adminUserId === userId;
+    const admin = isGroupManagerRole(groupViewerRole(group, userId, membership));
     if (!capabilities.canViewMembers || (mode !== "accepted" && !admin))
       throw new CommunityError(403, "GROUP_MEMBER_REQUIRED");
     let firstOwner = mode === "accepted" && !page.cursor;

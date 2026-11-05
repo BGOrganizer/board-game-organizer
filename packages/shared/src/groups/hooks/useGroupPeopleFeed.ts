@@ -7,6 +7,7 @@ import {
 import { clientMutationPhase } from "../../common/clientMutation";
 import { useScopedMutations } from "../../common/hooks/useScopedMutations";
 import type { CommunityApiOptions } from "../../community/communityApi";
+import { isGroupManagerRole } from "../groupPolicy";
 import { groupRecordKeys, useGroupPeople } from "./useGroupRecords";
 
 type ClientGroupPerson = GroupPersonResponse & { optimisticInvited?: true };
@@ -19,7 +20,7 @@ export function useGroupPeopleFeed(
   const canView = options.enabled !== false && group.canViewMembers;
   const accepted = useGroupPeople({ ...options, enabled: canView }, group.id, "accepted", query);
   const pendingEnabled =
-    canView && group.role === "admin" && accepted.isSuccess && !accepted.hasNextPage;
+    canView && isGroupManagerRole(group.role) && accepted.isSuccess && !accepted.hasNextPage;
   const pending = useGroupPeople(
     { ...options, enabled: options.enabled !== false && pendingEnabled },
     group.id,
@@ -65,7 +66,7 @@ export function useGroupPeopleFeed(
       const userId = input?.userId ?? input?.input?.userId;
       if (
         !canView ||
-        group.role !== "admin" ||
+        !isGroupManagerRole(group.role) ||
         input?.id !== group.id ||
         !userId ||
         seen.has(userId) ||

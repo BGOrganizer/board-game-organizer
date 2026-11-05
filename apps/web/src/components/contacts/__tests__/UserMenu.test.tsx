@@ -127,8 +127,9 @@ describe("UserMenu", () => {
 
     await openMenu();
     fireEvent.click(screen.getByRole("menuitem", { name: "Block" }));
-    expect(await screen.findByRole("dialog", { name: "Block contact" })).not.toBeNull();
-    fireEvent.keyDown(document, { key: "Escape" });
+    const dialog = await screen.findByRole("dialog", { name: "Block contact" });
+    // jsdom does not synthesize the native dialog cancel event from Escape.
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
     await openMenu();

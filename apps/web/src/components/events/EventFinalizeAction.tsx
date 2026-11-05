@@ -1,6 +1,7 @@
 "use client";
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
+  canManageEvent,
   eventRecordKeys,
   useClientMutationDraft,
   useEventRecordActions,
@@ -34,7 +35,7 @@ export function EventFinalizeAction({
   const checking = draft?.phase === "verifying";
   const blocked =
     disabled || a.busy || checking || !event.canFinalize || event.resultsReady !== true;
-  if (event.adminUserId !== o.userId || event.status !== "CONFIRMED") return null;
+  if (!canManageEvent(event, o.userId) || event.status !== "CONFIRMED") return null;
   return (
     <div className="flex items-center gap-1">
       {event.resultsReady !== true ? (

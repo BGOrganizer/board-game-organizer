@@ -28,7 +28,7 @@ it("opts into icon/text row actions with cancel below and preserves all callback
   fireEvent.click(buttons[0]);
   expect(accept).toHaveBeenCalledOnce();
   fireEvent.click(buttons[1]);
-  fireEvent.keyDown(window, { key: "Escape" });
+  fireEvent(dialog, new Event("cancel", { cancelable: true }));
   expect(cancel).toHaveBeenCalledTimes(2);
 });
 it.each([false, true])(
@@ -53,6 +53,33 @@ it.each([false, true])(
     expect(buttons[0].className).toContain("w-full");
   },
 );
+it("opens a native modal and releases it on unmount without sharing title ids", () => {
+  const close = vi.spyOn(HTMLDialogElement.prototype, "close");
+  const view = renderWithI18n(
+    <>
+      <ContactConfirmDialog
+        title="First"
+        description="First operation"
+        onCancel={vi.fn()}
+        actions={[]}
+      />
+      <ContactConfirmDialog
+        title="Second"
+        description="Second operation"
+        onCancel={vi.fn()}
+        actions={[]}
+      />
+    </>,
+  );
+  const first = screen.getByRole("dialog", { name: "First" }),
+    second = screen.getByRole("dialog", { name: "Second" });
+  expect(first.tagName).toBe("DIALOG");
+  expect(first.hasAttribute("open")).toBe(true);
+  expect(second.getAttribute("aria-labelledby")).not.toBe(first.getAttribute("aria-labelledby"));
+  view.unmount();
+  expect(close).toHaveBeenCalledTimes(2);
+  close.mockRestore();
+});
 it("wraps desktop actions so a three-button removal cannot push Cancel outside the dialog", () => {
   renderWithI18n(
     <ContactConfirmDialog
@@ -93,7 +120,10 @@ it("blocks repeated submission, Escape and backdrop dismissal while busy", () =>
     expect(button.hasAttribute("disabled")).toBe(true);
     fireEvent.click(button);
   }
-  fireEvent.keyDown(window, { key: "Escape" });
+  fireEvent(
+    screen.getByRole("dialog", { name: "Busy" }),
+    new Event("cancel", { cancelable: true }),
+  );
   fireEvent.keyDown(window, { key: "Enter" });
   // The portal backdrop is aria-hidden, never another dialog or button.
   const backdrop = container.ownerDocument.querySelector('[aria-hidden="true"].bg-backdrop');

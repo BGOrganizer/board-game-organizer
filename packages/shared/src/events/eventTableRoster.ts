@@ -1,5 +1,6 @@
 import type { PlannedTableResponse, TableSeatResponse } from "@board-game-organizer/schemas";
 import type { UserProfile } from "../common/types";
+import { canManageEvent } from "./eventRecordPolicy";
 export type EventTablePlace =
   | { key: string; kind: "player"; user: TableSeatResponse }
   | { key: string; kind: "reserved" | "empty"; queue: boolean };
@@ -14,7 +15,8 @@ export function eventTableRoster(
 ) {
   const known = new Map<string, TableSeatResponse>();
   for (const row of [...accepted, ...pending]) {
-    if (row.status === "PENDING" && table.adminUserId !== userId && row.userId !== userId) continue;
+    if (row.status === "PENDING" && !canManageEvent(table, userId) && row.userId !== userId)
+      continue;
     const previous = known.get(row.id);
     if (row.status === "ACCEPTED" || row.status === "PENDING") {
       if (!previous || previous.version < row.version) known.set(row.id, row);

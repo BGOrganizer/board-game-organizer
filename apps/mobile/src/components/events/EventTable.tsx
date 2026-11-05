@@ -1,4 +1,5 @@
 import {
+  canManageEvent,
   communityAccessDenied,
   tableItemTargets,
   useEventRecord,
@@ -49,7 +50,7 @@ export function EventTable({
           table && event.data ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               {!readOnly &&
-              event.data.adminUserId === o.userId &&
+              canManageEvent(event.data, o.userId) &&
               event.data.status === "CONFIRMED" &&
               event.data.canFinalize &&
               table.eventStatus === "CONFIRMED" &&

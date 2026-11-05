@@ -49,6 +49,7 @@ import {
   mapCommunityCache,
   versionedCommunityChange,
 } from "../../community/queryCache";
+import { isGroupManagerRole } from "../../groups/groupPolicy";
 import { groupRecordDetailQuery, groupRecordKeys } from "../../groups/hooks/useGroupRecords";
 import { attentionKey } from "../../notifications/notificationAttention";
 import {
@@ -479,7 +480,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
           if (signal.aborted) throw new Error("MUTATION_OWNER_CHANGED");
           if (
             group.id !== variables.groupId ||
-            group.role !== "admin" ||
+            !isGroupManagerRole(group.role) ||
             !group.canInvite ||
             !group.canEdit
           )

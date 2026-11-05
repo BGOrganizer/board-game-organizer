@@ -71,11 +71,21 @@ export const groupMembershipSchema = z
     userId: targetUserIdSchema,
     kind: z.enum(["INVITATION", "REQUEST"]),
     status: z.enum(["PENDING", "ACCEPTED", "DECLINED", "LEFT"]),
+    /** Missing on historical memberships means ordinary member. */
+    role: z.enum(["MEMBER", "MODERATOR"]).optional(),
     version: z.number().int().positive(),
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
   })
-  .strict();
+  .strict()
+  .superRefine((membership, context) => {
+    if (membership.role === "MODERATOR" && membership.status !== "ACCEPTED")
+      context.addIssue({
+        code: "custom",
+        path: ["role"],
+        message: "Moderator role requires accepted membership",
+      });
+  });
 export type GroupMembership = z.infer<typeof groupMembershipSchema>;
 export const groupBanSchema = z
   .object({

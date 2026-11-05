@@ -1,5 +1,6 @@
 import { notificationItemId } from "@board-game-organizer/schemas";
 import {
+  canManageEvent,
   communityAccessDenied,
   eventAvailabilityVoteIsAllowed,
   eventDateWall,
@@ -74,7 +75,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       options={{
         title: event?.name ?? t("Event details"),
         headerRight: () =>
-          !event?.readOnly && event?.adminUserId === o.userId && event?.status === "PLANNING" ? (
+          !event?.readOnly && canManageEvent(event, o.userId) && event?.status === "PLANNING" ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               {confirmationBlocked ? (
                 <HelpPopover
@@ -112,7 +113,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
             </View>
           ) : !event?.readOnly &&
-            event?.adminUserId === o.userId &&
+            canManageEvent(event, o.userId) &&
             event?.status === "CONFIRMED" ? (
             <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
           ) : null,
@@ -142,7 +143,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     if (
       a.busy ||
       q.isPlaceholderData ||
-      event.adminUserId !== o.userId ||
+      !canManageEvent(event, o.userId) ||
       (confirm === "confirm" && confirmationBlocked) ||
       (confirm === "replan" && !event.canReplan)
     ) {
@@ -386,7 +387,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               </View>
             }
           />
-          {event.adminUserId === o.userId && event.status === "CONFIRMED" && event.canReplan ? (
+          {canManageEvent(event, o.userId) && event.status === "CONFIRMED" && event.canReplan ? (
             <FloatingActions
               label={t("Reopen planning")}
               variant="secondary"

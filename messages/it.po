@@ -5719,3 +5719,46 @@ msgstr "<actor/> ha raggiunto quota {count, plural, one {# vittoria} other {# vi
 #. js-lingui-explicit-id
 msgid "<actor/> reached a victory milestone at table <target/>."
 msgstr "<actor/> ha raggiunto un traguardo di vittorie al tavolo <target/>."
+
+#. js-lingui-explicit-id
+#~ msgid "organization.feedback.promote_group_moderator.success"
+#~ msgstr "Moderatore del gruppo nominato"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.feedback.promote_group_moderator.error"
+#~ msgstr "Impossibile nominare il moderatore del gruppo"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.feedback.demote_group_moderator.success"
+#~ msgstr "Moderatore del gruppo riportato a membro ordinario"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.feedback.demote_group_moderator.error"
+#~ msgstr "Impossibile revocare il ruolo di moderatore del gruppo"
+
+#: apps/web/src/components/groups/GroupMemberActions.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Demote to member"
+msgstr "Rendi membro ordinario"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Grant group and event management permissions? Only the creator can change moderator roles. Moderators cannot delete the group or remove or ban its creator or other moderators."
+msgstr "Concedere i permessi di gestione del gruppo e degli eventi? Solo il creatore può cambiare i ruoli dei moderatori. I moderatori non possono cancellare il gruppo né rimuovere o bannare il creatore o altri moderatori."
+
+#: apps/web/src/components/groups/GroupCard.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Group moderator"
+msgstr "Moderatore del gruppo"
+
+#: apps/web/src/components/groups/GroupMemberActions.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Make moderator"
+msgstr "Rendi moderatore"
+
+#: apps/web/src/components/groups/GroupMemberActions.tsx
+msgid "Manage member"
+msgstr "Gestisci membro"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Remove moderator permissions? Group membership and event participation remain unchanged."
+msgstr "Revocare i permessi di moderatore? L'iscrizione al gruppo e la partecipazione agli eventi restano invariate."

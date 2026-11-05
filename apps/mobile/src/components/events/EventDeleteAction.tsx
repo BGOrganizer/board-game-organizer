@@ -4,6 +4,7 @@ import type {
   PlannedTableResponse,
 } from "@board-game-organizer/schemas";
 import {
+  canManageEvent,
   eventRecordKeys,
   useClientMutationDraft,
   useEventRecordActions,
@@ -46,10 +47,10 @@ export function EventDeleteAction({
   const allowed =
     !event.readOnly &&
     !table?.readOnly &&
-    event.adminUserId === options.userId &&
+    canManageEvent(event, options.userId) &&
     event.status === "PLANNING" &&
     (!table ||
-      (table.adminUserId === options.userId &&
+      (canManageEvent(table, options.userId) &&
         table.eventId === event.id &&
         table.eventStatus === "PLANNING"));
   const blocked =

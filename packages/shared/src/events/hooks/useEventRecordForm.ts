@@ -9,6 +9,7 @@ import { MAX_EVENT_OPTIONS } from "@board-game-organizer/schemas";
 import { useEffect, useRef, useState } from "react";
 import type { CommunityApiOptions } from "../../community/communityApi";
 import { communityAccessDenied } from "../../community/communityApi";
+import { isGroupManagerRole } from "../../groups/groupPolicy";
 import { useGroupRecord } from "../../groups/hooks/useGroupRecords";
 import {
   type EventRecordDraft,
@@ -204,7 +205,7 @@ export function useEventRecordForm(
     draft.removedTableIds.length +
     draft.tables.filter((row) => !row.id).length;
   if (step === 1 && retainedCount < 1) issues.push("tables");
-  if (step === 0 && draft.groupId && (!group?.canInvite || group.role !== "admin"))
+  if (step === 0 && draft.groupId && (!group?.canInvite || !isGroupManagerRole(group.role)))
     issues.push("groupId");
   const fieldError = (path: string) =>
     Boolean(

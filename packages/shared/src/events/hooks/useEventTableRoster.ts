@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useScopedMutations } from "../../common/hooks/useScopedMutations";
 import type { CommunityApiOptions } from "../../community/communityApi";
 import { useProfileQuery } from "../../profile/hooks/useProfile";
+import { canManageEvent } from "../eventRecordPolicy";
 import {
   type PendingTableInvitation,
   pendingInvitationPlaces,
@@ -22,13 +23,13 @@ export function useEventTableRoster(o: CommunityApiOptions, table: PlannedTableR
     {
       ...o,
       enabled:
-        o.enabled !== false && table.eventStatus === "PLANNING" && table.adminUserId === o.userId,
+        o.enabled !== false && table.eventStatus === "PLANNING" && canManageEvent(table, o.userId),
     },
     table.eventId,
     table.id,
     true,
   );
-  const ownerPending = table.eventStatus === "PLANNING" && table.adminUserId === o.userId;
+  const ownerPending = table.eventStatus === "PLANNING" && canManageEvent(table, o.userId);
   const pages = ownerPending ? [accepted, pending] : [accepted];
   const view = eventTableRoster(
     table,

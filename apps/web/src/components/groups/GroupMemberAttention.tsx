@@ -8,7 +8,15 @@ import { useEffect, useRef, useState } from "react";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
-export function GroupMemberAttention({ groupId, userId }: { groupId: string; userId: string }) {
+export function GroupMemberAttention({
+  groupId,
+  userId,
+  enabled = true,
+}: {
+  groupId: string;
+  userId: string;
+  enabled?: boolean;
+}) {
   const options = useCommunityApi(),
     element = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(false);
@@ -16,7 +24,7 @@ export function GroupMemberAttention({ groupId, userId }: { groupId: string; use
   const active = Boolean(
     useNotificationAttentionContext()?.get({ kind: "item", id: itemId })?.count,
   );
-  useNotificationItemDwell(options, itemId, visible);
+  useNotificationItemDwell(options, itemId, visible && enabled);
   useEffect(() => {
     if (!active) {
       setVisible(false);
@@ -30,6 +38,7 @@ export function GroupMemberAttention({ groupId, userId }: { groupId: string; use
         intersecting &&
           document.visibilityState === "visible" &&
           document.hasFocus() &&
+          !document.querySelector('dialog[aria-modal="true"][open]') &&
           !node.closest('[aria-hidden="true"],[inert]'),
       );
     const observer = new IntersectionObserver(
@@ -44,7 +53,7 @@ export function GroupMemberAttention({ groupId, userId }: { groupId: string; use
     hidden.observe(document.body, {
       attributes: true,
       subtree: true,
-      attributeFilter: ["aria-hidden", "inert"],
+      attributeFilter: ["aria-hidden", "inert", "open"],
     });
     document.addEventListener("visibilitychange", update);
     window.addEventListener("focus", update);

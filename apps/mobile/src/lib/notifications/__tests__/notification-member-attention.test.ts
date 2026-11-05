@@ -85,13 +85,22 @@ it("native app/screen changes stop viewing, and only a visible uncovered member 
   const expression = attr.initializer.expression.getText(file);
   const visibleIds = new Set(["member"]),
     person = { userId: "member" };
-  const bindings = { focused: true, active: true, managed: null, menu: null, visibleIds, person };
+  const bindings = {
+    focused: true,
+    active: true,
+    managed: null,
+    menu: null,
+    staffMenu: null,
+    visibleIds,
+    person,
+  };
   expect(evaluate(expression, bindings)).toBe(true);
   for (const patch of [
     { focused: false },
     { active: false },
     { managed: {} },
     { menu: "open" },
+    { staffMenu: "open" },
     { visibleIds: new Set() },
   ])
     expect(evaluate(expression, { ...bindings, ...patch })).toBe(false);

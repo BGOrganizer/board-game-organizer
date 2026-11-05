@@ -2,6 +2,7 @@ import type {
   CreatePlannedEventInput,
   EventRecord,
   EventVoter,
+  GroupMembership,
   GroupRecord,
   JoinEventAvailability,
   JoinTableInput,
@@ -185,7 +186,12 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
   const groups = {
     find: vi.fn(async () => clone(group)),
     lock: vi.fn(async () => clone(group)),
-    membership: vi.fn(async () => ({ status: "ACCEPTED" })),
+    managerIds: vi.fn(async () => [owner]),
+    membership: vi.fn(
+      async (_groupId: string, _userId: string): Promise<Partial<GroupMembership> | null> => ({
+        status: "ACCEPTED",
+      }),
+    ),
     ban: vi.fn(async () => null),
   };
   const games = {
@@ -1966,5 +1972,82 @@ describe("public scheduling, deadline and membership consequences", () => {
       "ACCEPTED",
     );
     expect(f.votes.size).toBe(2);
+  });
+});
+describe("current Group management authority", () => {
+  it("permits a current moderator to create grouped Events without implicit registrations", async () => {
+    const f = setup("PRIVATE");
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED", role: "MODERATOR" });
+    const event = await f.service.create(guest, { ...body(), groupId: other });
+    expect(event).toMatchObject({
+      adminUserId: guest,
+      canManage: true,
+      canEdit: true,
+      role: "admin",
+      participantCount: 0,
+    });
+    expect(f.registrations.size).toBe(0);
+    expect(await f.service.detail(owner, event.id)).toMatchObject({
+      canManage: true,
+      canEdit: true,
+      role: "admin",
+    });
+  });
+  it("allows delegated provisional results/finalization but preserves frozen rosters and immutable outcomes", async () => {
+    const f = await resultFixture();
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED", role: "MODERATOR" });
+    expect(await f.service.detail(guest, f.event.id)).toMatchObject({
+      canManage: true,
+      canFinalize: true,
+    });
+    const saved = await f.service.saveResult(guest, f.event.id, id, {
+      version: 10,
+      lowerWins: false,
+      entries: [
+        { userId: owner, score: "5" },
+        { userId: guest, score: "3" },
+      ],
+      tieBreaks: [],
+    });
+    expect(saved.table).toMatchObject({ canManage: true, resultDraft: { lowerWins: false } });
+    const done = await f.service.finalize(guest, f.event.id, { version: saved.event.version });
+    expect(done.status).toBe("TERMINATED");
+    expect(f.ratings.applyTableResult).toHaveBeenCalledOnce();
+    await expect(
+      f.service.saveResult(guest, f.event.id, id, {
+        version: done.version,
+        lowerWins: false,
+        entries: [
+          { userId: owner, score: "5" },
+          { userId: guest, score: "3" },
+        ],
+        tieBreaks: [],
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_NOT_CONFIRMED" });
+  });
+  it("revokes even the historical Event author's powers after demotion and denies pending roster reads", async () => {
+    const f = setup("PRIVATE");
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED", role: "MODERATOR" });
+    const event = await f.service.create(guest, { ...body(), groupId: other });
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED", role: "MEMBER" });
+    expect(await f.service.detail(guest, event.id)).toMatchObject({
+      canManage: false,
+      canEdit: false,
+      canInvite: false,
+      canConfirm: false,
+      role: "member",
+    });
+    expect(await f.service.tableDetail(guest, event.id, id)).toMatchObject({
+      canManage: false,
+      canInvite: false,
+    });
+    await expect(
+      f.service.remove(guest, event.id, { version: event.version }),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    await expect(f.service.seats(guest, event.id, id, { limit: 20 }, true)).rejects.toMatchObject({
+      code: "EVENT_ADMIN_REQUIRED",
+    });
+    await f.service.remove(owner, event.id, { version: event.version });
+    expect(f.events.size).toBe(0);
   });
 });

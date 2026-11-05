@@ -284,6 +284,8 @@ export function groupMembershipFeedback(
     reject: "reject_group_join",
     cancel: "leave_group",
     remove: "remove_group_member",
+    promote: "promote_group_moderator",
+    demote: "demote_group_moderator",
   }[action] as MutationFeedbackAction;
 }
 export function useGroupRecordActions(options: CommunityApiOptions, groupId = "") {
@@ -527,7 +529,9 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
                     myMembership: membership,
                     role:
                       membership.status === "ACCEPTED"
-                        ? "accepted"
+                        ? membership.role === "MODERATOR"
+                          ? "moderator"
+                          : "accepted"
                         : membership.status === "PENDING"
                           ? membership.kind === "INVITATION"
                             ? "invited"
@@ -895,16 +899,26 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         (person) =>
           person.userId === userId &&
           person.membership &&
-          ["remove", "cancel", "reject", "decline"].includes(input.action)
+          (input.action === "promote" || input.action === "demote")
             ? {
                 ...person,
                 membership: {
                   ...person.membership,
-                  status:
-                    input.action === "decline" || input.action === "reject" ? "DECLINED" : "LEFT",
+                  role: input.action === "promote" ? "MODERATOR" : "MEMBER",
                 },
               }
-            : person,
+            : person.userId === userId &&
+                person.membership &&
+                ["remove", "cancel", "reject", "decline"].includes(input.action)
+              ? {
+                  ...person,
+                  membership: {
+                    ...person.membership,
+                    status:
+                      input.action === "decline" || input.action === "reject" ? "DECLINED" : "LEFT",
+                  },
+                }
+              : person,
         undefined,
         userId,
       );

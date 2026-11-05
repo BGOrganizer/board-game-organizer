@@ -230,6 +230,28 @@ export class GroupRecordsRepository {
   membership(groupId: string, userId: string) {
     return this.memberships.findOne({ groupId, userId }, { ...this.opts, projection: { _id: 0 } });
   }
+  async managerIds(group: GroupRecord) {
+    const rows = await this.memberships
+      .find(
+        { groupId: group.id, status: "ACCEPTED", role: "MODERATOR" },
+        { ...this.opts, projection: { _id: 0, userId: 1 } },
+      )
+      .toArray();
+    const bans = await this.bans
+      .find(
+        {
+          groupId: group.id,
+          revokedAt: { $exists: false },
+          $or: [{ until: null }, { until: { $gt: new Date().toISOString() } }],
+        },
+        { ...this.opts, projection: { _id: 0, userId: 1 } },
+      )
+      .toArray();
+    const excluded = new Set(bans.map((row) => row.userId));
+    return [...new Set([group.adminUserId, ...rows.map((row) => row.userId)])].filter(
+      (id) => !excluded.has(id),
+    );
+  }
   async saveMembership(row: GroupMembership) {
     const previous =
       row.status === "ACCEPTED" ? await this.membership(row.groupId, row.userId) : null;
@@ -477,7 +499,12 @@ export class GroupRecordsRepository {
           $or: (page.roles ?? ["admin", "invited", "accepted"]).length
             ? (page.roles ?? ["admin", "invited", "accepted"]).map((role) =>
                 role === "admin"
-                  ? { adminUserId: userId }
+                  ? {
+                      $or: [
+                        { adminUserId: userId },
+                        { viewerRows: { $elemMatch: { status: "ACCEPTED", role: "MODERATOR" } } },
+                      ],
+                    }
                   : {
                       viewerRows: {
                         $elemMatch:

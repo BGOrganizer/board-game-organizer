@@ -28,7 +28,7 @@ it("separates group administration from global social blocking and protects the 
       { role: "admin" },
       { ...member, membership: { ...membership, status: "ACCEPTED" } },
     ),
-  ).toEqual(["remove", "ban"]);
+  ).toEqual(["remove", "ban", "promote"]);
   expect(
     groupPersonActions(
       { role: "admin" },

@@ -8,16 +8,37 @@ import type {
   GroupViewerRole,
 } from "@board-game-organizer/schemas";
 
-export type GroupPersonAction = "approve" | "reject" | "remove" | "ban" | "revoke";
+export type GroupPersonAction =
+  | "approve"
+  | "reject"
+  | "remove"
+  | "ban"
+  | "revoke"
+  | "promote"
+  | "demote";
+export function isGroupManagerRole(role: GroupViewerRole) {
+  return role === "admin" || role === "moderator";
+}
+export function isGroupModerator(membership: GroupMembership | null) {
+  return membership?.status === "ACCEPTED" && membership.role === "MODERATOR";
+}
 export function groupPersonActions(
   group: Pick<GroupRecordResponse, "role">,
   person: Pick<GroupPersonResponse, "isAdmin" | "membership" | "ban">,
 ): GroupPersonAction[] {
-  if (group.role !== "admin" || person.isAdmin) return [];
+  if (!isGroupManagerRole(group.role) || person.isAdmin) return [];
+  if (group.role === "moderator" && isGroupModerator(person.membership)) return [];
   if (person.ban && !person.ban.revokedAt) return ["revoke"];
   if (person.membership?.status === "PENDING")
     return person.membership.kind === "REQUEST" ? ["approve", "reject", "ban"] : ["remove", "ban"];
-  if (person.membership?.status === "ACCEPTED") return ["remove", "ban"];
+  if (person.membership?.status === "ACCEPTED")
+    return [
+      "remove",
+      "ban",
+      ...(group.role === "admin"
+        ? [isGroupModerator(person.membership) ? ("demote" as const) : ("promote" as const)]
+        : []),
+    ];
   return [];
 }
 
@@ -28,7 +49,7 @@ export function ownGroupActions(
   if (group.role === "admin") return [];
   if (group.myMembership?.status === "PENDING")
     return group.myMembership.kind === "INVITATION" ? ["accept", "decline"] : ["cancel"];
-  if (group.role === "accepted") return ["cancel"];
+  if (group.role === "accepted" || group.role === "moderator") return ["cancel"];
   return group.type === "PUBLIC" && group.approved ? ["request"] : [];
 }
 
@@ -41,6 +62,7 @@ export function groupViewerRole(
   membership: GroupMembership | null,
 ): GroupViewerRole {
   if (group.adminUserId === userId) return "admin";
+  if (isGroupModerator(membership)) return "moderator";
   if (membership?.status === "ACCEPTED") return "accepted";
   if (membership?.status === "PENDING")
     return membership.kind === "INVITATION" ? "invited" : "requested";
@@ -56,15 +78,16 @@ export function groupCapabilities(
   const role = groupViewerRole(group, userId, membership);
   const banned = groupBanIsActive(ban, now);
   const active = !banned && Boolean(group.approved);
-  const member = active && (role === "admin" || role === "accepted");
+  const manager = isGroupManagerRole(role);
+  const member = active && (manager || role === "accepted");
   const pending = active && (role === "invited" || role === "requested");
   return {
     canViewMembers: member || pending || (active && group.type === "PUBLIC"),
     canViewEvents: member,
     canViewRankings: member,
     canSocialInteract: member,
-    canInvite: active && role === "admin",
-    canEdit: !banned && role === "admin",
+    canInvite: active && manager,
+    canEdit: !banned && manager,
   };
 }
 export function canReadGroup(
@@ -79,7 +102,7 @@ export function canReadGroup(
   if (groupBanIsActive(ban, now)) return false;
   const role = groupViewerRole(group, userId, membership);
   return (
-    role === "admin" ||
+    isGroupManagerRole(role) ||
     (Boolean(group.approved) &&
       (group.type === "PUBLIC" || role === "accepted" || role === "invited"))
   );

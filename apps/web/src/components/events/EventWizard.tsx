@@ -6,6 +6,7 @@ import {
   creationState,
   eventDateWall,
   eventRecordKeys,
+  isGroupManagerRole,
   useClientMutationDraft,
   useEventCreationDraft,
   useEventRecord,
@@ -315,7 +316,7 @@ function Editor({
               Boolean(event && (a.busy || checking)) ||
               form.conflict ||
               form.closed ||
-              (!!draft.groupId && (!form.group?.canInvite || form.group.role !== "admin"))
+              (!!draft.groupId && (!form.group?.canInvite || !isGroupManagerRole(form.group.role)))
             }
             onPress={() => void save()}
           >

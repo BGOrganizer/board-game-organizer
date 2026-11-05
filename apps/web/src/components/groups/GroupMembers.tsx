@@ -8,6 +8,8 @@ import {
   communityAccessDenied,
   groupPersonActions,
   groupPersonContact,
+  isGroupManagerRole,
+  isGroupModerator,
   useGroupMemberManagement,
 } from "@board-game-organizer/shared";
 import { Avatar, Button, Skeleton } from "@heroui/react";
@@ -19,6 +21,7 @@ import {
   Clock3,
   Crown,
   RotateCcw,
+  ShieldCheck,
   UserRoundMinus,
   UserRoundPlus,
   X,
@@ -33,6 +36,7 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { GroupBanDialog } from "./GroupBanDialog";
+import { GroupMemberActions } from "./GroupMemberActions";
 import { GroupMemberAttention } from "./GroupMemberAttention";
 export function GroupMembers({ group }: { group: GroupRecordResponse }) {
   const { t, i18n } = useLingui(),
@@ -55,6 +59,8 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
       ? t`This user is involved in a frozen public event and cannot be excluded.`
       : t`Could not update group member. Try again or refresh the list.`
     : undefined;
+  const roleChange = managed?.action === "promote" || managed?.action === "demote";
+  const roleLabel = managed?.action === "promote" ? t`Make moderator` : t`Demote to member`;
   return (
     <NotificationAttentionScope
       options={options}
@@ -66,7 +72,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
         }))}
     >
       <section className="space-y-4" aria-label={t`Members`}>
-        {group.role === "admin" ? (
+        {isGroupManagerRole(group.role) ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Button
@@ -103,7 +109,9 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                             : t`Invited`,
                         color: "text-warning",
                       }
-                    : null;
+                    : isGroupModerator(person.membership)
+                      ? { Icon: ShieldCheck, label: t`Group moderator`, color: "text-accent" }
+                      : null;
             return (
               <GroupedRow key={person.userId}>
                 <span className="relative shrink-0">
@@ -125,7 +133,11 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="min-w-0 truncate font-medium">{name(person)}</span>
                     {person.membership?.status === "ACCEPTED" ? (
-                      <GroupMemberAttention groupId={group.id} userId={person.userId} />
+                      <GroupMemberAttention
+                        groupId={group.id}
+                        userId={person.userId}
+                        enabled={!managed}
+                      />
                     ) : null}
                   </span>
                   {person.username && person.username !== name(person) ? (
@@ -155,30 +167,12 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                       <ClipboardCheck className="size-4" aria-hidden />
                     </Button>
                   ) : null}
-                  {allowed.includes("remove") ? (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="danger-soft"
-                      aria-label={`${t`Remove member`}: ${name(person)}`}
-                      isDisabled={workflow.isBusy(person.userId)}
-                      onPress={() => workflow.open(person, "remove")}
-                    >
-                      <UserRoundMinus className="size-4" aria-hidden />
-                    </Button>
-                  ) : null}
-                  {allowed.includes("ban") ? (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="danger-soft"
-                      aria-label={`${t`Ban from group`}: ${name(person)}`}
-                      isDisabled={workflow.isBusy(person.userId)}
-                      onPress={() => workflow.open(person, "ban")}
-                    >
-                      <Ban className="size-4" aria-hidden />
-                    </Button>
-                  ) : null}
+                  <GroupMemberActions
+                    group={group}
+                    person={person}
+                    busy={workflow.isBusy(person.userId)}
+                    onAction={(action) => workflow.open(person, action)}
+                  />
                   {allowed.includes("revoke") ? (
                     <Button
                       isIconOnly
@@ -243,11 +237,15 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
           />
         ) : managed ? (
           <ContactConfirmDialog
-            title={`${managed.action === "approve" ? t`Respond to membership request` : managed.action === "revoke" ? t`Revoke group exclusion` : t`Remove member`}: ${name(managed.person)}`}
+            title={`${roleChange ? roleLabel : managed.action === "approve" ? t`Respond to membership request` : managed.action === "revoke" ? t`Revoke group exclusion` : t`Remove member`}: ${name(managed.person)}`}
             description={
-              managed.action === "revoke"
-                ? t`Revoking an exclusion does not restore membership or registrations. A new invitation or request is required.`
-                : t`This affects group membership only. Historical results remain unchanged.`
+              roleChange
+                ? managed.action === "promote"
+                  ? t`Grant group and event management permissions? Only the creator can change moderator roles. Moderators cannot delete the group or remove or ban its creator or other moderators.`
+                  : t`Remove moderator permissions? Group membership and event participation remain unchanged.`
+                : managed.action === "revoke"
+                  ? t`Revoking an exclusion does not restore membership or registrations. A new invitation or request is required.`
+                  : t`This affects group membership only. Historical results remain unchanged.`
             }
             busy={busy}
             onCancel={workflow.close}
@@ -269,12 +267,20 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                   ]
                 : [
                     {
-                      label:
-                        managed.action === "revoke" ? t`Revoke group exclusion` : t`Remove member`,
-                      variant: managed.action === "revoke" ? "primary" : "danger",
+                      label: roleChange
+                        ? roleLabel
+                        : managed.action === "revoke"
+                          ? t`Revoke group exclusion`
+                          : t`Remove member`,
+                      variant:
+                        managed.action === "revoke" || managed.action === "promote"
+                          ? "primary"
+                          : "danger",
                       icon:
                         managed.action === "revoke" ? (
                           <RotateCcw className="size-4" aria-hidden />
+                        ) : roleChange ? (
+                          <ShieldCheck className="size-4" aria-hidden />
                         ) : (
                           <UserRoundMinus className="size-4" aria-hidden />
                         ),

@@ -1,5 +1,6 @@
 import {
   communityAccessDenied,
+  isGroupManagerRole,
   useGroupRecord,
   useGroupRecordActions,
 } from "@board-game-organizer/shared";
@@ -19,7 +20,7 @@ export function GroupPeoplePicker({ groupId }: { groupId: string }) {
   const detail = useGroupRecord(options, groupId),
     actions = useGroupRecordActions(options, groupId);
   const group = communityAccessDenied(detail.error) ? undefined : detail.data;
-  if (group?.role !== "admin" || !group.canInvite)
+  if (!group || !isGroupManagerRole(group.role) || !group.canInvite)
     return (
       <View style={{ padding: 20, gap: 12 }}>
         {detail.isPending ? (
@@ -29,7 +30,7 @@ export function GroupPeoplePicker({ groupId }: { groupId: string }) {
             <Typography accessibilityRole="alert" className="text-danger">
               {detail.isError && !communityAccessDenied(detail.error)
                 ? t("Could not load group")
-                : group?.role === "admin"
+                : isGroupManagerRole(group?.role ?? "none")
                   ? t("Invitations require an approved group.")
                   : t("Group admin required")}
             </Typography>

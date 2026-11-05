@@ -174,7 +174,7 @@ it("centers the group tab strip itself below the header instead of relying on ch
 it("keeps owner-only irreversible deletion in the native header, resets it on access loss and requires explicit cascade consent", () => {
   const text = source("groups", "GroupDetail");
   expect(text).toContain("headerRight:");
-  expect(text).toContain("group?.canEdit");
+  expect(text).toContain('canDelete = group?.role === "admin"');
   expect(text).toContain('t("Delete group") : t("Leave group")');
   expect(text).toContain("<LogOut");
   expect(text).toContain("<GroupInvitationCard");
@@ -186,7 +186,8 @@ it("keeps owner-only irreversible deletion in the native header, resets it on ac
 });
 it("offers group bans only through roster actions, with a separate edit FAB and padded detail row", () => {
   expect(source("groups", "GroupMembers")).not.toContain("Exclude a user");
-  expect(source("groups", "GroupMembers")).toContain("Ban from group");
+  expect(source("groups", "GroupMembers")).toContain("<GroupMemberActions");
+  expect(source("groups", "GroupMemberActions")).toContain("Ban from group");
   expect(source("groups", "GroupPeoplePicker")).not.toContain("actions.ban");
   expect(source("groups", "GroupDetail")).toContain("<FloatingActions");
   expect(source("groups", "GroupDetailsCard")).toContain("<GroupedRow");

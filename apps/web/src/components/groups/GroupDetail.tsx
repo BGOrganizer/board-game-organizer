@@ -2,6 +2,7 @@
 import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
+  isGroupManagerRole,
   ownGroupActions,
   useGroupRecord,
   useGroupRecordActions,
@@ -44,6 +45,7 @@ export function GroupDetail({
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
   const ownBusy = a.isPersonBusy(groupId, o.userId ?? "");
+  const canDelete = group?.role === "admin";
   const failure =
     confirm === "delete" ? t`Could not delete group` : t`Could not update group membership`;
   if (!group)
@@ -57,7 +59,7 @@ export function GroupDetail({
     );
   const run = (action: "request" | "accept" | "decline" | "cancel" | "delete") => {
     if (action === "delete") {
-      if (!group.canEdit || a.isBusy(group.id)) return;
+      if (!canDelete || a.isBusy(group.id)) return;
       a.remove.mutate({ id: group.id, input: { version: group.version, deleteEvents: true } });
       setConfirm(null);
       router.replace("/groups");
@@ -76,7 +78,8 @@ export function GroupDetail({
     setConfirm(null);
   };
   const bodyActions = ownGroupActions(group).filter(
-    (action) => action === "request" || (action === "cancel" && group.role !== "accepted"),
+    (action) =>
+      action === "request" || (action === "cancel" && group.myMembership?.status !== "ACCEPTED"),
   );
   return (
     <NotificationAttentionScope
@@ -91,20 +94,19 @@ export function GroupDetail({
       readOnOpen={{ kind: "group", id: group.id }}
     >
       <div className="space-y-5 pb-24">
-        {group.canEdit ||
-        (group.role === "accepted" && group.myMembership?.status === "ACCEPTED") ? (
+        {canDelete || group.myMembership?.status === "ACCEPTED" ? (
           <HeaderActions>
             <Button
               {...headerButtonProps}
               variant="danger"
-              aria-label={group.canEdit ? t`Delete group` : t`Leave group`}
-              isDisabled={group.canEdit ? a.busy : ownBusy}
+              aria-label={canDelete ? t`Delete group` : t`Leave group`}
+              isDisabled={canDelete ? a.busy : ownBusy}
               onPress={() => {
                 setError(false);
-                setConfirm(group.canEdit ? "delete" : "cancel");
+                setConfirm(canDelete ? "delete" : "cancel");
               }}
             >
-              {group.canEdit ? (
+              {canDelete ? (
                 <Trash2 className="size-5" aria-hidden="true" />
               ) : (
                 <LogOut className="size-5" aria-hidden="true" />
@@ -146,7 +148,7 @@ export function GroupDetail({
                 <Tabs.Tab id="members" className="gap-2">
                   {t`Members`}
                   <GroupMembersBadge groupId={group.id} />
-                  {group.role === "admin" && (group.pendingRequestCount ?? 0) > 0 ? (
+                  {isGroupManagerRole(group.role) && (group.pendingRequestCount ?? 0) > 0 ? (
                     <span
                       role="img"
                       aria-label={t`Requests to review`}
@@ -198,7 +200,10 @@ export function GroupDetail({
           ) : null}
           {group.canViewEvents ? (
             <Tabs.Panel id="events" className="pt-0">
-              <Events groupId={group.id} canCreate={group.role === "admin" && group.canInvite} />
+              <Events
+                groupId={group.id}
+                canCreate={isGroupManagerRole(group.role) && group.canInvite}
+              />
             </Tabs.Panel>
           ) : null}
           {group.canViewRankings ? (
@@ -216,12 +221,12 @@ export function GroupDetail({
             <Pencil className="size-6" aria-hidden />
           </FloatingActions>
         ) : null}
-        {confirm && (confirm !== "delete" || group.canEdit) ? (
+        {confirm && (confirm !== "delete" || canDelete) ? (
           <ContactConfirmDialog
             title={
               confirm === "delete"
                 ? t`Delete group`
-                : group.role === "accepted"
+                : group.myMembership?.status === "ACCEPTED"
                   ? t`Leave group`
                   : t`Cancel membership`
             }

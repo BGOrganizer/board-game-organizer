@@ -165,8 +165,13 @@ Implemented product areas:
 - English and Italian localization.
 - Web Playwright and mobile Maestro end-to-end coverage.
 
-Groups have immutable PRIVATE/PUBLIC type and a sole creator/admin, friend-only consented
-invitations, public requests, approved public venues/logos, group-only timed/permanent exclusions,
+Groups have immutable PRIVATE/PUBLIC type and a sole creator/admin. Only that creator promotes or
+demotes accepted Group moderators. Moderators manage Group information/membership and its
+Events/Tables within existing guards, but cannot delete the Group or remove/ban its creator or
+other moderators. Current Group authority, not historical Event authorship, grants management;
+leaving/removal/ban clears delegated roles. Global BGO moderation and Clerk roles stay separate.
+Groups retain friend-only consented invitations, public requests, approved public venues/logos,
+group-only timed/permanent exclusions,
 and source-paged per-game member leaderboards. Creator-confirmed deletion permanently removes the
 Group and its unified Event/Table history; follow the linked domain contract for cascade scope and
 retained personal GLOBAL skill snapshots. No archival or type conversion is exposed.
