@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   BggCollectionGame,
   BggPickerItem,
@@ -5,8 +6,10 @@ import type {
 } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
+import { recordServices } from "@/app/lib/community/record-services";
+import { CommunityError } from "@/app/lib/community.error";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { COLLECTIONS, getDb } from "@/app/lib/db";
+import { COLLECTIONS, getDb, withTransaction } from "@/app/lib/db";
 import { searchGames } from "@/app/lib/games/bgg";
 import { BggAccountRepository } from "@/app/lib/games/bgg-account.repository";
 
@@ -18,14 +21,18 @@ const querySchema = z
     search: z.enum(["0", "1"]).default("1"),
     collection: z.enum(["0", "1"]).default("1"),
     limit: z.coerce.number().int().min(1).max(50).default(25),
-    cursor: z.string().max(256).optional(),
+    cursor: z.string().max(512).optional(),
+    proposalEventId: z.uuid().optional(),
+    proposalTableId: z.uuid().optional(),
     "x-vercel-protection-bypass": z.string().optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => Boolean(value.proposalEventId) === Boolean(value.proposalTableId));
 const cursorSchema = z.object({
   collectionOffset: z.number().int().nonnegative().max(1_000_000),
   searchOffset: z.number().int().nonnegative().max(1_000_000),
   snapshot: z.string().nullable(),
+  scope: z.string().optional(),
 });
 type Cursor = z.infer<typeof cursorSchema>;
 
@@ -45,12 +52,48 @@ export async function GET(request: Request) {
   if (!parsed.success) return corsJson({ error: "Invalid search" }, { status: 400 }, request);
   const { query, limit } = parsed.data;
   const db = await getDb();
+  let excluded: number[] = [];
+  if (parsed.data.proposalEventId && parsed.data.proposalTableId) {
+    try {
+      excluded = await withTransaction((session, database) =>
+        recordServices(database, session).events.proposalPickerExclusions(
+          userId,
+          parsed.data.proposalEventId as string,
+          parsed.data.proposalTableId as string,
+        ),
+      );
+    } catch (error) {
+      return corsJson(
+        { error: error instanceof CommunityError ? error.code : "Internal server error" },
+        { status: error instanceof CommunityError ? error.status : 500 },
+        request,
+      );
+    }
+  }
+  const scope = createHash("sha256")
+    .update(
+      JSON.stringify([
+        userId,
+        query,
+        parsed.data.search,
+        parsed.data.collection,
+        parsed.data.proposalEventId,
+        parsed.data.proposalTableId,
+        excluded.sort((a, b) => a - b),
+      ]),
+    )
+    .digest("hex");
   const account = await new BggAccountRepository(db).get(userId);
   const snapshot = account.active?.snapshot ?? null;
   const includeCollection = parsed.data.collection === "1" && Boolean(snapshot);
   const includeSearch = parsed.data.search === "1" && query.length >= 4;
   const cursor = parsed.data.cursor ? decode(parsed.data.cursor) : null;
-  if (parsed.data.cursor && (!cursor || cursor.snapshot !== snapshot))
+  if (
+    parsed.data.cursor &&
+    (!cursor ||
+      cursor.snapshot !== snapshot ||
+      (cursor.scope !== undefined ? cursor.scope !== scope : Boolean(parsed.data.proposalEventId)))
+  )
     return corsJson({ error: "Stale cursor" }, { status: 409 }, request);
   if (!includeSearch && !includeCollection)
     return corsJson({ items: [], nextCursor: null }, request);
@@ -76,6 +119,7 @@ export async function GET(request: Request) {
         isExpansion: { $ne: true },
         subtype: { $ne: "boardgameexpansion" },
         ...(query ? { name: prefix } : {}),
+        ...(excluded.length ? { gameId: { $nin: excluded } } : {}),
       })
       .sort({ name: 1, gameId: 1 })
       .skip(collectionOffset)
@@ -118,7 +162,7 @@ export async function GET(request: Request) {
     const remaining = limit - items.length;
     const batchSize = Math.max(remaining + 1, 25);
     while (true) {
-      const batch = await searchGames(db, query, searchOffset, batchSize);
+      const batch = await searchGames(db, query, searchOffset, batchSize, excluded);
       if (!batch.length) break;
       const matchingCollectionIds =
         includeCollection && snapshot
@@ -159,7 +203,9 @@ export async function GET(request: Request) {
     {
       items,
       nextCursor:
-        moreCollection || moreSearch ? encode({ collectionOffset, searchOffset, snapshot }) : null,
+        moreCollection || moreSearch
+          ? encode({ collectionOffset, searchOffset, snapshot, scope })
+          : null,
     } satisfies BggPickerResponse,
     request,
   );

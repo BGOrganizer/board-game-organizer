@@ -60,6 +60,12 @@ it.each(["en", "it"])(
     expect(run({ mode: "reject" }, { EVENT_PROPOSAL_LOCALE: locale }).result).not.toBe(b.result);
   },
 );
+it("escapes every grouped proposer in the one collective decision selector", () => {
+  const grouped = run({ mode: "accept", proposerNames: ["alice[1]", "bob.name"] });
+  expect(
+    new RegExp(grouped.review).test("Accept proposal: alice[1], bob.name — Game [owned]"),
+  ).toBe(true);
+});
 it.each([
   { EVENT_PROPOSAL_FIXTURE_ACK: "" },
   { EVENT_PROPOSAL_BUILD_ACK: "" },
@@ -78,6 +84,11 @@ it.each([
   { proposalOffset: -1 },
   { mode: "accept", proposalId: "bad" },
   { mode: "reject", proposerName: "" },
+  { mode: "accept", proposerNames: "alice" },
+  { mode: "accept", proposerNames: ["alice"] },
+  { mode: "accept", proposerNames: ["alice", ""] },
+  { mode: "accept", proposerNames: ["alice", 3] },
+  { mode: "accept", proposerNames: ["alice", "b".repeat(121)] },
 ])("rejects unsafe or incomplete real-write inputs: %j", (change) =>
   expect(() => run(change)).toThrow(),
 );

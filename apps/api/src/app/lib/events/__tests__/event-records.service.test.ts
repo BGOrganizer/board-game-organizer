@@ -101,6 +101,67 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
         ) ?? null,
       ),
     ),
+    ownProposedGames: vi.fn(async (eventId: string, tableId: string, userId: string) =>
+      [...proposals.values()]
+        .filter(
+          (p) =>
+            p.eventId === eventId &&
+            p.userId === userId &&
+            p.payload.kind === "game" &&
+            p.payload.tableId === tableId,
+        )
+        .map((p) => (p.payload.kind === "game" ? p.payload.gameId : 0)),
+    ),
+    gameProposals: vi.fn(async (eventId: string, tableId: string, gameId: number) =>
+      clone(
+        [...proposals.values()].filter(
+          (p) =>
+            p.eventId === eventId &&
+            p.payload.kind === "game" &&
+            p.payload.tableId === tableId &&
+            p.payload.gameId === gameId,
+        ),
+      ),
+    ),
+    proposalBatch: vi.fn(async (eventId: string, reviewBatchId: string) =>
+      clone(
+        [...proposals.values()].filter(
+          (p) => p.eventId === eventId && p.reviewBatchId === reviewBatchId,
+        ),
+      ),
+    ),
+    gameProposalPage: vi.fn(
+      async (eventId: string, tableId: string, page: { limit: number; cursor?: string }) => {
+        const grouped = new Map<number, EventProposal[]>();
+        for (const p of proposals.values())
+          if (p.eventId === eventId && p.payload.kind === "game" && p.payload.tableId === tableId)
+            grouped.set(p.payload.gameId, [...(grouped.get(p.payload.gameId) ?? []), p]);
+        return clone(
+          [...grouped.values()]
+            .map((members) => ({
+              members,
+              representative: [...members].sort(
+                (a, b) =>
+                  Number(b.status === "PENDING") * 2 +
+                    Number(b.status === "ACCEPTED") -
+                    (Number(a.status === "PENDING") * 2 + Number(a.status === "ACCEPTED")) ||
+                  `${b.createdAt}|${b.id}`.localeCompare(`${a.createdAt}|${a.id}`),
+              )[0],
+            }))
+            .filter(
+              (r) =>
+                !page.cursor ||
+                `${r.representative.createdAt}|${r.representative.id}` < page.cursor,
+            )
+            .sort((a, b) =>
+              `${b.representative.createdAt}|${b.representative.id}`.localeCompare(
+                `${a.representative.createdAt}|${a.representative.id}`,
+              ),
+            )
+            .slice(0, page.limit + 1),
+        );
+      },
+    ),
     saveProposal: vi.fn(async (row: EventProposal) => {
       proposals.set(row.id, clone(row));
       return row;
@@ -2397,6 +2458,104 @@ describe("private participant proposals", () => {
         }),
     };
   }
+  it.each(["accept", "reject"] as const)(
+    "groups duplicate game suggestions and atomically %s every pending author with private batch readback",
+    async (action) => {
+      const f = await prepared();
+      await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+      await f.service.join(owner, f.e.id, id, f.participation(f.e.id, id));
+      const first = await f.submit(guest, { kind: "game", tableId: id, gameId: 2 });
+      const stale = (
+        await f.service.proposals(owner, f.e.id, {
+          kind: "game",
+          tableId: id,
+          mode: "review",
+          limit: 1,
+        })
+      ).items[0];
+      const second = await f.submit(owner, { kind: "game", tableId: id, gameId: 2 });
+      await expect(
+        f.service.reviewProposal(owner, f.e.id, first.id, {
+          action,
+          version: 1,
+          eventVersion: f.version(),
+          groupRevision: stale.groupRevision,
+        }),
+      ).rejects.toMatchObject({ code: "PROPOSAL_CHANGED" });
+      await expect(
+        f.service.reviewProposal(owner, f.e.id, first.id, {
+          action,
+          version: 1,
+          eventVersion: f.version(),
+        }),
+      ).rejects.toMatchObject({ code: "PROPOSAL_CHANGED" });
+      const page = await f.service.proposals(owner, f.e.id, {
+        kind: "game",
+        tableId: id,
+        mode: "review",
+        limit: 1,
+      });
+      expect(page.items).toHaveLength(1);
+      expect(page.nextCursor).toBeNull();
+      expect(page.items[0].gameSuggestions?.map((p) => p.userId).sort()).toEqual(
+        [owner, guest].sort(),
+      );
+      const input = {
+        action,
+        version: 1,
+        eventVersion: f.version(),
+        groupRevision: page.items[0].groupRevision,
+      };
+      const receipt = await f.service.reviewProposal(owner, f.e.id, first.id, input);
+      expect(receipt.proposals).toHaveLength(2);
+      for (const row of [first, second])
+        expect(f.proposals.get(row.id)).toMatchObject({
+          status: action === "accept" ? "ACCEPTED" : "REJECTED",
+          version: 2,
+          reviewBatchId: receipt.proposal.reviewBatchId,
+        });
+      expect(f.tables.get(id)?.games.filter((g) => g.gameId === 2)).toHaveLength(
+        action === "accept" ? 1 : 0,
+      );
+      expect((await f.service.reviewProposal(owner, f.e.id, first.id, input)).proposals).toEqual(
+        receipt.proposals,
+      );
+      expect((await f.service.proposalDetail(guest, f.e.id, first.id)).proposals).toBeUndefined();
+      expect((await f.service.proposalDetail(owner, f.e.id, first.id)).proposals).toHaveLength(2);
+      expect(await f.service.proposalPickerExclusions(guest, f.e.id, id)).toContain(2);
+      if (action === "reject")
+        await expect(
+          f.submit(guest, { kind: "game", tableId: id, gameId: 2 }),
+        ).rejects.toMatchObject({ code: "PROPOSAL_ALREADY_PENDING" });
+    },
+  );
+  it("does not accept a grouped game if any captured proposer no longer has an actual seat", async () => {
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    await f.service.join(owner, f.e.id, id, f.participation(f.e.id, id));
+    const one = await f.submit(guest, { kind: "game", tableId: id, gameId: 2 });
+    await f.submit(owner, { kind: "game", tableId: id, gameId: 2 });
+    const row = (
+      await f.service.proposals(owner, f.e.id, {
+        mode: "review",
+        kind: "game",
+        tableId: id,
+        limit: 5,
+      })
+    ).items[0];
+    for (const [key, registration] of f.registrations)
+      if (registration.userId === guest) f.registrations.delete(key);
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, one.id, {
+        action: "accept",
+        version: 1,
+        eventVersion: f.version(),
+        groupRevision: row.groupRevision,
+      }),
+    ).rejects.toMatchObject({ code: "PROPOSAL_SEAT_REQUIRED" });
+    expect([...f.proposals.values()].every((p) => p.status === "PENDING")).toBe(true);
+    expect(f.tables.get(id)?.games.some((g) => g.gameId === 2)).toBe(false);
+  });
   it("defaults flags off and gives no proposal authority to management, pending reservations or accepted queues", async () => {
     const defaults = setup("PRIVATE"),
       e = await defaults.create();

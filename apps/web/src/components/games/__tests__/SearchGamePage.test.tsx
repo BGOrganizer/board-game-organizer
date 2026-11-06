@@ -55,7 +55,9 @@ it("hides selected games and uses an icon-only selection action", async () => {
     </QueryClientProvider>,
   );
 
-  fireEvent.change(screen.getByPlaceholderText(/Search board games/i), {
+  const input = screen.getByPlaceholderText(/Search board games/i);
+  input.focus();
+  fireEvent.change(input, {
     target: { value: "Cascadia" },
   });
 
@@ -65,6 +67,8 @@ it("hides selected games and uses an icon-only selection action", async () => {
   expect(searchChip.className).toContain("button--primary");
   expect(searchChip.querySelector('[aria-hidden="true"]')).toBeTruthy();
   const select = await screen.findByRole("button", { name: "Select: Cascadia" });
+  expect(screen.getByPlaceholderText(/Search board games/i)).toBe(input);
+  expect(document.activeElement).toBe(input);
   expect(select.closest("li")?.className).toContain("p-3 pl-4");
   expect(select.closest("ul")?.className).toContain("rounded-xl bg-surface");
   expect(screen.getByRole("button", { name: "Clear search" })).toBeTruthy();

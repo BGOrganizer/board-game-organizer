@@ -1894,6 +1894,112 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     ).toBe(0);
     expect(await services().groupRecords.membership(group.id, GUEST)).toEqual(membership);
   });
+  it("source-groups game suggestions before paging and atomically reviews every pending proposer with rollback and private readback", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.tables[0].allowParticipantGames = true;
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OWNER, GUEST])
+      await transaction(async (s) =>
+        s.plannedEventService.join(user, event.id, tableId, await participation(event.id, tableId)),
+      );
+    await db.collection(COLLECTIONS.BOARD_GAMES).insertMany(
+      Array.from({ length: 6 }, (_, i) => ({
+        id: 200 + i,
+        name: `Proposed game ${i}`,
+        isExpansion: false,
+        minPlayMinutes: 60,
+        maxPlayMinutes: 60,
+        image: "https://image.test/game.png",
+      })),
+    );
+    const version = (await services().eventRecords.find(event.id))!.version;
+    for (let i = 0; i < 6; i++)
+      for (const user of [OWNER, GUEST])
+        await transaction((s) =>
+          s.plannedEventService.submitProposal(user, event.id, {
+            eventVersion: version,
+            clientRequestId: randomUUID(),
+            payload: { kind: "game", tableId, gameId: 200 + i },
+          }),
+        );
+    const all: import("@board-game-organizer/schemas").EventProposalResponse[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await transaction((s) =>
+        s.plannedEventService.proposals(OWNER, event.id, {
+          mode: "review",
+          kind: "game",
+          tableId,
+          limit: 2,
+          cursor,
+        }),
+      );
+      expect(page.items.length).toBeLessThanOrEqual(2);
+      all.push(...page.items);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(all).toHaveLength(6);
+    expect(new Set(all.map((p) => (p.payload.kind === "game" ? p.payload.gameId : 0))).size).toBe(
+      6,
+    );
+    expect(all.every((p) => p.gameSuggestions?.length === 2)).toBe(true);
+    const target = all[0],
+      decision = {
+        eventVersion: version,
+        version: target.version,
+        action: "accept" as const,
+        groupRevision: target.groupRevision,
+      };
+    await expect(
+      transaction(async (s) => {
+        await s.plannedEventService.reviewProposal(OWNER, event.id, target.id, {
+          ...decision,
+          action: "reject",
+        });
+        throw new Error("group rollback");
+      }),
+    ).rejects.toThrow("group rollback");
+    expect(
+      await db
+        .collection(COLLECTIONS.EVENT_PROPOSALS)
+        .countDocuments({ eventId: event.id, status: "PENDING" }),
+    ).toBe(12);
+    const results = await Promise.all(
+      [0, 1].map(() =>
+        transaction((s) =>
+          s.plannedEventService.reviewProposal(OWNER, event.id, target.id, decision),
+        ),
+      ),
+    );
+    expect(results[0].proposals).toHaveLength(2);
+    expect(results[1].proposals).toEqual(results[0].proposals);
+    expect(
+      await db
+        .collection(COLLECTIONS.EVENT_PROPOSALS)
+        .countDocuments({ eventId: event.id, status: "ACCEPTED" }),
+    ).toBe(2);
+    expect((await services().eventRecords.find(event.id))!.version).toBe(version + 1);
+    expect(
+      (await services().eventRecords.table(tableId))!.games.filter(
+        (g) => g.gameId === (target.payload.kind === "game" ? target.payload.gameId : 0),
+      ),
+    ).toHaveLength(1);
+    const guest = target.gameSuggestions!.find((p) => p.userId === GUEST)!;
+    expect(
+      (await transaction((s) => s.plannedEventService.proposalDetail(GUEST, event.id, guest.id)))
+        .proposals,
+    ).toBeUndefined();
+    expect(
+      (await transaction((s) => s.plannedEventService.proposalDetail(OWNER, event.id, target.id)))
+        .proposals,
+    ).toHaveLength(2);
+    expect(
+      await transaction((s) =>
+        s.plannedEventService.proposalPickerExclusions(GUEST, event.id, tableId),
+      ),
+    ).toEqual(expect.arrayContaining([200, 201, 202, 203, 204, 205]));
+  });
   it("serializes proposal submit/accept races, retains singleton consent and rolls private/configuration/notices back together", async () => {
     const group = await privateGroup(),
       input = plannedInput(group.id);

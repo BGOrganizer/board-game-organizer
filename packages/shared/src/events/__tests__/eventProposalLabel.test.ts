@@ -1,6 +1,21 @@
 import { expect, it } from "vitest";
-import { eventProposalLabel } from "../eventProposalLabel";
+import { eventProposalAuthors, eventProposalLabel } from "../eventProposalLabel";
 
+it("keeps grouped usernames distinct and supports ordinary single-author proposals", () => {
+  expect(eventProposalAuthors({ authorName: "one" })).toBe("one");
+  const member = { id: "id", userId: "u", version: 1, status: "PENDING" as const };
+  expect(
+    eventProposalAuthors({
+      authorName: "one",
+      gameSuggestions: [
+        { ...member, authorName: "one" },
+        { ...member, id: "id2", authorName: "two" },
+        { ...member, id: "id3", authorName: "one" },
+      ],
+    }),
+  ).toBe("one, two");
+  expect(eventProposalAuthors({ authorName: "one", gameSuggestions: [] })).toBe("");
+});
 it("formats EN/IT proposed wall clocks without moving to another venue's zone", () => {
   const date = { kind: "date" as const, day: "2030-06-04", startTime: "20:00" };
   expect(eventProposalLabel(date, "fallback", "en-US")).toBe("Jun 4, 2030, 8:00 PM");

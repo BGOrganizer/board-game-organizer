@@ -25,6 +25,7 @@ export const eventProposalKeys = {
       s.kind,
       s.tableId ?? null,
       cursor,
+      ...(s.kind === "game" && s.mode === "review" ? ["grouped-v1"] : []),
     ] as const,
   groupReviewResource: (o: Owner, id: string) =>
     ["groups", o.apiUrl, o.userId, id, "proposal-review"] as const,
@@ -53,12 +54,18 @@ export function projectProposalReview(
   eventVersion: number,
   version: number,
   action: "accept" | "reject",
+  game?: { gameId: number; tableId: string },
 ): unknown {
   if (!page(data) || data.eventId !== eventId || data.eventVersion > eventVersion) return data;
   return {
     ...data,
     items: data.items.map((row) =>
-      row.id === id && row.version === version && row.status === "PENDING"
+      ((row.id === id && row.version === version) ||
+        (game &&
+          row.payload.kind === "game" &&
+          row.payload.gameId === game.gameId &&
+          row.payload.tableId === game.tableId)) &&
+      row.status === "PENDING"
         ? { ...row, clientAction: action }
         : row,
     ),
@@ -69,9 +76,16 @@ export function commitProposalReceipt(data: unknown, value: EventProposalRespons
   if (!page(data) || data.eventId !== value.eventId) return data;
   return {
     ...data,
-    items: data.items.map((row) =>
-      row.id === value.id && row.version <= value.version ? value : row,
-    ),
+    items: data.items.map((row) => {
+      const next = row.id === value.id && row.version <= value.version ? value : row;
+      if (!row.gameSuggestions) return next;
+      const gameSuggestions = row.gameSuggestions.map((s) =>
+        s.id === value.id && s.version <= value.version
+          ? { ...s, version: value.version, status: value.status }
+          : s,
+      );
+      return { ...next, gameSuggestions };
+    }),
   };
 }
 /** A known server creation can enter only its already-materialized first source page. */
@@ -90,6 +104,8 @@ export function commitProposalCreation(
     (data.mode === "mine" && value.userId !== userId)
   )
     return data;
+  // Review game pages are source-grouped; a single receipt cannot invent their membership/revision.
+  if (data.mode === "review" && value.payload.kind === "game") return data;
   const known = data.items.find((row) => row.id === value.id);
   if (known) return commitProposalReceipt(data, value);
   const rows = [...data.items, value].sort((a, b) =>

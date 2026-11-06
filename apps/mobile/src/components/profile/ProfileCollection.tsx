@@ -16,9 +16,8 @@ import { memo, type ReactNode, useCallback, useMemo, useRef, useState } from "re
 import { KeyboardAvoidingView, Platform, SectionList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FilterChips } from "@/components/common/ui/FilterChips";
-import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
-import { GameListRow } from "@/components/games/GameListRow";
+import { GameListCard } from "@/components/games/GameListCard";
 import { GAME_PICKER_CHUNK_SIZE } from "@/lib/games/gamePickerWindow";
 import { useGameListWindow } from "@/lib/games/useGameListWindow";
 import { useT } from "@/lib/i18n";
@@ -65,7 +64,7 @@ export function ProfileCollection({
   const headerHeight = useRef(0),
     searchFocused = useRef(false);
   const [viewportHeight, setViewportHeight] = useState(0),
-    [filterHeight, setFilterHeight] = useState(0);
+    [topHeight, setTopHeight] = useState(0);
   const sections = useMemo(() => [{ key: "games", data: window.items }], [window.items]);
   const counts = communityAccessDenied(q.error) ? undefined : (pages?.[0]?.counts ?? knownCounts);
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
@@ -90,12 +89,19 @@ export function ProfileCollection({
       <SectionList
         ref={list}
         style={{ flex: 1 }}
-        onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+        onLayout={(e) => {
+          setViewportHeight(e.nativeEvent.layout.height);
+          if (searchFocused.current) focusSearch();
+        }}
+        onContentSizeChange={() => {
+          if (searchFocused.current) focusSearch();
+        }}
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingTop: 20,
           paddingBottom: insets.bottom + 24,
           flexGrow: 1,
+          minHeight: viewportHeight + topHeight,
         }}
         keyboardShouldPersistTaps="handled"
         stickySectionHeadersEnabled
@@ -114,10 +120,12 @@ export function ProfileCollection({
           if (e.nativeEvent.actionName === "increment") window.loadMore();
         }}
         renderItem={renderItem}
+        ItemSeparatorComponent={GameGap}
         ListHeaderComponent={
           <View
             onLayout={(e) => {
               headerHeight.current = e.nativeEvent.layout.height + 20;
+              setTopHeight(headerHeight.current);
               if (searchFocused.current) focusSearch();
             }}
             style={{ gap: 16, paddingBottom: 16 }}
@@ -151,11 +159,7 @@ export function ProfileCollection({
           </View>
         }
         renderSectionHeader={() => (
-          <View
-            className="bg-background"
-            style={{ gap: 8, paddingVertical: 8 }}
-            onLayout={(e) => setFilterHeight(e.nativeEvent.layout.height)}
-          >
+          <View className="bg-background" style={{ gap: 8, paddingVertical: 8 }}>
             <SearchInput
               value={filter.query}
               onChange={filter.setQuery}
@@ -198,9 +202,6 @@ export function ProfileCollection({
           <View
             style={{
               gap: 12,
-              minHeight: window.items.length
-                ? undefined
-                : Math.max(0, viewportHeight - filterHeight),
             }}
           >
             {q.isError ? (
@@ -247,23 +248,24 @@ const CollectionRow = memo(function CollectionRow({
       ? unavailable
       : new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(item.userRating);
   return (
-    <GroupedList>
-      <GameListRow
-        name={item.name}
-        imageUrl={item.imageUrl}
-        year={item.year}
-        average={item.average}
-        rank={item.rank}
-        actions={
-          <Typography
-            accessibilityLabel={`${label}: ${rating}`}
-            className="font-semibold text-foreground"
-            style={{ minWidth: 44, textAlign: "center" }}
-          >
-            {rating}
-          </Typography>
-        }
-      />
-    </GroupedList>
+    <GameListCard
+      name={item.name}
+      imageUrl={item.imageUrl}
+      year={item.year}
+      average={item.average}
+      rank={item.rank}
+      actions={
+        <Typography
+          accessibilityLabel={`${label}: ${rating}`}
+          className="font-semibold text-foreground"
+          style={{ minWidth: 44, textAlign: "center" }}
+        >
+          {rating}
+        </Typography>
+      }
+    />
   );
 });
+function GameGap() {
+  return <View style={{ height: 8 }} />;
+}

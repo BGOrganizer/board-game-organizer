@@ -2,7 +2,7 @@
 
 import { Button } from "@heroui/react";
 import { Gamepad2 } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useState } from "react";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GameCatalogMetadata } from "./GameCatalogMetadata";
 
@@ -26,12 +26,20 @@ export function GameListRow({
   children?: ReactNode;
   onPress?: () => void;
 }) {
+  const [failedImage, setFailedImage] = useState<string | null>(null);
   const identity = (
     <>
       <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default">
-        {imageUrl ? (
+        {imageUrl && imageUrl !== failedImage ? (
           // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
-          <img src={imageUrl} alt="" className="size-full object-contain" />
+          <img
+            src={imageUrl}
+            alt=""
+            width={40}
+            height={40}
+            onError={() => setFailedImage(imageUrl)}
+            className="size-full object-contain"
+          />
         ) : (
           <Gamepad2 className="size-5 text-muted" aria-hidden />
         )}

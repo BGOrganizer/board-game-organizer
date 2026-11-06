@@ -10,8 +10,10 @@ export function EventProposalItem({
   row,
   children,
   actions,
+  authorNames,
 }: {
   row: EventProposalResponse;
+  authorNames?: string;
   children?: ReactNode;
   actions?: ReactNode;
 }) {
@@ -21,6 +23,13 @@ export function EventProposalItem({
         <GameListRow
           name={row.game?.name ?? row.label}
           imageUrl={row.game?.imageUrl}
+          titleAccessory={
+            authorNames ? (
+              <span className="min-w-0 truncate text-sm text-muted" title={authorNames}>
+                {authorNames}
+              </span>
+            ) : undefined
+          }
           actions={actions}
         >
           {children}

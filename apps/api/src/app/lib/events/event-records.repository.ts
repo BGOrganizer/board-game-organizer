@@ -331,6 +331,77 @@ export class EventRecordsRepository {
         { ...this.opts, projection: { _id: 0 } },
       );
   }
+  gameProposals(eventId: string, tableId: string, gameId: number) {
+    return this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .find(
+        { eventId, "payload.kind": "game", "payload.tableId": tableId, "payload.gameId": gameId },
+        { ...this.opts, projection: { _id: 0 } },
+      )
+      .toArray();
+  }
+  proposalBatch(eventId: string, reviewBatchId: string) {
+    return this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .find({ eventId, reviewBatchId }, { ...this.opts, projection: { _id: 0 } })
+      .toArray();
+  }
+  ownProposedGames(eventId: string, tableId: string, userId: string) {
+    return this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .distinct(
+        "payload.gameId",
+        { eventId, userId, "payload.kind": "game", "payload.tableId": tableId },
+        this.opts,
+      )
+      .then((ids) => ids.filter((id): id is number => typeof id === "number"));
+  }
+  gameProposalPage(eventId: string, tableId: string, page: { limit: number; cursor?: string }) {
+    const [at, id] = page.cursor?.split("|") ?? [];
+    return this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .aggregate<{ representative: EventProposal; members: EventProposal[] }>(
+        [
+          { $match: { eventId, "payload.kind": "game", "payload.tableId": tableId } },
+          {
+            $set: {
+              pendingOrder: {
+                $cond: [
+                  { $eq: ["$status", "PENDING"] },
+                  2,
+                  { $cond: [{ $eq: ["$status", "ACCEPTED"] }, 1, 0] },
+                ],
+              },
+            },
+          },
+          { $sort: { pendingOrder: -1, createdAt: -1, id: -1 } },
+          { $unset: ["pendingOrder", "_id"] },
+          {
+            $group: {
+              _id: "$payload.gameId",
+              representative: { $first: "$$ROOT" },
+              members: { $push: "$$ROOT" },
+            },
+          },
+          ...(at
+            ? [
+                {
+                  $match: {
+                    $or: [
+                      { "representative.createdAt": { $lt: at } },
+                      { "representative.createdAt": at, "representative.id": { $lt: id } },
+                    ],
+                  },
+                },
+              ]
+            : []),
+          { $sort: { "representative.createdAt": -1, "representative.id": -1 } },
+          { $limit: page.limit + 1 },
+        ],
+        this.opts,
+      )
+      .toArray();
+  }
   async saveProposal(row: EventProposal) {
     await this.db
       .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)

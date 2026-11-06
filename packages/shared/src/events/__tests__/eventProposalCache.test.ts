@@ -49,6 +49,41 @@ const client = () => {
   return c;
 };
 afterEach(() => clients.splice(0).forEach(clearSessionQueryCache));
+it("marks all known pending game intents and reconciles every batch receipt without inventing decisions", () => {
+  const one = { ...proposal(), payload: { kind: "game" as const, gameId: 2, tableId: "table" } };
+  const two = { ...one, id: "p2", userId: "other", version: 2 };
+  const unrelated = { ...one, id: "p3", payload: { ...one.payload, tableId: "other-table" } };
+  const grouped = {
+    ...one,
+    gameSuggestions: [one, two].map((p) => ({
+      id: p.id,
+      userId: p.userId,
+      authorName: p.authorName,
+      version: p.version,
+      status: p.status,
+    })),
+  };
+  const input = page([grouped, two, unrelated, { ...one, id: "p4", status: "REJECTED" }]);
+  const projected = projectProposalReview(input, "event", one.id, 1, 1, "accept", {
+    gameId: 2,
+    tableId: "table",
+  }) as ReturnType<typeof page>;
+  expect(projected.items[0]).toMatchObject({ clientAction: "accept", status: "PENDING" });
+  expect(projected.items[1]).toMatchObject({ clientAction: "accept", status: "PENDING" });
+  expect(projected.items[2]).toBe(unrelated);
+  expect(projected.items[3]).not.toHaveProperty("clientAction");
+  const first = { ...one, status: "ACCEPTED" as const, version: 2 };
+  const second = { ...two, status: "ACCEPTED" as const, version: 3 };
+  let result = commitProposalReceipt(input, first);
+  result = commitProposalReceipt(result, second);
+  expect(
+    (result as ReturnType<typeof page>).items[0].gameSuggestions?.map((p) => p.status),
+  ).toEqual(["ACCEPTED", "ACCEPTED"]);
+  const newer = commitProposalReceipt(result, { ...second, version: 1, status: "REJECTED" });
+  expect((newer as ReturnType<typeof page>).items[0].gameSuggestions?.map((p) => p.status)).toEqual(
+    ["ACCEPTED", "ACCEPTED"],
+  );
+});
 it("keys every private scope and presents exactly five source rows", () => {
   const key = eventProposalKeys.page(owner, scope);
   expect(EVENT_PROPOSAL_PAGE_SIZE).toBe(5);
@@ -181,6 +216,16 @@ it("inserts acknowledged creations into matching first pages only, preserving so
       commitProposalCreation(
         page([]),
         eventProposalKeys.page(owner, { ...scope, kind: "game", tableId: "table" }),
+        game,
+        "actor",
+      ) as ReturnType<typeof page>
+    ).items,
+  ).toEqual([]); // A single ACK cannot fabricate grouped review membership/revision.
+  expect(
+    (
+      commitProposalCreation(
+        { ...page([]), mode: "mine" },
+        eventProposalKeys.page(owner, { ...scope, mode: "mine", kind: "game", tableId: "table" }),
         game,
         "actor",
       ) as ReturnType<typeof page>

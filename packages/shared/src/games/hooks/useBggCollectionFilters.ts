@@ -8,7 +8,8 @@ export function useBggCollectionFilters(viewerSnapshot?: string) {
   const search = useListSearch([], 0);
   const [selected, setSelected] = useState(initial);
   const games = selected.includes("games"),
-    expansions = selected.includes("expansions");
+    expansions = selected.includes("expansions"),
+    wishlist = selected.includes("wishlist");
   return {
     ...search,
     selected: viewerSnapshot ? selected : selected.filter((key) => key !== "common"),
@@ -18,14 +19,16 @@ export function useBggCollectionFilters(viewerSnapshot?: string) {
         old.includes(key) ? old.filter((value) => value !== key) : [...old, key],
       );
     },
-    types: games
-      ? expansions
-        ? ("all" as const)
-        : ("games" as const)
-      : expansions
-        ? ("expansions" as const)
-        : ("none" as const),
-    wishlist: selected.includes("wishlist"),
+    types: wishlist
+      ? ("all" as const)
+      : games
+        ? expansions
+          ? ("all" as const)
+          : ("games" as const)
+        : expansions
+          ? ("expansions" as const)
+          : ("none" as const),
+    wishlist,
     commonSnapshot: selected.includes("common") ? viewerSnapshot : undefined,
   };
 }

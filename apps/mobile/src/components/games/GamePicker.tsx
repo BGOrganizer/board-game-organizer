@@ -19,10 +19,9 @@ import { FlatList, View } from "react-native";
 import { HeaderBackButton } from "@/components/common/layout/HeaderBackButton";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
-import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
-import { GameListRow } from "@/components/games/GameListRow";
+import { GameListCard } from "@/components/games/GameListCard";
 import { GAME_PICKER_CHUNK_SIZE } from "@/lib/games/gamePickerWindow";
 import { useGameListWindow } from "@/lib/games/useGameListWindow";
 import { useT } from "@/lib/i18n";
@@ -36,8 +35,10 @@ export default function GamePicker({
   onSelect,
   onClose,
   excludeIds,
+  proposalScope,
 }: {
   excludeIds?: readonly number[];
+  proposalScope?: { eventId: string; tableId: string };
   onSelect?: (game: BggThingResponse) => void;
   onClose?: () => void;
 } = {}) {
@@ -57,6 +58,7 @@ export default function GamePicker({
   const [search, setSearch] = useState(true);
   const [collection, setCollection] = useState(true);
   const selected = useRef(false);
+  const list = useRef<FlatList<BggPickerItem>>(null);
   const account = useBggAccount({
     apiUrl: apiUrl(),
     getToken,
@@ -72,11 +74,15 @@ export default function GamePicker({
     search,
     collection: collection && hasCollection,
     snapshot: account.account.data?.active?.snapshot,
+    proposalScope,
   };
   const picker = useBggPicker(pickerOptions);
   const scope = hashKey(bggPickerQuery(pickerOptions).queryKey);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
+  useEffect(() => {
+    list.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [scope]);
   const { items, hasCachedMore, hasMore, loadMore, beginScroll, endReached } = useGameListWindow({
     scope,
     pages: picker.data?.pages,
@@ -124,7 +130,7 @@ export default function GamePicker({
 
   return (
     <FlatList
-      key={scope}
+      ref={list}
       keyboardShouldPersistTaps="handled"
       style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 8 }}
@@ -240,25 +246,23 @@ const GamePickerRow = memo(function GamePickerRow({
   accentForeground: string;
 }) {
   return (
-    <GroupedList>
-      <GameListRow
-        name={item.name}
-        imageUrl={item.imageUrl}
-        year={item.year}
-        average={item.average}
-        rank={item.rank}
-        actions={
-          <Button
-            isIconOnly
-            size="sm"
-            style={{ minWidth: 44, minHeight: 44 }}
-            accessibilityLabel={`${selectLabel}: ${item.name}`}
-            onPress={() => onSelect(item)}
-          >
-            <Plus size={16} color={accentForeground} />
-          </Button>
-        }
-      />
-    </GroupedList>
+    <GameListCard
+      name={item.name}
+      imageUrl={item.imageUrl}
+      year={item.year}
+      average={item.average}
+      rank={item.rank}
+      actions={
+        <Button
+          isIconOnly
+          size="sm"
+          style={{ minWidth: 44, minHeight: 44 }}
+          accessibilityLabel={`${selectLabel}: ${item.name}`}
+          onPress={() => onSelect(item)}
+        >
+          <Plus size={16} color={accentForeground} />
+        </Button>
+      }
+    />
   );
 });

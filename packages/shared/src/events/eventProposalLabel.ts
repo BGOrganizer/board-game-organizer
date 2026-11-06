@@ -1,4 +1,11 @@
-import type { EventProposalPayload } from "@board-game-organizer/schemas";
+import type { EventProposalPayload, EventProposalResponse } from "@board-game-organizer/schemas";
+export function eventProposalAuthors(
+  row: Pick<EventProposalResponse, "authorName" | "gameSuggestions">,
+) {
+  return [
+    ...new Set(row.gameSuggestions?.map((member) => member.authorName) ?? [row.authorName]),
+  ].join(", ");
+}
 /** Proposed clocks are local wall times, not instants in a venue that has not yet been selected. */
 export function eventProposalLabel(
   payload: EventProposalPayload,

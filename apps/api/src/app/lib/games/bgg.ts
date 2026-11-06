@@ -147,6 +147,7 @@ export async function searchGames(
   query: string,
   skip = 0,
   limit = 25,
+  excludeIds: readonly number[] = [],
 ): Promise<BggSearchItem[]> {
   const rows = await db
     .collection<GameRow>(COLLECTIONS.BOARD_GAMES)
@@ -154,6 +155,7 @@ export async function searchGames(
       {
         name: { $regex: `^${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, $options: "i" },
         isExpansion: false,
+        ...(excludeIds.length ? { id: { $nin: excludeIds } } : {}),
       },
       {
         projection: {

@@ -3,6 +3,7 @@ import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-org
 import {
   clientMutationPhase,
   type EventProposalCategory,
+  eventProposalAuthors,
   eventProposalLabel,
   useEventProposalSection,
 } from "@board-game-organizer/shared";
@@ -121,13 +122,14 @@ export function EventProposalSection({
             <EventProposalItem
               key={row.id}
               row={row}
+              authorNames={s.manager ? eventProposalAuthors(row) : undefined}
               actions={
                 s.manager && event.status === "PLANNING" && row.status === "PENDING" ? (
                   <div className="flex gap-1">
                     <Button
                       isIconOnly
                       size="sm"
-                      aria-label={`${t`Accept proposal`}: ${row.authorName} — ${label}`}
+                      aria-label={`${t`Accept proposal`}: ${eventProposalAuthors(row)} — ${label}`}
                       isDisabled={
                         disabled ||
                         !s.q.hasVerifiedBase ||
@@ -142,7 +144,7 @@ export function EventProposalSection({
                       isIconOnly
                       size="sm"
                       variant="danger-soft"
-                      aria-label={`${t`Reject proposal`}: ${row.authorName} — ${label}`}
+                      aria-label={`${t`Reject proposal`}: ${eventProposalAuthors(row)} — ${label}`}
                       isDisabled={
                         disabled ||
                         !s.q.hasVerifiedBase ||
@@ -157,7 +159,9 @@ export function EventProposalSection({
                 ) : null
               }
             >
-              {s.manager ? <p className="text-sm text-muted">{row.authorName}</p> : null}
+              {s.manager && row.payload.kind !== "game" ? (
+                <p className="text-sm text-muted">{row.authorName}</p>
+              ) : null}
               {row.clientAction || row.status !== "PENDING" ? (
                 <p role="status" className="text-sm text-muted">
                   {row.clientAction
@@ -197,7 +201,7 @@ export function EventProposalSection({
           title={s.decision.action === "accept" ? t`Accept proposal` : t`Reject proposal`}
           description={
             s.validDecision
-              ? `${s.decision.row.authorName}: ${eventProposalLabel(s.decision.row.payload, s.decision.row.label, i18n.locale)}`
+              ? `${eventProposalAuthors(s.decision.row)}: ${eventProposalLabel(s.decision.row.payload, s.decision.row.label, i18n.locale)}`
               : t`This proposal changed or the action is unavailable. Close and review current proposals.`
           }
           onCancel={s.cancel}

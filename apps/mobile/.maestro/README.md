@@ -24,12 +24,18 @@ JSON fields: `eventId`, `groupId` (web), `tableId`, `mode: submit-game|accept|re
 `gameId`, `gameName`, `proposalOffset` (0–24). Submission also needs a unique catalog
 `gameQuery` of at least four characters. Review needs `proposalId` and username-first
 `proposerName`. Names must match the current EN/IT UI, not emails or provider-ID fallbacks.
-Use a fresh pending candidate for each destructive review run.
+Use a fresh pending candidate for each destructive review run. For grouped-game coverage, supply
+`proposerNames` with every displayed username in source order (at least two); `proposerName` still
+identifies the representative. One Accept/Reject resolves all pending requests for that game/Table,
+not only the representative. Browser readback checks every pending receipt/version; native checks the
+single grouped row. Repeat with a candidate already proposed by a different player: it must remain
+selectable until accepted, while an actor's own submitted game is excluded on picker reentry.
 
 - `submit-game`: ordinary accepted Group member with an actual own-Table seat, game proposals
   enabled, candidate absent from canonical games and an empty own queue. Opening/searching
   then cancelling writes nothing; reopening and selecting the candidate directly creates one private
   PENDING proposal, without an intermediate editor/Send. The pending row has no Pending label.
+  Search must retain focus after debouncing; reopening the picker must exclude that own suggestion.
 - `accept|reject`: current manager, no automatic seat assumed; target is pending at the declared
   source offset and its proposer still has its own Table seat. Pages are fixed at five records.
   Cancel preserves the request, then one versioned decision updates that exact server-ID row.
@@ -343,7 +349,7 @@ unambiguous rated/unrated titles, the expected displayed personal rating (at mos
 and a known title at source offset >=25 (zero-based name/id order).
 The flow verifies counters, personal rather than public rating, N/A, automatic filtering, empty
 results, clear and scrolling beyond the first API page. Run EN/IT, light/dark, normal/enlarged text
-and normal/tall viewports. The empty-search screenshot must show input/chips above the actual keyboard,
+and normal/tall viewports. Both few-result and empty-search screenshots must show input/chips above the actual keyboard,
 not a collapsed offscreen list; blur preserves text and clear preserves Wishlist. Also verify the
 accessibility paging action on a viewport where initial rows fit; no visible load-more button or logout
 belongs in Collection. Syntax/unit checks are not device acceptance.
@@ -362,7 +368,8 @@ Flows17/18 now read the sync card on main Profile; Collection requires a publish
 
 Use both `viewerSynced` modes (omit `commonName` when false), with already published fixture snapshots.
 Both subjects must be visible to the viewer without blocks; the synced subject needs the exact
-expansion/wishlist/common items in the selected first filtered pages. No provider write/provisioning or
+expansion/wishlist/common items in the selected first filtered pages. Wishlist is tested with both
+Games and Expansions off: it must still show both wished types. Turn Wishlist off to restore type logic. No provider write/provisioning or
 application mutation occurs. Run EN/IT, themes and enlarged text; review empty keyboard screenshots and
 counter alignment. Behavior follows [Profile](../../../docs/profiles.md), including disabled common
 filter without a viewer snapshot and hidden Collection on the unsynced subject.

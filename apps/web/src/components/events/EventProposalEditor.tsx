@@ -33,6 +33,7 @@ export function EventProposalEditor({
         getToken={o.getToken}
         userId={o.userId}
         protectionBypass={o.protectionBypass ?? undefined}
+        proposalScope={{ eventId, tableId: tableId ?? "" }}
         excludeIds={form.table.data?.games.map((g) => g.gameId)}
         onClose={() => router.back()}
         onSelect={(game) => {

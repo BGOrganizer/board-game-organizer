@@ -5,6 +5,7 @@ import { CommunityError } from "../community.error";
 import { corsJson } from "../cors";
 import { getDb, withTransaction } from "../db";
 import { ensureCurrentUser } from "../ensureCurrentUser";
+import { enrichRecordGameCovers } from "../games/record-game-covers";
 import { dispatchNotifications } from "../notifications/push";
 import type { recordServices } from "./record-services";
 import {
@@ -61,6 +62,7 @@ export async function runRecordOperation<T>(
       ids.length = 0;
       return operation(userId, recordServices(db, session, ids));
     });
+    if (request.method === "GET") await enrichRecordGameCovers(await getDb(), result);
     // Only committed IDs survive retries; never dispatch legacy Match/deadline workers.
     if (ids.length) {
       const committed = [...ids];

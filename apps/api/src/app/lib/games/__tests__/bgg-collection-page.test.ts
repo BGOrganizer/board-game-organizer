@@ -57,10 +57,10 @@ const row = (id: number): Partial<BggCollectionGame> => ({
 
 describe("authorized collection pages", () => {
   it.each(["games", "expansions", "none"] as const)(
-    "applies %s and wishlist restrictions at source before pagination",
+    "applies %s at source; wishlist independently includes both types before pagination",
     async (types) => {
       const h = fixture();
-      await h.repository.page("owner", { ...input, types, wishlist: "true" });
+      await h.repository.page("owner", { ...input, types });
       const match = h.find.mock.calls[0][0].$and;
       expect(match[0]).toEqual({ userId: "owner", snapshot: "snapshot" });
       expect(match[1]).toEqual(
@@ -70,8 +70,12 @@ describe("authorized collection pages", () => {
             ? { $or: [{ isExpansion: true }, { subtype: "boardgameexpansion" }] }
             : { gameId: -1 },
       );
-      expect(match[2].$or[0]).toEqual({ wishlist: true });
-      expect(match[2].$or[1].xml.$regex).toContain("wishlist");
+      const wished = fixture();
+      await wished.repository.page("owner", { ...input, types, wishlist: "true" });
+      const wishMatch = wished.find.mock.calls[0][0].$and;
+      expect(wishMatch).toHaveLength(2);
+      expect(wishMatch[1].$or[0]).toEqual({ wishlist: true });
+      expect(wishMatch[1].$or[1].xml.$regex).toContain("wishlist");
       expect(h.cursor.limit).toHaveBeenCalledWith(3);
     },
   );

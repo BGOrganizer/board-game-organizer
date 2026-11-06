@@ -5998,3 +5998,6 @@ msgstr "Sincronizza la tua collezione BGG per trovare i giochi in comune."
 
 msgid "Could not determine the location time zone. Choose a location."
 msgstr "Impossibile determinare il fuso orario del luogo. Scegli un luogo."
+
+msgid "Choose a location"
+msgstr "Scegli un luogo"

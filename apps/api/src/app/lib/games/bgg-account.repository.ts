@@ -258,11 +258,11 @@ export class BggAccountRepository {
     const escaped = input.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const conditions: Filter<BggCollectionGame>[] = [{ userId, snapshot: input.snapshot }];
     if (escaped) conditions.push({ name: { $regex: escaped, $options: "i" } });
-    if (input.types === "games")
+    if (input.wishlist !== "true" && input.types === "games")
       conditions.push({ isExpansion: { $ne: true }, subtype: { $ne: "boardgameexpansion" } });
-    if (input.types === "expansions")
+    if (input.wishlist !== "true" && input.types === "expansions")
       conditions.push({ $or: [{ isExpansion: true }, { subtype: "boardgameexpansion" }] });
-    if (input.types === "none") conditions.push({ gameId: -1 });
+    if (input.wishlist !== "true" && input.types === "none") conditions.push({ gameId: -1 });
     if (input.wishlist === "true")
       conditions.push({
         $or: [

@@ -377,9 +377,18 @@ management/demonstration alone do not qualify. Standalone/PUBLIC Events cannot e
 Authenticated `GET /events/:id/proposals` source-pages `mine` or current-manager-only `review`
 scopes by category, with a Table ID required only for games. Private pending/rejected/decision
 metadata never enters ordinary Event options, public detail, participant responses or Community.
-Own pending duplicates are rejected without exposing another author's submissions. Explicit
+Own pending date/location duplicates are rejected without exposing another author's submissions.
+A participant game picker source-excludes canonical Table games and every game already suggested by
+that actor (including rejected history), not other actors' unaccepted suggestions. Current private
+planning/seat/category guards also protect these picker reads. Explicit
 `POST` submissions carry Event version and request correlation; decisions at
-`POST /events/:id/proposals/:proposalId` carry Event/request versions and accept/reject only.
+`POST /events/:id/proposals/:proposalId` carry Event/request versions and accept/reject; grouped game
+reviews additionally pin the server pending-set revision. Manager game lists deduplicate by game
+before paging, with all proposer usernames inline in the same item. One decision atomically resolves
+all pending same-game/same-Table requests, notifying each proposer; accepted/rejected history is not
+rewritten. Acceptance revalidates every pending proposer's actual seat. Changed pending sets invalidate
+a captured decision, rather than silently including unseen later work. Stable batch receipts support
+idempotency and lost-response readback; only current managers can read other authors' batch receipts.
 `GET /events/:id/proposals/:proposalId` returns an authorized own/current-manager receipt; bounded
 own correlation reads also serialize with writes so lost responses are verified, not replayed.
 Group/Event locks serialize submissions, approval, confirmation, role changes and removals.
@@ -404,7 +413,11 @@ location artwork or the catalog game cover, and keep accepted/rejected and local
 Native dialog generations/owner fences reject cancelled or detached callbacks. Existing failed-draft
 recovery and uncertain receipt verification remain explicit; canonical options still require approval.
 Managers see the authorized review queue; other participants see only their own proposals. Fixed
-five-row source pages bound presentation, including inside existing native lists. Failed unsent
+five-row source pages bound presentation (five unique games for manager game review), including
+inside existing native lists. Picker input identity stays stable through debounced search and cache
+updates, while list budgets and stale-callback fences reset without remounting that input. Game artwork
+on authorized GET DTOs is enriched only after the authorization transaction, using the existing quota/
+negative-cache policy outside transaction locks; failed images retain the semantic game icon. Failed unsent
 local drafts remain reviewable; a changed explicit retry gets a fresh correlation rather than replaying
 an old write. Current private single/correlated receipt reads verify uncertain outcomes without POST
 replay. Existing immutable results, consent, ballots and canonical gameplay statistics remain untouched.

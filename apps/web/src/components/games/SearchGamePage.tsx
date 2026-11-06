@@ -8,11 +8,9 @@ import { ArrowLeft, Gamepad2, LibraryBig, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
-import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
-import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
+import { GameListCard } from "@/components/games/GameListCard";
 
 interface Props {
   apiUrl: string;
@@ -21,6 +19,7 @@ interface Props {
   userId?: string | null;
   protectionBypass?: string | null;
   excludeIds?: number[];
+  proposalScope?: { eventId: string; tableId: string };
   onSelect: (game: {
     id: number;
     name: string;
@@ -41,6 +40,7 @@ export function SearchGamePage({
   userId,
   protectionBypass,
   excludeIds = [],
+  proposalScope,
   onSelect,
   onClose,
 }: Props) {
@@ -67,6 +67,7 @@ export function SearchGamePage({
     collection: collection && hasCollection,
     snapshot: account.account.data?.active?.snapshot,
     protectionBypass,
+    proposalScope,
   });
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 300);
@@ -145,42 +146,30 @@ export function SearchGamePage({
       (debounced.length >= 4 || (collection && hasCollection)) ? (
         <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No games found`}</EmptyList>
       ) : null}
-      <GroupedList className="mt-3">
+      <div className="mt-3 space-y-2">
         {items.map((item) => (
-          <GroupedRow key={item.id}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default">
-              {item.imageUrl ? (
-                // biome-ignore lint/performance/noImgElement: BGG cover URLs discovered at runtime.
-                <img
-                  src={item.imageUrl}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <Gamepad2 className="h-5 w-5 text-muted" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="max-w-[40ch] truncate text-sm font-medium" title={item.name}>
-                {item.name}
-              </p>
-              <GameCatalogMetadata year={item.year} average={item.average} rank={item.rank} />
-            </div>
-            <Button
-              isIconOnly
-              className="shrink-0"
-              size="sm"
-              variant="primary"
-              aria-label={`${t`Select`}: ${item.name}`}
-              onPress={() => void select(item)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </GroupedRow>
+          <GameListCard
+            key={item.id}
+            name={item.name}
+            imageUrl={item.imageUrl}
+            year={item.year}
+            average={item.average}
+            rank={item.rank}
+            actions={
+              <Button
+                isIconOnly
+                className="shrink-0"
+                size="sm"
+                variant="primary"
+                aria-label={`${t`Select`}: ${item.name}`}
+                onPress={() => void select(item)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            }
+          />
         ))}
-      </GroupedList>
+      </div>
       {picker.data && (pageIndex > 0 || picker.hasNextPage) ? (
         <nav className="mt-4 flex justify-between" aria-label={t`Game results pages`}>
           <Button

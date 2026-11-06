@@ -27,8 +27,10 @@ visibility with a current-network/time selection; no offline mode is enabled.
   the filter or restrict to `own=1`; wishlist can overlap either total. Rows reuse the game-selection
   identity/cover/catalog layout, replacing selection with the owner's personal BGG rating or `N/A`,
   never the public BGG average or GLOBAL OpenSkill. Games and Expansions chips initially include
-  both types (OR); Wishlist and In common restrict that set (AND), combined with the name filter before
-  source paging. All-off types is empty, never all games. Counters retain whole-snapshot totals.
+  both types (OR). Wishlist independently shows wished games AND expansions regardless of either type
+  toggle; it preserves those toggles for when Wishlist is turned off. Name and In common still restrict
+  the selected results before source paging. All-off types without Wishlist is empty, never all games.
+  Counters retain whole-snapshot totals.
   In common exists on other-user collections: exact BGG IDs in both published snapshots, including
   expansions/wishlist rather than assuming possession. It is disabled with a sync hint if the viewer
   has no published snapshot. Both snapshot epochs are pinned/rechecked; no full collection is fetched
@@ -38,7 +40,9 @@ visibility with a current-network/time selection; no offline mode is enabled.
   uses the installed HeroUI React Aria Virtualizer with measured variable row sizes. Infinite scroll
   reveals/fetches more; Collection has no visible load-more button (native retains an accessibility
   paging action). Only search/chips stick while identity/counters scroll away. Focus reveals search
-  above the keyboard; empty results reserve the remaining list viewport. Query changes never reset
+  above the keyboard and remains pinned while focused across viewport/content changes; both empty
+  and few-result lists retain enough scroll range to keep the filter visible. Picker/Collection rows
+  reuse the same platform game-card component and spacing. Query changes never reset
   the list to the Profile header. Blur/keyboard dismissal preserve text/chips; clear removes text only.
   Counter cards share the largest natural height and align number/label rows, including wrapped text.
   Tab, game and activity-filter selections belong to scoped local UI state.

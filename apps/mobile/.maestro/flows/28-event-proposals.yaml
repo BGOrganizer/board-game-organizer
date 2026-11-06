@@ -26,6 +26,9 @@ tags: [manual, events, proposals]
           element: ${output.eventProposal.select}
           direction: DOWN
           timeout: 120000
+      - assertVisible:
+          id: game-search-input
+          focused: true
       - tapOn: ${output.eventProposal.back}
       - assertVisible: ${output.eventProposal.empty}
       - tapOn: ${output.eventProposal.add}
@@ -36,6 +39,9 @@ tags: [manual, events, proposals]
           element: ${output.eventProposal.select}
           direction: DOWN
           timeout: 120000
+      - assertVisible:
+          id: game-search-input
+          focused: true
       - tapOn: ${output.eventProposal.select}
       - extendedWaitUntil:
           visible:
@@ -47,6 +53,15 @@ tags: [manual, events, proposals]
           text: ${output.eventProposal.pending}
           childOf:
             id: ${output.eventProposal.rowId}
+      - tapOn: ${output.eventProposal.add}
+      - tapOn:
+          id: game-search-input
+      - inputText: ${output.eventProposal.query}
+      - extendedWaitUntil:
+          visible: ${output.eventProposal.noGames}
+          timeout: 120000
+      - assertNotVisible: ${output.eventProposal.select}
+      - tapOn: ${output.eventProposal.back}
 - runFlow:
     when:
       true: ${!output.eventProposal.submitting}

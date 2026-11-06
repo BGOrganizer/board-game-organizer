@@ -79,6 +79,8 @@ it("preserves genuine score-sheet input handlers, normal motion and immutable pl
 });
 it("keeps reusable catalog/address identity rows platform-specific", () => {
   for (const file of ["components/games/GamePicker.tsx", "components/groups/GroupWizard.tsx"])
-    expect(source(file)).toContain(file.includes("games") ? "<GameListRow" : "<LocationListRow");
+    expect(source(file)).toContain(file.includes("games") ? "<GameListCard" : "<LocationListRow");
+  expect(source("components/games/GameListCard.tsx")).toContain("<GameListRow");
+  expect(source("components/profile/ProfileCollection.tsx")).toContain("<GameListCard");
   expect(source("components/contacts/PeoplePicker.tsx")).toContain("<UserList");
 });

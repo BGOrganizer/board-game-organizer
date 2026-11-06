@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { CommunityError } from "@/app/lib/community.error";
 import { GET } from "../route";
 
 const owned = {
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
       pending: null,
     }),
   ),
+  exclude: vi.fn(async () => [1] as number[]),
   collectionRows: vi.fn(() => [owned]),
   search: vi.fn(async () => [
     { id: 1, name: "Azul", year: 2017, imageUrl: null },
@@ -43,17 +45,29 @@ function find(rows: object[]) {
 }
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/app/lib/games/bgg", () => ({
-  searchGames: async (_db: unknown, _query: string, offset: number, limit: number) =>
-    (await mocks.search()).slice(offset, offset + limit),
+  searchGames: async (
+    _db: unknown,
+    _query: string,
+    offset: number,
+    limit: number,
+    excluded: number[] = [],
+  ) =>
+    (await mocks.search())
+      .filter((game) => !excluded.includes(game.id))
+      .slice(offset, offset + limit),
 }));
 vi.mock("@/app/lib/games/bgg-account.repository", () => ({
   BggAccountRepository: vi.fn().mockImplementation(() => ({ get: mocks.get })),
 }));
+vi.mock("@/app/lib/community/record-services", () => ({
+  recordServices: () => ({ events: { proposalPickerExclusions: mocks.exclude } }),
+}));
 vi.mock("@/app/lib/db", () => ({
+  withTransaction: async (work: (session: unknown, db: unknown) => unknown) => work({}, {}),
   COLLECTIONS: { BGG_COLLECTION_GAMES: "bggCollectionGames", BOARD_GAMES: "boardGames" },
   getDb: async () => ({
     collection: (name: string) => ({
-      find: (filter: { gameId?: { $in: number[] }; name?: RegExp }) =>
+      find: (filter: { gameId?: { $in?: number[]; $nin?: number[] }; name?: RegExp }) =>
         find(
           name === "boardGames"
             ? [{ id: 1, name: "Azul", average: 7.5, minPlayMinutes: 30, maxPlayMinutes: 45 }]
@@ -61,7 +75,10 @@ vi.mock("@/app/lib/db", () => ({
                 .collectionRows()
                 .filter(
                   (game) =>
-                    (!filter.gameId || filter.gameId.$in.includes(game.gameId)) &&
+                    (!filter.gameId ||
+                      (filter.gameId.$in
+                        ? filter.gameId.$in.includes(game.gameId)
+                        : !filter.gameId.$nin?.includes(game.gameId))) &&
                     (!filter.name || filter.name.test(game.name)),
                 ),
         ),
@@ -72,12 +89,45 @@ vi.mock("@/app/lib/db", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.auth.mockResolvedValue({ userId: "viewer" });
+  mocks.exclude.mockReset().mockResolvedValue([1]);
   mocks.get.mockResolvedValue({ active: { snapshot: "snap" }, pending: null });
   mocks.collectionRows.mockReturnValue([owned]);
 });
 
 const request = (params: string) => new Request(`http://localhost/api/bgg/picker?${params}`);
 
+it("applies only current own/canonical proposal exclusions before source paging and binds cursors", async () => {
+  const scope =
+    "proposalEventId=11111111-1111-4111-8111-111111111111&proposalTableId=22222222-2222-4222-8222-222222222222";
+  const result = await GET(request(`query=Azul&limit=1&${scope}`));
+  const body = await result.json();
+  expect(result.status).toBe(200);
+  expect(body.items.map((g: { id: number }) => g.id)).toEqual([2]);
+  expect(mocks.exclude).toHaveBeenCalledWith(
+    "viewer",
+    "11111111-1111-4111-8111-111111111111",
+    "22222222-2222-4222-8222-222222222222",
+  );
+  mocks.search.mockResolvedValueOnce([other, { ...other, id: 3 }]);
+  const paged = await (
+    await GET(request(`query=Azul&search=1&collection=0&limit=1&${scope}`))
+  ).json();
+  mocks.exclude.mockResolvedValue([1, 2]);
+  expect(
+    (
+      await GET(
+        request(`query=Azul&search=1&collection=0&limit=1&${scope}&cursor=${paged.nextCursor}`),
+      )
+    ).status,
+  ).toBe(409);
+  expect((await GET(request("proposalEventId=11111111-1111-4111-8111-111111111111"))).status).toBe(
+    400,
+  );
+  mocks.exclude.mockRejectedValueOnce(new CommunityError(403, "PROPOSAL_SEAT_REQUIRED"));
+  expect((await GET(request(`query=Azul&${scope}`))).status).toBe(403);
+  mocks.exclude.mockRejectedValueOnce(new Error("unavailable"));
+  expect((await GET(request(`query=Azul&${scope}`))).status).toBe(500);
+});
 it("requires auth and rejects malformed cursors", async () => {
   mocks.auth.mockResolvedValueOnce({ userId: null });
   expect((await GET(request("query=Azul"))).status).toBe(401);

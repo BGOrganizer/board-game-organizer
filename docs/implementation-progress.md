@@ -1,6 +1,37 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
-## Profile/Event UX polish — implemented locally; runtime acceptance pending
+## Game selectors / grouped suggestions / Collection follow-up — runtime acceptance pending
+
+- Native game search no longer keys the whole list by its debounced query: the input stays mounted
+  while source windows reset and stale callbacks remain fenced. Collection reserves scroll range for
+  both empty and few-result lists, and re-pins a focused filter after keyboard/content layout changes.
+  Picker and Collection share each platform's game-card component with consistent row spacing.
+- Wishlist source filtering includes games and expansions regardless of the two type toggles; other
+  name/common restrictions remain. Turning Wishlist off restores type logic. Both catalogs now include
+  Choose a location / Scegli un luogo; all 1,468 previous compiled entries remain unchanged (1,469 now).
+- Participant picker queries source-exclude canonical Table games and every own submitted game,
+  including rejected history. Other actors' unaccepted suggestions remain selectable. Current private
+  planning/flag/actual-seat guards protect the scoped API, and scoped cursor revisions prevent mixing
+  changed exclusions. Actor/API/Event/Table query identity and selective cache reconciliation remain.
+- Manager game suggestions are grouped before paging, with proposer names inline beside the game.
+  One revision-pinned decision atomically resolves all pending same-game/same-Table requests, retaining
+  previous decisions, notifying proposers and revalidating each actual seat before acceptance. Stable
+  batch receipts support idempotent/lost-response reads without exposing other authors to nonmanagers.
+  Existing journal/FIFO marks pending intent only, then reconciles each canonical batch receipt.
+- Authorized GET record artwork is enriched after its transaction, reusing quota/negative-cache policy
+  without provider I/O under transaction locks. Failed images retain the semantic game icon.
+- **3,013 covered tests pass, zero failures/skips:** API 920, shared 491, mobile 552, web 905, schemas145.
+  New cover-presentation logic and existing changed deterministic helpers pass their 100% per-file gates;
+  no gates were lowered. Typecheck, API/web builds and Android production export pass; generated Next/
+  Expo references were restored byte-for-byte. **Five selected disposable-Mongo replica-set tests pass,
+  127 cases outside selection**, including source grouping, collective approval, rollback, concurrent
+  idempotency, private readback, exclusions, Wishlist and existing proposal guards.
+- Opt-in browser/native scenarios now cover preserved focus, few/empty keyboard results, Wishlist with
+  both types off, own-suggestion exclusion and grouped proposers. They were not authenticated-executed:
+  source/VM callbacks, coverage, syntax and export are **not** native keyboard/font/theme/frame or full
+  browser/device acceptance. No application database reset/migration, provider sync or deployment ran.
+
+## Profile/Event UX polish — prior evidence; filters/pickers superseded above
 
 - [Profile contract](profiles.md) now permits published Collections for authenticated, block-authorized
   profile viewers. Source-side Games/Expansions/Wishlist/common-ID filters precede pagination; both

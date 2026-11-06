@@ -62,6 +62,7 @@ export function EventProposalEditor({
       {closing === identity ? null : form.allowed && kind === "game" ? (
         <GamePicker
           onClose={close}
+          proposalScope={{ eventId, tableId: tableId ?? "" }}
           excludeIds={form.table.data?.games.map((game) => game.gameId)}
           onSelect={(game) => {
             if (form.submit({ kind: "game", tableId: tableId ?? "", gameId: game.id }, game.name))

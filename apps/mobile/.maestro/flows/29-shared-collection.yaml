@@ -62,6 +62,10 @@ tags: [manual, profile, bgg]
 - inputText: ${output.sharedCollection.wishlistQuery}
 - hideKeyboard
 - tapOn:
+    id: list-filter-games
+- tapOn:
+    id: list-filter-expansions
+- tapOn:
     id: list-filter-wishlist
 - scrollUntilVisible:
     element: ${output.sharedCollection.wishlist}
@@ -69,6 +73,10 @@ tags: [manual, profile, bgg]
     timeout: 120000
 - tapOn:
     id: list-filter-wishlist
+- tapOn:
+    id: list-filter-games
+- tapOn:
+    id: list-filter-expansions
 - runFlow:
     when:
       true: ${output.sharedCollection.viewerSynced}

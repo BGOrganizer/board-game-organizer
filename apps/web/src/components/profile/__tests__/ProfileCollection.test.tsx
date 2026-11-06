@@ -89,6 +89,9 @@ it("covers every type combination, toggle direction and common eligibility witho
   expect(h.result.current.types).toBe("all");
   act(() => h.result.current.toggle("wishlist"));
   expect(h.result.current.wishlist).toBe(true);
+  act(() => h.result.current.toggle("games"));
+  act(() => h.result.current.toggle("expansions"));
+  expect(h.result.current.types).toBe("all");
   act(() => h.result.current.toggle("wishlist"));
   expect(h.result.current.wishlist).toBe(false);
   h.rerender({ snapshot: "viewer" });
@@ -107,7 +110,7 @@ it("keeps search/chips on blur and empty results, clears only text, and combines
   fireEvent.click(screen.getByRole("button", { name: "Expansions" }));
   await waitFor(() => expect(screen.queryByRole("option", { name: /Expansion/ })).toBeNull());
   fireEvent.click(screen.getByRole("button", { name: "Wishlist" }));
-  await screen.findByText("No games found");
+  await screen.findByRole("option", { name: /Expansion/ });
   const input = screen.getByRole("searchbox", { name: "Filter collection" });
   fireEvent.focus(input);
   fireEvent.change(input, { target: { value: "missing" } });
@@ -117,6 +120,7 @@ it("keeps search/chips on blur and empty results, clears only text, and combines
       fetch.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "missing"),
     ).toBe(true),
   );
+  await screen.findByText("No games found");
   expect((input as HTMLInputElement).value).toBe("missing");
   expect(screen.getByRole("button", { name: "Wishlist" }).getAttribute("aria-pressed")).toBe(
     "true",
@@ -129,7 +133,11 @@ it("keeps search/chips on blur and empty results, clears only text, and combines
   fireEvent.click(screen.getByRole("button", { name: "Games" }));
   await waitFor(() =>
     expect(
-      fetch.mock.calls.some(([url]) => new URL(url).searchParams.get("types") === "none"),
+      fetch.mock.calls.some(
+        ([url]) =>
+          new URL(url).searchParams.get("types") === "all" &&
+          new URL(url).searchParams.get("wishlist") === "true",
+      ),
     ).toBe(true),
   );
   fireEvent.click(screen.getByRole("button", { name: "Expansions" }));

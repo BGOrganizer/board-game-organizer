@@ -227,7 +227,7 @@ it("memoizes the actual identity/action row while retaining artwork, metadata an
       }),
     },
     GroupedList: "GroupedList",
-    GameListRow: "GameListRow",
+    GameListCard: "GameListCard",
     Button: "Button",
     Plus: "Plus",
   });
@@ -246,7 +246,8 @@ it("memoizes the actual identity/action row while retaining artwork, metadata an
     selectLabel: "Select",
     accentForeground: "accent-foreground-token",
   }) as Node;
-  const identity = tree.children[0] as Node;
+  const identity = tree;
+  expect(identity.type).toBe("GameListCard");
   expect(identity.props).toMatchObject({
     name: item.name,
     imageUrl: item.imageUrl,
@@ -434,7 +435,7 @@ it("does not present an excluded first page as empty and offers a path through f
   );
 });
 it.each(["snapshot", "owner", "filter", "search"])(
-  "resets the visible budget and scroll key for %s changes, rejecting late callbacks",
+  "resets visible budget without remounting search for %s changes, rejecting late callbacks",
   (kind) => {
     const h = harness(3),
       first = h.render();
@@ -457,7 +458,8 @@ it.each(["snapshot", "owner", "filter", "search"])(
     }
     const current = h.render();
     expect(current.props.data).toHaveLength(8);
-    expect(current.props.key).not.toBe(first.props.key);
+    expect(current.props.key).toBe(first.props.key);
+    expect(current.props.ref).toBe(first.props.ref);
     first.props.onScrollBeginDrag();
     first.props.onEndReached();
     first.props.ListFooterComponent.props.onPress();

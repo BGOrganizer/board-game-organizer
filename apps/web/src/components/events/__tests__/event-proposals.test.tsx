@@ -161,6 +161,7 @@ it("renders date/time icons without zone shifts, verified place labels and the r
   expect(screen.getByText(event.locations[0].address)).toBeTruthy();
   view.rerender(
     <EventProposalItem
+      authorNames="alice, bob"
       row={{
         ...row(),
         label: "Selected game",
@@ -169,10 +170,15 @@ it("renders date/time icons without zone shifts, verified place labels and the r
       }}
     />,
   );
-  expect(screen.getByText("Selected game")).toBeTruthy();
+  expect(screen.getByText("Selected game").parentElement?.textContent).toBe(
+    "Selected gamealice, bob",
+  );
   expect(date.querySelector("img")?.getAttribute("src")).toBe(
     "https://cf.geekdo-images.com/real.jpg",
   );
+  fireEvent.error(date.querySelector("img")!);
+  expect(date.querySelector("img")).toBeNull();
+  expect(date.querySelector("svg")).toBeTruthy();
 });
 it("submits a date from the inline admin-style chooser, with no intermediate route or invented consent", async () => {
   const f = setup(),
@@ -208,6 +214,79 @@ it("submits a date from the inline admin-style chooser, with no intermediate rou
   });
   expect(navigation.push).not.toHaveBeenCalled();
   expect(f.client.getQueryData(eventRecordKeys.detail(o, event.id))).toEqual(event);
+});
+it("reviews a whole game group once and reconciles all receipts/owned scopes after source readback", async () => {
+  const f = setup(),
+    gameScope = { ...scope, kind: "game" as const, tableId: table.id };
+  const first = {
+      ...row(),
+      userId: "other",
+      payload: { kind: "game" as const, tableId: table.id, gameId: 2 },
+    },
+    second = { ...first, id: "second", userId: o.userId };
+  const grouped = {
+    ...first,
+    groupRevision: "a".repeat(64),
+    gameSuggestions: [first, second].map((p) => ({
+      id: p.id,
+      userId: p.userId,
+      authorName: p.authorName,
+      version: p.version,
+      status: p.status,
+    })),
+  };
+  const reviewKey = eventProposalKeys.page(o, gameScope),
+    mineKey = eventProposalKeys.page(o, { ...gameScope, mode: "mine" });
+  f.client.setQueryData(reviewKey, page([grouped]));
+  f.client.setQueryData(mineKey, page([second], "mine"));
+  let resolve!: (response: Response) => void;
+  const pending = new Promise<Response>((r) => (resolve = r));
+  const fetch = vi.fn((_url: string, _init?: RequestInit) => pending);
+  vi.stubGlobal("fetch", fetch);
+  const h = renderHook(() => useEventProposalActions(o, event.id, optionId, "game", table.id), {
+    wrapper: f.wrapper,
+  });
+  act(() =>
+    h.result.current.decide({
+      proposalId: first.id,
+      version: 1,
+      eventVersion: 1,
+      action: "accept",
+      groupRevision: grouped.groupRevision,
+      game: { gameId: 2, tableId: table.id },
+    }),
+  );
+  await waitFor(() =>
+    expect((f.client.getQueryData(mineKey) as any).items[0]).toMatchObject({
+      clientAction: "accept",
+      status: "PENDING",
+    }),
+  );
+  const saved = [first, second].map((p) => ({
+    ...p,
+    status: "ACCEPTED",
+    version: 2,
+    reviewBatchId: optionId,
+  }));
+  resolve(Response.json({ proposal: saved[0], proposals: saved, event: { ...event, version: 2 } }));
+  await waitFor(() => expect(h.result.current.review.isSuccess).toBe(true));
+  expect(fetch).toHaveBeenCalledOnce();
+  expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({
+    action: "accept",
+    version: 1,
+    eventVersion: 1,
+    groupRevision: "a".repeat(64),
+  });
+  expect((f.client.getQueryData(mineKey) as EventProposalsResponse).items[0]).toMatchObject({
+    id: second.id,
+    status: "ACCEPTED",
+    version: 2,
+  });
+  expect(
+    (f.client.getQueryData(reviewKey) as EventProposalsResponse).items[0].gameSuggestions?.every(
+      (p) => p.status === "ACCEPTED",
+    ),
+  ).toBe(true);
 });
 it("source-pages five rows with fresh JWT, distinct scopes and stale/unmounted callback fences", async () => {
   const f = setup();

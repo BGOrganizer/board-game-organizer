@@ -29,10 +29,18 @@ const input = JSON.parse(required("EVENT_PROPOSAL_INPUT")) as {
   gameName: string;
   gameQuery?: string;
   proposerName?: string;
+  proposerNames?: string[];
   proposalId?: string;
   proposalOffset: number;
 };
 const uuid = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
+if (
+  input.proposerNames !== undefined &&
+  (!Array.isArray(input.proposerNames) ||
+    input.proposerNames.length < 2 ||
+    input.proposerNames.some((n) => typeof n !== "string" || !n.trim() || n.length > 120))
+)
+  throw new Error("Exact grouped proposer usernames required");
 if (
   !["en", "it"].includes(locale) ||
   ![input.eventId, input.groupId, input.tableId].every((id) => uuid.test(id)) ||
@@ -151,10 +159,12 @@ test("real private own-Table proposal or current-manager decision; cancel writes
     const region = page.getByRole("region", { name: labels.own, exact: true });
     const openPicker = async () => {
       await region.getByRole("button", { name: labels.add, exact: true }).click();
-      await page.getByPlaceholder(labels.search, { exact: true }).fill(input.gameQuery!);
+      const search = page.getByPlaceholder(labels.search, { exact: true });
+      await search.fill(input.gameQuery!);
       await expect(
         page.getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true }),
       ).toBeVisible();
+      await expect(search).toBeFocused();
       await expect(page.getByRole("button", { name: labels.send, exact: true })).toHaveCount(0);
     };
     await openPicker();
@@ -187,6 +197,22 @@ test("real private own-Table proposal or current-manager decision; cancel writes
         .games,
     ).toEqual(table.games);
     expect(writes).toHaveLength(1);
+    await region.getByRole("button", { name: labels.add, exact: true }).click();
+    const searched = page.waitForResponse(
+      (r) =>
+        new URL(r.url()).pathname === "/api/bgg/picker" &&
+        new URL(r.url()).searchParams.get("query") === input.gameQuery!.trim(),
+    );
+    await page.getByPlaceholder(labels.search, { exact: true }).fill(input.gameQuery!);
+    const searchResponse = await searched;
+    expect(searchResponse.status()).toBe(200);
+    expect(
+      (await searchResponse.json()).items.some((g: { id: number }) => g.id === input.gameId),
+    ).toBe(false);
+    await expect(
+      page.getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: labels.back, exact: true }).click();
   } else {
     if (!event.canManage)
       throw new Error("Current manager required, historical authorship is insufficient");
@@ -199,13 +225,18 @@ test("real private own-Table proposal or current-manager decision; cancel writes
       target.label !== input.gameName
     )
       throw new Error("Declared pending target at exact source offset required");
+    const authors = [
+      ...new Set(target.gameSuggestions?.map((p) => p.authorName) ?? [target.authorName]),
+    ];
+    if (input.proposerNames) expect(authors).toEqual(input.proposerNames);
+    const pending = target.gameSuggestions?.filter((p) => p.status === "PENDING") ?? [target];
     const region = page.getByRole("region", { name: labels.review, exact: true });
     for (let n = 0; n < Math.floor(input.proposalOffset / 5); n++) {
       await region.getByRole("button", { name: labels.next, exact: true }).click();
       await expect(region.getByText(`${labels.page} ${n + 2}`, { exact: true })).toBeVisible();
     }
     const action = region.getByRole("button", {
-      name: `${labels.action}: ${input.proposerName} — ${input.gameName}`,
+      name: `${labels.action}: ${authors.join(", ")} — ${input.gameName}`,
       exact: true,
     });
     await action.click();
@@ -234,6 +265,8 @@ test("real private own-Table proposal or current-manager decision; cancel writes
       `events/${input.eventId}/proposals/${input.proposalId}`,
     );
     expect(receipt.proposal.status).toBe(input.mode === "accept" ? "ACCEPTED" : "REJECTED");
+    expect(receipt.proposals?.map((p) => p.id).sort()).toEqual(pending.map((p) => p.id).sort());
+    expect(receipt.proposals?.every((p) => p.status === receipt.proposal.status)).toBe(true);
     const after = await read<PlannedTableResponse>(
       page,
       `events/${input.eventId}/tables/${input.tableId}`,

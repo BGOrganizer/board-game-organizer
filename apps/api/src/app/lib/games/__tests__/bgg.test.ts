@@ -42,6 +42,12 @@ afterEach(() => {
 });
 
 describe("BGG covers", () => {
+  it("excludes canonical/own-proposed game IDs in the catalog before source sorting and paging", async () => {
+    vi.stubEnv("BGG_TOKEN", "");
+    games.find.mockReturnValue(cursor([]));
+    expect(await searchGames(db, "Azul", 0, 25, [1, 2])).toEqual([]);
+    expect(games.find.mock.calls[0][0]).toMatchObject({ id: { $nin: [1, 2] }, isExpansion: false });
+  });
   it("fetches real batched images and reuses the cache", async () => {
     const rows = [{ ...sample }, { id: 2, name: "Catan", yearPublished: 1995 }];
     games.find.mockReturnValue(cursor(rows));

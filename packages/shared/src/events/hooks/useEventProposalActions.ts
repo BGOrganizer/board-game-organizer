@@ -49,7 +49,11 @@ export type SubmitEventProposalVariables = {
   clientReplaces?: string;
   clientOwner?: ClientOwner;
 };
-type ReviewVariables = ReviewEventProposalInput & { proposalId: string; clientOwner?: ClientOwner };
+type ReviewVariables = ReviewEventProposalInput & {
+  proposalId: string;
+  game?: { gameId: number; tableId: string };
+  clientOwner?: ClientOwner;
+};
 function creationKey(
   o: CommunityApiOptions,
   eventId: string,
@@ -88,6 +92,12 @@ export function useEventProposalActions(
     queryKey: eventRecordKeys.root(who),
     predicate: (q: { queryKey: readonly unknown[] }) => q.queryKey[4] === who.eventId,
   });
+  function clearProposalPickers(who: ClientOwner) {
+    client.removeQueries({
+      queryKey: ["bgg-picker", who.apiUrl, who.userId],
+      predicate: (q) => (q.queryKey[7] as { eventId?: string } | null)?.eventId === who.eventId,
+    });
+  }
   function check(who: ClientOwner | undefined) {
     if (
       !who ||
@@ -118,6 +128,7 @@ export function useEventProposalActions(
               review.eventVersion,
               review.version,
               review.action,
+              review.game,
             )
         : (data) => data,
       review
@@ -166,6 +177,7 @@ export function useEventProposalActions(
         { cancelRefetch: false },
       );
     }
+    void client.invalidateQueries({ queryKey: ["bgg-picker", c.owner.apiUrl, c.owner.userId] });
     void client.invalidateQueries({ queryKey: ["notifications", c.owner.apiUrl, c.owner.userId] });
     void client.invalidateQueries({
       queryKey: ["notification-attention", c.owner.apiUrl, c.owner.userId],
@@ -237,6 +249,7 @@ export function useEventProposalActions(
     onSuccess: (saved, _input, c) => {
       if (!c?.operation.active) return;
       c.operation.acknowledge();
+      clearProposalPickers(c.owner);
       notifyManager.batch(() => {
         for (const [key] of client.getQueriesData({
           queryKey: eventProposalKeys.root(c.owner),
@@ -265,7 +278,12 @@ export function useEventProposalActions(
           o,
           path,
           "POST",
-          { action: input.action, version: input.version, eventVersion: input.eventVersion },
+          {
+            action: input.action,
+            version: input.version,
+            eventVersion: input.eventVersion,
+            ...(input.groupRevision ? { groupRevision: input.groupRevision } : {}),
+          },
           signal,
         );
       } catch (error) {
@@ -304,10 +322,16 @@ export function useEventProposalActions(
     onSuccess: (saved, _v, c) => {
       if (!c?.operation.active) return;
       c.operation.acknowledge();
+      clearProposalPickers(c.owner);
       notifyManager.batch(() => {
         for (const [key] of client.getQueriesData(filters(c.owner)))
           updateOptimisticBase(client, key, (data) =>
-            key[3] === "proposals" ? commitProposalReceipt(data, saved.proposal) : data,
+            key[3] === "proposals"
+              ? (saved.proposals ?? [saved.proposal]).reduce(
+                  (current, row) => commitProposalReceipt(current, row),
+                  data,
+                )
+              : data,
           );
         updateOptimisticBase(client, eventRecordKeys.detail(c.owner, c.owner.eventId), (data) =>
           !data || (data as { version: number }).version <= saved.event.version

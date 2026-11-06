@@ -1479,11 +1479,14 @@ describe("BGG account collection snapshots on MongoDB replica set", () => {
         )
       ).items.map((r) => r.id),
     ).toEqual([987610]);
-    expect(
-      (
-        await repo.page(TARGET, { ...input, types: "expansions", wishlist: "true" }, ACTOR)
-      ).items.map((r) => r.id),
-    ).toEqual([987612]);
+    for (const types of ["games", "expansions", "none"] as const) {
+      const wished = await repo.page(
+        TARGET,
+        { ...input, types, wishlist: "true", limit: 50 },
+        ACTOR,
+      );
+      expect(wished.items.map((r) => r.id)).toEqual([987610, 987612]);
+    }
     await db
       .collection(COLLECTIONS.BGG_COLLECTION_GAMES)
       .updateOne({ userId: TARGET, snapshot, gameId: 987610 }, { $unset: { wishlist: "" } });

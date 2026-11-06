@@ -38,6 +38,13 @@ if (
   throw new Error(
     "Submission requires a catalog query; review requires an exact pending proposal and username-first proposer",
   );
+if (
+  p.proposerNames !== undefined &&
+  (!Array.isArray(p.proposerNames) ||
+    p.proposerNames.length < 2 ||
+    p.proposerNames.some((name) => typeof name !== "string" || !name.trim() || name.length > 120))
+)
+  throw new Error("Grouped review requires every exact displayed proposer username");
 function exact(value) {
   return "^" + value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
 }
@@ -56,6 +63,7 @@ output.eventProposal = {
   link: "bgo:///event/table?eventId=" + p.eventId + "&tableId=" + p.tableId,
   own: exact(it ? "Giochi Proposti" : "Proposed games"),
   empty: exact(it ? "Nessuna proposta" : "No proposals"),
+  noGames: exact(it ? "Nessun gioco trovato" : "No games found"),
   add: exact(it ? "Scegli un gioco" : "Choose a game"),
   choose: exact(it ? "Scegli un gioco" : "Choose a game"),
   select: exact((it ? "Seleziona" : "Select") + ": " + p.gameName),
@@ -67,7 +75,13 @@ output.eventProposal = {
   rowId: p.mode === "submit-game" ? "event-proposal-.*" : "event-proposal-" + p.proposalId,
   pending: exact(it ? "In attesa" : "Pending"),
   next: exact(it ? "Avanti" : "Next"),
-  review: exact(action + ": " + p.proposerName + " — " + p.gameName),
+  review: exact(
+    action +
+      ": " +
+      (p.proposerNames ? p.proposerNames.join(", ") : p.proposerName) +
+      " — " +
+      p.gameName,
+  ),
   title: exact(action),
   result: exact(
     p.mode === "accept" ? (it ? "Accettato" : "Accepted") : it ? "Rifiutata" : "Rejected",

@@ -33,6 +33,13 @@ tags: [manual, profile, bgg]
 - tapOn:
     id: profile-collection-filter
 - inputText: ${output.collection.ratedQuery}
+- extendedWaitUntil:
+    visible: ${output.collection.rated}
+    timeout: 120000
+- assertVisible:
+    id: profile-collection-filter
+    focused: true
+- takeScreenshot: profile-collection-few-keyboard
 - hideKeyboard
 - scrollUntilVisible:
     element: ${output.collection.rated}

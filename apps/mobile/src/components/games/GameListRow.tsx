@@ -1,7 +1,7 @@
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { Gamepad2 } from "lucide-react-native";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useState } from "react";
 import { Image, Pressable, View } from "react-native";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GameCatalogMetadata } from "./GameCatalogMetadata";
@@ -27,6 +27,7 @@ export function GameListRow({
   children?: ReactNode;
 }) {
   const muted = useThemeColor("muted");
+  const [failedImage, setFailedImage] = useState<string | null>(null);
   const Identity = onPress ? Pressable : View;
   return (
     <GroupedRow>
@@ -47,9 +48,10 @@ export function GameListRow({
             justifyContent: "center",
           }}
         >
-          {imageUrl ? (
+          {imageUrl && imageUrl !== failedImage ? (
             <Image
               source={{ uri: imageUrl }}
+              onError={() => setFailedImage(imageUrl)}
               accessible={false}
               resizeMode="contain"
               style={{ width: 40, height: 40 }}

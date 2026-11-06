@@ -446,7 +446,7 @@ export class EventRecordsService {
       (row.userId !== userId && !(await this.manager(event, group, userId)))
     )
       throw new CommunityError(404, "PROPOSAL_NOT_FOUND");
-    return { proposal: await this.proposalResponse(row), event: await this.detail(userId, id) };
+    return this.proposalReceipt(userId, row, await this.manager(event, group, userId));
   }
   private async proposalResponse(row: EventProposal): Promise<EventProposalResponse> {
     const { requestHash: _hash, payloadKey: _key, ...visible } = row;
@@ -458,6 +458,66 @@ export class EventRecordsService {
       authorName: user?.username || publicUserName(user),
       ...(game ? { game: { id: game.id, name: game.name, imageUrl: game.image ?? null } } : {}),
     };
+  }
+  private proposalGroupRevision(rows: EventProposal[]) {
+    return createHash("sha256")
+      .update(
+        JSON.stringify(
+          rows
+            .filter((p) => p.status === "PENDING")
+            .map((p) => [p.id, p.version])
+            .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+        ),
+      )
+      .digest("hex");
+  }
+  private async groupedGameProposal(row: EventProposal, members: EventProposal[]) {
+    const profiles = await this.users.findByIds([...new Set(members.map((p) => p.userId))]);
+    const names = new Map(profiles.map((p) => [p.clerkId, p.username || publicUserName(p)]));
+    return {
+      ...(await this.proposalResponse(row)),
+      groupRevision: this.proposalGroupRevision(members),
+      gameSuggestions: members.map((p) => ({
+        id: p.id,
+        userId: p.userId,
+        authorName: names.get(p.userId) ?? publicUserName(null),
+        version: p.version,
+        status: p.status,
+      })),
+    };
+  }
+  private async proposalReceipt(
+    userId: string,
+    row: EventProposal,
+    manager = true,
+    event?: PlannedEventResponse,
+  ): Promise<ReviewEventProposalResponse> {
+    const batch =
+      manager && row.reviewBatchId
+        ? await this.events.proposalBatch(row.eventId, row.reviewBatchId)
+        : [];
+    const proposals: EventProposalResponse[] = [];
+    for (const member of batch) proposals.push(await this.proposalResponse(member));
+    return {
+      proposal: await this.proposalResponse(row),
+      ...(proposals.length ? { proposals } : {}),
+      event: event ?? (await this.detail(userId, row.eventId)),
+    };
+  }
+  async proposalPickerExclusions(userId: string, id: string, tableId: string) {
+    const { event, group } = await this.context(userId, id, true);
+    this.open(event, group);
+    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    const table = await this.events.table(tableId);
+    if (!table || table.eventId !== id) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    if (!table.allowParticipantGames) throw new CommunityError(403, "PROPOSALS_DISABLED");
+    await this.assertProposalSeat(event, group, userId, tableId);
+    return [
+      ...new Set([
+        ...table.games.map((g) => g.gameId),
+        ...(await this.events.ownProposedGames(id, tableId, userId)),
+      ]),
+    ];
   }
   private async proposalGame(gameId: number) {
     const [game] = await this.games.findByIds([gameId]);
@@ -514,6 +574,21 @@ export class EventRecordsService {
     if (page.tableId) {
       const table = await this.events.table(page.tableId);
       if (!table || table.eventId !== id) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    }
+    if (page.mode === "review" && page.kind === "game" && page.tableId) {
+      const groups = await this.events.gameProposalPage(id, page.tableId, page);
+      const items: EventProposalResponse[] = [];
+      for (const row of groups.slice(0, page.limit))
+        items.push(await this.groupedGameProposal(row.representative, row.members));
+      const last = items.at(-1);
+      return {
+        eventId: id,
+        groupId: group.id,
+        eventVersion: event.version,
+        mode: page.mode,
+        items,
+        nextCursor: groups.length > page.limit && last ? `${last.createdAt}|${last.id}` : null,
+      };
     }
     const rows = await this.events.proposals(id, page.mode === "mine" ? userId : null, page);
     const items: EventProposalResponse[] = [];
@@ -595,6 +670,11 @@ export class EventRecordsService {
           }
         : payload;
     const payloadKey = createHash("sha256").update(JSON.stringify(identity)).digest("hex");
+    if (
+      payload.kind === "game" &&
+      (await this.events.ownProposedGames(id, payload.tableId, userId)).includes(payload.gameId)
+    )
+      throw new CommunityError(409, "PROPOSAL_ALREADY_PENDING");
     if (await this.events.duplicateProposal(id, userId, payloadKey))
       throw new CommunityError(409, "PROPOSAL_ALREADY_PENDING");
     const at = new Date().toISOString();
@@ -637,18 +717,30 @@ export class EventRecordsService {
     if (!row || row.eventId !== id) throw new CommunityError(404, "PROPOSAL_NOT_FOUND");
     const status = input.action === "accept" ? ("ACCEPTED" as const) : ("REJECTED" as const);
     if (row.status === status && row.version === input.version + 1)
-      return { proposal: await this.proposalResponse(row), event: await this.detail(userId, id) };
+      return this.proposalReceipt(userId, row);
     if (row.status !== "PENDING" || row.version !== input.version)
       throw new CommunityError(409, "PROPOSAL_CHANGED");
     if (event.version !== input.eventVersion) throw new CommunityError(409, "EVENT_CHANGED");
+    const members =
+      row.payload.kind === "game"
+        ? await this.events.gameProposals(id, row.payload.tableId, row.payload.gameId)
+        : [row];
+    const pending = members.filter((p) => p.status === "PENDING");
+    if (
+      row.payload.kind === "game" &&
+      ((pending.length > 1 && !input.groupRevision) ||
+        (input.groupRevision && input.groupRevision !== this.proposalGroupRevision(members)))
+    )
+      throw new CommunityError(409, "PROPOSAL_CHANGED");
     let saved: PlannedEventResponse | undefined, optionId: string | undefined;
     if (input.action === "accept") {
-      await this.assertProposalSeat(
-        event,
-        group,
-        row.userId,
-        row.payload.kind === "game" ? row.payload.tableId : undefined,
-      );
+      for (const proposal of pending)
+        await this.assertProposalSeat(
+          event,
+          group,
+          proposal.userId,
+          proposal.payload.kind === "game" ? proposal.payload.tableId : undefined,
+        );
       if (row.payload.kind === "game") await this.proposalGame(row.payload.gameId);
       const tables = await this.events.allTables(id);
       let edit: ReturnType<typeof eventProposalEdit>;
@@ -660,26 +752,30 @@ export class EventRecordsService {
       optionId = edit.optionId;
       if (edit.input) saved = await this.update(userId, id, edit.input);
     }
-    const next: EventProposal = {
-      ...row,
-      status,
-      version: row.version + 1,
-      reviewedBy: userId,
-      updatedAt: new Date().toISOString(),
-      ...(optionId ? { canonicalOptionId: optionId } : {}),
-    };
-    await this.events.saveProposal(next);
+    const reviewBatchId = row.payload.kind === "game" ? randomUUID() : undefined;
+    const at = new Date().toISOString();
+    let selected: EventProposal = row;
+    for (const proposal of pending) {
+      const next: EventProposal = {
+        ...proposal,
+        status,
+        version: proposal.version + 1,
+        reviewedBy: userId,
+        updatedAt: at,
+        ...(reviewBatchId ? { reviewBatchId } : {}),
+        ...(optionId ? { canonicalOptionId: optionId } : {}),
+      };
+      await this.events.saveProposal(next);
+      if (next.id === row.id) selected = next;
+    }
     await this.notify(
       status === "ACCEPTED" ? "event_proposal_accepted" : "event_proposal_rejected",
       { ...event, ...saved },
       userId,
-      [row.userId],
+      [...new Set(pending.map((p) => p.userId))],
       row.payload.kind === "game" ? row.payload.tableId : undefined,
     );
-    return {
-      proposal: await this.proposalResponse(next),
-      event: saved ?? (await this.detail(userId, id)),
-    };
+    return this.proposalReceipt(userId, selected, true, saved);
   }
   async participants(
     userId: string,

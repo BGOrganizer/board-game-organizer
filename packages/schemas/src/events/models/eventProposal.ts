@@ -27,6 +27,7 @@ export const eventProposalSchema = z
     submittedEventVersion: z.number().int().positive(),
     canonicalOptionId: z.string().optional(),
     reviewedBy: targetUserIdSchema.optional(),
+    reviewBatchId: z.uuid().optional(),
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
   })

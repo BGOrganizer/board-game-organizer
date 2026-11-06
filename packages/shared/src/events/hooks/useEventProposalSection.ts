@@ -103,6 +103,7 @@ export function useEventProposalSection(
       o.userId === decision.userId &&
       row?.status === "PENDING" &&
       row.version === decision.row.version &&
+      row.groupRevision === decision.row.groupRevision &&
       !row.clientAction &&
       !actions.busy,
   );
@@ -183,6 +184,10 @@ export function useEventProposalSection(
         eventVersion: decision.eventVersion,
         proposalId: decision.row.id,
         version: decision.row.version,
+        ...(decision.row.groupRevision ? { groupRevision: decision.row.groupRevision } : {}),
+        ...(decision.row.payload.kind === "game"
+          ? { game: { gameId: decision.row.payload.gameId, tableId: decision.row.payload.tableId } }
+          : {}),
       });
       setDecision(null);
     },

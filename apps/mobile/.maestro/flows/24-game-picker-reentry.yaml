@@ -18,6 +18,18 @@ tags: [manual, games, performance]
 - extendedWaitUntil:
     visible: ${output.picker.first}
     timeout: 120000
+- tapOn:
+    id: game-search-input
+- inputText: ${PICKER_FIRST_GAME}
+- extendedWaitUntil:
+    visible: ${output.picker.first}
+    timeout: 120000
+- assertVisible:
+    id: game-search-input
+    focused: true
+- takeScreenshot: game-picker-search-keeps-focus
+- eraseText: 200
+- hideKeyboard
 - takeScreenshot: game-picker-immediate-entry
 - tapOn: ${output.picker.back}
 - extendedWaitUntil:

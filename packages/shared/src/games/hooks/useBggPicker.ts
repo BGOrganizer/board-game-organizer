@@ -11,6 +11,7 @@ export function bggPickerQuery({
   collection,
   snapshot,
   protectionBypass,
+  proposalScope,
 }: {
   apiUrl: string;
   getToken: () => Promise<string | null>;
@@ -20,10 +21,20 @@ export function bggPickerQuery({
   collection: boolean;
   snapshot?: string | null;
   protectionBypass?: string | null;
+  proposalScope?: { eventId: string; tableId: string };
 }) {
   const trimmed = query.trim();
   return infiniteQueryOptions({
-    queryKey: ["bgg-picker", apiUrl, userId, trimmed, search, collection, snapshot],
+    queryKey: [
+      "bgg-picker",
+      apiUrl,
+      userId,
+      trimmed,
+      search,
+      collection,
+      snapshot,
+      proposalScope ?? null,
+    ],
     enabled:
       Boolean(userId) && ((search && trimmed.length >= 4) || (collection && Boolean(snapshot))),
     initialPageParam: "",
@@ -35,6 +46,9 @@ export function bggPickerQuery({
         search: search ? "1" : "0",
         collection: collection ? "1" : "0",
         ...(pageParam ? { cursor: pageParam } : {}),
+        ...(proposalScope
+          ? { proposalEventId: proposalScope.eventId, proposalTableId: proposalScope.tableId }
+          : {}),
       });
       const response = await fetch(
         withProtectionBypass(`${apiUrl}/api/bgg/picker?${params}`, protectionBypass),
@@ -44,7 +58,7 @@ export function bggPickerQuery({
       return (await response.json()) as BggPickerResponse;
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
-    staleTime: 5 * 60_000,
+    staleTime: proposalScope ? 0 : 5 * 60_000,
   });
 }
 
