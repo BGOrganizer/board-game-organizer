@@ -3,32 +3,56 @@ import type { BggCollectionCounts } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useBggCollection,
-  useListSearch,
+  useBggCollectionFilters,
 } from "@board-game-organizer/shared";
 import { Button, ListBox, Skeleton } from "@heroui/react";
 import { Collection, ListBoxLoadMoreItem, ListLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
+import { Gamepad2, Heart, Puzzle, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { FilterChips } from "@/components/common/ui/FilterChips";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GameListRow } from "@/components/games/GameListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { ProfileBggAttribution } from "./ProfileBggAttribution";
 import { ProfileStats } from "./ProfileStats";
 
-const noFilters: readonly string[] = [];
 const layoutOptions = { estimatedRowHeight: 76, gap: 8 };
 export function ProfileCollection({
   snapshot,
   counts: knownCounts,
+  subjectId,
+  viewerSnapshot,
 }: {
   snapshot: string;
   counts?: BggCollectionCounts;
+  subjectId?: string;
+  viewerSnapshot?: string;
 }) {
   const { t, i18n } = useLingui(),
     o = useCommunityApi();
-  const filter = useListSearch(noFilters, 0);
-  const q = useBggCollection({ ...o, snapshot, query: filter.search });
-  const scope = JSON.stringify([o.apiUrl, o.userId, snapshot, filter.search]);
+  const other = Boolean(subjectId && subjectId !== o.userId);
+  const filter = useBggCollectionFilters(viewerSnapshot);
+  const q = useBggCollection({
+    ...o,
+    subjectId,
+    snapshot,
+    query: filter.search,
+    types: filter.types,
+    wishlist: filter.wishlist,
+    commonSnapshot: other ? filter.commonSnapshot : undefined,
+  });
+  const scope = JSON.stringify([
+    o.apiUrl,
+    o.userId,
+    subjectId,
+    snapshot,
+    filter.search,
+    filter.types,
+    filter.wishlist,
+    filter.commonSnapshot,
+  ]);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const [window, setWindow] = useState({ scope, pages: 1 });
@@ -73,16 +97,46 @@ export function ProfileCollection({
           ]}
         />
       )}
-      {pages?.[0]?.counts === null && !knownCounts ? (
+      {pages?.[0]?.counts === null && !knownCounts && !other ? (
         <p className="text-sm text-muted">{t`Synchronize again to include expansions and collection counts.`}</p>
       ) : null}
-      <SearchInput
-        value={filter.query}
-        onChange={filter.setQuery}
-        label={t`Filter collection`}
-        placeholder={t`Filter games in your collection`}
-        inputProps={{ maxLength: 120 }}
-      />
+      <div data-collection-filters className="sticky top-16 z-10 space-y-2 bg-background py-2">
+        <SearchInput
+          value={filter.query}
+          onChange={filter.setQuery}
+          label={t`Filter collection`}
+          placeholder={t`Filter collection games`}
+          inputProps={{
+            maxLength: 120,
+            onFocus: (e) =>
+              e.currentTarget
+                .closest("[data-collection-filters]")
+                ?.scrollIntoView?.({ block: "nearest" }),
+          }}
+        />
+        <FilterChips
+          selected={filter.selected}
+          onToggle={filter.toggle}
+          options={[
+            { key: "games", label: t`Games`, icon: Gamepad2 },
+            { key: "expansions", label: t`Expansions`, icon: Puzzle },
+            { key: "wishlist", label: t`Wishlist`, icon: Heart },
+            ...(other
+              ? [
+                  {
+                    key: "common" as const,
+                    label: t`In common`,
+                    icon: UsersRound,
+                    disabled: !viewerSnapshot,
+                  },
+                ]
+              : []),
+          ]}
+        />
+        {other && !viewerSnapshot ? (
+          <p className="text-sm text-muted">{t`Synchronize your BGG collection to find games in common.`}</p>
+        ) : null}
+      </div>
       {q.isError ? (
         <div role="alert" className="space-y-2">
           <p className="text-danger">{t`Could not load collection`}</p>
@@ -99,7 +153,7 @@ export function ProfileCollection({
             key={scope}
             aria-label={t`Collection games`}
             selectionMode="none"
-            className="h-[60vh] min-h-64 w-full overflow-auto"
+            className="h-[60dvh] min-h-32 w-full overflow-auto"
           >
             <Collection items={items}>
               {(item) => {
@@ -133,13 +187,7 @@ export function ProfileCollection({
           </ListBox>
         </Virtualizer>
       ) : null}
-      {hasMore ? (
-        <Button
-          variant="secondary"
-          isDisabled={!cachedMore && (q.isFetching || q.isError)}
-          onPress={loadMore}
-        >{t`Load more games`}</Button>
-      ) : null}
+      {other ? <ProfileBggAttribution /> : null}
     </section>
   );
 }

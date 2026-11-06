@@ -483,11 +483,19 @@ export function useContacts(
       const operation = await beginOptimisticOperation(
         queryClient,
         [...resource, variables.targetUserId],
-        owned,
+        {
+          predicate: (query) =>
+            owned.predicate(query) ||
+            (action === "block" &&
+              query.queryKey[0] === "bgg-collection" &&
+              query.queryKey[1] === apiUrl &&
+              query.queryKey[2] === currentUserId &&
+              (query.queryKey[5] ?? query.queryKey[2]) === variables.targetUserId),
+        },
         (data, key) =>
           key[0] === "contacts"
             ? optimisticContactData(key, data, action, variables, currentUserId)
-            : key[0] === "profile"
+            : key[0] === "profile" || key[0] === "bgg-collection"
               ? optimisticProfileSocialData(key, data, action, variables, currentUserId)
               : optimisticPeopleSocialData(data, action, variables.targetUserId),
       );

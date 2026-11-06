@@ -8,7 +8,7 @@ import type {
   BggIdentity,
   BoardGame,
 } from "@board-game-organizer/schemas";
-import type { ClientSession, Db } from "mongodb";
+import type { ClientSession, Db, Filter } from "mongodb";
 import { z } from "zod";
 import { CommunityError } from "@/app/lib/community.error";
 import { COLLECTIONS } from "@/app/lib/db";
@@ -19,6 +19,7 @@ const collectionCursor = z
     snapshot: z.string(),
     name: z.string().min(1).max(1000),
     gameId: z.number().int().positive(),
+    scope: z.string(),
   })
   .strict();
 
@@ -147,10 +148,11 @@ export class BggAccountRepository {
       const known = await catalog
         .find(
           { id: { $in: chunk.map((game) => game.gameId) } },
-          { projection: { id: 1, isExpansion: 1 } },
+          { projection: { id: 1, isExpansion: 1, image: 1 } },
         )
         .toArray();
       const expansions = new Set(known.filter((game) => game.isExpansion).map((game) => game.id));
+      const covers = new Map(known.map((game) => [game.id, game.image]));
       const stored = chunk.map((game) => ({
         ...game,
         userId,
@@ -172,9 +174,12 @@ export class BggAccountRepository {
                   id: game.gameId,
                   name: game.name,
                   yearPublished: game.year,
-                  image: game.imageUrl,
+                  ...(!game.imageUrl || covers.get(game.gameId) ? { image: game.imageUrl } : {}),
                   isExpansion: false,
                 },
+                ...(game.imageUrl && !covers.get(game.gameId)
+                  ? { $set: { image: game.imageUrl } }
+                  : {}),
               },
               upsert: true,
             },
@@ -215,10 +220,27 @@ export class BggAccountRepository {
     await this.collection.deleteMany({ userId }, { session });
   }
 
-  async page(userId: string, input: BggCollectionQuery): Promise<BggCollectionResponse> {
+  async page(
+    userId: string,
+    input: BggCollectionQuery,
+    viewerId = userId,
+  ): Promise<BggCollectionResponse> {
     const account = await this.get(userId);
     if (!account.active) throw new CommunityError(404, "BGG_COLLECTION_UNAVAILABLE");
     if (account.active.snapshot !== input.snapshot)
+      throw new CommunityError(409, "BGG_COLLECTION_CHANGED");
+    const scope = JSON.stringify([
+      userId,
+      viewerId,
+      input.query,
+      input.types ?? "all",
+      input.wishlist ?? "false",
+      input.commonSnapshot ?? null,
+    ]);
+    if (
+      input.commonSnapshot &&
+      (await this.get(viewerId)).active?.snapshot !== input.commonSnapshot
+    )
       throw new CommunityError(409, "BGG_COLLECTION_CHANGED");
     let cursor: z.infer<typeof collectionCursor> | undefined;
     if (input.cursor) {
@@ -231,25 +253,67 @@ export class BggAccountRepository {
       }
       if (cursor.snapshot !== input.snapshot)
         throw new CommunityError(409, "BGG_COLLECTION_CHANGED");
+      if (cursor.scope !== scope) throw new CommunityError(400, "INVALID_CURSOR");
     }
     const escaped = input.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const rows = await this.collection
-      .find({
-        userId,
-        snapshot: input.snapshot,
-        ...(escaped ? { name: { $regex: escaped, $options: "i" } } : {}),
-        ...(cursor
-          ? {
-              $or: [
-                { name: { $gt: cursor.name } },
-                { name: cursor.name, gameId: { $gt: cursor.gameId } },
-              ],
-            }
-          : {}),
-      })
-      .sort({ name: 1, gameId: 1 })
-      .limit(input.limit + 1)
-      .toArray();
+    const conditions: Filter<BggCollectionGame>[] = [{ userId, snapshot: input.snapshot }];
+    if (escaped) conditions.push({ name: { $regex: escaped, $options: "i" } });
+    if (input.types === "games")
+      conditions.push({ isExpansion: { $ne: true }, subtype: { $ne: "boardgameexpansion" } });
+    if (input.types === "expansions")
+      conditions.push({ $or: [{ isExpansion: true }, { subtype: "boardgameexpansion" }] });
+    if (input.types === "none") conditions.push({ gameId: -1 });
+    if (input.wishlist === "true")
+      conditions.push({
+        $or: [
+          { wishlist: true },
+          {
+            wishlist: { $exists: false },
+            xml: { $regex: '<status\\b[^>]*\\bwishlist\\s*=\\s*["\u0027]1["\u0027]' },
+          },
+        ],
+      });
+    if (cursor)
+      conditions.push({
+        $or: [
+          { name: { $gt: cursor.name } },
+          { name: cursor.name, gameId: { $gt: cursor.gameId } },
+        ],
+      });
+    const match = { $and: conditions };
+    const rows = input.commonSnapshot
+      ? await this.collection
+          .aggregate<BggCollectionGame>([
+            { $match: match },
+            {
+              $lookup: {
+                from: COLLECTIONS.BGG_COLLECTION_GAMES,
+                let: { gameId: "$gameId" },
+                pipeline: [
+                  {
+                    $match: {
+                      userId: viewerId,
+                      snapshot: input.commonSnapshot,
+                      $expr: { $eq: ["$gameId", "$$gameId"] },
+                    },
+                  },
+                  { $limit: 1 },
+                  { $project: { _id: 1 } },
+                ],
+                as: "commonGame",
+              },
+            },
+            { $match: { "commonGame.0": { $exists: true } } },
+            { $unset: "commonGame" },
+            { $sort: { name: 1, gameId: 1 } },
+            { $limit: input.limit + 1 },
+          ])
+          .toArray()
+      : await this.collection
+          .find(match)
+          .sort({ name: 1, gameId: 1 })
+          .limit(input.limit + 1)
+          .toArray();
     const visible = rows.slice(0, input.limit);
     const catalog = visible.length
       ? await this.db
@@ -259,14 +323,17 @@ export class BggAccountRepository {
       : [];
     const metadata = new Map(catalog.map((row) => [row.id, row]));
     const current = await this.get(userId);
-    if (current.active?.snapshot !== input.snapshot)
+    if (
+      current.active?.snapshot !== input.snapshot ||
+      (input.commonSnapshot && (await this.get(viewerId)).active?.snapshot !== input.commonSnapshot)
+    )
       throw new CommunityError(409, "BGG_COLLECTION_CHANGED");
     return {
       snapshot: input.snapshot,
       counts: account.active.counts ?? null,
       items: visible.map((row) => {
         let legacy: Omit<BggCollectionGame, "_id"> | undefined;
-        if (row.userRating === undefined) {
+        if (row.userRating === undefined || row.wishlist === undefined) {
           try {
             legacy = parseBggCollection(`<items>${row.xml}</items>`, userId, input.snapshot)[0];
           } catch {
@@ -295,6 +362,7 @@ export class BggAccountRepository {
           ? Buffer.from(
               JSON.stringify({
                 snapshot: input.snapshot,
+                scope,
                 name: visible[visible.length - 1].name,
                 gameId: visible[visible.length - 1].gameId,
               }),

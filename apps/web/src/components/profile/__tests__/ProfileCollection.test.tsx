@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { useBggCollectionFilters } from "@board-game-organizer/shared";
+import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
@@ -52,13 +53,110 @@ beforeEach(() => {
     return Response.json({
       snapshot: "snapshot",
       counts: legacy ? null : { withoutExpansions: 1, withExpansions: 2, wishlist: 1 },
-      items: items.filter((item) => item.name.toLowerCase().includes(query.toLowerCase())),
+      items: items.filter((item) => {
+        const params = new URL(url).searchParams,
+          types = params.get("types") ?? "all";
+        return (
+          item.name.toLowerCase().includes(query.toLowerCase()) &&
+          types !== "none" &&
+          (types !== "games" || !item.isExpansion) &&
+          (types !== "expansions" || item.isExpansion) &&
+          (params.get("wishlist") !== "true" || item.wishlist) &&
+          (!params.get("commonSnapshot") || item.id === 1)
+        );
+      }),
       nextCursor: null,
     });
   });
   vi.stubGlobal("fetch", fetch);
 });
 afterEach(() => vi.unstubAllGlobals());
+it("covers every type combination, toggle direction and common eligibility without duplicating Query data", () => {
+  const h = renderHook(
+    ({ snapshot }: { snapshot: string | undefined }) => useBggCollectionFilters(snapshot),
+    { initialProps: { snapshot: undefined as string | undefined } },
+  );
+  expect(h.result.current.types).toBe("all");
+  act(() => h.result.current.toggle("common"));
+  expect(h.result.current.selected).not.toContain("common");
+  act(() => h.result.current.toggle("expansions"));
+  expect(h.result.current.types).toBe("games");
+  act(() => h.result.current.toggle("games"));
+  expect(h.result.current.types).toBe("none");
+  act(() => h.result.current.toggle("expansions"));
+  expect(h.result.current.types).toBe("expansions");
+  act(() => h.result.current.toggle("games"));
+  expect(h.result.current.types).toBe("all");
+  act(() => h.result.current.toggle("wishlist"));
+  expect(h.result.current.wishlist).toBe(true);
+  act(() => h.result.current.toggle("wishlist"));
+  expect(h.result.current.wishlist).toBe(false);
+  h.rerender({ snapshot: "viewer" });
+  act(() => h.result.current.toggle("common"));
+  expect(h.result.current.commonSnapshot).toBe("viewer");
+  h.rerender({ snapshot: undefined });
+  expect(h.result.current.selected).not.toContain("common");
+  expect(h.result.current.commonSnapshot).toBeUndefined();
+  h.rerender({ snapshot: "new" });
+  act(() => h.result.current.toggle("common"));
+  expect(h.result.current.commonSnapshot).toBeUndefined();
+});
+it("keeps search/chips on blur and empty results, clears only text, and combines source filters without changing snapshot totals", async () => {
+  renderWithI18n(<ProfileCollection snapshot="snapshot" />);
+  await screen.findByRole("option", { name: /Chess/ });
+  fireEvent.click(screen.getByRole("button", { name: "Expansions" }));
+  await waitFor(() => expect(screen.queryByRole("option", { name: /Expansion/ })).toBeNull());
+  fireEvent.click(screen.getByRole("button", { name: "Wishlist" }));
+  await screen.findByText("No games found");
+  const input = screen.getByRole("searchbox", { name: "Filter collection" });
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "missing" } });
+  fireEvent.blur(input);
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "missing"),
+    ).toBe(true),
+  );
+  expect((input as HTMLInputElement).value).toBe("missing");
+  expect(screen.getByRole("button", { name: "Wishlist" }).getAttribute("aria-pressed")).toBe(
+    "true",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+  expect((input as HTMLInputElement).value).toBe("");
+  expect(screen.getByRole("button", { name: "Wishlist" }).getAttribute("aria-pressed")).toBe(
+    "true",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Games" }));
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(([url]) => new URL(url).searchParams.get("types") === "none"),
+    ).toBe(true),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Expansions" }));
+  await screen.findByRole("option", { name: /Expansion/ });
+  expect(screen.getByText("Games including expansions").parentElement?.textContent).toContain("2");
+  expect(screen.queryByRole("button", { name: "Load more games" })).toBeNull();
+});
+it("disables common without viewer synchronization, otherwise pins viewer and subject epochs", async () => {
+  const view = renderWithI18n(<ProfileCollection snapshot="snapshot" subjectId="guest" />);
+  await screen.findByText("Synchronize your BGG collection to find games in common.");
+  expect((screen.getByRole("button", { name: "In common" }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  view.rerender(
+    <ProfileCollection snapshot="snapshot" subjectId="guest" viewerSnapshot="viewer" />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "In common" }));
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([url]) => new URL(url).searchParams.get("commonSnapshot") === "viewer",
+      ),
+    ).toBe(true),
+  );
+  await waitFor(() => expect(screen.queryByRole("option", { name: /Expansion/ })).toBeNull());
+  expect(screen.getByRole("option", { name: /Chess/ })).toBeTruthy();
+});
 it("renders global snapshot counters before filter, personal votes/N/A in place of selection controls", async () => {
   renderWithI18n(<ProfileCollection snapshot="snapshot" />);
   await screen.findByRole("option", { name: /Chess/ });
@@ -73,7 +171,11 @@ it("renders global snapshot counters before filter, personal votes/N/A in place 
   expect(screen.queryByRole("button", { name: /Select:/ })).toBeNull();
   expect(screen.getByText("Games without expansions")).not.toBeNull();
   expect(screen.getByText("Games including expansions")).not.toBeNull();
-  expect(screen.getByText("Wishlist")).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Wishlist" }).getAttribute("aria-pressed")).toBe(
+    "false",
+  );
+  expect(screen.getAllByText("Wishlist")).toHaveLength(2);
+  expect(screen.queryByRole("button", { name: "Load more games" })).toBeNull();
   expect(within(screen.getByRole("option", { name: /Chess/ })).queryByText("8.5")).not.toBeNull();
   fireEvent.change(screen.getByRole("searchbox", { name: "Filter collection" }), {
     target: { value: "c" },

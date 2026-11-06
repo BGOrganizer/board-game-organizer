@@ -18,13 +18,15 @@ import {
   optimisticMutationSignal,
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
+import { profileViewKeys } from "../../profile/hooks/useProfileView";
 
 const empty: BggAccountResponse = { active: null, pending: null };
 const collectionScope = (apiUrl: unknown, userId: unknown) => ({
   predicate: (query: Query) =>
     query.queryKey[1] === apiUrl &&
     query.queryKey[2] === userId &&
-    (query.queryKey[0] === "bgg-collection" ||
+    ((query.queryKey[0] === "bgg-collection" &&
+      ((query.queryKey[5] ?? userId) === userId || Boolean(query.queryKey[8]))) ||
       (query.queryKey[0] === "bgg-picker" && query.queryKey[5] === true)),
 });
 type BggAccountOptions = {
@@ -157,6 +159,12 @@ export function useBggAccount({
           feedback?.onError?.(new Error("BGG_SYNC_FAILED"), "sync_bgg");
       }
       if (data.active) {
+        const scope = {
+          apiUrl: String(operation.resource[1]),
+          userId: String(operation.resource[2]),
+          getToken,
+        };
+        void client.invalidateQueries({ queryKey: profileViewKeys.view(scope, scope.userId) });
         void client.invalidateQueries({
           queryKey: ["bgg-picker", operation.resource[1], operation.resource[2]],
         });
@@ -200,6 +208,12 @@ export function useBggAccount({
         queryKey: ["bgg-picker", operation.resource[1], operation.resource[2]],
       });
       client.removeQueries(collectionScope(operation.resource[1], operation.resource[2]));
+      const scope = {
+        apiUrl: String(operation.resource[1]),
+        userId: String(operation.resource[2]),
+        getToken,
+      };
+      void client.invalidateQueries({ queryKey: profileViewKeys.view(scope, scope.userId) });
     },
   });
   useEffect(() => {

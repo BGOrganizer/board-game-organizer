@@ -39,6 +39,7 @@ const activity = {
   visibility: "authorized",
   href: "/events/11111111-1111-4111-8111-111111111111/tables/22222222-2222-4222-8222-222222222222",
 };
+let subjectCollection: { snapshot: string } | undefined;
 let bgg: Record<string, unknown>,
   failProfile: number,
   failGames: number,
@@ -51,6 +52,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   useAppStore.getState().clearProfileViews();
   m.signOut.mockResolvedValue(undefined);
+  subjectCollection = undefined;
   bgg = { active: null, pending: null };
   failProfile = 0;
   failGames = 0;
@@ -117,7 +119,11 @@ beforeEach(() => {
     if (deferredProfile) return new Promise<Response>(() => {});
     return failProfile
       ? Response.json({ error: "PROFILE_NOT_FOUND" }, { status: failProfile })
-      : Response.json({ ...view, id: url.includes("guest") ? "guest" : "owner" });
+      : Response.json({
+          ...view,
+          ...(url.includes("guest") && subjectCollection ? { collection: subjectCollection } : {}),
+          id: url.includes("guest") ? "guest" : "owner",
+        });
   });
   vi.stubGlobal("fetch", requests);
 });
@@ -139,6 +145,17 @@ async function chooseChess() {
   fireEvent.click(trigger);
   fireEvent.click(await screen.findByRole("option", { name: "Chess" }));
 }
+it("keeps logout reachable on profile failure even after a persisted Collection selection", async () => {
+  bgg = { active, pending: null };
+  failProfile = 503;
+  useAppStore
+    .getState()
+    .setProfileView(JSON.stringify(["https://api.test", "owner", "owner"]), { tab: "collection" });
+  renderWithI18n(<Profile />);
+  await screen.findByText("Could not load profile");
+  expect(screen.queryByRole("tab", { name: "Collection" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Sign out of your account" })).toBeTruthy();
+});
 it("keeps logout reachable while loading and exposes network failures with retry", async () => {
   deferredProfile = true;
   const q = renderWithI18n(<Profile />);
@@ -194,10 +211,13 @@ it("keeps sync on the main owner profile and shows Collection only for an active
     within(screen.getByRole("tabpanel")).queryByRole("heading", { name: "Your BGG collection" }),
   ).toBeNull();
   await screen.findByText("Games without expansions");
+  expect(screen.queryByRole("button", { name: "Sign out of your account" })).toBeNull();
+  fireEvent.click(screen.getByRole("tab", { name: "Activities" }));
   fireEvent.click(screen.getByRole("button", { name: "Sign out of your account" }));
   fireEvent.click(
     within(await screen.findByRole("dialog")).getByRole("button", { name: "Cancel" }),
   );
+  fireEvent.click(screen.getByRole("tab", { name: "Collection" }));
   expect(screen.getByRole("tab", { name: "Collection" }).getAttribute("aria-selected")).toBe(
     "true",
   );
@@ -243,7 +263,31 @@ it("quarantines all subject data after a denied child read and permits a fresh a
   await chooseChess();
   await screen.findByText("Current rating: 512");
 });
-it("never fetches BGG or renders owner actions on another user's profile, even with stale Collection selection", async () => {
+it("shows an authorized foreign published collection and common filter without sync/unlink/logout controls", async () => {
+  subjectCollection = { snapshot: "snapshot" };
+  bgg = { active: { ...active, snapshot: "viewer-snapshot" }, pending: null };
+  renderWithI18n(<Profile userId="guest" />);
+  fireEvent.click(await screen.findByRole("tab", { name: "Collection" }));
+  await screen.findByText("Games without expansions");
+  await waitFor(() =>
+    expect((screen.getByRole("button", { name: "In common" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "In common" }));
+  await waitFor(() =>
+    expect(
+      requests.mock.calls.some(
+        ([url]) =>
+          url.includes("subjectId=guest") && url.includes("commonSnapshot=viewer-snapshot"),
+      ),
+    ).toBe(true),
+  );
+  expect(screen.queryByRole("heading", { name: "Your BGG collection" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Sync collection" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Sign out of your account" })).toBeNull();
+});
+it("never fetches BGG or renders owner actions on another user's unsynchronized profile, even with stale Collection selection", async () => {
   useAppStore
     .getState()
     .setProfileView(JSON.stringify(["https://api.test", "owner", "guest"]), { tab: "collection" });

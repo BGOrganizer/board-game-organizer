@@ -7,12 +7,12 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { RefreshCw, Unlink2, UserRoundPen } from "lucide-react-native";
 import { useState } from "react";
-import { Image, Linking, View } from "react-native";
-import { ScopedTheme } from "uniwind";
+import { View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { useT } from "@/lib/i18n";
+import { ProfileBggAttribution } from "./ProfileBggAttribution";
 
 export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> }) {
   const t = useT();
@@ -118,22 +118,7 @@ export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> 
               <Button.Label>{t("Try again")}</Button.Label>
             </Button>
           ) : null}
-          <Button
-            variant="ghost"
-            accessibilityLabel={t("Powered by BGG — open BoardGameGeek")}
-            onPress={() => void Linking.openURL("https://boardgamegeek.com")}
-          >
-            <ScopedTheme theme="light">
-              <View className="rounded-lg bg-surface" style={{ padding: 8 }}>
-                <Image
-                  source={require("../../../assets/bgg-powered.png")}
-                  style={{ width: 120, height: 40 }}
-                  resizeMode="contain"
-                  accessibilityLabel={t("Powered by BGG")}
-                />
-              </View>
-            </ScopedTheme>
-          </Button>
+          <ProfileBggAttribution />
         </View>
       </ListCard>
       <Dialog isOpen={open} onOpenChange={setOpen}>

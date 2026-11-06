@@ -1,6 +1,7 @@
 import {
   CommunityApiError,
   eventProposalKeys,
+  optimisticProfileSocialData,
   projectProposalReview,
   revokeProposalReview,
 } from "@board-game-organizer/shared";
@@ -87,6 +88,69 @@ describe("account-owned canonical persistence", () => {
     expect(f.persister.restoreClient()?.clientState.queries).toHaveLength(0);
   });
 
+  it("persists shared collection bases under the viewer, selectively rolls back a failed block and removes known-blocked disk payloads", async () => {
+    const f = fixture(),
+      target = [
+        "bgg-collection",
+        owner.apiUrl,
+        owner.userId,
+        "snapshot",
+        "",
+        "subject",
+        "all",
+        false,
+        null,
+      ],
+      safe = [...target.slice(0, 5), "safe", "all", false, null];
+    const payload = {
+      pages: [
+        {
+          snapshot: "snapshot",
+          items: [{ id: 1, name: "Subject private title" }],
+          nextCursor: null,
+        },
+      ],
+      pageParams: [""],
+    };
+    const other = {
+      pages: [{ snapshot: "snapshot", items: [{ id: 2, name: "Other title" }], nextCursor: null }],
+      pageParams: [""],
+    };
+    f.client.setQueryData(target, payload);
+    f.client.setQueryData(safe, other);
+    const variables = {
+      targetUserId: "subject",
+      targetUser: {
+        id: "subject",
+        name: "Subject",
+        email: null,
+        avatarUrl: null,
+        presence: { online: false, lastActiveAt: "" },
+      },
+    };
+    const start = () =>
+      beginOptimisticOperation(
+        f.client,
+        ["contacts", owner.apiUrl, owner.userId, "subject"],
+        { queryKey: target },
+        (data, key) => optimisticProfileSocialData(key, data, "block", variables, owner.userId),
+      );
+    const first = await start();
+    expect(f.client.getQueryData(target)).toBeNull();
+    f.persister.flush();
+    expect(f.data.get("queries")).toContain("Subject private title");
+    await first.reject(new CommunityApiError(409, "CONFLICT"));
+    expect(f.client.getQueryData(target)).toEqual(payload);
+    const confirmed = await start();
+    confirmed.commit();
+    f.persister.flush();
+    expect(f.data.get("queries")).not.toContain("Subject private title");
+    expect(f.data.get("queries")).toContain("Other title");
+    expect(f.client.getQueryData(safe)).toEqual(other);
+    f.client.removeQueries({ queryKey: target, exact: true });
+    f.persister.flush();
+    expect(f.persister.restoreClient()?.clientState.queries.map((q) => q.queryKey)).toEqual([safe]);
+  });
   it("persists canonical proposal bases only and purges manager-only disk data after verified demotion", async () => {
     const f = fixture(),
       scope = {

@@ -121,6 +121,8 @@ export function optimisticProfileSocialData(
   variables: ContactMutationVariables,
   currentUserId?: string | null,
 ): unknown {
+  if (key[0] === "bgg-collection")
+    return action === "block" && (key[5] ?? key[2]) === variables.targetUserId ? null : data;
   if (key[3] === "network")
     return optimisticNetworkActivities(data, action, variables.targetUserId);
   if (!data || typeof data !== "object") return data;

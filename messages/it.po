@@ -5971,3 +5971,30 @@ msgstr "Impossibile rifiutare la proposta"
 
 msgid "Your proposals"
 msgstr "Le tue proposte"
+
+msgid "Proposed dates/times"
+msgstr "Date/Orari Proposti"
+
+msgid "Proposed locations"
+msgstr "Luoghi Proposti"
+
+msgid "Proposed games"
+msgstr "Giochi Proposti"
+
+msgid "Search address/place"
+msgstr "Cerca indirizzo/luogo"
+
+msgid "Filter collection games"
+msgstr "Filtra i giochi della collezione"
+
+msgid "Expansions"
+msgstr "Espansioni"
+
+msgid "In common"
+msgstr "In comune"
+
+msgid "Synchronize your BGG collection to find games in common."
+msgstr "Sincronizza la tua collezione BGG per trovare i giochi in comune."
+
+msgid "Could not determine the location time zone. Choose a location."
+msgstr "Impossibile determinare il fuso orario del luogo. Scegli un luogo."

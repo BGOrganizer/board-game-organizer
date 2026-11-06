@@ -63,17 +63,31 @@ tags: [manual, profile, bgg]
     id: profile-collection-filter
 - eraseText
 - inputText: ${output.collection.emptyQuery}
+- extendedWaitUntil:
+    visible: ${output.collection.empty}
+    timeout: 120000
+- assertVisible:
+    id: profile-collection-filter
+    focused: true
+- takeScreenshot: profile-collection-empty-keyboard
 - hideKeyboard
-- scrollUntilVisible:
-    element: ${output.collection.empty}
-    direction: DOWN
-    timeout: 120000
-- scrollUntilVisible:
-    element:
-      id: profile-collection-filter
-    direction: UP
-    timeout: 120000
+- assertVisible:
+    id: profile-collection-filter
+    text: ${output.collection.emptyInputText}
+- tapOn:
+    id: list-filter-wishlist
+- assertVisible:
+    id: list-filter-wishlist
+    selected: true
 - tapOn: ${output.collection.clear}
+- assertVisible:
+    id: list-filter-wishlist
+    selected: true
+- tapOn:
+    id: list-filter-wishlist
+- assertVisible:
+    id: list-filter-wishlist
+    selected: false
 - scrollUntilVisible:
     element: ${output.collection.later}
     direction: DOWN

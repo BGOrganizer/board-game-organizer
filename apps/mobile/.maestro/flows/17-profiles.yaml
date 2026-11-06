@@ -38,7 +38,7 @@ tags: [manual, profile]
     visible: ${output.profile.target}
     timeout: 120000
 - assertNotVisible: ${output.profile.bgg}
-- assertNotVisible: ${output.profile.collection}
+# Collection may be public when synced; flow29 checks both published and unsynced subjects.
 - assertNotVisible: ${output.profile.logout}
 - tapOn: ${output.profile.player}
 - scrollUntilVisible:

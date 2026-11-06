@@ -1,6 +1,43 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
-## Participant option proposals — implemented locally; authenticated/device acceptance pending
+## Profile/Event UX polish — implemented locally; runtime acceptance pending
+
+- [Profile contract](profiles.md) now permits published Collections for authenticated, block-authorized
+  profile viewers. Source-side Games/Expansions/Wishlist/common-ID filters precede pagination; both
+  subject/viewer snapshots fence common results. DTOs omit provider identities/XML and private controls.
+  Scoped query identities, late-read cancellation, known-denial/block projection, snapshot replacement
+  and native canonical-only persistence retain existing owner isolation/selective rollback.
+- Both platforms show the approved chips, whole-snapshot aligned counters and infinite-scroll lists,
+  with no Collection logout or visible load-more action. Native uses a keyboard-avoiding SectionList
+  with sticky input/chips and bounded cached presentation, including empty-result viewport reservation;
+  web keeps virtualized rows and sticky filters below the app header. Blur retains filters; X clears
+  text only. Foreign profiles retain generic BGG attribution without owner account controls.
+- [Proposal controls](groups-events-refactor.md#participant-option-proposals) reuse admin chooser rows;
+  final picker selection/date-time confirmation submits directly, while opening/cancel writes nothing.
+  Category headings/artwork are distinct, server-pending rows omit Pending, and real catalog cover
+  metadata reaches display/edit/proposal rows. Catalog cover enrichment stays quota/negative-cache
+  bounded outside transactions; successful collection publication fills missing covers without replacing
+  valid artwork. Native date/time dialog generation/owner fences reject duplicate/dismissed callbacks.
+  Participant self rows never offer moderation, even with inconsistent restored capability flags.
+- Verified MapTiler forward search includes addresses and POIs; reverse search remains address-only.
+  Provider label/coordinates/time-zone verification is unchanged, including named places without civic
+  addresses. EN/IT preserve all 1,459 prior compiled messages and add nine (1,468 per locale).
+- **2,992 covered units pass, zero failures/skips:** schemas 145, shared 488, mobile 544, web 904,
+  API 911. New collection-filter logic has a 100% per-file all-metric gate; no existing gate was lowered.
+  Root typecheck, scoped Biome, API/web production builds and Android production export pass; generated
+  Next/Expo references are restored byte-for-byte. All 30 Maestro flows pass 2.11 syntax checks only.
+  **Nine selected real disposable-Mongo replica-set cases pass; 122 cases were outside that run.**
+  These include shared-Collection source filters/intersection, both snapshot epochs, legacy wishlist,
+  bilateral Profile blocks, complete publication/retained snapshots, cover hydration and transactional
+  proposal/receipt guards. A full-suite attempt reached its 30-minute runner limit after 90 observed
+  passing cases, with no observed test failure but no terminal report: **full-suite success is not claimed**.
+  Test containers were cleaned up; no application database was accessed. Exact artifacts remain in
+  the task checkpoint.
+  New read-only shared-profile fixtures and direct-picker scenarios are opt-in, not added to canonical
+  CI/discovery. **No authenticated browser/device, keyboard/font/theme or native frame-timing acceptance
+  is claimed.** No app database migration/reset, provider sync/provisioning or deployment was executed.
+
+## Participant option proposals — prior foundation evidence; picker UX superseded above
 
 - Both clients expose default-off PRIVATE Group proposal settings in the existing Event/Table editor,
   and category-local own/manager queues in Event date/location and Table game sections. No fourth tab

@@ -292,10 +292,7 @@ export function EventScheduleFields({
           ))}
           {(form.flexibleSchedule || !draft.locations.length) &&
           draft.locations.length < MAX_EVENT_OPTIONS ? (
-            <LocationListRow
-              name={t`Choose a verified address`}
-              onPress={busy ? undefined : onLocation}
-            />
+            <LocationListRow name={t`Choose a location`} onPress={busy ? undefined : onLocation} />
           ) : null}
         </GroupedList>
         {error(
@@ -305,10 +302,7 @@ export function EventScheduleFields({
             : t`Choose exactly one verified location.`,
         )}
         {draft.locations.length
-          ? error(
-              "timeZone",
-              t`Could not determine the location time zone. Choose a verified address.`,
-            )
+          ? error("timeZone", t`Could not determine the location time zone. Choose a location.`)
           : null}
       </section>
       {form.flexibleSchedule ? (

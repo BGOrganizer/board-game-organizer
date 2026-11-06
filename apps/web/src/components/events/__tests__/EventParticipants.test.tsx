@@ -86,6 +86,32 @@ async function choose(action = "Remove from event") {
   fireEvent.click(await screen.findByRole("button", { name: "Manage participant: target-name" }));
   fireEvent.click(await screen.findByRole("button", { name: action }));
 }
+it("never exposes own-row moderation, even if restored flags incorrectly claim it is allowed", async () => {
+  mount(
+    [
+      {
+        ...person,
+        id: "owner",
+        userId: "owner",
+        username: "self-name",
+        canRemove: true,
+        canBanGroup: true,
+      },
+      person,
+    ],
+    {
+      ...plannedEvent,
+      groupId: groupRecord.id,
+      groupType: "PRIVATE",
+      canManage: true,
+      version: 1,
+      participantCount: 2,
+    },
+  );
+  expect(await screen.findByText("self-name")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Manage participant: self-name" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Manage participant: target-name" })).toBeTruthy();
+});
 it.each([true, false])(
   "projects Event removal immediately, keeps Group untouched and selectively reconciles receipt/failure: %s",
   async (success) => {

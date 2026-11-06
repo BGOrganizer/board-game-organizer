@@ -451,7 +451,13 @@ export class EventRecordsService {
   private async proposalResponse(row: EventProposal): Promise<EventProposalResponse> {
     const { requestHash: _hash, payloadKey: _key, ...visible } = row;
     const user = await this.users.findById(row.userId);
-    return { ...visible, authorName: user?.username || publicUserName(user) };
+    const [game] =
+      row.payload.kind === "game" ? await this.games.findByIds([row.payload.gameId]) : [];
+    return {
+      ...visible,
+      authorName: user?.username || publicUserName(user),
+      ...(game ? { game: { id: game.id, name: game.name, imageUrl: game.image ?? null } } : {}),
+    };
   }
   private async proposalGame(gameId: number) {
     const [game] = await this.games.findByIds([gameId]);

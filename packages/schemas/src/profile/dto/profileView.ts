@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { BggCollectionCounts } from "../../games/models/bggCollection";
 
 export const profileActivityKindSchema = z.enum([
   "played",
@@ -48,6 +49,8 @@ export type ProfileView = {
   avatarUrl: string | null;
   social: { friends: number; followers: number; following: number };
   player: ProfilePlayerStats;
+  /** Published collection metadata only; no provider account identity or sync controls. */
+  collection?: { snapshot: string; counts?: BggCollectionCounts } | null;
 };
 /** No stored resource names or public hrefs: each read resolves current source permissions. */
 export type ProfileActivityRecord = {

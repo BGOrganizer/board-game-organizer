@@ -300,8 +300,8 @@ function Editor({
             />
             <GroupedList>
               <LocationListRow
-                name={location?.name ?? t("Choose a verified address")}
-                accessibilityLabel={t("Choose a verified address")}
+                name={location?.name ?? t("Choose a location")}
+                accessibilityLabel={t("Choose a location")}
                 address={location?.address}
                 onPress={submitting || uploading ? undefined : () => setPicking(true)}
                 leading={

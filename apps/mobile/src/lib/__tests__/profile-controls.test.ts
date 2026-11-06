@@ -107,12 +107,18 @@ it.each([
   { own: true, published: false, denied: false },
   { own: false, published: true, denied: false },
   { own: true, published: true, denied: true },
+  { own: false, published: false, denied: false },
+  { own: false, published: true, denied: true },
 ])(
-  "allows Collection only for an authorized owner's active snapshot: %j",
+  "allows Collection only for an authorized subject's published snapshot: %j",
   ({ own, published, denied }) => {
     const setView = vi.fn();
     const active = evaluate(initializer("Profile", "active"), {
       own,
+      q: {
+        error: denied ? new Error("404") : null,
+        data: { collection: published ? { snapshot: "snapshot" } : null },
+      },
       communityAccessDenied: () => denied,
       bgg: {
         account: {
@@ -121,7 +127,7 @@ it.each([
         },
       },
     });
-    const allowed = own && published && !denied;
+    const allowed = published && !denied;
     const choose = evaluate(attribute("Profile", "Tabs", "onValueChange"), {
       active,
       setView,

@@ -35,20 +35,18 @@ function verifiedActivityPage<T extends ProfileActivityPage>(page: T): T {
 }
 
 /** A denied child read revokes this subject's cached profile, never another API/viewer/subject. */
-function useProfileReadGuard<T extends { error: unknown; isFetching: boolean; isEnabled: boolean }>(
-  o: CommunityApiOptions,
-  subject: string,
-  result: T,
-): T {
+export function useProfileReadGuard<
+  T extends { error: unknown; isFetching: boolean; isEnabled: boolean },
+>(o: CommunityApiOptions, subject: string, result: T): T {
   const client = useQueryClient();
   useEffect(() => {
     if (!result.isEnabled || result.isFetching || !communityAccessDenied(result.error)) return;
     const filters = {
       predicate: ({ queryKey: key }: { queryKey: QueryKey }) =>
-        key[0] === "profile" &&
         key[1] === o.apiUrl &&
         key[2] === o.userId &&
-        (key.length === 3 ? subject === o.userId : key[4] === subject),
+        ((key[0] === "profile" && (key.length === 3 ? subject === o.userId : key[4] === subject)) ||
+          (key[0] === "bgg-collection" && (key[5] ?? key[2]) === subject)),
     };
     const queries = client.getQueryCache().findAll(filters);
     if (queries.every((query) => query.state.data === null && query.state.error === result.error))
@@ -103,6 +101,22 @@ export function useProfileView(o: CommunityApiOptions, subject: string) {
       : undefined,
     enabled: o.enabled !== false && Boolean(o.userId && subject),
   });
+  useEffect(() => {
+    if (!query.isSuccess || query.isFetching || query.data.collection === undefined) return;
+    const snapshot = query.data.collection?.snapshot;
+    const stale = {
+      predicate: ({ queryKey: key }: { queryKey: QueryKey }) =>
+        key[0] === "bgg-collection" &&
+        key[1] === o.apiUrl &&
+        key[2] === o.userId &&
+        (((key[5] ?? key[2]) === subject && key[3] !== snapshot) ||
+          (subject === o.userId && Boolean(key[8]) && key[8] !== snapshot)),
+    };
+    void client.cancelQueries(stale, { revert: false });
+    client.removeQueries(stale);
+    if (subject === o.userId && !snapshot)
+      void client.invalidateQueries({ queryKey: ["bgg-account", o.apiUrl, o.userId] });
+  }, [client, o.apiUrl, o.userId, subject, query.isSuccess, query.isFetching, query.data]);
   return useProfileReadGuard(o, subject, query);
 }
 export function profileActivitiesQuery(

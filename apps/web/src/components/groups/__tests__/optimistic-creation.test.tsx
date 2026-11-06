@@ -225,7 +225,7 @@ it("restores a definitively rejected public proposal including raw name, prepare
   });
   fireEvent.click(wizard.getByRole("switch", { name: "Public group" }));
   fireEvent.click(wizard.getByRole("button", { name: "Use uploaded logo" }));
-  fireEvent.click(wizard.getByRole("button", { name: "Choose a verified address" }));
+  fireEvent.click(wizard.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(wizard.getByRole("button", { name: "Choose verified location" }));
   fireEvent.click(wizard.getByRole("button", { name: "Submit for review" }));
   expect(m.replace).toHaveBeenCalledWith("/groups");

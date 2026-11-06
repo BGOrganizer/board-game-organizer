@@ -25,6 +25,7 @@ import { migrate } from "../../src/app/lib/migrate";
 import { NotificationAttentionRepository } from "../../src/app/lib/notifications/notification-attention.repository";
 import { NotificationsRepository } from "../../src/app/lib/notifications/notifications.repository";
 import { PushSubscriptionsRepository } from "../../src/app/lib/notifications/push-subscriptions.repository";
+import { ProfileService } from "../../src/app/lib/profile/profile.service";
 import { RatingsRepository } from "../../src/app/lib/ratings/ratings.repository";
 import { UsersRepository } from "../../src/app/lib/users/users.repository";
 
@@ -1419,6 +1420,97 @@ describe("direct Preview catalog import on MongoDB replica set", () => {
 });
 
 describe("BGG account collection snapshots on MongoDB replica set", () => {
+  it("source-filters shared collections and common BGG IDs with both active epochs, legacy wishlist and Profile block guards", async () => {
+    await seedUser(users, ACTOR, "actor@example.test");
+    await seedUser(users, TARGET, "target@example.test");
+    const repo = new BggAccountRepository(db),
+      profiles = new ProfileService(db),
+      identity = { id: 41, username: "provider-name-private", avatarUrl: null };
+    expect((await profiles.profile(ACTOR, TARGET)).collection).toBeNull();
+    const snapshot = await repo.stage(TARGET, identity);
+    const xml =
+      '<items><item objectid="987610" subtype="boardgame"><name>Alpha [title]</name><image>https://cf.geekdo-images.com/alpha.jpg</image><status own="0" wishlist="1"/><stats><rating value="8.5"/></stats></item><item objectid="987611" subtype="boardgame"><name>Beta</name><status own="1"/></item><item objectid="987612" subtype="boardgameexpansion"><name>Expansion</name><status own="0" wishlist="1"/></item></items>';
+    await new BoardGamesRepository(db).bulkUpsert([{ id: 987610, name: "Alpha", image: null }]);
+    const expansionXml =
+      '<items><item objectid="987612" subtype="boardgameexpansion"><name>Expansion</name><status own="0" wishlist="1"/></item></items>';
+    await repo.publish(TARGET, snapshot, identity, [
+      ...parseBggCollection(xml, TARGET, snapshot),
+      ...parseBggCollection(expansionXml, TARGET, snapshot, true),
+    ]);
+    expect((await db.collection(COLLECTIONS.BOARD_GAMES).findOne({ id: 987610 }))?.image).toBe(
+      "https://cf.geekdo-images.com/alpha.jpg",
+    );
+    const meta = await profiles.profile(ACTOR, TARGET);
+    expect(meta.collection).toEqual({
+      snapshot,
+      counts: { withoutExpansions: 2, withExpansions: 3, wishlist: 2 },
+    });
+    expect(JSON.stringify(meta)).not.toContain(identity.username);
+    const viewer = await repo.stage(ACTOR, { ...identity, id: 42, username: "viewer" });
+    await repo.publish(ACTOR, viewer, { ...identity, id: 42, username: "viewer" }, [
+      ...parseBggCollection(
+        xml.replace(
+          '<item objectid="987611" subtype="boardgame"><name>Beta</name><status own="1"/></item>',
+          "",
+        ),
+        ACTOR,
+        viewer,
+      ),
+      ...parseBggCollection(expansionXml, ACTOR, viewer, true),
+    ]);
+    const input = { snapshot, query: "", limit: 1, commonSnapshot: viewer };
+    const first = await repo.page(TARGET, input, ACTOR);
+    expect(first.items.map((r) => r.id)).toEqual([987610]);
+    expect(first.counts?.withExpansions).toBe(3);
+    const second = await repo.page(TARGET, { ...input, cursor: first.nextCursor ?? "" }, ACTOR);
+    expect(second.items.map((r) => r.id)).toEqual([987612]);
+    expect(second.nextCursor).toBeNull();
+    await expect(
+      repo.page(TARGET, { ...input, types: "expansions", cursor: first.nextCursor ?? "" }, ACTOR),
+    ).rejects.toMatchObject({ status: 400 });
+    expect((await repo.page(TARGET, { ...input, types: "none" }, ACTOR)).items).toEqual([]);
+    expect((await repo.page(TARGET, { ...input, query: "Beta" }, ACTOR)).items).toEqual([]);
+    expect(
+      (
+        await repo.page(
+          TARGET,
+          { ...input, types: "games", wishlist: "true", query: "[title]" },
+          ACTOR,
+        )
+      ).items.map((r) => r.id),
+    ).toEqual([987610]);
+    expect(
+      (
+        await repo.page(TARGET, { ...input, types: "expansions", wishlist: "true" }, ACTOR)
+      ).items.map((r) => r.id),
+    ).toEqual([987612]);
+    await db
+      .collection(COLLECTIONS.BGG_COLLECTION_GAMES)
+      .updateOne({ userId: TARGET, snapshot, gameId: 987610 }, { $unset: { wishlist: "" } });
+    expect(
+      (await repo.page(TARGET, { ...input, types: "games", wishlist: "true" }, ACTOR)).items[0]
+        .wishlist,
+    ).toBe(true);
+    for (const reverse of [false, true]) {
+      await transact(async (r) => {
+        await r.block(reverse ? TARGET : ACTOR, reverse ? ACTOR : TARGET);
+      });
+      await expect(profiles.requireVisible(ACTOR, TARGET)).rejects.toMatchObject({ status: 404 });
+      await expect(profiles.profile(ACTOR, TARGET)).rejects.toMatchObject({ status: 404 });
+      await transact(async (r) => {
+        await r.unblock(reverse ? TARGET : ACTOR, reverse ? ACTOR : TARGET);
+      });
+    }
+    const replacement = await repo.stage(ACTOR, identity);
+    await repo.publish(ACTOR, replacement, identity, []);
+    await expect(repo.page(TARGET, input, ACTOR)).rejects.toMatchObject({ status: 409 });
+    const targetNext = await repo.stage(TARGET, identity);
+    await repo.publish(TARGET, targetNext, identity, []);
+    expect((await profiles.profile(ACTOR, TARGET)).collection?.snapshot).toBe(targetNext);
+    await expect(
+      repo.page(TARGET, { ...input, commonSnapshot: undefined }, ACTOR),
+    ).rejects.toMatchObject({ status: 409 });
+  });
   it("source-pages the complete personal collection, counts expansions and isolates owners/snapshots", async () => {
     const repository = new BggAccountRepository(db);
     const identity = { id: 41, username: "alice", avatarUrl: null };

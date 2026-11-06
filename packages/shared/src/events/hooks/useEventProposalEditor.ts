@@ -94,25 +94,27 @@ export function useEventProposalEditor(
       const result = eventProposalPayloadSchema.safeParse({ kind: "location", location });
       if (result.success) choose(result.data, location.name);
     },
-    submit: () => {
+    submit: (selection?: EventProposalPayload, selectionLabel?: string) => {
+      const payload = selection ?? current.payload;
+      const label = selectionLabel ?? current.label;
       if (
         !allowed ||
         !event ||
         actions.busy ||
         sent.current === identity ||
-        current.payload?.kind !== kind ||
-        !eventProposalPayloadSchema.safeParse(current.payload).success
+        payload?.kind !== kind ||
+        !eventProposalPayloadSchema.safeParse(payload).success
       )
         return false;
       sent.current = identity;
       actions.propose({
         eventVersion: event.version,
-        payload: current.payload,
-        clientLabel: current.label,
+        payload,
+        clientLabel: label,
         clientReplaces: recovery?.draftId,
         clientRequestId:
           recovery?.variables.eventVersion === event.version &&
-          JSON.stringify(recovery.variables.payload) === JSON.stringify(current.payload)
+          JSON.stringify(recovery.variables.payload) === JSON.stringify(payload)
             ? recovery.variables.clientRequestId
             : undefined,
       });

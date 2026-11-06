@@ -51,6 +51,7 @@ export * from "./events/hooks/useTableLeaderboard";
 export * from "./events/tableScoreForm";
 export * from "./games/hooks/useBggAccount";
 export * from "./games/hooks/useBggCollection";
+export * from "./games/hooks/useBggCollectionFilters";
 export * from "./games/hooks/useBggPicker";
 export * from "./groups/groupBanForm";
 export * from "./groups/groupLogoUpload";

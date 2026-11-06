@@ -6,14 +6,18 @@ import {
   eventProposalLabel,
   useEventProposalSection,
 } from "@board-game-organizer/shared";
-import { Button, Skeleton } from "@heroui/react";
+import { Button, Input, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, X } from "lucide-react";
+import { CalendarClock, Check, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { GameListRow } from "@/components/games/GameListRow";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventProposalItem } from "./EventProposalItem";
 export function EventProposalSection({
   event,
   kind,
@@ -36,11 +40,34 @@ export function EventProposalSection({
   return !s.visible ? null : (
     <section
       className="space-y-3"
-      aria-label={s.manager ? t`Participant proposals` : t`Your proposals`}
+      aria-label={
+        kind === "date"
+          ? t`Proposed dates/times`
+          : kind === "location"
+            ? t`Proposed locations`
+            : t`Proposed games`
+      }
     >
-      <h3 className="font-semibold">{s.manager ? t`Participant proposals` : t`Your proposals`}</h3>
+      <h3 className="font-semibold">
+        {kind === "date"
+          ? t`Proposed dates/times`
+          : kind === "location"
+            ? t`Proposed locations`
+            : t`Proposed games`}
+      </h3>
       {s.canPropose ? (
-        <Button size="sm" variant="outline" onPress={() => openEditor()}>{t`Add proposal`}</Button>
+        <GroupedList>
+          {kind === "date" ? (
+            <DateProposalAction
+              key={`${o.apiUrl}:${o.userId}:${event.id}:${event.version}`}
+              submit={s.submitDate}
+            />
+          ) : kind === "location" ? (
+            <LocationListRow name={t`Choose a location`} onPress={() => openEditor()} />
+          ) : (
+            <GameListRow name={t`Choose a game`} onPress={() => openEditor()} />
+          )}
+        </GroupedList>
       ) : null}
       {s.intents.map((intent) => {
         const phase =
@@ -91,56 +118,58 @@ export function EventProposalSection({
         {s.q.items.map((row) => {
           const label = eventProposalLabel(row.payload, row.label, i18n.locale);
           return (
-            <GroupedRow key={row.id}>
-              <div data-testid={`event-proposal-${row.id}`} className="min-w-0 flex-1 space-y-1">
-                <p className="break-words">{label}</p>
-                {s.manager ? <p className="text-sm text-muted">{row.authorName}</p> : null}
+            <EventProposalItem
+              key={row.id}
+              row={row}
+              actions={
+                s.manager && event.status === "PLANNING" && row.status === "PENDING" ? (
+                  <div className="flex gap-1">
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      aria-label={`${t`Accept proposal`}: ${row.authorName} — ${label}`}
+                      isDisabled={
+                        disabled ||
+                        !s.q.hasVerifiedBase ||
+                        s.actions.busy ||
+                        Boolean(row.clientAction)
+                      }
+                      onPress={() => s.open(row, "accept")}
+                    >
+                      <Check className="size-5" aria-hidden />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="danger-soft"
+                      aria-label={`${t`Reject proposal`}: ${row.authorName} — ${label}`}
+                      isDisabled={
+                        disabled ||
+                        !s.q.hasVerifiedBase ||
+                        s.actions.busy ||
+                        Boolean(row.clientAction)
+                      }
+                      onPress={() => s.open(row, "reject")}
+                    >
+                      <X className="size-5" aria-hidden />
+                    </Button>
+                  </div>
+                ) : null
+              }
+            >
+              {s.manager ? <p className="text-sm text-muted">{row.authorName}</p> : null}
+              {row.clientAction || row.status !== "PENDING" ? (
                 <p role="status" className="text-sm text-muted">
                   {row.clientAction
                     ? row.clientAction === "accept"
                       ? t`Accepting proposal`
                       : t`Rejecting proposal`
-                    : row.status === "PENDING"
-                      ? t`Pending`
-                      : row.status === "ACCEPTED"
-                        ? t`Accepted`
-                        : t`Rejected`}
+                    : row.status === "ACCEPTED"
+                      ? t`Accepted`
+                      : t`Rejected`}
                 </p>
-              </div>
-              {s.manager && event.status === "PLANNING" && row.status === "PENDING" ? (
-                <div className="flex gap-1">
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    aria-label={`${t`Accept proposal`}: ${row.authorName} — ${label}`}
-                    isDisabled={
-                      disabled ||
-                      !s.q.hasVerifiedBase ||
-                      s.actions.busy ||
-                      Boolean(row.clientAction)
-                    }
-                    onPress={() => s.open(row, "accept")}
-                  >
-                    <Check className="size-5" aria-hidden />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="danger-soft"
-                    aria-label={`${t`Reject proposal`}: ${row.authorName} — ${label}`}
-                    isDisabled={
-                      disabled ||
-                      !s.q.hasVerifiedBase ||
-                      s.actions.busy ||
-                      Boolean(row.clientAction)
-                    }
-                    onPress={() => s.open(row, "reject")}
-                  >
-                    <X className="size-5" aria-hidden />
-                  </Button>
-                </div>
               ) : null}
-            </GroupedRow>
+            </EventProposalItem>
           );
         })}
       </GroupedList>
@@ -186,5 +215,34 @@ export function EventProposalSection({
         />
       ) : null}
     </section>
+  );
+}
+
+function DateProposalAction({ submit }: { submit: (wall: string) => boolean }) {
+  const { t } = useLingui();
+  const [wall, setWall] = useState("");
+  return (
+    <GroupedRow>
+      <CalendarClock className="size-5 shrink-0 text-muted" aria-hidden />
+      <TextField
+        className="min-w-0 flex-1"
+        aria-label={t`Date and time`}
+        value={wall}
+        onChange={setWall}
+      >
+        <Input name="proposedDateTime" autoComplete="off" type="datetime-local" step={60} />
+      </TextField>
+      <Button
+        isIconOnly
+        variant="primary"
+        aria-label={t`Add date`}
+        isDisabled={!wall}
+        onPress={() => {
+          if (submit(wall)) setWall("");
+        }}
+      >
+        <Plus className="size-5" aria-hidden />
+      </Button>
+    </GroupedRow>
   );
 }

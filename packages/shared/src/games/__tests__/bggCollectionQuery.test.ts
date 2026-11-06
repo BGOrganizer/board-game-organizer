@@ -25,12 +25,54 @@ afterEach(() => {
   for (const c of clients.splice(0)) c.clear();
   vi.unstubAllGlobals();
 });
+it("pins subject, both snapshot epochs and every source filter in the key/request", async () => {
+  const fetch = vi.fn(async (_url: unknown) => Response.json(data));
+  vi.stubGlobal("fetch", fetch);
+  const q = bggCollectionQuery({
+    ...options,
+    subjectId: "guest",
+    types: "expansions",
+    wishlist: true,
+    commonSnapshot: "viewer-snapshot",
+  });
+  expect(q.queryKey).toEqual([
+    "bgg-collection",
+    "https://api.test",
+    "owner",
+    "snapshot",
+    "Chess",
+    "guest",
+    "expansions",
+    true,
+    "viewer-snapshot",
+  ]);
+  await client().fetchInfiniteQuery(q);
+  const url = new URL(String(fetch.mock.calls[0]?.[0]));
+  expect(Object.fromEntries(url.searchParams)).toMatchObject({
+    subjectId: "guest",
+    snapshot: "snapshot",
+    query: "Chess",
+    types: "expansions",
+    wishlist: "true",
+    commonSnapshot: "viewer-snapshot",
+  });
+});
 it("scopes owner/API/snapshot/filter rather than session tokens and obtains a fresh token every read", async () => {
   const fetch = vi.fn(async (_url: unknown, _init?: RequestInit) => Response.json(data));
   vi.stubGlobal("fetch", fetch);
   const getToken = vi.fn().mockResolvedValueOnce("first").mockResolvedValueOnce("rotated");
   const q = bggCollectionQuery({ ...options, getToken, protectionBypass: "bypass" });
-  expect(q.queryKey).toEqual(["bgg-collection", "https://api.test", "owner", "snapshot", "Chess"]);
+  expect(q.queryKey).toEqual([
+    "bgg-collection",
+    "https://api.test",
+    "owner",
+    "snapshot",
+    "Chess",
+    "owner",
+    "all",
+    false,
+    null,
+  ]);
   const c = client();
   await c.fetchInfiniteQuery({ ...q, staleTime: 0 });
   await c.fetchInfiniteQuery({ ...q, staleTime: 0 });

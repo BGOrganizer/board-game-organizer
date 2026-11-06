@@ -31,8 +31,17 @@ export function Profile({ userId }: { userId?: string }) {
   const subject = userId ?? o.userId ?? "",
     own = Boolean(o.userId && subject === o.userId),
     q = useProfileView(o, subject);
-  const bgg = useBggAccount({ ...o, enabled: own });
-  const active = own && !communityAccessDenied(bgg.account.error) ? bgg.account.data?.active : null;
+  const bgg = useBggAccount({
+    ...o,
+    enabled: own || (!communityAccessDenied(q.error) && Boolean(q.data?.collection)),
+  });
+  const active = communityAccessDenied(q.error)
+    ? null
+    : own
+      ? !communityAccessDenied(bgg.account.error)
+        ? bgg.account.data?.active
+        : null
+      : q.data?.collection;
   const viewKey = JSON.stringify([o.apiUrl, o.userId, subject]);
   const storedTab = useAppStore((s) => s.profileViews[viewKey]?.tab ?? "activity"),
     setView = useAppStore((s) => s.setProfileView);
@@ -109,10 +118,14 @@ export function Profile({ userId }: { userId?: string }) {
   if (data && tab === "collection" && active)
     return (
       <ProfileCollection
+        key={`${viewKey}:${active.snapshot}`}
         snapshot={active.snapshot}
         counts={active.counts}
+        subjectId={subject}
+        viewerSnapshot={
+          communityAccessDenied(bgg.account.error) ? undefined : bgg.account.data?.active?.snapshot
+        }
         header={header}
-        footer={<ProfileLogout />}
       />
     );
   return (

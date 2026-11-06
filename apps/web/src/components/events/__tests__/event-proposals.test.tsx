@@ -26,6 +26,7 @@ import {
 } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventProposalEditor } from "../EventProposalEditor";
+import { EventProposalItem } from "../EventProposalItem";
 import { EventProposalSection } from "../EventProposalSection";
 import { EventWizard } from "../EventWizard";
 
@@ -144,6 +145,69 @@ afterEach(() => {
   clients.splice(0).forEach(clearSessionQueryCache);
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+});
+it("renders date/time icons without zone shifts, verified place labels and the real proposed game cover", () => {
+  const view = renderWithI18n(<EventProposalItem row={row()} />);
+  const date = screen.getByTestId(`event-proposal-${optionId}`);
+  expect(date.querySelectorAll("time")).toHaveLength(2);
+  expect(date.querySelectorAll("svg")).toHaveLength(2);
+  expect(date.querySelector("time")?.dateTime).toBe("2030-06-04T20:00:00Z");
+  view.rerender(
+    <EventProposalItem
+      row={{ ...row(), payload: { kind: "location", location: event.locations[0] } }}
+    />,
+  );
+  expect(screen.getByText(event.locations[0].name)).toBeTruthy();
+  expect(screen.getByText(event.locations[0].address)).toBeTruthy();
+  view.rerender(
+    <EventProposalItem
+      row={{
+        ...row(),
+        label: "Selected game",
+        payload: { kind: "game", tableId: table.id, gameId: 2 },
+        game: { id: 2, name: "Selected game", imageUrl: "https://cf.geekdo-images.com/real.jpg" },
+      }}
+    />,
+  );
+  expect(screen.getByText("Selected game")).toBeTruthy();
+  expect(date.querySelector("img")?.getAttribute("src")).toBe(
+    "https://cf.geekdo-images.com/real.jpg",
+  );
+});
+it("submits a date from the inline admin-style chooser, with no intermediate route or invented consent", async () => {
+  const f = setup(),
+    posts: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        posts.push(body);
+        return Response.json(
+          { ...row(), clientRequestId: body.clientRequestId, payload: body.payload },
+          { status: 201 },
+        );
+      }
+      return Response.json(page());
+    }),
+  );
+  renderWithI18n(
+    <QueryClientProvider client={f.client}>
+      <EventProposalSection event={event} kind="date" />
+    </QueryClientProvider>,
+  );
+  fireEvent.change(screen.getByLabelText("Date and time"), {
+    target: { value: "2030-06-05T21:00" },
+  });
+  expect(posts).toEqual([]);
+  fireEvent.click(screen.getByRole("button", { name: "Add date" }));
+  await waitFor(() => expect(posts).toHaveLength(1));
+  expect(posts[0]).toMatchObject({
+    eventVersion: 1,
+    payload: { kind: "date", day: "2030-06-05", startTime: "21:00" },
+  });
+  expect(navigation.push).not.toHaveBeenCalled();
+  expect(f.client.getQueryData(eventRecordKeys.detail(o, event.id))).toEqual(event);
 });
 it("source-pages five rows with fresh JWT, distinct scopes and stale/unmounted callback fences", async () => {
   const f = setup();
@@ -518,17 +582,18 @@ it("renders real proposal queues, confirms one optimistic decision, and exposes 
       />
     </QueryClientProvider>,
   );
-  expect(screen.getByRole("heading", { name: "Your proposals" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Proposed dates/times" })).toBeTruthy();
+  expect(screen.queryByText("Pending")).toBeNull();
   expect(screen.queryByRole("button", { name: /Accept proposal/ })).toBeNull();
   view.rerender(
     <QueryClientProvider client={f.client}>
       <EventProposalSection event={{ ...event, groupType: "PUBLIC", readOnly: true }} kind="date" />
     </QueryClientProvider>,
   );
-  expect(screen.queryByRole("heading", { name: /proposals/i })).toBeNull();
+  expect(screen.queryByRole("heading", { name: /Proposed/ })).toBeNull();
 });
 it.each(["date", "game", "location"] as const)(
-  "keeps %s picker selection local until explicit submission and supports cancel",
+  "opens %s chooser directly, cancels without a write and submits only final picker selection",
   async (kind) => {
     const f = setup(),
       posts: unknown[] = [];
@@ -549,36 +614,33 @@ it.each(["date", "game", "location"] as const)(
         return Response.json({ items: [], nextCursor: null });
       }),
     );
-    renderWithI18n(
+    const chooser = (
       <QueryClientProvider client={f.client}>
         <EventProposalEditor eventId={event.id} kind={kind} tableId={table.id} />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     );
-    if (kind === "date")
+    const view = renderWithI18n(chooser);
+    expect(posts).toEqual([]);
+    if (kind === "date") {
       fireEvent.change(screen.getByLabelText("Choose date and time"), {
         target: { value: "2030-06-05T21:00" },
       });
-    else {
-      fireEvent.click(
-        screen.getByRole("button", {
-          name: kind === "game" ? "Choose a game" : "Choose a verified address",
-        }),
-      );
+      expect(posts).toEqual([]);
+      fireEvent.click(screen.getByRole("button", { name: "Send proposal" }));
+    } else {
+      expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Close picker" }));
       expect(posts).toEqual([]);
-      fireEvent.click(
-        screen.getByRole("button", {
-          name: kind === "game" ? "Choose a game" : "Choose a verified address",
-        }),
-      );
+      expect(navigation.back).toHaveBeenCalledTimes(1);
+      view.unmount();
+      navigation.back.mockClear();
+      renderWithI18n(chooser);
       fireEvent.click(
         screen.getByRole("button", {
           name: kind === "game" ? "Choose candidate game" : "Choose candidate venue",
         }),
       );
     }
-    expect(posts).toEqual([]);
-    fireEvent.click(screen.getByRole("button", { name: "Send proposal" }));
     expect(navigation.back).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(posts).toHaveLength(1));
     expect(posts[0]).toMatchObject({ eventVersion: 1, payload: { kind } });

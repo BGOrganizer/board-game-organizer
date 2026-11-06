@@ -337,8 +337,8 @@ export function SearchLocationPage({
           setFavoriteKey(null);
           setResults([]);
         }}
-        label={<Label>{t`Search address`}</Label>}
-        placeholder={t`Search address`}
+        label={<Label>{t`Search address/place`}</Label>}
+        placeholder={t`Search address/place`}
         inputProps={{ className: "min-w-0", name: "address", autoComplete: "off" }}
       >
         <Button

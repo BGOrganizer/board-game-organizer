@@ -21,6 +21,7 @@ export const reviewEventProposalSchema = z
 export type ReviewEventProposalInput = z.infer<typeof reviewEventProposalSchema>;
 export type EventProposalResponse = Omit<EventProposal, "requestHash" | "payloadKey"> & {
   authorName: string;
+  game?: { id: number; name: string; imageUrl: string | null };
 };
 export type EventProposalsResponse = CommunityPageResponse<EventProposalResponse> & {
   eventId: string;

@@ -1,20 +1,19 @@
-import { eventProposalLabel, useEventProposalEditor } from "@board-game-organizer/shared";
-import { useLingui } from "@lingui/react";
+import { useEventProposalEditor } from "@board-game-organizer/shared";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { MessageSquarePlus } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
-import { BackHandler, View } from "react-native";
-import { HeaderBackButton, headerBackOptions } from "@/components/common/layout/HeaderBackButton";
+import { useEffect, useRef, useState } from "react";
+import { View } from "react-native";
+import { headerBackOptions } from "@/components/common/layout/HeaderBackButton";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
-import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import GamePicker from "@/components/games/GamePicker";
 import LocationPicker from "@/components/locations/LocationPicker";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDateTimeField } from "./EventDateTimeField";
+
 export function EventProposalEditor({
   eventId,
   kind,
@@ -26,74 +25,31 @@ export function EventProposalEditor({
   tableId?: string;
   draftId?: string;
 }) {
-  const { i18n } = useLingui();
   const t = useT(),
     o = useCommunityApi(),
-    router = useRouter(),
-    form = useEventProposalEditor(o, eventId, kind, tableId, draftId);
-  const identity = `${o.apiUrl}|${o.userId}|${eventId}|${kind}|${tableId ?? ""}|${draftId ?? ""}`;
-  const [pickerOwner, setPickerOwner] = useState<string | null>(null);
-  const pick = pickerOwner === identity && form.allowed;
+    router = useRouter();
+  const form = useEventProposalEditor(o, eventId, kind, tableId, draftId);
+  const identity = JSON.stringify([o.apiUrl, o.userId, eventId, kind, tableId, draftId]);
+  const [closing, setClosing] = useState<string | null>(null);
+  const closed = useRef(false);
+  const close = () => setClosing(identity);
+  // Unmount picker/removal guards before dispatching native Back, never recursively pop a guarded picker.
   useEffect(() => {
-    if (!form.allowed) setPickerOwner(null);
-  }, [form.allowed]);
-  const setPick = useCallback(
-    (open: boolean) => setPickerOwner(open ? identity : null),
-    [identity],
-  );
-  const close = () => {
+    if (closing !== identity || closed.current) return;
+    closed.current = true;
     if (router.canGoBack()) router.back();
     else if (kind === "game" && tableId)
       router.replace({ pathname: "/event/table", params: { eventId, tableId } });
     else router.replace({ pathname: "/event/[eventId]", params: { eventId } });
-  };
-  useEffect(() => {
-    if (!pick) return;
-    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
-      setPick(false);
-      return true;
-    });
-    return () => listener.remove();
-  }, [pick, setPick]);
+  }, [closing, identity, router, eventId, kind, tableId]);
   const title =
-    kind === "date"
-      ? t("Propose a date and time")
+    kind === "game"
+      ? t("Choose a game")
       : kind === "location"
-        ? t("Propose a location")
-        : t("Propose a game");
-  if (pick && form.allowed)
-    return (
-      <View style={{ flex: 1 }}>
-        <Stack.Screen
-          options={{
-            title: t("Choose"),
-            gestureEnabled: false,
-            headerLeft: () => <HeaderBackButton onPress={() => setPick(false)} />,
-            headerRight: () => null,
-          }}
-        />
-        {kind === "game" ? (
-          <GamePicker
-            excludeIds={form.table.data?.games.map((g) => g.gameId)}
-            onClose={() => setPick(false)}
-            onSelect={(game) => {
-              form.chooseGame(game);
-              setPick(false);
-            }}
-          />
-        ) : (
-          <LocationPicker
-            onClose={() => setPick(false)}
-            onSelect={(location) => {
-              form.chooseLocation(location);
-              setPick(false);
-            }}
-          />
-        )}
-      </View>
-    );
+        ? t("Choose a location")
+        : t("Choose date and time");
   return (
-    <ScreenScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+    <View style={{ flex: 1 }}>
       <Stack.Screen
         options={{
           title,
@@ -103,32 +59,46 @@ export function EventProposalEditor({
           ...headerBackOptions(close),
         }}
       />
-      {form.validInput && form.q.isPending ? (
-        <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
-      ) : !form.allowed ? (
-        <>
-          <Typography accessibilityRole="alert" className="text-danger">
-            {t(
-              "Proposals require an enabled category and your own seated participation in a private planning event.",
-            )}
-          </Typography>
-          {form.q.isError || form.table.isError ? (
-            <Button
-              onPress={() => {
-                void form.q.refetch();
-                if (kind === "game") void form.table.refetch();
-              }}
-            >
-              <Button.Label>{t("Try again")}</Button.Label>
-            </Button>
-          ) : null}
-        </>
+      {closing === identity ? null : form.allowed && kind === "game" ? (
+        <GamePicker
+          onClose={close}
+          excludeIds={form.table.data?.games.map((game) => game.gameId)}
+          onSelect={(game) => {
+            if (form.submit({ kind: "game", tableId: tableId ?? "", gameId: game.id }, game.name))
+              close();
+          }}
+        />
+      ) : form.allowed && kind === "location" ? (
+        <LocationPicker
+          onClose={close}
+          initial={form.payload?.kind === "location" ? form.payload.location : undefined}
+          onSelect={(location) => {
+            if (form.submit({ kind: "location", location }, location.name)) close();
+          }}
+        />
       ) : (
-        <>
-          <Typography className="text-foreground">
-            {t("Submit explicitly. Your proposal stays private until managers approve its option.")}
-          </Typography>
-          {kind === "date" ? (
+        <View style={{ padding: 20, gap: 16 }}>
+          {form.validInput && (form.q.isPending || (kind === "game" && form.table.isPending)) ? (
+            <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
+          ) : !form.allowed ? (
+            <>
+              <Typography accessibilityRole="alert" className="text-danger">
+                {t(
+                  "Proposals require an enabled category and your own seated participation in a private planning event.",
+                )}
+              </Typography>
+              {form.q.isError || form.table.isError ? (
+                <Button
+                  onPress={() => {
+                    void form.q.refetch();
+                    if (kind === "game") void form.table.refetch();
+                  }}
+                >
+                  <Button.Label>{t("Try again")}</Button.Label>
+                </Button>
+              ) : null}
+            </>
+          ) : (
             <EventDateTimeField
               label={t("Choose date and time")}
               mode="datetime"
@@ -136,35 +106,22 @@ export function EventProposalEditor({
               value={
                 form.payload?.kind === "date" ? `${form.payload.day}T${form.payload.startTime}` : ""
               }
-              onChange={form.chooseDate}
+              onChange={(wall) => {
+                if (
+                  form.submit(
+                    { kind: "date", day: wall.slice(0, 10), startTime: wall.slice(11, 16) },
+                    wall.replace("T", " "),
+                  )
+                )
+                  close();
+              }}
             />
-          ) : (
-            <Button variant="outline" onPress={() => setPick(true)}>
-              <Button.Label>
-                {kind === "game" ? t("Choose a game") : t("Choose a verified address")}
-              </Button.Label>
-            </Button>
           )}
-          {form.label ? (
-            <Typography className="text-foreground" accessibilityLiveRegion="polite">
-              {form.payload
-                ? eventProposalLabel(form.payload, form.label, i18n.locale)
-                : form.label}
-            </Typography>
-          ) : null}
-          <Button
-            isDisabled={!form.canSubmit}
-            onPress={() => {
-              if (form.submit()) close();
-            }}
-          >
-            <Button.Label>{t("Send proposal")}</Button.Label>
+          <Button variant="ghost" onPress={close}>
+            <Button.Label>{t("Cancel")}</Button.Label>
           </Button>
-        </>
+        </View>
       )}
-      <Button variant="ghost" onPress={close}>
-        <Button.Label>{t("Cancel")}</Button.Label>
-      </Button>
-    </ScreenScrollView>
+    </View>
   );
 }

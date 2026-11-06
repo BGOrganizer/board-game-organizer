@@ -21,6 +21,18 @@ const row = (user: ContactUser | null = target) => ({
   toUserId: user?.id ?? target.id,
   profile: user,
 });
+it("hides only a blocked subject's collection projection and leaves independent/own pages untouched", () => {
+  const value = { pages: [{ items: [{ id: 1 }] }] };
+  const key = ["bgg-collection", "api", "viewer", "snap", "", "target"];
+  expect(optimisticProfileSocialData(key, value, "block", variables, "viewer")).toBeNull();
+  expect(optimisticProfileSocialData(key, value, "follow", variables, "viewer")).toBe(value);
+  expect(
+    optimisticProfileSocialData([...key.slice(0, 5), "other"], value, "block", variables, "viewer"),
+  ).toBe(value);
+  expect(optimisticProfileSocialData(key.slice(0, 5), value, "block", variables, "viewer")).toBe(
+    value,
+  );
+});
 it("optimistically removes network authors and related blocked people without inventing new activities", () => {
   const value = {
     pages: [

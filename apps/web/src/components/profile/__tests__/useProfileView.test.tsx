@@ -1,10 +1,12 @@
 import type { ProfileView } from "@board-game-organizer/schemas";
 import {
+  bggCollectionQuery,
   communityActivitiesQuery,
   optimisticProfileSocialData,
   profileActivitiesQuery,
   profileViewKeys,
   profileViewQuery,
+  useBggCollection,
   useCommunityActivities,
   useProfileActivities,
   useProfileRating,
@@ -37,6 +39,102 @@ const setup = () => {
   return { client, options, wrapper };
 };
 afterEach(() => vi.unstubAllGlobals());
+it("quarantines a denied subject collection/Profile and fences late reads without affecting other subjects/APIs", async () => {
+  const { client, options, wrapper } = setup();
+  const payload = {
+    snapshot: "snap",
+    counts: null,
+    items: [
+      {
+        id: 1,
+        name: "Private subject game",
+        year: 2020,
+        imageUrl: null,
+        source: "collection" as const,
+        userRating: 8,
+        wishlist: false,
+        isExpansion: false,
+      },
+    ],
+    nextCursor: null,
+  };
+  const target = bggCollectionQuery({
+    ...options,
+    subjectId: "subject",
+    snapshot: "snap",
+    query: "",
+  }).queryKey;
+  const other = bggCollectionQuery({
+    ...options,
+    subjectId: "other",
+    snapshot: "snap",
+    query: "",
+  }).queryKey;
+  const foreign = bggCollectionQuery({
+    ...options,
+    apiUrl: "foreign",
+    subjectId: "subject",
+    snapshot: "snap",
+    query: "",
+  }).queryKey;
+  for (const key of [target, other, foreign])
+    client.setQueryData(key, { pages: [payload], pageParams: [""] });
+  client.setQueryData(profileViewKeys.view(options, "subject"), { ...data, id: "subject" });
+  let finish: (response: Response) => void = () => {};
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) =>
+      url.includes("query=late")
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : Promise.resolve(Response.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 })),
+    ),
+  );
+  const lateQuery = bggCollectionQuery({
+    ...options,
+    subjectId: "subject",
+    snapshot: "snap",
+    query: "late",
+  });
+  const late = client.fetchInfiniteQuery(lateQuery).catch(() => null);
+  await waitFor(() => expect(options.getToken).toHaveBeenCalled());
+  await client.invalidateQueries({ queryKey: target, exact: true, refetchType: "none" });
+  const hook = renderHook(
+    () => useBggCollection({ ...options, subjectId: "subject", snapshot: "snap", query: "" }),
+    { wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.error).toBeTruthy());
+  await waitFor(() => expect(client.getQueryData(target)).toBeNull());
+  expect(client.getQueryData(profileViewKeys.view(options, "subject"))).toBeNull();
+  expect(client.getQueryData(other)).toEqual({ pages: [payload], pageParams: [""] });
+  expect(client.getQueryData(foreign)).toEqual({ pages: [payload], pageParams: [""] });
+  finish(Response.json(payload));
+  await late;
+  expect(client.getQueryData(lateQuery.queryKey)).toBeNull();
+  hook.unmount();
+  client.clear();
+});
+it("removes only obsolete subject snapshot pages after verified profile metadata changes", async () => {
+  const { client, options, wrapper } = setup(),
+    key = (subject: string, snapshot: string) =>
+      bggCollectionQuery({ ...options, subjectId: subject, snapshot, query: "" }).queryKey;
+  const old = key("subject", "old"),
+    current = key("subject", "current"),
+    other = key("other", "old");
+  for (const k of [old, current, other]) client.setQueryData(k, { pages: [], pageParams: [] });
+  client.setQueryData(profileViewKeys.view(options, "subject"), {
+    ...data,
+    id: "subject",
+    collection: { snapshot: "current" },
+  });
+  const h = renderHook(() => useProfileView(options, "subject"), { wrapper });
+  await waitFor(() => expect(client.getQueryState(old)).toBeUndefined());
+  expect(client.getQueryState(current)).toBeDefined();
+  expect(client.getQueryState(other)).toBeDefined();
+  h.unmount();
+  client.clear();
+});
 it("keys profiles by API/viewer/subject, not rotating tokens, and resolves a new token for each request", async () => {
   const { client, options } = setup(),
     fetch = vi.fn(async (_url: string, _init?: RequestInit) => Response.json(data));

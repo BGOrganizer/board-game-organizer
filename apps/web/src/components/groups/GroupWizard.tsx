@@ -244,9 +244,9 @@ function Editor({
       />
       <GroupedList>
         <LocationListRow
-          name={location?.name ?? t`Choose a verified address`}
+          name={location?.name ?? t`Choose a location`}
           address={location?.address}
-          label={t`Choose a verified address`}
+          label={t`Choose a location`}
           onPress={submitting || uploading ? undefined : () => setPicking("location")}
           leading={
             location ? (

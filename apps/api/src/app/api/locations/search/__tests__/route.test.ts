@@ -22,6 +22,37 @@ it("requires authentication, a valid query and configured geocoding", async () =
   expect((await GET(request("Rome"))).status).toBe(503);
 });
 
+it("searches venue names as POIs, preserves verified provider coordinates/timezone and rejects generic places", async () => {
+  mocks.auth.mockResolvedValue({ userId: "viewer" });
+  process.env.MAPTILER_GEOCODING_KEY = "test-key";
+  const fetch = vi.fn(async (url: URL) => {
+    expect(url.searchParams.get("types")).toBe("address,poi");
+    expect(url.pathname).toContain("Ludoteca");
+    return Response.json({
+      features: [
+        {
+          id: "poi.1",
+          place_name: "Ludoteca Example, Rome, Italy",
+          place_type: ["poi"],
+          center: [12.5, 41.9],
+        },
+        { id: "region.1", place_name: "Lazio", place_type: ["region"], center: [12.5, 41.9] },
+      ],
+    });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const response = await GET(request("Ludoteca Example"));
+  expect(response.status).toBe(200);
+  expect((await response.json()).items).toEqual([
+    {
+      id: "poi.1",
+      address: "Ludoteca Example, Rome, Italy",
+      longitude: 12.5,
+      latitude: 41.9,
+      timeZone: "Europe/Rome",
+    },
+  ]);
+});
 it("requests at most five MapTiler addresses and returns only match location fields", async () => {
   mocks.auth.mockResolvedValue({ userId: "user_admin" });
   process.env.MAPTILER_GEOCODING_KEY = "test-key";
@@ -30,7 +61,7 @@ it("requests at most five MapTiler addresses and returns only match location fie
     expect(url.pathname).toBe("/geocoding/Main%20St%2F%20Rome.json");
     expect(url.searchParams.get("key")).toBe("test-key");
     expect(url.searchParams.get("limit")).toBe("5");
-    expect(url.searchParams.get("types")).toBe("address");
+    expect(url.searchParams.get("types")).toBe("address,poi");
     expect(options.cache).toBe("no-store");
     return Response.json({
       features: [

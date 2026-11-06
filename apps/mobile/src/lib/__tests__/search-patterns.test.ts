@@ -44,7 +44,8 @@ it("keeps IDs, optional input limits, touch targets and selected accessibility s
   expect(input).not.toMatch(/setTimeout|fetch\(|useEffect|length\s*[<>]/);
   const chips = source("components/common/ui/FilterChips.tsx");
   expect(chips).toContain('variant={active ? "primary" : "secondary"}');
-  expect(chips).toContain("accessibilityState={{ selected: active }}");
+  expect(chips).toContain("accessibilityState={{ selected: active, disabled }}");
+  expect(chips).toContain("isDisabled={disabled}");
   expect(chips).toContain("minWidth: 44");
   expect(chips).toContain("minHeight: 44");
   expect(source("components/common/ui/HelpPopover.tsx")).toContain("minHeight: 44");

@@ -395,8 +395,14 @@ history but cannot receive approvals; Event/Group deletion cascades requests. No
 managers/the proposer; ordinary configuration notices occur only after canonical approval.
 
 Both clients expose private-only opt-ins in the existing Event/Table editor, and category-local
-proposal controls in Event dates/locations and Table games, not another top-level tab. Opening,
-selecting or cancelling a picker writes nothing; final explicit submission creates a private request.
+proposal controls in Event dates/locations and Table games, not another top-level tab. Opening or
+cancelling a picker writes nothing. Final date/time confirmation or final game/location selection
+explicitly sends one private proposal, without an intermediate editor page. Add rows reuse each
+platform's admin date/time, location and game chooser labels/icons. Date/time, location and game
+proposal headers are distinct; pending rows omit the Pending label, retain appropriate clock/calendar/
+location artwork or the catalog game cover, and keep accepted/rejected and local mutation feedback.
+Native dialog generations/owner fences reject cancelled or detached callbacks. Existing failed-draft
+recovery and uncertain receipt verification remain explicit; canonical options still require approval.
 Managers see the authorized review queue; other participants see only their own proposals. Fixed
 five-row source pages bound presentation, including inside existing native lists. Failed unsent
 local drafts remain reviewable; a changed explicit retry gets a fresh correlation rather than replaying

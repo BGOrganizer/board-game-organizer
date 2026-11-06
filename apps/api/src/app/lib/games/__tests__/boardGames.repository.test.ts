@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BoardGamesRepository } from "@/app/lib/games/boardGames.repository";
 
+const hydration = vi.hoisted(() => ({ run: vi.fn() }));
+vi.mock("../bgg", () => ({ hydrateGames: hydration.run }));
 const dbMock = { collection: vi.fn() };
 const colMock = {
   bulkWrite: vi.fn(async (_ops: unknown) => ({ upsertedCount: 1, modifiedCount: 0 })),
@@ -20,6 +22,21 @@ beforeEach(() => {
 });
 
 describe("BoardGamesRepository", () => {
+  it("hydrates metadata using the existing public catalog policy only outside transactions", async () => {
+    hydration.run.mockImplementationOnce(async (_db: unknown, games: { image?: string }[]) => {
+      games[0].image = "https://cf.geekdo-images.com/known.jpg";
+    });
+    const games = await repo().findByIds([342942]);
+    expect(games[0].image).toBe("https://cf.geekdo-images.com/known.jpg");
+    expect(hydration.run).toHaveBeenCalledOnce();
+    const session = { id: "transaction" };
+    await new BoardGamesRepository(dbMock as never, session as never).findByIds([342942]);
+    expect(hydration.run).toHaveBeenCalledOnce();
+    expect(colMock.find).toHaveBeenLastCalledWith(
+      { id: { $in: [342942] } },
+      { projection: { _id: 0 }, session },
+    );
+  });
   it("bulk upserts games keyed by BGG id", async () => {
     const n = await repo().bulkUpsert([
       {

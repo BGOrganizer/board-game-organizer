@@ -1,13 +1,8 @@
 "use client";
-import {
-  eventProposalLabel,
-  useEventProposalEditor,
-  useFavoriteLocations,
-} from "@board-game-organizer/shared";
+import { useEventProposalEditor, useFavoriteLocations } from "@board-game-organizer/shared";
 import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -22,26 +17,15 @@ export function EventProposalEditor({
   tableId?: string;
   draftId?: string;
 }) {
-  const { t, i18n } = useLingui(),
+  const { t } = useLingui(),
     o = useCommunityApi(),
-    router = useRouter(),
-    form = useEventProposalEditor(o, eventId, kind, tableId, draftId);
-  const identity = `${o.apiUrl}|${o.userId}|${eventId}|${kind}|${tableId ?? ""}|${draftId ?? ""}`;
-  const [pickerOwner, setPickerOwner] = useState<string | null>(null);
-  const pick = pickerOwner === identity && form.allowed;
-  const setPick = (open: boolean) => setPickerOwner(open ? identity : null);
-  useEffect(() => {
-    if (!form.allowed) setPickerOwner(null);
-  }, [form.allowed]);
+    router = useRouter();
+  const form = useEventProposalEditor(o, eventId, kind, tableId, draftId);
   const favorites = useFavoriteLocations(
-    {
-      ...o,
-      userId:
-        o.enabled !== false && pick && kind === "location" && form.allowed ? o.userId : undefined,
-    },
+    { ...o, userId: form.allowed && kind === "location" ? o.userId : undefined },
     form.event?.locations ?? [],
   );
-  if (pick && form.allowed && kind === "game")
+  if (form.allowed && kind === "game")
     return (
       <SearchGamePage
         apiUrl={o.apiUrl}
@@ -50,14 +34,14 @@ export function EventProposalEditor({
         userId={o.userId}
         protectionBypass={o.protectionBypass ?? undefined}
         excludeIds={form.table.data?.games.map((g) => g.gameId)}
-        onClose={() => setPick(false)}
+        onClose={() => router.back()}
         onSelect={(game) => {
-          form.chooseGame(game);
-          setPick(false);
+          if (form.submit({ kind: "game", tableId: tableId ?? "", gameId: game.id }, game.name))
+            router.back();
         }}
       />
     );
-  if (pick && form.allowed && kind === "location")
+  if (form.allowed && kind === "location")
     return (
       <SearchLocationPage
         apiUrl={o.apiUrl}
@@ -65,23 +49,17 @@ export function EventProposalEditor({
         userId={o.userId}
         protectionBypass={o.protectionBypass ?? undefined}
         favorites={favorites}
-        onClose={() => setPick(false)}
+        initial={form.payload?.kind === "location" ? form.payload.location : undefined}
+        onClose={() => router.back()}
         onSelect={(location) => {
-          form.chooseLocation(location);
-          setPick(false);
+          if (form.submit({ kind: "location", location }, location.name)) router.back();
         }}
       />
     );
   return (
     <div className="mx-auto max-w-3xl space-y-5 py-8">
-      <h1 className="text-xl font-semibold">
-        {kind === "date"
-          ? t`Propose a date and time`
-          : kind === "location"
-            ? t`Propose a location`
-            : t`Propose a game`}
-      </h1>
-      {form.validInput && form.q.isPending ? (
+      <h1 className="text-xl font-semibold">{t`Choose date and time`}</h1>
+      {form.validInput && (form.q.isPending || (kind === "game" && form.table.isPending)) ? (
         <Skeleton className="h-32 w-full rounded-xl" />
       ) : !form.allowed ? (
         <>
@@ -100,29 +78,15 @@ export function EventProposalEditor({
         </>
       ) : (
         <>
-          <p>{t`Submit explicitly. Your proposal stays private until managers approve its option.`}</p>
-          {kind === "date" ? (
-            <TextField
-              value={
-                form.payload?.kind === "date" ? `${form.payload.day}T${form.payload.startTime}` : ""
-              }
-              onChange={form.chooseDate}
-            >
-              <Label>{t`Choose date and time`}</Label>
-              <Input name="proposedDateTime" autoComplete="off" type="datetime-local" step={60} />
-            </TextField>
-          ) : (
-            <Button variant="outline" onPress={() => setPick(true)}>
-              {kind === "game" ? t`Choose a game` : t`Choose a verified address`}
-            </Button>
-          )}
-          {form.label ? (
-            <p role="status">
-              {form.payload
-                ? eventProposalLabel(form.payload, form.label, i18n.locale)
-                : form.label}
-            </p>
-          ) : null}
+          <TextField
+            value={
+              form.payload?.kind === "date" ? `${form.payload.day}T${form.payload.startTime}` : ""
+            }
+            onChange={form.chooseDate}
+          >
+            <Label>{t`Choose date and time`}</Label>
+            <Input name="proposedDateTime" autoComplete="off" type="datetime-local" step={60} />
+          </TextField>
           <Button
             isDisabled={!form.canSubmit}
             onPress={() => {

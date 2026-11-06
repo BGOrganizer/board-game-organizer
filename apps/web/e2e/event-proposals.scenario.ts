@@ -61,9 +61,10 @@ if (
   throw new Error("Development Clerk only");
 const it = locale === "it",
   labels = {
-    own: it ? "Le tue proposte" : "Your proposals",
-    review: it ? "Proposte dei partecipanti" : "Participant proposals",
-    add: it ? "Aggiungi proposta" : "Add proposal",
+    own: it ? "Giochi Proposti" : "Proposed games",
+    review: it ? "Giochi Proposti" : "Proposed games",
+    add: it ? "Scegli un gioco" : "Choose a game",
+    back: it ? "Indietro" : "Back",
     choose: it ? "Scegli un gioco" : "Choose a game",
     search: it ? "Cerca giochi da tavolo" : "Search board games",
     select: it ? "Seleziona" : "Select",
@@ -148,38 +149,39 @@ test("real private own-Table proposal or current-manager decision; cancel writes
     if (before.items.length || before.nextCursor)
       throw new Error("Empty own queue required for disposable submit fixture");
     const region = page.getByRole("region", { name: labels.own, exact: true });
-    const choose = async () => {
-      await page.getByRole("button", { name: labels.choose, exact: true }).click();
+    const openPicker = async () => {
+      await region.getByRole("button", { name: labels.add, exact: true }).click();
       await page.getByPlaceholder(labels.search, { exact: true }).fill(input.gameQuery!);
-      await page
-        .getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true })
-        .click();
+      await expect(
+        page.getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true }),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: labels.send, exact: true })).toHaveCount(0);
     };
-    await region.getByRole("button", { name: labels.add, exact: true }).click();
-    await choose();
-    await page.getByRole("button", { name: labels.cancel, exact: true }).click();
+    await openPicker();
+    await page.getByRole("button", { name: labels.back, exact: true }).click();
     expect(writes).toEqual([]);
     expect((await read<EventProposalsResponse>(page, base + "&mode=mine&limit=5")).items).toEqual(
       [],
     );
-    await region.getByRole("button", { name: labels.add, exact: true }).click();
-    await choose();
+    await openPicker();
     expect(writes).toEqual([]);
     const posted = page.waitForResponse(
       (r) =>
         new URL(r.url()).pathname === `/api/events/${input.eventId}/proposals` &&
         r.request().method() === "POST",
     );
-    await page.getByRole("button", { name: labels.send, exact: true }).click();
+    await page
+      .getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true })
+      .click();
     const response = await posted;
     expect(response.status()).toBe(201);
     const created = (await response.json()) as EventProposalsResponse["items"][number];
     expect(created.payload).toEqual({ kind: "game", tableId: input.tableId, gameId: input.gameId });
     expect(created.status).toBe("PENDING");
     await page.goto(`/events/${input.eventId}/tables/${input.tableId}`);
-    await expect(page.getByTestId(`event-proposal-${created.id}`).getByRole("status")).toHaveText(
-      labels.pending,
-    );
+    const savedRow = page.getByTestId(`event-proposal-${created.id}`);
+    await expect(savedRow).toContainText(input.gameName);
+    await expect(savedRow.getByText(labels.pending, { exact: true })).toHaveCount(0);
     expect(
       (await read<PlannedTableResponse>(page, `events/${input.eventId}/tables/${input.tableId}`))
         .games,

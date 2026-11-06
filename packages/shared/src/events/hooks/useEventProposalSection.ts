@@ -1,5 +1,6 @@
 "use client";
 import {
+  eventProposalPayloadSchema,
   MAX_EVENT_OPTIONS,
   type PlannedEventResponse,
   type PlannedTableResponse,
@@ -48,6 +49,16 @@ export function useEventProposalSection(
         !q.items.some((row) => row.clientRequestId === intent.variables.clientRequestId),
     );
   const deciding = useRef(false);
+  const sending = useRef<string | null>(null);
+  const ownerKey = JSON.stringify([o.apiUrl, o.userId, event.id, event.version, kind]);
+  const liveOwner = useRef(ownerKey);
+  liveOwner.current = ownerKey;
+  useEffect(() => {
+    liveOwner.current = ownerKey;
+    return () => {
+      liveOwner.current = "";
+    };
+  }, [ownerKey]);
   const [capturedDecision, setDecision] = useState<{
     row: ClientEventProposal;
     action: "accept" | "reject";
@@ -117,6 +128,31 @@ export function useEventProposalSection(
     decision,
     validDecision,
     canPropose,
+    submitDate: (wall: string) => {
+      if (
+        kind !== "date" ||
+        !canPropose ||
+        liveOwner.current !== ownerKey ||
+        sending.current === ownerKey
+      )
+        return false;
+      const result = eventProposalPayloadSchema.safeParse({
+        kind: "date",
+        day: wall.slice(0, 10),
+        startTime: wall.slice(11, 16),
+      });
+      if (!result.success) return false;
+      sending.current = ownerKey;
+      actions.propose(
+        { eventVersion: event.version, payload: result.data, clientLabel: wall.replace("T", " ") },
+        {
+          onSettled: () => {
+            if (sending.current === ownerKey) sending.current = null;
+          },
+        },
+      );
+      return true;
+    },
     open: (row: ClientEventProposal, action: "accept" | "reject") => {
       if (
         !disabled &&

@@ -8,18 +8,19 @@ export function FilterChips<Key extends string>({
   selected,
   onToggle,
 }: {
-  options: readonly { key: Key; label: string; icon: LucideIcon }[];
+  options: readonly { key: Key; label: string; icon: LucideIcon; disabled?: boolean }[];
   selected: readonly Key[];
   onToggle: (key: Key) => void;
 }) {
   return options.length ? (
     <div className="flex flex-wrap gap-2">
-      {options.map(({ key, label, icon: Icon }) => (
+      {options.map(({ key, label, icon: Icon, disabled }) => (
         <Button
           key={key}
           size="sm"
           variant={selected.includes(key) ? "primary" : "secondary"}
           className="h-7 min-h-7 gap-1.5 px-2 py-0 text-xs"
+          isDisabled={disabled}
           aria-pressed={selected.includes(key)}
           onPress={() => onToggle(key)}
         >

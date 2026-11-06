@@ -8,7 +8,7 @@ export function FilterChips<Key extends string>({
   selected,
   onToggle,
 }: {
-  options: readonly { key: Key; label: string; icon: LucideIcon }[];
+  options: readonly { key: Key; label: string; icon: LucideIcon; disabled?: boolean }[];
   selected: readonly Key[];
   onToggle: (key: Key) => void;
 }) {
@@ -18,7 +18,7 @@ export function FilterChips<Key extends string>({
   ]);
   return options.length ? (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-      {options.map(({ key, label, icon: Icon }) => {
+      {options.map(({ key, label, icon: Icon, disabled }) => {
         const active = selected.includes(key);
         return (
           <View key={key} style={{ minHeight: 44, justifyContent: "center" }}>
@@ -35,7 +35,8 @@ export function FilterChips<Key extends string>({
               }}
               hitSlop={{ top: 6, bottom: 6 }}
               accessibilityLabel={label}
-              accessibilityState={{ selected: active }}
+              isDisabled={disabled}
+              accessibilityState={{ selected: active, disabled }}
               onPress={() => onToggle(key)}
             >
               <Icon

@@ -349,7 +349,9 @@ never copy private values into documentation, Git, logs, or a different environm
 
 `MONGODB_URI` is mandatory. Transactions require a replica set.
 
-Match location search uses MapTiler address geocoding; persist only returned address results, not unverified input. Set `NEXT_PUBLIC_MAPTILER_API_KEY` for web, `EXPO_PUBLIC_MAPTILER_API_KEY` for mobile (and GitHub Actions APK builds), and server-only `MAPTILER_GEOCODING_KEY` for API deployments. Configure the public web key on Vercel web Preview/Production and the geocoding key on Vercel API Preview/Production. Keep MapTiler/OpenStreetMap attribution visible. MapTiler Free terms limit commercial use; review plan and storage terms before production. Native MapLibre requires a development build, not Expo Go. Never commit token values.
+Location search uses MapTiler forward address/POI geocoding, including venue names; reverse lookup
+remains address-only. Persist only server-reverified provider labels/coordinates and location-derived
+time zones, never unverified free text. A verified POI need not have a street/civic address. Set `NEXT_PUBLIC_MAPTILER_API_KEY` for web, `EXPO_PUBLIC_MAPTILER_API_KEY` for mobile (and GitHub Actions APK builds), and server-only `MAPTILER_GEOCODING_KEY` for API deployments. Configure the public web key on Vercel web Preview/Production and the geocoding key on Vercel API Preview/Production. Keep MapTiler/OpenStreetMap attribution visible. MapTiler Free terms limit commercial use; review plan and storage terms before production. Native MapLibre requires a development build, not Expo Go. Never commit token values.
 
 Mobile reads public variables through `apps/mobile/app.config.js` and `Constants.expoConfig.extra`.
 Android FCM builds optionally read `GOOGLE_SERVICES_JSON`: EAS may provide a file secret, while
@@ -629,8 +631,9 @@ Runtime search reads MongoDB `boardGames`; it does not call BoardGameGeek and ex
 `isExpansion: true`. Import all BGG rankings CSV columns through
 `apps/api/scripts/import-boardgames.mjs`, `/api/admin/import-games`, or the manual
 `import-boardgames.yml` workflow. Imports use idempotent upserts keyed by BGG ID; missing games
-remain for existing matches. Linking a BGG username validates it through XML API2; sync stages a
-complete non-expansion collection before publishing. A failed sync removes its pending item while
+remain for existing matches. Linking a BGG username validates it through XML API2; sync stages
+complete base-game and expansion partitions before publishing. Expansions remain excluded from
+playable game selection. A failed sync removes its pending item while
 retaining any previously published snapshot. Collection games are available regardless of
 ownership/status; unlink removes private snapshots but not catalog games or match history. Keep the
 supplied Powered by BGG attribution visible above logout on both Profiles. Set `BGG_TOKEN` on API

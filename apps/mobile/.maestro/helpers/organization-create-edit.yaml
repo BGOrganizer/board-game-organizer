@@ -40,7 +40,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Organization logo"
     timeout: 30000
-- tapOn: "Choose a verified address"
+- tapOn: "Choose a location"
 - runFlow:
     file: select-address.yaml
     env:

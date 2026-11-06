@@ -30,15 +30,16 @@ function fixture(
     toArray: vi.fn().mockResolvedValue(rows),
   };
   const find = vi.fn().mockReturnValue(cursor);
+  const aggregate = vi.fn().mockReturnValue(cursor);
   const db = {
     collection: (name: string) =>
       name === "bggAccounts"
         ? accounts
         : name === "bggCollectionGames"
-          ? { find }
+          ? { find, aggregate }
           : { find: () => ({ toArray: async () => [{ id: 1, average: 6, rank: 7 }] }) },
   } as unknown as Db;
-  return { repository: new BggAccountRepository(db), accounts, find, cursor };
+  return { repository: new BggAccountRepository(db), accounts, find, aggregate, cursor };
 }
 const row = (id: number): Partial<BggCollectionGame> => ({
   gameId: id,
@@ -54,14 +55,70 @@ const row = (id: number): Partial<BggCollectionGame> => ({
   xml: "<private/>",
 });
 
-describe("owner collection pages", () => {
+describe("authorized collection pages", () => {
+  it.each(["games", "expansions", "none"] as const)(
+    "applies %s and wishlist restrictions at source before pagination",
+    async (types) => {
+      const h = fixture();
+      await h.repository.page("owner", { ...input, types, wishlist: "true" });
+      const match = h.find.mock.calls[0][0].$and;
+      expect(match[0]).toEqual({ userId: "owner", snapshot: "snapshot" });
+      expect(match[1]).toEqual(
+        types === "games"
+          ? { isExpansion: { $ne: true }, subtype: { $ne: "boardgameexpansion" } }
+          : types === "expansions"
+            ? { $or: [{ isExpansion: true }, { subtype: "boardgameexpansion" }] }
+            : { gameId: -1 },
+      );
+      expect(match[2].$or[0]).toEqual({ wishlist: true });
+      expect(match[2].$or[1].xml.$regex).toContain("wishlist");
+      expect(h.cursor.limit).toHaveBeenCalledWith(3);
+    },
+  );
+  it("uses only both current snapshots in a server intersection before sort/limit and rejects changed epochs", async () => {
+    const h = fixture([row(1)]);
+    h.accounts.findOne.mockImplementation(async ({ userId }: { userId: string }) => ({
+      active: {
+        snapshot: userId === "viewer" ? "viewer-snapshot" : "snapshot",
+        syncedAt: new Date(),
+        counts,
+      },
+    }));
+    const result = await h.repository.page(
+      "subject",
+      { ...input, commonSnapshot: "viewer-snapshot" },
+      "viewer",
+    );
+    expect(result.items).toHaveLength(1);
+    expect(h.find).not.toHaveBeenCalled();
+    const p = h.aggregate.mock.calls[0][0];
+    expect(p[0]).toEqual({ $match: { $and: [{ userId: "subject", snapshot: "snapshot" }] } });
+    expect(p[1].$lookup.pipeline[0].$match).toEqual({
+      userId: "viewer",
+      snapshot: "viewer-snapshot",
+      $expr: { $eq: ["$gameId", "$$gameId"] },
+    });
+    expect(p.at(-1)).toEqual({ $limit: 3 });
+    expect(h.accounts.findOne).toHaveBeenCalledTimes(4);
+    await expect(
+      h.repository.page("subject", { ...input, commonSnapshot: "old" }, "viewer"),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+  it("rejects a cursor reused with another filter or comparison epoch", async () => {
+    const h = fixture([row(1), row(2), row(3)]);
+    const result = await h.repository.page("owner", input);
+    await expect(
+      h.repository.page("owner", { ...input, types: "games", cursor: result.nextCursor ?? "" }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
   it("filters and keyset-pages before response, exposes personal rather than average rating and no XML", async () => {
     const h = fixture([row(1), row(2), row(3)]);
     const result = await h.repository.page("owner", { ...input, query: "[game]" });
     expect(h.find).toHaveBeenCalledWith({
-      userId: "owner",
-      snapshot: "snapshot",
-      name: { $regex: "\\[game\\]", $options: "i" },
+      $and: [
+        { userId: "owner", snapshot: "snapshot" },
+        { name: { $regex: "\\[game\\]", $options: "i" } },
+      ],
     });
     expect(h.cursor.sort).toHaveBeenCalledWith({ name: 1, gameId: 1 });
     expect(h.cursor.limit).toHaveBeenCalledWith(3);
@@ -76,10 +133,16 @@ describe("owner collection pages", () => {
     expect(JSON.stringify(result)).not.toContain("private");
     expect(result.items[0]).not.toHaveProperty("userId");
     const next = fixture([row(3)]);
-    const last = await next.repository.page("owner", { ...input, cursor: result.nextCursor ?? "" });
+    const last = await next.repository.page("owner", {
+      ...input,
+      query: "[game]",
+      cursor: result.nextCursor ?? "",
+    });
     expect(next.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        $or: [{ name: { $gt: "Game 2" } }, { name: "Game 2", gameId: { $gt: 2 } }],
+        $and: expect.arrayContaining([
+          { $or: [{ name: { $gt: "Game 2" } }, { name: "Game 2", gameId: { $gt: 2 } }] },
+        ]),
       }),
     );
     expect(last.nextCursor).toBeNull();
@@ -152,7 +215,10 @@ describe("owner collection pages", () => {
   );
   it.each([
     "bad",
-    Buffer.from(JSON.stringify({ snapshot: "snapshot", name: "x", gameId: 0 })).toString(
+    Buffer.from(
+      JSON.stringify({ snapshot: "snapshot", name: "x", gameId: 0, scope: "scope" }),
+    ).toString("base64url"),
+    Buffer.from(JSON.stringify({ snapshot: "snapshot", name: "x", gameId: 1 })).toString(
       "base64url",
     ),
   ])("rejects malformed cursors %s", async (cursor) => {
@@ -161,9 +227,9 @@ describe("owner collection pages", () => {
     });
   });
   it("rejects a cursor belonging to another snapshot", async () => {
-    const cursor = Buffer.from(JSON.stringify({ snapshot: "old", name: "x", gameId: 1 })).toString(
-      "base64url",
-    );
+    const cursor = Buffer.from(
+      JSON.stringify({ snapshot: "old", name: "x", gameId: 1, scope: "scope" }),
+    ).toString("base64url");
     await expect(fixture().repository.page("owner", { ...input, cursor })).rejects.toMatchObject({
       status: 409,
     });

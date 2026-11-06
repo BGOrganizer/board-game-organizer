@@ -3,11 +3,11 @@ import { communityAccessDenied, type useBggAccount } from "@board-game-organizer
 import { Button, Input, Label, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { RefreshCw, Unlink2, UserRoundPen } from "lucide-react";
-import Image from "next/image";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { ListCard } from "@/components/common/ui/ListCard";
+import { ProfileBggAttribution } from "./ProfileBggAttribution";
 
 export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> }) {
   const { t } = useLingui();
@@ -105,25 +105,7 @@ export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> 
               onPress={() => void bgg.account.refetch()}
             >{t`Try again`}</Button>
           ) : null}
-          <div>
-            <a
-              href="https://boardgamegeek.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={t`Powered by BGG — open BoardGameGeek`}
-              className="inline-flex rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
-            >
-              <span data-theme="light" className="rounded-lg bg-surface p-2">
-                <Image
-                  src="/bgg-powered.png"
-                  width={120}
-                  height={40}
-                  alt={t`Powered by BGG`}
-                  className="h-10 w-30 object-contain"
-                />
-              </span>
-            </a>
-          </div>
+          <ProfileBggAttribution />
         </div>
       </ListCard>
       {open ? (

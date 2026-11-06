@@ -137,7 +137,7 @@ it("centers a successful empty address search but not startup, pending requests 
     />,
   );
   expect(screen.queryByText("No addresses found")).toBeNull();
-  fireEvent.change(screen.getByRole("searchbox", { name: "Search address" }), {
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search address/place" }), {
     target: { value: "Missing road" },
   });
   await waitFor(() => expect(complete).toBeDefined());
@@ -146,7 +146,7 @@ it("centers a successful empty address search but not startup, pending requests 
   const empty = await screen.findByText("No addresses found");
   expect(empty.parentElement?.className).toContain("items-center");
   fetch.mockImplementation(async () => Response.json({ error: "UNAVAILABLE" }, { status: 503 }));
-  fireEvent.change(screen.getByRole("searchbox", { name: "Search address" }), {
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search address/place" }), {
     target: { value: "Another road" },
   });
   await screen.findByText("Could not search addresses");
@@ -181,7 +181,7 @@ it("requires a chosen address and four-character name, caps results and hides th
   fireEvent.change(screen.getByRole("textbox", { name: "Location name" }), {
     target: { value: "Gam" },
   });
-  fireEvent.change(screen.getByRole("searchbox", { name: "Search address" }), {
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search address/place" }), {
     target: { value: "Main St" },
   });
   await waitFor(() => expect(screen.getByRole("button", { name: "Main Street 0" })).toBeTruthy());
@@ -241,7 +241,7 @@ it("shows empty, loading and failed favorites without hiding search", () => {
     />,
   );
   expect(screen.getByRole("alert").textContent).toContain("Could not load favorite locations");
-  expect(screen.getByRole("searchbox", { name: "Search address" })).toBeTruthy();
+  expect(screen.getByRole("searchbox", { name: "Search address/place" })).toBeTruthy();
   unmount();
   const { unmount: unmountEmpty } = renderWithI18n(
     <SearchLocationPage
@@ -305,7 +305,7 @@ it("pages favorites and fills the search field with the verified current-positio
   expect(mapMocks.flyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [13, 42] }));
   await waitFor(() =>
     expect(
-      (screen.getByRole("searchbox", { name: "Search address" }) as HTMLInputElement).value,
+      (screen.getByRole("searchbox", { name: "Search address/place" }) as HTMLInputElement).value,
     ).toBe("Verified current address"),
   );
   expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get("query")).toBe(
@@ -364,7 +364,7 @@ it.each([502, 200])(
       true,
     );
     expect(
-      (screen.getByRole("searchbox", { name: "Search address" }) as HTMLInputElement).value,
+      (screen.getByRole("searchbox", { name: "Search address/place" }) as HTMLInputElement).value,
     ).toBe("");
     expect(
       screen.getByRole("button", { name: "Center map on my location" }).hasAttribute("disabled"),
@@ -400,7 +400,7 @@ it("does not overwrite manual input with a late GPS lookup", async () => {
   );
   fireEvent.click(screen.getByRole("button", { name: "Center map on my location" }));
   await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-  const input = screen.getByRole("searchbox", { name: "Search address" }) as HTMLInputElement;
+  const input = screen.getByRole("searchbox", { name: "Search address/place" }) as HTMLInputElement;
   fireEvent.change(input, { target: { value: "Manual address" } });
   finishLookup(
     Response.json({
@@ -454,7 +454,7 @@ it("does not search short queries and surfaces network failures", async () => {
       onClose={vi.fn()}
     />,
   );
-  const input = screen.getByRole("searchbox", { name: "Search address" });
+  const input = screen.getByRole("searchbox", { name: "Search address/place" });
   fireEvent.change(input, { target: { value: "Mai" } });
   await new Promise((resolve) => setTimeout(resolve, 350));
   expect(fetchMock).not.toHaveBeenCalled();
@@ -478,5 +478,5 @@ it("keeps address search usable when map key is missing", () => {
     />,
   );
   expect(screen.getByText("Map unavailable")).toBeTruthy();
-  expect(screen.getByRole("searchbox", { name: "Search address" })).toBeTruthy();
+  expect(screen.getByRole("searchbox", { name: "Search address/place" })).toBeTruthy();
 });

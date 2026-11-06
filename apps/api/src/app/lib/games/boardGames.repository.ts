@@ -1,6 +1,7 @@
 import type { BoardGame } from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
+import { hydrateGames } from "./bgg";
 
 /**
  * Repository over the `boardGames` collection (imported from the BGG
@@ -65,7 +66,12 @@ export class BoardGamesRepository {
     return games.map((game) => game.id);
   }
 
-  findByIds(ids: number[]): Promise<BoardGame[]> {
-    return this.col.find({ id: { $in: ids } }, { projection: { _id: 0 }, ...this.opts }).toArray();
+  async findByIds(ids: number[]): Promise<BoardGame[]> {
+    const games = await this.col
+      .find({ id: { $in: ids } }, { projection: { _id: 0 }, ...this.opts })
+      .toArray();
+    // Reuse the existing quota/negative-cache policy. Never call a provider inside a transaction.
+    if (!this.session) await hydrateGames(this.db, games);
+    return games;
   }
 }

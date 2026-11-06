@@ -335,8 +335,10 @@ export function useEventProposalActions(
     busy,
     submit,
     review,
-    propose: (input: Omit<SubmitEventProposalVariables, "clientOwner">) =>
-      submit.mutate({ ...withClientRequestId(input), clientOwner: owner }),
+    propose: (
+      input: Omit<SubmitEventProposalVariables, "clientOwner">,
+      callbacks?: Parameters<typeof submit.mutate>[1],
+    ) => submit.mutate({ ...withClientRequestId(input), clientOwner: owner }, callbacks),
     decide: (input: Omit<ReviewVariables, "clientOwner">) =>
       review.mutate({ ...input, clientOwner: owner }),
   };

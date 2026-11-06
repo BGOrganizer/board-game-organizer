@@ -5971,3 +5971,30 @@ msgstr "Could not reject proposal"
 
 msgid "Your proposals"
 msgstr "Your proposals"
+
+msgid "Proposed dates/times"
+msgstr "Proposed dates/times"
+
+msgid "Proposed locations"
+msgstr "Proposed locations"
+
+msgid "Proposed games"
+msgstr "Proposed games"
+
+msgid "Search address/place"
+msgstr "Search address/place"
+
+msgid "Filter collection games"
+msgstr "Filter collection games"
+
+msgid "Expansions"
+msgstr "Expansions"
+
+msgid "In common"
+msgstr "In common"
+
+msgid "Synchronize your BGG collection to find games in common."
+msgstr "Synchronize your BGG collection to find games in common."
+
+msgid "Could not determine the location time zone. Choose a location."
+msgstr "Could not determine the location time zone. Choose a location."

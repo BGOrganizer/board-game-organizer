@@ -15,9 +15,12 @@ import { Check, X } from "lucide-react-native";
 import { View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { GameListRow } from "@/components/games/GameListRow";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventDateTimeField } from "./EventDateTimeField";
+import { EventProposalItem } from "./EventProposalItem";
 export function EventProposalSection({
   event,
   kind,
@@ -49,17 +52,30 @@ export function EventProposalSection({
   return (
     <View style={{ gap: 10 }}>
       <Typography accessibilityRole="header" className="font-semibold text-foreground">
-        {s.manager ? t("Participant proposals") : t("Your proposals")}
+        {kind === "date"
+          ? t("Proposed dates/times")
+          : kind === "location"
+            ? t("Proposed locations")
+            : t("Proposed games")}
       </Typography>
       {s.canPropose ? (
-        <Button
-          size="sm"
-          style={{ minHeight: 44, minWidth: 44 }}
-          variant="outline"
-          onPress={() => openEditor()}
-        >
-          <Button.Label>{t("Add proposal")}</Button.Label>
-        </Button>
+        <GroupedList>
+          {kind === "date" ? (
+            <EventDateTimeField
+              key={`${o.apiUrl}:${o.userId}:${event.id}:${event.version}`}
+              label={t("Choose date and time")}
+              mode="datetime"
+              timeZone={event.timeZone}
+              value=""
+              rowOnly
+              onChange={s.submitDate}
+            />
+          ) : kind === "location" ? (
+            <LocationListRow name={t("Choose a location")} onPress={() => openEditor()} />
+          ) : (
+            <GameListRow name={t("Choose a game")} onPress={() => openEditor()} />
+          )}
+        </GroupedList>
       ) : null}
       {s.intents.map((intent) => {
         const phase =
@@ -127,60 +143,62 @@ export function EventProposalSection({
         {s.q.items.map((row) => {
           const label = eventProposalLabel(row.payload, row.label, i18n.locale);
           return (
-            <GroupedRow key={row.id}>
-              <View testID={`event-proposal-${row.id}`} style={{ flex: 1, minWidth: 0, gap: 4 }}>
-                <Typography className="text-foreground">{label}</Typography>
-                {s.manager ? (
-                  <Typography className="text-sm text-muted">{row.authorName}</Typography>
-                ) : null}
+            <EventProposalItem
+              key={row.id}
+              row={row}
+              actions={
+                s.manager && event.status === "PLANNING" && row.status === "PENDING" ? (
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      style={{ minWidth: 44, minHeight: 44 }}
+                      accessibilityLabel={`${t("Accept proposal")}: ${row.authorName} — ${label}`}
+                      isDisabled={
+                        disabled ||
+                        !s.q.hasVerifiedBase ||
+                        s.actions.busy ||
+                        Boolean(row.clientAction)
+                      }
+                      onPress={() => s.open(row, "accept")}
+                    >
+                      <Check size={20} color={primary} />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="danger-soft"
+                      style={{ minWidth: 44, minHeight: 44 }}
+                      accessibilityLabel={`${t("Reject proposal")}: ${row.authorName} — ${label}`}
+                      isDisabled={
+                        disabled ||
+                        !s.q.hasVerifiedBase ||
+                        s.actions.busy ||
+                        Boolean(row.clientAction)
+                      }
+                      onPress={() => s.open(row, "reject")}
+                    >
+                      <X size={20} color={danger} />
+                    </Button>
+                  </View>
+                ) : null
+              }
+            >
+              {s.manager ? (
+                <Typography className="text-sm text-muted">{row.authorName}</Typography>
+              ) : null}
+              {row.clientAction || row.status !== "PENDING" ? (
                 <Typography accessibilityLiveRegion="polite" className="text-sm text-muted">
                   {row.clientAction
                     ? row.clientAction === "accept"
                       ? t("Accepting proposal")
                       : t("Rejecting proposal")
-                    : row.status === "PENDING"
-                      ? t("Pending")
-                      : row.status === "ACCEPTED"
-                        ? t("Accepted")
-                        : t("Rejected")}
+                    : row.status === "ACCEPTED"
+                      ? t("Accepted")
+                      : t("Rejected")}
                 </Typography>
-              </View>
-              {s.manager && event.status === "PLANNING" && row.status === "PENDING" ? (
-                <View style={{ flexDirection: "row", gap: 6 }}>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    style={{ minWidth: 44, minHeight: 44 }}
-                    accessibilityLabel={`${t("Accept proposal")}: ${row.authorName} — ${label}`}
-                    isDisabled={
-                      disabled ||
-                      !s.q.hasVerifiedBase ||
-                      s.actions.busy ||
-                      Boolean(row.clientAction)
-                    }
-                    onPress={() => s.open(row, "accept")}
-                  >
-                    <Check size={20} color={primary} />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="danger-soft"
-                    style={{ minWidth: 44, minHeight: 44 }}
-                    accessibilityLabel={`${t("Reject proposal")}: ${row.authorName} — ${label}`}
-                    isDisabled={
-                      disabled ||
-                      !s.q.hasVerifiedBase ||
-                      s.actions.busy ||
-                      Boolean(row.clientAction)
-                    }
-                    onPress={() => s.open(row, "reject")}
-                  >
-                    <X size={20} color={danger} />
-                  </Button>
-                </View>
               ) : null}
-            </GroupedRow>
+            </EventProposalItem>
           );
         })}
       </GroupedList>

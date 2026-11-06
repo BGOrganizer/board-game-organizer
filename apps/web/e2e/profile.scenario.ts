@@ -127,14 +127,17 @@ for (const width of [390, 1280]) {
     await expect(page).toHaveURL(new RegExp(`/profiles/${target}$`));
     await expect(main.getByText(targetName, { exact: true })).toBeVisible();
     await expect(main.getByRole("heading", { name: labels.bgg })).toHaveCount(0);
-    await expect(main.getByRole("tab", { name: labels.collection, exact: true })).toHaveCount(0);
+    const profile = await read(page, `profiles/${target}`);
+    expect(profile.status).toBe(200);
+    await expect(main.getByRole("tab", { name: labels.collection, exact: true })).toHaveCount(
+      profile.body.collection ? 1 : 0,
+    );
     await expect(main.getByRole("button", { name: labels.logout, exact: true })).toHaveCount(0);
     await expect(main.getByText(publicText, { exact: true })).toBeVisible();
     await expect(main.getByText(privateText, { exact: true })).toHaveCount(0);
-    const profile = await read(page, `profiles/${target}`);
-    expect(profile.status).toBe(200);
     expect(Object.keys(profile.body).sort()).toEqual([
       "avatarUrl",
+      "collection",
       "id",
       "name",
       "player",
@@ -240,7 +243,8 @@ test("real provider BGG failure/success/retained snapshot/unlink and confirmed l
     it ? "Giochi incluse le espansioni" : "Games including expansions",
     it ? "Lista desideri" : "Wishlist",
   ])
-    await expect(main.getByText(label, { exact: true })).toBeVisible();
+    await expect(main.getByText(label, { exact: true }).and(main.locator("p"))).toBeVisible();
+  await expect(main.getByRole("button", { name: labels.logout, exact: true })).toHaveCount(0);
   const collectionPage = await read(
     page,
     `bgg/collection?snapshot=${encodeURIComponent(published.body.active.snapshot)}&limit=1`,

@@ -456,8 +456,8 @@ export default function LocationPicker({
                   setResults([]);
                 }}
                 testID="location-address-input"
-                label={t("Search address")}
-                placeholder={t("Search address")}
+                label={t("Search address/place")}
+                placeholder={t("Search address/place")}
               />
             </View>
             {(searching || locating) && (

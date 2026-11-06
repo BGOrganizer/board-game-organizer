@@ -104,7 +104,7 @@ function review(ui: ReturnType<typeof renderWithI18n>, name: string) {
   fireEvent.change(ui.getByRole("textbox", { name: "Event name" }), { target: { value: name } });
   fireEvent.change(ui.getByLabelText("Date and time"), { target: { value: "2030-06-03T20:00" } });
   fireEvent.click(ui.getByRole("button", { name: "Add date" }));
-  fireEvent.click(ui.getByRole("button", { name: "Choose a verified address" }));
+  fireEvent.click(ui.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(ui.getByRole("button", { name: "Choose verified location" }));
   fireEvent.click(ui.getByRole("button", { name: "Next" }));
   fireEvent.click(ui.getByRole("button", { name: "Add table" }));

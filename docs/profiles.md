@@ -12,22 +12,39 @@ visibility with a current-network/time selection; no offline mode is enabled.
 - Every profile endpoint requires a fully authenticated viewer. A block in either direction or a
   missing subject returns `404 PROFILE_NOT_FOUND`, including direct profile/activity/rating URLs.
 - Other-user responses contain public identity, aggregate counters and GLOBAL ratings only: no
-  email, phone, BGO moderation role, Clerk account metadata or BGG account data. Mirror email
+  email, phone, BGO moderation role, Clerk account metadata or private BGG account identity/sync data.
+  Published collection snapshot/count metadata and the subject's collection/personal BGG ratings are
+  readable by the same authenticated authorized viewers; blocks in either direction still deny access. Mirror email
   fallbacks are not exposed as profile/activity display names.
 - The compact identity precedes the owner's BGG synchronization card and Activities / Player tabs.
-  The owner-only Collection tab appears only with a published active BGG snapshot, including a
-  successfully synchronized empty collection. A pending first sync does not qualify; a failed later
-  attempt does not hide the previous successful snapshot. Other-user profiles never expose that tab
-  or owner BGG controls. Collection shows three full-snapshot counters before its scoped 300-ms,
+  The Collection tab appears for an owner or another authorized profile subject only with a published
+  active BGG snapshot, including a successfully synchronized empty collection. A pending first sync
+  does not qualify; a failed later attempt does not hide the previous successful snapshot. Without a
+  published snapshot only Collection is hidden, not the Profile. Other-user profiles never expose BGG
+  account identity, synchronization/unlink controls or owner logout. Collection shows three full-snapshot counters before its scoped 300-ms,
   clearable name filter and source-paged virtualized list: unique titles without expansions, unique
   titles including expansions, and wishlist titles including expansions. Counters do not change with
   the filter or restrict to `own=1`; wishlist can overlap either total. Rows reuse the game-selection
   identity/cover/catalog layout, replacing selection with the owner's personal BGG rating or `N/A`,
-  never the public BGG average or GLOBAL OpenSkill. Native uses one FlatList without a scrolling
-  parent, bounded eight-item cached chunks and an explicit non-scrolling load-more path; web uses
-  the installed HeroUI React Aria Virtualizer with measured variable row sizes. Tab, game and activity-filter selections belong to scoped local UI state.
-  Logout stays outside tabs, remains reachable on profile failure and requires confirmation; native
-  retains cache-safe signout. Profile, Community and existing main/detail destinations share each
+  never the public BGG average or GLOBAL OpenSkill. Games and Expansions chips initially include
+  both types (OR); Wishlist and In common restrict that set (AND), combined with the name filter before
+  source paging. All-off types is empty, never all games. Counters retain whole-snapshot totals.
+  In common exists on other-user collections: exact BGG IDs in both published snapshots, including
+  expansions/wishlist rather than assuming possession. It is disabled with a sync hint if the viewer
+  has no published snapshot. Both snapshot epochs are pinned/rechecked; no full collection is fetched
+  into client memory to calculate an intersection. Canonical Collection cache identity includes viewer,
+  subject, both applicable snapshots and every filter.
+  Native uses one SectionList without a scrolling parent and bounded eight-item cached chunks; web
+  uses the installed HeroUI React Aria Virtualizer with measured variable row sizes. Infinite scroll
+  reveals/fetches more; Collection has no visible load-more button (native retains an accessibility
+  paging action). Only search/chips stick while identity/counters scroll away. Focus reveals search
+  above the keyboard; empty results reserve the remaining list viewport. Query changes never reset
+  the list to the Profile header. Blur/keyboard dismissal preserve text/chips; clear removes text only.
+  Counter cards share the largest natural height and align number/label rows, including wrapped text.
+  Tab, game and activity-filter selections belong to scoped local UI state.
+  Owner logout appears only below Activities/Player, remains reachable on profile failure and requires
+  confirmation; native retains cache-safe signout. Public Collection keeps generic BGG attribution,
+  never private provider account details. Profile, Community and existing main/detail destinations share each
   platform's compact centered/overflowing tab geometry, normal text size and consistent spacing.
 
 ## Aggregate and rating rules
@@ -103,7 +120,13 @@ or an automatic resync/backfill. Collection API responses never expose stored XM
 and Query keys include the active snapshot; stale reads revalidate account metadata rather than mix
 snapshots. Native encrypted MMKV includes owned canonical Collection queries within existing
 retention/budget rules; authoritative unlink purges that scope, while optimistic unlink retains its
-rollback base until acknowledgment/verification. Mutation errors are reset for a subsequent explicit
+rollback base until acknowledgment/verification. Viewer-owned encrypted persistence also covers
+shared Collection pages under the existing budgets/retention policy. Known Profile denial/block clears
+only that subject's Profile/Collection scopes, cancels late reads and purges their canonical disk data;
+optimistic blocks use the existing journal/selective rollback. Unlinking the viewer removes own/common
+pages, not independent other-subject collections. Verified subject snapshot loss/replacement purges
+obsolete pages. Restore never grants authorization or enables account controls.
+Mutation errors are reset for a subsequent explicit
 action. Existing linked Powered by BGG artwork uses a HeroUI light surface scope.
 
 Run the normal API migration against the intended replica set **before enabling these writers**:

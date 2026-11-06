@@ -59,6 +59,7 @@ output.collection = {
   unavailable: exact(personal + ": N/A"),
   later: exact(p.laterGame),
   emptyQuery: p.emptyQuery,
+  emptyInputText: exact(p.emptyQuery),
   empty: exact(it ? "Nessun gioco trovato" : "No games found"),
   clear: exact(it ? "Pulisci ricerca" : "Clear search"),
 };

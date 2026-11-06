@@ -12,6 +12,7 @@ import type { Db } from "mongodb";
 import { recordServices } from "../community/record-services";
 import { CommunityError } from "../community.error";
 import { RelationshipRepository } from "../contacts/relationship.repository";
+import { BggAccountRepository } from "../games/bgg-account.repository";
 import { publicUserName } from "../users/public-user-name";
 import { ProfileRepository } from "./profile.repository";
 import { ProfileActivitiesRepository } from "./profile-activities.repository";
@@ -34,7 +35,12 @@ export class ProfileService {
   }
   async profile(viewer: string, subject: string): Promise<ProfileView> {
     const user = await this.requireVisible(viewer, subject);
+    const { active } = await new BggAccountRepository(this.db).get(subject);
+    await this.requireVisible(viewer, subject);
     return {
+      collection: active
+        ? { snapshot: active.snapshot, ...(active.counts ? { counts: active.counts } : {}) }
+        : null,
       id: subject,
       name: publicUserName(user),
       username: user.username ?? null,

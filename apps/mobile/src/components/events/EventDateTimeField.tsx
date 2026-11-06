@@ -6,7 +6,7 @@ import { Dialog } from "heroui-native/dialog";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { CalendarClock, CalendarDays, Clock3 } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, View } from "react-native";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -47,6 +47,16 @@ export function EventDateTimeField({
   const muted = useThemeColor("muted");
   const [draft, setDraft] = useState<Date | null>(null);
   const [pickerError, setPickerError] = useState("");
+  const mounted = useRef(true),
+    nativeMode = useRef<"date" | "time" | null>(null),
+    generation = useRef(0);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (nativeMode.current) DateTimePickerAndroid.dismiss(nativeMode.current);
+    };
+  }, []);
   let today: string;
   let invalidZone = false;
   try {
@@ -62,6 +72,8 @@ export function EventDateTimeField({
   const bounded = min && wall < min ? min : max && wall > max ? max : wall;
   const initial = new Date(`${bounded}Z`);
   const commit = (date: Date) => {
+    if (!mounted.current) return;
+    nativeMode.current = null;
     const next =
       mode === "time"
         ? `${day || wall.slice(0, 10)}T${date.toISOString().slice(11, 16)}`
@@ -81,6 +93,9 @@ export function EventDateTimeField({
       setDraft(initial);
       return;
     }
+    if (nativeMode.current) return;
+    nativeMode.current = mode === "datetime" ? "date" : mode;
+    const selectionId = ++generation.current;
     DateTimePickerAndroid.open({
       value: initial,
       mode: mode === "datetime" ? "date" : mode,
@@ -89,8 +104,14 @@ export function EventDateTimeField({
       minimumDate: min ? new Date(`${min}Z`) : undefined,
       maximumDate: max ? new Date(`${max}Z`) : undefined,
       onChange: (event, date) => {
-        if (event.type !== "set" || !date) return;
+        if (!mounted.current || generation.current !== selectionId) return;
+        if (event.type !== "set" || !date) {
+          nativeMode.current = null;
+          generation.current++;
+          return;
+        }
         if (mode !== "datetime") {
+          generation.current++;
           commit(date);
           return;
         }
@@ -98,12 +119,16 @@ export function EventDateTimeField({
         const selected = new Date(
           `${date.toISOString().slice(0, 10)}T${initial.toISOString().slice(11, 16)}Z`,
         );
+        nativeMode.current = "time";
         DateTimePickerAndroid.open({
           value: selected,
           mode: "time",
           timeZoneName: "UTC",
           is24Hour: true,
           onChange: (timeEvent, time) => {
+            if (!mounted.current || generation.current !== selectionId) return;
+            generation.current++;
+            if (timeEvent.type !== "set") nativeMode.current = null;
             if (timeEvent.type === "set" && time)
               commit(
                 new Date(
@@ -155,7 +180,7 @@ export function EventDateTimeField({
       {rowOnly ? row : <GroupedList>{row}</GroupedList>}
       {invalidZone ? (
         <Typography accessibilityRole="alert" className="text-danger">
-          {t("Could not determine the location time zone. Choose a verified address.")}
+          {t("Could not determine the location time zone. Choose a location.")}
         </Typography>
       ) : null}
       {error || pickerError ? (

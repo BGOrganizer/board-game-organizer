@@ -27,6 +27,7 @@ export function useEventParticipantManagement(
   const isBusy = (person: EventParticipantResponse) =>
     actions.busy || Boolean(event.groupId && group.isPersonBusy(event.groupId, person.userId));
   const canAct = (person: EventParticipantResponse, action: "remove" | "ban") =>
+    person.userId !== o.userId &&
     !disabled &&
     !event.readOnly &&
     canManageEvent(event, o.userId) &&

@@ -27,8 +27,9 @@ JSON fields: `eventId`, `groupId` (web), `tableId`, `mode: submit-game|accept|re
 Use a fresh pending candidate for each destructive review run.
 
 - `submit-game`: ordinary accepted Group member with an actual own-Table seat, game proposals
-  enabled, candidate absent from canonical games and an empty own queue. Opening/selecting
-  then cancelling writes nothing; the second explicit send creates one private PENDING proposal.
+  enabled, candidate absent from canonical games and an empty own queue. Opening/searching
+  then cancelling writes nothing; reopening and selecting the candidate directly creates one private
+  PENDING proposal, without an intermediate editor/Send. The pending row has no Pending label.
 - `accept|reject`: current manager, no automatic seat assumed; target is pending at the declared
   source offset and its proposer still has its own Table seat. Pages are fixed at five records.
   Cancel preserves the request, then one versioned decision updates that exact server-ID row.
@@ -342,9 +343,35 @@ unambiguous rated/unrated titles, the expected displayed personal rating (at mos
 and a known title at source offset >=25 (zero-based name/id order).
 The flow verifies counters, personal rather than public rating, N/A, automatic filtering, empty
 results, clear and scrolling beyond the first API page. Run EN/IT, light/dark, normal/enlarged text
-and normal/tall viewports. Also verify keyboard focus survives filtering and the explicit load-more
-action works on a viewport where initial rows fit. Syntax/unit checks are not device acceptance.
+and normal/tall viewports. The empty-search screenshot must show input/chips above the actual keyboard,
+not a collapsed offscreen list; blur preserves text and clear preserves Wishlist. Also verify the
+accessibility paging action on a viewport where initial rows fit; no visible load-more button or logout
+belongs in Collection. Syntax/unit checks are not device acceptance.
 Flows17/18 now read the sync card on main Profile; Collection requires a published snapshot.
+
+## Manual shared Collection filters
+
+`29-shared-collection.yaml` uses already authenticated read-only Development/Preview fixtures. Set
+`COLLECTION_SHARED_FIXTURE_ACK=owned-synchronized-readonly-profiles`,
+`COLLECTION_BUILD_ACK=owned-preview-build`, `COLLECTION_LOCALE=en|it`, and
+`COLLECTION_SHARED_INPUT` to JSON:
+
+```json
+{"subjectId":"user_subject","subjectName":"synced-peer","unsyncedId":"user_empty","unsyncedName":"unsynced-peer","expansionName":"Exact expansion","wishlistName":"Exact wishlist title","emptyQuery":"known-unmatched-filter","viewerSynced":true,"commonName":"Exact common BGG title"}
+```
+
+Use both `viewerSynced` modes (omit `commonName` when false), with already published fixture snapshots.
+Both subjects must be visible to the viewer without blocks; the synced subject needs the exact
+expansion/wishlist/common items in the selected first filtered pages. No provider write/provisioning or
+application mutation occurs. Run EN/IT, themes and enlarged text; review empty keyboard screenshots and
+counter alignment. Behavior follows [Profile](../../../docs/profiles.md), including disabled common
+filter without a viewer snapshot and hidden Collection on the unsynced subject.
+
+Web read-only scenario: `pnpm --filter web exec playwright test --config e2e/collection-filters.config.ts`
+uses the same JSON/fixture acknowledgment, plus `COLLECTION_THEME=light|dark`, `COLLECTION_API_URL`,
+explicit local/Preview `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and Development Clerk keys. It checks real
+source filters at 390/1280 widths, counts/common scopes and absence of owner controls/writes. Fixture
+parsing/discovery is not authenticated runtime evidence. Canonical suites/jobs remain unchanged.
 
 ## Manual Event participants
 

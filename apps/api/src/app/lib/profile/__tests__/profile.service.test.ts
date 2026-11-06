@@ -5,6 +5,7 @@ import { ProfileService } from "../profile.service";
 
 const m = vi.hoisted(() => ({
   user: vi.fn(),
+  bgg: vi.fn(),
   social: vi.fn(),
   player: vi.fn(),
   games: vi.fn(),
@@ -34,6 +35,11 @@ vi.mock("../../contacts/relationship.repository", () => ({
 vi.mock("../../community/record-services", () => ({
   recordServices: () => ({ events: { activityResource: m.event }, groups: { detail: m.group } }),
 }));
+vi.mock("../../games/bgg-account.repository", () => ({
+  BggAccountRepository: class {
+    get = m.bgg;
+  },
+}));
 const service = () => new ProfileService({} as Db);
 const at = "2030-06-03T12:00:00.000Z";
 const row = (id: number, extra = {}) => ({
@@ -47,6 +53,7 @@ const row = (id: number, extra = {}) => ({
 });
 beforeEach(() => {
   vi.resetAllMocks();
+  m.bgg.mockResolvedValue({ active: null, pending: null });
   m.user.mockImplementation(async (id) => ({
     clerkId: id,
     name: "Name",
@@ -63,9 +70,41 @@ beforeEach(() => {
   m.page.mockResolvedValue([]);
   m.network.mockResolvedValue([]);
 });
+it("exposes only published collection snapshot/counts, not BGG identity, pending work or owner controls", async () => {
+  m.bgg.mockResolvedValue({
+    active: {
+      snapshot: "published",
+      counts: { withoutExpansions: 2, withExpansions: 3, wishlist: 1 },
+      username: "private-provider-name",
+      id: 123,
+      avatarUrl: "private-avatar",
+      syncedAt: "private-sync",
+    },
+    pending: { username: "pending-name" },
+    lastAttempt: { status: "error" },
+  });
+  const value = await service().profile("viewer", "subject");
+  expect(value.collection).toEqual({
+    snapshot: "published",
+    counts: { withoutExpansions: 2, withExpansions: 3, wishlist: 1 },
+  });
+  for (const s of [
+    "private-provider-name",
+    "private-avatar",
+    "private-sync",
+    "pending-name",
+    "lastAttempt",
+  ])
+    expect(JSON.stringify(value)).not.toContain(s);
+  m.bgg.mockResolvedValue({ active: null, pending: { snapshot: "pending" } });
+  expect((await service().profile("viewer", "subject")).collection).toBeNull();
+  m.bgg.mockResolvedValue({ active: { snapshot: "legacy" } });
+  expect((await service().profile("viewer", "subject")).collection).toEqual({ snapshot: "legacy" });
+});
 it("returns only public identity and approved aggregate fields, never email/phone/account/role", async () => {
   const value = await service().profile("viewer", "subject");
   expect(value).toEqual({
+    collection: null,
     id: "subject",
     name: "Name",
     username: "name",

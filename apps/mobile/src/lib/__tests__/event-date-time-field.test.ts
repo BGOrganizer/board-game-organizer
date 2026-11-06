@@ -31,6 +31,9 @@ function picker(mode: "date" | "time" | "datetime", platform = "android") {
   expect(functions.size).toBe(2);
   const bindings = {
     mode,
+    mounted: { current: true },
+    nativeMode: { current: null },
+    generation: { current: 0 },
     Platform: { OS: platform },
     day: "2030-06-03",
     wall: "2030-06-03T10:30",
@@ -51,6 +54,29 @@ function picker(mode: "date" | "time" | "datetime", platform = "android") {
   runInNewContext(code, bindings);
   return { ...bindings, ...bindings.result };
 }
+it("ignores stale native dialog callbacks after the owning field unmounts", () => {
+  const first = picker("datetime");
+  first.pick();
+  first.mounted.current = false;
+  first.DateTimePickerAndroid.open.mock.calls[0][0].onChange(
+    { type: "set" },
+    new Date("2030-06-03T11:00Z"),
+  );
+  expect(first.DateTimePickerAndroid.open).toHaveBeenCalledOnce();
+  expect(first.onChange).not.toHaveBeenCalled();
+  const second = picker("datetime");
+  second.pick();
+  second.DateTimePickerAndroid.open.mock.calls[0][0].onChange(
+    { type: "set" },
+    new Date("2030-06-03T00:00Z"),
+  );
+  second.mounted.current = false;
+  second.DateTimePickerAndroid.open.mock.calls[1][0].onChange(
+    { type: "set" },
+    new Date("2030-06-03T11:00Z"),
+  );
+  expect(second.onChange).not.toHaveBeenCalled();
+});
 it.each(["10:30", "11:30"])(
   "opens the bounded table time with Android native clock and accepts inclusive boundary %s",
   (time) => {
@@ -85,13 +111,27 @@ it("uses native date then native time for bounded event ends and commits neither
   expect(field.DateTimePickerAndroid.open).toHaveBeenCalledOnce();
   date.onChange({ type: "set" }, new Date("2030-06-03T00:00Z"));
   expect(field.onChange).not.toHaveBeenCalled();
-  const time = field.DateTimePickerAndroid.open.mock.calls[1][0];
+  expect(field.DateTimePickerAndroid.open).toHaveBeenCalledOnce();
+  field.pick();
+  field.DateTimePickerAndroid.open.mock.calls[1][0].onChange(
+    { type: "set" },
+    new Date("2030-06-03T00:00Z"),
+  );
+  const time = field.DateTimePickerAndroid.open.mock.calls[2][0];
   expect(time.mode).toBe("time");
   expect(time.value.toISOString()).toBe("2030-06-03T10:30:00.000Z");
   time.onChange({ type: "dismissed" });
-  expect(field.onChange).not.toHaveBeenCalled();
   time.onChange({ type: "set" }, new Date("2030-06-03T11:00Z"));
-  expect(field.onChange).toHaveBeenCalledWith("2030-06-03T11:00");
+  expect(field.onChange).not.toHaveBeenCalled();
+  field.pick();
+  field.DateTimePickerAndroid.open.mock.calls[3][0].onChange(
+    { type: "set" },
+    new Date("2030-06-03T00:00Z"),
+  );
+  const freshTime = field.DateTimePickerAndroid.open.mock.calls[4][0];
+  freshTime.onChange({ type: "set" }, new Date("2030-06-03T11:00Z"));
+  freshTime.onChange({ type: "set" }, new Date("2030-06-03T11:00Z"));
+  expect(field.onChange).toHaveBeenCalledExactlyOnceWith("2030-06-03T11:00");
 });
 it("preserves date-only callers and the iOS native-picker host", () => {
   const date = picker("date");

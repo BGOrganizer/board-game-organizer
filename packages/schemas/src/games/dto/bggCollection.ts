@@ -31,6 +31,10 @@ export const bggCollectionQuerySchema = z
   .object({
     snapshot: z.string().min(1).max(100),
     query: z.string().trim().max(120).default(""),
+    subjectId: z.string().trim().min(1).max(200).optional(),
+    types: z.enum(["all", "games", "expansions", "none"]).optional(),
+    wishlist: z.enum(["true", "false"]).optional(),
+    commonSnapshot: z.string().min(1).max(100).optional(),
     cursor: z.string().max(2048).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(25),
     "x-vercel-protection-bypass": z.string().optional(),

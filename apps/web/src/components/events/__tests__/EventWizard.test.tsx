@@ -166,7 +166,7 @@ it("initializes public start tomorrow without removal or venue defaults and boun
   await waitFor(() => expect(start.value.startsWith(day)).toBe(true));
   expect(screen.queryByRole("button", { name: /^Remove date/ })).toBeNull();
   expect(screen.queryByText("Club venue")).toBeNull();
-  expect(screen.getByRole("button", { name: "Choose a verified address" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Choose a location" })).not.toBeNull();
   fireEvent.change(start, { target: { value: "2030-06-03T20:00" } });
   const end = screen.getByLabelText("End Date and Time") as HTMLInputElement,
     cutoff = screen.getByLabelText("Registration Deadline Date and Time") as HTMLInputElement;
@@ -177,9 +177,8 @@ it("initializes public start tomorrow without removal or venue defaults and boun
   expect(cutoff.max).toBe("2030-06-02T23:59");
   expect(end.compareDocumentPosition(cutoff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(
-    cutoff.compareDocumentPosition(
-      screen.getByRole("button", { name: "Choose a verified address" }),
-    ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    cutoff.compareDocumentPosition(screen.getByRole("button", { name: "Choose a location" })) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   fireEvent.change(end, { target: { value: "2030-06-04T01:00" } });
   expect(end.value).toBe("");
@@ -195,7 +194,7 @@ it("initializes public start tomorrow without removal or venue defaults and boun
   expect(cutoff.value).toBe("2030-06-02T23:00");
   fireEvent.change(start, { target: { value: "2030-06-04T20:00" } });
   expect(end.value).toBe("");
-  fireEvent.click(screen.getByRole("button", { name: "Choose a verified address" }));
+  fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
   const locatedCutoff = screen.getByLabelText(
     "Registration Deadline Date and Time",
@@ -236,7 +235,7 @@ it("keeps private add slots, independent same-day clocks, location choices and p
   fireEvent.change(screen.getByLabelText("Date and time"), {
     target: { value: "2030-06-03T21:30" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Choose a verified address" }));
+  fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose second verified location" }));
   expect((screen.getByLabelText("Date and time") as HTMLInputElement).value).toBe(
     "2030-06-03T21:30",
@@ -249,10 +248,10 @@ it("keeps private add slots, independent same-day clocks, location choices and p
   });
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(screen.getAllByRole("button", { name: /^Remove date:/ })).toHaveLength(2);
-  fireEvent.click(screen.getByRole("button", { name: "Choose a verified address" }));
+  fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
   expect(screen.getAllByRole("button", { name: /^Remove location:/ })).toHaveLength(2);
-  expect(screen.getByRole("button", { name: "Choose a verified address" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Choose a location" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(screen.getByRole("button", { name: "Add table" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Table name" }), {
@@ -297,7 +296,7 @@ it("submits one complete event only on final review, with no server draft or imp
     target: { value: "2030-06-03T20:00" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
-  fireEvent.click(screen.getByRole("button", { name: "Choose a verified address" }));
+  fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(screen.getByRole("button", { name: "Add table" }));
@@ -539,7 +538,7 @@ it("leaves final review immediately but retains the complete failed draft for ex
     target: { value: "2030-06-03T20:00" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
-  fireEvent.click(screen.getByRole("button", { name: "Choose a verified address" }));
+  fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(screen.getByRole("button", { name: "Add table" }));
@@ -598,7 +597,7 @@ it("enables Next initially, then shows field errors and disables it until all sc
   });
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(screen.queryByRole("button", { name: "Add date" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Choose a verified address" }));
+  fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
   expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(false);
   expect(
@@ -607,6 +606,6 @@ it("enables Next initially, then shows field errors and disables it until all sc
   expect(
     screen.getByRole("button", { name: "Remove date: 2030-06-03 20:00" }).closest("li"),
   ).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Choose a verified address" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Choose a location" })).toBeNull();
   expect(m.replace).not.toHaveBeenCalled();
 });

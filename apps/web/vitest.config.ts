@@ -38,6 +38,7 @@ export default defineConfig({
       include: [
         ...[
           "common/hooks/useListSearch.ts",
+          "games/hooks/useBggCollectionFilters.ts",
           "notifications/hooks/useNotificationItemDwell.ts",
           "organizations/hooks/useOrganizationPeople.ts",
           "organizations/hooks/useOrganizationSocialActions.ts",
@@ -91,6 +92,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/games/hooks/useBggCollectionFilters.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/community/*.tsx": {
           lines: 100,
           functions: 100,
