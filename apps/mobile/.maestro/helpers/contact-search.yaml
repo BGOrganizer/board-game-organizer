@@ -1,0 +1,37 @@
+appId: com.bgo.mobile
+---
+- openLink: bgo:///contacts?tab=search
+- extendedWaitUntil:
+    visible:
+      id: "contact-search-input"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Clear search"
+    commands:
+      - tapOn: "Clear search"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "contact-search-input"
+- runScript: contact-email.js
+- inputText: ${CONTACT_EMAIL}
+- assertVisible:
+    id: "contact-search-input"
+    text: ${output.contactEmailPattern}
+- hideKeyboard
+# Device Contacts already contains the target before the remote search completes.
+# Wait for its API result above that section, not the old address-book suggestion.
+- extendedWaitUntil:
+    visible:
+      text: ${CONTACT_ACTIONS}
+      below:
+        text: "^Search results$"
+      above:
+        text: "^Device Contacts$"
+    timeout: 90000
+- assertVisible:
+    text: ${CONTACT_ACTIONS}
+    below:
+      text: "^Search results$"
+    above:
+      text: "^Device Contacts$"

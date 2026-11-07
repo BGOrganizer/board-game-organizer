@@ -1,0 +1,58 @@
+appId: com.bgo.mobile
+tags: [ci, groups]
+---
+# Primary actor, no active group. Archival must remove selectable/listed group.
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible: "No groups yet"
+    timeout: 30000
+- tapOn:
+    id: "create-group-fab"
+- assertVisible: "New group"
+- assertVisible: "Group name"
+- assertVisible: "Public group"
+- back
+- assertVisible: "No groups yet"
+- runFlow: ../helpers/group-create-edit.yaml
+- back
+- openLink: bgo:///matches
+- tapOn:
+    id: "create-match-fab"
+- extendedWaitUntil:
+    visible: "New match"
+    timeout: 30000
+- assertVisible: "Group (optional)"
+- assertVisible: "No group"
+- tapOn: "No group"
+- tapOn: "Weekend Games"
+- assertVisible: "Weekend Games"
+- back
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible: "Open group: Weekend Games"
+    timeout: 30000
+- tapOn: "Open group: Weekend Games"
+- tapOn: "Delete group"
+- assertVisible: '^Delete group\?$'
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- assertVisible: "Weekend Games"
+- tapOn: "Delete group"
+- assertVisible: '^Delete group\?$'
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirmation-dialog"
+    timeout: 30000
+- extendedWaitUntil:
+    visible: "No groups yet"
+    timeout: 30000
+- assertNotVisible: "Weekend Games"
+- tapOn:
+    id: "community-tab-organizations"
+- extendedWaitUntil:
+    visible: "No organizations found"
+    timeout: 30000

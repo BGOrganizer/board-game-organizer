@@ -1,0 +1,33 @@
+appId: com.bgo.mobile
+---
+# Android native picker emits date first, time second. Both are required commits.
+- tapOn: "Pick date and time"
+- extendedWaitUntil:
+    visible:
+      id: "android:id/datePicker"
+    timeout: 30000
+- tapOn:
+    id: "android:id/button1"
+- extendedWaitUntil:
+    visible:
+      id: "android:id/timePicker"
+    timeout: 30000
+- tapOn:
+    id: "android:id/button1"
+- extendedWaitUntil:
+    notVisible:
+      id: "android:id/timePicker"
+    timeout: 30000
+# Returning from native dialogs can restore the name input's keyboard.
+- runFlow:
+    when:
+      visible:
+        id: ".*inputmethod.*:id/.*"
+    commands:
+      - hideKeyboard
+      - extendedWaitUntil:
+          notVisible:
+            id: ".*inputmethod.*:id/.*"
+          timeout: 30000
+- assertVisible:
+    id: "remove-date-slot"

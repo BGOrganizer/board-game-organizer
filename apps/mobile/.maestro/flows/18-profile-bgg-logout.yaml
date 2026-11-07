@@ -1,0 +1,83 @@
+appId: com.bgo.mobile
+name: Real BGG synchronization and cache-safe confirmed logout
+# Requires already authenticated owned UNLINKED Development/Preview account.
+# Mutates only that test account through real API/provider requests; no mocks/resets.
+tags: [manual, profile, bgg, auth]
+---
+- runScript: ../helpers/profile-bgg-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo:///profile
+- extendedWaitUntil:
+    visible: ${output.profileBgg.owner}
+    timeout: 120000
+- assertNotVisible: ${output.profileBgg.collection}
+- scrollUntilVisible:
+    element: ${output.profileBgg.sync}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.profileBgg.sync}
+- extendedWaitUntil:
+    visible:
+      id: profile-bgg-username
+    timeout: 30000
+- tapOn:
+    id: profile-bgg-username
+- inputText: ${output.profileBgg.invalidUsername}
+- tapOn:
+    id: profile-bgg-sync
+- extendedWaitUntil:
+    visible: ${output.profileBgg.failed}
+    timeout: 120000
+- assertNotVisible:
+    id: profile-bgg-username
+- tapOn: ${output.profileBgg.sync}
+- tapOn:
+    id: profile-bgg-username
+- eraseText
+- inputText: ${output.profileBgg.username}
+- tapOn:
+    id: profile-bgg-sync
+- extendedWaitUntil:
+    visible: ${output.profileBgg.success}
+    timeout: 300000
+- assertVisible: ${output.profileBgg.usernameText}
+- assertVisible: ${output.profileBgg.lastSuccess}
+- scrollUntilVisible:
+    element: ${output.profileBgg.collection}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.profileBgg.collection}
+- takeScreenshot: profile-real-bgg-published
+- scrollUntilVisible:
+    element: ${output.profileBgg.disconnect}
+    direction: UP
+    timeout: 120000
+- tapOn: ${output.profileBgg.disconnect}
+- tapOn:
+    id: confirmation-cancel
+- assertVisible: ${output.profileBgg.usernameText}
+- tapOn: ${output.profileBgg.disconnect}
+- tapOn:
+    id: confirmation-action-0
+- extendedWaitUntil:
+    visible:
+      text: ${output.profileBgg.sync}
+      enabled: true
+    timeout: 120000
+- assertNotVisible: ${output.profileBgg.usernameText}
+- assertNotVisible: ${output.profileBgg.failed}
+- assertNotVisible: ${output.profileBgg.collection}
+- scrollUntilVisible:
+    element: ${output.profileBgg.logout}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.profileBgg.logout}
+- assertVisible: ${output.profileBgg.logoutTitle}
+- tapOn:
+    id: confirmation-action-0
+- extendedWaitUntil:
+    visible: ${output.profileBgg.welcome}
+    timeout: 180000
+- assertNotVisible:
+    id: profile-button

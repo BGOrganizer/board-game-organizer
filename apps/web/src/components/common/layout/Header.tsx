@@ -1,0 +1,175 @@
+"use client";
+
+import { getBgoRole } from "@board-game-organizer/schemas";
+
+import { Show, SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
+import { Button, cn } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
+import type { LucideIcon } from "lucide-react";
+import {
+  CalendarDays,
+  ContactRound,
+  Dices,
+  Menu,
+  Network,
+  ShieldCheck,
+  UserRound,
+  UsersRound,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NotificationNavigationBadge } from "@/components/notifications/NotificationNavigationBadge";
+import { HEADER_ICON_CLASS, headerButtonProps, headerControlClassName } from "./headerStyles";
+
+type NavLinkProps = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  exact?: boolean;
+  onClick?: () => void;
+  section?: "tables" | "events" | "groups" | "contacts";
+};
+
+function NavLink({ href, label, icon: Icon, exact = false, onClick, section }: NavLinkProps) {
+  const pathname = usePathname();
+  const isActive = exact ? pathname === href : pathname.startsWith(href);
+
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "flex min-h-11 items-center gap-2 rounded-md px-3 py-2 transition-colors focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+        isActive
+          ? "bg-surface text-accent-soft-foreground font-medium"
+          : "text-foreground hover:bg-surface",
+      )}
+    >
+      <Icon className={HEADER_ICON_CLASS} aria-hidden="true" />
+      {label}
+      {section ? <NotificationNavigationBadge section={section} /> : null}
+    </Link>
+  );
+}
+
+export function Header() {
+  const { user } = useUser();
+  const { t } = useLingui();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const navLinks: Array<Pick<NavLinkProps, "href" | "label" | "icon" | "section">> = [
+    { href: "/tables", label: t`Tables`, icon: Dices, section: "tables" as const },
+    { href: "/events", label: t`Events`, icon: CalendarDays, section: "events" as const },
+    { href: "/groups", label: t`Groups`, icon: UsersRound, section: "groups" as const },
+    { href: "/community", label: t`Community`, icon: Network },
+    { href: "/contacts", label: t`Contacts`, icon: ContactRound, section: "contacts" as const },
+  ];
+
+  return (
+    <nav className="sticky top-0 z-40 w-full border-b border-separator bg-background/70 backdrop-blur-lg">
+      <header className="group/page-header mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+          <Button
+            {...headerButtonProps}
+            variant="ghost"
+            className={`${headerButtonProps.className} shrink-0 lg:hidden`}
+            onPress={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label={t`Toggle menu`}
+            aria-expanded={isMenuOpen}
+          >
+            {isMenuOpen ? (
+              <X className={HEADER_ICON_CLASS} aria-hidden />
+            ) : (
+              <Menu className={HEADER_ICON_CLASS} aria-hidden />
+            )}
+          </Button>
+          <div className="truncate text-sm font-semibold sm:text-base group-has-[h1]/page-header:hidden">
+            Board Game Organizer
+          </div>
+        </div>
+        <Show
+          when="signed-in"
+          fallback={
+            <div className="hidden items-center gap-3 lg:flex">
+              <SignInButton>
+                <Button variant="primary">{t`Sign In`}</Button>
+              </SignInButton>
+              <SignUpButton>
+                <Button variant="outline">{t`Sign Up`}</Button>
+              </SignUpButton>
+            </div>
+          }
+        >
+          <ul className="hidden items-center gap-2 xl:gap-4 lg:flex">
+            {navLinks.map((link) => (
+              <li key={link.href}>
+                <NavLink
+                  href={link.href}
+                  label={link.label}
+                  icon={link.icon}
+                  section={link.section}
+                />
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex min-w-0 shrink-0 items-center gap-2">
+            <p className="hidden max-w-40 truncate text-sm text-muted sm:block">
+              {user?.firstName || user?.username}
+            </p>
+            <NotificationBell />
+            <Link href="/profile" aria-label={t`Profile`} className={headerControlClassName}>
+              <UserRound className={HEADER_ICON_CLASS} aria-hidden="true" />
+            </Link>
+            {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
+              <Link
+                href="/moderation"
+                aria-label={t`Group moderation`}
+                className={headerControlClassName}
+              >
+                <ShieldCheck className={HEADER_ICON_CLASS} aria-hidden="true" />
+              </Link>
+            ) : null}
+            <UserButton />
+          </div>
+        </Show>
+        <div id="page-header-actions" className="shrink-0 empty:hidden" />
+      </header>
+      {isMenuOpen && (
+        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-separator lg:hidden">
+          <ul className="flex flex-col gap-2 p-3 sm:p-4">
+            <Show
+              when="signed-in"
+              fallback={
+                <li className="mt-4 flex flex-col gap-2 border-t border-separator pt-4">
+                  <SignInButton>
+                    <Button variant="primary">{t`Sign In`}</Button>
+                  </SignInButton>
+                  <SignUpButton>
+                    <Button variant="outline">{t`Sign Up`}</Button>
+                  </SignUpButton>
+                </li>
+              }
+            >
+              {navLinks.map((link) => (
+                <li key={link.href}>
+                  <NavLink
+                    href={link.href}
+                    label={link.label}
+                    icon={link.icon}
+                    section={link.section}
+                    onClick={() => setIsMenuOpen(false)}
+                  />
+                </li>
+              ))}
+            </Show>
+          </ul>
+        </div>
+      )}
+    </nav>
+  );
+}

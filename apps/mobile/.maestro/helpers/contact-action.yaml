@@ -1,0 +1,21 @@
+appId: com.bgo.mobile
+---
+# Menu selection and confirmation are separate states. No navigation until both close.
+- tapOn: ${CONTACT_ACTIONS}
+- extendedWaitUntil:
+    visible: ${ACTION_LABEL}
+    timeout: 30000
+- tapOn: ${ACTION_LABEL}
+- extendedWaitUntil:
+    visible:
+      id: ${CONFIRM_ID}
+    timeout: 30000
+- tapOn:
+    id: ${CONFIRM_ID}
+- extendedWaitUntil:
+    notVisible:
+      id: "confirmation-dialog"
+    timeout: 30000
+- extendedWaitUntil:
+    notVisible: ${ACTION_LABEL}
+    timeout: 30000

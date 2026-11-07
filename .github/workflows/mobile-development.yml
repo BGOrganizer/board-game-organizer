@@ -1,45 +1,91 @@
-name: 📱 Mobile APK (development — manual, main only)
+name: 📱 Mobile APK (manual — Preview / Production)
 
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: API/Clerk environment (both build a distributable internal-profile APK)
+        required: true
+        type: choice
+        default: preview
+        options: [preview, production]
+      api-url:
+        description: Immutable non-CI API Preview URL; leave empty for the fixed Production API
+        required: false
+        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-development:
-    name: 📱 Build development APK & attach to latest release
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    # Development builds are only allowed from main, manually.
+    name: 📱 Build APK for ${{ inputs.target }} (main only)
     if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    environment: ${{ inputs.target == 'production' && 'production' || 'development' }}
     steps:
-      - name: 📥 Checkout
+      - name: 📥 Checkout exact dispatch commit
         uses: actions/checkout@v4
-
-      - name: 🏗️ Build APK (eas build --local, development profile)
+        with:
+          ref: ${{ github.sha }}
+      - name: 🟢 Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: 🔒 Verify selected API and Clerk environment
+        id: target
+        env:
+          TARGET: ${{ inputs.target }}
+          API_URL: ${{ inputs['api-url'] }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars[inputs.target == 'production' && 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION' || 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY'] }}
+          CLERK_SECRET_KEY: ${{ secrets[inputs.target == 'production' && 'CLERK_SECRET_KEY_PRODUCTION' || 'CLERK_SECRET_KEY'] }}
+          BYPASS: ${{ inputs.target == 'preview' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_API_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          import { manualApiTarget, requireClerkTarget, verifyPreviewProject, attestManualApi } from './.github/scripts/manual-target.mjs';
+          const e = process.env;
+          const api = manualApiTarget(e.TARGET, e.API_URL);
+          requireClerkTarget(e.TARGET, e.CLERK_PUBLISHABLE_KEY, 'pk');
+          requireClerkTarget(e.TARGET, e.CLERK_SECRET_KEY, 'sk');
+          if (e.TARGET === 'preview') await verifyPreviewProject(api, { token: e.VERCEL_TOKEN, team: e.VERCEL_ORG_ID, project: e.VERCEL_API_PROJECT_ID });
+          await attestManualApi(e.TARGET, api, e.CLERK_SECRET_KEY, e.BYPASS);
+          appendFileSync(e.GITHUB_OUTPUT, `api-url=${api}\n`);
+          NODE
+      - name: 🏗️ Build distributable APK (same action/profile as PR Development)
         id: build
         uses: ./.github/actions/mobile-build
         with:
-          profile: development
+          profile: internal
           expo-token: ${{ secrets.EXPO_TOKEN }}
-          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          clerk-publishable-key: ${{ vars[inputs.target == 'production' && 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION' || 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY'] }}
+          api-url: ${{ steps.target.outputs.api-url }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
-
-      - name: 📦 Attach development APK to latest release
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          protection-bypass: ${{ inputs.target == 'preview' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
+      - name: 🔒 Label and verify environment-specific APK
         env:
-          GH_TOKEN: ${{ github.token }}
-          ARTIFACT_PATH: ${{ steps.build.outputs.artifact-path }}
-          ARTIFACT_NAME: ${{ steps.build.outputs.artifact-name }}
+          APK: ${{ steps.build.outputs.artifact-path }}
+          API_URL: ${{ steps.target.outputs.api-url }}
+          TARGET: ${{ inputs.target }}
         run: |
-          REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=1" | \
-            jq -r '.[0].id')
-          echo "Uploading to release id: $REL"
-          curl -sL -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @"$ARTIFACT_PATH" \
-            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL/assets?name=$ARTIFACT_NAME" | \
-            jq -r '"Attached: " + .name'
+          set -euo pipefail
+          test -s "$APK"
+          mv "$APK" "${APK%.apk}-${TARGET}.apk"
+          printf '%s\n' "$API_URL" > apps/mobile/build-output/api-url.txt
+          printf '%s\n' "$GITHUB_SHA" > apps/mobile/build-output/source-head.txt
+          printf '%s\n' "$TARGET" > apps/mobile/build-output/target.txt
+          (cd apps/mobile/build-output && sha256sum -- *.apk > apk.sha256 && sha256sum --check apk.sha256)
+      # A manually built Preview must never be appended to an unrelated Production release.
+      - name: 📤 Publish downloadable manual APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-manual-${{ inputs.target }}-${{ github.sha }}
+          path: apps/mobile/build-output/
+          if-no-files-found: error
+          retention-days: 7

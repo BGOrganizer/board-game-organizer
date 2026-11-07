@@ -1,0 +1,76 @@
+appId: com.bgo.mobile
+---
+- assertVisible: "Event detail"
+- tapOn: "Event name"
+- inputText: "Maestro summer event"
+- assertVisible: "Maestro summer event"
+- hideKeyboard
+- assertNotVisible: "Time zone"
+- assertNotVisible: "Event detail: Field help"
+- tapOn: "Event name: Field help"
+- assertVisible: "Choose an event name with 5–120 characters.*"
+- back
+- assertNotVisible: "Choose an event name with 5–120 characters.*"
+- tapOn: "Event date: Field help"
+- assertVisible: "Choose the event day.*"
+- back
+- assertNotVisible: "Choose the event day.*"
+- tapOn:
+    id: "event-date-calendar"
+- runFlow:
+    file: event-date.yaml
+    env:
+      DATE: "06/12/2030"
+- tapOn:
+    id: "event-start-calendar"
+- runFlow:
+    file: event-time.yaml
+    env:
+      HOUR: "14"
+      MINUTE: "00"
+- tapOn:
+    id: "event-end-calendar"
+- runFlow:
+    file: event-time.yaml
+    env:
+      HOUR: "18"
+      MINUTE: "00"
+- tapOn: "Booking deadline: Field help"
+- assertVisible: "Hours before the event starts.*"
+- back
+- assertNotVisible: "Hours before the event starts.*"
+- tapOn: "Booking deadline (hours before start)"
+- eraseText: 100
+- inputText: "24"
+- hideKeyboard
+- assertVisible:
+    id: "event-next-fab"
+- assertNotVisible:
+    id: "event-back-fab"
+- scrollUntilVisible:
+    element: "Choose the event address"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Choose the event address"
+- runFlow:
+    file: select-address.yaml
+    env:
+      LOCATION_NAME: "Event club"
+      ADDRESS_QUERY: "Via Roma Milano"
+- tapOn:
+    id: "event-next-fab"
+- assertVisible: "Event day.*"
+- assertVisible: "Start time"
+- assertVisible: "End time"
+- tapOn: "Tables: Field help"
+- assertVisible: "Add up to 20 tables.*"
+- back
+- assertNotVisible: "Add up to 20 tables.*"
+- tapOn: "Add table"
+- assertVisible:
+    id: "event-table-header-back"
+- assertNotVisible:
+    id: "event-table-back-fab"
+- tapOn:
+    id: "event-table-header-back"
+- assertVisible: "Add table"

@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Take a photo for your organization logo.",
+    "NSPhotoLibraryUsageDescription": "Choose an organization logo from your photo library."
+  }
+}

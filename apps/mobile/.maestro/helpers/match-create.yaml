@@ -1,0 +1,181 @@
+appId: com.bgo.mobile
+---
+- tapOn:
+    id: "create-match-fab"
+- extendedWaitUntil:
+    visible: "New match"
+    timeout: 60000
+- tapOn:
+    id: "match-name-input"
+- inputText: "abc"
+- assertVisible: "At least 5 characters"
+- tapOn:
+    id: "match-name-input"
+- eraseText: 100
+- inputText: "Friday night games"
+- assertVisible:
+    id: "match-name-input"
+    text: "^Friday night games$"
+- hideKeyboard
+- assertVisible: "Private match"
+- tapOn:
+    id: "match-public-switch"
+- assertVisible: "Public match"
+- assertNotVisible:
+    id: "remove-date-slot"
+- tapOn: "Add date"
+- assertVisible:
+    id: "remove-date-slot"
+- tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
+    id: "remove-date-slot"
+- runFlow: match-date-time.yaml
+- tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
+    id: "remove-date-slot"
+- assertVisible: "Pick date and time"
+- runFlow: match-date-time.yaml
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Locations"
+    timeout: 60000
+- tapOn: "Select location"
+- extendedWaitUntil:
+    visible: "Search address"
+    timeout: 30000
+- assertVisible: "Map by MapTiler"
+- setLocation:
+    latitude: 41.8902
+    longitude: 12.4922
+- scrollUntilVisible:
+    element: "Center map on my location"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Center map on my location"
+- runFlow:
+    when:
+      visible:
+        id: "com.android.permissioncontroller:id/permission_allow_foreground_only_button"
+    commands:
+      - tapOn: "Precise"
+      - tapOn:
+          id: "com.android.permissioncontroller:id/permission_allow_foreground_only_button"
+      - assertNotVisible:
+          id: "com.android.permissioncontroller:id/permission_message"
+- runFlow:
+    when:
+      visible:
+        id: "com.google.android.gms:id/message"
+        text: ".*Location Accuracy.*"
+    commands:
+      - tapOn: "Turn on"
+      - assertNotVisible:
+          id: "com.google.android.gms:id/message"
+      # Deliver the fixture fix after the native location providers are enabled.
+      - setLocation:
+          latitude: 41.8902
+          longitude: 12.4922
+- extendedWaitUntil:
+    visible:
+      id: "location-address-input"
+      text: ".*(Roma|Rome).*"
+    timeout: 30000
+- assertVisible: "Confirm location"
+- assertVisible: "Select location"
+- tapOn: "Clear search"
+- assertNotVisible: "Clear search"
+- runFlow:
+    file: select-address.yaml
+    env:
+      LOCATION_NAME: "Game cafe"
+      ADDRESS_QUERY: "Piazza del Colosseo 1 Roma"
+- tapOn: "Add location to favorites"
+- extendedWaitUntil:
+    visible: "Remove location from favorites"
+    timeout: 30000
+- tapOn: "Remove location from favorites"
+- extendedWaitUntil:
+    visible: "Add location to favorites"
+    timeout: 30000
+- tapOn: "Add location to favorites"
+- extendedWaitUntil:
+    visible: "Remove location from favorites"
+    timeout: 30000
+- assertVisible: "Game cafe"
+- tapOn: "Add location"
+- assertVisible: "Select location"
+- tapOn:
+    text: "Remove location"
+    index: 1
+- assertNotVisible: "Select location"
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 60000
+- assertVisible: "Min"
+- assertVisible: "Max"
+- assertVisible: "Invite friends"
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 60000
+- assertVisible: "Select a board game"
+- tapOn: "Add game"
+- assertVisible:
+    id: "remove-game-slot"
+- tapOn:
+    id: "remove-game-slot"
+- assertNotVisible:
+    id: "remove-game-slot"
+- tapOn: "Select a board game"
+- tapOn: "Search board games: Search help"
+- extendedWaitUntil:
+    visible: "Search help"
+    timeout: 30000
+- assertVisible: "Search help"
+- assertVisible: "Type at least 4 characters to search"
+- back
+- assertNotVisible: "Search help"
+- assertVisible:
+    id: "game-search-input"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "list-filter-search"
+- tapOn:
+    id: "list-filter-search"
+- tapOn:
+    id: "game-search-input"
+- inputText: "Cascadia"
+- tapOn: "Clear search"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "game-search-input"
+- inputText: "Cascadia"
+- assertVisible:
+    id: "game-search-input"
+    text: "^Cascadia$"
+- extendedWaitUntil:
+    visible: "Select: Cascadia.*"
+    timeout: 30000
+- assertVisible: "2021"
+- assertVisible: ".*7[.]83.*"
+- assertVisible: ".*Rank: 42.*"
+- tapOn: "Select: Cascadia.*"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 30000
+- assertVisible: "Cascadia"
+- assertVisible: ".*7[.]83.*"
+- assertVisible: ".*Rank: 42.*"
+- assertVisible:
+    id: "save-match-fab"
+- tapOn:
+    id: "save-match-fab"
+- extendedWaitUntil:
+    visible: "Friday night games"
+    timeout: 60000

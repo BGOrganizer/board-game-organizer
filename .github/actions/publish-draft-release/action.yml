@@ -1,149 +1,69 @@
-name: Publish / update PR draft release
+name: Publish / update PR Development draft release
 description: >-
-  Creates or updates the PR draft prerelease (tag v<version>-pr.<N>) with the
-  PR changelog (from conventional commits base...head) and uploads the PR's
-  internal APK. Every PR run refreshes the draft: changelog + APK.
+  Publishes the verified Development APK and matching Web/API links independently
+  of Internal/E2E status. Only the latest trusted PR head may update the draft.
 
 inputs:
   github-token:
-    description: Token with contents:write (github.token)
+    description: Token with contents write and pull-requests read
     required: true
   version:
-    description: Current app version (read from apps/mobile/app.config.js)
+    description: Current app version
     required: true
   pr-number:
     description: Pull request number
     required: true
   pr-title:
-    description: Pull request title
+    description: Pull request title, treated as data
     required: true
   base-sha:
-    description: PR base sha (changelog range base...head)
+    description: PR base SHA for changelog
     required: true
   head-sha:
-    description: PR head sha
+    description: Verified PR head SHA
     required: true
   apk-path:
-    description: Path of the internal APK to attach
+    description: Path of the verified Development APK
     required: true
   apk-name:
-    description: File name of the APK asset
+    description: Development APK base name; revision/run suffix is added safely
     required: true
+  eas-build-url:
+    description: Optional EAS link; empty only for the existing exhausted-quota exception
+    required: false
+    default: ''
   web-preview-url:
-    description: Vercel preview URL of the web app
+    description: Immutable Development Web URL, never the CI Web deployment
     required: true
   api-preview-url:
-    description: Vercel preview URL of the API
+    description: Immutable Development API URL embedded in this APK and Web
     required: true
-
 outputs:
   release_url:
-    description: HTML url of the draft release
+    description: Draft release URL
     value: ${{ steps.release.outputs.release_url }}
   release_id:
-    description: GitHub release id
+    description: Draft release ID
     value: ${{ steps.release.outputs.release_id }}
   apk_url:
-    description: Direct download url of the attached APK
+    description: Download URL of the verified revision-named Development APK
     value: ${{ steps.release.outputs.apk_url }}
-
 runs:
   using: composite
   steps:
-    - name: 📦 Create/update draft prerelease + attach APK
+    - name: 📦 Create/update Development draft and attach verified APK
       id: release
       shell: bash
       env:
-        GH: ${{ inputs.github-token }}
-      run: |
-        set -euo pipefail
-        API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
-        UPLOADS="https://uploads.github.com/repos/${GITHUB_REPOSITORY}"
-        TAG="v${{ inputs.version }}-pr.${{ inputs.pr-number }}"
-
-        # 1) Changelog from conventional commits (base...head)
-        node scripts/release/pr-changelog.mjs \
-          "${{ inputs.base-sha }}" "${{ inputs.head-sha }}" > /tmp/pr-changelog.md
-
-        # 2) Release body
-        cat > /tmp/release-body.md <<'EOF'
-        ## ✅ PR CI/CD completato — tutti i gate passati
-
-        **PR:** #__PR__ — __PR_TITLE__
-
-        ### 📱 APK (PR)
-        - __APK_NAME__ — allegato a questa release
-
-        ### 🌐 Preview Vercel
-        - **Web:** __WEB__
-        - **API:** __API__
-
-        ### 📦 Changelog
-
-        EOF
-        cat /tmp/pr-changelog.md >> /tmp/release-body.md
-        sed -i \
-          -e "s|__PR__|${{ inputs.pr-number }}|g" \
-          -e "s|__PR_TITLE__|${{ inputs.pr-title }}|g" \
-          -e "s|__APK_NAME__|${{ inputs.apk-name }}|g" \
-          -e "s|__WEB__|${{ inputs.web-preview-url }}|g" \
-          -e "s|__API__|${{ inputs.api-preview-url }}|g" \
-          /tmp/release-body.md
-
-        # 3) Create or update the draft prerelease
-        #    Note: drafts have no git tag yet, so GET /releases/tags/<tag> 404s
-        #    and GitHub normalizes their tag_name to "untagged-<id>" — search
-        #    by tag_name OR name (the name is stable, e.g.
-        #    board-game-organizer-v1.0.0-pr.3).
-        EXISTING=$(curl -s -H "Authorization: Bearer $GH" \
-          "$API/releases?per_page=100" \
-          | jq -r --arg tag "$TAG" --arg name "board-game-organizer-$TAG" \
-            '.[] | select(.tag_name == $tag or .name == $name) | .id' | head -1)
-        REL_ID="${EXISTING:-}"
-        if [ -n "$REL_ID" ]; then
-          echo "Updating draft release $TAG (id $REL_ID)"
-          # Remove stale assets (previous APK builds of this PR)
-          curl -s -H "Authorization: Bearer $GH" "$API/releases/$REL_ID/assets" \
-            | jq -r '.[].id' \
-            | while read -r aid; do
-                curl -s -X DELETE -H "Authorization: Bearer $GH" \
-                  "$API/releases/assets/$aid" > /dev/null || true
-              done
-          PAYLOAD=$(jq -n --rawfile body /tmp/release-body.md \
-            '{draft:true, prerelease:true, body:$body}')
-          curl -s -X PATCH -H "Authorization: Bearer $GH" \
-            -H "Accept: application/vnd.github+json" \
-            "$API/releases/$REL_ID" -d "$PAYLOAD" > /tmp/release.json
-        else
-          echo "Creating draft release $TAG"
-          PAYLOAD=$(jq -n \
-            --arg tag "$TAG" \
-            --arg name "board-game-organizer-$TAG" \
-            --rawfile body /tmp/release-body.md \
-            '{tag_name:$tag, name:$name, draft:true, prerelease:true, body:$body}')
-          curl -s -X POST -H "Authorization: Bearer $GH" \
-            -H "Accept: application/vnd.github+json" \
-            "$API/releases" -d "$PAYLOAD" > /tmp/release.json
-          REL_ID=$(jq -r '.id // empty' /tmp/release.json)
-        fi
-        if [ -z "$REL_ID" ]; then
-          echo "::error::failed to create/update release $TAG"; cat /tmp/release.json; exit 1
-        fi
-
-        # 4) Upload the APK (replace the same-name asset if present)
-        ASSET_ID=$(curl -s -H "Authorization: Bearer $GH" "$API/releases/$REL_ID/assets" \
-          | jq -r --arg n "${{ inputs.apk-name }}" '.[] | select(.name == $n) | .id' | head -1)
-        if [ -n "$ASSET_ID" ]; then
-          curl -s -X DELETE -H "Authorization: Bearer $GH" \
-            "$API/releases/assets/$ASSET_ID" > /dev/null || true
-        fi
-        UPLOAD=$(curl -s -X POST -H "Authorization: Bearer $GH" \
-          -H "Content-Type: application/octet-stream" \
-          --data-binary @"${{ inputs.apk-path }}" \
-          "$UPLOADS/releases/$REL_ID/assets?name=${{ inputs.apk-name }}")
-        APK_URL=$(echo "$UPLOAD" | jq -r '.browser_download_url // empty')
-
-        echo "release_url=$(jq -r .html_url /tmp/release.json)" >> "$GITHUB_OUTPUT"
-        echo "release_id=$REL_ID" >> "$GITHUB_OUTPUT"
-        echo "apk_url=$APK_URL" >> "$GITHUB_OUTPUT"
-        echo "draft $TAG ready: $(jq -r .html_url /tmp/release.json) (apk: $APK_URL)"
+        GH_TOKEN: ${{ inputs.github-token }}
+        APP_VERSION: ${{ inputs.version }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        PR_TITLE: ${{ inputs.pr-title }}
+        PR_BASE_SHA: ${{ inputs.base-sha }}
+        PR_HEAD_SHA: ${{ inputs.head-sha }}
+        APK_PATH: ${{ inputs.apk-path }}
+        APK_NAME: ${{ inputs.apk-name }}
+        EAS_BUILD_URL: ${{ inputs.eas-build-url }}
+        DEVELOPMENT_WEB_URL: ${{ inputs.web-preview-url }}
+        DEVELOPMENT_API_URL: ${{ inputs.api-preview-url }}
+      run: node .github/scripts/publish-pr-draft.mjs

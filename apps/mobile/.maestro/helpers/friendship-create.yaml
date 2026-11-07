@@ -1,0 +1,67 @@
+appId: com.bgo.mobile
+---
+# Normalize any existing friendship through real UI; new request/accept stay mandatory.
+- runFlow:
+    file: contact-search.yaml
+    env:
+      CONTACT_EMAIL: ${EMAIL_2}
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+- tapOn: "^Actions: E2E Target$"
+- extendedWaitUntil:
+    visible: "^Send friend request$|^Remove friend$"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "^Remove friend$"
+    commands:
+      - tapOn: "^Remove friend$"
+      - extendedWaitUntil:
+          visible:
+            id: "confirm-unfriend-btn"
+          timeout: 30000
+      - tapOn:
+          id: "confirm-unfriend-btn"
+      - extendedWaitUntil:
+          notVisible:
+            id: "confirmation-dialog"
+          timeout: 30000
+- runFlow:
+    when:
+      visible: "^Send friend request$"
+    commands:
+      - back
+- extendedWaitUntil:
+    notVisible: "^Send friend request$|^Remove friend$"
+    timeout: 30000
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+      ACTION_LABEL: "^Send friend request$"
+      CONFIRM_ID: "confirm-friend-request-btn"
+- runFlow:
+    file: switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL_2}
+      AUTH_PASSWORD: ${PASSWORD_2}
+- tapOn: "Contacts"
+- tapOn: "Requests"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 60000
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Test$"
+      ACTION_LABEL: "^Accept friend request$"
+      CONFIRM_ID: "confirm-accept_friend_request-btn"
+- tapOn: "Connections"
+- extendedWaitUntil:
+    visible: "Friends"
+    timeout: 30000
+- assertVisible: "E2E Test"
+- runFlow:
+    file: switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}

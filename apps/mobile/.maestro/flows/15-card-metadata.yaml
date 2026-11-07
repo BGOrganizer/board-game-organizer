@@ -1,0 +1,72 @@
+appId: com.bgo.mobile
+name: Group Event and Table card metadata
+# Explicit existing PRIVATE fixture; actor already signed in, same fixture as web manual scenario.
+# Two Event dates/venues, two Table games. No setup, consent shortcuts, resets or mocked responses.
+tags: [manual, cards]
+---
+- runScript: ../helpers/card-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible:
+      id: "list-search-input"
+    timeout: 120000
+- tapOn:
+    id: "list-search-input"
+- eraseText: 120
+- inputText: ${output.cardGroupName}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.cardGroup}
+    timeout: 120000
+- takeScreenshot: card-group-metadata
+- openLink: bgo:///events
+- tapOn:
+    id: "list-search-input"
+- eraseText: 120
+- inputText: ${output.cardEventName}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.cardEvent}
+    timeout: 120000
+- assertVisible: ${output.cardGroupParent}
+- assertVisible: ${output.cardDate}
+- assertVisible: ${output.cardTime}
+- assertVisible: ${output.cardVenue}
+- assertVisible: ${output.cardDateCount}
+- assertVisible: ${output.cardLocationCount}
+- takeScreenshot: card-event-metadata
+- openLink: bgo:///tables
+- tapOn:
+    id: "list-search-input"
+- eraseText: 120
+- inputText: ${output.cardTableName}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.cardTable}
+    timeout: 120000
+- assertVisible: ${output.cardEventParent}
+- assertVisible: ${output.cardGroupParent}
+- assertVisible: ${output.cardDate}
+- assertVisible: ${output.cardTime}
+- assertVisible: ${output.cardVenue}
+- assertVisible: ${output.cardDateCount}
+- assertVisible: ${output.cardLocationCount}
+- takeScreenshot: card-table-metadata
+- openLink: bgo:///events
+- extendedWaitUntil:
+    visible: ${output.cardEvent}
+    timeout: 120000
+- tapOn: ${output.cardEvent}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardTable}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.cardTable}
+- takeScreenshot: card-table-in-event
+# Parent identity is absent inside that same Event. Actual date/venue pixels require screenshot
+# review because Event Overview itself legitimately contains those values outside the Table card.
+- assertNotVisible: ${output.cardEventParent}
+- assertNotVisible: ${output.cardGroupParent}

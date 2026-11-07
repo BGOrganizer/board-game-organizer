@@ -1,0 +1,102 @@
+appId: com.bgo.mobile
+tags: [ci, bgg]
+---
+# Seeded BGG collection belongs to primary actor, not 09's target actor.
+- runFlow:
+    file: "../helpers/switch-actor.yaml"
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
+- openLink: bgo:///profile
+- extendedWaitUntil:
+    visible: "bgg-e2e"
+    timeout: 60000
+- assertVisible: "Friends: .*"
+- assertVisible: "Matches played: .*"
+- assertVisible: "Powered by BoardGameGeek"
+- assertNotVisible: "Sync with BoardGameGeek"
+- openLink: bgo:///matches
+- tapOn:
+    id: "create-match-fab"
+- extendedWaitUntil:
+    visible: "New match"
+    timeout: 60000
+- tapOn:
+    id: "match-name-input"
+- inputText: "BGG collection match"
+- hideKeyboard
+- runFlow: ../helpers/match-date-time.yaml
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Locations"
+    timeout: 60000
+- tapOn: "Select location"
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-select"
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-select"
+- tapOn: "Game cafe.*"
+- assertVisible: "Game cafe"
+- assertVisible:
+    id: "location-address-input"
+    text: ".*(Roma|Rome).*"
+- scrollUntilVisible:
+    element: "Confirm location"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Confirm location"
+- extendedWaitUntil:
+    visible: "Locations"
+    timeout: 30000
+- assertVisible: "Game cafe.*"
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 60000
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 60000
+- tapOn: "Select a board game"
+- extendedWaitUntil:
+    visible: "Collection"
+    timeout: 30000
+- assertVisible: "Cascadia"
+- tapOn: "Collection"
+- assertNotVisible: "Cascadia"
+- tapOn: "Collection"
+- assertVisible: "Cascadia"
+# Unfinished wizard must not create a match. Setup navigation has an explicit route.
+- openLink: bgo:///profile
+- extendedWaitUntil:
+    visible: "bgg-e2e"
+    timeout: 60000
+- tapOn: "Disconnect BoardGameGeek"
+- assertVisible: '^Disconnect BoardGameGeek\?$'
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- assertVisible: "bgg-e2e"
+- tapOn: "Disconnect BoardGameGeek"
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    visible: "Sync with BoardGameGeek"
+    timeout: 30000
+- assertNotVisible: "bgg-e2e"
+- tapOn: "Sync with BoardGameGeek"
+- assertVisible: "BGG username"
+- tapOn: "Cancel"
+- assertNotVisible: "BGG username"
+- openLink: bgo:///matches
+- extendedWaitUntil:
+    visible:
+      id: "create-match-fab"
+    timeout: 30000
+- assertNotVisible: "BGG collection match"

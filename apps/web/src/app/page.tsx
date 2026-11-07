@@ -1,21 +1,21 @@
 import { Show } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { Header } from "@/components/Header";
-import { LoginFallback } from "@/components/LoginFallback";
+import { LoginFallback } from "@/components/auth/LoginFallback";
+import { Header } from "@/components/common/layout/Header";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const { userId } = await auth();
 
-  if (userId) redirect("/matches");
+  if (userId) redirect("/tables");
 
   return (
     <div className="min-h-screen">
       <Header />
 
-      <main className="mx-auto max-w-2xl px-4 py-12">
+      <main className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
         <Show when="signed-out">
           <LoginFallback />
         </Show>

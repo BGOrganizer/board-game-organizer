@@ -10,6 +10,11 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.example
+.mcp.json
+google-services.json
+service-account.json
 *.log
 .DS_Store
 coverage/
@@ -17,11 +22,20 @@ coverage/
 .specify/
 .clinerules/
 .agents
-skills-lock.json
 
+apps/mobile/android/
 apps/mobile/build-output/
 .vercel/
 test-results/
 playwright-report/
-.pi/
+.pi/*
+!.pi/skills/
+.pi/skills/*
+!.pi/skills/bgo-component-architecture/
+.pi/skills/bgo-component-architecture/*
+!.pi/skills/bgo-component-architecture/SKILL.md
 core.*
+
+data/*
+!data/README.md
+boardgames_ranks.csv

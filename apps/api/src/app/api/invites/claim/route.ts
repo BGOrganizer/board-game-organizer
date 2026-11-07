@@ -1,10 +1,10 @@
 import type { User } from "@board-game-organizer/schemas";
 import { claimInviteParamsSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
+import { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb, withTransaction } from "@/app/lib/db";
-import { InvitesRepository } from "@/app/lib/invites.repository";
-import { RelationshipRepository } from "@/app/lib/relationship.repository";
+import { InvitesRepository } from "@/app/lib/invites/invites.repository";
 
 /**
  * POST /api/invites/claim — claim an invite link by token.

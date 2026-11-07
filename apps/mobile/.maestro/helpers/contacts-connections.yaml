@@ -1,0 +1,79 @@
+appId: com.bgo.mobile
+---
+- runFlow:
+    file: switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
+- tapOn:
+    id: "notifications-button"
+- extendedWaitUntil:
+    visible: "Friend request accepted"
+    timeout: 30000
+- tapOn: "Friend request accepted"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- assertVisible: "Friends"
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+      ACTION_LABEL: "^Remove friend$"
+      CONFIRM_ID: "confirm-unfriend-btn"
+- extendedWaitUntil:
+    notVisible: "Friends"
+    timeout: 30000
+- runFlow:
+    file: contact-search.yaml
+    env:
+      CONTACT_EMAIL: ${EMAIL_2}
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+- tapOn: "^Actions: E2E Target$"
+- extendedWaitUntil:
+    visible: "^Follow$"
+    timeout: 30000
+- tapOn: "^Follow$"
+- extendedWaitUntil:
+    notVisible: "^Follow$"
+    timeout: 30000
+- tapOn: "Connections"
+- extendedWaitUntil:
+    visible: "Following"
+    timeout: 30000
+- assertVisible: "E2E Target"
+- tapOn: "Search"
+- tapOn: "^Actions: E2E Target$"
+- extendedWaitUntil:
+    visible: "^Unfollow$"
+    timeout: 30000
+- tapOn: "^Unfollow$"
+- extendedWaitUntil:
+    notVisible: "^Unfollow$"
+    timeout: 30000
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+      ACTION_LABEL: "^Block$"
+      CONFIRM_ID: "confirm-block-btn"
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
+- tapOn: "Requests"
+- assertNotVisible: "E2E Target"
+- tapOn: "Connections"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- assertVisible: "Blocked"
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+      ACTION_LABEL: "^Unblock$"
+      CONFIRM_ID: "confirm-unblock-btn"
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
+- assertNotVisible: "Blocked"

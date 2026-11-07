@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Scatta una foto per il logo della tua organizzazione.",
+    "NSPhotoLibraryUsageDescription": "Scegli il logo dell'organizzazione dalla libreria fotografica."
+  }
+}

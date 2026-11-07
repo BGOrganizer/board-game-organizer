@@ -1,0 +1,183 @@
+appId: com.bgo.mobile
+---
+# Primary: cancelled confirmation must preserve menu, cancelled request must free slot.
+- runFlow:
+    file: contact-search.yaml
+    env:
+      CONTACT_EMAIL: ${EMAIL_2}
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+- tapOn: "^Actions: E2E Target$"
+- extendedWaitUntil:
+    visible: "Send friend request"
+    timeout: 30000
+- tapOn: "Send friend request"
+- assertVisible:
+    id: "confirm-friend-request-btn"
+- tapOn:
+    id: "cancel-confirmation-btn"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- assertVisible: "Send friend request"
+- tapOn: "Send friend request"
+- tapOn:
+    id: "confirm-friend-request-btn"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirmation-dialog"
+    timeout: 30000
+- tapOn: "Requests"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- assertVisible: "Sent"
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+      ACTION_LABEL: "^Cancel friend request$"
+      CONFIRM_ID: "confirm-cancel_friend_request-btn"
+- extendedWaitUntil:
+    visible: "No friend requests"
+    timeout: 30000
+- runFlow:
+    file: contact-search.yaml
+    env:
+      CONTACT_EMAIL: ${EMAIL_2}
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+      ACTION_LABEL: "^Send friend request$"
+      CONFIRM_ID: "confirm-friend-request-btn"
+- tapOn: "Requests"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- assertVisible: "Sent"
+# Target: permission, unread clearing, notification routing, rejection.
+- runFlow:
+    file: switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL_2}
+      AUTH_PASSWORD: ${PASSWORD_2}
+- tapOn:
+    id: "notifications-button"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - assertNotVisible: "View all notifications"
+      - tapOn: "Allow"
+- extendedWaitUntil:
+    visible: "View all notifications"
+    timeout: 30000
+- assertNotVisible: "Open notification settings"
+- extendedWaitUntil:
+    visible: "New friend request"
+    timeout: 30000
+- tapOn: "View all notifications"
+- extendedWaitUntil:
+    visible: "Mark all as read"
+    timeout: 30000
+- tapOn: "Mark all as read"
+- extendedWaitUntil:
+    notVisible: "Mark all as read"
+    timeout: 30000
+- tapOn: "New friend request"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 60000
+- assertVisible: "Received"
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Test$"
+      ACTION_LABEL: "^Decline friend request$"
+      CONFIRM_ID: "confirm-reject_friend_request-btn"
+- extendedWaitUntil:
+    notVisible: "E2E Test"
+    timeout: 30000
+- tapOn:
+    id: "notifications-button"
+- extendedWaitUntil:
+    visible: "View all notifications"
+    timeout: 30000
+- tapOn: "View all notifications"
+- extendedWaitUntil:
+    visible:
+      text: "New friend request"
+      index: 1
+    timeout: 30000
+# Two real requests produce two durable rows. Assert 2 -> 2 -> 1 -> 0.
+- tapOn:
+    id: "delete-notification-.*"
+    index: 0
+- assertVisible: '^Delete notification\?$'
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- assertVisible:
+    text: "New friend request"
+    index: 1
+- tapOn:
+    id: "delete-notification-.*"
+    index: 0
+- assertVisible: '^Delete notification\?$'
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible:
+      text: "New friend request"
+      index: 1
+    timeout: 30000
+- assertVisible: "New friend request"
+- tapOn:
+    id: "delete-notification-.*"
+    index: 0
+- assertVisible: '^Delete notification\?$'
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible: "New friend request"
+    timeout: 30000
+# Primary retries a rejected request; target explicitly accepts it.
+- runFlow:
+    file: switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
+- runFlow:
+    file: contact-search.yaml
+    env:
+      CONTACT_EMAIL: ${EMAIL_2}
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+      ACTION_LABEL: "^Send friend request$"
+      CONFIRM_ID: "confirm-friend-request-btn"
+- runFlow:
+    file: switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL_2}
+      AUTH_PASSWORD: ${PASSWORD_2}
+- tapOn: "Contacts"
+- tapOn: "Requests"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 60000
+- assertVisible: "Received"
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "^Actions: E2E Test$"
+      ACTION_LABEL: "^Accept friend request$"
+      CONFIRM_ID: "confirm-accept_friend_request-btn"
+- tapOn: "Connections"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 30000
+- assertVisible: "Friends"

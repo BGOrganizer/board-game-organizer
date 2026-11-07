@@ -1,20 +1,99 @@
 appId: com.bgo.mobile
+tags: [ci, auth, onboarding]
 ---
-# 2. Sign-in with the provisioned E2E test user.
-#    Clerk's sign-in is multi-step: identifier → Continue → password → Continue.
-- tapOn: "Sign in / Register"
+# Primary fixture must be new to onboarding. An absent form is a fixture failure.
+- runFlow:
+    file: "../helpers/sign-in.yaml"
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
 - extendedWaitUntil:
-    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    visible: "Mobile number"
     timeout: 120000
-- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
-- inputText: ${USERNAME}
-- tapOn: "Continue"
+- tapOn:
+    id: "country-calling-code-select"
+- tapOn: "Search countries by name or code"
+- inputText: "z"
+- assertVisible: "^z$"
+- inputText: "z"
+- assertVisible: "^zz$"
+- inputText: "z"
+- assertVisible: "^zzz$"
+- inputText: "z"
+- assertVisible: "^zzzz$"
+- assertVisible: "No countries found"
+- tapOn: "Clear search"
+- inputText: "D"
+- assertVisible: "^D$"
+- inputText: "E"
+- assertVisible: "^DE$"
+- runFlow:
+    when:
+      visible:
+        id: ".*inputmethod.*:id/.*"
+    commands:
+      - hideKeyboard
 - extendedWaitUntil:
-    visible: ".*[Ee]nter your [Pp]assword.*"
-    timeout: 60000
-- tapOn: ".*[Ee]nter your [Pp]assword.*"
-- inputText: ${PASSWORD}
-- tapOn: "Continue"
+    notVisible:
+      id: ".*inputmethod.*:id/.*"
+    timeout: 30000
+- tapOn: "Germany"
+- extendedWaitUntil:
+    notVisible: "^Search countries$"
+    timeout: 30000
+- assertVisible: '^Country calling code: Germany \+49$'
+- tapOn:
+    id: "country-calling-code-select"
+- tapOn: "Search countries by name or code"
+- inputText: "I"
+- assertVisible: "^I$"
+- inputText: "T"
+- assertVisible: "^IT$"
+- runFlow:
+    when:
+      visible:
+        id: ".*inputmethod.*:id/.*"
+    commands:
+      - hideKeyboard
+- extendedWaitUntil:
+    notVisible:
+      id: ".*inputmethod.*:id/.*"
+    timeout: 30000
+- tapOn: "Italy"
+- extendedWaitUntil:
+    notVisible: "^Search countries$"
+    timeout: 30000
+- assertVisible: '^Country calling code: Italy \+39$'
+- tapOn:
+    id: "mobile-number-input"
+- inputText: "not a formatted phone"
+- assertVisible:
+    id: "mobile-number-input"
+    text: "^not a formatted phone$"
+- runFlow:
+    when:
+      visible:
+        id: ".*inputmethod.*:id/.*"
+    commands:
+      - hideKeyboard
+- extendedWaitUntil:
+    notVisible:
+      id: ".*inputmethod.*:id/.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: "^Continue$"
+    direction: DOWN
+- tapOn: "^Continue$"
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 120000
+- assertNotVisible: "Mobile number"
+- openLink: bgo:///profile
+- extendedWaitUntil:
+    visible: ${output.authEmailPattern}
+    timeout: 120000
+- assertVisible: ${output.authEmailPattern}
+- openLink: bgo:///matches
+- assertVisible:
+    id: "profile-button"

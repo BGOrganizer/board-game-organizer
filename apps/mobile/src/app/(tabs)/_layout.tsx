@@ -1,32 +1,34 @@
-import { useAuth } from "@clerk/expo";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Tabs, usePathname, useRouter } from "expo-router";
+import { getBgoRole, getMobileNumber } from "@board-game-organizer/schemas";
+import { useAuth, useUser } from "@clerk/expo";
+import { Redirect, Tabs, useRouter } from "expo-router";
+import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
-import { useEffect } from "react";
+import {
+  CalendarDays,
+  ContactRound,
+  Dices,
+  Network,
+  ShieldCheck,
+  UserRound,
+  UsersRound,
+} from "lucide-react-native";
 import { Platform, View } from "react-native";
 
+import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NotificationNavigationBadge } from "@/components/notifications/NotificationNavigationBadge";
 import { useT } from "@/lib/i18n";
 
-/**
- * Guard: the tabs are only reachable when authenticated. After sign-out the
- * Clerk state flips and this layout redirects back to the welcome screen.
- * Uses router.replace in an effect (NOT a rendered <Redirect>); the pathname
- * check prevents a ping-pong with the index screen's guard while Clerk's auth
- * state settles.
- */
 export default function TabLayout() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const { isLoaded: isUserLoaded, user } = useUser();
   const t = useT();
   const router = useRouter();
-  const pathname = usePathname();
+  const [foreground, muted] = useThemeColor(["foreground", "muted"]);
 
-  useEffect(() => {
-    if (isLoaded && !isSignedIn && pathname !== "/") {
-      router.replace("/");
-    }
-  }, [isLoaded, isSignedIn, router, pathname]);
-
-  if (!isLoaded) {
+  if (!isAuthLoaded || (isSignedIn && !isUserLoaded)) {
     return (
       <View
         style={{
@@ -37,56 +39,106 @@ export default function TabLayout() {
           backgroundColor: "transparent",
         }}
       >
-        <Skeleton isLoading variant="pulse" style={{ width: 192, height: 48, borderRadius: 8 }} />
-        <Skeleton isLoading variant="pulse" style={{ width: 128, height: 16, borderRadius: 4 }} />
+        <Skeleton isLoading variant="pulse" style={{ width: 192, height: 32, borderRadius: 8 }} />
+        <Skeleton isLoading variant="pulse" style={{ width: "80%", height: 16, borderRadius: 4 }} />
       </View>
     );
   }
 
-  if (!isSignedIn) {
-    return null; // the effect above navigates back to the welcome screen
-  }
+  if (!isSignedIn) return <Redirect href="/" />;
+  if (!getMobileNumber(user?.unsafeMetadata)) return <Redirect href="/mobile-number" />;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#006fee",
+        tabBarInactiveTintColor: muted,
         animation: Platform.OS === "android" ? "none" : "fade",
+        headerRight: () => (
+          <View style={{ marginRight: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <NotificationBell />
+            {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
+              <Button
+                {...headerButtonProps}
+                variant="ghost"
+                accessibilityLabel={t("Group moderation")}
+                onPress={() => router.push("/moderation")}
+              >
+                <ShieldCheck size={HEADER_ICON_SIZE} color={foreground} />
+              </Button>
+            ) : null}
+            <Button
+              {...headerButtonProps}
+              variant="ghost"
+              accessibilityLabel={t("Profile")}
+              testID="profile-button"
+              onPress={() => router.push("/profile")}
+            >
+              <UserRound size={HEADER_ICON_SIZE} color={foreground} />
+            </Button>
+          </View>
+        ),
       }}
     >
       <Tabs.Screen
-        name="matches"
+        name="tables"
         options={{
-          title: t("Matches"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="home" color={color} />,
+          title: t("Tables"),
+          headerTitle: () => <HeaderTitle title={t("Tables")} icon={Dices} />,
+          tabBarIcon: ({ color }) => (
+            <View style={{ position: "relative" }}>
+              <Dices size={26} color={color} />
+              <NotificationNavigationBadge section="tables" />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="events"
+        options={{
+          title: t("Events"),
+          headerTitle: () => <HeaderTitle title={t("Events")} icon={CalendarDays} />,
+          tabBarIcon: ({ color }) => (
+            <View style={{ position: "relative" }}>
+              <CalendarDays size={26} color={color} />
+              <NotificationNavigationBadge section="events" />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="groups"
         options={{
           title: t("Groups"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="users" color={color} />,
+          headerTitle: () => <HeaderTitle title={t("Groups")} icon={UsersRound} />,
+          tabBarIcon: ({ color }) => (
+            <View style={{ position: "relative" }}>
+              <UsersRound size={26} color={color} />
+              <NotificationNavigationBadge section="groups" />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
-        name="organizations"
+        name="community"
         options={{
-          title: t("Organizations"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="cog" color={color} />,
+          title: t("Community"),
+          headerTitle: () => <HeaderTitle title={t("Community")} icon={Network} />,
+          tabBarIcon: ({ color }) => <Network size={26} color={color} />,
         }}
       />
+      <Tabs.Screen name="organizations" options={{ href: null }} />
+      <Tabs.Screen name="matches" options={{ href: null }} />
       <Tabs.Screen
         name="contacts"
         options={{
           title: t("Contacts"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="address-book" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t("Profile"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="user" color={color} />,
+          headerTitle: () => <HeaderTitle title={t("Contacts")} icon={ContactRound} />,
+          tabBarIcon: ({ color }) => (
+            <View style={{ position: "relative" }}>
+              <ContactRound size={26} color={color} />
+              <NotificationNavigationBadge section="contacts" />
+            </View>
+          ),
         }}
       />
     </Tabs>

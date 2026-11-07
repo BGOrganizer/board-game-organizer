@@ -1,0 +1,84 @@
+appId: com.bgo.mobile
+---
+- tapOn:
+    id: "create-group-fab"
+- tapOn: "Group name"
+- inputText: "abc"
+- assertVisible: "At least 5 characters"
+- tapOn: "Group name"
+- eraseText: 100
+- inputText: "Tabletop Friends"
+- assertVisible: "Tabletop Friends"
+- hideKeyboard
+- tapOn:
+    id: "group-public-switch"
+- assertVisible: "Select a friend"
+- tapOn: "Remove invite"
+- assertVisible: "Select a friend"
+- tapOn: "Select a friend"
+- assertVisible: "Search users"
+- back
+- assertVisible: "New group"
+- tapOn:
+    id: "save-group-fab"
+- extendedWaitUntil:
+    visible: "Open group: Tabletop Friends"
+    timeout: 30000
+- assertVisible: "Public"
+- assertVisible: "1 member"
+- assertVisible: "Group admin"
+- assertVisible: "Search groups"
+- assertVisible: "Admin"
+- assertVisible: "Invited"
+- assertVisible: "Accepted"
+- tapOn:
+    id: "list-search-input"
+- inputText: "Tabletop"
+- assertVisible: "Tabletop Friends"
+- tapOn: "Admin"
+- extendedWaitUntil:
+    visible: "No groups match your filters"
+    timeout: 30000
+- tapOn: "Admin"
+- extendedWaitUntil:
+    visible: "Open group: Tabletop Friends"
+    timeout: 30000
+- tapOn: "Clear search"
+- assertNotVisible: "Clear search"
+- tapOn: "Open group: Tabletop Friends"
+- assertVisible: "Settings"
+- tapOn: "Leaderboards"
+- assertVisible: "No matches played in this group yet"
+- assertNotVisible: "Board game"
+- tapOn: "Settings"
+- assertVisible:
+    id: "group-detail-scroll"
+- assertVisible: "Members"
+- assertVisible: "Invitations"
+- scrollUntilVisible:
+    element: "No invitations"
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "No invitations"
+- assertVisible: "Group admin"
+- tapOn: "Edit group"
+- assertVisible: "Edit group"
+- back
+- assertVisible: "Members"
+- tapOn: "Edit group"
+- assertVisible: "Tabletop Friends"
+- tapOn: "Group name"
+- eraseText: 100
+- inputText: "Weekend Games"
+- assertVisible: "Weekend Games"
+- hideKeyboard
+- tapOn:
+    id: "group-public-switch"
+- tapOn:
+    id: "save-group-fab"
+- extendedWaitUntil:
+    visible:
+      id: "group-detail-scroll"
+    timeout: 30000
+- assertVisible: "Weekend Games"
+- assertVisible: "Private"

@@ -1,0 +1,56 @@
+function required(value, name) {
+  if (typeof value !== "string" || value.length === 0) throw new Error("Missing " + name);
+  return value;
+}
+function escaped(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+var language = required(typeof CARD_LOCALE === "undefined" ? "" : CARD_LOCALE, "CARD_LOCALE");
+if (language !== "en" && language !== "it") throw new Error("CARD_LOCALE must be en or it");
+var italian = language === "it";
+output.cardGroupName = required(
+  typeof CARD_GROUP_NAME === "undefined" ? "" : CARD_GROUP_NAME,
+  "CARD_GROUP_NAME",
+);
+output.cardEventName = required(
+  typeof CARD_EVENT_NAME === "undefined" ? "" : CARD_EVENT_NAME,
+  "CARD_EVENT_NAME",
+);
+output.cardTableName = required(
+  typeof CARD_TABLE_NAME === "undefined" ? "" : CARD_TABLE_NAME,
+  "CARD_TABLE_NAME",
+);
+output.cardGroup =
+  "^" + (italian ? "Apri gruppo: " : "Open group: ") + escaped(output.cardGroupName) + "$";
+output.cardEvent =
+  "^" + (italian ? "Apri evento: " : "Open event: ") + escaped(output.cardEventName) + "$";
+output.cardTable =
+  "^" + (italian ? "Apri tavolo: " : "Open table: ") + escaped(output.cardTableName) + "$";
+output.cardGroupParent =
+  "^" + (italian ? "Gruppo: " : "Group: ") + escaped(output.cardGroupName) + "$";
+output.cardEventParent =
+  "^" + (italian ? "Evento: " : "Event: ") + escaped(output.cardEventName) + "$";
+output.cardDate =
+  ".*" +
+  escaped(
+    required(
+      typeof CARD_EVENT_DATE_LABEL === "undefined" ? "" : CARD_EVENT_DATE_LABEL,
+      "CARD_EVENT_DATE_LABEL",
+    ),
+  ) +
+  ".*";
+output.cardTime =
+  ".*" +
+  escaped(
+    required(
+      typeof CARD_EVENT_TIME_LABEL === "undefined" ? "" : CARD_EVENT_TIME_LABEL,
+      "CARD_EVENT_TIME_LABEL",
+    ),
+  ) +
+  ".*";
+output.cardVenue =
+  ".*" +
+  escaped(required(typeof CARD_VENUE === "undefined" ? "" : CARD_VENUE, "CARD_VENUE")) +
+  ".*";
+output.cardDateCount = italian ? "2 date proposte" : "2 proposed dates";
+output.cardLocationCount = italian ? "2 luoghi proposti" : "2 proposed locations";

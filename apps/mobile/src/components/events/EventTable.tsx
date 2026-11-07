@@ -1,0 +1,164 @@
+import {
+  canManageEvent,
+  communityAccessDenied,
+  tableItemTargets,
+  useEventRecord,
+  useRecordTable,
+} from "@board-game-organizer/shared";
+import { Stack, useRouter } from "expo-router";
+import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
+import { Tabs } from "heroui-native/tabs";
+import { Typography } from "heroui-native/text";
+import { ChartNoAxesCombined, ClipboardPenLine, Info, Trophy } from "lucide-react-native";
+import { useState } from "react";
+import { View } from "react-native";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
+import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
+import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
+import { useT } from "@/lib/i18n";
+import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventDeleteAction } from "./EventDeleteAction";
+import { EventTableLeaderboard } from "./EventTableLeaderboard";
+import { EventTableOverview } from "./EventTableOverview";
+import { EventTableResults } from "./EventTableResults";
+export function EventTable({
+  eventId,
+  tableId,
+  context = "personal",
+}: {
+  eventId: string;
+  tableId: string;
+  context?: "personal" | "event";
+}) {
+  const t = useT(),
+    o = useCommunityApi(),
+    q = useRecordTable(o, eventId, tableId),
+    event = useEventRecord(o, eventId),
+    router = useRouter(),
+    foreground = useThemeColor("accent-foreground");
+  const [tab, setTab] = useState("overview");
+  const table =
+    communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
+  const readOnly = Boolean(table?.readOnly || event.data?.readOnly);
+  const header = (
+    <Stack.Screen
+      options={{
+        title: table?.name ?? t("Table details"),
+        headerRight: () =>
+          table && event.data ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              {!readOnly &&
+              canManageEvent(event.data, o.userId) &&
+              event.data.status === "CONFIRMED" &&
+              event.data.canFinalize &&
+              table.eventStatus === "CONFIRMED" &&
+              table.confirmed ? (
+                <Button
+                  {...headerButtonProps}
+                  variant="primary"
+                  accessibilityLabel={t("Register result")}
+                  testID="table-register-result"
+                  isDisabled={q.isPlaceholderData || event.isPlaceholderData}
+                  onPress={() =>
+                    router.push({ pathname: "/event/results", params: { eventId, tableId } })
+                  }
+                >
+                  <ClipboardPenLine size={HEADER_ICON_SIZE} color={foreground} accessible={false} />
+                </Button>
+              ) : null}
+              <EventDeleteAction
+                event={event.data}
+                table={table}
+                disabled={q.isPlaceholderData || event.isPlaceholderData}
+              />
+            </View>
+          ) : null,
+      }}
+    />
+  );
+  if (!table || table.eventStatus === "PLANNING")
+    return (
+      <NotificationAttentionScope
+        options={o}
+        targets={
+          table && !readOnly
+            ? [
+                { kind: "table", id: tableId },
+                { kind: "event", id: eventId },
+                ...tableItemTargets(table),
+              ]
+            : []
+        }
+        readOnOpen={table && !readOnly ? { kind: "table", id: tableId } : undefined}
+      >
+        {header}
+        <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
+      </NotificationAttentionScope>
+    );
+  const selected =
+    (tab === "results" && table.eventStatus !== "TERMINATED") ||
+    (tab === "ranking" && table.sharedResultsOnly)
+      ? "overview"
+      : tab;
+  return (
+    <NotificationAttentionScope
+      options={o}
+      targets={
+        readOnly
+          ? []
+          : [
+              { kind: "table", id: tableId },
+              { kind: "event", id: eventId },
+              ...tableItemTargets(table),
+            ]
+      }
+      readOnOpen={readOnly ? undefined : { kind: "table", id: tableId }}
+    >
+      <View style={{ flex: 1 }}>
+        {header}
+        <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
+          <View style={{ alignItems: "center", paddingTop: 12 }}>
+            <TabBar style={{ alignSelf: "center", width: "auto" }}>
+              <TabTrigger icon={Info} value="overview" style={{ flexDirection: "row", gap: 6 }}>
+                <Tabs.Label>{t("Overview")}</Tabs.Label>
+                <NotificationTabBadge target={{ kind: "table", id: tableId }} />
+              </TabTrigger>
+              {table.eventStatus === "TERMINATED" ? (
+                <TabTrigger icon={Trophy} value="results">
+                  <Tabs.Label>{t("Results")}</Tabs.Label>
+                </TabTrigger>
+              ) : null}
+              {!table.sharedResultsOnly ? (
+                <TabTrigger icon={ChartNoAxesCombined} value="ranking">
+                  <Tabs.Label>{t("Ranking")}</Tabs.Label>
+                </TabTrigger>
+              ) : null}
+            </TabBar>
+          </View>
+          <View style={{ flex: 1 }}>
+            {selected === "ranking" ? (
+              <EventTableLeaderboard table={table} />
+            ) : selected === "results" ? (
+              <EventTableResults table={table} />
+            ) : (
+              <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
+            )}
+          </View>
+        </Tabs>
+        {q.isError && selected !== "overview" ? (
+          <View>
+            <Typography accessibilityRole="alert" className="text-danger">
+              {t("Could not load complete table details")}
+            </Typography>
+            <Button onPress={() => void q.refetch()}>
+              <Button.Label>{t("Try again")}</Button.Label>
+            </Button>
+          </View>
+        ) : null}
+      </View>
+    </NotificationAttentionScope>
+  );
+}

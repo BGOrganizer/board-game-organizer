@@ -1,0 +1,138 @@
+"use client";
+import { communityAccessDenied, useBggAccount, useProfileView } from "@board-game-organizer/shared";
+import { useAppStore } from "@board-game-organizer/store";
+import { Button, Skeleton, Tabs } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
+import { Gamepad2, LibraryBig, UsersRound } from "lucide-react";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
+import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { useCommunityApi } from "@/lib/useCommunityApi";
+import { ProfileBggCard } from "./ProfileBggCard";
+import { ProfileCollection } from "./ProfileCollection";
+import { ProfileLogout } from "./ProfileLogout";
+import { ProfilePlayer } from "./ProfilePlayer";
+import { ProfileRecentActivities } from "./ProfileRecentActivities";
+import { ProfileStats } from "./ProfileStats";
+
+export function Profile({ userId }: { userId?: string }) {
+  const { t, i18n } = useLingui(),
+    o = useCommunityApi();
+  const subject = userId ?? o.userId ?? "",
+    own = Boolean(o.userId && subject === o.userId),
+    q = useProfileView(o, subject);
+  const bgg = useBggAccount({
+    ...o,
+    enabled: own || (!communityAccessDenied(q.error) && Boolean(q.data?.collection)),
+  });
+  const active = communityAccessDenied(q.error)
+    ? null
+    : own
+      ? !communityAccessDenied(bgg.account.error)
+        ? bgg.account.data?.active
+        : null
+      : q.data?.collection;
+  const viewKey = JSON.stringify([o.apiUrl, o.userId, subject]);
+  const storedTab = useAppStore((s) => s.profileViews[viewKey]?.tab ?? "activity"),
+    setView = useAppStore((s) => s.setProfileView);
+  const tab = storedTab === "collection" && !active ? "activity" : storedTab;
+  const data = communityAccessDenied(q.error) ? undefined : q.data;
+  const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 });
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-4 p-5 pb-24">
+      <h1 className="sr-only">{t`Profile`}</h1>
+      {q.isPending && !data ? <Skeleton className="h-16 w-full rounded-xl" /> : null}
+      {q.isError ? (
+        <div role="alert">
+          <p className="text-danger">
+            {communityAccessDenied(q.error) ? t`Profile unavailable` : t`Could not load profile`}
+          </p>
+          <Button variant="secondary" onPress={() => void q.refetch()}>{t`Try again`}</Button>
+        </div>
+      ) : null}
+      {data ? (
+        <GroupedList>
+          <GroupedRow>
+            <UserIdentity
+              name={data.name || data.username || t`Unknown`}
+              avatarUrl={data.avatarUrl}
+              secondary={data.username ? `@${data.username}` : undefined}
+            />
+          </GroupedRow>
+        </GroupedList>
+      ) : null}
+      {own ? <ProfileBggCard bgg={bgg} /> : null}
+      {data ? (
+        <Tabs
+          selectedKey={tab}
+          onSelectionChange={(value) => {
+            if (value === "activity" || value === "player" || (active && value === "collection"))
+              setView(viewKey, { tab: value });
+          }}
+        >
+          <TabBar label={t`Profile navigation`}>
+            <TabTrigger icon={UsersRound} id="activity">
+              {t`Activities`}
+              <Tabs.Indicator />
+            </TabTrigger>
+            <TabTrigger icon={Gamepad2} id="player">
+              {t`Player`}
+              <Tabs.Indicator />
+            </TabTrigger>
+            {active ? (
+              <TabTrigger icon={LibraryBig} id="collection">
+                {t`Collection`}
+                <Tabs.Indicator />
+              </TabTrigger>
+            ) : null}
+          </TabBar>
+          <Tabs.Panel id="activity" className="space-y-4 pt-0">
+            <ProfileStats
+              items={[
+                { label: t`Friends`, value: number.format(data.social.friends) },
+                { label: t`Followers`, value: number.format(data.social.followers) },
+                { label: t`Following`, value: number.format(data.social.following) },
+              ]}
+            />
+            <ProfileRecentActivities userId={subject} author={data} />
+          </Tabs.Panel>
+          <Tabs.Panel id="player" className="space-y-4 pt-0">
+            <ProfileStats
+              items={[
+                { label: t`Games played`, value: number.format(data.player.gamesPlayed) },
+                { label: t`Games won`, value: number.format(data.player.gamesWon) },
+                {
+                  label: t`Win %`,
+                  value:
+                    data.player.winRate === null ? "—" : `${number.format(data.player.winRate)}%`,
+                },
+              ]}
+            />
+            <ProfilePlayer userId={subject} viewKey={viewKey} />
+          </Tabs.Panel>
+          {active ? (
+            <Tabs.Panel id="collection" className="pt-0">
+              <ProfileCollection
+                key={`${viewKey}:${active.snapshot}`}
+                snapshot={active.snapshot}
+                counts={active.counts}
+                subjectId={subject}
+                viewerSnapshot={
+                  communityAccessDenied(bgg.account.error)
+                    ? undefined
+                    : bgg.account.data?.active?.snapshot
+                }
+              />
+            </Tabs.Panel>
+          ) : null}
+        </Tabs>
+      ) : null}
+      {!data && !q.isPending && !q.isError ? (
+        <p className="text-muted">{t`Profile unavailable`}</p>
+      ) : null}
+      {own && (tab !== "collection" || !data) ? <ProfileLogout /> : null}
+    </div>
+  );
+}

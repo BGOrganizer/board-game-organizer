@@ -1,0 +1,239 @@
+"use client";
+import { notificationItemId, type TableSeatResponse } from "@board-game-organizer/schemas";
+import {
+  communityAccessDenied,
+  eventAvailabilityVoteIsAllowed,
+  eventOptionsRequireVote,
+  hasOtherAcceptedTable,
+  useEventCutoff,
+  useEventRecord,
+  useEventRecordActions,
+  useNotificationAttentionContext,
+  useRecordTable,
+} from "@board-game-organizer/shared";
+import { Button, Skeleton } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
+import { useState } from "react";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
+import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
+import { GameListRow } from "@/components/games/GameListRow";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventProposalSection } from "./EventProposalSection";
+import { EventTableInfo } from "./EventTableInfo";
+import { EventTableScheduleCard } from "./EventTableScheduleCard";
+import { EventTableSeats } from "./EventTableSeats";
+import { EventVoteButtons } from "./EventVoteButtons";
+import { EventVoteCounts } from "./EventVoteCounts";
+export function EventTableOverview({
+  eventId,
+  tableId,
+  context = "personal",
+}: {
+  eventId: string;
+  tableId: string;
+  context?: "personal" | "event";
+}) {
+  const { t } = useLingui(),
+    o = useCommunityApi(),
+    q = useRecordTable(o, eventId, tableId),
+    event = useEventRecord(o, eventId),
+    a = useEventRecordActions(o, eventId),
+    attention = useNotificationAttentionContext();
+  const [confirm, setConfirm] = useState<{
+    registrationId: string;
+    version: number;
+    action: "cancel" | "remove";
+    person: Pick<TableSeatResponse, "userId" | "name" | "username" | "avatarUrl">;
+  } | null>(null);
+  const table =
+    communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
+  const closed = useEventCutoff(table?.bookingClosesAt, table?.groupType === "PUBLIC");
+  if (!table)
+    return q.isPending ? (
+      <Skeleton className="h-40 w-full rounded-xl" />
+    ) : (
+      <div role="alert">
+        <p className="text-danger">{t`Could not load table`}</p>
+        <Button
+          onPress={() => {
+            void q.refetch();
+            void event.refetch();
+          }}
+        >{t`Try again`}</Button>
+      </div>
+    );
+  const run = (command: NonNullable<typeof confirm>) => {
+    if (
+      closed ||
+      table.eventStatus !== "PLANNING" ||
+      a.blocking ||
+      a.isResponding(command.registrationId) ||
+      (command.action === "remove"
+        ? !table.canInvite
+        : !table.canLeave || table.myRegistration?.id !== command.registrationId)
+    )
+      return;
+    a.respond.mutate({
+      tableId,
+      registrationId: command.registrationId,
+      person: command.person,
+      input: { action: command.action, version: command.version },
+    });
+    setConfirm(null);
+  };
+  const gameVotes = table.myRegistration?.gameVotes ?? {};
+  const votableGames = eventOptionsRequireVote(table.games);
+  const canVote =
+    votableGames &&
+    table.eventStatus === "PLANNING" &&
+    event.data?.status === "PLANNING" &&
+    event.data.canVote &&
+    !closed &&
+    table.myRegistration?.status === "ACCEPTED";
+  return (
+    <div className="mx-auto max-w-4xl space-y-5 pb-24">
+      <EventTableInfo table={table} />
+      <EventTableScheduleCard
+        table={table}
+        timeZone={event.data?.timeZone ?? table.eventSchedule?.location?.timeZone}
+      />
+      {context === "personal" ? (
+        <section className="space-y-2" aria-label={t`Event`}>
+          <h2 className="font-semibold">{t`Event`}</h2>
+          <LinkedListCard
+            href={`/events/${table.eventId}`}
+            notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
+            label={`${t`Open event`}: ${table.eventName}`}
+          >
+            <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
+            <span className="flex min-w-0 flex-1 self-center items-center gap-2">
+              <span className="min-w-0 truncate font-medium">{table.eventName}</span>
+              <NotificationUnreadDot
+                active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
+              />
+            </span>
+          </LinkedListCard>
+        </section>
+      ) : null}
+      {q.isError ? (
+        <div role="alert">
+          <p className="text-danger">{t`Could not load complete table details`}</p>
+          <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
+        </div>
+      ) : null}
+      {event.isError ? (
+        <div role="alert">
+          <p className="text-danger">{t`Could not load event`}</p>
+          <Button onPress={() => void event.refetch()}>{t`Try again`}</Button>
+        </div>
+      ) : null}
+      <section className="space-y-3" aria-label={t`Board games`}>
+        <NotificationItem itemId={notificationItemId(table.id, "games")} readOnly>
+          <h2 className="font-semibold">{t`Board games`}</h2>
+        </NotificationItem>
+        <GroupedList>
+          {table.gamesDetail
+            .filter(
+              (game) =>
+                table.eventStatus === "PLANNING" ||
+                !table.confirmed ||
+                table.confirmed.gameId === game.id,
+            )
+            .map((game) => (
+              <GameListRow
+                key={game.id}
+                name={game.name}
+                imageUrl={game.imageUrl}
+                year={game.year}
+                titleAccessory={
+                  <NotificationItem
+                    itemId={notificationItemId(table.id, "game", game.id)}
+                    readOnly={!canVote}
+                  />
+                }
+                average={game.average}
+                rank={game.rank}
+                metadata={
+                  votableGames ? (
+                    <EventVoteCounts
+                      label={game.name}
+                      counts={table.gameVoteCounts?.[String(game.id)]}
+                    />
+                  ) : undefined
+                }
+                actions={
+                  <>
+                    {canVote ? (
+                      <EventVoteButtons
+                        label={game.name}
+                        value={gameVotes[String(game.id)]}
+                        disabledVotes={
+                          eventAvailabilityVoteIsAllowed(
+                            table.games.map((row) => ({ id: String(row.gameId) })),
+                            gameVotes,
+                            String(game.id),
+                            "NO",
+                          )
+                            ? []
+                            : ["NO"]
+                        }
+                        busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
+                        onChange={(vote) =>
+                          a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
+                        }
+                      />
+                    ) : undefined}
+                  </>
+                }
+              />
+            ))}
+        </GroupedList>
+        {event.data ? (
+          <EventProposalSection
+            event={event.data}
+            kind="game"
+            table={table}
+            disabled={q.isPlaceholderData || event.isPlaceholderData}
+          />
+        ) : null}
+      </section>
+      {!table.sharedResultsOnly ? (
+        <EventTableSeats
+          key={table.id}
+          table={table}
+          hasJoinedEvent={
+            event.data?.myRegistrations
+              ? hasOtherAcceptedTable(event.data.myRegistrations, table.id)
+              : undefined
+          }
+          onRemove={(row, own) =>
+            setConfirm({
+              registrationId: row.id,
+              version: row.version,
+              action: own ? "cancel" : "remove",
+              person: {
+                userId: row.userId,
+                name: row.name,
+                username: row.username,
+                avatarUrl: row.avatarUrl,
+              },
+            })
+          }
+        />
+      ) : null}
+      {confirm ? (
+        <ContactConfirmDialog
+          title={confirm.action === "cancel" ? t`Leave table` : t`Remove player`}
+          description={t`This removes the active table registration.`}
+          busy={a.blocking || a.isResponding(confirm.registrationId)}
+          onCancel={() => setConfirm(null)}
+          actions={[{ label: t`Confirm`, variant: "danger", onPress: () => void run(confirm) }]}
+        />
+      ) : null}
+    </div>
+  );
+}

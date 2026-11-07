@@ -1,0 +1,42 @@
+appId: com.bgo.mobile
+name: Table labels, waiting states and usernames
+# Owned Development/Preview fixtures; already authenticated in selected EN/IT locale.
+# FREE: editable valid future Event with one small Table. FULL: small full PLANNING Table.
+# CONFIRMED: included Table with supplied player on first roster page. No saves, resets or mocks.
+tags: [manual, tables, profile]
+---
+- runScript: ../helpers/table-player-ux-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.ux.free}
+- scrollUntilVisible:
+    element: ${output.ux.empty}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.ux.waiting}
+- assertNotVisible: ${output.ux.join}
+- openLink: ${output.ux.full}
+- scrollUntilVisible:
+    element: ${output.ux.join}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.ux.waitingHelp}
+- assertVisible: ${output.ux.waitingText}
+- back
+- openLink: ${output.ux.confirmed}
+- scrollUntilVisible:
+    element: ${output.ux.username}
+    direction: DOWN
+    timeout: 120000
+- assertNotVisible: ${output.ux.email}
+- openLink: bgo:///profile
+- tapOn: ${output.ux.player}
+- assertVisible: ${output.ux.win}
+- openLink: ${output.ux.edit}
+- tapOn: ${output.ux.next}
+- assertVisible: ${output.ux.name}
+- assertVisible: ${output.ux.nameHelp}
+- tapOn: ${output.ux.countHelp}
+- assertVisible: ${output.ux.countText}
+- back
+- takeScreenshot: table-player-ux-unsaved-draft

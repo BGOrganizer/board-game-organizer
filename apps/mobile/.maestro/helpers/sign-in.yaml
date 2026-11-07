@@ -1,0 +1,49 @@
+appId: com.bgo.mobile
+---
+- runScript: auth-email.js
+- assertVisible: "Sign in / Register"
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: "^Email address$|.*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
+    timeout: 120000
+- runFlow:
+    when:
+      visible: "^Email address$"
+    commands:
+      - tapOn: "^Email address$"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
+    timeout: 120000
+- tapOn: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
+# Clerk may retain an identifier. Native Select all avoids deleting only a suffix.
+- runFlow:
+    when:
+      visible: "Last used"
+    commands:
+      - longPressOn: '^[^\s@]+@[^\s@]+$'
+      - runFlow:
+          when:
+            notVisible: "[Ss]elect [Aa]ll"
+          commands:
+            - runFlow:
+                when:
+                  visible: "More options"
+                commands:
+                  - tapOn: "More options"
+      - runFlow:
+          when:
+            visible: "[Ss]elect [Aa]ll"
+          commands:
+            - tapOn: "[Ss]elect [Aa]ll"
+      - eraseText: 1
+- inputText: ${AUTH_EMAIL}
+- assertVisible: ${output.authEmailPattern}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "^[Ee]nter your [Pp]assword$"
+    timeout: 60000
+- tapOn: "^[Ee]nter your [Pp]assword$"
+- eraseText: 100
+- inputText: ${AUTH_PASSWORD}
+- tapOn: "Continue"
+- runFlow: verify-clerk-device.yaml

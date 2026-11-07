@@ -1,0 +1,19 @@
+appId: com.bgo.mobile
+---
+# AUTH_EMAIL / AUTH_PASSWORD name the next actor, never a remembered session.
+- runFlow: logout.yaml
+- runFlow: sign-in.yaml
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- openLink: bgo:///profile
+- extendedWaitUntil:
+    visible: ${output.authEmailPattern}
+    timeout: 120000
+- assertVisible: ${output.authEmailPattern}
+- openLink: bgo:///matches
+- extendedWaitUntil:
+    visible:
+      id: "profile-button"
+    timeout: 120000
+- assertVisible: "Matches"

@@ -1,0 +1,70 @@
+appId: com.bgo.mobile
+---
+- tapOn: "Add table"
+- assertVisible:
+    id: "event-table-header-back"
+- tapOn: "Table name"
+- eraseText: 100
+- inputText: "Cascadia event table"
+- assertVisible: "Cascadia event table"
+- hideKeyboard
+- tapOn:
+    id: "event-table-startsAt-calendar"
+- runFlow:
+    file: event-time.yaml
+    env:
+      HOUR: "14"
+      MINUTE: "00"
+- assertVisible: "Choose a time within the allowed range."
+- tapOn:
+    id: "event-table-startsAt-calendar"
+- runFlow:
+    file: event-time.yaml
+    env:
+      HOUR: "14"
+      MINUTE: "30"
+- assertNotVisible: "Choose a time within the allowed range."
+- tapOn:
+    id: "event-table-endsAt-calendar"
+- runFlow:
+    file: event-time.yaml
+    env:
+      HOUR: "17"
+      MINUTE: "30"
+- tapOn: "Select a board game"
+- tapOn: "Search board games"
+- inputText: "Cascadia"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Select: Cascadia"
+    timeout: 30000
+- tapOn: "Select: Cascadia"
+- assertVisible: "Configure table"
+- scrollUntilVisible:
+    element: "Global ratings enabled"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Global ratings enabled, off"
+- assertVisible:
+    text: "Global ratings enabled, on"
+    checked: true
+- scrollUntilVisible:
+    element: "Save table"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Save table"
+- extendedWaitUntil:
+    visible: "Edit table: Cascadia event table"
+    timeout: 30000
+- assertVisible: "Cascadia event table"
+- tapOn: "Edit table: Cascadia event table"
+- scrollUntilVisible:
+    element: "Global ratings enabled"
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    text: "Global ratings enabled, on"
+    checked: true
+- tapOn:
+    id: "event-table-header-back"
+- assertVisible: "Cascadia event table"
