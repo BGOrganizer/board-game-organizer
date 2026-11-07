@@ -15,10 +15,10 @@ export function ListCardBody({
 }) {
   return (
     <div className="min-w-0 flex-1 space-y-2">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {titleIcon}
         <span className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="min-w-0 truncate font-semibold">{title}</span>
+          <span className="min-w-0 break-words font-semibold">{title}</span>
           <NotificationUnreadDot active={unread} />
         </span>
         {titleAccessory}

@@ -36,6 +36,7 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
+import { GroupIdentityCard } from "./GroupIdentityCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
 import { GroupJoinRequest } from "./GroupJoinRequest";
 import { GroupLeaderboard } from "./GroupLeaderboard";
@@ -135,6 +136,7 @@ export function GroupDetail({
             {failure}
           </p>
         ) : null}
+        <GroupIdentityCard group={group} />
         <Tabs
           selectedKey={
             (tab === "events" && !group.canViewEvents) ||
@@ -181,7 +183,7 @@ export function GroupDetail({
             ) : null}
           </TabBar>
           <Tabs.Panel id="info" className="pt-0">
-            <GroupDetailsCard group={group} />
+            <GroupDetailsCard group={group} identity={null} />
             {bodyActions.length ? (
               <GroupJoinRequest
                 pending={group.role === "requested"}

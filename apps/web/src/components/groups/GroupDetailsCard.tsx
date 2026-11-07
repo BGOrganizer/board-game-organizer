@@ -12,51 +12,57 @@ import { GroupStatusBadge } from "./GroupStatusBadge";
 export function GroupDetailsCard({
   group,
   children,
+  identity,
 }: {
   group: GroupRecordResponse;
   children?: ReactNode;
+  identity?: ReactNode;
 }) {
   const { t, i18n } = useLingui();
   const numbers = new Intl.NumberFormat(i18n.locale),
     Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
   return (
     <div className="space-y-4">
-      <InfoSection
-        label={t`Name`}
-        helpLabel={t`Group name help`}
-        help={t`Name, logo and group type. Group type cannot be changed.`}
-        icon={UsersRound}
-        headerAccessory={<GroupStatusBadge group={group} />}
-      >
-        <GroupedRow className="gap-4 p-4">
-          <GroupArtwork group={group} />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <p className="min-w-0 flex-1 break-words font-semibold">{group.name}</p>
-              <NotificationItem
-                itemId={notificationItemId(group.id, "overview", undefined, "group")}
-                readOnly
-              />
-            </div>
-            <p className="flex items-center gap-1 text-sm text-muted">
-              <Visibility className="size-4" aria-hidden />
-              {group.type === "PUBLIC" ? t`Public` : t`Private`}
-            </p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              <span className="inline-flex items-center gap-1">
-                <UsersRound className="size-4 text-muted" aria-hidden />
-                {numbers.format(group.memberCount)} {t`Confirmed members`}
-              </span>
-              {group.canViewEvents && group.eventCount !== null ? (
+      {identity === undefined ? (
+        <InfoSection
+          label={t`Name`}
+          helpLabel={t`Group name help`}
+          help={t`Name, logo and group type. Group type cannot be changed.`}
+          icon={UsersRound}
+          headerAccessory={<GroupStatusBadge group={group} />}
+        >
+          <GroupedRow className="gap-4 p-4">
+            <GroupArtwork group={group} />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="min-w-0 flex-1 break-words font-semibold">{group.name}</p>
+                <NotificationItem
+                  itemId={notificationItemId(group.id, "overview", undefined, "group")}
+                  readOnly
+                />
+              </div>
+              <p className="flex items-center gap-1 text-sm text-muted">
+                <Visibility className="size-4" aria-hidden />
+                {group.type === "PUBLIC" ? t`Public` : t`Private`}
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                 <span className="inline-flex items-center gap-1">
-                  <CalendarDays className="size-4 text-muted" aria-hidden />
-                  {numbers.format(group.eventCount)} {t`Events`}
+                  <UsersRound className="size-4 text-muted" aria-hidden />
+                  {numbers.format(group.memberCount)} {t`Confirmed members`}
                 </span>
-              ) : null}
+                {group.canViewEvents && group.eventCount !== null ? (
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarDays className="size-4 text-muted" aria-hidden />
+                    {numbers.format(group.eventCount)} {t`Events`}
+                  </span>
+                ) : null}
+              </div>
             </div>
-          </div>
-        </GroupedRow>
-      </InfoSection>
+          </GroupedRow>
+        </InfoSection>
+      ) : (
+        identity
+      )}
       {group.location ? (
         <InfoSection
           label={t`Group venue`}

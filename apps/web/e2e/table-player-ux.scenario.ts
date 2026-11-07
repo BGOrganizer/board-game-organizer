@@ -47,6 +47,9 @@ for (const width of [390, 1280])
         exact: true,
       });
     await page.goto(free);
+    await main
+      .getByRole("tab", { name: it ? "Partecipanti" : "Participants", exact: true })
+      .click();
     await expect(
       waiting.getByText(it ? "Nessun utente in lista d'attesa" : "No players waiting", {
         exact: true,
@@ -55,6 +58,9 @@ for (const width of [390, 1280])
     await expect(waiting.getByRole("list")).toHaveCount(0);
     await expect(waiting.getByRole("button")).toHaveCount(1); // Dedicated help, no queue action.
     await page.goto(full);
+    await main
+      .getByRole("tab", { name: it ? "Partecipanti" : "Participants", exact: true })
+      .click();
     await expect(
       waiting.getByRole("button", {
         name: it ? "Mettiti in coda" : "Join waiting list",
@@ -72,6 +78,9 @@ for (const width of [390, 1280])
     ).toBeVisible();
     await page.keyboard.press("Escape");
     await page.goto(confirmed);
+    await main
+      .getByRole("tab", { name: it ? "Partecipanti" : "Participants", exact: true })
+      .click();
     await expect(main.getByText(username, { exact: true }).first()).toBeVisible();
     await expect(main.getByText(playerEmail, { exact: true })).toHaveCount(0);
     await page.goto("/profile");

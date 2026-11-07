@@ -4,7 +4,10 @@ import type {
   TableSeatPosition,
 } from "@board-game-organizer/schemas";
 import { fireEvent, screen } from "@testing-library/react";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+
+vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
+
 import { GroupCard } from "@/components/groups/GroupCard";
 import { groupRecord, plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -49,7 +52,8 @@ it("does not award organizer participation, infer queue positions, or keep a pos
   expect(screen.getByRole("button", { name: "Administrator" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   q.rerender(<EventCard event={{ ...event, role: "member" }} />);
-  expect(screen.queryByRole("button")).toBeNull();
+  expect(screen.getByRole("button", { name: "Group member" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   q.rerender(<EventCard event={{ ...event, myRegistrations: [reg("ACCEPTED", "SELF")] }} />);
   expect(screen.getByLabelText("Loading…")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
@@ -88,6 +92,6 @@ it("retains uploaded Group logos and their list-only non-overlay status", () => 
     "data:image/png;base64,public-artwork",
   );
   const trigger = screen.getByRole("button", { name: "Group admin" });
-  expect(trigger.parentElement?.className).toContain("top-20");
+  expect(trigger.parentElement?.className).toContain("flex-wrap");
   expect(document.querySelector(".absolute.left-0.top-0")).toBeNull();
 });

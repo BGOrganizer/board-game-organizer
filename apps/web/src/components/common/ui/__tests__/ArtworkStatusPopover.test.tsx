@@ -27,8 +27,23 @@ it.each([
     "list-ordered",
     "text-warning",
   ],
-  ["admin", "Administrator", "You administer this item.", "crown", "text-warning"],
+  ["admin", "Administrator", "You administer this item.", "crown", "text-muted"],
   ["member", "Group member", "You are a member of this group.", "user-round-check", "text-success"],
+  [
+    "manager",
+    "Management",
+    "Your current permissions allow managing this item.",
+    "shield-check",
+    "text-muted",
+  ],
+  [
+    "demonstrator",
+    "Demonstrator",
+    "You are assigned to demonstrate a game.",
+    "presentation",
+    "text-muted",
+  ],
+  ["viewer", "Viewer", "You can view this item.", "eye", "text-muted"],
 ] as const)(
   "explains %s without activating card navigation",
   async (kind, label, description, icon, tone) => {
@@ -36,6 +51,7 @@ it.each([
     renderWithI18n(
       <LinkedListCard
         href="/events/id"
+        artwork={<span aria-hidden>Artwork</span>}
         label="Open item"
         onOpen={onOpen}
         leadingActions={<ArtworkStatusPopover kind={kind} />}
@@ -45,10 +61,12 @@ it.each([
     );
     const trigger = screen.getByRole("button", { name: label });
     expect(trigger.closest("a")).toBeNull();
-    expect(trigger.parentElement?.className).toContain("top-20");
-    expect(trigger.parentElement?.className).toContain("justify-center");
+    expect(trigger.parentElement?.className).toContain("flex-wrap");
+    expect(trigger.parentElement?.className).not.toContain("absolute");
     expect(trigger.className).toContain(tone);
-    expect(trigger.classList.contains(`${tone}-soft-foreground`)).toBe(true);
+    expect(
+      trigger.classList.contains(tone === "text-muted" ? tone : `${tone}-soft-foreground`),
+    ).toBe(true);
     for (const geometry of ["inline-flex", "items-center", "justify-center"])
       expect(trigger.classList.contains(geometry)).toBe(true);
     expect(trigger.className).toContain("button--sm");

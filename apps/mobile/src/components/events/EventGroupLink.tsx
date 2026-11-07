@@ -28,12 +28,14 @@ export function EventGroupLink({ groupId, name }: { groupId: string; name?: stri
       <LinkedListCard
         label={`${t("Open group")}: ${label ?? t("Group")}`}
         onPress={() => router.push({ pathname: "/group/[groupId]", params: { groupId } })}
+        artwork={
+          record && record.logo !== undefined ? (
+            <GroupArtwork group={record} status="none" />
+          ) : (
+            <Skeleton style={{ width: 64, height: 64, borderRadius: 12 }} />
+          )
+        }
       >
-        {record && record.logo !== undefined ? (
-          <GroupArtwork group={record} />
-        ) : (
-          <Skeleton style={{ width: 64, height: 64, borderRadius: 12 }} />
-        )}
         {label ? (
           <Typography
             className="font-medium text-foreground"

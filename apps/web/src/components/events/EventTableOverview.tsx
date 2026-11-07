@@ -23,7 +23,6 @@ import { GameListRow } from "@/components/games/GameListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventProposalSection } from "./EventProposalSection";
-import { EventTableInfo } from "./EventTableInfo";
 import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
@@ -32,10 +31,12 @@ export function EventTableOverview({
   eventId,
   tableId,
   context = "personal",
+  section = "overview",
 }: {
   eventId: string;
   tableId: string;
   context?: "personal" | "event";
+  section?: "overview" | "participants";
 }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -96,115 +97,119 @@ export function EventTableOverview({
     table.myRegistration?.status === "ACCEPTED";
   return (
     <div className="mx-auto max-w-4xl space-y-5 pb-24">
-      <EventTableInfo table={table} />
-      <EventTableScheduleCard
-        table={table}
-        timeZone={event.data?.timeZone ?? table.eventSchedule?.location?.timeZone}
-      />
-      {context === "personal" ? (
-        <section className="space-y-2" aria-label={t`Event`}>
-          <h2 className="font-semibold">{t`Event`}</h2>
-          <LinkedListCard
-            href={`/events/${table.eventId}`}
-            notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
-            label={`${t`Open event`}: ${table.eventName}`}
-          >
-            <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
-            <span className="flex min-w-0 flex-1 self-center items-center gap-2">
-              <span className="min-w-0 truncate font-medium">{table.eventName}</span>
-              <NotificationUnreadDot
-                active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
-              />
-            </span>
-          </LinkedListCard>
+      <div hidden={section === "participants"} className="space-y-5">
+        <EventTableScheduleCard
+          table={table}
+          timeZone={event.data?.timeZone ?? table.eventSchedule?.location?.timeZone}
+        />
+        {context === "personal" ? (
+          <section className="space-y-2" aria-label={t`Event`}>
+            <h2 className="font-semibold">{t`Event`}</h2>
+            <LinkedListCard
+              href={`/events/${table.eventId}`}
+              notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
+              label={`${t`Open event`}: ${table.eventName}`}
+              artwork={
+                <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={64} />
+              }
+            >
+              <span className="flex min-w-0 flex-1 self-center items-center gap-2">
+                <span className="min-w-0 truncate font-medium">{table.eventName}</span>
+                <NotificationUnreadDot
+                  active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
+                />
+              </span>
+            </LinkedListCard>
+          </section>
+        ) : null}
+        {q.isError ? (
+          <div role="alert">
+            <p className="text-danger">{t`Could not load complete table details`}</p>
+            <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
+          </div>
+        ) : null}
+        <section className="space-y-3" aria-label={t`Board games`}>
+          <NotificationItem itemId={notificationItemId(table.id, "games")} readOnly>
+            <h2 className="font-semibold">{t`Board games`}</h2>
+          </NotificationItem>
+          <GroupedList>
+            {table.gamesDetail
+              .filter(
+                (game) =>
+                  table.eventStatus === "PLANNING" ||
+                  !table.confirmed ||
+                  table.confirmed.gameId === game.id,
+              )
+              .map((game) => (
+                <GameListRow
+                  key={game.id}
+                  name={game.name}
+                  imageUrl={game.imageUrl}
+                  year={game.year}
+                  titleAccessory={
+                    <NotificationItem
+                      itemId={notificationItemId(table.id, "game", game.id)}
+                      readOnly={!canVote}
+                    />
+                  }
+                  average={game.average}
+                  rank={game.rank}
+                  metadata={
+                    votableGames ? (
+                      <EventVoteCounts
+                        label={game.name}
+                        counts={table.gameVoteCounts?.[String(game.id)]}
+                      />
+                    ) : undefined
+                  }
+                  actions={
+                    <>
+                      {canVote ? (
+                        <EventVoteButtons
+                          label={game.name}
+                          value={gameVotes[String(game.id)]}
+                          disabledVotes={
+                            eventAvailabilityVoteIsAllowed(
+                              table.games.map((row) => ({ id: String(row.gameId) })),
+                              gameVotes,
+                              String(game.id),
+                              "NO",
+                            )
+                              ? []
+                              : ["NO"]
+                          }
+                          busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
+                          onChange={(vote) =>
+                            a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
+                          }
+                        />
+                      ) : undefined}
+                    </>
+                  }
+                />
+              ))}
+          </GroupedList>
+          {event.data ? (
+            <EventProposalSection
+              event={event.data}
+              kind="game"
+              table={table}
+              disabled={q.isPlaceholderData || event.isPlaceholderData}
+            />
+          ) : null}
         </section>
-      ) : null}
-      {q.isError ? (
-        <div role="alert">
-          <p className="text-danger">{t`Could not load complete table details`}</p>
-          <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
-        </div>
-      ) : null}
+      </div>
       {event.isError ? (
         <div role="alert">
           <p className="text-danger">{t`Could not load event`}</p>
           <Button onPress={() => void event.refetch()}>{t`Try again`}</Button>
         </div>
       ) : null}
-      <section className="space-y-3" aria-label={t`Board games`}>
-        <NotificationItem itemId={notificationItemId(table.id, "games")} readOnly>
-          <h2 className="font-semibold">{t`Board games`}</h2>
-        </NotificationItem>
-        <GroupedList>
-          {table.gamesDetail
-            .filter(
-              (game) =>
-                table.eventStatus === "PLANNING" ||
-                !table.confirmed ||
-                table.confirmed.gameId === game.id,
-            )
-            .map((game) => (
-              <GameListRow
-                key={game.id}
-                name={game.name}
-                imageUrl={game.imageUrl}
-                year={game.year}
-                titleAccessory={
-                  <NotificationItem
-                    itemId={notificationItemId(table.id, "game", game.id)}
-                    readOnly={!canVote}
-                  />
-                }
-                average={game.average}
-                rank={game.rank}
-                metadata={
-                  votableGames ? (
-                    <EventVoteCounts
-                      label={game.name}
-                      counts={table.gameVoteCounts?.[String(game.id)]}
-                    />
-                  ) : undefined
-                }
-                actions={
-                  <>
-                    {canVote ? (
-                      <EventVoteButtons
-                        label={game.name}
-                        value={gameVotes[String(game.id)]}
-                        disabledVotes={
-                          eventAvailabilityVoteIsAllowed(
-                            table.games.map((row) => ({ id: String(row.gameId) })),
-                            gameVotes,
-                            String(game.id),
-                            "NO",
-                          )
-                            ? []
-                            : ["NO"]
-                        }
-                        busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
-                        onChange={(vote) =>
-                          a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
-                        }
-                      />
-                    ) : undefined}
-                  </>
-                }
-              />
-            ))}
-        </GroupedList>
-        {event.data ? (
-          <EventProposalSection
-            event={event.data}
-            kind="game"
-            table={table}
-            disabled={q.isPlaceholderData || event.isPlaceholderData}
-          />
-        ) : null}
-      </section>
       {!table.sharedResultsOnly ? (
         <EventTableSeats
           key={table.id}
           table={table}
+          active={section === "participants"}
           hasJoinedEvent={
             event.data?.myRegistrations
               ? hasOtherAcceptedTable(event.data.myRegistrations, table.id)

@@ -92,6 +92,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/{events/EventTableGamesPopover,groups/GroupIdentityCard}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "../../packages/shared/src/games/hooks/useBggCollectionFilters.ts": {
           lines: 100,
           functions: 100,

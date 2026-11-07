@@ -31,9 +31,11 @@ export function EventTableSeats({
   header,
   onRemove,
   hasJoinedEvent,
+  active = true,
 }: {
   table: PlannedTableResponse;
   header?: ReactNode;
+  active?: boolean;
   hasJoinedEvent?: boolean;
   onRemove: (row: TableSeatResponse, own: boolean) => void;
 }) {
@@ -50,7 +52,7 @@ export function EventTableSeats({
     (table.canRegister || table.canInvite) &&
     (table.groupType !== "PRIVATE" || hasJoinedEvent !== undefined);
   const end = useInfiniteScroll({
-    hasNextPage: roster.hasNextPage,
+    hasNextPage: active && roster.hasNextPage,
     isFetchingNextPage: roster.isFetchingNextPage,
     isFetchNextPageError: roster.isFetchNextPageError,
     fetchNextPage: async () => roster.more(),
@@ -60,7 +62,7 @@ export function EventTableSeats({
     setJoining(true);
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" hidden={!active}>
       {header}
       {[
         { title: t`Seats list`, rows: roster.seatRows, waiting: false },

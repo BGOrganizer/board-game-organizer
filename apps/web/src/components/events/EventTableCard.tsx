@@ -1,6 +1,7 @@
 "use client";
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import {
+  canManageEvent,
   tableParticipation,
   tablePendingAction,
   useEventCutoff,
@@ -24,7 +25,9 @@ import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebear
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
+import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventCardSchedule } from "./EventCardSchedule";
+import { EventTableGamesPopover } from "./EventTableGamesPopover";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
 /** Parent identity/schedule appears only in the personal feed, never inside its Event. */
 export function EventTableCard({
@@ -40,6 +43,8 @@ export function EventTableCard({
     table.bookingClosesAt,
     table.groupType === "PUBLIC" && table.eventStatus === "PLANNING",
   );
+  const { userId } = useCommunityApi();
+  const manager = canManageEvent(table, userId);
   const indicator = tableParticipation(table.myRegistration, table.myPosition);
   const games = table.gamesDetail.filter(
       (game) =>
@@ -81,15 +86,26 @@ export function EventTableCard({
       label={`${t`Open table`}: ${table.name}`}
       notificationCount={attention?.get(attentionTarget)?.count}
       leadingActions={
-        indicator === null ? undefined : (
-          <ArtworkStatusPopover
-            kind={indicator}
-            action={closed ? null : tablePendingAction(table)}
-          />
-        )
+        <>
+          {indicator !== null ? (
+            <ArtworkStatusPopover
+              kind={indicator}
+              action={closed ? null : tablePendingAction(table)}
+            />
+          ) : null}
+          {manager ? (
+            <ArtworkStatusPopover kind="manager" />
+          ) : indicator === null ? (
+            <ArtworkStatusPopover kind="viewer" />
+          ) : null}
+          {table.demonstratorUserId && table.demonstratorUserId === userId ? (
+            <ArtworkStatusPopover kind="demonstrator" />
+          ) : null}
+          <EventTableGamesPopover games={games} name={table.name} />
+        </>
       }
+      artwork={<AnimatedDicebearArtwork seed={table.id} variant="planets" />}
     >
-      <AnimatedDicebearArtwork seed={table.id} variant="planets" />
       <ListCardBody
         title={table.name}
         unread={Boolean(attention?.get(attentionTarget)?.count)}
@@ -122,7 +138,7 @@ export function EventTableCard({
               <EventCardSchedule schedule={table.eventSchedule} />
             </>
           ) : null}
-          <div className="flex flex-nowrap items-center gap-3 overflow-x-auto text-sm tabular-nums">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm tabular-nums">
             {counts.map(({ icon: Icon, label, value }) => (
               <span key={label} className="inline-flex shrink-0 items-center gap-1">
                 <Icon className="size-4 text-muted" aria-hidden />

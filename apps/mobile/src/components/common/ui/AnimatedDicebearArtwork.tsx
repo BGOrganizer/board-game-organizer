@@ -29,10 +29,12 @@ export function AnimatedDicebearArtwork({
   seed,
   variant,
   size = 64,
+  presentation = "thumbnail",
 }: {
   seed: string;
   variant: keyof typeof styles;
   size?: number;
+  presentation?: "thumbnail" | "background";
 }) {
   const xml = useMemo(
     () => new DiceBearAvatar(styles[variant], { seed, size: size + 8 }).toString(),
@@ -57,13 +59,30 @@ export function AnimatedDicebearArtwork({
       importantForAccessibility="no-hide-descendants"
       pointerEvents="none"
       className="bg-accent/10"
-      style={{ width: size, height: size, flexShrink: 0, borderRadius: 12, overflow: "hidden" }}
+      style={
+        presentation === "background"
+          ? { position: "absolute", inset: 0, borderRadius: 12, overflow: "hidden" }
+          : { width: size, height: size, flexShrink: 0, borderRadius: 12, overflow: "hidden" }
+      }
     >
       <Animated.View
         testID={variant === "waves" ? "match-waves-image" : `dicebear-${variant}-image`}
-        style={[{ position: "absolute", left: -4, top: -4 }, animatedStyle]}
+        style={[
+          {
+            position: "absolute",
+            left: -4,
+            top: -4,
+            ...(presentation === "background" ? { right: -4, bottom: -4 } : {}),
+          },
+          animatedStyle,
+        ]}
       >
-        <SvgXml xml={xml} width={size + 8} height={size + 8} />
+        <SvgXml
+          xml={xml}
+          width={presentation === "background" ? "100%" : size + 8}
+          height={presentation === "background" ? "100%" : size + 8}
+          preserveAspectRatio="xMidYMid slice"
+        />
       </Animated.View>
     </View>
   );

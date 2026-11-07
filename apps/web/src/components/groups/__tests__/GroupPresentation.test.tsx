@@ -42,8 +42,8 @@ describe("unified group presentation", () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "accepted" }} />);
     const badge = screen.getByRole("button", { name: "Group member" });
     expect(badge.className).toContain("text-success-soft-foreground");
-    expect(badge.parentElement?.className).toContain("top-20");
-    expect(badge.parentElement?.className).toContain("justify-center");
+    expect(badge.parentElement?.className).toContain("flex-wrap");
+    expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-user-round-check")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);
     expect(screen.queryByRole("button", { name: "Group admin" })).toBeNull();
@@ -80,8 +80,8 @@ describe("unified group presentation", () => {
     expect(screen.getByText("Invitation received")).not.toBeNull();
     const badge = screen.getByRole("button", { name: "Invitation received · Reply required" });
     expect(badge.className).toContain("text-warning");
-    expect(badge.parentElement?.className).toContain("top-20");
-    expect(badge.parentElement?.className).toContain("justify-center");
+    expect(badge.parentElement?.className).toContain("flex-wrap");
+    expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);
     expect(screen.queryByText("Events")).toBeNull();
@@ -119,8 +119,8 @@ describe("unified group presentation", () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "requested" }} />);
     const badge = screen.getByRole("button", { name: "Membership requested" });
     expect(badge.className).toContain("text-warning");
-    expect(badge.parentElement?.className).toContain("top-20");
-    expect(badge.parentElement?.className).toContain("justify-center");
+    expect(badge.parentElement?.className).toContain("flex-wrap");
+    expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-clock-3")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);
     expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();

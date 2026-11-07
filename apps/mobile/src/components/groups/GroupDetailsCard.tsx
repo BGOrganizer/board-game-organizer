@@ -21,9 +21,11 @@ import { GroupStatusBadge } from "./GroupStatusBadge";
 export function GroupDetailsCard({
   group,
   children,
+  identity,
 }: {
   group: GroupRecordResponse;
   children?: ReactNode;
+  identity?: ReactNode;
 }) {
   const t = useT(),
     { i18n } = useLingui(),
@@ -32,64 +34,68 @@ export function GroupDetailsCard({
     Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
   return (
     <View style={{ gap: 16 }}>
-      <InfoSection
-        label={t("Name")}
-        helpLabel={t("Group name help")}
-        help={t("Name, logo and group type. Group type cannot be changed.")}
-        icon={UsersRound}
-        headerAccessory={<GroupStatusBadge group={group} />}
-      >
-        <GroupedRow>
-          <View
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 16,
-              paddingVertical: 4,
-              paddingRight: 4,
-            }}
-          >
-            <GroupArtwork group={group} />
-            <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Typography
-                  className="font-semibold text-foreground"
-                  style={{ flex: 1, minWidth: 0 }}
-                >
-                  {group.name}
-                </Typography>
-                <NotificationItem
-                  itemId={notificationItemId(group.id, "overview", undefined, "group")}
-                  readOnly
-                />
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Visibility size={14} color={muted} accessible={false} />
-                <Typography className="text-muted">
-                  {group.type === "PUBLIC" ? t("Public") : t("Private")}
-                </Typography>
-              </View>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      {identity === undefined ? (
+        <InfoSection
+          label={t("Name")}
+          helpLabel={t("Group name help")}
+          help={t("Name, logo and group type. Group type cannot be changed.")}
+          icon={UsersRound}
+          headerAccessory={<GroupStatusBadge group={group} />}
+        >
+          <GroupedRow>
+            <View
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 16,
+                paddingVertical: 4,
+                paddingRight: 4,
+              }}
+            >
+              <GroupArtwork group={group} />
+              <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Typography
+                    className="font-semibold text-foreground"
+                    style={{ flex: 1, minWidth: 0 }}
+                  >
+                    {group.name}
+                  </Typography>
+                  <NotificationItem
+                    itemId={notificationItemId(group.id, "overview", undefined, "group")}
+                    readOnly
+                  />
+                </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <UsersRound size={14} color={muted} accessible={false} />
-                  <Typography className="text-foreground">
-                    {numbers.format(group.memberCount)} {t("Confirmed members")}
+                  <Visibility size={14} color={muted} accessible={false} />
+                  <Typography className="text-muted">
+                    {group.type === "PUBLIC" ? t("Public") : t("Private")}
                   </Typography>
                 </View>
-                {group.canViewEvents && group.eventCount !== null ? (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <CalendarDays size={14} color={muted} accessible={false} />
+                    <UsersRound size={14} color={muted} accessible={false} />
                     <Typography className="text-foreground">
-                      {numbers.format(group.eventCount)} {t("Events")}
+                      {numbers.format(group.memberCount)} {t("Confirmed members")}
                     </Typography>
                   </View>
-                ) : null}
+                  {group.canViewEvents && group.eventCount !== null ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <CalendarDays size={14} color={muted} accessible={false} />
+                      <Typography className="text-foreground">
+                        {numbers.format(group.eventCount)} {t("Events")}
+                      </Typography>
+                    </View>
+                  ) : null}
+                </View>
               </View>
             </View>
-          </View>
-        </GroupedRow>
-      </InfoSection>
+          </GroupedRow>
+        </InfoSection>
+      ) : (
+        identity
+      )}
       {group.location ? (
         <InfoSection
           label={t("Group venue")}

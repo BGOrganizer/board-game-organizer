@@ -121,6 +121,7 @@ it.each([
         }).outputText,
         {
           roster,
+          active: true,
           t: (text: string) => text,
           muted: "muted",
           EmptyList: "EmptyList",

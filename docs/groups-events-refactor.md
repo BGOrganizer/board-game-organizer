@@ -190,28 +190,29 @@ exceptions supersede older membership-only activity/detail statements below.
   never a second Event-removal request. TERMINATED history remains immutable. Menu/tab visibility never
   triggers Group-member dwell or notification acknowledgments. Negative optimistic intent uses owned
   caches only; later epochs/registrations survive, and uncertain outcomes require verification.
-- Event list/detail and parent links share stable-ID animated DiceBear Constellation artwork.
-  Event detail starts with a Details label and voting-legend help above its artwork card:
-  name and status first. When opened from the main Events list (or an unmarked direct link), a separate
-  Group section immediately below Details links the approved Group artwork/name; it is not nested in
-  the Event identity card. Opening from that same Group omits this redundant parent item. Table detail
-  starts with Settings and player-limit help above its Planets card: name, shared Rating badge, and
-  minimum/maximum counts with their existing icons. Immediately below, Event labels a linked item
-  with the parent Event's name and matching stable artwork when opened from Main Tables or an unmarked
-  direct link; entry from that same Event omits it. Explicit scalar parent-ID URL hints carry only
-  presentation context, never authority or shared global navigation state. Group context survives
-  Event edits; ordinary back navigation retains its existing stack behavior. Voting help states accepted-only voting, reserved
-  pending places until acceptance, and participation through at least one Table.
+- Web and native use horizontal HeroUI Card compositions for Group/Event/Table lists and parent
+  links: wrapping text at left, fixed proportional artwork at right, and individually backed
+  informational triggers in a wrapping row below the text, outside stretched navigation targets.
+  Details instead start with HeroUI background-artwork Cards, followed immediately by their existing
+  top tabs. They retain stable-ID Planets/Constellation/Landscape artwork, uploaded Group logos,
+  reduced motion, HeroUI semantic surfaces and foregrounds; no palette or dependency is added.
+  Event Details retains voting-legend help and its precise overview read control. When opened from
+  the main Events list (or an unmarked direct link), its separate Group section links the approved
+  Group artwork/name; entry from that same Group omits it. Table identity retains Settings/player-limit
+  help, Rating and minimum/maximum counts; its Overview retains the separate parent Event link for
+  personal/direct entry, omitted when opened from that Event. Parent-ID URL hints remain presentation
+  context only. Group context, Back, FAB/header actions and route parameters are unchanged.
+  Voting help still explains accepted-only voting, pending reserved places and explicit Table consent.
 - Main Tables and parent Event lists use one platform-owned Table card. Animated DiceBear Planets
-  artwork uses the persisted Table ID on the left, consistently with saved/edit/review cards. Its
-  centered action below the 64px artwork shows the viewer's seated/frozen accepted state (success
+  artwork uses the persisted Table ID on the right of list cards; saved/edit/review artwork keeps
+  its current identity. A left-side informational action shows the seated/frozen accepted state (success
   check), pending invitation (warning mail), pending request (warning clock), or waiting list (warning
   ordered-list icon). Its accessible popover explains that state. The trigger is a sibling of the
   navigation link/pressable, never an interactive child of it; opening it does not navigate, accept
   consent or acknowledge notification attention.
   Group/Event/Table cards share title typography and leading identity icons. Group visibility,
   venue and member/Event counts use the same body typography as Event/Table metadata.
-  Right-side Table rows show bold name/Dices with Rating at far right. Only Main Tables shows
+  Text-side Table rows show bold name/Dices with Rating. Only Main Tables shows
   separate labeled Event/calendar and Group/people rows, then the parent Event's localized,
   human-readable date/time and verified venue; Event-context cards omit those redundant parent
   rows and schedule. Event cards likewise label their associated Group and show their own schedule.
@@ -228,19 +229,26 @@ exceptions supersede older membership-only activity/detail statements below.
   requests never expose self-approval. Following rows show first game
   with Dices and localized additional `+n game/games`, optional demonstrator with presentation icon,
   and all joint winner names with trophy only when terminated. Group list invitation/request/admin
-  indicators use the same centered explanatory action. Accepted members also receive a success check
+  indicators use the same left-side explanatory actions. Accepted members also receive a success check
   with a Group member explanation; pending applicants/invitees and discovery-only viewers never receive
   that member indicator. Compact picker/detail overlays remain unchanged.
   Generated Group Landscape artwork uses the Group ID, never its mutable name. Uploaded logos remain
   untouched; unsaved Table artwork retains its existing local key until a server ID exists.
-- Event list cards have one centered participation indicator. A complete own-registration source
+- Event list cards retain their authoritative participation indicator. A complete own-registration source
   projection prioritizes any accepted seated/frozen Table, then pending request, pending invitation,
   then waiting list. Organizer identity alone does not grant participation; an organizer with no
   participation retains an admin indicator. Read-only own `position` metadata uses the same agreed
   reservation projection/frozen roster as Table reads and is never persisted as a new status.
   Missing accepted-seat evidence in older caches or raw mutation receipts shows only a partial
   indicator skeleton until canonical reconciliation; clients do not infer an aggregate from a paged
-  subset of Tables.
+  subset of Tables. Management and demonstrator duty may appear alongside participation, never in
+  its place. Generic Management means the existing capability, not an invented admin/moderator
+  distinction when the DTO lacks that role; Viewer never grants membership, consent or authority.
+  Table cards in main and Event lists additionally expose one read-only games popover: existing
+  canonical approved choices in planning, the existing chosen-game projection after confirmation.
+  It reuses game rows with image/name/known year/BGG average/rank, never votes, pending proposals,
+  mutations or per-card detail requests. Absent metadata stays absent. Native renders a bounded
+  8/6/7 FlatList; web uses eight-row local presentation pages, neither fetching more server data.
 - From the main Events list, creation preloads only the source-filtered first page of creator Groups
   into the same scoped Query cache as the picker. The selector also loads before opening in an
   unlocked wizard, uses compact artwork and a bounded scroll viewport, and paginates/searches at source.
@@ -619,8 +627,14 @@ there are no repeated identical notifications or player reminders to change vote
   or an invented zero. Missing duration stays Unknown; missing cached zone stays a partial skeleton
   until the existing Event query resolves. Only PUBLIC Tables with an assigned demonstrator show the
   usual grouped avatar/name user item. Planning and excluded Tables have no finalized schedule card.
-- Confirmed Table detail has Overview and Ranking top tabs. Terminated detail additionally has
-  Results, with immutable standings/ND and GLOBAL/GROUP deltas only when ratings were enabled.
+- Table detail separates the existing seats/waiting UI into Participants: planning has Overview /
+  Participants, confirmed adds Ranking, and terminated additionally has Results. The same roster
+  reader stays mounted across Overview/Participants; hidden roster UI never advances pagination.
+  Exact invitation-attention links start on Participants without accepting or reading the invitation.
+  Public/shared-results access keeps its current restrictions; shared results expose no Participants
+  or Ranking. Overview retains existing game proposals/votes and schedules. Existing roster rows,
+  consent, waiting order, frozen players, dialogs, error recovery and destructive confirmations remain.
+  Results retain immutable standings/ND and GLOBAL/GROUP deltas only when ratings were enabled.
   Current ranking is always available for the selected frozen game and every frozen player, including
   unrated players and rating-disabled Tables. Grouped Tables use GROUP scope; standalone uses GLOBAL.
   The source-paged authenticated Table leaderboard reads current snapshots and genuine physical-Table

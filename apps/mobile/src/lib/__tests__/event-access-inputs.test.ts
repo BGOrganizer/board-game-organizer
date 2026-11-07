@@ -60,6 +60,32 @@ it.each(["denied", "enroll", "picker", "finalize", "draft"])(
     ).toBe(mode);
   },
 );
+it.each(["en", "it"])(
+  "requires named owned presentation fixtures and escapes popup selectors in %s",
+  (locale) => {
+    const result = run(
+      { groupName: "Owned group [x]", groupType: "PRIVATE", gameName: "Game +" },
+      { EVENT_ACCESS_MODE: "presentation", EVENT_ACCESS_LOCALE: locale },
+    );
+    expect(
+      new RegExp(result.gamesHelp).test(
+        (locale === "it" ? "Giochi da tavolo: " : "Board games: ") + input.tableName,
+      ),
+    ).toBe(true);
+    expect(new RegExp(result.approvedGame).test("Game +")).toBe(true);
+    expect(result.groupListTab).toBe(locale === "it" ? "^Privati$" : "^Private groups$");
+    expect(new RegExp(result.entry).test(locale === "it" ? "Posto libero" : "Free place")).toBe(
+      true,
+    );
+    expect(() => run({}, { EVENT_ACCESS_MODE: "presentation" })).toThrow(/presentation fixture/);
+    expect(() =>
+      run(
+        { groupName: "Group", groupType: "OTHER", gameName: "Game" },
+        { EVENT_ACCESS_MODE: "presentation" },
+      ),
+    ).toThrow();
+  },
+);
 it.each([
   { EVENT_ACCESS_FIXTURE_ACK: "" },
   { EVENT_ACCESS_BUILD_ACK: "" },

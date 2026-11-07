@@ -13,6 +13,7 @@ export function HelpPopover({
   icon: Icon = CircleHelp,
   tone = "muted",
   indicator,
+  triggerClassName,
   children,
 }: {
   label: string;
@@ -21,6 +22,7 @@ export function HelpPopover({
   tone?: "muted" | "warning" | "success";
   width?: number;
   indicator?: ReactNode;
+  triggerClassName?: string;
   align?: Extract<ComponentProps<typeof Popover.Content>, { presentation: "popover" }>["align"];
   onOpenChange?: ComponentProps<typeof Popover>["onOpenChange"];
   children: ReactNode;
@@ -38,6 +40,7 @@ export function HelpPopover({
           isIconOnly
           size="sm"
           variant="ghost"
+          className={triggerClassName}
           accessibilityLabel={label}
           style={{ position: "relative", minWidth: 44, minHeight: 44 }}
         >

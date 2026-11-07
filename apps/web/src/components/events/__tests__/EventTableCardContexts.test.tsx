@@ -110,9 +110,11 @@ it.each(["personal", "event"] as const)(
     const q = renderWithI18n(<EventTableCard table={base} context={context} />);
     const check = (label: string, icon: string, color: string) => {
       const badge = screen.getByRole("button", { name: label });
-      expect(badge.parentElement?.className).toContain("top-20");
-      expect(badge.parentElement?.className).toContain("w-16");
-      expect(badge.parentElement?.className).toContain("justify-center");
+      expect(badge.parentElement?.className).toContain("flex-wrap");
+      expect(badge.parentElement?.className).not.toContain("absolute");
+      expect(
+        badge.parentElement?.contains(screen.getByRole("button", { name: /^Board games:/ })),
+      ).toBe(true);
       expect(badge.className).toContain(color);
       expect(badge.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
       expect(screen.getByRole("link").contains(badge)).toBe(false);

@@ -35,9 +35,10 @@ it("preserves guarded native Back routes while custom close/back actions use the
 });
 it("keeps the centered indicator outside card navigation and one Table legend per list", () => {
   const card = source("common/ui/LinkedListCard");
-  expect(card.indexOf("</Pressable>")).toBeLessThan(card.indexOf("{leadingActions ?"));
-  expect(card).toContain("top: 80");
-  expect(card).toContain("width: 64");
+  expect(card).toContain("StyleSheet.absoluteFill");
+  expect(card.indexOf("<Pressable")).toBeLessThan(card.indexOf("{leadingActions}"));
+  expect(card).toContain('pointerEvents="none"');
+  expect(card).toContain('flexWrap: "wrap"');
   expect(card).toContain('alignItems: "center"');
   expect(source("events/EventTableCard")).not.toContain("<HelpPopover");
   for (const path of ["events/TableList", "events/EventDetail"])

@@ -1,10 +1,12 @@
 "use client";
 
+import { Card } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ListCard } from "./ListCard";
 
+/** Horizontal HeroUI card; the stretched link never contains a popover trigger. */
 export function LinkedListCard({
   href,
   label,
@@ -13,6 +15,7 @@ export function LinkedListCard({
   onOpen,
   actions,
   leadingActions,
+  artwork,
   children,
 }: {
   href: string;
@@ -22,37 +25,35 @@ export function LinkedListCard({
   onOpen?: () => void;
   actions?: ReactNode;
   leadingActions?: ReactNode;
+  artwork: ReactNode;
   children: ReactNode;
 }) {
   const { t } = useLingui();
   return (
-    <div className="relative min-w-0">
-      <ListCard>
-        <Link
-          href={href}
-          aria-label={label}
-          aria-description={notificationCount ? t`Unread updates` : undefined}
-          aria-disabled={disabled}
-          onClick={(event) => {
-            if (disabled) event.preventDefault();
-            else if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey)
-              onOpen?.();
-          }}
-          className={`flex w-full cursor-pointer items-start gap-3 rounded-xl p-3 text-left hover:bg-default focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${leadingActions ? "min-h-[136px]" : ""}`}
-        >
+    <ListCard className="isolate flex-row items-start">
+      <Link
+        href={href}
+        aria-label={label}
+        aria-description={notificationCount ? t`Unread updates` : undefined}
+        aria-disabled={disabled}
+        onClick={(event) => {
+          if (disabled) event.preventDefault();
+          else if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) onOpen?.();
+        }}
+        className="absolute inset-0 rounded-xl hover:bg-default focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+      />
+      <Card.Content className="pointer-events-none relative flex min-w-0 flex-1 flex-row items-start gap-4 p-4">
+        <div className="min-w-0 flex-1 space-y-2">
           {children}
-        </Link>
-        {leadingActions ? (
-          <div className="absolute left-3 top-20 z-10 flex w-16 justify-center rounded-lg bg-surface">
-            {leadingActions}
-          </div>
-        ) : null}
-        {actions ? (
-          <div className="absolute right-2 bottom-2 z-10 flex gap-1 rounded-lg bg-surface p-0.5">
-            {actions}
-          </div>
-        ) : null}
-      </ListCard>
-    </div>
+          {leadingActions || actions ? (
+            <div className="pointer-events-auto relative flex w-fit max-w-full flex-wrap items-center gap-1">
+              {leadingActions}
+              {actions}
+            </div>
+          ) : null}
+        </div>
+        <div className="shrink-0">{artwork}</div>
+      </Card.Content>
+    </ListCard>
   );
 }

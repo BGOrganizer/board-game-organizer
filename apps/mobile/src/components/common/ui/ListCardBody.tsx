@@ -18,14 +18,10 @@ export function ListCardBody({
 }) {
   return (
     <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
         {titleIcon}
         <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Typography
-            className="font-semibold text-foreground"
-            numberOfLines={1}
-            style={{ flexShrink: 1 }}
-          >
+          <Typography className="font-semibold text-foreground" style={{ flexShrink: 1 }}>
             {title}
           </Typography>
           <NotificationUnreadDot active={unread} />

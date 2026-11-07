@@ -17,8 +17,8 @@ export function SearchHelpLabel({
 }) {
   const { t } = useLingui();
   return (
-    <div className="flex items-center gap-1">
-      <Label htmlFor={htmlFor} className="font-bold">
+    <div className="flex min-w-0 items-center gap-1">
+      <Label htmlFor={htmlFor} className="min-w-0 break-words font-bold">
         {label}
         {required ? <span aria-hidden> *</span> : null}
       </Label>

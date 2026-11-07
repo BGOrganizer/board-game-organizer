@@ -172,7 +172,7 @@ it("leaves the actual wizard, toasts and paints a draft before POST; a GET-befor
   const provisional = list.getByRole("link", { name: "Saving: Nonblocking event" });
   expect(provisional.getAttribute("aria-disabled")).toBe("true");
   expect(provisional.getAttribute("href")).toBe("/events");
-  expect(provisional.textContent).toContain("Players: 0");
+  expect(provisional.closest(".card")?.textContent).toContain("Players: 0");
   const sent = JSON.parse(
     String(fetch.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body),
   );

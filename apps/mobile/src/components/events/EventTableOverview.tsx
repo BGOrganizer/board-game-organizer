@@ -27,7 +27,6 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventProposalSection } from "./EventProposalSection";
-import { EventTableInfo } from "./EventTableInfo";
 import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
@@ -36,10 +35,12 @@ export function EventTableOverview({
   eventId,
   tableId,
   context = "personal",
+  section = "overview",
 }: {
   eventId: string;
   tableId: string;
   context?: "personal" | "event";
+  section?: "overview" | "participants";
 }) {
   const t = useT(),
     o = useCommunityApi(),
@@ -108,9 +109,18 @@ export function EventTableOverview({
     event.data.canVote &&
     !closed &&
     table.myRegistration?.status === "ACCEPTED";
+  const eventRecovery = event.isError ? (
+    <View style={{ gap: 8 }}>
+      <Typography accessibilityRole="alert" className="text-danger">
+        {t("Could not load event")}
+      </Typography>
+      <Button onPress={() => void event.refetch()}>
+        <Button.Label>{t("Try again")}</Button.Label>
+      </Button>
+    </View>
+  ) : null;
   const header = (
     <View style={{ gap: 16 }}>
-      <EventTableInfo table={table} />
       <EventTableScheduleCard
         table={table}
         timeZone={event.data?.timeZone ?? table.eventSchedule?.location?.timeZone}
@@ -126,8 +136,10 @@ export function EventTableOverview({
             onPress={() =>
               router.push({ pathname: "/event/[eventId]", params: { eventId: table.eventId } })
             }
+            artwork={
+              <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={64} />
+            }
           >
-            <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
             <View
               style={{
                 flex: 1,
@@ -158,16 +170,6 @@ export function EventTableOverview({
             {t("Could not load complete table details")}
           </Typography>
           <Button onPress={() => void q.refetch()}>
-            <Button.Label>{t("Try again")}</Button.Label>
-          </Button>
-        </View>
-      ) : null}
-      {event.isError ? (
-        <View style={{ gap: 8 }}>
-          <Typography accessibilityRole="alert" className="text-danger">
-            {t("Could not load event")}
-          </Typography>
-          <Button onPress={() => void event.refetch()}>
             <Button.Label>{t("Try again")}</Button.Label>
           </Button>
         </View>
@@ -246,7 +248,10 @@ export function EventTableOverview({
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: table.name }} />
       {table.sharedResultsOnly ? (
-        <ScreenScrollView>{header}</ScreenScrollView>
+        <ScreenScrollView>
+          {header}
+          {eventRecovery}
+        </ScreenScrollView>
       ) : (
         <EventTableSeats
           key={table.id}
@@ -256,7 +261,13 @@ export function EventTableOverview({
               ? hasOtherAcceptedTable(event.data.myRegistrations, table.id)
               : undefined
           }
-          header={header}
+          header={
+            <>
+              {section === "overview" ? header : null}
+              {eventRecovery}
+            </>
+          }
+          active={section === "participants"}
           onRemove={(row, own) =>
             setConfirm({
               registrationId: row.id,

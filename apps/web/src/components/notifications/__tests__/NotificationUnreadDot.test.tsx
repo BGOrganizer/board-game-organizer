@@ -41,7 +41,12 @@ it("renders only a static danger dot; has no animation, observers, store or ackn
 
 it("puts the marker after a shrinkable title, before other card metadata, without acknowledging on navigation", () => {
   renderWithI18n(
-    <LinkedListCard href="/groups/id" label="Open group" notificationCount={2}>
+    <LinkedListCard
+      href="/groups/id"
+      label="Open group"
+      notificationCount={2}
+      artwork={<span aria-hidden>Artwork</span>}
+    >
       <ListCardBody
         title="An unusually long group title"
         unread
@@ -54,8 +59,8 @@ it("puts the marker after a shrinkable title, before other card metadata, withou
   const link = screen.getByRole("link", { name: "Open group" });
   const dot = screen.getByRole("img", { name: "Unread updates" });
   expect(dot.previousElementSibling?.textContent).toBe("An unusually long group title");
-  expect(dot.previousElementSibling?.className).toContain("truncate");
-  expect(link.contains(dot)).toBe(true);
+  expect(dot.previousElementSibling?.className).toContain("break-words");
+  expect(link.closest(".card")?.contains(dot)).toBe(true);
   expect(link.getAttribute("aria-description")).toBe("Unread updates");
   expect(state.read).not.toHaveBeenCalled();
 });

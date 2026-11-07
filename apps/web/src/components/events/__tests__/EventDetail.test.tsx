@@ -881,7 +881,7 @@ it("shows a disabled owner confirmation in the app header, explains agreement an
   tables = [];
   mount();
   const heading = await screen.findByRole("heading", { name: event.name });
-  expect(heading.className).toContain("text-base font-normal");
+  expect(heading.className).toContain("text-lg font-semibold");
   const card = heading.closest(".card");
   expect(card?.querySelector("img")).not.toBeNull();
   expect(heading.previousElementSibling?.classList.contains("lucide-calendar-days")).toBe(true);
@@ -890,7 +890,7 @@ it("shows a disabled owner confirmation in the app header, explains agreement an
   expect(legend.closest(".card")).toBeNull();
   expect(card?.contains(badge)).toBe(true);
   expect(
-    legend.compareDocumentPosition(card as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    legend.compareDocumentPosition(card as Node) & Node.DOCUMENT_POSITION_PRECEDING,
   ).toBeTruthy();
   expect(screen.queryByText("No group")).toBeNull();
   expect(screen.queryByText(/Europe\/Rome/)).toBeNull();

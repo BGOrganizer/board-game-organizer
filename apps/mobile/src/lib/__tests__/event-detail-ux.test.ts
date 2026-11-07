@@ -10,7 +10,8 @@ it("owns date/location votes on event and game votes only on accepted table regi
   expect(event).toMatch(/kind:\s*"date"/);
   expect(event).toMatch(/kind:\s*"location"/);
   expect(event).toContain("<EventDetailsCard");
-  expect(source("EventDetailsCard")).toContain("<EventVoteLegend");
+  expect(event).toContain("<EventVoteLegend");
+  expect(source("EventDetailsCard")).toContain("background=");
   expect(source("EventVoteLegend")).toContain("Only accepted players vote.");
   expect(source("EventVoteLegend")).toContain(
     "Pending players keep a reserved place until accepted.",

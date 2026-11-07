@@ -1,7 +1,8 @@
 # Native acceptance
 
 Android, Maestro CLI 2.11.0. `config.yaml` discovers only the same 13 canonical
-journeys invoked by `.github/scripts/maestro-e2e.sh` and the three native CI jobs.
+journeys invoked by `.github/scripts/maestro-e2e.sh`; see
+[AGENTS.md](../../../AGENTS.md#13-cicd) for current CI enablement. Retained flows are not execution evidence.
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
 Do not run the helpers directory or treat helpers as independent test reports.
 
@@ -13,7 +14,7 @@ No provisioning, provider sync, application migration or automatic reset is perf
 light/dark and narrow/wide web variants separately; use fresh fixtures for writes.
 
 Required: `EVENT_ACCESS_FIXTURE_ACK=owned-disposable-event-access`,
-`EVENT_ACCESS_MODE=shared|denied|enroll|picker|finalize|draft`, `EVENT_ACCESS_LOCALE=en|it`,
+`EVENT_ACCESS_MODE=shared|denied|enroll|picker|finalize|draft|presentation`, `EVENT_ACCESS_LOCALE=en|it`,
 `EVENT_ACCESS_API_URL`, and `EVENT_ACCESS_INPUT` JSON. Native also requires
 `EVENT_ACCESS_BUILD_ACK=owned-preview-build`; verify the installed APK's API/account first.
 Web requires `EVENT_ACCESS_THEME=light|dark`, `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and existing
@@ -45,6 +46,17 @@ JSON always includes `eventId`, `tableId`, `eventName`, `tableName`:
   **manually compare the FAB's physical bottom/Y**; focus and syntax checks alone do not prove it
   stayed fixed or that the placeholder was visually rendered. Use both OS platforms, EN/IT and themes.
   Never provision/reset fixtures or submit either draft for this check.
+- `presentation`: accepted member of an owned Group with an accepted own registration at the target
+  Table (so it also qualifies for the main Tables list). Supply exact `groupName` and `gameName`;
+  native also needs `groupId` and `groupType=PRIVATE|PUBLIC`. The game must be an approved current
+  choice, or the selected frozen game after confirmation, not a pending participant proposal.
+  Both clients inspect horizontal Group/Event/Table cards, background detail identity before tabs,
+  approved-game popovers in Event/main Tables, and the unchanged roster/coda under Participants.
+  No domain mutation is submitted; ordinary pre-existing notification-read behavior remains.
+  Native screenshots require actual visual review for background/horizontal geometry, large text,
+  clipping and touch targets. Repeat EN/IT, light/dark, small/large screens; source/syntax is not proof.
+  Existing enrollment, singleton-consent and Table/player journeys now explicitly open Participants
+  before seat/queue/invitation actions. No action, consent or permission is relaxed.
 - `finalize`: current manager of a private grouped CONFIRMED Event with every result draft complete.
   **Requires `EVENT_ACCESS_WRITE_ACK=irreversible-owned-disposable-finalization`.** Checks sharing
   default-off, toggle/cancel/reopen reset, then commits sharing-on finalization. Scores/ratings and

@@ -2,7 +2,10 @@ import { eventDraft, tableDraft } from "@board-game-organizer/shared";
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { screen, within } from "@testing-library/react";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+
+vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
+
 import { plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { messages as italian } from "../../../../../../messages/it.js";

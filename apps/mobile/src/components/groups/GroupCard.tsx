@@ -75,6 +75,8 @@ export function GroupCard({
                     : undefined
             }
           />
+        ) : !local ? (
+          <ArtworkStatusPopover kind="viewer" />
         ) : undefined
       }
       onPress={() => {
@@ -96,8 +98,8 @@ export function GroupCard({
           </Button>
         ) : undefined
       }
+      artwork={<GroupArtwork group={group} status="none" />}
     >
-      <GroupArtwork group={group} status="none" />
       <ListCardBody
         title={group.name}
         titleIcon={<UsersRound size={18} color={fg} accessible={false} />}

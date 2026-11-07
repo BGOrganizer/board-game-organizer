@@ -9,24 +9,41 @@ export function GroupArtwork({
   group,
   size = 64,
   status = "overlay",
+  presentation = "thumbnail",
 }: {
   group: Pick<GroupRecordResponse, "id" | "logo" | "role">;
   size?: number;
   status?: "overlay" | "none";
+  presentation?: "thumbnail" | "background";
 }) {
   const t = useT(),
     warning = useThemeColor("warning");
   return (
-    <View style={{ width: size, height: size, flexShrink: 0 }}>
+    <View
+      style={
+        presentation === "background"
+          ? { position: "absolute", inset: 0 }
+          : { width: size, height: size, flexShrink: 0 }
+      }
+    >
       {group.logo ? (
         <Image
           source={{ uri: group.logo }}
           resizeMode="contain"
           accessible={false}
-          style={{ width: size, height: size, borderRadius: 12 }}
+          style={{
+            width: presentation === "background" ? "100%" : size,
+            height: presentation === "background" ? "100%" : size,
+            borderRadius: 12,
+          }}
         />
       ) : (
-        <AnimatedDicebearArtwork seed={group.id} variant="landscape" size={size} />
+        <AnimatedDicebearArtwork
+          seed={group.id}
+          variant="landscape"
+          size={size}
+          presentation={presentation}
+        />
       )}
       {status === "overlay" && group.role === "admin" ? (
         <View

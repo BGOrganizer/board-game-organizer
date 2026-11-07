@@ -35,6 +35,7 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
     "heroui-native/hooks": { useThemeColor: (keys: string | string[]) => keys },
     "lucide-react-native": new Proxy({}, { get: (_target, key) => String(key) }),
     "@/lib/i18n": { useT: () => (value: string) => translate(i18n, value) },
+    "@/lib/useCommunityApi": { useCommunityApi: () => ({ userId: "viewer" }) },
     "@board-game-organizer/shared": {
       ...shared,
       useEventCutoff: () => false,
@@ -66,6 +67,7 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
     ["./GroupStatusBadge", "GroupStatusBadge"],
     ["./EventStatusBadge", "EventStatusBadge"],
     ["./EventTableRatingBadge", "EventTableRatingBadge"],
+    ["./EventTableGamesPopover", "EventTableGamesPopover"],
   ])
     modules[path] = { [component]: component };
   const source = readFileSync(new URL(`../../components/${file}.tsx`, import.meta.url), "utf8");

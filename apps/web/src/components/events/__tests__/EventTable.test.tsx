@@ -1,4 +1,8 @@
-import type { PlannedTableResponse, TableSeatResponse } from "@board-game-organizer/schemas";
+import {
+  notificationItemId,
+  type PlannedTableResponse,
+  type TableSeatResponse,
+} from "@board-game-organizer/schemas";
 import { eventRecordKeys, eventVoteCounts } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
@@ -16,10 +20,14 @@ import { EventTable } from "../EventTable";
 
 const m = vi.hoisted(() => ({
   actor: "owner",
+  attention: "",
   push: vi.fn(),
   feedback: { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() },
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: m.push }),
+  useSearchParams: () => new URLSearchParams(m.attention ? { attention: m.attention } : {}),
+}));
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
@@ -74,6 +82,7 @@ function player(user: string, id = optionId): TableSeatResponse {
 beforeEach(() => {
   vi.clearAllMocks();
   m.actor = "owner";
+  m.attention = "";
   fail = false;
   paged = false;
   acceptedElsewhere = false;
@@ -230,6 +239,46 @@ function mount(
   );
   return client;
 }
+it("separates Participants while retaining one roster reader and the same initial data requests across tab switches", async () => {
+  const client = mount();
+  await screen.findByRole("heading", { name: table.name });
+  await waitFor(() =>
+    expect(fetcher.mock.calls.some(([url]) => url.includes("/seats?"))).toBe(true),
+  );
+  expect(screen.queryByRole("region", { name: "Seats list" })).toBeNull();
+  const reads = () =>
+    fetcher.mock.calls
+      .filter(
+        ([url, init]) =>
+          !url.includes("/notifications/") && (!init?.method || init.method === "GET"),
+      )
+      .map(([url]) => url);
+  const initial = reads();
+  await openParticipants();
+  expect(await screen.findByRole("region", { name: "Seats list" })).not.toBeNull();
+  fireEvent.click(screen.getByRole("tab", { name: /^Overview/ }));
+  await act(async () => {});
+  expect(screen.queryByRole("region", { name: "Seats list" })).toBeNull();
+  expect(reads()).toEqual(initial);
+  expect(
+    fetcher.mock.calls.some(([, init]) => init?.method === "POST" || init?.method === "PATCH"),
+  ).toBe(false);
+  client.clear();
+});
+it("opens a precise invitation attention link on Participants without accepting it", async () => {
+  m.attention = notificationItemId(tableId, "invitation", undefined, "table");
+  table = {
+    ...table,
+    myRegistration: { ...rows[0], status: "PENDING", kind: "INVITATION" },
+    canRespond: true,
+  };
+  mount();
+  expect(
+    (await screen.findByRole("tab", { name: /^Participants/ })).getAttribute("aria-selected"),
+  ).toBe("true");
+  expect(await screen.findByRole("button", { name: "Accept invitation" })).not.toBeNull();
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+});
 function multipleGames() {
   table = {
     ...table,
@@ -249,7 +298,11 @@ async function submitGameChoices() {
   await waitFor(() => expect(submit.disabled).toBe(false));
   fireEvent.click(submit);
 }
+async function openParticipants() {
+  fireEvent.click(await screen.findByRole("tab", { name: /^Participants/ }));
+}
 async function vote(label = "Chess", value = "Yes", current = "Choose your vote") {
+  fireEvent.click(await screen.findByRole("tab", { name: /^Overview/ }));
   fireEvent.click(await screen.findByRole("button", { name: `${label}: ${current}` }));
   fireEvent.click(
     within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
@@ -386,7 +439,7 @@ it.each([
     );
     mount();
     await screen.findByRole("tab", { name: "Overview" });
-    expect(screen.getAllByRole("tab")).toHaveLength(eventStatus === "TERMINATED" ? 3 : 2);
+    expect(screen.getAllByRole("tab")).toHaveLength(eventStatus === "TERMINATED" ? 4 : 3);
     expect(screen.getByRole("tab", { name: "Ranking" })).not.toBeNull();
     expect(Boolean(screen.queryByRole("tab", { name: "Results" }))).toBe(
       eventStatus === "TERMINATED",
@@ -527,6 +580,7 @@ it("starts with max places, lets organizer choose join/invite and shows one vote
     canLeave: false,
   };
   mount();
+  await openParticipants();
   const places = await screen.findAllByRole("button", { name: "Free place" });
   expect(places).toHaveLength(4);
   expect(screen.queryByRole("button", { name: "Join table" })).toBeNull();
@@ -571,6 +625,7 @@ it("waits for Event participation metadata, exposes failures and retries before 
       : original(url, init),
   );
   mount();
+  await openParticipants();
   const place = (
     await screen.findAllByRole("button", { name: "Free place" })
   )[0] as HTMLButtonElement;
@@ -630,6 +685,7 @@ it("implicitly accepts fixed PRIVATE dates/locations but requires multiple Table
     myPosition: null,
   };
   mount();
+  await openParticipants();
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
   expect(await screen.findByRole("tab", { name: "Games" })).not.toBeNull();
@@ -656,7 +712,7 @@ it("shows the parent Event item with matching artwork and navigation below Table
   mount();
   const link = await screen.findByRole("link", { name: `Open event: ${plannedEvent.name}` });
   expect(link.getAttribute("href")).toBe(`/events/${eventId}`);
-  expect(link.querySelector(".dicebear-artwork")).not.toBeNull();
+  expect(link.closest(".card")?.querySelector(".dicebear-artwork")).not.toBeNull();
   expect(screen.getByRole("region", { name: "Event" }).contains(link)).toBe(true);
 });
 it.each([false, true])(
@@ -673,6 +729,7 @@ it.each([false, true])(
       seatedCount: 0,
     };
     mount();
+    await openParticipants();
     fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
     expect(screen.queryByRole("heading", { name: "Review table settings" })).toBeNull();
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
@@ -690,6 +747,7 @@ it.each([false, true])(
 );
 it("offers an invite-only modal when organizer already joined, routes to the existing picker and supports cancellation", async () => {
   mount();
+  await openParticipants();
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   expect(
     within(screen.getByRole("dialog")).queryByRole("button", { name: "Join table" }),
@@ -703,6 +761,7 @@ it("offers an invite-only modal when organizer already joined, routes to the exi
 });
 it("always shows an empty, non-interactive waiting list after seats while places remain free", async () => {
   mount();
+  await openParticipants();
   const empty = await screen.findByText("No players waiting"),
     waiting = screen.getByRole("region", { name: "Waiting list" }),
     seats = screen.getByRole("region", { name: "Seats list" });
@@ -729,6 +788,7 @@ it("shows an empty waiting list for a completely loaded full frozen roster witho
     confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
   };
   mount();
+  await openParticipants();
   await screen.findByText("No players waiting");
   expect(screen.queryByRole("button", { name: "Join waiting list" })).toBeNull();
   expect(
@@ -740,6 +800,7 @@ it("does not report an empty queue while a full roster still has another source 
   rows.push({ ...player("guest", tableId), position: "WAITING" });
   table = { ...table, maxPlayers: 2, seatedCount: 2, waitingCount: 1 };
   mount();
+  await openParticipants();
   await screen.findByRole("button", { name: "Load more" });
   expect(screen.getByRole("heading", { name: "Waiting list" })).not.toBeNull();
   expect(screen.queryByText("No players waiting")).toBeNull();
@@ -751,6 +812,7 @@ it("retains a queue entry beyond capacity and shows pending, accepted and waitin
   );
   table = { ...table, maxPlayers: 2, seatedCount: 1, pendingCount: 1, waitingCount: 1 };
   mount();
+  await openParticipants();
   expect(await screen.findByText("guest")).not.toBeNull();
   expect(screen.getByRole("img", { name: "Waiting list" })).not.toBeNull();
   expect(screen.getByRole("img", { name: "Invitation pending" })).not.toBeNull();
@@ -763,6 +825,7 @@ it("paginates source rosters and confirms other-player removal", async () => {
   rows.push({ ...player("guest", tableId), name: null, position: "WAITING" });
   paged = true;
   mount();
+  await openParticipants();
   fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
   const remove = await screen.findByRole("button", { name: "Remove player: guest" });
   expect(remove.closest("li")?.className).toContain("[content-visibility:auto]");
@@ -792,6 +855,7 @@ it("loads the next source page when the scroll sentinel intersects, without a ma
     },
   );
   mount();
+  await openParticipants();
   await screen.findByRole("button", { name: "Load more" });
   await waitFor(() => expect(enter).toBeTypeOf("function"));
   if (!enter) throw new Error("Missing observer callback");
@@ -817,6 +881,7 @@ it("lets a new member join directly, never reads another user's pending stream, 
   };
   fail = true;
   mount();
+  await openParticipants();
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   await submitGameChoices();
   expect(screen.queryByRole("dialog", { name: "Review table settings" })).toBeNull();
@@ -850,6 +915,7 @@ it("reports organizer rejection after immediate close and recovers preferences o
   table = { ...table, canRegister: true, myRegistration: null, myPosition: null, seatedCount: 0 };
   fail = true;
   mount();
+  await openParticipants();
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
   await submitGameChoices();
@@ -867,6 +933,7 @@ it("reports organizer rejection after immediate close and recovers preferences o
 it("closes departure immediately, restores a rejected participant for explicit retry and keeps registration versions", async () => {
   fail = true;
   mount();
+  await openParticipants();
   fireEvent.click(await screen.findByRole("button", { name: "Leave table" }));
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
   expect(screen.queryByRole("dialog")).toBeNull();
@@ -888,6 +955,7 @@ it("keeps seat read failures visible, retries and renders empty places rather th
     url.includes("/seats?") && broken ? new Response("{}", { status: 503 }) : original?.(url, init),
   );
   mount();
+  await openParticipants();
   await screen.findByText("Could not load players");
   expect(screen.queryByText("No players waiting")).toBeNull();
   broken = false;
@@ -914,12 +982,17 @@ it("shows confirmed username/timing and exclusion without email, voting or open-
     },
   };
   mount();
+  await openParticipants();
   expect(await screen.findByText("owner")).not.toBeNull();
   expect(screen.queryByText("owner@example.test")).toBeNull();
+  fireEvent.click(screen.getByRole("tab", { name: /^Overview/ }));
   expect(screen.getByText(/Guide/)).not.toBeNull();
-  expect(screen.getByRole("region", { name: "Table schedule" }).previousElementSibling).toBe(
-    screen.getByRole("region", { name: "Settings" }),
-  );
+  expect(
+    screen
+      .getByRole("region", { name: "Settings" })
+      .compareDocumentPosition(screen.getByRole("region", { name: "Table schedule" })) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Chess:/ })).toBeNull();
 });
 it("does not present an excluded table as confirmed or show all candidate games as one frozen choice", async () => {
@@ -1051,6 +1124,7 @@ it.each(["accept", "decline"])(
       waitingCount: 1,
     };
     mount();
+    await openParticipants();
     fireEvent.click(
       await screen.findByRole("button", {
         name: action === "accept" ? "Accept invitation" : "Decline invitation",
@@ -1083,6 +1157,7 @@ it("keeps cached players during a failed next page and permits explicit retry", 
     url.includes("cursor=") && broken ? new Response("{}", { status: 503 }) : original?.(url, init),
   );
   mount();
+  await openParticipants();
   fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
   await screen.findByText("Could not load players");
   expect(screen.getByText("You")).not.toBeNull();
@@ -1096,6 +1171,7 @@ it("rechecks capabilities and cutoff even while a place-action modal is open", a
   table = { ...table, canRegister: true, myRegistration: null, myPosition: null, seatedCount: 0 };
   rows = [];
   const client = mount();
+  await openParticipants();
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   const key = eventRecordKeys.table(
     { apiUrl: "https://api.test", userId: "owner" },

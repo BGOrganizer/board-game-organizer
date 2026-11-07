@@ -1,5 +1,6 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import {
+  canManageEvent,
   tableParticipation,
   tablePendingAction,
   useEventCutoff,
@@ -22,13 +23,15 @@ import {
   UserRoundPlus,
   UsersRound,
 } from "lucide-react-native";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { useT } from "@/lib/i18n";
+import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventCardSchedule } from "./EventCardSchedule";
+import { EventTableGamesPopover } from "./EventTableGamesPopover";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
 export function EventTableCard({
   table,
@@ -46,6 +49,8 @@ export function EventTableCard({
     table.bookingClosesAt,
     table.groupType === "PUBLIC" && table.eventStatus === "PLANNING",
   );
+  const { userId } = useCommunityApi();
+  const manager = canManageEvent(table, userId);
   const indicator = tableParticipation(table.myRegistration, table.myPosition);
   const games = table.gamesDetail.filter(
       (game) =>
@@ -96,15 +101,26 @@ export function EventTableCard({
         });
       }}
       leadingActions={
-        indicator === null ? undefined : (
-          <ArtworkStatusPopover
-            kind={indicator}
-            action={closed ? null : tablePendingAction(table)}
-          />
-        )
+        <>
+          {indicator !== null ? (
+            <ArtworkStatusPopover
+              kind={indicator}
+              action={closed ? null : tablePendingAction(table)}
+            />
+          ) : null}
+          {manager ? (
+            <ArtworkStatusPopover kind="manager" />
+          ) : indicator === null ? (
+            <ArtworkStatusPopover kind="viewer" />
+          ) : null}
+          {table.demonstratorUserId && table.demonstratorUserId === userId ? (
+            <ArtworkStatusPopover kind="demonstrator" />
+          ) : null}
+          <EventTableGamesPopover games={games} name={table.name} />
+        </>
       }
+      artwork={<AnimatedDicebearArtwork seed={table.id} variant="planets" />}
     >
-      <AnimatedDicebearArtwork seed={table.id} variant="planets" />
       <ListCardBody
         title={table.name}
         unread={Boolean(attention?.get(attentionTarget)?.count)}
@@ -153,10 +169,14 @@ export function EventTableCard({
               <EventCardSchedule schedule={table.eventSchedule} />
             </>
           ) : null}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator
-            contentContainerStyle={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              alignItems: "center",
+              columnGap: 12,
+              rowGap: 4,
+            }}
           >
             {counts.map(({ icon: Icon, label, value }) => (
               <View
@@ -175,7 +195,7 @@ export function EventTableCard({
                 )}
               </View>
             ))}
-          </ScrollView>
+          </View>
           <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
             <Dices size={16} color={muted} accessible={false} />
             <Typography className="text-sm text-foreground" style={{ flex: 1 }}>

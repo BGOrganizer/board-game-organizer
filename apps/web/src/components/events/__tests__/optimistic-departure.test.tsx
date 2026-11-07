@@ -55,7 +55,7 @@ it("fails closed when own registration vanishes before confirmation even if cach
   vi.stubGlobal("fetch", fetcher);
   renderWithI18n(
     <QueryClientProvider client={client}>
-      <EventTableOverview eventId={eventId} tableId={tableId} />
+      <EventTableOverview eventId={eventId} tableId={tableId} section="participants" />
     </QueryClientProvider>,
   );
   fireEvent.click(await screen.findByRole("button", { name: "Leave table" }));
@@ -148,7 +148,7 @@ it.each([
     client.setQueryData(eventRecordKeys.table(options, eventId, tableId), table);
     renderWithI18n(
       <QueryClientProvider client={client}>
-        <EventTableOverview eventId={eventId} tableId={tableId} />
+        <EventTableOverview eventId={eventId} tableId={tableId} section="participants" />
       </QueryClientProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: "Leave table" }));

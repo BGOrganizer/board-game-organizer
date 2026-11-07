@@ -49,7 +49,7 @@ it("keeps the card marker after its shrinkable title and precise markers outside
   const title = source("common/ui/ListCardBody");
   expect(title.indexOf("{title}")).toBeLessThan(title.indexOf("<NotificationUnreadDot"));
   expect(title).toContain("flexShrink: 1");
-  expect(title).toContain("numberOfLines={1}");
+  expect(title).not.toContain("numberOfLines={1}");
   for (const row of ["games/GameListRow", "locations/LocationListRow"]) {
     const code = source(row);
     expect(code).toContain("{titleAccessory}");

@@ -38,6 +38,7 @@ import { NotificationTabBadge } from "@/components/notifications/NotificationTab
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
+import { GroupIdentityCard } from "./GroupIdentityCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
 import { GroupJoinRequest } from "./GroupJoinRequest";
 import { GroupLeaderboard } from "./GroupLeaderboard";
@@ -154,6 +155,9 @@ export function GroupDetail({
             </Typography>
           ) : null}
         </View>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+          <GroupIdentityCard group={group} />
+        </View>
         <Tabs
           value={
             (tab === "events" && !group.canViewEvents) ||
@@ -229,7 +233,7 @@ export function GroupDetail({
               </View>
             ) : (
               <ScreenScrollView contentContainerStyle={{ paddingTop: 0 }}>
-                <GroupDetailsCard group={group} />
+                <GroupDetailsCard group={group} identity={null} />
                 {bodyActions.length ? (
                   <GroupJoinRequest
                     pending={group.role === "requested"}

@@ -9,6 +9,7 @@ tags: [manual, tables, profile]
 - launchApp:
     clearState: false
 - openLink: ${output.ux.free}
+- runFlow: ../helpers/open-table-participants.yaml
 - scrollUntilVisible:
     element: ${output.ux.empty}
     direction: DOWN
@@ -16,6 +17,7 @@ tags: [manual, tables, profile]
 - assertVisible: ${output.ux.waiting}
 - assertNotVisible: ${output.ux.join}
 - openLink: ${output.ux.full}
+- runFlow: ../helpers/open-table-participants.yaml
 - scrollUntilVisible:
     element: ${output.ux.join}
     direction: DOWN
@@ -24,6 +26,7 @@ tags: [manual, tables, profile]
 - assertVisible: ${output.ux.waitingText}
 - back
 - openLink: ${output.ux.confirmed}
+- runFlow: ../helpers/open-table-participants.yaml
 - scrollUntilVisible:
     element: ${output.ux.username}
     direction: DOWN

@@ -6040,3 +6040,24 @@ msgstr "Iscritti"
 
 msgid "Available"
 msgstr "Disponibili"
+
+msgid "Management"
+msgstr "Gestione"
+
+msgid "Your current permissions allow managing this item."
+msgstr "Le tue autorizzazioni attuali consentono di gestire questo elemento."
+
+msgid "You are assigned to demonstrate a game."
+msgstr "Hai l’incarico di dimostrare un gioco."
+
+msgid "Viewer"
+msgstr "Osservatore"
+
+msgid "You can view this item."
+msgstr "Puoi visualizzare questo elemento."
+
+msgid "Previous page"
+msgstr "Pagina precedente"
+
+msgid "Next page"
+msgstr "Pagina successiva"

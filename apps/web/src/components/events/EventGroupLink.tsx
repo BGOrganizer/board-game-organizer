@@ -19,12 +19,17 @@ export function EventGroupLink({ groupId, name }: { groupId: string; name?: stri
   return (
     <section aria-label={t`Group`} className="space-y-2">
       <h2 className="font-semibold">{t`Group`}</h2>
-      <LinkedListCard href={`/groups/${groupId}`} label={`${t`Open group`}: ${label ?? t`Group`}`}>
-        {record && record.logo !== undefined ? (
-          <GroupArtwork group={record} />
-        ) : (
-          <Skeleton className="size-16 shrink-0 rounded-xl" />
-        )}
+      <LinkedListCard
+        href={`/groups/${groupId}`}
+        label={`${t`Open group`}: ${label ?? t`Group`}`}
+        artwork={
+          record && record.logo !== undefined ? (
+            <GroupArtwork group={record} status="none" />
+          ) : (
+            <Skeleton className="size-16 shrink-0 rounded-xl" />
+          )
+        }
+      >
         {label ? (
           <span className="min-w-0 self-center break-words font-medium">{label}</span>
         ) : (

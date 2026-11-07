@@ -90,6 +90,86 @@ tags: [manual, events, privacy]
       - back
 - runFlow:
     when:
+      true: ${output.access.mode === 'presentation'}
+    commands:
+      - openLink: bgo:///groups
+      - extendedWaitUntil:
+          visible: ${output.access.groupListTab}
+          timeout: 120000
+      - tapOn: ${output.access.groupListTab}
+      - tapOn:
+          id: list-search-input
+      - eraseText
+      - inputText: ${output.access.groupFilter}
+      - hideKeyboard
+      - extendedWaitUntil:
+          visible: ${output.access.openGroup}
+          timeout: 120000
+      - takeScreenshot: group-horizontal-card
+      - tapOn: ${output.access.openGroup}
+      - extendedWaitUntil:
+          visible: ${output.access.overview}
+          timeout: 120000
+      - takeScreenshot: group-background-card
+      - tapOn: ${output.access.events}
+      - extendedWaitUntil:
+          visible:
+            id: list-search-input
+          timeout: 120000
+      - tapOn:
+          id: list-search-input
+      - eraseText
+      - inputText: ${output.access.eventFilter}
+      - hideKeyboard
+      - extendedWaitUntil:
+          visible: ${output.access.openEvent}
+          timeout: 120000
+      - takeScreenshot: event-horizontal-card
+      - tapOn: ${output.access.openEvent}
+      - extendedWaitUntil:
+          visible: ${output.access.tables}
+          timeout: 120000
+      - takeScreenshot: event-background-card
+      - tapOn: ${output.access.tables}
+      - extendedWaitUntil:
+          visible: ${output.access.gamesHelp}
+          timeout: 120000
+      - tapOn: ${output.access.gamesHelp}
+      - assertVisible: ${output.access.approvedGame}
+      - takeScreenshot: event-table-approved-games
+      - back
+      - openLink: bgo:///tables
+      - extendedWaitUntil:
+          visible:
+            id: list-search-input
+          timeout: 120000
+      - tapOn:
+          id: list-search-input
+      - eraseText
+      - inputText: ${output.access.tableFilter}
+      - hideKeyboard
+      - extendedWaitUntil:
+          visible: ${output.access.gamesHelp}
+          timeout: 120000
+      - takeScreenshot: table-horizontal-card
+      - tapOn: ${output.access.gamesHelp}
+      - assertVisible: ${output.access.approvedGame}
+      - back
+      - openLink: ${output.access.tableLink}
+      - extendedWaitUntil:
+          visible:
+            id: table-participants-tab
+          timeout: 120000
+      - assertNotVisible: ${output.access.seats}
+      - takeScreenshot: table-background-card
+      - runFlow: ../helpers/open-table-participants.yaml
+      - assertVisible: ${output.access.seats}
+      - takeScreenshot: table-participants-unchanged
+      - tapOn:
+          id: table-overview-tab
+      - assertNotVisible: ${output.access.seats}
+- runFlow:
+    when:
       true: ${output.access.mode === 'shared'}
     commands:
       - openLink: ${output.access.eventLink}
@@ -134,10 +214,11 @@ tags: [manual, events, privacy]
       true: ${output.access.mode === 'enroll'}
     commands:
       - openLink: ${output.access.tableLink}
+      - runFlow: ../helpers/open-table-participants.yaml
       - extendedWaitUntil:
-          visible: ${output.access.join}
+          visible: ${output.access.entry}
           timeout: 120000
-      - tapOn: ${output.access.join}
+      - tapOn: ${output.access.entry}
       - extendedWaitUntil:
           visible: ${output.access.review}
           timeout: 120000

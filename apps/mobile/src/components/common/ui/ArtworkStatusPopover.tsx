@@ -5,8 +5,11 @@ import { Typography } from "heroui-native/text";
 import {
   Clock3,
   Crown,
+  Eye,
   ListOrdered,
   Mail,
+  Presentation,
+  ShieldCheck,
   UserRoundCheck,
   UserRoundPlus,
 } from "lucide-react-native";
@@ -20,7 +23,14 @@ export function ArtworkStatusPopover({
   label,
   action,
 }: {
-  kind: ParticipationIndicator | "admin" | "member" | undefined;
+  kind:
+    | ParticipationIndicator
+    | "admin"
+    | "member"
+    | "manager"
+    | "demonstrator"
+    | "viewer"
+    | undefined;
   label?: string;
   action?: PendingAction | null;
 }) {
@@ -55,6 +65,17 @@ export function ArtworkStatusPopover({
       description: t("You are on the waiting list, not assigned a place."),
     },
     admin: { icon: Crown, label: t("Administrator"), description: t("You administer this item.") },
+    manager: {
+      icon: ShieldCheck,
+      label: t("Management"),
+      description: t("Your current permissions allow managing this item."),
+    },
+    demonstrator: {
+      icon: Presentation,
+      label: t("Demonstrator"),
+      description: t("You are assigned to demonstrate a game."),
+    },
+    viewer: { icon: Eye, label: t("Viewer"), description: t("You can view this item.") },
     member: {
       icon: UserRoundCheck,
       label: t("Group member"),
@@ -69,8 +90,15 @@ export function ArtworkStatusPopover({
     <HelpPopover
       label={action ? `${title} · ${actionLabel}` : title}
       title={title}
+      triggerClassName="bg-default"
       icon={state.icon}
-      tone={kind === "confirmed" || kind === "member" ? "success" : "warning"}
+      tone={
+        kind === "confirmed" || kind === "member"
+          ? "success"
+          : action || kind === "request" || kind === "invitation" || kind === "waiting"
+            ? "warning"
+            : "muted"
+      }
       indicator={
         action && state.icon !== ActionIcon ? (
           <View

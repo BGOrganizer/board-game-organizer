@@ -58,10 +58,11 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(detail).toContain('t("Why confirmation is unavailable")');
   expect(detail).toContain("<EventDetailsCard");
   const identity = source("events", "EventDetailsCard");
-  expect(identity).toContain('t("Details")');
-  expect(identity).toContain("<Info");
-  expect(identity).toContain("<EventVoteLegend");
-  expect(identity).toContain('<AnimatedDicebearArtwork seed={event.id} variant="constellation"');
+  expect(detail).toContain('t("Details")');
+  expect(identity).toContain("background=");
+  expect(detail).toContain("<EventVoteLegend");
+  expect(identity).toContain("seed={event.id}");
+  expect(identity).toContain('variant="constellation"');
   expect(identity).toContain("<CalendarDays");
   expect(identity).not.toContain("/group/[groupId]");
   expect(detail).toContain("<EventGroupLink");
@@ -73,8 +74,8 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(detail).toContain('t("Date and time")');
   expect(detail).toContain("<DateTimeInfo");
   expect(detail).not.toContain("eventRecordDisplayTimeZone");
-  expect(identity).toContain('className="text-base font-normal text-foreground"');
-  expect(identity.indexOf("<EventVoteLegend")).toBeLessThan(identity.indexOf("<ListCard>"));
+  expect(identity).toContain('className="text-lg font-semibold text-foreground"');
+  expect(identity).toContain('presentation="background"');
   expect(detail).toMatch(/event\?\.status\s*===\s*"CONFIRMED"[\s\S]*?<EventFinalizeAction/);
   expect(source("events", "EventFinalizeAction")).toContain("event.canFinalize");
   expect(detail).toContain("<RotateCcw");
@@ -87,8 +88,10 @@ it("places Table Settings help before the identity card and keeps limits inside 
   const table = source("events", "EventTableInfo");
   expect(table).toContain('label={t("Settings")}');
   expect(table).toContain("The minimum is required for agreement.");
-  expect(table.indexOf('label={t("Settings")}')).toBeLessThan(table.indexOf("<ListCard>"));
-  expect(table).toContain('<AnimatedDicebearArtwork seed={table.id} variant="planets"');
+  expect(table.indexOf("<ListCard")).toBeLessThan(table.indexOf('label={t("Settings")}'));
+  expect(table).toContain('presentation="background"');
+  expect(table).toContain("seed={table.id}");
+  expect(table).toContain('variant="planets"');
   expect(table).toContain("<Dices");
   expect(table).toContain("<EventTableRatingBadge");
   for (const token of [
@@ -111,7 +114,8 @@ it("shares one Table card across personal/Event lists with only the parent metad
   expect(source("events", "TableListHeading")).toContain("<IconLegend");
   expect(source("events", "TableList")).toContain("<TableListHeading");
   expect(source("events", "EventDetail")).toContain("<TableListHeading");
-  expect(card).toContain("horizontal");
+  expect(card).toContain('flexWrap: "wrap"');
+  expect(card).toContain("<EventTableGamesPopover");
   for (const field of [
     "minPlayers",
     "maxPlayers",

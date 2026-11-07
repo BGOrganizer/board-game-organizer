@@ -8,14 +8,19 @@ export function GroupArtwork({
   group,
   size = 64,
   status = "overlay",
+  presentation = "thumbnail",
 }: {
   group: Pick<GroupRecordResponse, "id" | "logo" | "role">;
   size?: number;
   status?: "overlay" | "none";
+  presentation?: "thumbnail" | "background";
 }) {
   const { t } = useLingui();
   return (
-    <span className="relative shrink-0" style={{ width: size, height: size }}>
+    <span
+      className={presentation === "background" ? "absolute inset-0" : "relative shrink-0"}
+      style={presentation === "background" ? undefined : { width: size, height: size }}
+    >
       {group.logo ? (
         // biome-ignore lint/performance/noImgElement: Authenticated, optimized MongoDB data URI, not a remote image.
         <img
@@ -24,10 +29,19 @@ export function GroupArtwork({
           width={size}
           height={size}
           className="rounded-xl object-contain"
-          style={{ width: size, height: size }}
+          style={
+            presentation === "background"
+              ? { width: "100%", height: "100%" }
+              : { width: size, height: size }
+          }
         />
       ) : (
-        <AnimatedDicebearArtwork seed={group.id} variant="landscape" size={size} />
+        <AnimatedDicebearArtwork
+          seed={group.id}
+          variant="landscape"
+          size={size}
+          presentation={presentation}
+        />
       )}
       {status === "overlay" && group.role === "admin" ? (
         <span

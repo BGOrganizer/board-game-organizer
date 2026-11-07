@@ -102,6 +102,9 @@ test(`real singleton consent ${input.mode}/${input.mask}/${locale}/${width}`, as
       writes.push(request.postDataJSON());
   });
   async function open() {
+    await main
+      .getByRole("tab", { name: italian ? "Partecipanti" : "Participants", exact: true })
+      .click();
     if (input.mode === "accept")
       await main.getByRole("button", { name: action, exact: true }).click();
     else {

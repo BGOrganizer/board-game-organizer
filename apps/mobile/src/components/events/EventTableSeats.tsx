@@ -35,9 +35,11 @@ export function EventTableSeats({
   header,
   onRemove,
   hasJoinedEvent,
+  active = true,
 }: {
   table: PlannedTableResponse;
   header: ReactNode;
+  active?: boolean;
   hasJoinedEvent?: boolean;
   onRemove: (row: TableSeatResponse, own: boolean) => void;
 }) {
@@ -67,10 +69,14 @@ export function EventTableSeats({
           ref={(node) => {
             scroll.current = node?.getScrollResponder() as ScrollView | null;
           }}
-          sections={[
-            { key: "seats", title: t("Seats list"), data: roster.seatRows },
-            { key: "waiting", title: t("Waiting list"), data: roster.waitingRows },
-          ]}
+          sections={
+            active
+              ? [
+                  { key: "seats", title: t("Seats list"), data: roster.seatRows },
+                  { key: "waiting", title: t("Waiting list"), data: roster.waitingRows },
+                ]
+              : []
+          }
           stickySectionHeadersEnabled={false}
           keyExtractor={(row) => row.key}
           contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: insets.bottom + 32 }}
@@ -259,39 +265,46 @@ export function EventTableSeats({
             );
           }}
           onEndReached={() => {
-            if (roster.hasNextPage && !roster.isFetchingNextPage && !roster.isFetchNextPageError)
+            if (
+              active &&
+              roster.hasNextPage &&
+              !roster.isFetchingNextPage &&
+              !roster.isFetchNextPageError
+            )
               roster.more();
           }}
           ListFooterComponent={
-            <View style={{ gap: 8 }}>
-              {!roster.rows.length && !roster.isPending && !roster.isError ? (
-                <Typography className="text-foreground">{t("No players found")}</Typography>
-              ) : null}
-              {roster.isPending || roster.isFetchingNextPage ? (
-                <Skeleton style={{ width: "100%", height: 64, borderRadius: 12 }} />
-              ) : null}
-              {roster.isError ? (
-                <View>
-                  <Typography accessibilityRole="alert" className="text-danger">
-                    {t("Could not load players")}
-                  </Typography>
-                  <Button onPress={roster.refetch}>
-                    <Button.Label>{t("Try again")}</Button.Label>
+            active ? (
+              <View style={{ gap: 8 }}>
+                {!roster.rows.length && !roster.isPending && !roster.isError ? (
+                  <Typography className="text-foreground">{t("No players found")}</Typography>
+                ) : null}
+                {roster.isPending || roster.isFetchingNextPage ? (
+                  <Skeleton style={{ width: "100%", height: 64, borderRadius: 12 }} />
+                ) : null}
+                {roster.isError ? (
+                  <View>
+                    <Typography accessibilityRole="alert" className="text-danger">
+                      {t("Could not load players")}
+                    </Typography>
+                    <Button onPress={roster.refetch}>
+                      <Button.Label>{t("Try again")}</Button.Label>
+                    </Button>
+                  </View>
+                ) : null}
+                {roster.hasNextPage ? (
+                  <Button
+                    variant="outline"
+                    isDisabled={roster.isFetchingNextPage}
+                    onPress={roster.more}
+                  >
+                    <Button.Label>
+                      {roster.isFetchNextPageError ? t("Try again") : t("Load more")}
+                    </Button.Label>
                   </Button>
-                </View>
-              ) : null}
-              {roster.hasNextPage ? (
-                <Button
-                  variant="outline"
-                  isDisabled={roster.isFetchingNextPage}
-                  onPress={roster.more}
-                >
-                  <Button.Label>
-                    {roster.isFetchNextPageError ? t("Try again") : t("Load more")}
-                  </Button.Label>
-                </Button>
-              ) : null}
-            </View>
+                ) : null}
+              </View>
+            ) : null
           }
         />
         {choose ? (

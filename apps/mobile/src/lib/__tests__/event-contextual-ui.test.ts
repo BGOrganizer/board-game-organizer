@@ -66,6 +66,7 @@ it.each([false, true])(
     const seats = [{ key: "main" }],
       queued = waiting ? [{ key: "queued" }] : [];
     const sections = runInNewContext(expression("EventTableSeats", "SectionList", "sections"), {
+      active: true,
       roster: { seatRows: seats, waitingRows: queued },
       t: (value: string) => value,
     });

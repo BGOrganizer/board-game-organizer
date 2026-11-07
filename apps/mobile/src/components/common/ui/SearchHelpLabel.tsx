@@ -17,7 +17,9 @@ export function SearchHelpLabel({
   const t = useT();
   const title = helpTitle ?? t("Search help");
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+    <View
+      style={{ flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1, minWidth: 0 }}
+    >
       <Typography className="font-bold text-foreground" style={{ flexShrink: 1 }}>
         {label}
         {required ? " *" : ""}

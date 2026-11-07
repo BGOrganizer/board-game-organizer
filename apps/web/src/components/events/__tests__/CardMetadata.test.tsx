@@ -2,7 +2,10 @@ import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+
+vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
+
 import { GroupCard } from "@/components/groups/GroupCard";
 import { groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -120,7 +123,11 @@ it("shares Group/Event/Table title typography and keeps Group metadata at the sa
   ).toBe(true);
   const card = screen.getByRole("link", { name: `Open group: ${group.name}` });
   for (const label of ["Private", "Via Roma 1", "4 members", "2 Events"])
-    expect(within(card).getByText(label).closest(".text-sm")).not.toBeNull();
+    expect(
+      within(card.closest(".card") as HTMLElement)
+        .getByText(label)
+        .closest(".text-sm"),
+    ).not.toBeNull();
 });
 it("distinguishes missing cached metadata from known empty or single-option schedules", () => {
   const q = renderWithI18n(<EventCardSchedule />);

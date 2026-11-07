@@ -171,7 +171,7 @@ it.each([null, "PRIVATE", "PUBLIC"] as const)(
     const s = setup(groupType);
     renderWithI18n(
       <QueryClientProvider client={s.client}>
-        <EventTableOverview eventId={eventId} tableId={tableId} />
+        <EventTableOverview eventId={eventId} tableId={tableId} section="participants" />
       </QueryClientProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: "Remove player: Guest Player" }));

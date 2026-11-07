@@ -32,6 +32,9 @@ describe("SearchHelpLabel", () => {
       </>,
     );
     expect(screen.getByRole("textbox", { name: "Organization name" })).toBeTruthy();
+    const label = screen.getByText("Organization name");
+    expect(label.className).toContain("min-w-0 break-words");
+    expect(label.parentElement?.className).toContain("min-w-0");
     fireEvent.click(screen.getByRole("button", { name: "Organization name: Field help" }));
     expect(screen.getByText("Choose a unique name")).toBeTruthy();
   });

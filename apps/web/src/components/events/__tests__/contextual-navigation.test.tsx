@@ -96,7 +96,7 @@ it.each([undefined, optionId, "different-group"])(
       ).toBeTruthy();
       const link = within(section).getByRole("link", { name: `Open group: ${s.group.name}` });
       expect(link.getAttribute("href")).toBe(`/groups/${s.group.id}`);
-      expect(link.querySelector("img")?.getAttribute("src")).toBe(logo);
+      expect(link.closest(".card")?.querySelector("img")?.getAttribute("src")).toBe(logo);
       expect(within(section).getByText(s.group.name)).toBeTruthy();
     }
     expect(s.fetcher.mock.calls.some(([url]) => url.includes("/groups/"))).toBe(false);
@@ -109,7 +109,7 @@ it.each(["personal", "event"] as const)(
     renderWithI18n(
       s.wrap(<EventTableOverview eventId={eventId} tableId={tableId} context={context} />),
     );
-    await screen.findByRole("region", { name: "Seats list" });
+    await screen.findByText("Chess");
     expect(Boolean(screen.queryByRole("region", { name: "Event" }))).toBe(context === "personal");
     if (context === "personal")
       expect(
@@ -121,7 +121,9 @@ it.each([false, true])(
   "always shows a separate explained waiting section, with an action only at full capacity (full=%s)",
   async (full) => {
     const s = setup(full);
-    renderWithI18n(s.wrap(<EventTableOverview eventId={eventId} tableId={tableId} />));
+    renderWithI18n(
+      s.wrap(<EventTableOverview eventId={eventId} tableId={tableId} section="participants" />),
+    );
     const primary = await screen.findByRole("region", { name: "Seats list" });
     if (!full) {
       await waitFor(() =>
@@ -153,9 +155,13 @@ it("keeps cached group artwork visible on read failure, with explicit recovery",
     vi.fn(async () => Response.json({}, { status: 503 })),
   );
   renderWithI18n(s.wrap(<EventGroupLink groupId={s.group.id} name={s.group.name} />));
-  expect(screen.getByRole("link").querySelector("img")?.getAttribute("src")).toBe(logo);
+  expect(screen.getByRole("link").closest(".card")?.querySelector("img")?.getAttribute("src")).toBe(
+    logo,
+  );
   await screen.findByText("Could not load group");
-  expect(screen.getByRole("link").querySelector("img")?.getAttribute("src")).toBe(logo);
+  expect(screen.getByRole("link").closest(".card")?.querySelector("img")?.getAttribute("src")).toBe(
+    logo,
+  );
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => Response.json(s.group)),
@@ -171,7 +177,10 @@ it("keeps known event-provided group name while missing artwork loads; no invent
   );
   renderWithI18n(s.wrap(<EventGroupLink groupId={s.group.id} name={s.group.name} />));
   expect(
-    screen.getByRole("link", { name: `Open group: ${s.group.name}` }).querySelector("img"),
+    screen
+      .getByRole("link", { name: `Open group: ${s.group.name}` })
+      .closest(".card")
+      ?.querySelector("img"),
   ).toBeNull();
   expect(screen.getByText(s.group.name)).toBeTruthy();
   expect(document.querySelector(".skeleton")).toBeTruthy();

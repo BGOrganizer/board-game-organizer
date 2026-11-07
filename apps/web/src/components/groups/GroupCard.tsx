@@ -74,6 +74,8 @@ export function GroupCard({
                     : undefined
             }
           />
+        ) : !local ? (
+          <ArtworkStatusPopover kind="viewer" />
         ) : undefined
       }
       disabled={Boolean(local && local.phase !== "failed")}
@@ -92,8 +94,8 @@ export function GroupCard({
           </Button>
         ) : undefined
       }
+      artwork={<GroupArtwork group={group} status="none" />}
     >
-      <GroupArtwork group={group} status="none" />
       <ListCardBody
         title={group.name}
         titleIcon={<UsersRound className="size-4 shrink-0" aria-hidden />}

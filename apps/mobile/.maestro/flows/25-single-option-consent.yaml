@@ -13,6 +13,7 @@ tags: [manual, tables, consent]
 - extendedWaitUntil:
     visible: ${output.single.name}
     timeout: 120000
+- runFlow: ../helpers/open-table-participants.yaml
 - runFlow: ../helpers/single-option-open.yaml
 - tapOn:
     id: table-consent-cancel

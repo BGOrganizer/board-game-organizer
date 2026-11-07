@@ -32,9 +32,11 @@ const input = JSON.parse(required("EVENT_ACCESS_INPUT")) as {
   participantOnlyName?: string;
   catalogOnlyName?: string;
   emptyQuery?: string;
+  groupName?: string;
+  gameName?: string;
 };
 if (
-  !["shared", "denied", "enroll", "picker", "finalize", "draft"].includes(mode) ||
+  !["shared", "denied", "enroll", "picker", "finalize", "draft", "presentation"].includes(mode) ||
   !["en", "it"].includes(locale) ||
   !["light", "dark"].includes(theme) ||
   ![input.eventId, input.tableId].every((id) => /^[0-9a-f-]{36}$/i.test(id)) ||
@@ -129,6 +131,137 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
   }
   const event = await read<PlannedEventResponse>(page, eventPath),
     table = await read<PlannedTableResponse>(page, tablePath);
+  if (mode === "presentation") {
+    if (
+      !event.groupId ||
+      !input.groupName ||
+      !input.gameName ||
+      !table.myRegistration ||
+      table.myRegistration.status !== "ACCEPTED" ||
+      event.sharedResultsOnly
+    )
+      throw new Error(
+        "Owned grouped Event with accepted own Table registration and exact Group/game names required",
+      );
+    const group = await read<GroupRecordResponse>(page, `groups/${event.groupId}`);
+    expect(group.name).toBe(input.groupName);
+    expect(group.canViewEvents).toBe(true);
+    expect(
+      table.gamesDetail.some(
+        (game) =>
+          game.name === input.gameName &&
+          (!table.confirmed ||
+            table.eventStatus === "PLANNING" ||
+            game.id === table.confirmed.gameId),
+      ),
+    ).toBe(true);
+    const writes: string[] = [];
+    page.on("request", (request) => {
+      if (
+        ["POST", "PATCH", "DELETE"].includes(request.method()) &&
+        /\/api\/(groups|events)(\/|\?|$)/.test(request.url())
+      )
+        writes.push(request.url());
+    });
+    const assertBackground = async (name: string) => {
+      const heading = page.getByRole("heading", { name, exact: true });
+      await expect(heading).toBeVisible();
+      const card = page.locator(".card").filter({ has: heading });
+      await expect(card.locator(".absolute.inset-0").first()).toBeVisible();
+      const cardBox = await card.boundingBox(),
+        tabsBox = await page.getByRole("tablist").boundingBox();
+      expect(cardBox && tabsBox && tabsBox.y >= cardBox.y + cardBox.height - 1).toBeTruthy();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+      ).toBe(true);
+    };
+    await page.goto(`/groups/${group.id}`);
+    await assertBackground(group.name);
+    await page.goto("/groups");
+    await page
+      .getByRole("tab", {
+        name:
+          group.type === "PUBLIC"
+            ? it
+              ? "Pubblici"
+              : "Public groups"
+            : it
+              ? "Privati"
+              : "Private groups",
+        exact: true,
+      })
+      .click();
+    await page.getByRole("searchbox").fill(group.name);
+    await expect(
+      page.getByRole("link", {
+        name: `${it ? "Apri gruppo" : "Open group"}: ${group.name}`,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page
+      .getByRole("link", {
+        name: `${it ? "Apri gruppo" : "Open group"}: ${group.name}`,
+        exact: true,
+      })
+      .click();
+    await page.getByRole("tab", { name: it ? "Eventi" : "Events", exact: true }).click();
+    await page.getByRole("searchbox").fill(input.eventName);
+    await page
+      .getByRole("link", {
+        name: `${it ? "Apri evento" : "Open event"}: ${input.eventName}`,
+        exact: true,
+      })
+      .click();
+    await assertBackground(input.eventName);
+    await page.getByRole("tab", { name: l.tables, exact: true }).click();
+    const open = page.getByRole("link", {
+      name: `${it ? "Apri tavolo" : "Open table"}: ${input.tableName}`,
+      exact: true,
+    });
+    const card = page.locator(".card").filter({ has: open });
+    await card
+      .getByRole("button", {
+        name: `${it ? "Giochi da tavolo" : "Board games"}: ${input.tableName}`,
+        exact: true,
+      })
+      .click();
+    const popover = page.getByRole("dialog");
+    await expect(popover.getByText(input.gameName, { exact: true })).toBeVisible();
+    await expect(
+      popover.getByRole("button", { name: /: (Yes|Sì|No|If needed|Se necessario)$/ }),
+    ).toHaveCount(0);
+    await expect(page).toHaveURL((url) => url.pathname === `/${eventPath}`);
+    await page.keyboard.press("Escape");
+    await page.goto("/tables");
+    await page.getByRole("searchbox").fill(input.tableName);
+    await card
+      .getByRole("button", {
+        name: `${it ? "Giochi da tavolo" : "Board games"}: ${input.tableName}`,
+        exact: true,
+      })
+      .click();
+    await expect(popover.getByText(input.gameName, { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await open.click();
+    await assertBackground(input.tableName);
+    await expect(
+      page.getByRole("region", { name: it ? "Lista posti" : "Seats list", exact: true }),
+    ).toHaveCount(0);
+    await page.getByRole("tab", { name: l.participants, exact: true }).click();
+    await expect(
+      page.getByRole("region", { name: it ? "Lista posti" : "Seats list", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("tab", { name: it ? "Riepilogo" : "Overview", exact: true }).click();
+    await expect(
+      page.getByRole("region", { name: it ? "Lista posti" : "Seats list", exact: true }),
+    ).toHaveCount(0);
+    await test.info().attach("record-detail-presentation", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+    expect(writes).toEqual([]);
+    return;
+  }
   if (mode === "draft") {
     if (!input.catalogOnlyName || input.catalogOnlyName.length < 4)
       throw new Error("Catalog game with verified BGG 2–4 player pair required (for example Azul)");
@@ -240,7 +373,13 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
       (await read<GroupRecordResponse>(page, `groups/${event.groupId}`)).myMembership,
     ).toBeNull();
     await page.goto(`/${tablePath}`);
-    await page.getByRole("button", { name: l.join, exact: true }).click();
+    await page.getByRole("tab", { name: l.participants, exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: it ? /^(Posto libero|Mettiti in coda)$/ : /^(Free place|Join waiting list)$/,
+      })
+      .first()
+      .click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: l.join, exact: true }).click();
     await expect(page.getByRole("button", { name: l.leave, exact: true })).toBeVisible();

@@ -49,13 +49,15 @@ it("keeps personal Table metadata/counts compact with status popovers below artw
     "table.pendingRegistrationCount",
   ])
     expect(table).toContain(token);
-  expect(table).toContain("horizontal");
+  expect(table).toContain('flexWrap: "wrap"');
+  expect(table).toContain("<EventTableGamesPopover");
   expect(table).not.toContain('t("Reserved place")');
   expect(table).not.toMatch(/<Typography[^>]*>\s*\{t\("Invitation received"\)\}/);
   expect(table).not.toContain("<PendingArtworkBadge");
   const card = source("common/ui/LinkedListCard");
-  expect(card).toContain("top: 80");
-  expect(card).toContain("width: 64");
+  expect(card).toContain("<Card.Body");
+  expect(card).toContain("{artwork}");
+  expect(card).not.toContain("top: 80");
   expect(card).toContain('alignItems: "center"');
   const status = source("common/ui/ArtworkStatusPopover");
   expect(status).toContain("<HelpPopover");
@@ -104,7 +106,7 @@ it.each([
   const status = source("common/ui/ArtworkStatusPopover");
   expect(status).toContain('t("Group member")');
   expect(status).toContain('t("You are a member of this group.")');
-  expect(status).toContain('kind === "member" ? "success"');
+  expect(status).toMatch(/kind === "member"\s*\?\s*"success"/);
 });
 it("keeps group type/moderation artwork distinct and group creator protected", () => {
   expect(source("groups/GroupCard")).toContain("GroupArtwork");

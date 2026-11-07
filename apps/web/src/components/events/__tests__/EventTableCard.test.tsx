@@ -100,8 +100,8 @@ it("keeps external cards navigation-only and preserves explicit versioned consen
   expect(screen.queryByText("Invitation received")).toBeNull();
   const badge = screen.getByRole("button", { name: "Invitation received · Reply required" });
   expect(badge.className).toContain("text-warning");
-  expect(badge.parentElement?.className).toContain("top-20");
-  expect(badge.parentElement?.className).toContain("justify-center");
+  expect(badge.parentElement?.className).toContain("flex-wrap");
+  expect(badge.parentElement?.className).not.toContain("absolute");
   expect(screen.getByRole("link").contains(badge)).toBe(false);
   expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
   q.rerender(
@@ -217,7 +217,7 @@ it("shows Event/Group identity and separate minimum, maximum, accepted and pendi
     row ??= stat.parentElement;
     expect(stat.parentElement).toBe(row);
   }
-  expect(row?.className).toContain("flex-nowrap");
+  expect(row?.className).toContain("flex-wrap");
   expect(screen.queryByText("Reserved place")).toBeNull();
   expect(screen.queryByRole("button", { name: /^Invitation received/ })).toBeNull();
   expect(screen.queryByRole("button", { name: "Table legend" })).toBeNull();
@@ -256,7 +256,7 @@ it("marks a pending self request without offering self-approval, including incon
   const badge = screen.getByRole("button", { name: "Participation requested" });
   expect(badge.className).toContain("text-warning");
   expect(badge.querySelector("svg.lucide-clock-3")).not.toBeNull();
-  expect(badge.parentElement?.className).toContain("top-20");
+  expect(badge.parentElement?.className).toContain("flex-wrap");
   expect(screen.getByRole("link").contains(badge)).toBe(false);
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Decline invitation" })).toBeNull();

@@ -50,12 +50,20 @@ export function EventCard({
       href={href}
       notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
       leadingActions={
-        indicator === null ? undefined : (
-          <ArtworkStatusPopover
-            kind={indicator}
-            action={local || closed ? null : eventPendingAction(event)}
-          />
-        )
+        <>
+          {indicator !== null ? (
+            <ArtworkStatusPopover
+              kind={indicator}
+              action={local || closed ? null : eventPendingAction(event)}
+            />
+          ) : !local ? (
+            <ArtworkStatusPopover kind={event.role === "member" ? "member" : "viewer"} />
+          ) : null}
+          {!local && event.canManage && indicator !== "admin" ? (
+            <ArtworkStatusPopover kind="manager" />
+          ) : null}
+          {!local && event.myDemonstrator ? <ArtworkStatusPopover kind="demonstrator" /> : null}
+        </>
       }
       disabled={Boolean(local && local.phase !== "failed")}
       label={`${status || t`Open event`}: ${event.name}`}
@@ -73,8 +81,8 @@ export function EventCard({
           </Button>
         ) : undefined
       }
+      artwork={<AnimatedDicebearArtwork seed={event.id} variant="constellation" />}
     >
-      <AnimatedDicebearArtwork seed={event.id} variant="constellation" />
       <ListCardBody
         title={event.name}
         unread={!local && Boolean(attention?.get(attentionTarget)?.count)}

@@ -56,6 +56,7 @@ import { EventProposalSection } from "./EventProposalSection";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
+import { EventVoteLegend } from "./EventVoteLegend";
 import { TableListHeading } from "./TableListHeading";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const t = useT(),
@@ -178,7 +179,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const header = (
     <View style={{ gap: 12 }}>
       <View style={{ gap: 8 }}>
-        <EventDetailsCard event={event} />
+        <NotificationItem itemId={notificationItemId(event.id, "overview")} readOnly>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Typography className="font-semibold text-foreground">{t("Details")}</Typography>
+            <EventVoteLegend />
+          </View>
+        </NotificationItem>
         {event.readOnly ? (
           <Typography className="text-sm text-muted">
             {event.sharedResultsOnly
@@ -363,6 +369,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       <ScrollTargetContext.Provider value={scroll}>
         <View style={{ flex: 1 }}>
           {screenHeader}
+          <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+            <EventDetailsCard event={event} />
+          </View>
           <Tabs value={tab} onValueChange={setTab}>
             <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
               <TabBar>

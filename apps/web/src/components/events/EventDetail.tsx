@@ -52,6 +52,7 @@ import { EventProposalSection } from "./EventProposalSection";
 import { EventTables } from "./EventTables";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
+import { EventVoteLegend } from "./EventVoteLegend";
 import { TableListHeading } from "./TableListHeading";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const { t } = useLingui(),
@@ -165,6 +166,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
           </HeaderActions>
         ) : null}
+        <EventDetailsCard event={event} />
         <Tabs
           selectedKey={tab}
           onSelectionChange={(value) => setTab(String(value))}
@@ -186,7 +188,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         </Tabs>
         {tab === "details" ? (
           <>
-            <EventDetailsCard event={event} />
+            <NotificationItem itemId={notificationItemId(event.id, "overview")} readOnly>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold">{t`Details`}</h2>
+                <EventVoteLegend />
+              </div>
+            </NotificationItem>
             {event.readOnly ? (
               <p className="text-sm text-muted">
                 {event.sharedResultsOnly

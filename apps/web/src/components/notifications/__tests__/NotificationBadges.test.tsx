@@ -104,7 +104,7 @@ it("places static unread dots after card titles inside navigation, including per
     [`Open table: ${plannedTable.name}`, 2],
   ] as const) {
     const link = screen.getByRole("link", { name }),
-      badge = within(link).getByRole("img", {
+      badge = within(link.closest(".card") as HTMLElement).getByRole("img", {
         name: "Unread updates",
       });
     expect(badge.textContent).toBe("");
@@ -115,7 +115,7 @@ it("places static unread dots after card titles inside navigation, including per
         )
         ?.targets.some((row) => row.count === count),
     ).toBe(true);
-    expect(link.contains(badge)).toBe(true);
+    expect(link.closest(".card")?.contains(badge)).toBe(true);
     expect(badge.previousElementSibling?.textContent).toBe(name.split(": ")[1]);
     expect(badge.className).toContain("badge--danger");
     expect(badge.style.width).toBe("8px");

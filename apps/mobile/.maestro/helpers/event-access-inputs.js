@@ -11,7 +11,9 @@ if (
 )
   throw new Error("Local/Preview API only");
 if (
-  ["shared", "denied", "enroll", "picker", "finalize", "draft"].indexOf(EVENT_ACCESS_MODE) < 0 ||
+  ["shared", "denied", "enroll", "picker", "finalize", "draft", "presentation"].indexOf(
+    EVENT_ACCESS_MODE,
+  ) < 0 ||
   ["en", "it"].indexOf(EVENT_ACCESS_LOCALE) < 0
 )
   throw new Error("Explicit mode and EN/IT locale required");
@@ -48,6 +50,15 @@ if (
   (typeof p.catalogOnlyName !== "string" || p.catalogOnlyName.length < 4)
 )
   throw new Error("Catalog fixture with verified BGG 2–4 player pair required");
+if (
+  EVENT_ACCESS_MODE === "presentation" &&
+  (!/^[0-9a-f-]{36}$/i.test(p.groupId || "") ||
+    ![p.groupName, p.gameName].every((name) => typeof name === "string" && name.trim()) ||
+    ["PRIVATE", "PUBLIC"].indexOf(p.groupType) < 0)
+)
+  throw new Error(
+    "Owned grouped presentation fixture with exact Group/game names and type required",
+  );
 function exact(value) {
   return "^" + value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
 }
@@ -69,11 +80,32 @@ output.access = {
       : "Shared finalized results. Group details are hidden.",
   ),
   participants: exact(it ? "Partecipanti" : "Participants"),
+  overview: exact(it ? "Riepilogo" : "Overview"),
+  tables: exact(it ? "Tavoli" : "Tables"),
+  events: exact(it ? "Eventi" : "Events"),
+  seats: exact(it ? "Lista posti" : "Seats list"),
+  openGroup: exact((it ? "Apri gruppo: " : "Open group: ") + (p.groupName || "")),
+  openEvent: exact((it ? "Apri evento: " : "Open event: ") + p.eventName),
+  gamesHelp: exact((it ? "Giochi da tavolo: " : "Board games: ") + p.tableName),
+  approvedGame: exact(p.gameName || ""),
+  groupListTab: exact(
+    p.groupType === "PUBLIC"
+      ? it
+        ? "Pubblici"
+        : "Public groups"
+      : it
+        ? "Privati"
+        : "Private groups",
+  ),
+  groupFilter: p.groupName || "",
+  eventFilter: p.eventName,
+  tableFilter: p.tableName,
   results: exact(it ? "Risultati" : "Results"),
   ranking: "^Ranking$",
   player: exact(p.playerName || ""),
   nd: exact(p.ndName || ""),
   join: exact(it ? "Iscriviti al tavolo" : "Join table"),
+  entry: it ? "^(Posto libero|Mettiti in coda)$" : "^(Free place|Join waiting list)$",
   leave: exact(it ? "Abbandona tavolo" : "Leave table"),
   review: exact(it ? "Rivedi le impostazioni del tavolo" : "Review table settings"),
   request: exact(it ? "Richiedi l'appartenenza" : "Request membership"),

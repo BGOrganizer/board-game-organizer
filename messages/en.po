@@ -6040,3 +6040,24 @@ msgstr "Registered"
 
 msgid "Available"
 msgstr "Available"
+
+msgid "Management"
+msgstr "Management"
+
+msgid "Your current permissions allow managing this item."
+msgstr "Your current permissions allow managing this item."
+
+msgid "You are assigned to demonstrate a game."
+msgstr "You are assigned to demonstrate a game."
+
+msgid "Viewer"
+msgstr "Viewer"
+
+msgid "You can view this item."
+msgstr "You can view this item."
+
+msgid "Previous page"
+msgstr "Previous page"
+
+msgid "Next page"
+msgstr "Next page"

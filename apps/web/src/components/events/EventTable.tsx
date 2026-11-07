@@ -1,4 +1,5 @@
 "use client";
+import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   canManageEvent,
   communityAccessDenied,
@@ -8,8 +9,9 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChartNoAxesCombined, ClipboardPenLine, Info, Trophy } from "lucide-react";
+import { ChartNoAxesCombined, ClipboardPenLine, Info, Trophy, UsersRound } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { TabBar } from "@/components/common/ui/TabBar";
@@ -18,6 +20,7 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
+import { EventTableInfo } from "./EventTableInfo";
 import { EventTableLeaderboard } from "./EventTableLeaderboard";
 import { EventTableOverview } from "./EventTableOverview";
 import { EventTableResults } from "./EventTableResults";
@@ -34,7 +37,11 @@ export function EventTable({
     o = useCommunityApi(),
     q = useRecordTable(o, eventId, tableId),
     event = useEventRecord(o, eventId);
-  const [tab, setTab] = useState("overview");
+  const params = useSearchParams();
+  const invitationItem = notificationItemId(tableId, "invitation", undefined, "table");
+  const [tab, setTab] = useState(() =>
+    params?.get("attention") === invitationItem ? "participants" : "overview",
+  );
   const table =
     communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
   const readOnly = Boolean(table?.readOnly || event.data?.readOnly);
@@ -66,28 +73,17 @@ export function EventTable({
         />
       </HeaderActions>
     ) : null;
-  if (!table || table.eventStatus === "PLANNING")
+  if (!table)
     return (
-      <NotificationAttentionScope
-        options={o}
-        targets={
-          table && !readOnly
-            ? [
-                { kind: "table", id: tableId },
-                { kind: "event", id: eventId },
-                ...tableItemTargets(table),
-              ]
-            : []
-        }
-        readOnOpen={table && !readOnly ? { kind: "table", id: tableId } : undefined}
-      >
+      <NotificationAttentionScope options={o} targets={[]}>
         {header}
         <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
       </NotificationAttentionScope>
     );
   const selected =
     (tab === "results" && table.eventStatus !== "TERMINATED") ||
-    (tab === "ranking" && table.sharedResultsOnly)
+    (tab === "ranking" && (table.sharedResultsOnly || table.eventStatus === "PLANNING")) ||
+    (tab === "participants" && table.sharedResultsOnly)
       ? "overview"
       : tab;
   return (
@@ -106,32 +102,40 @@ export function EventTable({
     >
       <div className="mx-auto w-full max-w-4xl pb-24">
         {header}
+        <EventTableInfo table={table} />
         <Tabs selectedKey={selected} onSelectionChange={(key) => setTab(String(key))}>
           <TabBar label={t`Table sections`}>
             <TabTrigger icon={Info} id="overview">
               {t`Overview`}
               <NotificationTabBadge target={{ kind: "table", id: tableId }} />
             </TabTrigger>
+            {!table.sharedResultsOnly ? (
+              <TabTrigger icon={UsersRound} id="participants">
+                {t`Participants`}
+                <NotificationTabBadge target={{ kind: "item", id: invitationItem }} />
+              </TabTrigger>
+            ) : null}
             {table.eventStatus === "TERMINATED" ? (
               <TabTrigger icon={Trophy} id="results">{t`Results`}</TabTrigger>
             ) : null}
-            {!table.sharedResultsOnly ? (
+            {!table.sharedResultsOnly && table.eventStatus !== "PLANNING" ? (
               <TabTrigger icon={ChartNoAxesCombined} id="ranking">{t`Ranking`}</TabTrigger>
             ) : null}
           </TabBar>
-          <Tabs.Panel id="overview">
-            <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
-          </Tabs.Panel>
-          {table.eventStatus === "TERMINATED" ? (
-            <Tabs.Panel id="results">
-              <EventTableResults table={table} />
-            </Tabs.Panel>
-          ) : null}
-          {!table.sharedResultsOnly ? (
-            <Tabs.Panel id="ranking">
+          <Tabs.Panel id={selected}>
+            {selected === "ranking" ? (
               <EventTableLeaderboard table={table} />
-            </Tabs.Panel>
-          ) : null}
+            ) : selected === "results" ? (
+              <EventTableResults table={table} />
+            ) : (
+              <EventTableOverview
+                eventId={eventId}
+                tableId={tableId}
+                context={context}
+                section={selected === "participants" ? "participants" : "overview"}
+              />
+            )}
+          </Tabs.Panel>
         </Tabs>
         {q.isError && selected !== "overview" ? (
           <div role="alert">
