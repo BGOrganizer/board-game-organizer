@@ -139,6 +139,96 @@ publication likewise select `development` for Expo, release and Telegram credent
 does not select an Infisical environment: the deployed API reads the Vercel Preview value supplied
 by its existing sync. No credentials were deleted, rotated or synchronized as part of this code change.
 
+## Unified branch/PR CI rollout
+
+`pr-ci.yml` owns non-main push and main-targeting PR events. A push without an open PR runs
+quality-only checks; with an open PR it routes without duplicating the PR pipeline. Push routing
+and PR execution use different concurrency keys; PR execution retains `pr-<number>` so a new commit
+also cancels runs created by the previous workflow definition. Lookup failure is an error, not a
+reason to skip checks. Fork PRs do not enter secret-consuming lanes.
+
+Common quality gates feed two independent lanes:
+
+- Internal owns the isolated API/database, CI web, CI APK, users, mirroring, optional retained E2E
+  and exact-run cleanup. `PR ready` requires every common/Internal/cleanup result. Its job still
+  evaluates after failed dependencies, so a skipped prerequisite cannot masquerade as readiness.
+- Development owns a non-CI API, dedicated web using that immutable API, and an APK embedding the
+  same API URL. Publication verifies artifact checksum, source head, current PR, active run/attempt
+  and newer same-head runs. Draft release/Telegram announce **Development availability**, not a
+  successful PR or E2E. They do not wait for Internal or CI cleanup. A Development-only failure
+  may leave the overall workflow red while `PR ready` is green; the failure remains visible.
+
+`BGO_PR_E2E_ENABLED` is an explicit workflow policy, currently `'false'`. Only the two matching E2E
+skips are permitted by the aggregate gate. Setting it to `'true'` requires actual success of both
+retained suites. No skips or script/VM tests establish authenticated browser/native acceptance.
+Main production delivery, release and manual E2E policies are unchanged.
+
+### Activate trusted controllers before relying on lane independence
+
+`pr-ci-fail-fast.yml` and `pr-ci-cleanup.yml` execute trusted **default-branch** definitions, not
+PR versions. A feature-branch push neither activates absent controllers nor replaces an old
+cancel-on-any-failure watchdog. Inspect the actual default branch: absent controllers provide no
+cancellation recovery; an older watchdog can still cancel the opposite lane. Do not claim active
+controller coverage or verified runtime independence before the coordinated rollout.
+
+Land the compatible watchdog/script and their regression tests through the normal protected-main
+review/merge process before activating the full pipeline. The watchdog recognizes both existing
+unit-job names and new context/coverage names and cancels only shared routing/quality/API-web build
+failures. Keep its existing workflow-name subscription. Do not disable the watchdog or bypass
+branch protection as a shortcut. The separate trusted cancellation/failure cleanup remains enabled,
+uses exact run/attempt evidence and never targets Development resources. No cleanup-script,
+secret/provider configuration or production workflow change is required for this restructuring.
+
+The independently applicable trusted-controller bundle is:
+
+```text
+.github/workflows/pr-ci-fail-fast.yml
+.github/workflows/pr-ci-cleanup.yml
+.github/scripts/ci-fail-fast.mjs
+.github/scripts/ci-fail-fast.test.mjs
+.github/scripts/cleanup-pr-e2e.sh
+.github/scripts/cleanup-e2e-clerk-users.sh
+```
+
+Use these files from the verified implementation revision on a new branch based on current `main`,
+not a cherry-pick that implicitly imports the whole feature branch. Run the standalone watchdog
+check (`node --test .github/scripts/ci-fail-fast.test.mjs`), shell syntax and workflow validation.
+Opening that maintenance PR or merging it still requires the operator's explicit scope; do not
+push directly to `main`. Observe actual trusted runs after activation before migrating settings.
+
+### Migrate required checks without an unguarded merge window
+
+1. Snapshot `main`'s current `required_status_checks` response. Preserve its `strict` value, app
+   association and all other branch-protection settings. Do not disable enforcement temporarily.
+2. After the trusted controller is active, observe a real `pull_request` run of `pr-ci.yml` for
+   the current PR head. Verify its run/head/attempt identity and the **successful `PR ready` job**
+   and GitHub Actions check-run. A similarly named push job, an old head, a skip or a fabricated
+   status is insufficient. If Internal/cleanup failed, fix and rerun instead of migrating early.
+3. Atomically replace only the obsolete duplicated Branch/PR check contexts with the exact
+   `PR ready` context and its observed GitHub Actions `app_id`, retaining unrelated required
+   checks. Use the required-status-checks subresource, not a replacement of whole branch protection.
+   Do not append `PR ready` while leaving retired names permanently Expected.
+4. Read settings back and inspect the PR merge box. Confirm `PR ready` is required on its current
+   head; missing/failed mandatory Internal or cleanup results must block merge. Development-only
+   failure must not block Internal or turn the required gate into a false success. Re-enabling E2E
+   must require both successes without another protection migration.
+5. Retain the snapshot for rollback. If the old workflow is restored, restore its corresponding
+   contexts together; do not leave a required name that no longer runs. Controller rollback must
+   likewise be coordinated with the pipeline, never by silently dropping cleanup/protection.
+
+Read-only evidence commands (substitute the observed repository/run/head):
+
+```bash
+gh api repos/BGOrganizer/board-game-organizer/branches/main/protection/required_status_checks
+gh api repos/BGOrganizer/board-game-organizer/actions/runs/RUN_ID
+gh api repos/BGOrganizer/board-game-organizer/actions/runs/RUN_ID/jobs --paginate
+gh api repos/BGOrganizer/board-game-organizer/commits/HEAD_SHA/check-runs --paginate
+```
+
+Local routing, gate, mocked-HTTP and DAG tests plus actionlint validate source behavior only.
+They do not change live branch settings, deploy a trusted controller or attest provider/device E2E.
+Run the regression suite with `node --test .github/scripts/*.test.mjs`.
+
 ## EAS registration quota
 
 APK builds still run locally and must pass their existing checks. EAS registration through `eas upload`
@@ -155,7 +245,7 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 - `expo-image-picker` changes native permissions. A JavaScript export is insufficient: create a fresh native build and exercise camera/library denial, retry, Settings-return refresh, replacement and cancelled picking in Maestro.
 - Run the new organization/event acceptance flows on both clients; verify failure/empty/privacy/cutoff paths, not only successful forms. Never silently skip missing authenticated E2E configuration.
 - [The managed HeroUI Native 1.0.9 patch](../patches/heroui-native@1.0.9.patch) gives the default animated popover wrapper absolute-fill bounds in both source and distributed modules. Run `38166070753` showed visible help omitted from the accessibility tree and zero-height containers skipped by Maestro. The patch retains mounting, positioning, touch pass-through and animations; its native acceptance remains subject to the full Maestro gate.
-- By explicit operator request, the PR Maestro and Playwright jobs are retained but disabled with `if: ${{ false }}`. Their suites and report validation remain intact; main E2E and manual mobile E2E pipelines remain enabled. PR publication permits only these intentional E2E skips: every other gate and cleanup must succeed. Cleanup waits for fixture mirroring and CI API consumers even when both tests are skipped. A green PR run does not establish web or native E2E acceptance.
+- By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; main/manual E2E stay enabled. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. Cleanup still waits for fixture mirroring and CI API consumers when tests are skipped. A green gate does not establish web/native E2E acceptance.
 - When re-enabled, PR Maestro attempts all 13 ordered flows after an earlier flow failure when native preparation succeeded and the run is not cancelled. Each failed step remains failed; final report verification still runs and rejects failed, skipped or missing reports. Shared-session failures may cascade into later flows, so inspect their actual traces before treating each failure as an independent defect.
 - Maestro uses the rendering-enabled Android 34 `google_apis;x86_64` image for Expo Location's Google Play Services provider, selected explicitly even if a cached AOSP or ATD image is present. [ATD images disable hardware rendering](https://developer.android.com/studio/test/managed-devices#use-atds) and remove GUI services; a headless emulator window must not imply a non-rendering Android guest. Keep actual screenshots/video and animated portal assertions; do not substitute longer waits or disable animations to hide missing UI.
 - GitHub native acceptance requires Linux KVM: trigger the job-local device rule with `udevadm trigger --name-match=kvm --settle` before checking read/write permissions and running `emulator -accel-check`. The ordinary trigger is asynchronous; immediate permission checks race rule application. Missing devices or denied permissions fail explicitly with device/runner diagnostics. Keep `-accel on`, never software-CPU fallback. Windows WHPX and shell simulations are not Linux KVM acceptance; verify the real runner before claiming native success.

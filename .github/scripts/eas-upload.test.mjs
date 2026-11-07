@@ -192,17 +192,20 @@ test("optional EAS registration cannot disable APK, E2E, cleanup or publication 
     assert.match(upload.run, /eas-upload\.mjs/);
     assert.equal(upload["continue-on-error"], undefined);
     assert.equal(job["continue-on-error"], undefined);
-    assert(job.needs.includes("e2e-maestro"));
-    assert(job.needs.includes("e2e-playwright"));
+    const gate = workflow === pr ? workflow.jobs.ready : job;
+    assert(gate.needs.includes("e2e-maestro"));
+    assert(gate.needs.includes("e2e-playwright"));
   }
   assert.notEqual(main.jobs["e2e-maestro"].if, `\${{ false }}`);
   assert.notEqual(main.jobs["e2e-playwright"].if, `\${{ false }}`);
-  assert.match(pr.jobs["draft-release"].if, /needs\.build-mobile-internal\.result == 'success'/);
+  assert.doesNotMatch(pr.jobs["draft-release"].if, /build-mobile-internal/);
   assert.match(pr.jobs["draft-release"].if, /needs\.build-mobile-development\.result == 'success'/);
-  assert.equal(pr.jobs["cleanup-e2e-user"].if, "always()");
+  assert.match(pr.jobs["cleanup-e2e-user"].if, /^always\(\).*mode == 'pr'/);
   assert.equal(release.inputs["apk-path"].required, true);
   assert.equal(release.inputs["eas-build-url"].required, false);
   const body = release.runs.steps[0].run;
-  assert.match(body, /if \[ -z "\$EAS_BUILD_URL" \]; then sed -i '\/__EAS_BUILD__\/d'/);
-  assert.match(body, /--data-binary @/);
+  assert.match(body, /publish-pr-draft\.mjs/);
+  const publisher = readFileSync(".github/scripts/publish-pr-draft.mjs", "utf8");
+  assert.match(publisher, /eas \? \[/);
+  assert.match(publisher, /openAsBlob\(input\.apkPath\)/);
 });

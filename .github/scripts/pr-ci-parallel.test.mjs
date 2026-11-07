@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
@@ -11,11 +11,20 @@ const jobs = pr.jobs;
 const quality = ["commitlint", "lint", "typecheck", "unit-tests", "integration-tests", "build-api"];
 const step = (job, name) => jobs[job].steps.find((item) => item.name === name);
 
-test("quality checks and API/Web builds overlap; neither API Preview precedes quality gates", () => {
+test("one application workflow routes branch/PR events and overlaps checks after context resolution", () => {
+  assert.equal(existsSync(".github/workflows/branch-ci.yml"), false);
+  assert.deepEqual(pr.on.push["branches-ignore"], ["main"]);
+  assert.deepEqual(pr.on.pull_request.branches, ["main"]);
   assert.equal(pr.concurrency["cancel-in-progress"], true);
+  assert.deepEqual(pr.permissions, { contents: "read", actions: "read" });
+  assert(pr.concurrency.group.includes("github.event_name"));
   for (const name of [...quality, "build-web", "detect-mobile-changes"]) {
-    assert.equal(jobs[name].needs, undefined, `${name} should run independently`);
+    assert.deepEqual(jobs[name].needs, ["context"], `${name} waits only for routing`);
   }
+  for (const name of ["commitlint", "lint", "typecheck", "unit-tests", "integration-tests"])
+    assert(jobs[name].if.includes("'branch'"), name);
+  for (const name of ["build-api", "build-web", "detect-mobile-changes"])
+    assert(!jobs[name].if.includes("'branch'"), name);
   for (const name of ["deploy-preview-api", "deploy-development-api"]) {
     for (const gate of quality)
       assert.ok(jobs[name].needs.includes(gate), `${name} must await ${gate}`);
@@ -25,7 +34,7 @@ test("quality checks and API/Web builds overlap; neither API Preview precedes qu
 
 test("APK builds overlap but embed separate isolated and development Preview URLs", () => {
   assert.ok(jobs["build-mobile-internal"].needs.includes("deploy-preview-api"));
-  assert.deepEqual(jobs["build-mobile-development"].needs, ["deploy-development-api"]);
+  assert.deepEqual(jobs["build-mobile-development"].needs, ["context", "deploy-development-api"]);
   assert.equal(
     step("build-mobile-internal", "🏗️ Build APK (eas build --local, internal profile)").with[
       "api-url"
@@ -41,7 +50,7 @@ test("APK builds overlap but embed separate isolated and development Preview URL
   assert.ok(jobs["e2e-maestro"].needs.includes("build-mobile-internal"));
   assert.ok(!jobs["e2e-maestro"].needs.includes("build-mobile-development"));
   for (const name of ["e2e-maestro", "e2e-playwright"]) {
-    assert.ok(jobs[name].needs.includes("deploy-development-api"));
+    assert.ok(!jobs[name].needs.includes("deploy-development-api"));
   }
   for (const gate of [
     "e2e-maestro",
@@ -50,19 +59,29 @@ test("APK builds overlap but embed separate isolated and development Preview URL
     "cleanup-e2e-db",
     "build-mobile-development",
   ]) {
-    assert.ok(jobs["draft-release"].needs.includes(gate));
+    assert.equal(jobs["draft-release"].needs.includes(gate), gate === "build-mobile-development");
   }
+  assert(jobs["draft-release"].needs.includes("deploy-development-web"));
+  assert.equal(
+    step("deploy-development-web", "🚀 Deploy Web against Development API").with["ci-db-name"],
+    undefined,
+  );
+  assert.match(
+    step("deploy-development-web", "🚀 Deploy Web against Development API").with["extra-env"],
+    /needs\.deploy-development-api\.outputs\.url/,
+  );
 });
 
 test("PR E2E jobs are retained but explicitly skipped; other pipelines remain enabled", () => {
   const native = jobs["e2e-maestro"];
-  assert.equal(native.if, "${{ false }}");
+  assert.equal(pr.env.BGO_PR_E2E_ENABLED, "false");
+  assert.match(native.if, /e2e-enabled == 'true'/);
   assert(native.steps.length > 0);
   assert(native.steps.some((item) => item.with?.flow === "13-event-draft"));
   assert(native.steps.some((item) => item.with?.phase === "verify"));
-  assert.equal(jobs["cleanup-e2e-user"].if, "always()");
+  assert.match(jobs["cleanup-e2e-user"].if, /^always\(\).*mode == 'pr'/);
   const browser = jobs["e2e-playwright"];
-  assert.equal(browser.if, "${{ false }}");
+  assert.match(browser.if, /e2e-enabled == 'true'/);
   assert(browser.steps.some((item) => item.run === "pnpm test:e2e"));
   const main = parse(readFileSync(".github/workflows/main-ci.yml", "utf8"));
   assert.notEqual(main.jobs["e2e-playwright"].if, "${{ false }}");
@@ -72,36 +91,62 @@ test("PR E2E jobs are retained but explicitly skipped; other pipelines remain en
   }
 });
 
-test("draft publication tolerates only intentional E2E skips, never a failed or missing gate", () => {
+test("Development publication ignores Internal results but requires every common/Development gate", () => {
   const release = jobs["draft-release"];
-  const expression = release.if.replace(
-    /needs\.([\w-]+)\.result/g,
-    (_, key) => `results["${key}"]`,
-  );
+  const expression = release.if
+    .replace(/needs\.([\w-]+)\.result/g, (_, key) => `results["${key}"]`)
+    .replaceAll("needs.context.outputs.mode", "mode")
+    .replaceAll("needs.context.outputs.trusted", "trusted");
   const success = Object.fromEntries(release.needs.map((name) => [name, "success"]));
-  const allowed = (results, cancelled = false) =>
+  const allowed = (results, cancelled = false, mode = "pr", trusted = "true") =>
     runInNewContext(expression, {
       results,
+      mode,
+      trusted,
       always: () => true,
       cancelled: () => cancelled,
     });
   assert.equal(allowed(success), true);
-  for (const native of ["success", "skipped"]) {
-    for (const browser of ["success", "skipped"]) {
-      assert.equal(allowed({ ...success, "e2e-maestro": native, "e2e-playwright": browser }), true);
-    }
-  }
-  const skippedE2E = { ...success, "e2e-maestro": "skipped", "e2e-playwright": "skipped" };
-  assert.equal(allowed(skippedE2E, true), false);
-  for (const gate of release.needs) {
-    for (const result of ["failure", "cancelled", "skipped", undefined]) {
-      assert.equal(
-        allowed({ ...skippedE2E, [gate]: result }),
-        ["e2e-maestro", "e2e-playwright"].includes(gate) && result === "skipped",
-        `${gate}: ${result}`,
-      );
-    }
-  }
+  assert.equal(allowed(success, true), false);
+  assert.equal(allowed(success, false, "branch"), false);
+  assert.equal(allowed(success, false, "pr", "false"), false);
+  for (const gate of release.needs)
+    for (const result of ["failure", "cancelled", "skipped", undefined])
+      assert.equal(allowed({ ...success, [gate]: result }), false, `${gate}: ${result}`);
+  for (const gate of [
+    "e2e-maestro",
+    "e2e-playwright",
+    "build-mobile-internal",
+    "deploy-preview-api",
+    "deploy-preview-web",
+    "cleanup-e2e-user",
+    "cleanup-e2e-db",
+  ])
+    for (const result of ["failure", "cancelled", "skipped", "success"])
+      assert.equal(allowed({ ...success, [gate]: result }), true, `${gate}: ${result}`);
+  assert(!jobs.ready.needs.some((name) => /development|draft-release/.test(name)));
+  for (const gate of [
+    "e2e-maestro",
+    "e2e-playwright",
+    "build-mobile-internal",
+    "cleanup-e2e-user",
+    "cleanup-e2e-db",
+  ])
+    assert(jobs.ready.needs.includes(gate));
+  const ready = jobs.ready.if
+    .replaceAll("github.event_name", "event")
+    .replaceAll("needs.context.outputs.mode", "mode");
+  assert.equal(
+    runInNewContext(ready, { event: "pull_request", mode: undefined, always: () => true }),
+    true,
+  );
+  assert.equal(
+    runInNewContext(ready, { event: "push", mode: "routed", always: () => true }),
+    false,
+  );
+  const env = jobs.ready.steps.find((step) => step.env?.CI_RESULTS).env;
+  assert(!env.CI_RESULTS.includes("toJSON(needs)"));
+  assert(!env.CI_RESULTS.includes("outputs.user"));
 });
 
 test("intentional E2E skips cannot race fixture mirroring or CI API consumers with cleanup", () => {
@@ -185,15 +230,20 @@ test("PR publishes the verified development APK to EAS and keeps GitHub and Tele
   const action = parse(readFileSync(".github/actions/publish-draft-release/action.yml", "utf8"));
   assert.equal(action.inputs["eas-build-url"].required, false);
   assert.equal(action.inputs["eas-build-url"].default, "");
-  assert.match(JSON.stringify(action.runs.steps), /__EAS_BUILD__/);
+  assert.match(action.runs.steps[0].run, /publish-pr-draft\.mjs/);
+  assert.equal(publish.with["web-preview-url"], `\${{ needs.deploy-development-web.outputs.url }}`);
+  assert(steps.some((step) => step.name === "🔒 Verify current head before Telegram"));
 });
 
-test("watchdog cancels any failed PR job; independent cleanup survives cancellation", () => {
+test("watchdog cancels only shared-quality failures; independent cleanup survives cancellation", () => {
   assert.deepEqual(watchdog.on.workflow_run.workflows, [pr.name]);
   assert.deepEqual(watchdog.on.workflow_run.types, ["in_progress"]);
   assert.equal(watchdog.permissions.actions, "write");
-  assert.match(watchdog.jobs["cancel-failed-run"].steps[0].run, /\.conclusion == "failure"/);
-  assert.match(watchdog.jobs["cancel-failed-run"].steps[0].run, /actions\/runs\/\$RUN_ID\/cancel/);
+  assert.equal(watchdog.jobs["cancel-failed-run"].steps[0].uses, "actions/checkout@v4");
+  assert.match(watchdog.jobs["cancel-failed-run"].steps.at(-1).run, /ci-fail-fast\.mjs/);
+  const controller = readFileSync(".github/scripts/ci-fail-fast.mjs", "utf8");
+  assert.match(controller, /sharedQualityFailed/);
+  assert.match(controller, /api\("\/cancel", "POST"\)/);
   assert.deepEqual(cleanup.on.workflow_run.workflows, [pr.name]);
   assert.deepEqual(cleanup.on.workflow_run.types, ["completed"]);
   assert.match(cleanup.jobs.cleanup.if, /conclusion != 'success'/);
@@ -229,7 +279,7 @@ test("PR deployment, auth, build and publication secrets use the development Git
       JSON.stringify(job),
     ),
   );
-  assert.equal(consumers.length, 11);
+  assert.equal(consumers.length, 12);
   for (const [name, job] of consumers) assert.equal(job.environment, "development", name);
 });
 

@@ -860,45 +860,49 @@ pnpm build
 Every job using a local action must run `actions/checkout` first. GitHub cannot resolve
 `./.github/actions/...` before checkout.
 
-### `branch-ci.yml`
+### Unified branch/PR pipeline: `pr-ci.yml`
 
-Runs on every non-main branch push:
+Non-main pushes without an open main-targeting PR run commitlint, Biome, typecheck, unit tests for
+mobile/web/API/schemas/shared and API integration tests, with no builds, deployments or E2E.
+`Branch checks` aggregates those results. With an open PR, the push run performs routing only;
+the PR event owns the full pipeline. Failed PR lookup fails closed, never silently skips checks.
+The separate `branch-ci.yml` is removed.
 
-1. commitlint
-2. Biome
-3. typecheck
-4. unit tests for mobile, web, API, schemas, and shared deterministic helpers
-5. API integration tests
+After routing, common quality gates run once in parallel; PR mode additionally runs coverage/Codecov,
+API/web builds and mobile-change detection. Secret-consuming lanes require a same-repository PR:
 
-No builds, deployments, or E2E.
+- **Internal:** isolated CI API, immutable CI web, internal APK (or verified reuse), run-scoped
+  database and two Clerk test users, mirroring, retained E2E, then exact-run cleanup.
+  `PR ready` aggregates common quality, Internal and cleanup results; Development cannot block it.
+- **Development:** non-CI API, separate web against that immutable API, and Development APK build
+  in parallel with Internal. After common quality/builds and these three Development jobs succeed,
+  publish the verified APK, coherent Development links and changelog to draft release and Telegram.
+  Internal APK, E2E and CI cleanup are not publication dependencies. Development-only failure must
+  not cancel Internal; Internal-only failure must not cancel Development.
 
-### `pr-ci.yml`
-
-Runs pull-request gates (Maestro and Playwright are retained but explicitly disabled by operator request):
-
-1. commitlint, Biome, typecheck, unit coverage/Codecov, API integration tests, API/web builds, and
-   mobile-change detection start in parallel;
-2. only after quality gates pass, deploy isolated CI API and non-CI development API Previews in
-   parallel; the development Preview remains deployed even if later E2E fails;
-3. build both mobile APKs on separate runners as soon as their respective URLs are available; only
-   the CI APK (or verified reuse) targets the moving per-PR API alias;
-4. deploy Preview web against the immutable CI API URL, seed `bgo_ci_<run_id>_<attempt>`, and
-   synchronize two test users;
-5. skip the retained Maestro and Playwright jobs; wait for fixture mirroring and CI API consumers
-   before cleaning up CI users and database, even on failure;
-6. publish only the development-API APK to the draft prerelease and Telegram after every enabled gate
-   and cleanup passes. A green PR run is not E2E acceptance; main E2E and manual Maestro gates remain enabled.
+`BGO_PR_E2E_ENABLED: 'false'` explicitly disables retained Maestro and Playwright jobs by operator
+request. `PR ready` permits only their policy-matching intentional skips; when enabled, both must
+succeed. Every other mandatory result must succeed. A green gate is not E2E acceptance while this
+policy is false; main E2E and manual Maestro remain enabled.
 
 EAS artifact registration is optional only for its explicit exhausted local monthly quota (exit 1 or 4
 and the matching provider message). APK builds, validation, E2E policy and cleanup remain mandatory.
 PR/main publication and Telegram continue with the verified GitHub APK but omit the unavailable EAS
 link. Generic GraphQL, authentication, malformed responses and other upload errors still fail.
 
-A new PR commit cancels the previous run. A trusted `workflow_run` watchdog polls for job failures
-and cancels the entire PR run; GitHub marks the run `cancelled`, while the failing job retains its
-failure. A separate trusted `workflow_run` cleanup removes exact-run CI users and the isolated
-database after cancellation/failure; ordinary in-run cleanup and the periodic Clerk sweep provide
-fallback.
+A new PR commit cancels the previous run; the PR concurrency key retains its existing identity.
+The trusted `workflow_run` watchdog cancels the whole run only for shared routing/quality/API-web
+build failures, never failures confined to either lane. A separate trusted `workflow_run` cleanup
+removes exact-run CI users and isolated database after cancellation/failure; ordinary cleanup and
+the periodic Clerk sweep remain. Cleanup never deletes Development resources.
+
+Publication verifies current open trusted PR head, active workflow run/attempt and absence of a newer
+same-head PR run before release updates and Telegram. Uploaded APK receipts must match actual
+SHA256/size; new revision-named assets precede link replacement and selective old-APK removal.
+Development availability never claims Internal/E2E success. Trusted controllers execute default-branch
+code: feature-branch edits alone do not activate lane isolation. Follow the coordinated controller
+rollout and required-check migration in [operational gates](docs/organizations-events-operations.md#unified-branchpr-ci-rollout);
+never delete old required contexts before a genuine current-head `PR ready` success is observable.
 
 Mobile change detection compares against the last successful PR workflow run on the branch, not the
 PR base. Mobile code, related workspace packages, compiled localization, and changes to the mobile
@@ -906,8 +910,8 @@ lockfile dependency graph trigger APK rebuilds. Web/API-only, Maestro-only, unit
 unrelated lockfile changes do not. Compare each reusable artifact's own commit with the PR head
 before reuse.
 
-Preview web uses the immutable isolated API deployment URL; E2E PR APKs use the per-PR alias. The
-published PR APK embeds the immutable development API Preview URL. Never point E2E at the
+CI Preview web uses the immutable isolated API deployment URL; E2E PR APKs use the per-PR alias.
+Published Development web and APK both use the immutable Development API Preview URL. Never point E2E at the
 development API. Protected previews receive `VERCEL_PROTECTION_BYPASS` and clients append it to
 request URLs.
 
@@ -965,7 +969,7 @@ For each feature, fix, documentation change, dependency update, or CI change:
 2. implement the complete task;
 3. run relevant checks;
 4. commit with a signed Conventional Commit;
-5. push the branch so `branch-ci.yml` validates it;
+5. push the branch so the unified `pr-ci.yml` branch/PR path validates it;
 6. open a PR only after the user explicitly requests it.
 
 Allowed commit types:

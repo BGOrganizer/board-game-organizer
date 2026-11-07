@@ -162,7 +162,7 @@ test("main uploads the gated production APK to EAS before publishing GitHub and 
   assert.equal(step("publish-release", "📥 Download internal APK").with.name, "apk-internal-main");
 });
 
-test("PR builds isolated and development APKs concurrently, publishing only after E2E cleanup", () => {
+test("PR separates Development publication from Internal merge and cleanup gates", () => {
   const prStep = (job, name) => prJobs[job].steps.find((item) => item.name === name);
   assert.equal(
     prStep("build-mobile-internal", "🏗️ Build APK (eas build --local, internal profile)").with[
@@ -174,7 +174,8 @@ test("PR builds isolated and development APKs concurrently, publishing only afte
   assert.ok(prJobs["deploy-development-api"].needs.includes("integration-tests"));
   assert.ok(!prJobs["deploy-development-api"].needs.includes("cleanup-e2e-db"));
   for (const gate of ["e2e-maestro", "e2e-playwright", "cleanup-e2e-db"]) {
-    assert.ok(prJobs["draft-release"].needs.includes(gate));
+    assert.ok(!prJobs["draft-release"].needs.includes(gate));
+    assert.ok(prJobs.ready.needs.includes(gate));
   }
   const preview = prStep(
     "deploy-development-api",

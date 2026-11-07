@@ -236,7 +236,7 @@ test("PR native acceptance attempts every flow after a failure without weakening
     new URL("../workflows/pr-ci-fail-fast.yml", import.meta.url),
     "utf8",
   );
-  assert(watchdog.includes('select(.conclusion == "failure")'));
+  assert(watchdog.includes("ci-fail-fast.mjs"));
   assert.doesNotMatch(watchdog, /\.steps\[\]/);
 });
 test("managed HeroUI patch preserves popup sizing, controlled initial sheet index and genuine pan closure", () => {

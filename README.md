@@ -231,8 +231,13 @@ There is no root `test` script. Mobile Vitest focuses on pure logic; Maestro cov
 Missing authenticated E2E configuration must fail, not silently skip. Written flows and static
 checks do not establish runtime acceptance.
 
-Branch CI runs quality/unit/integration checks. PR CI adds isolated Preview deployments, separate
-CI/development APKs, browser/native E2E and cleanup before draft publication. Main CI verifies
+One [branch/PR pipeline](.github/workflows/pr-ci.yml) runs quality/unit/integration checks before a
+PR exists; open PRs use one full pipeline without duplicate push checks. Common quality gates
+feed independent Internal and Development lanes. `PR ready` requires Internal and CI cleanup;
+Development APK/web/API draft publication and Telegram do not wait for them. PR browser/native E2E
+remain explicitly disabled, not accepted; main/manual E2E remain enabled. Follow the
+[controller and required-check rollout](docs/organizations-events-operations.md#unified-branchpr-ci-rollout)
+before treating feature-branch workflow edits as active policy. Main CI still verifies
 isolated E2E and cleanup before release and production deployment. Vercel builds uploaded source
 with app-specific build commands; deployment-local overrides preserve database isolation.
 

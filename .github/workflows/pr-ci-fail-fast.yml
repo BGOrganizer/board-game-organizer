@@ -1,15 +1,13 @@
 name: PR CI fail-fast watchdog
 
-# workflow_job is a webhook, not an Actions workflow trigger. Watch the run
-# from trusted default-branch code, including workflow re-runs.
+# Always executes trusted default-branch code. Keep name compatibility during rollout.
 on:
   workflow_run:
     workflows: ["🚦 PR CI/CD (quality gates → draft prerelease + Telegram)"]
     types: [in_progress]
-
 permissions:
   actions: write
-
+  contents: read
 jobs:
   cancel-failed-run:
     if: >-
@@ -18,23 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      - name: Cancel all running and queued PR jobs after first failure
+      - name: 📥 Checkout trusted watchdog code
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Cancel only after a shared quality failure
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
-        run: |
-          set -euo pipefail
-          while true; do
-            run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")
-            [ "$(jq -r '.status' <<< "$run")" != 'completed' ] || exit 0
-            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" |
-              jq -e '[.jobs[] | select(.conclusion == "failure")] | length > 0' > /dev/null; then
-              echo "Cancelling PR run $RUN_ID after a job failure"
-              gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/cancel" > /dev/null || {
-                # The final failing job may have completed the run during polling.
-                [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.status')" = completed ]
-              }
-              exit 0
-            fi
-            sleep 15
-          done
+        run: node .github/scripts/ci-fail-fast.mjs
