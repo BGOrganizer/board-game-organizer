@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { expect, it } from "vitest";
+import { parseBoardGamesCsv } from "@/app/lib/games/boardGames.csv";
 
 const exec = promisify(execFile);
 const header =
@@ -49,6 +50,10 @@ it.each([
         BGG_CSV: csv,
         BGG_IMPORT_URL: `http://127.0.0.1:${address.port}/api/admin/import-games`,
         BGG_IMPORT_TOKEN: "test-token",
+        BGG_BYPASS: "",
+        BGG_CHUNK: "500",
+        BGG_SKIP_CHUNKS: "0",
+        BGG_END_CHUNKS: "",
       },
     });
     if (accepted)
@@ -57,6 +62,9 @@ it.each([
     expect(writes).toBe(accepted ? 1 : 0);
     expect(cleanups).toBe(accepted ? 1 : 0);
     if (accepted) {
+      expect(postedGame).toEqual(
+        parseBoardGamesCsv(`${header}\n1,Azul,2017,0,0,7.5,5,0,,,,,,,,\n`)[0],
+      );
       expect(postedGame).toMatchObject({
         id: 1,
         isExpansion: false,

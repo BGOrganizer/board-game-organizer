@@ -26,7 +26,7 @@ test("composite mobile action takes the public key as input, never unsupported v
 
 test("every mobile-build caller explicitly supplies the repository MapTiler variable", () => {
   let callers = 0;
-  for (const name of ["pr-ci.yml", "main-ci.yml", "mobile-development.yml", "mobile-e2e.yml"]) {
+  for (const name of ["pr-ci.yml", "main-ci.yml", "mobile-development.yml"]) {
     const lines = readFileSync(`.github/workflows/${name}`, "utf8").split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
       if (!lines[i].includes("uses: ./.github/actions/mobile-build")) continue;

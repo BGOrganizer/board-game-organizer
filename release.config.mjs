@@ -13,7 +13,7 @@
  * Pipeline contract (main-ci.yml): main-ci runs semantic-release with
  * SKIP_PUBLISH=true → only the version bump + changelog are committed; the
  * GitHub release is created by the publish-release job ONLY after the APK
- * build, production deploys and E2E tests pass.
+ * build, production deploys and read-only smoke checks pass.
  *
  * Note: the changelog mirrors the PR-draft style (pr-ci's
  * scripts/release/pr-changelog.mjs groups by the same types with the same
@@ -92,7 +92,7 @@ export default {
       },
     ],
     // Publish step: skipped when SKIP_PUBLISH=true (the release is created by
-    // main-ci's publish-release job only after builds/deploys/E2E pass).
+    // main-ci's publish-release job only after quality/coverage/builds/deploys/smoke pass).
     ...(process.env.SKIP_PUBLISH === "true"
       ? []
       : [

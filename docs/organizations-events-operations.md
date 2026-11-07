@@ -123,7 +123,8 @@ The current 13 GitHub repository Secrets all remain used:
 - Vercel: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_API_PROJECT_ID`, `VERCEL_WEB_PROJECT_ID`,
   `VERCEL_PROTECTION_BYPASS`.
 - Clerk: `CLERK_SECRET_KEY` for development E2E provisioning/attestation/cleanup/import;
-  `CLERK_SECRET_KEY_PRODUCTION` for explicit production catalog import.
+  `CLERK_SECRET_KEY_PRODUCTION` for explicit production catalog import and read-only manual-build
+  API attestation. Manual operations select the matching existing environment, never a key fallback.
 - Mobile: `EXPO_TOKEN`; `GOOGLE_SERVICES_JSON` for optional push-enabled APKs. In GitHub,
   `GOOGLE_SERVICES_JSON` contains the original JSON document, not Base64 or a file path; the build
   action writes it to a restricted temporary file and passes that path to Expo.
@@ -161,7 +162,8 @@ Common quality gates feed two independent lanes:
 `BGO_PR_E2E_ENABLED` is an explicit workflow policy, currently `'false'`. Only the two matching E2E
 skips are permitted by the aggregate gate. Setting it to `'true'` requires actual success of both
 retained suites. No skips or script/VM tests establish authenticated browser/native acceptance.
-Main production delivery, release and manual E2E policies are unchanged.
+Main delivery and manual operations follow the explicit operator-approved policy below; these
+PR changes alone do not establish live default-branch activation.
 
 ### Activate trusted controllers before relying on lane independence
 
@@ -229,6 +231,54 @@ Local routing, gate, mocked-HTTP and DAG tests plus actionlint validate source b
 They do not change live branch settings, deploy a trusted controller or attest provider/device E2E.
 Run the regression suite with `node --test .github/scripts/*.test.mjs`.
 
+## Main delivery and manual environment selection
+
+By explicit operator request, Main delivery has no browser/native E2E gates or their Preview APK,
+API/web deployments, Clerk fixtures or application CI database/cleanup. Biome/typecheck/CI-script
+checks, five unit coverage suites, replica-set API integration coverage and API/web verification
+builds run in parallel on every merge. Codecov signing verification and both unit/integration uploads
+are blocking. Only the latest verified merge prepares the version/changelog/tag. APK, production
+API/web deployment, read-only smoke, private release staging, verified APK upload and final release
+publication use the pinned release SHA. Telegram follows successful publication/deploys and a
+current-main check. The existing narrow exhausted-EAS-quota exception remains. No app-store
+submission, provisioning, secret synchronization or database migration is introduced.
+
+The removed `mobile-e2e.yml` is not a remaining manual GitHub gate. Maestro/Playwright suites and
+retained disabled PR hooks still exist for explicitly owned local acceptance. Losing automatic E2E
+means that green coverage, builds and smoke **do not attest** native startup, keyboard, permissions,
+authenticated UI or full user journeys. A failed prepared release can leave a tag/draft; apply the
+existing explicit orphan/version recovery procedure, never silently delete tags or call it published.
+
+`mobile-development.yml` remains `main`-only and now selects `preview` or `production`. Both use
+the same distributable `internal` profile/action, 180-minute allowance, MapTiler/Sentry and optional
+FCM inputs as PR Development; `development` in this workflow does not mean a development client.
+Preview requires an immutable owned API deployment URL; Production defaults to the fixed
+`https://api.board-game-organizer.com`. Inputs reject credentials, extra paths/query/hash, non-HTTPS
+or foreign targets. Preview ownership is checked against the configured Vercel API project before
+forwarding application credentials. Runtime attestation requires a non-CI database matching its
+webhook database. API/Clerk test/live families are selected explicitly through the target's GitHub
+`development`/`production` environment; a missing Production key never falls back to a test key.
+The run publishes environment-labeled APK/checksum/source artifacts, not a Preview attachment on
+an unrelated Production release. Download these from that workflow run; no release/store deployment
+is implied by a successful manual build.
+
+`import-boardgames.yml` uses the same target/ownership/runtime checks and explicit Clerk key
+selection. CSV URLs must be public HTTPS (workflow inputs are not secret storage). Its Node importer
+and the direct Preview-only MongoDB importer share `parseBoardGamesCsv`, the strict complete
+16-column model and repository upserts by BGG ID. BOM, quoted/reordered columns, expansion flags,
+zero ranks/averages and nullable category ranks are preserved. Missing catalog rows/history are not
+deleted. Reimports do not overwrite XML-derived `image`, complete min/max player pairs, durations
+or their cache timestamps; those fields are not present in the rankings CSV. Only legacy `thumbnail`
+is removed, including a final cleanup on completed imports. No bulk XML/provider sync is added.
+The protected API must expose import schema version 2 before importing. Resume uses 500-row
+chunks from the same CSV and target; empty/out-of-file windows fail before requests. Partial windows
+do not perform full-catalog thumbnail cleanup. Preview bypass stays a separate masked secret and is
+URL-encoded inside the importer, never interpolated into logged workflow outputs. HTTP redirects
+and response-body logging remain disallowed when forwarding credentials.
+
+Source/static/mocked-HTTP checks do not dispatch these workflows, attest configured live values or
+perform real catalog imports/deployments. Activation still follows protected-main review/merge.
+
 ## EAS registration quota
 
 APK builds still run locally and must pass their existing checks. EAS registration through `eas upload`
@@ -245,7 +295,7 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 - `expo-image-picker` changes native permissions. A JavaScript export is insufficient: create a fresh native build and exercise camera/library denial, retry, Settings-return refresh, replacement and cancelled picking in Maestro.
 - Run the new organization/event acceptance flows on both clients; verify failure/empty/privacy/cutoff paths, not only successful forms. Never silently skip missing authenticated E2E configuration.
 - [The managed HeroUI Native 1.0.9 patch](../patches/heroui-native@1.0.9.patch) gives the default animated popover wrapper absolute-fill bounds in both source and distributed modules. Run `38166070753` showed visible help omitted from the accessibility tree and zero-height containers skipped by Maestro. The patch retains mounting, positioning, touch pass-through and animations; its native acceptance remains subject to the full Maestro gate.
-- By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; main/manual E2E stay enabled. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. Cleanup still waits for fixture mirroring and CI API consumers when tests are skipped. A green gate does not establish web/native E2E acceptance.
+- By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; Main E2E gates and the manual mobile-E2E workflow are removed by explicit operator request. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. Cleanup still waits for fixture mirroring and CI API consumers when tests are skipped. A green gate does not establish web/native E2E acceptance.
 - When re-enabled, PR Maestro attempts all 13 ordered flows after an earlier flow failure when native preparation succeeded and the run is not cancelled. Each failed step remains failed; final report verification still runs and rejects failed, skipped or missing reports. Shared-session failures may cascade into later flows, so inspect their actual traces before treating each failure as an independent defect.
 - Maestro uses the rendering-enabled Android 34 `google_apis;x86_64` image for Expo Location's Google Play Services provider, selected explicitly even if a cached AOSP or ATD image is present. [ATD images disable hardware rendering](https://developer.android.com/studio/test/managed-devices#use-atds) and remove GUI services; a headless emulator window must not imply a non-rendering Android guest. Keep actual screenshots/video and animated portal assertions; do not substitute longer waits or disable animations to hide missing UI.
 - GitHub native acceptance requires Linux KVM: trigger the job-local device rule with `udevadm trigger --name-match=kvm --settle` before checking read/write permissions and running `emulator -accel-check`. The ordinary trigger is asynchronous; immediate permission checks race rule application. Missing devices or denied permissions fail explicitly with device/runner diagnostics. Keep `-accel on`, never software-CPU fallback. Windows WHPX and shell simulations are not Linux KVM acceptance; verify the real runner before claiming native success.

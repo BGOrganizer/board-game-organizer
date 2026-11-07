@@ -211,7 +211,11 @@ local CSV, use `BGG_CSV_PATH` with `docker compose up -d --force-recreate --wait
 Remote imports use `.github/workflows/import-boardgames.yml` or
 `apps/api/scripts/import-boardgames.mjs`; direct Preview database imports use
 `apps/api/scripts/import-boardgames-direct.ts`. Verify the exact target and credentials before
-running either. BGG account validation/synchronization uses the API's `BGG_TOKEN`.
+running either. Both import paths share the complete 16-column parser, including expansion/category
+ranks. CSV refreshes retain XML-enriched artwork, player-count pairs, durations and their timestamps;
+those fields are not supplied by the rankings CSV. The manual workflow selects Preview/Production,
+verifies matching credentials and a non-CI target, and preserves resumable chunk windows. It does
+not perform bulk provider enrichment. BGG account validation/synchronization uses the API's `BGG_TOKEN`.
 
 ## Checks and delivery
 
@@ -235,10 +239,13 @@ One [branch/PR pipeline](.github/workflows/pr-ci.yml) runs quality/unit/integrat
 PR exists; open PRs use one full pipeline without duplicate push checks. Common quality gates
 feed independent Internal and Development lanes. `PR ready` requires Internal and CI cleanup;
 Development APK/web/API draft publication and Telegram do not wait for them. PR browser/native E2E
-remain explicitly disabled, not accepted; main/manual E2E remain enabled. Follow the
+remain explicitly disabled, not accepted. Main E2E gates and the manual mobile-E2E workflow are
+removed by operator request; retained suites remain available locally. Follow the
 [controller and required-check rollout](docs/organizations-events-operations.md#unified-branchpr-ci-rollout)
-before treating feature-branch workflow edits as active policy. Main CI still verifies
-isolated E2E and cleanup before release and production deployment. Vercel builds uploaded source
+before treating feature-branch workflow edits as active policy. Main CI requires quality/tests,
+unit and integration Codecov uploads, verification builds, a pinned production APK and API/web
+smoke checks before release publication and Telegram. Manual mobile builds select Preview or
+Production and publish environment-labeled run artifacts, not APKs on an unrelated release. Vercel builds uploaded source
 with app-specific build commands; deployment-local overrides preserve database isolation.
 
 `main` is protected. Use signed Conventional Commits; open a PR only on explicit request.

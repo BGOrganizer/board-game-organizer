@@ -77,6 +77,45 @@ describe("BoardGamesRepository", () => {
     expect(colMock.bulkWrite).toHaveBeenCalledWith(ops, { ordered: false });
   });
 
+  it("CSV reimports preserve hydrated artwork, complete player pairs, durations and their negative-cache timestamps", async () => {
+    await repo().bulkUpsert([
+      {
+        id: 1,
+        name: "Updated catalog title",
+        isExpansion: true,
+        rank: 0,
+        average: 7.5,
+        usersRated: 42,
+        strategyGamesRank: 5,
+      },
+    ]);
+    const operation = (
+      colMock.bulkWrite.mock.calls[0][0] as Array<{
+        updateOne: { update: { $set: Record<string, unknown>; $unset: Record<string, unknown> } };
+      }>
+    )[0].updateOne.update;
+    for (const field of [
+      "image",
+      "imageCheckedAt",
+      "minPlayers",
+      "maxPlayers",
+      "playerCountsCheckedAt",
+      "minPlayMinutes",
+      "maxPlayMinutes",
+      "durationCheckedAt",
+    ])
+      expect(Object.hasOwn(operation.$set, field) || Object.hasOwn(operation.$unset, field)).toBe(
+        false,
+      );
+    expect(operation.$unset).toEqual({ thumbnail: "" });
+    expect(operation.$set).toMatchObject({
+      name: "Updated catalog title",
+      isExpansion: true,
+      strategyGamesRank: 5,
+    });
+    expect(hydration.run).not.toHaveBeenCalled();
+  });
+
   it("returns zero for an empty batch", async () => {
     expect(await repo().bulkUpsert([])).toBe(0);
     expect(colMock.bulkWrite).not.toHaveBeenCalled();

@@ -145,7 +145,7 @@ Groups / Community / Contacts. The legacy domain notes explicitly labeled below 
 for reintroducing old writers, archival/type conversion, server event drafts, automatic organizer
 seats or automatic deadline confirmation. No database deletion/reset or provider mutation is
 part of this refactor. Legacy documents remain intact and are excluded from unified readers.
-E2E suites/jobs are intentionally unchanged; local checks are not native/E2E acceptance.
+E2E suites are retained; current CI enablement follows Section 13. Local checks are not native/E2E acceptance.
 
 Board Game Organizer is a TypeScript monorepo for board-game contacts, matches, groups,
 organizations, and events across web and native mobile clients.
@@ -883,7 +883,8 @@ API/web builds and mobile-change detection. Secret-consuming lanes require a sam
 `BGO_PR_E2E_ENABLED: 'false'` explicitly disables retained Maestro and Playwright jobs by operator
 request. `PR ready` permits only their policy-matching intentional skips; when enabled, both must
 succeed. Every other mandatory result must succeed. A green gate is not E2E acceptance while this
-policy is false; main E2E and manual Maestro remain enabled.
+policy is false. Main E2E gates and the manual mobile-E2E workflow are removed by explicit operator request;
+retained suites can still be run locally against owned fixtures.
 
 EAS artifact registration is optional only for its explicit exhausted local monthly quota (exit 1 or 4
 and the matching provider message). APK builds, validation, E2E policy and cleanup remain mandatory.
@@ -919,19 +920,21 @@ request URLs.
 
 On every merge to main:
 
-1. lint, typecheck, unit coverage (mobile, web, API, schemas, shared), and API integration tests run
-   on the merge SHA;
-2. that SHA deploys to isolated API/web Previews using test Clerk and `bgo_ci_<run>_<attempt>`;
-   Maestro uses a separate E2E APK, Playwright uses the Preview web app;
-3. test users and the run-scoped CI database are cleaned even when E2E fails; failed gates never
-   deploy to production;
-4. only the latest verified merge may run semantic-release; the resulting release SHA is pinned for
-   the production APK and deployments;
-5. production API and web deploy only after E2E and APK build pass, then run read-only smoke checks;
-6. GitHub release publishes the production APK after the gates; Telegram notification sends release
-   links and changelog.
+1. Biome, typecheck and CI-script tests; unit coverage (mobile, web, API, schemas, shared); API
+   replica-set integration coverage; and API/web verification builds start in parallel on the merge SHA;
+2. unit and integration Codecov uploads are mandatory, including signing-key verification;
+3. only after all those gates succeed may the latest verified merge prepare its semantic-release
+   version/changelog/tag; the resulting release SHA is pinned for every delivery stage;
+4. build and checksum a production-targeted internal-profile APK with the production Clerk key,
+   preserving exact API/source provenance;
+5. deploy production API and web only after the APK succeeds, then run read-only smoke checks;
+6. verify APK provenance/current release, register on EAS under the existing quota policy, publish
+   GitHub release/APK/changelog, then notify Telegram only after successful production delivery.
 
-Main verification has no workflow-wide concurrency group so every merge runs E2E. Release
+By explicit operator request, Main has no Maestro/Playwright jobs or E2E-only Preview deployments,
+APK, Clerk users, database writes or cleanup. This removes automatic UI/native acceptance, not
+its underlying test suites; coverage and smoke checks are not substitutes for device/browser E2E.
+Main verification has no workflow-wide concurrency group so every merge is checked. Release
 preparation alone is serialized; a newer merge can supersede a pending release, not its
 verification.
 
@@ -945,10 +948,15 @@ production publishable-key variables. Never mix instance keys: tokens from one C
 
 ### Other workflows
 
-- `mobile-development.yml`: manual development APK from `main`, attached to latest release.
-- `mobile-e2e.yml`: manual Maestro iteration deploys an isolated API Preview and cleans its own CI
-  database.
-- `import-boardgames.yml`: manual BoardGameGeek CSV import into a chosen API deployment.
+- `mobile-development.yml`: manual `main`-only APK with explicit Preview/Production API/Clerk target,
+  using the same internal profile/action, MapTiler/Sentry/optional FCM inputs and 180-minute limit as
+  PR Development. Preview requires an immutable owned non-CI API URL; Production uses its fixed API.
+  Environment-labeled APK/checksum/source artifacts are downloadable from the run, never attached
+  to an unrelated latest Production release. No dev client, store submission or deployment is implied.
+- `mobile-e2e.yml` is removed; local Maestro flows and retained PR hooks remain.
+- `import-boardgames.yml`: explicit Preview/Production target with matching Clerk secret, verified
+  Preview API ownership and non-CI runtime database. Both remote and direct local import use the
+  same complete CSV parser; existing XML-enriched artwork/player counts/durations remain untouched.
 
 ## 14. Required GitHub configuration
 

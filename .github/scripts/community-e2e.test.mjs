@@ -16,7 +16,7 @@ const script = readFileSync(new URL("./maestro-e2e.sh", import.meta.url), "utf8"
   /\r\n/g,
   "\n",
 );
-const workflows = ["pr-ci.yml", "main-ci.yml", "mobile-e2e.yml"].map((name) =>
+const workflows = ["pr-ci.yml"].map((name) =>
   readFileSync(new URL(`../workflows/${name}`, import.meta.url), "utf8").replace(/\r\n/g, "\n"),
 );
 const flows = [...workflows[0].matchAll(/^\s+flow: ([\w-]+)$/gm)].map((match) => match[1]);

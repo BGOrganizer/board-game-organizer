@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { parse } from "yaml";
 
@@ -7,79 +7,52 @@ const workflow = parse(readFileSync(".github/workflows/main-ci.yml", "utf8"));
 const jobs = workflow.jobs;
 const prJobs = parse(readFileSync(".github/workflows/pr-ci.yml", "utf8")).jobs;
 const step = (job, name) => jobs[job].steps.find((item) => item.name === name);
-const outputUrl = (job) => `\${{ needs.${job}.outputs.url }}`;
 
-test("partial reruns seed and clean the database from the successful deployment", () => {
+test("PR partial reruns retain deployment-owned database identity for fixture and cleanup consumers", () => {
   const action = parse(readFileSync(".github/actions/vercel-deploy/action.yml", "utf8"));
-  assert.equal(action.outputs["ci-db-name"].value, `\${{ inputs.ci-db-name }}`);
-  const storedDeploymentDb = "bgo_ci_37380874646_1";
-  for (const [file, deploy, cleanup] of [
-    ["pr-ci", "deploy-preview-api", "cleanup-e2e-db"],
-    ["main-ci", "deploy-e2e-api", "cleanup-e2e"],
-    ["mobile-e2e", "deploy-preview-api", "cleanup-e2e-db"],
-  ]) {
-    const { jobs } = parse(readFileSync(`.github/workflows/${file}.yml`, "utf8"));
-    assert.equal(jobs[deploy].outputs["db-name"], `\${{ steps.deploy.outputs.ci-db-name }}`);
-    const expression = `\${{ needs.${deploy}.outputs.db-name }}`;
-    const consumers = Object.values(jobs)
-      .flatMap((job) => job.steps)
-      .filter((step) => /action:"(?:cleanup|seed-bgg)"/.test(step.run ?? ""));
-    assert.equal(consumers.length, 2, `${file} must cover fixtures and cleanup`);
-    for (const consumer of consumers) {
-      assert.equal(consumer.env.DB_NAME, expression);
-      assert.doesNotMatch(consumer.run, /github\.run_attempt/);
-      assert.match(consumer.run, /databaseName:\$name/);
-      // A failed-job rerun advances the attempt, not the cached deployment output.
-      const resolved = consumer.env.DB_NAME.replace(expression, storedDeploymentDb);
-      assert.equal(resolved, storedDeploymentDb);
-      assert.notEqual(resolved, "bgo_ci_37380874646_5");
-    }
-    assert.match(jobs[cleanup].steps.find((step) => step.env?.DB_NAME).run, /test -n "\$DB_NAME"/);
+  assert.equal(action.outputs["ci-db-name"].value, "${{ inputs.ci-db-name }}");
+  const expression = "${{ needs.deploy-preview-api.outputs.db-name }}";
+  assert.equal(
+    prJobs["deploy-preview-api"].outputs["db-name"],
+    "${{ steps.deploy.outputs.ci-db-name }}",
+  );
+  const consumers = Object.values(prJobs)
+    .flatMap((j) => j.steps)
+    .filter((s) => /action:"(?:cleanup|seed-bgg)"/.test(s.run || ""));
+  assert.equal(consumers.length, 2);
+  for (const consumer of consumers) {
+    assert.equal(consumer.env.DB_NAME, expression);
+    assert.doesNotMatch(consumer.run, /github\.run_attempt/);
+    assert.match(consumer.run, /databaseName:\$name/);
+    assert.equal(consumer.env.DB_NAME.replace(expression, "bgo_ci_123_1"), "bgo_ci_123_1");
   }
+  assert.match(
+    prJobs["cleanup-e2e-db"].steps.find((s) => s.env?.DB_NAME).run,
+    /test -n "\$DB_NAME"/,
+  );
 });
-
-test("Main E2E never targets production data or Clerk", () => {
-  for (const name of [
+test("Main has no E2E infrastructure or application database/user mutation stages", () => {
+  for (const id of [
+    "build-e2e-apk",
     "deploy-e2e-api",
     "deploy-e2e-web",
-    "build-e2e-apk",
     "provision-e2e-users",
     "e2e-maestro",
     "e2e-playwright",
     "cleanup-e2e",
-  ]) {
-    const config = JSON.stringify(jobs[name]);
-    assert.doesNotMatch(config, /CLERK_SECRET_KEY_PRODUCTION|PUBLISHABLE_KEY_PRODUCTION/);
-    assert.doesNotMatch(config, /https:\/\/(api\.)?board-game-organizer\.com\b/);
-  }
-  assert.equal(step("deploy-e2e-api", "🚀 Deploy isolated API Preview").with.production, "false");
-  assert.equal(
-    step("deploy-e2e-api", "🚀 Deploy isolated API Preview").with["ci-db-name"],
-    `bgo_ci_\${{ github.run_id }}_\${{ github.run_attempt }}`,
+  ])
+    assert.equal(jobs[id], undefined);
+  const source = JSON.stringify(jobs);
+  assert.doesNotMatch(
+    source,
+    /provision-e2e-user|maestro-e2e|android-emulator|api\/admin\/ci-db|seed-bgg|test:e2e/,
   );
-  assert.equal(step("deploy-e2e-web", "🚀 Deploy isolated Web Preview").with.production, "false");
-  assert.equal(
-    step("build-e2e-apk", "🏗️ Build E2E APK against isolated Preview").with["api-url"],
-    outputUrl("deploy-e2e-api"),
-  );
-  assert.equal(
-    step("e2e-playwright", "🎭 Run Playwright against isolated Web Preview").env
-      .PLAYWRIGHT_BASE_URL,
-    outputUrl("deploy-e2e-web"),
-  );
-  assert.equal(
-    step("provision-e2e-users", "🔄 Sync users only into isolated Preview API").env.API_URL,
-    outputUrl("deploy-e2e-api"),
-  );
-  assert.equal(
-    step("cleanup-e2e", "🗑️ Clear only this run's database collections").env.API_URL,
-    outputUrl("deploy-e2e-api"),
-  );
-  assert.match(jobs["cleanup-e2e"].if, /always\(\)/);
-  assert.ok(jobs["publish-release"].needs.includes("cleanup-e2e"));
+  assert.equal(existsSync(".github/workflows/mobile-e2e.yml"), false);
+  // Suites/actions and the explicitly disabled PR hooks remain, not fabricated acceptance.
+  assert(prJobs["e2e-maestro"] && prJobs["e2e-playwright"]);
+  assert(existsSync(".github/actions/maestro-e2e/action.yml"));
 });
-
-test("every main merge verifies API, mobile, web, schemas and shared before production", () => {
+test("every main merge runs all non-E2E gates once in parallel before preparing a release", () => {
   assert.deepEqual(workflow.on.push.branches, ["main"]);
   assert.equal(workflow.concurrency, undefined);
   assert.deepEqual(jobs.coverage.strategy.matrix.app, [
@@ -89,112 +62,148 @@ test("every main merge verifies API, mobile, web, schemas and shared before prod
     "schemas",
     "shared",
   ]);
-  assert.match(step("integration-tests", "🐳 Run API integration tests").run, /test:integration/);
-  for (const name of [
-    "build-e2e-apk",
-    "deploy-e2e-api",
-    "deploy-e2e-web",
-    "e2e-maestro",
-    "e2e-playwright",
-  ]) {
-    assert.doesNotMatch(jobs[name].if || "", /published/);
+  assert.deepEqual(jobs.build.strategy.matrix.app, ["api", "web"]);
+  for (const gate of ["quality", "coverage", "integration-tests", "build"]) {
+    assert.equal(jobs[gate].needs, undefined);
+    assert(jobs.release.needs.includes(gate));
   }
-  for (const name of [
-    "coverage",
-    "integration-tests",
-    "e2e-maestro",
-    "e2e-playwright",
-    "cleanup-e2e",
-  ]) {
-    assert.ok(jobs.release.needs.includes(name), `${name} must gate release`);
-  }
-  assert.ok(jobs["deploy-production"].needs.includes("build-apk"));
-  assert.ok(jobs["deploy-production"].needs.includes("release"));
   assert.equal(jobs.release.concurrency.group, "main-release");
+  assert.match(step("quality", "🔒 CI isolation contract").run, /node --test/);
+  assert.match(
+    step("integration-tests", "🐳 Run API integration tests").run,
+    /test:integration --coverage/,
+  );
+  assert.equal(
+    step("coverage", "🧪 Vitest with coverage").run,
+    "pnpm --filter ${{ matrix.app }} test:coverage",
+  );
   assert.match(
     step("release", "🔒 Release only latest validated main commit").run,
     /git rev-parse origin\/main.*GITHUB_SHA/,
   );
-  for (const name of ["build-apk", "deploy-production", "publish-release"]) {
-    assert.equal(jobs[name].steps[0].with.ref, `\${{ needs.release.outputs.sha }}`);
-  }
+  for (const id of ["build-apk", "deploy-production", "publish-release"])
+    assert.equal(jobs[id].steps[0].with.ref, "${{ needs.release.outputs.sha }}");
+  assert(jobs["deploy-production"].needs.includes("release"));
+  assert(jobs["deploy-production"].needs.includes("build-apk"));
+  assert.deepEqual(jobs["publish-release"].needs, ["release", "build-apk", "deploy-production"]);
 });
-
-test("PR and main upload schemas and shared coverage from package paths", () => {
-  for (const [name, config] of [
-    ["main", jobs],
-    ["PR", prJobs],
+test("unit and integration Codecov uploads fail closed and retain coverage reports", () => {
+  for (const id of ["coverage", "integration-tests"]) {
+    const signing = jobs[id].steps.find(
+      (s) => s.run === "bash .github/scripts/prepare-codecov-key.sh",
+    );
+    const upload = jobs[id].steps.find((s) => s.uses === "codecov/codecov-action@v5");
+    assert(signing);
+    assert.equal(signing["continue-on-error"], undefined);
+    assert.equal(upload.if, undefined);
+    assert.equal(upload.with.fail_ci_if_error, true);
+    assert.equal(upload["continue-on-error"], undefined);
+    assert(
+      jobs[id].steps.some((s) => s.uses === "actions/upload-artifact@v4" && s.if === "always()"),
+    );
+  }
+  assert.equal(
+    jobs["integration-tests"].steps.find((s) => s.uses === "codecov/codecov-action@v5").with.flags,
+    "integration",
+  );
+  for (const [label, config] of [
+    ["main", jobs.coverage],
+    ["PR", prJobs["unit-tests"]],
   ]) {
-    const job = name === "main" ? config.coverage : config["unit-tests"];
-    assert.ok(job.strategy.matrix.app.includes("shared"));
-    assert.ok(job.strategy.matrix.app.includes("schemas"));
-    const files = job.steps.find((item) => item.uses === "codecov/codecov-action@v5").with.files;
-    assert.match(files, /packages\/\{0\}\/coverage\/lcov\.info/);
+    assert(config.strategy.matrix.app.includes("schemas"), label);
+    assert(config.strategy.matrix.app.includes("shared"), label);
+    assert.match(
+      config.steps.find((s) => s.uses === "codecov/codecov-action@v5").with.files,
+      /packages\/\{0\}\/coverage\/lcov\.info/,
+    );
   }
 });
-
-test("published APK still targets production, not isolated Preview", () => {
+test("published APK is production-targeted, checksummed and pinned to the release SHA", () => {
+  const build = step("build-apk", "🏗️ Build APK (eas build --local, internal profile)");
+  assert.equal(build.with.profile, "internal");
+  assert.equal(build.with["api-url"], "https://api.board-game-organizer.com");
   assert.equal(
-    step("build-apk", "🏗️ Build APK (eas build --local, internal profile)").with["api-url"],
-    "https://api.board-game-organizer.com",
+    build.with["clerk-publishable-key"],
+    "${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}",
   );
-  assert.equal(step("publish-release", "📥 Download internal APK").with.name, "apk-internal-main");
-});
-
-test("main uploads the gated production APK to EAS before publishing GitHub and Telegram links", () => {
+  assert.equal(jobs["build-apk"]["timeout-minutes"], 180);
+  assert.equal(jobs["build-apk"].environment, "production");
+  const keyGate = step("build-apk", "🔒 Require the Production Clerk public key");
+  assert.equal(keyGate.env.CLERK_PUBLISHABLE_KEY, build.with["clerk-publishable-key"]);
+  assert.match(keyGate.run, /requireClerkTarget\('production'/);
+  const artifact = jobs["build-apk"].steps.find((s) => s.uses === "actions/upload-artifact@v4");
+  assert.equal(artifact.with.path, "apps/mobile/build-output/");
+  assert.equal(artifact.with["if-no-files-found"], "error");
   const steps = jobs["publish-release"].steps;
-  const upload = steps.find((item) => item.id === "eas");
-  const publish = steps.find((item) => item.id === "publish");
-  assert.ok(
-    steps.indexOf(upload) > steps.indexOf(step("publish-release", "📥 Download internal APK")),
-  );
-  assert.ok(steps.indexOf(publish) > steps.indexOf(upload));
-  assert.equal(upload.env.EXPO_TOKEN, `\${{ secrets.EXPO_TOKEN }}`);
-  assert.match(upload.run, /find .*apk.*\.apk/);
+  const verify = step("publish-release", "🔒 Verify production APK provenance and current release");
+  assert.match(verify.run, /source-head\.txt/);
+  assert.match(verify.run, /api-url\.txt/);
+  assert.match(verify.run, /sha256sum --check apk\.sha256/);
+  assert(steps.indexOf(verify) < steps.findIndex((s) => s.id === "eas"));
+});
+test("main publishes and notifies only after production deploy/smoke with the existing narrow EAS exception", () => {
+  const steps = jobs["publish-release"].steps;
+  const upload = steps.find((s) => s.id === "eas"),
+    publish = steps.find((s) => s.id === "publish");
+  assert(steps.indexOf(publish) > steps.indexOf(upload));
+  const prepare = steps.find((s) => s.id === "prepare");
+  const attach = step("publish-release", "📎 Attach APK with clean name");
+  const body = step("publish-release", "🔗 Append production links to the release body");
+  assert(steps.indexOf(prepare) < steps.indexOf(attach));
+  assert(steps.indexOf(attach) < steps.indexOf(body));
+  assert(steps.indexOf(body) < steps.indexOf(publish));
+  assert.match(prepare.run, /draft:true/);
+  assert.match(attach.run, /\.digest == \$digest/);
+  assert.match(publish.run, /'\{"draft":false\}'/);
+  assert.match(publish.run, /RELEASE_SHA/);
+  assert.equal(upload.env.EXPO_TOKEN, "${{ secrets.EXPO_TOKEN }}");
   assert.match(upload.run, /node .*eas-upload\.mjs "\$APK"/);
-  assert.equal(jobs["publish-release"].outputs.eas_build_url, `\${{ steps.eas.outputs.url }}`);
+  assert.equal(jobs["publish-release"].outputs.eas_build_url, "${{ steps.eas.outputs.url }}");
+  assert.match(step("deploy-production", "🔎 Read-only production smoke").run, /curl -fsSL/);
+  assert(jobs["notify-telegram"].needs.includes("publish-release"));
+  assert(jobs["notify-telegram"].needs.includes("deploy-production"));
+  assert.match(
+    step("notify-telegram", "🔒 Notify only the current production release").run,
+    /RELEASE_SHA/,
+  );
   const links = step("publish-release", "🔗 Append production links to the release body");
-  assert.equal(links.env.EAS_BUILD_URL, `\${{ steps.eas.outputs.url }}`);
+  assert.equal(links.env.EAS_BUILD_URL, "${{ steps.eas.outputs.url }}");
   assert.match(links.run, /Build EAS:.*EAS_BUILD_URL/);
-  const notify = step("notify-telegram", "🔗 Compose Telegram links");
-  assert.equal(notify.env.EAS_BUILD_URL, `\${{ needs.publish-release.outputs.eas_build_url }}`);
-  assert.match(notify.run, /if \[ -n "\$EAS_BUILD_URL" \]/);
+  assert.match(
+    step("notify-telegram", "🔗 Compose Telegram links").run,
+    /if \[ -n "\$EAS_BUILD_URL" \]/,
+  );
   assert.equal(step("publish-release", "📥 Download internal APK").with.name, "apk-internal-main");
 });
-
-test("PR separates Development publication from Internal merge and cleanup gates", () => {
-  const prStep = (job, name) => prJobs[job].steps.find((item) => item.name === name);
+test("PR keeps independent Development publication and isolated Internal cleanup", () => {
+  const find = (id, name) => prJobs[id].steps.find((s) => s.name === name);
   assert.equal(
-    prStep("build-mobile-internal", "🏗️ Build APK (eas build --local, internal profile)").with[
+    find("build-mobile-internal", "🏗️ Build APK (eas build --local, internal profile)").with[
       "api-url"
     ],
-    `\${{ needs.deploy-preview-api.outputs.branch-url }}`,
+    "${{ needs.deploy-preview-api.outputs.branch-url }}",
   );
-  assert.ok(prJobs["deploy-development-api"].needs.includes("unit-tests"));
-  assert.ok(prJobs["deploy-development-api"].needs.includes("integration-tests"));
-  assert.ok(!prJobs["deploy-development-api"].needs.includes("cleanup-e2e-db"));
+  assert(prJobs["deploy-development-api"].needs.includes("unit-tests"));
+  assert(prJobs["deploy-development-api"].needs.includes("integration-tests"));
   for (const gate of ["e2e-maestro", "e2e-playwright", "cleanup-e2e-db"]) {
-    assert.ok(!prJobs["draft-release"].needs.includes(gate));
-    assert.ok(prJobs.ready.needs.includes(gate));
+    assert(!prJobs["draft-release"].needs.includes(gate));
+    assert(prJobs.ready.needs.includes(gate));
   }
-  const preview = prStep(
-    "deploy-development-api",
-    "🚀 Deploy API Preview with development database",
+  assert.equal(
+    find("deploy-development-api", "🚀 Deploy API Preview with development database").with[
+      "ci-db-name"
+    ],
+    undefined,
   );
-  assert.equal(preview.with.production, "false");
-  assert.equal(preview.with["ci-db-name"], undefined);
   assert.match(
-    prStep("deploy-development-api", "🔒 Attest non-CI development database").run,
+    find("deploy-development-api", "🔒 Attest non-CI development database").run,
     /webhookDbReady.*bgo_ci_/,
   );
   assert.equal(
-    prStep("build-mobile-development", "🏗️ Build internal APK against development Preview").with[
+    find("build-mobile-development", "🏗️ Build internal APK against development Preview").with[
       "api-url"
     ],
-    `\${{ needs.deploy-development-api.outputs.url }}`,
+    "${{ needs.deploy-development-api.outputs.url }}",
   );
-  assert.ok(prJobs["draft-release"].needs.includes("build-mobile-development"));
-  assert.equal(prStep("draft-release", "📥 Download development APK").with.name, "apk-development");
-  assert.match(prStep("draft-release", "🔎 Resolve version & APK").run, /-development\.apk/);
-  assert.match(prStep("draft-release", "🔒 Verify APK development API URL").run, /api-url\.txt/);
+  assert.equal(find("draft-release", "📥 Download development APK").with.name, "apk-development");
 });

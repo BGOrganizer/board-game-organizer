@@ -72,7 +72,7 @@ test("APK builds overlap but embed separate isolated and development Preview URL
   );
 });
 
-test("PR E2E jobs are retained but explicitly skipped; other pipelines remain enabled", () => {
+test("PR E2E hooks remain explicitly disabled; approved Main/manual E2E workflows are retired", () => {
   const native = jobs["e2e-maestro"];
   assert.equal(pr.env.BGO_PR_E2E_ENABLED, "false");
   assert.match(native.if, /e2e-enabled == 'true'/);
@@ -84,11 +84,9 @@ test("PR E2E jobs are retained but explicitly skipped; other pipelines remain en
   assert.match(browser.if, /e2e-enabled == 'true'/);
   assert(browser.steps.some((item) => item.run === "pnpm test:e2e"));
   const main = parse(readFileSync(".github/workflows/main-ci.yml", "utf8"));
-  assert.notEqual(main.jobs["e2e-playwright"].if, "${{ false }}");
-  for (const name of ["main-ci.yml", "mobile-e2e.yml"]) {
-    const workflow = parse(readFileSync(`.github/workflows/${name}`, "utf8"));
-    assert.notEqual(workflow.jobs["e2e-maestro"].if, "${{ false }}", name);
-  }
+  assert.equal(main.jobs["e2e-playwright"], undefined);
+  assert.equal(main.jobs["e2e-maestro"], undefined);
+  assert.equal(existsSync(".github/workflows/mobile-e2e.yml"), false);
 });
 
 test("Development publication ignores Internal results but requires every common/Development gate", () => {

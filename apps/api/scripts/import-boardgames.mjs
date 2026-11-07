@@ -18,6 +18,8 @@ if (!CSV_PATH || !IMPORT_URL || !TOKEN) {
   process.exit(1);
 }
 const endpoint = new URL(IMPORT_URL);
+if (process.env.BGG_BYPASS)
+  endpoint.searchParams.set("x-vercel-protection-bypass", process.env.BGG_BYPASS);
 if (
   endpoint.protocol !== "https:" &&
   !(endpoint.protocol === "http:" && ["localhost", "127.0.0.1"].includes(endpoint.hostname))
@@ -30,13 +32,13 @@ if (
   CHUNK > 500 ||
   !Number.isSafeInteger(SKIP_CHUNKS) ||
   SKIP_CHUNKS < 0 ||
-  (END_CHUNKS !== Infinity && (!Number.isSafeInteger(END_CHUNKS) || END_CHUNKS < SKIP_CHUNKS))
+  (END_CHUNKS !== Infinity && (!Number.isSafeInteger(END_CHUNKS) || END_CHUNKS <= SKIP_CHUNKS))
 ) {
   throw new Error("Invalid BGG_CHUNK / BGG_SKIP_CHUNKS / BGG_END_CHUNKS");
 }
 
 async function postChunk(games) {
-  const res = await fetch(IMPORT_URL, {
+  const res = await fetch(endpoint.href, {
     method: "POST",
     headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ games }),
@@ -44,14 +46,16 @@ async function postChunk(games) {
     signal: AbortSignal.timeout(120_000),
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Import HTTP ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(`Import HTTP ${res.status}; response body omitted`);
   }
   return res.json();
 }
 
 const games = parseBoardGamesCsv(readFileSync(CSV_PATH, "utf8"));
-const preflight = await fetch(IMPORT_URL, {
+if (SKIP_CHUNKS * CHUNK >= games.length) {
+  throw new Error("BGG_SKIP_CHUNKS exceeds this CSV; no games written");
+}
+const preflight = await fetch(endpoint.href, {
   headers: { Authorization: `Bearer ${TOKEN}` },
   redirect: "error",
   signal: AbortSignal.timeout(30_000),
@@ -78,7 +82,7 @@ for (let i = start; i < end; i += CHUNK) {
   );
 }
 if (end === games.length) {
-  const cleanup = await fetch(IMPORT_URL, {
+  const cleanup = await fetch(endpoint.href, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${TOKEN}` },
     redirect: "error",

@@ -1,12 +1,11 @@
-name: 🚀 Main CI/CD (verify merge → E2E → release → production)
+name: 🚀 Main CI/CD (quality + coverage → release → production)
 
 on:
   push:
     branches: [main]
 
 permissions:
-  contents: write # semantic-release commits the bump; publish-release creates the release
-  statuses: write # vercel-deploy / github-script sets commit status for production
+  contents: read
 
 jobs:
   # Every merged commit gets its own verification run; only release preparation
@@ -30,10 +29,99 @@ jobs:
       - name: 🔒 CI isolation contract
         run: node --test .github/scripts/*.test.mjs
 
-  # Release bump/tag only after merged-code E2E succeeds.
+  # -------------------------------------------------- coverage upload (Codecov)
+  coverage:
+    name: 📊 Coverage upload (Codecov)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        app: [mobile, web, api, schemas, shared]
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 Vitest with coverage
+        run: pnpm --filter ${{ matrix.app }} test:coverage
+
+      - name: 🔏 Verify Codecov signing key
+        id: codecov-key
+        run: bash .github/scripts/prepare-codecov-key.sh
+
+      - name: 📤 Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
+          flags: unit,${{ matrix.app }}
+          fail_ci_if_error: true
+      - name: 📤 Preserve unit coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.app }}-main
+          path: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/**', matrix.app) || format('apps/{0}/coverage/**', matrix.app) }}
+          if-no-files-found: warn
+
+  # -------------------------------------------------- MongoDB replica-set integration
+  integration-tests:
+    name: 🐳 API integration tests (Testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🐳 Run API integration tests
+        run: pnpm --filter api test:integration --coverage
+      - name: 🔏 Verify Codecov signing key
+        run: bash .github/scripts/prepare-codecov-key.sh
+      - name: 📤 Upload integration coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: apps/api/coverage/lcov.info
+          flags: integration
+          fail_ci_if_error: true
+      - name: 📤 Preserve integration coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api-integration-main
+          path: apps/api/coverage/**
+          if-no-files-found: warn
+  build:
+    name: 🏗️ Build (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        app:
+          - api
+          - web
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+      - name: 🏗️ Verify app build
+        run: pnpm --filter ${{ matrix.app }} build
+
+  # Release bump/tag only after every merged-code quality, coverage and build gate succeeds.
   release:
     name: 📦 semantic-release (bump + changelog, no publish)
-    needs: [quality, coverage, integration-tests, e2e-maestro, e2e-playwright, cleanup-e2e]
+    needs:
+      - quality
+      - coverage
+      - integration-tests
+      - build
     runs-on: ubuntu-latest
     concurrency:
       group: main-release
@@ -100,56 +188,8 @@ jobs:
             echo 'published=false' >> "$GITHUB_OUTPUT"
           fi
           echo "verified merge: $GITHUB_SHA; release SHA: $SHA; version: $VERSION"
-
-  # -------------------------------------------------- coverage upload (Codecov)
-  coverage:
-    name: 📊 Coverage upload (Codecov)
-    needs: [quality]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        app: [mobile, web, api, schemas, shared]
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🧪 Vitest with coverage
-        run: pnpm --filter ${{ matrix.app }} test:coverage
-
-      - name: 🔏 Verify Codecov signing key
-        id: codecov-key
-        continue-on-error: true
-        run: bash .github/scripts/prepare-codecov-key.sh
-
-      - name: 📤 Upload coverage to Codecov
-        if: steps.codecov-key.outcome == 'success'
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
-          flags: unit,${{ matrix.app }}
-          fail_ci_if_error: false
-
-  # -------------------------------------------------- MongoDB replica-set integration
-  integration-tests:
-    name: 🐳 API integration tests (Testcontainers)
-    needs: quality
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🐳 Run API integration tests
-        run: pnpm --filter api test:integration --coverage
+    permissions:
+      contents: write
 
   # -------------------------------------------------- mobile internal APK (build only)
   build-apk:
@@ -172,6 +212,14 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
+      - name: 🔒 Require the Production Clerk public key
+        env:
+          CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { requireClerkTarget } from './.github/scripts/manual-target.mjs';
+          requireClerkTarget('production', process.env.CLERK_PUBLISHABLE_KEY, 'pk');
+          NODE
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
         uses: ./.github/actions/mobile-build
@@ -180,52 +228,30 @@ jobs:
           expo-token: ${{ secrets.EXPO_TOKEN }}
           # Production build: the released APK must talk to the LIVE Clerk
           # instance (pk_live). The pk_test variable stays for preview builds
-          # (pr-ci / mobile-e2e / mobile-development).
+          # (PR and Preview-targeted manual builds).
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
           api-url: https://api.board-game-organizer.com
           maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+      - name: 🔒 Record production APK provenance
+        env:
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          printf '%s\n' "$RELEASE_SHA" > apps/mobile/build-output/source-head.txt
+          printf '%s\n' https://api.board-game-organizer.com > apps/mobile/build-output/api-url.txt
+          (cd apps/mobile/build-output && sha256sum --check apk.sha256)
 
-      - name: 📤 Upload APK artifact (shared with E2E + publish-release)
+      - name: 📤 Upload verified production APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-internal-main
-          path: ${{ steps.build.outputs.artifact-path }}
+          path: apps/mobile/build-output/
           retention-days: 7
-
-  # -------------------------------------------------- isolated Main E2E APK
-  build-e2e-apk:
-    name: 📱 Build APK for isolated Main E2E
-    needs: [deploy-e2e-api]
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🏗️ Build E2E APK against isolated Preview
-        id: build
-        uses: ./.github/actions/mobile-build
-        with:
-          profile: internal
-          expo-token: ${{ secrets.EXPO_TOKEN }}
-          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          api-url: ${{ needs.deploy-e2e-api.outputs.url }}
-          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
-          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
-          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
-
-      - name: 📤 Upload isolated E2E APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk-internal-main-e2e
-          path: ${{ steps.build.outputs.artifact-path }}
-          retention-days: 7
+          if-no-files-found: error
+    environment: production
 
   # -------------------------------------------------- production deploys
   deploy-production:
@@ -292,400 +318,17 @@ jobs:
             url=https://board-game-organizer.com/
           fi
           curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 30 "$url" -o /dev/null
-
-  # -------------------------------------------------- isolated E2E Preview deployments
-  deploy-e2e-api:
-    name: 🔌 Isolated Main E2E API Preview
-    needs: [quality, coverage, integration-tests]
-    runs-on: ubuntu-latest
-    environment: development
-    outputs:
-      url: ${{ steps.deploy.outputs.deployment-url }}
-      db-name: ${{ steps.deploy.outputs.ci-db-name }}
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🚀 Deploy isolated API Preview
-        id: deploy
-        uses: ./.github/actions/vercel-deploy
-        with:
-          app-name: API
-          app-path: apps/api
-          vercel-environment: preview
-          production: 'false'
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
-          ci-db-name: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
-          extra-env: |
-            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-
-      - name: 🔒 Attest isolated runtime database
-        env:
-          API_URL: ${{ steps.deploy.outputs.deployment-url }}
-          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DB_NAME: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
-        run: |
-          set -euo pipefail
-          test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
-          curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
-            -H "Authorization: Bearer $CLERK_SECRET_KEY" |
-            jq -e --arg expected "$DB_NAME" '.databaseName == $expected and .webhookDbReady == true and (.webhookDatabaseName | startswith("bgo_ci_") | not)' > /dev/null
-
-      - name: 🌱 Seed isolated Main E2E database
-        env:
-          API_URL: ${{ steps.deploy.outputs.deployment-url }}
-          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DB_NAME: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
-        run: |
-          set -euo pipefail
-          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
-            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
-            -d "$(jq -cn --arg name "$DB_NAME" '{action:"seed",databaseName:$name}')" |
-            jq -e '.ok == true' > /dev/null
-
-      - name: 🔗 Point Clerk webhook alias to latest Preview
-        env:
-          API_URL: ${{ steps.deploy.outputs.deployment-url }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          WEBHOOK_ALIAS: clerk-preview-api.board-game-organizer.com
-        run: vercel alias "$API_URL" "$WEBHOOK_ALIAS" --token="$VERCEL_TOKEN"
-
-  deploy-e2e-web:
-    name: 🌐 Isolated Main E2E Web Preview
-    needs: [deploy-e2e-api]
-    runs-on: ubuntu-latest
-    outputs:
-      url: ${{ steps.deploy.outputs.deployment-url }}
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🚀 Deploy isolated Web Preview
-        id: deploy
-        uses: ./.github/actions/vercel-deploy
-        with:
-          app-name: Web
-          app-path: apps/web
-          vercel-environment: preview
-          production: 'false'
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
-          extra-env: |
-            NEXT_PUBLIC_API_URL=${{ needs.deploy-e2e-api.outputs.url }}
-            NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
-
-  # -------------------------------------------------- isolated test users
-  provision-e2e-users:
-    name: 👤 Provision isolated Main E2E users
-    needs: [deploy-e2e-api, deploy-e2e-web]
-    runs-on: ubuntu-latest
-    outputs:
-      username: ${{ steps.provision.outputs.username }}
-      email: ${{ steps.provision.outputs.email }}
-      password: ${{ steps.provision.outputs.password }}
-      user_id: ${{ steps.provision.outputs.user_id }}
-      username_2: ${{ steps.provision.outputs.username_2 }}
-      email_2: ${{ steps.provision.outputs.email_2 }}
-      phone_2: ${{ steps.provision.outputs.phone_2 }}
-      password_2: ${{ steps.provision.outputs.password_2 }}
-      user_id_2: ${{ steps.provision.outputs.user_id_2 }}
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 👤 Provision users in test Clerk instance
-        id: provision
-        uses: ./.github/actions/provision-e2e-user
-        with:
-          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
-
-      - name: 🔄 Sync users only into isolated Preview API
-        env:
-          API_URL: ${{ needs.deploy-e2e-api.outputs.url }}
-          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          USER_ID: ${{ steps.provision.outputs.user_id }}
-          USER_EMAIL: ${{ steps.provision.outputs.email }}
-          USER_ID_2: ${{ steps.provision.outputs.user_id_2 }}
-          USER_EMAIL_2: ${{ steps.provision.outputs.email_2 }}
-          USER_PHONE_2: ${{ steps.provision.outputs.phone_2 }}
-          DB_NAME: ${{ needs.deploy-e2e-api.outputs.db-name }}
-        run: |
-          set -euo pipefail
-          test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
-          for role in actor target; do
-            if [ "$role" = actor ]; then
-              id="$USER_ID"; email="$USER_EMAIL"; phone=''; name='E2E Test'
-            else
-              id="$USER_ID_2"; email="$USER_EMAIL_2"; phone="$USER_PHONE_2"; name='E2E Target'
-            fi
-            jq -cn --arg clerkId "$id" --arg email "$email" --arg name "$name" --arg mobileNumber "$phone" \
-              '{clerkId:$clerkId,email:$email,name:$name} + (if $mobileNumber == "" then {} else {mobileNumber:$mobileNumber} end)' |
-              curl -fsS -X POST "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
-                -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' -d @- |
-              jq -e '.ok == true' > /dev/null
-          done
-          jq -cn --arg userId "$USER_ID" --arg name "$DB_NAME" '{action:"seed-bgg",databaseName:$name,userId:$userId}' |
-            curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
-              -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' -d @- > /dev/null
-
-  # -------------------------------------------------- Maestro E2E (isolated Preview)
-  e2e-maestro:
-    name: 🎬 Maestro E2E (mobile — isolated Preview)
-    needs: [build-e2e-apk, provision-e2e-users]
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      E2E_USERNAME: ${{ needs.provision-e2e-users.outputs.username }}
-      E2E_EMAIL: ${{ needs.provision-e2e-users.outputs.email }}
-      E2E_PASSWORD: ${{ needs.provision-e2e-users.outputs.password }}
-      E2E_TARGET_EMAIL: ${{ needs.provision-e2e-users.outputs.email_2 }}
-      E2E_TARGET_USERNAME: ${{ needs.provision-e2e-users.outputs.username_2 }}
-      E2E_TARGET_PASSWORD: ${{ needs.provision-e2e-users.outputs.password_2 }}
-      E2E_TARGET_PHONE: ${{ needs.provision-e2e-users.outputs.phone_2 }}
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: ☕ Set up JDK 17 (Maestro requirement)
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: 📥 Download internal APK
-        uses: actions/download-artifact@v4
-        with:
-          name: apk-internal-main-e2e
-          path: apk
-
-      - name: 🔎 Resolve APK path
-        id: apk
-        run: |
-          APK=$(find apk -name '*.apk' | head -1)
-          echo "path=$APK" >> "$GITHUB_OUTPUT"
-
-      - name: ⚡ Install Maestro CLI
-        run: |
-          curl -Ls "https://get.maestro.mobile.dev" | bash
-          export PATH="$PATH:$HOME/.maestro/bin"
-          maestro --version
-
-      - name: 🛠️ Install Android SDK
-        uses: ./.github/actions/android-emulator
-        with:
-          phase: sdk
-      - name: 🏗️ Create Android AVD
-        uses: ./.github/actions/android-emulator
-        with:
-          phase: avd
-      - name: 📱 Boot shared Android emulator
-        uses: ./.github/actions/android-emulator
-        with:
-          phase: boot
-      - name: 📦 Install APK and verify Clerk callbacks
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: install
-          apk-path: ${{ steps.apk.outputs.path }}
-      - name: 🔥 Warm native app
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: warm
-      - name: 📒 Seed native address book
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: seed
-      - name: 🎬 01 Welcome
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 01-launch-welcome
-      - name: 🎬 02 Login
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 02-login
-      - name: 🎬 02 Startup deep link
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 02-startup-deep-link
-      - name: 🎬 05 Contacts
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 05-contacts-follow-block
-      - name: 🎬 03 Profile and logout
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 03-profile-logout
-      - name: 🎬 07 Reauthentication
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 07-reauth-after-logout
-      - name: 🎬 06 Match wizard
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 06-match-wizard
-      - name: 🎬 08 Groups
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 08-groups
-      - name: 🎬 09 Group invitations
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 09-group-invitations
-      - name: 🎬 10 BGG collection
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 10-bgg-collection
-      - name: 🎬 12 Organizations
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 12-organizations
-      - name: 🎬 13 Event draft
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 13-event-draft
-      - name: 🎬 04 Dark mode
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: flow
-          flow: 04-dark-mode
-      - name: 🔒 Verify all 13 real Maestro reports
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: verify
-      - name: 🧹 Stop shared emulator and preserve diagnostics
-        if: always()
-        uses: ./.github/actions/maestro-e2e
-        with:
-          phase: cleanup
-
-      - name: 📥 Collect Maestro reports (workspace)
-        if: always()
-        run: |
-          # Preserve only real reports; missing results must never become passing tests.
-          mkdir -p maestro-reports maestro-debug
-          echo "---- maestro-reports ----"; ls -la maestro-reports || true
-          echo "---- maestro-debug ----"; ls -la maestro-debug || true
-
-      - name: 📤 Upload Maestro reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: maestro-reports-main
-          path: |
-            maestro-reports/**
-            maestro-debug/**
-            fail-screen.png
-            ui-fail.xml
-            fail-logcat.txt
-            maestro-rec.mp4
-          if-no-files-found: warn
-
-  # -------------------------------------------------- Playwright E2E (isolated Preview)
-  e2e-playwright:
-    name: 🎭 Playwright E2E (web — isolated Preview)
-    needs: [deploy-e2e-web, provision-e2e-users]
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🌐 Install Playwright browsers
-        working-directory: apps/web
-        run: |
-          npx playwright install --with-deps chromium
-
-      - name: 🎭 Run Playwright against isolated Web Preview
-        working-directory: apps/web
-        env:
-          PLAYWRIGHT_BASE_URL: ${{ needs.deploy-e2e-web.outputs.url }}
-          E2E_EMAIL: ${{ needs.provision-e2e-users.outputs.email }}
-          E2E_EMAIL_2: ${{ needs.provision-e2e-users.outputs.email_2 }}
-          E2E_PHONE_2: ${{ needs.provision-e2e-users.outputs.phone_2 }}
-          E2E_USERNAME_2: ${{ needs.provision-e2e-users.outputs.username_2 }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-        run: pnpm test:e2e
-
-      - name: 📤 Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-main
-          path: apps/web/playwright-report/**
-          if-no-files-found: warn
-
-  # ------------------------------------------------ isolated E2E cleanup
-  cleanup-e2e:
-    name: 🗑️ Clean test Clerk users and isolated database
-    needs: [deploy-e2e-api, provision-e2e-users, e2e-maestro, e2e-playwright]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🗑️ Delete this run's test Clerk users
-        env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          USER_ID: ${{ needs.provision-e2e-users.outputs.user_id }}
-          USER_ID_2: ${{ needs.provision-e2e-users.outputs.user_id_2 }}
-        run: bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2"
-
-      - name: 🗑️ Clear only this run's database collections
-        if: always() && needs.deploy-e2e-api.outputs.url != ''
-        env:
-          API_URL: ${{ needs.deploy-e2e-api.outputs.url }}
-          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DB_NAME: ${{ needs.deploy-e2e-api.outputs.db-name }}
-        run: |
-          set -euo pipefail
-          test -n "$DB_NAME" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
-          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
-            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
-            -d "$(jq -cn --arg name "$DB_NAME" '{action:"cleanup",databaseName:$name}')" |
-            jq -e '.ok == true' > /dev/null
+    permissions:
+      contents: read
+      statuses: write
 
   # ------------------------------------------------ publish release (after ALL gates)
   publish-release:
     name: 📦 Publish release v${{ needs.release.outputs.version }}
-    needs: [release, build-apk, deploy-production, e2e-maestro, e2e-playwright, cleanup-e2e]
+    needs:
+      - release
+      - build-apk
+      - deploy-production
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     outputs:
@@ -706,6 +349,17 @@ jobs:
         with:
           name: apk-internal-main
           path: apk
+      - name: 🔒 Verify production APK provenance and current release
+        env:
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+          test "$(cat apk/source-head.txt)" = "$RELEASE_SHA"
+          test "$(cat apk/api-url.txt)" = https://api.board-game-organizer.com
+          test "$(find apk -maxdepth 1 -name '*.apk' | wc -l)" = 1
+          (cd apk && sha256sum --check apk.sha256)
 
       - name: ☁️ Upload verified production APK to EAS
         id: eas
@@ -718,75 +372,108 @@ jobs:
           npm install -g eas-cli@latest
           node ../../.github/scripts/eas-upload.mjs "$APK"
 
-      - name: 📦 Create the GitHub release (changelog from the bump commit)
-        id: publish
+      - name: 📦 Stage release notes from the pinned bump commit
+        id: prepare
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
         run: |
-          # The bump commit body IS the release notes (embedded by semantic-release).
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+          # Keep the release private until its verified APK and links are attached.
           NOTES=$(git log -1 --pretty=%B | tail -n +3)
-          PAYLOAD=$(jq -n --arg tag "v$VERSION" --arg name "v$VERSION" --arg body "$NOTES" \
-            '{tag_name:$tag, name:$name, body:$body, draft:false, prerelease:false}')
-          curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
+          PAYLOAD=$(jq -n --arg tag "v$VERSION" --arg name "v$VERSION" --arg body "$NOTES" --arg sha "$RELEASE_SHA" \
+            '{tag_name:$tag, name:$name, body:$body, target_commitish:$sha, draft:true, prerelease:false}')
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" -H 'Content-Type: application/json' \
             "https://api.github.com/repos/${{ github.repository }}/releases" \
             -d "$PAYLOAD" > /tmp/release.json
-          echo "release_url=$(jq -r .html_url /tmp/release.json)" >> "$GITHUB_OUTPUT"
-          echo "release created: $(jq -r .html_url /tmp/release.json)"
+          jq -e '.id | numbers | select(. > 0)' /tmp/release.json > /dev/null
+          jq -e '.html_url | strings | select(startswith("https://github.com/"))' /tmp/release.json > /dev/null
+          jq -e --arg tag "v$VERSION" '.draft == true and .tag_name == $tag' /tmp/release.json > /dev/null
 
       - name: 📎 Attach APK with clean name
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.release.outputs.version }}
         run: |
+          set -euo pipefail
           CLEAN_NAME="board-game-organizer-${VERSION}-internal.apk"
           cp "$(find apk -name '*.apk' | head -1)" "/tmp/$CLEAN_NAME"
           REL_ID=$(jq -r .id /tmp/release.json)
-          curl -sL -X POST -H "Authorization: Bearer $GH_TOKEN" \
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"/tmp/$CLEAN_NAME" \
-            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL_ID/assets?name=$CLEAN_NAME" | \
-            jq -r '"Attached: " + .name'
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL_ID/assets?name=$CLEAN_NAME" > /tmp/apk-upload.json
+          DIGEST="sha256:$(sha256sum "/tmp/$CLEAN_NAME" | cut -d' ' -f1)"
+          SIZE=$(stat -c %s "/tmp/$CLEAN_NAME")
+          jq -e --arg name "$CLEAN_NAME" --arg digest "$DIGEST" --argjson size "$SIZE" \
+            '(.id | type) == "number" and .id > 0 and .name == $name and .size == $size and .digest == $digest' /tmp/apk-upload.json > /dev/null
 
       - name: 🔗 Append production links to the release body
         env:
           GH_TOKEN: ${{ github.token }}
           EAS_BUILD_URL: ${{ steps.eas.outputs.url }}
         run: |
+          set -euo pipefail
           REL_ID=$(jq -r .id /tmp/release.json)
-          BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          BODY=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" | jq -r .body)
           NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://board-game-organizer.com\n- **API:** https://api.board-game-organizer.com\n- **APK:** allegato alla release' "$BODY")
           if [ -n "$EAS_BUILD_URL" ]; then
             NEW_BODY=$(printf '%s\n- **Build EAS:** %s' "$NEW_BODY" "$EAS_BUILD_URL")
           fi
           PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{body:$body}')
-          curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
+          curl -fsS -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" -H 'Content-Type: application/json' \
             "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" -d "$PAYLOAD" | \
             jq -r '"Release body aggiornato: " + .tag_name'
+
+      - name: 🚀 Publish verified production release
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+          test "$(git rev-parse "v$VERSION^{}")" = "$RELEASE_SHA"
+          REL_ID=$(jq -er '.id | numbers | select(. > 0)' /tmp/release.json)
+          curl -fsS -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Content-Type: application/json' \
+            "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" \
+            -d '{"draft":false}' > /tmp/published-release.json
+          jq -e --arg tag "v$VERSION" '.draft == false and .tag_name == $tag and (.html_url | startswith("https://github.com/"))' /tmp/published-release.json > /dev/null
+          echo "release_url=$(jq -r .html_url /tmp/published-release.json)" >> "$GITHUB_OUTPUT"
 
       - name: 🗑️ Delete the merged PR draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           # HEAD~1 is the merge commit of the PR that triggered this run.
           MSG=$(git log -1 --format=%s HEAD~1)
           PR=$(echo "$MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
           if [ -z "$PR" ]; then echo "No PR number in merge message — skip draft deletion"; exit 0; fi
-          FOUND=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          FOUND=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" | \
             jq -r --arg suffix "-pr.$PR" '.[] | select(.draft == true and (.tag_name | endswith($suffix))) | .id')
           if [ -n "$FOUND" ]; then
             for rel_id in $FOUND; do
               echo "Deleting draft $rel_id (merged PR #$PR)"
-              curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+              curl -fsS -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
                 "https://api.github.com/repos/${{ github.repository }}/releases/$rel_id" -w "HTTP %{http_code}\n"
             done
           else
             echo "No draft for PR #$PR — nothing to delete"
           fi
+    permissions:
+      contents: write
+    environment: production
 
   # -------------------------------------------------- Telegram notification
   notify-telegram:
@@ -799,16 +486,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          ref: ${{ needs.release.outputs.sha }}
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
+      - name: 🔒 Notify only the current production release
+        env:
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
 
       - name: 📥 Fetch release changelog
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.release.outputs.version }}
         run: |
-          curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" \
             | jq -r '.body' > /tmp/changelog.md
 
@@ -835,3 +530,4 @@ jobs:
           title: 🚀 Board Game Organizer v${{ needs.release.outputs.version }} — release
           changelog-file: /tmp/changelog.md
           links-file: /tmp/telegram-links.html
+    environment: production

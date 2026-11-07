@@ -180,7 +180,7 @@ test("PR and main notifications omit unavailable EAS links but retain actual Git
   }
 });
 
-test("optional EAS registration cannot disable APK, E2E, cleanup or publication gates", () => {
+test("optional EAS registration cannot disable the mandatory PR/Main publication policies", () => {
   const pr = workflows[0],
     main = workflows[1];
   for (const [workflow, name] of [
@@ -192,12 +192,16 @@ test("optional EAS registration cannot disable APK, E2E, cleanup or publication 
     assert.match(upload.run, /eas-upload\.mjs/);
     assert.equal(upload["continue-on-error"], undefined);
     assert.equal(job["continue-on-error"], undefined);
-    const gate = workflow === pr ? workflow.jobs.ready : job;
-    assert(gate.needs.includes("e2e-maestro"));
-    assert(gate.needs.includes("e2e-playwright"));
+    if (workflow === pr) {
+      assert(workflow.jobs.ready.needs.includes("e2e-maestro"));
+      assert(workflow.jobs.ready.needs.includes("e2e-playwright"));
+    } else {
+      assert(job.needs.includes("build-apk"));
+      assert(job.needs.includes("deploy-production"));
+    }
   }
-  assert.notEqual(main.jobs["e2e-maestro"].if, `\${{ false }}`);
-  assert.notEqual(main.jobs["e2e-playwright"].if, `\${{ false }}`);
+  assert.equal(main.jobs["e2e-maestro"], undefined);
+  assert.equal(main.jobs["e2e-playwright"], undefined);
   assert.doesNotMatch(pr.jobs["draft-release"].if, /build-mobile-internal/);
   assert.match(pr.jobs["draft-release"].if, /needs\.build-mobile-development\.result == 'success'/);
   assert.match(pr.jobs["cleanup-e2e-user"].if, /^always\(\).*mode == 'pr'/);
