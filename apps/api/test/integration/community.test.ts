@@ -3284,10 +3284,11 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       for (const section of ["mine", "available"] as const)
         expect((await list(user, section)).some((r) => r.groupId === publicClub.id)).toBe(false);
     for (const user of [OTHER, DEMO, OUTSIDER]) {
+      const membership = await services().groupRecords.membership(publicClub.id, user);
       expect(await services().plannedEventService.detail(user, ownerDemo.event.id)).toMatchObject({
         role: "viewer",
         readOnly: true,
-        canRegister: false,
+        canRegister: true,
         canVote: false,
         canEdit: false,
         canInvite: false,
@@ -3303,17 +3304,31 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         ),
       ).toMatchObject({
         readOnly: true,
-        canRegister: false,
+        canRegister: true,
         canInvite: false,
         canLeave: false,
         canRespond: false,
       });
-      await expect(
-        transaction((s) =>
+      expect(
+        await transaction((s) =>
           s.plannedEventService.register(user, ownerDemo.event.id, ownerDemo.tableId),
         ),
-      ).rejects.toMatchObject({ code: "GROUP_MEMBER_REQUIRED" });
+      ).toMatchObject({ userId: user, kind: "SELF", status: "ACCEPTED" });
+      expect(await services().groupRecords.membership(publicClub.id, user)).toEqual(membership);
+      expect((await list(user, "mine")).some((row) => row.id === ownerDemo.event.id)).toBe(true);
+      expect(
+        (await services().plannedEventService.personalTables(user, { limit: 20 })).items.some(
+          (row) => row.id === ownerDemo.tableId,
+        ),
+      ).toBe(true);
     }
+    expect(
+      await services().plannedEventService.tableDetail(
+        OUTSIDER,
+        ownerDemo.event.id,
+        ownerDemo.tableId,
+      ),
+    ).toMatchObject({ myPosition: "WAITING", myRegistration: { status: "ACCEPTED" } });
     const seen: string[] = [];
     let cursor: string | undefined;
     do {
@@ -5028,6 +5043,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       }),
     );
     const terminated = await services().eventRecords.table(tableId);
+    const terminatedRegistrations = await services().eventRecords.allRegistrations(event.id);
     const until = "2030-06-02T13:00:00Z";
     await transaction((s) => s.unifiedGroupService.ban(OWNER, group.id, { userId: GUEST, until }));
     expect((await services().groupRecords.membership(group.id, GUEST))?.status).toBe("LEFT");
@@ -5040,9 +5056,13 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     });
     vi.setSystemTime(new Date(until));
     expect((await services().groupRecords.membership(group.id, GUEST))?.status).toBe("LEFT");
+    expect(await services().eventRecords.allRegistrations(event.id)).toEqual(
+      terminatedRegistrations,
+    );
+    expect(await services().eventRecords.table(tableId)).toEqual(terminated);
     expect(await services().plannedEventService.detail(GUEST, event.id)).toMatchObject({
-      role: "viewer",
-      readOnly: true,
+      role: "participant",
+      readOnly: false,
       canRegister: false,
       canVote: false,
       canEdit: false,
@@ -5053,7 +5073,12 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     });
     await expect(
       transaction((s) => s.plannedEventService.register(GUEST, event.id, tableId)),
-    ).rejects.toMatchObject({ code: "GROUP_MEMBER_REQUIRED" });
+    ).rejects.toMatchObject({ code: "EVENT_NOT_PLANNING" });
+    expect(
+      (
+        await services().plannedEventService.tableDetail(GUEST, event.id, tableId)
+      ).resultProfiles?.every((profile) => profile.email === null),
+    ).toBe(true);
     const renewed = await transaction((s) => s.unifiedGroupService.request(GUEST, group.id));
     expect(renewed.status).toBe("PENDING");
     expect(renewed.kind).toBe("REQUEST");
