@@ -34,7 +34,7 @@ const input = JSON.parse(required("EVENT_ACCESS_INPUT")) as {
   emptyQuery?: string;
 };
 if (
-  !["shared", "denied", "enroll", "picker", "finalize"].includes(mode) ||
+  !["shared", "denied", "enroll", "picker", "finalize", "draft"].includes(mode) ||
   !["en", "it"].includes(locale) ||
   !["light", "dark"].includes(theme) ||
   ![input.eventId, input.tableId].every((id) => /^[0-9a-f-]{36}$/i.test(id)) ||
@@ -76,6 +76,13 @@ const it = locale === "it",
     next: it ? "Avanti" : "Next",
     loadEvent: it ? "Impossibile caricare l'evento" : "Could not load event",
     loadTable: it ? "Impossibile caricare il tavolo" : "Could not load table",
+    groupName: it ? "Nome del gruppo" : "Group name",
+    minimum: it ? "Giocatori minimi" : "Minimum players",
+    maximum: it ? "Giocatori massimi" : "Maximum players",
+    increase: it ? "Aumenta" : "Increase",
+    decrease: it ? "Diminuisci" : "Decrease",
+    removeGame: it ? "Rimuovi gioco" : "Remove game",
+    bounds: it ? "Limiti di giocatori di BoardGameGeek" : "BoardGameGeek player limits",
   };
 async function request(page: Page, path: string) {
   return page.evaluate(
@@ -122,6 +129,70 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
   }
   const event = await read<PlannedEventResponse>(page, eventPath),
     table = await read<PlannedTableResponse>(page, tablePath);
+  if (mode === "draft") {
+    if (!input.catalogOnlyName || input.catalogOnlyName.length < 4)
+      throw new Error("Catalog game with verified BGG 2–4 player pair required (for example Azul)");
+    expect(event).toMatchObject({ status: "PLANNING", canEdit: true, tableCount: 1 });
+    expect(table).toMatchObject({ minPlayers: 2, maxPlayers: 4 });
+    expect(table.games).toHaveLength(1);
+    const original = table.gamesDetail.find((game) => game.id === table.games[0].gameId);
+    if (!original) throw new Error("Named single-game fixture required");
+    const writes: string[] = [];
+    page.on("request", (request) => {
+      if (
+        ["POST", "PATCH", "DELETE"].includes(request.method()) &&
+        /\/api\/(groups|events)(\/|\?|$)/.test(request.url())
+      )
+        writes.push(request.url());
+    });
+    await page.goto("/groups/new");
+    const name = page.getByRole("textbox", { name: l.groupName, exact: true });
+    await expect(name).toHaveAttribute("placeholder", l.groupName);
+    await name.fill("Unsaved group draft");
+    await page.goto(`/${eventPath}/edit`);
+    await page.getByRole("button", { name: l.next, exact: true }).click();
+    await page
+      .getByRole("button", { name: `${l.removeGame}: ${original.name}`, exact: true })
+      .click();
+    await page.getByRole("button", { name: `${l.increase} ${l.minimum}`, exact: true }).click();
+    await page.getByRole("button", { name: `${l.increase} ${l.maximum}`, exact: true }).click();
+    await expect(page.getByLabel(l.minimum, { exact: true })).toHaveText("3");
+    await expect(page.getByLabel(l.maximum, { exact: true })).toHaveText("5");
+    await page.getByRole("button", { name: l.chooseGame, exact: true }).click();
+    await expect(page.getByTestId("list-filter-collection")).toBeVisible();
+    for (const filter of [
+      page.getByTestId("list-filter-collection"),
+      page.getByTestId("list-filter-participants"),
+    ])
+      if ((await filter.count()) && (await filter.getAttribute("aria-pressed")) === "true")
+        await filter.click();
+    await page.getByRole("searchbox").fill(input.catalogOnlyName);
+    await page
+      .getByRole("button", { name: `${l.select}: ${input.catalogOnlyName}`, exact: true })
+      .click();
+    await expect(page.getByText(`${l.bounds}: 2–4`, { exact: true })).toBeVisible();
+    await expect(page.getByLabel(l.minimum, { exact: true })).toHaveText("3");
+    await expect(page.getByLabel(l.maximum, { exact: true })).toHaveText("4");
+    await expect(
+      page.getByRole("button", { name: `${l.increase} ${l.maximum}`, exact: true }),
+    ).toBeDisabled();
+    await page.getByRole("button", { name: `${l.decrease} ${l.maximum}`, exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: `${l.decrease} ${l.maximum}`, exact: true }),
+    ).toBeDisabled();
+    await page.getByRole("button", { name: `${l.decrease} ${l.minimum}`, exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: `${l.decrease} ${l.minimum}`, exact: true }),
+    ).toBeDisabled();
+    await page
+      .getByRole("button", { name: `${l.removeGame}: ${input.catalogOnlyName}`, exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: `${l.increase} ${l.maximum}`, exact: true }),
+    ).toBeEnabled();
+    expect(writes).toEqual([]);
+    return;
+  }
   if (mode === "shared") {
     expect(event).toMatchObject({
       status: "TERMINATED",

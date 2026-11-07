@@ -8,6 +8,88 @@ tags: [manual, events, privacy]
     clearState: false
 - runFlow:
     when:
+      true: ${output.access.mode === 'draft'}
+    commands:
+      - openLink: ${output.access.groupDraftLink}
+      - extendedWaitUntil:
+          visible:
+            id: group-name-input
+          timeout: 120000
+      - assertVisible: ${output.access.groupName}
+      - takeScreenshot: group-fab-before-keyboard
+      - tapOn:
+          id: group-name-input
+      - inputText: "Unsaved group draft"
+      - assertVisible:
+          id: group-name-input
+          focused: true
+      # Compare FAB's physical Y in these screenshots; focus alone is not geometry evidence.
+      - takeScreenshot: group-fab-with-keyboard
+      - hideKeyboard
+      - assertVisible:
+          id: save-group-fab
+      - takeScreenshot: group-fab-after-keyboard
+      - openLink: ${output.access.editLink}
+      - extendedWaitUntil:
+          visible: ${output.access.next}
+          timeout: 120000
+      - tapOn: ${output.access.next}
+      - extendedWaitUntil:
+          visible: ${output.access.minimumTwo}
+          timeout: 120000
+      - assertVisible: ${output.access.maximumFour}
+      - tapOn: ${output.access.originalGameRemove}
+      - tapOn: ${output.access.increaseMinimum}
+      - tapOn: ${output.access.increaseMaximum}
+      - assertVisible: ${output.access.minimumThree}
+      - assertVisible: ${output.access.maximumFive}
+      - tapOn: ${output.access.chooseGame}
+      - runFlow:
+          when:
+            visible:
+              id: list-filter-collection
+              selected: true
+          commands:
+            - tapOn:
+                id: list-filter-collection
+      - runFlow:
+          when:
+            visible:
+              id: list-filter-participants
+              selected: true
+          commands:
+            - tapOn:
+                id: list-filter-participants
+      - tapOn:
+          id: game-search-input
+      - inputText: ${output.access.catalogQuery}
+      - hideKeyboard
+      - extendedWaitUntil:
+          visible: ${output.access.gameSelect}
+          timeout: 120000
+      - tapOn: ${output.access.gameSelect}
+      - assertVisible: ${output.access.gameBounds}
+      - assertVisible: ${output.access.minimumThree}
+      - assertVisible: ${output.access.maximumFour}
+      - assertVisible:
+          text: ${output.access.increaseMaximum}
+          enabled: false
+      - tapOn: ${output.access.decreaseMaximum}
+      - assertVisible:
+          text: ${output.access.decreaseMaximum}
+          enabled: false
+      - tapOn: ${output.access.decreaseMinimum}
+      - assertVisible:
+          text: ${output.access.decreaseMinimum}
+          enabled: false
+      - tapOn: ${output.access.draftGameRemove}
+      - assertVisible:
+          text: ${output.access.increaseMaximum}
+          enabled: true
+      - takeScreenshot: table-draft-bgg-counts
+      - back
+- runFlow:
+    when:
       true: ${output.access.mode === 'shared'}
     commands:
       - openLink: ${output.access.eventLink}

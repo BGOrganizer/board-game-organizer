@@ -287,6 +287,21 @@ export function patchEventDraft(
   }
   return next;
 }
+/** Game edits clamp only unsaved limits; unknown metadata never invents a BGG bound. */
+export function patchTableDraft(
+  row: EventTableDraft,
+  change: Partial<EventTableDraft>,
+): EventTableDraft {
+  const next = { ...row, ...change };
+  const bounds = change.games === undefined ? null : gamePlayerBounds(change.games);
+  if (!bounds) return next;
+  const minimum = Math.max(2, bounds.minPlayers);
+  // Solo-only games remain invalid in draft validation; never lower the Table minimum to one.
+  const maximum = Math.max(minimum, bounds.maxPlayers);
+  const minPlayers = Math.min(maximum, Math.max(minimum, next.minPlayers));
+  const maxPlayers = Math.max(minPlayers, Math.min(maximum, Math.max(minimum, next.maxPlayers)));
+  return { ...next, minPlayers, maxPlayers };
+}
 export function newTableDraft(key: string): EventTableDraft {
   return {
     key,

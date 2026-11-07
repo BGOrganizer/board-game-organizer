@@ -11,7 +11,7 @@ if (
 )
   throw new Error("Local/Preview API only");
 if (
-  ["shared", "denied", "enroll", "picker", "finalize"].indexOf(EVENT_ACCESS_MODE) < 0 ||
+  ["shared", "denied", "enroll", "picker", "finalize", "draft"].indexOf(EVENT_ACCESS_MODE) < 0 ||
   ["en", "it"].indexOf(EVENT_ACCESS_LOCALE) < 0
 )
   throw new Error("Explicit mode and EN/IT locale required");
@@ -43,6 +43,11 @@ if (
   (typeof p.groupId !== "string" || !/^[0-9a-f-]{36}$/i.test(p.groupId))
 )
   throw new Error("Public Group identifier required for no-membership verification");
+if (
+  EVENT_ACCESS_MODE === "draft" &&
+  (typeof p.catalogOnlyName !== "string" || p.catalogOnlyName.length < 4)
+)
+  throw new Error("Catalog fixture with verified BGG 2–4 player pair required");
 function exact(value) {
   return "^" + value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
 }
@@ -85,4 +90,20 @@ output.access = {
   participantQuery: p.participantOnlyName || "",
   catalogQuery: p.catalogOnlyName || "",
   emptyQuery: p.emptyQuery || "",
+  groupDraftLink: "bgo:///group/wizard",
+  groupName: exact(it ? "Nome del gruppo" : "Group name"),
+  increaseMinimum: exact(it ? "Aumenta: Giocatori minimi" : "Increase: Minimum players"),
+  increaseMaximum: exact(it ? "Aumenta: Giocatori massimi" : "Increase: Maximum players"),
+  decreaseMinimum: exact(it ? "Diminuisci: Giocatori minimi" : "Decrease: Minimum players"),
+  decreaseMaximum: exact(it ? "Diminuisci: Giocatori massimi" : "Decrease: Maximum players"),
+  minimumTwo: exact(it ? "Giocatori minimi: 2" : "Minimum players: 2"),
+  minimumThree: exact(it ? "Giocatori minimi: 3" : "Minimum players: 3"),
+  maximumFour: exact(it ? "Giocatori massimi: 4" : "Maximum players: 4"),
+  maximumFive: exact(it ? "Giocatori massimi: 5" : "Maximum players: 5"),
+  gameSelect: exact((it ? "Seleziona: " : "Select: ") + (p.catalogOnlyName || "")),
+  originalGameRemove: it ? "^Rimuovi gioco: .+" : "^Remove game: .+",
+  draftGameRemove: exact((it ? "Rimuovi gioco: " : "Remove game: ") + (p.catalogOnlyName || "")),
+  gameBounds: exact(
+    (it ? "Limiti di giocatori di BoardGameGeek" : "BoardGameGeek player limits") + ": 2–4",
+  ),
 };

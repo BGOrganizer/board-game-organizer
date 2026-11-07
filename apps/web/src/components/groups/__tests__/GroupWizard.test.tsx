@@ -48,7 +48,10 @@ it.each([false, true])(
         <GroupWizard groupId={edit ? groupRecord.id : undefined} />
       </QueryClientProvider>,
     );
-    fireEvent.change(await screen.findByRole("textbox", { name: "Group name" }), {
+    expect(
+      (await screen.findByRole("textbox", { name: "Group name" })).getAttribute("placeholder"),
+    ).toBe("Group name");
+    fireEvent.change(screen.getByRole("textbox", { name: "Group name" }), {
       target: { value: "Friday group" },
     });
     fireEvent.click(screen.getByRole("button", { name: edit ? "Save changes" : "Create group" }));

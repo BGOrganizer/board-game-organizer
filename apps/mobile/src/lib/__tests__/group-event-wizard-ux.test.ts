@@ -5,6 +5,19 @@ import { expect, it } from "vitest";
 // Structural contracts only. Maestro/manual native runs own actual rendering and gestures.
 const source = (feature: string, file: string) =>
   readFileSync(new URL(`../../components/${feature}/${file}.tsx`, import.meta.url), "utf8");
+it("anchors the Group save FAB outside keyboard avoidance while keeping the form scrollable and localized", () => {
+  const wizard = source("groups", "GroupWizard");
+  expect(wizard).toContain('placeholder={t("Group name")}');
+  expect(wizard).toContain('accessibilityLabel={t("Group name")}');
+  expect(wizard).toMatch(
+    /<KeyboardAvoidingView[\s\S]*<FlatList[\s\S]*<\/KeyboardAvoidingView>\s*<FloatingActions/,
+  );
+  expect(wizard.indexOf("</KeyboardAvoidingView>")).toBeLessThan(
+    wizard.indexOf("<FloatingActions"),
+  );
+  expect(wizard).toContain('keyboardShouldPersistTaps="handled"');
+  expect(wizard).toContain("paddingBottom: layout.paddingBottom");
+});
 it("routes grouped creation to Group Events and keeps public table time/demo and invitation controls platform-owned", () => {
   const wizard = source("events", "EventWizard"),
     editor = source("events", "EventDraftTableEditor"),

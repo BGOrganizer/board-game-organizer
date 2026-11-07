@@ -20,6 +20,7 @@ import {
   eventDraftStepIssues,
   newTableDraft,
   patchEventDraft,
+  patchTableDraft,
   tableDraft,
 } from "../eventRecordForm";
 import { eventDateWall } from "../eventRecordPolicy";
@@ -121,7 +122,7 @@ export function useEventRecordForm(
   const patchTable = (key: string, change: Partial<EventTableDraft>) =>
     setDraft((old) => ({
       ...old,
-      tables: old.tables.map((row) => (row.key === key ? { ...row, ...change } : row)),
+      tables: old.tables.map((row) => (row.key === key ? patchTableDraft(row, change) : row)),
     }));
   const addTable = () => {
     if (
@@ -194,7 +195,7 @@ export function useEventRecordForm(
       ...old,
       tables: old.tables.map((row) =>
         row.key === key
-          ? { ...row, games: [...row.games.filter((g) => g.id !== game.id), game] }
+          ? patchTableDraft(row, { games: [...row.games.filter((g) => g.id !== game.id), game] })
           : row,
       ),
     }));

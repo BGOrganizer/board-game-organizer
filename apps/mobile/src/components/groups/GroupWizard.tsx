@@ -217,11 +217,7 @@ function Editor({
       },
     });
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={insets.top + 56}
-    >
+    <View style={{ flex: 1 }}>
       <Stack.Screen
         options={{
           title: group ? t("Edit group") : t("New group"),
@@ -229,150 +225,162 @@ function Editor({
           ...headerBackOptions(() => router.back()),
         }}
       />
-      <FlatList
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
-        data={!group && type === "PRIVATE" ? friends : []}
-        keyExtractor={(user) => user.id}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: layout.paddingBottom }}
-        ListHeaderComponent={
-          <View style={{ gap: 16 }}>
-            {!group ? (
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 16,
-                }}
-              >
-                <Typography className="text-foreground">{t("Public group")}</Typography>
-                <Switch
-                  isDisabled={submitting}
-                  testID="group-public-switch"
-                  accessibilityLabel={t("Public group")}
-                  isSelected={type === "PUBLIC"}
-                  onSelectedChange={(selected) => setType(selected ? "PUBLIC" : "PRIVATE")}
-                />
-              </View>
-            ) : (
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={insets.top + 56}
+      >
+        <FlatList
+          style={{ flex: 1 }}
+          data={!group && type === "PRIVATE" ? friends : []}
+          keyExtractor={(user) => user.id}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: layout.paddingBottom }}
+          ListHeaderComponent={
+            <View style={{ gap: 16 }}>
+              {!group ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 16,
+                  }}
+                >
+                  <Typography className="text-foreground">{t("Public group")}</Typography>
+                  <Switch
+                    isDisabled={submitting}
+                    testID="group-public-switch"
+                    accessibilityLabel={t("Public group")}
+                    isSelected={type === "PUBLIC"}
+                    onSelectedChange={(selected) => setType(selected ? "PUBLIC" : "PRIVATE")}
+                  />
+                </View>
+              ) : (
+                <Typography className="text-muted">
+                  {group.type === "PUBLIC" ? t("Public group") : t("Private group")}
+                </Typography>
+              )}
               <Typography className="text-muted">
-                {group.type === "PUBLIC" ? t("Public group") : t("Private group")}
+                {type === "PUBLIC"
+                  ? t(
+                      "Public groups require a logo, verified venue and approval. Group type cannot be changed.",
+                    )
+                  : t(
+                      "Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.",
+                    )}
               </Typography>
-            )}
-            <Typography className="text-muted">
-              {type === "PUBLIC"
-                ? t(
-                    "Public groups require a logo, verified venue and approval. Group type cannot be changed.",
-                  )
-                : t(
-                    "Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.",
-                  )}
-            </Typography>
-            <SearchHelpLabel
-              required
-              label={t("Group name")}
-              helpTitle={t("Field help")}
-              help={t("Choose a name, from 5 to 120 characters.")}
-            />
-            {conflict ? (
-              <Typography accessibilityRole="alert" className="text-danger">
-                {t("This group changed. Go back and reopen the editor before saving.")}
+              <SearchHelpLabel
+                required
+                label={t("Group name")}
+                helpTitle={t("Field help")}
+                help={t("Choose a name, from 5 to 120 characters.")}
+              />
+              {conflict ? (
+                <Typography accessibilityRole="alert" className="text-danger">
+                  {t("This group changed. Go back and reopen the editor before saving.")}
+                </Typography>
+              ) : null}
+              {checking ? (
+                <Typography accessibilityLiveRegion="polite" className="text-foreground">
+                  {t("Checking saved changes")}
+                </Typography>
+              ) : null}
+              <Input
+                editable={!submitting}
+                accessibilityLabel={t("Group name")}
+                testID="group-name-input"
+                placeholder={t("Group name")}
+                value={name}
+                onChangeText={setName}
+                maxLength={120}
+              />
+              <GroupLogoPicker
+                value={logo}
+                required={type === "PUBLIC"}
+                disabled={submitting}
+                onChange={setLogo}
+                onBusyChange={setUploading}
+              />
+              <Typography className="font-bold text-foreground">
+                {t("Location")}
+                {type === "PUBLIC" ? " *" : ""}
               </Typography>
-            ) : null}
-            {checking ? (
-              <Typography accessibilityLiveRegion="polite" className="text-foreground">
-                {t("Checking saved changes")}
-              </Typography>
-            ) : null}
-            <Input
-              editable={!submitting}
-              accessibilityLabel={t("Group name")}
-              value={name}
-              onChangeText={setName}
-              maxLength={120}
-            />
-            <GroupLogoPicker
-              value={logo}
-              required={type === "PUBLIC"}
-              disabled={submitting}
-              onChange={setLogo}
-              onBusyChange={setUploading}
-            />
-            <Typography className="font-bold text-foreground">
-              {t("Location")}
-              {type === "PUBLIC" ? " *" : ""}
-            </Typography>
+              <GroupedList>
+                <LocationListRow
+                  name={location?.name ?? t("Choose a location")}
+                  accessibilityLabel={t("Choose a location")}
+                  address={location?.address}
+                  onPress={submitting || uploading ? undefined : () => setPicking(true)}
+                  leading={
+                    location ? (
+                      <LocationFavoriteButton location={location} favorites={favorites} />
+                    ) : undefined
+                  }
+                  actions={
+                    location && type === "PRIVATE" ? (
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="danger-soft"
+                        accessibilityLabel={t("Remove location")}
+                        isDisabled={submitting}
+                        onPress={() => setLocation(undefined)}
+                      >
+                        <X size={18} color={danger} />
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              </GroupedList>
+              {favorites.status.isError ? (
+                <Typography accessibilityRole="alert" className="text-danger">
+                  {t("Could not load favorite locations")}
+                </Typography>
+              ) : null}
+              {!group && type === "PRIVATE" ? (
+                <Typography className="font-semibold text-foreground">
+                  {t("Invite friends")}
+                </Typography>
+              ) : null}
+            </View>
+          }
+          renderItem={({ item: user }) => (
             <GroupedList>
-              <LocationListRow
-                name={location?.name ?? t("Choose a location")}
-                accessibilityLabel={t("Choose a location")}
-                address={location?.address}
-                onPress={submitting || uploading ? undefined : () => setPicking(true)}
-                leading={
-                  location ? (
-                    <LocationFavoriteButton location={location} favorites={favorites} />
-                  ) : undefined
-                }
+              <UserListRow
+                name={user.name}
+                avatarUrl={user.avatarUrl}
+                secondary={user.username}
                 actions={
-                  location && type === "PRIVATE" ? (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="danger-soft"
-                      accessibilityLabel={t("Remove location")}
-                      isDisabled={submitting}
-                      onPress={() => setLocation(undefined)}
-                    >
-                      <X size={18} color={danger} />
-                    </Button>
-                  ) : undefined
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="danger-soft"
+                    accessibilityLabel={`${t("Remove invite")}: ${user.name}`}
+                    isDisabled={submitting}
+                    onPress={() =>
+                      setFriends((current) => current.filter((item) => item.id !== user.id))
+                    }
+                  >
+                    <Trash2 size={18} color={danger} />
+                  </Button>
                 }
               />
             </GroupedList>
-            {favorites.status.isError ? (
-              <Typography accessibilityRole="alert" className="text-danger">
-                {t("Could not load favorite locations")}
-              </Typography>
-            ) : null}
-            {!group && type === "PRIVATE" ? (
-              <Typography className="font-semibold text-foreground">
-                {t("Invite friends")}
-              </Typography>
-            ) : null}
-          </View>
-        }
-        renderItem={({ item: user }) => (
-          <GroupedList>
-            <UserListRow
-              name={user.name}
-              avatarUrl={user.avatarUrl}
-              secondary={user.username}
-              actions={
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="danger-soft"
-                  accessibilityLabel={`${t("Remove invite")}: ${user.name}`}
+          )}
+          ListFooterComponent={
+            <View style={{ gap: 12 }}>
+              {!group && type === "PRIVATE" ? (
+                <AddUserRow
+                  label={t("Add friend")}
+                  onPress={chooseFriend}
                   isDisabled={submitting}
-                  onPress={() =>
-                    setFriends((current) => current.filter((item) => item.id !== user.id))
-                  }
-                >
-                  <Trash2 size={18} color={danger} />
-                </Button>
-              }
-            />
-          </GroupedList>
-        )}
-        ListFooterComponent={
-          <View style={{ gap: 12 }}>
-            {!group && type === "PRIVATE" ? (
-              <AddUserRow label={t("Add friend")} onPress={chooseFriend} isDisabled={submitting} />
-            ) : null}
-          </View>
-        }
-      />
+                />
+              ) : null}
+            </View>
+          }
+        />
+      </KeyboardAvoidingView>
       <FloatingActions
         label={
           type === "PUBLIC" ? t("Submit for review") : group ? t("Save changes") : t("Create group")
@@ -394,6 +402,6 @@ function Editor({
           <Save size={26} color={accentForeground} />
         )}
       </FloatingActions>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

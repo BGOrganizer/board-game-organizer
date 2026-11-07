@@ -414,12 +414,20 @@ retains its 8/6/7 rendering budget and stable search input.
 Existing bounded BGG metadata hydration supplies verified complete min/max player pairs; no bulk
 provider synchronization. Selected games 2–4 and 3–6 permit a 2–6 editor envelope: minimum of known
 minima, maximum of known maxima, ignoring missing/invalid pairs. No known pair means no invented
-bound; Table minimum remains at least two. New/edited Table limits obey that envelope. Confirmation
+bound; Table minimum remains at least two. Whenever candidate games are added, removed or updated,
+both clients immediately clamp only out-of-range unsaved counts into the new envelope and update
+the +/- button limits. Counts already within bounds stay unchanged: 3–5 plus a 2–4 game becomes 3–4.
+Unknown-only metadata does not reset counts; solo-only choices remain invalid rather than lowering
+the Table minimum. No server write or roster change occurs until explicit final submission.
+New/edited Table limits obey that envelope. Confirmation
 also requires the actual selected game to support the physical roster, never dropping seated players
 to fit another game. Historical shapes stay readable.
 
 All top HeroUI tabs use relevant selected-accent Lucide icons; bottom navigation stays unchanged.
-Required-field stars follow actual conditional validation. Native camera logo capture opens the
+Required-field stars follow actual conditional validation. Group name inputs have the localized
+Group name placeholder on both clients. Native Group form keyboard avoidance contains only its
+scrolling form, not the save FAB; its existing bottom/safe-area anchor stays outside that resizing layer.
+Native camera logo capture opens the
 existing square crop editor; cancellation retains current permission/upload/owner guards.
 
 ### Participant option proposals

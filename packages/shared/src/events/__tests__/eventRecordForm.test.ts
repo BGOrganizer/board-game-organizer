@@ -11,10 +11,77 @@ import {
   eventDraftStepIssues,
   newTableDraft,
   patchEventDraft,
+  patchTableDraft,
   tableDraft,
 } from "../eventRecordForm";
 import { eventTablePeople } from "../eventTablePeople";
 import { previewTableResults } from "../tableScoreForm";
+
+it.each([
+  [3, 5, 2, 4, 3, 4],
+  [2, 4, 3, 6, 3, 4],
+  [8, 10, 2, 4, 4, 4],
+  [1, 1, 2, 4, 2, 2],
+  [3, 4, 2, 6, 3, 4],
+  [6, 3, 2, 6, 6, 6],
+  [1, 4, 1, 4, 2, 4],
+])(
+  "clamps only out-of-range draft counts %s/%s for BGG %s/%s",
+  (min, max, gameMin, gameMax, expectedMin, expectedMax) => {
+    const row = { ...newTableDraft("table"), minPlayers: min, maxPlayers: max };
+    const game = {
+      id: 1,
+      name: "Known game",
+      year: null,
+      imageUrl: null,
+      minPlayers: gameMin,
+      maxPlayers: gameMax,
+    };
+    const next = patchTableDraft(row, { games: [game] });
+    expect(next).toMatchObject({ minPlayers: expectedMin, maxPlayers: expectedMax, games: [game] });
+    expect(row).toMatchObject({ minPlayers: min, maxPlayers: max, games: [] });
+  },
+);
+it("recomputes the known envelope on game add, removal and metadata replacement without changing other fields", () => {
+  const first = { id: 1, name: "First", year: null, imageUrl: null, minPlayers: 2, maxPlayers: 4 };
+  const second = { ...first, id: 2, name: "Second", minPlayers: 3, maxPlayers: 6 };
+  const row = {
+    ...newTableDraft("existing"),
+    id: "persisted",
+    name: "My table",
+    minPlayers: 3,
+    maxPlayers: 5,
+    games: [first, second],
+  };
+  expect(patchTableDraft(row, { games: row.games })).toEqual(row);
+  const removed = patchTableDraft(row, { games: [first] });
+  expect(removed).toEqual({ ...row, games: [first], maxPlayers: 4 });
+  const updated = patchTableDraft(removed, { games: [{ ...first, minPlayers: 5, maxPlayers: 8 }] });
+  expect(updated).toMatchObject({
+    key: row.key,
+    id: row.id,
+    name: row.name,
+    minPlayers: 5,
+    maxPlayers: 5,
+    rankingEnabled: true,
+  });
+  expect(patchTableDraft(updated, { games: [] })).toEqual({ ...updated, games: [] });
+  expect(patchTableDraft(row, { name: "Renamed" })).toEqual({ ...row, name: "Renamed" });
+  const unknown = { id: 3, name: "Unknown", year: null, imageUrl: null };
+  expect(patchTableDraft(row, { games: [unknown] })).toEqual({ ...row, games: [unknown] });
+  expect(patchTableDraft(row, { games: [unknown, first] })).toMatchObject({
+    minPlayers: 3,
+    maxPlayers: 4,
+  });
+});
+it("keeps solo-only games invalid instead of reducing the Table minimum or weakening validation", () => {
+  const games = [{ id: 1, name: "Solo", year: null, imageUrl: null, minPlayers: 1, maxPlayers: 1 }];
+  const row = patchTableDraft({ ...newTableDraft("solo"), name: "Solo table" }, { games });
+  expect(row).toMatchObject({ minPlayers: 2, maxPlayers: 2 });
+  expect(eventDraftStepIssues({ ...eventDraft(event), tables: [row] }, false, 1)).toContain(
+    "tables.0.maxPlayers",
+  );
+});
 
 it("validates known game bounds in drafts without inventing limits for unknown games", () => {
   const draft = { ...eventDraft(event), tables: [tableDraft(table, event.timeZone)] };

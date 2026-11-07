@@ -13,7 +13,7 @@ No provisioning, provider sync, application migration or automatic reset is perf
 light/dark and narrow/wide web variants separately; use fresh fixtures for writes.
 
 Required: `EVENT_ACCESS_FIXTURE_ACK=owned-disposable-event-access`,
-`EVENT_ACCESS_MODE=shared|denied|enroll|picker|finalize`, `EVENT_ACCESS_LOCALE=en|it`,
+`EVENT_ACCESS_MODE=shared|denied|enroll|picker|finalize|draft`, `EVENT_ACCESS_LOCALE=en|it`,
 `EVENT_ACCESS_API_URL`, and `EVENT_ACCESS_INPUT` JSON. Native also requires
 `EVENT_ACCESS_BUILD_ACK=owned-preview-build`; verify the installed APK's API/account first.
 Web requires `EVENT_ACCESS_THEME=light|dark`, `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and existing
@@ -36,6 +36,15 @@ JSON always includes `eventId`, `tableId`, `eventName`, `tableName`:
   `emptyQuery` (all at least four characters). Fixture titles must have exactly those source
   memberships and not already be selected Table options. Checks own, union, participants-only and
   catalog fallback, absent Search chip, empty focused input and return without saving.
+- `draft`: current manager of a PLANNING Event with exactly one persisted Table, one named game,
+  and initial Table counts 2/4. `catalogOnlyName` identifies a real catalog title with a verified BGG
+  2–4 pair (for example Azul). Both clients open an unsaved Group form and inspect the localized
+  name placeholder, then remove the fixture game's draft option, set 3/5, select the catalog game,
+  verify immediate 3/4 and constrained buttons, and remove it again without saving. Web forbids
+  Event/Group writes in this journey. Native captures before/focused-keyboard/after Group screenshots:
+  **manually compare the FAB's physical bottom/Y**; focus and syntax checks alone do not prove it
+  stayed fixed or that the placeholder was visually rendered. Use both OS platforms, EN/IT and themes.
+  Never provision/reset fixtures or submit either draft for this check.
 - `finalize`: current manager of a private grouped CONFIRMED Event with every result draft complete.
   **Requires `EVENT_ACCESS_WRITE_ACK=irreversible-owned-disposable-finalization`.** Checks sharing
   default-off, toggle/cancel/reopen reset, then commits sharing-on finalization. Scores/ratings and

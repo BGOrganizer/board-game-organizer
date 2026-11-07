@@ -46,7 +46,7 @@ it.each(["en", "it"])(
     expect(result.tableLink).toContain(`eventId=${input.eventId}&tableId=${input.tableId}`);
   },
 );
-it.each(["denied", "enroll", "picker", "finalize"])(
+it.each(["denied", "enroll", "picker", "finalize", "draft"])(
   "requires an explicit, non-optional journey: %s",
   (mode) => {
     expect(
@@ -77,4 +77,22 @@ it.each([{ eventId: "bad" }, { tableName: "" }, { playerName: "" }, { ndName: ""
 it("rejects incomplete picker/public enrollment fixtures rather than skipping required assertions", () => {
   expect(() => run({ groupId: "bad" }, { EVENT_ACCESS_MODE: "enroll" })).toThrow();
   expect(() => run({ catalogOnlyName: "" }, { EVENT_ACCESS_MODE: "picker" })).toThrow();
+  expect(() => run({ catalogOnlyName: "" }, { EVENT_ACCESS_MODE: "draft" })).toThrow();
+  for (const locale of ["en", "it"]) {
+    const result = run(
+      { catalogOnlyName: "Azul [owned]" },
+      { EVENT_ACCESS_MODE: "draft", EVENT_ACCESS_LOCALE: locale },
+    );
+    expect(
+      new RegExp(result.gameSelect).test(
+        (locale === "it" ? "Seleziona: " : "Select: ") + "Azul [owned]",
+      ),
+    ).toBe(true);
+    expect(result.groupDraftLink).toBe("bgo:///group/wizard");
+    expect(
+      new RegExp(result.maximumFour).test(
+        locale === "it" ? "Giocatori massimi: 4" : "Maximum players: 4",
+      ),
+    ).toBe(true);
+  }
 });

@@ -21,6 +21,7 @@ const m = vi.hoisted(() => ({
   replace: vi.fn(),
   back: vi.fn(),
   feedback: { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() },
+  playerBounds: undefined as { minPlayers: number; maxPlayers: number } | undefined,
 }));
 const clients: QueryClient[] = [];
 vi.mock("next/navigation", () => ({ useRouter: () => m }));
@@ -73,7 +74,14 @@ vi.mock("@/components/games/SearchGamePage", () => ({
     <button
       type="button"
       onClick={() =>
-        onSelect({ id: 1, name: "Chess", year: null, imageUrl: null, maxPlayMinutes: 60 })
+        onSelect({
+          id: 1,
+          name: "Chess",
+          year: null,
+          imageUrl: null,
+          maxPlayMinutes: 60,
+          ...m.playerBounds,
+        })
       }
     >
       Choose catalog game
@@ -87,6 +95,7 @@ afterEach(async () => {
   });
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  m.playerBounds = undefined;
 });
 function mount(edit = false, groupId?: string, existingClient?: QueryClient) {
   const client =
@@ -327,6 +336,69 @@ it("submits one complete event only on final review, with no server draft or imp
   expect(body.status).toBeUndefined();
   expect(body.playerIds).toBeUndefined();
 });
+it.each([false, true])(
+  "updates both counters immediately on game selection/removal while edit=%s without saving",
+  async (edit) => {
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) =>
+      Response.json(
+        url.includes("/tables?")
+          ? { items: [plannedTable], nextCursor: null }
+          : url.includes("/favorites") || !edit
+            ? { items: [], nextCursor: null }
+            : plannedEvent,
+      ),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    mount(edit);
+    await screen.findByRole("textbox", { name: "Event name" });
+    if (!edit) {
+      fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
+        target: { value: "Unsaved draft" },
+      });
+      fireEvent.change(screen.getByLabelText("Date and time"), {
+        target: { value: "2030-06-03T20:00" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Add date" }));
+      fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
+      fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    if (edit) fireEvent.click(await screen.findByRole("button", { name: /^Remove game:/ }));
+    else fireEvent.click(screen.getByRole("button", { name: "Add table" }));
+    fireEvent.click(screen.getByRole("button", { name: "Increase Minimum players" }));
+    fireEvent.click(screen.getByRole("button", { name: "Increase Maximum players" }));
+    expect(screen.getByLabelText("Minimum players").textContent).toBe("3");
+    expect(screen.getByLabelText("Maximum players").textContent).toBe("5");
+    m.playerBounds = { minPlayers: 2, maxPlayers: 4 };
+    fireEvent.click(screen.getByRole("button", { name: "Choose a game" }));
+    fireEvent.click(screen.getByRole("button", { name: "Choose catalog game" }));
+    expect(screen.getByLabelText("Minimum players").textContent).toBe("3");
+    expect(screen.getByLabelText("Maximum players").textContent).toBe("4");
+    expect(
+      (screen.getByRole("button", { name: "Increase Maximum players" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Decrease Maximum players" }));
+    expect(
+      (screen.getByRole("button", { name: "Decrease Maximum players" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Decrease Minimum players" }));
+    expect(screen.getByLabelText("Minimum players").textContent).toBe("2");
+    expect(
+      (screen.getByRole("button", { name: "Decrease Minimum players" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Remove game: Chess" }));
+    expect(
+      (screen.getByRole("button", { name: "Increase Maximum players" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+    expect(
+      fetcher.mock.calls.some(([, init]) => init?.method === "POST" || init?.method === "PATCH"),
+    ).toBe(false);
+  },
+);
 it("requires explicit table removal and sends only loaded upserts plus removed IDs at final save", async () => {
   const fetch = vi.fn(
     async (url: string, init?: RequestInit) =>

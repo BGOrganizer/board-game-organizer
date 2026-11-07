@@ -234,7 +234,13 @@ function Editor({
           helpTitle={t`Field help`}
           help={t`Choose a name, from 5 to 120 characters.`}
         />
-        <Input name="group-name" autoComplete="off" minLength={5} maxLength={120} />
+        <Input
+          name="group-name"
+          placeholder={t`Group name`}
+          autoComplete="off"
+          minLength={5}
+          maxLength={120}
+        />
       </TextField>
       <GroupLogoPicker
         value={logo}
