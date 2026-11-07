@@ -25,7 +25,31 @@ export interface BggPickerItem extends BggSearchItem {
 export interface BggPickerResponse {
   items: BggPickerItem[];
   nextCursor: string | null;
+  /** Opaque source/roster/snapshot epoch, never provider identities. */
+  sourceEpoch?: string;
 }
+
+export const bggPickerQuerySchema = z
+  .object({
+    query: z.string().trim().max(120).default(""),
+    /** Retained for older callers; catalog fallback derives from the collection source choices. */
+    search: z.enum(["0", "1"]).optional(),
+    collection: z.enum(["0", "1"]).default("0"),
+    participants: z.enum(["0", "1"]).default("0"),
+    limit: z.coerce.number().int().min(1).max(50).default(25),
+    cursor: z.string().max(512).optional(),
+    proposalEventId: z.uuid().optional(),
+    proposalTableId: z.uuid().optional(),
+    participantEventId: z.uuid().optional(),
+    participantTableId: z.uuid().optional(),
+    "x-vercel-protection-bypass": z.string().optional(),
+  })
+  .strict()
+  .refine((value) => Boolean(value.proposalEventId) === Boolean(value.proposalTableId))
+  .refine((value) => Boolean(value.participantEventId) === Boolean(value.participantTableId))
+  .refine((value) => value.participants !== "1" || Boolean(value.participantEventId))
+  .refine((value) => !value.proposalEventId || !value.participantEventId);
+export type BggPickerQuery = z.infer<typeof bggPickerQuerySchema>;
 
 export const bggCollectionQuerySchema = z
   .object({

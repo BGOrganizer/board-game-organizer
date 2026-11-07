@@ -13,7 +13,16 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { LogOut, Pencil, Trash2, UserRoundPlus } from "lucide-react-native";
+import {
+  CalendarDays,
+  ChartNoAxesCombined,
+  Info,
+  LogOut,
+  Pencil,
+  Trash2,
+  UserRoundPlus,
+  UsersRound,
+} from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
@@ -157,12 +166,14 @@ export function GroupDetail({
         >
           <View style={{ alignSelf: "stretch", marginTop: 8, maxWidth: "100%" }}>
             <TabBar>
-              {[
-                ["info", t("Overview")],
-                ["members", t("Members")],
-                ["events", t("Events")],
-                ["rankings", t("Rankings")],
-              ]
+              {(
+                [
+                  ["info", t("Overview"), Info],
+                  ["members", t("Members"), UsersRound],
+                  ["events", t("Events"), CalendarDays],
+                  ["rankings", t("Rankings"), ChartNoAxesCombined],
+                ] as const
+              )
                 .filter(
                   ([key]) =>
                     key === "info" ||
@@ -172,8 +183,13 @@ export function GroupDetail({
                         ? group.canViewEvents
                         : group.canViewRankings),
                 )
-                .map(([key, label]) => (
-                  <TabTrigger key={key} value={key} style={{ flexDirection: "row", gap: 6 }}>
+                .map(([key, label, icon]) => (
+                  <TabTrigger
+                    icon={icon}
+                    key={key}
+                    value={key}
+                    style={{ flexDirection: "row", gap: 6 }}
+                  >
                     <Tabs.Label>{label}</Tabs.Label>
                     {key === "info" ? (
                       <NotificationTabBadge

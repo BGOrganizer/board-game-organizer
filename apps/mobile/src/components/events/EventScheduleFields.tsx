@@ -59,6 +59,7 @@ export function EventScheduleFields({
     <View style={{ gap: 20 }}>
       <View style={{ gap: 6 }}>
         <SearchHelpLabel
+          required
           label={t("Event name")}
           helpTitle={fieldHelp}
           help={t("Choose a recognizable event name between 5 and 120 characters.")}
@@ -108,7 +109,30 @@ export function EventScheduleFields({
         )}
       </View>
       {form.publicGroup ? (
+        <View style={{ gap: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Typography className="text-foreground" style={{ flex: 1 }}>
+              {t("Public event")}
+            </Typography>
+            <Switch
+              accessibilityLabel={t("Public event")}
+              isSelected={draft.visibility !== "PRIVATE"}
+              isDisabled={busy}
+              onSelectedChange={(selected) =>
+                form.patch({ visibility: selected ? "PUBLIC" : "PRIVATE" })
+              }
+            />
+          </View>
+          <Typography className="text-sm text-muted">
+            {t(
+              "Private events are visible only to accepted group members. Public-group scheduling rules still apply.",
+            )}
+          </Typography>
+        </View>
+      ) : null}
+      {form.publicGroup ? (
         <EventWallDateTime
+          required
           label={t("Start Date and Time")}
           help={dayHelp}
           value={startWall}
@@ -124,6 +148,7 @@ export function EventScheduleFields({
       ) : (
         <View style={{ gap: 8 }}>
           <SearchHelpLabel
+            required
             label={form.flexibleSchedule ? t("Dates and times") : t("Date and time")}
             helpTitle={fieldHelp}
             help={dayHelp}
@@ -179,6 +204,7 @@ export function EventScheduleFields({
       {form.publicGroup ? (
         <>
           <EventWallDateTime
+            required
             label={t("End Date and Time")}
             help={t(
               "Choose a later time on the same day as the event start. All public tables must finish by this time.",
@@ -196,6 +222,7 @@ export function EventScheduleFields({
             onChange={(endsWall) => form.patch({ endsWall })}
           />
           <EventWallDateTime
+            required
             label={t("Registration Deadline Date and Time")}
             help={t(
               "Registration closes on a day before the event starts. A new event needs a future deadline.",
@@ -216,6 +243,7 @@ export function EventScheduleFields({
       ) : null}
       <View style={{ gap: 8 }}>
         <SearchHelpLabel
+          required
           label={t("Location")}
           helpTitle={fieldHelp}
           help={

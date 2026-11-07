@@ -1,4 +1,5 @@
 import { Tabs } from "heroui-native/tabs";
+import { Globe, LockKeyhole, Search } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
@@ -28,15 +29,15 @@ export function Groups({
     >
       <Tabs value={section} onValueChange={setSection} style={{ flex: 1 }}>
         <MainTabBar>
-          <TabTrigger value="private" style={{ flexDirection: "row", gap: 6 }}>
+          <TabTrigger icon={LockKeyhole} value="private" style={{ flexDirection: "row", gap: 6 }}>
             <Tabs.Label>{t("Private groups")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "group-list", id: "PRIVATE" }} />
           </TabTrigger>
-          <TabTrigger value="public" style={{ flexDirection: "row", gap: 6 }}>
+          <TabTrigger icon={Globe} value="public" style={{ flexDirection: "row", gap: 6 }}>
             <Tabs.Label>{t("Public groups")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "group-list", id: "PUBLIC" }} />
           </TabTrigger>
-          <TabTrigger value="search" style={{ flexDirection: "row", gap: 6 }}>
+          <TabTrigger icon={Search} value="search" style={{ flexDirection: "row", gap: 6 }}>
             <Tabs.Label>{t("Search")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "group-list", id: "search" }} />
           </TabTrigger>

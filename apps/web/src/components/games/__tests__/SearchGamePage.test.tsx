@@ -61,11 +61,8 @@ it("hides selected games and uses an icon-only selection action", async () => {
     target: { value: "Cascadia" },
   });
 
-  const searchChip = screen.getByRole("button", { name: "Search", pressed: true });
-  expect(searchChip.className).toContain("h-7");
-  expect(searchChip.className).toContain("py-0");
-  expect(searchChip.className).toContain("button--primary");
-  expect(searchChip.querySelector('[aria-hidden="true"]')).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Participants' collections" })).toBeNull();
   const select = await screen.findByRole("button", { name: "Select: Cascadia" });
   expect(screen.getByPlaceholderText(/Search board games/i)).toBe(input);
   expect(document.activeElement).toBe(input);

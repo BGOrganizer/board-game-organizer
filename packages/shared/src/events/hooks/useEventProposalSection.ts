@@ -110,6 +110,8 @@ export function useEventProposalSection(
   const withinLimit =
     kind === "game" || (kind === "date" ? event.dates : event.locations).length < MAX_EVENT_OPTIONS;
   const canPropose =
+    !manager &&
+    event.role !== "admin" &&
     withinLimit &&
     visible &&
     !disabled &&

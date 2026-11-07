@@ -1,5 +1,50 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Event access / collection sources / final sharing — local verification; runtime acceptance pending
+
+- Event visibility is independent of immutable Group type. PRIVATE Events in PUBLIC Groups retain
+  fixed scheduling/deadlines/overlaps and member-only access. Approved PUBLIC Events permit explicit
+  authenticated SELF enrollment, including accepted queues, without any Group membership write.
+  Registered Event/Table source pages include that participation; bans and blocks still deny access.
+  Public-to-private edits reject active outsider enrollments instead of silently cancelling them.
+- Private grouped finalization has a default-off, immutable sharing choice. Current friends of frozen
+  players (including ND) receive strict final Event/Table/result allowlists without Group identity,
+  Group deltas, private email, planning data or extra endpoints/capabilities. Admin/queue-only friends
+  and followers alone do not qualify. Existing played/milestone receipts use current source permission
+  before visible feed paging; graph changes selectively revalidate friend-result detail grants.
+- Game picker has Collection / Participants' collections, not Search. Neither means catalog search;
+  selected sources form a published, source-deduplicated union before pagination. Accepted target-Table
+  queues qualify; pending invitations do not. Current-role/Profile guards and before/after source epochs
+  reject revoked, changed-roster or changed-publication reads. Native input identity and 8/6/7 budget,
+  scoped review/picker revocation and central canonical-only persistence remain intact.
+- Existing bounded BGG hydration provides verified complete player limits. UI/API use the selected
+  known-game envelope; actual selected-game compatibility also guards confirmation without dropping
+  physical players. Current creators/moderators cannot submit participant proposals even when seated;
+  demoted historical authors are not mistaken for current managers.
+- Native camera capture uses the existing square crop editor. Required stars follow conditional
+  validation; all top HeroUI tabs have relevant selected-accent Lucide icons, bottom navigation unchanged.
+  EN/IT preserve all 1,469 prior compiled messages and add 13 (1,482 each).
+- **3,154 covered unit tests pass, zero failures/skips:** schemas 163, shared 531, API 975, mobile 573,
+  web 912. New deterministic helper/query/projection gates and existing changed 100% gates pass;
+  none were lowered. Typecheck, scoped Biome, API/web production builds and Android production export
+  pass; generated Next/Expo references are restored byte-for-byte.
+- **Four selected disposable-Mongo replica-set cases pass**, with 64 other cases outside the selected
+  community-file run. They cover source union/dedup/paging, queue/pending distinctions, publication and
+  role changes, public outsider source eligibility, private/public rules, transactional sharing/rating/
+  activity rollback, ND friendship, admin/queue/follower denial and source-authorized feed pagination.
+  Existing grouped proposal approval also passes with actual nonmanager authors. No terminal report
+  exists for the interrupted full-suite attempt; full integration-suite success is not claimed.
+- New opt-in web/native Event access journeys cover shared/denied reads, public enrollment, four picker
+  source modes and explicitly acknowledged irreversible sharing. Canonical discovery/CI is unchanged.
+  **They have not been authenticated-executed.** Unit/VM, syntax, Mongo and export evidence is not
+  camera/permission, keyboard/font/theme, native frame timing or full browser/device acceptance.
+  No application database migration/reset, provider provisioning/sync or deployment was performed.
+- Task guides used: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `heroui-react`, `heroui-native`,
+  `expo-overview`, `uniwind`, `tanstack-query-development`, `lingui-best-practices`,
+  `playwright-best-practices`, `maestro-mobile-testing`, `web-design-guidelines`, `context-mode`
+  and `ponytail`. Domain rules and installed package APIs remained authoritative.
+
 ## Game selectors / grouped suggestions / Collection follow-up — runtime acceptance pending
 
 - Native game search no longer keys the whole list by its debounced query: the input stays mounted

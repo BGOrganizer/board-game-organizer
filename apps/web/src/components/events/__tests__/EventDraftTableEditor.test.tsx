@@ -24,7 +24,7 @@ it("fixes the public table date, exposes only bounded time and uses a grouped de
       onDemonstrator={onDemonstrator}
     />,
   );
-  const time = screen.getByLabelText("Table start") as HTMLInputElement;
+  const time = screen.getByLabelText(/^Table start \*$/) as HTMLInputElement;
   expect(time.type).toBe("time");
   expect(time.min).toBe("20:00");
   expect(time.max).toBe("22:00");

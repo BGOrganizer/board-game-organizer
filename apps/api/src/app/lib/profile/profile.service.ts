@@ -96,7 +96,13 @@ export class ProfileService {
     network?: CommunityNetwork,
   ) {
     const services = recordServices(this.db);
-    type Resource = { name: string; href: string; groupId?: string; eventContext?: string };
+    type Resource = {
+      name: string;
+      href: string;
+      groupId?: string;
+      eventContext?: string;
+      sharedResultsOnly?: boolean;
+    };
     const resources = new Map<string, Promise<Resource | null>>();
     const authors = new Map<string, Promise<ActivityAuthor | null>>();
     const blocked = new Set(await this.relationships.getBlockedUserIds(viewer));
@@ -160,7 +166,11 @@ export class ProfileService {
         const identity = await author(row.userId);
         if (!identity) continue;
         const target = await resource(row);
-        if (!target) continue;
+        if (
+          !target ||
+          (target.sharedResultsOnly && row.kind !== "played" && row.kind !== "milestone")
+        )
+          continue;
         items.push({
           id: row.id,
           kind: row.kind,

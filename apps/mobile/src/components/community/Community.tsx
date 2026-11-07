@@ -1,5 +1,4 @@
 import { useAppStore } from "@board-game-organizer/store";
-import { useThemeColor } from "heroui-native/hooks";
 import { Tabs } from "heroui-native/tabs";
 import { Activity, Store } from "lucide-react-native";
 import { View } from "react-native";
@@ -17,7 +16,6 @@ export function Community() {
     key = JSON.stringify([o.apiUrl, o.userId]);
   const tab = useAppStore((s) => s.communityViews[key]?.tab ?? "activity"),
     setView = useAppStore((s) => s.setCommunityView);
-  const [accent, muted] = useThemeColor(["accent", "muted"]);
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -28,12 +26,10 @@ export function Community() {
         }}
       >
         <MainTabBar>
-          <TabTrigger value="activity" style={tabStyle}>
-            <Activity size={16} color={tab === "activity" ? accent : muted} accessible={false} />
+          <TabTrigger icon={Activity} value="activity" style={tabStyle}>
             <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
           </TabTrigger>
-          <TabTrigger value="market" style={tabStyle}>
-            <Store size={16} color={tab === "market" ? accent : muted} accessible={false} />
+          <TabTrigger icon={Store} value="market" style={tabStyle}>
             <Tabs.Label numberOfLines={1}>{t("Marketplace")}</Tabs.Label>
           </TabTrigger>
         </MainTabBar>

@@ -1,6 +1,7 @@
 "use client";
 
 import { notificationItemId, type PlannedEventResponse } from "@board-game-organizer/schemas";
+import { eventRecordVisibility } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarDays, Info } from "lucide-react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
@@ -30,6 +31,11 @@ export function EventDetailsCard({ event }: { event: PlannedEventResponse }) {
               </div>
               <EventStatusBadge status={event.status} />
             </div>
+            <p className="text-sm text-muted">
+              {eventRecordVisibility(event, event.groupType) === "PUBLIC"
+                ? t`Public event`
+                : t`Private event`}
+            </p>
           </div>
         </div>
       </ListCard>

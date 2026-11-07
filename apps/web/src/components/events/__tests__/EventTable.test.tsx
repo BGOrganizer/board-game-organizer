@@ -34,6 +34,40 @@ let table: PlannedTableResponse,
   paged = false,
   acceptedElsewhere = false,
   fetcher: ReturnType<typeof vi.fn>;
+it("exposes only Overview/Results for shared final Tables, hides private rosters and resets selected Ranking after access changes", async () => {
+  table = { ...table, eventStatus: "CONFIRMED" };
+  const client = mount();
+  fireEvent.click(await screen.findByRole("tab", { name: "Ranking" }));
+  await act(async () => {
+    table = {
+      ...table,
+      eventStatus: "TERMINATED",
+      sharedResultsOnly: true,
+      readOnly: true,
+      canManage: false,
+      groupId: null,
+      groupName: null,
+      groupType: null,
+      canRegister: false,
+      canInvite: false,
+      canLeave: false,
+      canRespond: false,
+      myRegistration: null,
+    };
+    client.setQueryData(
+      eventRecordKeys.table({ apiUrl: "https://api.test", userId: "owner" }, eventId, tableId),
+      table,
+    );
+  });
+  await waitFor(() => expect(screen.queryByRole("tab", { name: "Ranking" })).toBeNull());
+  expect(screen.getByRole("tab", { name: /Overview/ }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.queryByRole("button", { name: "Leave table" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Invite players" })).toBeNull();
+  fireEvent.click(screen.getByRole("tab", { name: "Results" }));
+  expect(screen.getByRole("tab", { name: "Results" }).getAttribute("aria-selected")).toBe("true");
+  client.clear();
+});
+
 function player(user: string, id = optionId): TableSeatResponse {
   return { ...seat(user), id };
 }

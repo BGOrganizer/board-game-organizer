@@ -1,4 +1,8 @@
-import { type EventTableDraft, publicTableTimeBounds } from "@board-game-organizer/shared";
+import {
+  type EventTableDraft,
+  gamePlayerBounds,
+  publicTableTimeBounds,
+} from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -45,6 +49,7 @@ export function EventDraftTableEditor({
   const t = useT();
   const { i18n } = useLingui();
   const day = eventStartWall.slice(0, 10);
+  const playerBounds = gamePlayerBounds(row.games);
   const bounds = publicTableTimeBounds(
     eventStartWall,
     eventEndWall,
@@ -56,6 +61,7 @@ export function EventDraftTableEditor({
     <View className="rounded-xl bg-surface" style={{ padding: 16, gap: 16 }}>
       <View style={{ gap: 6 }}>
         <SearchHelpLabel
+          required
           label={t("Table name")}
           helpTitle={helpTitle}
           help={t("Name this table so players can recognize it. Use between 1 and 120 characters.")}
@@ -77,6 +83,7 @@ export function EventDraftTableEditor({
       </View>
       <View style={{ gap: 8 }}>
         <SearchHelpLabel
+          required
           label={t("Number of players")}
           helpTitle={helpTitle}
           help={t(
@@ -87,24 +94,29 @@ export function EventDraftTableEditor({
           <PlayerCount
             label={t("Minimum players")}
             value={row.minPlayers}
-            min={2}
-            max={row.maxPlayers}
+            min={Math.max(2, playerBounds?.minPlayers ?? 2)}
+            max={Math.min(row.maxPlayers, playerBounds?.maxPlayers ?? row.maxPlayers)}
             busy={busy}
             onChange={(minPlayers) => onChange({ minPlayers })}
           />
           <PlayerCount
             label={t("Maximum players")}
             value={row.maxPlayers}
-            min={row.minPlayers}
-            max={Number.MAX_SAFE_INTEGER}
+            min={Math.max(row.minPlayers, playerBounds?.minPlayers ?? 2)}
+            max={playerBounds?.maxPlayers ?? Number.MAX_SAFE_INTEGER}
             busy={busy}
             onChange={(maxPlayers) => onChange({ maxPlayers })}
           />
         </View>
       </View>
+      {playerBounds ? (
+        <Typography className="text-sm text-muted">
+          {t("BoardGameGeek player limits")}: {playerBounds.minPlayers}–{playerBounds.maxPlayers}
+        </Typography>
+      ) : null}
       {fieldError("minPlayers") || fieldError("maxPlayers") ? (
         <Typography accessibilityRole="alert" className="text-sm text-danger">
-          {t("The minimum must be at least two and cannot exceed the maximum.")}
+          {t("Choose valid player counts within the limits of the selected games.")}
         </Typography>
       ) : null}
       <View
@@ -169,6 +181,7 @@ export function EventDraftTableEditor({
             </Typography>
           ) : null}
           <EventDateTimeField
+            required
             mode="time"
             day={day}
             min={bounds.min}
@@ -235,6 +248,7 @@ export function EventDraftTableEditor({
       ) : null}
       <View style={{ gap: 8 }}>
         <SearchHelpLabel
+          required
           label={t("Games")}
           helpTitle={helpTitle}
           help={t(
@@ -274,6 +288,7 @@ export function EventDraftTableEditor({
                 ) : (
                   <View style={{ gap: 6 }}>
                     <SearchHelpLabel
+                      required
                       label={t("Manual duration in minutes")}
                       helpTitle={helpTitle}
                       help={t(

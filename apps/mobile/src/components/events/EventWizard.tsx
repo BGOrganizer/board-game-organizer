@@ -205,14 +205,18 @@ function Editor({
         />
       </View>
     );
-  if (pick && typeof pick === "object" && pick.kind === "game")
+  if (pick && typeof pick === "object" && pick.kind === "game") {
+    const table = draft.tables.find((row) => row.key === pick.key);
     return (
       <View style={{ flex: 1 }}>
         {pickerHeader}
         <GamePicker
-          excludeIds={draft.tables
-            .find((row) => row.key === pick.key)
-            ?.games.map((game) => game.id)}
+          excludeIds={table?.games.map((game) => game.id)}
+          tableScope={
+            event && table?.id
+              ? { eventId: event.id, tableId: table.id, groupId: event.groupId }
+              : undefined
+          }
           onSelect={(game) => {
             form.addGame(pick.key, game);
             setPick(null);
@@ -221,6 +225,7 @@ function Editor({
         />
       </View>
     );
+  }
   if (pick && typeof pick === "object" && pick.kind === "demonstrator" && draft.groupId)
     return (
       <View style={{ flex: 1 }}>

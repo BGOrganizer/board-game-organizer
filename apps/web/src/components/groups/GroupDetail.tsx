@@ -10,7 +10,17 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, LogOut, Pencil, Trash2, UserRoundPlus } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChartNoAxesCombined,
+  Info,
+  LogOut,
+  Pencil,
+  Trash2,
+  UserRoundPlus,
+  UsersRound,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -20,6 +30,7 @@ import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialo
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
@@ -134,7 +145,7 @@ export function GroupDetail({
           onSelectionChange={(key) => setTab(String(key))}
         >
           <TabBar label={t`Group sections`}>
-            <Tabs.Tab id="info" className="gap-2">
+            <TabTrigger icon={Info} id="info">
               {t`Overview`}
               <NotificationTabBadge
                 target={{ kind: "group", id: group.id }}
@@ -143,9 +154,9 @@ export function GroupDetail({
                   notificationItemId(group.id, "overview", undefined, "group"),
                 ]}
               />
-            </Tabs.Tab>
+            </TabTrigger>
             {group.canViewMembers ? (
-              <Tabs.Tab id="members" className="gap-2">
+              <TabTrigger icon={UsersRound} id="members">
                 {t`Members`}
                 <GroupMembersBadge groupId={group.id} />
                 {isGroupManagerRole(group.role) && (group.pendingRequestCount ?? 0) > 0 ? (
@@ -157,15 +168,17 @@ export function GroupDetail({
                     <UserRoundPlus className="size-4" aria-hidden />
                   </span>
                 ) : null}
-              </Tabs.Tab>
+              </TabTrigger>
             ) : null}
             {group.canViewEvents ? (
-              <Tabs.Tab id="events" className="gap-2">
+              <TabTrigger icon={CalendarDays} id="events">
                 {t`Events`}
                 <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />
-              </Tabs.Tab>
+              </TabTrigger>
             ) : null}
-            {group.canViewRankings ? <Tabs.Tab id="rankings">{t`Rankings`}</Tabs.Tab> : null}
+            {group.canViewRankings ? (
+              <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Rankings`}</TabTrigger>
+            ) : null}
           </TabBar>
           <Tabs.Panel id="info" className="pt-0">
             <GroupDetailsCard group={group} />

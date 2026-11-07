@@ -1,5 +1,6 @@
 import type { EventListSection } from "@board-game-organizer/schemas";
 import { Tabs } from "heroui-native/tabs";
+import { CalendarCheck, CalendarSearch } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
@@ -39,11 +40,15 @@ export function Events({
         style={{ flex: 1 }}
       >
         <MainTabBar>
-          <TabTrigger value="mine" style={{ flexDirection: "row", gap: 6 }}>
+          <TabTrigger icon={CalendarCheck} value="mine" style={{ flexDirection: "row", gap: 6 }}>
             <Tabs.Label numberOfLines={1}>{t("Registered")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
           </TabTrigger>
-          <TabTrigger value="available" style={{ flexDirection: "row", gap: 6 }}>
+          <TabTrigger
+            icon={CalendarSearch}
+            value="available"
+            style={{ flexDirection: "row", gap: 6 }}
+          >
             <Tabs.Label numberOfLines={1}>{t("Available")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
           </TabTrigger>

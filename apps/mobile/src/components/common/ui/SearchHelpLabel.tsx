@@ -7,10 +7,12 @@ export function SearchHelpLabel({
   label,
   help,
   helpTitle,
+  required = false,
 }: {
   label: string;
   help: string;
   helpTitle?: string;
+  required?: boolean;
 }) {
   const t = useT();
   const title = helpTitle ?? t("Search help");
@@ -18,6 +20,7 @@ export function SearchHelpLabel({
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
       <Typography className="font-bold text-foreground" style={{ flexShrink: 1 }}>
         {label}
+        {required ? " *" : ""}
       </Typography>
       <HelpPopover label={`${label}: ${title}`} title={title}>
         <Typography className="text-foreground" style={{ flexShrink: 1 }}>

@@ -2,11 +2,13 @@ import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
   canManageEvent,
   eventRecordKeys,
+  eventRecordVisibility,
   useClientMutationDraft,
   useEventRecordActions,
 } from "@board-game-organizer/shared";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
+import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
 import { Flag } from "lucide-react-native";
 import { useRef, useState } from "react";
@@ -26,10 +28,16 @@ export function EventFinalizeAction({
   const t = useT(),
     o = useCommunityApi(),
     a = useEventRecordActions(o, event.id),
-    [confirm, setConfirm] = useState<{ scope: string; version: number } | null>(null),
+    [confirm, setConfirm] = useState<{
+      scope: string;
+      version: number;
+      shareResultsWithFriends: boolean;
+    } | null>(null),
     foreground = useThemeColor("accent-foreground");
   const scope = JSON.stringify([o.apiUrl, o.userId, event.id]);
   const stale = Boolean(confirm && (confirm.scope !== scope || confirm.version !== event.version));
+  const canShare =
+    Boolean(event.groupId) && eventRecordVisibility(event, event.groupType) === "PRIVATE";
   const submitted = useRef(new Set<string>());
   const draft = useClientMutationDraft(
     [...eventRecordKeys.mutation(o, event.id), "finalize"],
@@ -56,7 +64,9 @@ export function EventFinalizeAction({
         accessibilityLabel={t("Finalize event")}
         testID="event-finalize-results"
         isDisabled={blocked}
-        onPress={() => setConfirm({ scope, version: event.version })}
+        onPress={() =>
+          setConfirm({ scope, version: event.version, shareResultsWithFriends: false })
+        }
       >
         <Flag size={HEADER_ICON_SIZE} color={foreground} accessible={false} />
       </Button>
@@ -78,7 +88,12 @@ export function EventFinalizeAction({
                       if (blocked || submitted.current.has(scope)) return;
                       submitted.current.add(scope);
                       a.finalize.mutate(
-                        { version: confirm.version },
+                        {
+                          version: confirm.version,
+                          ...(canShare
+                            ? { shareResultsWithFriends: confirm.shareResultsWithFriends }
+                            : {}),
+                        },
                         {
                           onSuccess: () => setConfirm(null),
                           onSettled: () => submitted.current.delete(scope),
@@ -89,6 +104,31 @@ export function EventFinalizeAction({
                 ]
           }
         >
+          {canShare ? (
+            <View style={{ gap: 8 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <Typography className="text-foreground" style={{ flex: 1 }}>
+                  {t("Share results with participants' friends")}
+                </Typography>
+                <Switch
+                  testID="event-results-share-switch"
+                  accessibilityLabel={t("Share results with participants' friends")}
+                  isSelected={confirm.shareResultsWithFriends}
+                  isDisabled={a.busy || stale || checking}
+                  onSelectedChange={(shareResultsWithFriends) =>
+                    setConfirm((current) =>
+                      current ? { ...current, shareResultsWithFriends } : null,
+                    )
+                  }
+                />
+              </View>
+              <Typography className="text-sm text-muted">
+                {t(
+                  "Only the finalized event, tables and results will be visible. Group details stay hidden. This choice cannot be changed after finalization.",
+                )}
+              </Typography>
+            </View>
+          ) : null}
           {stale ? (
             <Typography accessibilityRole="alert" className="text-danger">
               {t("This event changed. Close this confirmation and review the saved results.")}

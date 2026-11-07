@@ -2,7 +2,6 @@ import { communityAccessDenied, useBggAccount, useProfileView } from "@board-gam
 import { useAppStore } from "@board-game-organizer/store";
 import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
-import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
@@ -46,7 +45,6 @@ export function Profile({ userId }: { userId?: string }) {
   const storedTab = useAppStore((s) => s.profileViews[viewKey]?.tab ?? "activity"),
     setView = useAppStore((s) => s.setProfileView);
   const tab = storedTab === "collection" && !active ? "activity" : storedTab;
-  const [accent, muted] = useThemeColor(["accent", "muted"]);
   const data = communityAccessDenied(q.error) ? undefined : q.data;
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 });
   const header = (
@@ -85,25 +83,14 @@ export function Profile({ userId }: { userId?: string }) {
           }}
         >
           <MainTabBar>
-            <TabTrigger value="activity" style={tabStyle}>
-              <UsersRound
-                size={16}
-                color={tab === "activity" ? accent : muted}
-                accessible={false}
-              />
+            <TabTrigger icon={UsersRound} value="activity" style={tabStyle}>
               <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
             </TabTrigger>
-            <TabTrigger value="player" style={tabStyle}>
-              <Gamepad2 size={16} color={tab === "player" ? accent : muted} accessible={false} />
+            <TabTrigger icon={Gamepad2} value="player" style={tabStyle}>
               <Tabs.Label numberOfLines={1}>{t("Player")}</Tabs.Label>
             </TabTrigger>
             {active ? (
-              <TabTrigger value="collection" style={tabStyle}>
-                <LibraryBig
-                  size={16}
-                  color={tab === "collection" ? accent : muted}
-                  accessible={false}
-                />
+              <TabTrigger icon={LibraryBig} value="collection" style={tabStyle}>
                 <Tabs.Label numberOfLines={1}>{t("Collection")}</Tabs.Label>
               </TabTrigger>
             ) : null}

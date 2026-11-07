@@ -8,11 +8,12 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ClipboardPenLine } from "lucide-react";
+import { ChartNoAxesCombined, ClipboardPenLine, Info, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -84,7 +85,11 @@ export function EventTable({
         <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
       </NotificationAttentionScope>
     );
-  const selected = tab === "results" && table.eventStatus !== "TERMINATED" ? "overview" : tab;
+  const selected =
+    (tab === "results" && table.eventStatus !== "TERMINATED") ||
+    (tab === "ranking" && table.sharedResultsOnly)
+      ? "overview"
+      : tab;
   return (
     <NotificationAttentionScope
       options={o}
@@ -103,14 +108,16 @@ export function EventTable({
         {header}
         <Tabs selectedKey={selected} onSelectionChange={(key) => setTab(String(key))}>
           <TabBar label={t`Table sections`}>
-            <Tabs.Tab id="overview" className="gap-2">
+            <TabTrigger icon={Info} id="overview">
               {t`Overview`}
               <NotificationTabBadge target={{ kind: "table", id: tableId }} />
-            </Tabs.Tab>
+            </TabTrigger>
             {table.eventStatus === "TERMINATED" ? (
-              <Tabs.Tab id="results">{t`Results`}</Tabs.Tab>
+              <TabTrigger icon={Trophy} id="results">{t`Results`}</TabTrigger>
             ) : null}
-            <Tabs.Tab id="ranking">{t`Ranking`}</Tabs.Tab>
+            {!table.sharedResultsOnly ? (
+              <TabTrigger icon={ChartNoAxesCombined} id="ranking">{t`Ranking`}</TabTrigger>
+            ) : null}
           </TabBar>
           <Tabs.Panel id="overview">
             <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
@@ -120,9 +127,11 @@ export function EventTable({
               <EventTableResults table={table} />
             </Tabs.Panel>
           ) : null}
-          <Tabs.Panel id="ranking">
-            <EventTableLeaderboard table={table} />
-          </Tabs.Panel>
+          {!table.sharedResultsOnly ? (
+            <Tabs.Panel id="ranking">
+              <EventTableLeaderboard table={table} />
+            </Tabs.Panel>
+          ) : null}
         </Tabs>
         {q.isError && selected !== "overview" ? (
           <div role="alert">

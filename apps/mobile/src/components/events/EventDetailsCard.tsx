@@ -1,4 +1,5 @@
 import { notificationItemId, type PlannedEventResponse } from "@board-game-organizer/schemas";
+import { eventRecordVisibility } from "@board-game-organizer/shared";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, Info } from "lucide-react-native";
@@ -50,6 +51,11 @@ export function EventDetailsCard({ event }: { event: PlannedEventResponse }) {
               </View>
               <EventStatusBadge status={event.status} />
             </View>
+            <Typography className="text-sm text-muted">
+              {eventRecordVisibility(event, event.groupType) === "PUBLIC"
+                ? t("Public event")
+                : t("Private event")}
+            </Typography>
           </View>
         </View>
       </ListCard>

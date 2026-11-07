@@ -79,6 +79,7 @@ describe("provisional Event creation", () => {
     const variables = {
       ...intent.variables,
       groupId,
+      visibility: "PRIVATE" as const,
       endsAt: "2030-06-03T21:00:00Z",
       bookingClosesAt: "2030-06-02T18:00:00Z",
       clientGroup: { id: groupId, name: "Club group", type: "PUBLIC" as const },
@@ -87,6 +88,7 @@ describe("provisional Event creation", () => {
       groupId,
       groupName: "Club group",
       groupType: "PUBLIC",
+      visibility: "PRIVATE",
       endsAt: variables.endsAt,
       bookingClosesAt: variables.bookingClosesAt,
     });

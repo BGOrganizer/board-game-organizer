@@ -1,5 +1,5 @@
 import {
-  communityAccessDenied,
+  bggPickerUnavailable,
   isRetiredActivityFeed,
   optimisticBaseData,
 } from "@board-game-organizer/shared";
@@ -25,9 +25,13 @@ export type CacheStorage = {
   remove(key: string): unknown;
 };
 
+function retiredQuery(key: QueryKey) {
+  return isRetiredActivityFeed(key) || (key[0] === "bgg-picker" && key[8] !== "sources-v2");
+}
+
 /** No credentials, raw address-book values, transient drafts, or licensed provider searches. */
 export function ownsPersistedQuery(key: QueryKey, owner: CacheOwner) {
-  if (isRetiredActivityFeed(key)) return false;
+  if (retiredQuery(key)) return false;
   if (key[0] === "contacts") return key[2] === owner.apiUrl && key[3] === owner.userId;
   return (
     [
@@ -104,8 +108,7 @@ export function decodeCache(
     return undefined;
   const queries: PersistedClient["clientState"]["queries"] = [];
   for (const value of input.clientState.queries) {
-    if (record(value) && Array.isArray(value.queryKey) && isRetiredActivityFeed(value.queryKey))
-      continue;
+    if (record(value) && Array.isArray(value.queryKey) && retiredQuery(value.queryKey)) continue;
     if (
       !record(value) ||
       !Array.isArray(value.queryKey) ||
@@ -140,7 +143,7 @@ export function restoreSessionCache(
 ) {
   const queries = saved.clientState.queries.flatMap((row) => {
     const current = client.getQueryState(row.queryKey);
-    if (removed.has(row.queryHash) || communityAccessDenied(current?.error)) return [];
+    if (removed.has(row.queryHash) || bggPickerUnavailable(current?.error)) return [];
     return [
       {
         ...row,
@@ -188,7 +191,7 @@ export function createSessionPersister(
           query.state.data !== undefined &&
           query.state.dataUpdatedAt > 0 &&
           now - query.state.dataUpdatedAt <= CACHE_MAX_AGE &&
-          !communityAccessDenied(query.state.error),
+          !bggPickerUnavailable(query.state.error),
       });
       const queries = state.queries.flatMap((query) => {
         const data = optimisticBaseData(client, query.queryKey);

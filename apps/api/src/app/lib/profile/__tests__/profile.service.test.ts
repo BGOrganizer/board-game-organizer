@@ -70,6 +70,36 @@ beforeEach(() => {
   m.page.mockResolvedValue([]);
   m.network.mockResolvedValue([]);
 });
+it("shares only existing played/milestone activities for authorized private final results, never planning/join activity or Group identity", async () => {
+  m.event.mockResolvedValue({
+    name: "Final table",
+    eventContext: "Final event",
+    href: "/events/event/tables/table",
+    sharedResultsOnly: true,
+  });
+  const kinds = ["event_join", "table_join", "group_join", "follower", "played", "milestone"];
+  m.page.mockResolvedValue(
+    kinds.map((kind, index) =>
+      row(index + 1, {
+        kind,
+        eventId: "event",
+        tableId: "table",
+        otherUserId: undefined,
+        ...(kind === "milestone" ? { milestone: 10 } : {}),
+      }),
+    ),
+  );
+  const page = await service().feed("viewer", "subject", { limit: 10 });
+  expect(page.items.map((item) => item.kind)).toEqual(["played", "milestone"]);
+  expect(page.items.every((item) => item.visibility === "authorized" && !("groupId" in item))).toBe(
+    true,
+  );
+  expect(m.event).toHaveBeenCalledOnce();
+  expect(m.event).toHaveBeenCalledWith("viewer", "event", "table", true);
+  m.event.mockRejectedValue(new CommunityError(403, "GROUP_MEMBER_REQUIRED"));
+  expect((await service().feed("viewer", "subject", { limit: 10 })).items).toEqual([]);
+});
+
 it("exposes only published collection snapshot/counts, not BGG identity, pending work or owner controls", async () => {
   m.bgg.mockResolvedValue({
     active: {

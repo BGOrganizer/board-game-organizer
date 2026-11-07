@@ -2,8 +2,10 @@
 
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Globe, LockKeyhole, Search } from "lucide-react";
 import { useState } from "react";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -28,21 +30,21 @@ export function Groups({
     >
       <Tabs selectedKey={section} onSelectionChange={(key) => setSection(String(key))}>
         <TabBar label={t`Groups navigation`}>
-          <Tabs.Tab id="private">
+          <TabTrigger icon={LockKeyhole} id="private">
             {t`Private groups`}
             <NotificationTabBadge target={{ kind: "group-list", id: "PRIVATE" }} />
             <Tabs.Indicator />
-          </Tabs.Tab>
-          <Tabs.Tab id="public">
+          </TabTrigger>
+          <TabTrigger icon={Globe} id="public">
             {t`Public groups`}
             <NotificationTabBadge target={{ kind: "group-list", id: "PUBLIC" }} />
             <Tabs.Indicator />
-          </Tabs.Tab>
-          <Tabs.Tab id="search">
+          </TabTrigger>
+          <TabTrigger icon={Search} id="search">
             {t`Search`}
             <NotificationTabBadge target={{ kind: "group-list", id: "search" }} />
             <Tabs.Indicator />
-          </Tabs.Tab>
+          </TabTrigger>
         </TabBar>
         <Tabs.Panel id="private" className="pt-0">
           <GroupList scope="mine" type="PRIVATE" />

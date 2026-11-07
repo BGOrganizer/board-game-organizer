@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import type { BggPickerItem } from "@board-game-organizer/schemas";
-import { bggPickerQuery } from "@board-game-organizer/shared";
+import {
+  bggPickerQuery,
+  bggPickerUnavailable,
+  CommunityApiError,
+} from "@board-game-organizer/shared";
 import { hashKey } from "@tanstack/react-query";
 import { memo } from "react";
 import ts from "typescript";
@@ -63,6 +67,7 @@ const game = (id: number): BggPickerItem => ({
 const page = (index: number) => ({
   items: Array.from({ length: 25 }, (_, i) => game(index * 25 + i)),
   nextCursor: `cursor-${index}`,
+  sourceEpoch: "source-one",
 });
 type MemoSlot = { value: unknown; deps: unknown[] };
 function harness(pageCount = 3) {
@@ -89,14 +94,17 @@ function harness(pageCount = 3) {
     data: { pages: Array.from({ length: pageCount }, (_, i) => page(i)) },
     isFetching: false,
     isError: false,
+    error: null as Error | null,
     isPending: false,
     hasNextPage: false,
     isFetchingNextPage: false,
     fetchNextPage: vi.fn(async () => undefined),
     refetch: vi.fn(),
   };
+  const usePicker = vi.fn((_options: unknown) => picker);
   const props: {
     excludeIds?: number[];
+    tableScope?: { eventId: string; tableId: string; groupId?: string };
     onSelect?: (game: BggPickerItem) => void;
     onClose?: () => void;
   } = { onSelect: vi.fn() };
@@ -127,8 +135,9 @@ function harness(pageCount = 3) {
     useAppStore: (select: (value: unknown) => unknown) => select({ setPendingGame: pending }),
     apiUrl: () => "https://api.test",
     useBggAccount: () => account,
-    useBggPicker: () => picker,
+    useBggPicker: usePicker,
     bggPickerQuery,
+    bggPickerUnavailable,
     hashKey,
     gamePickerWindow,
     useGameListWindow,
@@ -178,6 +187,7 @@ function harness(pageCount = 3) {
     Gamepad2: "Gamepad2",
     Search: "Search",
     LibraryBig: "LibraryBig",
+    UsersRound: "UsersRound",
   };
   const render = (): Node => {
     for (let i = 0; i < 5; i++) {
@@ -191,6 +201,7 @@ function harness(pageCount = 3) {
   };
   return {
     picker,
+    usePicker,
     props,
     auth,
     account,
@@ -434,7 +445,7 @@ it("does not present an excluded first page as empty and offers a path through f
     true,
   );
 });
-it.each(["snapshot", "owner", "filter", "search"])(
+it.each(["snapshot", "owner", "filter", "search", "sourceEpoch"])(
   "resets visible budget without remounting search for %s changes, rejecting late callbacks",
   (kind) => {
     const h = harness(3),
@@ -445,10 +456,11 @@ it.each(["snapshot", "owner", "filter", "search"])(
     const oldSelect = first.props.renderItem({ item: page(0).items[0] }).props.onSelect;
     if (kind === "snapshot") h.account.account.data.active.snapshot = "snapshot-two";
     if (kind === "owner") h.auth.userId = "other-owner";
+    if (kind === "sourceEpoch") h.picker.data.pages[0].sourceEpoch = "source-two";
     if (kind === "filter")
       nodes(first.props.ListHeaderComponent)
         .find((n) => n.type === "FilterChips")
-        ?.props.onToggle("search");
+        ?.props.onToggle("collection");
     if (kind === "search") {
       nodes(first.props.ListHeaderComponent)
         .find((n) => n.type === "SearchInput")
@@ -492,3 +504,58 @@ it("keeps data/render/select references stable during input typing and guards du
   expect(h.props.onSelect).toHaveBeenCalledOnce();
   expect(h.router.back).not.toHaveBeenCalled();
 });
+
+it("removes Search chip and composes only own/accepted-participant collections, with catalog fallback", () => {
+  const h = harness(2);
+  h.props.tableScope = { eventId: "event", tableId: "table", groupId: "group" };
+  const chips = () =>
+    nodes(h.render().props.ListHeaderComponent).find((node) => node.type === "FilterChips")!;
+  expect(chips().props.options.map((option: { key: string }) => option.key)).toEqual([
+    "collection",
+    "participants",
+  ]);
+  expect(chips().props.selected).toEqual(["collection"]);
+  chips().props.onToggle("participants");
+  expect(chips().props.selected).toEqual(["collection", "participants"]);
+  expect(h.usePicker.mock.calls.at(-1)?.[0]).toMatchObject({
+    collection: true,
+    participants: true,
+    search: false,
+    tableScope: h.props.tableScope,
+  });
+  chips().props.onToggle("collection");
+  expect(chips().props.selected).toEqual(["participants"]);
+  expect(h.usePicker.mock.calls.at(-1)?.[0]).toMatchObject({
+    collection: false,
+    participants: true,
+    search: false,
+  });
+  chips().props.onToggle("participants");
+  expect(chips().props.selected).toEqual([]);
+  expect(h.usePicker.mock.calls.at(-1)?.[0]).toMatchObject({
+    collection: false,
+    participants: false,
+    search: true,
+  });
+});
+
+it.each([
+  new CommunityApiError(403, "EVENT_ADMIN_REQUIRED"),
+  new CommunityApiError(409, "BGG_PICKER_CHANGED"),
+])(
+  "hides known unauthorized/stale source data and rejects detached selection without discarding Query pages: %s",
+  (error) => {
+    const h = harness(3),
+      initial = h.render();
+    const select = initial.props.renderItem({ item: page(0).items[0] }).props.onSelect;
+    h.picker.isError = true;
+    h.picker.error = error;
+    expect(h.render().props.data).toEqual([]);
+    expect(h.picker.data.pages).toHaveLength(3);
+    select(page(0).items[0]);
+    expect(h.props.onSelect).not.toHaveBeenCalled();
+    expect(
+      nodes(h.render().props.ListHeaderComponent).some((node) => node.type === "EmptyList"),
+    ).toBe(false);
+  },
+);

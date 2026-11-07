@@ -8,6 +8,8 @@ export const bggSearchItemSchema = z.object({
   average: z.number().nullable().optional(),
   rank: z.number().nullable().optional(),
   imageUrl: z.string().nullable(),
+  minPlayers: z.number().int().positive().nullable().optional(),
+  maxPlayers: z.number().int().positive().nullable().optional(),
   minPlayMinutes: z.number().int().positive().nullable().optional(),
   maxPlayMinutes: z.number().int().positive().nullable().optional(),
 });

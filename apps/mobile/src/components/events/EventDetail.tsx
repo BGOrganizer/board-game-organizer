@@ -68,7 +68,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     [confirm, setConfirm] = useState<"confirm" | "replan" | null>(null),
     [error, setError] = useState(false),
     event = communityAccessDenied(q.error) ? undefined : q.data;
-  const [tab, setTab] = useState("details");
+  const [requestedTab, setTab] = useState("details");
+  const tab =
+    event?.sharedResultsOnly && requestedTab === "participants" ? "details" : requestedTab;
   const tabRef = useRef(tab);
   tabRef.current = tab;
   const scroll = useRef<ScrollView>(null);
@@ -179,7 +181,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         <EventDetailsCard event={event} />
         {event.readOnly ? (
           <Typography className="text-sm text-muted">
-            {t("Public read-only view. Join the group to participate.")}
+            {event.sharedResultsOnly
+              ? t("Shared finalized results. Group details are hidden.")
+              : t("Public event. Group membership is not required to participate.")}
           </Typography>
         ) : null}
       </View>
@@ -362,28 +366,19 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           <Tabs value={tab} onValueChange={setTab}>
             <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
               <TabBar>
-                <TabTrigger value="details" style={{ flexDirection: "row", gap: 6 }}>
-                  <Info
-                    size={16}
-                    color={tab === "details" ? accentForeground : muted}
-                    accessible={false}
-                  />
+                <TabTrigger icon={Info} value="details" style={{ flexDirection: "row", gap: 6 }}>
                   <Tabs.Label>{t("Details")}</Tabs.Label>
                 </TabTrigger>
-                <TabTrigger value="participants" style={{ flexDirection: "row", gap: 6 }}>
-                  <UsersRound
-                    size={16}
-                    color={tab === "participants" ? accentForeground : muted}
-                    accessible={false}
-                  />
-                  <Tabs.Label>{t("Participants")}</Tabs.Label>
-                </TabTrigger>
-                <TabTrigger value="tables" style={{ flexDirection: "row", gap: 6 }}>
-                  <Dices
-                    size={16}
-                    color={tab === "tables" ? accentForeground : muted}
-                    accessible={false}
-                  />
+                {!event.sharedResultsOnly ? (
+                  <TabTrigger
+                    icon={UsersRound}
+                    value="participants"
+                    style={{ flexDirection: "row", gap: 6 }}
+                  >
+                    <Tabs.Label>{t("Participants")}</Tabs.Label>
+                  </TabTrigger>
+                ) : null}
+                <TabTrigger icon={Dices} value="tables" style={{ flexDirection: "row", gap: 6 }}>
                   <Tabs.Label>{t("Tables")}</Tabs.Label>
                 </TabTrigger>
               </TabBar>
@@ -393,7 +388,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             event.readOnly ? (
               <View style={{ padding: 20 }}>
                 <Typography className="text-muted">
-                  {t("Public read-only view. Join the group to participate.")}
+                  {t("Public event. Group membership is not required to participate.")}
                 </Typography>
               </View>
             ) : (

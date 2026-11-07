@@ -156,7 +156,30 @@ export function revokeProposalReview(
       q.queryKey[5] === "review" &&
       ("eventId" in target ? q.queryKey[4] === target.eventId : q.queryKey[6] === target.groupId),
   });
+  const pickers = client.getQueryCache().findAll({
+    queryKey: ["bgg-picker", owner.apiUrl, owner.userId],
+    predicate: (q) => {
+      const scope = q.queryKey[10];
+      return (
+        q.queryKey[8] === "sources-v2" &&
+        q.queryKey[9] === true &&
+        Boolean(
+          scope &&
+            typeof scope === "object" &&
+            "eventId" in scope &&
+            typeof scope.eventId === "string" &&
+            ("eventId" in target
+              ? "eventId" in scope && scope.eventId === target.eventId
+              : "groupId" in scope && scope.groupId === target.groupId),
+        )
+      );
+    },
+  });
   const ids = new Set(queries.map((q) => String(q.queryKey[4])));
+  for (const picker of pickers) {
+    const scope = picker.queryKey[10] as { eventId: string };
+    ids.add(scope.eventId);
+  }
   if ("eventId" in target) ids.add(target.eventId);
   notifyManager.batch(() => {
     if ("groupId" in target)
@@ -174,7 +197,7 @@ export function revokeProposalReview(
         },
         { cancelRefetch: false },
       );
-    for (const q of queries) {
+    for (const q of [...queries, ...pickers]) {
       q.setState({
         data: undefined,
         dataUpdatedAt: 0,

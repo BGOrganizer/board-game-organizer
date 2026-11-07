@@ -7,10 +7,11 @@ const source = (feature: string, file: string) =>
 // Source contracts only; these do not prove native rendering, navigation or gestures.
 it("owns confirmed/terminated Table top tabs with platform-specific virtualized overview/results/current ranking", () => {
   const tabs = source("events", "EventTable");
-  expect(tabs).toMatch(/<TabTrigger value="overview"[^>]*>/);
+  expect(tabs).toMatch(/<TabTrigger\s+icon=\{Info\}\s+value="overview"/);
   expect(tabs).toContain('<NotificationTabBadge target={{ kind: "table", id: tableId }} />');
-  expect(tabs).toContain('<TabTrigger value="ranking">');
-  expect(tabs).toContain('<TabTrigger value="results">');
+  expect(tabs).toMatch(/<TabTrigger\s+icon=\{ChartNoAxesCombined\}\s+value="ranking"/);
+  expect(tabs).toMatch(/<TabTrigger\s+icon=\{Trophy\}\s+value="results"/);
+  expect(tabs).toContain("!table.sharedResultsOnly");
   expect(tabs).toContain('table.eventStatus === "TERMINATED"');
   expect(tabs).toContain('table.eventStatus === "PLANNING"');
   expect(tabs).toContain("<EventTableOverview");

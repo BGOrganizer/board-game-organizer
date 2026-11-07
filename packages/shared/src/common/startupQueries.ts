@@ -117,20 +117,12 @@ export async function warmStartupBackground(
 
   const reads: Read[] = [];
   const snapshot = client.getQueryData(bggAccountQuery(options).queryKey)?.active?.snapshot;
-  if (snapshot) {
-    for (const search of [true, false])
-      reads.push(() =>
-        client.prefetchInfiniteQuery(
-          bggPickerQuery({
-            ...options,
-            query: "",
-            search,
-            collection: true,
-            snapshot,
-          }),
-        ),
-      );
-  }
+  if (snapshot)
+    reads.push(() =>
+      client.prefetchInfiniteQuery(
+        bggPickerQuery({ ...options, query: "", collection: true, snapshot }),
+      ),
+    );
   const tables = client.getQueryData(recordTablesQuery(options, null).queryKey);
   const events = client.getQueryData(eventRecordsQuery(options).queryKey);
   const eventIds = [

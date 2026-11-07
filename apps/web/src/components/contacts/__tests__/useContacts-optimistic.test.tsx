@@ -39,6 +39,12 @@ function Harness() {
       </button>
       <button
         type="button"
+        onClick={() => contacts.unfriend.mutate({ targetUserId: target.id, targetUser: target })}
+      >
+        Unfriend
+      </button>
+      <button
+        type="button"
         onClick={() => contacts.syncContacts.mutate({ emails: [], phoneNumbers: [] })}
       >
         Sync
@@ -127,6 +133,43 @@ it("optimistically marks contact sync and rolls it back on failure", async () =>
   await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Sync failed"));
   expect(screen.getByTestId("has-contacts").textContent).toBe("false");
   expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "verify_saved_changes");
+});
+
+it("revalidates friend-only result detail grants on graph changes without touching unrelated Events or another account/API", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const shared = ["events", apiUrl, "viewer", "detail", "shared"],
+    table = ["events", apiUrl, "viewer", "table", "shared", "table"];
+  const unrelated = ["events", apiUrl, "viewer", "detail", "ordinary"],
+    other = ["events", apiUrl, "other", "detail", "shared"],
+    otherApi = ["events", "https://other.test", "viewer", "detail", "shared"];
+  for (const key of [shared, table, other, otherApi])
+    client.setQueryData(key, { sharedResultsOnly: true });
+  client.setQueryData(unrelated, { sharedResultsOnly: false });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string | URL | Request, init?: RequestInit) =>
+      Response.json(
+        init?.method === "DELETE"
+          ? {}
+          : String(url).includes("suggestions")
+            ? { users: [], hasContacts: false }
+            : [],
+      ),
+    ),
+  );
+  render(
+    <QueryClientProvider client={client}>
+      <Harness />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Unfriend" }));
+  await waitFor(() => expect(client.getQueryState(shared)?.isInvalidated).toBe(true));
+  expect(client.getQueryState(table)?.isInvalidated).toBe(true);
+  for (const key of [unrelated, other, otherApi])
+    expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+  expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("unfriend");
 });
 
 it("rolls all contact caches back when an optimistic mutation fails", async () => {

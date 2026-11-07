@@ -157,7 +157,8 @@ function Editor({
         onClose={() => setPick(null)}
       />
     );
-  if (pick && typeof pick === "object" && pick.kind === "game")
+  if (pick && typeof pick === "object" && pick.kind === "game") {
+    const table = draft.tables.find((row) => row.key === pick.key);
     return (
       <SearchGamePage
         apiUrl={o.apiUrl}
@@ -165,7 +166,12 @@ function Editor({
         getToken={o.getToken}
         userId={o.userId}
         protectionBypass={o.protectionBypass ?? undefined}
-        excludeIds={draft.tables.find((row) => row.key === pick.key)?.games.map((game) => game.id)}
+        excludeIds={table?.games.map((game) => game.id)}
+        tableScope={
+          event && table?.id
+            ? { eventId: event.id, tableId: table.id, groupId: event.groupId }
+            : undefined
+        }
         onSelect={(game) => {
           form.addGame(pick.key, game);
           setPick(null);
@@ -173,6 +179,7 @@ function Editor({
         onClose={() => setPick(null)}
       />
     );
+  }
   if (pick && typeof pick === "object" && pick.kind === "demonstrator" && draft.groupId)
     return (
       <div className="space-y-4">

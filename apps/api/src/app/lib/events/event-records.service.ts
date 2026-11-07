@@ -50,8 +50,10 @@ import {
   eventProposalEdit,
   eventRecordCapabilities,
   eventRecordSchedulePreview,
+  eventRecordVisibility,
   eventVoteCounts,
   eventVotingChoices,
+  gamePlayerBounds,
   groupBanIsActive,
   hasOtherAcceptedTable,
   hasPublicTableConflict,
@@ -77,6 +79,7 @@ import type { RatingsRepository } from "../ratings/ratings.repository";
 import { publicUserName } from "../users/public-user-name";
 import type { UsersRepository } from "../users/users.repository";
 import type { EventRecordPage, EventRecordsRepository } from "./event-records.repository";
+import { sharedEventResults, sharedTableResults } from "./event-results-projection";
 
 export class EventRecordsService {
   constructor(
@@ -110,53 +113,114 @@ export class EventRecordsService {
       isGroupModerator(await this.groups.membership(group.id, userId))
     );
   }
+  private async resultFriend(event: EventRecord, userId: string) {
+    if (
+      !event.groupId ||
+      event.status !== "TERMINATED" ||
+      !event.confirmed ||
+      !event.shareResultsWithFriends
+    )
+      return false;
+    if (await this.relationships.isBlocked(userId, event.adminUserId)) return false;
+    const tables = await this.events.allTables(event.id);
+    const players = new Set(
+      tables.filter((table) => table.results).flatMap((table) => table.confirmed?.playerIds ?? []),
+    );
+    for (const player of players) {
+      if (player === userId) return true;
+      if (
+        !(await this.relationships.isBlocked(userId, player)) &&
+        (await this.relationships.isFriend(userId, player))
+      )
+        return true;
+    }
+    return false;
+  }
   private async context(
     userId: string,
     id: string,
     lock = false,
     admin = false,
     publicRead = false,
+    publicEnrollment = false,
   ) {
     const initial = await this.events.find(id);
     if (!initial || !["PLANNING", "CONFIRMED", "TERMINATED"].includes(initial.status))
       throw new CommunityError(404, "EVENT_NOT_FOUND");
     const group = initial.groupId ? await this.group(initial.groupId, lock) : null;
-    let readOnly = false;
-    if (group && publicRead && group.type === "PUBLIC") {
-      if (groupBanIsActive(await this.groups.ban(group.id, userId), Date.now()))
-        throw new CommunityError(403, "GROUP_BANNED");
-      readOnly =
-        group.adminUserId !== userId &&
-        (await this.groups.membership(group.id, userId))?.status !== "ACCEPTED";
-      if (readOnly && (await this.relationships.isBlocked(userId, initial.adminUserId)))
-        throw new CommunityError(404, "EVENT_NOT_FOUND");
-    } else if (group) await this.member(group, userId);
     const event = lock ? await this.events.lock(id) : initial;
     if (!event) throw new CommunityError(404, "EVENT_NOT_FOUND");
+    const own = await this.events.userRegistrations(id, userId);
+    let readOnly = false,
+      sharedResultsOnly = false,
+      outsideGroup = false;
+    if (group) {
+      if (groupBanIsActive(await this.groups.ban(group.id, userId), Date.now()))
+        throw new CommunityError(403, "GROUP_BANNED");
+      const member =
+        group.adminUserId === userId ||
+        (await this.groups.membership(group.id, userId))?.status === "ACCEPTED";
+      if (!member) {
+        outsideGroup = true;
+        if (await this.relationships.isBlocked(userId, event.adminUserId))
+          throw new CommunityError(404, "EVENT_NOT_FOUND");
+        const participant = own.some((row) => row.status === "ACCEPTED");
+        if (
+          eventRecordVisibility(event, group.type) === "PUBLIC" &&
+          (publicRead || publicEnrollment || participant)
+        )
+          readOnly = !participant;
+        else if (publicRead && (await this.resultFriend(event, userId))) {
+          readOnly = true;
+          sharedResultsOnly = true;
+        } else throw new CommunityError(403, "GROUP_MEMBER_REQUIRED");
+      }
+    }
     if (admin && !(await this.manager(event, group, userId)))
       throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
-    const own = await this.events.userRegistrations(id, userId);
     if (!group && event.adminUserId !== userId && !own.length)
       throw new CommunityError(404, "EVENT_NOT_FOUND");
-    return { event, group, own, readOnly };
+    return { event, group, own, readOnly, sharedResultsOnly, outsideGroup };
   }
   /** Feed reads share the exact detail authorization, without expensive detail projections. */
   async activityResource(userId: string, eventId: string, tableId?: string, feed = false) {
-    const { event, group } = await this.context(userId, eventId, false, false, true);
-    if (feed && group?.type === "PRIVATE") throw new CommunityError(404, "EVENT_NOT_FOUND");
+    const { event, group, sharedResultsOnly } = await this.context(
+      userId,
+      eventId,
+      false,
+      false,
+      true,
+    );
+    const privateFeed =
+      feed && eventRecordVisibility(event, group?.type ?? null) === "PRIVATE" && Boolean(group);
+    if (privateFeed && !(await this.resultFriend(event, userId)))
+      throw new CommunityError(404, "EVENT_NOT_FOUND");
     if (!tableId)
       return {
         name: event.name,
         href: `/events/${eventId}`,
-        ...(event.groupId ? { groupId: event.groupId } : {}),
+        ...(privateFeed || sharedResultsOnly
+          ? { sharedResultsOnly: true }
+          : event.groupId
+            ? { groupId: event.groupId }
+            : {}),
       };
     const table = await this.events.table(tableId);
-    if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    if (
+      !table ||
+      table.eventId !== eventId ||
+      ((privateFeed || sharedResultsOnly) && (!table.confirmed || !table.results))
+    )
+      throw new CommunityError(404, "TABLE_NOT_FOUND");
     return {
       name: table.name,
       eventContext: event.name,
       href: `/events/${eventId}/tables/${tableId}`,
-      ...(event.groupId ? { groupId: event.groupId } : {}),
+      ...(privateFeed || sharedResultsOnly
+        ? { sharedResultsOnly: true }
+        : event.groupId
+          ? { groupId: event.groupId }
+          : {}),
     };
   }
   private open(event: EventRecord, group: GroupRecord | null) {
@@ -206,6 +270,15 @@ export class EventRecordsService {
     const selectedTables = tables ?? (await this.events.allTables(event.id));
     const registrations = knownRegistrations ?? (await this.events.allRegistrations(event.id));
     const voters = await this.events.allVotes(event.id);
+    const catalog = await this.games.findByIds([
+      ...new Set(selectedTables.flatMap((table) => table.games.map((game) => game.gameId))),
+    ]);
+    const playerBounds = Object.fromEntries(
+      catalog.flatMap((game) => {
+        const bounds = gamePlayerBounds([game]);
+        return bounds ? [[game.id, bounds]] : [];
+      }),
+    );
     return calculateEventAgreement({
       dateIds: event.dates.map((row) => row.id),
       locationIds: event.locations.map((row) => row.id),
@@ -215,6 +288,7 @@ export class EventRecordsService {
         minPlayers: table.minPlayers,
         maxPlayers: table.maxPlayers,
         gameIds: table.games.map((game) => game.gameId),
+        gamePlayerBounds: playerBounds,
         fixedGame: group?.type === "PUBLIC" && table.games.length === 1,
       })),
       registrations: registrations.map((row) => ({
@@ -359,6 +433,7 @@ export class EventRecordsService {
             : "member";
     return {
       ...visible,
+      visibility: eventRecordVisibility(event, group?.type ?? null),
       locations: visible.locations.map((location) => ({
         ...location,
         timeZone: locationTimeZone(location),
@@ -375,6 +450,7 @@ export class EventRecordsService {
       canManage,
       readOnly,
       canProposeDates:
+        !canManage &&
         !readOnly &&
         group?.type === "PRIVATE" &&
         event.status === "PLANNING" &&
@@ -383,6 +459,7 @@ export class EventRecordsService {
           (r) => r.status === "ACCEPTED" && "position" in r && r.position === "SEATED",
         ),
       canProposeLocations:
+        !canManage &&
         !readOnly &&
         group?.type === "PRIVATE" &&
         event.status === "PLANNING" &&
@@ -394,7 +471,10 @@ export class EventRecordsService {
         ? {
             canEdit: false,
             canInvite: false,
-            canRegister: false,
+            canRegister:
+              eventRecordVisibility(event, group?.type ?? null) === "PUBLIC" &&
+              event.status === "PLANNING" &&
+              !publicBookingIsClosed(event, group?.type ?? null, Date.now()),
             canVote: false,
             canConfirm: false,
             canReplan: false,
@@ -429,8 +509,17 @@ export class EventRecordsService {
     };
   }
   async detail(userId: string, id: string) {
-    const { event, group, own, readOnly } = await this.context(userId, id, false, false, true);
-    return this.response(event, group, userId, own, true, readOnly);
+    const { event, group, own, readOnly, sharedResultsOnly } = await this.context(
+      userId,
+      id,
+      false,
+      false,
+      true,
+    );
+    const response = await this.response(event, group, userId, own, true, readOnly);
+    return sharedResultsOnly
+      ? sharedEventResults(response, await this.events.allTables(id))
+      : response;
   }
   async proposalDetail(
     userId: string,
@@ -508,6 +597,8 @@ export class EventRecordsService {
     const { event, group } = await this.context(userId, id, true);
     this.open(event, group);
     if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    if (await this.manager(event, group, userId))
+      throw new CommunityError(403, "PROPOSAL_MANAGER_CANNOT_SUBMIT");
     const table = await this.events.table(tableId);
     if (!table || table.eventId !== id) throw new CommunityError(404, "TABLE_NOT_FOUND");
     if (!table.allowParticipantGames) throw new CommunityError(403, "PROPOSALS_DISABLED");
@@ -518,6 +609,16 @@ export class EventRecordsService {
         ...(await this.events.ownProposedGames(id, tableId, userId)),
       ]),
     ];
+  }
+  async collectionPickerScope(userId: string, id: string, tableId: string) {
+    const { event, group } = await this.context(userId, id, false, true);
+    this.open(event, group);
+    const table = await this.events.table(tableId);
+    if (!table || table.eventId !== id) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    return {
+      eventVersion: event.version,
+      userIds: (await this.events.acceptedTableUsers(tableId)).sort(),
+    };
   }
   private async proposalGame(gameId: number) {
     const [game] = await this.games.findByIds([gameId]);
@@ -611,6 +712,8 @@ export class EventRecordsService {
     const { event, group } = await this.context(userId, id, true);
     this.open(event, group);
     if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    if (await this.manager(event, group, userId))
+      throw new CommunityError(403, "PROPOSAL_MANAGER_CANNOT_SUBMIT");
     const hash = createHash("sha256")
       .update(JSON.stringify({ eventVersion: input.eventVersion, payload: input.payload }))
       .digest("hex");
@@ -926,6 +1029,11 @@ export class EventRecordsService {
     const at = new Date().toISOString();
     const result: TableRecord[] = [];
     for (const table of input) {
+      const bounds = gamePlayerBounds(
+        games.filter((game) => table.games.some((g) => g.gameId === game.id)),
+      );
+      if (bounds && (table.minPlayers < bounds.minPlayers || table.maxPlayers > bounds.maxPlayers))
+        throw new CommunityError(400, "TABLE_GAME_PLAYER_LIMITS");
       const current = table.id ? previous.find((row) => row.id === table.id) : undefined;
       if (table.id && !current && (await this.events.storedTable(table.id)))
         throw new CommunityError(409, "TABLE_ID_REUSED");
@@ -990,6 +1098,8 @@ export class EventRecordsService {
     return result;
   }
   private validateSchedule(event: EventRecord, group: GroupRecord | null, creating: boolean) {
+    if (event.visibility === "PUBLIC" && group?.type !== "PUBLIC")
+      throw new CommunityError(400, "EVENT_VISIBILITY_NOT_ALLOWED");
     if (
       group?.type !== "PRIVATE" &&
       (event.allowParticipantDates || event.allowParticipantLocations)
@@ -1083,6 +1193,7 @@ export class EventRecordsService {
       id: randomUUID(),
       ...(input.clientRequestId ? { clientRequestId: input.clientRequestId } : {}),
       groupId: input.groupId,
+      visibility: input.visibility ?? eventRecordVisibility({}, group?.type ?? null),
       adminUserId: userId,
       name: input.name,
       dates: input.dates,
@@ -1207,6 +1318,7 @@ export class EventRecordsService {
     const next = {
       ...event,
       ...fields,
+      visibility: input.visibility ?? eventRecordVisibility(event, group?.type ?? null),
       locations,
       timeZone,
       ...(input.endsAt ? { endsAt: new Date(input.endsAt).toISOString() } : {}),
@@ -1224,6 +1336,23 @@ export class EventRecordsService {
     ].sort((a, b) => a.order - b.order);
     if (!merged.length || merged.length > 20) throw new CommunityError(400, "EVENT_TABLE_LIMIT");
     const active = registrations.filter((row) => merged.some((table) => table.id === row.tableId));
+    if (
+      group?.type === "PUBLIC" &&
+      eventRecordVisibility(event, group.type) === "PUBLIC" &&
+      next.visibility === "PRIVATE"
+    ) {
+      for (const user of new Set(
+        active
+          .filter((row) => row.status === "ACCEPTED" || row.status === "PENDING")
+          .map((row) => row.userId),
+      )) {
+        if (
+          user !== group.adminUserId &&
+          (await this.groups.membership(group.id, user))?.status !== "ACCEPTED"
+        )
+          throw new CommunityError(409, "EVENT_VISIBILITY_HAS_NONMEMBERS");
+      }
+    }
     if (group?.type === "PUBLIC" && active.length) {
       const changed =
         eventDateWall(event, event.dates[0]) !== eventDateWall(next, next.dates[0]) ||
@@ -1289,6 +1418,7 @@ export class EventRecordsService {
     proposal?: EventAgreement | null,
     includeProfiles = false,
     readOnly = false,
+    redactEmails = false,
   ): Promise<PlannedTableResponse> {
     const registrations = (await this.events.allRegistrations(event.id)).filter(
       (row) => row.tableId === table.id,
@@ -1343,7 +1473,7 @@ export class EventRecordsService {
               userId,
               name: publicUserName(profile, userId),
               username: profile?.username ?? null,
-              email: readOnly ? null : (profile?.email ?? null),
+              email: readOnly || redactEmails ? null : (profile?.email ?? null),
               avatarUrl: profile?.avatarUrl ?? null,
             };
           })
@@ -1416,11 +1546,19 @@ export class EventRecordsService {
         event.status === "PLANNING"
           ? base.waiting.length
           : registrations.filter((row) => !table.confirmed?.playerIds.includes(row.userId)).length,
-      canRegister: open && !my && (Boolean(group) || event.adminUserId === userId),
+      canRegister:
+        (open ||
+          (readOnly &&
+            eventRecordVisibility(event, group?.type ?? null) === "PUBLIC" &&
+            event.status === "PLANNING" &&
+            !publicBookingIsClosed(event, group?.type ?? null, Date.now()))) &&
+        !my &&
+        (Boolean(group) || event.adminUserId === userId),
       canRespond: open && my?.status === "PENDING" && my.kind === "INVITATION",
       canLeave: open && my?.status === "ACCEPTED",
       canInvite: open && canManage,
       canProposeGames:
+        !canManage &&
         open &&
         group?.type === "PRIVATE" &&
         Boolean(table.allowParticipantGames) &&
@@ -1442,6 +1580,8 @@ export class EventRecordsService {
         bayesAverage: game.bayesAverage ?? null,
         average: game.average ?? null,
         rank: game.rank ?? null,
+        minPlayers: game.minPlayers ?? null,
+        maxPlayers: game.maxPlayers ?? null,
         minPlayMinutes: game.minPlayMinutes ?? null,
         maxPlayMinutes: game.maxPlayMinutes ?? null,
       })),
@@ -1482,10 +1622,31 @@ export class EventRecordsService {
     };
   }
   async tableDetail(userId: string, eventId: string, tableId: string) {
-    const { event, group, readOnly } = await this.context(userId, eventId, false, false, true);
+    const { event, group, readOnly, sharedResultsOnly, outsideGroup } = await this.context(
+      userId,
+      eventId,
+      false,
+      false,
+      true,
+    );
     const table = await this.events.table(tableId);
-    if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
-    return this.tableResponse(event, group, table, userId, undefined, true, readOnly);
+    if (
+      !table ||
+      table.eventId !== eventId ||
+      (sharedResultsOnly && (!table.confirmed || !table.results))
+    )
+      throw new CommunityError(404, "TABLE_NOT_FOUND");
+    const response = await this.tableResponse(
+      event,
+      group,
+      table,
+      userId,
+      undefined,
+      true,
+      readOnly,
+      outsideGroup,
+    );
+    return sharedResultsOnly ? sharedTableResults(response) : response;
   }
   async tableLeaderboard(
     userId: string,
@@ -1493,7 +1654,8 @@ export class EventRecordsService {
     tableId: string,
     page: Pick<EventRecordPage, "limit" | "cursor">,
   ): Promise<TableLeaderboardResponse> {
-    const { event } = await this.context(userId, eventId, false, false, true);
+    const { event, sharedResultsOnly } = await this.context(userId, eventId, false, false, true);
+    if (sharedResultsOnly) throw new CommunityError(403, "EVENT_RESULTS_ONLY");
     const table = await this.events.table(tableId);
     if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
     if (event.status === "PLANNING" || !table.confirmed)
@@ -1530,16 +1692,33 @@ export class EventRecordsService {
     };
   }
   async tables(userId: string, eventId: string, page: EventRecordPage) {
-    const { event, group, readOnly } = await this.context(userId, eventId, false, false, true);
+    const { event, group, readOnly, sharedResultsOnly } = await this.context(
+      userId,
+      eventId,
+      false,
+      false,
+      true,
+    );
     const rows = (await this.events.allTables(eventId)).filter(
       (table) =>
-        !page.query || table.name.toLocaleLowerCase().includes(page.query.toLocaleLowerCase()),
+        (!sharedResultsOnly || (table.confirmed && table.results)) &&
+        (!page.query || table.name.toLocaleLowerCase().includes(page.query.toLocaleLowerCase())),
     );
     const after = page.cursor ? rows.filter((row) => row.order > Number(page.cursor)) : rows;
     const items: PlannedTableResponse[] = [];
     const proposal = event.status === "PLANNING" ? await this.agreement(event, group) : null;
-    for (const row of after.slice(0, page.limit))
-      items.push(await this.tableResponse(event, group, row, userId, proposal, false, readOnly));
+    for (const row of after.slice(0, page.limit)) {
+      const response = await this.tableResponse(
+        event,
+        group,
+        row,
+        userId,
+        proposal,
+        false,
+        readOnly,
+      );
+      items.push(sharedResultsOnly ? sharedTableResults(response) : response);
+    }
     return {
       items,
       nextCursor: after.length > page.limit ? String(items[items.length - 1].order) : null,
@@ -1580,8 +1759,12 @@ export class EventRecordsService {
     kind: "INVITATION" | "SELF",
   ) {
     if (!(await this.users.findById(target))) throw new CommunityError(404, "USER_NOT_FOUND");
-    if (group) await this.member(group, target);
-    else if (
+    if (group) {
+      if (kind === "SELF" && eventRecordVisibility(event, group.type) === "PUBLIC") {
+        if (groupBanIsActive(await this.groups.ban(group.id, target), Date.now()))
+          throw new CommunityError(403, "GROUP_BANNED");
+      } else await this.member(group, target);
+    } else if (
       target !== event.adminUserId &&
       (kind === "SELF" ||
         !(await this.relationships.isFriend(event.adminUserId, target)) ||
@@ -1606,7 +1789,7 @@ export class EventRecordsService {
   }
   /** Voluntary enrollment commits this Table's game choices with any initial PRIVATE preferences. */
   async join(userId: string, eventId: string, tableId: string, input?: JoinTableInput) {
-    const { group, own } = await this.context(userId, eventId, true);
+    const { group, own } = await this.context(userId, eventId, true, false, false, true);
     const availability = input?.availability;
     if (group?.type === "PRIVATE" && !availability && !hasOtherAcceptedTable(own, tableId))
       throw new CommunityError(400, "EVENT_AVAILABILITY_REQUIRED");
@@ -1644,7 +1827,14 @@ export class EventRecordsService {
     target?: string,
     input?: JoinTableInput,
   ) {
-    const { event, group } = await this.context(userId, eventId, true, target !== undefined);
+    const { event, group } = await this.context(
+      userId,
+      eventId,
+      true,
+      target !== undefined,
+      false,
+      target === undefined,
+    );
     this.open(event, group);
     const table = await this.events.table(tableId);
     if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
@@ -1907,7 +2097,11 @@ export class EventRecordsService {
     const tables = await this.events.allTables(id),
       plan = await this.agreement(event, group, tables);
     if (!plan.agreed) throw new CommunityError(409, "EVENT_NO_AGREEMENT");
-    if (group && !publicBookingIsClosed(event, group.type, Date.now()))
+    if (
+      group &&
+      eventRecordVisibility(event, group.type) === "PRIVATE" &&
+      !publicBookingIsClosed(event, group.type, Date.now())
+    )
       for (const participant of plan.participantIds) await this.member(group, participant);
     if (!group)
       for (const participant of plan.participantIds)
@@ -1961,7 +2155,14 @@ export class EventRecordsService {
     page: EventRecordPage,
     pending = false,
   ) {
-    const { event, group, readOnly } = await this.context(userId, eventId, false, false, true);
+    const { event, group, readOnly, sharedResultsOnly, outsideGroup } = await this.context(
+      userId,
+      eventId,
+      false,
+      false,
+      true,
+    );
+    if (sharedResultsOnly) throw new CommunityError(403, "EVENT_RESULTS_ONLY");
     const table = await this.events.table(tableId);
     if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
     if (pending && (readOnly || !(await this.manager(event, group, userId))))
@@ -1997,7 +2198,7 @@ export class EventRecordsService {
       return {
         ...row,
         name: profile ? publicUserName(profile) : null,
-        email: readOnly ? null : (profile?.email ?? null),
+        email: readOnly || outsideGroup ? null : (profile?.email ?? null),
         gameVotes: readOnly ? {} : row.gameVotes,
         username: profile?.username ?? null,
         avatarUrl: profile?.avatarUrl ?? null,
@@ -2039,9 +2240,22 @@ export class EventRecordsService {
         continue;
       const tables = await this.events.allTables(event.id),
         rows = await this.events.userRegistrations(event.id, target);
-      if (!rows.length && !tables.some((table) => table.demonstratorUserId === target)) continue;
+      const independentPublicParticipation =
+        reason === "LEFT" && eventRecordVisibility(event, group.type) === "PUBLIC";
+      const removed = independentPublicParticipation
+        ? rows.filter((row) => row.status === "PENDING")
+        : rows;
+      if (!removed.length && !tables.some((table) => table.demonstratorUserId === target)) continue;
       const at = new Date().toISOString();
-      await this.events.cancelUser(event.id, target, at);
+      if (independentPublicParticipation) {
+        for (const row of removed)
+          await this.events.saveRegistration({
+            ...row,
+            status: "CANCELLED",
+            version: row.version + 1,
+            updatedAt: at,
+          });
+      } else await this.events.cancelUser(event.id, target, at);
       for (const table of tables)
         if (table.demonstratorUserId === target) {
           const { demonstratorUserId: _demo, ...rest } = table;
@@ -2056,7 +2270,14 @@ export class EventRecordsService {
       };
       if (event.status === "CONFIRMED") delete next.lastNotifiedSituation;
       await this.events.save(next);
-      await this.notify("event_booking_removed", next, group.adminUserId, [target]);
+      await this.notify(
+        independentPublicParticipation && rows.some((row) => row.status === "ACCEPTED")
+          ? "event_updated"
+          : "event_booking_removed",
+        next,
+        group.adminUserId,
+        [target],
+      );
       await this.saveSituation(next, group, group.adminUserId);
     }
   }
@@ -2116,6 +2337,11 @@ export class EventRecordsService {
     const { event, group } = await this.context(userId, id, true, true);
     if (event.status !== "CONFIRMED") throw new CommunityError(409, "EVENT_NOT_CONFIRMED");
     if (event.version !== input.version) throw new CommunityError(409, "EVENT_CHANGED");
+    if (
+      input.shareResultsWithFriends &&
+      (!group || eventRecordVisibility(event, group.type) === "PUBLIC")
+    )
+      throw new CommunityError(400, "EVENT_RESULTS_SHARING_NOT_AVAILABLE");
     const tables = (await this.events.allTables(id)).filter((table) => table.confirmed);
     const savedResults =
       "results" in input
@@ -2158,6 +2384,7 @@ export class EventRecordsService {
     const next: EventRecord = {
       ...event,
       status: "TERMINATED",
+      shareResultsWithFriends: input.shareResultsWithFriends ?? false,
       version: event.version + 1,
       updatedAt: at,
     };

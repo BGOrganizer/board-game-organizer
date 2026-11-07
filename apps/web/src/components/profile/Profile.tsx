@@ -7,6 +7,7 @@ import { Gamepad2, LibraryBig, UsersRound } from "lucide-react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileBggCard } from "./ProfileBggCard";
@@ -72,22 +73,19 @@ export function Profile({ userId }: { userId?: string }) {
           }}
         >
           <TabBar label={t`Profile navigation`}>
-            <Tabs.Tab id="activity" className="flex-row gap-2 whitespace-nowrap">
-              <UsersRound className="size-4" aria-hidden />
+            <TabTrigger icon={UsersRound} id="activity">
               {t`Activities`}
               <Tabs.Indicator />
-            </Tabs.Tab>
-            <Tabs.Tab id="player" className="flex-row gap-2 whitespace-nowrap">
-              <Gamepad2 className="size-4" aria-hidden />
+            </TabTrigger>
+            <TabTrigger icon={Gamepad2} id="player">
               {t`Player`}
               <Tabs.Indicator />
-            </Tabs.Tab>
+            </TabTrigger>
             {active ? (
-              <Tabs.Tab id="collection" className="flex-row gap-2 whitespace-nowrap">
-                <LibraryBig className="size-4" aria-hidden />
+              <TabTrigger icon={LibraryBig} id="collection">
                 {t`Collection`}
                 <Tabs.Indicator />
-              </Tabs.Tab>
+              </TabTrigger>
             ) : null}
           </TabBar>
           <Tabs.Panel id="activity" className="space-y-4 pt-0">

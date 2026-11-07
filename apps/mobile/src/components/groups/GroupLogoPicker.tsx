@@ -79,7 +79,8 @@ export function GroupLogoPicker({
         : ImagePicker.launchImageLibraryAsync)({
         mediaTypes: ["images"],
         allowsMultipleSelection: false,
-        allowsEditing: false,
+        allowsEditing: source === "camera",
+        aspect: [1, 1],
         base64: true,
         quality: 1,
         exif: false,
@@ -121,6 +122,7 @@ export function GroupLogoPicker({
   return (
     <View style={{ gap: 8 }}>
       <SearchHelpLabel
+        required={required}
         label={t("Group logo")}
         helpTitle={t("Field help")}
         help={t("JPEG, PNG or WebP, up to 5 MB.")}

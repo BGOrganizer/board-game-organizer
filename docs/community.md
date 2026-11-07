@@ -39,21 +39,25 @@ there is no client download of the graph, per-author Profile fan-out, or duplica
 
 ## Public sources and read-only details
 
-PRIVATE Group activities are excluded from both feeds, including the owner's and accepted members'
-Profiles. Approved PUBLIC Group activities and their Events/Tables are visible without Group
-membership, subject to authentication, both block directions, active exclusions and source existence.
+Private Event activities are excluded from both feeds unless their immutable finalization explicitly
+shares results with current friends of final frozen players. Only existing played/milestone activities
+are shared, without any Group identity, under the [Event access contract](groups-events-refactor.md#event-access-and-shared-final-results).
+This includes private Events in either Group type. Other approved PUBLIC Group activities and PUBLIC
+Events/Tables remain visible without Group membership, subject to authentication, both block directions,
+active exclusions and source existence.
 Pending/unapproved public revisions are not published as feed context. A public Group's approved
 name, not its unreviewed proposal, is displayed. Standalone activities keep existing source access.
 
-Authenticated non-members can now read approved PUBLIC Group Event details, their Tables, accepted
-rosters and frozen Table rankings/results. These reads return explicit `readOnly` metadata and no
-participation, vote, invitation, edit, result-registration or finalization capabilities. Pending
+Authenticated non-members can read approved PUBLIC Event details and their Tables, accepted rosters
+and frozen Table rankings/results. These reads alone grant no enrollment, vote, invitation, editing,
+result-registration or finalization authority. Explicit voluntary SELF enrollment is allowed and
+accepted, including queues, without joining the Group; other participation/consent guards remain. Pending
 rosters and invitation candidates remain privileged. Public projections omit result drafts, private
 email and individual vote choices; public display names never reuse mirrored email fallbacks.
-Members retain their normal existing capabilities. Write methods still require membership/admin
-through the original guards: public read access cannot enter a write path. PRIVATE detail access,
-main authorized lists, public discovery, Group member lists and Group-wide ranking permissions are
-not widened. Events/Tables from unapproved Groups, active group exclusions, blocked public Event
+Members retain normal existing capabilities. Except explicit PUBLIC SELF enrollment, writes retain
+their membership/current-management guards; ordinary public reads never imply consent. Accepted public
+participation qualifies its own registered Event/Table lists, not Group membership/discovery or
+Group-wide rankings. Private shared-result reads are stricter allowlists and grant no Group authority. Events/Tables from unapproved Groups, active group exclusions, blocked public Event
 owners, deleted sources and removed Tables remain denied.
 
 Feeds never acknowledge notifications. Opening an authorized detail retains its existing direct

@@ -89,9 +89,12 @@ it("owns removal actions inside grouped location/game rows and uses constrained 
     table = source("events", "EventDraftTableEditor");
   expect(schedule).toMatch(/<LocationListRow[\s\S]*?actions=\{/);
   expect(table).toMatch(/<GameListRow[\s\S]*?actions=\{/);
-  expect(table).toContain("min={2}");
-  expect(table).toContain("max={row.maxPlayers}");
-  expect(table).toContain("min={row.minPlayers}");
+  expect(table).toContain("gamePlayerBounds(row.games)");
+  expect(table).toContain("min={Math.max(2, playerBounds?.minPlayers ?? 2)}");
+  expect(table).toContain(
+    "max={Math.min(row.maxPlayers, playerBounds?.maxPlayers ?? row.maxPlayers)}",
+  );
+  expect(table).toContain("min={Math.max(row.minPlayers, playerBounds?.minPlayers ?? 2)}");
   expect(source("events", "EventDraftTableCard")).toContain(
     'seed={row.id ?? row.key} variant="planets"',
   );
@@ -120,10 +123,12 @@ it("uses the same grouped datetime component for public Start, End and Cutoff in
     "End Date and Time",
     "Registration Deadline Date and Time",
   ]) {
-    expect(schedule).toMatch(new RegExp(`<EventWallDateTime\\s+label=\\{t\\("${label}"\\)\\}`));
+    expect(schedule).toMatch(
+      new RegExp(`<EventWallDateTime\\s+required\\s+label=\\{t\\("${label}"\\)\\}`),
+    );
   }
   const start = schedule.match(
-    /<EventWallDateTime\s+label=\{t\("Start Date and Time"\)\}[\s\S]*?\/>/,
+    /<EventWallDateTime\s+required\s+label=\{t\("Start Date and Time"\)\}[\s\S]*?\/>/,
   )?.[0];
   expect(start).toBeDefined();
   expect(start).not.toContain("rowOnly");

@@ -645,7 +645,11 @@ export default function ContactsScreen() {
           variant="primary"
         >
           <MainTabBar>
-            <TabTrigger value="connections" style={{ flexDirection: "row", gap: 6 }}>
+            <TabTrigger
+              icon={UsersRound}
+              value="connections"
+              style={{ flexDirection: "row", gap: 6 }}
+            >
               <Tabs.Label>{t("Connections")}</Tabs.Label>
               <ContactSectionBadge
                 section="connections"
@@ -654,7 +658,11 @@ export default function ContactsScreen() {
                   .flatMap((row) => row.users.map((user) => user.id))}
               />
             </TabTrigger>
-            <TabTrigger value="requests" style={{ flexDirection: "row", gap: 6 }}>
+            <TabTrigger
+              icon={UserRoundPlus}
+              value="requests"
+              style={{ flexDirection: "row", gap: 6 }}
+            >
               <Tabs.Label>{t("Requests")}</Tabs.Label>
               <ContactSectionBadge
                 section="requests"
@@ -663,7 +671,7 @@ export default function ContactsScreen() {
                 )}
               />
             </TabTrigger>
-            <TabTrigger value="search" style={{ flexDirection: "row", gap: 6 }}>
+            <TabTrigger icon={Search} value="search" style={{ flexDirection: "row", gap: 6 }}>
               <Tabs.Label>{t("Search")}</Tabs.Label>
               <ContactSectionBadge
                 section="search"

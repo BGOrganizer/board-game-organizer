@@ -5,6 +5,47 @@ journeys invoked by `.github/scripts/maestro-e2e.sh` and the three native CI job
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
 Do not run the helpers directory or treat helpers as independent test reports.
 
+## Manual Event access expansion
+
+`30-event-access.yaml` and `apps/web/e2e/event-access.config.ts` are opt-in, not canonical CI.
+Use current owned Development/Preview fixtures, authenticated as the actor required by each mode.
+No provisioning, provider sync, application migration or automatic reset is performed. Run EN/IT,
+light/dark and narrow/wide web variants separately; use fresh fixtures for writes.
+
+Required: `EVENT_ACCESS_FIXTURE_ACK=owned-disposable-event-access`,
+`EVENT_ACCESS_MODE=shared|denied|enroll|picker|finalize`, `EVENT_ACCESS_LOCALE=en|it`,
+`EVENT_ACCESS_API_URL`, and `EVENT_ACCESS_INPUT` JSON. Native also requires
+`EVENT_ACCESS_BUILD_ACK=owned-preview-build`; verify the installed APK's API/account first.
+Web requires `EVENT_ACCESS_THEME=light|dark`, `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and existing
+Development Clerk inputs; optional `EVENT_ACCESS_WIDTH` defaults to 390. Production is rejected.
+
+JSON always includes `eventId`, `tableId`, `eventName`, `tableName`:
+
+- `shared`: nonmember friend of an actual frozen player, private finalized opt-in Event, with
+  `playerName` and `ndName` matching actual username-first result identities. Checks no Group/
+  Participants/Ranking destination, retained played/ND results, and browser API projection/denials.
+- `denied`: repeat the same source after externally removing the only qualifying friendship or
+  adding either-direction block/Group ban. Detail must deny, not show cached authorized controls.
+  The flow does not manufacture relationship/ban changes or swallow its required error assertions.
+- `enroll`: never-member public outsider, open PUBLIC Event, singleton game and no existing
+  registration. Native additionally needs `groupId`. Real SELF enrollment persists, including when
+  queued; browser verifies ACCEPTED and unchanged Group membership. Native verifies Leave table
+  and the Group's Request membership action, without submitting a membership request.
+- `picker`: current manager editing a planning Event with exactly one persisted Table, published own collection and accepted
+  participant collections. Supply `ownOnlyName`, `participantOnlyName`, `catalogOnlyName` and an
+  `emptyQuery` (all at least four characters). Fixture titles must have exactly those source
+  memberships and not already be selected Table options. Checks own, union, participants-only and
+  catalog fallback, absent Search chip, empty focused input and return without saving.
+- `finalize`: current manager of a private grouped CONFIRMED Event with every result draft complete.
+  **Requires `EVENT_ACCESS_WRITE_ACK=irreversible-owned-disposable-finalization`.** Checks sharing
+  default-off, toggle/cancel/reopen reset, then commits sharing-on finalization. Scores/ratings and
+  sharing become immutable. Never rerun against the same finalized fixture; never auto-reset it.
+
+These scenarios are not execution evidence until run on actual fixtures. Additional native manual
+acceptance still needs camera permission/capture/square-crop/cancel/upload, required conditional
+labels, all top-tab icons in both themes, physical game-count bounds and entry/Back frame timings.
+Source/VM tests and Maestro syntax do not prove device permission, keyboard, font or rendering paths.
+
 ## Manual participant proposals
 
 `28-event-proposals.yaml` and `apps/web/e2e/event-proposals.config.ts` are opt-in only.

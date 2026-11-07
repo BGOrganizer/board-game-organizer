@@ -33,6 +33,7 @@ export function eventCreationRecord(
     id: `optimistic:${input.clientRequestId ?? intent.draftId}`,
     clientRequestId: input.clientRequestId,
     groupId: input.groupId,
+    ...(input.visibility ? { visibility: input.visibility } : {}),
     adminUserId: userId,
     name: input.name,
     dates: input.dates,

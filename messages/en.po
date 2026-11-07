@@ -6001,3 +6001,42 @@ msgstr "Could not determine the location time zone. Choose a location."
 
 msgid "Choose a location"
 msgstr "Choose a location"
+
+msgid "BoardGameGeek player limits"
+msgstr "BoardGameGeek player limits"
+
+msgid "Choose collections to filter, or turn all collection filters off to search the catalog (at least 4 characters)."
+msgstr "Choose collections to filter, or turn all collection filters off to search the catalog (at least 4 characters)."
+
+msgid "Choose valid player counts within the limits of the selected games."
+msgstr "Choose valid player counts within the limits of the selected games."
+
+msgid "Only the finalized event, tables and results will be visible. Group details stay hidden. This choice cannot be changed after finalization."
+msgstr "Only the finalized event, tables and results will be visible. Group details stay hidden. This choice cannot be changed after finalization."
+
+msgid "Participants' collections"
+msgstr "Participants' collections"
+
+msgid "Private event"
+msgstr "Private event"
+
+msgid "Private events are visible only to accepted group members. Public-group scheduling rules still apply."
+msgstr "Private events are visible only to accepted group members. Public-group scheduling rules still apply."
+
+msgid "Public event"
+msgstr "Public event"
+
+msgid "Public event. Group membership is not required to participate."
+msgstr "Public event. Group membership is not required to participate."
+
+msgid "Share results with participants' friends"
+msgstr "Share results with participants' friends"
+
+msgid "Shared finalized results. Group details are hidden."
+msgstr "Shared finalized results. Group details are hidden."
+
+msgid "Registered"
+msgstr "Registered"
+
+msgid "Available"
+msgstr "Available"

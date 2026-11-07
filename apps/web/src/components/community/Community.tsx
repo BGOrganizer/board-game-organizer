@@ -4,6 +4,7 @@ import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Activity, Store } from "lucide-react";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { CommunityActivities } from "./CommunityActivities";
 import { CommunityMarketplace } from "./CommunityMarketplace";
@@ -24,16 +25,14 @@ export function Community() {
         }}
       >
         <TabBar label={t`Community navigation`}>
-          <Tabs.Tab id="activity" className="flex-row gap-2 whitespace-nowrap">
-            <Activity className="size-4" aria-hidden />
+          <TabTrigger icon={Activity} id="activity">
             {t`Activities`}
             <Tabs.Indicator />
-          </Tabs.Tab>
-          <Tabs.Tab id="market" className="flex-row gap-2 whitespace-nowrap">
-            <Store className="size-4" aria-hidden />
+          </TabTrigger>
+          <TabTrigger icon={Store} id="market">
             {t`Marketplace`}
             <Tabs.Indicator />
-          </Tabs.Tab>
+          </TabTrigger>
         </TabBar>
         <Tabs.Panel id="activity" className="pt-0">
           <CommunityActivities />

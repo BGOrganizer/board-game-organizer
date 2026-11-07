@@ -10,7 +10,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { ClipboardPenLine } from "lucide-react-native";
+import { ChartNoAxesCombined, ClipboardPenLine, Info, Trophy } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
@@ -98,7 +98,11 @@ export function EventTable({
         <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
       </NotificationAttentionScope>
     );
-  const selected = tab === "results" && table.eventStatus !== "TERMINATED" ? "overview" : tab;
+  const selected =
+    (tab === "results" && table.eventStatus !== "TERMINATED") ||
+    (tab === "ranking" && table.sharedResultsOnly)
+      ? "overview"
+      : tab;
   return (
     <NotificationAttentionScope
       options={o}
@@ -118,18 +122,20 @@ export function EventTable({
         <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
           <View style={{ alignItems: "center", paddingTop: 12 }}>
             <TabBar style={{ alignSelf: "center", width: "auto" }}>
-              <TabTrigger value="overview" style={{ flexDirection: "row", gap: 6 }}>
+              <TabTrigger icon={Info} value="overview" style={{ flexDirection: "row", gap: 6 }}>
                 <Tabs.Label>{t("Overview")}</Tabs.Label>
                 <NotificationTabBadge target={{ kind: "table", id: tableId }} />
               </TabTrigger>
               {table.eventStatus === "TERMINATED" ? (
-                <TabTrigger value="results">
+                <TabTrigger icon={Trophy} value="results">
                   <Tabs.Label>{t("Results")}</Tabs.Label>
                 </TabTrigger>
               ) : null}
-              <TabTrigger value="ranking">
-                <Tabs.Label>{t("Ranking")}</Tabs.Label>
-              </TabTrigger>
+              {!table.sharedResultsOnly ? (
+                <TabTrigger icon={ChartNoAxesCombined} value="ranking">
+                  <Tabs.Label>{t("Ranking")}</Tabs.Label>
+                </TabTrigger>
+              ) : null}
             </TabBar>
           </View>
           <View style={{ flex: 1 }}>

@@ -88,11 +88,12 @@ visibility with a current-network/time selection; no offline mode is enabled.
 - Unique user/source/kind indexes deduplicate receipts. Source Group/Event deletion removes dependent
   activities. Existing terminated records do not generate activities merely when saved again.
 - Stored receipts contain source identifiers, not display names or reusable public authorization.
-  Each feed read resolves current source access. PRIVATE Group activities are always omitted, even
-  for their creator or members. Approved PUBLIC Group activities and their Event/Table details are
-  readable by authenticated non-members in explicit read-only mode; bans, blocks and removed sources
-  remain denied. Standalone sources retain existing access. Public reads grant no participation,
-  voting, membership or editing capability. See the [Community visibility contract](community.md).
+  Each feed read resolves current source access. Private activities remain omitted except explicitly
+  shared immutable final played/milestone results, authorized through current friends of final frozen
+  players (including ND), with no Group identity. See [Event access and sharing](groups-events-refactor.md#event-access-and-shared-final-results).
+  Approved PUBLIC Group/PUBLIC Event reads remain authenticated and block/ban/source-aware. Reading
+  never implies consent or Group membership; explicit PUBLIC SELF enrollment is separate. Standalone
+  sources retain existing access. See the [Community visibility contract](community.md).
 - Profile and Community use the same localized full-sentence narratives, linked public identities,
   compact text spacing and GroupedList rows. Follow receipts describe the other user following the
   Profile subject, not the reverse. Safe author projections accompany current pages; cached older

@@ -112,8 +112,8 @@ it("progressively warms scoped first pages, linked events and authorized groups,
   vi.stubGlobal("fetch", fetch);
   await warmStartupPriority(client, options, () => true);
   await warmStartupBackground(client, options, () => true);
-  expect(fetch).toHaveBeenCalledTimes(23);
-  expect(options.getToken).toHaveBeenCalledTimes(23);
+  expect(fetch).toHaveBeenCalledTimes(22);
+  expect(options.getToken).toHaveBeenCalledTimes(22);
   expect(client.getQueryData(favoriteLocationsQuery(options).queryKey)).toMatchObject({
     pages: [{ items: [], nextCursor: "later" }],
     pageParams: [""],
@@ -122,18 +122,16 @@ it("progressively warms scoped first pages, linked events and authorized groups,
   expect(client.getQueryData(notificationListKey(options, 3))).toBeDefined();
   for (const type of startupRelationshipTypes)
     expect(client.getQueryData(["contacts", type, options.apiUrl, options.userId])).toBeDefined();
-  for (const search of [true, false])
-    expect(
-      client.getQueryData(
-        bggPickerQuery({
-          ...options,
-          query: "",
-          search,
-          collection: true,
-          snapshot: "snapshot-1",
-        }).queryKey,
-      ),
-    ).toBeDefined();
+  expect(
+    client.getQueryData(
+      bggPickerQuery({
+        ...options,
+        query: "",
+        collection: true,
+        snapshot: "snapshot-1",
+      }).queryKey,
+    ),
+  ).toBeDefined();
   for (const [query] of prefetch.mock.calls) {
     if (query.queryKey[0] !== "contacts") continue;
     const page = { rows: [], users: [], hasContacts: false, nextCursor: "next" };
@@ -141,7 +139,7 @@ it("progressively warms scoped first pages, linked events and authorized groups,
     expect(query.getNextPageParam?.({ ...page, nextCursor: null }, [], "", [])).toBeUndefined();
   }
   const urls = fetch.mock.calls.map(([url]) => new URL(url));
-  expect(urls.filter((url) => url.pathname.startsWith("/api/bgg/picker"))).toHaveLength(2);
+  expect(urls.filter((url) => url.pathname.startsWith("/api/bgg/picker"))).toHaveLength(1);
   expect(urls.some((url) => /three|four|pending\/|outside-budget/.test(url.pathname))).toBe(false);
   expect(
     urls.filter((url) => url.pathname.endsWith("/members")).map((url) => url.pathname),
@@ -157,7 +155,7 @@ it("progressively warms scoped first pages, linked events and authorized groups,
   const headers = fetch.mock.calls.map(([, init]) =>
     new Headers(init?.headers).get("Authorization"),
   );
-  expect(new Set(headers).size).toBe(23);
+  expect(new Set(headers).size).toBe(22);
   expect(
     client.getQueryData(["contacts", "suggestions", options.apiUrl, options.userId]),
   ).toBeDefined();
@@ -170,7 +168,7 @@ it("progressively warms scoped first pages, linked events and authorized groups,
   ).toBe(true);
   await warmStartupPriority(client, options, () => true);
   await warmStartupBackground(client, options, () => true);
-  expect(fetch).toHaveBeenCalledTimes(23);
+  expect(fetch).toHaveBeenCalledTimes(22);
 });
 
 it("isolates background network failures without caching fabricated success or triggering BGG synchronization", async () => {

@@ -278,6 +278,51 @@ it("revokes only owned review data and review writers, not own work or foreign s
     c.getQueryState(["events", owner.apiUrl, owner.userId, "detail", "unrelated"])?.isInvalidated,
   ).toBe(false);
 });
+it("purges only role-owned participant collection pickers and cancels their review resources even without a cached proposal page", async () => {
+  const c = client();
+  const picker = (
+    value: unknown,
+    participants = true,
+    api = owner.apiUrl,
+    user = owner.userId,
+    version = "sources-v2",
+  ) => ["bgg-picker", api, user, "", false, false, null, null, version, participants, value];
+  const matching = picker({ eventId: "picker-event", groupId: "group" }),
+    sameGroup = picker({ eventId: "second", groupId: "group" });
+  const retained = [
+    picker(null),
+    picker("bad"),
+    picker({}),
+    picker({ eventId: 3 }),
+    picker({ eventId: "unrelated", groupId: "other" }),
+    picker({ eventId: "picker-event" }, false),
+    picker({ eventId: "picker-event" }, true, "other-api"),
+    picker({ eventId: "picker-event" }, true, owner.apiUrl, "other-user"),
+    picker({ eventId: "picker-event" }, true, owner.apiUrl, owner.userId, "old"),
+    picker({ eventId: "no-group" }),
+  ];
+  for (const key of [matching, sameGroup, ...retained])
+    c.setQueryData(key, { pages: [{ items: [] }], pageParams: [""] });
+  const op = await beginOptimisticOperation(
+    c,
+    ["review-writer"],
+    { queryKey: matching },
+    undefined,
+    [eventProposalKeys.reviewResource(owner, "picker-event")],
+  );
+  revokeProposalReview(c, owner, { eventId: "picker-event" });
+  expect(op.signal.aborted).toBe(true);
+  expect(c.getQueryState(matching)).toBeUndefined();
+  expect(c.getQueryState(sameGroup)).toBeDefined();
+  c.setQueryData(["events", owner.apiUrl, owner.userId, "detail", "second"], { id: "second" });
+  revokeProposalReview(c, owner, { groupId: "group" });
+  expect(c.getQueryState(sameGroup)).toBeUndefined();
+  expect(
+    c.getQueryState(["events", owner.apiUrl, owner.userId, "detail", "second"])?.isInvalidated,
+  ).toBe(true);
+  for (const key of retained) expect(c.getQueryState(key)).toBeDefined();
+});
+
 it("keeps denied observers terminal, blocks late restore, and distinguishes management from membership loss", () => {
   const c = client(),
     key = eventProposalKeys.page(owner, scope),

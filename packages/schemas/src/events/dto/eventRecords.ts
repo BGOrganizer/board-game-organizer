@@ -68,6 +68,7 @@ export type TableRegistrationReceipt = z.infer<typeof tableRegistrationReceiptSc
 export const createPlannedEventSchema = z
   .object({
     groupId: z.uuid().nullable(),
+    visibility: z.enum(["PRIVATE", "PUBLIC"]).optional(),
     clientRequestId: clientRequestIdSchema.optional(),
     name: z.string().trim().min(5).max(120),
     timeZone: zoneSchema,
@@ -221,7 +222,12 @@ export const saveTableResultSchema = tableResultDraftSchema.extend({
   version: z.number().int().positive(),
 });
 export type SaveTableResultInput = z.infer<typeof saveTableResultSchema>;
-export const finalizeSavedEventSchema = z.object({ version: z.number().int().positive() }).strict();
+export const finalizeSavedEventSchema = z
+  .object({
+    version: z.number().int().positive(),
+    shareResultsWithFriends: z.boolean().optional(),
+  })
+  .strict();
 export type FinalizeSavedEventInput = z.infer<typeof finalizeSavedEventSchema>;
 export type SaveTableResultResponse = { event: PlannedEventResponse; table: PlannedTableResponse };
 export type TableResultsInput = z.infer<typeof tableResultsInputSchema>;
@@ -229,11 +235,14 @@ export const finalizeEventSchema = z
   .object({
     version: z.number().int().positive(),
     results: z.array(tableResultsInputSchema).min(1).max(20),
+    shareResultsWithFriends: z.boolean().optional(),
   })
   .strict();
 export type FinalizeEventInput = z.infer<typeof finalizeEventSchema>;
 export type EventVoteCounts = Record<EventVote, number>;
 export interface PlannedEventCapabilities {
+  /** Safe Event/Table/result projection only; Group identity, drafts and rankings are absent. */
+  sharedResultsOnly?: boolean;
   /** Current server-authorized manager, not historical Event authorship. */
   canManage?: boolean;
   canEdit: boolean;
@@ -332,6 +341,7 @@ export type EventSchedulePreview = {
   locationCount: number;
 };
 export type PlannedTableResponse = TableRecord & {
+  sharedResultsOnly?: boolean;
   canManage?: boolean;
   canProposeGames?: boolean;
   readOnly?: boolean;

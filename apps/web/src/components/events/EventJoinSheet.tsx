@@ -3,12 +3,13 @@ import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-org
 import { eventDateWall, eventLocalToIso, useEventJoinForm } from "@board-game-organizer/shared";
 import { Button, Drawer, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { UserRoundCheck } from "lucide-react";
+import { CalendarDays, Dices, MapPin, UserRoundCheck } from "lucide-react";
 import { useState } from "react";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -74,22 +75,22 @@ export function EventJoinSheet({
                   <Tabs selectedKey={tab} onSelectionChange={(key) => setSelection(String(key))}>
                     <TabBar label={t`Availability`}>
                       {votingTabs.includes("dates") ? (
-                        <Tabs.Tab id="dates">
+                        <TabTrigger icon={CalendarDays} id="dates">
                           {t`Dates`}
                           <Tabs.Indicator />
-                        </Tabs.Tab>
+                        </TabTrigger>
                       ) : null}
                       {votingTabs.includes("locations") ? (
-                        <Tabs.Tab id="locations">
+                        <TabTrigger icon={MapPin} id="locations">
                           {t`Locations`}
                           <Tabs.Indicator />
-                        </Tabs.Tab>
+                        </TabTrigger>
                       ) : null}
                       {votingTabs.includes("games") ? (
-                        <Tabs.Tab id="games">
+                        <TabTrigger icon={Dices} id="games">
                           {t`Games`}
                           <Tabs.Indicator />
-                        </Tabs.Tab>
+                        </TabTrigger>
                       ) : null}
                     </TabBar>
                     {votingTabs.includes("dates") ? (

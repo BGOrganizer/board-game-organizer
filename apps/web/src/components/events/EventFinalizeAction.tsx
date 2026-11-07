@@ -3,10 +3,11 @@ import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
   canManageEvent,
   eventRecordKeys,
+  eventRecordVisibility,
   useClientMutationDraft,
   useEventRecordActions,
 } from "@board-game-organizer/shared";
-import { Button } from "@heroui/react";
+import { Button, Switch } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Flag } from "lucide-react";
 import { useRef, useState } from "react";
@@ -24,9 +25,15 @@ export function EventFinalizeAction({
   const { t } = useLingui(),
     o = useCommunityApi(),
     a = useEventRecordActions(o, event.id),
-    [confirm, setConfirm] = useState<{ scope: string; version: number } | null>(null);
+    [confirm, setConfirm] = useState<{
+      scope: string;
+      version: number;
+      shareResultsWithFriends: boolean;
+    } | null>(null);
   const scope = JSON.stringify([o.apiUrl, o.userId, event.id]);
   const stale = Boolean(confirm && (confirm.scope !== scope || confirm.version !== event.version));
+  const canShare =
+    Boolean(event.groupId) && eventRecordVisibility(event, event.groupType) === "PRIVATE";
   const submitted = useRef(new Set<string>());
   const draft = useClientMutationDraft(
     [...eventRecordKeys.mutation(o, event.id), "finalize"],
@@ -48,7 +55,9 @@ export function EventFinalizeAction({
         variant="primary"
         aria-label={t`Finalize event`}
         isDisabled={blocked}
-        onPress={() => setConfirm({ scope, version: event.version })}
+        onPress={() =>
+          setConfirm({ scope, version: event.version, shareResultsWithFriends: false })
+        }
       >
         <Flag className="size-5" aria-hidden />
       </Button>
@@ -70,7 +79,12 @@ export function EventFinalizeAction({
                       if (blocked || submitted.current.has(scope)) return;
                       submitted.current.add(scope);
                       a.finalize.mutate(
-                        { version: confirm.version },
+                        {
+                          version: confirm.version,
+                          ...(canShare
+                            ? { shareResultsWithFriends: confirm.shareResultsWithFriends }
+                            : {}),
+                        },
                         {
                           onSuccess: () => setConfirm(null),
                           onSettled: () => submitted.current.delete(scope),
@@ -81,6 +95,28 @@ export function EventFinalizeAction({
                 ]
           }
         >
+          {canShare ? (
+            <div className="space-y-2">
+              <Switch
+                aria-label={t`Share results with participants' friends`}
+                isSelected={confirm.shareResultsWithFriends}
+                isDisabled={a.busy || stale || checking}
+                onChange={(shareResultsWithFriends) =>
+                  setConfirm((current) =>
+                    current ? { ...current, shareResultsWithFriends } : null,
+                  )
+                }
+              >
+                <Switch.Content>
+                  <Switch.Control>
+                    <Switch.Thumb />
+                  </Switch.Control>
+                  {t`Share results with participants' friends`}
+                </Switch.Content>
+              </Switch>
+              <p className="text-sm text-muted">{t`Only the finalized event, tables and results will be visible. Group details stay hidden. This choice cannot be changed after finalization.`}</p>
+            </div>
+          ) : null}
           {stale ? (
             <p
               role="alert"

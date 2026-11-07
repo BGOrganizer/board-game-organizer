@@ -7,7 +7,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { UserRoundCheck } from "lucide-react-native";
+import { CalendarDays, Dices, MapPin, UserRoundCheck } from "lucide-react-native";
 import { useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -96,17 +96,17 @@ export function EventJoinSheet({
                 <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
                   <TabBar>
                     {votingTabs.includes("dates") ? (
-                      <TabTrigger value="dates">
+                      <TabTrigger icon={CalendarDays} value="dates">
                         <Tabs.Label>{t("Dates")}</Tabs.Label>
                       </TabTrigger>
                     ) : null}
                     {votingTabs.includes("locations") ? (
-                      <TabTrigger value="locations">
+                      <TabTrigger icon={MapPin} value="locations">
                         <Tabs.Label>{t("Locations")}</Tabs.Label>
                       </TabTrigger>
                     ) : null}
                     {votingTabs.includes("games") ? (
-                      <TabTrigger value="games">
+                      <TabTrigger icon={Dices} value="games">
                         <Tabs.Label>{t("Games")}</Tabs.Label>
                       </TabTrigger>
                     ) : null}

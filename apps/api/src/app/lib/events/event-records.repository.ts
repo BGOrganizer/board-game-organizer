@@ -446,6 +446,9 @@ export class EventRecordsRepository {
       .sort({ priorityAt: 1, sequence: 1 })
       .toArray();
   }
+  acceptedTableUsers(tableId: string) {
+    return this.registrations.distinct("userId", { tableId, status: "ACCEPTED" }, this.opts);
+  }
   userRegistrations(eventId: string, userId: string) {
     return this.registrations
       .find(
@@ -598,7 +601,7 @@ export class EventRecordsRepository {
     return { tableCount: tables.length, participantCount: rows[0]?.count ?? 0 };
   }
   /** Shared source visibility for Event readers, including notification hierarchy joins. */
-  visibleGroups(userId: string, now: string) {
+  visibleGroups(userId: string, now: string, eventPrefix = "") {
     return [
       {
         $lookup: {
@@ -636,6 +639,49 @@ export class EventRecordsRepository {
         },
       },
       {
+        $lookup: {
+          from: COLLECTIONS.TABLE_REGISTRATIONS,
+          let: { event: `$${eventPrefix}id` },
+          pipeline: [
+            { $match: { userId, status: "ACCEPTED", $expr: { $eq: ["$eventId", "$$event"] } } },
+            {
+              $lookup: {
+                from: COLLECTIONS.EVENT_TABLES,
+                localField: "tableId",
+                foreignField: "id",
+                pipeline: [{ $match: { removedAt: { $exists: false } } }],
+                as: "liveTable",
+              },
+            },
+            { $match: { "liveTable.0": { $exists: true } } },
+            { $limit: 1 },
+            { $project: { _id: 0, id: 1 } },
+          ],
+          as: "publicRegistration",
+        },
+      },
+      {
+        $lookup: {
+          from: COLLECTIONS.BLOCKS,
+          let: { admin: `$${eventPrefix}adminUserId` },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $and: [{ $eq: ["$fromUserId", userId] }, { $eq: ["$toUserId", "$$admin"] }] },
+                    { $and: [{ $eq: ["$toUserId", userId] }, { $eq: ["$fromUserId", "$$admin"] }] },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+            { $project: { _id: 0, fromUserId: 1 } },
+          ],
+          as: "publicEventBlock",
+        },
+      },
+      {
         $match: {
           $or: [
             { groupId: null },
@@ -647,6 +693,14 @@ export class EventRecordsRepository {
                   $or: [
                     { "parentGroup.adminUserId": userId },
                     { "groupMembership.0": { $exists: true } },
+                    {
+                      $and: [
+                        { "parentGroup.type": "PUBLIC" },
+                        { [`${eventPrefix}visibility`]: { $ne: "PRIVATE" } },
+                        { "publicRegistration.0": { $exists: true } },
+                        { "publicEventBlock.0": { $exists: false } },
+                      ],
+                    },
                   ],
                 },
               ],
@@ -757,6 +811,8 @@ export class EventRecordsRepository {
           parentGroup: 0,
           groupMembership: 0,
           groupBan: 0,
+          publicRegistration: 0,
+          publicEventBlock: 0,
           myRegistration: 0,
           myDemonstration: 0,
         },
@@ -812,7 +868,7 @@ export class EventRecordsRepository {
               },
       },
       { $set: { originalTable: "$$ROOT", groupId: "$event.groupId" } },
-      ...this.visibleGroups(userId, new Date().toISOString()),
+      ...this.visibleGroups(userId, new Date().toISOString(), "event."),
       ...eventPeriodStages(page.periods, Date.now(), "event."),
     ];
     if (page.query)

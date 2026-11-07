@@ -25,6 +25,7 @@ export function EventDateTimeField({
   error,
   help,
   isDisabled = false,
+  required = false,
   rowOnly = false,
   onChange,
 }: {
@@ -39,6 +40,7 @@ export function EventDateTimeField({
   error?: string;
   help?: string;
   isDisabled?: boolean;
+  required?: boolean;
   rowOnly?: boolean;
   onChange: (value: string) => void;
 }) {
@@ -172,6 +174,7 @@ export function EventDateTimeField({
     <View style={{ gap: 6 }}>
       {!rowOnly ? (
         <SearchHelpLabel
+          required={required}
           label={label}
           help={help ?? (mode === "date" ? t("Choose a calendar day.") : t("Choose a local time."))}
           helpTitle={t("Field help")}

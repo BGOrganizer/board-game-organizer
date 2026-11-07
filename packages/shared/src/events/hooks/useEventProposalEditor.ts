@@ -54,6 +54,8 @@ export function useEventProposalEditor(
       event &&
       !q.isPlaceholderData &&
       event.groupType === "PRIVATE" &&
+      event.canManage !== true &&
+      event.role !== "admin" &&
       !event.readOnly &&
       event.status === "PLANNING" &&
       (!draftId || recovery) &&

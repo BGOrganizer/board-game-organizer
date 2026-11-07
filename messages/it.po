@@ -6001,3 +6001,42 @@ msgstr "Impossibile determinare il fuso orario del luogo. Scegli un luogo."
 
 msgid "Choose a location"
 msgstr "Scegli un luogo"
+
+msgid "BoardGameGeek player limits"
+msgstr "Limiti di giocatori di BoardGameGeek"
+
+msgid "Choose collections to filter, or turn all collection filters off to search the catalog (at least 4 characters)."
+msgstr "Scegli le collezioni da filtrare oppure disattiva tutti i filtri delle collezioni per cercare nel catalogo (almeno 4 caratteri)."
+
+msgid "Choose valid player counts within the limits of the selected games."
+msgstr "Scegli un numero valido di giocatori entro i limiti dei giochi selezionati."
+
+msgid "Only the finalized event, tables and results will be visible. Group details stay hidden. This choice cannot be changed after finalization."
+msgstr "Saranno visibili solo l’evento concluso, i tavoli e i risultati. I dettagli del gruppo restano nascosti. Questa scelta non può essere modificata dopo la finalizzazione."
+
+msgid "Participants' collections"
+msgstr "Collezioni dei partecipanti"
+
+msgid "Private event"
+msgstr "Evento privato"
+
+msgid "Private events are visible only to accepted group members. Public-group scheduling rules still apply."
+msgstr "Gli eventi privati sono visibili solo ai membri accettati del gruppo. Restano valide le regole di pianificazione dei gruppi pubblici."
+
+msgid "Public event"
+msgstr "Evento pubblico"
+
+msgid "Public event. Group membership is not required to participate."
+msgstr "Evento pubblico. Non è necessario iscriversi al gruppo per partecipare."
+
+msgid "Share results with participants' friends"
+msgstr "Condividi i risultati con gli amici dei partecipanti"
+
+msgid "Shared finalized results. Group details are hidden."
+msgstr "Risultati finali condivisi. I dettagli del gruppo sono nascosti."
+
+msgid "Registered"
+msgstr "Iscritti"
+
+msgid "Available"
+msgstr "Disponibili"

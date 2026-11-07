@@ -12,6 +12,9 @@ type GameRow = {
   rank?: number | null;
   image?: string | null;
   imageCheckedAt?: string;
+  minPlayers?: number | null;
+  maxPlayers?: number | null;
+  playerCountsCheckedAt?: string;
   minPlayMinutes?: number | null;
   maxPlayMinutes?: number | null;
   durationCheckedAt?: string;
@@ -43,7 +46,9 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
         (!game.imageCheckedAt || Date.now() - Date.parse(game.imageCheckedAt) > 7 * 86400_000)) ||
       (durations &&
         (!game.durationCheckedAt ||
-          Date.now() - Date.parse(game.durationCheckedAt) > 7 * 86400_000)),
+          Date.now() - Date.parse(game.durationCheckedAt) > 7 * 86400_000 ||
+          !game.playerCountsCheckedAt ||
+          Date.now() - Date.parse(game.playerCountsCheckedAt) > 7 * 86400_000)),
   );
   if (!token || missing.length === 0) return;
 
@@ -88,7 +93,13 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
     const items = document.getElementsByTagName("item");
     const found = new Map<
       number,
-      { image: string | null; min: number | null; max: number | null }
+      {
+        image: string | null;
+        min: number | null;
+        max: number | null;
+        minPlayers: number | null;
+        maxPlayers: number | null;
+      }
     >();
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -104,10 +115,15 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
       const min = minutes("minplaytime") ?? playing;
       const max = minutes("maxplaytime") ?? playing;
       const valid = min === null || max === null || min <= max;
+      const minPlayers = minutes("minplayers"),
+        maxPlayers = minutes("maxplayers");
+      const validPlayers = minPlayers !== null && maxPlayers !== null && minPlayers <= maxPlayers;
       found.set(id, {
         image: image ?? thumbnail,
         min: valid ? min : null,
         max: valid ? max : null,
+        minPlayers: validPlayers ? minPlayers : null,
+        maxPlayers: validPlayers ? maxPlayers : null,
       });
     }
     const checkedAt = new Date().toISOString();
@@ -119,6 +135,9 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
             $set: {
               image: found.get(game.id)?.image ?? cover(game.image),
               imageCheckedAt: checkedAt,
+              minPlayers: found.get(game.id)?.minPlayers ?? game.minPlayers ?? null,
+              maxPlayers: found.get(game.id)?.maxPlayers ?? game.maxPlayers ?? null,
+              playerCountsCheckedAt: checkedAt,
               minPlayMinutes: found.get(game.id)?.min ?? game.minPlayMinutes ?? null,
               maxPlayMinutes: found.get(game.id)?.max ?? game.maxPlayMinutes ?? null,
               durationCheckedAt: checkedAt,
@@ -131,6 +150,9 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
       Object.assign(game, {
         image: found.get(game.id)?.image ?? cover(game.image),
         imageCheckedAt: checkedAt,
+        minPlayers: found.get(game.id)?.minPlayers ?? game.minPlayers ?? null,
+        maxPlayers: found.get(game.id)?.maxPlayers ?? game.maxPlayers ?? null,
+        playerCountsCheckedAt: checkedAt,
         minPlayMinutes: found.get(game.id)?.min ?? game.minPlayMinutes ?? null,
         maxPlayMinutes: found.get(game.id)?.max ?? game.maxPlayMinutes ?? null,
         durationCheckedAt: checkedAt,
@@ -168,6 +190,9 @@ export async function searchGames(
           rank: 1,
           image: 1,
           imageCheckedAt: 1,
+          minPlayers: 1,
+          maxPlayers: 1,
+          playerCountsCheckedAt: 1,
           minPlayMinutes: 1,
           maxPlayMinutes: 1,
           durationCheckedAt: 1,
@@ -178,7 +203,7 @@ export async function searchGames(
     .skip(skip)
     .limit(limit)
     .toArray();
-  await hydrateGames(db, rows);
+  await hydrateGames(db, rows, true);
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -187,6 +212,8 @@ export async function searchGames(
     average: row.average ?? null,
     rank: row.rank ?? null,
     imageUrl: cover(row.image),
+    ...(row.minPlayers ? { minPlayers: row.minPlayers } : {}),
+    ...(row.maxPlayers ? { maxPlayers: row.maxPlayers } : {}),
     ...(row.minPlayMinutes ? { minPlayMinutes: row.minPlayMinutes } : {}),
     ...(row.maxPlayMinutes ? { maxPlayMinutes: row.maxPlayMinutes } : {}),
   }));
@@ -204,6 +231,8 @@ export async function gameDetails(db: Db, id: number): Promise<BggThingResponse>
     bayesAverage: row.bayesAverage ?? null,
     average: row.average ?? null,
     rank: row.rank ?? null,
+    ...(row.minPlayers ? { minPlayers: row.minPlayers } : {}),
+    ...(row.maxPlayers ? { maxPlayers: row.maxPlayers } : {}),
     ...(row.minPlayMinutes ? { minPlayMinutes: row.minPlayMinutes } : {}),
     ...(row.maxPlayMinutes ? { maxPlayMinutes: row.maxPlayMinutes } : {}),
   };

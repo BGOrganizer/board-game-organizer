@@ -279,6 +279,7 @@ describe("BGG covers", () => {
       name: "Azul",
       image: imageUrl,
       durationCheckedAt: new Date().toISOString(),
+      playerCountsCheckedAt: new Date().toISOString(),
     });
     expect(await gameDetails(db, 1)).toEqual({
       id: 1,
@@ -290,7 +291,13 @@ describe("BGG covers", () => {
       rank: null,
     });
 
-    const row = { id: 1, name: "Azul", image: "https://cf.geekdo-images.com/a/full.jpg" };
+    const row = {
+      id: 1,
+      name: "Azul",
+      image: "https://cf.geekdo-images.com/a/full.jpg",
+      durationCheckedAt: new Date().toISOString(),
+      playerCountsCheckedAt: new Date().toISOString(),
+    };
     games.find.mockReturnValue(cursor([row]));
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -388,6 +395,7 @@ describe("BGG covers", () => {
       minPlayMinutes: 30,
       maxPlayMinutes: 60,
       durationCheckedAt: new Date().toISOString(),
+      playerCountsCheckedAt: new Date().toISOString(),
     };
     games.findOne.mockResolvedValue(row);
     expect(await gameDetails(db, 1)).toMatchObject({ minPlayMinutes: 30, maxPlayMinutes: 60 });
@@ -410,4 +418,79 @@ describe("BGG covers", () => {
     });
     expect(fetchMock).toHaveBeenCalledOnce();
   });
+});
+
+it("hydrates verified player counts on ordinary visible catalog pages despite an existing cover/fresh duration, then reuses them", async () => {
+  const row = {
+    ...sample,
+    image: "https://cf.geekdo-images.com/cached.jpg",
+    durationCheckedAt: new Date().toISOString(),
+  };
+  games.find.mockReturnValue(cursor([row]));
+  const fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    text: async () =>
+      '<items><item id="1"><minplayers value="2"/><maxplayers value="6"/></item></items>',
+  });
+  vi.stubGlobal("fetch", fetch);
+  expect((await searchGames(db, "Azul"))[0]).toMatchObject({ minPlayers: 2, maxPlayers: 6 });
+  expect(games.bulkWrite.mock.calls[0][0][0].updateOne.update.$set).toMatchObject({
+    minPlayers: 2,
+    maxPlayers: 6,
+    playerCountsCheckedAt: expect.any(String),
+  });
+  expect((await searchGames(db, "Azul"))[0]).toMatchObject({ minPlayers: 2, maxPlayers: 6 });
+  expect(fetch).toHaveBeenCalledOnce();
+});
+
+it.each([
+  "",
+  '<minplayers value="2"/>',
+  '<minplayers value="0"/><maxplayers value="6"/>',
+  '<minplayers value="2.5"/><maxplayers value="6"/>',
+  '<minplayers value="2"/><maxplayers value="0"/>',
+  '<minplayers value="4"/><maxplayers value="2"/>',
+])(
+  "negative-caches unavailable/invalid player pairs without inventing a limit: %s",
+  async (xml) => {
+    const row = {
+      ...sample,
+      image: "https://cf.geekdo-images.com/cached.jpg",
+      minPlayers: null as number | null,
+      maxPlayers: null as number | null,
+    };
+    games.findOne.mockResolvedValue(row);
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => `<items><item id="1">${xml}</item></items>`,
+    });
+    vi.stubGlobal("fetch", fetch);
+    expect(await gameDetails(db, 1)).not.toHaveProperty("minPlayers");
+    expect(row.minPlayers).toBeNull();
+    expect(row.maxPlayers).toBeNull();
+    await gameDetails(db, 1);
+    expect(fetch).toHaveBeenCalledOnce();
+  },
+);
+
+it("refreshes expired player metadata without overwriting verified previous bounds when the provider omits them", async () => {
+  const row = {
+    ...sample,
+    image: "https://cf.geekdo-images.com/cached.jpg",
+    minPlayers: 2,
+    maxPlayers: 4,
+    durationCheckedAt: new Date().toISOString(),
+    playerCountsCheckedAt: new Date(Date.now() - 8 * 86400_000).toISOString(),
+  };
+  games.findOne.mockResolvedValue(row);
+  const fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    text: async () => '<items><item id="1"/></items>',
+  });
+  vi.stubGlobal("fetch", fetch);
+  expect(await gameDetails(db, 1)).toMatchObject({ minPlayers: 2, maxPlayers: 4 });
+  expect(fetch).toHaveBeenCalledOnce();
 });

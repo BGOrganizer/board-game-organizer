@@ -16,6 +16,20 @@ import {
 import { eventTablePeople } from "../eventTablePeople";
 import { previewTableResults } from "../tableScoreForm";
 
+it("validates known game bounds in drafts without inventing limits for unknown games", () => {
+  const draft = { ...eventDraft(event), tables: [tableDraft(table, event.timeZone)] };
+  draft.tables[0].games[0] = { ...draft.tables[0].games[0], minPlayers: 3, maxPlayers: 6 };
+  draft.tables[0].minPlayers = 2;
+  draft.tables[0].maxPlayers = 7;
+  expect(eventDraftStepIssues(draft, false, 1)).toEqual(
+    expect.arrayContaining(["tables.0.minPlayers", "tables.0.maxPlayers"]),
+  );
+  draft.tables[0].minPlayers = 3;
+  draft.tables[0].maxPlayers = 6;
+  expect(eventDraftStepIssues(draft, false, 1)).toEqual([]);
+  expect(eventDraftInput(draft, false).success).toBe(true);
+});
+
 const id = "11111111-1111-4111-8111-111111111111",
   tableId = "22222222-2222-4222-8222-222222222222",
   dateId = "00000000-0000-4000-8000-000000000001";

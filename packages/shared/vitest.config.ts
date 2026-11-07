@@ -46,6 +46,9 @@ export default defineConfig({
         "src/contacts/contactConnections.ts",
         "src/events/eventPolicy.ts",
         "src/events/eventRecordForm.ts",
+        "src/events/eventRecordVisibility.ts",
+        "src/games/gamePlayerBounds.ts",
+        "src/games/hooks/useBggPicker.ts",
         "src/events/tableScoreForm.ts",
         "src/events/eventTablePeople.ts",
         "src/events/eventTableSeats.ts",
@@ -184,6 +187,12 @@ export default defineConfig({
             branches: 100,
             statements: 100,
           },
+        "src/{games/gamePlayerBounds,games/hooks/useBggPicker,events/eventRecordVisibility}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/eventAgreement.ts": {
           lines: 100,
           functions: 100,

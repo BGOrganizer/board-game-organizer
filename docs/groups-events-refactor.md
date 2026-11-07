@@ -4,11 +4,11 @@ This is the approved contract implemented on `feat/social-api-refactor` (existin
 It describes the current source, not a deployed or E2E-accepted release. Verification and remaining
 runtime limitations are recorded in [implementation progress](implementation-progress.md).
 The [old contract](organizations-events.md) is retained as a historical deployment reference only.
-The subsequently approved [Community extension](community.md) makes approved PUBLIC Group Event/Table
-**detail reads** available to authenticated non-members in read-only mode. It does not widen main
-lists, participation, writes, private Group details or Group-wide rankings. PRIVATE Group activities
-are now excluded from both activity surfaces, even for members; these explicit exceptions supersede
-older membership-only activity/detail statements below.
+The [Community extension](community.md) and approved Event-access extension below separate Event
+visibility from immutable Group type. PUBLIC Events permit explicit voluntary enrollment without
+Group membership; approved private final-result sharing grants only Event/Table/result reads, never
+Group information. Private activities otherwise remain excluded from both feeds. These explicit
+exceptions supersede older membership-only activity/detail statements below.
 
 ## Delivery and database scope
 
@@ -103,7 +103,8 @@ older membership-only activity/detail statements below.
 
 - An event may be standalone or belong to a group. Current creator/admin and accepted Group
   moderators create and manage grouped events. Standalone administration remains creator-only.
-  Standalone invitations are friend-only; grouped participants must be accepted members.
+  Standalone invitations are friend-only. PRIVATE Event participation requires accepted Group
+  membership; approved PUBLIC Events also permit explicit outsider SELF enrollment.
   Successful grouped creation returns to that Group's Events tab; standalone creation returns to
   main Events' Available tab and edits retain their Event detail destination. Creation selects an optional Group
   inline through the platform HeroUI Select, with searchable source-paged Group items and explicit
@@ -113,8 +114,10 @@ older membership-only activity/detail statements below.
   active own registrations (accepted, pending invitation or request) at a nonremoved Table, or an
   actual demonstrator duty. Available includes other accessible Events of accepted Group members/
   creators, plus own admin-only standalone Events. Administration alone is not participation. Public
-  non-members, pending Group invitations/requests and live exclusions grant neither section access;
-  existing membership/detail/write guards remain unchanged. Demonstration counts even for an admin.
+  non-members and pending Group invitations/requests gain no list access merely by reading a public
+  source. Explicit accepted PUBLIC Event enrollment, including queue positions, qualifies Registered
+  and personal Tables independently of Group membership. Live exclusions still deny access.
+  Demonstration counts even for an admin.
 - Main Tables has one combined source-paged list, without inner tabs: explicit active participation,
   seated/frozen players, demonstrators, invitations awaiting response, historical pending requests
   and accepted queued players. Admin-only Tables never qualify, including confirmed/terminated ones;
@@ -294,7 +297,9 @@ older membership-only activity/detail statements below.
   advisory: the POST revalidates atomically and may still reject a concurrent change. Existing
   approved Group membership, exclusions and standalone reciprocal friendship/block rules remain
   authoritative. Group candidate responses expose no email/presence.
-- Accepted members can enroll directly; no extra booking-approval workflow. Every voluntary join
+- Accepted members and authenticated outsiders at approved PUBLIC Events can explicitly enroll
+  directly; SELF registration is ACCEPTED even when queued, without any Group membership write or
+  extra booking-approval workflow. Every voluntary join
   opens a platform HeroUI review sheet. Joining explicitly accepts the current Event and Table
   configuration; singleton settings are shown read-only without voting tabs. Only multiple PRIVATE
   dates/locations and multiple Table games expose their corresponding tabs. PUBLIC Group Events
@@ -335,7 +340,8 @@ older membership-only activity/detail statements below.
   options and another Table's game votes never qualify. Aggregate totals include accepted players only
   (once per Event for dates/locations), displaying only the three explicit meanings. Pending ballots
   never contribute or imply consent; missing detail totals remain partial skeletons.
-- Public events additionally require an end and exact booking cutoff. Their tables have
+- All PUBLIC Group Events, including PRIVATE-visibility Events, require an end and exact booking
+  cutoff. Their tables have
   fixed starts and BGG-derived duration; missing metadata requires explicit administrator duration.
   Table editors fix the date to the Event day and expose only a start-time field, including Event
   start and the latest start that fits the full duration by Event end. API rejects invalid intervals
@@ -366,13 +372,66 @@ older membership-only activity/detail statements below.
   priorities, participation and excluded tables except explicit removals/exclusions; it never
   silently extends the cutoff. TERMINATED events cannot reopen.
 
+### Event access and shared final results
+
+- Missing historical visibility inherits PUBLIC only from PUBLIC Groups; otherwise PRIVATE. No
+  migration rewrites historical records. PUBLIC visibility is allowed only in an approved PUBLIC
+  Group. Its editor exposes a Public event switch; PRIVATE Events in that Group remain member-only
+  and keep all PUBLIC Group scheduling, overlap, cutoff and demonstrator rules. Public-to-private
+  edits reject active nonmember enrollments rather than silently cancelling them.
+- Public outsiders may read and explicitly self-enroll, but receive no Group membership, management,
+  Group-wide ranking or foreign roster-email grant. Pending invitations retain separate acceptance.
+  Voluntary Group departure preserves accepted independent PUBLIC Event participation; exclusions,
+  blocks and source-deletion guards remain. Only physically frozen players enter confirmed rosters.
+- Private grouped Events may opt into `shareResultsWithFriends` only during finalization. Default
+  false; no extra participant consent. The flag commits with all final scores/ratings/activities and
+  cannot be changed or revoked afterward. PUBLIC and standalone Events cannot request this option.
+- Current friends of final frozen Table players, including ND players, may read the finalized Event,
+  final Tables and results. Queue-only, pending, demonstrator-only and admin-only users do not extend
+  this audience. Followers alone never grant access. Current bilateral blocks, friendship, Group
+  exclusions and surviving source existence are rechecked. Friendship/block mutations selectively
+  revalidate cached friend-result grants; native retains central canonical-only persistence.
+- Shared outsider DTOs use allowlists: no Group ID, name, type, logo, link or Group rating deltas;
+  no planning alternatives, ballots, provisional results, registration/queue or private profile data.
+  Only the chosen date/venue/game, frozen roster, immutable results and GLOBAL deltas remain. Group,
+  participants, seat, proposal and ranking endpoints gain no new authority. Their UI exposes only
+  appropriate read-only Details/Tables and Overview/Results destinations.
+- Reuse existing per-player played/milestone receipts, not a new Event/admin activity. Both feeds
+  authorize private result sources before the visible page/cursor limit, omit their Group identity,
+  and never publish private planning/join activity. Existing network epochs remain in force.
+
+### Game sources and player limits
+
+Game selection has independent Collection / Participants' collections chips, never a Search chip.
+Neither enabled means local catalog search (four characters); otherwise text filters only the union
+of selected published collections. Participant source requires current Table management and includes
+all ACCEPTED target-Table registrations, including queue; pending invitations do not qualify. Profile
+block/visibility guards still apply. Deduplication and exclusions precede source pagination. Opaque
+source epochs/cursors bind actor, current authority, roster and active publications; before/after
+checks reject mixed snapshots. Demotion clears only role-owned picker/review data and work. Native
+retains its 8/6/7 rendering budget and stable search input.
+
+Existing bounded BGG metadata hydration supplies verified complete min/max player pairs; no bulk
+provider synchronization. Selected games 2–4 and 3–6 permit a 2–6 editor envelope: minimum of known
+minima, maximum of known maxima, ignoring missing/invalid pairs. No known pair means no invented
+bound; Table minimum remains at least two. New/edited Table limits obey that envelope. Confirmation
+also requires the actual selected game to support the physical roster, never dropping seated players
+to fit another game. Historical shapes stay readable.
+
+All top HeroUI tabs use relevant selected-accent Lucide icons; bottom navigation stays unchanged.
+Required-field stars follow actual conditional validation. Native camera logo capture opens the
+existing square crop editor; cancellation retains current permission/upload/owner guards.
+
 ### Participant option proposals
 
 Private Group Events expose opt-in `allowParticipantDates` / `allowParticipantLocations`, and
 Tables expose `allowParticipantGames`. Missing historical flags are off. New submissions require
 PLANNING, an enabled category and a current ACCEPTED effective seat: anywhere in the Event for
 its date/location, only the target Table for games. Pending reservations, accepted queues and
-management/demonstration alone do not qualify. Standalone/PUBLIC Events cannot enable these flags.
+management/demonstration alone do not qualify. Current Group creators/moderators cannot submit
+participant proposals even when seated; they edit/review instead (`PROPOSAL_MANAGER_CANNOT_SUBMIT`).
+A demoted historical author is not a current manager. Standalone/PUBLIC Group Events cannot enable
+these flags, including PRIVATE-visibility Events whose PUBLIC Group scheduling remains fixed.
 
 Authenticated `GET /events/:id/proposals` source-pages `mine` or current-manager-only `review`
 scopes by category, with a Table ID required only for games. Private pending/rejected/decision

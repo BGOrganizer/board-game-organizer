@@ -270,6 +270,7 @@ function Editor({
                   )}
             </Typography>
             <SearchHelpLabel
+              required
               label={t("Group name")}
               helpTitle={t("Field help")}
               help={t("Choose a name, from 5 to 120 characters.")}
@@ -298,6 +299,10 @@ function Editor({
               onChange={setLogo}
               onBusyChange={setUploading}
             />
+            <Typography className="font-bold text-foreground">
+              {t("Location")}
+              {type === "PUBLIC" ? " *" : ""}
+            </Typography>
             <GroupedList>
               <LocationListRow
                 name={location?.name ?? t("Choose a location")}

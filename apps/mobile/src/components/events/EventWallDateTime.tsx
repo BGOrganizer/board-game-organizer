@@ -8,6 +8,7 @@ export function EventWallDateTime(props: {
   max?: string;
   error?: string;
   isDisabled?: boolean;
+  required?: boolean;
   onChange: (value: string) => void;
 }) {
   return <EventDateTimeField {...props} mode="datetime" />;

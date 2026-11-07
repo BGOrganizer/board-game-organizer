@@ -52,6 +52,47 @@ function pending(input: EventAgreementInput, userId: string): EventAgreementInpu
   };
 }
 
+describe("verified per-game player bounds", () => {
+  it.each([
+    { minPlayers: 3, maxPlayers: 6 },
+    { minPlayers: 1, maxPlayers: 1 },
+  ])(
+    "never confirms a game outside its playable count even when Table minimum alone is met: %j",
+    (bounds) => {
+      const input = fixture();
+      input.tables[0].gamePlayerBounds = { 1: bounds };
+      expect(calculateEventAgreement(input).agreed).toBe(false);
+    },
+  );
+  it("chooses the playable option, never drops seated consenting players to fit a smaller game", () => {
+    const input = fixture(["a", "b", "c", "d", "e"], 6);
+    input.tables[0].gamePlayerBounds = {
+      1: { minPlayers: 2, maxPlayers: 4 },
+      99: { minPlayers: 3, maxPlayers: 6 },
+    };
+    input.gameVotes = {
+      t: Object.fromEntries(
+        input.registrations.map((row) => [row.userId, { "1": "YES", "99": "IF_NEEDED" }]),
+      ),
+    };
+    const result = calculateEventAgreement(input);
+    expect(result.agreed && result.includedTables[0]).toMatchObject({
+      gameId: 99,
+      participantIds: ["a", "b", "c", "d", "e"],
+    });
+  });
+  it("fills a real game minimum from compatible accepted queue priority without stealing pending reservations", () => {
+    let input = fixture(["a", "b", "c", "d", "e"], 3);
+    input = votes(votes(input, "dateVotes", "b", "NO"), "dateVotes", "c", "NO");
+    input.tables[0].gamePlayerBounds = { 1: { minPlayers: 3, maxPlayers: 3 } };
+    const result = calculateEventAgreement(input);
+    expect(result.agreed && result.includedTables[0]).toMatchObject({
+      participantIds: ["a", "d", "e"],
+    });
+    expect(calculateEventAgreement(pending(input, "b")).agreed).toBe(false);
+  });
+});
+
 describe("reserved temporal places", () => {
   it("uses invitation/request timestamp, then sequence and stable identity, never acceptance or input order", () => {
     const rows = fixture(["a", "b", "c"]).registrations;

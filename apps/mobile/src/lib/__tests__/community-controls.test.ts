@@ -17,7 +17,8 @@ it("uses platform tabs, one virtualized daily list, public identities and separa
     row = source("src/components/activities/ActivityRow.tsx");
   expect(page).toContain("MainTabBar");
   expect(page).toContain("communityViews");
-  expect(page).toContain("useThemeColor");
+  expect(page).toContain("<TabTrigger icon={Activity}");
+  expect(source("src/components/common/ui/TabTrigger.tsx")).toContain("useThemeColor");
   expect(feed).toContain("SectionList");
   expect(feed).not.toContain("ScrollView");
   expect(feed).toContain("isFetchNextPageError");

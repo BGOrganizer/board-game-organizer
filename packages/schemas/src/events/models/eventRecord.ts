@@ -17,6 +17,9 @@ export const eventRecordSchema = z
     id: z.uuid(),
     clientRequestId: clientRequestIdSchema.optional(),
     groupId: z.uuid().nullable(),
+    visibility: z.enum(["PRIVATE", "PUBLIC"]).optional(),
+    /** Captured only by atomic finalization, never edited or revoked afterward. */
+    shareResultsWithFriends: z.boolean().optional(),
     adminUserId: targetUserIdSchema,
     name: z.string().trim().min(5).max(120),
     timeZone: z.string().min(1).max(100),

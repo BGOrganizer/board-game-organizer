@@ -13,6 +13,7 @@ export interface AgreementTable {
   minPlayers: number;
   maxPlayers: number;
   gameIds: readonly number[];
+  gamePlayerBounds?: Readonly<Record<number, { minPlayers: number; maxPlayers: number }>>;
   /** Legacy hint; implicit compatibility depends on the actual singleton game count. */
   fixedGame: boolean;
 }
@@ -126,10 +127,17 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
       if (base.length >= table.minPlayers) seatedDateLocation = true;
       for (const [gameIndex, gameId] of table.gameIds.entries()) {
         const people = base.filter((row) => positive(gameVote(row, gameId)));
+        const bounds = table.gamePlayerBounds?.[gameId];
+        const minimum = Math.max(table.minPlayers, bounds?.minPlayers ?? table.minPlayers);
+        if (
+          capacity < minimum ||
+          (bounds && (minimum > bounds.maxPlayers || people.length > bounds.maxPlayers))
+        )
+          continue;
         const eligibleWaiting = queued.filter(
           (row) => dateLocation(row, date, location) && positive(gameVote(row, gameId)),
         );
-        const missing = Math.max(0, table.minPlayers - people.length);
+        const missing = Math.max(0, minimum - people.length);
         const firstPrefix =
           missing === 0
             ? 0

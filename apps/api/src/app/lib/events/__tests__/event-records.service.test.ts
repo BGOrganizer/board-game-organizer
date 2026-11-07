@@ -8,6 +8,7 @@ import type {
   GroupRecord,
   JoinEventAvailability,
   JoinTableInput,
+  PlannedEventResponse,
   TableRecord,
   TableRegistration,
 } from "@board-game-organizer/schemas";
@@ -241,6 +242,11 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
         .map(([userId, ids]) => ({ userId, tableIds: [...ids] }));
     }),
     allRegistrations: vi.fn(async (eventId: string) => clone(active(eventId))),
+    acceptedTableUsers: vi.fn(async (tableId: string) =>
+      [...registrations.values()]
+        .filter((row) => row.tableId === tableId && row.status === "ACCEPTED")
+        .map((row) => row.userId),
+    ),
     userRegistrations: vi.fn(async (eventId: string, userId: string) =>
       clone(active(eventId).filter((row) => row.userId === userId)),
     ),
@@ -349,7 +355,10 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
       ids.map((userId) => ({ clerkId: userId, name: userId })),
     ),
   };
-  const relationships = { isFriend: vi.fn(async () => true), isBlocked: vi.fn(async () => false) };
+  const relationships = {
+    isFriend: vi.fn(async (_a: string, _b: string) => true),
+    isBlocked: vi.fn(async (_a: string, _b: string) => false),
+  };
   const notifications = {
       notifyMany: vi.fn(async (_rows: unknown[]) => []),
       retargetItems: vi.fn(async () => undefined),
@@ -592,7 +601,7 @@ async function resultFixture() {
   f.notifications.notifyMany.mockClear();
   return { ...f, event };
 }
-it("allows authenticated non-members to read approved PUBLIC details without any write capability or draft/email disclosure", async () => {
+it("allows public observers only explicit enrollment, never manager/voting powers or draft/email disclosure", async () => {
   const f = setup("PUBLIC"),
     event = await f.create();
   f.groups.membership.mockResolvedValue(null as never);
@@ -603,7 +612,7 @@ it("allows authenticated non-members to read approved PUBLIC details without any
     myRegistrations: [],
     canEdit: false,
     canInvite: false,
-    canRegister: false,
+    canRegister: true,
     canVote: false,
     canConfirm: false,
     canReplan: false,
@@ -654,7 +663,7 @@ it("allows authenticated non-members to read approved PUBLIC details without any
   f.tables.set(id, table);
   expect(await f.service.tableDetail(guest, event.id, id)).toMatchObject({
     readOnly: true,
-    canRegister: false,
+    canRegister: true,
     canInvite: false,
     canLeave: false,
     canRespond: false,
@@ -663,9 +672,6 @@ it("allows authenticated non-members to read approved PUBLIC details without any
   expect(
     (await f.service.tables(guest, event.id, { limit: 10, query: "" })).items[0].readOnly,
   ).toBe(true);
-  await expect(
-    f.service.join(guest, event.id, id, { version: event.version, gameVotes: { "1": "YES" } }),
-  ).rejects.toMatchObject({ message: "GROUP_MEMBER_REQUIRED" });
   await expect(
     f.service.vote(guest, event.id, { kind: "game", tableId: id, gameId: 1, vote: "YES" }),
   ).rejects.toMatchObject({ message: "GROUP_MEMBER_REQUIRED" });
@@ -692,6 +698,18 @@ it("allows authenticated non-members to read approved PUBLIC details without any
   await expect(f.service.detail(guest, event.id)).rejects.toMatchObject({
     message: "GROUP_BANNED",
   });
+  f.groups.ban.mockResolvedValue(null);
+  expect(await f.service.join(guest, event.id, id, f.participation(event.id, id))).toMatchObject({
+    status: "ACCEPTED",
+    kind: "SELF",
+    gameVotes: {},
+  });
+  expect(await f.service.detail(guest, event.id)).toMatchObject({
+    role: "participant",
+    readOnly: false,
+    canManage: false,
+  });
+  expect(await f.groups.membership(other, guest)).toBeNull();
 });
 it("retains PRIVATE detail authorization and excludes its activities even for its own administrator", async () => {
   const f = setup("PRIVATE"),
@@ -2463,7 +2481,7 @@ describe("private participant proposals", () => {
     async (action) => {
       const f = await prepared();
       await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
-      await f.service.join(owner, f.e.id, id, f.participation(f.e.id, id));
+      await f.service.join(waiter, f.e.id, id, f.participation(f.e.id, id));
       const first = await f.submit(guest, { kind: "game", tableId: id, gameId: 2 });
       const stale = (
         await f.service.proposals(owner, f.e.id, {
@@ -2473,7 +2491,7 @@ describe("private participant proposals", () => {
           limit: 1,
         })
       ).items[0];
-      const second = await f.submit(owner, { kind: "game", tableId: id, gameId: 2 });
+      const second = await f.submit(waiter, { kind: "game", tableId: id, gameId: 2 });
       await expect(
         f.service.reviewProposal(owner, f.e.id, first.id, {
           action,
@@ -2498,7 +2516,7 @@ describe("private participant proposals", () => {
       expect(page.items).toHaveLength(1);
       expect(page.nextCursor).toBeNull();
       expect(page.items[0].gameSuggestions?.map((p) => p.userId).sort()).toEqual(
-        [owner, guest].sort(),
+        [waiter, guest].sort(),
       );
       const input = {
         action,
@@ -2532,9 +2550,9 @@ describe("private participant proposals", () => {
   it("does not accept a grouped game if any captured proposer no longer has an actual seat", async () => {
     const f = await prepared();
     await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
-    await f.service.join(owner, f.e.id, id, f.participation(f.e.id, id));
+    await f.service.join(waiter, f.e.id, id, f.participation(f.e.id, id));
     const one = await f.submit(guest, { kind: "game", tableId: id, gameId: 2 });
-    await f.submit(owner, { kind: "game", tableId: id, gameId: 2 });
+    await f.submit(waiter, { kind: "game", tableId: id, gameId: 2 });
     const row = (
       await f.service.proposals(owner, f.e.id, {
         mode: "review",
@@ -2565,21 +2583,25 @@ describe("private participant proposals", () => {
       canProposeDates: false,
     });
     await expect(
-      defaults.service.submitProposal(owner, e.id, {
+      defaults.service.submitProposal(guest, e.id, {
         eventVersion: e.version,
         clientRequestId: randomUUID(),
         payload: date(),
       }),
     ).rejects.toMatchObject({ code: "PROPOSALS_DISABLED" });
     const f = await prepared();
-    await expect(f.submit(owner, date())).rejects.toMatchObject({ code: "PROPOSAL_SEAT_REQUIRED" });
+    await expect(f.submit(owner, date())).rejects.toMatchObject({
+      code: "PROPOSAL_MANAGER_CANNOT_SUBMIT",
+    });
     const invitation = await f.service.register(owner, f.e.id, id, waiter);
     await expect(f.submit(waiter, date())).rejects.toMatchObject({
       code: "PROPOSAL_SEAT_REQUIRED",
     });
     await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
     await f.service.join(owner, f.e.id, id, f.participation(f.e.id, id));
-    await expect(f.submit(owner, date())).rejects.toMatchObject({ code: "PROPOSAL_SEAT_REQUIRED" });
+    await expect(f.submit(owner, date())).rejects.toMatchObject({
+      code: "PROPOSAL_MANAGER_CANNOT_SUBMIT",
+    });
     expect((await f.service.detail(guest, f.e.id)).canProposeDates).toBe(true);
     expect((await f.service.detail(owner, f.e.id)).canProposeDates).toBe(false);
     expect((await f.service.tableDetail(guest, f.e.id, id)).canProposeGames).toBe(true);
@@ -2589,13 +2611,13 @@ describe("private participant proposals", () => {
   it("allows multiple own pending proposals, deduplicates only own pending payloads and hides private hashes/other authors", async () => {
     const f = await prepared();
     await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
-    await f.service.join(owner, f.e.id, id, f.participation(f.e.id, id));
+    await f.service.join(waiter, f.e.id, id, f.participation(f.e.id, id));
     const first = await f.submit(guest, date());
     await f.submit(guest, date("2027-01-06"));
     await expect(f.submit(guest, date())).rejects.toMatchObject({
       code: "PROPOSAL_ALREADY_PENDING",
     });
-    await f.submit(owner, date()); // Hidden other-author duplicate does not leak existence.
+    await f.submit(waiter, date()); // Hidden other-author duplicate does not leak existence.
     expect(f.proposals.size).toBe(3);
     const own = await f.service.proposals(guest, f.e.id, { mode: "mine", kind: "date", limit: 1 });
     expect(own.items).toHaveLength(1);
@@ -2893,15 +2915,22 @@ describe("private participant proposals", () => {
     const f = await prepared();
     await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
     const payload = { kind: "game" as const, tableId: id, gameId: 2 };
-    f.games.findByIds.mockResolvedValueOnce([]);
+    const catalog = f.games.findByIds.getMockImplementation()!;
+    let state: "missing" | "expansion" | "ready" = "missing";
+    f.games.findByIds.mockImplementation(async (ids) =>
+      ids.includes(2) && state !== "ready"
+        ? state === "missing"
+          ? []
+          : [{ id: 2, name: "Expansion", maxPlayMinutes: 60, isExpansion: true }]
+        : catalog(ids),
+    );
     await expect(f.submit(guest, payload)).rejects.toMatchObject({ code: "GAME_NOT_FOUND" });
-    f.games.findByIds.mockResolvedValueOnce([
-      { id: 2, name: "Expansion", isExpansion: true },
-    ] as never);
+    state = "expansion";
     await expect(f.submit(guest, payload)).rejects.toMatchObject({ code: "GAME_NOT_FOUND" });
+    state = "ready";
     const row = await f.submit(guest, payload),
       version = f.version();
-    f.games.findByIds.mockResolvedValueOnce([]);
+    state = "missing";
     await expect(
       f.service.reviewProposal(owner, f.e.id, row.id, {
         eventVersion: version,
@@ -2909,9 +2938,7 @@ describe("private participant proposals", () => {
         action: "accept",
       }),
     ).rejects.toMatchObject({ code: "GAME_NOT_FOUND" });
-    f.games.findByIds.mockResolvedValueOnce([
-      { id: 2, name: "Expansion", isExpansion: true },
-    ] as never);
+    state = "expansion";
     await expect(
       f.service.reviewProposal(owner, f.e.id, row.id, {
         eventVersion: version,
@@ -2921,6 +2948,7 @@ describe("private participant proposals", () => {
     ).rejects.toMatchObject({ code: "GAME_NOT_FOUND" });
     expect(f.proposals.get(row.id)?.status).toBe("PENDING");
     expect(f.version()).toBe(version);
+    state = "ready";
     expect(
       (
         await f.service.reviewProposal(owner, f.e.id, row.id, {
@@ -2986,5 +3014,442 @@ describe("private participant proposals", () => {
       }),
     ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
     expect(f.proposals.get(row.id)?.status).toBe("PENDING");
+  });
+});
+
+describe("independent Event access, enrollment and verified game capacity", () => {
+  const visibilityEdit = (event: PlannedEventResponse, visibility: "PRIVATE" | "PUBLIC") => ({
+    version: event.version,
+    name: event.name,
+    visibility,
+    timeZone: event.timeZone,
+    startTime: event.startTime,
+    dates: event.dates,
+    locations: event.locations,
+    endsAt: event.endsAt,
+    bookingClosesAt: event.bookingClosesAt,
+    tables: [],
+    removedTableIds: [],
+  });
+  it("keeps a PRIVATE Event in a PUBLIC Group member-only without changing fixed scheduling or public deadlines", async () => {
+    const f = setup("PUBLIC"),
+      e = await f.create();
+    const saved = await f.service.update(owner, e.id, visibilityEdit(e, "PRIVATE"));
+    expect(saved).toMatchObject({
+      visibility: "PRIVATE",
+      groupType: "PUBLIC",
+      endsAt: e.endsAt,
+      bookingClosesAt: e.bookingClosesAt,
+    });
+    f.groups.membership.mockResolvedValue(null);
+    await expect(f.service.detail(guest, e.id)).rejects.toMatchObject({
+      code: "GROUP_MEMBER_REQUIRED",
+    });
+    await expect(f.service.join(guest, e.id, id, f.participation(e.id, id))).rejects.toMatchObject({
+      code: "GROUP_MEMBER_REQUIRED",
+    });
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED" });
+    expect((await f.service.detail(guest, e.id)).canRegister).toBe(true);
+    await expect(
+      f.service.join(guest, e.id, id, {
+        ...f.participation(e.id, id),
+        availability: { version: saved.version, dateVotes: {}, locationVotes: {} },
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_AVAILABILITY_NOT_REQUIRED" });
+    await expect(
+      f.service.update(owner, e.id, {
+        ...visibilityEdit(saved, "PRIVATE"),
+        dates: [...saved.dates, { id: other, day: "2027-01-04" }],
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_FIXED_SCHEDULE_REQUIRED" });
+  });
+  it.each([null, "PRIVATE"] as const)(
+    "does not widen standalone/PRIVATE Group access through a forged PUBLIC visibility: %s",
+    async (type) => {
+      const f = setup(type);
+      await expect(
+        f.service.create(owner, { ...body(), groupId: type ? other : null, visibility: "PUBLIC" }),
+      ).rejects.toMatchObject({ code: "EVENT_VISIBILITY_NOT_ALLOWED" });
+      expect(f.events.size).toBe(0);
+    },
+  );
+  it("autoaccepts all voluntary public enrollments including queue, never creates Group membership, and confirms eligible outsiders", async () => {
+    const f = setup("PUBLIC"),
+      e = await f.create();
+    f.groups.membership.mockResolvedValue(null);
+    for (const user of [guest, waiter, "queue-only"])
+      expect(await f.service.join(user, e.id, id, f.participation(e.id, id))).toMatchObject({
+        kind: "SELF",
+        status: "ACCEPTED",
+        userId: user,
+      });
+    expect(await f.service.tableDetail("queue-only", e.id, id)).toMatchObject({
+      myPosition: "WAITING",
+      readOnly: false,
+      canManage: false,
+    });
+    expect((await f.service.collectionPickerScope(owner, e.id, id)).userIds).toEqual(
+      [guest, waiter, "queue-only"].sort(),
+    );
+    await expect(f.service.collectionPickerScope(guest, e.id, id)).rejects.toMatchObject({
+      code: "EVENT_ADMIN_REQUIRED",
+    });
+    await f.confirm(e.id);
+    expect(f.tables.get(id)?.confirmed?.playerIds).toEqual([guest, waiter]);
+    expect(f.tables.get(id)?.confirmed?.playerIds).not.toContain("queue-only");
+    expect(await f.groups.membership(other, guest)).toBeNull();
+  });
+  it("does not silently orphan/remove nonmember enrollments on a public->private edit", async () => {
+    const f = setup("PUBLIC"),
+      e = await f.create();
+    f.groups.membership.mockResolvedValue(null);
+    const registration = await f.service.join(guest, e.id, id, f.participation(e.id, id));
+    const current = await f.service.detail(owner, e.id);
+    await expect(
+      f.service.update(owner, e.id, visibilityEdit(current, "PRIVATE")),
+    ).rejects.toMatchObject({ code: "EVENT_VISIBILITY_HAS_NONMEMBERS" });
+    expect(f.events.get(e.id)?.visibility).toBe("PUBLIC");
+    expect(f.registrations.get(registration.id)?.status).toBe("ACCEPTED");
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED" });
+    expect(
+      (await f.service.update(owner, e.id, visibilityEdit(current, "PRIVATE"))).visibility,
+    ).toBe("PRIVATE");
+  });
+  it("preserves accepted public participation after Group departure while retaining private membership cleanup", async () => {
+    for (const type of ["PUBLIC", "PRIVATE"] as const) {
+      const f = setup(type),
+        e = await f.create();
+      const row = await f.service.join(guest, e.id, id, f.participation(e.id, id));
+      f.groups.membership.mockResolvedValue(null);
+      await f.service.membershipDeparted(other, guest, "LEFT");
+      expect(f.registrations.get(row.id)?.status).toBe(
+        type === "PUBLIC" ? "ACCEPTED" : "CANCELLED",
+      );
+      if (type === "PUBLIC") expect((await f.service.detail(guest, e.id)).role).toBe("participant");
+    }
+  });
+  it("keeps foreign roster/result emails redacted for public nonmembers even after accepted enrollment", async () => {
+    const f = setup("PUBLIC"),
+      e = await f.create();
+    f.groups.membership.mockResolvedValue(null);
+    f.users.findByIds.mockImplementation(async (ids) =>
+      ids.map((userId) => ({
+        clerkId: userId,
+        name: userId,
+        username: userId,
+        email: `${userId}@private.test`,
+      })),
+    );
+    for (const user of [guest, waiter])
+      await f.service.join(user, e.id, id, f.participation(e.id, id));
+    expect(
+      (await f.service.seats(guest, e.id, id, { limit: 20 })).items.every(
+        (row) => row.email === null,
+      ),
+    ).toBe(true);
+    await f.confirm(e.id);
+    const stored = f.tables.get(id)!;
+    f.tables.set(id, {
+      ...stored,
+      results: {
+        lowerWins: false,
+        entries: [
+          { userId: guest, score: "2", rank: 1 },
+          { userId: waiter, score: "1", rank: 2 },
+        ],
+        tieBreaks: [],
+        finalizedAt: e.updatedAt,
+      },
+    });
+    expect(
+      (await f.service.tableDetail(guest, e.id, id)).resultProfiles?.every(
+        (profile) => profile.email === null,
+      ),
+    ).toBe(true);
+  });
+  it("denies seated current creators/moderators proposal submission, but does not confuse a demoted historical author with a manager", async () => {
+    const f = setup("PRIVATE"),
+      input = body();
+    const e = await f.service.create(owner, {
+      ...input,
+      groupId: other,
+      allowParticipantDates: true,
+      allowParticipantLocations: true,
+      tables: [{ ...input.tables[0], allowParticipantGames: true }],
+    });
+    for (const user of [owner, guest])
+      await f.service.join(user, e.id, id, f.participation(e.id, id));
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED", role: "MODERATOR" } as never);
+    for (const actor of [owner, guest]) {
+      expect(await f.service.detail(actor, e.id)).toMatchObject({
+        canProposeDates: false,
+        canProposeLocations: false,
+      });
+      expect((await f.service.tableDetail(actor, e.id, id)).canProposeGames).toBe(false);
+      for (const payload of [
+        { kind: "date", day: "2027-01-05", startTime: "20:00" },
+        { kind: "location", location: { ...input.locations[0], id: randomUUID() } },
+        { kind: "game", tableId: id, gameId: 2 },
+      ] as const)
+        await expect(
+          f.service.submitProposal(actor, e.id, {
+            eventVersion: f.events.get(e.id)!.version,
+            clientRequestId: randomUUID(),
+            payload,
+          }),
+        ).rejects.toMatchObject({ code: "PROPOSAL_MANAGER_CANNOT_SUBMIT" });
+      await expect(f.service.proposalPickerExclusions(actor, e.id, id)).rejects.toMatchObject({
+        code: "PROPOSAL_MANAGER_CANNOT_SUBMIT",
+      });
+    }
+    expect(f.proposals.size).toBe(0);
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED" });
+    f.events.set(e.id, { ...f.events.get(e.id)!, adminUserId: guest });
+    expect(
+      await f.service.submitProposal(guest, e.id, {
+        eventVersion: f.events.get(e.id)!.version,
+        clientRequestId: randomUUID(),
+        payload: { kind: "date", day: "2027-01-05", startTime: "20:00" },
+      }),
+    ).toMatchObject({ status: "PENDING", userId: guest });
+  });
+  it("validates the known 2–6 envelope on writes and ignores individual unknown pairs rather than inventing bounds", async () => {
+    const f = setup("PRIVATE");
+    f.games.findByIds.mockImplementation(async (ids) =>
+      ids.map((id) => ({
+        id,
+        name: `Game ${id}`,
+        maxPlayMinutes: 60,
+        minPlayers: id === 1 ? 2 : 3,
+        maxPlayers: id === 1 ? 4 : 6,
+      })),
+    );
+    const input = {
+      ...body(),
+      groupId: other,
+      tables: [{ ...body().tables[0], maxPlayers: 6, games: [{ gameId: 1 }, { gameId: 2 }] }],
+    };
+    const e = await f.service.create(owner, input);
+    expect((await f.service.tableDetail(owner, e.id, id)).maxPlayers).toBe(6);
+    await expect(
+      f.service.update(owner, e.id, {
+        ...visibilityEdit(e, "PRIVATE"),
+        tables: [{ ...input.tables[0], maxPlayers: 7 }],
+      }),
+    ).rejects.toMatchObject({ code: "TABLE_GAME_PLAYER_LIMITS" });
+    f.games.findByIds.mockImplementation(async (ids) =>
+      ids.map((id) => ({
+        id,
+        name: `Game ${id}`,
+        maxPlayMinutes: 60,
+        ...(id === 1 ? { minPlayers: 2, maxPlayers: 4 } : {}),
+      })),
+    );
+    await expect(
+      f.service.update(owner, e.id, { ...visibilityEdit(e, "PRIVATE"), tables: input.tables }),
+    ).rejects.toMatchObject({ code: "TABLE_GAME_PLAYER_LIMITS" });
+    f.games.findByIds.mockImplementation(async (ids) =>
+      ids.map((id) => ({ id, name: `Game ${id}`, maxPlayMinutes: 60 })),
+    );
+    expect(
+      (
+        await f.service.update(owner, e.id, {
+          ...visibilityEdit(e, "PRIVATE"),
+          tables: input.tables,
+        })
+      ).id,
+    ).toBe(e.id);
+  });
+  it("does not confirm too few players for the actual selected game or discard excess seated players to fit a game", async () => {
+    const f = setup("PRIVATE");
+    f.games.findByIds.mockImplementation(async (ids) =>
+      ids.map((id) => ({
+        id,
+        name: `Game ${id}`,
+        maxPlayMinutes: 60,
+        minPlayers: id === 1 ? 2 : 3,
+        maxPlayers: id === 1 ? 4 : 6,
+      })),
+    );
+    const e = await f.service.create(owner, {
+      ...body(),
+      groupId: other,
+      tables: [{ ...body().tables[0], maxPlayers: 6, games: [{ gameId: 1 }, { gameId: 2 }] }],
+    });
+    for (const user of [guest, waiter])
+      await f.service.join(user, e.id, id, {
+        ...f.participation(e.id, id),
+        gameVotes: { "1": "NO", "2": "YES" },
+      });
+    await expect(f.confirm(e.id)).rejects.toMatchObject({ code: "EVENT_NO_AGREEMENT" });
+    await f.service.join("third", e.id, id, {
+      ...f.participation(e.id, id),
+      gameVotes: { "1": "NO", "2": "YES" },
+    });
+    await f.confirm(e.id);
+    expect(f.tables.get(id)?.confirmed).toMatchObject({
+      gameId: 2,
+      playerIds: [guest, waiter, "third"],
+    });
+  });
+});
+
+describe("immutable private Event results audience", () => {
+  async function finished(type: "PRIVATE" | "PUBLIC", share = false) {
+    const f = setup(type),
+      e = await f.create();
+    f.events.set(e.id, {
+      ...f.events.get(e.id)!,
+      status: "CONFIRMED",
+      visibility: "PRIVATE",
+      version: 10,
+      confirmed: { dateId: id, locationId: id, at: e.updatedAt },
+    });
+    f.tables.set(id, {
+      ...f.tables.get(id)!,
+      confirmed: { gameId: 1, playerIds: [guest, waiter], startsAt: "2027-01-03T09:00:00.000Z" },
+      resultDraft: {
+        lowerWins: false,
+        entries: [
+          { userId: guest, score: "3" },
+          { userId: waiter, score: null },
+        ],
+        tieBreaks: [],
+      },
+    });
+    f.tables.set(other, {
+      ...f.tables.get(id)!,
+      id: other,
+      order: 1,
+      confirmed: undefined,
+      resultDraft: undefined,
+    });
+    const done = await f.service.finalize(owner, e.id, {
+      version: 10,
+      shareResultsWithFriends: share,
+    });
+    f.groups.membership.mockResolvedValue(null);
+    f.relationships.isFriend.mockImplementation(async (_a, _b) => false);
+    return { ...f, done };
+  }
+  it.each(["PRIVATE", "PUBLIC"] as const)(
+    "defaults sharing off and never publishes private activities solely because the Group is public: %s",
+    async (type) => {
+      const f = await finished(type);
+      expect(f.done.shareResultsWithFriends).toBe(false);
+      f.relationships.isFriend.mockResolvedValue(true);
+      await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 403 });
+      await expect(f.service.activityResource(owner, f.done.id, id, true)).rejects.toMatchObject({
+        status: 404,
+      });
+    },
+  );
+  it.each(["PRIVATE", "PUBLIC"] as const)(
+    "grants current friends of frozen players (including ND), never admin-only/queue friends, only safe final read projections: %s",
+    async (type) => {
+      const f = await finished(type, true);
+      for (const target of [owner, "queue-only", "pending-invite"]) {
+        f.relationships.isFriend.mockImplementation(async (_a, b) => b === target);
+        await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 403 });
+      }
+      f.relationships.isFriend.mockImplementation(async (_a, b) => b === waiter);
+      const view = await f.service.detail("viewer", f.done.id);
+      expect(view).toMatchObject({
+        sharedResultsOnly: true,
+        role: "viewer",
+        readOnly: true,
+        groupId: null,
+        groupType: null,
+        groupName: null,
+        canManage: false,
+        canRegister: false,
+        tableCount: 1,
+        participantCount: 2,
+      });
+      const detail = await f.service.tableDetail("viewer", f.done.id, id);
+      expect(detail).toMatchObject({
+        sharedResultsOnly: true,
+        groupId: null,
+        groupType: null,
+        groupName: null,
+        confirmed: { playerIds: [guest, waiter] },
+      });
+      expect(detail.results?.entries.find((row) => row.userId === waiter)?.score).toBeNull();
+      expect(detail).not.toHaveProperty("groupRatingChanges");
+      expect(detail).not.toHaveProperty("resultDraft");
+      expect(
+        (await f.service.tables("viewer", f.done.id, { limit: 1 })).items.map((row) => row.id),
+      ).toEqual([id]);
+      expect(await f.service.activityResource("viewer", f.done.id, id, true)).toMatchObject({
+        sharedResultsOnly: true,
+        href: `/events/${f.done.id}/tables/${id}`,
+      });
+      expect(
+        await f.service.activityResource("viewer", f.done.id, undefined, true),
+      ).not.toHaveProperty("groupId");
+      await expect(f.service.tableDetail("viewer", f.done.id, other)).rejects.toMatchObject({
+        status: 404,
+      });
+      await expect(f.service.seats("viewer", f.done.id, id, { limit: 20 })).rejects.toMatchObject({
+        code: "EVENT_RESULTS_ONLY",
+      });
+      await expect(
+        f.service.tableLeaderboard("viewer", f.done.id, id, { limit: 20 }),
+      ).rejects.toMatchObject({ code: "EVENT_RESULTS_ONLY" });
+      await expect(
+        f.service.participants("viewer", f.done.id, { limit: 20 }),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        f.service.join("viewer", f.done.id, id, f.participation(f.done.id, id)),
+      ).rejects.toMatchObject({ status: 403 });
+    },
+  );
+  it("revalidates friendship, bilateral blocks, Group exclusions and resource existence on every read", async () => {
+    const f = await finished("PRIVATE", true);
+    f.relationships.isFriend.mockImplementation(async (_a, b) => b === waiter);
+    expect((await f.service.detail("viewer", f.done.id)).sharedResultsOnly).toBe(true);
+    f.relationships.isFriend.mockResolvedValue(false);
+    await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 403 });
+    f.relationships.isFriend.mockImplementation(async (_a, b) => b === waiter);
+    f.relationships.isBlocked.mockImplementation(async (_a, b) => b === waiter);
+    await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 403 });
+    f.relationships.isBlocked.mockImplementation(async (_a, b) => b === owner);
+    await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 404 });
+    f.relationships.isBlocked.mockResolvedValue(false);
+    f.groups.ban.mockResolvedValue({ until: null } as never);
+    await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({
+      code: "GROUP_BANNED",
+    });
+    f.groups.ban.mockResolvedValue(null);
+    f.events.delete(f.done.id);
+    await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 404 });
+  });
+  it("never grants early/provisional access and cannot change sharing once finalization commits", async () => {
+    const f = await finished("PRIVATE", true);
+    await expect(
+      f.service.finalize(owner, f.done.id, {
+        version: f.done.version,
+        shareResultsWithFriends: false,
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_NOT_CONFIRMED" });
+    const stored = f.events.get(f.done.id)!;
+    f.events.set(f.done.id, { ...stored, status: "CONFIRMED" });
+    f.relationships.isFriend.mockResolvedValue(true);
+    await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 403 });
+    f.events.set(f.done.id, { ...stored, confirmed: undefined });
+    await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 403 });
+    f.events.set(f.done.id, stored);
+    f.tables.set(id, { ...f.tables.get(id)!, confirmed: undefined });
+    await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 403 });
+  });
+  it("does not accept redundant public/standalone sharing flags", async () => {
+    for (const type of [null, "PUBLIC"] as const) {
+      const f = setup(type),
+        e = await f.create();
+      f.events.set(e.id, { ...f.events.get(e.id)!, status: "CONFIRMED" });
+      await expect(
+        f.service.finalize(owner, e.id, { version: e.version, shareResultsWithFriends: true }),
+      ).rejects.toMatchObject({ code: "EVENT_RESULTS_SHARING_NOT_AVAILABLE" });
+    }
   });
 });

@@ -172,6 +172,9 @@ it.each(Array.from({ length: 16 }, (_, value) => [value % 8, value >= 8] as cons
       Skeleton: "skeleton",
       BottomSheetFlatList: "list",
       UserRoundCheck: "icon",
+      CalendarDays: "calendar-icon",
+      MapPin: "location-icon",
+      Dices: "game-icon",
     };
     const tree = render("EventJoinSheet", context, {
       eventId: "event",
@@ -191,6 +194,15 @@ it.each(Array.from({ length: 16 }, (_, value) => [value % 8, value >= 8] as cons
         .filter((n) => n.type === "tab")
         .map((n) => n.props.value),
     ).toEqual(votingTabs);
+    expect(
+      nodes(tree)
+        .filter((n) => n.type === "tab")
+        .map((n) => n.props.icon),
+    ).toEqual(
+      votingTabs.map((tab) =>
+        tab === "dates" ? "calendar-icon" : tab === "locations" ? "location-icon" : "game-icon",
+      ),
+    );
     if (mask === 4)
       expect(nodes(tree).find((n) => n.type === "list")?.props.data).toBe(table.games);
     if (mask === 0) {

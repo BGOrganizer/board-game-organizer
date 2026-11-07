@@ -1,5 +1,9 @@
 "use client";
-import { type EventTableDraft, publicTableTimeBounds } from "@board-game-organizer/shared";
+import {
+  type EventTableDraft,
+  gamePlayerBounds,
+  publicTableTimeBounds,
+} from "@board-game-organizer/shared";
 import { Button, Input, Switch, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Minus, Plus, Trash2, UserRoundPen, UserRoundPlus, X } from "lucide-react";
@@ -36,6 +40,7 @@ export function EventDraftTableEditor({
 }) {
   const { t, i18n } = useLingui();
   const day = eventStartWall.slice(0, 10);
+  const playerBounds = gamePlayerBounds(row.games);
   const bounds = publicTableTimeBounds(
     eventStartWall,
     eventEndWall,
@@ -52,6 +57,7 @@ export function EventDraftTableEditor({
         isInvalid={fieldError("name")}
       >
         <SearchHelpLabel
+          required
           label={t`Table name`}
           helpTitle={helpTitle}
           help={t`Name this table so players can recognize it. Use between 1 and 120 characters.`}
@@ -66,6 +72,7 @@ export function EventDraftTableEditor({
       </TextField>
       <fieldset className="space-y-2" aria-label={t`Number of players`}>
         <SearchHelpLabel
+          required
           label={t`Number of players`}
           helpTitle={helpTitle}
           help={t`Choose the minimum on the left and maximum on the right. At least two players are required, and the minimum cannot exceed the maximum.`}
@@ -74,26 +81,31 @@ export function EventDraftTableEditor({
           <PlayerCount
             label={t`Minimum players`}
             value={row.minPlayers}
-            min={2}
-            max={row.maxPlayers}
+            min={Math.max(2, playerBounds?.minPlayers ?? 2)}
+            max={Math.min(row.maxPlayers, playerBounds?.maxPlayers ?? row.maxPlayers)}
             busy={busy}
             onChange={(minPlayers) => onChange({ minPlayers })}
           />
           <PlayerCount
             label={t`Maximum players`}
             value={row.maxPlayers}
-            min={row.minPlayers}
-            max={Number.MAX_SAFE_INTEGER}
+            min={Math.max(row.minPlayers, playerBounds?.minPlayers ?? 2)}
+            max={playerBounds?.maxPlayers ?? Number.MAX_SAFE_INTEGER}
             busy={busy}
             onChange={(maxPlayers) => onChange({ maxPlayers })}
           />
         </div>
       </fieldset>
+      {playerBounds ? (
+        <p className="text-sm text-muted">
+          {t`BoardGameGeek player limits`}: {playerBounds.minPlayers}–{playerBounds.maxPlayers}
+        </p>
+      ) : null}
       {fieldError("minPlayers") || fieldError("maxPlayers") ? (
         <p
           role="alert"
           className="text-sm text-danger"
-        >{t`The minimum must be at least two and cannot exceed the maximum.`}</p>
+        >{t`Choose valid player counts within the limits of the selected games.`}</p>
       ) : null}
       <div className="flex items-center justify-between gap-3">
         <SearchHelpLabel
@@ -152,6 +164,7 @@ export function EventDraftTableEditor({
             isInvalid={fieldError("startsAt")}
           >
             <SearchHelpLabel
+              required
               label={t`Table start`}
               helpTitle={helpTitle}
               help={t`The date is fixed to the event day. Choose a time at or after the event starts; the whole table must finish by the event end.`}
@@ -235,6 +248,7 @@ export function EventDraftTableEditor({
       ) : null}
       <section className="space-y-2">
         <SearchHelpLabel
+          required
           label={t`Games`}
           helpTitle={helpTitle}
           help={t`Choose at least one game. Use the empty game slot to add another option. Players vote only when multiple games are proposed.`}
@@ -292,6 +306,7 @@ export function EventDraftTableEditor({
                     isInvalid={fieldError(`games.${index}.manualDurationMinutes`)}
                   >
                     <SearchHelpLabel
+                      required
                       label={t`Manual duration in minutes`}
                       helpTitle={helpTitle}
                       help={t`BoardGameGeek has no duration for this game. Enter a positive whole number of minutes.`}

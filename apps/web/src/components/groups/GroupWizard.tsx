@@ -229,6 +229,7 @@ function Editor({
       {checking ? <p role="status">{t`Checking saved changes`}</p> : null}
       <TextField value={name} onChange={setName} isRequired isDisabled={submitting}>
         <SearchHelpLabel
+          required
           label={t`Group name`}
           helpTitle={t`Field help`}
           help={t`Choose a name, from 5 to 120 characters.`}
@@ -242,6 +243,10 @@ function Editor({
         onChange={setLogo}
         onBusyChange={setUploading}
       />
+      <p className="font-bold">
+        {t`Location`}
+        {type === "PUBLIC" ? " *" : ""}
+      </p>
       <GroupedList>
         <LocationListRow
           name={location?.name ?? t`Choose a location`}

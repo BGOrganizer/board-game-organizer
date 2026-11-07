@@ -33,6 +33,7 @@ import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnread
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -392,7 +393,8 @@ export function Contacts() {
           }}
         >
           <TabBar label={t`Contacts`}>
-            <Tabs.Tab
+            <TabTrigger
+              icon={UsersRound}
               id="connections"
               className="relative"
               onPress={() => readSection("connections")}
@@ -405,8 +407,13 @@ export function Contacts() {
                   .flatMap((row) => row.users.map((user) => user.id))}
               />
               <Tabs.Indicator />
-            </Tabs.Tab>
-            <Tabs.Tab id="requests" className="relative" onPress={() => readSection("requests")}>
+            </TabTrigger>
+            <TabTrigger
+              icon={UserRoundPlus}
+              id="requests"
+              className="relative"
+              onPress={() => readSection("requests")}
+            >
               {t`Requests`}
               <ContactSectionBadge
                 section="requests"
@@ -415,15 +422,20 @@ export function Contacts() {
                 )}
               />
               <Tabs.Indicator />
-            </Tabs.Tab>
-            <Tabs.Tab id="search" className="relative" onPress={() => readSection("search")}>
+            </TabTrigger>
+            <TabTrigger
+              icon={Search}
+              id="search"
+              className="relative"
+              onPress={() => readSection("search")}
+            >
               {t`Search`}
               <ContactSectionBadge
                 section="search"
                 userIds={[...searchResults, ...bgoContacts].map((user) => user.id)}
               />
               <Tabs.Indicator />
-            </Tabs.Tab>
+            </TabTrigger>
           </TabBar>
 
           <Tabs.Panel id="search" className="space-y-3 pt-4">

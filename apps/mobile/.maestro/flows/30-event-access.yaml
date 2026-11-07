@@ -1,0 +1,172 @@
+appId: com.bgo.mobile
+name: Owned Event privacy, public enrollment, collection sources and final sharing
+# MANUAL current Preview. Explicit mode/fixtures; enrollment persists and finalize is irreversible.
+tags: [manual, events, privacy]
+---
+- runScript: ../helpers/event-access-inputs.js
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      true: ${output.access.mode === 'shared'}
+    commands:
+      - openLink: ${output.access.eventLink}
+      - extendedWaitUntil:
+          visible: ${output.access.shared}
+          timeout: 120000
+      - assertNotVisible: ${output.access.participants}
+      - openLink: ${output.access.tableLink}
+      - extendedWaitUntil:
+          visible: ${output.access.results}
+          timeout: 120000
+      - assertNotVisible: ${output.access.ranking}
+      - assertNotVisible: ${output.access.join}
+      - tapOn: ${output.access.results}
+      - scrollUntilVisible:
+          element: ${output.access.player}
+          direction: DOWN
+          timeout: 120000
+      - scrollUntilVisible:
+          element: ${output.access.nd}
+          direction: DOWN
+          timeout: 120000
+      - takeScreenshot: event-shared-final-results
+- runFlow:
+    when:
+      true: ${output.access.mode === 'denied'}
+    commands:
+      - openLink: ${output.access.eventLink}
+      - extendedWaitUntil:
+          visible: ${output.access.loadEvent}
+          timeout: 120000
+      - assertNotVisible: ${output.access.finalize}
+      - openLink: ${output.access.tableLink}
+      - extendedWaitUntil:
+          visible: ${output.access.loadTable}
+          timeout: 120000
+      - assertNotVisible: ${output.access.results}
+      - assertNotVisible: ${output.access.join}
+      - takeScreenshot: event-results-grant-revoked
+- runFlow:
+    when:
+      true: ${output.access.mode === 'enroll'}
+    commands:
+      - openLink: ${output.access.tableLink}
+      - extendedWaitUntil:
+          visible: ${output.access.join}
+          timeout: 120000
+      - tapOn: ${output.access.join}
+      - extendedWaitUntil:
+          visible: ${output.access.review}
+          timeout: 120000
+      - tapOn:
+          text: ${output.access.join}
+          below: ${output.access.review}
+      - extendedWaitUntil:
+          visible: ${output.access.leave}
+          timeout: 120000
+      - openLink: ${output.access.groupLink}
+      - extendedWaitUntil:
+          visible: ${output.access.request}
+          timeout: 120000
+      - takeScreenshot: event-enrolled-without-group-membership
+- runFlow:
+    when:
+      true: ${output.access.mode === 'picker'}
+    commands:
+      - openLink: ${output.access.editLink}
+      - extendedWaitUntil:
+          visible:
+            text: ${output.access.next}
+            enabled: true
+          timeout: 120000
+      - tapOn: ${output.access.next}
+      - extendedWaitUntil:
+          visible: ${output.access.chooseGame}
+          timeout: 120000
+      - tapOn: ${output.access.chooseGame}
+      - assertVisible:
+          id: list-filter-collection
+          selected: true
+      - assertNotVisible:
+          id: list-filter-search
+      - tapOn:
+          id: game-search-input
+      - inputText: ${output.access.ownQuery}
+      - extendedWaitUntil:
+          visible: ${output.access.ownName}
+          timeout: 120000
+      - eraseText
+      - inputText: ${output.access.participantQuery}
+      - extendedWaitUntil:
+          visible: ${output.access.empty}
+          timeout: 120000
+      - hideKeyboard
+      - tapOn:
+          id: list-filter-participants
+      - extendedWaitUntil:
+          visible: ${output.access.participantName}
+          timeout: 120000
+      - tapOn:
+          id: list-filter-collection
+      - tapOn:
+          id: game-search-input
+      - eraseText
+      - inputText: ${output.access.ownQuery}
+      - extendedWaitUntil:
+          visible: ${output.access.empty}
+          timeout: 120000
+      - hideKeyboard
+      - tapOn:
+          id: list-filter-participants
+      - tapOn:
+          id: game-search-input
+      - eraseText
+      - inputText: ${output.access.catalogQuery}
+      - extendedWaitUntil:
+          visible: ${output.access.catalogName}
+          timeout: 120000
+      - eraseText
+      - inputText: ${output.access.emptyQuery}
+      - extendedWaitUntil:
+          visible: ${output.access.empty}
+          timeout: 120000
+      - assertVisible:
+          id: game-search-input
+          focused: true
+      - takeScreenshot: event-picker-empty-focused
+      - hideKeyboard
+      - tapOn: ${output.access.back}
+- runFlow:
+    when:
+      true: ${output.access.mode === 'finalize'}
+    commands:
+      - openLink: ${output.access.eventLink}
+      - extendedWaitUntil:
+          visible: ${output.access.finalize}
+          timeout: 120000
+      - tapOn: ${output.access.finalize}
+      - assertVisible:
+          id: event-results-share-switch
+          checked: false
+      - tapOn:
+          id: event-results-share-switch
+      - assertVisible:
+          id: event-results-share-switch
+          checked: true
+      - tapOn: ${output.access.cancel}
+      - tapOn: ${output.access.finalize}
+      - assertVisible:
+          id: event-results-share-switch
+          checked: false
+      - tapOn:
+          id: event-results-share-switch
+      - tapOn:
+          text: ${output.access.finalize}
+          below: ${output.access.finalizeTitle}
+      - extendedWaitUntil:
+          notVisible: ${output.access.finalizeTitle}
+          timeout: 120000
+      - assertNotVisible: ${output.access.finalize}
+      - assertVisible: ${output.access.eventName}
+      - takeScreenshot: event-final-sharing-committed

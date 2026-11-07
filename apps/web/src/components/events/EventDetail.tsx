@@ -37,6 +37,7 @@ import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
@@ -61,7 +62,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     [confirm, setConfirm] = useState<"confirm" | "replan" | null>(null),
     [error, setError] = useState(false),
     event = communityAccessDenied(q.error) ? undefined : q.data;
-  const [tab, setTab] = useState("details");
+  const [requestedTab, setTab] = useState("details");
+  const tab =
+    event?.sharedResultsOnly && requestedTab === "participants" ? "details" : requestedTab;
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   const confirmationBlocked =
     a.busy || q.isPlaceholderData || !event?.canConfirm || event?.agreement?.agreed !== true;
@@ -168,25 +171,28 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           className="flex flex-col"
         >
           <TabBar label={t`Event details`}>
-            <Tabs.Tab id="details">
-              <Info className="size-4" aria-hidden />
+            <TabTrigger icon={Info} id="details">
               {t`Details`}
-            </Tabs.Tab>
-            <Tabs.Tab id="participants">
-              <UsersRound className="size-4" aria-hidden />
-              {t`Participants`}
-            </Tabs.Tab>
-            <Tabs.Tab id="tables">
-              <Dices className="size-4" aria-hidden />
+            </TabTrigger>
+            {!event.sharedResultsOnly ? (
+              <TabTrigger icon={UsersRound} id="participants">
+                {t`Participants`}
+              </TabTrigger>
+            ) : null}
+            <TabTrigger icon={Dices} id="tables">
               {t`Tables`}
-            </Tabs.Tab>
+            </TabTrigger>
           </TabBar>
         </Tabs>
         {tab === "details" ? (
           <>
             <EventDetailsCard event={event} />
             {event.readOnly ? (
-              <p className="text-sm text-muted">{t`Public read-only view. Join the group to participate.`}</p>
+              <p className="text-sm text-muted">
+                {event.sharedResultsOnly
+                  ? t`Shared finalized results. Group details are hidden.`
+                  : t`Public event. Group membership is not required to participate.`}
+              </p>
             ) : null}
             {event.groupId && fromGroup !== event.groupId ? (
               <EventGroupLink groupId={event.groupId} name={event.groupName} />
@@ -354,7 +360,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         ) : null}
         {tab === "participants" ? (
           event.readOnly ? (
-            <p className="text-muted">{t`Public read-only view. Join the group to participate.`}</p>
+            <p className="text-muted">{t`Public event. Group membership is not required to participate.`}</p>
           ) : (
             <EventParticipants event={event} actions={a} disabled={q.isPlaceholderData} />
           )

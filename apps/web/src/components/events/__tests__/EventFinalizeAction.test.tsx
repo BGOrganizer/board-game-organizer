@@ -1,5 +1,6 @@
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -11,7 +12,16 @@ const m = vi.hoisted(() => ({
   mutate: vi.fn(),
   user: "owner",
   phase: undefined as "verifying" | undefined,
+  shareChange: undefined as ((selected: boolean) => void) | undefined,
 }));
+vi.mock("@heroui/react", async (original) => {
+  const actual = await original<typeof import("@heroui/react")>();
+  function Switch(props: ComponentProps<typeof actual.Switch>) {
+    m.shareChange = props.onChange;
+    return <actual.Switch {...props} />;
+  }
+  return { ...actual, Switch: Object.assign(Switch, actual.Switch) };
+});
 vi.mock("@board-game-organizer/shared", async (original) => ({
   ...(await original<typeof import("@board-game-organizer/shared")>()),
   useClientMutationDraft: () => (m.phase ? { phase: m.phase } : undefined),
@@ -31,6 +41,7 @@ beforeEach(() => {
   m.busy = false;
   m.failed = false;
   m.phase = undefined;
+  m.shareChange = undefined;
   m.user = "owner";
   m.mutate.mockReset();
 });
@@ -67,6 +78,46 @@ it("shows verification without replay or claiming failed finalization", () => {
   expect(
     within(screen.getByRole("dialog")).queryByRole("button", { name: "Finalize event" }),
   ).toBeNull();
+  expect(m.mutate).not.toHaveBeenCalled();
+});
+it.each([
+  ["PRIVATE", false],
+  ["PUBLIC", true],
+] as const)(
+  "defaults sharing off for PRIVATE Events in %s Groups and sends only the explicit immutable choice",
+  (groupType, share) => {
+    const value = { ...event(), groupId: "group", groupType, visibility: "PRIVATE" as const };
+    renderWithI18n(<EventFinalizeAction event={value} />);
+    fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
+    const choice = screen.getByRole("switch", { name: "Share results with participants' friends" });
+    expect((choice as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText(/This choice cannot be changed after finalization/)).toBeTruthy();
+    if (share) fireEvent.click(choice);
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
+    );
+    expect(m.mutate).toHaveBeenCalledWith(
+      { version: 1, shareResultsWithFriends: share },
+      expect.any(Object),
+    );
+  },
+);
+it("drops a late sharing toggle after cancellation, and never offers private sharing on a PUBLIC Event", () => {
+  const value = {
+    ...event(),
+    groupId: "group",
+    groupType: "PUBLIC" as const,
+    visibility: "PRIVATE" as const,
+  };
+  const view = renderWithI18n(<EventFinalizeAction event={value} />);
+  fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
+  const late = m.shareChange!;
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+  act(() => late(true));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  view.rerender(<EventFinalizeAction event={{ ...value, visibility: "PUBLIC" }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
+  expect(screen.queryByRole("switch")).toBeNull();
   expect(m.mutate).not.toHaveBeenCalled();
 });
 it("allows cancellation without any write", () => {

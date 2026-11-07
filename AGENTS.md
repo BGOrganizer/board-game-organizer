@@ -658,10 +658,14 @@ platform-specific page/search/filter patterns.
 Main Events has Registered / Available top tabs (Iscritti / Disponibili). Registered contains active own Table registrations
 (accepted, invitations or requests) and demonstrations; administration alone does not qualify.
 Available contains non-participating Events of accepted Group members/creators and own admin-only
-standalone Events. Public non-members and pending Group memberships/invitations never grant participation or main-list
-eligibility. Authenticated non-members may read approved PUBLIC Group Event/Table details in explicit
-read-only mode; membership/write guards, bans, blocks, privileged rosters and Group-wide rankings remain
-unchanged. PRIVATE Group activities are absent from Profile and Community feeds, even for members. Main Tables has one combined source-paged list without inner tabs: explicit active
+standalone Events. Reading public details or pending Group membership alone grants no participation
+or main-list eligibility. Authenticated outsiders may explicitly SELF-enroll in approved PUBLIC Events,
+including accepted queues, without joining the Group; their own enrollment qualifies registered Event/
+Table lists. PRIVATE Event visibility inside PUBLIC Groups retains all PUBLIC Group scheduling rules.
+Bans, blocks, privileged emails and Group-wide ranking guards remain. Private activities stay absent
+except immutable opt-in final played/milestone sharing with current friends of frozen players (ND
+included, admin-only/queue-only friends excluded), with no Group information. Follow the linked unified
+contract for exact access/projection rules. Main Tables has one combined source-paged list without inner tabs: explicit active
 participation, seated/frozen players, demonstrators, pending invitations/requests and accepted queue
 places. Admin-only Tables are absent, including after confirmation. Missing cached position does
 not hide explicit participation or prove a seat; canonical position and frozen-roster guards remain.

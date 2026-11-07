@@ -5,6 +5,7 @@ import type {
   JoinTableInput,
 } from "@board-game-organizer/schemas";
 import {
+  bggPickerQuerySchema,
   groupRecordMemberRoles,
   groupRecordSchema,
   registerMatchResultsSchema,
@@ -27,6 +28,7 @@ import {
 } from "../../src/app/lib/events/event-records.repository";
 import { EventsRepository } from "../../src/app/lib/events/events.repository";
 import { EventsService } from "../../src/app/lib/events/events.service";
+import { bggPickerPage } from "../../src/app/lib/games/bgg-picker";
 import { BoardGamesRepository } from "../../src/app/lib/games/boardGames.repository";
 import { GroupRecordsRepository } from "../../src/app/lib/groups/group-records.repository";
 import { MatchService } from "../../src/app/lib/matches/match.service";
@@ -38,6 +40,8 @@ import { OrganizationAssetsRepository } from "../../src/app/lib/organizations/or
 import { OrganizationAssetsService } from "../../src/app/lib/organizations/organization-assets.service";
 import { OrganizationsRepository } from "../../src/app/lib/organizations/organizations.repository";
 import { OrganizationsService } from "../../src/app/lib/organizations/organizations.service";
+import { ProfileService } from "../../src/app/lib/profile/profile.service";
+import { ProfileActivitiesRepository } from "../../src/app/lib/profile/profile-activities.repository";
 import { RatingsRepository } from "../../src/app/lib/ratings/ratings.repository";
 import { UsersRepository } from "../../src/app/lib/users/users.repository";
 
@@ -1813,6 +1817,335 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     }
     return group;
   }
+  it("event access expansion: source-deduplicates accepted participant collection unions before paging, including queue but not pending invites", async () => {
+    const group = await privateGroup(),
+      event = await transaction((s) => s.plannedEventService.create(OWNER, plannedInput(group.id)));
+    for (const user of [GUEST, OTHER, OWNER]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    const at = new Date().toISOString();
+    await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).insertOne({
+      id: randomUUID(),
+      eventId: event.id,
+      tableId,
+      userId: DEMO,
+      invitedBy: OWNER,
+      kind: "INVITATION",
+      status: "PENDING",
+      priorityAt: at,
+      sequence: 4,
+      version: 1,
+      gameVotes: {},
+      createdAt: at,
+      updatedAt: at,
+    });
+    for (const [userId, ids] of [
+      [OWNER, [1, 2]],
+      [GUEST, [1, 3]],
+      [OTHER, [3, 4]],
+      [DEMO, [5]],
+    ] as const) {
+      await db
+        .collection(COLLECTIONS.BGG_ACCOUNTS)
+        .insertOne({ userId, active: { snapshot: `active-${userId}` } });
+      for (const gameId of ids)
+        await db.collection(COLLECTIONS.BGG_COLLECTION_GAMES).insertOne({
+          userId,
+          snapshot: `active-${userId}`,
+          gameId,
+          name: ["", "Alpha", "Beta", "Gamma", "Delta", "Pending-only"][gameId],
+          isExpansion: false,
+          subtype: "boardgame",
+          year: 2020,
+          imageUrl: null,
+        });
+    }
+    for (let id = 1; id <= 6; id++)
+      await db.collection(COLLECTIONS.BOARD_GAMES).updateOne(
+        { id },
+        {
+          $set: {
+            name: ["", "Alpha", "Beta", "Gamma", "Delta", "Pending-only", "Catalog-only"][id],
+            isExpansion: false,
+            image: null,
+            imageCheckedAt: at,
+            minPlayMinutes: 60,
+            maxPlayMinutes: 60,
+            durationCheckedAt: at,
+            minPlayers: 2,
+            maxPlayers: 4,
+            playerCountsCheckedAt: at,
+          },
+        },
+        { upsert: true },
+      );
+    const input = bggPickerQuerySchema.parse({
+      participants: "1",
+      participantEventId: event.id,
+      participantTableId: tableId,
+      limit: 1,
+    });
+    const found: number[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await bggPickerPage(db, OWNER, { ...input, cursor });
+      expect(page.items.every((game) => game.source === "collection")).toBe(true);
+      found.push(...page.items.map((game) => game.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(found).toEqual([1, 2, 4, 3]);
+    const first = await bggPickerPage(db, OWNER, input);
+    expect(
+      (
+        await bggPickerPage(db, OWNER, bggPickerQuerySchema.parse({ collection: "1", limit: 50 }))
+      ).items.map((game) => game.id),
+    ).toEqual([1, 2]);
+    expect(
+      (await bggPickerPage(db, OWNER, { ...input, collection: "1", limit: 50 })).items.map(
+        (game) => game.id,
+      ),
+    ).toEqual(found);
+    expect(
+      (await bggPickerPage(db, OWNER, bggPickerQuerySchema.parse({ query: "Catalog" }))).items.map(
+        (game) => game.id,
+      ),
+    ).toEqual([6]);
+    await db
+      .collection(COLLECTIONS.BGG_ACCOUNTS)
+      .updateOne({ userId: GUEST }, { $set: { "active.snapshot": "new-publication" } });
+    await expect(
+      bggPickerPage(db, OWNER, { ...input, cursor: first.nextCursor! }),
+    ).rejects.toMatchObject({ code: "BGG_PICKER_CHANGED" });
+    await db
+      .collection(COLLECTIONS.BLOCKS)
+      .insertOne({ fromUserId: OWNER, toUserId: OTHER, createdAt: at });
+    expect(
+      (await bggPickerPage(db, OWNER, { ...input, limit: 50 })).items.map((game) => game.id),
+    ).toEqual([1, 2]);
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId: group.id, userId: GUEST }, { $set: { role: "MODERATOR" } });
+    await bggPickerPage(db, GUEST, input);
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId: group.id, userId: GUEST }, { $set: { role: "MEMBER" } });
+    await expect(bggPickerPage(db, GUEST, input)).rejects.toMatchObject({
+      code: "EVENT_ADMIN_REQUIRED",
+    });
+  });
+  it("event access expansion: public outsider enrollment reaches registered Event/Table source pages without Group membership, private visibility keeps public scheduling", async () => {
+    const groupId = randomUUID(),
+      at = new Date().toISOString();
+    await db.collection(COLLECTIONS.GROUPS).insertOne({
+      id: groupId,
+      type: "PUBLIC",
+      adminUserId: OWNER,
+      version: 1,
+      createdAt: at,
+      updatedAt: at,
+      approved: { name: "Public club", location, logoAssetId: randomUUID() },
+    });
+    const input = {
+      ...plannedInput(groupId),
+      visibility: "PUBLIC" as const,
+      endsAt: "2030-06-03T21:00:00.000Z",
+      bookingClosesAt: "2030-06-02T10:00:00.000Z",
+    };
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OUTSIDER, DEMO, GUEST]) {
+      const choices = await participation(event.id, tableId);
+      expect(
+        await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices)),
+      ).toMatchObject({ status: "ACCEPTED", kind: "SELF" });
+      expect(await services().groupRecords.membership(groupId, user)).toBeNull();
+      expect(
+        (await services().plannedEventService.list(user, { limit: 1, section: "mine" })).items.map(
+          (row) => row.id,
+        ),
+      ).toEqual([event.id]);
+      expect(
+        (await services().plannedEventService.personalTables(user, { limit: 1 })).items.map(
+          (row) => row.id,
+        ),
+      ).toEqual([tableId]);
+    }
+    const version = (await services().eventRecords.find(event.id))!.version;
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.update(OWNER, event.id, {
+          ...input,
+          visibility: "PRIVATE",
+          version,
+          tables: [],
+          removedTableIds: [],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "EVENT_VISIBILITY_HAS_NONMEMBERS" });
+    await transaction((s) =>
+      s.plannedEventService.transition(OWNER, event.id, { version, action: "confirm" }),
+    );
+    expect((await services().eventRecords.table(tableId))?.confirmed?.playerIds).toEqual([
+      OUTSIDER,
+      DEMO,
+    ]);
+    await db
+      .collection(COLLECTIONS.GROUP_BANS)
+      .insertOne({ groupId, userId: OUTSIDER, until: null });
+    expect(
+      (await services().plannedEventService.list(OUTSIDER, { limit: 1, section: "mine" })).items,
+    ).toEqual([]);
+    expect(
+      (await services().plannedEventService.personalTables(OUTSIDER, { limit: 1 })).items,
+    ).toEqual([]);
+    await expect(services().plannedEventService.detail(OUTSIDER, event.id)).rejects.toMatchObject({
+      code: "GROUP_BANNED",
+    });
+    const privateInput = {
+      ...input,
+      visibility: "PRIVATE" as const,
+      tables: [{ ...input.tables[0], id: randomUUID() }],
+    };
+    const hidden = await transaction((s) => s.plannedEventService.create(OWNER, privateInput));
+    await expect(services().plannedEventService.detail(GUEST, hidden.id)).rejects.toMatchObject({
+      code: "GROUP_MEMBER_REQUIRED",
+    });
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.create(OWNER, {
+          ...privateInput,
+          dates: [...input.dates, { id: randomUUID(), day: "2030-06-04" }],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "EVENT_FIXED_SCHEDULE_REQUIRED" });
+  });
+  it("event access expansion: atomically shares final physical results with ND-player friends, never admin/queue/follower-only grants or Group information", async () => {
+    const group = await privateGroup();
+    await transaction((s) => s.relationships.becomeFriends(OWNER, DEMO));
+    const invitation = await transaction((s) =>
+      s.unifiedGroupService.invite(OWNER, group.id, DEMO),
+    );
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(DEMO, group.id, DEMO, {
+        action: "accept",
+        version: invitation.version,
+      }),
+    );
+    const input = plannedInput(group.id);
+    input.tables[0].maxPlayers = 3;
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [GUEST, OTHER, DEMO, OWNER]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    const frozen = await transaction(async (s) =>
+      s.plannedEventService.transition(OWNER, event.id, {
+        version: (await s.eventRecords.find(event.id))!.version,
+        action: "confirm",
+      }),
+    );
+    expect((await services().eventRecords.table(tableId))?.confirmed?.playerIds).toEqual([
+      GUEST,
+      OTHER,
+      DEMO,
+    ]);
+    const saved = await transaction((s) =>
+      s.plannedEventService.saveResult(OWNER, event.id, tableId, {
+        version: frozen.version,
+        lowerWins: false,
+        entries: [
+          { userId: GUEST, score: "3" },
+          { userId: OTHER, score: "2" },
+          { userId: DEMO, score: null },
+        ],
+        tieBreaks: [],
+      }),
+    );
+    await expect(
+      transaction(async (s) => {
+        await s.plannedEventService.finalize(OWNER, event.id, {
+          version: saved.event.version,
+          shareResultsWithFriends: true,
+        });
+        throw new Error("ROLLBACK_SHARING");
+      }),
+    ).rejects.toThrow("ROLLBACK_SHARING");
+    expect((await services().eventRecords.find(event.id))?.shareResultsWithFriends).not.toBe(true);
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(0);
+    expect(
+      await db.collection(COLLECTIONS.PROFILE_ACTIVITIES).countDocuments({ kind: "played" }),
+    ).toBe(0);
+    const done = await transaction((s) =>
+      s.plannedEventService.finalize(OWNER, event.id, {
+        version: saved.event.version,
+        shareResultsWithFriends: true,
+      }),
+    );
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(6);
+    await transaction((s) => s.relationships.follow(OUTSIDER, GUEST));
+    await expect(services().plannedEventService.detail(OUTSIDER, event.id)).rejects.toMatchObject({
+      status: 403,
+    });
+    await transaction((s) => s.relationships.becomeFriends(OUTSIDER, OWNER));
+    await expect(services().plannedEventService.detail(OUTSIDER, event.id)).rejects.toMatchObject({
+      status: 403,
+    });
+    await transaction((s) => s.relationships.becomeFriends(OUTSIDER, DEMO));
+    const view = await services().plannedEventService.detail(OUTSIDER, event.id);
+    expect(view).toMatchObject({
+      sharedResultsOnly: true,
+      groupId: null,
+      groupName: null,
+      groupType: null,
+      canRegister: false,
+      canManage: false,
+    });
+    expect(JSON.stringify(view)).not.toContain(group.id);
+    const table = await services().plannedEventService.tableDetail(OUTSIDER, event.id, tableId);
+    expect(table.results?.entries.find((row) => row.userId === DEMO)?.score).toBeNull();
+    expect(table.resultProfiles?.every((profile) => profile.email === null)).toBe(true);
+    expect(JSON.stringify(table)).not.toContain(group.id);
+    expect(table).not.toHaveProperty("groupRatingChanges");
+    const activities = new ProfileActivitiesRepository(db),
+      profile = new ProfileService(db);
+    for (let i = 0; i < 60; i++)
+      await activities.record({
+        source: `non-result:${i}`,
+        userId: GUEST,
+        kind: "event_join",
+        eventId: event.id,
+        groupId: group.id,
+        occurredAt: new Date(Date.now() + 1000 * (i + 1)).toISOString(),
+      });
+    const feed = await profile.feed(OUTSIDER, GUEST, { limit: 10 });
+    expect(feed.items.filter((row) => row.kind === "played")).toHaveLength(1);
+    expect(
+      feed.items.some(
+        (row) =>
+          row.kind === "event_join" || row.kind === "table_join" || row.kind === "group_join",
+      ),
+    ).toBe(false);
+    expect(feed.nextCursor).toBeNull();
+    expect(JSON.stringify(feed)).not.toContain(group.id);
+    expect(
+      (
+        await profile.networkFeed(OUTSIDER, { network: "following", kind: "played", limit: 10 })
+      ).items.map((row) => row.author.id),
+    ).toEqual([GUEST]);
+    await transaction((s) => s.relationships.unfriend(OUTSIDER, DEMO));
+    await expect(services().plannedEventService.detail(OUTSIDER, event.id)).rejects.toMatchObject({
+      status: 403,
+    });
+    expect((await profile.feed(OUTSIDER, GUEST, { kind: "played", limit: 1 })).items).toEqual([]);
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.finalize(OWNER, event.id, {
+          version: done.version,
+          shareResultsWithFriends: false,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "EVENT_NOT_CONFIRMED" });
+  });
   it("source-pages private participant proposals, isolates authors and atomically cascades Event requests", async () => {
     const group = await privateGroup(),
       input = plannedInput(group.id);
@@ -1899,7 +2232,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       input = plannedInput(group.id);
     input.tables[0].allowParticipantGames = true;
     const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
-    for (const user of [OWNER, GUEST])
+    for (const user of [OTHER, GUEST])
       await transaction(async (s) =>
         s.plannedEventService.join(user, event.id, tableId, await participation(event.id, tableId)),
       );
@@ -1915,7 +2248,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     );
     const version = (await services().eventRecords.find(event.id))!.version;
     for (let i = 0; i < 6; i++)
-      for (const user of [OWNER, GUEST])
+      for (const user of [OTHER, GUEST])
         await transaction((s) =>
           s.plannedEventService.submitProposal(user, event.id, {
             eventVersion: version,

@@ -528,6 +528,17 @@ export function useContacts(
       if (operation?.signal.aborted) return;
       void queryClient.invalidateQueries({ queryKey: ["contacts"], refetchType: "none" });
       void queryClient.invalidateQueries({ queryKey: ["profile", apiUrl, currentUserId] });
+      // Friendship/block changes revalidate only the new friend-results audience, not unrelated Events.
+      void queryClient.invalidateQueries({
+        queryKey: ["events", apiUrl, currentUserId],
+        predicate: ({ state }) =>
+          Boolean(
+            state.data &&
+              typeof state.data === "object" &&
+              "sharedResultsOnly" in state.data &&
+              state.data.sharedResultsOnly === true,
+          ),
+      });
       // A cancelled first page has no data to update optimistically. Resume it,
       // without refetching loaded lists or another API/user's private cache.
       void queryClient.refetchQueries({

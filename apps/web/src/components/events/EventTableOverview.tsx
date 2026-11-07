@@ -201,28 +201,30 @@ export function EventTableOverview({
           />
         ) : null}
       </section>
-      <EventTableSeats
-        key={table.id}
-        table={table}
-        hasJoinedEvent={
-          event.data?.myRegistrations
-            ? hasOtherAcceptedTable(event.data.myRegistrations, table.id)
-            : undefined
-        }
-        onRemove={(row, own) =>
-          setConfirm({
-            registrationId: row.id,
-            version: row.version,
-            action: own ? "cancel" : "remove",
-            person: {
-              userId: row.userId,
-              name: row.name,
-              username: row.username,
-              avatarUrl: row.avatarUrl,
-            },
-          })
-        }
-      />
+      {!table.sharedResultsOnly ? (
+        <EventTableSeats
+          key={table.id}
+          table={table}
+          hasJoinedEvent={
+            event.data?.myRegistrations
+              ? hasOtherAcceptedTable(event.data.myRegistrations, table.id)
+              : undefined
+          }
+          onRemove={(row, own) =>
+            setConfirm({
+              registrationId: row.id,
+              version: row.version,
+              action: own ? "cancel" : "remove",
+              person: {
+                userId: row.userId,
+                name: row.name,
+                username: row.username,
+                avatarUrl: row.avatarUrl,
+              },
+            })
+          }
+        />
+      ) : null}
       {confirm ? (
         <ContactConfirmDialog
           title={confirm.action === "cancel" ? t`Leave table` : t`Remove player`}

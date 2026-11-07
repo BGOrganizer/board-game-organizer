@@ -5,8 +5,10 @@ import {
   type PlannedEventResponse,
   type PlannedTableResponse,
 } from "@board-game-organizer/schemas";
+import { gamePlayerBounds } from "../games/gamePlayerBounds";
 import { eventLocalDateTime, eventLocalToIso } from "./eventForm";
 import { eventDateWall } from "./eventRecordPolicy";
+import { eventRecordVisibility } from "./eventRecordVisibility";
 import { publicEventEndIsValid } from "./eventSchedule";
 export type EventTableDraft = {
   key: string;
@@ -24,6 +26,7 @@ export type EventTableDraft = {
 };
 export type EventRecordDraft = {
   name: string;
+  visibility?: "PRIVATE" | "PUBLIC";
   groupId: string | null;
   timeZone: string;
   startTime: string;
@@ -85,6 +88,7 @@ export function eventDraft(data?: PlannedEventResponse, groupId?: string): Event
   });
   return {
     name: data?.name ?? "",
+    visibility: data ? eventRecordVisibility(data, data.groupType) : undefined,
     groupId: data?.groupId ?? groupId ?? null,
     timeZone: zone,
     startTime: data?.startTime ?? "20:00",
@@ -110,6 +114,7 @@ function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
   const zone = draft.locations[0]?.timeZone ?? "";
   return {
     name: draft.name,
+    visibility: eventRecordVisibility(draft, publicGroup ? "PUBLIC" : "PRIVATE"),
     timeZone: zone,
     startTime: draft.startTime,
     allowParticipantDates: Boolean(draft.groupId && !publicGroup && draft.allowParticipantDates),
@@ -164,6 +169,11 @@ function draftPolicyErrors(
       if (!location.timeZone || !draftIso(eventDateWall(draft, date), location.timeZone))
         errors.push(["dates"]);
   if (zone && day && !start) errors.push(["startTime"]);
+  draft.tables.forEach((row, index) => {
+    const bounds = gamePlayerBounds(row.games);
+    if (bounds && row.minPlayers < bounds.minPlayers) errors.push(["tables", index, "minPlayers"]);
+    if (bounds && row.maxPlayers > bounds.maxPlayers) errors.push(["tables", index, "maxPlayers"]);
+  });
   if (!publicGroup) return errors;
   const end = zone ? draftIso(draft.endsWall, zone) : undefined;
   const cutoff = zone ? draftIso(draft.cutoffWall, zone) : undefined;

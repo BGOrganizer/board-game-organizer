@@ -168,8 +168,8 @@ it("initializes public start tomorrow without removal or venue defaults and boun
   expect(screen.queryByText("Club venue")).toBeNull();
   expect(screen.getByRole("button", { name: "Choose a location" })).not.toBeNull();
   fireEvent.change(start, { target: { value: "2030-06-03T20:00" } });
-  const end = screen.getByLabelText("End Date and Time") as HTMLInputElement,
-    cutoff = screen.getByLabelText("Registration Deadline Date and Time") as HTMLInputElement;
+  const end = screen.getByLabelText(/^End Date and Time \*$/) as HTMLInputElement,
+    cutoff = screen.getByLabelText(/^Registration Deadline Date and Time \*$/) as HTMLInputElement;
   expect(end.type).toBe("datetime-local");
   expect(cutoff.type).toBe("datetime-local");
   expect(end.min).toBe("2030-06-03T20:01");
@@ -197,7 +197,7 @@ it("initializes public start tomorrow without removal or venue defaults and boun
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
   const locatedCutoff = screen.getByLabelText(
-    "Registration Deadline Date and Time",
+    /^Registration Deadline Date and Time \*$/,
   ) as HTMLInputElement;
   expect(locatedCutoff.min).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
   fireEvent.change(locatedCutoff, { target: { value: "2000-01-01T00:00" } });

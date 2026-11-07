@@ -119,14 +119,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
   document.getElementById("page-header-actions")?.remove();
 });
-it("renders a public observer without administration, voting or registration actions even when an old administrator identity remains", async () => {
+it("renders a public observer without administration, voting or implicit enrollment even when an old administrator identity remains", async () => {
   event = {
     ...event,
     readOnly: true,
     role: "viewer",
     groupType: "PUBLIC",
+    visibility: "PUBLIC",
     canEdit: false,
-    canRegister: false,
+    canRegister: true,
     canInvite: false,
     canVote: false,
     canConfirm: false,
@@ -136,13 +137,13 @@ it("renders a public observer without administration, voting or registration act
   tables = tables.map((table) => ({
     ...table,
     readOnly: true,
-    canRegister: false,
+    canRegister: true,
     canInvite: false,
     canRespond: false,
     canLeave: false,
   }));
   const client = mount();
-  await screen.findByText("Public read-only view. Join the group to participate.");
+  await screen.findByText("Public event. Group membership is not required to participate.");
   expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Delete event" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
@@ -152,8 +153,45 @@ it("renders a public observer without administration, voting or registration act
       .every(([, init]) => !init?.method || init.method === "GET"),
   ).toBe(true);
   fireEvent.click(screen.getByRole("tab", { name: "Participants" }));
-  expect(screen.getByText("Public read-only view. Join the group to participate.")).toBeTruthy();
+  expect(
+    screen.getByText("Public event. Group membership is not required to participate."),
+  ).toBeTruthy();
   expect(fetcher.mock.calls.some(([url]) => url.includes("/participants"))).toBe(false);
+  client.clear();
+});
+it("hides Group/Participants/admin destinations for shared final results and resets a no-longer-authorized selected tab", async () => {
+  const client = mount();
+  await screen.findByRole("tab", { name: "Participants" });
+  fireEvent.click(screen.getByRole("tab", { name: "Participants" }));
+  await act(async () => {
+    event = {
+      ...event,
+      status: "TERMINATED",
+      sharedResultsOnly: true,
+      readOnly: true,
+      role: "viewer",
+      groupId: null,
+      groupName: null,
+      groupType: null,
+      canManage: false,
+      canEdit: false,
+      canRegister: false,
+      canInvite: false,
+      canConfirm: false,
+      canFinalize: false,
+    };
+    client.setQueryData(
+      eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+      event,
+    );
+  });
+  expect(
+    await screen.findByText("Shared finalized results. Group details are hidden."),
+  ).toBeTruthy();
+  expect(screen.queryByRole("tab", { name: "Participants" })).toBeNull();
+  expect(screen.getByRole("tab", { name: "Details" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Finalize event" })).toBeNull();
   client.clear();
 });
 it("opens the participant tab without inventing owner attendance and keeps editing only on Details", async () => {

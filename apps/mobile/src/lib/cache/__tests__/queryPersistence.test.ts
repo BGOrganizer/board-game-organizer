@@ -59,9 +59,11 @@ describe("account-owned canonical persistence", () => {
     "bgg-picker",
     "bgg-collection",
   ])("allows only the current API/user for %s", (family) => {
-    expect(ownsPersistedQuery([family, owner.apiUrl, owner.userId], owner)).toBe(true);
-    expect(ownsPersistedQuery([family, owner.apiUrl, "user-b"], owner)).toBe(false);
-    expect(ownsPersistedQuery([family, "other-api", owner.userId], owner)).toBe(false);
+    const suffix =
+      family === "bgg-picker" ? ["", true, false, null, null, "sources-v2", false, null] : [];
+    expect(ownsPersistedQuery([family, owner.apiUrl, owner.userId, ...suffix], owner)).toBe(true);
+    expect(ownsPersistedQuery([family, owner.apiUrl, "user-b", ...suffix], owner)).toBe(false);
+    expect(ownsPersistedQuery([family, "other-api", owner.userId, ...suffix], owner)).toBe(false);
   });
   it("round-trips canonical owned collection pages and purges their persisted payload on removal", () => {
     const f = fixture();

@@ -71,6 +71,7 @@ export function GroupLogoPicker({
   return (
     <div className="space-y-2">
       <SearchHelpLabel
+        required={required}
         label={t`Group logo`}
         helpTitle={t`Field help`}
         htmlFor="group-logo"

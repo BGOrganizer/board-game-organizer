@@ -57,6 +57,7 @@ export function EventScheduleFields({
         isInvalid={fieldError("name")}
       >
         <SearchHelpLabel
+          required
           label={t`Event name`}
           helpTitle={fieldHelp}
           help={t`Choose a recognizable event name between 5 and 120 characters.`}
@@ -97,8 +98,27 @@ export function EventScheduleFields({
           error("groupId", t`An approved group and its administrator are required.`)
         )}
       </section>
+      {form.publicGroup ? (
+        <div className="space-y-2">
+          <Switch
+            aria-label={t`Public event`}
+            isSelected={draft.visibility !== "PRIVATE"}
+            isDisabled={busy}
+            onChange={(selected) => form.patch({ visibility: selected ? "PUBLIC" : "PRIVATE" })}
+          >
+            <Switch.Content>
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+              {t`Public event`}
+            </Switch.Content>
+          </Switch>
+          <p className="text-sm text-muted">{t`Private events are visible only to accepted group members. Public-group scheduling rules still apply.`}</p>
+        </div>
+      ) : null}
       <section className="space-y-2">
         <SearchHelpLabel
+          required
           htmlFor={form.publicGroup ? startFieldId : undefined}
           label={
             form.publicGroup
@@ -212,6 +232,7 @@ export function EventScheduleFields({
             isInvalid={fieldError("endsAt")}
           >
             <SearchHelpLabel
+              required
               label={t`End Date and Time`}
               helpTitle={fieldHelp}
               help={t`Choose a later time on the same day as the event start. All public tables must finish by this time.`}
@@ -241,6 +262,7 @@ export function EventScheduleFields({
             isInvalid={fieldError("bookingClosesAt")}
           >
             <SearchHelpLabel
+              required
               label={t`Registration Deadline Date and Time`}
               helpTitle={fieldHelp}
               help={t`Registration closes on a day before the event starts. A new event needs a future deadline.`}
@@ -258,6 +280,7 @@ export function EventScheduleFields({
       ) : null}
       <section className="space-y-2">
         <SearchHelpLabel
+          required
           label={t`Location`}
           helpTitle={fieldHelp}
           help={

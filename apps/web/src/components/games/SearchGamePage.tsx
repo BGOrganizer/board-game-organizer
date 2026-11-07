@@ -1,10 +1,17 @@
 "use client";
 
-import type { BggPickerItem } from "@board-game-organizer/schemas";
-import { useBggAccount, useBggPicker } from "@board-game-organizer/shared";
+import type { BggPickerItem, BggSearchItem } from "@board-game-organizer/schemas";
+import {
+  type BggPickerTableScope,
+  bggPickerQuery,
+  bggPickerUnavailable,
+  useBggAccount,
+  useBggPicker,
+} from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Gamepad2, LibraryBig, Plus, Search } from "lucide-react";
+import { hashKey } from "@tanstack/react-query";
+import { ArrowLeft, Gamepad2, LibraryBig, Plus, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
@@ -20,16 +27,8 @@ interface Props {
   protectionBypass?: string | null;
   excludeIds?: number[];
   proposalScope?: { eventId: string; tableId: string };
-  onSelect: (game: {
-    id: number;
-    name: string;
-    imageUrl: string | null;
-    year: number | null;
-    average?: number | null;
-    rank?: number | null;
-    minPlayMinutes?: number | null;
-    maxPlayMinutes?: number | null;
-  }) => void;
+  tableScope?: BggPickerTableScope;
+  onSelect: (game: BggSearchItem) => void;
   onClose: () => void;
 }
 
@@ -41,14 +40,15 @@ export function SearchGamePage({
   protectionBypass,
   excludeIds = [],
   proposalScope,
+  tableScope,
   onSelect,
   onClose,
 }: Props) {
   const { t } = useLingui();
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [search, setSearch] = useState(true);
   const [collection, setCollection] = useState(true);
+  const [participantSource, setParticipants] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const selected = useRef(false);
   const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds]);
@@ -58,7 +58,9 @@ export function SearchGamePage({
   );
   const account = useBggAccount({ apiUrl, getToken: freshToken, userId, protectionBypass });
   const hasCollection = Boolean(account.account.data?.active);
-  const picker = useBggPicker({
+  const participants = participantSource && Boolean(tableScope);
+  const search = !(collection && hasCollection) && !participants;
+  const pickerOptions = {
     apiUrl,
     getToken: freshToken,
     userId,
@@ -68,22 +70,34 @@ export function SearchGamePage({
     snapshot: account.account.data?.active?.snapshot,
     protectionBypass,
     proposalScope,
-  });
+    participants,
+    tableScope,
+  };
+  const picker = useBggPicker(pickerOptions);
+  const denied = bggPickerUnavailable(picker.error);
+  const scope = hashKey([
+    ...bggPickerQuery(pickerOptions).queryKey,
+    picker.data?.pages[0]?.sourceEpoch,
+    denied,
+  ]);
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const requesting = useRef<string | null>(null);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 300);
     return () => clearTimeout(timer);
   }, [query]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: page index resets when filters change.
-  useEffect(() => setPageIndex(0), [debounced, search, collection, hasCollection]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: presentation resets for a changed source epoch.
+  useEffect(() => setPageIndex(0), [scope]);
 
   const select = (item: BggPickerItem) => {
-    if (selected.current || excludeSet.has(item.id)) return;
+    if (scopeRef.current !== scope || denied || selected.current || excludeSet.has(item.id)) return;
     selected.current = true;
     // Use supplied catalog metadata; missing durations keep the existing manual fallback.
     onSelect(item);
   };
 
-  const page = picker.data?.pages[pageIndex];
+  const page = denied ? undefined : picker.data?.pages[pageIndex];
   const items = (page?.items ?? []).filter((item) => !excludeSet.has(item.id));
   return (
     <div className="mx-auto w-full max-w-5xl pb-8">
@@ -100,24 +114,32 @@ export function SearchGamePage({
         label={
           <SearchHelpLabel
             label={t`Search board games`}
-            help={t`Type at least 4 characters to search`}
+            help={t`Choose collections to filter, or turn all collection filters off to search the catalog (at least 4 characters).`}
           />
         }
       />
       <div className="mt-3">
         <FilterChips
           options={[
-            { key: "search", label: t`Search`, icon: Search },
             ...(hasCollection
               ? [{ key: "collection" as const, label: t`Collection`, icon: LibraryBig }]
               : []),
+            ...(tableScope
+              ? [
+                  {
+                    key: "participants" as const,
+                    label: t`Participants' collections`,
+                    icon: UsersRound,
+                  },
+                ]
+              : []),
           ]}
           selected={[
-            ...(search ? ["search" as const] : []),
-            ...(collection ? ["collection" as const] : []),
+            ...(collection && hasCollection ? ["collection" as const] : []),
+            ...(participants ? ["participants" as const] : []),
           ]}
           onToggle={(key) => {
-            if (key === "search") setSearch((value) => !value);
+            if (key === "participants") setParticipants((value) => !value);
             else setCollection((value) => !value);
           }}
         />
@@ -134,7 +156,8 @@ export function SearchGamePage({
           {t`Search failed. Retry`}
         </Button>
       ) : null}
-      {picker.isPending && ((search && debounced.length >= 4) || (collection && hasCollection)) ? (
+      {picker.isPending &&
+      ((search && debounced.length >= 4) || (collection && hasCollection) || participants) ? (
         <div className="mt-3 space-y-2">
           <Skeleton className="h-12 w-full rounded-lg" />
           <Skeleton className="h-12 w-full rounded-lg" />
@@ -143,7 +166,7 @@ export function SearchGamePage({
       {!picker.isPending &&
       !picker.isError &&
       items.length === 0 &&
-      (debounced.length >= 4 || (collection && hasCollection)) ? (
+      (debounced.length >= 4 || (collection && hasCollection) || participants) ? (
         <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No games found`}</EmptyList>
       ) : null}
       <div className="mt-3 space-y-2">
@@ -186,8 +209,17 @@ export function SearchGamePage({
               picker.isFetchingNextPage
             }
             onPress={async () => {
-              if (pageIndex + 1 === picker.data.pages.length) await picker.fetchNextPage();
-              setPageIndex((index) => index + 1);
+              if (requesting.current === scope || picker.isFetchingNextPage) return;
+              requesting.current = scope;
+              try {
+                if (pageIndex + 1 === picker.data.pages.length) {
+                  const result = await picker.fetchNextPage();
+                  if (result?.isError) return;
+                }
+                if (scopeRef.current === scope) setPageIndex(pageIndex + 1);
+              } finally {
+                if (requesting.current === scope) requesting.current = null;
+              }
             }}
           >
             {t`Next`}

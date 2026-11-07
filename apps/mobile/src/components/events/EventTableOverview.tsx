@@ -21,6 +21,7 @@ import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
+import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { GameListRow } from "@/components/games/GameListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
@@ -244,29 +245,33 @@ export function EventTableOverview({
   return (
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: table.name }} />
-      <EventTableSeats
-        key={table.id}
-        table={table}
-        hasJoinedEvent={
-          event.data?.myRegistrations
-            ? hasOtherAcceptedTable(event.data.myRegistrations, table.id)
-            : undefined
-        }
-        header={header}
-        onRemove={(row, own) =>
-          setConfirm({
-            registrationId: row.id,
-            version: row.version,
-            action: own ? "cancel" : "remove",
-            person: {
-              userId: row.userId,
-              name: row.name,
-              username: row.username,
-              avatarUrl: row.avatarUrl,
-            },
-          })
-        }
-      />
+      {table.sharedResultsOnly ? (
+        <ScreenScrollView>{header}</ScreenScrollView>
+      ) : (
+        <EventTableSeats
+          key={table.id}
+          table={table}
+          hasJoinedEvent={
+            event.data?.myRegistrations
+              ? hasOtherAcceptedTable(event.data.myRegistrations, table.id)
+              : undefined
+          }
+          header={header}
+          onRemove={(row, own) =>
+            setConfirm({
+              registrationId: row.id,
+              version: row.version,
+              action: own ? "cancel" : "remove",
+              person: {
+                userId: row.userId,
+                name: row.name,
+                username: row.username,
+                avatarUrl: row.avatarUrl,
+              },
+            })
+          }
+        />
+      )}
       {confirm ? (
         <ConfirmDialog
           title={confirm.action === "cancel" ? t("Leave table") : t("Remove player")}

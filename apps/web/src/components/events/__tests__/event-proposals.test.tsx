@@ -85,6 +85,7 @@ const event = {
   myRegistrations: [seat("actor")],
   canVote: true,
 };
+const participantEvent = { ...event, canManage: false, role: "participant" as const };
 const table = {
   ...plannedTable,
   groupId: optionId,
@@ -128,12 +129,15 @@ const scope = {
   mode: "review" as const,
 };
 const clients: QueryClient[] = [];
-function setup() {
+function setup(asParticipant = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
   clients.push(client);
-  client.setQueryData(eventRecordKeys.detail(o, event.id), event);
+  client.setQueryData(
+    eventRecordKeys.detail(o, event.id),
+    asParticipant ? participantEvent : event,
+  );
   client.setQueryData(eventRecordKeys.table(o, event.id, table.id), table);
   client.setQueryData(eventProposalKeys.page(o, scope), page());
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -180,8 +184,8 @@ it("renders date/time icons without zone shifts, verified place labels and the r
   expect(date.querySelector("img")).toBeNull();
   expect(date.querySelector("svg")).toBeTruthy();
 });
-it("submits a date from the inline admin-style chooser, with no intermediate route or invented consent", async () => {
-  const f = setup(),
+it("lets a seated non-manager submit a date with the shared inline chooser, without an intermediate route or invented consent", async () => {
+  const f = setup(true),
     posts: Record<string, unknown>[] = [];
   vi.stubGlobal(
     "fetch",
@@ -199,7 +203,7 @@ it("submits a date from the inline admin-style chooser, with no intermediate rou
   );
   renderWithI18n(
     <QueryClientProvider client={f.client}>
-      <EventProposalSection event={event} kind="date" />
+      <EventProposalSection event={participantEvent} kind="date" />
     </QueryClientProvider>,
   );
   fireEvent.change(screen.getByLabelText("Date and time"), {
@@ -213,7 +217,7 @@ it("submits a date from the inline admin-style chooser, with no intermediate rou
     payload: { kind: "date", day: "2030-06-05", startTime: "21:00" },
   });
   expect(navigation.push).not.toHaveBeenCalled();
-  expect(f.client.getQueryData(eventRecordKeys.detail(o, event.id))).toEqual(event);
+  expect(f.client.getQueryData(eventRecordKeys.detail(o, event.id))).toEqual(participantEvent);
 });
 it("reviews a whole game group once and reconciles all receipts/owned scopes after source readback", async () => {
   const f = setup(),
@@ -390,7 +394,7 @@ it("submits immediately as local intent, never fabricates an API record, then co
   ).toBe(saved.clientRequestId);
 });
 it("retains a verifiably unsaved draft, gives explicit edited retry a fresh correlation, and replaces only that local failed intent", async () => {
-  const f = setup();
+  const f = setup(true);
   let posts = 0;
   const bodies: { clientRequestId: string; payload: unknown }[] = [];
   vi.stubGlobal(
@@ -674,7 +678,7 @@ it("renders real proposal queues, confirms one optimistic decision, and exposes 
 it.each(["date", "game", "location"] as const)(
   "opens %s chooser directly, cancels without a write and submits only final picker selection",
   async (kind) => {
-    const f = setup(),
+    const f = setup(true),
       posts: unknown[] = [];
     vi.stubGlobal(
       "fetch",
@@ -782,7 +786,7 @@ it("edits private category opt-ins through the real wizard and sends all three f
   });
 });
 it("editor keeps picker choice unsaved until explicit send and does not use another Table or unknown category", () => {
-  const f = setup(),
+  const f = setup(true),
     fetch = vi.fn(async () => Response.json(page()));
   vi.stubGlobal("fetch", fetch);
   const h = renderHook(({ kind }) => useEventProposalEditor(o, event.id, kind, table.id), {

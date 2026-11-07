@@ -1,6 +1,8 @@
 import type { BggPickerItem, BggThingResponse } from "@board-game-organizer/schemas";
 import {
+  type BggPickerTableScope,
   bggPickerQuery,
+  bggPickerUnavailable,
   resolveApiUrl,
   useBggAccount,
   useBggPicker,
@@ -13,7 +15,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Gamepad2, LibraryBig, Plus, Search } from "lucide-react-native";
+import { Gamepad2, LibraryBig, Plus, UsersRound } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, View } from "react-native";
 import { HeaderBackButton } from "@/components/common/layout/HeaderBackButton";
@@ -36,9 +38,11 @@ export default function GamePicker({
   onClose,
   excludeIds,
   proposalScope,
+  tableScope,
 }: {
   excludeIds?: readonly number[];
   proposalScope?: { eventId: string; tableId: string };
+  tableScope?: BggPickerTableScope;
   onSelect?: (game: BggThingResponse) => void;
   onClose?: () => void;
 } = {}) {
@@ -55,8 +59,8 @@ export default function GamePicker({
   );
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [search, setSearch] = useState(true);
   const [collection, setCollection] = useState(true);
+  const [participantSource, setParticipants] = useState(false);
   const selected = useRef(false);
   const list = useRef<FlatList<BggPickerItem>>(null);
   const account = useBggAccount({
@@ -66,6 +70,8 @@ export default function GamePicker({
     enabled: isLoaded && isSignedIn,
   });
   const hasCollection = Boolean(account.account.data?.active);
+  const participants = participantSource && Boolean(tableScope);
+  const search = !(collection && hasCollection) && !participants;
   const pickerOptions = {
     apiUrl: apiUrl(),
     getToken,
@@ -75,9 +81,16 @@ export default function GamePicker({
     collection: collection && hasCollection,
     snapshot: account.account.data?.active?.snapshot,
     proposalScope,
+    tableScope,
+    participants,
   };
   const picker = useBggPicker(pickerOptions);
-  const scope = hashKey(bggPickerQuery(pickerOptions).queryKey);
+  const denied = bggPickerUnavailable(picker.error);
+  const scope = hashKey([
+    ...bggPickerQuery(pickerOptions).queryKey,
+    picker.data?.pages[0]?.sourceEpoch,
+    denied,
+  ]);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   useEffect(() => {
@@ -85,7 +98,7 @@ export default function GamePicker({
   }, [scope]);
   const { items, hasCachedMore, hasMore, loadMore, beginScroll, endReached } = useGameListWindow({
     scope,
-    pages: picker.data?.pages,
+    pages: denied ? undefined : picker.data?.pages,
     excludedIds,
     ...picker,
   });
@@ -94,7 +107,7 @@ export default function GamePicker({
     const timer = setTimeout(() => setDebounced(query.trim()), 300);
     return () => clearTimeout(timer);
   }, [query]);
-  const active = (search && debounced.length >= 4) || (collection && hasCollection);
+  const active = (search && debounced.length >= 4) || (collection && hasCollection) || participants;
 
   const select = useCallback(
     (item: BggPickerItem) => {
@@ -155,7 +168,9 @@ export default function GamePicker({
           ) : null}
           <SearchHelpLabel
             label={t("Search board games")}
-            help={t("Type at least 4 characters to search")}
+            help={t(
+              "Choose collections to filter, or turn all collection filters off to search the catalog (at least 4 characters).",
+            )}
           />
           <SearchInput
             value={query}
@@ -166,17 +181,25 @@ export default function GamePicker({
           />
           <FilterChips
             options={[
-              { key: "search", label: t("Search"), icon: Search },
               ...(hasCollection
                 ? [{ key: "collection" as const, label: t("Collection"), icon: LibraryBig }]
                 : []),
+              ...(tableScope
+                ? [
+                    {
+                      key: "participants" as const,
+                      label: t("Participants' collections"),
+                      icon: UsersRound,
+                    },
+                  ]
+                : []),
             ]}
             selected={[
-              ...(search ? ["search" as const] : []),
-              ...(collection ? ["collection" as const] : []),
+              ...(collection && hasCollection ? ["collection" as const] : []),
+              ...(participants ? ["participants" as const] : []),
             ]}
             onToggle={(key) => {
-              if (key === "search") setSearch((value) => !value);
+              if (key === "participants") setParticipants((value) => !value);
               else setCollection((value) => !value);
             }}
           />

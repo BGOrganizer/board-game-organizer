@@ -6,6 +6,7 @@ import {
   decideTableRegistrationSchema,
   editPlannedEventSchema,
   finalizeEventSchema,
+  finalizeSavedEventSchema,
   joinTableSchema,
   plannedTableInputSchema,
   tableRegistrationReceiptSchema,
@@ -44,6 +45,52 @@ const input = {
 };
 const at = "2027-01-01T00:00:00Z";
 describe("unified event request boundaries", () => {
+  it("accepts explicit Event visibility but reserves the optional immutable sharing choice for finalization only", () => {
+    expect(
+      createPlannedEventSchema.parse({ ...input, groupId: other, visibility: "PRIVATE" })
+        .visibility,
+    ).toBe("PRIVATE");
+    expect(
+      createPlannedEventSchema.parse({ ...input, groupId: other, visibility: "PUBLIC" }).visibility,
+    ).toBe("PUBLIC");
+    const { groupId: _group, ...fields } = input;
+    expect(
+      editPlannedEventSchema.parse({
+        ...fields,
+        visibility: "PRIVATE",
+        version: 1,
+        removedTableIds: [],
+      }).visibility,
+    ).toBe("PRIVATE");
+    for (const shareResultsWithFriends of [true, false]) {
+      expect(finalizeSavedEventSchema.parse({ version: 2, shareResultsWithFriends })).toEqual({
+        version: 2,
+        shareResultsWithFriends,
+      });
+      expect(
+        createPlannedEventSchema.safeParse({ ...input, shareResultsWithFriends }).success,
+      ).toBe(false);
+      expect(
+        editPlannedEventSchema.safeParse({
+          ...fields,
+          version: 1,
+          removedTableIds: [],
+          shareResultsWithFriends,
+        }).success,
+      ).toBe(false);
+    }
+    expect(finalizeSavedEventSchema.parse({ version: 1 })).toEqual({ version: 1 });
+    expect(
+      finalizeSavedEventSchema.safeParse({ version: 1, shareResultsWithFriends: "true" }).success,
+    ).toBe(false);
+    expect(
+      changeEventStateSchema.safeParse({
+        version: 1,
+        action: "replan",
+        shareResultsWithFriends: true,
+      }).success,
+    ).toBe(false);
+  });
   it("requires the committed parent epoch on mutation receipts without adding it to stored registration models", () => {
     const registration = {
       id,
