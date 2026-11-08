@@ -4,6 +4,7 @@ import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { GroupArtwork } from "@/components/groups/GroupArtwork";
+import { GroupCard } from "@/components/groups/GroupCard";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
 export function EventGroupLink({ groupId, name }: { groupId: string; name?: string | null }) {
@@ -19,23 +20,34 @@ export function EventGroupLink({ groupId, name }: { groupId: string; name?: stri
   return (
     <section aria-label={t`Group`} className="space-y-2">
       <h2 className="font-semibold">{t`Group`}</h2>
-      <LinkedListCard
-        href={`/groups/${groupId}`}
-        label={`${t`Open group`}: ${label ?? t`Group`}`}
-        artwork={
-          record && record.logo !== undefined ? (
-            <GroupArtwork group={record} status="none" />
+      {record &&
+      typeof record.memberCount === "number" &&
+      typeof record.canViewEvents === "boolean" &&
+      record.logo !== undefined &&
+      (record.type === "PRIVATE" || record.type === "PUBLIC") &&
+      typeof record.role === "string" ? (
+        <GroupCard group={record} />
+      ) : (
+        <LinkedListCard
+          artworkLayout="cover"
+          href={`/groups/${groupId}`}
+          label={`${t`Open group`}: ${label ?? t`Group`}`}
+          artwork={
+            record && record.logo !== undefined ? (
+              <GroupArtwork group={record} status="none" presentation="cover" />
+            ) : (
+              <Skeleton className="absolute inset-0 h-full w-full" />
+            )
+          }
+        >
+          {label ? (
+            <span className="min-w-0 self-center break-words font-medium">{label}</span>
           ) : (
-            <Skeleton className="size-16 shrink-0 rounded-xl" />
-          )
-        }
-      >
-        {label ? (
-          <span className="min-w-0 self-center break-words font-medium">{label}</span>
-        ) : (
-          <Skeleton className="h-4 w-32 rounded" />
-        )}
-      </LinkedListCard>
+            <Skeleton className="h-4 w-32 rounded" />
+          )}
+          <Skeleton className="h-4 w-28 rounded" />
+        </LinkedListCard>
+      )}
       {group.isError ? (
         <div role="alert">
           <p className="text-danger">{t`Could not load group`}</p>

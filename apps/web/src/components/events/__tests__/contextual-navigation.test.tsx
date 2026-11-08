@@ -98,6 +98,12 @@ it.each([undefined, optionId, "different-group"])(
       expect(link.getAttribute("href")).toBe(`/groups/${s.group.id}`);
       expect(link.closest(".card")?.querySelector("img")?.getAttribute("src")).toBe(logo);
       expect(within(section).getByText(s.group.name)).toBeTruthy();
+      expect(within(section).getByText("1 Member")).not.toBeNull();
+      expect(within(section).getByText("0 Events")).not.toBeNull();
+      expect(within(section).getByRole("button", { name: "Private" })).not.toBeNull();
+      expect(link.closest(".card")?.querySelector(".w-20 img")?.className).toContain(
+        "object-contain",
+      );
     }
     expect(s.fetcher.mock.calls.some(([url]) => url.includes("/groups/"))).toBe(false);
   },
@@ -111,10 +117,15 @@ it.each(["personal", "event"] as const)(
     );
     await screen.findByText("Chess");
     expect(Boolean(screen.queryByRole("region", { name: "Event" }))).toBe(context === "personal");
-    if (context === "personal")
-      expect(
-        screen.getByRole("link", { name: `Open event: ${plannedEvent.name}` }).getAttribute("href"),
-      ).toBe(`/events/${eventId}`);
+    if (context === "personal") {
+      const link = screen.getByRole("link", { name: `Open event: ${plannedEvent.name}` });
+      expect(link.getAttribute("href")).toBe(`/events/${eventId}`);
+      const card = link.closest(".card") as HTMLElement;
+      expect(within(card).getByText("1 Table")).not.toBeNull();
+      expect(within(card).getByText(s.group.name)).not.toBeNull();
+      expect(within(card).getByRole("button", { name: "Planning" })).not.toBeNull();
+      expect(card.querySelector(".w-20 img")?.className).toContain("object-contain");
+    }
   },
 );
 it.each([false, true])(

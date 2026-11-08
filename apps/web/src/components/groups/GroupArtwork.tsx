@@ -13,13 +13,13 @@ export function GroupArtwork({
   group: Pick<GroupRecordResponse, "id" | "logo" | "role">;
   size?: number;
   status?: "overlay" | "none";
-  presentation?: "thumbnail" | "background";
+  presentation?: "thumbnail" | "background" | "cover";
 }) {
   const { t } = useLingui();
   return (
     <span
-      className={presentation === "background" ? "absolute inset-0" : "relative shrink-0"}
-      style={presentation === "background" ? undefined : { width: size, height: size }}
+      className={presentation !== "thumbnail" ? "absolute inset-0" : "relative shrink-0"}
+      style={presentation !== "thumbnail" ? undefined : { width: size, height: size }}
     >
       {group.logo ? (
         // biome-ignore lint/performance/noImgElement: Authenticated, optimized MongoDB data URI, not a remote image.
@@ -28,9 +28,9 @@ export function GroupArtwork({
           alt=""
           width={size}
           height={size}
-          className="rounded-xl object-contain"
+          className={presentation === "cover" ? "object-contain p-1" : "rounded-xl object-contain"}
           style={
-            presentation === "background"
+            presentation !== "thumbnail"
               ? { width: "100%", height: "100%" }
               : { width: size, height: size }
           }

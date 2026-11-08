@@ -75,9 +75,13 @@ export function AnimatedDicebearArtwork({
         style={[
           {
             position: "absolute",
-            left: -4,
-            top: -4,
-            ...(presentation !== "thumbnail" ? { right: -4, bottom: -4 } : {}),
+            left: presentation === "cover" ? 4 : -4,
+            top: presentation === "cover" ? 4 : -4,
+            ...(presentation === "cover"
+              ? { right: 4, bottom: 4 }
+              : presentation === "background"
+                ? { right: -4, bottom: -4 }
+                : {}),
           },
           animatedStyle,
         ]}
@@ -86,7 +90,7 @@ export function AnimatedDicebearArtwork({
           xml={xml}
           width={presentation !== "thumbnail" ? "100%" : size + 8}
           height={presentation !== "thumbnail" ? "100%" : size + 8}
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio={presentation === "cover" ? "xMidYMid meet" : "xMidYMid slice"}
         />
       </Animated.View>
     </View>

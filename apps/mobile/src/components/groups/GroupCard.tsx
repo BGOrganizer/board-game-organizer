@@ -1,29 +1,19 @@
 import type { ClientGroupRecord } from "@board-game-organizer/shared";
-import {
-  formatLocationAddress,
-  groupPendingAction,
-  useNotificationAttentionContext,
-} from "@board-game-organizer/shared";
+import { useNotificationAttentionContext } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
 import { type Href, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import {
-  CalendarDays,
-  LockKeyhole,
-  LockKeyholeOpen,
-  MapPin,
-  RefreshCw,
-  UsersRound,
-} from "lucide-react-native";
+import { CalendarDays, RefreshCw, UsersRound } from "lucide-react-native";
 import { View } from "react-native";
-import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { useT } from "@/lib/i18n";
 import { GroupArtwork } from "./GroupArtwork";
-import { GroupStatusBadge } from "./GroupStatusBadge";
+import { GroupCardIndicators } from "./GroupCardIndicators";
+
 export function GroupCard({
   group,
   href,
@@ -37,53 +27,26 @@ export function GroupCard({
 }) {
   const t = useT(),
     router = useRouter(),
-    [fg, muted] = useThemeColor(["foreground", "muted"]);
-  const attention = useNotificationAttentionContext(),
-    attentionTarget = { kind: "group", id: group.id } as const;
-  const invited =
-    group.myMembership?.kind === "INVITATION" && group.myMembership.status === "PENDING";
-  const indicator =
-    group.role === "admin"
-      ? "admin"
-      : group.role === "invited"
-        ? "invitation"
-        : group.role === "requested"
-          ? "request"
-          : group.role === "accepted" || group.role === "moderator"
-            ? "member"
-            : null;
-  const Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
+    muted = useThemeColor("muted");
+  const { i18n } = useLingui();
+  const attention = useNotificationAttentionContext();
   const local = group.optimistic,
     status = useClientRecordStatus(local?.phase);
+  const count = local ? undefined : attention?.get({ kind: "group", id: group.id })?.count;
+  const events = group.canViewEvents && group.eventCount !== null;
   return (
     <LinkedListCard
       label={`${status || t("Open group")}: ${group.name}`}
+      notificationCount={count}
+      artworkLayout="cover"
+      artwork={<GroupArtwork group={group} status="none" presentation="cover" />}
+      leadingActions={local ? undefined : <GroupCardIndicators group={group} />}
       disabled={Boolean(local && local.phase !== "failed")}
-      notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
-      leadingActions={
-        indicator ? (
-          <ArtworkStatusPopover
-            kind={indicator}
-            action={local ? null : groupPendingAction(group)}
-            label={
-              group.role === "moderator"
-                ? t("Group moderator")
-                : indicator === "admin"
-                  ? t("Group admin")
-                  : indicator === "request"
-                    ? t("Membership requested")
-                    : undefined
-            }
-          />
-        ) : !local ? (
-          <ArtworkStatusPopover kind="viewer" />
-        ) : undefined
-      }
-      onPress={() => {
-        return local
+      onPress={() =>
+        local
           ? router.push({ pathname: "/group/wizard", params: { draftId: local.draftId } })
-          : router.push(href ?? { pathname: "/group/[groupId]", params: { groupId: group.id } });
-      }}
+          : router.push(href ?? { pathname: "/group/[groupId]", params: { groupId: group.id } })
+      }
       actions={
         local?.phase === "verifying" && onVerify ? (
           <Button
@@ -98,63 +61,66 @@ export function GroupCard({
           </Button>
         ) : undefined
       }
-      artwork={<GroupArtwork group={group} status="none" />}
     >
       <ListCardBody
         title={group.name}
-        titleIcon={<UsersRound size={18} color={fg} accessible={false} />}
-        unread={!local && Boolean(attention?.get(attentionTarget)?.count)}
-        titleAccessory={
-          local ? <ClientRecordBadge phase={local.phase} /> : <GroupStatusBadge group={group} />
-        }
+        titleIcon={<UsersRound size={16} color={muted} accessible={false} />}
+        unread={Boolean(count)}
+        titleAccessory={local ? <ClientRecordBadge phase={local.phase} /> : undefined}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <Visibility size={16} color={muted} accessible={false} />
-          <Typography className="text-sm text-foreground">
-            {group.type === "PUBLIC" ? t("Public") : t("Private")}
-          </Typography>
-        </View>
-        {group.location ? (
-          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}>
-            <MapPin size={16} color={muted} accessible={false} />
-            <Typography className="text-sm text-foreground" style={{ flex: 1, flexShrink: 1 }}>
-              {formatLocationAddress(group.location.address)}
-            </Typography>
-          </View>
-        ) : null}
         <View
           style={{
             flexDirection: "row",
-            alignItems: "center",
             flexWrap: "wrap",
-            gap: 8,
-            paddingRight: local?.phase === "verifying" && onVerify ? 40 : 0,
+            alignItems: "center",
+            columnGap: 6,
+            rowGap: 4,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-start",
+              gap: 4,
+              maxWidth: "100%",
+              flexShrink: 1,
+            }}
+          >
             <UsersRound size={16} color={muted} accessible={false} />
-            <Typography className="text-sm text-foreground">
-              {group.memberCount} {t("members")}
+            <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
+              {i18n._({
+                id: "group.card.members",
+                message: "{count, plural, one {# Member} other {# Members}}",
+                values: { count: group.memberCount },
+              })}
             </Typography>
           </View>
-          {group.canViewEvents && group.eventCount !== null ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <CalendarDays size={16} color={muted} accessible={false} />
-              <Typography className="text-sm text-foreground">
-                {group.eventCount} {t("Events")}
+          {events ? (
+            <>
+              <Typography accessible={false} className="text-sm text-muted">
+                ·
               </Typography>
-            </View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  gap: 4,
+                  maxWidth: "100%",
+                  flexShrink: 1,
+                }}
+              >
+                <CalendarDays size={16} color={muted} accessible={false} />
+                <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
+                  {i18n._({
+                    id: "group.card.events",
+                    message: "{count, plural, one {# Event} other {# Events}}",
+                    values: { count: group.eventCount },
+                  })}
+                </Typography>
+              </View>
+            </>
           ) : null}
         </View>
-        {invited ? (
-          <Typography className="text-warning" style={{ fontSize: 12 }}>
-            {t("Invitation received")}
-          </Typography>
-        ) : group.role === "requested" ? (
-          <Typography className="text-warning" style={{ fontSize: 12 }}>
-            {t("Membership requested")}
-          </Typography>
-        ) : null}
       </ListCardBody>
     </LinkedListCard>
   );

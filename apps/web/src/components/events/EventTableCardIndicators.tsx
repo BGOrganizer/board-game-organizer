@@ -18,7 +18,13 @@ import { EventTableGamesPopover } from "./EventTableGamesPopover";
 import { EventTableSchedulePopover } from "./EventTableSchedulePopover";
 
 /** Capabilities, duty and participation are independent facts, never mutually exclusive roles. */
-export function EventTableCardIndicators({ table }: { table: PlannedTableResponse }) {
+export function EventTableCardIndicators({
+  table,
+  variant = "list",
+}: {
+  table: PlannedTableResponse;
+  variant?: "list" | "identity";
+}) {
   const { t, i18n } = useLingui();
   const { userId } = useCommunityApi();
   const manager = canManageEvent(table, userId);
@@ -49,6 +55,9 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
       {table.demonstratorUserId && table.demonstratorUserId === userId ? (
         <ArtworkStatusPopover size="compact" kind="demonstrator" />
       ) : null}
+      {table.myRegistration?.status === "ACCEPTED" && participation !== "confirmed" ? (
+        <ArtworkStatusPopover size="compact" kind="accepted" />
+      ) : null}
       {participation !== null ? (
         <ArtworkStatusPopover
           size="compact"
@@ -67,46 +76,50 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
         icon={planning ? Clock3 : confirmed ? CalendarCheck : Flag}
         tone={planning ? "warning" : confirmed ? "success" : "muted"}
         triggerClassName="bg-default"
+        className="w-[min(24rem,calc(100vw-2rem))]"
       >
-        <p>
-          {planning
-            ? t`The table is being planned. Dates, locations and games are still proposals.`
-            : confirmed
-              ? t`The table has been confirmed. Only the chosen date, location and game are shown.`
-              : t`The table has finished. Results are immutable.`}
-        </p>
-        {!planning && !table.confirmed ? (
-          <p className="mt-2 text-warning">{t`Excluded from confirmation`}</p>
-        ) : null}
-        <dl className="mt-2 space-y-1">
-          {counts.map(({ label, value }) => (
-            <div key={label} className="flex flex-wrap items-center justify-between gap-2">
-              <dt>{label}</dt>
-              <dd>
-                {value === undefined ? (
-                  <Skeleton aria-label={t`Loading…`} className="h-4 w-6 rounded" />
-                ) : (
-                  i18n.number(value)
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        {table.demonstratorUserId ? (
-          <p className="mt-2 break-words">
-            {t`Demonstrator`}:{" "}
-            {table.demonstratorName === undefined ? (
-              <Skeleton className="inline-block h-4 w-28 rounded" />
-            ) : (
-              table.demonstratorName || t`Unknown`
-            )}
+        <div className="max-h-[50vh] overflow-y-auto overscroll-contain">
+          <p>
+            {planning
+              ? t`The table is being planned. Dates, locations and games are still proposals.`
+              : confirmed
+                ? t`The table has been confirmed. Only the chosen date, location and game are shown.`
+                : t`The table has finished. Results are immutable.`}
           </p>
-        ) : null}
-        {table.eventStatus === "TERMINATED" && table.winners?.length ? (
-          <p className="mt-2 break-words">
-            {t`Winners`}: {table.winners.map((row) => row.name).join(", ")}
-          </p>
-        ) : null}
+          {!planning && !table.confirmed ? (
+            <p className="mt-2 text-warning">{t`Excluded from confirmation`}</p>
+          ) : null}
+          <p className="mt-2">{t`The minimum is required for agreement. The maximum limits reserved places; additional players remain in the waiting queue.`}</p>
+          <dl className="mt-2 space-y-1">
+            {counts.map(({ label, value }) => (
+              <div key={label} className="flex flex-wrap items-center justify-between gap-2">
+                <dt>{label}</dt>
+                <dd>
+                  {value === undefined ? (
+                    <Skeleton aria-label={t`Loading…`} className="h-4 w-6 rounded" />
+                  ) : (
+                    i18n.number(value)
+                  )}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {table.demonstratorUserId ? (
+            <p className="mt-2 break-words">
+              {t`Demonstrator`}:{" "}
+              {table.demonstratorName === undefined ? (
+                <Skeleton className="inline-block h-4 w-28 rounded" />
+              ) : (
+                table.demonstratorName || t`Unknown`
+              )}
+            </p>
+          ) : null}
+          {table.eventStatus === "TERMINATED" && table.winners?.length ? (
+            <p className="mt-2 break-words">
+              {t`Winners`}: {table.winners.map((row) => row.name).join(", ")}
+            </p>
+          ) : null}
+        </div>
       </HelpPopover>
       <HelpPopover
         size="compact"
@@ -122,9 +135,13 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
             : t`This table does not update player ratings.`}
         </p>
       </HelpPopover>
-      <EventTableSchedulePopover table={table} kind="dates" />
-      <EventTableSchedulePopover table={table} kind="locations" />
-      <EventTableGamesPopover games={tableCardGames(table)} name={table.name} />
+      {variant === "list" ? (
+        <>
+          <EventTableSchedulePopover table={table} kind="dates" />
+          <EventTableSchedulePopover table={table} kind="locations" />
+          <EventTableGamesPopover games={tableCardGames(table)} name={table.name} />
+        </>
+      ) : null}
     </>
   );
 }

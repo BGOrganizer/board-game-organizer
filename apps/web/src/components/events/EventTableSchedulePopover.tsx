@@ -56,15 +56,9 @@ export function EventTableSchedulePopover({
                     dateStyle="long"
                   />
                 ) : (
-                  <div className="min-w-0 space-y-1">
-                    <p className="break-words font-medium">{row.location.name}</p>
-                    <p className="break-words text-muted">
-                      {formatLocationAddress(row.location.address)}
-                    </p>
-                    {row.location.timeZone ? (
-                      <p className="break-words text-muted">{row.location.timeZone}</p>
-                    ) : null}
-                  </div>
+                  <p className="min-w-0 break-words text-foreground">
+                    {formatLocationAddress(row.location.address)}
+                  </p>
                 )}
               </GroupedRow>
             ))}

@@ -87,9 +87,9 @@ it.each(["en", "it"] as const)(
         name: `${locale === "it" ? "Luoghi" : "Locations"}: First table`,
       }),
     );
-    expect(await screen.findByText("Club venue")).not.toBeNull();
-    expect(screen.getByText("Via Roma 1")).not.toBeNull();
-    expect(screen.getByText("Europe/Rome")).not.toBeNull();
+    expect(await screen.findByText("Via Roma 1")).not.toBeNull();
+    expect(screen.queryByText("Club venue")).toBeNull();
+    expect(screen.queryByText("Europe/Rome")).toBeNull();
   },
 );
 it("shares Group/Event/Table title typography and keeps Group metadata at the same body size", () => {
@@ -114,7 +114,7 @@ it("shares Group/Event/Table title typography and keeps Group metadata at the sa
     titles[0].parentElement?.previousElementSibling?.classList.contains("lucide-users-round"),
   ).toBe(true);
   const card = screen.getByRole("link", { name: `Open group: ${group.name}` });
-  for (const label of ["Private", "Via Roma 1", "4 members", "2 Events"])
+  for (const label of ["4 Members", "2 Events"])
     expect(
       within(card.closest(".card") as HTMLElement)
         .getByText(label)

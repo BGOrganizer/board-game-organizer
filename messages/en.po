@@ -6111,3 +6111,22 @@ msgstr "The event has finished. Results are immutable."
 #. js-lingui-explicit-id
 msgid "event.card.tables"
 msgstr "{count, plural, one {# Table} other {# Tables}}"
+
+msgid "This public group is approved."
+msgstr "This public group is approved."
+
+msgid "This public group is awaiting review."
+msgstr "This public group is awaiting review."
+
+msgid "These changes were rejected."
+msgstr "These changes were rejected."
+
+#. js-lingui-explicit-id
+#. {count, plural, one {# Member} other {# Members}}
+msgid "group.card.members"
+msgstr "{count, plural, one {# Member} other {# Members}}"
+
+#. js-lingui-explicit-id
+#. {count, plural, one {# Event} other {# Events}}
+msgid "group.card.events"
+msgstr "{count, plural, one {# Event} other {# Events}}"

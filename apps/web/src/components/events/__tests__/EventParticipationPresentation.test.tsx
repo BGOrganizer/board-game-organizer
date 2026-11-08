@@ -37,7 +37,8 @@ it.each([
     <EventCard event={{ ...plannedEvent, role: "invited", myRegistrations: [...rows] }} />,
   );
   const button = screen.getByRole("button", { name: label });
-  expect(screen.getAllByRole("button")).toHaveLength(pending ? 3 : 2);
+  expect(screen.getAllByRole("button")).toHaveLength(pending ? 4 : 3);
+  expect(screen.getByRole("button", { name: "Waiting list" })).not.toBeNull();
   if (pending)
     expect(
       screen.getByRole("button", {
@@ -103,6 +104,6 @@ it("retains uploaded Group logos and their list-only non-overlay status", () => 
     "data:image/png;base64,public-artwork",
   );
   const trigger = screen.getByRole("button", { name: "Group admin" });
-  expect(trigger.parentElement?.className).toContain("flex-wrap");
+  expect(trigger.parentElement?.className).toContain("flex-nowrap");
   expect(document.querySelector(".absolute.left-0.top-0")).toBeNull();
 });

@@ -1,5 +1,5 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
 
 function required(name: string) {
@@ -12,6 +12,7 @@ const email = required("E2E_EMAIL"),
   eventName = required("CARD_EVENT_NAME"),
   tableName = required("CARD_TABLE_NAME"),
   venue = required("CARD_VENUE"),
+  address = required("CARD_VENUE_ADDRESS"),
   day = required("CARD_EVENT_DAY"),
   clock = required("CARD_EVENT_TIME");
 const locale = required("CARD_LOCALE");
@@ -59,13 +60,41 @@ for (const width of [390, 1280])
       await expect(link).toBeVisible();
       return link.locator("..");
     };
+    const inspectFrame = async (card: Locator) => {
+      const info = await card.evaluate((c) => {
+        const buttons = [...c.querySelectorAll<HTMLElement>("[role=button],button")],
+          y = buttons.map((b) => b.getBoundingClientRect().y);
+        return {
+          fit: getComputedStyle(c.querySelector("img")!).objectFit,
+          sameRow: Math.max(...y) - Math.min(...y) < 1,
+          overflow: c.scrollWidth > c.clientWidth + 1,
+        };
+      });
+      expect(info).toEqual({ fit: "contain", sameRow: true, overflow: false });
+    };
+    const labels = (card: Locator) =>
+      card
+        .getByRole("button")
+        .evaluateAll((buttons) => buttons.map((b) => b.getAttribute("aria-label")));
+    const inspectIdentity = async (name: string, expectedLabels: (string | null)[]) => {
+      const card = page
+        .locator(".card")
+        .filter({ has: page.getByRole("heading", { name, exact: true }) });
+      await expect(card).toBeVisible();
+      await expect(card.locator('[class~="bg-surface/95"]')).toHaveCount(0);
+      await expect(card.locator('[class~="bg-background/70"]')).toHaveCount(1);
+      expect(await labels(card)).toEqual(expectedLabels);
+      return card;
+    };
     const group = await open("/groups", groupName, "group");
+    await inspectFrame(group);
+    const groupLabels = await labels(group);
     const title = await group.getByText(groupName, { exact: true }).evaluate((node) => {
       const s = getComputedStyle(node);
       return { size: s.fontSize, family: s.fontFamily, weight: s.fontWeight };
     });
     const body = await group
-      .getByText(it ? "Privato" : "Private", { exact: true })
+      .getByText(it ? /^\d+ Membr[oi]$/ : /^\d+ Members?$/)
       .evaluate((node) => {
         const s = getComputedStyle(node);
         return { size: s.fontSize, family: s.fontFamily };
@@ -78,7 +107,11 @@ for (const width of [390, 1280])
       minute: "2-digit",
       timeZone: "UTC",
     }).format(new Date(`${day}T${clock}Z`));
+    await group.getByRole("link").click();
+    await inspectIdentity(groupName, groupLabels);
     const event = await open("/events", eventName, "event");
+    await inspectFrame(event);
+    const eventLabels = await labels(event);
     for (const [property, value] of [
       ["font-size", title.size],
       ["font-family", title.family],
@@ -124,8 +157,10 @@ for (const width of [390, 1280])
     await page.keyboard.press("Escape");
     await expect(eventInfo).toHaveCount(0);
     const table = await open("/tables", tableName, "table");
+    const tableLabels = await labels(table);
     const here = page.url();
     const inspectTable = async () => {
+      await inspectFrame(table);
       await expect(table.getByText(tableName, { exact: true })).toHaveCSS("font-size", title.size);
       await expect(table.getByText(groupName, { exact: true })).toBeVisible();
       await expect(table.getByText(eventName, { exact: true })).toBeVisible();
@@ -176,8 +211,11 @@ for (const width of [390, 1280])
           await expect(dialog.getByText(date, { exact: true })).toBeVisible();
           await expect(dialog.getByText(time, { exact: true })).toBeVisible();
         }
-        if (kind === "locations")
-          await expect(dialog.getByText(venue, { exact: false })).toBeVisible();
+        if (kind === "locations") {
+          await expect(dialog.getByText(address, { exact: true })).toBeVisible();
+          await expect(dialog.getByText(/^[A-Za-z_]+\/[A-Za-z_]+$/)).toHaveCount(0);
+          await expect(dialog.getByText(venue, { exact: true })).toHaveCount(0);
+        }
         await expect(
           dialog.getByRole("button", { name: /^(Yes|No|If needed|Sì|Se necessario)$/ }),
         ).toHaveCount(0);
@@ -187,8 +225,37 @@ for (const width of [390, 1280])
       }
     };
     await inspectTable();
+    await table.getByRole("link").click();
+    await inspectIdentity(
+      tableName,
+      tableLabels.filter(
+        (label) =>
+          ![
+            it ? "Date e orari" : "Dates and times",
+            it ? "Luoghi" : "Locations",
+            it ? "Giochi da tavolo" : "Board games",
+          ].some((prefix) => label?.startsWith(prefix + ":")),
+      ),
+    );
+    const parentEvent = page
+      .getByRole("link", {
+        name: `${it ? "Apri evento" : "Open event"}: ${eventName}`,
+        exact: true,
+      })
+      .locator("..");
+    await inspectFrame(parentEvent);
+    await expect(parentEvent.getByText(it ? /^\d+ Tavol[oi]$/ : /^\d+ Tables?$/)).toBeVisible();
     const eventAgain = await open("/events", eventName, "event");
     await eventAgain.getByRole("link").click();
+    await inspectIdentity(eventName, eventLabels);
+    const parentGroup = page
+      .getByRole("link", {
+        name: `${it ? "Apri gruppo" : "Open group"}: ${groupName}`,
+        exact: true,
+      })
+      .locator("..");
+    await inspectFrame(parentGroup);
+    await expect(parentGroup.getByText(it ? /^\d+ Membr[oi]$/ : /^\d+ Members?$/)).toBeVisible();
     await page.getByRole("tab", { name: it ? "Tavoli" : "Tables", exact: true }).click();
     const contextual = page
       .getByRole("link", {

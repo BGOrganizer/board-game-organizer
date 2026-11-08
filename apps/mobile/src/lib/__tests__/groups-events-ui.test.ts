@@ -68,13 +68,15 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(detail).toContain("<EventGroupLink");
   expect(source("events", "EventGroupLink")).toContain("<GroupArtwork");
   expect(source("events", "EventGroupLink")).toContain('t("Group")');
-  expect(identity).toContain("<EventStatusBadge status={event.status}");
-  expect(source("events", "EventStatusBadge")).toContain('"warning"');
+  expect(identity).toContain("<EventCardIndicators event={event}");
+  expect(source("events", "EventCardIndicators")).toContain('"warning"');
   expect(detail).toContain('t("Start Date and Time")');
   expect(detail).toContain('t("Date and time")');
   expect(detail).toContain("<DateTimeInfo");
   expect(detail).not.toContain("eventRecordDisplayTimeZone");
-  expect(identity).toContain('className="text-lg font-semibold text-foreground"');
+  expect(source("common/ui", "RecordIdentityCard")).toContain(
+    'className="text-lg font-semibold text-foreground"',
+  );
   expect(identity).toContain('presentation="background"');
   expect(detail).toMatch(/event\?\.status\s*===\s*"CONFIRMED"[\s\S]*?<EventFinalizeAction/);
   expect(source("events", "EventFinalizeAction")).toContain("event.canFinalize");
@@ -84,23 +86,24 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(detail).toContain("<FloatingActions");
   expect(detail).toContain("version: event.version");
 });
-it("places Table Settings help before the identity card and keeps limits inside with Rating", () => {
+it("keeps Table identity over the image and reuses role/state/Rating controls without list-only option popovers", () => {
   const table = source("events", "EventTableInfo");
-  expect(table).toContain('label={t("Settings")}');
-  expect(table).toContain("The minimum is required for agreement.");
-  expect(table.indexOf("<ListCard")).toBeLessThan(table.indexOf('label={t("Settings")}'));
+  const indicators = source("events", "EventTableCardIndicators");
+  expect(table).toContain("<RecordIdentityCard");
+  expect(table).toContain('variant="identity"');
+  expect(indicators).toContain("The minimum is required for agreement.");
   expect(table).toContain('presentation="background"');
   expect(table).toContain("seed={table.id}");
   expect(table).toContain('variant="planets"');
   expect(table).toContain("<Dices");
-  expect(table).toContain("<EventTableRatingBadge");
+  expect(table).toContain("<EventTableCardIndicators");
   for (const token of [
-    "<UserRoundCheck",
-    "<UsersRound",
-    "number.format(table.minPlayers)",
-    "number.format(table.maxPlayers)",
+    "table.minPlayers",
+    "table.maxPlayers",
+    't("Rating enabled")',
+    'variant === "list"',
   ])
-    expect(table).toContain(token);
+    expect(indicators).toContain(token);
   expect(table).not.toContain('label={t("Table name")}');
 });
 it("shares one horizontal Table card across feeds with only Back context varying", () => {

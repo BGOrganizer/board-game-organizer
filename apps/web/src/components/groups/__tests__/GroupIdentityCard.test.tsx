@@ -11,7 +11,7 @@ it.each([
   ["accepted", "Group member"],
   ["invited", "Invitation received"],
   ["requested", "Membership requested"],
-  ["none", "Viewer"],
+  ["none", "Private"],
 ] as const)(
   "shows the existing %s role in a background Card without granting capabilities",
   (role, label) => {
@@ -51,10 +51,11 @@ it("retains uploaded logos without cropping and preserves venue/moderation conte
   expect(document.querySelector('img[src="data:image/png;base64,uploaded"]')?.className).toContain(
     "object-contain",
   );
-  expect(screen.getByText("2 Events")).not.toBeNull();
+  expect(screen.queryByText("2 Events")).toBeNull();
   expect(screen.getByText("Venue")).not.toBeNull();
   expect(screen.getByRole("alert").textContent).toContain("Venue needs review");
-  fireEvent.click(screen.getByRole("button", { name: "Name: Group name help" }));
+  fireEvent.click(screen.getByRole("button", { name: "Public" }));
+  expect(await screen.findByText("2 Events")).not.toBeNull();
   expect(
     await screen.findByText("Name, logo and group type. Group type cannot be changed."),
   ).not.toBeNull();

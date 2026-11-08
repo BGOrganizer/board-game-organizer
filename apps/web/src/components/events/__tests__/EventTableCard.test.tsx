@@ -111,7 +111,7 @@ it("keeps external cards navigation-only and preserves explicit versioned consen
   expect(screen.queryByText("Invitation received")).toBeNull();
   const badge = screen.getByRole("button", { name: "Invitation received · Reply required" });
   expect(badge.className).toContain("text-warning");
-  expect(badge.parentElement?.className).toContain("flex-wrap");
+  expect(badge.parentElement?.className).toContain("flex-nowrap");
   expect(badge.parentElement?.className).not.toContain("absolute");
   expect(screen.getByRole("link").contains(badge)).toBe(false);
   expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
@@ -273,7 +273,7 @@ it("marks a pending self request without offering self-approval, including incon
   const badge = screen.getByRole("button", { name: "Participation requested" });
   expect(badge.className).toContain("text-warning");
   expect(badge.querySelector("svg.lucide-clock-3")).not.toBeNull();
-  expect(badge.parentElement?.className).toContain("flex-wrap");
+  expect(badge.parentElement?.className).toContain("flex-nowrap");
   expect(screen.getByRole("link").contains(badge)).toBe(false);
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Decline invitation" })).toBeNull();

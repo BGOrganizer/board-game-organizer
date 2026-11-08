@@ -6111,3 +6111,22 @@ msgstr "L’evento è terminato. I risultati sono immutabili."
 #. js-lingui-explicit-id
 msgid "event.card.tables"
 msgstr "{count, plural, one {# Tavolo} other {# Tavoli}}"
+
+msgid "This public group is approved."
+msgstr "Questo gruppo pubblico è approvato."
+
+msgid "This public group is awaiting review."
+msgstr "Questo gruppo pubblico è in attesa di approvazione."
+
+msgid "These changes were rejected."
+msgstr "Queste modifiche sono state rifiutate."
+
+#. js-lingui-explicit-id
+#. {count, plural, one {# Member} other {# Members}}
+msgid "group.card.members"
+msgstr "{count, plural, one {# Membro} other {# Membri}}"
+
+#. js-lingui-explicit-id
+#. {count, plural, one {# Event} other {# Events}}
+msgid "group.card.events"
+msgstr "{count, plural, one {# Evento} other {# Eventi}}"

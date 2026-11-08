@@ -52,6 +52,23 @@ output.cardVenue =
   ".*" +
   escaped(required(typeof CARD_VENUE === "undefined" ? "" : CARD_VENUE, "CARD_VENUE")) +
   ".*";
+output.cardAddress =
+  ".*" +
+  escaped(
+    required(
+      typeof CARD_VENUE_ADDRESS === "undefined" ? "" : CARD_VENUE_ADDRESS,
+      "CARD_VENUE_ADDRESS",
+    ),
+  ) +
+  ".*";
+output.cardZone = "^[A-Za-z_]+/[A-Za-z_]+$";
+output.cardPrivate = italian ? "^Privato$" : "^Private$";
+output.cardMembers = italian ? "^[0-9]+ Membr[oi]$" : "^[0-9]+ Members?$";
+output.cardGroupEvents = italian ? "^[0-9]+ Event[oi]$" : "^[0-9]+ Events?$";
+output.cardGroupTitle = "^" + escaped(output.cardGroupName) + "$";
+output.cardEventTitle = "^" + escaped(output.cardEventName) + "$";
+output.cardTableTitle = "^" + escaped(output.cardTableName) + "$";
+output.cardOverview = italian ? "^Panoramica$" : "^Overview$";
 output.cardDateCount = italian ? "2 date proposte" : "2 proposed dates";
 output.cardLocationCount = italian ? "2 luoghi proposti" : "2 proposed locations";
 output.cardDatesPopover =

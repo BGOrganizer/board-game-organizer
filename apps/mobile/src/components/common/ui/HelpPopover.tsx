@@ -21,7 +21,7 @@ export function HelpPopover({
   label: string;
   title: string;
   icon?: LucideIcon;
-  tone?: "muted" | "warning" | "success" | "accent";
+  tone?: "muted" | "warning" | "success" | "accent" | "danger";
   size?: "default" | "compact";
   width?: number;
   indicator?: ReactNode;
@@ -35,6 +35,7 @@ export function HelpPopover({
     warning: "warning-soft-foreground",
     success: "success-soft-foreground",
     accent: "accent-soft-foreground",
+    danger: "danger-soft-foreground",
   } as const;
   const color = useThemeColor(colors[tone]);
   const symbol = (

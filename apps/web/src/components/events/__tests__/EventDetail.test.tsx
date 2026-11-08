@@ -566,7 +566,7 @@ it("keeps terminated events read-only when no planning agreement is returned", a
   };
   tables = [];
   mount();
-  expect(await screen.findByText(/Terminated/)).not.toBeNull();
+  expect(await screen.findByRole("button", { name: "Terminated" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Reopen planning" })).toBeNull();
   expect(screen.queryByRole("button", { name: /Yes/ })).toBeNull();
@@ -886,7 +886,7 @@ it("shows a disabled owner confirmation in the app header, explains agreement an
   expect(card?.querySelector("img")).not.toBeNull();
   expect(heading.previousElementSibling?.classList.contains("lucide-calendar-days")).toBe(true);
   const legend = screen.getByRole("button", { name: "Voting legend" }),
-    badge = screen.getByText("Planning").closest(".chip");
+    badge = screen.getByRole("button", { name: "Planning" });
   expect(legend.closest(".card")).toBeNull();
   expect(card?.contains(badge)).toBe(true);
   expect(

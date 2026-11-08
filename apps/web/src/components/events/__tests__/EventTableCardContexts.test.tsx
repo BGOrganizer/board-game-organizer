@@ -72,8 +72,8 @@ it("uses the same full-height left artwork, identity and controls in both lists;
     expect(group.parentElement?.nextElementSibling?.textContent).toBe("·");
     expect(screen.getByText("2/4 participants")).not.toBeNull();
     const image = document.querySelector("img");
-    expect(image?.className).toContain("h-full w-full object-cover");
-    expect(image?.closest(".w-20")?.className).toContain("relative");
+    expect(image?.className).toContain("h-full w-full object-contain");
+    expect(image?.closest(".w-20")?.className).toContain("absolute");
     expect(
       screen.getByRole("button", { name: "Rating enabled" }).parentElement?.className,
     ).toContain("justify-end");
@@ -104,7 +104,7 @@ it.each(["personal", "event"] as const)(
     const q = renderWithI18n(<EventTableCard table={base} context={context} />);
     const check = (label: string, icon: string, color: string) => {
       const badge = screen.getByRole("button", { name: label });
-      expect(badge.parentElement?.className).toContain("flex-wrap");
+      expect(badge.parentElement?.className).toContain("flex-nowrap");
       expect(badge.parentElement?.className).toContain("justify-end");
       expect(badge.className).toContain(color);
       expect(badge.querySelector(`svg.lucide-${icon}`)?.classList.contains("size-4")).toBe(true);

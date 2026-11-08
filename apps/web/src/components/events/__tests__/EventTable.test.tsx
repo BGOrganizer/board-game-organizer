@@ -525,14 +525,18 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
   expect(screen.queryByRole("link", { name: "Open table: First table" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Back to event" })).toBeNull();
   expect(screen.getByText("Chess").closest("li")?.parentElement?.tagName).toBe("UL");
-  expect(screen.getByText("Minimum players: 2")).not.toBeNull();
-  expect(screen.getByText("Maximum players: 4")).not.toBeNull();
-  expect(screen.getByRole("img", { name: "Rating enabled" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Rating enabled" })).not.toBeNull();
   expect(screen.getByLabelText("Votes: Chess").closest("li")).toBe(
     screen.getByText("Chess").closest("li"),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Settings: Field help" }));
+  fireEvent.click(
+    within(screen.getByRole("region", { name: "Settings" })).getByRole("button", {
+      name: "Planning",
+    }),
+  );
   expect(await screen.findByText(/The minimum is required for agreement/)).not.toBeNull();
+  expect(screen.getByText("Minimum players").parentElement?.textContent).toBe("Minimum players2");
+  expect(screen.getByText("Maximum players").parentElement?.textContent).toBe("Maximum players4");
 });
 it("keeps a singleton game readable without voting buttons or totals for an accepted historical NO", async () => {
   rows = [{ ...rows[0], gameVotes: { "1": "NO" } }];
@@ -1005,6 +1009,7 @@ it("does not present an excluded table as confirmed or show all candidate games 
     canRegister: false,
   };
   mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Confirmed" }));
   expect(await screen.findByText("Excluded from confirmation")).not.toBeNull();
 });
 it("retains immutable exact scores, ND, profiles and both rating scopes, including missing profiles and retries", async () => {

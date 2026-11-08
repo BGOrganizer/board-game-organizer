@@ -30,6 +30,18 @@ it("keeps generated artwork motion variants and default/explicit dimensions", ()
     q.unmount();
   }
 });
+it("contains the complete list artwork with motion clearance, without changing detail backgrounds", () => {
+  const q = renderWithI18n(
+    <AnimatedDicebearArtwork seed="table" variant="planets" presentation="cover" />,
+  );
+  const image = q.container.querySelector("img");
+  expect(image?.className).toContain("object-contain p-1");
+  expect(image?.className).not.toContain("object-cover");
+  q.rerender(
+    <AnimatedDicebearArtwork seed="event" variant="constellation" presentation="background" />,
+  );
+  expect(q.container.querySelector("img")?.className).toContain("object-cover");
+});
 it("formats accessible date/start/end metadata in the explicit event zone", () => {
   const q = renderWithI18n(<DateTimeInfo startsAt="2030-06-03T18:00:00Z" />);
   expect(q.container.querySelectorAll("time")).toHaveLength(2);

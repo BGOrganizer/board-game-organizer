@@ -279,20 +279,26 @@ order below Settings, EN/IT, themes and enlarged text; syntax and VM checks do n
 CI fixture set. Start already authenticated, with a PRIVATE Group, a Registered Event with two
 proposed dates/venues, and a personal Table with two games. Supply `CARD_LOCALE` (`en`/`it`),
 `CARD_GROUP_NAME`, `CARD_EVENT_NAME`, `CARD_TABLE_NAME`, `CARD_VENUE` (displayed venue substring),
+`CARD_VENUE_ADDRESS` (the exact formatted address shown by the client, without its IANA zone),
 `CARD_EVENT_DATE_LABEL` (localized long date) and `CARD_EVENT_TIME_LABEL` (localized clock).
 Missing inputs fail. Use matching API/client builds with the complete authorized schedule projection.
 The flow filters real first-page rows and requires accepted participation. Event cards show Group ·
 localized Table count with the prior schedule preview/counts inside status help. Table cards show
 accepted-seat / capacity and local date/location/game popovers; both Table feeds retain Group · Event.
-Inspect screenshots for full-height left Constellation/Planets artwork, title/count ordering, bottom-right
-cumulative icons, 28px frames/16px glyphs with 44px touch targets, long-text wrapping and semantic colors
-in both locales/themes. Parsing/VM checks are not native geometry evidence. No fixtures, votes or
+Group cards show accepted members plus the sole admin (moderators counted once) · authorized Events,
+with role, visibility and public-only review controls. Inspect complete left Landscape/Constellation/
+Planets artwork and logos, title/count ordering and single-row cumulative controls (horizontal scrolling
+when the full Card width is insufficient), 28px frames/16px glyphs and 44px targets. Admin is warning;
+moderator is accent. Location popovers contain only addresses. The flow also opens all three detail
+identities and checks real list-style parent cards. Review background images with bottom-left titles
+and bottom-right controls directly over the art, without a nested surface Card, in both locales/themes
+and at enlarged font sizes. Parsing/VM checks are not native geometry evidence. No fixtures, votes or
 registrations are created; existing container/notification reads retain their ordinary behavior.
 
 Web parity has an explicit manual Playwright configuration, `apps/web/e2e/card-metadata.config.ts`.
 Run `pnpm --filter web exec playwright test --config e2e/card-metadata.config.ts` against the isolated
 Preview, with the same named fixture, `E2E_EMAIL`, Development Clerk test credentials,
-`CARD_LOCALE`, `CARD_VENUE`, `CARD_EVENT_DAY` (`YYYY-MM-DD`) and `CARD_EVENT_TIME` (`HH:mm`).
+`CARD_LOCALE`, `CARD_VENUE`, `CARD_VENUE_ADDRESS`, `CARD_EVENT_DAY` (`YYYY-MM-DD`) and `CARD_EVENT_TIME` (`HH:mm`).
 It uses real auth/reads, computed typography/full-height artwork and informational popovers at
 390/1280px, with no domain writes or mocked routes. The
 `.scenario.ts` extension keeps it out of default canonical suites; both real manual runs remain

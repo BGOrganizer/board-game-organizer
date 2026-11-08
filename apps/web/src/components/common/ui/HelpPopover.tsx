@@ -19,7 +19,7 @@ export function HelpPopover({
   label: string;
   title?: string;
   icon?: LucideIcon;
-  tone?: "muted" | "warning" | "success" | "accent";
+  tone?: "muted" | "warning" | "success" | "accent" | "danger";
   size?: "default" | "compact";
   className?: string;
   triggerClassName?: string;
@@ -32,6 +32,7 @@ export function HelpPopover({
     warning: "text-warning-soft-foreground",
     success: "text-success-soft-foreground",
     accent: "text-accent-soft-foreground",
+    danger: "text-danger-soft-foreground",
   };
   const symbol = (
     <>

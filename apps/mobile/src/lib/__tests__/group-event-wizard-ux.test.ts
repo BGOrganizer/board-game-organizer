@@ -86,7 +86,7 @@ it("keeps date/time proposals and verified location add slots available only for
   expect(preview).toContain("<Dices");
   expect(source("events", "EventCardIndicators")).toContain("<HelpPopover");
   expect(source("events", "EventCardIndicators")).toContain("CalendarClock");
-  expect(source("events", "EventStatusBadge")).toContain('"warning"');
+  expect(source("events", "EventCardIndicators")).toContain('"warning"');
 });
 it("uses a centered spaced stage strip, arrow-only Next/Back, platform fields and virtualized table cards", () => {
   const text = source("events", "EventWizard");

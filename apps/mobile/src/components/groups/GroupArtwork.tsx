@@ -14,14 +14,14 @@ export function GroupArtwork({
   group: Pick<GroupRecordResponse, "id" | "logo" | "role">;
   size?: number;
   status?: "overlay" | "none";
-  presentation?: "thumbnail" | "background";
+  presentation?: "thumbnail" | "background" | "cover";
 }) {
   const t = useT(),
     warning = useThemeColor("warning");
   return (
     <View
       style={
-        presentation === "background"
+        presentation !== "thumbnail"
           ? { position: "absolute", inset: 0 }
           : { width: size, height: size, flexShrink: 0 }
       }
@@ -32,9 +32,9 @@ export function GroupArtwork({
           resizeMode="contain"
           accessible={false}
           style={{
-            width: presentation === "background" ? "100%" : size,
-            height: presentation === "background" ? "100%" : size,
-            borderRadius: 12,
+            width: presentation !== "thumbnail" ? "100%" : size,
+            height: presentation !== "thumbnail" ? "100%" : size,
+            borderRadius: presentation === "cover" ? 0 : 12,
           }}
         />
       ) : (

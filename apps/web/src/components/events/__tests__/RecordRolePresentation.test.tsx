@@ -37,10 +37,10 @@ it("does not fabricate participation or management when an Event is view-only", 
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
   expect(screen.getAllByRole("button")).toHaveLength(1);
   view.rerender(<EventDetailsCard event={event} />);
-  expect(screen.getByRole("button", { name: "Viewer" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Management" })).toBeNull();
   view.rerender(<EventDetailsCard event={{ ...event, role: "member" }} />);
-  expect(screen.getByRole("button", { name: "Group member" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Group member" })).toBeNull();
 });
 it("never publishes an inferred viewing role on an unresolved optimistic Event draft", () => {
   renderWithI18n(
@@ -92,7 +92,7 @@ it("distinguishes a plain Table viewer from a participating or assigned demonstr
       }}
     />,
   );
-  expect(screen.getByRole("button", { name: "Viewer" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
   expect(screen.getByRole("button", { name: "Demonstrator" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
 });

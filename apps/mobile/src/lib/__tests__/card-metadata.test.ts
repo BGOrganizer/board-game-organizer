@@ -65,7 +65,7 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
     ["@/components/common/ui/AnimatedDicebearArtwork", "AnimatedDicebearArtwork"],
     ["./GroupArtwork", "GroupArtwork"],
     ["./GroupStatusBadge", "GroupStatusBadge"],
-    ["./EventStatusBadge", "EventStatusBadge"],
+    ["./GroupCardIndicators", "GroupCardIndicators"],
     ["./EventTableRatingBadge", "EventTableRatingBadge"],
     ["./EventTableGamesPopover", "EventTableGamesPopover"],
     ["./EventTableCardIndicators", "EventTableCardIndicators"],
@@ -269,9 +269,11 @@ it("uses the real common native title component and normal body size for Group m
   const all = nodes(tree),
     title = all.find((node) => node.type === "Typography" && text(node) === group.name);
   expect(title?.props.className).toBe("font-semibold text-foreground");
-  expect(all.some((node) => node.type === "UsersRound" && node.props.size === 18)).toBe(true);
-  for (const label of ["Private", "Via Roma 1", "1 members", "0 Events"])
+  expect(all.some((node) => node.type === "UsersRound" && node.props.size === 16)).toBe(true);
+  expect((tree as Node).props.artworkLayout).toBe("cover");
+  expect(((tree as Node).props.leadingActions as Node).type).toBe("GroupCardIndicators");
+  for (const label of ["1 Member", "0 Events"])
     expect(
       all.find((node) => node.type === "Typography" && text(node) === label)?.props.className,
-    ).toBe("text-sm text-foreground");
+    ).toBe("text-sm text-muted");
 });

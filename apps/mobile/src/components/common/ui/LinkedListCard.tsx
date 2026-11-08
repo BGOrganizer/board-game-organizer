@@ -1,6 +1,6 @@
 import { Card } from "heroui-native/card";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { ListCard } from "./ListCard";
 
@@ -28,6 +28,36 @@ export function LinkedListCard({
 }) {
   const t = useT();
   const cover = artworkLayout === "cover";
+  const controls = (
+    <>
+      {leadingActions}
+      {actions}
+    </>
+  );
+  const toolbar =
+    leadingActions || actions ? (
+      cover ? (
+        <ScrollView
+          horizontal
+          style={{ height: 44, marginHorizontal: 12, marginBottom: 12, flexGrow: 0 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "flex-end",
+          }}
+        >
+          {controls}
+        </ScrollView>
+      ) : (
+        <View
+          pointerEvents="box-none"
+          style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 }}
+        >
+          {controls}
+        </View>
+      )
+    ) : null;
   return (
     <ListCard style={cover ? { overflow: "hidden" } : undefined}>
       <Pressable
@@ -42,7 +72,7 @@ export function LinkedListCard({
       <Card.Body
         pointerEvents="box-none"
         style={{
-          flexDirection: "row",
+          flexDirection: cover ? "column" : "row",
           alignItems: cover ? "stretch" : "flex-start",
           gap: cover ? 0 : 16,
           padding: cover ? 0 : 16,
@@ -51,32 +81,30 @@ export function LinkedListCard({
         {cover ? (
           <View
             pointerEvents="none"
-            style={{ position: "relative", width: 80, flexShrink: 0, overflow: "hidden" }}
+            style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: 0,
+              width: 80,
+              overflow: "hidden",
+            }}
           >
             {artwork}
           </View>
         ) : null}
         <View
           pointerEvents="box-none"
-          style={{ flex: 1, minWidth: 0, gap: 8, ...(cover ? { padding: 12 } : {}) }}
+          style={{
+            minWidth: 0,
+            gap: 8,
+            ...(cover ? { padding: 12, marginLeft: 80 } : { flex: 1 }),
+          }}
         >
           <View pointerEvents="none">{children}</View>
-          {leadingActions || actions ? (
-            <View
-              pointerEvents="box-none"
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                alignItems: "center",
-                gap: cover ? 0 : 4,
-                ...(cover ? { marginTop: "auto", justifyContent: "flex-end" } : {}),
-              }}
-            >
-              {leadingActions}
-              {actions}
-            </View>
-          ) : null}
+          {cover ? null : toolbar}
         </View>
+        {cover ? toolbar : null}
         {cover ? null : (
           <View pointerEvents="none" style={{ flexShrink: 0 }}>
             {artwork}

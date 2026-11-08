@@ -26,6 +26,7 @@ import { GameListRow } from "@/components/games/GameListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventCard } from "./EventCard";
 import { EventProposalSection } from "./EventProposalSection";
 import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
@@ -130,38 +131,50 @@ export function EventTableOverview({
           <Typography accessibilityRole="header" className="font-semibold text-foreground">
             {t("Event")}
           </Typography>
-          <LinkedListCard
-            label={`${t("Open event")}: ${table.eventName}`}
-            notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
-            onPress={() =>
-              router.push({ pathname: "/event/[eventId]", params: { eventId: table.eventId } })
-            }
-            artwork={
-              <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={64} />
-            }
-          >
-            <View
-              style={{
-                flex: 1,
-                minWidth: 0,
-                alignSelf: "center",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
+          {event.data?.id === table.eventId &&
+          typeof event.data.tableCount === "number" &&
+          Array.isArray(event.data.myRegistrations) ? (
+            <EventCard event={event.data} />
+          ) : (
+            <LinkedListCard
+              artworkLayout="cover"
+              label={`${t("Open event")}: ${table.eventName}`}
+              notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
+              onPress={() =>
+                router.push({ pathname: "/event/[eventId]", params: { eventId: table.eventId } })
+              }
+              artwork={
+                <AnimatedDicebearArtwork
+                  seed={table.eventId}
+                  variant="constellation"
+                  presentation="cover"
+                />
+              }
             >
-              <Typography
-                className="font-medium text-foreground"
-                numberOfLines={1}
-                style={{ flexShrink: 1 }}
+              <View
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  alignSelf: "center",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                }}
               >
-                {table.eventName}
-              </Typography>
-              <NotificationUnreadDot
-                active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
-              />
-            </View>
-          </LinkedListCard>
+                <Typography
+                  className="font-medium text-foreground"
+                  numberOfLines={1}
+                  style={{ flexShrink: 1 }}
+                >
+                  {table.eventName}
+                </Typography>
+                <NotificationUnreadDot
+                  active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
+                />
+              </View>
+              <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
+            </LinkedListCard>
+          )}
         </View>
       ) : null}
       {q.isError ? (

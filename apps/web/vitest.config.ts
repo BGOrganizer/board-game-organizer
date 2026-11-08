@@ -92,7 +92,7 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
-        "src/components/{events/EventCardIndicators,events/EventTableGamesPopover,events/EventTableCardIndicators,events/EventTableSchedulePopover,groups/GroupIdentityCard}.tsx":
+        "src/components/{events/EventCardIndicators,events/EventTableGamesPopover,events/EventTableCardIndicators,events/EventTableSchedulePopover,groups/GroupIdentityCard,groups/GroupCard,groups/GroupCardIndicators,groups/GroupArtwork}.tsx":
           {
             lines: 100,
             functions: 100,
@@ -174,7 +174,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/events/{EventDetailsCard,EventStatusBadge,EventTableInfo,EventTableScheduleCard,EventVoteLegend}.tsx":
+        "src/components/events/{EventDetailsCard,EventTableInfo,EventTableScheduleCard,EventVoteLegend}.tsx":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/components/events/{EventDraftTableCard,EventTableRatingBadge}.tsx": {
           lines: 100,
@@ -226,7 +226,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/common/ui/{ListCard,EmptyList}.tsx": {
+        "src/components/common/ui/{ListCard,RecordIdentityCard,EmptyList}.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,

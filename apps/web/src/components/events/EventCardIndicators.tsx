@@ -5,6 +5,7 @@ import {
   eventParticipationFlags,
   eventPendingAction,
   eventRecordSchedulePreview,
+  eventRecordVisibility,
   useEventCutoff,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
@@ -44,6 +45,7 @@ export function EventCardIndicators({ event }: { event: PlannedEventResponse }) 
           action={closed ? null : eventPendingAction(event)}
         />
       ) : null}
+      {own && participation.waiting ? <ArtworkStatusPopover size="compact" kind="waiting" /> : null}
       {own && event.myDemonstrator ? (
         <ArtworkStatusPopover size="compact" kind="demonstrator" />
       ) : null}
@@ -62,6 +64,11 @@ export function EventCardIndicators({ event }: { event: PlannedEventResponse }) 
               : confirmed
                 ? t`The event has been confirmed.`
                 : t`The event has finished. Results are immutable.`}
+          </p>
+          <p>
+            {eventRecordVisibility(event, event.groupType) === "PUBLIC"
+              ? t`Public event`
+              : t`Private event`}
           </p>
           <EventCardSchedule schedule={eventRecordSchedulePreview(event)} />
           <p>

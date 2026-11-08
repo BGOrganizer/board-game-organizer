@@ -61,28 +61,43 @@ describe("Table indicator", () => {
 });
 
 describe("independent Event consent flags", () => {
-  it("shows accepted and pending facts together without converting a queue into a seated place", () => {
-    expect(eventParticipationFlags([])).toEqual({ accepted: false, pending: false });
+  it("retains accepted, pending and canonical queue facts without guessing seats", () => {
+    expect(eventParticipationFlags([])).toEqual({
+      accepted: false,
+      pending: false,
+      waiting: false,
+    });
     expect(
       eventParticipationFlags([
         row({ position: "WAITING" }),
         row({ tableId: "other", status: "PENDING" }),
       ]),
-    ).toEqual({ accepted: true, pending: true });
+    ).toEqual({ accepted: true, pending: true, waiting: true });
     expect(
-      eventParticipationFlags([row({ status: "DECLINED" }), row({ status: "CANCELLED" })]),
-    ).toEqual({ accepted: false, pending: false });
+      eventParticipationFlags([
+        row({ status: "DECLINED", position: "WAITING" }),
+        row({ status: "CANCELLED", position: "WAITING" }),
+      ]),
+    ).toEqual({ accepted: false, pending: false, waiting: false });
     expect(eventParticipationFlags([row({ status: "PENDING", kind: "INVITATION" })])).toEqual({
       accepted: false,
       pending: true,
+      waiting: false,
+    });
+    expect(eventParticipationFlags([row({ status: "PENDING", position: "WAITING" })])).toEqual({
+      accepted: false,
+      pending: true,
+      waiting: true,
     });
     expect(eventParticipationFlags([row({ status: "CANCELLED", position: "FROZEN" })])).toEqual({
       accepted: true,
       pending: false,
+      waiting: false,
     });
     expect(eventParticipationFlags([row({ position: undefined })])).toEqual({
       accepted: true,
       pending: false,
+      waiting: false,
     });
   });
 });

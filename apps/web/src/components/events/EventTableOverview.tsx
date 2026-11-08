@@ -22,6 +22,7 @@ import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnread
 import { GameListRow } from "@/components/games/GameListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventCard } from "./EventCard";
 import { EventProposalSection } from "./EventProposalSection";
 import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
@@ -105,21 +106,33 @@ export function EventTableOverview({
         {context === "personal" ? (
           <section className="space-y-2" aria-label={t`Event`}>
             <h2 className="font-semibold">{t`Event`}</h2>
-            <LinkedListCard
-              href={`/events/${table.eventId}`}
-              notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
-              label={`${t`Open event`}: ${table.eventName}`}
-              artwork={
-                <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={64} />
-              }
-            >
-              <span className="flex min-w-0 flex-1 self-center items-center gap-2">
-                <span className="min-w-0 truncate font-medium">{table.eventName}</span>
-                <NotificationUnreadDot
-                  active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
-                />
-              </span>
-            </LinkedListCard>
+            {event.data?.id === table.eventId &&
+            typeof event.data.tableCount === "number" &&
+            Array.isArray(event.data.myRegistrations) ? (
+              <EventCard event={event.data} />
+            ) : (
+              <LinkedListCard
+                artworkLayout="cover"
+                href={`/events/${table.eventId}`}
+                notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
+                label={`${t`Open event`}: ${table.eventName}`}
+                artwork={
+                  <AnimatedDicebearArtwork
+                    seed={table.eventId}
+                    variant="constellation"
+                    presentation="cover"
+                  />
+                }
+              >
+                <span className="flex min-w-0 flex-1 self-center items-center gap-2">
+                  <span className="min-w-0 truncate font-medium">{table.eventName}</span>
+                  <NotificationUnreadDot
+                    active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
+                  />
+                </span>
+                <Skeleton className="h-4 w-28 rounded" />
+              </LinkedListCard>
+            )}
           </section>
         ) : null}
         {q.isError ? (

@@ -54,8 +54,10 @@ it("uses Group cards with metadata and review destinations, source paging and au
   mount();
   const card = await screen.findByRole("link", { name: "Open group: Pending club" });
   expect(card.getAttribute("href")).toBe(`/moderation/${pending.id}`);
-  expect(card.closest(".card")?.textContent).toContain("Public");
-  expect(card.closest(".card")?.textContent).toContain("Via Roma");
+  fireEvent.click(screen.getByRole("button", { name: "Public" }));
+  expect(await screen.findByText("Via Roma 1, Roma")).not.toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(screen.queryByRole("button", { name: pending.name })).toBeNull();
   expect(screen.queryByRole("link", { name: "Create group" })).toBeNull();
   expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("scope")).toBe("moderation");

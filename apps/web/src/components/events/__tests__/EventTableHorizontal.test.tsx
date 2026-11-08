@@ -12,7 +12,7 @@ async function close() {
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 }
 const a = plannedEvent.locations[0],
-  b = { ...a, id: "second", name: "Other venue", timeZone: undefined };
+  b = { ...a, id: "second", name: "Other venue", address: "Via Milano 2", timeZone: undefined };
 const schedule = {
   ...plannedTable.eventSchedule!,
   timeZone: "Europe/Rome",
@@ -68,9 +68,10 @@ it("shows admin, demonstrator, pending and queue icons together, with smaller fr
     expect(button.querySelector(".size-7.bg-default")).not.toBeNull();
     expect(button.querySelector("svg.size-4")).not.toBeNull();
   }
-  expect(
-    screen.getByRole("button", { name: "Administrator" }).querySelector("svg.lucide-crown"),
-  ).not.toBeNull();
+  const admin = screen.getByRole("button", { name: "Administrator" });
+  expect(admin.querySelector("svg.lucide-crown")).not.toBeNull();
+  expect(admin.className).toContain("text-warning-soft-foreground");
+  expect(admin.className).not.toContain("text-accent");
   fireEvent.click(screen.getByRole("button", { name: "Administrator" }));
   expect(await screen.findByText("You administer this item.")).not.toBeNull();
   await close();
@@ -94,6 +95,15 @@ it.each(["moderator", undefined] as const)(
     );
     expect(
       screen.getByRole("button", { name: managementRole ? "Group moderator" : "Management" }),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: managementRole ? "Group moderator" : "Management" })
+        .className,
+    ).toContain("text-accent-soft-foreground");
+    expect(
+      screen
+        .getByRole("button", { name: managementRole ? "Group moderator" : "Management" })
+        .querySelector("svg.lucide-shield-check"),
     ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Administrator" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
@@ -133,9 +143,11 @@ it.each(["dates", "locations"] as const)(
       expect(dialog.querySelectorAll("li")).toHaveLength(2);
       expect(dialog.querySelector('time[datetime="2030-06-04T21:00Z"]')).not.toBeNull();
     } else {
-      expect(within(dialog).getByText(a.name)).not.toBeNull();
-      expect(within(dialog).getByText(b.name)).not.toBeNull();
-      expect(within(dialog).getByText("Europe/Rome")).not.toBeNull();
+      expect(within(dialog).getByText(a.address)).not.toBeNull();
+      expect(within(dialog).getByText(b.address)).not.toBeNull();
+      expect(within(dialog).queryByText(a.name)).toBeNull();
+      expect(within(dialog).queryByText(b.name)).toBeNull();
+      expect(within(dialog).queryByText("Europe/Rome")).toBeNull();
     }
     expect(within(dialog).queryByRole("button")).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
@@ -167,8 +179,9 @@ it.each(["CONFIRMED", "TERMINATED"] as const)(
     await close();
     fireEvent.click(screen.getByRole("button", { name: "Locations: First table" }));
     dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText(b.name)).not.toBeNull();
-    expect(within(dialog).queryByText(a.name)).toBeNull();
+    expect(within(dialog).getByText(b.address)).not.toBeNull();
+    expect(within(dialog).queryByText(a.address)).toBeNull();
+    expect(within(dialog).queryByText(b.name)).toBeNull();
     await close();
     fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
     expect(await screen.findByText("Selected game")).not.toBeNull();

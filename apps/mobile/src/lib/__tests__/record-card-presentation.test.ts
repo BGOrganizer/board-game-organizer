@@ -4,7 +4,12 @@ import { runInNewContext } from "node:vm";
 import * as shared from "@board-game-organizer/shared";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
-import { plannedEvent, plannedTable, seat } from "../../../../web/src/test-fixtures/eventRecords";
+import {
+  groupRecord,
+  plannedEvent,
+  plannedTable,
+  seat,
+} from "../../../../web/src/test-fixtures/eventRecords";
 
 type Element = { type: unknown; props: Record<string, any> };
 // Execute actual native JSX with host primitives replaced. This is not device touch/layout acceptance.
@@ -107,7 +112,7 @@ it("keeps the horizontal card artwork fixed and actions outside its stretched na
   const footer = text.props.children[1] as Element;
   expect(footer.props.style.flexWrap).toBe("wrap");
   expect(footer.props.style.position).toBeUndefined();
-  expect(footer.props.children[0]).toBe(actions);
+  expect(footer.props.children.props.children[0]).toBe(actions);
 });
 it("lets field-help labels shrink beside fixed controls at large native font scales", () => {
   const render = component("common/ui/SearchHelpLabel", "SearchHelpLabel", {
@@ -120,10 +125,20 @@ it("lets field-help labels shrink beside fixed controls at large native font sca
   expect(tree.props.style).toMatchObject({ flexShrink: 1, minWidth: 0 });
   expect(tree.props.children[0].props.style.flexShrink).toBe(1);
 });
-it("stretches cover artwork along the whole left edge and puts controls at bottom right", () => {
+it("fits whole list artwork without overscan while leaving background artwork unchanged", () => {
+  const source = readFileSync(
+    new URL("../../components/common/ui/AnimatedDicebearArtwork.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(source).toContain('presentation === "cover" ? "xMidYMid meet" : "xMidYMid slice"');
+  expect(source).toContain('left: presentation === "cover" ? 4 : -4');
+  expect(source).toContain("{ right: 4, bottom: 4 }");
+});
+it("stretches artwork along the left edge and keeps controls on one full-width horizontal row", () => {
   const render = component("common/ui/LinkedListCard", "LinkedListCard", {
     "heroui-native/card": { Card: { Body: "Card.Body" } },
     "react-native": {
+      ScrollView: "ScrollView",
       Pressable: "Pressable",
       View: "View",
       StyleSheet: { absoluteFill: { position: "absolute", inset: 0 } },
@@ -137,18 +152,43 @@ it("stretches cover artwork along the whole left edge and puts controls at botto
     artwork: "Artwork",
     children: "Title",
     leadingActions: "Icons",
+    actions: "Action",
     artworkLayout: "cover",
   });
   const body = tree.props.children[1] as Element;
   expect(body.props.style).toMatchObject({ alignItems: "stretch", padding: 0, gap: 0 });
   const [picture, content] = body.props.children as Element[];
-  expect(picture.props.style).toMatchObject({ width: 80, flexShrink: 0, position: "relative" });
+  expect(picture.props.style).toMatchObject({ width: 80, position: "absolute", top: 0, bottom: 0 });
   expect(picture.props.children).toBe("Artwork");
-  expect(content.props.children[1].props.style).toMatchObject({
-    marginTop: "auto",
+  expect(content.props.style.marginLeft).toBe(80);
+  expect(content.props.children[1]).toBeNull();
+  const footer = body.props.children[2] as Element;
+  expect(footer.type).toBe("ScrollView");
+  expect(footer.props.horizontal).toBe(true);
+  expect(footer.props.style).toMatchObject({ height: 44, marginHorizontal: 12 });
+  expect(footer.props.contentContainerStyle).toMatchObject({
+    flexGrow: 1,
+    flexDirection: "row",
     justifyContent: "flex-end",
-    flexWrap: "wrap",
   });
+  expect(footer.props.contentContainerStyle.flexWrap).toBeUndefined();
+  expect(footer.props.children.props.children).toEqual(["Icons", "Action"]);
+});
+it.each([
+  ["admin", "warning", "Crown"],
+  ["manager", "accent", "ShieldCheck"],
+] as const)("gives native %s its own semantic color and icon", (kind, tone, icon) => {
+  const render = component("common/ui/ArtworkStatusPopover", "ArtworkStatusPopover", {
+    "heroui-native/hooks": { useThemeColor: (token: string) => token },
+    "heroui-native/skeleton": { Skeleton: "Skeleton" },
+    "heroui-native/text": { Typography: "Typography" },
+    "lucide-react-native": { Crown: "Crown", ShieldCheck: "ShieldCheck" },
+    "react-native": { View: "View" },
+    "@/lib/i18n": { useT: () => (id: string) => id },
+    "./HelpPopover": { HelpPopover: "HelpPopover" },
+  });
+  const popover = render({ kind, size: "compact" });
+  expect(popover.props).toMatchObject({ size: "compact", tone, icon });
 });
 it("shrinks only the native visual icon/frame, retaining a 44px HeroUI touch target", () => {
   const render = component("common/ui/HelpPopover", "HelpPopover", {
@@ -214,7 +254,12 @@ it.each(["dates", "locations"] as const)(
     ]).toEqual([8, 6, 7]);
     expect(list.props.data).toHaveLength(1);
     expect(list.props.keyExtractor(list.props.data[0])).toBe(plannedEvent.locations[0].id);
-    expect(list.props.renderItem({ item: list.props.data[0] })).toBeTruthy();
+    const row = list.props.renderItem({ item: list.props.data[0] });
+    expect(row).toBeTruthy();
+    if (kind === "locations") {
+      expect(row.props.children.type).toBe("Typography");
+      expect(row.props.children.props.children).toBe(plannedEvent.locations[0].address);
+    }
     const missing = render({ table: { ...table, eventSchedule: undefined }, kind }).props.children;
     expect(missing.props.ListEmptyComponent.type).toBe("Skeleton");
   },
@@ -232,7 +277,11 @@ it("keeps native manager, demonstrator, pending and waiting indicators cumulativ
       Flag: "Terminated",
       Trophy: "Rating",
     },
-    "react-native": { View: "View" },
+    "react-native": {
+      View: "View",
+      ScrollView: "ScrollView",
+      useWindowDimensions: () => ({ height: 640 }),
+    },
     "@/components/common/ui/ArtworkStatusPopover": { ArtworkStatusPopover: "Role" },
     "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
     "@/lib/i18n": { useT: () => (id: string) => id },
@@ -302,6 +351,106 @@ it("keeps native Event admin/moderation, accepted, pending and demonstration ind
   });
   const readOnly = render({ event: { ...event, readOnly: true } });
   expect(readOnly.props.children.filter((node: Element) => node?.type === "Role")).toHaveLength(0);
+});
+it.each(["admin", "moderator", "accepted", "invited", "requested", "none"] as const)(
+  "retains native Group %s role and public/private status as separate compact controls",
+  (role) => {
+    const render = component("groups/GroupCardIndicators", "GroupCardIndicators", {
+      "@board-game-organizer/shared": shared,
+      "@lingui/react": {
+        useLingui: () => ({
+          i18n: { _: (d: { values: { count: number } }) => String(d.values.count) },
+        }),
+      },
+      "heroui-native/text": { Typography: "Typography" },
+      "lucide-react-native": {
+        CircleCheck: "Check",
+        CircleX: "Rejected",
+        Clock3: "Pending",
+        Globe: "Public",
+        LockKeyhole: "Private",
+      },
+      "react-native": {
+        ScrollView: "ScrollView",
+        useWindowDimensions: () => ({ width: 320, height: 640 }),
+      },
+      "@/components/common/ui/ArtworkStatusPopover": { ArtworkStatusPopover: "Role" },
+      "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
+      "@/lib/i18n": { useT: () => (id: string) => id },
+    });
+    const group = { ...groupRecord, role };
+    const privateTree = render({ group });
+    expect(privateTree.props.children[1].props).toMatchObject({
+      label: "Private",
+      size: "compact",
+      width: 288,
+      tone: "muted",
+    });
+    expect(privateTree.props.children[2]).toBeNull();
+    if (role !== "none")
+      expect(privateTree.props.children[0].props).toMatchObject({
+        size: "compact",
+        kind:
+          role === "admin"
+            ? "admin"
+            : role === "moderator"
+              ? "manager"
+              : role === "accepted"
+                ? "member"
+                : role === "invited"
+                  ? "invitation"
+                  : "request",
+      });
+    else expect(privateTree.props.children[0]).toBeNull();
+    const publicTree = render({ group: { ...group, type: "PUBLIC", reviewStatus: "PENDING" } });
+    expect(publicTree.props.children[1].props).toMatchObject({ label: "Public", tone: "accent" });
+    expect(publicTree.props.children[2].props).toMatchObject({
+      label: "Awaiting review",
+      tone: "warning",
+    });
+    const rejected = render({
+      group: {
+        ...group,
+        type: "PUBLIC",
+        reviewStatus: "REJECTED",
+        rejectionReason: "Verify venue",
+      },
+    });
+    expect(rejected.props.children[2].props).toMatchObject({
+      label: "Changes rejected",
+      tone: "danger",
+    });
+  },
+);
+it("renders native identities directly over artwork with a single accessible horizontal toolbar", () => {
+  const render = component("common/ui/RecordIdentityCard", "RecordIdentityCard", {
+    "heroui-native/text": { Typography: "Typography" },
+    "react-native": { View: "View", ScrollView: "ScrollView" },
+    "./ListCard": { ListCard: "ListCard" },
+  });
+  const tree = render({
+    title: "Identity",
+    icon: "Icon",
+    background: "Artwork",
+    children: "Indicators",
+  });
+  expect(tree.props.background).toBe("Artwork");
+  const [title, toolbar] = tree.props.children.props.children;
+  expect(title.props.children[1].props).toMatchObject({
+    accessibilityRole: "header",
+    children: "Identity",
+  });
+  expect(toolbar.type).toBe("ScrollView");
+  expect(toolbar.props.horizontal).toBe(true);
+  expect(toolbar.props.style.height).toBe(44);
+  expect(toolbar.props.children).toBe("Indicators");
+  const card = component("common/ui/ListCard", "ListCard", {
+    "heroui-native/card": { Card: { Body: "Card.Body" } },
+    "react-native": { View: "View" },
+  });
+  const background = card({ background: "Artwork", children: "Identity" });
+  expect(background.props.children[1].props.className).toBe("bg-background/70");
+  expect(background.props.children[2].props.children).toBe("Identity");
 });
 it("uses actual HeroUI background compositions and keeps the existing API-owned roster hook", () => {
   const source = (file: string) =>

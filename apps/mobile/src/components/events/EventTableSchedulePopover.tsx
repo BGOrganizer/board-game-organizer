@@ -7,7 +7,7 @@ import {
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, MapPin } from "lucide-react-native";
-import { FlatList, useWindowDimensions, View } from "react-native";
+import { FlatList, useWindowDimensions } from "react-native";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
@@ -58,17 +58,9 @@ export function EventTableSchedulePopover({
                 dateStyle="long"
               />
             ) : (
-              <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-                <Typography className="font-medium text-foreground">
-                  {item.location.name}
-                </Typography>
-                <Typography className="text-sm text-muted">
-                  {formatLocationAddress(item.location.address)}
-                </Typography>
-                {item.location.timeZone ? (
-                  <Typography className="text-sm text-muted">{item.location.timeZone}</Typography>
-                ) : null}
-              </View>
+              <Typography className="text-foreground" style={{ flex: 1, minWidth: 0 }}>
+                {formatLocationAddress(item.location.address)}
+              </Typography>
             )}
           </GroupedRow>
         )}

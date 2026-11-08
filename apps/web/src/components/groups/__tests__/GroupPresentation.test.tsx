@@ -35,14 +35,14 @@ describe("unified group presentation", () => {
       `/groups/${id}`,
     );
     expect(screen.getByRole("button", { name: "Group admin" })).not.toBeNull();
-    expect(screen.getByText("Private")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Private" })).not.toBeNull();
     expect(screen.queryByText("Approved")).toBeNull();
   });
   it("explains accepted membership below artwork without entering the group", async () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "accepted" }} />);
     const badge = screen.getByRole("button", { name: "Group member" });
     expect(badge.className).toContain("text-success-soft-foreground");
-    expect(badge.parentElement?.className).toContain("flex-wrap");
+    expect(badge.parentElement?.className).toContain("flex-nowrap");
     expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-user-round-check")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);
@@ -77,10 +77,12 @@ describe("unified group presentation", () => {
     );
     expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
-    expect(screen.getByText("Invitation received")).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Invitation received · Reply required" }),
+    ).not.toBeNull();
     const badge = screen.getByRole("button", { name: "Invitation received · Reply required" });
     expect(badge.className).toContain("text-warning");
-    expect(badge.parentElement?.className).toContain("flex-wrap");
+    expect(badge.parentElement?.className).toContain("flex-nowrap");
     expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);
@@ -111,7 +113,7 @@ describe("unified group presentation", () => {
     expect(screen.getByRole("link", { name: "Open group: Game Club" }).getAttribute("href")).toBe(
       `/moderation/${id}`,
     );
-    expect(screen.getByText("Public")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Public" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
   });
@@ -119,7 +121,7 @@ describe("unified group presentation", () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "requested" }} />);
     const badge = screen.getByRole("button", { name: "Membership requested" });
     expect(badge.className).toContain("text-warning");
-    expect(badge.parentElement?.className).toContain("flex-wrap");
+    expect(badge.parentElement?.className).toContain("flex-nowrap");
     expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-clock-3")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);

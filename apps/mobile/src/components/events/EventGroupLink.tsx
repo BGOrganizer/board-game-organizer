@@ -6,6 +6,7 @@ import { Typography } from "heroui-native/text";
 import { View } from "react-native";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { GroupArtwork } from "@/components/groups/GroupArtwork";
+import { GroupCard } from "@/components/groups/GroupCard";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -25,28 +26,39 @@ export function EventGroupLink({ groupId, name }: { groupId: string; name?: stri
       <Typography accessibilityRole="header" className="font-semibold text-foreground">
         {t("Group")}
       </Typography>
-      <LinkedListCard
-        label={`${t("Open group")}: ${label ?? t("Group")}`}
-        onPress={() => router.push({ pathname: "/group/[groupId]", params: { groupId } })}
-        artwork={
-          record && record.logo !== undefined ? (
-            <GroupArtwork group={record} status="none" />
+      {record &&
+      typeof record.memberCount === "number" &&
+      typeof record.canViewEvents === "boolean" &&
+      record.logo !== undefined &&
+      (record.type === "PRIVATE" || record.type === "PUBLIC") &&
+      typeof record.role === "string" ? (
+        <GroupCard group={record} />
+      ) : (
+        <LinkedListCard
+          artworkLayout="cover"
+          label={`${t("Open group")}: ${label ?? t("Group")}`}
+          onPress={() => router.push({ pathname: "/group/[groupId]", params: { groupId } })}
+          artwork={
+            record && record.logo !== undefined ? (
+              <GroupArtwork group={record} status="none" presentation="cover" />
+            ) : (
+              <Skeleton style={{ width: "100%", height: "100%", borderRadius: 0 }} />
+            )
+          }
+        >
+          {label ? (
+            <Typography
+              className="font-medium text-foreground"
+              style={{ flex: 1, alignSelf: "center" }}
+            >
+              {label}
+            </Typography>
           ) : (
-            <Skeleton style={{ width: 64, height: 64, borderRadius: 12 }} />
-          )
-        }
-      >
-        {label ? (
-          <Typography
-            className="font-medium text-foreground"
-            style={{ flex: 1, alignSelf: "center" }}
-          >
-            {label}
-          </Typography>
-        ) : (
-          <Skeleton style={{ width: 128, height: 16, borderRadius: 4 }} />
-        )}
-      </LinkedListCard>
+            <Skeleton style={{ width: 128, height: 16, borderRadius: 4 }} />
+          )}
+          <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
+        </LinkedListCard>
+      )}
       {group.isError ? (
         <View style={{ gap: 8 }}>
           <Typography accessibilityRole="alert" className="text-danger">

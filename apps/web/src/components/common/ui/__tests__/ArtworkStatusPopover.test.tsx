@@ -27,7 +27,7 @@ it.each([
     "list-ordered",
     "text-warning",
   ],
-  ["admin", "Administrator", "You administer this item.", "crown", "text-muted"],
+  ["admin", "Administrator", "You administer this item.", "crown", "text-warning"],
   ["member", "Group member", "You are a member of this group.", "user-round-check", "text-success"],
   [
     "manager",

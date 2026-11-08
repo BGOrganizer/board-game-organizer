@@ -24,7 +24,7 @@ it("opens the unified Event with full-height left artwork and a singular count, 
   ).not.toBeNull();
   expect(
     screen.getByText(plannedEvent.name).closest(".card")?.querySelector("img")?.className,
-  ).toContain("h-full w-full object-cover");
+  ).toContain("h-full w-full object-contain");
   expect(screen.queryByRole("button", { name: "Accepted participant" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Administrator" })).toBeNull();

@@ -38,6 +38,10 @@ export function eventParticipationFlags(registrations: readonly OwnRegistration[
   return {
     accepted: registrations.some((row) => row.status === "ACCEPTED" || row.position === "FROZEN"),
     pending: registrations.some((row) => row.status === "PENDING"),
+    waiting: registrations.some(
+      (row) =>
+        row.position === "WAITING" && (row.status === "ACCEPTED" || row.status === "PENDING"),
+    ),
   };
 }
 

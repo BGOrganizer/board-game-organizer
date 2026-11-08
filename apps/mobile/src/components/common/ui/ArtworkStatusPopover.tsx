@@ -122,10 +122,10 @@ export function ArtworkStatusPopover({
               kind === "request" ||
               kind === "invitation" ||
               kind === "waiting" ||
-              kind === "pending"
+              kind === "pending" ||
+              kind === "admin"
             ? "warning"
-            : size === "compact" &&
-                (kind === "admin" || kind === "manager" || kind === "demonstrator")
+            : size === "compact" && (kind === "manager" || kind === "demonstrator")
               ? "accent"
               : "muted"
       }

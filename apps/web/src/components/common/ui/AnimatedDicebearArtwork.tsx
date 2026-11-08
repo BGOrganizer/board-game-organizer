@@ -44,7 +44,7 @@ export function AnimatedDicebearArtwork({
         alt=""
         width={size + 8}
         height={size + 8}
-        className={`dicebear-artwork ${presentation !== "thumbnail" ? "absolute inset-0 h-full w-full object-cover" : "relative -top-1 -left-1"} ${variant === "waves" ? "match-waves" : variant === "shapes" ? "table-shapes" : ""}`}
+        className={`dicebear-artwork ${presentation === "cover" ? "absolute inset-0 h-full w-full object-contain p-1" : presentation === "background" ? "absolute inset-0 h-full w-full object-cover" : "relative -top-1 -left-1"} ${variant === "waves" ? "match-waves" : variant === "shapes" ? "table-shapes" : ""}`}
       />
     </span>
   );

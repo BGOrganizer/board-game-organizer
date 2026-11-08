@@ -20,7 +20,16 @@ tags: [manual, cards]
 - extendedWaitUntil:
     visible: ${output.cardGroup}
     timeout: 120000
+- assertVisible: ${output.cardMembers}
+- assertVisible: ${output.cardGroupEvents}
+- assertVisible: ${output.cardPrivate}
 - takeScreenshot: card-group-metadata
+- tapOn: ${output.cardGroup}
+- extendedWaitUntil:
+    visible: ${output.cardGroupTitle}
+    timeout: 120000
+- assertVisible: ${output.cardPrivate}
+- takeScreenshot: card-group-background-identity
 - openLink: bgo:///events
 - tapOn:
     id: "list-search-input"
@@ -45,6 +54,19 @@ tags: [manual, cards]
 - assertVisible: ${output.cardLocationCount}
 - takeScreenshot: card-event-status-metadata
 - back
+- tapOn: ${output.cardEvent}
+- extendedWaitUntil:
+    visible: ${output.cardEventTitle}
+    timeout: 120000
+- takeScreenshot: card-event-background-identity
+- tapOn: ${output.cardOverview}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardGroup}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardMembers}
+- takeScreenshot: card-event-parent-group-list-style
 - openLink: bgo:///tables
 - tapOn:
     id: "list-search-input"
@@ -58,20 +80,61 @@ tags: [manual, cards]
 - assertVisible: ${output.cardGroupParent}
 - assertVisible: ${output.cardRatio}
 - takeScreenshot: card-table-horizontal-metadata
+- scrollUntilVisible:
+    element:
+      text: ${output.cardDatesPopover}
+    direction: LEFT
+    timeout: 20000
 - tapOn: ${output.cardDatesPopover}
 - assertVisible: ${output.cardDate}
 - assertVisible: ${output.cardTime}
 - takeScreenshot: card-table-dates-popover
 - back
+- scrollUntilVisible:
+    element:
+      text: ${output.cardLocationsPopover}
+    direction: LEFT
+    timeout: 20000
 - tapOn: ${output.cardLocationsPopover}
-- assertVisible: ${output.cardVenue}
+- assertVisible: ${output.cardAddress}
+- assertNotVisible: ${output.cardZone}
 - takeScreenshot: card-table-locations-popover
 - back
+- scrollUntilVisible:
+    element:
+      text: ${output.cardGamesPopover}
+    direction: LEFT
+    timeout: 20000
 - tapOn: ${output.cardGamesPopover}
 - assertVisible: ${output.cardGamesTitle}
 - assertNotVisible: ${output.cardNoGames}
 - takeScreenshot: card-table-games-popover
 - back
+- tapOn: ${output.cardTable}
+- extendedWaitUntil:
+    visible: ${output.cardTableTitle}
+    timeout: 120000
+- scrollUntilVisible:
+    element:
+      text: ${output.cardEventState}
+      childOf:
+        id: "record-identity-controls"
+    direction: LEFT
+    timeout: 20000
+- takeScreenshot: card-table-background-identity
+- tapOn:
+    text: ${output.cardEventState}
+    childOf:
+      id: "record-identity-controls"
+- assertNotVisible: ${output.cardDatesPopover}
+- back
+- scrollUntilVisible:
+    element:
+      text: ${output.cardEvent}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardEventTableCount}
+- takeScreenshot: card-table-parent-event-list-style
 - openLink: bgo:///events
 - extendedWaitUntil:
     visible: ${output.cardEvent}
@@ -89,6 +152,21 @@ tags: [manual, cards]
 # in screenshots; syntax/VM assertions do not establish native geometry or touch acceptance.
 - assertVisible: ${output.cardEventParent}
 - assertVisible: ${output.cardGroupParent}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardDatesPopover}
+    direction: LEFT
+    timeout: 20000
 - assertVisible: ${output.cardDatesPopover}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardLocationsPopover}
+    direction: LEFT
+    timeout: 20000
 - assertVisible: ${output.cardLocationsPopover}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardGamesPopover}
+    direction: LEFT
+    timeout: 20000
 - assertVisible: ${output.cardGamesPopover}

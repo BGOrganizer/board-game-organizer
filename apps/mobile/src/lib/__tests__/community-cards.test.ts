@@ -96,12 +96,13 @@ it("keeps shared invitation dimensions and semantic controls in details, never l
 });
 it.each([
   ["admin", "admin"],
+  ["moderator", "manager"],
   ["invited", "invitation"],
   ["requested", "request"],
   ["accepted", "member"],
   ["none", null],
 ])("projects authoritative Group role %s to %s without granting membership", (role, expected) => {
-  const value = source("groups/GroupCard").match(/const indicator =([\s\S]*?);/)?.[1];
+  const value = source("groups/GroupCardIndicators").match(/const indicator =([\s\S]*?);/)?.[1];
   expect(value).toBeTruthy();
   expect(runInNewContext(`(${value})`, { group: { role } })).toBe(expected);
   const status = source("common/ui/ArtworkStatusPopover");

@@ -23,12 +23,17 @@ export function ListCard({
         </View>
       ) : null}
       {background ? (
+        <View
+          pointerEvents="none"
+          className="bg-background/70"
+          style={{ position: "absolute", inset: 0, borderRadius: 12 }}
+        />
+      ) : null}
+      {background ? (
         <Card.Body
-          style={{ minHeight: 172, padding: 16, paddingTop: 64, justifyContent: "flex-end" }}
+          style={{ minHeight: 224, padding: 16, paddingTop: 64, justifyContent: "flex-end" }}
         >
-          <View className="bg-surface/95" style={{ borderRadius: 12, padding: 12, gap: 8 }}>
-            {children}
-          </View>
+          {children}
         </Card.Body>
       ) : (
         children
