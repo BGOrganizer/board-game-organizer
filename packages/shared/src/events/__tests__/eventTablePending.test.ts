@@ -48,6 +48,7 @@ describe("sending invitation places, not server seats", () => {
         kind: "pending",
         userId: "guest",
         name: "Guest",
+        username: "guest",
         avatarUrl: "https://images.test/avatar",
       },
       ...rows,
@@ -121,6 +122,7 @@ describe("sending invitation places, not server seats", () => {
         phase: "saving",
         userId: "owner",
         name: "Owner",
+        username: "owner",
         avatarUrl: "https://images.test/owner",
       },
       player,
@@ -165,15 +167,24 @@ describe("sending invitation places, not server seats", () => {
   });
   it("uses a matching canonical cached self profile before any registration exists, never another actor's profile", () => {
     const intent = { key: "joining:1", action: "join" as const, phase: "saving" as const },
-      profile = { id: "owner", name: "Mario Rossi", avatarUrl: "https://images.test/mario" };
+      profile = {
+        id: "owner",
+        name: "Mario Rossi",
+        username: "mario",
+        avatarUrl: "https://images.test/mario",
+      };
     expect(pendingParticipationPlaces([free], intent, "owner", false, profile)[0]).toMatchObject({
       kind: "pending",
       name: "Mario Rossi",
+      username: "mario",
       avatarUrl: profile.avatarUrl,
     });
     expect(
       pendingParticipationPlaces([free], intent, "owner", false, { ...profile, id: "foreign" })[0],
     ).toMatchObject({ name: "", avatarUrl: null });
+    expect(
+      pendingParticipationPlaces([free], intent, "owner", false, { ...profile, id: "foreign" })[0],
+    ).not.toHaveProperty("username");
     const own: EventTablePlace = {
       key: "own",
       kind: "player",

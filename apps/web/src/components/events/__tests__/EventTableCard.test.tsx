@@ -227,7 +227,7 @@ it("shows accepted seats/capacity and Group before Event, retaining other totals
     ["Maximum players", "4"],
     ["Accepted players", "7"],
     ["Waiting list", "8"],
-    ["Pending players", "3"],
+    ["Unconfirmed players", "3"],
   ])
     expect(within(dialog).getByText(label).parentElement?.querySelector("dd")?.textContent).toBe(
       value,
@@ -257,7 +257,7 @@ it("keeps old cached identity while missing new Group/total fields use skeletons
     screen.getByText("Accepted players").parentElement?.querySelector(".skeleton"),
   ).not.toBeNull();
   expect(
-    screen.getByText("Pending players").parentElement?.querySelector(".skeleton"),
+    screen.getByText("Unconfirmed players").parentElement?.querySelector(".skeleton"),
   ).not.toBeNull();
 });
 it("marks a pending self request without offering self-approval, including inconsistent stale capabilities", () => {

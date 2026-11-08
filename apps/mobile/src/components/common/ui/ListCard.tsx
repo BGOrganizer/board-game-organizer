@@ -13,7 +13,18 @@ export function ListCard({
   background?: ReactNode;
 }) {
   return (
-    <Card style={[{ width: "100%", borderRadius: 12, position: "relative", padding: 0 }, style]}>
+    <Card
+      style={[
+        {
+          width: "100%",
+          borderRadius: 12,
+          position: "relative",
+          padding: 0,
+          ...(background ? { overflow: "hidden" as const } : {}),
+        },
+        style,
+      ]}
+    >
       {background ? (
         <View
           pointerEvents="none"
@@ -23,15 +34,8 @@ export function ListCard({
         </View>
       ) : null}
       {background ? (
-        <View
-          pointerEvents="none"
-          className="bg-background/70"
-          style={{ position: "absolute", inset: 0, borderRadius: 12 }}
-        />
-      ) : null}
-      {background ? (
         <Card.Body
-          style={{ minHeight: 224, padding: 16, paddingTop: 64, justifyContent: "flex-end" }}
+          style={{ minHeight: 224, padding: 0, paddingTop: 64, justifyContent: "flex-end" }}
         >
           {children}
         </Card.Body>

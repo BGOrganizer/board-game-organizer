@@ -42,7 +42,7 @@ let table: PlannedTableResponse,
   paged = false,
   acceptedElsewhere = false,
   fetcher: ReturnType<typeof vi.fn>;
-it("exposes only Overview/Results for shared final Tables, hides private rosters and resets selected Ranking after access changes", async () => {
+it("exposes only Details/Results for shared final Tables, hides private rosters and resets selected Ranking after access changes", async () => {
   table = { ...table, eventStatus: "CONFIRMED" };
   const client = mount();
   fireEvent.click(await screen.findByRole("tab", { name: "Ranking" }));
@@ -68,7 +68,7 @@ it("exposes only Overview/Results for shared final Tables, hides private rosters
     );
   });
   await waitFor(() => expect(screen.queryByRole("tab", { name: "Ranking" })).toBeNull());
-  expect(screen.getByRole("tab", { name: /Overview/ }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tab", { name: /Details/ }).getAttribute("aria-selected")).toBe("true");
   expect(screen.queryByRole("button", { name: "Leave table" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Invite players" })).toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Results" }));
@@ -256,7 +256,7 @@ it("separates Participants while retaining one roster reader and the same initia
   const initial = reads();
   await openParticipants();
   expect(await screen.findByRole("region", { name: "Seats list" })).not.toBeNull();
-  fireEvent.click(screen.getByRole("tab", { name: /^Overview/ }));
+  fireEvent.click(screen.getByRole("tab", { name: /^Details/ }));
   await act(async () => {});
   expect(screen.queryByRole("region", { name: "Seats list" })).toBeNull();
   expect(reads()).toEqual(initial);
@@ -302,7 +302,7 @@ async function openParticipants() {
   fireEvent.click(await screen.findByRole("tab", { name: /^Participants/ }));
 }
 async function vote(label = "Chess", value = "Yes", current = "Choose your vote") {
-  fireEvent.click(await screen.findByRole("tab", { name: /^Overview/ }));
+  fireEvent.click(await screen.findByRole("tab", { name: /^Details/ }));
   fireEvent.click(await screen.findByRole("button", { name: `${label}: ${current}` }));
   fireEvent.click(
     within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
@@ -438,7 +438,7 @@ it.each([
         : original(url, init),
     );
     mount();
-    await screen.findByRole("tab", { name: "Overview" });
+    await screen.findByRole("tab", { name: "Details" });
     expect(screen.getAllByRole("tab")).toHaveLength(eventStatus === "TERMINATED" ? 4 : 3);
     expect(screen.getByRole("tab", { name: "Ranking" })).not.toBeNull();
     expect(Boolean(screen.queryByRole("tab", { name: "Results" }))).toBe(
@@ -464,9 +464,7 @@ it("keeps unavailable section selections safe when table metadata is replaced an
     );
   });
   await waitFor(() =>
-    expect(screen.getByRole("tab", { name: "Overview" }).getAttribute("aria-selected")).toBe(
-      "true",
-    ),
+    expect(screen.getByRole("tab", { name: "Details" }).getAttribute("aria-selected")).toBe("true"),
   );
   expect(screen.queryByRole("tab", { name: "Results" })).toBeNull();
 });
@@ -817,10 +815,10 @@ it("retains a queue entry beyond capacity and shows pending, accepted and waitin
   table = { ...table, maxPlayers: 2, seatedCount: 1, pendingCount: 1, waitingCount: 1 };
   mount();
   await openParticipants();
-  expect(await screen.findByText("guest")).not.toBeNull();
+  expect(await screen.findByText("@guest")).not.toBeNull();
   expect(screen.getByRole("img", { name: "Waiting list" })).not.toBeNull();
-  expect(screen.getByRole("img", { name: "Invitation pending" })).not.toBeNull();
-  expect(screen.getByRole("img", { name: "Accepted player" })).not.toBeNull();
+  expect(screen.getByRole("img", { name: "Awaiting acceptance" })).not.toBeNull();
+  expect(screen.getByRole("img", { name: "Participant" })).not.toBeNull();
   expect(screen.getByRole("button", { name: "Join waiting list" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Seats list: Field help" }));
   expect(await screen.findByText(/Free places allow joining or invitations/)).not.toBeNull();
@@ -831,11 +829,11 @@ it("paginates source rosters and confirms other-player removal", async () => {
   mount();
   await openParticipants();
   fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
-  const remove = await screen.findByRole("button", { name: "Remove player: guest" });
+  const remove = await screen.findByRole("button", { name: "Remove player: @guest" });
   expect(remove.closest("li")?.className).toContain("[content-visibility:auto]");
   fireEvent.click(remove);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
-  fireEvent.click(screen.getByRole("button", { name: "Remove player: guest" }));
+  fireEvent.click(screen.getByRole("button", { name: "Remove player: @guest" }));
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(
@@ -867,7 +865,7 @@ it("loads the next source page when the scroll sentinel intersects, without a ma
   await act(async () =>
     notify([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver),
   );
-  expect(await screen.findByText("guest")).not.toBeNull();
+  expect(await screen.findByText("@guest")).not.toBeNull();
   expect(fetcher.mock.calls.some(([url]) => url.includes("cursor="))).toBe(true);
 });
 it("lets a new member join directly, never reads another user's pending stream, and preserves failed join feedback", async () => {
@@ -964,7 +962,7 @@ it("keeps seat read failures visible, retries and renders empty places rather th
   expect(screen.queryByText("No players waiting")).toBeNull();
   broken = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await screen.findByText("You");
+  await screen.findByText("@owner");
   expect(screen.queryByText("owner")).toBeNull();
 });
 it("shows confirmed username/timing and exclusion without email, voting or open-place actions", async () => {
@@ -987,9 +985,9 @@ it("shows confirmed username/timing and exclusion without email, voting or open-
   };
   mount();
   await openParticipants();
-  expect(await screen.findByText("owner")).not.toBeNull();
+  expect(await screen.findByText("@owner")).not.toBeNull();
   expect(screen.queryByText("owner@example.test")).toBeNull();
-  fireEvent.click(screen.getByRole("tab", { name: /^Overview/ }));
+  fireEvent.click(screen.getByRole("tab", { name: /^Details/ }));
   expect(screen.getByText(/Guide/)).not.toBeNull();
   expect(
     screen
@@ -1165,12 +1163,12 @@ it("keeps cached players during a failed next page and permits explicit retry", 
   await openParticipants();
   fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
   await screen.findByText("Could not load players");
-  expect(screen.getByText("You")).not.toBeNull();
+  expect(screen.getByText("@owner")).not.toBeNull();
   expect(screen.queryByText("owner")).toBeNull();
   broken = false;
   const retries = screen.getAllByRole("button", { name: "Try again" });
   fireEvent.click(retries[retries.length - 1]);
-  expect(await screen.findByText("guest")).not.toBeNull();
+  expect(await screen.findByText("@guest")).not.toBeNull();
 });
 it("rechecks capabilities and cutoff even while a place-action modal is open", async () => {
   table = { ...table, canRegister: true, myRegistration: null, myPosition: null, seatedCount: 0 };

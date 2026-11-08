@@ -80,7 +80,7 @@ output.access = {
       : "Shared finalized results. Group details are hidden.",
   ),
   participants: exact(it ? "Partecipanti" : "Participants"),
-  overview: exact(it ? "Riepilogo" : "Overview"),
+  overview: exact(it ? "Dettagli" : "Details"),
   tables: exact(it ? "Tavoli" : "Tables"),
   events: exact(it ? "Eventi" : "Events"),
   seats: exact(it ? "Lista posti" : "Seats list"),

@@ -146,8 +146,8 @@ it.each([false, true])(
       return;
     }
     const waiting = await screen.findByRole("region", { name: "Waiting list" });
-    await within(waiting).findByText("queued");
-    expect(within(primary).queryByText("queued")).toBeNull();
+    await within(waiting).findByText("@queued");
+    expect(within(primary).queryByText("@queued")).toBeNull();
     expect(
       primary.compareDocumentPosition(waiting) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();

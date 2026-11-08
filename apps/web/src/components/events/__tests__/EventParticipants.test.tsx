@@ -83,9 +83,35 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 async function choose(action = "Remove from event") {
-  fireEvent.click(await screen.findByRole("button", { name: "Manage participant: target-name" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Manage participant: @target-name" }));
   fireEvent.click(await screen.findByRole("button", { name: action }));
 }
+it.each([
+  ["admin", "Admin", "crown", "warning"],
+  ["moderator", "Moderator", "shield-check", "accent"],
+  [null, "Participant", "user-round-check", "success"],
+  [undefined, "Participant", "user-round-check", "success"],
+] as const)(
+  "shows a single @handle, current %s subtitle and semantic avatar overlay without inventing actions",
+  async (managementRole, label, icon, color) => {
+    mount([{ ...person, username: "@target-name", managementRole, canRemove: false }]);
+    const name = await screen.findByText("@target-name");
+    expect(screen.queryByText("Display name")).toBeNull();
+    expect(screen.getByText(`${label} · Waiting list`)).toBeTruthy();
+    const badge = screen.getByRole("img", { name: label });
+    expect(badge.className).toContain(`text-${color}`);
+    expect(badge.className).toContain("-bottom-1");
+    expect(badge.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
+    expect(name.closest("tr")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Manage participant: @target-name" })).toBeNull();
+  },
+);
+it("keeps the known fallback when a username is absent instead of fabricating a handle", async () => {
+  mount([{ ...person, username: null, position: "SEATED" }]);
+  expect(await screen.findByText("Display name")).toBeTruthy();
+  expect(screen.getByText("Participant")).toBeTruthy();
+  expect(screen.queryByText("@Display name")).toBeNull();
+});
 it("never exposes own-row moderation, even if restored flags incorrectly claim it is allowed", async () => {
   mount(
     [
@@ -108,9 +134,9 @@ it("never exposes own-row moderation, even if restored flags incorrectly claim i
       participantCount: 2,
     },
   );
-  expect(await screen.findByText("self-name")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Manage participant: self-name" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Manage participant: target-name" })).toBeTruthy();
+  expect(await screen.findByText("@self-name")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Manage participant: @self-name" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Manage participant: @target-name" })).toBeTruthy();
 });
 it.each([true, false])(
   "projects Event removal immediately, keeps Group untouched and selectively reconciles receipt/failure: %s",
@@ -142,7 +168,7 @@ it.each([true, false])(
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove from event" }));
     await waitFor(() => expect(finish).toBeDefined());
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.queryByText("target-name")).toBeNull();
+    expect(screen.queryByText("@target-name")).toBeNull();
     expect(f.client.getQueryData(f.key)).toMatchObject({ pages: [{ items: [] }] });
     expect(mocks.feedback.onOptimisticUpdate).toHaveBeenCalledWith("remove_event_player");
     expect(fetch).toHaveBeenCalledWith(
@@ -165,7 +191,7 @@ it.each([true, false])(
         }),
       );
     else {
-      await screen.findByText("target-name");
+      await screen.findByText("@target-name");
       expect(mocks.feedback.onError).toHaveBeenCalled();
     }
     expect(
@@ -235,7 +261,7 @@ it("uses exactly the existing Group ban POST, never a second non-atomic Event-re
     pageParams: [""],
   });
   await choose("Ban from group");
-  const dialog = await screen.findByRole("dialog", { name: "Ban from group: target-name" });
+  const dialog = await screen.findByRole("dialog", { name: "Ban from group: @target-name" });
   fireEvent.click(within(dialog).getByRole("button", { name: "Ban from group" }));
   await waitFor(() => expect(finish).toBeDefined());
   expect(f.client.getQueryData(f.key)).toMatchObject({ pages: [{ items: [] }] });
@@ -265,7 +291,7 @@ it("uses exactly the existing Group ban POST, never a second non-atomic Event-re
 });
 it("does not offer stale manager affordances to ordinary members and shows empty/error paths", async () => {
   const f = mount([person], { ...plannedEvent, canManage: false, role: "member", canEdit: false });
-  expect(await screen.findByText("target-name")).toBeTruthy();
+  expect(await screen.findByText("@target-name")).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Manage participant/ })).toBeNull();
   await act(async () =>
     f.client.setQueryData(f.key, { ...f.data, pages: [{ ...f.data.pages[0], items: [] }] }),
@@ -279,5 +305,5 @@ it("does not offer stale manager affordances to ordinary members and shows empty
     await f.client.refetchQueries({ queryKey: f.key });
   });
   await screen.findByText("Could not load participants");
-  expect(screen.queryByText("target-name")).toBeNull();
+  expect(screen.queryByText("@target-name")).toBeNull();
 });

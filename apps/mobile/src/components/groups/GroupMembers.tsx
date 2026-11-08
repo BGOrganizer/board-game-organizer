@@ -5,6 +5,7 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
+  formatUsername,
   groupPersonActions,
   groupPersonContact,
   isGroupManagerRole,
@@ -95,7 +96,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
       ? list.items.find((person) => person.userId === menu && person.social)
       : undefined;
   const name = (person: GroupPersonResponse) =>
-    person.name ?? person.username ?? t("Username unavailable");
+    formatUsername(person.username, person.name ?? t("Username unavailable"));
   const failure = workflow.error
     ? workflow.error.message === "BAN_FROZEN_PARTICIPATION"
       ? t("This user is involved in a frozen public event and cannot be excluded.")
@@ -199,9 +200,15 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     ? person.ban.until
                       ? `${t("Exclusion ends")}: ${new Date(person.ban.until).toLocaleString(i18n.locale)}`
                       : t("Permanent exclusion")
-                    : person.username !== name(person)
-                      ? person.username
-                      : undefined
+                    : person.isAdmin
+                      ? t("Admin")
+                      : person.membership?.status === "PENDING"
+                        ? t("Awaiting acceptance")
+                        : isGroupModerator(person.membership)
+                          ? t("Moderator")
+                          : person.membership?.status === "ACCEPTED"
+                            ? t("Member")
+                            : undefined
               }
               badge={badge}
               actions={

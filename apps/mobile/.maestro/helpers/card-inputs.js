@@ -68,7 +68,7 @@ output.cardGroupEvents = italian ? "^[0-9]+ Event[oi]$" : "^[0-9]+ Events?$";
 output.cardGroupTitle = "^" + escaped(output.cardGroupName) + "$";
 output.cardEventTitle = "^" + escaped(output.cardEventName) + "$";
 output.cardTableTitle = "^" + escaped(output.cardTableName) + "$";
-output.cardOverview = italian ? "^Panoramica$" : "^Overview$";
+output.cardOverview = italian ? "^Dettagli$" : "^Details$";
 output.cardDateCount = italian ? "2 date proposte" : "2 proposed dates";
 output.cardLocationCount = italian ? "2 luoghi proposti" : "2 proposed locations";
 output.cardDatesPopover =
@@ -84,3 +84,37 @@ output.cardNoGames = italian ? "^Nessun gioco trovato$" : "^No games found$";
 output.cardEventState = italian ? "^In pianificazione$" : "^Planning$";
 output.cardEventAccepted = italian ? "^Partecipante accettato$" : "^Accepted participant$";
 output.cardEventTableCount = italian ? "^[0-9]+ Tavol[oi]$" : "^[0-9]+ Tables?$";
+var person = JSON.parse(
+  required(typeof CARD_PEOPLE_INPUT === "undefined" ? "" : CARD_PEOPLE_INPUT, "CARD_PEOPLE_INPUT"),
+);
+var handle = required(person.username, "username").trim().replace(/^@+/, "");
+if (
+  !handle ||
+  ["admin", "moderator", "member"].indexOf(person.groupRole) < 0 ||
+  ["admin", "moderator", "participant"].indexOf(person.eventRole) < 0 ||
+  ["participant", "awaiting", "waiting"].indexOf(person.tableStatus) < 0
+)
+  throw new Error(
+    "Known first-page username and authoritative Group/Event roles/Table status required",
+  );
+var roleLabels = {
+  admin: "Admin",
+  moderator: italian ? "Moderatore" : "Moderator",
+  member: italian ? "Membro" : "Member",
+  participant: italian ? "Partecipante" : "Participant",
+  awaiting: italian ? "In attesa di accettazione" : "Awaiting acceptance",
+  waiting: italian ? "Lista d'attesa" : "Waiting list",
+};
+output.cardPerson = "^@" + escaped(handle) + "$";
+output.cardGroupRole = "^" + escaped(roleLabels[person.groupRole]) + "$";
+output.cardEventRole =
+  "^" + escaped(roleLabels[person.eventRole]) + "(?: · " + escaped(roleLabels.waiting) + ")?$";
+output.cardTableStatus =
+  "^" +
+  escaped(roleLabels[person.tableStatus]) +
+  (person.tableStatus === "awaiting" ? "(?: · " + escaped(roleLabels.waiting) + ")?" : "") +
+  "$";
+output.cardMembersTab = italian ? "^Membri$" : "^Members$";
+output.cardParticipantsTab = italian ? "^Partecipanti$" : "^Participants$";
+output.cardRankingTab = "^Ranking$";
+output.cardUnconfirmed = italian ? "^Giocatori non confermati$" : "^Unconfirmed players$";

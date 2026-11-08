@@ -15,6 +15,22 @@ const email = required("E2E_EMAIL"),
   address = required("CARD_VENUE_ADDRESS"),
   day = required("CARD_EVENT_DAY"),
   clock = required("CARD_EVENT_TIME");
+const people = JSON.parse(required("CARD_PEOPLE_INPUT")) as {
+  username: string;
+  groupRole: string;
+  eventRole: string;
+  tableStatus: string;
+};
+if (
+  !people.username?.trim().replace(/^@+/, "") ||
+  !["admin", "moderator", "member"].includes(people.groupRole) ||
+  !["admin", "moderator", "participant"].includes(people.eventRole) ||
+  !["participant", "awaiting", "waiting"].includes(people.tableStatus)
+)
+  throw new Error(
+    "Known first-page username and authoritative Group/Event role/Table status fixtures required",
+  );
+const handle = `@${people.username.trim().replace(/^@+/, "")}`;
 const locale = required("CARD_LOCALE");
 if (!["en", "it"].includes(locale)) throw new Error("CARD_LOCALE must be en or it");
 if (
@@ -68,9 +84,17 @@ for (const width of [390, 1280])
           fit: getComputedStyle(c.querySelector("img")!).objectFit,
           sameRow: Math.max(...y) - Math.min(...y) < 1,
           overflow: c.scrollWidth > c.clientWidth + 1,
+          transparentCanvas:
+            getComputedStyle(c.querySelector("img")!.parentElement!).backgroundColor ===
+            "rgba(0, 0, 0, 0)",
         };
       });
-      expect(info).toEqual({ fit: "contain", sameRow: true, overflow: false });
+      expect(info).toEqual({
+        fit: "contain",
+        sameRow: true,
+        overflow: false,
+        transparentCanvas: true,
+      });
     };
     const labels = (card: Locator) =>
       card
@@ -82,7 +106,16 @@ for (const width of [390, 1280])
         .filter({ has: page.getByRole("heading", { name, exact: true }) });
       await expect(card).toBeVisible();
       await expect(card.locator('[class~="bg-surface/95"]')).toHaveCount(0);
-      await expect(card.locator('[class~="bg-background/70"]')).toHaveCount(1);
+      await expect(card.locator('[class~="bg-background/70"]')).toHaveCount(0);
+      const caption = card.locator('[class~="bg-background/90"]');
+      await expect(caption).toHaveCSS("flex-wrap", "nowrap");
+      await expect(card.locator("img")).toHaveCSS("opacity", "1");
+      const sameRow = await caption.evaluate((row) => {
+        const heading = row.querySelector("h1")!.getBoundingClientRect(),
+          toolbar = row.lastElementChild!.getBoundingClientRect();
+        return Math.abs(heading.y + heading.height / 2 - toolbar.y - toolbar.height / 2) < 2;
+      });
+      expect(sameRow).toBe(true);
       expect(await labels(card)).toEqual(expectedLabels);
       return card;
     };
@@ -109,6 +142,26 @@ for (const width of [390, 1280])
     }).format(new Date(`${day}T${clock}Z`));
     await group.getByRole("link").click();
     await inspectIdentity(groupName, groupLabels);
+    await expect(
+      page.getByRole("tab", { name: it ? "Dettagli" : "Details", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Ranking", exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: it ? "Membri" : "Members", exact: true }).click();
+    const groupPerson = page.getByText(handle, { exact: true });
+    await expect(groupPerson).toBeVisible();
+    const groupRole =
+      people.groupRole === "admin"
+        ? "Admin"
+        : people.groupRole === "moderator"
+          ? it
+            ? "Moderatore"
+            : "Moderator"
+          : it
+            ? "Membro"
+            : "Member";
+    await expect(
+      groupPerson.locator("xpath=ancestor::li[1]").getByText(groupRole, { exact: true }),
+    ).toBeVisible();
     const event = await open("/events", eventName, "event");
     await inspectFrame(event);
     const eventLabels = await labels(event);
@@ -182,6 +235,15 @@ for (const width of [390, 1280])
         it ? "Classifica attiva" : "Rating enabled",
       ])
         await expect(table.getByRole("button", { name, exact: true })).toBeVisible();
+      await table
+        .getByRole("button", { name: it ? "In pianificazione" : "Planning", exact: true })
+        .click();
+      await expect(
+        page
+          .getByRole("dialog")
+          .getByText(it ? "Giocatori non confermati" : "Unconfirmed players", { exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
       for (const kind of ["dates", "locations", "games"] as const) {
         const label =
           kind === "dates"
@@ -215,6 +277,7 @@ for (const width of [390, 1280])
           await expect(dialog.getByText(address, { exact: true })).toBeVisible();
           await expect(dialog.getByText(/^[A-Za-z_]+\/[A-Za-z_]+$/)).toHaveCount(0);
           await expect(dialog.getByText(venue, { exact: true })).toHaveCount(0);
+          await expect(dialog.locator("li svg.lucide-map-pin")).toHaveCount(2);
         }
         await expect(
           dialog.getByRole("button", { name: /^(Yes|No|If needed|Sì|Se necessario)$/ }),
@@ -245,6 +308,31 @@ for (const width of [390, 1280])
       .locator("..");
     await inspectFrame(parentEvent);
     await expect(parentEvent.getByText(it ? /^\d+ Tavol[oi]$/ : /^\d+ Tables?$/)).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: it ? "Dettagli" : "Details", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("tab", { name: it ? "Partecipanti" : "Participants", exact: true })
+      .click();
+    const tablePerson = page.getByText(handle, { exact: true });
+    await expect(tablePerson).toBeVisible();
+    const tableStatus =
+      people.tableStatus === "awaiting"
+        ? it
+          ? "In attesa di accettazione"
+          : "Awaiting acceptance"
+        : people.tableStatus === "waiting"
+          ? it
+            ? "Lista d'attesa"
+            : "Waiting list"
+          : it
+            ? "Partecipante"
+            : "Participant";
+    await expect(
+      tablePerson
+        .locator("xpath=ancestor::li[1]")
+        .getByText(new RegExp(`^${tableStatus}(?: · ${it ? "Lista d'attesa" : "Waiting list"})?$`)),
+    ).toBeVisible();
     const eventAgain = await open("/events", eventName, "event");
     await eventAgain.getByRole("link").click();
     await inspectIdentity(eventName, eventLabels);
@@ -256,6 +344,28 @@ for (const width of [390, 1280])
       .locator("..");
     await inspectFrame(parentGroup);
     await expect(parentGroup.getByText(it ? /^\d+ Membr[oi]$/ : /^\d+ Members?$/)).toBeVisible();
+    await page
+      .getByRole("tab", { name: it ? "Partecipanti" : "Participants", exact: true })
+      .click();
+    const eventPerson = page.getByText(handle, { exact: true });
+    await expect(eventPerson).toBeVisible();
+    const eventRole =
+      people.eventRole === "admin"
+        ? "Admin"
+        : people.eventRole === "moderator"
+          ? it
+            ? "Moderatore"
+            : "Moderator"
+          : it
+            ? "Partecipante"
+            : "Participant";
+    const eventRow = page.getByRole("row").filter({ has: eventPerson });
+    await expect(
+      eventRow.getByText(
+        new RegExp(`^${eventRole}(?: · ${it ? "Lista d'attesa" : "Waiting list"})?$`),
+      ),
+    ).toBeVisible();
+    await expect(eventRow.getByRole("img", { name: eventRole, exact: true })).toBeVisible();
     await page.getByRole("tab", { name: it ? "Tavoli" : "Tables", exact: true }).click();
     const contextual = page
       .getByRole("link", {

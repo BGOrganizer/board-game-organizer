@@ -37,8 +37,13 @@ export function AnimatedDicebearArtwork({
   presentation?: "thumbnail" | "background" | "cover";
 }) {
   const xml = useMemo(
-    () => new DiceBearAvatar(styles[variant], { seed, size: size + 8 }).toString(),
-    [seed, variant, size],
+    () =>
+      new DiceBearAvatar(styles[variant], {
+        seed,
+        size: size + 8,
+        ...(presentation === "cover" ? { backgroundColor: [] } : {}),
+      }).toString(),
+    [seed, variant, size, presentation],
   );
   const reducedMotion = useReducedMotion();
   const shift = useSharedValue(0);
@@ -58,7 +63,7 @@ export function AnimatedDicebearArtwork({
       accessible={false}
       importantForAccessibility="no-hide-descendants"
       pointerEvents="none"
-      className="bg-accent/10"
+      className={presentation === "cover" ? undefined : "bg-accent/10"}
       style={
         presentation !== "thumbnail"
           ? {

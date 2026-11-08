@@ -172,10 +172,10 @@ export function GroupDetail({
             <TabBar>
               {(
                 [
-                  ["info", t("Overview"), Info],
+                  ["info", t("Details"), Info],
                   ["members", t("Members"), UsersRound],
                   ["events", t("Events"), CalendarDays],
-                  ["rankings", t("Rankings"), ChartNoAxesCombined],
+                  ["rankings", t("Ranking"), ChartNoAxesCombined],
                 ] as const
               )
                 .filter(

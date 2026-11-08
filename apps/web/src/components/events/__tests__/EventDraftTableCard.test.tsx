@@ -1,4 +1,6 @@
 import { eventDraft, tableDraft } from "@board-game-organizer/shared";
+import { Avatar, Style } from "@dicebear/core";
+import planets from "@dicebear/styles/planets.json" with { type: "json" };
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { screen, within } from "@testing-library/react";
@@ -56,7 +58,10 @@ it.each([
       table={{ ...plannedTable, rankingEnabled: fields.rankingEnabled }}
     />,
   );
-  expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
+  expect(document.querySelector("img")?.getAttribute("src")).not.toBe(artwork);
+  expect(document.querySelector("img")?.getAttribute("src")).toBe(
+    `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: plannedTable.id, size: 72, backgroundColor: [] }).toString())}`,
+  );
   expect(
     screen
       .getByRole("button", { name: badge })

@@ -44,7 +44,7 @@ it("keeps compact cumulative Table icons at bottom right beside full-height left
     't("Maximum players")',
     't("Accepted players")',
     't("Waiting list")',
-    't("Pending players")',
+    't("Unconfirmed players")',
     "table.waitingCount",
     "table.acceptedCount",
     "table.pendingRegistrationCount",

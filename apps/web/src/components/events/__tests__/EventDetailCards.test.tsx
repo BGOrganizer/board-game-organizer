@@ -25,11 +25,16 @@ it.each([
       card = heading.closest(".card") as HTMLElement;
     expect(card.querySelector(".absolute.inset-0")).not.toBeNull();
     expect(card.querySelector(".bg-surface\\/95")).toBeNull();
-    expect(card.querySelector(".bg-background\\/70")).not.toBeNull();
+    expect(card.querySelector(".bg-background\\/70")).toBeNull();
+    const caption = card.querySelector(".bg-background\\/90") as HTMLElement;
+    expect(caption).not.toBeNull();
+    expect(caption.className).toContain("flex-nowrap");
+    expect(caption.className).not.toContain("absolute");
     const trigger = within(card).getByRole("button", { name: label });
     expect(trigger.className).toContain(`text-${color}`);
     expect(trigger.querySelector(".size-7.bg-default")).not.toBeNull();
-    expect(heading.className).toContain("break-words");
+    expect(heading.className).toContain("truncate");
+    expect(heading.title).toBe(event.name);
     expect(within(details).queryByRole("link")).toBeNull();
     expect(within(details).queryByText(groupRecord.name)).toBeNull();
     const image = card.querySelector("img"),
@@ -39,7 +44,9 @@ it.each([
       `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(constellation), { seed: event.id, size: 72 }).toString())}`,
     );
     view.rerender(<EventCard event={event} />);
-    expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
+    expect(document.querySelector("img")?.getAttribute("src")).toBe(
+      `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(constellation), { seed: event.id, size: 72, backgroundColor: [] }).toString())}`,
+    );
   },
 );
 it.each([null, groupRecord.id])(

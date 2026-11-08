@@ -1,5 +1,6 @@
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
+  formatUsername,
   useEventParticipantManagement,
   useEventParticipants,
   type useEventRecordActions,
@@ -8,7 +9,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Ban, UserRoundMinus } from "lucide-react-native";
+import { Ban, Crown, ShieldCheck, UserRoundCheck, UserRoundMinus } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -49,7 +50,13 @@ export function EventParticipants({
         onEndReached={q.endReached}
         onEndReachedThreshold={0.4}
         renderItem={({ item: person }) => {
-          const name = person.username || person.name || t("Username unavailable");
+          const name = formatUsername(person.username, person.name || t("Username unavailable"));
+          const role =
+            person.managementRole === "admin"
+              ? { label: t("Admin"), icon: Crown, color: "warning" as const }
+              : person.managementRole === "moderator"
+                ? { label: t("Moderator"), icon: ShieldCheck, color: "accent" as const }
+                : { label: t("Participant"), icon: UserRoundCheck, color: "success" as const };
           const items = [
             ...(m.canAct(person, "remove")
               ? [
@@ -75,7 +82,12 @@ export function EventParticipants({
               <UserListRow
                 name={name}
                 avatarUrl={person.avatarUrl}
-                secondary={person.position === "WAITING" ? t("Waiting list") : null}
+                secondary={
+                  person.position === "WAITING"
+                    ? `${role.label} · ${t("Waiting list")}`
+                    : role.label
+                }
+                badge={role}
                 actions={
                   <MemberActions
                     title={`${t("Manage participant")}: ${name}`}
@@ -158,7 +170,10 @@ export function EventParticipants({
         />
       ) : m.managed?.action === "ban" ? (
         <GroupBanDialog
-          name={m.managed.person.username || m.managed.person.name || t("Username unavailable")}
+          name={formatUsername(
+            m.managed.person.username,
+            m.managed.person.name || t("Username unavailable"),
+          )}
           timeZone={event.timeZone}
           busy={false}
           onCancel={m.close}

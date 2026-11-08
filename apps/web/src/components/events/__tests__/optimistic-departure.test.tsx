@@ -157,7 +157,7 @@ it.each([
     await waitFor(() => expect(release).toBeDefined());
     expect(writes).toEqual([{ action: "cancel", version: registration.version }]);
     const roster = within(screen.getByRole("region", { name: "Seats list" }));
-    expect(roster.queryByText("Owner")).toBeNull();
+    expect(roster.queryByText("@owner")).toBeNull();
     const intent = client.getQueryData(
       eventRecordKeys.detail(options, eventId),
     ) as PlannedEventResponse;
@@ -190,12 +190,12 @@ it.each([
           Response.json({ ...registration, status: "CANCELLED", version: 2, eventVersion: 2 }),
         ),
       );
-      await waitFor(() => expect(roster.queryByText("Owner")).toBeNull());
+      await waitFor(() => expect(roster.queryByText("@owner")).toBeNull());
     } else {
       await act(async () =>
         respond(Response.json({ error: "REGISTRATION_CHANGED" }, { status: 409 })),
       );
-      await waitFor(() => expect(roster.getByText("Owner")).toBeTruthy());
+      await waitFor(() => expect(roster.getByText("@owner")).toBeTruthy());
       const restored = client.getQueryData(
         eventRecordKeys.detail(options, eventId),
       ) as PlannedEventResponse;

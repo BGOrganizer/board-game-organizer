@@ -327,6 +327,8 @@ export interface EventParticipantResponse {
   avatarUrl: string | null;
   position: TableSeatPosition;
   canRemove: boolean;
+  /** Display only: current Group authority, or the standalone Event creator. Older caches omit it. */
+  managementRole?: "admin" | "moderator" | null;
   /** Current Group authority only; frozen-duty checks still run at the Group ban writer. */
   canBanGroup: boolean;
 }

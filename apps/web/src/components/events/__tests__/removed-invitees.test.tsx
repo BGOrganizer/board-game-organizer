@@ -174,7 +174,7 @@ it.each([null, "PRIVATE", "PUBLIC"] as const)(
         <EventTableOverview eventId={eventId} tableId={tableId} section="participants" />
       </QueryClientProvider>,
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Remove player: Guest Player" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove player: @guest-player" }));
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     await waitFor(() => expect(s.writes).toHaveLength(1));

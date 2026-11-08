@@ -12,7 +12,7 @@ const input = {
   groupId: "22222222-2222-4222-8222-222222222222",
   eventName: "Owned event",
   groupName: "Owned group",
-  targetName: "target [name]",
+  targetName: "@target [name]",
   firstTableName: "First table",
   targetOffset: 30,
   mode: "remove",
@@ -37,14 +37,14 @@ it.each(["en", "it"])(
     expect(a.removedOnly).toBe(true);
     expect(
       new RegExp(a.manage).test(
-        (locale === "it" ? "Gestisci partecipante" : "Manage participant") + ": target [name]",
+        (locale === "it" ? "Gestisci partecipante" : "Manage participant") + ": @target [name]",
       ),
     ).toBe(true);
     const b = run({ mode: "ban" }, { EVENT_PEOPLE_LOCALE: locale });
     expect(b.removedOnly).toBe(false);
     expect(
       new RegExp(b.title).test(
-        (locale === "it" ? "Banna dal gruppo" : "Ban from group") + ": target [name]",
+        (locale === "it" ? "Banna dal gruppo" : "Ban from group") + ": @target [name]",
       ),
     ).toBe(true);
   },

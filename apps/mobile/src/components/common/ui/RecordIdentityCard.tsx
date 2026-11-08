@@ -20,10 +20,11 @@ export function RecordIdentityCard({
   return (
     <ListCard background={background}>
       <View
+        className="bg-background/90"
         style={{
           flexDirection: "row",
-          flexWrap: "wrap",
-          alignItems: "flex-end",
+          padding: 16,
+          alignItems: "center",
           justifyContent: "space-between",
           gap: 8,
         }}
@@ -31,17 +32,17 @@ export function RecordIdentityCard({
         <View
           style={{
             flexDirection: "row",
-            alignItems: "flex-start",
+            alignItems: "center",
             gap: 8,
-            flexGrow: 1,
-            flexShrink: 1,
-            flexBasis: 192,
+            flex: 1,
             minWidth: 0,
           }}
         >
           {icon}
           <Typography
             accessibilityRole="header"
+            accessibilityLabel={title}
+            numberOfLines={1}
             className="text-lg font-semibold text-foreground"
             style={{ flex: 1, minWidth: 0 }}
           >
@@ -54,11 +55,12 @@ export function RecordIdentityCard({
           horizontal
           style={{
             height: 44,
-            maxWidth: "100%",
-            minWidth: 176,
+            width: "60%",
+            maxWidth: "60%",
+            minWidth: 0,
             marginLeft: "auto",
-            flexGrow: 1,
-            flexShrink: 1,
+            flexGrow: 0,
+            flexShrink: 0,
           }}
           contentContainerStyle={{
             flexGrow: 1,

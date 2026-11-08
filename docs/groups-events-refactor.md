@@ -204,13 +204,17 @@ exceptions supersede older membership-only activity/detail statements below.
 - Web and native use HeroUI Card compositions for lists and parent links. Group, Event and Table
   lists share a full-height left artwork canvas, right-side text and compact informational controls.
   The complete list picture is contained, not cropped: generated artwork retains motion clearance,
-  and uploaded Group logos retain their aspect ratio. Background/detail and small picker artwork
-  remain separate presentations.
+  and uploaded Group logos retain their aspect ratio. The cover canvas is transparent over the same
+  HeroUI Card surface as its text: no separate accent backplate. Generated cover SVGs omit their own
+  background fill through DiceBear's background option; foreground colors and uploaded logos remain
+  untouched. Thumbnail and full background artwork retain their original palettes. Background/detail and small picker artwork remain separate presentations.
   Navigation and informational controls remain independent siblings.
   Details start with one HeroUI background-image Card followed immediately by existing top tabs.
-  The title/identity icon sits at bottom left and a single compact toolbar at bottom right, directly
-  over the picture with a full-frame HeroUI background/foreground readability scrim: no second
-  rounded surface/card covers the image. Platform-owned `RecordIdentityCard` frames reuse the same
+  Original background artwork remains fully opaque, without a whole-image dimming scrim. The
+  title/identity icon stays left and compact controls right in one nonwrapping bottom row; only
+  that caption uses a HeroUI background/foreground contrast surface, never a second rounded Card.
+  Long titles retain their complete accessible name with a one-line visual ellipsis while the bounded
+  toolbar scrolls horizontally rather than moving below the title. Platform-owned `RecordIdentityCard` frames reuse the same
   role/state help as list cards. Table headers show role/consent/queue/demonstration, state and Rating;
   list-only date/location/game controls stay in lists. Event headers keep independent accepted,
   pending and authorized waiting-list facts; Group headers keep role, visibility and public review.
@@ -218,10 +222,24 @@ exceptions supersede older membership-only activity/detail statements below.
   Event Details retains voting-legend help and its precise overview read control. When opened from
   the main Events list (or an unmarked direct link), its separate Group section links the approved
   Group artwork/name; entry from that same Group omits it. Table identity retains Settings/player-limit
-  help, Rating and minimum/maximum counts; its Overview retains the separate parent Event link for
+  help, Rating and minimum/maximum counts; its Details tab retains the separate parent Event link for
   personal/direct entry, omitted when opened from that Event. Parent-ID URL hints remain presentation
   context only. Group context, Back, FAB/header actions and route parameters are unchanged.
   Voting help still explains accepted-only voting, pending reserved places and explicit Table consent.
+- Group detail labels are Details / Members / Events / Ranking; Table detail starts with Details.
+  Existing internal tab keys and all permission/state guards remain unchanged. Group member,
+  Event participant and Table participant rows prefer one `@username`; missing handles retain a
+  known fallback rather than inventing usernames or fetching another profile. Group subtitles show
+  Admin, Moderator, Member or Awaiting acceptance from real membership, preserving separate
+  invitation/request decisions, bans and optimistic sending intent. Event subtitles show current
+  Admin/Moderator/Participant, retaining known waiting-list metadata, with a bottom-right avatar
+  overlay: warning crown, accent shield or success participant icon. The optional Event participant
+  `managementRole` is source-authorized display metadata, never authority for actions; grouped roles
+  follow the current creator/accepted unbanned moderators, not historical Event authorship. Cached
+  responses without it retain the known participation fact, not guessed management. Table subtitles
+  show Participant, Awaiting acceptance or Waiting list; pending plus canonical waiting remains
+  explicit, including after confirmation. Existing cached self identity supplies only that actor's
+  missing handle; no new profile request or persisted copy is introduced.
 - Main Tables and parent Event lists use one platform-owned horizontal HeroUI Table Card. Its
   stable-ID animated DiceBear Planets artwork occupies the entire left edge/height. The right side
   shows Table name/Dices, localized **accepted seats / maximum capacity**, then Group/people (when
@@ -238,9 +256,11 @@ exceptions supersede older membership-only activity/detail statements below.
   derived from already-authorized management, not historical Event authorship or a new capability;
   older caches retain truthful generic Management. Status and enabled/disabled Rating always have
   their own icons and explanations. Status help retains minimum/maximum, accepted-registration total,
-  pending total, queue count, assigned demonstrator and all joint winner names when terminated.
+  pending total (Unconfirmed players / Giocatori non confermati), queue count, assigned demonstrator
+  and all joint winner names when terminated.
   Separate date/time, location and game icons expose read-only local-data popovers. Location rows
-  display only the formatted verified address, not a repeated venue name or IANA continent/city zone.
+  pair a left MapPin icon with only the formatted verified address, not a repeated venue name or
+  IANA continent/city zone.
   The authoritative zone remains available for date formatting and is not changed or removed from data.
   Planning shows
   all approved options; confirmed/terminated Tables show only chosen facts, including their own

@@ -167,7 +167,7 @@ it("returns from the Group picker before POST, preserves a held metadata read an
   );
   fireEvent.click(screen.getByRole("button", { name: "Select Guest" }));
   expect(mocks.back).toHaveBeenCalledOnce();
-  await waitFor(() => expect(screen.getByText("Guest")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("@guest")).toBeTruthy());
   expect(screen.getByText("Sending invitation")).toBeTruthy();
   expect(writes).toHaveLength(1);
   expect(writes[0].input).toEqual({ userId: "guest" });
@@ -178,7 +178,7 @@ it("returns from the Group picker before POST, preserves a held metadata read an
   if (!firstMetadata) throw new Error("Missing metadata read");
   fireEvent.click(screen.getByRole("button", { name: "Select Second" }));
   expect(mocks.back).toHaveBeenCalledTimes(2);
-  await waitFor(() => expect(screen.getByText("Second")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("@second")).toBeTruthy());
   expect(writes).toHaveLength(1);
   expect(firstMetadata.signal?.aborted).toBe(false);
   expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledTimes(2);
@@ -188,8 +188,8 @@ it("returns from the Group picker before POST, preserves a held metadata read an
   await act(async () =>
     writes[1].resolve(Response.json({ error: "MEMBERSHIP_CHANGED" }, { status: 409 })),
   );
-  await waitFor(() => expect(screen.queryByText("Second")).toBeNull());
-  expect(screen.getByText("Guest")).toBeTruthy();
+  await waitFor(() => expect(screen.queryByText("@second")).toBeNull());
+  expect(screen.getByText("@guest")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Invited" })).toBeTruthy();
   expect(options.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "invite_group_member");
   expect(options.feedback.onSuccess).not.toHaveBeenCalled();
@@ -276,19 +276,19 @@ it("closes per-person membership dialogs before PATCH and keeps another request 
   );
   renderWithI18n(wrapper({ children: <GroupMembers group={groupRecord} /> }));
   fireEvent.click(
-    await screen.findByRole("button", { name: "Respond to membership request: First" }),
+    await screen.findByRole("button", { name: "Respond to membership request: @first" }),
   );
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Approve" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   await waitFor(() => expect(writes).toHaveLength(1));
   const other = screen.getByRole("button", {
-    name: "Respond to membership request: Second",
+    name: "Respond to membership request: @second",
   }) as HTMLButtonElement;
   expect(other.disabled).toBe(false);
   expect(
     (
       screen.getByRole("button", {
-        name: "Respond to membership request: First",
+        name: "Respond to membership request: @first",
       }) as HTMLButtonElement
     ).disabled,
   ).toBe(true);
@@ -296,7 +296,7 @@ it("closes per-person membership dialogs before PATCH and keeps another request 
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Reject" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   await waitFor(() => expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledTimes(2));
-  expect(screen.queryByText("Second")).toBeNull();
+  expect(screen.queryByText("@second")).toBeNull();
   expect(writes).toHaveLength(1);
   accepted = true;
   await act(async () =>
@@ -307,8 +307,10 @@ it("closes per-person membership dialogs before PATCH and keeps another request 
   await act(async () =>
     writes[1].resolve(Response.json({ error: "MEMBERSHIP_CHANGED" }, { status: 409 })),
   );
-  await waitFor(() => expect(screen.getByText("Second")).toBeTruthy());
-  expect(screen.getByText("First")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Respond to membership request: First" })).toBeNull();
+  await waitFor(() => expect(screen.getByText("@second")).toBeTruthy());
+  expect(screen.getByText("@first")).toBeTruthy();
+  expect(
+    screen.queryByRole("button", { name: "Respond to membership request: @first" }),
+  ).toBeNull();
   expect(options.feedback.onSuccess).not.toHaveBeenCalled();
 });

@@ -30,18 +30,33 @@ it("keeps generated artwork motion variants and default/explicit dimensions", ()
     q.unmount();
   }
 });
-it("contains the complete list artwork with motion clearance, without changing detail backgrounds", () => {
-  const q = renderWithI18n(
-    <AnimatedDicebearArtwork seed="table" variant="planets" presentation="cover" />,
-  );
-  const image = q.container.querySelector("img");
-  expect(image?.className).toContain("object-contain p-1");
-  expect(image?.className).not.toContain("object-cover");
-  q.rerender(
-    <AnimatedDicebearArtwork seed="event" variant="constellation" presentation="background" />,
-  );
-  expect(q.container.querySelector("img")?.className).toContain("object-cover");
-});
+it.each(["planets", "constellation", "landscape"] as const)(
+  "contains complete %s list artwork without a colored backplate, retaining vivid detail artwork",
+  (variant) => {
+    const q = renderWithI18n(
+      <AnimatedDicebearArtwork seed="stable" variant={variant} presentation="cover" />,
+    );
+    const image = q.container.querySelector("img");
+    expect(image?.className).toContain("object-contain p-1");
+    expect(image?.className).not.toContain("object-cover");
+    expect(image?.parentElement?.className).not.toContain("bg-accent/10");
+    const svg = () =>
+      new DOMParser().parseFromString(
+        decodeURIComponent(
+          q.container.querySelector("img")?.getAttribute("src")?.split(",")[1] ?? "",
+        ),
+        "image/svg+xml",
+      );
+    expect(svg().querySelector("rect[fill]")).toBeNull();
+    const cover = image?.getAttribute("src");
+    q.rerender(
+      <AnimatedDicebearArtwork seed="stable" variant={variant} presentation="background" />,
+    );
+    expect(q.container.querySelector("img")?.className).toContain("object-cover");
+    expect(svg().querySelector("rect[fill]")).not.toBeNull();
+    expect(q.container.querySelector("img")?.getAttribute("src")).not.toBe(cover);
+  },
+);
 it("formats accessible date/start/end metadata in the explicit event zone", () => {
   const q = renderWithI18n(<DateTimeInfo startsAt="2030-06-03T18:00:00Z" />);
   expect(q.container.querySelectorAll("time")).toHaveLength(2);

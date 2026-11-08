@@ -29,12 +29,12 @@ export function AnimatedDicebearArtwork({
 }) {
   const src = useMemo(
     () =>
-      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(styles[variant], { seed, size: size + 8 }).toString())}`,
-    [seed, variant, size],
+      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(styles[variant], { seed, size: size + 8, ...(presentation === "cover" ? { backgroundColor: [] } : {}) }).toString())}`,
+    [seed, variant, size, presentation],
   );
   return (
     <span
-      className={`block shrink-0 overflow-hidden bg-accent/10 ${presentation === "cover" ? "rounded-none" : "rounded-xl"} ${presentation !== "thumbnail" ? "absolute inset-0" : ""}`}
+      className={`block shrink-0 overflow-hidden ${presentation === "cover" ? "rounded-none" : "rounded-xl bg-accent/10"} ${presentation !== "thumbnail" ? "absolute inset-0" : ""}`}
       style={presentation !== "thumbnail" ? undefined : { width: size, height: size }}
       aria-hidden="true"
     >

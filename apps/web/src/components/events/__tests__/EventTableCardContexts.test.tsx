@@ -63,7 +63,7 @@ it("uses the same full-height left artwork, identity and controls in both lists;
   );
   const artwork = document.querySelector("img")?.getAttribute("src");
   expect(artwork).toBe(
-    `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: table.id, size: 72 }).toString())}`,
+    `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: table.id, size: 72, backgroundColor: [] }).toString())}`,
   );
   const inspect = () => {
     const event = screen.getByText(table.eventName),

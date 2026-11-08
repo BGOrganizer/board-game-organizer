@@ -11,7 +11,7 @@ export function eventTableRoster(
   pending: readonly TableSeatResponse[],
   userId: string,
   limit: number,
-  selfProfile?: Pick<UserProfile, "id" | "name" | "avatarUrl">,
+  selfProfile?: Pick<UserProfile, "id" | "name" | "username" | "avatarUrl">,
 ) {
   const known = new Map<string, TableSeatResponse>();
   for (const row of [...accepted, ...pending]) {
@@ -80,6 +80,7 @@ export function eventTableRoster(
             ? {
                 ...user,
                 name: (user.name && user.name !== userId ? user.name : profile.name) || null,
+                username: user.username ?? profile.username ?? null,
                 avatarUrl: user.avatarUrl ?? profile.avatarUrl,
               }
             : user,

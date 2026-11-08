@@ -4,6 +4,7 @@ import type {
   EventProposal,
   EventRecord,
   EventVoter,
+  GroupBan,
   GroupMembership,
   GroupRecord,
   JoinEventAvailability,
@@ -342,7 +343,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
         status: "ACCEPTED",
       }),
     ),
-    ban: vi.fn(async () => null),
+    ban: vi.fn<(_groupId: string, _userId: string) => Promise<GroupBan | null>>(async () => null),
   };
   const games = {
     findByIds: vi.fn(async (ids: number[]) =>
@@ -496,6 +497,66 @@ describe("Event participant source and event-only removal", () => {
     expect(f.users.findByIds.mock.calls.at(-1)?.[0]).toEqual([waiter]);
     expect(second.items[0]).not.toHaveProperty("email");
     expect(second.items[0]).not.toHaveProperty("gameVotes");
+  });
+  it("projects current Group roles, not Event authorship, without granting the reader management", async () => {
+    const f = setup("PRIVATE"),
+      e = await f.create();
+    for (const user of [owner, guest, waiter])
+      await f.service.join(user, e.id, id, f.participation(e.id, id));
+    f.events.set(e.id, { ...f.events.get(e.id)!, adminUserId: waiter });
+    f.groups.membership.mockImplementation(async (_id, user) => ({
+      status: "ACCEPTED",
+      role: user === guest ? "MODERATOR" : "MEMBER",
+    }));
+    const page = await f.service.participants(waiter, e.id, { limit: 20 });
+    expect(page.items.find((row) => row.userId === owner)?.managementRole).toBe("admin");
+    expect(page.items.find((row) => row.userId === guest)?.managementRole).toBe("moderator");
+    expect(page.items.find((row) => row.userId === waiter)?.managementRole).toBeNull();
+    expect(page.items.every((row) => !row.canRemove && !row.canBanGroup)).toBe(true);
+  });
+  it.each(["demoted", "departed", "pending", "banned"])(
+    "does not retain a moderator label after %s",
+    async (state) => {
+      const f = setup("PRIVATE"),
+        e = await f.create();
+      await f.service.join(guest, e.id, id, f.participation(e.id, id));
+      f.groups.membership.mockImplementation(async (_id, user) =>
+        user !== guest
+          ? { status: "ACCEPTED", role: "MEMBER" }
+          : state === "departed"
+            ? null
+            : {
+                status: state === "pending" ? "PENDING" : "ACCEPTED",
+                role: state === "demoted" ? "MEMBER" : "MODERATOR",
+              },
+      );
+      if (state === "banned")
+        f.groups.ban.mockImplementation(async (_id, user) =>
+          user === guest
+            ? {
+                id,
+                groupId: other,
+                userId: guest,
+                adminUserId: owner,
+                until: null,
+                createdAt: "2027-01-01T00:00:00Z",
+                updatedAt: "2027-01-01T00:00:00Z",
+              }
+            : null,
+        );
+      const page = await f.service.participants(owner, e.id, { limit: 20 });
+      expect(page.items[0]).toMatchObject({ userId: guest, managementRole: null });
+    },
+  );
+  it("labels only an attending standalone creator as admin", async () => {
+    const f = setup(),
+      e = await f.create();
+    await f.service.join(owner, e.id, id, f.participation(e.id, id));
+    const invitation = await f.service.register(owner, e.id, id, guest);
+    await f.accept(invitation);
+    const page = await f.service.participants(owner, e.id, { limit: 20 });
+    expect(page.items.find((row) => row.userId === owner)?.managementRole).toBe("admin");
+    expect(page.items.find((row) => row.userId === guest)?.managementRole).toBeNull();
   });
   it("denies PUBLIC nonmember roster reads and protects creator/peer Group bans separately from Event removal", async () => {
     const f = setup("PUBLIC"),

@@ -104,7 +104,7 @@ it.each(["known", "cold", "foreign"] as const)(
         JSON.parse(String(fetch.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body)),
       ).toEqual({ version: 1, gameVotes: { "1": "YES" } });
       expect(screen.getByText(kind === "known" ? fullName : "You")).toBeTruthy();
-      const enriched = { ...seat(actor), name: fullName };
+      const enriched = { ...seat(actor), name: fullName, username: "mrossi" };
       const {
         name: _name,
         username: _username,
@@ -145,7 +145,8 @@ it.each(["known", "cold", "foreign"] as const)(
           resolve(Response.json({ items: [enriched], nextCursor: null }));
       });
       await waitFor(() => expect(actions.result.current.register.isSuccess).toBe(true));
-      expect(screen.getByText(fullName)).toBeTruthy();
+      expect(screen.getByText("@mrossi")).toBeTruthy();
+      expect(screen.queryByText(actor)).toBeNull();
     } finally {
       observer.disconnect();
     }

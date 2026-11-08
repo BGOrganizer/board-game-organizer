@@ -930,14 +930,27 @@ export class EventRecordsService {
     const items: EventParticipantResponse[] = [];
     for (const row of selected) {
       const profile = profiles.find((value) => value.clerkId === row.userId);
-      let canBanGroup = false;
-      if (manager && group && row.userId !== userId && row.userId !== group.adminUserId) {
-        const membership = await this.groups.membership(group.id, row.userId);
-        const ban = await this.groups.ban(group.id, row.userId);
-        canBanGroup =
-          !groupBanIsActive(ban, Date.now()) &&
-          (group.adminUserId === userId || !isGroupModerator(membership));
-      }
+      const membership =
+        group && row.userId !== group.adminUserId
+          ? await this.groups.membership(group.id, row.userId)
+          : null;
+      const ban = group ? await this.groups.ban(group.id, row.userId) : null;
+      const excluded = groupBanIsActive(ban, Date.now());
+      const managementRole = excluded
+        ? null
+        : row.userId === (group?.adminUserId ?? event.adminUserId)
+          ? ("admin" as const)
+          : isGroupModerator(membership)
+            ? ("moderator" as const)
+            : null;
+      const canBanGroup = Boolean(
+        manager &&
+          group &&
+          row.userId !== userId &&
+          row.userId !== group.adminUserId &&
+          !excluded &&
+          (group.adminUserId === userId || !isGroupModerator(membership)),
+      );
       items.push({
         id: row.userId,
         userId: row.userId,
@@ -945,6 +958,7 @@ export class EventRecordsService {
         username: profile?.username ?? null,
         avatarUrl: profile?.avatarUrl ?? null,
         position: frozen.has(row.userId) ? "FROZEN" : seated.has(row.userId) ? "SEATED" : "WAITING",
+        managementRole,
         canRemove: removable,
         canBanGroup,
       });

@@ -12,7 +12,7 @@ export function ListCard({
   background?: ReactNode;
 }) {
   return (
-    <Card className={`relative rounded-xl p-0 ${className}`}>
+    <Card className={`relative rounded-xl p-0 ${background ? "overflow-hidden" : ""} ${className}`}>
       {background ? (
         <div
           aria-hidden
@@ -22,13 +22,7 @@ export function ListCard({
         </div>
       ) : null}
       {background ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-xl bg-background/70"
-        />
-      ) : null}
-      {background ? (
-        <Card.Content className="relative flex min-h-56 flex-col justify-end p-4 pt-16">
+        <Card.Content className="relative flex min-h-56 flex-col justify-end p-0 pt-16">
           {children}
         </Card.Content>
       ) : (

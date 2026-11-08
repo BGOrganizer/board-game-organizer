@@ -47,6 +47,7 @@ it("shows admin, demonstrator, pending and queue icons together, with smaller fr
     />,
   );
   expect(screen.getByText("2/4 participants")).not.toBeNull();
+  expect(document.querySelector("img")?.parentElement?.className).not.toContain("bg-accent/10");
   expect(screen.queryByText("8/4 participants")).toBeNull();
   const labels = [
     "Administrator",
@@ -145,6 +146,10 @@ it.each(["dates", "locations"] as const)(
     } else {
       expect(within(dialog).getByText(a.address)).not.toBeNull();
       expect(within(dialog).getByText(b.address)).not.toBeNull();
+      for (const address of [a.address, b.address]) {
+        const row = within(dialog).getByText(address).closest("li");
+        expect(row?.querySelector("svg.lucide-map-pin.text-muted")).not.toBeNull();
+      }
       expect(within(dialog).queryByText(a.name)).toBeNull();
       expect(within(dialog).queryByText(b.name)).toBeNull();
       expect(within(dialog).queryByText("Europe/Rome")).toBeNull();

@@ -44,7 +44,7 @@ export function EventTableCardIndicators({
     { label: t("Maximum players"), value: table.maxPlayers },
     { label: t("Accepted players"), value: table.acceptedCount },
     { label: t("Waiting list"), value: table.waitingCount },
-    { label: t("Pending players"), value: table.pendingRegistrationCount },
+    { label: t("Unconfirmed players"), value: table.pendingRegistrationCount },
   ];
   return (
     <>

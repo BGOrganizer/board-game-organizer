@@ -251,7 +251,7 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
     await expect(
       page.getByRole("region", { name: it ? "Lista posti" : "Seats list", exact: true }),
     ).toBeVisible();
-    await page.getByRole("tab", { name: it ? "Riepilogo" : "Overview", exact: true }).click();
+    await page.getByRole("tab", { name: it ? "Dettagli" : "Details", exact: true }).click();
     await expect(
       page.getByRole("region", { name: it ? "Lista posti" : "Seats list", exact: true }),
     ).toHaveCount(0);

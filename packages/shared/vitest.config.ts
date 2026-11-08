@@ -10,6 +10,7 @@ export default defineConfig({
         "src/profile/activityFeed.ts",
         "src/profile/activityNarrative.ts",
         "src/common/startupQueries.ts",
+        "src/common/userIdentity.ts",
         "src/common/optimisticOperation.ts",
         "src/common/clientMutation.ts",
         "src/notifications/notificationOptimistic.ts",
@@ -74,6 +75,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/common/userIdentity.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/profile/activityFeed.ts": {
           lines: 100,
           functions: 100,

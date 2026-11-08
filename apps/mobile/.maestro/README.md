@@ -148,7 +148,8 @@ No provisioning, reset or Production use is authorized by running this flow.
 Required: `GROUP_ROLE_FIXTURE_ACK=owned-development-moderator-group`,
 `GROUP_ROLE_BUILD_ACK=owned-preview-build`, `GROUP_ROLE_LOCALE=en|it`,
 `GROUP_ROLE_GROUP_ID`, `GROUP_ROLE_GROUP_NAME`, `GROUP_ROLE_TARGET_NAME` (confirmation
-name) and `GROUP_ROLE_TARGET_MENU_NAME` (username-first action label). Run the explicit
+`@username`, or actual known fallback) and `GROUP_ROLE_TARGET_MENU_NAME` (existing username-first
+action-sheet label, without adding a prefix). Run the explicit
 flow with Maestro 2.11. Web counterpart: `apps/web/e2e/group-moderators.config.ts`,
 with the same fixture ACK/locale/Group ID plus `GROUP_ROLE_API_URL`,
 `GROUP_ROLE_TARGET_ID`, `E2E_EMAIL` and normal owned Playwright/Clerk inputs. Neither
@@ -308,18 +309,25 @@ proposed dates/venues, and a personal Table with two games. Supply `CARD_LOCALE`
 `CARD_GROUP_NAME`, `CARD_EVENT_NAME`, `CARD_TABLE_NAME`, `CARD_VENUE` (displayed venue substring),
 `CARD_VENUE_ADDRESS` (the exact formatted address shown by the client, without its IANA zone),
 `CARD_EVENT_DATE_LABEL` (localized long date) and `CARD_EVENT_TIME_LABEL` (localized clock).
-Missing inputs fail. Use matching API/client builds with the complete authorized schedule projection.
-The flow filters real first-page rows and requires accepted participation. Event cards show Group ·
+Both clients additionally require `CARD_PEOPLE_INPUT` JSON with `username`,
+`groupRole=admin|moderator|member`, `eventRole=admin|moderator|participant` and
+`tableStatus=participant|awaiting|waiting`. This named person must exist in the actual first visible
+Group/Event/Table roster windows; prepare eligible source-authorized fixtures, never invent a role or
+expose another person's private pending invitation. Missing inputs fail. Use matching API/client builds
+with complete authorized schedule/participant-role projections. The flow filters real first-page rows
+and requires the actor's accepted participation. Event cards show Group ·
 localized Table count with the prior schedule preview/counts inside status help. Table cards show
 accepted-seat / capacity and local date/location/game popovers; both Table feeds retain Group · Event.
 Group cards show accepted members plus the sole admin (moderators counted once) · authorized Events,
 with role, visibility and public-only review controls. Inspect complete left Landscape/Constellation/
 Planets artwork and logos, title/count ordering and single-row cumulative controls (horizontal scrolling
 when the full Card width is insufficient), 28px frames/16px glyphs and 44px targets. Admin is warning;
-moderator is accent. Location popovers contain only addresses. The flow also opens all three detail
-identities and checks real list-style parent cards. Review background images with bottom-left titles
-and bottom-right controls directly over the art, without a nested surface Card, in both locales/themes
-and at enlarged font sizes. Parsing/VM checks are not native geometry evidence. No fixtures, votes or
+moderator is accent. List artwork canvases match their Card surface. Location popovers pair MapPin
+icons with addresses only; Table status uses Unconfirmed players. The flow also opens all three detail
+identities and real list-style parent cards. Review fully vivid artwork without a whole-image scrim,
+with left title and right controls on the same row and a localized bottom contrast caption, not a
+nested surface Card. Inspect Details/Ranking labels, @handles, membership/Event roles, Event avatar
+overlays and Table consent/queue subtitles in both locales/themes and at enlarged font sizes. Parsing/VM checks are not native geometry evidence. No fixtures, votes or
 registrations are created; existing container/notification reads retain their ordinary behavior.
 
 Web parity has an explicit manual Playwright configuration, `apps/web/e2e/card-metadata.config.ts`.
@@ -492,7 +500,7 @@ Web additionally requires `EVENT_PEOPLE_API_URL`, explicit local/Preview `PLAYWR
 Development Clerk and `E2E_EMAIL`.
 
 ```json
-{"eventId":"11111111-1111-4111-8111-111111111111","groupId":"22222222-2222-4222-8222-222222222222","eventName":"Owned planning event","groupName":"Owned group","targetId":"user_owned_target","targetName":"unique-target-name","firstTableName":"First table","targetOffset":30,"mode":"remove"}
+{"eventId":"11111111-1111-4111-8111-111111111111","groupId":"22222222-2222-4222-8222-222222222222","eventName":"Owned planning event","groupName":"Owned group","targetId":"user_owned_target","targetName":"@unique-target-name","firstTableName":"First table","targetOffset":30,"mode":"remove"}
 ```
 
 Use a PRIVATE PLANNING Event, current creator/moderator without an accepted seat, and an ordinary

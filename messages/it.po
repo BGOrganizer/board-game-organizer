@@ -6145,3 +6145,18 @@ msgstr "Nessun logo selezionato"
 
 msgid "Invitations are only available for private groups."
 msgstr "Gli inviti sono disponibili solo per i gruppi privati."
+
+msgid "Moderator"
+msgstr "Moderatore"
+
+msgid "Member"
+msgstr "Membro"
+
+msgid "Participant"
+msgstr "Partecipante"
+
+msgid "Awaiting acceptance"
+msgstr "In attesa di accettazione"
+
+msgid "Unconfirmed players"
+msgstr "Giocatori non confermati"

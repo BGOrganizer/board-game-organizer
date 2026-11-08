@@ -106,7 +106,7 @@ export function EventTable({
         <Tabs selectedKey={selected} onSelectionChange={(key) => setTab(String(key))}>
           <TabBar label={t`Table sections`}>
             <TabTrigger icon={Info} id="overview">
-              {t`Overview`}
+              {t`Details`}
               <NotificationTabBadge target={{ kind: "table", id: tableId }} />
             </TabTrigger>
             {!table.sharedResultsOnly ? (

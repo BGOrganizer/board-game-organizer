@@ -1,6 +1,7 @@
 "use client";
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
+  formatUsername,
   useEventParticipantManagement,
   useEventParticipants,
   type useEventRecordActions,
@@ -8,7 +9,7 @@ import {
 import { Button, Skeleton, Table } from "@heroui/react";
 import { TableLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
-import { Ban, UserRoundMinus } from "lucide-react";
+import { Ban, Crown, ShieldCheck, UserRoundCheck, UserRoundMinus } from "lucide-react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -58,7 +59,16 @@ export function EventParticipants({
                 </Table.Header>
                 <Table.Body items={q.items}>
                   {(person) => {
-                    const name = person.username || person.name || t`Username unavailable`;
+                    const name = formatUsername(
+                      person.username,
+                      person.name || t`Username unavailable`,
+                    );
+                    const role =
+                      person.managementRole === "admin"
+                        ? { label: t`Admin`, Icon: Crown, color: "text-warning" }
+                        : person.managementRole === "moderator"
+                          ? { label: t`Moderator`, Icon: ShieldCheck, color: "text-accent" }
+                          : { label: t`Participant`, Icon: UserRoundCheck, color: "text-success" };
                     const items = [
                       ...(m.canAct(person, "remove")
                         ? [
@@ -87,7 +97,20 @@ export function EventParticipants({
                               <UserIdentity
                                 name={name}
                                 avatarUrl={person.avatarUrl}
-                                secondary={person.position === "WAITING" ? t`Waiting list` : null}
+                                secondary={
+                                  person.position === "WAITING"
+                                    ? `${role.label} · ${t`Waiting list`}`
+                                    : role.label
+                                }
+                                badge={
+                                  <span
+                                    role="img"
+                                    aria-label={role.label}
+                                    className={`absolute -right-1 -bottom-1 rounded-full bg-background p-0.5 ${role.color}`}
+                                  >
+                                    <role.Icon className="size-4" aria-hidden />
+                                  </span>
+                                }
                               />
                               <MemberActions
                                 title={`${t`Manage participant`}: ${name}`}
@@ -158,7 +181,10 @@ export function EventParticipants({
         />
       ) : m.managed?.action === "ban" ? (
         <GroupBanDialog
-          name={m.managed.person.username || m.managed.person.name || t`Username unavailable`}
+          name={formatUsername(
+            m.managed.person.username,
+            m.managed.person.name || t`Username unavailable`,
+          )}
           timeZone={event.timeZone}
           busy={false}
           onCancel={m.close}

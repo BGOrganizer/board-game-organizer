@@ -12,6 +12,7 @@ export type PendingTablePlace = {
   kind: "pending";
   userId: string;
   name: string;
+  username?: string | null;
   avatarUrl: string | null;
   action?: "join" | "accept";
   phase?: "saving" | "verifying";
@@ -34,6 +35,7 @@ export function pendingInvitationPlaces(
       kind: "pending",
       userId: invitation.userId,
       name: invitation.person?.name || invitation.person?.username || invitation.userId,
+      ...(invitation.person?.username ? { username: invitation.person.username } : {}),
       avatarUrl: invitation.person?.avatarUrl ?? null,
     }));
   if (!pending.length) return [...rows];
@@ -59,7 +61,7 @@ export function pendingParticipationPlaces(
     | undefined,
   userId: string | null | undefined,
   acknowledged: boolean,
-  selfProfile?: Pick<UserProfile, "id" | "name" | "avatarUrl">,
+  selfProfile?: Pick<UserProfile, "id" | "name" | "username" | "avatarUrl">,
 ): Array<EventTablePlace | PendingTablePlace> {
   if (!intent || !userId || !intent.phase || intent.phase === "failed" || acknowledged)
     return [...rows];
@@ -74,6 +76,9 @@ export function pendingParticipationPlaces(
       action: intent.action,
       phase: intent.phase,
       name: profile?.name || self?.name || profile?.username || "",
+      ...(profile?.username || self?.username
+        ? { username: profile?.username || self?.username }
+        : {}),
       avatarUrl: profile?.avatarUrl ?? self?.avatarUrl ?? null,
     },
     ...rows.filter((row) => row.kind !== "player" || row.user.userId !== userId),

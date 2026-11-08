@@ -132,7 +132,7 @@ export function EventTable({
                 testID="table-overview-tab"
                 style={{ flexDirection: "row", gap: 6 }}
               >
-                <Tabs.Label>{t("Overview")}</Tabs.Label>
+                <Tabs.Label>{t("Details")}</Tabs.Label>
                 <NotificationTabBadge target={{ kind: "table", id: tableId }} />
               </TabTrigger>
               {!table.sharedResultsOnly ? (

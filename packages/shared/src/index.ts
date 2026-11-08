@@ -7,6 +7,7 @@ export * from "./common/mutationFeedback";
 export { clearSessionQueryCache, optimisticBaseData } from "./common/optimisticOperation";
 export * from "./common/startupQueries";
 export * from "./common/types";
+export * from "./common/userIdentity";
 export * from "./community/communityApi";
 export * from "./community/communityFeedback";
 export * from "./community/pendingActions";

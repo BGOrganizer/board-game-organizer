@@ -30,6 +30,16 @@ tags: [manual, cards]
     timeout: 120000
 - assertVisible: ${output.cardPrivate}
 - takeScreenshot: card-group-background-identity
+- assertVisible: ${output.cardOverview}
+- assertVisible: ${output.cardRankingTab}
+- tapOn: ${output.cardMembersTab}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardPerson}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardGroupRole}
+- takeScreenshot: card-group-member-identity-role
 - openLink: bgo:///events
 - tapOn:
     id: "list-search-input"
@@ -59,6 +69,14 @@ tags: [manual, cards]
     visible: ${output.cardEventTitle}
     timeout: 120000
 - takeScreenshot: card-event-background-identity
+- tapOn: ${output.cardParticipantsTab}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardPerson}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardEventRole}
+- takeScreenshot: card-event-participant-avatar-role
 - tapOn: ${output.cardOverview}
 - scrollUntilVisible:
     element:
@@ -127,6 +145,12 @@ tags: [manual, cards]
     childOf:
       id: "record-identity-controls"
 - assertNotVisible: ${output.cardDatesPopover}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardUnconfirmed}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardUnconfirmed}
 - back
 - scrollUntilVisible:
     element:
@@ -135,6 +159,15 @@ tags: [manual, cards]
     timeout: 20000
 - assertVisible: ${output.cardEventTableCount}
 - takeScreenshot: card-table-parent-event-list-style
+- assertVisible: ${output.cardOverview}
+- tapOn: ${output.cardParticipantsTab}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardPerson}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardTableStatus}
+- takeScreenshot: card-table-participant-identity-status
 - openLink: bgo:///events
 - extendedWaitUntil:
     visible: ${output.cardEvent}

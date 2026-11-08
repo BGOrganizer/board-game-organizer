@@ -148,7 +148,7 @@ export function GroupDetail({
         >
           <TabBar label={t`Group sections`}>
             <TabTrigger icon={Info} id="info">
-              {t`Overview`}
+              {t`Details`}
               <NotificationTabBadge
                 target={{ kind: "group", id: group.id }}
                 overviewItems={[
@@ -179,7 +179,7 @@ export function GroupDetail({
               </TabTrigger>
             ) : null}
             {group.canViewRankings ? (
-              <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Rankings`}</TabTrigger>
+              <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Ranking`}</TabTrigger>
             ) : null}
           </TabBar>
           <Tabs.Panel id="info" className="pt-0">

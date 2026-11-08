@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import * as shared from "@board-game-organizer/shared";
@@ -75,6 +76,38 @@ it.each([
     expect(row.props.actions).toBeUndefined();
     expect(row.props.metadata).toBeUndefined();
     expect(list.props.ListEmptyComponent.props.children).toBe("No games found");
+  },
+);
+it.each(["planets", "constellation", "landscape"])(
+  "uses the supported transparent native %s cover while preserving its detail palette",
+  (variant) => {
+    const req = createRequire(import.meta.url);
+    const render = component("common/ui/AnimatedDicebearArtwork", "AnimatedDicebearArtwork", {
+      "@dicebear/core": req("@dicebear/core"),
+      ...Object.fromEntries(
+        ["planets", "constellation", "landscape", "shapes", "waves"].map((name) => [
+          `@dicebear/styles/${name}.json`,
+          req(`@dicebear/styles/${name}.json`),
+        ]),
+      ),
+      react: { useMemo: (fn: () => unknown) => fn(), useEffect: () => {} },
+      "react-native": { View: "View" },
+      "react-native-reanimated": {
+        __esModule: true,
+        default: { View: "Animated.View" },
+        useReducedMotion: () => false,
+        useSharedValue: () => ({ get: () => 0, set: () => {} }),
+        useAnimatedStyle: (fn: () => unknown) => fn(),
+      },
+      "react-native-svg": { SvgXml: "SvgXml" },
+    });
+    const cover = render({ seed: "stable", variant, presentation: "cover" });
+    const coverXml = cover.props.children.props.children.props.xml as string;
+    expect(cover.props.className).toBeUndefined();
+    expect(coverXml).not.toMatch(/<rect[^>]*\bfill=/);
+    const background = render({ seed: "stable", variant, presentation: "background" });
+    expect(background.props.children.props.children.props.xml).toMatch(/<rect[^>]*\bfill=/);
+    expect(background.props.children.props.children.props.xml).not.toBe(coverXml);
   },
 );
 it("keeps the horizontal card artwork fixed and actions outside its stretched navigation target", () => {
@@ -227,6 +260,7 @@ it.each(["dates", "locations"] as const)(
   (kind) => {
     const render = component("events/EventTableSchedulePopover", "EventTableSchedulePopover", {
       "@board-game-organizer/shared": shared,
+      "heroui-native/hooks": { useThemeColor: (token: string) => token },
       "heroui-native/skeleton": { Skeleton: "Skeleton" },
       "heroui-native/text": { Typography: "Typography" },
       "lucide-react-native": { CalendarDays: "Calendar", MapPin: "Map" },
@@ -257,8 +291,11 @@ it.each(["dates", "locations"] as const)(
     const row = list.props.renderItem({ item: list.props.data[0] });
     expect(row).toBeTruthy();
     if (kind === "locations") {
-      expect(row.props.children.type).toBe("Typography");
-      expect(row.props.children.props.children).toBe(plannedEvent.locations[0].address);
+      const [icon, label] = row.props.children.props.children;
+      expect(icon.type).toBe("Map");
+      expect(icon.props).toMatchObject({ size: 16, color: "muted", accessible: false });
+      expect(label.type).toBe("Typography");
+      expect(label.props.children).toBe(plannedEvent.locations[0].address);
     }
     const missing = render({ table: { ...table, eventSchedule: undefined }, kind }).props.children;
     expect(missing.props.ListEmptyComponent.type).toBe("Skeleton");
@@ -422,6 +459,140 @@ it.each(["admin", "moderator", "accepted", "invited", "requested", "none"] as co
     });
   },
 );
+it.each([
+  ["admin", "Admin", "Crown", "warning"],
+  ["moderator", "Moderator", "Shield", "accent"],
+  [null, "Participant", "Player", "success"],
+  [undefined, "Participant", "Player", "success"],
+] as const)(
+  "renders actual native participant @handles and %s avatar role without deriving permissions",
+  (managementRole, label, icon, color) => {
+    const render = component("events/EventParticipants", "EventParticipants", {
+      "@board-game-organizer/shared": {
+        ...shared,
+        useEventParticipants: () => ({ items: [] }),
+        useEventParticipantManagement: () => ({ canAct: () => false, isBusy: () => false }),
+      },
+      "heroui-native/button": { Button: "Button" },
+      "heroui-native/hooks": { useThemeColor: (tokens: string[]) => tokens },
+      "heroui-native/skeleton": { Skeleton: "Skeleton" },
+      "heroui-native/text": { Typography: "Typography" },
+      "lucide-react-native": {
+        Ban: "Ban",
+        Crown: "Crown",
+        ShieldCheck: "Shield",
+        UserRoundCheck: "Player",
+        UserRoundMinus: "Remove",
+      },
+      "react-native": { FlatList: "FlatList", View: "View" },
+      "react-native-safe-area-context": { useSafeAreaInsets: () => ({ bottom: 0 }) },
+      "@/components/common/ui/ConfirmDialog": { ConfirmDialog: "ConfirmDialog" },
+      "@/components/common/ui/GroupBanDialog": { GroupBanDialog: "GroupBanDialog" },
+      "@/components/common/ui/GroupedList": { GroupedList: "GroupedList" },
+      "@/components/common/ui/MemberActions": { MemberActions: "MemberActions" },
+      "@/components/common/ui/UserListRow": { UserListRow: "UserListRow" },
+      "@/lib/i18n": { useT: () => (id: string) => id },
+      "@/lib/useCommunityApi": { useCommunityApi: () => ({ userId: "viewer" }) },
+    });
+    const list = render({ event: plannedEvent, actions: {} }).props.children[0];
+    const row = list.props.renderItem({
+      item: {
+        userId: "target",
+        name: "Full name",
+        username: "@handle",
+        avatarUrl: null,
+        position: "WAITING",
+        managementRole,
+      },
+    }).props.children;
+    expect(row.props.name).toBe("@handle");
+    expect(row.props.secondary).toBe(`${label} · Waiting list`);
+    expect(row.props.badge).toEqual({ label, icon, color });
+    expect(row.props.actions.props.items).toEqual([]);
+  },
+);
+it.each([
+  ["admin", "Admin"],
+  ["moderator", "Moderator"],
+  ["member", "Member"],
+  ["pending", "Awaiting acceptance"],
+] as const)("renders actual native Group %s under a normalized @handle", (kind, label) => {
+  const render = component("groups/GroupMembers", "GroupMembers", {
+    "@board-game-organizer/schemas": { notificationItemId: () => "item" },
+    "@board-game-organizer/shared": {
+      ...shared,
+      useGroupMemberManagement: () => ({ list: { items: [] }, isBusy: () => false }),
+    },
+    "@lingui/react": { useLingui: () => ({ i18n: { locale: "en" } }) },
+    "expo-router": { useRouter: () => ({}), useFocusEffect: () => {} },
+    "heroui-native/button": { Button: "Button" },
+    "heroui-native/hooks": { useThemeColor: (tokens: string[]) => tokens },
+    "heroui-native/skeleton": { Skeleton: "Skeleton" },
+    "heroui-native/text": { Typography: "Typography" },
+    "lucide-react-native": Object.fromEntries(
+      [
+        "Ban",
+        "Check",
+        "ClipboardCheck",
+        "Clock3",
+        "Crown",
+        "EllipsisVertical",
+        "RotateCcw",
+        "ShieldCheck",
+        "UserRoundMinus",
+        "UserRoundPlus",
+        "UsersRound",
+        "X",
+      ].map((name) => [name, name]),
+    ),
+    react: {
+      useCallback: (f: unknown) => f,
+      useEffect: () => {},
+      useRef: (value: unknown) => ({ current: value }),
+      useState: (value: unknown) => [value, () => {}],
+    },
+    "react-native": { View: "View", AppState: { currentState: "active" } },
+    "react-native-safe-area-context": { useSafeAreaInsets: () => ({ bottom: 0 }) },
+    ...Object.fromEntries(
+      [
+        "AddUserRow",
+        "ConfirmDialog",
+        "GroupBanDialog",
+        "HelpPopover",
+        "UserActionsSheet",
+        "UserList",
+        "UserListRow",
+      ].map((name) => [`@/components/common/ui/${name}`, { [name]: name }]),
+    ),
+    "@/components/notifications/NotificationAttentionScope": {
+      NotificationAttentionScope: "Scope",
+    },
+    "@/lib/i18n": { useT: () => (id: string) => id },
+    "@/lib/useCommunityApi": { useCommunityApi: () => ({ userId: "viewer" }) },
+    "./GroupMemberActions": { GroupMemberActions: "Actions" },
+    "./GroupMemberAttention": { GroupMemberAttention: "Attention" },
+  });
+  const tree = render({ group: groupRecord });
+  const children = Array.isArray(tree.props.children) ? tree.props.children : [tree.props.children];
+  const list = children.find((node: Element) => node?.type === "UserList");
+  const row = list.props.renderRow({
+    userId: "target",
+    username: "@handle",
+    name: "Full name",
+    isAdmin: kind === "admin",
+    membership:
+      kind === "admin"
+        ? null
+        : {
+            status: kind === "pending" ? "PENDING" : "ACCEPTED",
+            role: kind === "moderator" ? "MODERATOR" : "MEMBER",
+            kind: "INVITATION",
+          },
+    ban: null,
+  });
+  expect(row.props.name).toBe("@handle");
+  expect(row.props.secondary).toBe(label);
+});
 it("renders native identities directly over artwork with a single accessible horizontal toolbar", () => {
   const render = component("common/ui/RecordIdentityCard", "RecordIdentityCard", {
     "heroui-native/text": { Typography: "Typography" },
@@ -449,8 +620,12 @@ it("renders native identities directly over artwork with a single accessible hor
     "react-native": { View: "View" },
   });
   const background = card({ background: "Artwork", children: "Identity" });
-  expect(background.props.children[1].props.className).toBe("bg-background/70");
-  expect(background.props.children[2].props.children).toBe("Identity");
+  expect(background.props.children).toHaveLength(2);
+  expect(background.props.children[1].props.children).toBe("Identity");
+  expect(tree.props.children.props.className).toBe("bg-background/90");
+  expect(tree.props.children.props.style.flexWrap).toBeUndefined();
+  expect(toolbar.props.style.maxWidth).toBe("60%");
+  expect(title.props.style.flex).toBe(1);
 });
 it("uses actual HeroUI background compositions and keeps the existing API-owned roster hook", () => {
   const source = (file: string) =>

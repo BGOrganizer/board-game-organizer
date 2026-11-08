@@ -3,7 +3,7 @@ import type {
   GroupPersonResponse,
   GroupRecordResponse,
 } from "@board-game-organizer/schemas";
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import { formatUsername, withProtectionBypass } from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
@@ -89,7 +89,7 @@ test("creator cancels destructive actions, confirms role changes and reloads the
       "Creator session and an ordinary accepted target on the bounded first roster page required",
     );
   const manageName = `${labels.manage}: ${person.username || person.name}`,
-    titleName = person.name ?? person.username;
+    titleName = formatUsername(person.username, person.name ?? "Username unavailable");
   await page.goto(`/groups/${groupId}`);
   await page.getByRole("tab", { name: labels.members, exact: true }).click();
   for (const label of [labels.ban, labels.remove, labels.promote]) {

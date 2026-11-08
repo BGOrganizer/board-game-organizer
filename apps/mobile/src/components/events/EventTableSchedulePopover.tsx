@@ -4,6 +4,7 @@ import {
   tableCardDates,
   tableCardLocations,
 } from "@board-game-organizer/shared";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, MapPin } from "lucide-react-native";
@@ -26,6 +27,7 @@ export function EventTableSchedulePopover({
   kind: "dates" | "locations";
 }) {
   const t = useT();
+  const muted = useThemeColor("muted");
   const { width, height } = useWindowDimensions();
   const dates = kind === "dates";
   const title = dates ? t("Dates and times") : t("Locations");
@@ -58,9 +60,12 @@ export function EventTableSchedulePopover({
                 dateStyle="long"
               />
             ) : (
-              <Typography className="text-foreground" style={{ flex: 1, minWidth: 0 }}>
-                {formatLocationAddress(item.location.address)}
-              </Typography>
+              <>
+                <MapPin size={16} color={muted} accessible={false} />
+                <Typography className="text-foreground" style={{ flex: 1, minWidth: 0 }}>
+                  {formatLocationAddress(item.location.address)}
+                </Typography>
+              </>
             )}
           </GroupedRow>
         )}

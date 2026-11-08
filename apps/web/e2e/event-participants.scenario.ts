@@ -4,7 +4,7 @@ import type {
   GroupPersonResponse,
   PlannedEventResponse,
 } from "@board-game-organizer/schemas";
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import { formatUsername, withProtectionBypass } from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
@@ -105,14 +105,14 @@ test("real Event tabs, paged attendance and distinct confirmed Event removal or 
     !event.canEdit ||
     event.myRegistrations.some((r) => r.status === "ACCEPTED") ||
     person?.userId !== input.targetId ||
-    (person.username || person.name) !== input.targetName ||
+    formatUsername(person.username, person.name) !== input.targetName ||
     !person.canRemove ||
     !person.canBanGroup
   )
     throw new Error(
       "Current manager without automatic attendance and ordinary accepted target at the declared source offset required",
     );
-  const membershipPath = `groups/${input.groupId}/members?mode=accepted&limit=50&query=${encodeURIComponent(input.targetName)}`;
+  const membershipPath = `groups/${input.groupId}/members?mode=accepted&limit=50&query=${encodeURIComponent(person.username || person.name)}`;
   const membershipBefore = (
     await read<CommunityPageResponse<GroupPersonResponse>>(page, membershipPath)
   ).items.find((p) => p.userId === input.targetId)?.membership;

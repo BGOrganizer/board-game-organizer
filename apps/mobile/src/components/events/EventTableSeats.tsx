@@ -4,6 +4,7 @@ import {
   type TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import {
+  formatUsername,
   useEventCutoff,
   useEventRecordActions,
   useEventTableRoster,
@@ -165,7 +166,7 @@ export function EventTableSeats({
               return (
                 <GroupedList>
                   <UserListRow
-                    name={item.name || t("You")}
+                    name={formatUsername(item.username, item.name || t("You"))}
                     avatarUrl={item.avatarUrl}
                     secondary={label}
                     badge={{ icon: item.action ? Clock3 : Mail, label, color: "warning" }}
@@ -193,16 +194,18 @@ export function EventTableSeats({
             }
             const row = item.user,
               own = row.userId === o.userId,
-              name =
-                own && (!row.name || row.name === o.userId) ? t("You") : (row.name ?? row.userId);
+              name = formatUsername(
+                row.username,
+                own && (!row.name || row.name === o.userId) ? t("You") : (row.name ?? row.userId),
+              );
             const pending = row.status === "PENDING",
               waiting = row.position === "WAITING";
             const Icon = pending ? Mail : waiting ? Clock3 : UserRoundCheck;
             const status = pending
-              ? t("Invitation pending")
+              ? t("Awaiting acceptance")
               : waiting
                 ? t("Waiting list")
-                : t("Accepted player");
+                : t("Participant");
             return (
               <GroupedList>
                 <UserListRow
@@ -218,13 +221,7 @@ export function EventTableSeats({
                   }
                   name={name}
                   avatarUrl={row.avatarUrl}
-                  secondary={
-                    table.eventStatus === "CONFIRMED"
-                      ? row.username
-                      : pending && waiting
-                        ? `${status} · ${t("Waiting list")}`
-                        : status
-                  }
+                  secondary={pending && waiting ? `${status} · ${t("Waiting list")}` : status}
                   badge={{
                     icon: Icon,
                     label: status,

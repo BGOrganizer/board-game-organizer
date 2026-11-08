@@ -6,6 +6,7 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
+  formatUsername,
   groupPersonActions,
   groupPersonContact,
   isGroupManagerRole,
@@ -53,7 +54,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
     fetchNextPage: () => list.fetchNextPage() ?? Promise.resolve(),
   });
   const name = (person: GroupPersonResponse) =>
-    person.name ?? person.username ?? t`Username unavailable`;
+    formatUsername(person.username, person.name ?? t`Username unavailable`);
   const failure = workflow.error
     ? workflow.error.message === "BAN_FROZEN_PARTICIPATION"
       ? t`This user is involved in a frozen public event and cannot be excluded.`
@@ -112,12 +113,25 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     : isGroupModerator(person.membership)
                       ? { Icon: ShieldCheck, label: t`Group moderator`, color: "text-accent" }
                       : null;
+            const membershipLabel = person.optimisticInvited
+              ? t`Sending invitation`
+              : person.isAdmin
+                ? t`Admin`
+                : person.ban
+                  ? t`Excluded from group`
+                  : person.membership?.status === "PENDING"
+                    ? t`Awaiting acceptance`
+                    : isGroupModerator(person.membership)
+                      ? t`Moderator`
+                      : person.membership?.status === "ACCEPTED"
+                        ? t`Member`
+                        : null;
             return (
               <GroupedRow key={person.userId}>
                 <span className="relative shrink-0">
                   <Avatar size="md">
                     <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
-                    <Avatar.Fallback>{name(person).charAt(0)}</Avatar.Fallback>
+                    <Avatar.Fallback>{name(person).replace(/^@/, "").charAt(0)}</Avatar.Fallback>
                   </Avatar>
                   {badge ? (
                     <span
@@ -140,11 +154,8 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                       />
                     ) : null}
                   </span>
-                  {person.username && person.username !== name(person) ? (
-                    <span className="block truncate text-xs text-muted">{person.username}</span>
-                  ) : null}
-                  {person.optimisticInvited ? (
-                    <span className="block text-xs text-muted">{t`Sending invitation`}</span>
+                  {membershipLabel ? (
+                    <span className="block truncate text-xs text-muted">{membershipLabel}</span>
                   ) : null}
                   {person.ban ? (
                     <span className="block text-xs text-danger">

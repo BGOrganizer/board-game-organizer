@@ -2702,6 +2702,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       expect(page.items[0]).not.toHaveProperty("email");
       expect(page.items[0]).not.toHaveProperty("gameVotes");
       if (page.items[0].userId === OTHER) expect(page.items[0].position).toBe("WAITING");
+      expect(page.items[0].managementRole).toBe(page.items[0].userId === OWNER ? "admin" : null);
       seen.push(page.items[0].userId);
       cursor = page.nextCursor ?? undefined;
     } while (cursor);
@@ -2746,6 +2747,42 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(await services().eventRecords.find(event.id)).toEqual(before);
     expect(await services().eventRecords.userRegistrations(event.id, GUEST)).toHaveLength(1);
     expect(await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments({})).toBe(notices);
+  });
+  it("reads current Group participant roles from MongoDB, not historical Event authorship or reader permissions", async () => {
+    const group = await privateGroup();
+    const member = (await services().groupRecords.membership(group.id, GUEST))!;
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+        action: "promote",
+        version: member.version,
+      }),
+    );
+    const event = await transaction((s) =>
+      s.plannedEventService.create(GUEST, plannedInput(group.id)),
+    );
+    for (const user of [OWNER, GUEST, OTHER]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    const page = await transaction((s) =>
+      s.plannedEventService.participants(OTHER, event.id, { limit: 20 }),
+    );
+    expect(page.items.find((row) => row.userId === OWNER)?.managementRole).toBe("admin");
+    expect(page.items.find((row) => row.userId === GUEST)?.managementRole).toBe("moderator");
+    expect(page.items.find((row) => row.userId === OTHER)?.managementRole).toBeNull();
+    expect(page.items.every((row) => !row.canRemove && !row.canBanGroup)).toBe(true);
+    const moderator = (await services().groupRecords.membership(group.id, GUEST))!;
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+        action: "demote",
+        version: moderator.version,
+      }),
+    );
+    const updated = await transaction((s) =>
+      s.plannedEventService.participants(OTHER, event.id, { limit: 20 }),
+    );
+    expect(updated.items.find((row) => row.userId === GUEST)?.managementRole).toBeNull();
+    expect((await services().eventRecords.find(event.id))?.adminUserId).toBe(GUEST);
   });
   it("keeps frozen Event participants source-complete without mutable rows and refuses immutable removal", async () => {
     const group = await privateGroup();

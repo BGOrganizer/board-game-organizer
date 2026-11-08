@@ -56,9 +56,12 @@ export function EventTableSchedulePopover({
                     dateStyle="long"
                   />
                 ) : (
-                  <p className="min-w-0 break-words text-foreground">
-                    {formatLocationAddress(row.location.address)}
-                  </p>
+                  <>
+                    <MapPin className="size-4 shrink-0 text-muted" aria-hidden />
+                    <p className="min-w-0 break-words text-foreground">
+                      {formatLocationAddress(row.location.address)}
+                    </p>
+                  </>
                 )}
               </GroupedRow>
             ))}

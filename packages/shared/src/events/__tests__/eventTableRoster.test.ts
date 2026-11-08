@@ -56,6 +56,27 @@ function seat(
     avatarUrl: "https://example.test/avatar",
   };
 }
+it.each(["mario", null, undefined])(
+  "fills only a missing self handle from the owned cached profile: %s",
+  (username) => {
+    const raw = { ...seat("owner"), username: null };
+    const profile = { id: "owner", name: "Mario", username, avatarUrl: "owned" };
+    const rows = eventTableRoster(
+      { ...table, myRegistration: raw },
+      [],
+      [],
+      "owner",
+      20,
+      profile,
+    ).rows;
+    expect(rows[0]).toMatchObject({ kind: "player", user: { username: username ?? null } });
+    const foreign = eventTableRoster({ ...table, myRegistration: raw }, [], [], "owner", 20, {
+      ...profile,
+      id: "foreign",
+    }).rows;
+    expect(foreign[0]).toMatchObject({ user: { username: null } });
+  },
+);
 it("uses only the current actor's cached profile across receipt-to-roster handoff, preserving canonical identities", () => {
   const raw = { ...seat("owner"), name: null, avatarUrl: null },
     other = { ...seat("guest"), name: null, avatarUrl: null };
