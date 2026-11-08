@@ -48,17 +48,28 @@ tags: [manual, cards]
     timeout: 120000
 - assertVisible: ${output.cardEventParent}
 - assertVisible: ${output.cardGroupParent}
+- assertVisible: ${output.cardRatio}
+- takeScreenshot: card-table-horizontal-metadata
+- tapOn: ${output.cardDatesPopover}
 - assertVisible: ${output.cardDate}
 - assertVisible: ${output.cardTime}
+- takeScreenshot: card-table-dates-popover
+- back
+- tapOn: ${output.cardLocationsPopover}
 - assertVisible: ${output.cardVenue}
-- assertVisible: ${output.cardDateCount}
-- assertVisible: ${output.cardLocationCount}
-- takeScreenshot: card-table-metadata
+- takeScreenshot: card-table-locations-popover
+- back
+- tapOn: ${output.cardGamesPopover}
+- assertVisible: ${output.cardGamesTitle}
+- assertNotVisible: ${output.cardNoGames}
+- takeScreenshot: card-table-games-popover
+- back
 - openLink: bgo:///events
 - extendedWaitUntil:
     visible: ${output.cardEvent}
     timeout: 120000
 - tapOn: ${output.cardEvent}
+- tapOn: ${output.cardTables}
 - scrollUntilVisible:
     element:
       text: ${output.cardTable}
@@ -66,7 +77,10 @@ tags: [manual, cards]
     timeout: 120000
 - assertVisible: ${output.cardTable}
 - takeScreenshot: card-table-in-event
-# Parent identity is absent inside that same Event. Actual date/venue pixels require screenshot
-# review because Event Overview itself legitimately contains those values outside the Table card.
-- assertNotVisible: ${output.cardEventParent}
-- assertNotVisible: ${output.cardGroupParent}
+# Same Table composition in both feeds. Inspect actual image height, icon frames and large text
+# in screenshots; syntax/VM assertions do not establish native geometry or touch acceptance.
+- assertVisible: ${output.cardEventParent}
+- assertVisible: ${output.cardGroupParent}
+- assertVisible: ${output.cardDatesPopover}
+- assertVisible: ${output.cardLocationsPopover}
+- assertVisible: ${output.cardGamesPopover}

@@ -54,3 +54,13 @@ output.cardVenue =
   ".*";
 output.cardDateCount = italian ? "2 date proposte" : "2 proposed dates";
 output.cardLocationCount = italian ? "2 luoghi proposti" : "2 proposed locations";
+output.cardDatesPopover =
+  "^" + (italian ? "Date e orari: " : "Dates and times: ") + escaped(output.cardTableName) + "$";
+output.cardLocationsPopover =
+  "^" + (italian ? "Luoghi: " : "Locations: ") + escaped(output.cardTableName) + "$";
+output.cardGamesPopover =
+  "^" + (italian ? "Giochi da tavolo: " : "Board games: ") + escaped(output.cardTableName) + "$";
+output.cardRatio = italian ? "^[0-9]+/[0-9]+ partecipant[ei]$" : "^[0-9]+/[0-9]+ participants?$";
+output.cardTables = italian ? "^Tavoli$" : "^Tables$";
+output.cardGamesTitle = italian ? "^Giochi da tavolo$" : "^Board games$";
+output.cardNoGames = italian ? "^Nessun gioco trovato$" : "^No games found$";

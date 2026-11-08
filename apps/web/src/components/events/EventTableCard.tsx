@@ -1,35 +1,16 @@
 "use client";
+
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import {
-  canManageEvent,
-  tableParticipation,
-  tablePendingAction,
-  useEventCutoff,
-  useNotificationAttentionContext,
-} from "@board-game-organizer/shared";
+import { useNotificationAttentionContext } from "@board-game-organizer/shared";
 import { Skeleton } from "@heroui/react";
-import { Plural, useLingui } from "@lingui/react/macro";
-import {
-  CalendarDays,
-  Clock3,
-  Dices,
-  ListOrdered,
-  Presentation,
-  Trophy,
-  UserRoundCheck,
-  UserRoundMinus,
-  UserRoundPlus,
-  UsersRound,
-} from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
+import { CalendarDays, Dices, UsersRound } from "lucide-react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
-import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
-import { useCommunityApi } from "@/lib/useCommunityApi";
-import { EventCardSchedule } from "./EventCardSchedule";
-import { EventTableGamesPopover } from "./EventTableGamesPopover";
-import { EventTableRatingBadge } from "./EventTableRatingBadge";
-/** Parent identity/schedule appears only in the personal feed, never inside its Event. */
+import { EventTableCardIndicators } from "./EventTableCardIndicators";
+
+/** One horizontal card in both feeds. The context hint changes Back, never authority. */
 export function EventTableCard({
   table,
   context = "personal",
@@ -37,163 +18,51 @@ export function EventTableCard({
   table: PlannedTableResponse;
   context?: "personal" | "event";
 }) {
-  const { t, i18n } = useLingui(),
-    number = new Intl.NumberFormat(i18n.locale);
-  const closed = useEventCutoff(
-    table.bookingClosesAt,
-    table.groupType === "PUBLIC" && table.eventStatus === "PLANNING",
-  );
-  const { userId } = useCommunityApi();
-  const manager = canManageEvent(table, userId);
-  const indicator = tableParticipation(table.myRegistration, table.myPosition);
-  const games = table.gamesDetail.filter(
-      (game) =>
-        table.eventStatus === "PLANNING" || !table.confirmed || game.id === table.confirmed.gameId,
-    ),
-    remaining = Math.max(0, games.length - 1);
-  const attention = useNotificationAttentionContext(),
-    attentionTarget = { kind: "table", id: table.id } as const;
-  const counts = [
-    {
-      icon: UserRoundMinus,
-      label: t`Minimum players`,
-      value: table.minPlayers,
-    },
-    {
-      icon: UserRoundPlus,
-      label: t`Maximum players`,
-      value: table.maxPlayers,
-    },
-    {
-      icon: UserRoundCheck,
-      label: t`Accepted players`,
-      value: table.acceptedCount,
-    },
-    {
-      icon: ListOrdered,
-      label: t`Waiting list`,
-      value: table.waitingCount,
-    },
-    {
-      icon: Clock3,
-      label: t`Pending players`,
-      value: table.pendingRegistrationCount,
-    },
-  ];
+  const { t, i18n } = useLingui();
+  const attention = useNotificationAttentionContext();
+  const count = attention?.get({ kind: "table", id: table.id })?.count;
   return (
     <LinkedListCard
       href={`/events/${table.eventId}/tables/${table.id}${context === "event" ? `?fromEvent=${encodeURIComponent(table.eventId)}` : ""}`}
       label={`${t`Open table`}: ${table.name}`}
-      notificationCount={attention?.get(attentionTarget)?.count}
-      leadingActions={
-        <>
-          {indicator !== null ? (
-            <ArtworkStatusPopover
-              kind={indicator}
-              action={closed ? null : tablePendingAction(table)}
-            />
-          ) : null}
-          {manager ? (
-            <ArtworkStatusPopover kind="manager" />
-          ) : indicator === null ? (
-            <ArtworkStatusPopover kind="viewer" />
-          ) : null}
-          {table.demonstratorUserId && table.demonstratorUserId === userId ? (
-            <ArtworkStatusPopover kind="demonstrator" />
-          ) : null}
-          <EventTableGamesPopover games={games} name={table.name} />
-        </>
-      }
-      artwork={<AnimatedDicebearArtwork seed={table.id} variant="planets" />}
+      notificationCount={count}
+      artworkLayout="cover"
+      artwork={<AnimatedDicebearArtwork seed={table.id} variant="planets" presentation="cover" />}
+      leadingActions={<EventTableCardIndicators table={table} />}
     >
       <ListCardBody
         title={table.name}
-        unread={Boolean(attention?.get(attentionTarget)?.count)}
+        unread={Boolean(count)}
         titleIcon={<Dices className="size-4 shrink-0 text-muted" aria-hidden />}
-        titleAccessory={<EventTableRatingBadge enabled={table.rankingEnabled} />}
       >
-        <div className="space-y-2">
-          {context === "personal" ? (
+        <p className="min-w-0 break-words text-sm tabular-nums text-foreground">
+          {i18n._({
+            id: "table.card.participants",
+            message:
+              "{count, plural, one {#/{capacity} participant} other {#/{capacity} participants}}",
+            values: { count: table.seatedCount, capacity: i18n.number(table.maxPlayers) },
+          })}
+        </p>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
+          {table.groupId ? (
             <>
-              <div className="space-y-2 text-sm">
-                <span className="flex min-w-0 items-center gap-1">
-                  <CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />
-                  <span className="min-w-0 break-words">
-                    {t`Event`}: {table.eventName}
-                  </span>
-                </span>
-                {table.groupId ? (
-                  <span className="flex min-w-0 items-center gap-1 text-muted">
-                    <UsersRound className="size-4 shrink-0" aria-hidden />
-                    {table.groupName ? (
-                      <span className="min-w-0 break-words">
-                        {t`Group`}: {table.groupName}
-                      </span>
-                    ) : (
-                      <Skeleton className="h-4 w-28 rounded" />
-                    )}
-                  </span>
-                ) : null}
-              </div>
-              <EventCardSchedule schedule={table.eventSchedule} />
-            </>
-          ) : null}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm tabular-nums">
-            {counts.map(({ icon: Icon, label, value }) => (
-              <span key={label} className="inline-flex shrink-0 items-center gap-1">
-                <Icon className="size-4 text-muted" aria-hidden />
-                <span className="sr-only">{label}: </span>
-                {value === undefined ? (
-                  <Skeleton aria-label={t`Loading…`} className="h-4 w-5 rounded" />
+              <span className="inline-flex min-w-0 max-w-full items-start gap-1">
+                <UsersRound className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span className="sr-only">{t`Group`}: </span>
+                {table.groupName ? (
+                  <span className="min-w-0 break-words">{table.groupName}</span>
                 ) : (
-                  <span>{number.format(value)}</span>
+                  <Skeleton aria-label={t`Loading…`} className="h-4 w-28 rounded" />
                 )}
               </span>
-            ))}
-          </div>
-          <p className="flex items-start gap-2 text-sm">
-            <Dices className="size-4 shrink-0 text-muted" aria-hidden />
-            <span className="min-w-0 break-words">
-              {games[0]?.name ?? t`Unknown`}
-              {remaining > 0 ? (
-                <>
-                  {" "}
-                  ·{" "}
-                  <span className="text-accent-soft-foreground">
-                    <Plural
-                      id="event.table.moreGames"
-                      value={remaining}
-                      one="+# game"
-                      other="+# games"
-                    />
-                  </span>
-                </>
-              ) : null}
-            </span>
-          </p>
-          {table.demonstratorUserId ? (
-            <p className="flex items-center gap-2 text-sm">
-              <Presentation className="size-4 shrink-0 text-muted" aria-hidden />
-              <span className="sr-only">{t`Demonstrator`}: </span>
-              {table.demonstratorName === undefined ? (
-                <Skeleton className="h-4 w-28 rounded" />
-              ) : (
-                <span className="min-w-0 break-words">{table.demonstratorName || t`Unknown`}</span>
-              )}
-            </p>
+              <span aria-hidden>·</span>
+            </>
           ) : null}
-          {table.eventStatus !== "PLANNING" && !table.confirmed ? (
-            <p className="text-sm text-warning">{t`Excluded from confirmation`}</p>
-          ) : null}
-          {table.eventStatus === "TERMINATED" && table.winners?.length ? (
-            <p className="flex items-start gap-2 text-sm">
-              <Trophy className="size-4 shrink-0 text-warning" aria-hidden />
-              <span className="min-w-0 break-words">
-                <span className="sr-only">{t`Winners`}: </span>
-                {table.winners.map((row) => row.name).join(", ")}
-              </span>
-            </p>
-          ) : null}
+          <span className="inline-flex min-w-0 max-w-full items-start gap-1">
+            <CalendarDays className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span className="sr-only">{t`Event`}: </span>
+            <span className="min-w-0 break-words">{table.eventName}</span>
+          </span>
         </div>
       </ListCardBody>
     </LinkedListCard>

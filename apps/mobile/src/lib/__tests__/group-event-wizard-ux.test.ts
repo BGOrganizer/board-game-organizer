@@ -67,7 +67,7 @@ it("keeps date/time proposals and verified location add slots available only for
   expect(card).toContain("<LinkedListCard");
   expect(card).toContain("onPress={() =>");
   expect(card).toContain("<AnimatedDicebearArtwork");
-  expect(card).toContain("<EventTableRatingBadge");
+  expect(source("events", "EventTableCardIndicators")).toContain('t("Rating enabled")');
   const badge = source("events", "EventTableRatingBadge");
   expect(badge).toContain('variant={enabled ? "primary" : "secondary"}');
   expect(badge).toContain('color={enabled ? "accent" : "default"}');

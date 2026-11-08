@@ -190,9 +190,10 @@ exceptions supersede older membership-only activity/detail statements below.
   never a second Event-removal request. TERMINATED history remains immutable. Menu/tab visibility never
   triggers Group-member dwell or notification acknowledgments. Negative optimistic intent uses owned
   caches only; later epochs/registrations survive, and uncertain outcomes require verification.
-- Web and native use horizontal HeroUI Card compositions for Group/Event/Table lists and parent
-  links: wrapping text at left, fixed proportional artwork at right, and individually backed
-  informational triggers in a wrapping row below the text, outside stretched navigation targets.
+- Web and native use HeroUI Card compositions for lists and parent links. Group/Event cards keep
+  wrapping text at left, thumbnail artwork at right and explanatory controls beneath their text.
+  Table list cards use the full-height left artwork/right-content composition specified below.
+  Navigation and informational controls remain independent siblings.
   Details instead start with HeroUI background-artwork Cards, followed immediately by their existing
   top tabs. They retain stable-ID Planets/Constellation/Landscape artwork, uploaded Group logos,
   reduced motion, HeroUI semantic surfaces and foregrounds; no palette or dependency is added.
@@ -203,33 +204,35 @@ exceptions supersede older membership-only activity/detail statements below.
   personal/direct entry, omitted when opened from that Event. Parent-ID URL hints remain presentation
   context only. Group context, Back, FAB/header actions and route parameters are unchanged.
   Voting help still explains accepted-only voting, pending reserved places and explicit Table consent.
-- Main Tables and parent Event lists use one platform-owned Table card. Animated DiceBear Planets
-  artwork uses the persisted Table ID on the right of list cards; saved/edit/review artwork keeps
-  its current identity. A left-side informational action shows the seated/frozen accepted state (success
-  check), pending invitation (warning mail), pending request (warning clock), or waiting list (warning
-  ordered-list icon). Its accessible popover explains that state. The trigger is a sibling of the
-  navigation link/pressable, never an interactive child of it; opening it does not navigate, accept
-  consent or acknowledge notification attention.
-  Group/Event/Table cards share title typography and leading identity icons. Group visibility,
-  venue and member/Event counts use the same body typography as Event/Table metadata.
-  Text-side Table rows show bold name/Dices with Rating. Only Main Tables shows
-  separate labeled Event/calendar and Group/people rows, then the parent Event's localized,
-  human-readable date/time and verified venue; Event-context cards omit those redundant parent
-  rows and schedule. Event cards likewise label their associated Group and show their own schedule.
-  Planning previews retain the first proposed date/time/venue and the existing total-proposals `+n`
-  convention; confirmed/terminated cards use the chosen date/time/venue only. Every `+n`, including
-  additional games, uses the same stock HeroUI accent foreground. Missing old cached schedule fields
-  remain partial skeletons until reconciliation, never guessed dates/venues or per-card parent reads.
-  Following rows retain five distinct icon/counts for minimum, maximum,
-  accepted registrations, waiting places and pending registrations. Accepted/pending totals include
-  queued registrations; existing seat/queue counters retain their meanings. Missing cached metadata
-  uses partial skeletons, never guessed counts. One Table list / Lista Tavoli heading and count-legend
-  popover precede the list in both Main Tables and Event detail; count help is not repeated per card.
-  External Group/Table cards navigate only: invitation acceptance/decline lives in their details;
-  requests never expose self-approval. Following rows show first game
-  with Dices and localized additional `+n game/games`, optional demonstrator with presentation icon,
-  and all joint winner names with trophy only when terminated. Group list invitation/request/admin
-  indicators use the same left-side explanatory actions. Accepted members also receive a success check
+- Main Tables and parent Event lists use one platform-owned horizontal HeroUI Table Card. Its
+  stable-ID animated DiceBear Planets artwork occupies the entire left edge/height. The right side
+  shows Table name/Dices, localized **accepted seats / maximum capacity**, then Group/people (when
+  present), a dot divider and Event/calendar. Both contexts retain those parent identities; only the
+  existing Back hint changes. Pending reservations and accepted/pending waiting places do not inflate
+  the accepted-seat numerator. Confirmed/terminated counts retain their immutable frozen roster.
+  A bottom-right informational toolbar uses 16px icons in 28px semantic frames, keeping native and
+  mobile-web touch targets at least 44px and wrapping rather than hiding controls on narrow screens.
+  Current administration, moderator management, demonstrator duty and actual seat/pending/queue state
+  coexist; a pending queued registration shows both pending and queue information. Missing position
+  stays a skeleton, never a fabricated accepted place. Current `managementRole` is display metadata
+  derived from already-authorized management, not historical Event authorship or a new capability;
+  older caches retain truthful generic Management. Status and enabled/disabled Rating always have
+  their own icons and explanations. Status help retains minimum/maximum, accepted-registration total,
+  pending total, queue count, assigned demonstrator and all joint winner names when terminated.
+  Separate date/time, location and game icons expose read-only local-data popovers. Planning shows
+  all approved options; confirmed/terminated Tables show only chosen facts, including their own
+  frozen start rather than the parent Event's earlier start. Excluded Tables invent no chosen game
+  or date. The additive authorized schedule projection includes complete bounded date/venue options
+  and the Event zone; shared-results allowlists never inherit planning options or Group authority.
+  Older caches without complete options show partial skeletons until normal reconciliation, with
+  no per-card detail request, provider lookup, vote, consent or notification acknowledgment.
+  These fields reuse API/user-owned canonical Query/MMKV policy and its existing retention/budget;
+  there is no screen-local persisted copy. External cards navigate only; invitation decisions remain
+  in details. One Table list / Lista Tavoli heading and count legend remain outside the cards.
+  Saved/edit/review artwork and draft game previews keep their existing behavior. Event cards keep
+  first-option schedule previews and total-proposals `+n`; additional counts use stock HeroUI accent.
+  Group/Event/Table titles retain shared typography and leading identity icons. Group list
+  invitation/request/admin indicators retain their existing explanatory actions. Accepted members also receive a success check
   with a Group member explanation; pending applicants/invitees and discovery-only viewers never receive
   that member indicator. Compact picker/detail overlays remain unchanged.
   Generated Group Landscape artwork uses the Group ID, never its mutable name. Uploaded logos remain

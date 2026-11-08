@@ -22,6 +22,8 @@ export function EventTableGamesPopover({
       title={t("Board games")}
       icon={Dices}
       triggerClassName="bg-default"
+      size="compact"
+      tone="accent"
       width={Math.min(360, width - 32)}
     >
       <FlatList

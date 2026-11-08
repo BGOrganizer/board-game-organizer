@@ -239,6 +239,12 @@ it("projects one Event schedule for cards without exposing an unchosen proposal 
     location: event.locations[0],
     dateCount: 2,
     locationCount: 2,
+    timeZone: "UTC",
+    dates: [
+      { id, localStartsAt: "2027-01-02T09:00" },
+      { id: other, localStartsAt: "2027-01-04T16:45" },
+    ],
+    locations: proposed.locations,
   });
   const chosen = {
     ...proposed,
@@ -250,6 +256,9 @@ it("projects one Event schedule for cards without exposing an unchosen proposal 
     location: secondLocation,
     dateCount: 1,
     locationCount: 1,
+    timeZone: "UTC",
+    dates: [{ id: other, localStartsAt: "2027-01-04T16:45" }],
+    locations: [secondLocation],
   });
   expect(eventRecordSchedulePreview({ ...chosen, status: "TERMINATED" })).toEqual(
     eventRecordSchedulePreview(chosen),
@@ -273,6 +282,9 @@ it("projects one Event schedule for cards without exposing an unchosen proposal 
       location: null,
       dateCount: 0,
       locationCount: 0,
+      timeZone: "UTC",
+      dates: [],
+      locations: [],
     });
 });
 describe("local day periods", () => {

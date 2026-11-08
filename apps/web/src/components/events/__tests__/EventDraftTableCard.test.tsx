@@ -49,8 +49,7 @@ it.each([
   expect(screen.getByText(/Minimum players/).textContent).toContain(String(row.minPlayers));
   expect(screen.getByText(/Maximum players/).textContent).toContain(String(row.maxPlayers));
   expect(screen.queryByRole("button")).toBeNull();
-  const artwork = document.querySelector("img")?.getAttribute("src"),
-    style = rating.className;
+  const artwork = document.querySelector("img")?.getAttribute("src");
   view.rerender(
     <EventTableCard
       context="event"
@@ -58,7 +57,11 @@ it.each([
     />,
   );
   expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
-  expect(screen.getByRole("img", { name: badge }).className).toBe(style);
+  expect(
+    screen
+      .getByRole("button", { name: badge })
+      .querySelector(fields.rankingEnabled ? "svg.lucide-trophy" : "svg.lucide-circle-off"),
+  ).not.toBeNull();
 });
 it.each([0, 1, 2])(
   "shows only the first game with its icon and %s additional games",

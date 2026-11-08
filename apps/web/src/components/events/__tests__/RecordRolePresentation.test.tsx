@@ -65,7 +65,8 @@ it("distinguishes a plain Table viewer from a participating or assigned demonstr
       }}
     />,
   );
-  expect(screen.getByRole("button", { name: "Viewer" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Demonstrator" })).toBeNull();
   view.rerender(
     <EventTableCard

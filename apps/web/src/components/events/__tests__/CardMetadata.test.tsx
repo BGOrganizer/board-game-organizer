@@ -1,11 +1,8 @@
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { expect, it, vi } from "vitest";
-
-vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
-
 import { GroupCard } from "@/components/groups/GroupCard";
 import { groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -15,89 +12,84 @@ import { EventCard } from "../EventCard";
 import { EventCardSchedule } from "../EventCardSchedule";
 import { EventTableCard } from "../EventTableCard";
 
+vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
 function localized(ui: ReactElement, locale: "en" | "it") {
-  const i18n = setupI18n({ locale, messages: { en, it: itCatalog } });
-  return renderWithI18n(<I18nProvider i18n={i18n}>{ui}</I18nProvider>);
+  return renderWithI18n(
+    <I18nProvider i18n={setupI18n({ locale, messages: { en, it: itCatalog } })}>{ui}</I18nProvider>,
+  );
 }
 it.each(["en", "it"] as const)(
-  "uses localized readable dates, explicit parent names and accent counters in %s",
-  (locale) => {
+  "localizes accepted seat ratios and complete date/location popovers in %s",
+  async (locale) => {
     const schedule = {
       localStartsAt: "2030-06-03T18:15",
       location: plannedEvent.locations[0],
       dateCount: 2,
-      locationCount: 3,
+      locationCount: 1,
+      timeZone: "Europe/Rome",
+      dates: [
+        { id: "one", localStartsAt: "2030-06-03T18:15" },
+        { id: "two", localStartsAt: "2030-06-04T20:45" },
+      ],
+      locations: plannedEvent.locations,
     };
-    const q = localized(
+    localized(
       <EventTableCard
         table={{
           ...plannedTable,
           groupId: groupRecord.id,
           groupName: groupRecord.name,
+          seatedCount: 2,
           eventSchedule: schedule,
-          gamesDetail: [
-            ...plannedTable.gamesDetail,
-            { ...plannedTable.gamesDetail[0], id: 2, name: "Second game" },
-          ],
         }}
       />,
       locale,
     );
-    const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(
-      new Date("2030-06-03T18:15Z"),
-    );
-    expect(screen.getByText(date)).not.toBeNull();
+    expect(
+      screen.getByText(locale === "it" ? "2/4 partecipanti" : "2/4 participants"),
+    ).not.toBeNull();
+    expect(
+      screen.getByText(groupRecord.name).parentElement?.querySelector("svg.lucide-users-round"),
+    ).not.toBeNull();
     expect(
       screen
-        .getByText(`${locale === "it" ? "Evento" : "Event"}: ${plannedTable.eventName}`)
-        .previousElementSibling?.classList.contains("lucide-calendar-days"),
-    ).toBe(true);
-    expect(
-      screen
-        .getByText(`${locale === "it" ? "Gruppo" : "Group"}: ${groupRecord.name}`)
-        .previousElementSibling?.classList.contains("lucide-users-round"),
-    ).toBe(true);
-    const dateMore = screen.getByRole("img", {
-      name: locale === "it" ? "2 date proposte" : "2 proposed dates",
-    });
-    const locationMore = screen.getByRole("img", {
-      name: locale === "it" ? "3 luoghi proposti" : "3 proposed locations",
-    });
-    expect(dateMore.textContent).toBe("+2");
-    expect(locationMore.textContent).toBe("+3");
-    for (const count of [
-      dateMore,
-      locationMore,
-      screen.getByText(locale === "it" ? "+1 gioco" : "+1 game"),
-    ])
-      expect(count.className).toContain("text-accent-soft-foreground");
-    const address = screen.getByText(/Club venue · Via Roma 1/);
-    expect(
-      dateMore.compareDocumentPosition(address) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    const time = new Intl.DateTimeFormat(locale, {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-    }).format(new Date("2030-06-03T18:15Z"));
-    expect(screen.getByText(time)).not.toBeNull();
-    q.rerender(
-      <I18nProvider i18n={setupI18n({ locale, messages: { en, it: itCatalog } })}>
-        <EventTableCard
-          context="event"
-          table={{
-            ...plannedTable,
-            groupId: groupRecord.id,
-            groupName: groupRecord.name,
-            eventSchedule: schedule,
-          }}
-        />
-      </I18nProvider>,
+        .getByText(plannedTable.eventName)
+        .parentElement?.querySelector("svg.lucide-calendar-days"),
+    ).not.toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `${locale === "it" ? "Date e orari" : "Dates and times"}: First table`,
+      }),
     );
-    expect(screen.queryByText(date)).toBeNull();
-    expect(screen.queryByText(/Club venue/)).toBeNull();
-    expect(screen.queryByText(/^(Event|Evento|Group|Gruppo):/)).toBeNull();
-    expect(screen.getByText("Chess")).not.toBeNull();
+    const dialog = await screen.findByRole("dialog");
+    for (const date of schedule.dates) {
+      expect(
+        within(dialog).getByText(
+          new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(
+            new Date(`${date.localStartsAt}Z`),
+          ),
+        ),
+      ).not.toBeNull();
+      expect(
+        within(dialog).getByText(
+          new Intl.DateTimeFormat(locale, {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: "UTC",
+          }).format(new Date(`${date.localStartsAt}Z`)),
+        ),
+      ).not.toBeNull();
+    }
+    fireEvent.keyDown(dialog, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `${locale === "it" ? "Luoghi" : "Locations"}: First table`,
+      }),
+    );
+    expect(await screen.findByText("Club venue")).not.toBeNull();
+    expect(screen.getByText("Via Roma 1")).not.toBeNull();
+    expect(screen.getByText("Europe/Rome")).not.toBeNull();
   },
 );
 it("shares Group/Event/Table title typography and keeps Group metadata at the same body size", () => {
@@ -114,8 +106,8 @@ it("shares Group/Event/Table title typography and keeps Group metadata at the sa
       <EventTableCard table={plannedTable} />
     </>,
   );
-  const titles = [group.name, plannedEvent.name, plannedTable.name].map((name) =>
-    screen.getByText(name),
+  const titles = [group.name, plannedEvent.name, plannedTable.name].map(
+    (name) => screen.getAllByText(name).find((e) => e.className.includes("font-semibold"))!,
   );
   expect(new Set(titles.map((title) => title.className)).size).toBe(1);
   expect(
@@ -129,7 +121,7 @@ it("shares Group/Event/Table title typography and keeps Group metadata at the sa
         .closest(".text-sm"),
     ).not.toBeNull();
 });
-it("distinguishes missing cached metadata from known empty or single-option schedules", () => {
+it("distinguishes missing cached metadata from known empty or single-option Event schedules", () => {
   const q = renderWithI18n(<EventCardSchedule />);
   expect(q.container.querySelectorAll(".skeleton")).toHaveLength(2);
   q.rerender(

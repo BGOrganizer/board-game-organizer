@@ -20,6 +20,7 @@ export function ArtworkStatusPopover({
   kind,
   label,
   action,
+  size,
 }: {
   kind:
     | ParticipationIndicator
@@ -31,10 +32,16 @@ export function ArtworkStatusPopover({
     | undefined;
   label?: string;
   action?: PendingAction | null;
+  size?: "default" | "compact";
 }) {
   const { t } = useLingui();
   if (kind === undefined && !action)
-    return <Skeleton aria-label={t`Loading…`} className="size-11 rounded-xl" />;
+    return (
+      <Skeleton
+        aria-label={t`Loading…`}
+        className={size === "compact" ? "m-2 size-7 rounded-lg" : "size-11 rounded-xl"}
+      />
+    );
   const states = {
     confirmed: {
       icon: UserRoundCheck,
@@ -83,13 +90,17 @@ export function ArtworkStatusPopover({
       label={action ? `${title} · ${actionLabel}` : title}
       title={title}
       triggerClassName="bg-default"
+      size={size}
       icon={state.icon}
       tone={
         kind === "confirmed" || kind === "member"
           ? "success"
           : action || kind === "request" || kind === "invitation" || kind === "waiting"
             ? "warning"
-            : "muted"
+            : size === "compact" &&
+                (kind === "admin" || kind === "manager" || kind === "demonstrator")
+              ? "accent"
+              : "muted"
       }
       indicator={
         action && state.icon !== ActionIcon ? (

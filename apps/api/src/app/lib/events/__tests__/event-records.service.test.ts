@@ -1733,6 +1733,12 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       location: stored.locations[0],
       dateCount: 2,
       locationCount: 2,
+      timeZone: stored.timeZone,
+      dates: stored.dates.map((row) => ({
+        id: row.id,
+        localStartsAt: `${row.day}T${row.startTime ?? stored.startTime}`,
+      })),
+      locations: stored.locations,
     };
     expect((await f.service.tableDetail(owner, event.id, id)).eventSchedule).toEqual(proposed);
     expect((await f.service.tables(owner, event.id, { limit: 20 })).items[0].eventSchedule).toEqual(
@@ -1745,6 +1751,9 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       location: secondLocation,
       dateCount: 1,
       locationCount: 1,
+      timeZone: stored.timeZone,
+      dates: [{ id: other, localStartsAt: "2027-01-04T16:45" }],
+      locations: [secondLocation],
     });
     f.groups.membership.mockResolvedValue(null as never);
     await expect(f.service.tableDetail("outsider", event.id, id)).rejects.toMatchObject({
@@ -1777,6 +1786,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       soloEvent = await solo.create();
     expect(await solo.service.tableDetail(owner, soloEvent.id, id)).toMatchObject({
       groupName: null,
+      managementRole: "admin",
       acceptedCount: 0,
       pendingRegistrationCount: 0,
     });
@@ -2378,6 +2388,14 @@ describe("current Group management authority", () => {
       participantCount: 0,
     });
     expect(f.registrations.size).toBe(0);
+    expect(await f.service.tableDetail(guest, event.id, id)).toMatchObject({
+      canManage: true,
+      managementRole: "moderator",
+    });
+    expect(await f.service.tableDetail(owner, event.id, id)).toMatchObject({
+      canManage: true,
+      managementRole: "admin",
+    });
     expect(await f.service.detail(owner, event.id)).toMatchObject({
       canManage: true,
       canEdit: true,
@@ -2430,6 +2448,7 @@ describe("current Group management authority", () => {
     });
     expect(await f.service.tableDetail(guest, event.id, id)).toMatchObject({
       canManage: false,
+      managementRole: null,
       canInvite: false,
     });
     await expect(

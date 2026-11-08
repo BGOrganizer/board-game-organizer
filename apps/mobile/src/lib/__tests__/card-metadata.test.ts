@@ -68,6 +68,7 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
     ["./EventStatusBadge", "EventStatusBadge"],
     ["./EventTableRatingBadge", "EventTableRatingBadge"],
     ["./EventTableGamesPopover", "EventTableGamesPopover"],
+    ["./EventTableCardIndicators", "EventTableCardIndicators"],
   ])
     modules[path] = { [component]: component };
   const source = readFileSync(new URL(`../../components/${file}.tsx`, import.meta.url), "utf8");
@@ -128,30 +129,33 @@ it.each(["en", "it"] as const)(
     const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(
       new Date("2030-06-03T20:00Z"),
     );
-    for (const tree of [eventTree, tableTree]) {
-      const output = text(tree);
-      expect(output).toContain(date);
-      expect(output).toContain(`${locale === "it" ? "Gruppo" : "Group"}: ${groupRecord.name}`);
-      expect(output).toContain("Club venue · Via Roma 1");
-      expect(
-        nodes(tree).filter(
-          (node) => node.props.className === "text-sm text-accent-soft-foreground",
-        ),
-      ).toHaveLength(tree === eventTree ? 2 : 3);
-      for (const node of nodes(tree).filter((node) => text(node.props.children) === "+2"))
-        expect(node.props.className).toContain("text-accent-soft-foreground");
-    }
-    expect(text(tableTree)).toContain(
-      `${locale === "it" ? "Evento" : "Event"}: ${plannedTable.eventName}`,
+    expect(text(eventTree)).toContain(date);
+    expect(text(eventTree)).toContain(
+      `${locale === "it" ? "Gruppo" : "Group"}: ${groupRecord.name}`,
     );
+    expect(text(eventTree)).toContain("Club venue · Via Roma 1");
+    expect(
+      nodes(eventTree).filter(
+        (node) => node.props.className === "text-sm text-accent-soft-foreground",
+      ),
+    ).toHaveLength(2);
+    for (const node of nodes(eventTree).filter((node) => text(node.props.children) === "+2"))
+      expect(node.props.className).toContain("text-accent-soft-foreground");
+    expect(text(tableTree)).toContain(groupRecord.name);
+    expect(text(tableTree)).toContain(plannedTable.eventName);
+    expect(text(tableTree)).toContain(locale === "it" ? "0/4 partecipanti" : "0/4 participants");
+    expect((tableTree as Node).props.artworkLayout).toBe("cover");
     const contextual = evaluate("events/EventTableCard", "EventTableCard", locale, {
       table,
       context: "event",
     });
     expect(text(contextual)).not.toContain(date);
     expect(text(contextual)).not.toContain("Club venue");
-    expect(text(contextual)).not.toContain(`${locale === "it" ? "Evento" : "Event"}:`);
-    expect(text(contextual)).toContain("Chess");
+    expect(text(contextual)).toContain(plannedTable.eventName);
+    expect(text(contextual)).toContain(groupRecord.name);
+    expect(((contextual as Node).props.leadingActions as Node).type).toBe(
+      "EventTableCardIndicators",
+    );
   },
 );
 it("keeps missing native cached metadata as partial skeletons and known empty options explicit", () => {

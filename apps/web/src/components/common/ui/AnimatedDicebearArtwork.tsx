@@ -25,7 +25,7 @@ export function AnimatedDicebearArtwork({
   seed: string;
   variant: keyof typeof styles;
   size?: number;
-  presentation?: "thumbnail" | "background";
+  presentation?: "thumbnail" | "background" | "cover";
 }) {
   const src = useMemo(
     () =>
@@ -34,8 +34,8 @@ export function AnimatedDicebearArtwork({
   );
   return (
     <span
-      className={`block shrink-0 overflow-hidden rounded-xl bg-accent/10 ${presentation === "background" ? "absolute inset-0" : ""}`}
-      style={presentation === "background" ? undefined : { width: size, height: size }}
+      className={`block shrink-0 overflow-hidden bg-accent/10 ${presentation === "cover" ? "rounded-none" : "rounded-xl"} ${presentation !== "thumbnail" ? "absolute inset-0" : ""}`}
+      style={presentation !== "thumbnail" ? undefined : { width: size, height: size }}
       aria-hidden="true"
     >
       {/* biome-ignore lint/performance/noImgElement: Locally generated DiceBear SVG. */}
@@ -44,7 +44,7 @@ export function AnimatedDicebearArtwork({
         alt=""
         width={size + 8}
         height={size + 8}
-        className={`dicebear-artwork ${presentation === "background" ? "absolute inset-0 h-full w-full object-cover" : "relative -top-1 -left-1"} ${variant === "waves" ? "match-waves" : variant === "shapes" ? "table-shapes" : ""}`}
+        className={`dicebear-artwork ${presentation !== "thumbnail" ? "absolute inset-0 h-full w-full object-cover" : "relative -top-1 -left-1"} ${variant === "waves" ? "match-waves" : variant === "shapes" ? "table-shapes" : ""}`}
       />
     </span>
   );

@@ -29,6 +29,7 @@ export * from "./events/eventRecordForm";
 export * from "./events/eventRecordPolicy";
 export * from "./events/eventRecordVisibility";
 export * from "./events/eventSchedule";
+export * from "./events/eventTableCard";
 export * from "./events/eventTableEditInput";
 export * from "./events/eventTablePeople";
 export * from "./events/eventTableRoster";

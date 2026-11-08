@@ -26,6 +26,8 @@ export function EventTableGamesPopover({
       title={t`Board games`}
       icon={Dices}
       triggerClassName="bg-default"
+      size="compact"
+      tone="accent"
       className="w-[min(24rem,calc(100vw-2rem))]"
     >
       <div className="max-h-[50vh] overflow-y-auto overscroll-contain">

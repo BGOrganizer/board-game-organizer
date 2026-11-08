@@ -27,7 +27,10 @@ export function eventRecordPreviewDate(
 }
 /** One canonical, bounded preview for Event cards and the Table response projection. */
 export function eventRecordSchedulePreview(
-  event: Pick<EventRecord, "dates" | "locations" | "startTime" | "status" | "confirmed">,
+  event: Pick<
+    EventRecord,
+    "dates" | "locations" | "startTime" | "status" | "confirmed" | "timeZone"
+  >,
 ): EventSchedulePreview {
   const date = eventRecordPreviewDate(event);
   const location =
@@ -40,6 +43,15 @@ export function eventRecordSchedulePreview(
     // Keep the existing total-proposals +n convention; frozen Events expose only their choice.
     dateCount: event.status === "PLANNING" ? event.dates.length : Number(Boolean(date)),
     locationCount: event.status === "PLANNING" ? event.locations.length : Number(Boolean(location)),
+    timeZone: event.timeZone,
+    dates: (event.status === "PLANNING"
+      ? event.dates
+      : event.dates.filter((row) => row.id === event.confirmed?.dateId)
+    ).map((row) => ({ id: row.id, localStartsAt: eventDateWall(event, row) })),
+    locations:
+      event.status === "PLANNING"
+        ? event.locations
+        : event.locations.filter((row) => row.id === event.confirmed?.locationId),
   };
 }
 /** Included frozen Tables only; retain their immutable schedule in terminated history too. */

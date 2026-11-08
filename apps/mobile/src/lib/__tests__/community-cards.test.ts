@@ -15,7 +15,8 @@ it.each(["groups/GroupCard", "events/EventCard", "events/EventTableCard"])(
   },
 );
 it("preserves invitation consent and reserved/waiting distinctions without inventing accepted players", () => {
-  const s = source("events/EventTableCard") + source("events/EventTableInvitationActions");
+  const s =
+    source("events/EventTableCardIndicators") + source("events/EventTableInvitationActions");
   expect(s).toContain("myRegistration");
   expect(s).toContain("Accept invitation");
   expect(s).toContain("Decline invitation");
@@ -25,25 +26,25 @@ it("preserves invitation consent and reserved/waiting distinctions without inven
   expect(s).toContain("winners.map");
   expect(s).not.toContain('kind:"approve"');
 });
-it("keeps personal Table metadata/counts compact with status popovers below artwork", () => {
-  const table = source("events/EventTableCard");
+it("keeps compact cumulative Table icons at bottom right beside full-height left artwork", () => {
+  const table = source("events/EventTableCard") + source("events/EventTableCardIndicators");
   expect(table).toContain("<CalendarDays");
   expect(table).not.toContain("<EventStatusBadge status={table.eventStatus}");
   expect(table).toContain("tableParticipation(table.myRegistration, table.myPosition)");
   expect(table).toContain("<ArtworkStatusPopover");
   expect(table).toContain('t("Winners")');
   expect(table).toContain("table.demonstratorUserId");
-  expect(table).toContain("<Presentation");
+  expect(table).toContain('kind="demonstrator"');
   expect(table).toContain("leadingActions=");
   expect(table).toContain('variant="planets"');
   expect(table).toContain("table.groupName");
   expect(table).toContain("<UsersRound");
   for (const token of [
-    "UserRoundMinus",
-    "UserRoundPlus",
-    "UserRoundCheck",
-    "Clock3",
-    "ListOrdered",
+    't("Minimum players")',
+    't("Maximum players")',
+    't("Accepted players")',
+    't("Waiting list")',
+    't("Pending players")',
     "table.waitingCount",
     "table.acceptedCount",
     "table.pendingRegistrationCount",

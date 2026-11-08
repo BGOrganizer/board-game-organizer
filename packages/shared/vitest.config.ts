@@ -20,6 +20,7 @@ export default defineConfig({
         "src/notifications/notificationItemRead.ts",
         "src/notifications/notificationDestination.ts",
         "src/events/eventAgreement.ts",
+        "src/events/eventTableCard.ts",
         "src/events/eventParticipation.ts",
         "src/events/eventJoinAvailability.ts",
         "src/events/eventRecordPolicy.ts",
@@ -80,6 +81,12 @@ export default defineConfig({
           statements: 100,
         },
         "src/community/pendingActions.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/events/eventTableCard.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

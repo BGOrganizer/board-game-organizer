@@ -1,6 +1,6 @@
 import { Avatar, Style } from "@dicebear/core";
 import planets from "@dicebear/styles/planets.json" with { type: "json" };
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { groupRecord, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -40,11 +40,17 @@ beforeEach(() => {
   m.isResponding.mockReturnValue(false);
   vi.clearAllMocks();
 });
-it("uses exactly the same card/controls in both lists, changing only the inline parent context", () => {
+async function closePopover() {
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+}
+
+it("uses the same full-height left artwork, identity and controls in both lists; only Back context changes", async () => {
   const table = {
     ...plannedTable,
     groupId: groupRecord.id,
     groupName: groupRecord.name,
+    seatedCount: 2,
     acceptedCount: 7,
     waitingCount: 3,
     pendingRegistrationCount: 2,
@@ -59,66 +65,51 @@ it("uses exactly the same card/controls in both lists, changing only the inline 
   expect(artwork).toBe(
     `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: table.id, size: 72 }).toString())}`,
   );
-  const event = screen.getByText(`Event: ${table.eventName}`),
-    group = screen.getByText(`Group: ${groupRecord.name}`);
-  expect(event.parentElement?.parentElement).toBe(group.parentElement?.parentElement);
-  expect(event.parentElement?.nextElementSibling).toBe(group.parentElement);
-  expect(event.parentElement?.nextElementSibling?.textContent).toBe(`Group: ${groupRecord.name}`);
-  expect(screen.getByText("First table").className).toContain("font-semibold");
-  expect(screen.getByText("First table").parentElement?.nextElementSibling).toBe(
-    screen.getByRole("img", { name: "Rating enabled" }),
-  );
+  const inspect = () => {
+    const event = screen.getByText(table.eventName),
+      group = screen.getByText(groupRecord.name);
+    expect(group.compareDocumentPosition(event) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(group.parentElement?.nextElementSibling?.textContent).toBe("·");
+    expect(screen.getByText("2/4 participants")).not.toBeNull();
+    const image = document.querySelector("img");
+    expect(image?.className).toContain("h-full w-full object-cover");
+    expect(image?.closest(".w-20")?.className).toContain("relative");
+    expect(
+      screen.getByRole("button", { name: "Rating enabled" }).parentElement?.className,
+    ).toContain("justify-end");
+  };
+  inspect();
+  expect(screen.getByRole("link").getAttribute("href")).not.toContain("fromEvent");
   q.rerender(
     <>
       <TableListHeading />
       <EventTableCard table={table} context="event" />
     </>,
   );
-  expect(screen.queryByText(`Event: ${table.eventName}`)).toBeNull();
-  expect(screen.queryByText(`Group: ${groupRecord.name}`)).toBeNull();
+  inspect();
   expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
-  const link = screen.getByRole("link", { name: "Open table: First table" });
-  expect(link.getAttribute("href")).toContain(`/tables/${table.id}`);
-  const labels = [
-    "Minimum players:",
-    "Maximum players:",
-    "Accepted players:",
-    "Waiting list:",
-    "Pending players:",
-  ];
-  expect(labels.map((label) => screen.getByText(label).parentElement?.textContent)).toEqual([
-    "Minimum players: 2",
-    "Maximum players: 4",
-    "Accepted players: 7",
-    "Waiting list: 3",
-    "Pending players: 2",
-  ]);
+  expect(screen.getByRole("link").getAttribute("href")).toContain(`?fromEvent=${table.eventId}`);
   const help = screen.getByRole("button", { name: "Table legend" });
-  expect(link.contains(help)).toBe(false);
   expect(help.closest(".card")).toBeNull();
-  expect(screen.getByRole("heading", { name: "Table list" })).not.toBeNull();
   fireEvent.click(help);
-  expect(screen.getByText("Accepted players, including the waiting list.")).not.toBeNull();
+  expect(await screen.findByText("Accepted players, including the waiting list.")).not.toBeNull();
   expect(
     screen.getByText("Pending players, including reserved waiting-list places."),
   ).not.toBeNull();
 });
 it.each(["personal", "event"] as const)(
-  "keeps every own status below the artwork in a separate centered action in %s context",
+  "keeps own states independent, framed, and outside navigation in %s",
   (context) => {
     const base = { ...plannedTable, myRegistration: seat("owner"), myPosition: "SEATED" as const };
     const q = renderWithI18n(<EventTableCard table={base} context={context} />);
     const check = (label: string, icon: string, color: string) => {
       const badge = screen.getByRole("button", { name: label });
       expect(badge.parentElement?.className).toContain("flex-wrap");
-      expect(badge.parentElement?.className).not.toContain("absolute");
-      expect(
-        badge.parentElement?.contains(screen.getByRole("button", { name: /^Board games:/ })),
-      ).toBe(true);
+      expect(badge.parentElement?.className).toContain("justify-end");
       expect(badge.className).toContain(color);
-      expect(badge.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
+      expect(badge.querySelector(`svg.lucide-${icon}`)?.classList.contains("size-4")).toBe(true);
+      expect(badge.querySelector(".size-7.bg-default")).not.toBeNull();
       expect(screen.getByRole("link").contains(badge)).toBe(false);
-      expect(screen.queryByText(label)).toBeNull();
     };
     check("Confirmed player", "user-round-check", "text-success");
     q.rerender(
@@ -132,13 +123,11 @@ it.each(["personal", "event"] as const)(
       />,
     );
     check("Participation requested", "clock-3", "text-warning");
+    check("Waiting list", "list-ordered", "text-warning");
     q.rerender(
       <EventTableCard
         context={context}
-        table={{
-          ...base,
-          myRegistration: { ...seat("owner"), status: "PENDING", kind: "INVITATION" },
-        }}
+        table={{ ...base, myRegistration: { ...seat("owner"), status: "PENDING" } }}
       />,
     );
     check("Invitation received", "mail", "text-warning");
@@ -147,8 +136,8 @@ it.each(["personal", "event"] as const)(
   },
 );
 it.each([1, 2])(
-  "shows only first game plus localized additional %s-game count in Event context",
-  (count) => {
+  "keeps all %s additional canonical games inside the read-only popover",
+  async (count) => {
     const extra = Array.from({ length: count }, (_, n) => ({
       ...plannedTable.gamesDetail[0],
       id: n + 2,
@@ -160,16 +149,13 @@ it.each([1, 2])(
         table={{ ...plannedTable, gamesDetail: [...plannedTable.gamesDetail, ...extra] }}
       />,
     );
-    expect(screen.getByText(/Chess/).textContent).toBe(
-      `Chess · +${count} ${count === 1 ? "game" : "games"}`,
-    );
-    expect(screen.getByText(`+${count} ${count === 1 ? "game" : "games"}`).className).toContain(
-      "text-accent-soft-foreground",
-    );
-    expect(screen.queryByText("Other game 0")).toBeNull();
+    expect(screen.queryByText("Chess")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+    expect(await screen.findByText("Chess")).not.toBeNull();
+    for (const row of extra) expect(screen.getByText(row.name)).not.toBeNull();
   },
 );
-it("retains selected game, all joint winner names and disabled Rating without a body status label", () => {
+it("retains selected game, joint winners and disabled Rating in their informational controls", async () => {
   renderWithI18n(
     <EventTableCard
       context="event"
@@ -190,18 +176,20 @@ it("retains selected game, all joint winner names and disabled Rating without a 
       }}
     />,
   );
-  expect(screen.getByText("Selected game")).not.toBeNull();
-  expect(screen.queryByText(/Chess/)).toBeNull();
-  expect(screen.getByRole("img", { name: "Rating disabled" })).not.toBeNull();
-  expect(
-    screen.getByText("Owner, Guest").parentElement?.querySelector("svg.lucide-trophy"),
-  ).not.toBeNull();
   expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
-  expect(screen.queryByText("Confirmed player")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+  expect(await screen.findByText("Selected game")).not.toBeNull();
+  expect(screen.queryByText("Chess")).toBeNull();
+  await closePopover();
+  fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
+  expect(await screen.findByText(/Owner, Guest/)).not.toBeNull();
+  await closePopover();
+  fireEvent.click(screen.getByRole("button", { name: "Rating disabled" }));
+  expect(await screen.findByText("This table does not update player ratings.")).not.toBeNull();
 });
 it.each(["CONFIRMED", "TERMINATED"] as const)(
-  "retains excluded %s Tables in Event detail without reviving cutoff consent",
-  (eventStatus) => {
+  "retains excluded %s Tables without reviving consent or unchosen games",
+  async (eventStatus) => {
     renderWithI18n(
       <EventTableCard
         context="event"
@@ -215,14 +203,27 @@ it.each(["CONFIRMED", "TERMINATED"] as const)(
         }}
       />,
     );
-    expect(screen.getByText("Excluded from confirmation")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: eventStatus === "CONFIRMED" ? "Confirmed" : "Terminated",
+      }),
+    );
+    expect(await screen.findByText("Excluded from confirmation")).not.toBeNull();
+    await closePopover();
+    fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+    expect(await screen.findByText("No games found")).not.toBeNull();
+    expect(screen.queryByText("Chess")).toBeNull();
   },
 );
-it("keeps external Event-context cards navigation-only and retains versioned, guarded detail consent", () => {
-  const registration = { ...seat("owner", 3), status: "PENDING" as const },
-    table = { ...plannedTable, canRespond: true, myRegistration: registration };
-  const q = renderWithI18n(<EventTableCard context="event" table={table} />);
+it("keeps external cards navigation-only and detail consent versioned and guarded", () => {
+  const registration = { ...seat("owner", 3), status: "PENDING" as const };
+  const q = renderWithI18n(
+    <EventTableCard
+      context="event"
+      table={{ ...plannedTable, canRespond: true, myRegistration: registration }}
+    />,
+  );
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Decline invitation" })).toBeNull();
   q.rerender(
@@ -230,7 +231,6 @@ it("keeps external Event-context cards navigation-only and retains versioned, gu
   );
   fireEvent.click(screen.getByRole("button", { name: "Accept invitation" }));
   expect(m.respond.mutate).not.toHaveBeenCalled();
-  expect(screen.getByRole("dialog")).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Cancel choices" }));
   fireEvent.click(screen.getByRole("button", { name: "Decline invitation" }));
   expect(m.respond.mutate).toHaveBeenLastCalledWith({
@@ -252,27 +252,16 @@ it("keeps external Event-context cards navigation-only and retains versioned, gu
     (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
   ).toBe(true);
 });
-it("shows demonstrator identity or partial loading without inventing missing profiles", () => {
-  const q = renderWithI18n(
-    <EventTableCard
-      table={{ ...plannedTable, demonstratorUserId: "demo", demonstratorName: "Demonstrator Name" }}
-    />,
-  );
-  expect(
-    screen.getByText("Demonstrator Name").parentElement?.querySelector("svg.lucide-presentation"),
-  ).not.toBeNull();
-  q.rerender(
-    <EventTableCard
-      table={{ ...plannedTable, demonstratorUserId: "demo", demonstratorName: undefined }}
-    />,
-  );
-  expect(
-    document.querySelector("svg.lucide-presentation")?.parentElement?.querySelector(".skeleton"),
-  ).not.toBeNull();
-  q.rerender(
-    <EventTableCard
-      table={{ ...plannedTable, demonstratorUserId: "demo", demonstratorName: null }}
-    />,
-  );
-  expect(screen.getByText("Unknown")).not.toBeNull();
-});
+it.each(["Demonstrator Name", null, undefined])(
+  "retains demonstrator metadata %s or explicit loading inside status help",
+  async (demonstratorName) => {
+    renderWithI18n(
+      <EventTableCard table={{ ...plannedTable, demonstratorUserId: "demo", demonstratorName }} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Planning" }));
+    const dialog = await screen.findByRole("dialog");
+    if (demonstratorName === undefined) expect(dialog.querySelector(".skeleton")).not.toBeNull();
+    else expect(dialog.textContent).toContain(demonstratorName ?? "Unknown");
+    expect(screen.queryByRole("button", { name: "Demonstrator" })).toBeNull();
+  },
+);

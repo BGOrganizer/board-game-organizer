@@ -22,6 +22,7 @@ export function ArtworkStatusPopover({
   kind,
   label,
   action,
+  size,
 }: {
   kind:
     | ParticipationIndicator
@@ -33,6 +34,7 @@ export function ArtworkStatusPopover({
     | undefined;
   label?: string;
   action?: PendingAction | null;
+  size?: "default" | "compact";
 }) {
   const t = useT();
   const warning = useThemeColor("warning-soft-foreground");
@@ -40,7 +42,11 @@ export function ArtworkStatusPopover({
     return (
       <Skeleton
         accessibilityLabel={t("Loading…")}
-        style={{ width: 44, height: 44, borderRadius: 12 }}
+        style={
+          size === "compact"
+            ? { width: 28, height: 28, borderRadius: 8, margin: 8 }
+            : { width: 44, height: 44, borderRadius: 12 }
+        }
       />
     );
   const states = {
@@ -91,13 +97,17 @@ export function ArtworkStatusPopover({
       label={action ? `${title} · ${actionLabel}` : title}
       title={title}
       triggerClassName="bg-default"
+      size={size}
       icon={state.icon}
       tone={
         kind === "confirmed" || kind === "member"
           ? "success"
           : action || kind === "request" || kind === "invitation" || kind === "waiting"
             ? "warning"
-            : "muted"
+            : size === "compact" &&
+                (kind === "admin" || kind === "manager" || kind === "demonstrator")
+              ? "accent"
+              : "muted"
       }
       indicator={
         action && state.icon !== ActionIcon ? (

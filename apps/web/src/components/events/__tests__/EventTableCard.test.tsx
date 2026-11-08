@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { GroupCard } from "@/components/groups/GroupCard";
 import { groupRecord, plannedTable, seat } from "@/test-fixtures/eventRecords";
@@ -38,7 +38,11 @@ beforeEach(() => {
   m.isResponding.mockReturnValue(false);
   vi.clearAllMocks();
 });
-it("keeps first game plus localized additional count and badges current viewer's real state", () => {
+async function closePopover() {
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+}
+it("keeps approved games in their informational popover and badges the viewer's real state", async () => {
   const gamesDetail = [
     ...plannedTable.gamesDetail,
     { id: 2, name: "Second game", year: null, imageUrl: null },
@@ -49,16 +53,22 @@ it("keeps first game plus localized additional count and badges current viewer's
       table={{ ...plannedTable, gamesDetail, myRegistration: seat("owner"), myPosition: "SEATED" }}
     />,
   );
-  expect(screen.getByText(/Chess/)).not.toBeNull();
-  expect(screen.getByText(/\+2 games/)).not.toBeNull();
-  expect(screen.queryByText("Second game")).toBeNull();
+  expect(screen.queryByText("Chess")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+  expect(await screen.findByText("Chess")).not.toBeNull();
+  expect(screen.getByText("Second game")).not.toBeNull();
+  expect(screen.getByText("Third game")).not.toBeNull();
+  await closePopover();
   expect(
     screen
       .getByRole("button", { name: "Confirmed player" })
       .querySelector("svg.lucide-user-round-check"),
   ).not.toBeNull();
   q.rerender(<EventTableCard table={{ ...plannedTable, gamesDetail: gamesDetail.slice(0, 2) }} />);
-  expect(screen.getByText(/\+1 game/)).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+  expect(await screen.findByText("Second game")).not.toBeNull();
+  expect(screen.queryByText("Third game")).toBeNull();
+  await closePopover();
   q.rerender(
     <EventTableCard
       table={{
@@ -74,12 +84,13 @@ it("keeps first game plus localized additional count and badges current viewer's
     />,
   );
   expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
-  expect(
-    screen.getByText("Owner, Guest").parentElement?.querySelector("svg.lucide-trophy"),
-  ).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
+  expect(await screen.findByText(/Owner, Guest/)).not.toBeNull();
+  await closePopover();
   expect(screen.queryByText("Confirmed player")).toBeNull();
   q.rerender(<EventTableCard table={{ ...plannedTable, gamesDetail: [] }} />);
-  expect(screen.getByText("Unknown")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+  expect(await screen.findByText("No games found")).not.toBeNull();
 });
 it("keeps external cards navigation-only and preserves explicit versioned consent in detail controls", () => {
   const registration = { ...seat("owner"), status: "PENDING" as const },
@@ -139,7 +150,7 @@ it("keeps external cards navigation-only and preserves explicit versioned consen
     (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
   ).toBe(true);
 });
-it("shows frozen selected games/all joint winners, excluded tables and waiting positions truthfully", () => {
+it("shows frozen selected games/all joint winners, excluded tables and waiting positions truthfully", async () => {
   const q = renderWithI18n(
     <EventTableCard
       table={{
@@ -159,8 +170,13 @@ it("shows frozen selected games/all joint winners, excluded tables and waiting p
     />,
   );
   expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
-  expect(screen.getByText("Owner, Guest")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+  expect(await screen.findByText("Chess")).not.toBeNull();
   expect(screen.queryByText("Other game")).toBeNull();
+  await closePopover();
+  fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
+  expect(await screen.findByText(/Owner, Guest/)).not.toBeNull();
+  await closePopover();
   q.rerender(
     <EventTableCard
       table={{
@@ -172,7 +188,9 @@ it("shows frozen selected games/all joint winners, excluded tables and waiting p
       }}
     />,
   );
-  expect(screen.getByText(/Excluded from confirmation/)).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Confirmed" }));
+  expect(await screen.findByText("Excluded from confirmation")).not.toBeNull();
+  await closePopover();
   expect(screen.getByRole("button", { name: "Waiting list" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   q.rerender(
@@ -181,7 +199,7 @@ it("shows frozen selected games/all joint winners, excluded tables and waiting p
   expect(screen.queryByText("Terminated")).toBeNull();
   expect(screen.queryByText("Confirmed")).toBeNull();
 });
-it("shows Event/Group identity and separate minimum, maximum, accepted and pending totals in one icon row", () => {
+it("shows accepted seats/capacity and Group before Event, retaining other totals in status help", async () => {
   renderWithI18n(
     <EventTableCard
       table={{
@@ -196,33 +214,30 @@ it("shows Event/Group identity and separate minimum, maximum, accepted and pendi
       }}
     />,
   );
-  const event = screen.getByText(`Event: ${plannedTable.eventName}`);
-  expect(event.previousElementSibling?.classList.contains("lucide-calendar-days")).toBe(true);
-  expect(event.nextElementSibling).toBeNull();
-  expect(screen.queryByText("Planning")).toBeNull();
-  const group = screen.getByText(`Group: ${groupRecord.name}`);
-  expect(group.previousElementSibling?.classList.contains("lucide-users-round")).toBe(true);
-  expect(event.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  let row: HTMLElement | null = null;
-  for (const [label, icon, value] of [
-    ["Minimum players", "user-round-minus", "2"],
-    ["Maximum players", "user-round-plus", "4"],
-    ["Accepted players", "user-round-check", "7"],
-    ["Waiting list", "list-ordered", "8"],
-    ["Pending players", "clock-3", "3"],
-  ]) {
-    const stat = screen.getByText(`${label}:`).parentElement!;
-    expect(stat.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
-    expect(stat.textContent).toBe(`${label}: ${value}`);
-    row ??= stat.parentElement;
-    expect(stat.parentElement).toBe(row);
-  }
-  expect(row?.className).toContain("flex-wrap");
+  expect(screen.getByText("1/4 participant")).not.toBeNull();
+  const event = screen.getByText(plannedTable.eventName);
+  const group = screen.getByText(groupRecord.name);
+  expect(event.parentElement?.querySelector("svg.lucide-calendar-days")).not.toBeNull();
+  expect(group.parentElement?.querySelector("svg.lucide-users-round")).not.toBeNull();
+  expect(group.compareDocumentPosition(event) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Planning" }));
+  const dialog = await screen.findByRole("dialog");
+  for (const [label, value] of [
+    ["Minimum players", "2"],
+    ["Maximum players", "4"],
+    ["Accepted players", "7"],
+    ["Waiting list", "8"],
+    ["Pending players", "3"],
+  ])
+    expect(within(dialog).getByText(label).parentElement?.querySelector("dd")?.textContent).toBe(
+      value,
+    );
+  await closePopover();
   expect(screen.queryByText("Reserved place")).toBeNull();
   expect(screen.queryByRole("button", { name: /^Invitation received/ })).toBeNull();
   expect(screen.queryByRole("button", { name: "Table legend" })).toBeNull();
 });
-it("keeps old cached identity while missing new Group/total fields use skeletons, not guessed zeros", () => {
+it("keeps old cached identity while missing new Group/total fields use skeletons, not guessed zeros", async () => {
   const { container } = renderWithI18n(
     <EventTableCard
       table={{
@@ -234,13 +249,15 @@ it("keeps old cached identity while missing new Group/total fields use skeletons
       }}
     />,
   );
-  expect(screen.getByText(`Event: ${plannedTable.eventName}`)).not.toBeNull();
-  expect(container.querySelectorAll(".skeleton")).toHaveLength(3);
+  expect(screen.getByText(plannedTable.eventName)).not.toBeNull();
+  expect(container.querySelectorAll(".skeleton")).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Planning" }));
+  await screen.findByRole("dialog");
   expect(
-    screen.getByText("Accepted players:").parentElement?.querySelector(".skeleton"),
+    screen.getByText("Accepted players").parentElement?.querySelector(".skeleton"),
   ).not.toBeNull();
   expect(
-    screen.getByText("Pending players:").parentElement?.querySelector(".skeleton"),
+    screen.getByText("Pending players").parentElement?.querySelector(".skeleton"),
   ).not.toBeNull();
 });
 it("marks a pending self request without offering self-approval, including inconsistent stale capabilities", () => {

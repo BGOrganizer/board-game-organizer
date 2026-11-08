@@ -90,7 +90,11 @@ function table(): PlannedTableResponse {
       location: location("selected-venue"),
       dateCount: 2,
       locationCount: 2,
+      dates: [{ id: "SECRET-OPTION", localStartsAt: "2030-01-01T20:00" }],
+      locations: [location("SECRET-unselected-venue")],
+      timeZone: "Europe/Rome",
     },
+    managementRole: "admin",
     groupId: "SECRET-GROUP-ID",
     groupName: "SECRET-GROUP-NAME",
     groupType: "PRIVATE",
@@ -209,6 +213,9 @@ it("allowlists selected Table/result metadata and GLOBAL deltas, deeply removes 
   expect(result.results).toEqual(source.results);
   expect(result.confirmed?.playerIds).toEqual(["a", "nd"]);
   expect(result.eventSchedule).toMatchObject({ dateCount: 1, locationCount: 1 });
+  expect(result.eventSchedule).not.toHaveProperty("dates");
+  expect(result.eventSchedule).not.toHaveProperty("locations");
+  expect(result).not.toHaveProperty("managementRole");
   expect(result.ratingChanges).toEqual(source.ratingChanges);
   expect(result.resultProfiles).toEqual([
     { userId: "a", name: "Player a", username: "player-a", avatarUrl: null, email: null },

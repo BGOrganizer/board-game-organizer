@@ -103,11 +103,14 @@ it("places Table Settings help before the identity card and keeps limits inside 
     expect(table).toContain(token);
   expect(table).not.toContain('label={t("Table name")}');
 });
-it("shares one Table card across personal/Event lists with only the parent metadata row varying", () => {
+it("shares one horizontal Table card across feeds with only Back context varying", () => {
   const card = source("events", "EventTableCard");
+  const indicators = source("events", "EventTableCardIndicators");
   expect(source("events", "TableList")).toContain('context="personal"');
   expect(source("events", "EventDetail")).toContain('context="event"');
-  expect(card).toContain('context === "personal"');
+  expect(card).toContain('context === "event"');
+  expect(card).toContain('artworkLayout="cover"');
+  expect(card).toContain('presentation="cover"');
   expect(card).toContain('variant="planets"');
   expect(card).toContain("leadingActions=");
   expect(card).not.toContain("<IconLegend");
@@ -115,7 +118,7 @@ it("shares one Table card across personal/Event lists with only the parent metad
   expect(source("events", "TableList")).toContain("<TableListHeading");
   expect(source("events", "EventDetail")).toContain("<TableListHeading");
   expect(card).toContain('flexWrap: "wrap"');
-  expect(card).toContain("<EventTableGamesPopover");
+  expect(indicators).toContain("<EventTableGamesPopover");
   for (const field of [
     "minPlayers",
     "maxPlayers",
@@ -123,11 +126,11 @@ it("shares one Table card across personal/Event lists with only the parent metad
     "waitingCount",
     "pendingRegistrationCount",
   ])
-    expect(card).toContain(`table.${field}`);
-  expect(card).toContain('id: "event.table.moreGames"');
-  expect(card).toContain("<EventTableRatingBadge");
+    expect(card + indicators).toContain(`table.${field}`);
+  expect(card).toContain('id: "table.card.participants"');
+  expect(indicators).toContain('t("Rating enabled")');
   expect(card).not.toContain("<EventTableInvitationActions");
   expect(source("events", "EventTableSeats")).toContain("<EventTableInvitationActions");
-  expect(card).toContain("table.demonstratorUserId");
+  expect(indicators).toContain("table.demonstratorUserId");
   expect(card).not.toContain('t("Reserved place")');
 });

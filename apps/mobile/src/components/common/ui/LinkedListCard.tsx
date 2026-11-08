@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { ListCard } from "./ListCard";
 
-/** Horizontal HeroUI card; navigation and informational actions are siblings. */
+/** Stretched navigation and informational controls stay siblings. */
 export function LinkedListCard({
   label,
   onPress,
@@ -14,6 +14,7 @@ export function LinkedListCard({
   leadingActions,
   artwork,
   children,
+  artworkLayout = "thumbnail",
 }: {
   label: string;
   onPress: () => void;
@@ -23,10 +24,12 @@ export function LinkedListCard({
   leadingActions?: ReactNode;
   artwork: ReactNode;
   children: ReactNode;
+  artworkLayout?: "thumbnail" | "cover";
 }) {
   const t = useT();
+  const cover = artworkLayout === "cover";
   return (
-    <ListCard>
+    <ListCard style={cover ? { overflow: "hidden" } : undefined}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -38,23 +41,47 @@ export function LinkedListCard({
       />
       <Card.Body
         pointerEvents="box-none"
-        style={{ flexDirection: "row", alignItems: "flex-start", gap: 16, padding: 16 }}
+        style={{
+          flexDirection: "row",
+          alignItems: cover ? "stretch" : "flex-start",
+          gap: cover ? 0 : 16,
+          padding: cover ? 0 : 16,
+        }}
       >
-        <View pointerEvents="box-none" style={{ flex: 1, minWidth: 0, gap: 8 }}>
+        {cover ? (
+          <View
+            pointerEvents="none"
+            style={{ position: "relative", width: 80, flexShrink: 0, overflow: "hidden" }}
+          >
+            {artwork}
+          </View>
+        ) : null}
+        <View
+          pointerEvents="box-none"
+          style={{ flex: 1, minWidth: 0, gap: 8, ...(cover ? { padding: 12 } : {}) }}
+        >
           <View pointerEvents="none">{children}</View>
           {leadingActions || actions ? (
             <View
               pointerEvents="box-none"
-              style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 }}
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: cover ? 0 : 4,
+                ...(cover ? { marginTop: "auto", justifyContent: "flex-end" } : {}),
+              }}
             >
               {leadingActions}
               {actions}
             </View>
           ) : null}
         </View>
-        <View pointerEvents="none" style={{ flexShrink: 0 }}>
-          {artwork}
-        </View>
+        {cover ? null : (
+          <View pointerEvents="none" style={{ flexShrink: 0 }}>
+            {artwork}
+          </View>
+        )}
       </Card.Body>
     </ListCard>
   );

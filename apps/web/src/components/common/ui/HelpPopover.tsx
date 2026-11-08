@@ -12,13 +12,15 @@ export function HelpPopover({
   placement = "bottom start",
   icon: Icon = CircleHelp,
   tone = "muted",
+  size = "default",
   indicator,
   children,
 }: {
   label: string;
   title?: string;
   icon?: LucideIcon;
-  tone?: "muted" | "warning" | "success";
+  tone?: "muted" | "warning" | "success" | "accent";
+  size?: "default" | "compact";
   className?: string;
   triggerClassName?: string;
   indicator?: ReactNode;
@@ -29,15 +31,29 @@ export function HelpPopover({
     muted: "text-muted",
     warning: "text-warning-soft-foreground",
     success: "text-success-soft-foreground",
+    accent: "text-accent-soft-foreground",
   };
+  const symbol = (
+    <>
+      <Icon className={size === "compact" ? "size-4" : "size-5"} aria-hidden="true" />
+      {indicator}
+    </>
+  );
   return (
     <Popover>
       <Popover.Trigger
         aria-label={label}
-        className={`button button--sm button--icon-only button--ghost relative inline-flex min-h-11 min-w-11 items-center justify-center ${colors[tone]} ${triggerClassName}`}
+        className={`button button--sm button--icon-only button--ghost relative inline-flex min-h-11 min-w-11 items-center justify-center ${colors[tone]} ${size === "compact" ? "p-0" : triggerClassName}`}
       >
-        <Icon className="size-5" aria-hidden="true" />
-        {indicator}
+        {size === "compact" ? (
+          <span
+            className={`relative inline-flex size-7 items-center justify-center rounded-lg ${triggerClassName}`}
+          >
+            {symbol}
+          </span>
+        ) : (
+          symbol
+        )}
       </Popover.Trigger>
       <Popover.Content placement={placement} className={className}>
         <Popover.Dialog className="whitespace-normal break-words p-3 text-sm">

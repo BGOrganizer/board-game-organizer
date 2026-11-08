@@ -339,10 +339,16 @@ export type EventSchedulePreview = {
   location: EventRecord["locations"][number] | null;
   dateCount: number;
   locationCount: number;
+  /** Complete authorized options; absent on older cache entries. Frozen Events expose choices only. */
+  dates?: Array<{ id: string; localStartsAt: string }>;
+  locations?: EventRecord["locations"];
+  timeZone?: string;
 };
 export type PlannedTableResponse = TableRecord & {
   sharedResultsOnly?: boolean;
   canManage?: boolean;
+  /** Display only: current Group authority (or standalone owner), never historical authorship. */
+  managementRole?: "admin" | "moderator" | null;
   canProposeGames?: boolean;
   readOnly?: boolean;
   eventName: string;

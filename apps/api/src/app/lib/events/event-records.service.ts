@@ -1501,6 +1501,11 @@ export class EventRecordsService {
     return {
       ...visibleTable,
       canManage,
+      managementRole: canManage
+        ? (group?.adminUserId ?? event.adminUserId) === userId
+          ? "admin"
+          : "moderator"
+        : null,
       readOnly,
       ...(!readOnly && canManage && event.status === "CONFIRMED" && table.confirmed && resultDraft
         ? { resultDraft }

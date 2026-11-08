@@ -6061,3 +6061,28 @@ msgstr "Previous page"
 
 msgid "Next page"
 msgstr "Next page"
+
+msgid "No date selected"
+msgstr "No date selected"
+
+msgid "No location selected"
+msgstr "No location selected"
+
+msgid "The table is being planned. Dates, locations and games are still proposals."
+msgstr "The table is being planned. Dates, locations and games are still proposals."
+
+msgid "The table has been confirmed. Only the chosen date, location and game are shown."
+msgstr "The table has been confirmed. Only the chosen date, location and game are shown."
+
+msgid "The table has finished. Results are immutable."
+msgstr "The table has finished. Results are immutable."
+
+msgid "This table contributes to player ratings when eligible results are finalized."
+msgstr "This table contributes to player ratings when eligible results are finalized."
+
+msgid "This table does not update player ratings."
+msgstr "This table does not update player ratings."
+
+#. js-lingui-explicit-id
+msgid "table.card.participants"
+msgstr "{count, plural, one {#/{capacity} participant} other {#/{capacity} participants}}"

@@ -6061,3 +6061,28 @@ msgstr "Pagina precedente"
 
 msgid "Next page"
 msgstr "Pagina successiva"
+
+msgid "No date selected"
+msgstr "Nessuna data scelta"
+
+msgid "No location selected"
+msgstr "Nessun luogo scelto"
+
+msgid "The table is being planned. Dates, locations and games are still proposals."
+msgstr "Il tavolo è in pianificazione. Date, luoghi e giochi sono ancora proposte."
+
+msgid "The table has been confirmed. Only the chosen date, location and game are shown."
+msgstr "Il tavolo è confermato. Sono mostrati solo data, luogo e gioco scelti."
+
+msgid "The table has finished. Results are immutable."
+msgstr "Il tavolo è terminato. I risultati sono immutabili."
+
+msgid "This table contributes to player ratings when eligible results are finalized."
+msgstr "Questo tavolo contribuisce al rating dei giocatori quando vengono finalizzati risultati validi."
+
+msgid "This table does not update player ratings."
+msgstr "Questo tavolo non aggiorna il rating dei giocatori."
+
+#. js-lingui-explicit-id
+msgid "table.card.participants"
+msgstr "{count, plural, one {#/{capacity} partecipante} other {#/{capacity} partecipanti}}"

@@ -3,6 +3,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Popover } from "heroui-native/popover";
 import { CircleHelp, type LucideIcon } from "lucide-react-native";
 import type { ComponentProps, ReactNode } from "react";
+import { View } from "react-native";
 
 export function HelpPopover({
   label,
@@ -12,6 +13,7 @@ export function HelpPopover({
   onOpenChange,
   icon: Icon = CircleHelp,
   tone = "muted",
+  size = "default",
   indicator,
   triggerClassName,
   children,
@@ -19,7 +21,8 @@ export function HelpPopover({
   label: string;
   title: string;
   icon?: LucideIcon;
-  tone?: "muted" | "warning" | "success";
+  tone?: "muted" | "warning" | "success" | "accent";
+  size?: "default" | "compact";
   width?: number;
   indicator?: ReactNode;
   triggerClassName?: string;
@@ -31,8 +34,15 @@ export function HelpPopover({
     muted: "muted",
     warning: "warning-soft-foreground",
     success: "success-soft-foreground",
+    accent: "accent-soft-foreground",
   } as const;
   const color = useThemeColor(colors[tone]);
+  const symbol = (
+    <>
+      <Icon size={size === "compact" ? 16 : 20} color={color} accessible={false} />
+      {indicator}
+    </>
+  );
   return (
     <Popover onOpenChange={onOpenChange}>
       <Popover.Trigger asChild>
@@ -40,12 +50,32 @@ export function HelpPopover({
           isIconOnly
           size="sm"
           variant="ghost"
-          className={triggerClassName}
+          className={size === "compact" ? undefined : triggerClassName}
           accessibilityLabel={label}
-          style={{ position: "relative", minWidth: 44, minHeight: 44 }}
+          style={{
+            position: "relative",
+            minWidth: 44,
+            minHeight: 44,
+            ...(size === "compact" ? { padding: 0 } : {}),
+          }}
         >
-          <Icon size={20} color={color} accessible={false} />
-          {indicator}
+          {size === "compact" ? (
+            <View
+              className={triggerClassName}
+              style={{
+                position: "relative",
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {symbol}
+            </View>
+          ) : (
+            symbol
+          )}
         </Button>
       </Popover.Trigger>
       <Popover.Portal>
