@@ -107,7 +107,7 @@ it.each([
   const status = source("common/ui/ArtworkStatusPopover");
   expect(status).toContain('t("Group member")');
   expect(status).toContain('t("You are a member of this group.")');
-  expect(status).toMatch(/kind === "member"\s*\?\s*"success"/);
+  expect(status).toMatch(/kind === "member"\s*\|\|\s*kind === "accepted"\s*\?\s*"success"/);
 });
 it("keeps group type/moderation artwork distinct and group creator protected", () => {
   expect(source("groups/GroupCard")).toContain("GroupArtwork");

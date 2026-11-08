@@ -281,9 +281,10 @@ proposed dates/venues, and a personal Table with two games. Supply `CARD_LOCALE`
 `CARD_GROUP_NAME`, `CARD_EVENT_NAME`, `CARD_TABLE_NAME`, `CARD_VENUE` (displayed venue substring),
 `CARD_EVENT_DATE_LABEL` (localized long date) and `CARD_EVENT_TIME_LABEL` (localized clock).
 Missing inputs fail. Use matching API/client builds with the complete authorized schedule projection.
-The flow filters real first-page rows, retains Event preview counts, then checks Table accepted-seat /
-capacity text and its local date/location/game popovers. Both Table feeds retain Group · Event identity.
-Inspect screenshots for full-height left Planets artwork, title/ratio/parent ordering, bottom-right
+The flow filters real first-page rows and requires accepted participation. Event cards show Group ·
+localized Table count with the prior schedule preview/counts inside status help. Table cards show
+accepted-seat / capacity and local date/location/game popovers; both Table feeds retain Group · Event.
+Inspect screenshots for full-height left Constellation/Planets artwork, title/count ordering, bottom-right
 cumulative icons, 28px frames/16px glyphs with 44px touch targets, long-text wrapping and semantic colors
 in both locales/themes. Parsing/VM checks are not native geometry evidence. No fixtures, votes or
 registrations are created; existing container/notification reads retain their ordinary behavior.

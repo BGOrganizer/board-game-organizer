@@ -18,8 +18,9 @@ it("keeps Event management, accepted waiting participation and demonstrator duty
     myRegistrations: [{ ...seat("owner"), position: "WAITING" as const }],
   };
   const view = renderWithI18n(<EventCard event={event} />);
-  for (const label of ["Management", "Waiting list", "Demonstrator"])
+  for (const label of ["Management", "Accepted participant", "Demonstrator"])
     expect(screen.getByRole("button", { name: label })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   view.rerender(<EventDetailsCard event={event} />);
   for (const label of ["Management", "Waiting list", "Demonstrator"])
     expect(screen.getByRole("button", { name: label })).not.toBeNull();
@@ -33,7 +34,8 @@ it("does not fabricate participation or management when an Event is view-only", 
     myRegistrations: [],
   };
   const view = renderWithI18n(<EventCard event={event} />);
-  expect(screen.getByRole("button", { name: "Viewer" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
+  expect(screen.getAllByRole("button")).toHaveLength(1);
   view.rerender(<EventDetailsCard event={event} />);
   expect(screen.getByRole("button", { name: "Viewer" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Management" })).toBeNull();

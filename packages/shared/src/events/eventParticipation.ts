@@ -33,6 +33,14 @@ export function tableParticipation(
   return position === "SEATED" ? "confirmed" : undefined;
 }
 
+/** Consent facts are independent across Tables. Acceptance is not evidence of a seated place. */
+export function eventParticipationFlags(registrations: readonly OwnRegistration[]) {
+  return {
+    accepted: registrations.some((row) => row.status === "ACCEPTED" || row.position === "FROZEN"),
+    pending: registrations.some((row) => row.status === "PENDING"),
+  };
+}
+
 /** Complete own registrations, never a partially fetched Table list. Unknown seats stay unknown. */
 export function eventParticipation(
   registrations: readonly OwnRegistration[],

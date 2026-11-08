@@ -64,3 +64,6 @@ output.cardRatio = italian ? "^[0-9]+/[0-9]+ partecipant[ei]$" : "^[0-9]+/[0-9]+
 output.cardTables = italian ? "^Tavoli$" : "^Tables$";
 output.cardGamesTitle = italian ? "^Giochi da tavolo$" : "^Board games$";
 output.cardNoGames = italian ? "^Nessun gioco trovato$" : "^No games found$";
+output.cardEventState = italian ? "^In pianificazione$" : "^Planning$";
+output.cardEventAccepted = italian ? "^Partecipante accettato$" : "^Accepted participant$";
+output.cardEventTableCount = italian ? "^[0-9]+ Tavol[oi]$" : "^[0-9]+ Tables?$";

@@ -256,6 +256,53 @@ it("keeps native manager, demonstrator, pending and waiting indicators cumulativ
       .map((node: Element) => node.props.kind),
   ).toEqual(["admin", "demonstrator", "request", "waiting"]);
 });
+it("keeps native Event admin/moderation, accepted, pending and demonstration independent", () => {
+  const render = component("events/EventCardIndicators", "EventCardIndicators", {
+    "@board-game-organizer/shared": { ...shared, useEventCutoff: () => false },
+    "@lingui/react": { useLingui: () => ({ i18n: { number: (n: number) => String(n) } }) },
+    "heroui-native/text": { Typography: "Typography" },
+    "lucide-react-native": {
+      CalendarCheck: "Confirmed",
+      CalendarClock: "Planning",
+      Flag: "Terminated",
+    },
+    "react-native": {
+      ScrollView: "ScrollView",
+      useWindowDimensions: () => ({ width: 320, height: 640 }),
+    },
+    "@/components/common/ui/ArtworkStatusPopover": { ArtworkStatusPopover: "Role" },
+    "@/components/common/ui/HelpPopover": { HelpPopover: "Status" },
+    "@/lib/i18n": { useT: () => (id: string) => id },
+    "./EventCardSchedule": { EventCardSchedule: "Schedule" },
+  });
+  const event = {
+    ...plannedEvent,
+    canManage: true,
+    managementRole: "admin",
+    myDemonstrator: true,
+    myRegistrations: [seat("owner"), { ...seat("owner"), tableId: "second", status: "PENDING" }],
+  };
+  const tree = render({ event });
+  expect(
+    tree.props.children
+      .filter((node: Element) => node?.type === "Role")
+      .map((node: Element) => node.props.kind),
+  ).toEqual(["admin", "accepted", "pending", "demonstrator"]);
+  for (const role of tree.props.children.filter((node: Element) => node?.type === "Role"))
+    expect(role.props.size).toBe("compact");
+  expect(tree.props.children.at(-1).props).toMatchObject({
+    size: "compact",
+    width: 288,
+    label: "Planning",
+  });
+  const moderator = render({ event: { ...event, managementRole: "moderator" } });
+  expect(moderator.props.children[0].props).toMatchObject({
+    kind: "manager",
+    label: "Group moderator",
+  });
+  const readOnly = render({ event: { ...event, readOnly: true } });
+  expect(readOnly.props.children.filter((node: Element) => node?.type === "Role")).toHaveLength(0);
+});
 it("uses actual HeroUI background compositions and keeps the existing API-owned roster hook", () => {
   const source = (file: string) =>
     readFileSync(new URL(`../../components/${file}.tsx`, import.meta.url), "utf8");

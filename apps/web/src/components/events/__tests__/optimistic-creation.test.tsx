@@ -12,7 +12,7 @@ import {
   useEventRecords,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -172,7 +172,8 @@ it("leaves the actual wizard, toasts and paints a draft before POST; a GET-befor
   const provisional = list.getByRole("link", { name: "Saving: Nonblocking event" });
   expect(provisional.getAttribute("aria-disabled")).toBe("true");
   expect(provisional.getAttribute("href")).toBe("/events");
-  expect(provisional.closest(".card")?.textContent).toContain("Players: 0");
+  expect(provisional.closest(".card")?.textContent).toContain("1 Table");
+  expect(screen.queryByRole("button", { name: "Accepted participant" })).toBeNull();
   const sent = JSON.parse(
     String(fetch.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body),
   );

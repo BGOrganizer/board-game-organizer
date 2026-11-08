@@ -1,83 +1,249 @@
-import { screen } from "@testing-library/react";
-import { expect, it } from "vitest";
-import { plannedEvent } from "@/test-fixtures/eventRecords";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import { plannedEvent, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
+import { messages as en } from "../../../../../../messages/en.js";
+import { messages as itMessages } from "../../../../../../messages/it.js";
 import { EventCard } from "../EventCard";
 
-it("opens unified event and shows planning metadata without invented organizer seats", () => {
+afterEach(() => vi.unstubAllGlobals());
+async function close() {
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+}
+
+it("opens the unified Event with full-height left artwork and a singular count, never an implicit organizer seat", () => {
   renderWithI18n(<EventCard event={plannedEvent} />);
-  expect(screen.getByRole("link", { name: "Open event: Friday games" }).getAttribute("href")).toBe(
-    `/events/${plannedEvent.id}`,
-  );
-  expect(screen.getByText("June 3, 2030")).not.toBeNull();
-  expect(screen.getByText("Tables: 1")).not.toBeNull();
-  expect(screen.getByText("Players: 0")).not.toBeNull();
-  expect(screen.getByText("Planning").closest(".chip")?.className).toContain("chip--warning");
+  const link = screen.getByRole("link", { name: "Open event: Friday games" });
+  expect(link.getAttribute("href")).toBe(`/events/${plannedEvent.id}`);
+  expect(screen.getByText("1 Table")).not.toBeNull();
   expect(
-    screen.getByText("Planning").closest(".chip")?.querySelector("svg.lucide-clock-3"),
+    screen.getByText("1 Table").parentElement?.querySelector("svg.lucide-dices"),
   ).not.toBeNull();
-  expect(screen.getByText("Tables: 1").querySelector("svg.lucide-dices")).not.toBeNull();
-  expect(screen.getByText("Players: 0").querySelector("svg.lucide-users-round")).not.toBeNull();
+  expect(
+    screen.getByText(plannedEvent.name).closest(".card")?.querySelector("img")?.className,
+  ).toContain("h-full w-full object-cover");
+  expect(screen.queryByRole("button", { name: "Accepted participant" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Administrator" })).toBeNull();
+  expect(screen.queryByText("June 3, 2030")).toBeNull();
 });
-it("shows the first proposal, total date count and each selected clock without treating it as confirmation", () => {
+it.each([0, 1, 2])("localizes %s Table(s) and keeps Group · count on the second row", (count) => {
+  const i18n = setupI18n({ locale: "it", messages: { it: itMessages, en } });
+  renderWithI18n(
+    <I18nProvider i18n={i18n}>
+      <EventCard
+        context="group"
+        event={{ ...plannedEvent, groupId: "group", groupName: "Club", tableCount: count }}
+      />
+    </I18nProvider>,
+  );
+  const group = screen.getByText("Club"),
+    tables = screen.getByText(`${count} ${count === 1 ? "Tavolo" : "Tavoli"}`);
+  expect(group.parentElement?.querySelector("svg.lucide-users-round")).not.toBeNull();
+  expect(group.parentElement?.nextElementSibling?.textContent).toBe("·");
+  expect(group.compareDocumentPosition(tables) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole("link").getAttribute("href")).toContain("?fromGroup=group");
+});
+it("shows administration, accepted participation, pending invitation and demonstrator duty together in compact framed icons", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
   renderWithI18n(
     <EventCard
       event={{
         ...plannedEvent,
-        groupType: "PRIVATE",
-        locations: [
-          ...plannedEvent.locations,
-          { ...plannedEvent.locations[0], id: plannedEvent.id, timeZone: "America/New_York" },
-        ],
-        dates: [
-          { ...plannedEvent.dates[0], startTime: "18:15" },
-          { id: plannedEvent.id, day: "2030-06-04", startTime: "21:30" },
+        canManage: true,
+        managementRole: "admin",
+        myDemonstrator: true,
+        myRegistrations: [
+          { ...seat("owner"), position: "WAITING" },
+          { ...seat("owner"), tableId: "other", status: "PENDING" },
         ],
       }}
     />,
   );
-  const day = screen.getByText("June 3, 2030"),
-    time = screen.getByText(
-      new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(
-        new Date("2030-06-03T18:15:00Z"),
+  const labels = [
+    "Administrator",
+    "Accepted participant",
+    "Pending participation · Reply required",
+    "Demonstrator",
+    "Planning",
+  ];
+  const navigate = vi.fn();
+  screen.getByRole("link").addEventListener("click", navigate);
+  for (const label of labels) {
+    const button = screen.getByRole("button", { name: label });
+    expect(button.closest("a")).toBeNull();
+    expect(button.parentElement?.className).toContain("justify-end");
+    expect(button.querySelector(".size-7.bg-default")).not.toBeNull();
+    expect(button.querySelector("svg.size-4")).not.toBeNull();
+    expect(button.className).toContain("min-h-11 min-w-11");
+    fireEvent.click(button);
+    expect(await screen.findByRole("dialog")).not.toBeNull();
+    await close();
+  }
+  expect(
+    screen.getByRole("button", { name: "Administrator" }).querySelector("svg.lucide-crown"),
+  ).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(navigate).not.toHaveBeenCalled();
+});
+it.each(["moderator", undefined] as const)(
+  "distinguishes current moderation from unknown old management metadata (%s)",
+  (managementRole) => {
+    renderWithI18n(<EventCard event={{ ...plannedEvent, canManage: true, managementRole }} />);
+    expect(
+      screen
+        .getByRole("button", { name: managementRole ? "Group moderator" : "Management" })
+        .querySelector("svg.lucide-shield-check"),
+    ).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Administrator" })).toBeNull();
+  },
+);
+it("never makes a historical author or source role an accepted participant or current manager", () => {
+  renderWithI18n(
+    <EventCard
+      event={{
+        ...plannedEvent,
+        role: "admin",
+        canManage: false,
+        managementRole: "admin",
+        myRegistrations: [],
+      }}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: "Administrator" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Management" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Accepted participant" })).toBeNull();
+});
+it("suppresses stale private role/participation fields on a read-only projection", () => {
+  renderWithI18n(
+    <EventCard
+      event={{
+        ...plannedEvent,
+        readOnly: true,
+        canManage: true,
+        managementRole: "admin",
+        myDemonstrator: true,
+        myRegistrations: [seat("owner"), { ...seat("owner"), status: "PENDING" }],
+      }}
+    />,
+  );
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Planning" })).not.toBeNull();
+});
+it("does not erase pending self requests when another Table has accepted participation", () => {
+  renderWithI18n(
+    <EventCard
+      event={{
+        ...plannedEvent,
+        myRegistrations: [
+          seat("owner"),
+          { ...seat("owner"), tableId: "second", kind: "SELF", status: "PENDING" },
+        ],
+      }}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Accepted participant" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Pending participation" }).className).toContain(
+    "text-warning",
+  );
+});
+it("retains pending consent at the exact public cutoff without offering a stale reply action", () => {
+  renderWithI18n(
+    <EventCard
+      event={{
+        ...plannedEvent,
+        groupType: "PUBLIC",
+        bookingClosesAt: "2000-01-01T00:00:00Z",
+        myRegistrations: [{ ...seat("owner"), status: "PENDING" }],
+      }}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Pending participation" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: /Reply required/ })).toBeNull();
+});
+it("keeps group identity loading instead of inventing a name", () => {
+  renderWithI18n(<EventCard event={{ ...plannedEvent, groupId: "group", groupName: null }} />);
+  expect(screen.getByLabelText("Loading…")).not.toBeNull();
+  expect(screen.getByText("1 Table")).not.toBeNull();
+});
+it.each(["PLANNING", "CONFIRMED", "TERMINATED"] as const)(
+  "shows %s status with a semantic icon and retains schedule/participant metadata inside help",
+  async (status) => {
+    const planning = status === "PLANNING";
+    const event = {
+      ...plannedEvent,
+      status,
+      participantCount: 3,
+      locations: [
+        ...plannedEvent.locations,
+        { ...plannedEvent.locations[0], id: "second", name: "Second venue" },
+      ],
+      dates: [...plannedEvent.dates, { id: "second", day: "2030-06-04", startTime: "21:30" }],
+      confirmed: planning
+        ? undefined
+        : {
+            dateId: "second",
+            locationId: plannedEvent.locations[0].id,
+            at: plannedEvent.createdAt,
+          },
+    };
+    renderWithI18n(<EventCard event={event} />);
+    const label = planning ? "Planning" : status === "CONFIRMED" ? "Confirmed" : "Terminated";
+    const button = screen.getByRole("button", { name: label });
+    expect(
+      button.querySelector(
+        planning
+          ? "svg.lucide-calendar-clock"
+          : status === "CONFIRMED"
+            ? "svg.lucide-calendar-check"
+            : "svg.lucide-flag",
       ),
+    ).not.toBeNull();
+    expect(button.className).toContain(
+      planning ? "text-warning" : status === "CONFIRMED" ? "text-success" : "text-muted",
     );
-  expect(day.previousElementSibling?.classList.contains("lucide-calendar-days")).toBe(true);
-  expect(time.parentElement?.querySelector("svg.lucide-clock-3")).not.toBeNull();
-  expect(screen.getByRole("img", { name: "2 proposed dates" }).textContent).toBe("+2");
-  expect(screen.queryByText(/Europe\/Rome|America\/New_York/)).toBeNull();
+    fireEvent.click(button);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Players: 3")).not.toBeNull();
+    expect(within(dialog).getByText(planning ? "June 3, 2030" : "June 4, 2030")).not.toBeNull();
+    if (planning) {
+      expect(within(dialog).getByRole("img", { name: "2 proposed dates" }).textContent).toBe("+2");
+      expect(within(dialog).getByRole("img", { name: "2 proposed locations" }).textContent).toBe(
+        "+2",
+      );
+    } else {
+      expect(
+        within(dialog).queryByRole("img", { name: /proposed dates|proposed locations/ }),
+      ).toBeNull();
+    }
+  },
+);
+it("shows incomplete schedule metadata explicitly inside status help without inventing dates", async () => {
+  renderWithI18n(<EventCard event={{ ...plannedEvent, dates: [], locations: [] }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Planning" }));
+  expect(await screen.findByText("Dates to agree")).not.toBeNull();
+  expect(screen.getByText("Locations to agree")).not.toBeNull();
 });
-it("keeps incomplete summaries safe instead of inventing a date", () => {
-  renderWithI18n(<EventCard event={{ ...plannedEvent, dates: [] }} />);
-  expect(screen.getByText("Dates to agree", { exact: false })).not.toBeNull();
-});
-it("shows selected local day and confirmed status", () => {
+it("keeps unresolved optimistic drafts free of server-derived role icons", () => {
   renderWithI18n(
     <EventCard
       event={{
         ...plannedEvent,
-        status: "CONFIRMED",
-        confirmed: {
-          dateId: plannedEvent.dates[0].id,
-          locationId: plannedEvent.locations[0].id,
-          at: plannedEvent.createdAt,
-        },
+        canManage: true,
+        managementRole: "admin",
+        myDemonstrator: true,
+        optimistic: { draftId: "draft", phase: "saving" },
       }}
     />,
   );
-  expect(screen.getByText("Confirmed")).not.toBeNull();
-  expect(screen.getByText("Confirmed").closest(".chip")?.className).toContain("chip--success");
-  expect(screen.queryByText(/^\+\d/)).toBeNull();
-  expect(screen.getByText("June 3, 2030")).not.toBeNull();
-});
-it("retains terminated/group context", () => {
-  renderWithI18n(
-    <EventCard
-      event={{ ...plannedEvent, status: "TERMINATED", groupName: "Club", groupType: "PUBLIC" }}
-    />,
-  );
-  expect(screen.getByText("Terminated")).not.toBeNull();
-  const group = screen.getByText("Group: Club");
-  expect(group.previousElementSibling?.classList.contains("lucide-users-round")).toBe(true);
-  expect(screen.queryByText(/Europe\/Rome/)).toBeNull();
+  expect(screen.getByRole("link").getAttribute("aria-disabled")).toBe("true");
+  expect(screen.queryByRole("button", { name: "Administrator" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Planning" })).toBeNull();
+  expect(screen.getByText("Saving")).not.toBeNull();
 });

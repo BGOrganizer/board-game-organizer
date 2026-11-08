@@ -245,6 +245,8 @@ export interface PlannedEventCapabilities {
   sharedResultsOnly?: boolean;
   /** Current server-authorized manager, not historical Event authorship. */
   canManage?: boolean;
+  /** Display only: current Group administration/moderation or standalone ownership. */
+  managementRole?: "admin" | "moderator" | null;
   canEdit: boolean;
   canInvite: boolean;
   canRegister: boolean;

@@ -45,5 +45,7 @@ it("keeps the centered indicator outside card navigation and one Table legend pe
     expect(source(path)).toContain("<TableListHeading");
   expect(source("events/TableListHeading")).toContain('t("Table list")');
   expect(source("events/TableListHeading")).toContain('t("Table legend")');
-  expect(source("events/EventCard")).toContain("eventParticipation(event.myRegistrations)");
+  expect(source("events/EventCardIndicators")).toContain(
+    "eventParticipationFlags(event.myRegistrations)",
+  );
 });

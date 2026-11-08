@@ -75,13 +75,17 @@ it("keeps date/time proposals and verified location add slots available only for
   expect(badge).toContain('<Chip.Label>{t("Rating")}</Chip.Label>');
   const preview = source("events", "EventCard");
   expect(preview).toContain("titleAccessory=");
-  expect(preview).toContain("<EventCardSchedule schedule={eventRecordSchedulePreview(event)} />");
+  expect(source("events", "EventCardIndicators")).toContain(
+    "<EventCardSchedule schedule={eventRecordSchedulePreview(event)} />",
+  );
   expect(source("events", "EventCardSchedule")).toMatch(/timeZone="UTC"\s+dateStyle="long"/);
   expect(preview).not.toContain("eventRecordDisplayTimeZone");
-  expect(preview).toMatch(/<UsersRound[^>]*\/>\s*<Typography/);
+  expect(preview).toContain('artworkLayout="cover"');
+  expect(preview).toContain('presentation="cover"');
   expect(preview).toContain("<UsersRound");
   expect(preview).toContain("<Dices");
-  expect(preview).toContain("<EventStatusBadge");
+  expect(source("events", "EventCardIndicators")).toContain("<HelpPopover");
+  expect(source("events", "EventCardIndicators")).toContain("CalendarClock");
   expect(source("events", "EventStatusBadge")).toContain('"warning"');
 });
 it("uses a centered spaced stage strip, arrow-only Next/Back, platform fields and virtualized table cards", () => {

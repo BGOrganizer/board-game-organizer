@@ -6086,3 +6086,28 @@ msgstr "Questo tavolo non aggiorna il rating dei giocatori."
 #. js-lingui-explicit-id
 msgid "table.card.participants"
 msgstr "{count, plural, one {#/{capacity} partecipante} other {#/{capacity} partecipanti}}"
+
+msgid "Accepted participant"
+msgstr "Partecipante accettato"
+
+msgid "You are accepted at one or more tables. Open table details for your seat or waiting-list position."
+msgstr "Sei accettato in uno o più tavoli. Apri i dettagli dei tavoli per verificare il posto o la posizione in lista di attesa."
+
+msgid "Pending participation"
+msgstr "Partecipazione in attesa"
+
+msgid "Your participation is pending at one or more tables. Open event details to review invitations or requests."
+msgstr "La tua partecipazione è in attesa in uno o più tavoli. Apri i dettagli dell’evento per verificare inviti o richieste."
+
+msgid "The event is being planned. Dates and locations are still proposals."
+msgstr "L’evento è in pianificazione. Date e luoghi sono ancora proposte."
+
+msgid "The event has been confirmed."
+msgstr "L’evento è confermato."
+
+msgid "The event has finished. Results are immutable."
+msgstr "L’evento è terminato. I risultati sono immutabili."
+
+#. js-lingui-explicit-id
+msgid "event.card.tables"
+msgstr "{count, plural, one {# Tavolo} other {# Tavoli}}"

@@ -31,6 +31,8 @@ export function ArtworkStatusPopover({
     | "manager"
     | "demonstrator"
     | "viewer"
+    | "accepted"
+    | "pending"
     | undefined;
   label?: string;
   action?: PendingAction | null;
@@ -50,6 +52,20 @@ export function ArtworkStatusPopover({
       />
     );
   const states = {
+    accepted: {
+      icon: UserRoundCheck,
+      label: t("Accepted participant"),
+      description: t(
+        "You are accepted at one or more tables. Open table details for your seat or waiting-list position.",
+      ),
+    },
+    pending: {
+      icon: Clock3,
+      label: t("Pending participation"),
+      description: t(
+        "Your participation is pending at one or more tables. Open event details to review invitations or requests.",
+      ),
+    },
     confirmed: {
       icon: UserRoundCheck,
       label: t("Confirmed player"),
@@ -100,9 +116,13 @@ export function ArtworkStatusPopover({
       size={size}
       icon={state.icon}
       tone={
-        kind === "confirmed" || kind === "member"
+        kind === "confirmed" || kind === "member" || kind === "accepted"
           ? "success"
-          : action || kind === "request" || kind === "invitation" || kind === "waiting"
+          : action ||
+              kind === "request" ||
+              kind === "invitation" ||
+              kind === "waiting" ||
+              kind === "pending"
             ? "warning"
             : size === "compact" &&
                 (kind === "admin" || kind === "manager" || kind === "demonstrator")

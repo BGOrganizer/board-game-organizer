@@ -448,6 +448,11 @@ export class EventRecordsService {
         canManage,
       ),
       canManage,
+      managementRole: canManage
+        ? (group?.adminUserId ?? event.adminUserId) === userId
+          ? "admin"
+          : "moderator"
+        : null,
       readOnly,
       canProposeDates:
         !canManage &&

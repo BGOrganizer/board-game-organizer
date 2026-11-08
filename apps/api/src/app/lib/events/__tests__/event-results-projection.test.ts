@@ -133,7 +133,10 @@ function table(): PlannedTableResponse {
 }
 
 it("shares only selected Event information and final physical rosters, never Group metadata, ballots, drafts or queue counts", () => {
-  const source = Object.assign(event(), { futurePrivateField: "PRIVATE-ROOT" });
+  const source = Object.assign(event(), {
+    futurePrivateField: "PRIVATE-ROOT",
+    managementRole: "admin" as const,
+  });
   const one = table(),
     two = {
       ...table(),
@@ -177,6 +180,7 @@ it("shares only selected Event information and final physical rosters, never Gro
     "bookingClosesAt",
     "allowParticipantDates",
     "allowParticipantLocations",
+    "managementRole",
     "futurePrivateField",
   ])
     expect(result).not.toHaveProperty(key);

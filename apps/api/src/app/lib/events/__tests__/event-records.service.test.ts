@@ -2385,6 +2385,7 @@ describe("current Group management authority", () => {
       canManage: true,
       canEdit: true,
       role: "admin",
+      managementRole: "moderator",
       participantCount: 0,
     });
     expect(f.registrations.size).toBe(0);
@@ -2400,6 +2401,7 @@ describe("current Group management authority", () => {
       canManage: true,
       canEdit: true,
       role: "admin",
+      managementRole: "admin",
     });
   });
   it("allows delegated provisional results/finalization but preserves frozen rosters and immutable outcomes", async () => {
@@ -2445,6 +2447,7 @@ describe("current Group management authority", () => {
       canInvite: false,
       canConfirm: false,
       role: "member",
+      managementRole: null,
     });
     expect(await f.service.tableDetail(guest, event.id, id)).toMatchObject({
       canManage: false,

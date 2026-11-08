@@ -85,18 +85,33 @@ for (const width of [390, 1280])
       ["font-weight", title.weight],
     ])
       await expect(event.getByText(eventName, { exact: true })).toHaveCSS(property, value);
-    await expect(
-      event.getByText(`${it ? "Gruppo" : "Group"}: ${groupName}`, { exact: true }),
-    ).toBeVisible();
-    await expect(event.getByText(date, { exact: true })).toHaveCSS("font-size", body.size);
-    await expect(event.getByText(date, { exact: true })).toHaveCSS("font-family", body.family);
-    await expect(event.getByText(time, { exact: true })).toBeVisible();
-    await expect(event.getByText(venue, { exact: false })).toBeVisible();
-    const dateMore = event.getByRole("img", {
+    await expect(event.getByText(groupName, { exact: true })).toBeVisible();
+    await expect(event.getByText(it ? /^\d+ Tavol[oi]$/ : /^\d+ Tables?$/)).toBeVisible();
+    const eventGeometry = await event.evaluate((card) => {
+      const frame = card.querySelector("img")!.closest(".w-20")!.getBoundingClientRect(),
+        box = card.getBoundingClientRect();
+      return { left: Math.abs(frame.left - box.left), height: Math.abs(frame.height - box.height) };
+    });
+    expect(eventGeometry.left).toBeLessThan(2);
+    expect(eventGeometry.height).toBeLessThan(2);
+    const accepted = event.getByRole("button", {
+      name: it ? "Partecipante accettato" : "Accepted participant",
+      exact: true,
+    });
+    await expect(accepted).toBeVisible();
+    await event
+      .getByRole("button", { name: it ? "In pianificazione" : "Planning", exact: true })
+      .click();
+    const eventInfo = page.getByRole("dialog");
+    await expect(eventInfo.getByText(date, { exact: true })).toHaveCSS("font-size", body.size);
+    await expect(eventInfo.getByText(date, { exact: true })).toHaveCSS("font-family", body.family);
+    await expect(eventInfo.getByText(time, { exact: true })).toBeVisible();
+    await expect(eventInfo.getByText(venue, { exact: false })).toBeVisible();
+    const dateMore = eventInfo.getByRole("img", {
       name: it ? "2 date proposte" : "2 proposed dates",
       exact: true,
     });
-    const placeMore = event.getByRole("img", {
+    const placeMore = eventInfo.getByRole("img", {
       name: it ? "2 luoghi proposti" : "2 proposed locations",
       exact: true,
     });
@@ -106,6 +121,8 @@ for (const width of [390, 1280])
       "color",
       await dateMore.evaluate((node) => getComputedStyle(node).color),
     );
+    await page.keyboard.press("Escape");
+    await expect(eventInfo).toHaveCount(0);
     const table = await open("/tables", tableName, "table");
     const here = page.url();
     const inspectTable = async () => {

@@ -69,6 +69,7 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
     ["./EventTableRatingBadge", "EventTableRatingBadge"],
     ["./EventTableGamesPopover", "EventTableGamesPopover"],
     ["./EventTableCardIndicators", "EventTableCardIndicators"],
+    ["./EventCardIndicators", "EventCardIndicators"],
   ])
     modules[path] = { [component]: component };
   const source = readFileSync(new URL(`../../components/${file}.tsx`, import.meta.url), "utf8");
@@ -109,6 +110,7 @@ it.each(["en", "it"] as const)(
   (locale) => {
     const event = {
       ...plannedEvent,
+      groupId: groupRecord.id,
       groupName: groupRecord.name,
       dates: [...plannedEvent.dates, { id: "other", day: "2030-06-04", startTime: "18:15" }],
       locations: [...plannedEvent.locations, { ...plannedEvent.locations[0], id: "other" }],
@@ -129,17 +131,22 @@ it.each(["en", "it"] as const)(
     const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(
       new Date("2030-06-03T20:00Z"),
     );
-    expect(text(eventTree)).toContain(date);
-    expect(text(eventTree)).toContain(
-      `${locale === "it" ? "Gruppo" : "Group"}: ${groupRecord.name}`,
-    );
-    expect(text(eventTree)).toContain("Club venue · Via Roma 1");
+    expect(text(eventTree)).toContain(groupRecord.name);
+    expect(text(eventTree)).toContain(locale === "it" ? "1 Tavolo" : "1 Table");
+    expect(text(eventTree)).not.toContain(date);
+    expect((eventTree as Node).props.artworkLayout).toBe("cover");
+    expect(((eventTree as Node).props.leadingActions as Node).type).toBe("EventCardIndicators");
+    const scheduleTree = evaluate("events/EventCardSchedule", "EventCardSchedule", locale, {
+      schedule,
+    });
+    expect(text(scheduleTree)).toContain(date);
+    expect(text(scheduleTree)).toContain("Club venue · Via Roma 1");
     expect(
-      nodes(eventTree).filter(
+      nodes(scheduleTree).filter(
         (node) => node.props.className === "text-sm text-accent-soft-foreground",
       ),
     ).toHaveLength(2);
-    for (const node of nodes(eventTree).filter((node) => text(node.props.children) === "+2"))
+    for (const node of nodes(scheduleTree).filter((node) => text(node.props.children) === "+2"))
       expect(node.props.className).toContain("text-accent-soft-foreground");
     expect(text(tableTree)).toContain(groupRecord.name);
     expect(text(tableTree)).toContain(plannedTable.eventName);

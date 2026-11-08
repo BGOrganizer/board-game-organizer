@@ -6086,3 +6086,28 @@ msgstr "This table does not update player ratings."
 #. js-lingui-explicit-id
 msgid "table.card.participants"
 msgstr "{count, plural, one {#/{capacity} participant} other {#/{capacity} participants}}"
+
+msgid "Accepted participant"
+msgstr "Accepted participant"
+
+msgid "You are accepted at one or more tables. Open table details for your seat or waiting-list position."
+msgstr "You are accepted at one or more tables. Open table details for your seat or waiting-list position."
+
+msgid "Pending participation"
+msgstr "Pending participation"
+
+msgid "Your participation is pending at one or more tables. Open event details to review invitations or requests."
+msgstr "Your participation is pending at one or more tables. Open event details to review invitations or requests."
+
+msgid "The event is being planned. Dates and locations are still proposals."
+msgstr "The event is being planned. Dates and locations are still proposals."
+
+msgid "The event has been confirmed."
+msgstr "The event has been confirmed."
+
+msgid "The event has finished. Results are immutable."
+msgstr "The event has finished. Results are immutable."
+
+#. js-lingui-explicit-id
+msgid "event.card.tables"
+msgstr "{count, plural, one {# Table} other {# Tables}}"
