@@ -1,0 +1,125 @@
+appId: com.bgo.mobile
+name: Owned Group creation draft visibility and logo controls
+# MANUAL owned Preview only. Stages a logo asset; never presses final submission.
+tags: [manual, groups, draft]
+---
+- runScript: ../helpers/group-creation-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible:
+      id: create-group-fab
+    timeout: 120000
+- tapOn:
+    id: create-group-fab
+- extendedWaitUntil:
+    visible:
+      id: group-private-radio
+    timeout: 120000
+- assertVisible:
+    id: group-public-radio
+- tapOn: ${output.groupCreate.visibilityHelp}
+- assertVisible: ${output.groupCreate.legend}
+- back
+- tapOn:
+    id: group-name-input
+- inputText: Unsaved board club
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.add}
+    direction: DOWN
+- tapOn: ${output.groupCreate.add}
+- extendedWaitUntil:
+    visible:
+      id: list-search-input
+    timeout: 30000
+- tapOn:
+    id: list-search-input
+- inputText: ${output.groupCreate.query}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.groupCreate.select}
+    timeout: 30000
+- tapOn:
+    text: ${output.groupCreate.select}
+    index: 0
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.removeInvite}
+    direction: DOWN
+- assertVisible: ${output.groupCreate.removeInvite}
+- scrollUntilVisible:
+    element:
+      id: group-public-radio
+    direction: UP
+- takeScreenshot: group-creation-private-cards
+- tapOn:
+    id: group-public-radio
+- assertVisible:
+    id: save-group-fab
+    enabled: false
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.add}
+    direction: DOWN
+- assertVisible:
+    text: ${output.groupCreate.add}
+    enabled: false
+- assertNotVisible: ${output.groupCreate.removeInvite}
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.upload}
+    direction: UP
+- assertVisible: ${output.groupCreate.empty}
+- assertVisible: ${output.groupCreate.hint}
+- assertNotVisible: ${output.groupCreate.logoHelp}
+- tapOn: ${output.groupCreate.upload}
+- tapOn: ${output.groupCreate.library}
+- extendedWaitUntil:
+    visible: ${output.groupCreate.image}
+    timeout: 30000
+- tapOn: ${output.groupCreate.image}
+- extendedWaitUntil:
+    visible: ${output.groupCreate.change}
+    timeout: 120000
+- assertVisible: ${output.groupCreate.remove}
+- assertVisible:
+    id: save-group-fab
+    enabled: false
+- takeScreenshot: group-creation-public-logo
+- tapOn: ${output.groupCreate.change}
+- tapOn: ${output.groupCreate.library}
+- extendedWaitUntil:
+    visible: ${output.groupCreate.image}
+    timeout: 30000
+- back
+- extendedWaitUntil:
+    visible: ${output.groupCreate.change}
+    timeout: 30000
+- tapOn: ${output.groupCreate.remove}
+- assertVisible: ${output.groupCreate.empty}
+- assertVisible: ${output.groupCreate.upload}
+- assertVisible:
+    id: save-group-fab
+    enabled: false
+- scrollUntilVisible:
+    element:
+      id: group-private-radio
+    direction: UP
+- tapOn:
+    id: group-private-radio
+- assertVisible:
+    id: save-group-fab
+    enabled: true
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.add}
+    direction: DOWN
+- assertVisible:
+    text: ${output.groupCreate.add}
+    enabled: true
+- assertNotVisible: ${output.groupCreate.removeInvite}
+- takeScreenshot: group-creation-private-reset
+- back

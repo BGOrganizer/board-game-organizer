@@ -92,7 +92,7 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
-        "src/components/{events/EventCardIndicators,events/EventTableGamesPopover,events/EventTableCardIndicators,events/EventTableSchedulePopover,groups/GroupIdentityCard,groups/GroupCard,groups/GroupCardIndicators,groups/GroupArtwork}.tsx":
+        "src/components/{events/EventCardIndicators,events/EventTableGamesPopover,events/EventTableCardIndicators,events/EventTableSchedulePopover,groups/GroupIdentityCard,groups/GroupCard,groups/GroupCardIndicators,groups/GroupArtwork,groups/GroupVisibilityPicker,groups/GroupLogoPicker}.tsx":
           {
             lines: 100,
             functions: 100,

@@ -6130,3 +6130,18 @@ msgstr "{count, plural, one {# Membro} other {# Membri}}"
 #. {count, plural, one {# Event} other {# Events}}
 msgid "group.card.events"
 msgstr "{count, plural, one {# Evento} other {# Eventi}}"
+
+msgid "Group visibility"
+msgstr "Visibilità del gruppo"
+
+msgid "Private groups are invitation-only. Public groups are searchable and visible to all registered users after approval."
+msgstr "I gruppi privati sono solo su invito. I gruppi pubblici sono ricercabili e visibili a tutti gli utenti iscritti dopo l’approvazione."
+
+msgid "Change logo"
+msgstr "Cambia logo"
+
+msgid "No logo selected"
+msgstr "Nessun logo selezionato"
+
+msgid "Invitations are only available for private groups."
+msgstr "Gli inviti sono disponibili solo per i gruppi privati."

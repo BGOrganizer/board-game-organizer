@@ -6,6 +6,33 @@ journeys invoked by `.github/scripts/maestro-e2e.sh`; see
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
 Do not run the helpers directory or treat helpers as independent test reports.
 
+## Manual Group creation presentation
+
+`31-group-creation.yaml` and `apps/web/e2e/group-creation.config.ts` are opt-in only.
+Use an authenticated, complete Development account, an existing eligible friendship and an owned
+JPEG/PNG/WebP image up to 5 MB. No provisioning, Group creation, invitations or final submission is
+performed. **The upload stages a real owned logo asset.** Normal asset retention applies; no cleanup
+or provider mutation is dispatched by these scenarios.
+
+Required: `GROUP_CREATE_FIXTURE_ACK=owned-friends-and-photo`,
+`GROUP_CREATE_WRITE_ACK=stage-owned-logo-only`, `GROUP_CREATE_API_URL` (Local/Preview root origin),
+`GROUP_CREATE_LOCALE=en|it`, `GROUP_CREATE_THEME=light|dark`.
+Web additionally requires `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL`, existing Development Clerk inputs,
+`GROUP_CREATE_FRIEND_NAME`, `GROUP_CREATE_FRIEND_QUERY` (at least four characters) and
+`GROUP_CREATE_LOGO_FILE`; optional `GROUP_CREATE_WIDTH` defaults to 390.
+Native requires `GROUP_CREATE_BUILD_ACK=owned-preview-build` after verifying the installed APK's
+API/account, plus `GROUP_CREATE_INPUT` JSON with `friendName`, `friendQuery`, `imagePickerLabel`.
+The latter is the exact verified accessible label of the preloaded photo in the actual system picker,
+not an invented selector. Prepare matching app locale/theme before running.
+
+Checks cover radio Cards/help, private friend selection, Public reset/disabled invitation action,
+placeholder/permanent file hint, real logo upload, Change/cancel/Remove and retained mandatory Public
+validation. The browser also checks unsupported MIME and 200% text. Native screenshots require
+visual review for side-by-side geometry, selected surfaces, preview margins and button alignment;
+repeat EN/IT, themes, narrow screens and enlarged text. Camera/permission/error paths retain their
+existing acceptance obligations. Source/VM tests, exports and syntax checks are not device or
+authenticated acceptance. Legacy Group conversion journeys do not define this immutable-type form.
+
 ## Manual Event access expansion
 
 `30-event-access.yaml` and `apps/web/e2e/event-access.config.ts` are opt-in, not canonical CI.

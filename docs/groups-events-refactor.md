@@ -71,6 +71,17 @@ exceptions supersede older membership-only activity/detail statements below.
 - PRIVATE requires a name; logo and verified venue are optional. It is never discoverable.
   PUBLIC requires name, owned logo and verified venue, with freshly authorized BGO moderation
   before public operation. Clerk Organizations have no BGO domain authority.
+- Group creation begins with Group visibility help and two side-by-side HeroUI radio Cards:
+  Private/lock on the left and Public/globe on the right, with a secondary selected surface and
+  accent border. Name, logo, existing venue/friend selectors and save FAB follow. Visibility remains
+  immutable after creation. Each actual draft visibility change clears selected friends and discards
+  stale picker returns. Public creation keeps the friend action visible but disabled; this is not a
+  change to existing authorized post-creation Group invitations.
+- Logo selection uses a horizontal HeroUI Card: contained preview/placeholder at left, Upload/Change
+  logo and Remove actions at right, with permanent JPEG/PNG/WebP and 5 MB help below the actions.
+  Logo has no field-help popover. Removal clears local selection even for Public drafts, but existing
+  mandatory logo/verified-venue validation still blocks submission until valid. Upload cancellation,
+  permission checks, failure feedback, owner-scoped assets and existing pickers remain unchanged.
 - Venue/favorite verification prefers an exact normalized address/coordinate provider match. If that
   point drifts, exactly one provider result with the same full normalized address may supply canonical
   address, coordinates and derived timezone; client coordinates/timezone never become authoritative.

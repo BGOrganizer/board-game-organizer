@@ -15,7 +15,7 @@ import {
   useGroupRecord,
   useGroupRecordActions,
 } from "@board-game-organizer/shared";
-import { Avatar, Button, Input, Skeleton, Switch, TextField } from "@heroui/react";
+import { Avatar, Button, Input, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Plus, Save, Send, Trash2, UsersRound, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -29,6 +29,7 @@ import { LocationListRow } from "@/components/locations/LocationListRow";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupLogoPicker } from "./GroupLogoPicker";
+import { GroupVisibilityPicker } from "./GroupVisibilityPicker";
 
 type Friend = {
   id: string;
@@ -112,13 +113,21 @@ function Editor({
             ? { id: recovery.logoAssetId, preview: recovery.clientDraft?.logoPreview ?? "" }
             : null,
     );
-  const [friends, setFriends] = useState<Friend[]>(recovery?.clientDraft?.friends ?? []),
+  const [friends, setFriends] = useState<Friend[]>(
+      type === "PRIVATE" ? (recovery?.clientDraft?.friends ?? []) : [],
+    ),
     [picking, setPicking] = useState<"location" | "friend" | null>(null),
     [uploading, setUploading] = useState(false),
     [submitting, setSubmitting] = useState(false);
   const submitted = useRef(false);
   const conflict = Boolean(group && group.version !== baseVersion);
   const favorites = useFavoriteLocations(options, location ? [location] : []);
+  const changeVisibility = (value: "PRIVATE" | "PUBLIC") => {
+    if (group || submitting || value === type) return;
+    setType(value);
+    setFriends([]);
+    setPicking(null);
+  };
   const revision = {
     name,
     ...(location ? { location } : {}),
@@ -175,12 +184,13 @@ function Editor({
         onClose={() => setPicking(null)}
       />
     );
-  if (picking === "friend")
+  if (picking === "friend" && type === "PRIVATE" && !group)
     return (
       <PeoplePicker
         friendsOnly
         excludeIds={friends.map((user) => user.id)}
         onSelect={(user) => {
+          if (submitting) return;
           setFriends((current) =>
             current.some((item) => item.id === user.id) ? current : [...current, user],
           );
@@ -198,28 +208,19 @@ function Editor({
         <h1 className="text-xl font-semibold">{group ? t`Edit group` : t`New group`}</h1>
       </div>
       {!group ? (
-        <Switch
-          isDisabled={submitting}
-          isSelected={type === "PUBLIC"}
-          onChange={(selected) => setType(selected ? "PUBLIC" : "PRIVATE")}
-        >
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-            {t`Public group`}
-          </Switch.Content>
-        </Switch>
+        <GroupVisibilityPicker value={type} disabled={submitting} onChange={changeVisibility} />
       ) : (
         <p className="text-sm text-muted">
           {group.type === "PUBLIC" ? t`Public group` : t`Private group`}
         </p>
       )}
-      <p className="text-sm text-muted">
-        {type === "PUBLIC"
-          ? t`Public groups require a logo, verified venue and approval. Group type cannot be changed.`
-          : t`Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.`}
-      </p>
+      {group ? (
+        <p className="text-sm text-muted">
+          {type === "PUBLIC"
+            ? t`Public groups require a logo, verified venue and approval. Group type cannot be changed.`
+            : t`Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.`}
+        </p>
+      ) : null}
       {conflict ? (
         <p
           role="alert"
@@ -283,9 +284,12 @@ function Editor({
       {favorites.status.isError ? (
         <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
       ) : null}
-      {!group && type === "PRIVATE" ? (
+      {!group ? (
         <section className="space-y-2" aria-label={t`Invite friends`}>
           <h2 className="text-sm font-semibold">{t`Invite friends`}</h2>
+          {type === "PUBLIC" ? (
+            <p className="text-sm text-muted">{t`Invitations are only available for private groups.`}</p>
+          ) : null}
           <GroupedList>
             {friends.map((user) => (
               <GroupedRow key={user.id}>
@@ -313,13 +317,16 @@ function Editor({
             ))}
           </GroupedList>
           <Button
+            className="h-auto max-w-full gap-[8px] whitespace-normal"
             variant="outline"
-            isDisabled={submitting || uploading}
-            onPress={() => setPicking("friend")}
+            isDisabled={submitting || uploading || type === "PUBLIC"}
+            onPress={() => {
+              if (type === "PRIVATE") setPicking("friend");
+            }}
           >
-            <UsersRound className="size-4" aria-hidden />
-            <Plus className="size-4" aria-hidden />
-            {t`Add friend`}
+            <UsersRound className="size-[16px] shrink-0" aria-hidden />
+            <Plus className="size-[16px] shrink-0" aria-hidden />
+            <span className="min-w-0 break-words">{t`Add friend`}</span>
           </Button>
         </section>
       ) : null}

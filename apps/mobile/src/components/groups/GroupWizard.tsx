@@ -20,7 +20,6 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
-import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
 import { Save, Send, Trash2, UsersRound, X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
@@ -40,6 +39,7 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { GroupLogoPicker } from "./GroupLogoPicker";
+import { GroupVisibilityPicker } from "./GroupVisibilityPicker";
 
 type Friend = {
   id: string;
@@ -138,25 +138,38 @@ function Editor({
             ? { id: recovery.logoAssetId, preview: recovery.clientDraft?.logoPreview ?? "" }
             : null,
     );
-  const [friends, setFriends] = useState<Friend[]>(recovery?.clientDraft?.friends ?? []),
+  const [friends, setFriends] = useState<Friend[]>(
+      type === "PRIVATE" ? (recovery?.clientDraft?.friends ?? []) : [],
+    ),
     [picking, setPicking] = useState(false),
     [uploading, setUploading] = useState(false),
     [submitting, setSubmitting] = useState(false);
   const submitted = useRef(false);
   const conflict = Boolean(group && group.version !== baseVersion);
-  const [pickerSlot] = useState(() => `group-draft-${Math.random().toString(36).slice(2)}`);
+  const [pickerSlot, setPickerSlot] = useState(
+    () => `group-draft-${Math.random().toString(36).slice(2)}`,
+  );
   const pendingUser = useAppStore((state) => state.pendingUser),
     clearPending = useAppStore((state) => state.clearPending);
   useEffect(() => {
     if (pendingUser?.slotId !== pickerSlot) return;
-    setFriends((current) =>
-      current.some((user) => user.id === pendingUser.user.id)
-        ? current
-        : [...current, pendingUser.user],
-    );
+    if (type === "PRIVATE" && !group && !submitting) {
+      setFriends((current) =>
+        current.some((user) => user.id === pendingUser.user.id)
+          ? current
+          : [...current, pendingUser.user],
+      );
+    }
     clearPending();
-  }, [pendingUser, pickerSlot, clearPending]);
+  }, [pendingUser, pickerSlot, clearPending, type, group, submitting]);
   const favorites = useFavoriteLocations(options, location ? [location] : []);
+  const changeVisibility = (value: "PRIVATE" | "PUBLIC") => {
+    if (group || submitting || value === type) return;
+    setType(value);
+    setFriends([]);
+    if (pendingUser?.slotId === pickerSlot) clearPending();
+    setPickerSlot(`group-draft-${Math.random().toString(36).slice(2)}`);
+  };
   const valid = createGroupRecordSchema.safeParse({
     type,
     name,
@@ -207,7 +220,8 @@ function Editor({
         onClose={() => setPicking(false)}
       />
     );
-  const chooseFriend = () =>
+  const chooseFriend = () => {
+    if (group || type !== "PRIVATE" || submitting || uploading) return;
     router.push({
       pathname: "/group/search-user",
       params: {
@@ -216,6 +230,7 @@ function Editor({
         exclude: friends.map((user) => user.id).join(","),
       },
     });
+  };
   return (
     <View style={{ flex: 1 }}>
       <Stack.Screen
@@ -239,37 +254,27 @@ function Editor({
           ListHeaderComponent={
             <View style={{ gap: 16 }}>
               {!group ? (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 16,
-                  }}
-                >
-                  <Typography className="text-foreground">{t("Public group")}</Typography>
-                  <Switch
-                    isDisabled={submitting}
-                    testID="group-public-switch"
-                    accessibilityLabel={t("Public group")}
-                    isSelected={type === "PUBLIC"}
-                    onSelectedChange={(selected) => setType(selected ? "PUBLIC" : "PRIVATE")}
-                  />
-                </View>
+                <GroupVisibilityPicker
+                  value={type}
+                  disabled={submitting}
+                  onChange={changeVisibility}
+                />
               ) : (
                 <Typography className="text-muted">
                   {group.type === "PUBLIC" ? t("Public group") : t("Private group")}
                 </Typography>
               )}
-              <Typography className="text-muted">
-                {type === "PUBLIC"
-                  ? t(
-                      "Public groups require a logo, verified venue and approval. Group type cannot be changed.",
-                    )
-                  : t(
-                      "Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.",
-                    )}
-              </Typography>
+              {group ? (
+                <Typography className="text-muted">
+                  {type === "PUBLIC"
+                    ? t(
+                        "Public groups require a logo, verified venue and approval. Group type cannot be changed.",
+                      )
+                    : t(
+                        "Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.",
+                      )}
+                </Typography>
+              ) : null}
               <SearchHelpLabel
                 required
                 label={t("Group name")}
@@ -338,10 +343,17 @@ function Editor({
                   {t("Could not load favorite locations")}
                 </Typography>
               ) : null}
-              {!group && type === "PRIVATE" ? (
-                <Typography className="font-semibold text-foreground">
-                  {t("Invite friends")}
-                </Typography>
+              {!group ? (
+                <View style={{ gap: 8 }}>
+                  <Typography className="font-semibold text-foreground">
+                    {t("Invite friends")}
+                  </Typography>
+                  {type === "PUBLIC" ? (
+                    <Typography className="text-sm text-muted">
+                      {t("Invitations are only available for private groups.")}
+                    </Typography>
+                  ) : null}
+                </View>
               ) : null}
             </View>
           }
@@ -370,11 +382,11 @@ function Editor({
           )}
           ListFooterComponent={
             <View style={{ gap: 12 }}>
-              {!group && type === "PRIVATE" ? (
+              {!group ? (
                 <AddUserRow
                   label={t("Add friend")}
                   onPress={chooseFriend}
-                  isDisabled={submitting}
+                  isDisabled={submitting || uploading || type === "PUBLIC"}
                 />
               ) : null}
             </View>
