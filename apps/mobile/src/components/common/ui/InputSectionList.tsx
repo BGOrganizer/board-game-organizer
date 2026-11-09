@@ -1,5 +1,4 @@
 import { BottomSheetSectionList } from "@gorhom/bottom-sheet";
-import { useHeaderHeight } from "expo-router/react-navigation";
 import { type Ref, useImperativeHandle, useRef } from "react";
 import {
   KeyboardAvoidingView,
@@ -11,6 +10,7 @@ import {
 } from "react-native";
 import { InputFieldContext, InputScrollContext } from "@/lib/inputScrollContext";
 import { useInputScroll } from "@/lib/useInputScroll";
+import { useOptionalHeaderHeight } from "@/lib/useOptionalHeaderHeight";
 
 export function InputSectionList<T, S = Record<string, unknown>>({
   ref,
@@ -28,7 +28,7 @@ export function InputSectionList<T, S = Record<string, unknown>>({
       list.current?.getScrollResponder()?.scrollTo(options);
     },
   }));
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useOptionalHeaderHeight();
   const Component = (scroll.inSheet ? BottomSheetSectionList : SectionList) as typeof SectionList<
     T,
     S

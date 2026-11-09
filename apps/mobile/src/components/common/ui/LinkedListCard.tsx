@@ -9,6 +9,7 @@ export function LinkedListCard({
   label,
   onPress,
   disabled,
+  controlsDisabled = false,
   notificationCount,
   actions,
   leadingActions,
@@ -19,6 +20,7 @@ export function LinkedListCard({
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  controlsDisabled?: boolean;
   notificationCount?: number;
   actions?: ReactNode;
   leadingActions?: ReactNode;
@@ -39,6 +41,9 @@ export function LinkedListCard({
       cover ? (
         <ScrollView
           horizontal
+          pointerEvents={controlsDisabled ? "none" : "auto"}
+          accessibilityElementsHidden={controlsDisabled}
+          importantForAccessibility={controlsDisabled ? "no-hide-descendants" : "auto"}
           style={{ height: 44, marginHorizontal: 12, marginBottom: 12, flexGrow: 0 }}
           contentContainerStyle={{
             flexGrow: 1,
@@ -51,7 +56,9 @@ export function LinkedListCard({
         </ScrollView>
       ) : (
         <View
-          pointerEvents="box-none"
+          pointerEvents={controlsDisabled ? "none" : "box-none"}
+          accessibilityElementsHidden={controlsDisabled}
+          importantForAccessibility={controlsDisabled ? "no-hide-descendants" : "auto"}
           style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 }}
         >
           {controls}

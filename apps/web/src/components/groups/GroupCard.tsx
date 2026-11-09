@@ -39,7 +39,8 @@ export function GroupCard({
       notificationCount={count}
       artworkLayout="cover"
       artwork={<GroupArtwork group={group} status="none" presentation="cover" />}
-      leadingActions={local ? undefined : <GroupCardIndicators group={group} />}
+      leadingActions={<GroupCardIndicators group={group} />}
+      controlsDisabled={local?.phase === "saving"}
       disabled={Boolean(local && local.phase !== "failed")}
       label={`${status || t`Open group`}: ${group.name}`}
       actions={
@@ -61,7 +62,7 @@ export function GroupCard({
         title={group.name}
         titleIcon={<UsersRound className="size-4 shrink-0 text-muted" aria-hidden />}
         unread={Boolean(count)}
-        titleAccessory={local ? <ClientRecordBadge phase={local.phase} /> : undefined}
+        titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
       >
         <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
           <span className="inline-flex min-w-0 max-w-full items-start gap-1">

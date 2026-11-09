@@ -1,4 +1,4 @@
-import type { GroupRecordResponse } from "@board-game-organizer/schemas";
+import type { ClientGroupRecord } from "@board-game-organizer/shared";
 import { formatLocationAddress, groupPendingAction } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
@@ -18,14 +18,15 @@ import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopove
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { useT } from "@/lib/i18n";
 
-export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
+export function GroupCardIndicators({ group }: { group: ClientGroupRecord }) {
   const t = useT();
   const muted = useThemeColor("muted");
   const { i18n } = useLingui();
   const { height } = useWindowDimensions();
   const publicGroup = group.type === "PUBLIC";
-  const indicator =
-    group.role === "admin"
+  const indicator = group.optimistic
+    ? null
+    : group.role === "admin"
       ? "admin"
       : group.role === "moderator"
         ? "manager"
@@ -110,7 +111,7 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
           ) : null}
         </ScrollView>
       </HelpPopover>
-      {publicGroup ? (
+      {publicGroup && !group.optimistic ? (
         <HelpPopover
           size="compact"
           label={review}

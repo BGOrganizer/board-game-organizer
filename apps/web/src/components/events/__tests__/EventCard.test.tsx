@@ -248,7 +248,7 @@ it("shows empty schedule options explicitly without inventing facts", async () =
   fireEvent.click(screen.getByRole("button", { name: "Locations: Friday games" }));
   expect(await screen.findByText("No location selected")).not.toBeNull();
 });
-it("keeps unresolved optimistic drafts free of server-derived role icons", () => {
+it("retains known draft information while hiding unverified roles and locking its controls", () => {
   renderWithI18n(
     <EventCard
       event={{
@@ -262,6 +262,11 @@ it("keeps unresolved optimistic drafts free of server-derived role icons", () =>
   );
   expect(screen.getByRole("link").getAttribute("aria-disabled")).toBe("true");
   expect(screen.queryByRole("button", { name: "Admin" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Planning" })).toBeNull();
-  expect(screen.getByText("Saving")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Demonstrator" })).toBeNull();
+  const planning = screen.getByLabelText("Planning");
+  expect(planning.closest("[inert]")).not.toBeNull();
+  expect(screen.getByText("1 Table")).toBeTruthy();
+  const badge = screen.getByRole("status", { name: "Saving" });
+  expect(badge.querySelector(".lucide-save")).not.toBeNull();
+  expect(badge.textContent).toBe("");
 });

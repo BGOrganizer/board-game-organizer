@@ -11,6 +11,7 @@ export function LinkedListCard({
   href,
   label,
   disabled,
+  controlsDisabled = false,
   notificationCount,
   onOpen,
   actions,
@@ -22,6 +23,7 @@ export function LinkedListCard({
   href: string;
   label: string;
   disabled?: boolean;
+  controlsDisabled?: boolean;
   notificationCount?: number;
   onOpen?: () => void;
   actions?: ReactNode;
@@ -41,6 +43,13 @@ export function LinkedListCard({
   const toolbar =
     leadingActions || actions ? (
       <div
+        inert={controlsDisabled}
+        onClickCapture={(event) => {
+          if (controlsDisabled) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
         className={
           cover
             ? "pointer-events-auto relative mx-2 mb-2 overflow-x-auto overscroll-x-contain p-1"
@@ -63,6 +72,7 @@ export function LinkedListCard({
         aria-label={label}
         aria-description={notificationCount ? t`Unread updates` : undefined}
         aria-disabled={disabled}
+        tabIndex={disabled ? -1 : undefined}
         onClick={(event) => {
           if (disabled) event.preventDefault();
           else if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) onOpen?.();

@@ -43,7 +43,8 @@ export function EventCard({
       artwork={
         <AnimatedDicebearArtwork seed={event.id} variant="constellation" presentation="cover" />
       }
-      leadingActions={local ? undefined : <EventCardIndicators event={event} />}
+      leadingActions={<EventCardIndicators event={event} />}
+      controlsDisabled={local?.phase === "saving"}
       actions={
         local?.phase === "verifying" && onVerify ? (
           <Button
@@ -74,7 +75,7 @@ export function EventCard({
         title={event.name}
         unread={Boolean(count)}
         titleIcon={<CalendarDays size={16} color={muted} accessible={false} />}
-        titleAccessory={local ? <ClientRecordBadge phase={local.phase} /> : undefined}
+        titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
       >
         <View
           style={{

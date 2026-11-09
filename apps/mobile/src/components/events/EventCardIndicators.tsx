@@ -1,4 +1,4 @@
-import type { PlannedEventResponse } from "@board-game-organizer/schemas";
+import type { ClientEventRecord } from "@board-game-organizer/shared";
 import {
   eventParticipationFlags,
   eventPendingAction,
@@ -22,13 +22,13 @@ import { useT } from "@/lib/i18n";
 import { EventSchedulePopover } from "./EventSchedulePopover";
 
 /** The complete own-registration projection can show accepted and pending participation together. */
-export function EventCardIndicators({ event }: { event: PlannedEventResponse }) {
+export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
   const t = useT();
   const { i18n } = useLingui();
   const { height } = useWindowDimensions();
   const muted = useThemeColor("muted");
   const participation = eventParticipationFlags(event.myRegistrations);
-  const own = !event.readOnly;
+  const own = !event.readOnly && !event.optimistic;
   const planning = event.status === "PLANNING",
     confirmed = event.status === "CONFIRMED";
   const status = planning ? t("Planning") : confirmed ? t("Confirmed") : t("Terminated");

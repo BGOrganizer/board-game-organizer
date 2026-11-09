@@ -61,6 +61,53 @@ it("lets cover-card controls use the complete width on one scrollable row, outsi
   );
   expect(q.container.querySelector(".overflow-x-auto")).toBeNull();
 });
+it.each(["cover", "thumbnail"] as const)(
+  "locks visible %s controls only when explicitly saving, without removing the toolbar",
+  (artworkLayout) => {
+    const onAction = vi.fn();
+    const card = (saving: boolean) => (
+      <LinkedListCard
+        href="/groups/id"
+        label="Group"
+        disabled
+        controlsDisabled={saving}
+        artworkLayout={artworkLayout}
+        artwork={<span>Artwork</span>}
+        leadingActions={
+          <button type="button" onClick={onAction}>
+            Info
+          </button>
+        }
+        actions={
+          <button type="button" onClick={onAction}>
+            Check saved changes
+          </button>
+        }
+      >
+        Unchanged title and facts
+      </LinkedListCard>
+    );
+    const view = renderWithI18n(card(true));
+    const info = screen.getByText("Info");
+    const toolbar = info.closest("[inert]");
+    expect(toolbar).not.toBeNull();
+    const classes = toolbar?.className;
+    expect(info.isConnected).toBe(true);
+    expect(screen.getByText("Unchanged title and facts")).toBeTruthy();
+    fireEvent.click(info);
+    fireEvent.click(screen.getByText("Check saved changes"));
+    expect(onAction).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "Group" }).tabIndex).toBe(-1);
+    view.rerender(card(false));
+    expect(toolbar?.isConnected).toBe(true);
+    expect(toolbar?.className).toBe(classes);
+    expect(toolbar?.hasAttribute("inert")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Check saved changes" }));
+    expect(onAction).toHaveBeenCalledOnce();
+    // Navigation may stay disabled while the explicit uncertain-write check remains available.
+    expect(screen.getByRole("link", { name: "Group" }).getAttribute("aria-disabled")).toBe("true");
+  },
+);
 it("shares match/group card padding, keeps actions outside link and blocks optimistic navigation", () => {
   const onAction = vi.fn();
   renderWithI18n(

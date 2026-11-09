@@ -58,6 +58,12 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/lib/useOptionalHeaderHeight.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/lib/useFloatingActionLayout.ts": {
           lines: 100,
           functions: 100,

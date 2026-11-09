@@ -42,6 +42,76 @@ function component(file: string, name: string, modules: Record<string, unknown>)
   return output[name];
 }
 it.each([
+  ["saving", "Saving", "Save"],
+  ["verifying", "Verifying", "Clock3"],
+  ["failed", "Not saved", "CircleAlert"],
+] as const)("keeps native %s badges icon-only in a persistent title slot", (phase, label, icon) => {
+  const render = component("common/ui/ClientRecordBadge", "ClientRecordBadge", {
+    "heroui-native/chip": { Chip: { Label: "Chip.Label" } },
+    "lucide-react-native": { Save: "Save", Clock3: "Clock3", CircleAlert: "CircleAlert" },
+    "react-native": { View: "View" },
+    "@/lib/i18n": { useT: () => (id: string) => id },
+  });
+  const empty = render({ iconOnly: true });
+  const saving = render({ phase, iconOnly: true });
+  expect(empty.props.children).toBeNull();
+  expect(saving.props.style).toEqual(empty.props.style);
+  expect(saving.props.style).toMatchObject({ width: 24, height: 24, alignSelf: "flex-start" });
+  const badge = saving.props.children as Element;
+  expect(badge.props.accessible).toBe(true);
+  expect(badge.props.accessibilityLabel).toBe(label);
+  expect(badge.props.children[0].type).toBe(icon);
+  expect(badge.props.children[1]).toBeNull();
+  const labeled = render({ phase, iconSize: 20 });
+  expect(labeled.props.children[1].props.children).toBe(label);
+  expect(labeled.props.children[0].props.size).toBe(20);
+  expect(labeled.props.style).toBeUndefined();
+});
+it.each(["cover", "thumbnail"])(
+  "retains native %s controls and geometry while suppressing saving interaction/accessibility",
+  (artworkLayout) => {
+    const render = component("common/ui/LinkedListCard", "LinkedListCard", {
+      "heroui-native/card": { Card: { Body: "Card.Body" } },
+      "react-native": {
+        ScrollView: "ScrollView",
+        Pressable: "Pressable",
+        View: "View",
+        StyleSheet: { absoluteFill: { position: "absolute", inset: 0 } },
+      },
+      "@/lib/i18n": { useT: () => (id: string) => id },
+      "./ListCard": { ListCard: "ListCard" },
+    });
+    const props = {
+      label: "Record",
+      onPress: vi.fn(),
+      artwork: "Artwork",
+      children: "Facts",
+      leadingActions: "Info",
+      actions: "Check",
+      artworkLayout,
+      disabled: true,
+    };
+    const footer = (tree: Element) => {
+      const body = tree.props.children[1] as Element;
+      return artworkLayout === "cover"
+        ? body.props.children[1]
+        : body.props.children[0].props.children[1];
+    };
+    const pending = render({ ...props, controlsDisabled: true });
+    const settled = render(props);
+    const blocked = footer(pending),
+      available = footer(settled);
+    expect(blocked.props.children.props.children).toEqual(["Info", "Check"]);
+    expect(blocked.props.style).toEqual(available.props.style);
+    expect(blocked.props.pointerEvents).toBe("none");
+    expect(blocked.props.accessibilityElementsHidden).toBe(true);
+    expect(blocked.props.importantForAccessibility).toBe("no-hide-descendants");
+    expect(available.props.pointerEvents).not.toBe("none");
+    expect(available.props.accessibilityElementsHidden).toBe(false);
+    expect(pending.props.children[0].props.disabled).toBe(true);
+  },
+);
+it.each([
   [320, 640, 288, 320],
   [800, 1200, 360, 320],
   [240, 400, 208, 200],
@@ -425,6 +495,11 @@ it("keeps native Event admin/moderation, accepted, pending and demonstration ind
   });
   const readOnly = render({ event: { ...event, readOnly: true } });
   expect(readOnly.props.children.filter((node: Element) => node?.type === "Role")).toHaveLength(0);
+  const saving = render({ event: { ...event, optimistic: { draftId: "draft", phase: "saving" } } });
+  expect(saving.props.children.filter((node: Element) => node?.type === "Role")).toHaveLength(0);
+  expect(saving.props.children.some((node: Element) => node?.props?.label === "Planning")).toBe(
+    true,
+  );
 });
 it.each(["admin", "moderator", "accepted", "invited", "requested", "none"] as const)(
   "retains native Group %s role and public/private status as separate compact controls",
@@ -482,6 +557,12 @@ it.each(["admin", "moderator", "accepted", "invited", "requested", "none"] as co
       label: "Awaiting review",
       tone: "warning",
     });
+    const saving = render({
+      group: { ...group, type: "PUBLIC", optimistic: { draftId: "draft", phase: "saving" } },
+    });
+    expect(saving.props.children[0]).toBeNull();
+    expect(saving.props.children[1].props.label).toBe("Public");
+    expect(saving.props.children[2]).toBeNull();
     const rejected = render({
       group: {
         ...group,

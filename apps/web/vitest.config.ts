@@ -124,12 +124,13 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/common/ui/{NotificationUnreadDot,ArtworkStatusPopover}.tsx": {
-          lines: 100,
-          functions: 100,
-          branches: 100,
-          statements: 100,
-        },
+        "src/components/common/ui/{NotificationUnreadDot,ArtworkStatusPopover,ClientRecordBadge}.tsx":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "../../packages/shared/src/notifications/hooks/useNotificationItemDwell.ts": {
           lines: 100,
           functions: 100,

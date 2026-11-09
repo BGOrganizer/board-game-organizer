@@ -1,6 +1,6 @@
 "use client";
 
-import type { GroupRecordResponse } from "@board-game-organizer/schemas";
+import type { ClientGroupRecord } from "@board-game-organizer/shared";
 import { formatLocationAddress, groupPendingAction } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -16,11 +16,12 @@ import {
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 
-export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
+export function GroupCardIndicators({ group }: { group: ClientGroupRecord }) {
   const { t, i18n } = useLingui();
   const publicGroup = group.type === "PUBLIC";
-  const indicator =
-    group.role === "admin"
+  const indicator = group.optimistic
+    ? null
+    : group.role === "admin"
       ? "admin"
       : group.role === "moderator"
         ? "manager"
@@ -96,7 +97,7 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
           ) : null}
         </div>
       </HelpPopover>
-      {publicGroup ? (
+      {publicGroup && !group.optimistic ? (
         <HelpPopover
           size="compact"
           label={review}

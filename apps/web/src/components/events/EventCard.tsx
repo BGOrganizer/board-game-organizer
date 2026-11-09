@@ -39,7 +39,8 @@ export function EventCard({
       artwork={
         <AnimatedDicebearArtwork seed={event.id} variant="constellation" presentation="cover" />
       }
-      leadingActions={local ? undefined : <EventCardIndicators event={event} />}
+      leadingActions={<EventCardIndicators event={event} />}
+      controlsDisabled={local?.phase === "saving"}
       disabled={Boolean(local && local.phase !== "failed")}
       label={`${status || t`Open event`}: ${event.name}`}
       actions={
@@ -61,7 +62,7 @@ export function EventCard({
         title={event.name}
         unread={Boolean(count)}
         titleIcon={<CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />}
-        titleAccessory={local ? <ClientRecordBadge phase={local.phase} /> : undefined}
+        titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
       >
         <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
           {event.groupId ? (

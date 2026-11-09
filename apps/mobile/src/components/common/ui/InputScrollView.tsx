@@ -1,5 +1,4 @@
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { useHeaderHeight } from "expo-router/react-navigation";
 import { type Ref, useImperativeHandle, useRef } from "react";
 import {
   KeyboardAvoidingView,
@@ -11,6 +10,7 @@ import {
 } from "react-native";
 import { InputFieldContext, InputScrollContext } from "@/lib/inputScrollContext";
 import { useInputScroll } from "@/lib/useInputScroll";
+import { useOptionalHeaderHeight } from "@/lib/useOptionalHeaderHeight";
 
 export function InputScrollView({
   ref,
@@ -22,7 +22,7 @@ export function InputScrollView({
   const list = useRef<ScrollView>(null);
   useImperativeHandle(ref, () => list.current!, []);
   const scroll = useInputScroll(() => list.current);
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useOptionalHeaderHeight();
   const Component = (scroll.inSheet ? BottomSheetScrollView : ScrollView) as typeof ScrollView;
   const minHeight = StyleSheet.flatten(contentContainerStyle)?.minHeight;
   return (

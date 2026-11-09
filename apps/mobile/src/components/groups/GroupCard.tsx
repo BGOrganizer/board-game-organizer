@@ -40,7 +40,8 @@ export function GroupCard({
       notificationCount={count}
       artworkLayout="cover"
       artwork={<GroupArtwork group={group} status="none" presentation="cover" />}
-      leadingActions={local ? undefined : <GroupCardIndicators group={group} />}
+      leadingActions={<GroupCardIndicators group={group} />}
+      controlsDisabled={local?.phase === "saving"}
       disabled={Boolean(local && local.phase !== "failed")}
       onPress={() =>
         local
@@ -66,7 +67,7 @@ export function GroupCard({
         title={group.name}
         titleIcon={<UsersRound size={16} color={muted} accessible={false} />}
         unread={Boolean(count)}
-        titleAccessory={local ? <ClientRecordBadge phase={local.phase} /> : undefined}
+        titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
       >
         <View
           style={{

@@ -1,6 +1,6 @@
 "use client";
 
-import type { PlannedEventResponse } from "@board-game-organizer/schemas";
+import type { ClientEventRecord } from "@board-game-organizer/shared";
 import {
   eventParticipationFlags,
   eventPendingAction,
@@ -13,10 +13,10 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { EventSchedulePopover } from "./EventSchedulePopover";
 
 /** Current management, consent and duty are independent facts, never a priority-selected role. */
-export function EventCardIndicators({ event }: { event: PlannedEventResponse }) {
+export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
   const { t, i18n } = useLingui();
   const participation = eventParticipationFlags(event.myRegistrations);
-  const own = !event.readOnly;
+  const own = !event.readOnly && !event.optimistic;
   const planning = event.status === "PLANNING",
     confirmed = event.status === "CONFIRMED";
   const status = planning ? t`Planning` : confirmed ? t`Confirmed` : t`Terminated`;

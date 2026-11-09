@@ -1,5 +1,4 @@
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import { useHeaderHeight } from "expo-router/react-navigation";
 import { type Ref, useImperativeHandle, useRef } from "react";
 import {
   FlatList,
@@ -11,6 +10,7 @@ import {
 } from "react-native";
 import { InputFieldContext, InputScrollContext } from "@/lib/inputScrollContext";
 import { useInputScroll } from "@/lib/useInputScroll";
+import { useOptionalHeaderHeight } from "@/lib/useOptionalHeaderHeight";
 
 export function InputFlatList<T>({
   ref,
@@ -29,7 +29,7 @@ export function InputFlatList<T>({
       list.current?.scrollToOffset({ offset: y, animated });
     },
   }));
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useOptionalHeaderHeight();
   const Component = (scroll.inSheet ? BottomSheetFlatList : FlatList) as typeof FlatList<T>;
   const minHeight = StyleSheet.flatten(contentContainerStyle)?.minHeight;
   return (

@@ -166,6 +166,29 @@ function text(value: unknown): string {
     return text((value as Node).props.children);
   return value === null || value === undefined || typeof value === "boolean" ? "" : String(value);
 }
+it.each(["group", "event"])(
+  "retains native %s facts/indicators and locks only saving controls",
+  (kind) => {
+    const file = kind === "group" ? "groups/GroupCard" : "events/EventCard";
+    const name = kind === "group" ? "GroupCard" : "EventCard";
+    const record = kind === "group" ? groupRecord : plannedEvent;
+    const make = (phase?: "saving" | "verifying" | "failed") =>
+      evaluate(file, name, "en", {
+        [kind]: { ...record, optimistic: phase ? { draftId: "draft", phase } : undefined },
+      }) as Node;
+    const facts = text(make());
+    for (const phase of [undefined, "saving", "verifying", "failed"] as const) {
+      const tree = make(phase);
+      expect(text(tree)).toBe(facts);
+      expect(tree.props.leadingActions).toBeTruthy();
+      expect(tree.props.controlsDisabled).toBe(phase === "saving");
+      expect(tree.props.disabled).toBe(Boolean(phase && phase !== "failed"));
+      const badge = nodes(tree).find((node) => node.type === "ClientRecordBadge");
+      expect(badge?.props.iconOnly).toBe(true);
+      expect(badge?.props.phase).toBe(phase);
+    }
+  },
+);
 it.each(["en", "it"] as const)(
   "formats native Event and personal Table metadata consistently in %s",
   (locale) => {

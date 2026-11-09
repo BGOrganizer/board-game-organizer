@@ -17,7 +17,7 @@ import {
 import Constants from "expo-constants";
 import * as Location from "expo-location";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useHeaderHeight, usePreventRemove } from "expo-router/react-navigation";
+import { usePreventRemove } from "expo-router/react-navigation";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
@@ -50,6 +50,7 @@ import { useT } from "@/lib/i18n";
 import { locationMapPoint } from "@/lib/locations/map-location";
 import { requestUserPosition } from "@/lib/locations/user-location";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { useOptionalHeaderHeight } from "@/lib/useOptionalHeaderHeight";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 import { LocationFavoriteSelect } from "./LocationFavoriteSelect";
 
@@ -76,7 +77,7 @@ export default function LocationPicker({
   // Inline pickers share the wizard route: native Back must close the picker, not discard the draft.
   usePreventRemove(Boolean(onClose), () => onClose?.());
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useOptionalHeaderHeight();
   const resultsList = useRef<FlatList<Result>>(null);
   const { getToken, userId } = useSessionAuth();
   const feedback = useMutationFeedback();
