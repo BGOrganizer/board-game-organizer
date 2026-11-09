@@ -1345,19 +1345,34 @@ test("unified table scores retain native focus handlers and keyboard-relative po
     new URL("../../apps/mobile/src/components/events/TableScoreEditor.tsx", import.meta.url),
     "utf8",
   );
-  assert(editor.includes("useBottomSheetAwareHandlers"));
+  const input = readFileSync(
+    new URL("../../apps/mobile/src/components/common/ui/Input.tsx", import.meta.url),
+    "utf8",
+  );
+  const focus = readFileSync(
+    new URL("../../apps/mobile/src/lib/useInputFocus.ts", import.meta.url),
+    "utf8",
+  );
+  assert(editor.includes('import { Input } from "@/components/common/ui/Input"'));
+  assert(input.includes("useInputFocus({ ref, onFocus, onBlur, isInvalid: props.isInvalid })"));
+  assert(input.includes("<HeroInput {...props} {...focus} />"));
+  assert(focus.includes("useBottomSheetAwareHandlers"));
+  assert(focus.includes("sheet.onFocus(event)"));
+  assert(focus.includes("sheet.onBlur(event)"));
+  assert(focus.includes("onFocus?.(event)"));
+  assert(focus.includes("onBlur?.(event)"));
   assert(editor.includes('keyboardBehavior="extend"'));
   assert(editor.includes('snapPoints={["80%"]}'));
   assert(editor.includes('keyboardBlurBehavior="restore"'));
   assert(editor.includes('android_keyboardInputMode="adjustResize"'));
   assert(editor.includes("useBottomSheet"));
-  assert(editor.includes("onFocus(event)"));
+  assert(editor.includes("onFocus={() =>"));
   assert(editor.includes('snapToPosition("80%")'));
   assert(editor.includes("topInset={insets.top}"));
-  assert(editor.includes("onBlur={onBlur}"));
   assert(editor.includes("ReduceMotion.System"));
   assert(!editor.includes("KeyboardAvoidingView"));
   assert(!editor.includes("Keyboard.addListener"));
+  assert(!focus.includes("Keyboard.addListener"));
 });
 
 test("native confirmation titles match literal question marks, not background action buttons", () => {

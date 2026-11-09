@@ -1,4 +1,5 @@
-import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import MobileNumberPage from "../page";
@@ -17,6 +18,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/nextjs", () => ({ useUser: () => mocks.clerk }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: mocks.replace }) }));
+// jsdom cannot measure a virtual viewport. Keep the real Select and complete country data;
+// actual windowing/scroll geometry belongs to browser acceptance, not this form unit test.
+vi.mock("@heroui/react/rac", async (original) => ({
+  ...(await original<typeof import("@heroui/react/rac")>()),
+  Virtualizer: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 
 describe("MobileNumberPage", () => {
   beforeEach(() => {
@@ -136,7 +143,12 @@ describe("MobileNumberPage", () => {
     renderWithI18n(<MobileNumberPage />);
     const prefix = screen.getByRole("button", { name: /Country calling code/ });
     fireEvent.click(prefix);
-    fireEvent.click(screen.getByRole("option", { name: /Germany/ }));
+    const germany = within(screen.getByRole("listbox"))
+      .getByText("Germany")
+      .closest('[role="option"]');
+    if (!germany) throw new Error("Germany must be a selectable country option");
+    expect(germany.textContent).toContain("+49");
+    fireEvent.click(germany);
     expect(prefix.textContent).toContain("+49");
   });
 
