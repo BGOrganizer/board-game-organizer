@@ -1,10 +1,25 @@
 import type { EventProposalPayload, EventProposalResponse } from "@board-game-organizer/schemas";
-export function eventProposalAuthors(
-  row: Pick<EventProposalResponse, "authorName" | "gameSuggestions">,
-) {
-  return [
-    ...new Set(row.gameSuggestions?.map((member) => member.authorName) ?? [row.authorName]),
-  ].join(", ");
+import { formatUsername } from "../common/userIdentity";
+
+type ProposalAuthors = Pick<
+  EventProposalResponse,
+  "authorName" | "authorUsername" | "gameSuggestions" | "suggestions"
+> & { userId?: string };
+export function eventProposalAuthorRows(row: ProposalAuthors) {
+  const source = row.suggestions ?? row.gameSuggestions;
+  const authors = source?.length ? source : [row];
+  const unique = new Map<string, { id: string; label: string }>();
+  for (const author of authors) {
+    const label = formatUsername(author.authorUsername, author.authorName);
+    const id = author.userId ?? label;
+    if (!unique.has(id)) unique.set(id, { id, label });
+  }
+  return [...unique.values()];
+}
+export function eventProposalAuthors(row: ProposalAuthors) {
+  return eventProposalAuthorRows(row)
+    .map((author) => author.label)
+    .join(", ");
 }
 /** Proposed clocks are local wall times, not instants in a venue that has not yet been selected. */
 export function eventProposalLabel(

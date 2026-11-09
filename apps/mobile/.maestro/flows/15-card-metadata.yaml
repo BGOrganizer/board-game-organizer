@@ -57,12 +57,25 @@ tags: [manual, cards]
     text: ${output.cardEventState}
     below:
       text: ${output.cardGroupParent}
+- assertVisible: ${output.cardPlayers}
+- assertNotVisible: ${output.cardDate}
+- takeScreenshot: card-event-status-metadata
+- back
+- scrollUntilVisible:
+    element: ${output.cardEventDatesPopover}
+    direction: LEFT
+    timeout: 20000
+- tapOn: ${output.cardEventDatesPopover}
 - assertVisible: ${output.cardDate}
 - assertVisible: ${output.cardTime}
-- assertVisible: ${output.cardVenue}
-- assertVisible: ${output.cardDateCount}
-- assertVisible: ${output.cardLocationCount}
-- takeScreenshot: card-event-status-metadata
+- back
+- scrollUntilVisible:
+    element: ${output.cardEventLocationsPopover}
+    direction: LEFT
+    timeout: 20000
+- tapOn: ${output.cardEventLocationsPopover}
+- assertVisible: ${output.cardAddress}
+- assertNotVisible: ${output.cardZone}
 - back
 - tapOn: ${output.cardEvent}
 - extendedWaitUntil:

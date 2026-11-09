@@ -153,7 +153,7 @@ it("commits only known records and keeps newer private decisions", () => {
   );
   expect((commitProposalReceipt(page([]), saved) as ReturnType<typeof page>).items).toEqual([]);
 });
-it("inserts acknowledged creations into matching first pages only, preserving source boundaries and order", () => {
+it("inserts acknowledged creations into own first pages only, never fabricating grouped review membership", () => {
   const key = eventProposalKeys.page(owner, scope),
     saved = proposal("p9");
   expect(commitProposalCreation(null, key, saved, "actor")).toBeNull();
@@ -172,19 +172,27 @@ it("inserts acknowledged creations into matching first pages only, preserving so
     (commitProposalCreation(page([], "mine"), key, saved, "actor") as ReturnType<typeof page>)
       .items,
   ).toEqual([saved]);
+  expect(commitProposalCreation(page(), key, { ...proposal(), version: 2 }, "actor")).toEqual(
+    page(),
+  );
   expect(
     (
-      commitProposalCreation(page(), key, { ...proposal(), version: 2 }, "actor") as ReturnType<
-        typeof page
-      >
+      commitProposalCreation(
+        page([proposal()], "mine"),
+        key,
+        { ...proposal(), version: 2 },
+        "actor",
+      ) as ReturnType<typeof page>
     ).items[0].version,
   ).toBe(2);
   const rows = Array.from({ length: 5 }, (_, i) => proposal(`p${i}`));
-  const result = commitProposalCreation(page(rows), key, saved, "actor") as ReturnType<typeof page>;
+  const result = commitProposalCreation(page(rows, "mine"), key, saved, "actor") as ReturnType<
+    typeof page
+  >;
   expect(result.items.map((r) => r.id)).toEqual(["p9", "p4", "p3", "p2", "p1"]);
   expect(result.nextCursor).toBe(`${saved.createdAt}|p1`);
   const descending = commitProposalCreation(
-    page([...rows].reverse()),
+    page([...rows].reverse(), "mine"),
     key,
     saved,
     "actor",
@@ -193,14 +201,14 @@ it("inserts acknowledged creations into matching first pages only, preserving so
   const newest = { ...saved, createdAt: "2030-01-02T00:00:00.000Z" },
     older = { ...saved, id: "old", createdAt: "2029-01-01T00:00:00.000Z" };
   expect(
-    (commitProposalCreation(page([newest]), key, older) as ReturnType<typeof page>).items.map(
-      (r) => r.id,
-    ),
+    (
+      commitProposalCreation(page([newest], "mine"), key, older, "actor") as ReturnType<typeof page>
+    ).items.map((r) => r.id),
   ).toEqual(["p9", "old"]);
   expect(
-    (commitProposalCreation(page([older]), key, newest) as ReturnType<typeof page>).items.map(
-      (r) => r.id,
-    ),
+    (
+      commitProposalCreation(page([older], "mine"), key, newest, "actor") as ReturnType<typeof page>
+    ).items.map((r) => r.id),
   ).toEqual(["p9", "old"]);
   const game = { ...saved, payload: { kind: "game" as const, tableId: "table", gameId: 1 } };
   expect(
@@ -323,6 +331,62 @@ it("purges only role-owned participant collection pickers and cancels their revi
   for (const key of retained) expect(c.getQueryState(key)).toBeDefined();
 });
 
+it("purges role-owned participant reviews, including cold or inactive queries, without erasing ordinary rosters", () => {
+  const c = client();
+  const key = (
+    id: string,
+    mode = "review",
+    groupId = "group",
+    api = owner.apiUrl,
+    user = owner.userId,
+    version = "roles-v2",
+  ) => ["events", api, user, "participants", id, version, mode, groupId];
+  const first = key("event"),
+    second = key("second"),
+    retained = [
+      key("event", "member"),
+      key("event", "review", "group", "foreign"),
+      key("event", "review", "group", owner.apiUrl, "other"),
+      key("event", "review", "group", owner.apiUrl, owner.userId, "old"),
+      key("other", "review", "other"),
+    ];
+  for (const k of [first, second, ...retained])
+    c.setQueryData(k, {
+      pages: [{ items: [{ userId: "pending", pendingInvitation: true }], groupId: "group" }],
+      pageParams: [""],
+    });
+  c.setQueryData(["events", owner.apiUrl, owner.userId, "detail", "event"], { id: "event" });
+  revokeProposalReview(c, owner, { eventId: "event" }, first);
+  expect(c.getQueryData(first)).toBeUndefined();
+  expect(c.getQueryState(first)?.error).toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+  expect(
+    c.getQueryState(["events", owner.apiUrl, owner.userId, "detail", "event"])?.isInvalidated,
+  ).toBe(true);
+  expect(c.getQueryData(second)).toBeDefined();
+  const cold = key("cold");
+  c.getQueryCache().build(c, { queryKey: cold });
+  revokeProposalReview(c, owner, { groupId: "group" });
+  for (const k of [first, second, cold]) expect(c.getQueryState(k)).toBeUndefined();
+  for (const k of retained) expect(c.getQueryData(k)).toBeDefined();
+});
+it("reconciles generic grouped date/location suggestion receipts without overwriting newer members", () => {
+  const base = proposal();
+  const suggestion = {
+    id: "member",
+    userId: "user",
+    authorName: "User",
+    status: "PENDING" as const,
+    version: 2,
+  };
+  const input = page([{ ...base, suggestions: [suggestion] }]);
+  const receipt = { ...proposal("member"), version: 3, status: "ACCEPTED" as const };
+  const output = commitProposalReceipt(input, receipt) as ReturnType<typeof page>;
+  expect(output.items[0].suggestions?.[0]).toMatchObject({ version: 3, status: "ACCEPTED" });
+  expect(
+    (commitProposalReceipt(output, { ...receipt, version: 2 }) as ReturnType<typeof page>).items[0]
+      .suggestions?.[0].version,
+  ).toBe(3);
+});
 it("keeps denied observers terminal, blocks late restore, and distinguishes management from membership loss", () => {
   const c = client(),
     key = eventProposalKeys.page(owner, scope),

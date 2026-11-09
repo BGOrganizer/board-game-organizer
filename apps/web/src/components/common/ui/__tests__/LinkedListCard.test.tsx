@@ -42,7 +42,10 @@ it("lets cover-card controls use the complete width on one scrollable row, outsi
   expect(row?.className).toContain("[&>*]:shrink-0");
   expect(toolbar?.className).toContain("overflow-x-auto");
   expect(body?.className).toContain("flex-col");
-  expect(toolbar?.previousElementSibling?.className).toContain("ml-[80px]");
+  expect(toolbar?.previousElementSibling?.className).toContain("flex");
+  const imageFrame = toolbar?.previousElementSibling?.querySelector(".size-24");
+  expect(imageFrame?.className).toContain("relative");
+  expect(imageFrame?.className).not.toContain("absolute");
   expect(toolbar?.previousElementSibling?.contains(toolbar ?? null)).toBe(false);
   expect(button.closest("a")).toBeNull();
   expect(screen.getByRole("button", { name: "Action" }).parentElement).toBe(row);

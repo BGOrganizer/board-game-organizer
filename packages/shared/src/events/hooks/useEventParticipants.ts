@@ -7,28 +7,55 @@ import {
   communityAccessDenied,
   communityRequest,
 } from "../../community/communityApi";
+import { reconcileProposalAccessError } from "../eventProposalCache";
 import { eventRecordKeys } from "./useEventRecords";
 
-export function eventParticipantsQuery(o: CommunityApiOptions, id: string) {
+type ParticipantView = { mode: "member" } | { mode: "review"; groupId: string | null };
+export function eventParticipantsQuery(
+  o: CommunityApiOptions,
+  id: string,
+  view: ParticipantView = { mode: "member" },
+) {
   return infiniteQueryOptions({
-    queryKey: [...eventRecordKeys.root(o), "participants", id] as const,
+    queryKey: [
+      ...eventRecordKeys.root(o),
+      "participants",
+      id,
+      "roles-v2",
+      view.mode,
+      view.mode === "review" ? view.groupId : null,
+    ] as const,
     initialPageParam: "",
-    queryFn: ({ pageParam, signal }) =>
-      communityRequest<EventParticipantsResponse>(
-        o,
-        `events/${encodeURIComponent(id)}/participants?${new URLSearchParams({ limit: "20", ...(pageParam ? { cursor: pageParam } : {}) })}`,
-        "GET",
-        undefined,
-        signal,
-      ),
+    queryFn: async ({ pageParam, signal, client, queryKey }) => {
+      try {
+        return await communityRequest<EventParticipantsResponse>(
+          o,
+          `events/${encodeURIComponent(id)}/participants?${new URLSearchParams({ limit: "20", view: view.mode, ...(pageParam ? { cursor: pageParam } : {}) })}`,
+          "GET",
+          undefined,
+          signal,
+        );
+      } catch (error) {
+        if (view.mode === "review")
+          reconcileProposalAccessError(
+            client,
+            o,
+            { eventId: id, groupId: view.groupId ?? "" },
+            error,
+            queryKey,
+          );
+        throw error;
+      }
+    },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: Boolean(o.apiUrl && o.userId && id && o.enabled !== false),
+    retry: (count, error) => !communityAccessDenied(error) && count < 1,
     staleTime: 30_000,
     gcTime: 30 * 60_000,
   });
 }
-export function useEventParticipants(o: CommunityApiOptions, id: string) {
-  const options = eventParticipantsQuery(o, id);
+export function useEventParticipants(o: CommunityApiOptions, id: string, view?: ParticipantView) {
+  const options = eventParticipantsQuery(o, id, view);
   const q = useInfiniteQuery(options);
   const scope = hashKey(options.queryKey),
     current = useRef<string | null>(scope),

@@ -50,10 +50,8 @@ it("shows admin, demonstrator, pending and queue icons together, with smaller fr
   expect(document.querySelector("img")?.parentElement?.className).not.toContain("bg-accent/10");
   expect(screen.queryByText("8/4 participants")).toBeNull();
   const labels = [
-    "Administrator",
     "Demonstrator",
-    "Participation requested",
-    "Waiting list",
+    "Player on the waiting list",
     "Planning",
     "Rating enabled",
     "Dates and times: First table",
@@ -69,12 +67,16 @@ it("shows admin, demonstrator, pending and queue icons together, with smaller fr
     expect(button.querySelector(".size-7.bg-default")).not.toBeNull();
     expect(button.querySelector("svg.size-4")).not.toBeNull();
   }
-  const admin = screen.getByRole("button", { name: "Administrator" });
-  expect(admin.querySelector("svg.lucide-crown")).not.toBeNull();
-  expect(admin.className).toContain("text-warning-soft-foreground");
-  expect(admin.className).not.toContain("text-accent");
-  fireEvent.click(screen.getByRole("button", { name: "Administrator" }));
-  expect(await screen.findByText("You administer this item.")).not.toBeNull();
+  for (const name of [
+    "Admin",
+    "Administrator",
+    "Moderator",
+    "Management",
+    "Player with pending invitation",
+  ])
+    expect(screen.queryByRole("button", { name })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Demonstrator" }));
+  expect(await screen.findByRole("dialog")).not.toBeNull();
   await close();
   expect(nav).not.toHaveBeenCalled();
   expect(fetcher).not.toHaveBeenCalled();
@@ -94,18 +96,8 @@ it.each(["moderator", undefined] as const)(
         }}
       />,
     );
-    expect(
-      screen.getByRole("button", { name: managementRole ? "Group moderator" : "Management" }),
-    ).not.toBeNull();
-    expect(
-      screen.getByRole("button", { name: managementRole ? "Group moderator" : "Management" })
-        .className,
-    ).toContain("text-accent-soft-foreground");
-    expect(
-      screen
-        .getByRole("button", { name: managementRole ? "Group moderator" : "Management" })
-        .querySelector("svg.lucide-shield-check"),
-    ).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Moderator" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Management" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Administrator" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
     expect(screen.getByLabelText("Loading…")).not.toBeNull();

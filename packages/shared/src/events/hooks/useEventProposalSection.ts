@@ -49,8 +49,9 @@ export function useEventProposalSection(
         !q.items.some((row) => row.clientRequestId === intent.variables.clientRequestId),
     );
   const deciding = useRef(false);
+  const decisionGeneration = useRef(0);
   const sending = useRef<string | null>(null);
-  const ownerKey = JSON.stringify([o.apiUrl, o.userId, event.id, event.version, kind]);
+  const ownerKey = JSON.stringify([o.apiUrl, o.userId, event.id, event.version, kind, table?.id]);
   const liveOwner = useRef(ownerKey);
   liveOwner.current = ownerKey;
   useEffect(() => {
@@ -66,6 +67,9 @@ export function useEventProposalSection(
     apiUrl: string;
     userId: string | null | undefined;
     eventId: string;
+    kind: EventProposalCategory;
+    tableId?: string;
+    generation: number;
   } | null>(null);
   useEffect(() => {
     if (
@@ -74,19 +78,24 @@ export function useEventProposalSection(
         !manager ||
         capturedDecision.apiUrl !== o.apiUrl ||
         capturedDecision.userId !== o.userId ||
-        capturedDecision.eventId !== event.id)
+        capturedDecision.eventId !== event.id ||
+        capturedDecision.kind !== kind ||
+        capturedDecision.tableId !== table?.id)
     ) {
       setDecision(null);
+      decisionGeneration.current++;
       deciding.current = false;
     }
-  }, [capturedDecision, visible, manager, o.apiUrl, o.userId, event.id]);
+  }, [capturedDecision, visible, manager, o.apiUrl, o.userId, event.id, kind, table?.id]);
   const decision =
     capturedDecision &&
     visible &&
     manager &&
     capturedDecision.apiUrl === o.apiUrl &&
     capturedDecision.userId === o.userId &&
-    capturedDecision.eventId === event.id
+    capturedDecision.eventId === event.id &&
+    capturedDecision.kind === kind &&
+    capturedDecision.tableId === table?.id
       ? capturedDecision
       : null;
   const row = decision ? q.items.find((item) => item.id === decision.row.id) : undefined;
@@ -156,13 +165,14 @@ export function useEventProposalSection(
       );
       return true;
     },
-    open: (row: ClientEventProposal, action: "accept" | "reject") => {
+    open: (row: ClientEventProposal, action: "accept" | "reject" = "accept") => {
       if (
         !disabled &&
+        liveOwner.current === ownerKey &&
+        row.payload.kind === kind &&
+        (row.payload.kind !== "game" || row.payload.tableId === table?.id) &&
         manager &&
         q.hasVerifiedBase &&
-        event.status === "PLANNING" &&
-        row.status === "PENDING" &&
         !row.clientAction &&
         !actions.busy
       ) {
@@ -174,15 +184,30 @@ export function useEventProposalSection(
           eventId: event.id,
           apiUrl: o.apiUrl,
           userId: o.userId,
+          kind,
+          tableId: table?.id,
+          generation: ++decisionGeneration.current,
         });
       }
     },
-    cancel: () => setDecision(null),
-    confirm: () => {
-      if (!validDecision || !decision || deciding.current) return;
+    cancel: () => {
+      decisionGeneration.current++;
       deciding.current = true;
+      setDecision(null);
+    },
+    confirm: (action: "accept" | "reject" = decision?.action ?? "accept") => {
+      if (
+        !validDecision ||
+        !decision ||
+        deciding.current ||
+        liveOwner.current !== ownerKey ||
+        decision.generation !== decisionGeneration.current
+      )
+        return;
+      deciding.current = true;
+      decisionGeneration.current++;
       actions.decide({
-        action: decision.action,
+        action,
         eventVersion: decision.eventVersion,
         proposalId: decision.row.id,
         version: decision.row.version,

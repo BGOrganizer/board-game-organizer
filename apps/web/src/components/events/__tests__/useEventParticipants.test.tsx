@@ -107,7 +107,7 @@ it("fetches further pages with a fresh token and cancellation, retaining a visib
   });
   await waitFor(() => expect(h.result.current.items).toHaveLength(2));
   expect(fetch).toHaveBeenCalledWith(
-    "https://api.test/api/events/event/participants?limit=20&cursor=cursor",
+    "https://api.test/api/events/event/participants?limit=20&view=member&cursor=cursor",
     expect.objectContaining({
       headers: expect.objectContaining({ Authorization: "Bearer fresh" }),
       signal: expect.any(AbortSignal),

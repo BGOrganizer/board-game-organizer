@@ -41,9 +41,8 @@ export function AnimatedDicebearArtwork({
       new DiceBearAvatar(styles[variant], {
         seed,
         size: size + 8,
-        ...(presentation === "cover" ? { backgroundColor: [] } : {}),
       }).toString(),
-    [seed, variant, size, presentation],
+    [seed, variant, size],
   );
   const reducedMotion = useReducedMotion();
   const shift = useSharedValue(0);

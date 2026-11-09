@@ -270,8 +270,12 @@ export class EventRecordsRepository {
       )
       .toArray();
   }
-  /** Deduplicate actual accepted/frozen attendance BEFORE cursor and limit. No pending identities. */
-  participants(event: EventRecord, page: Pick<EventRecordPage, "limit" | "cursor">) {
+  /** Deduplicate authorized attendance, pending invitations and demonstration BEFORE paging. */
+  participants(
+    event: EventRecord,
+    page: Pick<EventRecordPage, "limit" | "cursor">,
+    pendingViewerId?: string,
+  ) {
     return this.tables
       .aggregate<{ userId: string; tableIds: string[] }>(
         [
@@ -282,7 +286,23 @@ export class EventRecordsRepository {
               localField: "id",
               foreignField: "tableId",
               pipeline: [
-                { $match: { eventId: event.id, status: "ACCEPTED" } },
+                {
+                  $match: {
+                    eventId: event.id,
+                    $or: [
+                      { status: "ACCEPTED" },
+                      ...(event.status === "TERMINATED"
+                        ? []
+                        : [
+                            {
+                              status: "PENDING",
+                              kind: "INVITATION",
+                              ...(pendingViewerId ? { userId: pendingViewerId } : {}),
+                            },
+                          ]),
+                    ],
+                  },
+                },
                 { $project: { _id: 0, userId: 1 } },
               ],
               as: "accepted",
@@ -294,6 +314,20 @@ export class EventRecordsRepository {
               users: {
                 $setUnion: [
                   "$accepted.userId",
+                  {
+                    $cond: [
+                      {
+                        $and: [
+                          { $eq: [{ $type: "$demonstratorUserId" }, "string"] },
+                          event.status === "PLANNING"
+                            ? true
+                            : { $ne: [{ $type: "$confirmed" }, "missing"] },
+                        ],
+                      },
+                      ["$demonstratorUserId"],
+                      [],
+                    ],
+                  },
                   event.status === "PLANNING"
                     ? []
                     : { $cond: [{ $isArray: "$confirmed.playerIds" }, "$confirmed.playerIds", []] },
@@ -340,6 +374,12 @@ export class EventRecordsRepository {
       )
       .toArray();
   }
+  choiceProposals(eventId: string, payloadKey: string) {
+    return this.db
+      .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
+      .find({ eventId, payloadKey }, { ...this.opts, projection: { _id: 0 } })
+      .toArray();
+  }
   proposalBatch(eventId: string, reviewBatchId: string) {
     return this.db
       .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
@@ -357,12 +397,25 @@ export class EventRecordsRepository {
       .then((ids) => ids.filter((id): id is number => typeof id === "number"));
   }
   gameProposalPage(eventId: string, tableId: string, page: { limit: number; cursor?: string }) {
+    return this.proposalReviewPage(eventId, "game", { ...page, tableId });
+  }
+  proposalReviewPage(
+    eventId: string,
+    kind: "date" | "location" | "game",
+    page: { limit: number; cursor?: string; tableId?: string },
+  ) {
     const [at, id] = page.cursor?.split("|") ?? [];
     return this.db
       .collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS)
       .aggregate<{ representative: EventProposal; members: EventProposal[] }>(
         [
-          { $match: { eventId, "payload.kind": "game", "payload.tableId": tableId } },
+          {
+            $match: {
+              eventId,
+              "payload.kind": kind,
+              ...(page.tableId ? { "payload.tableId": page.tableId } : {}),
+            },
+          },
           {
             $set: {
               pendingOrder: {
@@ -378,7 +431,7 @@ export class EventRecordsRepository {
           { $unset: ["pendingOrder", "_id"] },
           {
             $group: {
-              _id: "$payload.gameId",
+              _id: kind === "game" ? "$payload.gameId" : "$payloadKey",
               representative: { $first: "$$ROOT" },
               members: { $push: "$$ROOT" },
             },

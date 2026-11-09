@@ -6,11 +6,11 @@ import { GroupDetailsCard } from "../GroupDetailsCard";
 import { GroupIdentityCard } from "../GroupIdentityCard";
 
 it.each([
-  ["admin", "Group admin"],
-  ["moderator", "Group moderator"],
-  ["accepted", "Group member"],
-  ["invited", "Invitation received"],
-  ["requested", "Membership requested"],
+  ["admin", "Admin"],
+  ["moderator", "Moderator"],
+  ["accepted", "Accepted member"],
+  ["invited", "Member with pending invitation"],
+  ["requested", "Member with pending request"],
   ["none", "Private"],
 ] as const)(
   "shows the existing %s role in a background Card without granting capabilities",
@@ -56,7 +56,7 @@ it("retains uploaded logos without cropping and preserves venue/moderation conte
   expect(screen.getByRole("alert").textContent).toContain("Venue needs review");
   fireEvent.click(screen.getByRole("button", { name: "Public" }));
   expect(await screen.findByText("2 Events")).not.toBeNull();
-  expect(
-    await screen.findByText("Name, logo and group type. Group type cannot be changed."),
-  ).not.toBeNull();
+  expect(screen.queryByText("Name, logo and group type. Group type cannot be changed.")).toBeNull();
+  expect(screen.getByText("Public groups accept membership requests.")).toBeTruthy();
+  expect(screen.getByText("2 Events").querySelector("svg.lucide-calendar-days")).not.toBeNull();
 });

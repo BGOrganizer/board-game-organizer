@@ -60,7 +60,7 @@ export function ArtworkStatusPopover({
       ),
     },
     pending: {
-      icon: Clock3,
+      icon: Mail,
       label: t("Pending participation"),
       description: t(
         "Your participation is pending at one or more tables. Open event details to review invitations or requests.",

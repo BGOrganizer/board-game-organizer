@@ -8,8 +8,10 @@ import {
   formatUsername,
   groupPersonActions,
   groupPersonContact,
+  groupUserRoles,
   isGroupManagerRole,
   isGroupModerator,
+  RECORD_USER_ROLES,
   useGroupMemberManagement,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
@@ -42,6 +44,7 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { UserActionsSheet } from "@/components/common/ui/UserActionsSheet";
 import { UserList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -53,7 +56,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
     router = useRouter(),
     insets = useSafeAreaInsets(),
     { i18n } = useLingui();
-  const [foreground, muted, danger, accent, dangerForeground] = useThemeColor([
+  const [foreground, muted, , accent, dangerForeground] = useThemeColor([
     "foreground",
     "muted",
     "danger",
@@ -155,6 +158,8 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
         }
         renderRow={(person) => {
           const allowed = groupPersonActions(group, person);
+          const roles = groupUserRoles(person);
+          const primary = roles[0];
           const badge = person.optimisticInvited
             ? { icon: Clock3, label: t("Sending invitation"), color: "warning" as const }
             : person.isAdmin
@@ -200,17 +205,16 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     ? person.ban.until
                       ? `${t("Exclusion ends")}: ${new Date(person.ban.until).toLocaleString(i18n.locale)}`
                       : t("Permanent exclusion")
-                    : person.isAdmin
-                      ? t("Admin")
-                      : person.membership?.status === "PENDING"
-                        ? t("Awaiting acceptance")
-                        : isGroupModerator(person.membership)
-                          ? t("Moderator")
-                          : person.membership?.status === "ACCEPTED"
-                            ? t("Member")
-                            : undefined
+                    : primary
+                      ? t(RECORD_USER_ROLES[primary].message)
+                      : undefined
               }
-              badge={badge}
+              badge={person.optimisticInvited || person.ban ? badge : undefined}
+              badgeContent={
+                !person.optimisticInvited && !person.ban ? (
+                  <UserRoleBadge roles={roles} />
+                ) : undefined
+              }
               actions={
                 <>
                   {allowed.includes("approve") ? (

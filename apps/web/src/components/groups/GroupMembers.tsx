@@ -9,6 +9,7 @@ import {
   formatUsername,
   groupPersonActions,
   groupPersonContact,
+  groupUserRoles,
   isGroupManagerRole,
   isGroupModerator,
   useGroupMemberManagement,
@@ -33,8 +34,10 @@ import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { UserMenu } from "@/components/contacts/UserMenu";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { GroupMemberActions } from "./GroupMemberActions";
@@ -95,6 +98,8 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
         <GroupedList>
           {(denied ? [] : list.items).map((person) => {
             const allowed = groupPersonActions(group, person);
+            const roles = groupUserRoles(person);
+            const primary = roles[0];
             const badge = person.optimisticInvited
               ? { Icon: Clock3, label: t`Sending invitation`, color: "text-warning" }
               : person.isAdmin
@@ -115,17 +120,11 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                       : null;
             const membershipLabel = person.optimisticInvited
               ? t`Sending invitation`
-              : person.isAdmin
-                ? t`Admin`
-                : person.ban
-                  ? t`Excluded from group`
-                  : person.membership?.status === "PENDING"
-                    ? t`Awaiting acceptance`
-                    : isGroupModerator(person.membership)
-                      ? t`Moderator`
-                      : person.membership?.status === "ACCEPTED"
-                        ? t`Member`
-                        : null;
+              : person.ban
+                ? t`Excluded from group`
+                : primary
+                  ? i18n._(recordUserRoleMessages[primary])
+                  : null;
             return (
               <GroupedRow key={person.userId}>
                 <span className="relative shrink-0">
@@ -133,7 +132,9 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
                     <Avatar.Fallback>{name(person).replace(/^@/, "").charAt(0)}</Avatar.Fallback>
                   </Avatar>
-                  {badge ? (
+                  {!person.optimisticInvited && !person.ban ? (
+                    <UserRoleBadge roles={roles} />
+                  ) : badge ? (
                     <span
                       role="img"
                       aria-label={badge.label}

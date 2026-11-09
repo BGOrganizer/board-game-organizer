@@ -127,10 +127,10 @@ it("optimistically shows the moderator role, then rolls back only a rejected rol
       { name: "Make moderator" },
     ),
   );
-  await screen.findByRole("img", { name: "Group moderator" });
+  await screen.findByRole("button", { name: "Moderator" });
   expect(screen.getByText("Safe member")).toBeTruthy();
   release(Response.json({ error: "GROUP_ADMIN_REQUIRED" }, { status: 403 }));
-  await waitFor(() => expect(screen.queryByRole("img", { name: "Group moderator" })).toBeNull());
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Moderator" })).toBeNull());
   expect(screen.getByText("Safe member")).toBeTruthy();
 });
 it("never confuses moderator edit powers with creator-only Group deletion", async () => {

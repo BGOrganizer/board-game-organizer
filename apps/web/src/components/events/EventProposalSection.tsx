@@ -3,22 +3,21 @@ import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-org
 import {
   clientMutationPhase,
   type EventProposalCategory,
-  eventProposalAuthors,
   eventProposalLabel,
   useEventProposalSection,
 } from "@board-game-organizer/shared";
 import { Button, Input, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarClock, Check, Plus, X } from "lucide-react";
+import { CalendarClock, CircleCheck, CircleX, ClipboardCheck, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventProposalItem } from "./EventProposalItem";
+import { EventProposalReviewDialog } from "./EventProposalReviewDialog";
 export function EventProposalSection({
   event,
   kind,
@@ -118,50 +117,41 @@ export function EventProposalSection({
       <GroupedList>
         {s.q.items.map((row) => {
           const label = eventProposalLabel(row.payload, row.label, i18n.locale);
+          const ReviewIcon =
+            row.status === "PENDING"
+              ? ClipboardCheck
+              : row.status === "ACCEPTED"
+                ? CircleCheck
+                : CircleX;
           return (
             <EventProposalItem
               key={row.id}
               row={row}
-              authorNames={s.manager ? eventProposalAuthors(row) : undefined}
               actions={
-                s.manager && event.status === "PLANNING" && row.status === "PENDING" ? (
-                  <div className="flex gap-1">
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      aria-label={`${t`Accept proposal`}: ${eventProposalAuthors(row)} — ${label}`}
-                      isDisabled={
-                        disabled ||
-                        !s.q.hasVerifiedBase ||
-                        s.actions.busy ||
-                        Boolean(row.clientAction)
-                      }
-                      onPress={() => s.open(row, "accept")}
+                s.manager ? (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
+                    className="min-h-11 min-w-11 p-0"
+                    aria-label={`${row.status === "PENDING" ? t`Review proposal` : t`Proposal details`}: ${label}`}
+                    isDisabled={
+                      disabled ||
+                      !s.q.hasVerifiedBase ||
+                      s.actions.busy ||
+                      Boolean(row.clientAction)
+                    }
+                    onPress={() => s.open(row)}
+                  >
+                    <span
+                      className={`flex size-7 items-center justify-center rounded-lg bg-default ${row.status === "PENDING" ? "text-warning-soft-foreground" : row.status === "ACCEPTED" ? "text-success-soft-foreground" : "text-danger-soft-foreground"}`}
                     >
-                      <Check className="size-5" aria-hidden />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="danger-soft"
-                      aria-label={`${t`Reject proposal`}: ${eventProposalAuthors(row)} — ${label}`}
-                      isDisabled={
-                        disabled ||
-                        !s.q.hasVerifiedBase ||
-                        s.actions.busy ||
-                        Boolean(row.clientAction)
-                      }
-                      onPress={() => s.open(row, "reject")}
-                    >
-                      <X className="size-5" aria-hidden />
-                    </Button>
-                  </div>
+                      <ReviewIcon className="size-4" aria-hidden />
+                    </span>
+                  </Button>
                 ) : null
               }
             >
-              {s.manager && row.payload.kind !== "game" ? (
-                <p className="text-sm text-muted">{row.authorName}</p>
-              ) : null}
               {row.clientAction || row.status !== "PENDING" ? (
                 <p role="status" className="text-sm text-muted">
                   {row.clientAction
@@ -197,25 +187,11 @@ export function EventProposalSection({
         </div>
       ) : null}
       {s.decision ? (
-        <ContactConfirmDialog
-          title={s.decision.action === "accept" ? t`Accept proposal` : t`Reject proposal`}
-          description={
-            s.validDecision
-              ? `${eventProposalAuthors(s.decision.row)}: ${eventProposalLabel(s.decision.row.payload, s.decision.row.label, i18n.locale)}`
-              : t`This proposal changed or the action is unavailable. Close and review current proposals.`
-          }
+        <EventProposalReviewDialog
+          row={s.decision.row}
+          valid={s.validDecision}
           onCancel={s.cancel}
-          actions={
-            s.validDecision
-              ? [
-                  {
-                    label: s.decision.action === "accept" ? t`Accept proposal` : t`Reject proposal`,
-                    variant: s.decision.action === "accept" ? "primary" : "danger",
-                    onPress: s.confirm,
-                  },
-                ]
-              : []
-          }
+          onDecision={s.confirm}
         />
       ) : null}
     </section>
@@ -227,7 +203,7 @@ function DateProposalAction({ submit }: { submit: (wall: string) => boolean }) {
   const [wall, setWall] = useState("");
   return (
     <GroupedRow>
-      <CalendarClock className="size-5 shrink-0 text-muted" aria-hidden />
+      <CalendarClock className="size-4 shrink-0 text-muted" aria-hidden />
       <TextField
         className="min-w-0 flex-1"
         aria-label={t`Date and time`}

@@ -109,7 +109,9 @@ it("keeps external cards navigation-only and preserves explicit versioned consen
   expect(m.respond.mutate).not.toHaveBeenCalled();
   expect(screen.queryByText("Reserved place")).toBeNull();
   expect(screen.queryByText("Invitation received")).toBeNull();
-  const badge = screen.getByRole("button", { name: "Invitation received · Reply required" });
+  const badge = screen.getByRole("button", {
+    name: "Player with pending invitation · Reply required",
+  });
   expect(badge.className).toContain("text-warning");
   expect(badge.parentElement?.className).toContain("flex-nowrap");
   expect(badge.parentElement?.className).not.toContain("absolute");
@@ -191,7 +193,7 @@ it("shows frozen selected games/all joint winners, excluded tables and waiting p
   fireEvent.click(screen.getByRole("button", { name: "Confirmed" }));
   expect(await screen.findByText("Excluded from confirmation")).not.toBeNull();
   await closePopover();
-  expect(screen.getByRole("button", { name: "Waiting list" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Player on the waiting list" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   q.rerender(
     <EventTableCard table={{ ...plannedTable, eventStatus: "TERMINATED", winners: [] }} />,
@@ -270,11 +272,8 @@ it("marks a pending self request without offering self-approval, including incon
       }}
     />,
   );
-  const badge = screen.getByRole("button", { name: "Participation requested" });
-  expect(badge.className).toContain("text-warning");
-  expect(badge.querySelector("svg.lucide-clock-3")).not.toBeNull();
-  expect(badge.parentElement?.className).toContain("flex-nowrap");
-  expect(screen.getByRole("link").contains(badge)).toBe(false);
+  expect(screen.queryByRole("button", { name: /Player with pending invitation/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Decline invitation" })).toBeNull();
 });

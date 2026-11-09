@@ -25,11 +25,22 @@ export const reviewEventProposalSchema = z
 export type ReviewEventProposalInput = z.infer<typeof reviewEventProposalSchema>;
 export type EventProposalResponse = Omit<EventProposal, "requestHash" | "payloadKey"> & {
   authorName: string;
+  authorUsername?: string | null;
+  /** All source-grouped submissions for the same choice; ordinary mine scopes stay private. */
+  suggestions?: {
+    id: string;
+    userId: string;
+    authorName: string;
+    authorUsername?: string | null;
+    version: number;
+    status: EventProposal["status"];
+  }[];
   game?: { id: number; name: string; imageUrl: string | null };
   gameSuggestions?: {
     id: string;
     userId: string;
     authorName: string;
+    authorUsername?: string | null;
     version: number;
     status: EventProposal["status"];
   }[];

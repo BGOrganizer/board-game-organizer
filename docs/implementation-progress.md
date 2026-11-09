@@ -1,5 +1,36 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Card identities, role disclosure and unified Results — local verification; runtime acceptance pending
+
+- Horizontal Cards contain original colored artwork beside content in normal flow. Detail identities
+  retain vivid backgrounds without a caption stripe. Compact informational controls remain separate
+  from navigation, with parity between lists/details and bounded native content-fit popovers.
+- Group/Event/Table rows show one username and primary role; plus disclosure retains independent
+  roles, invitation/request distinctions, queue and demonstrator facts without inventing seats.
+  Web role descriptors use Lingui macros, fixing literal shared-message IDs that otherwise stayed
+  English in Italian. Event review rosters have separate member/manager cache scopes; demotion
+  removes privileged pending identities from RAM and native persistence.
+- Confirmed/terminated Tables have one Results tab. Current scoped rating popups become immutable
+  before/after/delta history after finalization; ties, ND and exact scores remain truthful. Ineligible
+  updates and missing history have distinct explanations. Frozen-roster identity and stale callbacks
+  fence cached-page presentation and prevent another snapshot entering a ranking query.
+- Identical date/location proposals now source-group like games, pin complete pending revisions and
+  resolve atomically with replay-safe receipts. One review dialog contains choice/all proposers and
+  direct Accept/Reject. Deletion help explains blockers without bypassing planning/cutoff/last-Table
+  guards or initiating deletion.
+- Local evidence: all five covered suites pass (web 1,043; mobile 643; API 996; schemas 163; shared
+  568), with existing 100% deterministic/per-file gates retained; typecheck passes. Nine selected
+  real replica-set integration cases pass, including grouped-date pagination/rollback/replay and
+  participant privacy/current-role/frozen cohorts. Sixty unrelated cases were filtered, not passed.
+  API/web production builds, Android export and EN/IT compilation pass; generated references restored.
+- Actual-component/production-CSS fixtures pass 228 combinations across EN/IT, light/dark,
+  320/390/1280px and 200% text, with zero API requests. These are synthetic layout/cache fixtures,
+  not authenticated browser, native-device, frame-timing or production acceptance. Retained manual
+  Playwright/Maestro flows were updated; CI's explicit E2E policy remains unchanged.
+- Guides used: component architecture/composition, React/native performance, Expo overview,
+  HeroUI React/Native, Uniwind, TanStack Query, Lingui, Playwright, Clerk testing, Maestro and final
+  web-interface review. No dependency, provider, database migration/reset or deployment change.
+
 ## Event access / collection sources / final sharing — local verification; runtime acceptance pending
 
 - Event visibility is independent of immutable Group type. PRIVATE Events in PUBLIC Groups retain

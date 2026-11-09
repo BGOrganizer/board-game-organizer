@@ -1,109 +1,179 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { eventTablePeople } from "@board-game-organizer/shared";
-import { useLingui } from "@lingui/react";
-import { useThemeColor } from "heroui-native/hooks";
+import {
+  communityAccessDenied,
+  type EventTablePerson,
+  eventTablePeople,
+  formatUsername,
+  useTableLeaderboard,
+} from "@board-game-organizer/shared";
+import { Button } from "heroui-native/button";
+import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Minus, Plus } from "lucide-react-native";
+import { useMemo, useRef } from "react";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LeaderboardStat } from "@/components/ratings/LeaderboardStat";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
-import { EventPlayerCard } from "./EventPlayerCard";
+import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
 
-function RatingDelta({
-  label,
-  value,
-  format,
-}: {
-  label: string;
-  value: number | undefined;
-  format: (value: number) => string;
-}) {
-  const [success, danger, muted] = useThemeColor(["success", "danger", "muted"]),
-    Icon = value !== undefined && value < 0 ? Minus : Plus;
-  return (
-    <View style={{ flex: 1, gap: 4 }}>
-      <Typography className="text-xs text-muted">{label}</Typography>
-      <View
-        accessible
-        accessibilityLabel={
-          value === undefined ? `${label}: —` : `${label}: ${value > 0 ? "+" : ""}${format(value)}`
-        }
-        style={{ flexDirection: "row", gap: 4, alignItems: "center" }}
-      >
-        {value === undefined ? null : (
-          <Icon
-            size={16}
-            color={value > 0 ? success : value < 0 ? danger : muted}
-            accessible={false}
-          />
-        )}
-        <Typography className="text-foreground">
-          {value === undefined ? "—" : format(Math.abs(value))}
-        </Typography>
-      </View>
-    </View>
-  );
-}
 export function EventTableResults({ table }: { table: PlannedTableResponse }) {
   const t = useT(),
-    { i18n } = useLingui(),
-    insets = useSafeAreaInsets(),
-    number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
+    o = useCommunityApi(),
+    insets = useSafeAreaInsets();
+  const terminated = table.eventStatus === "TERMINATED";
+  const q = useTableLeaderboard(
+    {
+      ...o,
+      enabled: table.eventStatus === "CONFIRMED" && !table.sharedResultsOnly && o.enabled !== false,
+    },
+    table.eventId,
+    table.id,
+    table.confirmed?.gameId,
+    table.confirmed?.playerIds,
+  );
+  const history = useMemo(
+    () => (terminated ? eventTablePeople(table, []) : []),
+    [table, terminated],
+  );
+  const rows: EventTablePerson[] =
+    communityAccessDenied(q.error) && !terminated
+      ? []
+      : terminated
+        ? history
+        : q.items
+            .filter((row) => table.confirmed?.playerIds.includes(row.userId))
+            .map((row) => ({
+              ...row,
+              key: row.userId,
+              email: null,
+              profileLoaded: true,
+              rank: undefined,
+              score: undefined,
+            }));
+  const scrolled = useRef<string | null>(null);
+  const owner = JSON.stringify([
+    o.apiUrl,
+    o.userId,
+    table.id,
+    table.eventStatus,
+    table.confirmed?.gameId,
+    table.confirmed?.playerIds,
+  ]);
+  if (!table.confirmed && (!terminated || !table.results))
+    return (
+      <Typography className="text-foreground" style={{ margin: 20 }}>
+        {t("Excluded from confirmation")}
+      </Typography>
+    );
   return (
     <FlatList
-      data={eventTablePeople(table, [])}
+      key={owner}
+      data={rows}
       keyExtractor={(row) => row.key}
-      contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 32 }}
+      contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: insets.bottom + 32 }}
+      initialNumToRender={8}
+      maxToRenderPerBatch={6}
+      windowSize={7}
+      onScrollBeginDrag={() => {
+        scrolled.current = owner;
+      }}
+      onEndReached={() => {
+        if (scrolled.current === owner && !terminated) q.loadMore();
+      }}
+      onEndReachedThreshold={0.4}
       ListEmptyComponent={
-        <Typography className="text-foreground">{t("Excluded from confirmation")}</Typography>
+        !terminated && (q.isPending || q.isFetching) ? (
+          <Skeleton style={{ width: "100%", height: 80, borderRadius: 12 }} />
+        ) : terminated || !q.isError ? (
+          <Typography className="text-muted">{t("No players found")}</Typography>
+        ) : null
+      }
+      ListFooterComponent={
+        <View style={{ gap: 12 }}>
+          {!terminated && q.isError ? (
+            <>
+              <Typography accessibilityRole="alert" className="text-danger">
+                {t("Could not load leaderboards. Retry")}
+              </Typography>
+              <Button
+                onPress={() =>
+                  void (q.isFetchNextPageError
+                    ? q.fetchNextPage({ cancelRefetch: false })
+                    : q.retry())
+                }
+              >
+                <Button.Label>{t("Try again")}</Button.Label>
+              </Button>
+            </>
+          ) : null}
+          {!terminated && q.isFetchingNextPage ? (
+            <Skeleton style={{ width: "100%", height: 48, borderRadius: 12 }} />
+          ) : null}
+        </View>
       }
       renderItem={({ item }) => {
-        const group =
-          table.rankingEnabled && table.groupId
-            ? table.groupRatingChanges?.find((value) => value.userId === item.userId)
-            : undefined;
-        const global = table.rankingEnabled
-          ? table.ratingChanges?.find((value) => value.userId === item.userId)
-          : undefined;
+        const name = formatUsername(
+          item.username,
+          item.profileLoaded && item.name ? item.name : t("Username unavailable"),
+        );
         return (
-          <EventPlayerCard
-            name={item.profileLoaded ? item.name : undefined}
-            username={item.username}
-            avatarUrl={item.avatarUrl}
-            footer={
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <LeaderboardStat label={t("Score")} value={item.score ?? t("ND")} />
-                <RatingDelta
-                  label={t("Global rating change")}
-                  value={global?.delta}
-                  format={number.format}
-                />
-                <RatingDelta
-                  label={t("Group rating change")}
-                  value={group?.delta}
-                  format={number.format}
+          <GroupedList>
+            <UserListRow
+              name={name}
+              avatarUrl={item.avatarUrl}
+              badgeContent={
+                terminated ? (
+                  <View
+                    accessible
+                    accessibilityLabel={`${t("Position")}: ${item.rank === null || item.rank === undefined ? t("ND") : `#${item.rank}`}`}
+                    className={item.rank === 1 ? "bg-success" : "bg-default"}
+                    style={{
+                      position: "absolute",
+                      right: -4,
+                      bottom: -4,
+                      paddingHorizontal: 4,
+                      borderRadius: 12,
+                    }}
+                  >
+                    <Typography
+                      className={
+                        item.rank === 1
+                          ? "text-xs text-success-foreground"
+                          : "text-xs text-foreground"
+                      }
+                    >
+                      {item.rank === null || item.rank === undefined ? t("ND") : `#${item.rank}`}
+                    </Typography>
+                  </View>
+                ) : undefined
+              }
+              actions={
+                terminated ? (
+                  <Typography
+                    numberOfLines={1}
+                    accessibilityLabel={`${t("Score")}: ${item.score ?? t("ND")}`}
+                    className="font-semibold text-foreground"
+                    style={{ maxWidth: 132 }}
+                  >
+                    {item.score ?? t("ND")}
+                  </Typography>
+                ) : undefined
+              }
+            >
+              <View style={{ alignSelf: "flex-start" }}>
+                <EventPlayerRatingPopover
+                  table={table}
+                  userId={item.userId}
+                  name={name}
+                  current={
+                    !terminated ? q.items.find((row) => row.userId === item.userId) : undefined
+                  }
                 />
               </View>
-            }
-          >
-            <LeaderboardStat
-              label={t("Position")}
-              value={item.rank === null || item.rank === undefined ? t("ND") : String(item.rank)}
-            />
-            <LeaderboardStat
-              label={t("Rating before")}
-              value={group ? number.format(group.score - group.delta) : "—"}
-            />
-            <LeaderboardStat
-              label={t("Global ranking")}
-              value={global ? number.format(global.score) : "—"}
-            />
-            <LeaderboardStat
-              label={t("Group ranking")}
-              value={group ? number.format(group.score) : "—"}
-            />
-          </EventPlayerCard>
+            </UserListRow>
+          </GroupedList>
         );
       }}
     />

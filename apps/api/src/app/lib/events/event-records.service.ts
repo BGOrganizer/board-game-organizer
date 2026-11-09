@@ -550,6 +550,7 @@ export class EventRecordsService {
     return {
       ...visible,
       authorName: user?.username || publicUserName(user),
+      authorUsername: user?.username ?? null,
       ...(game ? { game: { id: game.id, name: game.name, imageUrl: game.image ?? null } } : {}),
     };
   }
@@ -565,19 +566,28 @@ export class EventRecordsService {
       )
       .digest("hex");
   }
-  private async groupedGameProposal(row: EventProposal, members: EventProposal[]) {
+  private async groupedProposal(
+    row: EventProposal,
+    members: EventProposal[],
+  ): Promise<EventProposalResponse> {
     const profiles = await this.users.findByIds([...new Set(members.map((p) => p.userId))]);
-    const names = new Map(profiles.map((p) => [p.clerkId, p.username || publicUserName(p)]));
+    const people = new Map(profiles.map((p) => [p.clerkId, p]));
+    const suggestions = members.map((p) => {
+      const profile = people.get(p.userId);
+      return {
+        id: p.id,
+        userId: p.userId,
+        authorName: profile?.username || publicUserName(profile),
+        authorUsername: profile?.username ?? null,
+        version: p.version,
+        status: p.status,
+      };
+    });
     return {
       ...(await this.proposalResponse(row)),
       groupRevision: this.proposalGroupRevision(members),
-      gameSuggestions: members.map((p) => ({
-        id: p.id,
-        userId: p.userId,
-        authorName: names.get(p.userId) ?? publicUserName(null),
-        version: p.version,
-        status: p.status,
-      })),
+      suggestions,
+      ...(row.payload.kind === "game" ? { gameSuggestions: suggestions } : {}),
     };
   }
   private async proposalReceipt(
@@ -681,11 +691,14 @@ export class EventRecordsService {
       const table = await this.events.table(page.tableId);
       if (!table || table.eventId !== id) throw new CommunityError(404, "TABLE_NOT_FOUND");
     }
-    if (page.mode === "review" && page.kind === "game" && page.tableId) {
-      const groups = await this.events.gameProposalPage(id, page.tableId, page);
+    if (page.mode === "review" && (page.kind !== "game" || page.tableId)) {
+      const groups =
+        page.kind === "game" && page.tableId
+          ? await this.events.gameProposalPage(id, page.tableId, page)
+          : await this.events.proposalReviewPage(id, page.kind, page);
       const items: EventProposalResponse[] = [];
       for (const row of groups.slice(0, page.limit))
-        items.push(await this.groupedGameProposal(row.representative, row.members));
+        items.push(await this.groupedProposal(row.representative, row.members));
       const last = items.at(-1);
       return {
         eventId: id,
@@ -832,12 +845,11 @@ export class EventRecordsService {
     const members =
       row.payload.kind === "game"
         ? await this.events.gameProposals(id, row.payload.tableId, row.payload.gameId)
-        : [row];
+        : await this.events.choiceProposals(id, row.payloadKey);
     const pending = members.filter((p) => p.status === "PENDING");
     if (
-      row.payload.kind === "game" &&
-      ((pending.length > 1 && !input.groupRevision) ||
-        (input.groupRevision && input.groupRevision !== this.proposalGroupRevision(members)))
+      (pending.length > 1 && !input.groupRevision) ||
+      (input.groupRevision && input.groupRevision !== this.proposalGroupRevision(members))
     )
       throw new CommunityError(409, "PROPOSAL_CHANGED");
     let saved: PlannedEventResponse | undefined, optionId: string | undefined;
@@ -860,7 +872,7 @@ export class EventRecordsService {
       optionId = edit.optionId;
       if (edit.input) saved = await this.update(userId, id, edit.input);
     }
-    const reviewBatchId = row.payload.kind === "game" ? randomUUID() : undefined;
+    const reviewBatchId = randomUUID();
     const at = new Date().toISOString();
     let selected: EventProposal = row;
     for (const proposal of pending) {
@@ -888,41 +900,48 @@ export class EventRecordsService {
   async participants(
     userId: string,
     id: string,
-    page: Pick<EventRecordPage, "limit" | "cursor">,
+    page: Pick<EventRecordPage, "limit" | "cursor"> & { view?: "member" | "review" },
   ): Promise<EventParticipantsResponse> {
     // Public detail access is NOT privileged roster access.
     const { event, group } = await this.context(userId, id);
-    const rows = await this.events.participants(event, page);
+    const manager = await this.manager(event, group, userId);
+    const review = page.view === "review";
+    if (review && !manager) throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
+    const rows = await this.events.participants(event, page, review ? undefined : userId);
     const selected = rows.slice(0, page.limit);
     const profiles = await this.users.findByIds(selected.map((row) => row.userId));
     const tables = await this.events.allTables(id);
+    const registrations = await this.events.allRegistrations(id);
     const seated = new Set<string>();
+    const waiting = new Set<string>();
     const frozen = new Set(
       tables.flatMap((table) =>
         event.status === "PLANNING" ? [] : (table.confirmed?.playerIds ?? []),
       ),
     );
     if (event.status === "PLANNING") {
-      const registrations = await this.events.allRegistrations(id);
       const plan = await this.agreement(event, group, tables, registrations);
       for (const table of tables) {
         const chosen = plan.agreed
           ? plan.includedTables.find((row) => row.tableId === table.id)?.participantIds
           : undefined;
-        for (const row of projectReservedPlaces(
+        const places = projectReservedPlaces(
           registrations
-            .filter((row) => row.tableId === table.id)
+            .filter(
+              (row) =>
+                row.tableId === table.id && (row.status === "ACCEPTED" || row.status === "PENDING"),
+            )
             .map((row) => ({
               ...row,
               status: row.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
             })),
           table.maxPlayers,
           chosen,
-        ).seated)
-          if (row.status === "ACCEPTED") seated.add(row.userId);
+        );
+        for (const row of places.seated) if (row.status === "ACCEPTED") seated.add(row.userId);
+        for (const row of places.waiting) waiting.add(row.id);
       }
     }
-    const manager = await this.manager(event, group, userId);
     const removable =
       manager &&
       event.status === "PLANNING" &&
@@ -951,15 +970,50 @@ export class EventRecordsService {
           !excluded &&
           (group.adminUserId === userId || !isGroupModerator(membership)),
       );
+      const own = registrations.filter(
+        (value) =>
+          value.userId === row.userId &&
+          tables.some((table) => table.id === value.tableId) &&
+          (value.status !== "PENDING" || review || row.userId === userId),
+      );
+      const accepted = frozen.has(row.userId) || own.some((value) => value.status === "ACCEPTED");
+      const pendingInvitation =
+        (review || row.userId === userId) &&
+        own.some((value) => value.kind === "INVITATION" && value.status === "PENDING");
+      const demonstrator = tables.some(
+        (table) =>
+          table.demonstratorUserId === row.userId &&
+          (event.status === "PLANNING" || Boolean(table.confirmed)),
+      );
+      const isWaiting =
+        event.status === "PLANNING"
+          ? own.some((value) => waiting.has(value.id))
+          : own.some(
+              (value) =>
+                (value.status === "ACCEPTED" || value.status === "PENDING") &&
+                !tables
+                  .find((table) => table.id === value.tableId)
+                  ?.confirmed?.playerIds.includes(row.userId),
+            );
       items.push({
         id: row.userId,
         userId: row.userId,
         name: publicUserName(profile),
         username: profile?.username ?? null,
         avatarUrl: profile?.avatarUrl ?? null,
-        position: frozen.has(row.userId) ? "FROZEN" : seated.has(row.userId) ? "SEATED" : "WAITING",
+        position: frozen.has(row.userId)
+          ? "FROZEN"
+          : seated.has(row.userId)
+            ? "SEATED"
+            : isWaiting
+              ? "WAITING"
+              : null,
+        accepted,
+        pendingInvitation,
+        waiting: isWaiting,
+        demonstrator,
         managementRole,
-        canRemove: removable,
+        canRemove: removable && accepted,
         canBanGroup,
       });
     }
@@ -1696,6 +1750,12 @@ export class EventRecordsService {
       event.groupId,
     );
     const profiles = await this.users.findByIds(selected.map((row) => row.userId));
+    const globalRatings = event.groupId
+      ? await this.ratings.currentForPlayers(
+          selected.map((row) => row.userId),
+          gameId,
+        )
+      : selected;
     return {
       gameId,
       scope: event.groupId ? "GROUP" : "GLOBAL",
@@ -1704,6 +1764,10 @@ export class EventRecordsService {
           counters = stats.get(row.userId);
         return {
           ...row,
+          globalRating: globalRatings.find((value) => value.userId === row.userId),
+          ...(event.groupId
+            ? { groupRating: { score: row.score, provisional: row.provisional } }
+            : {}),
           name: publicUserName(profile, row.userId),
           username: profile?.username ?? null,
           avatarUrl: profile?.avatarUrl ?? null,

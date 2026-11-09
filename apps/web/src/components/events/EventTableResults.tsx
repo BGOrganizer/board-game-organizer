@@ -1,86 +1,144 @@
 "use client";
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { eventTablePeople } from "@board-game-organizer/shared";
+import {
+  communityAccessDenied,
+  type EventTablePerson,
+  eventTablePeople,
+  formatUsername,
+  useTableLeaderboard,
+} from "@board-game-organizer/shared";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Minus, Plus } from "lucide-react";
-import { EventPlayerCard } from "./EventPlayerCard";
+import { useMemo, useState } from "react";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
 
-function RatingDelta({
-  value,
-  format,
-}: {
-  value: number | undefined;
-  format: (value: number) => string;
-}) {
-  if (value === undefined) return <p>—</p>;
-  const Icon = value < 0 ? Minus : Plus;
-  return (
-    <p
-      className={`inline-flex items-center gap-1 ${value > 0 ? "text-success" : value < 0 ? "text-danger" : "text-muted"}`}
-    >
-      <Icon className="size-4" aria-hidden />
-      <span className="sr-only">{value < 0 ? "-" : "+"}</span>
-      {format(Math.abs(value))}
-    </p>
-  );
-}
 export function EventTableResults({ table }: { table: PlannedTableResponse }) {
-  const { t, i18n } = useLingui(),
-    number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
-  const rows = eventTablePeople(table, []);
+  const { t } = useLingui(),
+    o = useCommunityApi();
+  const terminated = table.eventStatus === "TERMINATED";
+  const q = useTableLeaderboard(
+    {
+      ...o,
+      enabled: table.eventStatus === "CONFIRMED" && !table.sharedResultsOnly && o.enabled !== false,
+    },
+    table.eventId,
+    table.id,
+    table.confirmed?.gameId,
+    table.confirmed?.playerIds,
+  );
+  const history = useMemo(
+    () => (terminated ? eventTablePeople(table, []) : []),
+    [table, terminated],
+  );
+  const rows: EventTablePerson[] =
+    communityAccessDenied(q.error) && !terminated
+      ? []
+      : terminated
+        ? history
+        : q.items
+            .filter((row) => table.confirmed?.playerIds.includes(row.userId))
+            .map((row) => ({
+              ...row,
+              key: row.userId,
+              email: null,
+              profileLoaded: true,
+              rank: undefined,
+              score: undefined,
+            }));
+  const key = JSON.stringify([
+    o.apiUrl,
+    o.userId,
+    table.id,
+    table.eventStatus,
+    table.confirmed?.gameId,
+    table.confirmed?.playerIds,
+    table.results?.finalizedAt,
+  ]);
+  const [window, setWindow] = useState({ key, count: 8 });
+  if (window.key !== key) setWindow({ key, count: 8 });
+  const count = window.key === key ? window.count : 8;
+  const more = count < rows.length || (!terminated && q.hasMore);
+  if (!table.confirmed && (!terminated || !table.results))
+    return <p>{t`Excluded from confirmation`}</p>;
   return (
     <section aria-label={t`Results`} className="space-y-3">
-      {!rows.length ? <p>{t`Excluded from confirmation`}</p> : null}
-      {rows.map((row) => {
-        const group =
-          table.rankingEnabled && table.groupId
-            ? table.groupRatingChanges?.find((value) => value.userId === row.userId)
-            : undefined;
-        const global = table.rankingEnabled
-          ? table.ratingChanges?.find((value) => value.userId === row.userId)
-          : undefined;
-        return (
-          <EventPlayerCard
-            key={row.key}
-            name={row.profileLoaded ? row.name : undefined}
-            username={row.username}
-            avatarUrl={row.avatarUrl}
-            footer={
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <p className="text-xs text-muted">{t`Score`}</p>
-                  <p>{row.score ?? t`ND`}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted">{t`Global rating change`}</p>
-                  <RatingDelta value={global?.delta} format={number.format} />
-                </div>
-                <div>
-                  <p className="text-xs text-muted">{t`Group rating change`}</p>
-                  <RatingDelta value={group?.delta} format={number.format} />
-                </div>
-              </div>
+      <GroupedList>
+        {rows.slice(0, count).map((row) => {
+          const name = formatUsername(
+            row.username,
+            row.profileLoaded && row.name ? row.name : t`Username unavailable`,
+          );
+          return (
+            <GroupedRow key={row.key}>
+              <UserIdentity
+                name={name}
+                avatarUrl={row.avatarUrl}
+                badge={
+                  terminated ? (
+                    <span
+                      role="img"
+                      aria-label={`${t`Position`}: ${row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}`}
+                      className={`absolute -right-1 -bottom-1 rounded-full px-1 text-xs ${row.rank === 1 ? "bg-success text-success-foreground" : "bg-default text-foreground"}`}
+                    >
+                      {row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}
+                    </span>
+                  ) : undefined
+                }
+              >
+                <EventPlayerRatingPopover
+                  table={table}
+                  userId={row.userId}
+                  name={name}
+                  current={
+                    !terminated ? q.items.find((item) => item.userId === row.userId) : undefined
+                  }
+                />
+              </UserIdentity>
+              {terminated ? (
+                <span
+                  title={row.score ?? t`ND`}
+                  className="ml-auto max-w-[40%] shrink-0 truncate text-right font-semibold tabular-nums"
+                >
+                  <span className="sr-only">{t`Score`}: </span>
+                  {row.score ?? t`ND`}
+                </span>
+              ) : null}
+            </GroupedRow>
+          );
+        })}
+      </GroupedList>
+      {!terminated && (q.isPending || q.isFetchingNextPage || (!rows.length && q.isFetching)) ? (
+        <Skeleton className="h-20 w-full rounded-xl" />
+      ) : null}
+      {!terminated && q.isError ? (
+        <div role="alert">
+          <p className="text-danger">{t`Could not load leaderboards. Retry`}</p>
+          <Button
+            onPress={() =>
+              void (q.isFetchNextPageError ? q.fetchNextPage({ cancelRefetch: false }) : q.retry())
             }
-          >
-            <div>
-              <p className="text-xs text-muted">{t`Position`}</p>
-              <p>{row.rank ?? t`ND`}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted">{t`Rating before`}</p>
-              <p>{group ? number.format(group.score - group.delta) : "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted">{t`Global ranking`}</p>
-              <p>{global ? number.format(global.score) : "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted">{t`Group ranking`}</p>
-              <p>{group ? number.format(group.score) : "—"}</p>
-            </div>
-          </EventPlayerCard>
-        );
-      })}
+          >{t`Try again`}</Button>
+        </div>
+      ) : null}
+      {(terminated || (!q.isPending && !q.isError && !q.isFetching)) && !rows.length ? (
+        <p>{t`No players found`}</p>
+      ) : null}
+      {more ? (
+        <Button
+          variant="secondary"
+          isDisabled={
+            !terminated && !q.cachedMore && count >= rows.length && (q.isFetching || q.isError)
+          }
+          onPress={() => {
+            if (!terminated && count >= rows.length) q.loadMore();
+            setWindow((old) => (old.key === key ? { key, count: old.count + 8 } : old));
+          }}
+        >{t`Load more`}</Button>
+      ) : null}
     </section>
   );
 }

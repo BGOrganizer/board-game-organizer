@@ -6160,3 +6160,81 @@ msgstr "In attesa di accettazione"
 
 msgid "Unconfirmed players"
 msgstr "Giocatori non confermati"
+
+msgid "Accept adds this choice to the available options. Reject discards the pending proposal. The decision applies to every pending proposal for this same choice."
+msgstr "Accetta aggiunge questa scelta alle opzioni disponibili. Rifiuta scarta la proposta pendente. La decisione vale per tutte le proposte pendenti della stessa scelta."
+
+msgid "Accepted member"
+msgstr "Membro accettato"
+
+msgid "Another event action is in progress."
+msgstr "Un'altra operazione sull'evento è in corso."
+
+msgid "Authenticated users can enroll without joining the group."
+msgstr "Gli utenti autenticati possono iscriversi senza entrare nel gruppo."
+
+msgid "Checking whether the previous deletion was saved. Do not submit it again."
+msgstr "Verifica del salvataggio della precedente eliminazione. Non inviarla di nuovo."
+
+msgid "Deletion availability"
+msgstr "Disponibilità eliminazione"
+
+msgid "Deletion is unavailable after the registration deadline."
+msgstr "Eliminazione non disponibile dopo la scadenza delle iscrizioni."
+
+msgid "Historical ranking unavailable"
+msgstr "Ranking storico non disponibile"
+
+msgid "Member with pending invitation"
+msgstr "Membro con invito pendente"
+
+msgid "Member with pending request"
+msgstr "Membro con richiesta pendente"
+
+msgid "Participant on the waiting list"
+msgstr "Partecipante in lista d'attesa"
+
+msgid "Participant with pending invitation"
+msgstr "Partecipante con invito pendente"
+
+msgid "Participation is limited to authorized group members or invited users."
+msgstr "La partecipazione è riservata ai membri autorizzati del gruppo o agli utenti invitati."
+
+msgid "Player on the waiting list"
+msgstr "Giocatore in lista d'attesa"
+
+msgid "Player with pending invitation"
+msgstr "Giocatore con invito pendente"
+
+msgid "Private groups are invitation-only."
+msgstr "Nei gruppi privati si entra solo su invito."
+
+msgid "Proposal details"
+msgstr "Dettagli proposta"
+
+msgid "Proposed by"
+msgstr "Proposto da"
+
+msgid "Public groups accept membership requests."
+msgstr "I gruppi pubblici accettano richieste di adesione."
+
+msgid "Ranking not updated"
+msgstr "Ranking non aggiornato"
+
+msgid "Ranking unavailable"
+msgstr "Ranking non disponibile"
+
+msgid "Rating after"
+msgstr "Ranking dopo"
+
+msgid "Rating change"
+msgstr "Variazione ranking"
+
+msgid "Review proposal"
+msgstr "Valuta proposta"
+
+msgid "Roles and participation"
+msgstr "Ruoli e partecipazione"
+
+msgid "Wait until current event and table data are verified."
+msgstr "Attendi la verifica dei dati aggiornati dell'evento e del tavolo."

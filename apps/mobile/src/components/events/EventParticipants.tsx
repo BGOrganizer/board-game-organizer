@@ -1,6 +1,8 @@
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
+  eventUserRoles,
   formatUsername,
+  RECORD_USER_ROLES,
   useEventParticipantManagement,
   useEventParticipants,
   type useEventRecordActions,
@@ -9,7 +11,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Ban, Crown, ShieldCheck, UserRoundCheck, UserRoundMinus } from "lucide-react-native";
+import { Ban, UserRoundMinus } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -17,6 +19,7 @@ import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { MemberActions } from "@/components/common/ui/MemberActions";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -31,7 +34,11 @@ export function EventParticipants({
 }) {
   const t = useT(),
     o = useCommunityApi(),
-    q = useEventParticipants(o, event.id),
+    q = useEventParticipants(
+      o,
+      event.id,
+      event.canManage ? { mode: "review", groupId: event.groupId } : { mode: "member" },
+    ),
     insets = useSafeAreaInsets();
   const m = useEventParticipantManagement(o, event, q.items, actions, disabled);
   const [foreground, danger] = useThemeColor(["foreground", "danger-foreground"]);
@@ -51,12 +58,8 @@ export function EventParticipants({
         onEndReachedThreshold={0.4}
         renderItem={({ item: person }) => {
           const name = formatUsername(person.username, person.name || t("Username unavailable"));
-          const role =
-            person.managementRole === "admin"
-              ? { label: t("Admin"), icon: Crown, color: "warning" as const }
-              : person.managementRole === "moderator"
-                ? { label: t("Moderator"), icon: ShieldCheck, color: "accent" as const }
-                : { label: t("Participant"), icon: UserRoundCheck, color: "success" as const };
+          const roles = eventUserRoles(person);
+          const primary = roles[0];
           const items = [
             ...(m.canAct(person, "remove")
               ? [
@@ -82,12 +85,8 @@ export function EventParticipants({
               <UserListRow
                 name={name}
                 avatarUrl={person.avatarUrl}
-                secondary={
-                  person.position === "WAITING"
-                    ? `${role.label} · ${t("Waiting list")}`
-                    : role.label
-                }
-                badge={role}
+                secondary={primary ? t(RECORD_USER_ROLES[primary].message) : undefined}
+                badgeContent={<UserRoleBadge roles={roles} />}
                 actions={
                   <MemberActions
                     title={`${t("Manage participant")}: ${name}`}

@@ -28,9 +28,9 @@ vi.mock("../GroupMemberAttention", () => ({ GroupMemberAttention: () => null }))
 it.each([
   ["admin", "Admin"],
   ["moderator", "Moderator"],
-  ["member", "Member"],
-  ["invited", "Awaiting acceptance"],
-  ["requested", "Awaiting acceptance"],
+  ["member", "Accepted member"],
+  ["invited", "Member with pending invitation"],
+  ["requested", "Member with pending request"],
 ] as const)("shows @username above the authoritative %s membership label", (kind, label) => {
   const membership: GroupMembership = {
     id: groupRecord.id,

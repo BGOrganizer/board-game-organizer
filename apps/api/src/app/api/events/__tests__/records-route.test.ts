@@ -180,8 +180,13 @@ it("validates source participant paging and versioned Event-only deletion before
   expect(events.participants).toHaveBeenCalledWith("actor", id, {
     limit: 2,
     cursor: "user_before",
+    view: "member",
   });
-  for (const query of ["?query=target", "?limit=51", "?limit=2&limit=3"])
+  expect((await participants.GET(request("GET", undefined, "?view=review"), context)).status).toBe(
+    200,
+  );
+  expect(events.participants).toHaveBeenLastCalledWith("actor", id, { limit: 20, view: "review" });
+  for (const query of ["?query=target", "?limit=51", "?limit=2&limit=3", "?view=other"])
     expect((await participants.GET(request("GET", undefined, query), context)).status).toBe(400);
   for (const input of [undefined, {}, { version: 0 }, { version: 1, groupId: id }])
     expect((await participant.DELETE(request("DELETE", input), target)).status).toBe(400);

@@ -42,9 +42,10 @@ export const eventProposalsQuery = recordPageQuery
       (!value.clientRequestId || value.mode === "mine"),
   );
 export const groupInviteesQuery = recordPageQuery.extend({ cursor: targetUserIdSchema.optional() });
-export const eventParticipantsQuery = recordPageQuery
-  .omit({ query: true })
-  .extend({ cursor: targetUserIdSchema.optional() });
+export const eventParticipantsQuery = recordPageQuery.omit({ query: true }).extend({
+  cursor: targetUserIdSchema.optional(),
+  view: z.enum(["member", "review"]).default("member"),
+});
 const filterQuery = z.string().trim().min(1).max(120).optional();
 export const groupListQuery = recordPageQuery
   .extend({

@@ -102,4 +102,9 @@ tags: [manual, tables, results]
 - assertNotVisible:
     id: table-register-result
 - tapOn: ${output.results.results}
+- assertNotVisible: "^Ranking$"
+- tapOn:
+    text: "^Ranking: .*$"
+    index: 0
+- assertVisible: "^(Global ranking|Ranking globale)$"
 - takeScreenshot: table-results-immutable-after-finalization

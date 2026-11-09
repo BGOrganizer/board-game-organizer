@@ -3,7 +3,16 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { formatLocationAddress, groupPendingAction } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
-import { CircleCheck, CircleX, Clock3, Globe, LockKeyhole } from "lucide-react";
+import {
+  CalendarDays,
+  CircleCheck,
+  CircleX,
+  Clock3,
+  Globe,
+  LockKeyhole,
+  MapPin,
+  UsersRound,
+} from "lucide-react";
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 
@@ -35,12 +44,14 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
           action={groupPendingAction(group)}
           label={
             group.role === "admin"
-              ? t`Group admin`
+              ? t`Admin`
               : group.role === "moderator"
-                ? t`Group moderator`
+                ? t`Moderator`
                 : group.role === "requested"
-                  ? t`Membership requested`
-                  : undefined
+                  ? t`Member with pending request`
+                  : group.role === "invited"
+                    ? t`Member with pending invitation`
+                    : t`Accepted member`
           }
         />
       ) : null}
@@ -56,11 +67,11 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
         <div className="max-h-[50vh] space-y-2 overflow-y-auto overscroll-contain">
           <p>
             {publicGroup
-              ? t`Public groups require a logo, verified venue and approval. Group type cannot be changed.`
-              : t`Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.`}
+              ? t`Public groups accept membership requests.`
+              : t`Private groups are invitation-only.`}
           </p>
-          <p>{t`Name, logo and group type. Group type cannot be changed.`}</p>
-          <p>
+          <p className="flex items-center gap-2">
+            <UsersRound aria-hidden className="size-4 shrink-0 text-muted" />
             {i18n._({
               id: "group.card.members",
               message: "{count, plural, one {# Member} other {# Members}}",
@@ -68,7 +79,8 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
             })}
           </p>
           {group.canViewEvents && group.eventCount !== null ? (
-            <p>
+            <p className="flex items-center gap-2">
+              <CalendarDays aria-hidden className="size-4 shrink-0 text-muted" />
               {i18n._({
                 id: "group.card.events",
                 message: "{count, plural, one {# Event} other {# Events}}",
@@ -76,7 +88,12 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
               })}
             </p>
           ) : null}
-          {group.location ? <p>{formatLocationAddress(group.location.address)}</p> : null}
+          {group.location ? (
+            <p className="flex items-start gap-2">
+              <MapPin aria-hidden className="size-4 shrink-0 text-muted" />
+              <span>{formatLocationAddress(group.location.address)}</span>
+            </p>
+          ) : null}
         </div>
       </HelpPopover>
       {publicGroup ? (

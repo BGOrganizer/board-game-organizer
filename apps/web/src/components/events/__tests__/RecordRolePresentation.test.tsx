@@ -14,15 +14,16 @@ it("keeps Event management, accepted waiting participation and demonstrator duty
     ...plannedEvent,
     role: "participant" as const,
     canManage: true,
+    managementRole: "moderator" as const,
     myDemonstrator: true,
     myRegistrations: [{ ...seat("owner"), position: "WAITING" as const }],
   };
   const view = renderWithI18n(<EventCard event={event} />);
-  for (const label of ["Management", "Accepted participant", "Demonstrator"])
+  for (const label of ["Moderator", "Accepted participant", "Demonstrator"])
     expect(screen.getByRole("button", { name: label })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   view.rerender(<EventDetailsCard event={event} />);
-  for (const label of ["Management", "Waiting list", "Demonstrator"])
+  for (const label of ["Moderator", "Participant on the waiting list", "Demonstrator"])
     expect(screen.getByRole("button", { name: label })).not.toBeNull();
 });
 it("does not fabricate participation or management when an Event is view-only", () => {
@@ -35,7 +36,7 @@ it("does not fabricate participation or management when an Event is view-only", 
   };
   const view = renderWithI18n(<EventCard event={event} />);
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
-  expect(screen.getAllByRole("button")).toHaveLength(1);
+  expect(screen.getAllByRole("button")).toHaveLength(4);
   view.rerender(<EventDetailsCard event={event} />);
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Management" })).toBeNull();
@@ -110,10 +111,10 @@ it.each(["invited", "requested"] as const)(
   },
 );
 it("does not make an informational role button an action on the entity", async () => {
-  renderWithI18n(<EventDetailsCard event={{ ...plannedEvent, canManage: true }} />);
-  fireEvent.click(screen.getByRole("button", { name: "Management" }));
-  expect(
-    await screen.findByText("Your current permissions allow managing this item."),
-  ).not.toBeNull();
+  renderWithI18n(
+    <EventDetailsCard event={{ ...plannedEvent, canManage: true, managementRole: "admin" }} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+  expect(await screen.findByText("You administer this item.")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull();
 });

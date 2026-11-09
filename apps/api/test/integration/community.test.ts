@@ -2189,19 +2189,28 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     } while (cursor);
     expect(new Set(own).size).toBe(12);
     expect(own).toHaveLength(12);
-    const first = await transaction((s) =>
-      s.plannedEventService.proposals(OWNER, event.id, { mode: "review", kind: "date", limit: 20 }),
-    );
-    const last = await transaction((s) =>
-      s.plannedEventService.proposals(OWNER, event.id, {
-        mode: "review",
-        kind: "date",
-        limit: 20,
-        cursor: first.nextCursor!,
-      }),
-    );
-    expect(first.items).toHaveLength(20);
-    expect(last.items).toHaveLength(4);
+    const reviewed: string[] = [];
+    let reviewCursor: string | undefined;
+    do {
+      const page = await transaction((s) =>
+        s.plannedEventService.proposals(OWNER, event.id, {
+          mode: "review",
+          kind: "date",
+          limit: 5,
+          cursor: reviewCursor,
+        }),
+      );
+      expect(page.items.length).toBeLessThanOrEqual(5);
+      for (const proposal of page.items) {
+        expect(proposal.suggestions).toHaveLength(2);
+        expect(new Set(proposal.suggestions?.map((row) => row.id)).size).toBe(2);
+        expect(proposal.groupRevision).toBeTruthy();
+      }
+      reviewed.push(...page.items.map((row) => row.id));
+      reviewCursor = page.nextCursor ?? undefined;
+    } while (reviewCursor);
+    expect(reviewed).toHaveLength(12);
+    expect(new Set(reviewed).size).toBe(12);
     await expect(
       transaction((s) =>
         s.plannedEventService.proposals(GUEST, event.id, {
@@ -2220,8 +2229,50 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         }),
       ),
     ).rejects.toMatchObject({ message: "GROUP_MEMBER_REQUIRED" });
+    const target = (
+      await transaction((s) =>
+        s.plannedEventService.proposals(OWNER, event.id, {
+          mode: "review",
+          kind: "date",
+          limit: 1,
+        }),
+      )
+    ).items[0];
+    const decision = {
+      eventVersion: version,
+      version: target.version,
+      groupRevision: target.groupRevision,
+      action: "reject" as const,
+    };
+    await expect(
+      transaction(async (s) => {
+        await s.plannedEventService.reviewProposal(OWNER, event.id, target.id, decision);
+        throw new Error("date group rollback");
+      }),
+    ).rejects.toThrow("date group rollback");
+    expect(
+      await db
+        .collection(COLLECTIONS.EVENT_PROPOSALS)
+        .countDocuments({ eventId: event.id, status: "PENDING" }),
+    ).toBe(24);
+    const [reviewedDate, replayedDate] = await Promise.all(
+      [0, 1].map(() =>
+        transaction((s) =>
+          s.plannedEventService.reviewProposal(OWNER, event.id, target.id, decision),
+        ),
+      ),
+    );
+    expect(reviewedDate.proposals).toHaveLength(2);
+    expect(replayedDate.proposals).toEqual(reviewedDate.proposals);
+    expect(
+      await db
+        .collection(COLLECTIONS.EVENT_PROPOSALS)
+        .countDocuments({ eventId: event.id, status: "REJECTED" }),
+    ).toBe(2);
     const membership = await services().groupRecords.membership(group.id, GUEST);
-    await transaction((s) => s.plannedEventService.remove(OWNER, event.id, { version }));
+    await transaction((s) =>
+      s.plannedEventService.remove(OWNER, event.id, { version: reviewedDate.event.version }),
+    );
     expect(
       await db.collection(COLLECTIONS.EVENT_PROPOSALS).countDocuments({ eventId: event.id }),
     ).toBe(0);

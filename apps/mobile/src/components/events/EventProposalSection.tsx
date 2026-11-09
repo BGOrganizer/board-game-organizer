@@ -2,7 +2,6 @@ import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-org
 import {
   clientMutationPhase,
   type EventProposalCategory,
-  eventProposalAuthors,
   eventProposalLabel,
   useEventProposalSection,
 } from "@board-game-organizer/shared";
@@ -12,9 +11,8 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Check, X } from "lucide-react-native";
+import { CircleCheck, CircleX, ClipboardCheck } from "lucide-react-native";
 import { View } from "react-native";
-import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
@@ -22,6 +20,7 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDateTimeField } from "./EventDateTimeField";
 import { EventProposalItem } from "./EventProposalItem";
+import { EventProposalReviewDialog } from "./EventProposalReviewDialog";
 export function EventProposalSection({
   event,
   kind,
@@ -38,7 +37,11 @@ export function EventProposalSection({
     o = useCommunityApi(),
     router = useRouter(),
     s = useEventProposalSection(o, event, kind, table, disabled),
-    [primary, danger] = useThemeColor(["accent-foreground", "danger"]);
+    [warning, success, danger] = useThemeColor([
+      "warning-soft-foreground",
+      "success-soft-foreground",
+      "danger-soft-foreground",
+    ]);
   const openEditor = (draftId?: string) =>
     router.push({
       pathname: "/event/proposal",
@@ -143,52 +146,58 @@ export function EventProposalSection({
       <GroupedList>
         {s.q.items.map((row) => {
           const label = eventProposalLabel(row.payload, row.label, i18n.locale);
+          const ReviewIcon =
+            row.status === "PENDING"
+              ? ClipboardCheck
+              : row.status === "ACCEPTED"
+                ? CircleCheck
+                : CircleX;
           return (
             <EventProposalItem
               key={row.id}
               row={row}
-              authorNames={s.manager ? eventProposalAuthors(row) : undefined}
               actions={
-                s.manager && event.status === "PLANNING" && row.status === "PENDING" ? (
-                  <View style={{ flexDirection: "row", gap: 6 }}>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      style={{ minWidth: 44, minHeight: 44 }}
-                      accessibilityLabel={`${t("Accept proposal")}: ${eventProposalAuthors(row)} — ${label}`}
-                      isDisabled={
-                        disabled ||
-                        !s.q.hasVerifiedBase ||
-                        s.actions.busy ||
-                        Boolean(row.clientAction)
-                      }
-                      onPress={() => s.open(row, "accept")}
+                s.manager ? (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
+                    style={{ minWidth: 44, minHeight: 44, padding: 0 }}
+                    accessibilityLabel={`${row.status === "PENDING" ? t("Review proposal") : t("Proposal details")}: ${label}`}
+                    isDisabled={
+                      disabled ||
+                      !s.q.hasVerifiedBase ||
+                      s.actions.busy ||
+                      Boolean(row.clientAction)
+                    }
+                    onPress={() => s.open(row)}
+                  >
+                    <View
+                      className="bg-default"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
                     >
-                      <Check size={20} color={primary} />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="danger-soft"
-                      style={{ minWidth: 44, minHeight: 44 }}
-                      accessibilityLabel={`${t("Reject proposal")}: ${eventProposalAuthors(row)} — ${label}`}
-                      isDisabled={
-                        disabled ||
-                        !s.q.hasVerifiedBase ||
-                        s.actions.busy ||
-                        Boolean(row.clientAction)
-                      }
-                      onPress={() => s.open(row, "reject")}
-                    >
-                      <X size={20} color={danger} />
-                    </Button>
-                  </View>
+                      <ReviewIcon
+                        size={16}
+                        color={
+                          row.status === "PENDING"
+                            ? warning
+                            : row.status === "ACCEPTED"
+                              ? success
+                              : danger
+                        }
+                        accessible={false}
+                      />
+                    </View>
+                  </Button>
                 ) : null
               }
             >
-              {s.manager && row.payload.kind !== "game" ? (
-                <Typography className="text-sm text-muted">{row.authorName}</Typography>
-              ) : null}
               {row.clientAction || row.status !== "PENDING" ? (
                 <Typography accessibilityLiveRegion="polite" className="text-sm text-muted">
                   {row.clientAction
@@ -230,28 +239,11 @@ export function EventProposalSection({
         </View>
       ) : null}
       {s.decision ? (
-        <ConfirmDialog
-          title={s.decision.action === "accept" ? t("Accept proposal") : t("Reject proposal")}
-          description={
-            s.validDecision
-              ? `${eventProposalAuthors(s.decision.row)}: ${eventProposalLabel(s.decision.row.payload, s.decision.row.label, i18n.locale)}`
-              : t(
-                  "This proposal changed or the action is unavailable. Close and review current proposals.",
-                )
-          }
+        <EventProposalReviewDialog
+          row={s.decision.row}
+          valid={s.validDecision}
           onCancel={s.cancel}
-          actions={
-            s.validDecision
-              ? [
-                  {
-                    label:
-                      s.decision.action === "accept" ? t("Accept proposal") : t("Reject proposal"),
-                    variant: s.decision.action === "accept" ? "primary" : "danger",
-                    onPress: s.confirm,
-                  },
-                ]
-              : []
-          }
+          onDecision={s.confirm}
         />
       ) : null}
     </View>

@@ -20,10 +20,10 @@ export function UserIdentity({
 }) {
   return (
     <>
-      <span className="relative shrink-0">
+      <span className={`relative shrink-0 ${badge ? "mr-3 mb-3" : ""}`}>
         <Avatar size="sm">
           <Avatar.Image src={avatarUrl ?? undefined} alt="" />
-          <Avatar.Fallback>{name.slice(0, 2)}</Avatar.Fallback>
+          <Avatar.Fallback>{name.replace(/^@/, "").slice(0, 2)}</Avatar.Fallback>
         </Avatar>
         {badge}
       </span>

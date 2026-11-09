@@ -51,7 +51,7 @@ export function ArtworkStatusPopover({
       description: t`You are accepted at one or more tables. Open table details for your seat or waiting-list position.`,
     },
     pending: {
-      icon: Clock3,
+      icon: Mail,
       label: t`Pending participation`,
       description: t`Your participation is pending at one or more tables. Open event details to review invitations or requests.`,
     },

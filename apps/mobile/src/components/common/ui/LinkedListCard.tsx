@@ -80,30 +80,38 @@ export function LinkedListCard({
       >
         {cover ? (
           <View
-            pointerEvents="none"
+            pointerEvents="box-none"
             style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              left: 0,
-              width: 80,
-              overflow: "hidden",
+              flexDirection: "row",
+              alignItems: "flex-start",
+              gap: 16,
+              padding: 16,
+              paddingBottom: 0,
             }}
           >
-            {artwork}
+            <View
+              pointerEvents="none"
+              style={{
+                position: "relative",
+                width: 96,
+                height: 96,
+                flexShrink: 0,
+                overflow: "hidden",
+                borderRadius: 8,
+              }}
+            >
+              {artwork}
+            </View>
+            <View pointerEvents="none" style={{ flex: 1, minWidth: 0, gap: 8 }}>
+              {children}
+            </View>
           </View>
-        ) : null}
-        <View
-          pointerEvents="box-none"
-          style={{
-            minWidth: 0,
-            gap: 8,
-            ...(cover ? { padding: 12, marginLeft: 80 } : { flex: 1 }),
-          }}
-        >
-          <View pointerEvents="none">{children}</View>
-          {cover ? null : toolbar}
-        </View>
+        ) : (
+          <View pointerEvents="box-none" style={{ flex: 1, minWidth: 0, gap: 8 }}>
+            <View pointerEvents="none">{children}</View>
+            {toolbar}
+          </View>
+        )}
         {cover ? toolbar : null}
         {cover ? null : (
           <View pointerEvents="none" style={{ flexShrink: 0 }}>

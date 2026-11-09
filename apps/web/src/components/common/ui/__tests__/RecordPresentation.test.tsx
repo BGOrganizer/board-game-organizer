@@ -31,7 +31,7 @@ it("keeps generated artwork motion variants and default/explicit dimensions", ()
   }
 });
 it.each(["planets", "constellation", "landscape"] as const)(
-  "contains complete %s list artwork without a colored backplate, retaining vivid detail artwork",
+  "preserves complete %s illustration and its original colored sky on the Card surface",
   (variant) => {
     const q = renderWithI18n(
       <AnimatedDicebearArtwork seed="stable" variant={variant} presentation="cover" />,
@@ -47,14 +47,14 @@ it.each(["planets", "constellation", "landscape"] as const)(
         ),
         "image/svg+xml",
       );
-    expect(svg().querySelector("rect[fill]")).toBeNull();
+    expect(svg().querySelector("rect[fill]")).not.toBeNull();
     const cover = image?.getAttribute("src");
     q.rerender(
       <AnimatedDicebearArtwork seed="stable" variant={variant} presentation="background" />,
     );
     expect(q.container.querySelector("img")?.className).toContain("object-cover");
     expect(svg().querySelector("rect[fill]")).not.toBeNull();
-    expect(q.container.querySelector("img")?.getAttribute("src")).not.toBe(cover);
+    expect(q.container.querySelector("img")?.getAttribute("src")).toBe(cover);
   },
 );
 it("formats accessible date/start/end metadata in the explicit event zone", () => {

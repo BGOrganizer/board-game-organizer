@@ -34,25 +34,25 @@ describe("unified group presentation", () => {
     expect(screen.getByRole("link", { name: "Open group: Game Club" }).getAttribute("href")).toBe(
       `/groups/${id}`,
     );
-    expect(screen.getByRole("button", { name: "Group admin" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Admin" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Private" })).not.toBeNull();
     expect(screen.queryByText("Approved")).toBeNull();
   });
   it("explains accepted membership below artwork without entering the group", async () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "accepted" }} />);
-    const badge = screen.getByRole("button", { name: "Group member" });
+    const badge = screen.getByRole("button", { name: "Accepted member" });
     expect(badge.className).toContain("text-success-soft-foreground");
     expect(badge.parentElement?.className).toContain("flex-nowrap");
     expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-user-round-check")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);
-    expect(screen.queryByRole("button", { name: "Group admin" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Admin" })).toBeNull();
     fireEvent.click(badge);
     expect(await screen.findByText("You are a member of this group.")).not.toBeNull();
   });
   it("does not infer membership from discovery or readable public metadata", () => {
     renderWithI18n(<GroupCard group={{ ...base, type: "PUBLIC", role: "none" }} />);
-    expect(screen.queryByRole("button", { name: "Group member" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Accepted member" })).toBeNull();
   });
   it("routes invited cards to details without consent controls or accepted-member capabilities", () => {
     const invited: GroupRecordResponse = {
@@ -78,9 +78,11 @@ describe("unified group presentation", () => {
     expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Invitation received · Reply required" }),
+      screen.getByRole("button", { name: "Member with pending invitation · Reply required" }),
     ).not.toBeNull();
-    const badge = screen.getByRole("button", { name: "Invitation received · Reply required" });
+    const badge = screen.getByRole("button", {
+      name: "Member with pending invitation · Reply required",
+    });
     expect(badge.className).toContain("text-warning");
     expect(badge.parentElement?.className).toContain("flex-nowrap");
     expect(badge.parentElement?.className).not.toContain("absolute");
@@ -119,7 +121,7 @@ describe("unified group presentation", () => {
   });
   it("marks an outgoing pending Group request with a warning clock and no invitation response actions", () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "requested" }} />);
-    const badge = screen.getByRole("button", { name: "Membership requested" });
+    const badge = screen.getByRole("button", { name: "Member with pending request" });
     expect(badge.className).toContain("text-warning");
     expect(badge.parentElement?.className).toContain("flex-nowrap");
     expect(badge.parentElement?.className).not.toContain("absolute");

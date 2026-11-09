@@ -25,7 +25,7 @@ export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
           />
         }
       >
-        <EventTableCardIndicators table={table} variant="identity" />
+        <EventTableCardIndicators table={table} />
       </RecordIdentityCard>
     </section>
   );

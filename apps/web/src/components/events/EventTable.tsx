@@ -9,7 +9,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChartNoAxesCombined, ClipboardPenLine, Info, Trophy, UsersRound } from "lucide-react";
+import { ClipboardPenLine, Info, Trophy, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -21,7 +21,6 @@ import { NotificationTabBadge } from "@/components/notifications/NotificationTab
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventTableInfo } from "./EventTableInfo";
-import { EventTableLeaderboard } from "./EventTableLeaderboard";
 import { EventTableOverview } from "./EventTableOverview";
 import { EventTableResults } from "./EventTableResults";
 export function EventTable({
@@ -81,8 +80,7 @@ export function EventTable({
       </NotificationAttentionScope>
     );
   const selected =
-    (tab === "results" && table.eventStatus !== "TERMINATED") ||
-    (tab === "ranking" && (table.sharedResultsOnly || table.eventStatus === "PLANNING")) ||
+    (tab === "results" && table.eventStatus === "PLANNING") ||
     (tab === "participants" && table.sharedResultsOnly)
       ? "overview"
       : tab;
@@ -115,17 +113,12 @@ export function EventTable({
                 <NotificationTabBadge target={{ kind: "item", id: invitationItem }} />
               </TabTrigger>
             ) : null}
-            {table.eventStatus === "TERMINATED" ? (
+            {table.eventStatus !== "PLANNING" ? (
               <TabTrigger icon={Trophy} id="results">{t`Results`}</TabTrigger>
-            ) : null}
-            {!table.sharedResultsOnly && table.eventStatus !== "PLANNING" ? (
-              <TabTrigger icon={ChartNoAxesCombined} id="ranking">{t`Ranking`}</TabTrigger>
             ) : null}
           </TabBar>
           <Tabs.Panel id={selected}>
-            {selected === "ranking" ? (
-              <EventTableLeaderboard table={table} />
-            ) : selected === "results" ? (
+            {selected === "results" ? (
               <EventTableResults table={table} />
             ) : (
               <EventTableOverview

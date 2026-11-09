@@ -88,8 +88,28 @@ tags: [manual, events, proposals]
           id: confirmation-cancel
       - assertVisible: ${output.eventProposal.review}
       - tapOn: ${output.eventProposal.review}
+      - evalScript: ${output.proposalAuthorIndex = 0}
+      - repeat:
+          times: ${output.eventProposal.authors.length}
+          commands:
+            - runFlow:
+                when:
+                  true: ${output.proposalAuthorIndex > 0 && output.proposalAuthorIndex % 8 === 0}
+                commands:
+                  - scrollUntilVisible:
+                      element: ${output.eventProposal.more}
+                      direction: DOWN
+                      timeout: 20000
+                  - tapOn: ${output.eventProposal.more}
+            - scrollUntilVisible:
+                element: ${output.eventProposal.authors[output.proposalAuthorIndex]}
+                direction: DOWN
+                timeout: 20000
+            - assertVisible: ${output.eventProposal.authors[output.proposalAuthorIndex]}
+            - evalScript: ${output.proposalAuthorIndex += 1}
+      - assertVisible: ${output.eventProposal.action}
       - tapOn:
-          id: confirmation-action-0
+          id: ${output.eventProposal.actionId}
       - extendedWaitUntil:
           visible:
             text: ${output.eventProposal.result}

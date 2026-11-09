@@ -29,8 +29,8 @@ export function AnimatedDicebearArtwork({
 }) {
   const src = useMemo(
     () =>
-      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(styles[variant], { seed, size: size + 8, ...(presentation === "cover" ? { backgroundColor: [] } : {}) }).toString())}`,
-    [seed, variant, size, presentation],
+      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(styles[variant], { seed, size: size + 8 }).toString())}`,
+    [seed, variant, size],
   );
   return (
     <span

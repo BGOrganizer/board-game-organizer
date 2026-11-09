@@ -1,17 +1,28 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { formatLocationAddress, groupPendingAction } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
+import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import { CircleCheck, CircleX, Clock3, Globe, LockKeyhole } from "lucide-react-native";
-import { ScrollView, useWindowDimensions } from "react-native";
+import {
+  CalendarDays,
+  CircleCheck,
+  CircleX,
+  Clock3,
+  Globe,
+  LockKeyhole,
+  MapPin,
+  UsersRound,
+} from "lucide-react-native";
+import { ScrollView, useWindowDimensions, View } from "react-native";
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { useT } from "@/lib/i18n";
 
 export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
   const t = useT();
+  const muted = useThemeColor("muted");
   const { i18n } = useLingui();
-  const { width, height } = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const publicGroup = group.type === "PUBLIC";
   const indicator =
     group.role === "admin"
@@ -38,12 +49,14 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
           action={groupPendingAction(group)}
           label={
             group.role === "admin"
-              ? t("Group admin")
+              ? t("Admin")
               : group.role === "moderator"
-                ? t("Group moderator")
+                ? t("Moderator")
                 : group.role === "requested"
-                  ? t("Membership requested")
-                  : undefined
+                  ? t("Member with pending request")
+                  : group.role === "invited"
+                    ? t("Member with pending invitation")
+                    : t("Accepted member")
           }
         />
       ) : null}
@@ -54,7 +67,7 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
         icon={publicGroup ? Globe : LockKeyhole}
         tone={publicGroup ? "accent" : "muted"}
         triggerClassName="bg-default"
-        width={Math.min(360, width - 32)}
+        width="content-fit"
       >
         <ScrollView
           style={{ maxHeight: Math.min(320, height * 0.5) }}
@@ -62,36 +75,38 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
         >
           <Typography className="text-foreground">
             {publicGroup
-              ? t(
-                  "Public groups require a logo, verified venue and approval. Group type cannot be changed.",
-                )
-              : t(
-                  "Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.",
-                )}
+              ? t("Public groups accept membership requests.")
+              : t("Private groups are invitation-only.")}
           </Typography>
-          <Typography className="text-foreground">
-            {t("Name, logo and group type. Group type cannot be changed.")}
-          </Typography>
-          <Typography className="text-foreground">
-            {i18n._({
-              id: "group.card.members",
-              message: "{count, plural, one {# Member} other {# Members}}",
-              values: { count: group.memberCount },
-            })}
-          </Typography>
-          {group.canViewEvents && group.eventCount !== null ? (
-            <Typography className="text-foreground">
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <UsersRound size={16} color={muted} accessible={false} />
+            <Typography className="text-foreground" style={{ flex: 1 }}>
               {i18n._({
-                id: "group.card.events",
-                message: "{count, plural, one {# Event} other {# Events}}",
-                values: { count: group.eventCount },
+                id: "group.card.members",
+                message: "{count, plural, one {# Member} other {# Members}}",
+                values: { count: group.memberCount },
               })}
             </Typography>
+          </View>
+          {group.canViewEvents && group.eventCount !== null ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <CalendarDays size={16} color={muted} accessible={false} />
+              <Typography className="text-foreground" style={{ flex: 1 }}>
+                {i18n._({
+                  id: "group.card.events",
+                  message: "{count, plural, one {# Event} other {# Events}}",
+                  values: { count: group.eventCount },
+                })}
+              </Typography>
+            </View>
           ) : null}
           {group.location ? (
-            <Typography className="text-foreground">
-              {formatLocationAddress(group.location.address)}
-            </Typography>
+            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+              <MapPin size={16} color={muted} accessible={false} />
+              <Typography className="text-foreground" style={{ flex: 1 }}>
+                {formatLocationAddress(group.location.address)}
+              </Typography>
+            </View>
           ) : null}
         </ScrollView>
       </HelpPopover>
@@ -103,7 +118,7 @@ export function GroupCardIndicators({ group }: { group: GroupRecordResponse }) {
           icon={rejected ? CircleX : pending ? Clock3 : CircleCheck}
           tone={rejected ? "danger" : pending ? "warning" : "success"}
           triggerClassName="bg-default"
-          width={Math.min(360, width - 32)}
+          width="content-fit"
         >
           <ScrollView
             style={{ maxHeight: Math.min(320, height * 0.5) }}

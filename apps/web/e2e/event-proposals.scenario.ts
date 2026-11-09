@@ -4,7 +4,7 @@ import type {
   PlannedTableResponse,
   ReviewEventProposalResponse,
 } from "@board-game-organizer/schemas";
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import { eventProposalAuthorRows, withProtectionBypass } from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
@@ -81,14 +81,8 @@ const it = locale === "it",
     next: it ? "Avanti" : "Next",
     page: it ? "Pagina" : "Page",
     pending: it ? "In attesa" : "Pending",
-    action:
-      input.mode === "accept"
-        ? it
-          ? "Accetta proposta"
-          : "Accept proposal"
-        : it
-          ? "Rifiuta proposta"
-          : "Reject proposal",
+    action: input.mode === "accept" ? (it ? "Accetta" : "Accept") : it ? "Rifiuta" : "Reject",
+    reviewAction: it ? "Valuta proposta" : "Review proposal",
     result:
       input.mode === "accept" ? (it ? "Accettato" : "Accepted") : it ? "Rifiutata" : "Rejected",
   };
@@ -225,9 +219,7 @@ test("real private own-Table proposal or current-manager decision; cancel writes
       target.label !== input.gameName
     )
       throw new Error("Declared pending target at exact source offset required");
-    const authors = [
-      ...new Set(target.gameSuggestions?.map((p) => p.authorName) ?? [target.authorName]),
-    ];
+    const authors = eventProposalAuthorRows(target).map((author) => author.label);
     if (input.proposerNames) expect(authors).toEqual(input.proposerNames);
     const pending = target.gameSuggestions?.filter((p) => p.status === "PENDING") ?? [target];
     const region = page.getByRole("region", { name: labels.review, exact: true });
@@ -236,10 +228,18 @@ test("real private own-Table proposal or current-manager decision; cancel writes
       await expect(region.getByText(`${labels.page} ${n + 2}`, { exact: true })).toBeVisible();
     }
     const action = region.getByRole("button", {
-      name: `${labels.action}: ${authors.join(", ")} — ${input.gameName}`,
+      name: `${labels.reviewAction}: ${input.gameName}`,
       exact: true,
     });
     await action.click();
+    for (const [index, author] of authors.entries()) {
+      if (index > 0 && index % 8 === 0)
+        await page
+          .getByRole("dialog")
+          .getByRole("button", { name: it ? "Carica altro" : "Load more", exact: true })
+          .click();
+      await expect(page.getByRole("dialog").getByText(author, { exact: true })).toBeVisible();
+    }
     await page
       .getByRole("dialog")
       .getByRole("button", { name: labels.cancel, exact: true })

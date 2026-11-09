@@ -9,26 +9,30 @@ it("owns confirmed/terminated Table top tabs with platform-specific virtualized 
   const tabs = source("events", "EventTable");
   expect(tabs).toMatch(/<TabTrigger\s+icon=\{Info\}\s+value="overview"/);
   expect(tabs).toContain('<NotificationTabBadge target={{ kind: "table", id: tableId }} />');
-  expect(tabs).toMatch(/<TabTrigger\s+icon=\{ChartNoAxesCombined\}\s+value="ranking"/);
+  expect(tabs).not.toMatch(/<TabTrigger\s+icon=\{ChartNoAxesCombined\}\s+value="ranking"/);
   expect(tabs).toMatch(/<TabTrigger\s+icon=\{Trophy\}\s+value="results"/);
   expect(tabs).toContain("!table.sharedResultsOnly");
-  expect(tabs).toContain('table.eventStatus === "TERMINATED"');
+  expect(tabs).toContain('table.eventStatus !== "PLANNING"');
   expect(tabs).toContain('table.eventStatus === "PLANNING"');
   expect(tabs).toContain("<EventTableOverview");
   expect(tabs).toContain("<EventTableResults");
-  expect(tabs).toContain("<EventTableLeaderboard");
+  expect(tabs).not.toContain("<EventTableLeaderboard");
   expect(tabs).not.toContain("<ScrollView");
   expect(source("events", "EventTableOverview")).toContain("<EventTableSeats");
-  for (const file of ["EventTableResults", "EventTableLeaderboard"]) {
+  for (const file of ["EventTableResults"]) {
     expect(source("events", file)).toContain("<FlatList");
     expect(source("events", file)).toContain("useSafeAreaInsets");
   }
   const results = source("events", "EventTableResults");
-  expect(results).toContain("table.rankingEnabled && table.groupId");
-  expect(results).toMatch(/table.rankingEnabled\s*\? table.ratingChanges/);
-  expect(results).toContain('t("Group ranking")');
-  expect(results).toContain('t("Global ranking")');
-  expect(source("events", "EventTableLeaderboard")).toContain("table.confirmed?.gameId");
+  expect(results).toContain("<EventPlayerRatingPopover");
+  expect(results).toContain('table.eventStatus === "CONFIRMED"');
+  expect(results).toContain("!table.sharedResultsOnly");
+  expect(results).toContain("table.confirmed?.playerIds");
+  const rating = source("events", "EventPlayerRatingPopover");
+  expect(rating).toContain('t("Group ranking")');
+  expect(rating).toContain('t("Global ranking")');
+  expect(rating).toContain('t("Rating before")');
+  expect(rating).toContain('t("Historical ranking unavailable")');
 });
 it("places admin result registration on included confirmed Tables and finalization in the Event header", () => {
   const detail = source("events", "EventDetail"),

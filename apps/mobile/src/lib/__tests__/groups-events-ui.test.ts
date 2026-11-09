@@ -86,12 +86,12 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(detail).toContain("<FloatingActions");
   expect(detail).toContain("version: event.version");
 });
-it("keeps Table identity over the image and reuses role/state/Rating controls without list-only option popovers", () => {
+it("keeps Table identity over the image and shares all compact controls with lists", () => {
   const table = source("events", "EventTableInfo");
   const indicators = source("events", "EventTableCardIndicators");
   expect(table).toContain("<RecordIdentityCard");
-  expect(table).toContain('variant="identity"');
-  expect(indicators).toContain("The minimum is required for agreement.");
+  expect(table).not.toContain('variant="identity"');
+  expect(indicators).not.toContain("The minimum is required for agreement.");
   expect(table).toContain('presentation="background"');
   expect(table).toContain("seed={table.id}");
   expect(table).toContain('variant="planets"');
@@ -101,7 +101,8 @@ it("keeps Table identity over the image and reuses role/state/Rating controls wi
     "table.minPlayers",
     "table.maxPlayers",
     't("Rating enabled")',
-    'variant === "list"',
+    "<EventTableSchedulePopover",
+    "<EventTableGamesPopover",
   ])
     expect(indicators).toContain(token);
   expect(table).not.toContain('label={t("Table name")}');

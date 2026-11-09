@@ -2,7 +2,6 @@ import type { EventProposalResponse, EventProposalsResponse } from "@board-game-
 import {
   clearSessionQueryCache,
   eventProposalKeys,
-  eventProposalsPageQuery,
   eventRecordKeys,
   eventRecordQuery,
   groupRecordDetailQuery,
@@ -165,7 +164,6 @@ it("renders date/time icons without zone shifts, verified place labels and the r
   expect(screen.getByText(event.locations[0].address)).toBeTruthy();
   view.rerender(
     <EventProposalItem
-      authorNames="alice, bob"
       row={{
         ...row(),
         label: "Selected game",
@@ -174,9 +172,7 @@ it("renders date/time icons without zone shifts, verified place labels and the r
       }}
     />,
   );
-  expect(screen.getByText("Selected game").parentElement?.textContent).toBe(
-    "Selected gamealice, bob",
-  );
+  expect(screen.getByText("Selected game").parentElement?.textContent).toBe("Selected game");
   expect(date.querySelector("img")?.getAttribute("src")).toBe(
     "https://cf.geekdo-images.com/real.jpg",
   );
@@ -609,6 +605,11 @@ it("captures decisions, blocks stale or restored/unverified authority, keeps can
   h.rerender({ value: { ...event, status: "CONFIRMED" }, disabled: false });
   expect(h.result.current.canPropose).toBe(false);
   act(() => h.result.current.open(row(), "accept"));
+  expect(h.result.current.decision).not.toBeNull();
+  expect(h.result.current.validDecision).toBe(false);
+  act(() => h.result.current.confirm("reject"));
+  expect(h.result.current.actions.review.isPending).toBe(false);
+  act(() => h.result.current.cancel());
   expect(h.result.current.decision).toBeNull();
 });
 it("renders real proposal queues, confirms one optimistic decision, and exposes no manager controls to ordinary/public/frozen viewers", async () => {
@@ -630,13 +631,16 @@ it("renders real proposal queues, confirms one optimistic decision, and exposes 
       <EventProposalSection event={event} kind="date" />
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: /^Reject proposal: Player —/ }));
+  expect(screen.queryByText("Player")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /^Review proposal:/ }));
+  expect(within(screen.getByRole("dialog")).getByText("Player")).toBeTruthy();
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("dialog")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: /^Accept proposal: Player —/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Review proposal:/ }));
   const button = within(screen.getByRole("dialog")).getByRole("button", {
-    name: "Accept proposal",
+    name: "Accept",
   });
+  expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Reject" })).toBeTruthy();
   fireEvent.click(button);
   fireEvent.click(button);
   await screen.findByText("Accepting proposal");

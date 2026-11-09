@@ -218,7 +218,7 @@ export function EventTableOverview({
           <Button onPress={() => void event.refetch()}>{t`Try again`}</Button>
         </div>
       ) : null}
-      {!table.sharedResultsOnly ? (
+      {!table.sharedResultsOnly && (
         <EventTableSeats
           key={table.id}
           table={table}
@@ -228,7 +228,7 @@ export function EventTableOverview({
               ? hasOtherAcceptedTable(event.data.myRegistrations, table.id)
               : undefined
           }
-          onRemove={(row, own) =>
+          onRemove={(row, own) => {
             setConfirm({
               registrationId: row.id,
               version: row.version,
@@ -239,10 +239,10 @@ export function EventTableOverview({
                 username: row.username,
                 avatarUrl: row.avatarUrl,
               },
-            })
-          }
+            });
+          }}
         />
-      ) : null}
+      )}
       {confirm ? (
         <ContactConfirmDialog
           title={confirm.action === "cancel" ? t`Leave table` : t`Remove player`}

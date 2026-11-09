@@ -6,6 +6,7 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   formatUsername,
+  tableUserRoles,
   useEventCutoff,
   useEventRecordActions,
   useEventTableRoster,
@@ -22,7 +23,9 @@ import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { IconLegend } from "@/components/common/ui/IconLegend";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventJoinSheet } from "./EventJoinSheet";
@@ -40,7 +43,7 @@ export function EventTableSeats({
   hasJoinedEvent?: boolean;
   onRemove: (row: TableSeatResponse, own: boolean) => void;
 }) {
-  const { t } = useLingui(),
+  const { t, i18n } = useLingui(),
     o = useCommunityApi(),
     router = useRouter(),
     a = useEventRecordActions(o, table.eventId);
@@ -160,14 +163,17 @@ export function EventTableSeats({
                   row.username,
                   own && (!row.name || row.name === o.userId) ? t`You` : (row.name ?? row.userId),
                 );
-              const pending = row.status === "PENDING",
-                waiting = row.position === "WAITING";
-              const Icon = pending ? Mail : waiting ? Clock3 : UserRoundCheck;
-              const status = pending
-                ? t`Awaiting acceptance`
-                : waiting
-                  ? t`Waiting list`
-                  : t`Participant`;
+              const pending = row.status === "PENDING";
+              const roles = tableUserRoles({
+                ...row,
+                demonstrator: table.demonstratorUserId === row.userId,
+              });
+              const primary = roles[0];
+              const status = primary
+                ? i18n._(recordUserRoleMessages[primary])
+                : pending && row.kind === "SELF"
+                  ? t`Participation requested`
+                  : t`Loading…`;
               return (
                 <GroupedRow
                   key={item.key}
@@ -186,16 +192,8 @@ export function EventTableSeats({
                     }
                     name={name}
                     avatarUrl={row.avatarUrl}
-                    secondary={pending && waiting ? `${status} · ${t`Waiting list`}` : status}
-                    badge={
-                      <span
-                        role="img"
-                        aria-label={status}
-                        className={`absolute -right-1 -bottom-1 rounded-full bg-background p-0.5 ${pending || waiting ? "text-warning" : "text-success"}`}
-                      >
-                        <Icon className="size-4" aria-hidden />
-                      </span>
-                    }
+                    secondary={status}
+                    badge={<UserRoleBadge roles={roles} />}
                   />
                   <span className="flex shrink-0 items-center gap-1">
                     {own && table.canRespond && pending && !closed && table.myRegistration ? (

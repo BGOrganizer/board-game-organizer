@@ -29,11 +29,11 @@ it.each([0, 1, 2])(
   },
 );
 it.each([
-  ["admin", "Group admin", "crown", "warning"],
-  ["moderator", "Group moderator", "shield-check", "accent"],
-  ["accepted", "Group member", "user-round-check", "success"],
-  ["invited", "Invitation received", "mail", "warning"],
-  ["requested", "Membership requested", "clock-3", "warning"],
+  ["admin", "Admin", "crown", "warning"],
+  ["moderator", "Moderator", "shield-check", "accent"],
+  ["accepted", "Accepted member", "user-round-check", "success"],
+  ["invited", "Member with pending invitation", "mail", "warning"],
+  ["requested", "Member with pending request", "clock-3", "warning"],
 ] as const)(
   "uses the current %s role with a compact semantic icon, not another membership",
   (role, label, icon, color) => {
@@ -175,7 +175,7 @@ it.each([
 );
 it("keeps source-complete admin request attention and explicit invitation reply help", () => {
   renderWithI18n(<GroupCard group={{ ...groupRecord, pendingRequestCount: 2 }} />);
-  expect(screen.getByRole("button", { name: "Group admin · Requests to review" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Admin · Requests to review" })).not.toBeNull();
 });
 it("keeps uploaded cover logos whole and leaves non-list background/thumbnail usage intact", () => {
   const group = { ...groupRecord, logo: "data:image/png;base64,test" };

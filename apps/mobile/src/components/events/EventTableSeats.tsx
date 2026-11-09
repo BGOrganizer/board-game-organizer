@@ -5,6 +5,8 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   formatUsername,
+  RECORD_USER_ROLES,
+  tableUserRoles,
   useEventCutoff,
   useEventRecordActions,
   useEventTableRoster,
@@ -26,6 +28,7 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { IconLegend } from "@/components/common/ui/IconLegend";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -198,14 +201,17 @@ export function EventTableSeats({
                 row.username,
                 own && (!row.name || row.name === o.userId) ? t("You") : (row.name ?? row.userId),
               );
-            const pending = row.status === "PENDING",
-              waiting = row.position === "WAITING";
-            const Icon = pending ? Mail : waiting ? Clock3 : UserRoundCheck;
-            const status = pending
-              ? t("Awaiting acceptance")
-              : waiting
-                ? t("Waiting list")
-                : t("Participant");
+            const pending = row.status === "PENDING";
+            const roles = tableUserRoles({
+              ...row,
+              demonstrator: table.demonstratorUserId === row.userId,
+            });
+            const primary = roles[0];
+            const status = primary
+              ? t(RECORD_USER_ROLES[primary].message)
+              : pending && row.kind === "SELF"
+                ? t("Participation requested")
+                : t("Loading…");
             return (
               <GroupedList>
                 <UserListRow
@@ -221,12 +227,8 @@ export function EventTableSeats({
                   }
                   name={name}
                   avatarUrl={row.avatarUrl}
-                  secondary={pending && waiting ? `${status} · ${t("Waiting list")}` : status}
-                  badge={{
-                    icon: Icon,
-                    label: status,
-                    color: pending || waiting ? "warning" : "success",
-                  }}
+                  secondary={status}
+                  badgeContent={<UserRoleBadge roles={roles} />}
                   actions={
                     <>
                       {own && table.canRespond && pending && !closed && table.myRegistration ? (

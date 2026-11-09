@@ -23,7 +23,7 @@ export function HelpPopover({
   icon?: LucideIcon;
   tone?: "muted" | "warning" | "success" | "accent" | "danger";
   size?: "default" | "compact";
-  width?: number;
+  width?: Extract<ComponentProps<typeof Popover.Content>, { presentation: "popover" }>["width"];
   indicator?: ReactNode;
   triggerClassName?: string;
   align?: Extract<ComponentProps<typeof Popover.Content>, { presentation: "popover" }>["align"];

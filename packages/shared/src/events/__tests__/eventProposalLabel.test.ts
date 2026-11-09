@@ -1,5 +1,9 @@
 import { expect, it } from "vitest";
-import { eventProposalAuthors, eventProposalLabel } from "../eventProposalLabel";
+import {
+  eventProposalAuthorRows,
+  eventProposalAuthors,
+  eventProposalLabel,
+} from "../eventProposalLabel";
 
 it("keeps grouped usernames distinct and supports ordinary single-author proposals", () => {
   expect(eventProposalAuthors({ authorName: "one" })).toBe("one");
@@ -9,12 +13,35 @@ it("keeps grouped usernames distinct and supports ordinary single-author proposa
       authorName: "one",
       gameSuggestions: [
         { ...member, authorName: "one" },
-        { ...member, id: "id2", authorName: "two" },
+        { ...member, id: "id2", userId: "u2", authorName: "two" },
         { ...member, id: "id3", authorName: "one" },
       ],
     }),
   ).toBe("one, two");
-  expect(eventProposalAuthors({ authorName: "one", gameSuggestions: [] })).toBe("");
+  expect(eventProposalAuthors({ authorName: "one", gameSuggestions: [] })).toBe("one");
+  expect(
+    eventProposalAuthorRows({
+      authorName: "Known name",
+      authorUsername: "@handle",
+      suggestions: [
+        { ...member, authorName: "Known name", authorUsername: "handle" },
+        { ...member, id: "repeat", authorName: "New name", authorUsername: "handle" },
+        { ...member, id: "other", userId: "other", authorName: "No handle", authorUsername: null },
+      ],
+    }),
+  ).toEqual([
+    { id: "u", label: "@handle" },
+    { id: "other", label: "No handle" },
+  ]);
+  expect(
+    eventProposalAuthorRows({
+      authorName: "Same known fallback",
+      suggestions: [
+        { ...member, userId: "one", authorName: "Same known fallback" },
+        { ...member, userId: "two", authorName: "Same known fallback" },
+      ],
+    }),
+  ).toHaveLength(2);
 });
 it("formats EN/IT proposed wall clocks without moving to another venue's zone", () => {
   const date = { kind: "date" as const, day: "2030-06-04", startTime: "20:00" };

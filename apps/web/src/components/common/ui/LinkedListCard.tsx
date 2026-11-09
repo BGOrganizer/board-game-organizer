@@ -73,14 +73,16 @@ export function LinkedListCard({
         className={`pointer-events-none relative flex min-w-0 flex-1 ${cover ? "flex-col p-0" : "flex-row items-start gap-4 p-4"}`}
       >
         {cover ? (
-          <div className="absolute inset-y-0 left-0 w-20 max-w-[80px] overflow-hidden">
-            {artwork}
+          <div className="flex min-w-0 items-start gap-4 p-4 pb-0">
+            <div className="relative size-24 shrink-0 overflow-hidden rounded-lg">{artwork}</div>
+            <div className="min-w-0 flex-1">{children}</div>
           </div>
-        ) : null}
-        <div className={cover ? "relative ml-[80px] min-w-0 p-3" : "min-w-0 flex-1 space-y-2"}>
-          {children}
-          {cover ? null : toolbar}
-        </div>
+        ) : (
+          <div className="min-w-0 flex-1 space-y-2">
+            {children}
+            {toolbar}
+          </div>
+        )}
         {cover ? toolbar : null}
         {cover ? null : <div className="shrink-0">{artwork}</div>}
       </Card.Content>

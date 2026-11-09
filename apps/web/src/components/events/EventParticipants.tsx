@@ -1,6 +1,7 @@
 "use client";
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
+  eventUserRoles,
   formatUsername,
   useEventParticipantManagement,
   useEventParticipants,
@@ -9,13 +10,15 @@ import {
 import { Button, Skeleton, Table } from "@heroui/react";
 import { TableLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
-import { Ban, Crown, ShieldCheck, UserRoundCheck, UserRoundMinus } from "lucide-react";
+import { Ban, UserRoundMinus } from "lucide-react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { MemberActions } from "@/components/common/ui/MemberActions";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
+import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
 const layoutOptions = { estimatedRowHeight: 76, headingHeight: 1, gap: 8 };
@@ -28,9 +31,13 @@ export function EventParticipants({
   actions: ReturnType<typeof useEventRecordActions>;
   disabled?: boolean;
 }) {
-  const { t } = useLingui(),
+  const { t, i18n } = useLingui(),
     o = useCommunityApi(),
-    q = useEventParticipants(o, event.id);
+    q = useEventParticipants(
+      o,
+      event.id,
+      event.canManage ? { mode: "review", groupId: event.groupId } : { mode: "member" },
+    );
   const m = useEventParticipantManagement(o, event, q.items, actions, disabled);
   const stale = t`Event details changed. Close and reopen this action.`;
   return (
@@ -63,12 +70,8 @@ export function EventParticipants({
                       person.username,
                       person.name || t`Username unavailable`,
                     );
-                    const role =
-                      person.managementRole === "admin"
-                        ? { label: t`Admin`, Icon: Crown, color: "text-warning" }
-                        : person.managementRole === "moderator"
-                          ? { label: t`Moderator`, Icon: ShieldCheck, color: "text-accent" }
-                          : { label: t`Participant`, Icon: UserRoundCheck, color: "text-success" };
+                    const roles = eventUserRoles(person);
+                    const primary = roles[0];
                     const items = [
                       ...(m.canAct(person, "remove")
                         ? [
@@ -98,19 +101,9 @@ export function EventParticipants({
                                 name={name}
                                 avatarUrl={person.avatarUrl}
                                 secondary={
-                                  person.position === "WAITING"
-                                    ? `${role.label} · ${t`Waiting list`}`
-                                    : role.label
+                                  primary ? i18n._(recordUserRoleMessages[primary]) : undefined
                                 }
-                                badge={
-                                  <span
-                                    role="img"
-                                    aria-label={role.label}
-                                    className={`absolute -right-1 -bottom-1 rounded-full bg-background p-0.5 ${role.color}`}
-                                  >
-                                    <role.Icon className="size-4" aria-hidden />
-                                  </span>
-                                }
+                                badge={<UserRoleBadge roles={roles} />}
                               />
                               <MemberActions
                                 title={`${t`Manage participant`}: ${name}`}

@@ -20,7 +20,6 @@ it.each([
   "TableList",
   "EventDetail",
   "EventTableResults",
-  "EventTableLeaderboard",
   "EventWizard",
   "TableScoreEditor",
 ])("virtualizes event workflow %s with safe bottom spacing", (name) => {

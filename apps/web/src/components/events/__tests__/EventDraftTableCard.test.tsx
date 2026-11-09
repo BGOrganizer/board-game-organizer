@@ -58,9 +58,9 @@ it.each([
       table={{ ...plannedTable, rankingEnabled: fields.rankingEnabled }}
     />,
   );
-  expect(document.querySelector("img")?.getAttribute("src")).not.toBe(artwork);
+  expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
   expect(document.querySelector("img")?.getAttribute("src")).toBe(
-    `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: plannedTable.id, size: 72, backgroundColor: [] }).toString())}`,
+    `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: plannedTable.id, size: 72 }).toString())}`,
   );
   expect(
     screen

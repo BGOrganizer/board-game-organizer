@@ -1,6 +1,7 @@
 import { Avatar } from "heroui-native/avatar";
 import { useThemeColor } from "heroui-native/hooks";
 import type { LucideIcon } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { View } from "react-native";
 
 export type UserBadge = {
@@ -14,11 +15,13 @@ export function UserAvatar({
   avatarUrl,
   online,
   badge,
+  badgeContent,
 }: {
   name: string;
   avatarUrl?: string | null;
   online?: boolean;
   badge?: UserBadge;
+  badgeContent?: ReactNode;
 }) {
   const [badgeColor, success, muted, surface] = useThemeColor([
     badge?.color ?? "foreground",
@@ -28,10 +31,16 @@ export function UserAvatar({
   ]);
   const BadgeIcon = badge?.icon;
   return (
-    <View style={{ position: "relative" }}>
+    <View
+      style={{
+        position: "relative",
+        marginRight: badgeContent ? 12 : 0,
+        marginBottom: badgeContent ? 12 : 0,
+      }}
+    >
       <Avatar size="md" alt={name}>
         {avatarUrl ? <Avatar.Image source={{ uri: avatarUrl }} /> : null}
-        <Avatar.Fallback>{name.charAt(0) || "?"}</Avatar.Fallback>
+        <Avatar.Fallback>{name.replace(/^@/, "").charAt(0) || "?"}</Avatar.Fallback>
       </Avatar>
       {online !== undefined ? (
         <View
@@ -48,6 +57,7 @@ export function UserAvatar({
           }}
         />
       ) : null}
+      {badgeContent}
       {badge && BadgeIcon ? (
         <View
           accessible

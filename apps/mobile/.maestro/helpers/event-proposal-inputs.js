@@ -49,14 +49,7 @@ function exact(value) {
   return "^" + value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
 }
 var it = locale === "it",
-  action =
-    p.mode === "accept"
-      ? it
-        ? "Accetta proposta"
-        : "Accept proposal"
-      : it
-        ? "Rifiuta proposta"
-        : "Reject proposal";
+  action = p.mode === "accept" ? (it ? "Accetta" : "Accept") : it ? "Rifiuta" : "Reject";
 output.eventProposal = {
   submitting: p.mode === "submit-game",
   pages: Math.floor(p.proposalOffset / 5),
@@ -75,14 +68,12 @@ output.eventProposal = {
   rowId: p.mode === "submit-game" ? "event-proposal-.*" : "event-proposal-" + p.proposalId,
   pending: exact(it ? "In attesa" : "Pending"),
   next: exact(it ? "Avanti" : "Next"),
-  review: exact(
-    action +
-      ": " +
-      (p.proposerNames ? p.proposerNames.join(", ") : p.proposerName) +
-      " — " +
-      p.gameName,
-  ),
-  title: exact(action),
+  more: exact(it ? "Carica altro" : "Load more"),
+  review: exact((it ? "Valuta proposta" : "Review proposal") + ": " + p.gameName),
+  title: exact(it ? "Valuta proposta" : "Review proposal"),
+  action: exact(action),
+  actionId: p.mode === "reject" ? "confirmation-action-1" : "confirmation-action-0",
+  authors: p.mode === "submit-game" ? [] : (p.proposerNames || [p.proposerName]).map(exact),
   result: exact(
     p.mode === "accept" ? (it ? "Accettato" : "Accepted") : it ? "Rifiutata" : "Rejected",
   ),

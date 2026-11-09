@@ -11,13 +11,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import {
-  ChartNoAxesCombined,
-  ClipboardPenLine,
-  Info,
-  Trophy,
-  UsersRound,
-} from "lucide-react-native";
+import { ClipboardPenLine, Info, Trophy, UsersRound } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
@@ -29,7 +23,6 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventTableInfo } from "./EventTableInfo";
-import { EventTableLeaderboard } from "./EventTableLeaderboard";
 import { EventTableOverview } from "./EventTableOverview";
 import { EventTableResults } from "./EventTableResults";
 export function EventTable({
@@ -99,8 +92,7 @@ export function EventTable({
       </NotificationAttentionScope>
     );
   const selected =
-    (tab === "results" && table.eventStatus !== "TERMINATED") ||
-    (tab === "ranking" && (table.sharedResultsOnly || table.eventStatus === "PLANNING")) ||
+    (tab === "results" && table.eventStatus === "PLANNING") ||
     (tab === "participants" && table.sharedResultsOnly)
       ? "overview"
       : tab;
@@ -141,22 +133,15 @@ export function EventTable({
                   <NotificationTabBadge target={{ kind: "item", id: invitationItem }} />
                 </TabTrigger>
               ) : null}
-              {table.eventStatus === "TERMINATED" ? (
-                <TabTrigger icon={Trophy} value="results">
+              {table.eventStatus !== "PLANNING" ? (
+                <TabTrigger icon={Trophy} value="results" testID="table-results-tab">
                   <Tabs.Label>{t("Results")}</Tabs.Label>
-                </TabTrigger>
-              ) : null}
-              {!table.sharedResultsOnly && table.eventStatus !== "PLANNING" ? (
-                <TabTrigger icon={ChartNoAxesCombined} value="ranking">
-                  <Tabs.Label>{t("Ranking")}</Tabs.Label>
                 </TabTrigger>
               ) : null}
             </TabBar>
           </View>
           <View style={{ flex: 1 }}>
-            {selected === "ranking" ? (
-              <EventTableLeaderboard table={table} />
-            ) : selected === "results" ? (
+            {selected === "results" ? (
               <EventTableResults table={table} />
             ) : (
               <EventTableOverview

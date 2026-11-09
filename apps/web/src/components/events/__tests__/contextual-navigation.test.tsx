@@ -101,7 +101,7 @@ it.each([undefined, optionId, "different-group"])(
       expect(within(section).getByText("1 Member")).not.toBeNull();
       expect(within(section).getByText("0 Events")).not.toBeNull();
       expect(within(section).getByRole("button", { name: "Private" })).not.toBeNull();
-      expect(link.closest(".card")?.querySelector(".w-20 img")?.className).toContain(
+      expect(link.closest(".card")?.querySelector(".size-24 img")?.className).toContain(
         "object-contain",
       );
     }
@@ -124,7 +124,7 @@ it.each(["personal", "event"] as const)(
       expect(within(card).getByText("1 Table")).not.toBeNull();
       expect(within(card).getByText(s.group.name)).not.toBeNull();
       expect(within(card).getByRole("button", { name: "Planning" })).not.toBeNull();
-      expect(card.querySelector(".w-20 img")?.className).toContain("object-contain");
+      expect(card.querySelector(".size-24 img")?.className).toContain("object-contain");
     }
   },
 );

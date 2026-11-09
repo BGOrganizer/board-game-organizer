@@ -42,9 +42,7 @@ it.each(["en", "it"])(
     expect(result.cardOverview).toBe(language === "it" ? "^Dettagli$" : "^Details$");
     expect(result.cardRankingTab).toBe("^Ranking$");
     expect(
-      new RegExp(result.cardEventRole).test(
-        language === "it" ? "Moderatore · Lista d'attesa" : "Moderator · Waiting list",
-      ),
+      new RegExp(result.cardEventRole).test(language === "it" ? "Moderatore" : "Moderator"),
     ).toBe(true);
     for (const patch of [
       { username: "" },
@@ -75,7 +73,18 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
     evaluate(file, name, locale, p);
   const modules: Record<string, unknown> = {
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
-    "react-native": { View: "View", ScrollView: "ScrollView" },
+    "react-native": {
+      View: "View",
+      ScrollView: "ScrollView",
+      useWindowDimensions: () => ({ width: 320, height: 640 }),
+      FlatList: (p: any) =>
+        jsx("FlatList", {
+          ...p,
+          children: p.data.length
+            ? p.data.map((item: unknown) => p.renderItem({ item }))
+            : p.ListEmptyComponent,
+        }),
+    },
     "expo-router": { useRouter: () => ({ push() {} }) },
     "@lingui/react": { useLingui: () => ({ i18n }) },
     "heroui-native/text": { Typography: "Typography" },
@@ -93,9 +102,12 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
     "@/components/common/ui/DateTimeInfo": {
       DateTimeInfo: child("common/ui/DateTimeInfo", "DateTimeInfo"),
     },
-    "./EventCardSchedule": {
-      EventCardSchedule: child("events/EventCardSchedule", "EventCardSchedule"),
+    "@/components/common/ui/ScheduleOptionsPopover": {
+      ScheduleOptionsPopover: child("common/ui/ScheduleOptionsPopover", "ScheduleOptionsPopover"),
     },
+    "./DateTimeInfo": { DateTimeInfo: child("common/ui/DateTimeInfo", "DateTimeInfo") },
+    "./GroupedRow": { GroupedRow: "GroupedRow" },
+    "./HelpPopover": { HelpPopover: "HelpPopover" },
     "@/components/common/ui/ListCardBody": {
       ListCardBody: child("common/ui/ListCardBody", "ListCardBody"),
     },
@@ -185,18 +197,18 @@ it.each(["en", "it"] as const)(
     expect(text(eventTree)).not.toContain(date);
     expect((eventTree as Node).props.artworkLayout).toBe("cover");
     expect(((eventTree as Node).props.leadingActions as Node).type).toBe("EventCardIndicators");
-    const scheduleTree = evaluate("events/EventCardSchedule", "EventCardSchedule", locale, {
-      schedule,
+    const scheduleTree = evaluate("events/EventSchedulePopover", "EventSchedulePopover", locale, {
+      event,
+      kind: "dates",
     });
     expect(text(scheduleTree)).toContain(date);
-    expect(text(scheduleTree)).toContain("Club venue · Via Roma 1");
-    expect(
-      nodes(scheduleTree).filter(
-        (node) => node.props.className === "text-sm text-accent-soft-foreground",
-      ),
-    ).toHaveLength(2);
-    for (const node of nodes(scheduleTree).filter((node) => text(node.props.children) === "+2"))
-      expect(node.props.className).toContain("text-accent-soft-foreground");
+    expect(nodes(scheduleTree).filter((node) => node.type === "GroupedRow")).toHaveLength(2);
+    const locations = evaluate("events/EventSchedulePopover", "EventSchedulePopover", locale, {
+      event,
+      kind: "locations",
+    });
+    expect(text(locations)).toContain("Via Roma 1");
+    expect(text(locations)).not.toContain("Club venue");
     expect(text(tableTree)).toContain(groupRecord.name);
     expect(text(tableTree)).toContain(plannedTable.eventName);
     expect(text(tableTree)).toContain(locale === "it" ? "0/4 partecipanti" : "0/4 participants");
@@ -216,15 +228,23 @@ it.each(["en", "it"] as const)(
 );
 it("keeps missing native cached metadata as partial skeletons and known empty options explicit", () => {
   expect(
-    nodes(evaluate("events/EventCardSchedule", "EventCardSchedule", "en", {})).filter(
-      (node) => node.type === "Skeleton",
-    ),
-  ).toHaveLength(2);
-  const empty = evaluate("events/EventCardSchedule", "EventCardSchedule", "it", {
-    schedule: { localStartsAt: null, location: null, dateCount: 0, locationCount: 0 },
-  });
-  expect(text(empty)).toContain("Date da concordare");
-  expect(text(empty)).toContain("Luoghi da concordare");
+    nodes(
+      evaluate("common/ui/ScheduleOptionsPopover", "ScheduleOptionsPopover", "en", {
+        name: "Event",
+        kind: "dates",
+        planning: true,
+      }),
+    ).filter((node) => node.type === "Skeleton"),
+  ).toHaveLength(1);
+  for (const kind of ["dates", "locations"]) {
+    const empty = evaluate("common/ui/ScheduleOptionsPopover", "ScheduleOptionsPopover", "en", {
+      name: "Event",
+      kind,
+      planning: true,
+      rows: [],
+    });
+    expect(text(empty)).toContain(kind === "dates" ? "No date selected" : "No location selected");
+  }
 });
 it.each(["en", "it"] as const)(
   "renders the included native Table schedule and public user item in %s",

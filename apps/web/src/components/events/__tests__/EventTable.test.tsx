@@ -42,10 +42,10 @@ let table: PlannedTableResponse,
   paged = false,
   acceptedElsewhere = false,
   fetcher: ReturnType<typeof vi.fn>;
-it("exposes only Details/Results for shared final Tables, hides private rosters and resets selected Ranking after access changes", async () => {
+it("retains selected Results across final-only access changes without exposing private rosters", async () => {
   table = { ...table, eventStatus: "CONFIRMED" };
   const client = mount();
-  fireEvent.click(await screen.findByRole("tab", { name: "Ranking" }));
+  fireEvent.click(await screen.findByRole("tab", { name: "Results" }));
   await act(async () => {
     table = {
       ...table,
@@ -68,7 +68,8 @@ it("exposes only Details/Results for shared final Tables, hides private rosters 
     );
   });
   await waitFor(() => expect(screen.queryByRole("tab", { name: "Ranking" })).toBeNull());
-  expect(screen.getByRole("tab", { name: /Details/ }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tab", { name: "Results" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.queryByRole("tab", { name: /Participants/ })).toBeNull();
   expect(screen.queryByRole("button", { name: "Leave table" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Invite players" })).toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Results" }));
@@ -410,6 +411,19 @@ it.each([
       rankingEnabled,
       canLeave: false,
       confirmed: { gameId: 1, playerIds: ["owner"], startsAt: plannedEvent.createdAt },
+      ...(eventStatus === "TERMINATED"
+        ? {
+            results: {
+              entries: [{ userId: "owner", score: "2", rank: 1 }],
+              lowerWins: false,
+              tieBreaks: [],
+              finalizedAt: plannedEvent.createdAt,
+            },
+            resultProfiles: [
+              { userId: "owner", name: "Current owner", email: null, avatarUrl: null },
+            ],
+          }
+        : {}),
     };
     const original = fetcher.getMockImplementation()!;
     fetcher.mockImplementation((url: string, init?: RequestInit) =>
@@ -439,15 +453,19 @@ it.each([
     );
     mount();
     await screen.findByRole("tab", { name: "Details" });
-    expect(screen.getAllByRole("tab")).toHaveLength(eventStatus === "TERMINATED" ? 4 : 3);
-    expect(screen.getByRole("tab", { name: "Ranking" })).not.toBeNull();
-    expect(Boolean(screen.queryByRole("tab", { name: "Results" }))).toBe(
-      eventStatus === "TERMINATED",
-    );
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.queryByRole("tab", { name: "Ranking" })).toBeNull();
+    expect(screen.getByRole("tab", { name: "Results" })).not.toBeNull();
     expect(fetcher.mock.calls.some(([url]) => url.includes("/leaderboard?"))).toBe(false);
-    fireEvent.click(screen.getByRole("tab", { name: "Ranking" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Results" }));
     expect(await screen.findByText("Current owner")).not.toBeNull();
-    expect(screen.getByText("42.00")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Ranking: Current owner" }));
+    expect(
+      await screen.findByText(eventStatus === "CONFIRMED" ? "42" : "Ranking not updated"),
+    ).not.toBeNull();
+    expect(fetcher.mock.calls.some(([url]) => url.includes("/leaderboard?"))).toBe(
+      eventStatus === "CONFIRMED",
+    );
   },
 );
 it("keeps unavailable section selections safe when table metadata is replaced and shows excluded immutable results honestly", async () => {
@@ -463,6 +481,23 @@ it("keeps unavailable section selections safe when table metadata is replaced an
       { ...table, eventStatus: "CONFIRMED" },
     );
   });
+  await waitFor(() =>
+    expect(screen.getByRole("tab", { name: "Results" }).getAttribute("aria-selected")).toBe("true"),
+  );
+  expect(screen.getByRole("tabpanel", { name: "Results" }).textContent).toContain(
+    "Excluded from confirmation",
+  );
+});
+it("returns to Details when Results becomes unavailable after reopening planning", async () => {
+  table = { ...table, eventStatus: "CONFIRMED" };
+  const client = mount();
+  fireEvent.click(await screen.findByRole("tab", { name: "Results" }));
+  await act(async () =>
+    client.setQueryData(
+      eventRecordKeys.table({ apiUrl: "https://api.test", userId: "owner" }, eventId, tableId),
+      { ...table, eventStatus: "PLANNING" },
+    ),
+  );
   await waitFor(() =>
     expect(screen.getByRole("tab", { name: "Details" }).getAttribute("aria-selected")).toBe("true"),
   );
@@ -509,12 +544,11 @@ it("hides immutable deltas when Table ranking was disabled even if stale cache c
   };
   mount();
   fireEvent.click(await screen.findByRole("tab", { name: "Results" }));
-  expect(await screen.findByText("Score")).not.toBeNull();
-  expect(screen.getByText("2")).not.toBeNull();
+  expect(await screen.findByText("2")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Ranking: Owner" }));
+  expect(await screen.findByText("Ranking not updated")).toBeTruthy();
   expect(screen.queryByText("99")).toBeNull();
-  expect(screen.getByText("Global rating change").parentElement?.textContent).toBe(
-    "Global rating change—",
-  );
+  expect(screen.queryByText("+1")).toBeNull();
 });
 it("uses grouped games, name/settings help and an explicit ranking badge rather than repeating a table card", async () => {
   multipleGames();
@@ -532,7 +566,7 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
       name: "Planning",
     }),
   );
-  expect(await screen.findByText(/The minimum is required for agreement/)).not.toBeNull();
+  expect(screen.queryByText(/The minimum is required for agreement/)).toBeNull();
   expect(screen.getByText("Minimum players").parentElement?.textContent).toBe("Minimum players2");
   expect(screen.getByText("Maximum players").parentElement?.textContent).toBe("Maximum players4");
 });
@@ -816,12 +850,25 @@ it("retains a queue entry beyond capacity and shows pending, accepted and waitin
   mount();
   await openParticipants();
   expect(await screen.findByText("@guest")).not.toBeNull();
-  expect(screen.getByRole("img", { name: "Waiting list" })).not.toBeNull();
-  expect(screen.getByRole("img", { name: "Awaiting acceptance" })).not.toBeNull();
-  expect(screen.getByRole("img", { name: "Participant" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Player on the waiting list" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Player with pending invitation" })).not.toBeNull();
+  expect(screen.getAllByRole("button", { name: "Confirmed player" })).toHaveLength(2);
   expect(screen.getByRole("button", { name: "Join waiting list" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Seats list: Field help" }));
   expect(await screen.findByText(/Free places allow joining or invitations/)).not.toBeNull();
+});
+it("retains historical SELF requests and does not invent a seat for an accepted unknown position", async () => {
+  rows.push(
+    { ...player("legacy", tableId), kind: "SELF", status: "PENDING" },
+    player("unplaced", eventId),
+  );
+  for (const row of rows.slice(-2)) Reflect.deleteProperty(row, "position");
+  mount();
+  await openParticipants();
+  expect(await screen.findByText("@legacy")).toBeTruthy();
+  expect(screen.getByText("Participation requested")).toBeTruthy();
+  expect(screen.getByText("@unplaced")).toBeTruthy();
+  expect(screen.getByText("Loading…")).toBeTruthy();
 });
 it("paginates source rosters and confirms other-player removal", async () => {
   rows.push({ ...player("guest", tableId), name: null, position: "WAITING" });
@@ -1054,16 +1101,17 @@ it("retains immutable exact scores, ND, profiles and both rating scopes, includi
   fireEvent.click(screen.getByRole("tab", { name: "Results" }));
   expect(screen.getAllByText("ND")).toHaveLength(2);
   expect(screen.getByText("1.50")).not.toBeNull();
-  expect(
-    screen
-      .getAllByText("Global rating change")
-      .some((label) => label.parentElement?.textContent === "Global rating change+0"),
-  ).toBe(true);
-  expect(
-    screen
-      .getAllByText("Group rating change")
-      .some((label) => label.parentElement?.textContent === "Group rating change-3"),
-  ).toBe(true);
+  fireEvent.click(screen.getAllByRole("button", { name: "Ranking: Username unavailable" })[0]);
+  expect(await screen.findByText("Global ranking")).toBeTruthy();
+  expect(screen.getByText("+5")).toBeTruthy();
+  expect(screen.getByText("-3")).toBeTruthy();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.click(screen.getAllByRole("button", { name: "Ranking: Username unavailable" })[1]);
+  expect(await screen.findByText("0")).toBeTruthy();
+  expect(screen.getByText("+7")).toBeTruthy();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   broken = false;
   table = {
     ...table,
@@ -1079,7 +1127,7 @@ it("retains immutable exact scores, ND, profiles and both rating scopes, includi
   };
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("@owner")).not.toBeNull();
-  expect(screen.getByText("Recovered owner")).not.toBeNull();
+  expect(screen.queryByText("Recovered owner")).toBeNull();
 });
 it.each([false, true])(
   "preserves unknown durations/demonstrators, with a missing confirmed game=%s",

@@ -29,6 +29,12 @@ function component(file: string, name: string, modules: Record<string, unknown>)
     exports: output,
     require: (id: string) => {
       if (id === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
+      if (!(id in modules) && id === "heroui-native/hooks")
+        return { useThemeColor: (tokens: string | string[]) => tokens };
+      if (!(id in modules) && id === "@lingui/react")
+        return { useLingui: () => ({ i18n: { _: (id: string) => id } }) };
+      if (!(id in modules) && id === "@/components/common/ui/UserRoleBadge")
+        return { UserRoleBadge: "UserRoleBadge" };
       if (!(id in modules)) throw new Error(`Unexpected presentation dependency ${id}`);
       return modules[id];
     },
@@ -79,7 +85,7 @@ it.each([
   },
 );
 it.each(["planets", "constellation", "landscape"])(
-  "uses the supported transparent native %s cover while preserving its detail palette",
+  "preserves the original native %s illustration and colored sky in both compositions",
   (variant) => {
     const req = createRequire(import.meta.url);
     const render = component("common/ui/AnimatedDicebearArtwork", "AnimatedDicebearArtwork", {
@@ -104,10 +110,10 @@ it.each(["planets", "constellation", "landscape"])(
     const cover = render({ seed: "stable", variant, presentation: "cover" });
     const coverXml = cover.props.children.props.children.props.xml as string;
     expect(cover.props.className).toBeUndefined();
-    expect(coverXml).not.toMatch(/<rect[^>]*\bfill=/);
+    expect(coverXml).toMatch(/<rect[^>]*\bfill=/);
     const background = render({ seed: "stable", variant, presentation: "background" });
     expect(background.props.children.props.children.props.xml).toMatch(/<rect[^>]*\bfill=/);
-    expect(background.props.children.props.children.props.xml).not.toBe(coverXml);
+    expect(background.props.children.props.children.props.xml).toBe(coverXml);
   },
 );
 it("keeps the horizontal card artwork fixed and actions outside its stretched navigation target", () => {
@@ -190,12 +196,13 @@ it("stretches artwork along the left edge and keeps controls on one full-width h
   });
   const body = tree.props.children[1] as Element;
   expect(body.props.style).toMatchObject({ alignItems: "stretch", padding: 0, gap: 0 });
-  const [picture, content] = body.props.children as Element[];
-  expect(picture.props.style).toMatchObject({ width: 80, position: "absolute", top: 0, bottom: 0 });
+  const [main, footer] = body.props.children as Element[];
+  const [picture, content] = main.props.children as Element[];
+  expect(main.props.style).toMatchObject({ flexDirection: "row", padding: 16, gap: 16 });
+  expect(picture.props.style).toMatchObject({ width: 96, height: 96, position: "relative" });
   expect(picture.props.children).toBe("Artwork");
-  expect(content.props.style.marginLeft).toBe(80);
-  expect(content.props.children[1]).toBeNull();
-  const footer = body.props.children[2] as Element;
+  expect(content.props.style.marginLeft).toBeUndefined();
+  expect(content.props.children).toBe("Title");
   expect(footer.type).toBe("ScrollView");
   expect(footer.props.horizontal).toBe(true);
   expect(footer.props.style).toMatchObject({ height: 44, marginHorizontal: 12 });
@@ -260,6 +267,9 @@ it.each(["dates", "locations"] as const)(
   (kind) => {
     const render = component("events/EventTableSchedulePopover", "EventTableSchedulePopover", {
       "@board-game-organizer/shared": shared,
+      "@/components/common/ui/ScheduleOptionsPopover": {
+        ScheduleOptionsPopover: "ScheduleOptionsPopover",
+      },
       "heroui-native/hooks": { useThemeColor: (token: string) => token },
       "heroui-native/skeleton": { Skeleton: "Skeleton" },
       "heroui-native/text": { Typography: "Typography" },
@@ -278,7 +288,22 @@ it.each(["dates", "locations"] as const)(
       ...plannedTable,
       eventSchedule: shared.eventRecordSchedulePreview(plannedEvent),
     };
-    const popover = render({ table, kind });
+    const adapter = render({ table, kind });
+    const schedule = component("common/ui/ScheduleOptionsPopover", "ScheduleOptionsPopover", {
+      "@board-game-organizer/shared": shared,
+      "heroui-native/skeleton": { Skeleton: "Skeleton" },
+      "heroui-native/text": { Typography: "Typography" },
+      "lucide-react-native": { CalendarDays: "Calendar", MapPin: "Map" },
+      "react-native": {
+        FlatList: "FlatList",
+        useWindowDimensions: () => ({ width: 320, height: 640 }),
+      },
+      "./DateTimeInfo": { DateTimeInfo: "DateTimeInfo" },
+      "./GroupedRow": { GroupedRow: "GroupedRow" },
+      "./HelpPopover": { HelpPopover: "HelpPopover" },
+      "@/lib/i18n": { useT: () => (id: string) => id },
+    });
+    const popover = schedule(adapter.props);
     expect(popover.props.width).toBe(288);
     const list = popover.props.children;
     expect([
@@ -297,7 +322,8 @@ it.each(["dates", "locations"] as const)(
       expect(label.type).toBe("Typography");
       expect(label.props.children).toBe(plannedEvent.locations[0].address);
     }
-    const missing = render({ table: { ...table, eventSchedule: undefined }, kind }).props.children;
+    const missing = schedule(render({ table: { ...table, eventSchedule: undefined }, kind }).props)
+      .props.children;
     expect(missing.props.ListEmptyComponent.type).toBe("Skeleton");
   },
 );
@@ -340,7 +366,12 @@ it("keeps native manager, demonstrator, pending and waiting indicators cumulativ
     tree.props.children
       .filter((node: Element) => node?.type === "Role")
       .map((node: Element) => node.props.kind),
-  ).toEqual(["admin", "demonstrator", "request", "waiting"]);
+  ).toEqual(["demonstrator", "waiting"]);
+  expect(
+    tree.props.children
+      .filter((node: Element) => node?.type === "Role")
+      .map((node: Element) => node.props.label),
+  ).not.toContain("Player with pending invitation");
 });
 it("keeps native Event admin/moderation, accepted, pending and demonstration independent", () => {
   const render = component("events/EventCardIndicators", "EventCardIndicators", {
@@ -359,14 +390,17 @@ it("keeps native Event admin/moderation, accepted, pending and demonstration ind
     "@/components/common/ui/ArtworkStatusPopover": { ArtworkStatusPopover: "Role" },
     "@/components/common/ui/HelpPopover": { HelpPopover: "Status" },
     "@/lib/i18n": { useT: () => (id: string) => id },
-    "./EventCardSchedule": { EventCardSchedule: "Schedule" },
+    "./EventSchedulePopover": { EventSchedulePopover: "Schedule" },
   });
   const event = {
     ...plannedEvent,
     canManage: true,
     managementRole: "admin",
     myDemonstrator: true,
-    myRegistrations: [seat("owner"), { ...seat("owner"), tableId: "second", status: "PENDING" }],
+    myRegistrations: [
+      seat("owner"),
+      { ...seat("owner"), tableId: "second", kind: "INVITATION", status: "PENDING" },
+    ],
   };
   const tree = render({ event });
   expect(
@@ -376,15 +410,17 @@ it("keeps native Event admin/moderation, accepted, pending and demonstration ind
   ).toEqual(["admin", "accepted", "pending", "demonstrator"]);
   for (const role of tree.props.children.filter((node: Element) => node?.type === "Role"))
     expect(role.props.size).toBe("compact");
-  expect(tree.props.children.at(-1).props).toMatchObject({
+  expect(
+    tree.props.children.find((node: Element) => node?.props?.label === "Planning").props,
+  ).toMatchObject({
     size: "compact",
-    width: 288,
+    width: "content-fit",
     label: "Planning",
   });
   const moderator = render({ event: { ...event, managementRole: "moderator" } });
   expect(moderator.props.children[0].props).toMatchObject({
     kind: "manager",
-    label: "Group moderator",
+    label: "Moderator",
   });
   const readOnly = render({ event: { ...event, readOnly: true } });
   expect(readOnly.props.children.filter((node: Element) => node?.type === "Role")).toHaveLength(0);
@@ -420,7 +456,7 @@ it.each(["admin", "moderator", "accepted", "invited", "requested", "none"] as co
     expect(privateTree.props.children[1].props).toMatchObject({
       label: "Private",
       size: "compact",
-      width: 288,
+      width: "content-fit",
       tone: "muted",
     });
     expect(privateTree.props.children[2]).toBeNull();
@@ -462,8 +498,8 @@ it.each(["admin", "moderator", "accepted", "invited", "requested", "none"] as co
 it.each([
   ["admin", "Admin", "Crown", "warning"],
   ["moderator", "Moderator", "Shield", "accent"],
-  [null, "Participant", "Player", "success"],
-  [undefined, "Participant", "Player", "success"],
+  [null, "Participant on the waiting list", "Player", "warning"],
+  [undefined, "Participant on the waiting list", "Player", "warning"],
 ] as const)(
   "renders actual native participant @handles and %s avatar role without deriving permissions",
   (managementRole, label, icon, color) => {
@@ -506,16 +542,20 @@ it.each([
       },
     }).props.children;
     expect(row.props.name).toBe("@handle");
-    expect(row.props.secondary).toBe(`${label} · Waiting list`);
-    expect(row.props.badge).toEqual({ label, icon, color });
+    expect(row.props.secondary).toBe(label);
+    expect(row.props.badgeContent.type).toBe("UserRoleBadge");
+    expect(row.props.badgeContent.props.roles).toContain("waitingParticipant");
+    expect(row.props.badgeContent.props.roles).toContain("acceptedParticipant");
+    if (managementRole) expect(row.props.badgeContent.props.roles[0]).toBe(managementRole);
+    expect(row.props.badge).toBeUndefined();
     expect(row.props.actions.props.items).toEqual([]);
   },
 );
 it.each([
   ["admin", "Admin"],
   ["moderator", "Moderator"],
-  ["member", "Member"],
-  ["pending", "Awaiting acceptance"],
+  ["member", "Accepted member"],
+  ["pending", "Member with pending invitation"],
 ] as const)("renders actual native Group %s under a normalized @handle", (kind, label) => {
   const render = component("groups/GroupMembers", "GroupMembers", {
     "@board-game-organizer/schemas": { notificationItemId: () => "item" },
@@ -622,10 +662,54 @@ it("renders native identities directly over artwork with a single accessible hor
   const background = card({ background: "Artwork", children: "Identity" });
   expect(background.props.children).toHaveLength(2);
   expect(background.props.children[1].props.children).toBe("Identity");
-  expect(tree.props.children.props.className).toBe("bg-background/90");
+  expect(tree.props.children.props.className).not.toBe("bg-background/90");
   expect(tree.props.children.props.style.flexWrap).toBeUndefined();
   expect(toolbar.props.style.maxWidth).toBe("60%");
   expect(title.props.style.flex).toBe(1);
+});
+it("requires a scroll in the current Results owner scope and rejects detached native callbacks", () => {
+  let actor = "owner";
+  const scrolled = { current: null as string | null },
+    loadMore = vi.fn();
+  const render = component("events/EventTableResults", "EventTableResults", {
+    "@board-game-organizer/shared": {
+      ...shared,
+      useTableLeaderboard: () => ({ items: [], loadMore }),
+    },
+    "heroui-native/button": { Button: "Button" },
+    "heroui-native/skeleton": { Skeleton: "Skeleton" },
+    "heroui-native/text": { Typography: "Typography" },
+    react: { useMemo: (fn: () => unknown) => fn(), useRef: () => scrolled },
+    "react-native": { FlatList: "FlatList", View: "View" },
+    "react-native-safe-area-context": { useSafeAreaInsets: () => ({ bottom: 0 }) },
+    "@/components/common/ui/GroupedList": { GroupedList: "GroupedList" },
+    "@/components/common/ui/UserListRow": { UserListRow: "UserListRow" },
+    "@/lib/i18n": { useT: () => (id: string) => id },
+    "@/lib/useCommunityApi": {
+      useCommunityApi: () => ({ apiUrl: "https://api.test", userId: actor }),
+    },
+    "./EventPlayerRatingPopover": { EventPlayerRatingPopover: "Rating" },
+  });
+  const table = {
+    ...plannedTable,
+    eventStatus: "CONFIRMED",
+    confirmed: { gameId: 1, playerIds: ["owner"], startsAt: plannedTable.createdAt },
+  };
+  const first = render({ table });
+  first.props.onEndReached();
+  expect(loadMore).not.toHaveBeenCalled();
+  first.props.onScrollBeginDrag();
+  first.props.onEndReached();
+  expect(loadMore).toHaveBeenCalledTimes(1);
+  actor = "other";
+  const second = render({ table });
+  second.props.onEndReached();
+  expect(loadMore).toHaveBeenCalledTimes(1);
+  second.props.onScrollBeginDrag();
+  first.props.onEndReached();
+  expect(loadMore).toHaveBeenCalledTimes(1);
+  second.props.onEndReached();
+  expect(loadMore).toHaveBeenCalledTimes(2);
 });
 it("uses actual HeroUI background compositions and keeps the existing API-owned roster hook", () => {
   const source = (file: string) =>

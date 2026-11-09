@@ -17,12 +17,12 @@ export function RecordIdentityCard({
 }) {
   return (
     <ListCard background={background}>
-      <div className="flex min-w-0 flex-nowrap items-center justify-between gap-[8px] bg-background/90 p-[16px]">
+      <div className="flex min-w-0 flex-nowrap items-center justify-between gap-[8px] p-[16px]">
         <div className="flex min-w-0 flex-1 items-center gap-[8px]">
           {icon}
           <h1
             title={title}
-            className="min-w-0 flex-1 truncate text-lg font-semibold text-foreground"
+            className="min-w-0 flex-1 truncate text-lg font-semibold text-foreground [text-shadow:0_0_2px_var(--background),0_0_4px_var(--background)]"
           >
             {title}
           </h1>

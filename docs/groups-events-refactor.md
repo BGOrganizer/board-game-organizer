@@ -202,21 +202,20 @@ exceptions supersede older membership-only activity/detail statements below.
   triggers Group-member dwell or notification acknowledgments. Negative optimistic intent uses owned
   caches only; later epochs/registrations survive, and uncertain outcomes require verification.
 - Web and native use HeroUI Card compositions for lists and parent links. Group, Event and Table
-  lists share a full-height left artwork canvas, right-side text and compact informational controls.
-  The complete list picture is contained, not cropped: generated artwork retains motion clearance,
-  and uploaded Group logos retain their aspect ratio. The cover canvas is transparent over the same
-  HeroUI Card surface as its text: no separate accent backplate. Generated cover SVGs omit their own
-  background fill through DiceBear's background option; foreground colors and uploaded logos remain
-  untouched. Thumbnail and full background artwork retain their original palettes. Background/detail and small picker artwork remain separate presentations.
+  lists share a normal-flow horizontal composition: a contained 96px picture beside text, with
+  compact informational controls on the same HeroUI Card surface. Original colored SVG skies and
+  uploaded logos remain intact; no separate accent backplate, image cropping or palette override is
+  introduced. Generated artwork retains motion clearance and logos retain aspect ratio.
+  Background/detail and small picker artwork remain separate presentations.
   Navigation and informational controls remain independent siblings.
   Details start with one HeroUI background-image Card followed immediately by existing top tabs.
   Original background artwork remains fully opaque, without a whole-image dimming scrim. The
   title/identity icon stays left and compact controls right in one nonwrapping bottom row; only
-  that caption uses a HeroUI background/foreground contrast surface, never a second rounded Card.
+  title uses a semantic text shadow for contrast, never an opaque caption stripe or extra panel.
   Long titles retain their complete accessible name with a one-line visual ellipsis while the bounded
   toolbar scrolls horizontally rather than moving below the title. Platform-owned `RecordIdentityCard` frames reuse the same
-  role/state help as list cards. Table headers show role/consent/queue/demonstration, state and Rating;
-  list-only date/location/game controls stay in lists. Event headers keep independent accepted,
+  role/state help as list cards. Table headers and lists expose the same participation, state, Rating,
+  date/location and game controls; administration/moderation are Event/Group concepts, not Table badges. Event headers keep independent accepted,
   pending and authorized waiting-list facts; Group headers keep role, visibility and public review.
   Stable-ID artwork, uploaded logos, reduced motion and semantic tokens remain; no dependency is added.
   Event Details retains voting-legend help and its precise overview read control. When opened from
@@ -229,19 +228,24 @@ exceptions supersede older membership-only activity/detail statements below.
 - Group detail labels are Details / Members / Events / Ranking; Table detail starts with Details.
   Existing internal tab keys and all permission/state guards remain unchanged. Group member,
   Event participant and Table participant rows prefer one `@username`; missing handles retain a
-  known fallback rather than inventing usernames or fetching another profile. Group subtitles show
-  Admin, Moderator, Member or Awaiting acceptance from real membership, preserving separate
-  invitation/request decisions, bans and optimistic sending intent. Event subtitles show current
-  Admin/Moderator/Participant, retaining known waiting-list metadata, with a bottom-right avatar
-  overlay: warning crown, accent shield or success participant icon. The optional Event participant
-  `managementRole` is source-authorized display metadata, never authority for actions; grouped roles
-  follow the current creator/accepted unbanned moderators, not historical Event authorship. Cached
-  responses without it retain the known participation fact, not guessed management. Table subtitles
-  show Participant, Awaiting acceptance or Waiting list; pending plus canonical waiting remains
-  explicit, including after confirmation. Existing cached self identity supplies only that actor's
-  missing handle; no new profile request or persisted copy is introduced.
+  known fallback rather than inventing usernames or fetching another profile. A one-line primary
+  subtitle and compact avatar badge summarize real facts; a plus opens every applicable role/status
+  without concatenating or wrapping the subtitle. Group labels distinguish accepted membership,
+  pending request and pending invitation. Event labels distinguish accepted participation, pending
+  invitation, waiting and demonstration from current administration/moderation. Table labels are
+  confirmed player, pending invitation, waiting player and demonstrator, never manager authority.
+  Primary priority is Table demonstrator/invitation/waiting/confirmed; Event admin/moderator/
+  demonstrator/invitation/waiting/accepted; Group admin/moderator/request-or-invitation/accepted.
+  Card toolbars remain cumulative. Current Group authority, not historical authorship, supplies
+  management metadata; absent metadata never invents authority. Existing cached self identity
+  supplies only that actor's missing handle; no new profile request or persisted copy is introduced.
+  Event participants source-union accepted/frozen attendance, pending invitations and assigned
+  demonstrators before deduplication/paging. Duty and management never imply attendance or a seat.
+  Current-manager `review` and ordinary `member` queries have distinct owner-scoped keys. Ordinary
+  viewers see only their own pending invitation identities; authority loss revokes privileged RAM/
+  encrypted-disk pages without removing unrelated or ordinary authorized data.
 - Main Tables and parent Event lists use one platform-owned horizontal HeroUI Table Card. Its
-  stable-ID animated DiceBear Planets artwork occupies the entire left edge/height. The right side
+  stable-ID animated DiceBear Planets artwork occupies a contained normal-flow left frame. The right side
   shows Table name/Dices, localized **accepted seats / maximum capacity**, then Group/people (when
   present), a dot divider and Event/calendar. Both contexts retain those parent identities; only the
   existing Back hint changes. Pending reservations and accepted/pending waiting places do not inflate
@@ -249,15 +253,13 @@ exceptions supersede older membership-only activity/detail statements below.
   A bottom-right informational toolbar uses 16px icons in 28px semantic frames with at least 44px
   touch targets. Every control stays on one row. It may extend across the artwork; only when the
   whole Card is still too narrow does that row scroll horizontally, never wrap, shrink targets or
-  clip actions. Administrator crowns use warning; current moderator management uses an accent shield.
-  Current administration, moderator management, demonstrator duty and actual seat/pending/queue state
-  coexist; a pending queued registration shows both pending and queue information. Missing position
-  stays a skeleton, never a fabricated accepted place. Current `managementRole` is display metadata
-  derived from already-authorized management, not historical Event authorship or a new capability;
-  older caches retain truthful generic Management. Status and enabled/disabled Rating always have
+  clip actions. Demonstrator duty and actual seat/invitation/queue states coexist; pending queues
+  retain both invitation and waiting information. Table controls contain no admin/moderator badge.
+  Missing position never fabricates an accepted seat; historical SELF requests are not invitations. Status and enabled/disabled Rating always have
   their own icons and explanations. Status help retains minimum/maximum, accepted-registration total,
   pending total (Unconfirmed players / Giocatori non confermati), queue count, assigned demonstrator
-  and all joint winner names when terminated.
+  and all joint winner names when terminated, with counter/duty icons. Content-fit native sizing and
+  bounded scrolling replace verbose player-limit prose.
   Separate date/time, location and game icons expose read-only local-data popovers. Location rows
   pair a left MapPin icon with only the formatted verified address, not a repeated venue name or
   IANA continent/city zone.
@@ -273,7 +275,8 @@ exceptions supersede older membership-only activity/detail statements below.
   there is no screen-local persisted copy. External cards navigate only; invitation decisions remain
   in details. One Table list / Lista Tavoli heading and count legend remain outside the cards.
   Saved/edit/review artwork and draft game previews keep their existing behavior. Event status help
-  keeps first-option schedule previews and total-proposals `+n`, using stock HeroUI accent.
+  keeps its planning/confirmation explanation and player counter; separate date/time and location
+  popovers show authorized alternatives or selected immutable facts, without extra requests.
   Group/Event/Table titles retain shared typography and leading identity icons. Group list
   invitation/request/admin indicators retain their existing explanatory actions. Accepted members also receive a success check
   with a Group member explanation; pending applicants/invitees and discovery-only viewers never receive
@@ -281,7 +284,7 @@ exceptions supersede older membership-only activity/detail statements below.
   Generated Group Landscape artwork uses the Group ID, never its mutable name. Uploaded logos remain
   untouched; unsaved Table artwork retains its existing local key until a server ID exists.
 - Main and Group-context Event lists share the horizontal Card frame: stable-ID Constellation artwork
-  fills the left edge/height; the right side shows Event name/calendar and Group/people (when present),
+  sits beside content in normal flow; the right side shows Event name/calendar and Group/people (when present),
   a dot divider and localized `n Table/Tables`. The count is the existing source-authorized `tableCount`,
   not a client scan or a new counting rule. Whole-card navigation, Group Back hints, unread markers,
   failed-draft reopening and uncertain-save verification controls remain unchanged.
@@ -294,12 +297,12 @@ exceptions supersede older membership-only activity/detail statements below.
   or infer a seated place. Table cards/detail and Event participant statistics retain their separate
   seated/frozen/queue rules. Declined/cancelled non-frozen records confer no accepted participation.
   Current `managementRole` distinguishes administration/moderation without changing capabilities;
-  historical authorship never supplies current authority. Unknown old management data stays generic.
+  historical authorship never supplies current authority. Unknown management is not presented as a known role.
   Read-only projections and optimistic drafts show no inferred personal roles. Lists and details
   reuse these same independent consent/queue indicators; unknown positions never invent a seat.
   Accepted Table queues retain their consent indicator separately from the waiting position.
   Status always has its own colored popover
-  on saved Cards, retaining existing schedule previews and participant count without extra requests,
+  on saved Cards, retaining its explanation and participant count without extra requests,
   votes, consent or notification acknowledgments. Query/MMKV scope/ownership remains unchanged.
   Table cards in main and Event lists additionally expose one read-only games popover: existing
   canonical approved choices in planning, the existing chosen-game projection after confirmation.
@@ -529,11 +532,12 @@ A participant game picker source-excludes canonical Table games and every game a
 that actor (including rejected history), not other actors' unaccepted suggestions. Current private
 planning/seat/category guards also protect these picker reads. Explicit
 `POST` submissions carry Event version and request correlation; decisions at
-`POST /events/:id/proposals/:proposalId` carry Event/request versions and accept/reject; grouped game
-reviews additionally pin the server pending-set revision. Manager game lists deduplicate by game
-before paging, with all proposer usernames inline in the same item. One decision atomically resolves
-all pending same-game/same-Table requests, notifying each proposer; accepted/rejected history is not
-rewritten. Acceptance revalidates every pending proposer's actual seat. Changed pending sets invalidate
+`POST /events/:id/proposals/:proposalId` carry Event/request versions and accept/reject. Manager
+review source-groups identical dates/locations by canonical payload and games by game/Table before
+paging. Captured pending-set revisions protect collective decisions. One compact review icon opens
+choice, explanation and all proposer handles; names are not repeated inside the item. Accept/Reject
+commit directly from this dialog without a second prompt. One decision atomically resolves every
+pending request for that choice, notifying each proposer; accepted/rejected history is not rewritten. Acceptance revalidates every pending proposer's actual seat. Changed pending sets invalidate
 a captured decision, rather than silently including unseen later work. Stable batch receipts support
 idempotency and lost-response readback; only current managers can read other authors' batch receipts.
 `GET /events/:id/proposals/:proposalId` returns an authorized own/current-manager receipt; bounded
@@ -560,7 +564,7 @@ location artwork or the catalog game cover, and keep accepted/rejected and local
 Native dialog generations/owner fences reject cancelled or detached callbacks. Existing failed-draft
 recovery and uncertain receipt verification remain explicit; canonical options still require approval.
 Managers see the authorized review queue; other participants see only their own proposals. Fixed
-five-row source pages bound presentation (five unique games for manager game review), including
+five-row source pages bound presentation (five unique choices for manager review), including
 inside existing native lists. Picker input identity stays stable through debounced search and cache
 updates, while list budgets and stale-callback fences reset without remounting that input. Game artwork
 on authorized GET DTOs is enriched only after the authorization transaction, using the existing quota/
@@ -699,26 +703,26 @@ there are no repeated identical notifications or player reminders to change vote
   or an invented zero. Missing duration stays Unknown; missing cached zone stays a partial skeleton
   until the existing Event query resolves. Only PUBLIC Tables with an assigned demonstrator show the
   usual grouped avatar/name user item. Planning and excluded Tables have no finalized schedule card.
-- Table detail separates the existing seats/waiting UI into Participants: planning has Overview /
-  Participants, confirmed adds Ranking, and terminated additionally has Results. The same roster
-  reader stays mounted across Overview/Participants; hidden roster UI never advances pagination.
-  Exact invitation-attention links start on Participants without accepting or reading the invitation.
-  Public/shared-results access keeps its current restrictions; shared results expose no Participants
-  or Ranking. Overview retains existing game proposals/votes and schedules. Existing roster rows,
-  consent, waiting order, frozen players, dialogs, error recovery and destructive confirmations remain.
-  Results retain immutable standings/ND and GLOBAL/GROUP deltas only when ratings were enabled.
-  Current ranking is always available for the selected frozen game and every frozen player, including
-  unrated players and rating-disabled Tables. Grouped Tables use GROUP scope; standalone uses GLOBAL.
-  The source-paged authenticated Table leaderboard reads current snapshots and genuine physical-Table
-  statistics, never legacy Match statistics, pending players or an automatic organizer seat. Player
-  cards show avatar/full name/username on both tabs. Results have two matching statistic rows:
-  position, GROUP-before rating, Global ranking and Group ranking; then exact score/ND, Global
-  rating change and Group rating change. Both scope changes use signed semantic-color icons and immutable
-  after snapshots, not current rating or an Elo calculation. Missing/disabled scopes stay unavailable;
-  standalone GLOBAL values never masquerade as GROUP values. Ranking starts
-  with Selected game and its normal game row, then Ranking and current player cards. Its game
-  cannot be overridden by a query parameter. Navigation revalidates cache-first; a changed-game response
-  never populates the wrong cache key and retry refreshes only the owned Table metadata.
+- Table detail separates existing seats/waiting UI into Participants. Planning has Details /
+  Participants; confirmed and terminated add one Results / Risultati tab, not a separate Ranking.
+  The same roster reader stays mounted across Details/Participants; hidden UI never advances paging.
+  Exact invitation-attention links start on Participants without accepting or reading invitations.
+  Shared final access exposes Details/Results only, with no private roster or GROUP ranking scope.
+  Results rows contain avatar, one @username/known fallback and a small ranking control below it.
+  Confirmed rows expose current GLOBAL and applicable authorized GROUP ratings on separate popup
+  rows; they do not invent final standings or scores. Terminated rows preserve immutable classified
+  order, shared ties, bottom-right #n avatar badges, unranked ND and exact far-right scores. Popups
+  use recorded before/after/delta, semantic direction icons and scope labels, never live replacement.
+  Disabled/all-ND/fewer-than-two-finisher outcomes say Ranking not updated; genuinely missing history
+  says Historical ranking unavailable. Current authenticated source paging uses genuine frozen-player
+  snapshots/statistics; pending players and management-only actors never gain seats. Cache identity
+  includes API/user/Event/Table/game and the canonical frozen roster; changed-game/roster responses
+  cannot populate another snapshot and retry invalidates only owned Table metadata. Existing cache-
+  first navigation, native 8/6/7 rendering, progressive web pages and owner/stale-callback guards remain.
+- Planning deletion has an informational question mark immediately before trash. It explains last-
+  Table, cutoff, unverified metadata, busy and uncertain-save blockers without triggering a write.
+  Both controls are absent after confirmation/termination. The last active Table cannot be deleted
+  independently; whole-Event deletion retains its separate explicit confirmation and cascade scope.
 - Result registration opens one Table editor titled Register result / Registra Risultato. Save result
   persists provisional `resultDraft` scores on that Table, with the complete frozen roster, exact
   decimals/ND, lower-wins and tie-break validation. Only the Event administrator can read/write these

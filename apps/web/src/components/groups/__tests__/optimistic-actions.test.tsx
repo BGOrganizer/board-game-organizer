@@ -190,7 +190,7 @@ it("returns from the Group picker before POST, preserves a held metadata read an
   );
   await waitFor(() => expect(screen.queryByText("@second")).toBeNull());
   expect(screen.getByText("@guest")).toBeTruthy();
-  expect(screen.getByRole("img", { name: "Invited" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Member with pending invitation" })).toBeTruthy();
   expect(options.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "invite_group_member");
   expect(options.feedback.onSuccess).not.toHaveBeenCalled();
 });

@@ -12,10 +12,8 @@ export function EventProposalItem({
   row,
   children,
   actions,
-  authorNames,
 }: {
   row: EventProposalResponse;
-  authorNames?: string;
   children?: ReactNode;
   actions?: ReactNode;
 }) {
@@ -26,18 +24,6 @@ export function EventProposalItem({
         <GameListRow
           name={row.game?.name ?? row.label}
           imageUrl={row.game?.imageUrl}
-          titleAccessory={
-            authorNames ? (
-              <Typography
-                className="text-sm text-muted"
-                style={{ flexShrink: 1 }}
-                numberOfLines={1}
-                accessibilityLabel={authorNames}
-              >
-                {authorNames}
-              </Typography>
-            ) : undefined
-          }
           actions={actions}
         >
           {children}
@@ -45,7 +31,7 @@ export function EventProposalItem({
       ) : (
         <GroupedRow>
           {row.payload.kind === "location" ? (
-            <MapPin size={20} color={muted} accessible={false} />
+            <MapPin size={16} color={muted} accessible={false} />
           ) : null}
           <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
             {row.payload.kind === "date" ? (

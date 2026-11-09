@@ -25,7 +25,7 @@ export const eventProposalKeys = {
       s.kind,
       s.tableId ?? null,
       cursor,
-      ...(s.kind === "game" && s.mode === "review" ? ["grouped-v1"] : []),
+      ...(s.mode === "review" ? ["grouped-v2"] : []),
     ] as const,
   groupReviewResource: (o: Owner, id: string) =>
     ["groups", o.apiUrl, o.userId, id, "proposal-review"] as const,
@@ -78,13 +78,18 @@ export function commitProposalReceipt(data: unknown, value: EventProposalRespons
     ...data,
     items: data.items.map((row) => {
       const next = row.id === value.id && row.version <= value.version ? value : row;
-      if (!row.gameSuggestions) return next;
-      const gameSuggestions = row.gameSuggestions.map((s) =>
+      const source = row.suggestions ?? row.gameSuggestions;
+      if (!source) return next;
+      const suggestions = source.map((s) =>
         s.id === value.id && s.version <= value.version
           ? { ...s, version: value.version, status: value.status }
           : s,
       );
-      return { ...next, gameSuggestions };
+      return {
+        ...next,
+        ...(row.suggestions ? { suggestions } : {}),
+        ...(row.gameSuggestions ? { gameSuggestions: suggestions } : {}),
+      };
     }),
   };
 }
@@ -104,8 +109,8 @@ export function commitProposalCreation(
     (data.mode === "mine" && value.userId !== userId)
   )
     return data;
-  // Review game pages are source-grouped; a single receipt cannot invent their membership/revision.
-  if (data.mode === "review" && value.payload.kind === "game") return data;
+  // Review pages are source-grouped; a single creation cannot invent complete membership/revision.
+  if (data.mode === "review") return data;
   const known = data.items.find((row) => row.id === value.id);
   if (known) return commitProposalReceipt(data, value);
   const rows = [...data.items, value].sort((a, b) =>
@@ -175,7 +180,14 @@ export function revokeProposalReview(
       );
     },
   });
-  const ids = new Set(queries.map((q) => String(q.queryKey[4])));
+  const participantReviews = client.getQueryCache().findAll({
+    queryKey: ["events", owner.apiUrl, owner.userId, "participants"],
+    predicate: (q) =>
+      q.queryKey[5] === "roles-v2" &&
+      q.queryKey[6] === "review" &&
+      ("eventId" in target ? q.queryKey[4] === target.eventId : q.queryKey[7] === target.groupId),
+  });
+  const ids = new Set([...queries, ...participantReviews].map((q) => String(q.queryKey[4])));
   for (const picker of pickers) {
     const scope = picker.queryKey[10] as { eventId: string };
     ids.add(scope.eventId);
@@ -189,15 +201,14 @@ export function revokeProposalReview(
       );
     for (const id of ids)
       cancelOptimisticResource(client, eventProposalKeys.reviewResource(owner, id));
-    if ("groupId" in target)
-      void client.invalidateQueries(
-        {
-          queryKey: ["events", owner.apiUrl, owner.userId, "detail"],
-          predicate: (q) => ids.has(String(q.queryKey[4])),
-        },
-        { cancelRefetch: false },
-      );
-    for (const q of [...queries, ...pickers]) {
+    void client.invalidateQueries(
+      {
+        queryKey: ["events", owner.apiUrl, owner.userId, "detail"],
+        predicate: (q) => ids.has(String(q.queryKey[4])),
+      },
+      { cancelRefetch: false },
+    );
+    for (const q of [...queries, ...pickers, ...participantReviews]) {
       q.setState({
         data: undefined,
         dataUpdatedAt: 0,

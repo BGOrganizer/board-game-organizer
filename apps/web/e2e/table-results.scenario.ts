@@ -4,7 +4,7 @@ import type {
   PlannedTableResponse,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import { formatUsername, withProtectionBypass } from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
@@ -119,6 +119,18 @@ test("owned admin saves editable scores across reloads; excluded Tables never bl
   await expect(page.getByRole("heading", { name: excluded.name, exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: labels.register, exact: true })).toHaveCount(0);
   await page.goto(`/events/${eventId}/tables/${tableId}`);
+  await expect(page.getByRole("tab", { name: "Ranking", exact: true })).toHaveCount(0);
+  await page.getByRole("tab", { name: labels.results, exact: true }).click();
+  const firstRatingName = formatUsername(
+    players[0]!.username,
+    players[0]!.name ?? players[0]!.userId,
+  );
+  await page.getByRole("button", { name: `Ranking: ${firstRatingName}`, exact: true }).click();
+  await expect(
+    page.getByRole("dialog").getByText(it ? "Ranking globale" : "Global ranking", { exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("tab", { name: it ? "Dettagli" : "Details", exact: true }).click();
   await page.getByRole("link", { name: labels.register, exact: true }).click();
   await expect(page.getByRole("heading", { name: labels.register, exact: true })).toBeVisible();
   for (const [index, player] of players.entries()) {
@@ -185,5 +197,10 @@ test("owned admin saves editable scores across reloads; excluded Tables never bl
   await page.goto(`/events/${eventId}/tables/${tableId}`);
   await expect(page.getByRole("link", { name: labels.register, exact: true })).toHaveCount(0);
   await page.getByRole("tab", { name: labels.results, exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Ranking", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: `Ranking: ${firstRatingName}`, exact: true }).click();
+  await expect(
+    page.getByRole("dialog").getByText(it ? "Ranking globale" : "Global ranking", { exact: true }),
+  ).toBeVisible();
   await page.screenshot({ path: `test-results/table-results-${locale}.png`, fullPage: true });
 });

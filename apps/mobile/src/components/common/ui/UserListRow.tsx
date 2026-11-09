@@ -10,6 +10,7 @@ export function UserListRow({
   secondary,
   online,
   badge,
+  badgeContent,
   titleAccessory,
   children,
   actions,
@@ -22,6 +23,7 @@ export function UserListRow({
   secondary?: string | null;
   online?: boolean;
   badge?: UserBadge;
+  badgeContent?: ReactNode;
   titleAccessory?: ReactNode;
   children?: ReactNode;
   actions?: ReactNode;
@@ -40,7 +42,13 @@ export function UserListRow({
         accessibilityLabel={onPress ? (accessibilityLabel ?? name) : undefined}
         style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 }}
       >
-        <UserAvatar name={name} avatarUrl={avatarUrl} online={online} badge={badge} />
+        <UserAvatar
+          name={name}
+          avatarUrl={avatarUrl}
+          online={online}
+          badge={badge}
+          badgeContent={badgeContent}
+        />
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
           <View style={{ minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Typography

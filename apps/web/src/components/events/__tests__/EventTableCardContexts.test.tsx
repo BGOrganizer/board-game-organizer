@@ -45,7 +45,7 @@ async function closePopover() {
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 }
 
-it("uses the same full-height left artwork, identity and controls in both lists; only Back context changes", async () => {
+it("uses the same normal-flow horizontal artwork, identity and controls in both lists; only Back context changes", async () => {
   const table = {
     ...plannedTable,
     groupId: groupRecord.id,
@@ -63,7 +63,7 @@ it("uses the same full-height left artwork, identity and controls in both lists;
   );
   const artwork = document.querySelector("img")?.getAttribute("src");
   expect(artwork).toBe(
-    `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: table.id, size: 72, backgroundColor: [] }).toString())}`,
+    `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: table.id, size: 72 }).toString())}`,
   );
   const inspect = () => {
     const event = screen.getByText(table.eventName),
@@ -73,7 +73,7 @@ it("uses the same full-height left artwork, identity and controls in both lists;
     expect(screen.getByText("2/4 participants")).not.toBeNull();
     const image = document.querySelector("img");
     expect(image?.className).toContain("h-full w-full object-contain");
-    expect(image?.closest(".w-20")?.className).toContain("absolute");
+    expect(image?.closest(".size-24")?.className).toContain("relative");
     expect(
       screen.getByRole("button", { name: "Rating enabled" }).parentElement?.className,
     ).toContain("justify-end");
@@ -122,17 +122,20 @@ it.each(["personal", "event"] as const)(
         }}
       />,
     );
-    check("Participation requested", "clock-3", "text-warning");
-    check("Waiting list", "list-ordered", "text-warning");
+    expect(screen.queryByRole("button", { name: "Player with pending invitation" })).toBeNull();
+    check("Player on the waiting list", "list-ordered", "text-warning");
     q.rerender(
       <EventTableCard
         context={context}
-        table={{ ...base, myRegistration: { ...seat("owner"), status: "PENDING" } }}
+        table={{
+          ...base,
+          myRegistration: { ...seat("owner"), status: "PENDING", kind: "INVITATION" },
+        }}
       />,
     );
-    check("Invitation received", "mail", "text-warning");
+    check("Player with pending invitation", "mail", "text-warning");
     q.rerender(<EventTableCard context={context} table={{ ...base, myPosition: "WAITING" }} />);
-    check("Waiting list", "list-ordered", "text-warning");
+    check("Player on the waiting list", "list-ordered", "text-warning");
   },
 );
 it.each([1, 2])(

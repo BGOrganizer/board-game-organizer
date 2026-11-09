@@ -202,6 +202,57 @@ describe("account-owned canonical persistence", () => {
     expect(saved?.[0].queryKey).toEqual(own);
     expect(saved?.[0].state.data).toEqual({ ...payload, mode: "mine" });
   });
+  it("purges manager-only pending participant identities from canonical disk cache on verified demotion", () => {
+    const f = fixture();
+    const review = [
+      "events",
+      owner.apiUrl,
+      owner.userId,
+      "participants",
+      "event",
+      "roles-v2",
+      "review",
+      "group",
+    ];
+    const member = [
+      "events",
+      owner.apiUrl,
+      owner.userId,
+      "participants",
+      "event",
+      "roles-v2",
+      "member",
+      null,
+    ];
+    f.client.setQueryData(review, {
+      pages: [
+        {
+          groupId: "group",
+          items: [
+            {
+              userId: "invitee",
+              username: "private-invitee",
+              accepted: false,
+              pendingInvitation: true,
+            },
+          ],
+        },
+      ],
+      pageParams: [""],
+    });
+    f.client.setQueryData(member, {
+      pages: [{ groupId: "group", items: [{ userId: "accepted", accepted: true }] }],
+      pageParams: [""],
+    });
+    f.persister.flush();
+    expect(f.data.get("queries")).toContain("private-invitee");
+    revokeProposalReview(f.client, owner, { groupId: "group" });
+    f.persister.flush();
+    expect(f.data.get("queries")).not.toContain("private-invitee");
+    expect(f.persister.restoreClient()?.clientState.queries.map((query) => query.queryKey)).toEqual(
+      [member],
+    );
+  });
   it("excludes local contacts, credentials, providers, retired domains and foreign contacts", () => {
     expect(ownsPersistedQuery(["contacts", "friends", owner.apiUrl, owner.userId], owner)).toBe(
       true,

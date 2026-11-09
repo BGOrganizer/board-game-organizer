@@ -3,13 +3,13 @@ import { I18nProvider } from "@lingui/react";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { expect, it, vi } from "vitest";
+import { ScheduleOptionsPopover } from "@/components/common/ui/ScheduleOptionsPopover";
 import { GroupCard } from "@/components/groups/GroupCard";
 import { groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { messages as en } from "../../../../../../messages/en.js";
 import { messages as itCatalog } from "../../../../../../messages/it.js";
 import { EventCard } from "../EventCard";
-import { EventCardSchedule } from "../EventCardSchedule";
 import { EventTableCard } from "../EventTableCard";
 
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
@@ -121,27 +121,36 @@ it("shares Group/Event/Table title typography and keeps Group metadata at the sa
         .closest(".text-sm"),
     ).not.toBeNull();
 });
-it("distinguishes missing cached metadata from known empty or single-option Event schedules", () => {
-  const q = renderWithI18n(<EventCardSchedule />);
-  expect(q.container.querySelectorAll(".skeleton")).toHaveLength(2);
-  q.rerender(
-    <EventCardSchedule
-      schedule={{ localStartsAt: null, location: null, dateCount: 0, locationCount: 0 }}
-    />,
-  );
-  expect(screen.getByText("Dates to agree")).not.toBeNull();
-  expect(screen.getByText("Locations to agree")).not.toBeNull();
-  expect(screen.queryByRole("img")).toBeNull();
-  q.rerender(
-    <EventCardSchedule
-      schedule={{
-        localStartsAt: "2030-06-03T20:00",
-        location: plannedEvent.locations[0],
-        dateCount: 1,
-        locationCount: 1,
-      }}
-    />,
-  );
-  expect(screen.queryByRole("img")).toBeNull();
-  expect(q.container.querySelectorAll("time")).toHaveLength(2);
-});
+it.each(["dates", "locations"] as const)(
+  "distinguishes missing cached %s from known empty or single options",
+  async (kind) => {
+    const q = renderWithI18n(
+      <ScheduleOptionsPopover name="Event" kind={kind} planning rows={undefined} />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `${kind === "dates" ? "Dates and times" : "Locations"}: Event`,
+      }),
+    );
+    expect((await screen.findByRole("dialog")).querySelectorAll(".skeleton")).toHaveLength(1);
+    q.rerender(<ScheduleOptionsPopover name="Event" kind={kind} planning rows={[]} />);
+    expect(
+      await screen.findByText(kind === "dates" ? "No date selected" : "No location selected"),
+    ).toBeTruthy();
+    q.rerender(
+      <ScheduleOptionsPopover
+        name="Event"
+        kind={kind}
+        planning
+        rows={
+          kind === "dates"
+            ? [{ id: "date", date: { startsAt: "2030-06-03T20:00Z", timeZone: "UTC" } }]
+            : [{ id: "venue", location: plannedEvent.locations[0] }]
+        }
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.querySelectorAll("time")).toHaveLength(kind === "dates" ? 2 : 0);
+    if (kind === "locations") expect(within(dialog).getByText("Via Roma 1")).toBeTruthy();
+  },
+);

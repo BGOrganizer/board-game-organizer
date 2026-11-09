@@ -297,6 +297,9 @@ export type TableLeaderboardPlayer = {
   gamesPlayed: number;
   gamesWon: number;
   nd: number;
+  /** Scoped current ratings; optional only for older owned caches. */
+  globalRating?: { score: number; provisional: boolean };
+  groupRating?: { score: number; provisional: boolean };
 };
 export type TableInviteeResponse = {
   /** Missing only on cached responses predating invitation availability metadata. */
@@ -318,14 +321,19 @@ export type TableLeaderboardResponse = {
   nextCursor: string | null;
 };
 export type TableSeatPosition = "SEATED" | "WAITING" | "FROZEN";
-/** Accepted attendance only, deduplicated across live Tables; never invitation consent. */
+/** Authorized attendance, invitations and duty, deduplicated before source paging; never invented consent. */
 export interface EventParticipantResponse {
   id: string;
   userId: string;
   name: string;
   username: string | null;
   avatarUrl: string | null;
-  position: TableSeatPosition;
+  position: TableSeatPosition | null;
+  /** Older cached pages contained accepted/frozen attendance only. */
+  accepted?: boolean;
+  pendingInvitation?: boolean;
+  waiting?: boolean;
+  demonstrator?: boolean;
   canRemove: boolean;
   /** Display only: current Group authority, or the standalone Event creator. Older caches omit it. */
   managementRole?: "admin" | "moderator" | null;

@@ -27,6 +27,8 @@ function run(change = {}, env = {}) {
       pages: number;
       rowId: string;
       result: string;
+      authors: string[];
+      actionId: string;
     };
   } = {};
   runInNewContext(script, {
@@ -53,18 +55,24 @@ it.each(["en", "it"])(
     expect(b.pages).toBe(1);
     expect(
       new RegExp(b.review).test(
-        `${locale === "it" ? "Accetta proposta" : "Accept proposal"}: player.name — Game [owned]`,
+        `${locale === "it" ? "Valuta proposta" : "Review proposal"}: Game [owned]`,
       ),
     ).toBe(true);
     expect(b.rowId).toBe("event-proposal-" + input.proposalId);
+    expect(b.actionId).toBe("confirmation-action-0");
+    expect(run({ mode: "reject" }).actionId).toBe("confirmation-action-1");
+    expect(a.authors).toEqual([]);
     expect(run({ mode: "reject" }, { EVENT_PROPOSAL_LOCALE: locale }).result).not.toBe(b.result);
   },
 );
 it("escapes every grouped proposer in the one collective decision selector", () => {
   const grouped = run({ mode: "accept", proposerNames: ["alice[1]", "bob.name"] });
+  expect(new RegExp(grouped.review).test("Review proposal: Game [owned]")).toBe(true);
   expect(
-    new RegExp(grouped.review).test("Accept proposal: alice[1], bob.name — Game [owned]"),
-  ).toBe(true);
+    grouped.authors.map((pattern, index) =>
+      new RegExp(pattern).test(["alice[1]", "bob.name"][index]),
+    ),
+  ).toEqual([true, true]);
 });
 it.each([
   { EVENT_PROPOSAL_FIXTURE_ACK: "" },

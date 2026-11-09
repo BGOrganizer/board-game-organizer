@@ -38,7 +38,8 @@ it("uses paged real table cards and loads missing detail fields without replacin
   expect(source("TableList")).toContain('context="personal"');
   expect(source("EventTable")).toContain("Could not load complete table details");
   expect(source("EventTableResults")).toContain("eventTablePeople");
-  expect(source("EventTableResults")).toContain("<EventPlayerCard");
-  expect(source("EventTableResults")).toContain("table.groupRatingChanges");
-  expect(source("EventTableResults")).toContain('t("Global ranking")');
+  expect(source("EventTableResults")).toContain("<UserListRow");
+  expect(source("EventTableResults")).toContain("<EventPlayerRatingPopover");
+  expect(source("EventPlayerRatingPopover")).toContain("tablePlayerRatingRows");
+  expect(source("EventPlayerRatingPopover")).toContain('t("Global ranking")');
 });

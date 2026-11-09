@@ -197,7 +197,7 @@ it.each([
       fireEvent.click(within(dialog).getByRole("button", { name: action }));
       expect(screen.queryByRole("dialog", { name: "Review table settings" })).toBeNull();
       await waitFor(() => expect(region(index).getByText(caption)).toBeTruthy());
-      expect(region(index).queryByText("Participant")).toBeNull();
+      expect(region(index).queryByText("Confirmed player")).toBeNull();
     }
     await waitFor(() => expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledTimes(2));
     expect(writes).toHaveLength(1);
@@ -280,14 +280,14 @@ it.each([
     if (outcome === "commit") {
       const second = commit(secondId);
       await act(async () => writes[1].resolve(Response.json(second, { status: 201 })));
-      await waitFor(() => expect(region(1).getByText("Participant")).toBeTruthy());
+      await waitFor(() => expect(region(1).getByText("Confirmed player")).toBeTruthy());
     } else if (outcome === "reject") {
       server = { ...server, version: server.version + 1 };
       await act(async () =>
         writes[1].resolve(Response.json({ error: "EVENT_CHANGED" }, { status: 409 })),
       );
       await waitFor(() => expect(region(1).queryByText(caption)).toBeNull());
-      expect(region(0).getByText("Participant")).toBeTruthy();
+      expect(region(0).getByText("Confirmed player")).toBeTruthy();
       fireEvent.click(
         mode === "join"
           ? region(1).getAllByRole("button", { name: "Free place" })[0]
@@ -321,7 +321,7 @@ it.each([
       );
       const recovered = commit(secondId);
       await act(async () => writes[2].resolve(Response.json(recovered, { status: 201 })));
-      await waitFor(() => expect(region(1).getByText("Participant")).toBeTruthy());
+      await waitFor(() => expect(region(1).getByText("Confirmed player")).toBeTruthy());
     } else {
       await act(async () => writes[1].resolve(Response.json({}, { status: 503 })));
       await waitFor(() => expect(region(1).getByText("Checking saved changes")).toBeTruthy());
@@ -341,7 +341,7 @@ it.each([
           { cancelRefetch: false },
         );
       });
-      await waitFor(() => expect(region(1).getByText("Participant")).toBeTruthy());
+      await waitFor(() => expect(region(1).getByText("Confirmed player")).toBeTruthy());
       await waitFor(() =>
         expect(
           client

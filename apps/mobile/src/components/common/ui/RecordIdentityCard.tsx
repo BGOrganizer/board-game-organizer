@@ -1,3 +1,4 @@
+import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
@@ -17,10 +18,10 @@ export function RecordIdentityCard({
   titleAccessory?: ReactNode;
   children: ReactNode;
 }) {
+  const backgroundColor = useThemeColor("background");
   return (
     <ListCard background={background}>
       <View
-        className="bg-background/90"
         style={{
           flexDirection: "row",
           padding: 16,
@@ -44,7 +45,13 @@ export function RecordIdentityCard({
             accessibilityLabel={title}
             numberOfLines={1}
             className="text-lg font-semibold text-foreground"
-            style={{ flex: 1, minWidth: 0 }}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              textShadowColor: backgroundColor,
+              textShadowOffset: { width: 0, height: 0 },
+              textShadowRadius: 4,
+            }}
           >
             {title}
           </Typography>

@@ -4,7 +4,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
-import { EventTableLeaderboard } from "../EventTableLeaderboard";
+import { EventTableResults as EventTableLeaderboard } from "../EventTableResults";
 
 const m = vi.hoisted(() => ({ token: vi.fn(async () => "fresh") }));
 const owner = { apiUrl: "https://api.test", userId: "owner", getToken: m.token };
@@ -89,10 +89,13 @@ it("shows the frozen game/current ranking and source-pages with fresh tokens and
   );
   mount();
   expect(await screen.findByText("alpha")).not.toBeNull();
-  expect(screen.getByText("Chess")).not.toBeNull();
-  expect(screen.getByText("Global rating")).not.toBeNull();
-  expect(screen.getByRole("heading", { name: "Selected game" })).not.toBeNull();
+  expect(screen.queryByRole("heading", { name: "Selected game" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Ranking: alpha" }));
+  expect(await screen.findByText("Ranking · Chess")).toBeTruthy();
+  expect(screen.getByText("Global ranking")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Provisional rating" })).not.toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   fireEvent.click(screen.getByRole("button", { name: "Load more" }));
   expect(await screen.findByText("beta")).not.toBeNull();
   expect(screen.getByText("alpha")).not.toBeNull();
@@ -144,31 +147,37 @@ it("retries an ordinary network exception without invalidating unrelated Table s
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("alpha")).not.toBeNull();
 });
-it("never stores another frozen game's response under a stale selected-game cache key", async () => {
-  fetcher.mockResolvedValue(
-    new Response(
-      JSON.stringify({
-        gameId: 99,
-        scope: "GLOBAL",
-        items: [player("wrong-game")],
-        nextCursor: null,
-      }),
-    ),
-  );
-  const { client } = mount();
-  const owned = eventRecordKeys.table(owner, table.eventId, table.id),
-    foreign = eventRecordKeys.table({ ...owner, userId: "other" }, table.eventId, table.id);
-  client.setQueryData(owned, table);
-  client.setQueryData(foreign, table);
-  await screen.findByRole("alert");
-  expect(screen.queryByText("wrong-game")).toBeNull();
-  expect(
-    client.getQueryData(tableLeaderboardQuery(owner, table.eventId, table.id, 1).queryKey),
-  ).toBeUndefined();
-  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() => expect(client.getQueryState(owned)?.isInvalidated).toBe(true));
-  expect(client.getQueryState(foreign)?.isInvalidated).toBe(false);
-});
+it.each(["game", "roster"] as const)(
+  "never stores another frozen %s response under a stale snapshot key",
+  async (kind) => {
+    fetcher.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          gameId: kind === "game" ? 99 : 1,
+          scope: "GLOBAL",
+          items: [player("wrong-game")],
+          nextCursor: null,
+        }),
+      ),
+    );
+    const { client } = mount();
+    const owned = eventRecordKeys.table(owner, table.eventId, table.id),
+      foreign = eventRecordKeys.table({ ...owner, userId: "other" }, table.eventId, table.id);
+    client.setQueryData(owned, table);
+    client.setQueryData(foreign, table);
+    await screen.findByRole("alert");
+    expect(screen.queryByText("wrong-game")).toBeNull();
+    expect(
+      client.getQueryData(
+        tableLeaderboardQuery(owner, table.eventId, table.id, 1, table.confirmed.playerIds)
+          .queryKey,
+      ),
+    ).toBeUndefined();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(client.getQueryState(owned)?.isInvalidated).toBe(true));
+    expect(client.getQueryState(foreign)?.isInvalidated).toBe(false);
+  },
+);
 it("preserves cached rows during next-page loading/failure and retries that page without restarting pagination", async () => {
   let complete!: (value: Response) => void,
     attempts = 0;
@@ -196,7 +205,7 @@ it("preserves cached rows during next-page loading/failure and retries that page
   await screen.findByText("alpha");
   fireEvent.click(screen.getByRole("button", { name: "Load more" }));
   await waitFor(() => expect(complete).toBeDefined());
-  expect(document.querySelector(".skeleton.h-12")).not.toBeNull();
+  expect(document.querySelector(".skeleton.h-20")).not.toBeNull();
   expect(screen.getByText("alpha")).not.toBeNull();
   await act(async () => {
     complete(new Response("{}", { status: 503 }));
@@ -204,7 +213,11 @@ it("preserves cached rows during next-page loading/failure and retries that page
   await screen.findByRole("alert");
   expect(screen.getByText("alpha")).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByText("56.00")).not.toBeNull();
+  expect(await screen.findByText("Username unavailable")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Ranking: Username unavailable" }));
+  expect(await screen.findByText("56")).not.toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(attempts).toBe(2);
   expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
 });
@@ -223,6 +236,6 @@ it("does not fabricate rankings for excluded tables and renders an explicit auth
     </QueryClientProvider>,
   );
   expect(await screen.findByText("No players found")).not.toBeNull();
-  expect(screen.getByText("Unknown")).not.toBeNull();
-  expect(screen.getByText("Group rating")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: /^Ranking:/ })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Selected game" })).toBeNull();
 });

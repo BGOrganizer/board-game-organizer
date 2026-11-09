@@ -28,7 +28,6 @@ it.each([
   [waiting, invitation],
   [waiting],
 ])("retains accepted consent without hiding simultaneous pending work (%s)", async (...rows) => {
-  const pending = rows.some((row) => row.status === "PENDING");
   const reply = rows.some((row) => row.kind === "INVITATION" && row.status === "PENDING");
   const label = "Accepted participant";
   const description =
@@ -37,13 +36,11 @@ it.each([
     <EventCard event={{ ...plannedEvent, role: "invited", myRegistrations: [...rows] }} />,
   );
   const button = screen.getByRole("button", { name: label });
-  expect(screen.getAllByRole("button")).toHaveLength(pending ? 4 : 3);
-  expect(screen.getByRole("button", { name: "Waiting list" })).not.toBeNull();
-  if (pending)
+  expect(screen.getAllByRole("button")).toHaveLength(reply ? 7 : 6);
+  expect(screen.getByRole("button", { name: "Participant on the waiting list" })).not.toBeNull();
+  if (reply)
     expect(
-      screen.getByRole("button", {
-        name: reply ? "Pending participation · Reply required" : "Pending participation",
-      }),
+      screen.getByRole("button", { name: "Participant with pending invitation · Reply required" }),
     ).not.toBeNull();
   expect(screen.getByRole("link").contains(button)).toBe(false);
   fireEvent.click(button);
@@ -58,12 +55,12 @@ it("does not award organizer participation, infer queue positions, or keep a pos
     myRegistrations: [],
   };
   const q = renderWithI18n(<EventCard event={event} />);
-  expect(screen.getByRole("button", { name: "Administrator" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Admin" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   q.rerender(
     <EventCard event={{ ...event, role: "member", canManage: false, managementRole: null }} />,
   );
-  expect(screen.queryByRole("button", { name: "Administrator" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Admin" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   q.rerender(<EventCard event={{ ...event, myRegistrations: [reg("ACCEPTED", "SELF")] }} />);
   expect(screen.getByRole("button", { name: "Accepted participant" })).not.toBeNull();
@@ -103,7 +100,7 @@ it("retains uploaded Group logos and their list-only non-overlay status", () => 
   expect(document.querySelector("img")?.getAttribute("src")).toBe(
     "data:image/png;base64,public-artwork",
   );
-  const trigger = screen.getByRole("button", { name: "Group admin" });
+  const trigger = screen.getByRole("button", { name: "Admin" });
   expect(trigger.parentElement?.className).toContain("flex-nowrap");
   expect(document.querySelector(".absolute.left-0.top-0")).toBeNull();
 });

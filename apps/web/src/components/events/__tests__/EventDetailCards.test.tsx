@@ -26,7 +26,8 @@ it.each([
     expect(card.querySelector(".absolute.inset-0")).not.toBeNull();
     expect(card.querySelector(".bg-surface\\/95")).toBeNull();
     expect(card.querySelector(".bg-background\\/70")).toBeNull();
-    const caption = card.querySelector(".bg-background\\/90") as HTMLElement;
+    expect(card.querySelector(".bg-background\\/90")).toBeNull();
+    const caption = heading.parentElement?.parentElement as HTMLElement;
     expect(caption).not.toBeNull();
     expect(caption.className).toContain("flex-nowrap");
     expect(caption.className).not.toContain("absolute");
@@ -45,7 +46,7 @@ it.each([
     );
     view.rerender(<EventCard event={event} />);
     expect(document.querySelector("img")?.getAttribute("src")).toBe(
-      `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(constellation), { seed: event.id, size: 72, backgroundColor: [] }).toString())}`,
+      `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(constellation), { seed: event.id, size: 72 }).toString())}`,
     );
   },
 );
@@ -66,15 +67,20 @@ it("keeps accepted, pending and waiting Event participation independent in both 
     myDemonstrator: true,
     myRegistrations: [
       { ...seat("owner"), position: "WAITING" as const },
-      { ...seat("owner"), tableId: "other", status: "PENDING" as const },
+      {
+        ...seat("owner"),
+        tableId: "other",
+        status: "PENDING" as const,
+        kind: "INVITATION" as const,
+      },
     ],
   };
   const q = renderWithI18n(<EventDetailsCard event={event} />);
   const labels = [
-    "Group moderator",
+    "Moderator",
     "Accepted participant",
-    "Pending participation",
-    "Waiting list",
+    "Participant with pending invitation",
+    "Participant on the waiting list",
     "Demonstrator",
     "Planning",
   ];
@@ -95,7 +101,7 @@ it("retains the existing voting legend below the identity and tabs", () => {
   ).not.toBeNull();
 });
 it.each([true, false])(
-  "retains Table state, rating=%s and player-limit help without list-only option controls",
+  "retains Table state, rating=%s and all list option controls in detail",
   async (enabled) => {
     renderWithI18n(<EventTableInfo table={{ ...plannedTable, rankingEnabled: enabled }} />);
     const heading = screen.getByRole("heading", { name: plannedTable.name }),
@@ -105,13 +111,14 @@ it.each([true, false])(
       screen.getByRole("button", { name: enabled ? "Rating enabled" : "Rating disabled" }),
     ).not.toBeNull();
     expect(
-      screen.queryByRole("button", { name: /^Dates and times:|^Locations:|^Board games:/ }),
-    ).toBeNull();
+      screen.getAllByRole("button", { name: /^Dates and times:|^Locations:|^Board games:/ }),
+    ).toHaveLength(3);
     fireEvent.click(screen.getByRole("button", { name: "Planning" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Minimum players")).not.toBeNull();
     expect(within(dialog).getByText("Maximum players")).not.toBeNull();
-    expect(within(dialog).getByText(/The minimum is required for agreement/)).not.toBeNull();
+    expect(within(dialog).queryByText(/The minimum is required for agreement/)).toBeNull();
+    expect(within(dialog).getByText("Minimum players").querySelector("svg")).not.toBeNull();
   },
 );
 it("retains accepted queue consent independently of the canonical waiting position", () => {
@@ -127,14 +134,7 @@ it("retains accepted queue consent independently of the canonical waiting positi
       }}
     />,
   );
-  for (const label of [
-    "Administrator",
-    "Accepted participant",
-    "Waiting list",
-    "Demonstrator",
-    "Planning",
-    "Rating enabled",
-  ])
+  for (const label of ["Player on the waiting list", "Demonstrator", "Planning", "Rating enabled"])
     expect(screen.getByRole("button", { name: label })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
 });

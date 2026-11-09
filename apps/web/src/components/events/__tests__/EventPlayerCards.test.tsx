@@ -1,10 +1,18 @@
-import { screen, within } from "@testing-library/react";
-import { expect, it } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
 import { plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventPlayerCard } from "../EventPlayerCard";
 import { EventTableResults } from "../EventTableResults";
 
+vi.mock("@/lib/useCommunityApi", () => ({
+  useCommunityApi: () => ({
+    apiUrl: "https://api.test",
+    userId: "owner",
+    getToken: async () => "fresh",
+  }),
+}));
+afterEach(() => vi.unstubAllGlobals());
 it("keeps full identity with username or honest missing metadata", () => {
   const q = renderWithI18n(
     <EventPlayerCard name="Full Name" username="player" avatarUrl="https://example.test/avatar.png">
@@ -20,73 +28,85 @@ it("keeps full identity with username or honest missing metadata", () => {
   );
   expect(screen.getByText("—")).not.toBeNull();
   expect(screen.getByText("?")).not.toBeNull();
+  q.rerender(
+    <EventPlayerCard name={undefined} avatarUrl={null}>
+      Stats
+    </EventPlayerCard>,
+  );
+  expect(q.container.querySelector(".skeleton")).not.toBeNull();
 });
+const results = {
+  entries: [
+    { userId: "winner", score: "1.50", rank: 1 },
+    { userId: "tied", score: "1.50", rank: 1 },
+    { userId: "nd", score: null, rank: null },
+  ],
+  lowerWins: false,
+  tieBreaks: [],
+  finalizedAt: plannedTable.createdAt,
+};
+const finalTable = {
+  ...plannedTable,
+  eventStatus: "TERMINATED" as const,
+  results,
+  resultProfiles: [
+    {
+      userId: "winner",
+      name: "Winner full name",
+      username: "winner",
+      email: null,
+      avatarUrl: "https://example.test/avatar.png",
+    },
+    { userId: "tied", name: "Other winner", username: "tied", email: null, avatarUrl: null },
+    { userId: "nd", name: "ND player", email: null, avatarUrl: null },
+  ],
+  ratingChanges: [{ userId: "winner", score: 505, delta: 5, provisional: false }],
+  groupRatingChanges: [{ userId: "winner", score: 497, delta: -3, provisional: false }],
+};
 it.each([null, "group"])(
-  "shows immutable before/after and signed changes in the genuine %s scope",
-  (groupId) => {
-    const q = renderWithI18n(
-      <EventTableResults
-        table={{
-          ...plannedTable,
-          groupId,
-          eventStatus: "TERMINATED",
-          results: {
-            entries: [
-              { userId: "winner", score: "1.50", rank: 1 },
-              { userId: "nd", score: null, rank: null },
-            ],
-            lowerWins: false,
-            tieBreaks: [],
-            finalizedAt: plannedTable.createdAt,
-          },
-          resultProfiles: [
-            {
-              userId: "winner",
-              name: "Winner full name",
-              username: "winner",
-              email: null,
-              avatarUrl: "https://example.test/avatar.png",
-            },
-            { userId: "nd", name: "ND player", email: null, avatarUrl: null },
-          ],
-          ratingChanges: [{ userId: "winner", score: 505, delta: 5, provisional: false }],
-          groupRatingChanges: [{ userId: "winner", score: 497, delta: -3, provisional: false }],
-        }}
-      />,
-    );
-    expect(screen.getByText("@winner")).not.toBeNull();
-    const card = screen.getByText("Winner full name").closest(".card") as HTMLElement;
-    const metric = (label: string) => within(card).getByText(label).parentElement!;
-    expect(metric("Rating before").children[1].textContent).toBe(groupId ? "500" : "—");
-    expect(metric("Group ranking").children[1].textContent).toBe(groupId ? "497" : "—");
-    expect(metric("Global ranking").children[1].textContent).toBe("505");
-    expect(metric("Global rating change").children[1].textContent).toBe("+5");
-    expect(metric("Group rating change").children[1].textContent).toBe(groupId ? "-3" : "—");
-    expect(metric("Score").children[1].textContent).toBe("1.50");
-    expect(metric("Score").parentElement?.classList.contains("grid-cols-3")).toBe(true);
-    expect(metric("Position").parentElement?.classList.contains("grid-cols-4")).toBe(true);
-    expect(metric("Global ranking").parentElement).toBe(metric("Position").parentElement);
-    expect(metric("Group rating change").parentElement).toBe(metric("Score").parentElement);
-    expect(metric("Global ranking").previousElementSibling).toBe(metric("Rating before"));
-    expect(
-      within(screen.getByText("ND player").closest(".card") as HTMLElement).getAllByText("ND"),
-    ).toHaveLength(2);
-    q.rerender(
-      <EventTableResults
-        table={{
-          ...plannedTable,
-          eventStatus: "TERMINATED",
-          results: {
-            entries: [{ userId: "winner", score: "0", rank: 1 }],
-            lowerWins: true,
-            tieBreaks: [],
-            finalizedAt: plannedTable.createdAt,
-          },
-          resultProfiles: [{ userId: "winner", name: "Winner", email: null, avatarUrl: null }],
-          ratingChanges: [{ userId: "winner", score: 500, delta: 0, provisional: false }],
-        }}
-      />,
-    );
-    expect(document.querySelector(".text-muted svg.lucide-plus")).not.toBeNull();
+  "shows immutable scoped history, shared positions and unranked ND (%s)",
+  async (groupId) => {
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    renderWithI18n(<EventTableResults table={{ ...finalTable, groupId }} />);
+    expect(screen.getByText("@winner")).toBeTruthy();
+    expect(screen.queryByText("Winner full name")).toBeNull();
+    expect(screen.getAllByRole("img", { name: "Position: #1" })).toHaveLength(2);
+    expect(screen.getByRole("img", { name: "Position: ND" }).textContent).toBe("ND");
+    expect(screen.getAllByText("1.50")).toHaveLength(2);
+    expect(document.querySelectorAll('[title="ND"]')).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Ranking: @winner" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Global ranking")).toBeTruthy();
+    expect(within(dialog).getByText("505")).toBeTruthy();
+    expect(within(dialog).getByText("+5")).toBeTruthy();
+    expect(Boolean(within(dialog).queryByText("Group ranking"))).toBe(Boolean(groupId));
+    expect(within(dialog).getAllByText("Rating before")).toHaveLength(groupId ? 2 : 1);
+    expect(within(dialog).getAllByText("Rating after")).toHaveLength(groupId ? 2 : 1);
+    if (groupId) {
+      expect(within(dialog).getByText("497")).toBeTruthy();
+      expect(within(dialog).getByText("-3")).toBeTruthy();
+    }
+    expect(within(dialog).getAllByText("500")).toHaveLength(groupId ? 2 : 1);
+    expect(fetcher).not.toHaveBeenCalled();
   },
 );
+it("distinguishes ineligible rating updates from missing immutable history without live replacement", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  const oneFinisher = {
+    ...finalTable,
+    results: { ...results, entries: results.entries.filter((row) => row.userId !== "tied") },
+  };
+  const view = renderWithI18n(<EventTableResults table={oneFinisher} />);
+  fireEvent.click(screen.getByRole("button", { name: "Ranking: @winner" }));
+  expect(await screen.findByText("Ranking not updated")).toBeTruthy();
+  expect(screen.queryByText("+5")).toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  view.rerender(<EventTableResults table={{ ...finalTable, ratingChanges: [] }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Ranking: @winner" }));
+  expect(await screen.findByText("Historical ranking unavailable")).toBeTruthy();
+  expect(screen.queryByText("Ranking not updated")).toBeNull();
+  expect(fetcher).not.toHaveBeenCalled();
+});

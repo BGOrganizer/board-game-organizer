@@ -92,7 +92,7 @@ it("retains an actionable admin request after unread state is cleared, and openi
   const group = { ...groupRecord, role: "admin" as const, pendingRequestCount: 2 };
   const view = renderWithI18n(<GroupCard group={group} />);
   expect(screen.getByRole("img", { name: "Unread updates" })).not.toBeNull();
-  const name = "Group admin · Requests to review";
+  const name = "Admin · Requests to review";
   fireEvent.click(screen.getByRole("button", { name }));
   expect(
     await screen.findByText("Open Members to approve or reject membership requests."),

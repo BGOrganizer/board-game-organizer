@@ -154,7 +154,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/events/{EventResultTableCard,EventTableResults,EventTableLeaderboard,EventPlayerCard,EventJoinSheet}.tsx":
+        "src/components/events/{EventResultTableCard,EventTableResults,EventPlayerCard,EventJoinSheet}.tsx":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "../../packages/shared/src/events/hooks/{useTableLeaderboard,useEventJoinForm}.ts": {
           lines: 100,
@@ -257,7 +257,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/events/{EventCard,EventCardSchedule}.tsx": {
+        "src/components/events/EventCard.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,

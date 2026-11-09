@@ -107,7 +107,8 @@ for (const width of [390, 1280])
       await expect(card).toBeVisible();
       await expect(card.locator('[class~="bg-surface/95"]')).toHaveCount(0);
       await expect(card.locator('[class~="bg-background/70"]')).toHaveCount(0);
-      const caption = card.locator('[class~="bg-background/90"]');
+      await expect(card.locator('[class~="bg-background/90"]')).toHaveCount(0);
+      const caption = card.locator("h1").locator("xpath=../..");
       await expect(caption).toHaveCSS("flex-wrap", "nowrap");
       await expect(card.locator("img")).toHaveCSS("opacity", "1");
       const sameRow = await caption.evaluate((row) => {
@@ -151,14 +152,16 @@ for (const width of [390, 1280])
     await expect(groupPerson).toBeVisible();
     const groupRole =
       people.groupRole === "admin"
-        ? "Admin"
+        ? it
+          ? "Amministratore"
+          : "Admin"
         : people.groupRole === "moderator"
           ? it
             ? "Moderatore"
             : "Moderator"
           : it
-            ? "Membro"
-            : "Member";
+            ? "Membro accettato"
+            : "Accepted member";
     await expect(
       groupPerson.locator("xpath=ancestor::li[1]").getByText(groupRole, { exact: true }),
     ).toBeVisible();
@@ -174,12 +177,10 @@ for (const width of [390, 1280])
     await expect(event.getByText(groupName, { exact: true })).toBeVisible();
     await expect(event.getByText(it ? /^\d+ Tavol[oi]$/ : /^\d+ Tables?$/)).toBeVisible();
     const eventGeometry = await event.evaluate((card) => {
-      const frame = card.querySelector("img")!.closest(".w-20")!.getBoundingClientRect(),
-        box = card.getBoundingClientRect();
-      return { left: Math.abs(frame.left - box.left), height: Math.abs(frame.height - box.height) };
+      const frame = card.querySelector("img")!.closest(".size-24")!.getBoundingClientRect();
+      return { width: frame.width, height: frame.height };
     });
-    expect(eventGeometry.left).toBeLessThan(2);
-    expect(eventGeometry.height).toBeLessThan(2);
+    expect(eventGeometry).toEqual({ width: 96, height: 96 });
     const accepted = event.getByRole("button", {
       name: it ? "Partecipante accettato" : "Accepted participant",
       exact: true,
@@ -189,24 +190,25 @@ for (const width of [390, 1280])
       .getByRole("button", { name: it ? "In pianificazione" : "Planning", exact: true })
       .click();
     const eventInfo = page.getByRole("dialog");
+    await expect(eventInfo.getByText(it ? /^Giocatori: \d+$/ : /^Players: \d+$/)).toBeVisible();
+    await expect(eventInfo.locator("time")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await event
+      .getByRole("button", {
+        name: `${it ? "Date e orari" : "Dates and times"}: ${eventName}`,
+        exact: true,
+      })
+      .click();
     await expect(eventInfo.getByText(date, { exact: true })).toHaveCSS("font-size", body.size);
     await expect(eventInfo.getByText(date, { exact: true })).toHaveCSS("font-family", body.family);
     await expect(eventInfo.getByText(time, { exact: true })).toBeVisible();
-    await expect(eventInfo.getByText(venue, { exact: false })).toBeVisible();
-    const dateMore = eventInfo.getByRole("img", {
-      name: it ? "2 date proposte" : "2 proposed dates",
-      exact: true,
-    });
-    const placeMore = eventInfo.getByRole("img", {
-      name: it ? "2 luoghi proposti" : "2 proposed locations",
-      exact: true,
-    });
-    await expect(dateMore).toHaveText("+2");
-    await expect(placeMore).toHaveText("+2");
-    await expect(placeMore).toHaveCSS(
-      "color",
-      await dateMore.evaluate((node) => getComputedStyle(node).color),
-    );
+    await expect(eventInfo.getByRole("listitem")).toHaveCount(2);
+    await page.keyboard.press("Escape");
+    await event
+      .getByRole("button", { name: `${it ? "Luoghi" : "Locations"}: ${eventName}`, exact: true })
+      .click();
+    await expect(eventInfo.getByText(address, { exact: true })).toBeVisible();
+    await expect(eventInfo.getByRole("listitem")).toHaveCount(2);
     await page.keyboard.press("Escape");
     await expect(eventInfo).toHaveCount(0);
     const table = await open("/tables", tableName, "table");
@@ -221,15 +223,10 @@ for (const width of [390, 1280])
         table.getByText(it ? /^\d+\/\d+ partecipant[ei]$/ : /^\d+\/\d+ participants?$/),
       ).toBeVisible();
       const geometry = await table.evaluate((card) => {
-        const image = card.querySelector("img")!.closest(".w-20")!.getBoundingClientRect(),
-          box = card.getBoundingClientRect();
-        return {
-          left: Math.abs(image.left - box.left),
-          height: Math.abs(image.height - box.height),
-        };
+        const image = card.querySelector("img")!.closest(".size-24")!.getBoundingClientRect();
+        return { width: image.width, height: image.height };
       });
-      expect(geometry.left).toBeLessThan(2);
-      expect(geometry.height).toBeLessThan(2);
+      expect(geometry).toEqual({ width: 96, height: 96 });
       for (const name of [
         it ? "In pianificazione" : "Planning",
         it ? "Classifica attiva" : "Rating enabled",
@@ -289,17 +286,7 @@ for (const width of [390, 1280])
     };
     await inspectTable();
     await table.getByRole("link").click();
-    await inspectIdentity(
-      tableName,
-      tableLabels.filter(
-        (label) =>
-          ![
-            it ? "Date e orari" : "Dates and times",
-            it ? "Luoghi" : "Locations",
-            it ? "Giochi da tavolo" : "Board games",
-          ].some((prefix) => label?.startsWith(prefix + ":")),
-      ),
-    );
+    await inspectIdentity(tableName, tableLabels);
     const parentEvent = page
       .getByRole("link", {
         name: `${it ? "Apri evento" : "Open event"}: ${eventName}`,
@@ -319,19 +306,17 @@ for (const width of [390, 1280])
     const tableStatus =
       people.tableStatus === "awaiting"
         ? it
-          ? "In attesa di accettazione"
-          : "Awaiting acceptance"
+          ? "Giocatore con invito pendente"
+          : "Player with pending invitation"
         : people.tableStatus === "waiting"
           ? it
-            ? "Lista d'attesa"
-            : "Waiting list"
+            ? "Giocatore in lista d'attesa"
+            : "Player on the waiting list"
           : it
-            ? "Partecipante"
-            : "Participant";
+            ? "Giocatore confermato"
+            : "Confirmed player";
     await expect(
-      tablePerson
-        .locator("xpath=ancestor::li[1]")
-        .getByText(new RegExp(`^${tableStatus}(?: · ${it ? "Lista d'attesa" : "Waiting list"})?$`)),
+      tablePerson.locator("xpath=ancestor::li[1]").getByText(tableStatus, { exact: true }),
     ).toBeVisible();
     const eventAgain = await open("/events", eventName, "event");
     await eventAgain.getByRole("link").click();
@@ -351,21 +336,23 @@ for (const width of [390, 1280])
     await expect(eventPerson).toBeVisible();
     const eventRole =
       people.eventRole === "admin"
-        ? "Admin"
+        ? it
+          ? "Amministratore"
+          : "Admin"
         : people.eventRole === "moderator"
           ? it
             ? "Moderatore"
             : "Moderator"
           : it
-            ? "Partecipante"
-            : "Participant";
+            ? "Partecipante accettato"
+            : "Accepted participant";
     const eventRow = page.getByRole("row").filter({ has: eventPerson });
-    await expect(
-      eventRow.getByText(
-        new RegExp(`^${eventRole}(?: · ${it ? "Lista d'attesa" : "Waiting list"})?$`),
-      ),
-    ).toBeVisible();
-    await expect(eventRow.getByRole("img", { name: eventRole, exact: true })).toBeVisible();
+    await expect(eventRow.getByText(eventRole, { exact: true })).toBeVisible();
+    const roles = eventRow.getByRole("button", { name: new RegExp(`^${eventRole}(?: ·|$)`) });
+    await expect(roles).toBeVisible();
+    await roles.click();
+    await expect(page.getByRole("dialog").getByText(eventRole, { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.getByRole("tab", { name: it ? "Tavoli" : "Tables", exact: true }).click();
     const contextual = page
       .getByRole("link", {

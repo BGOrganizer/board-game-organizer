@@ -49,7 +49,11 @@ function mount(
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   clients.push(client);
-  const key = eventParticipantsQuery(o, eventId).queryKey;
+  const key = eventParticipantsQuery(
+    o,
+    eventId,
+    event.canManage ? { mode: "review", groupId: event.groupId } : { mode: "member" },
+  ).queryKey;
   const data = {
     pages: [
       {
@@ -89,18 +93,22 @@ async function choose(action = "Remove from event") {
 it.each([
   ["admin", "Admin", "crown", "warning"],
   ["moderator", "Moderator", "shield-check", "accent"],
-  [null, "Participant", "user-round-check", "success"],
-  [undefined, "Participant", "user-round-check", "success"],
+  [null, "Participant on the waiting list", "list-ordered", "warning"],
+  [undefined, "Participant on the waiting list", "list-ordered", "warning"],
 ] as const)(
   "shows a single @handle, current %s subtitle and semantic avatar overlay without inventing actions",
   async (managementRole, label, icon, color) => {
     mount([{ ...person, username: "@target-name", managementRole, canRemove: false }]);
     const name = await screen.findByText("@target-name");
     expect(screen.queryByText("Display name")).toBeNull();
-    expect(screen.getByText(`${label} · Waiting list`)).toBeTruthy();
-    const badge = screen.getByRole("img", { name: label });
+    expect(screen.getByText(label)).toBeTruthy();
+    const badge = screen.getByRole("button", { name: new RegExp(`^${label} ·`) });
     expect(badge.className).toContain(`text-${color}`);
-    expect(badge.className).toContain("-bottom-1");
+    expect(badge.parentElement?.className).toContain("absolute");
+    expect(badge.querySelector(".lucide-plus")).not.toBeNull();
+    fireEvent.click(badge);
+    expect(await screen.findByText("Roles and participation")).toBeTruthy();
+    expect(screen.getAllByText("Accepted participant")).toHaveLength(1);
     expect(badge.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
     expect(name.closest("tr")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Manage participant: @target-name" })).toBeNull();
@@ -109,7 +117,7 @@ it.each([
 it("keeps the known fallback when a username is absent instead of fabricating a handle", async () => {
   mount([{ ...person, username: null, position: "SEATED" }]);
   expect(await screen.findByText("Display name")).toBeTruthy();
-  expect(screen.getByText("Participant")).toBeTruthy();
+  expect(screen.getByText("Accepted participant")).toBeTruthy();
   expect(screen.queryByText("@Display name")).toBeNull();
 });
 it("never exposes own-row moderation, even if restored flags incorrectly claim it is allowed", async () => {
