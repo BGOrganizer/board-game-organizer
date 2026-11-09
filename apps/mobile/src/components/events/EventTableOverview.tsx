@@ -4,6 +4,7 @@ import {
   eventAvailabilityVoteIsAllowed,
   eventOptionsRequireVote,
   hasOtherAcceptedTable,
+  tableCardGames,
   useEventCutoff,
   useEventRecord,
   useEventRecordActions,
@@ -84,7 +85,7 @@ export function EventTableOverview({
   const run = () => {
     if (
       !confirm ||
-      closed ||
+      (confirm.person.userId === o.userId && closed) ||
       table.eventStatus !== "PLANNING" ||
       a.blocking ||
       a.isResponding(confirm.registrationId) ||
@@ -108,7 +109,6 @@ export function EventTableOverview({
     table.eventStatus === "PLANNING" &&
     event.data?.status === "PLANNING" &&
     event.data.canVote &&
-    !closed &&
     table.myRegistration?.status === "ACCEPTED";
   const eventRecovery = event.isError ? (
     <View style={{ gap: 8 }}>
@@ -193,59 +193,53 @@ export function EventTableOverview({
         </Typography>
       </NotificationItem>
       <GroupedList>
-        {table.gamesDetail
-          .filter(
-            (game) =>
-              table.eventStatus === "PLANNING" ||
-              !table.confirmed ||
-              table.confirmed.gameId === game.id,
-          )
-          .map((game) => (
-            <GameListRow
-              key={game.id}
-              titleAccessory={
-                <NotificationItem
-                  itemId={notificationItemId(table.id, "game", game.id)}
-                  readOnly={!canVote}
+        {tableCardGames(table).map((game) => (
+          <GameListRow
+            key={game.id}
+            titleAccessory={
+              <NotificationItem
+                itemId={notificationItemId(table.id, "game", game.id)}
+                readOnly={!canVote}
+              />
+            }
+            name={game.name}
+            imageUrl={game.imageUrl}
+            year={game.year}
+            average={game.average}
+            rank={game.rank}
+            durationMinutes={game.durationMinutes}
+            metadata={
+              votableGames ? (
+                <EventVoteCounts
+                  label={game.name}
+                  counts={table.gameVoteCounts?.[String(game.id)]}
                 />
-              }
-              name={game.name}
-              imageUrl={game.imageUrl}
-              year={game.year}
-              average={game.average}
-              rank={game.rank}
-              metadata={
-                votableGames ? (
-                  <EventVoteCounts
-                    label={game.name}
-                    counts={table.gameVoteCounts?.[String(game.id)]}
-                  />
-                ) : undefined
-              }
-              actions={
-                canVote ? (
-                  <EventVoteButtons
-                    label={game.name}
-                    value={gameVotes[String(game.id)]}
-                    disabledVotes={
-                      eventAvailabilityVoteIsAllowed(
-                        table.games.map((row) => ({ id: String(row.gameId) })),
-                        gameVotes,
-                        String(game.id),
-                        "NO",
-                      )
-                        ? []
-                        : ["NO"]
-                    }
-                    busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
-                    onChange={(vote) =>
-                      a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
-                    }
-                  />
-                ) : undefined
-              }
-            />
-          ))}
+              ) : undefined
+            }
+            actions={
+              canVote ? (
+                <EventVoteButtons
+                  label={game.name}
+                  value={gameVotes[String(game.id)]}
+                  disabledVotes={
+                    eventAvailabilityVoteIsAllowed(
+                      table.games.map((row) => ({ id: String(row.gameId) })),
+                      gameVotes,
+                      String(game.id),
+                      "NO",
+                    )
+                      ? []
+                      : ["NO"]
+                  }
+                  busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
+                  onChange={(vote) =>
+                    a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
+                  }
+                />
+              ) : undefined
+            }
+          />
+        ))}
       </GroupedList>
       {event.data ? (
         <EventProposalSection

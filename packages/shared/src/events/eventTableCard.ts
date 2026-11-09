@@ -1,4 +1,4 @@
-import type { PlannedTableResponse } from "@board-game-organizer/schemas";
+import type { BggSearchItem, PlannedTableResponse } from "@board-game-organizer/schemas";
 
 /** Cached display facts only. Missing old projections stay unknown until ordinary reconciliation. */
 export function tableCardDates(table: PlannedTableResponse) {
@@ -28,8 +28,17 @@ export function tableCardLocations(table: PlannedTableResponse) {
   return schedule.location ? [schedule.location] : [];
 }
 
-export function tableCardGames(table: PlannedTableResponse) {
-  return table.eventStatus === "PLANNING"
-    ? table.gamesDetail
-    : table.gamesDetail.filter((game) => game.id === table.confirmed?.gameId);
+export function tableCardGames(
+  table: PlannedTableResponse,
+): Array<BggSearchItem & { durationMinutes?: number }> {
+  const games =
+    table.eventStatus === "PLANNING"
+      ? table.gamesDetail
+      : table.gamesDetail.filter((game) => game.id === table.confirmed?.gameId);
+  return games.map((game) => {
+    const durationMinutes = table.games.find(
+      (option) => option.gameId === game.id,
+    )?.durationMinutes;
+    return durationMinutes === undefined ? game : { ...game, durationMinutes };
+  });
 }

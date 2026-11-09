@@ -12,6 +12,7 @@ export function GameListRow({
   year,
   average,
   rank,
+  durationMinutes,
   titleAccessory,
   onPress,
   actions,
@@ -72,7 +73,12 @@ export function GameListRow({
             {titleAccessory}
           </View>
           <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-            <GameCatalogMetadata year={year} average={average} rank={rank} />
+            <GameCatalogMetadata
+              year={year}
+              average={average}
+              rank={rank}
+              durationMinutes={durationMinutes}
+            />
             {metadata}
           </View>
           {children}

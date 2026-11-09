@@ -24,7 +24,8 @@ it.each([
   "TableScoreEditor",
 ])("virtualizes event workflow %s with safe bottom spacing", (name) => {
   const s = source(`components/events/${name}.tsx`);
-  expect(s).toContain("<FlatList");
+  expect(s).toMatch(/<(?:Input)?FlatList\b/);
+  expect(source("components/common/ui/InputFlatList.tsx")).toContain("<FlatList");
   expect(s).toMatch(/useSafeAreaInsets|useFloatingActionLayout/);
   const file = ts.createSourceFile(
     "workflow.tsx",
@@ -70,7 +71,8 @@ it("keeps tabs in group-owned layout and forbids wrapping members/events in a sa
 });
 it("preserves genuine score-sheet input handlers, normal motion and immutable player identities", () => {
   const s = source("components/events/TableScoreEditor.tsx");
-  expect(s).toContain("useBottomSheetAwareHandlers");
+  expect(s).toContain("@/components/common/ui/Input");
+  expect(source("lib/useInputFocus.ts")).toContain("useBottomSheetAwareHandlers");
   expect(s).toContain("ReduceMotion.System");
   expect(s).toContain("<ScoreIdentity");
   expect(s).toContain("normalizeMatchScore");

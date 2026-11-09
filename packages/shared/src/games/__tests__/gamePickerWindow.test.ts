@@ -11,7 +11,7 @@ const item = (id: number): BggPickerItem => ({
 });
 const none = new Set<number>();
 
-describe("native game picker presentation window", () => {
+describe("game picker presentation window", () => {
   it.each([1, 10, 40])(
     "exposes only eight source items on entry with %s cached pages, without reading hidden items",
     (count) => {
@@ -94,7 +94,7 @@ describe("native game picker presentation window", () => {
       hasCachedMore: false,
     });
   });
-  it("retains the explicit load-more path through excluded pages", () => {
+  it("retains bounded progressive reveal through excluded pages", () => {
     const pages = [{ items: [item(1)] }, { items: [item(2)] }];
     expect(gamePickerWindow(pages, 1, new Set([1]))).toEqual({ items: [], hasCachedMore: true });
     expect(gamePickerWindow(pages, 2, new Set([1]))).toEqual({

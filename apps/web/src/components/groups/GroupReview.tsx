@@ -28,7 +28,9 @@ export function GroupReview({ groupId }: { groupId: string }) {
     ),
     group = communityAccessDenied(q.error) ? undefined : q.data;
   const busy = a.busy || draft?.phase === "saving" || draft?.phase === "verifying";
+  const [attempted, setAttempted] = useState(false);
   const decide = (decision: "approve" | "reject") => {
+    if (decision === "reject") setAttempted(true);
     if (
       !group ||
       busy ||
@@ -60,13 +62,22 @@ export function GroupReview({ groupId }: { groupId: string }) {
       targets={[{ kind: "group", id: group.id }]}
       readOnOpen={{ kind: "group", id: group.id }}
     >
-      <div className="space-y-4">
+      <div data-form-scope className="space-y-4">
         <GroupDetailsCard group={group} />
         {group.reviewStatus === "PENDING" ? (
           <>
-            <TextField value={reason} onChange={setReason} maxLength={1000}>
+            <TextField
+              value={reason}
+              onChange={setReason}
+              maxLength={1000}
+              isDisabled={busy}
+              isInvalid={attempted && !reason.trim()}
+            >
               <Label>{t`Rejection reason`}</Label>
               <Input />
+              {attempted && !reason.trim() ? (
+                <p role="alert" className="text-danger">{t`Enter a rejection reason.`}</p>
+              ) : null}
             </TextField>
             <div className="flex gap-3">
               <Button isDisabled={busy} onPress={() => void decide("approve")}>
@@ -75,7 +86,8 @@ export function GroupReview({ groupId }: { groupId: string }) {
               </Button>
               <Button
                 variant="danger"
-                isDisabled={busy || !reason.trim()}
+                data-form-submit
+                isDisabled={busy}
                 onPress={() => void decide("reject")}
               >{t`Reject`}</Button>
             </div>

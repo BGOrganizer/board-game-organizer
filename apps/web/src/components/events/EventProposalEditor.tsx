@@ -3,6 +3,7 @@ import { useEventProposalEditor, useFavoriteLocations } from "@board-game-organi
 import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -21,6 +22,9 @@ export function EventProposalEditor({
     o = useCommunityApi(),
     router = useRouter();
   const form = useEventProposalEditor(o, eventId, kind, tableId, draftId);
+  const owner = JSON.stringify([o.apiUrl, o.userId, eventId, kind, tableId, draftId]);
+  const [attemptedOwner, setAttemptedOwner] = useState<string | null>(null);
+  const invalid = attemptedOwner === owner && !form.canSubmit;
   const favorites = useFavoriteLocations(
     { ...o, userId: form.allowed && kind === "location" ? o.userId : undefined },
     form.event?.locations ?? [],
@@ -58,7 +62,11 @@ export function EventProposalEditor({
       />
     );
   return (
-    <div className="mx-auto max-w-3xl space-y-5 py-8">
+    <div
+      data-form-scope
+      data-form-source={JSON.stringify([owner, form.event?.version])}
+      className="mx-auto max-w-3xl space-y-5 py-8"
+    >
       <h1 className="text-xl font-semibold">{t`Choose date and time`}</h1>
       {form.validInput && (form.q.isPending || (kind === "game" && form.table.isPending)) ? (
         <Skeleton className="h-32 w-full rounded-xl" />
@@ -84,13 +92,19 @@ export function EventProposalEditor({
               form.payload?.kind === "date" ? `${form.payload.day}T${form.payload.startTime}` : ""
             }
             onChange={form.chooseDate}
+            isInvalid={invalid}
           >
             <Label>{t`Choose date and time`}</Label>
             <Input name="proposedDateTime" autoComplete="off" type="datetime-local" step={60} />
+            {invalid ? (
+              <p role="alert" className="text-danger">{t`Choose a valid date and time.`}</p>
+            ) : null}
           </TextField>
           <Button
-            isDisabled={!form.canSubmit}
+            data-form-submit
+            isDisabled={!form.canAttempt}
             onPress={() => {
+              setAttemptedOwner(owner);
               if (form.submit()) router.back();
             }}
           >{t`Send proposal`}</Button>

@@ -16,6 +16,7 @@ const table = {
   eventStatus: "PLANNING",
   groupType: "PRIVATE",
   startsAt: "2030-06-03T21:00:00Z",
+  games: [{ gameId: 1 }, { gameId: 2 }],
   gamesDetail: [
     { id: 1, name: "One" },
     { id: 2, name: "Two" },
@@ -40,7 +41,15 @@ it("retains all approved private wall-time options without shifting them into th
     { id: "two", startsAt: "2030-06-04T20:30Z", timeZone: "UTC" },
   ]);
   expect(tableCardLocations(table)).toEqual([first, second]);
-  expect(tableCardGames(table)).toBe(table.gamesDetail);
+  expect(tableCardGames(table)).toEqual(table.gamesDetail);
+});
+it("attaches saved durations only to their actual game, without inventing missing metadata", () => {
+  expect(
+    tableCardGames({
+      ...table,
+      games: [{ gameId: 1, durationMinutes: 120, durationSource: "DEFAULT" }],
+    }),
+  ).toEqual([{ ...table.gamesDetail[0], durationMinutes: 120 }, table.gamesDetail[1]]);
 });
 it("uses the public Table's own start and venue zone, not the earlier Event start", () => {
   expect(tableCardDates({ ...table, groupType: "PUBLIC" })).toEqual([

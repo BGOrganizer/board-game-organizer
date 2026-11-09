@@ -18,7 +18,7 @@ export function GroupArtwork({
   const { t } = useLingui();
   return (
     <span
-      className={presentation !== "thumbnail" ? "absolute inset-0" : "relative shrink-0"}
+      className={`flex items-center justify-center ${presentation !== "thumbnail" ? "absolute inset-0" : "relative shrink-0"}`}
       style={presentation !== "thumbnail" ? undefined : { width: size, height: size }}
     >
       {group.logo ? (
@@ -28,12 +28,11 @@ export function GroupArtwork({
           alt=""
           width={size}
           height={size}
-          className={presentation === "cover" ? "object-contain p-1" : "rounded-xl object-contain"}
-          style={
-            presentation !== "thumbnail"
-              ? { width: "100%", height: "100%" }
-              : { width: size, height: size }
-          }
+          className="h-auto w-auto rounded-xl object-contain"
+          style={{
+            maxWidth: presentation === "cover" ? "calc(100% - 8px)" : "100%",
+            maxHeight: presentation === "cover" ? "calc(100% - 8px)" : "100%",
+          }}
         />
       ) : (
         <AnimatedDicebearArtwork

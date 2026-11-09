@@ -1,16 +1,24 @@
 import {
   CommunityApiError,
   eventProposalKeys,
+  eventRecordQuery,
   optimisticProfileSocialData,
   projectProposalReview,
   revokeProposalReview,
 } from "@board-game-organizer/shared";
-import { hashKey, hydrate, InfiniteQueryObserver, QueryClient } from "@tanstack/react-query";
+import {
+  hashKey,
+  hydrate,
+  InfiniteQueryObserver,
+  isCancelledError,
+  QueryClient,
+} from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   beginOptimisticOperation,
   clearSessionQueryCache,
 } from "../../../../../../packages/shared/src/common/optimisticOperation";
+import { reconcilePersonalEventAccess } from "../../../../../../packages/shared/src/events/eventPersonalAccessCache";
 import {
   CACHE_BUSTER,
   CACHE_MAX_AGE,
@@ -574,3 +582,222 @@ describe("account-owned canonical persistence", () => {
     stop();
   });
 });
+
+it.each([false, true])(
+  "filters delayed storage restoration before synchronous subscribers can see disk-only revoked privileges (opaque scope: %s)",
+  async (withScope) => {
+    const disk = fixture(),
+      live = fixture();
+    const root = ["events", owner.apiUrl, owner.userId];
+    const groups = ["groups", owner.apiUrl, owner.userId];
+    const detail = [...root, "detail", "event"];
+    const full = { id: "event", groupId: "group", dates: [], secret: "private-plan" };
+    const other = { id: "other", groupId: "other-group", dates: [] };
+    const personal = {
+      id: "event",
+      groupId: null,
+      personalAccessOnly: true,
+      ...(withScope ? { accessRevokedGroupId: "group" } : {}),
+    };
+    const pages = (items: unknown[]) => ({
+      pages: [{ items, nextCursor: null }],
+      pageParams: [""],
+    });
+    disk.client.setQueryData(detail, full);
+    disk.client.setQueryData([...groups, "people", "group"], pages([{ email: "private-member" }]));
+    disk.client.setQueryData([...groups, "detail", "group"], {
+      id: "group",
+      secret: "private-group",
+    });
+    disk.client.setQueryData([...root, "list", {}], pages([full, other]));
+    disk.client.setQueryData([...root, "participants", "event"], { secret: "private-roster" });
+    disk.client.setQueryData([...root, "table", "event", "table"], {
+      id: "table",
+      eventId: "event",
+      personalAccessOnly: true,
+    });
+    disk.client.setQueryData([...root, "detail", "shared"], {
+      id: "shared",
+      groupId: null,
+      sharedResultsOnly: true,
+    });
+    disk.client.setQueryData([...groups, "people", "other-group"], pages([{ userId: "allowed" }]));
+    disk.persister.flush();
+    const snapshot = disk.data.get("queries");
+    if (!snapshot) throw new Error("Missing disk fixture snapshot");
+    let opened!: () => void;
+    const opening = new Promise<void>((resolve) => {
+      opened = resolve;
+    });
+    const restored = (async () => {
+      await opening;
+      live.data.set("queries", snapshot);
+      const saved = live.persister.restoreClient();
+      if (!saved) throw new Error("Missing delayed fixture snapshot");
+      restoreSessionCache(live.client, saved, new Set([hashKey(detail)]));
+    })();
+    // The server responds while encrypted storage is still opening. No Group record is in RAM.
+    live.client.setQueryData(detail, personal, { updatedAt: Date.now() - 1000 });
+    live.client.setQueryData([...root, "list", {}], pages([personal, other]), {
+      updatedAt: Date.now() - 1000,
+    });
+    const observed: string[] = [];
+    const unsubscribe = live.client.getQueryCache().subscribe((event) => {
+      observed.push(JSON.stringify(event.query.state.data));
+      live.persister.schedule();
+    });
+    live.persister.schedule(); // A write is already pending when hydration starts.
+    opened();
+    await restored;
+    await Promise.resolve();
+    live.persister.flush();
+    expect(observed.join(" ")).not.toContain("private-");
+    expect(live.data.get("queries")).not.toContain("private-");
+    expect(live.client.getQueryData(detail)).toEqual(personal);
+    expect(live.client.getQueryData([...root, "list", {}])).toEqual(pages([personal, other]));
+    expect(live.client.getQueryData([...groups, "people", "group"])).toBeUndefined();
+    expect(live.client.getQueryData([...groups, "people", "other-group"])).toEqual(
+      pages([{ userId: "allowed" }]),
+    );
+    expect(live.client.getQueryData([...root, "table", "event", "table"])).toMatchObject({
+      personalAccessOnly: true,
+    });
+    expect(live.client.getQueryData([...root, "detail", "shared"])).toMatchObject({
+      sharedResultsOnly: true,
+    });
+    expect(live.error).not.toHaveBeenCalled();
+    unsubscribe();
+  },
+);
+
+it("persists only reconciled journal bases after revocation, queued writes, late reads and rollback", async () => {
+  const f = fixture(),
+    root = ["events", owner.apiUrl, owner.userId];
+  const detail = [...root, "detail", "event"],
+    list = [...root, "list", {}];
+  const full = { id: "event", groupId: "group", dates: [], secret: "private-plan" };
+  const other = { id: "other", groupId: "other-group", dates: [] };
+  const pages = (items: unknown[]) => ({ pages: [{ items, nextCursor: null }], pageParams: [""] });
+  f.client.setQueryData(detail, full);
+  f.client.setQueryData(list, pages([full, other]));
+  const revoked = await beginOptimisticOperation(f.client, [...root, "event"], { queryKey: root });
+  const unrelated = await beginOptimisticOperation(f.client, [...root, "other"], {
+    queryKey: root,
+  });
+  const unsubscribe = f.client.getQueryCache().subscribe((event) => {
+    if (ownsPersistedQuery(event.query.queryKey, owner)) f.persister.schedule();
+  });
+  f.persister.flush();
+  expect(f.data.get("queries")).toContain("private-plan");
+  f.persister.schedule();
+  const personal = {
+    id: "event",
+    groupId: null,
+    personalAccessOnly: true,
+    accessRevokedGroupId: "group",
+  };
+  reconcilePersonalEventAccess(f.client, owner, personal, detail);
+  revoked.commit(() => full);
+  unrelated.rollback();
+  await Promise.resolve();
+  expect(f.data.get("queries")).not.toContain("private-plan");
+  expect(f.client.getQueryData(list)).toEqual(pages([other]));
+  const saved = f.persister.restoreClient();
+  if (!saved) throw new Error("Missing reconciled fixture snapshot");
+  const next = fixture();
+  restoreSessionCache(next.client, saved, new Set());
+  expect(next.client.getQueryData(detail)).toEqual(personal);
+  expect(next.client.getQueryData(list)).toEqual(pages([other]));
+  unsubscribe();
+});
+
+it.each([false, true])(
+  "rejects a deferred cold sibling query factory response from RAM and persistence (A already personal: %s)",
+  async (alreadyPersonal) => {
+    const f = fixture(),
+      root = ["events", owner.apiUrl, owner.userId];
+    const options = { ...owner, getToken: vi.fn(async () => "fresh") };
+    const personal = {
+      id: "event-a",
+      groupId: null,
+      personalAccessOnly: true,
+      accessRevokedGroupId: "group",
+    };
+    const detail = [...root, "detail", "event-a"];
+    f.client.setQueryData(
+      detail,
+      alreadyPersonal ? personal : { id: "event-a", groupId: "group", dates: [] },
+    );
+    // Only these two reads have authoritative evidence of an unrelated Group/standalone scope.
+    f.client.setQueryData([...root, "list", {}], {
+      pages: [{ items: [{ id: "known-other", groupId: "other-group", dates: [] }] }],
+      pageParams: [""],
+    });
+    f.client.setQueryData(
+      [...root, "detail", "standalone"],
+      { id: "standalone", groupId: null },
+      { updatedAt: 1 },
+    );
+    const pending = new Map<string, (value: Response) => void>();
+    let started: () => void = () => {};
+    const allStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      (input) =>
+        new Promise<Response>((resolve) => {
+          const id = new URL(String(input)).pathname.split("/").at(-1) ?? "";
+          pending.set(id, resolve);
+          if (pending.size === 3) started();
+        }),
+    );
+    const sibling = eventRecordQuery(options, "sibling");
+    const other = eventRecordQuery(options, "known-other");
+    const standalone = eventRecordQuery(options, "standalone");
+    const staleRead = f.client.fetchQuery(sibling).catch((error: unknown) => error);
+    const otherRead = f.client.fetchQuery(other);
+    const standaloneRead = f.client.fetchQuery(standalone);
+    await allStarted;
+    const unsubscribe = f.client.getQueryCache().subscribe((event) => {
+      if (ownsPersistedQuery(event.query.queryKey, owner)) f.persister.schedule();
+    });
+    f.persister.schedule();
+    reconcilePersonalEventAccess(f.client, owner, personal, detail);
+    const respond = (id: string, data: unknown) => {
+      const resolve = pending.get(id);
+      if (!resolve) throw new Error(`Missing deferred ${id} fixture`);
+      resolve(new Response(JSON.stringify(data), { status: 200 }));
+    };
+    respond("sibling", { id: "sibling", groupId: "group", dates: [], secret: "private-sibling" });
+    const knownOther = {
+      id: "known-other",
+      groupId: "other-group",
+      dates: [],
+      name: "fresh-other",
+    };
+    const knownStandalone = { id: "standalone", groupId: null, name: "fresh-standalone" };
+    respond("known-other", knownOther);
+    respond("standalone", knownStandalone);
+    expect(isCancelledError(await staleRead)).toBe(true);
+    await Promise.all([otherRead, standaloneRead]);
+    await Promise.resolve();
+    f.persister.flush();
+    expect(f.client.getQueryData(sibling.queryKey)).toBeUndefined();
+    expect(f.client.getQueryData(other.queryKey)).toEqual(knownOther);
+    expect(f.client.getQueryData(standalone.queryKey)).toEqual(knownStandalone);
+    expect(f.client.getQueryData(detail)).toEqual(personal);
+    expect(
+      JSON.stringify(
+        f.client
+          .getQueryCache()
+          .getAll()
+          .map((query) => query.state.data),
+      ),
+    ).not.toContain("private-sibling");
+    expect(f.data.get("queries")).not.toContain("private-sibling");
+    expect(f.data.get("queries")).toContain("fresh-other");
+    expect(f.data.get("queries")).toContain("fresh-standalone");
+    expect(options.getToken).toHaveBeenCalledTimes(3);
+    unsubscribe();
+  },
+);

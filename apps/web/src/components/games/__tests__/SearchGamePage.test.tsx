@@ -63,11 +63,12 @@ it("hides selected games and uses an icon-only selection action", async () => {
 
   expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Participants' collections" })).toBeNull();
-  const select = await screen.findByRole("button", { name: "Select: Cascadia" });
+  const select = await screen.findByRole("option", { name: "Select: Cascadia" });
   expect(screen.getByPlaceholderText(/Search board games/i)).toBe(input);
   expect(document.activeElement).toBe(input);
-  expect(select.closest("li")?.className).toContain("p-3 pl-4");
-  expect(select.closest("ul")?.className).toContain("rounded-xl bg-surface");
+  expect(screen.getByRole("listbox", { name: "Board games" }).contains(select)).toBe(true);
+  expect(select.querySelector(".lucide-plus")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Load more games" })).toBeNull();
   expect(screen.getByRole("button", { name: "Clear search" })).toBeTruthy();
   expect(screen.queryByText("Already selected")).toBeNull();
   expect(screen.queryByText("Select")).toBeNull();

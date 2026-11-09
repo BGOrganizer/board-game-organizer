@@ -21,7 +21,8 @@ it("opens the unified Event with normal-flow horizontal artwork, never an implic
     screen.getByText("1 Table").parentElement?.querySelector("svg.lucide-dices"),
   ).not.toBeNull();
   const image = link.closest(".card")?.querySelector("img");
-  expect(image?.className).toContain("h-full w-full object-contain");
+  for (const token of ["h-full", "w-full", "rounded-xl", "object-contain"])
+    expect(image?.classList.contains(token)).toBe(true);
   expect(image?.closest(".size-24")?.className).toContain("relative");
   for (const name of ["Accepted participant", "Confirmed player", "Admin"])
     expect(screen.queryByRole("button", { name })).toBeNull();

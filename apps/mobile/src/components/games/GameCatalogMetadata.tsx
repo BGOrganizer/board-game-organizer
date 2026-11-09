@@ -1,7 +1,7 @@
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import { ListOrdered, Star } from "lucide-react-native";
+import { Clock, ListOrdered, Star } from "lucide-react-native";
 import { View } from "react-native";
 import { useT } from "@/lib/i18n";
 
@@ -9,13 +9,14 @@ type Props = {
   year?: number | null;
   average?: number | null;
   rank?: number | null;
+  durationMinutes?: number;
 };
 
-export function GameCatalogMetadata({ year, average, rank }: Props) {
+export function GameCatalogMetadata({ year, average, rank, durationMinutes }: Props) {
   const t = useT();
   const { i18n } = useLingui();
   const [warning, muted] = useThemeColor(["warning", "muted"]);
-  if (!year && average == null && rank == null) return null;
+  if (!year && average == null && rank == null && durationMinutes == null) return null;
   const rating = average?.toLocaleString(i18n.locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -24,6 +25,14 @@ export function GameCatalogMetadata({ year, average, rank }: Props) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
       {year ? <Typography className="text-xs text-muted">{year}</Typography> : null}
+      {durationMinutes != null ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+          <Clock size={12} color={muted} accessible={false} />
+          <Typography className="text-xs text-muted">
+            {i18n.t("game.duration.minutes", { durationMinutes })}
+          </Typography>
+        </View>
+      ) : null}
       {rating != null && (
         <View
           accessible

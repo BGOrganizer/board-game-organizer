@@ -13,7 +13,7 @@ export function EventDetailsCard({ event }: { event: PlannedEventResponse }) {
     <section aria-label={t`Details`}>
       <RecordIdentityCard
         title={event.name}
-        icon={<CalendarDays className="mt-1 size-5 shrink-0 text-foreground" aria-hidden />}
+        icon={CalendarDays}
         background={
           <AnimatedDicebearArtwork
             seed={event.id}

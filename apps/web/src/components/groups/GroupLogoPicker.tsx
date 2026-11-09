@@ -118,6 +118,7 @@ export function GroupLogoPicker({
                 size="sm"
                 className="h-auto min-h-[44px] min-w-[44px] max-w-full gap-[8px] px-[8px] py-[8px] whitespace-normal"
                 variant="secondary"
+                data-form-control
                 aria-label={value ? t`Change logo` : t`Upload group logo`}
                 isDisabled={disabled || uploading}
                 onPress={() => input.current?.click()}

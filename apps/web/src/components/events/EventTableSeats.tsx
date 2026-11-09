@@ -52,8 +52,7 @@ export function EventTableSeats({
   const [choose, setChoose] = useState(false),
     [joining, setJoining] = useState(false);
   const canAdd =
-    !closed &&
-    (table.canRegister || table.canInvite) &&
+    ((!closed && table.canRegister) || table.canInvite) &&
     (table.groupType !== "PRIVATE" || hasJoinedEvent !== undefined);
   const end = useInfiniteScroll({
     hasNextPage: active && roster.hasNextPage,
@@ -187,7 +186,7 @@ export function EventTableSeats({
                             ? notificationItemId(table.id, "invitation", undefined, "table")
                             : undefined
                         }
-                        readOnly={!table.canRespond || closed}
+                        readOnly={!table.canRespond}
                       />
                     }
                     name={name}
@@ -196,14 +195,17 @@ export function EventTableSeats({
                     badge={<UserRoleBadge roles={roles} />}
                   />
                   <span className="flex shrink-0 items-center gap-1">
-                    {own && table.canRespond && pending && !closed && table.myRegistration ? (
+                    {own && table.canRespond && pending && table.myRegistration ? (
                       <EventTableInvitationActions
                         eventId={table.eventId}
                         registration={table.myRegistration}
                       />
                     ) : null}
-                    {!closed &&
-                    (own ? table.canLeave && row.status === "ACCEPTED" : table.canInvite) ? (
+                    {(
+                      own
+                        ? !closed && table.canLeave && row.status === "ACCEPTED"
+                        : table.canInvite
+                    ) ? (
                       <Button
                         isIconOnly
                         size="sm"
@@ -263,7 +265,7 @@ export function EventTableSeats({
             ...(!closed && table.canRegister
               ? [{ label: t`Join table`, onPress: () => void join() }]
               : []),
-            ...(!closed && table.canInvite
+            ...(table.canInvite
               ? [
                   {
                     label: t`Invite players`,

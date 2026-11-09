@@ -12,6 +12,7 @@ export function SearchInput({
   clearLabel,
   name,
   inputProps,
+  isInvalid = false,
   children,
 }: {
   value: string;
@@ -25,10 +26,11 @@ export function SearchInput({
     "value" | "defaultValue" | "onChange" | "placeholder"
   >;
   children?: ReactNode;
+  isInvalid?: boolean;
 }) {
   const { t } = useLingui();
   return (
-    <SearchField fullWidth name={name} value={value} onChange={onChange}>
+    <SearchField fullWidth name={name} value={value} onChange={onChange} isInvalid={isInvalid}>
       {typeof label === "string" || typeof label === "number" ? <Label>{label}</Label> : label}
       <SearchField.Group>
         <SearchField.SearchIcon />

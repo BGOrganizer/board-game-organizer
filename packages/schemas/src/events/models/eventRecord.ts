@@ -48,9 +48,9 @@ export type EventRecord = z.infer<typeof eventRecordSchema>;
 export const tableGameOptionSchema = z
   .object({
     gameId: z.number().int().positive(),
-    /** Authoritative BGG duration or an explicit manual fallback, captured on save. */
+    /** Captured on save; MANUAL remains readable for historical snapshots only. */
     durationMinutes: z.number().int().positive().optional(),
-    durationSource: z.enum(["BGG", "MANUAL"]).optional(),
+    durationSource: z.enum(["BGG", "MANUAL", "DEFAULT"]).optional(),
   })
   .strict();
 // Provisional scores never populate immutable results or rating/statistics readers.

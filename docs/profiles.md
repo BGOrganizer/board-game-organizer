@@ -40,15 +40,16 @@ visibility with a current-network/time selection; no offline mode is enabled.
   uses the installed HeroUI React Aria Virtualizer with measured variable row sizes. Infinite scroll
   reveals/fetches more; Collection has no visible load-more button (native retains an accessibility
   paging action). Only search/chips stick while identity/counters scroll away. Focus reveals search
-  above the keyboard and remains pinned while focused across viewport/content changes; both empty
-  and few-result lists retain enough scroll range to keep the filter visible. Picker/Collection rows
+  through its measured local keyboard/scroll owner; manual navigation cancels repinning and deferred
+  error focus. Empty/few-result lists retain enough range without focus-driven bulk reveal/fetch. Picker/Collection rows
   reuse the same platform game-card component and spacing. Query changes never reset
   the list to the Profile header. Blur/keyboard dismissal preserve text/chips; clear removes text only.
   Counter cards share the largest natural height and align number/label rows, including wrapped text.
   Tab, game and activity-filter selections belong to scoped local UI state.
   Owner logout appears only below Activities/Player, remains reachable on profile failure and requires
-  confirmation; native retains cache-safe signout. Public Collection keeps generic BGG attribution,
-  never private provider account details. Profile, Community and existing main/detail destinations share each
+  confirmation; native retains cache-safe signout. Another user's Collection omits its Powered by
+  BGG footer. The owner's existing linked Profile attribution and other catalog/provider attribution
+  remain unchanged; other-user Collection never exposes private provider account details. Profile, Community and existing main/detail destinations share each
   platform's compact centered/overflowing tab geometry, normal text size and consistent spacing.
 
 ## Aggregate and rating rules

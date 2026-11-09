@@ -1,6 +1,7 @@
 import { SearchField } from "heroui-native/search-field";
 import type { ComponentProps, ReactNode } from "react";
 import { useT } from "@/lib/i18n";
+import { useInputFocus } from "@/lib/useInputFocus";
 
 export function SearchInput({
   value,
@@ -14,6 +15,7 @@ export function SearchInput({
   clearButtonStyle,
   onFocus,
   onBlur,
+  isInvalid = false,
   children,
 }: {
   value: string;
@@ -28,10 +30,12 @@ export function SearchInput({
   onFocus?: ComponentProps<typeof SearchField.Input>["onFocus"];
   onBlur?: ComponentProps<typeof SearchField.Input>["onBlur"];
   children?: ReactNode;
+  isInvalid?: boolean;
 }) {
   const t = useT();
+  const focus = useInputFocus({ onFocus, onBlur, isInvalid });
   return (
-    <SearchField value={value} onChange={onChange}>
+    <SearchField value={value} onChange={onChange} isInvalid={isInvalid}>
       <SearchField.Group>
         <SearchField.SearchIcon />
         <SearchField.Input
@@ -42,8 +46,7 @@ export function SearchInput({
           placeholder={placeholder}
           maxLength={maxLength}
           style={inputStyle}
-          onFocus={onFocus}
-          onBlur={onBlur}
+          {...focus}
         />
         <SearchField.ClearButton
           accessibilityLabel={clearLabel ?? t("Clear search")}

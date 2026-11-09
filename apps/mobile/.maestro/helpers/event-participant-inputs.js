@@ -47,7 +47,17 @@ output.eventPeople = {
   members: exact(it ? "Membri" : "Members"),
   target: exact(p.targetName),
   table: exact(p.firstTableName),
-  manage: exact((it ? "Gestisci partecipante" : "Manage participant") + ": " + p.targetName),
+  eventManage: exact((it ? "Gestisci partecipante" : "Manage participant") + ": " + p.targetName),
+  manage: exact(
+    p.mode === "remove"
+      ? (it ? "Gestisci partecipante" : "Manage participant") + ": " + p.targetName
+      : (it ? "Gestisci membro" : "Manage member") + ": " + p.targetName.replace(/^@+/, ""),
+  ),
+  remove: exact(it ? "Rimuovi dall’evento" : "Remove from event"),
+  ban: exact(it ? "Banna dal gruppo" : "Ban from group"),
+  revoke: exact(
+    (it ? "Revoca l'esclusione dal gruppo" : "Revoke group exclusion") + ": " + p.targetName,
+  ),
   action: exact(action),
   title: exact(p.mode === "remove" ? action : action + ": " + p.targetName),
   cancel: exact(it ? "Annulla" : "Cancel"),

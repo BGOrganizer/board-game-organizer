@@ -43,7 +43,7 @@ it("uses first-step header back, compact reachable counters, row game selection 
   expect(back).toContain("<ArrowLeft size={HEADER_ICON_SIZE}");
   expect(back).toContain("onPress={onPress}");
 });
-it("resets header confirmation on access loss, preserves cutoff/manual version guards and labels metadata", () => {
+it("resets header confirmation on access loss, preserves manual captured-version guards and labels metadata", () => {
   const detail = source("events", "EventDetail");
   expect(detail.indexOf("headerRight:")).toBeLessThan(detail.indexOf("if (!event)"));
   expect(detail).toContain("canManageEvent(event, o.userId)");
@@ -55,7 +55,9 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
     detail.indexOf("if (!event)"),
   );
   expect(detail).not.toContain('t("Agreement available. Confirmation remains manual.")');
-  expect(detail).toContain('t("Why confirmation is unavailable")');
+  expect(detail).toContain('label={t("Confirm event")}');
+  expect(detail).toContain("icon={Check}");
+  expect(detail).not.toContain('t("Why confirmation is unavailable")');
   expect(detail).toContain("<EventDetailsCard");
   const identity = source("events", "EventDetailsCard");
   expect(detail).toContain('t("Details")');
@@ -63,7 +65,7 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(detail).toContain("<EventVoteLegend");
   expect(identity).toContain("seed={event.id}");
   expect(identity).toContain('variant="constellation"');
-  expect(identity).toContain("<CalendarDays");
+  expect(identity).toContain("icon={CalendarDays}");
   expect(identity).not.toContain("/group/[groupId]");
   expect(detail).toContain("<EventGroupLink");
   expect(source("events", "EventGroupLink")).toContain("<GroupArtwork");
@@ -84,18 +86,20 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(detail).toContain("<CalendarCheck");
   expect(detail).toContain("<GroupedList");
   expect(detail).toContain("<FloatingActions");
-  expect(detail).toContain("version: event.version");
+  expect(detail).toContain("transitionVersion.current = event.version");
+  expect(detail).toContain("version: transitionVersion.current");
 });
 it("keeps Table identity over the image and shares all compact controls with lists", () => {
   const table = source("events", "EventTableInfo");
-  const indicators = source("events", "EventTableCardIndicators");
+  const indicators =
+    source("events", "EventTableCardIndicators") + source("events", "EventTableRatingInfo");
   expect(table).toContain("<RecordIdentityCard");
   expect(table).not.toContain('variant="identity"');
   expect(indicators).not.toContain("The minimum is required for agreement.");
   expect(table).toContain('presentation="background"');
   expect(table).toContain("seed={table.id}");
   expect(table).toContain('variant="planets"');
-  expect(table).toContain("<Dices");
+  expect(table).toContain("icon={Dices}");
   expect(table).toContain("<EventTableCardIndicators");
   for (const token of [
     "table.minPlayers",
@@ -109,7 +113,8 @@ it("keeps Table identity over the image and shares all compact controls with lis
 });
 it("shares one horizontal Table card across feeds with only Back context varying", () => {
   const card = source("events", "EventTableCard");
-  const indicators = source("events", "EventTableCardIndicators");
+  const indicators =
+    source("events", "EventTableCardIndicators") + source("events", "EventTableRatingInfo");
   expect(source("events", "TableList")).toContain('context="personal"');
   expect(source("events", "EventDetail")).toContain('context="event"');
   expect(card).toContain('context === "event"');

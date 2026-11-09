@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import {
   eventAvailabilityVoteIsAllowed,
+  eventFirstInvalidVote,
   eventJoinAvailabilityIsComplete,
   eventOptionsRequireVote,
   eventOptionVotesAreComplete,
@@ -74,6 +75,19 @@ it("omits singleton preferences without weakening foreign/missing/negative multi
   expect(eventVotingChoices(many, choices)).toEqual({ one: "YES", two: "NO" });
   expect(eventVotingChoices(many, { one: "YES" })).toEqual({ one: "YES" });
   expect(choices).toEqual({ one: "YES", two: "NO", removed: "YES" });
+});
+it("points to missing ballots before all-negative or stale sets without mutating choices", () => {
+  const options = [{ id: "first" }, { id: "second" }];
+  expect(eventFirstInvalidVote([], {})).toBeUndefined();
+  expect(eventFirstInvalidVote([options[0]], {})).toBeUndefined();
+  expect(eventFirstInvalidVote(options, { first: "YES", second: "NO" })).toBeUndefined();
+  expect(eventFirstInvalidVote(options, { first: "IF_NEEDED", second: "NO" })).toBeUndefined();
+  const partial = { first: "YES" } as const;
+  expect(eventFirstInvalidVote(options, partial)).toBe(1);
+  expect(partial).toEqual({ first: "YES" });
+  expect(eventFirstInvalidVote(options, { first: "UNKNOWN", second: "YES" })).toBe(0);
+  expect(eventFirstInvalidVote(options, { first: "NO", second: "NO" })).toBe(0);
+  expect(eventFirstInvalidVote(options, { first: "YES", second: "NO", stale: "NO" })).toBe(0);
 });
 const event = { dates: [{ id: "first" }, { id: "second" }], locations: [{ id: "venue" }] };
 const votes = {

@@ -8,6 +8,7 @@ import type {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
 import {
+  eventFirstInvalidVote,
   eventJoinAvailabilityIsComplete,
   eventOptionsRequireVote,
   eventOptionVotesAreComplete,
@@ -21,6 +22,7 @@ import { useEventRecord, useRecordTable } from "./useEventRecords";
 
 type Choices = JoinEventAvailability["dateVotes"];
 type JoinTab = "dates" | "locations" | "games";
+const emptyOptions: readonly { id: string }[] = [];
 export function useEventJoinForm(
   o: CommunityApiOptions,
   eventId: string,
@@ -48,29 +50,24 @@ export function useEventJoinForm(
     [dateVotes, setDates] = useState<Choices>({}),
     [locationVotes, setLocations] = useState<Choices>({}),
     [gameVotes, setGames] = useState<Choices>({}),
-    [initialTab, setInitialTab] = useState<JoinTab>();
+    [initialTab, setInitialTab] = useState<JoinTab>(),
+    [validationAttempt, setValidationAttempt] = useState(0);
   const initialized = useRef({ scope, availability: false, games: false, submitted: false });
   const sameOwner = draftScope === scope;
   const requiresAvailability = event?.groupType === "PRIVATE",
     isInvitation = registrationId !== undefined,
     gamesOnly = isInvitation && event?.groupType === "PUBLIC";
+  const dates = event?.dates ?? emptyOptions,
+    locations = event?.locations ?? emptyOptions;
   const votingTabs = useMemo<JoinTab[]>(
     () => [
-      ...(requiresAvailability && eventOptionsRequireVote(event.dates) ? ["dates" as const] : []),
-      ...(requiresAvailability && eventOptionsRequireVote(event.locations)
-        ? ["locations" as const]
-        : []),
+      ...(requiresAvailability && eventOptionsRequireVote(dates) ? ["dates" as const] : []),
+      ...(requiresAvailability && eventOptionsRequireVote(locations) ? ["locations" as const] : []),
       ...(!tableQuery.isPlaceholderData && eventOptionsRequireVote(table?.games ?? [])
         ? ["games" as const]
         : []),
     ],
-    [
-      requiresAvailability,
-      event?.dates,
-      event?.locations,
-      table?.games,
-      tableQuery.isPlaceholderData,
-    ],
+    [requiresAvailability, dates, locations, table?.games, tableQuery.isPlaceholderData],
   );
   const ready = Boolean(
     sameOwner && event && !q.isPlaceholderData && event.myRegistrations !== undefined,
@@ -94,6 +91,7 @@ export function useEventJoinForm(
       setLocations({});
       setGames({});
       setInitialTab(undefined);
+      setValidationAttempt(0);
     }
     if (!event || q.isPlaceholderData || event.myRegistrations === undefined) return;
     const firstTab =
@@ -131,17 +129,17 @@ export function useEventJoinForm(
     recovery,
     votingTabs,
   ]);
-  const current = (options: Array<{ id: string }> | undefined, choices: Choices): Choices =>
-    sameOwner ? eventVotingChoices(options ?? [], choices) : {};
+  const current = (options: readonly { id: string }[], choices: Choices): Choices =>
+    sameOwner ? eventVotingChoices(options, choices) : {};
   const gameOptions = (table?.games ?? []).map((game) => ({ id: String(game.gameId) }));
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   const votes = {
-    dateVotes: current(event?.dates, dateVotes),
-    locationVotes: current(event?.locations, locationVotes),
+    dateVotes: current(dates, dateVotes),
+    locationVotes: current(locations, locationVotes),
     gameVotes: current(gameOptions, gameVotes),
   };
   const checking = intent?.phase === "verifying";
-  const canSubmit = Boolean(
+  const canAttempt = Boolean(
     sameOwner &&
       event &&
       table &&
@@ -155,13 +153,29 @@ export function useEventJoinForm(
       !actions.blocking &&
       intent?.phase !== "saving" &&
       !checking &&
-      !closed &&
+      (isInvitation || !closed) &&
       event.status === "PLANNING" &&
       table.eventStatus === "PLANNING" &&
       event.myRegistrations !== undefined &&
+      event.dates.length > 0 &&
+      event.locations.length > 0 &&
+      gameOptions.length > 0,
+  );
+  const canSubmit = Boolean(
+    canAttempt &&
+      event &&
       (!requiresAvailability || eventJoinAvailabilityIsComplete(event, votes)) &&
       eventOptionVotesAreComplete(gameOptions, votes.gameVotes),
   );
+  const invalidChoice = votingTabs.flatMap((tab) => {
+    const index =
+      tab === "dates"
+        ? eventFirstInvalidVote(dates, votes.dateVotes)
+        : tab === "locations"
+          ? eventFirstInvalidVote(locations, votes.locationVotes)
+          : eventFirstInvalidVote(gameOptions, votes.gameVotes);
+    return index === undefined ? [] : [{ tab, index }];
+  })[0];
   const choose = (kind: "date" | "location" | "game", id: string, vote: EventVote) => {
     const options =
       kind === "game"
@@ -180,7 +194,11 @@ export function useEventJoinForm(
     void tableQuery.refetch({ cancelRefetch: false });
   };
   const submit = () => {
-    if (initialized.current.submitted || !canSubmit || !event) return;
+    if (initialized.current.submitted || !canAttempt || !event) return;
+    if (!canSubmit) {
+      setValidationAttempt((value) => value + 1);
+      return;
+    }
     initialized.current.submitted = true;
     const participation: JoinTableInput = {
       version: event.version,
@@ -219,6 +237,9 @@ export function useEventJoinForm(
     votes,
     choose,
     canSubmit,
+    canAttempt,
+    validationAttempt,
+    invalidChoice,
     failed: intent?.phase === "failed",
     checking,
     submit,

@@ -34,9 +34,7 @@ export function ListCard({
         </View>
       ) : null}
       {background ? (
-        <Card.Body
-          style={{ minHeight: 224, padding: 0, paddingTop: 64, justifyContent: "flex-end" }}
-        >
+        <Card.Body style={{ minHeight: 224, padding: 0, justifyContent: "flex-start" }}>
           {children}
         </Card.Body>
       ) : (

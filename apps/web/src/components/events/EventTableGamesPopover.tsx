@@ -14,7 +14,7 @@ export function EventTableGamesPopover({
   games,
   name,
 }: {
-  games: readonly BggSearchItem[];
+  games: readonly (BggSearchItem & { durationMinutes?: number })[];
   name: string;
 }) {
   const { t } = useLingui();
@@ -40,6 +40,7 @@ export function EventTableGamesPopover({
               year={game.year}
               average={game.average}
               rank={game.rank}
+              durationMinutes={game.durationMinutes}
             />
           ))}
         </GroupedList>

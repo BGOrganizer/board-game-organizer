@@ -2,6 +2,7 @@
 import {
   type ContactUser,
   communityAccessDenied,
+  formatUsername,
   useListSearch,
   usePeoplePicker,
 } from "@board-game-organizer/shared";
@@ -83,6 +84,8 @@ export function PeoplePicker({
       />
       <GroupedList>
         {items.map((person) => {
+          const handle = formatUsername(person.username, "");
+          const name = invitationTable ? handle || person.name : person.name;
           const unavailable = Boolean(
             invitationTable &&
               "invitationBlockReason" in person &&
@@ -95,14 +98,16 @@ export function PeoplePicker({
                 <Avatar.Fallback>{person.name.charAt(0)}</Avatar.Fallback>
               </Avatar>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{person.name}</span>
-                <span className="block truncate text-xs text-muted">{person.username}</span>
+                <span className="block truncate font-medium">{name}</span>
+                {!invitationTable && handle ? (
+                  <span className="block truncate text-xs text-muted">{handle}</span>
+                ) : null}
               </span>
               <Button
                 isIconOnly
                 size="sm"
                 variant="primary"
-                aria-label={`${t`Select user`}: ${person.name}`}
+                aria-label={`${t`Select user`}: ${name}`}
                 isDisabled={disabled || unavailable}
                 onPress={() => {
                   if (!disabled && !unavailable) onSelect(person);
@@ -112,7 +117,7 @@ export function PeoplePicker({
               </Button>
               {unavailable ? (
                 <HelpPopover
-                  label={`${t`Why invitation is unavailable`}: ${person.name}`}
+                  label={`${t`Why invitation is unavailable`}: ${name}`}
                   title={t`Invitation unavailable`}
                   className="max-w-72"
                 >

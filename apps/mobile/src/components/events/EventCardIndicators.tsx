@@ -3,7 +3,6 @@ import {
   eventParticipationFlags,
   eventPendingAction,
   eventRecordVisibility,
-  useEventCutoff,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
@@ -30,10 +29,6 @@ export function EventCardIndicators({ event }: { event: PlannedEventResponse }) 
   const muted = useThemeColor("muted");
   const participation = eventParticipationFlags(event.myRegistrations);
   const own = !event.readOnly;
-  const closed = useEventCutoff(
-    event.bookingClosesAt,
-    event.groupType === "PUBLIC" && event.status === "PLANNING",
-  );
   const planning = event.status === "PLANNING",
     confirmed = event.status === "CONFIRMED";
   const status = planning ? t("Planning") : confirmed ? t("Confirmed") : t("Terminated");
@@ -55,7 +50,7 @@ export function EventCardIndicators({ event }: { event: PlannedEventResponse }) 
           size="compact"
           kind="pending"
           label={t("Participant with pending invitation")}
-          action={closed ? null : eventPendingAction(event)}
+          action={eventPendingAction(event)}
         />
       ) : null}
       {own && participation.waiting ? (

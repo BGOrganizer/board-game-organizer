@@ -110,7 +110,7 @@ it("main native strips share Groups geometry while detail tabs retain independen
   expect(
     readFileSync(new URL("../../components/groups/GroupDetail.tsx", import.meta.url), "utf8"),
   ).toContain("marginTop: 8");
-  const code = expression("events/EventList", "FlatList", "contentContainerStyle");
+  const code = expression("events/EventList", "InputFlatList", "contentContainerStyle");
   expect(
     runInNewContext(code, { groupId: undefined, layout: { paddingBottom: 32 } }),
   ).toMatchObject({
@@ -194,7 +194,7 @@ it("native list bodies retain a single virtualized list, filters, chips, legend 
       new URL(`../../components/events/${name}.tsx`, import.meta.url),
       "utf8",
     );
-    expect(text).toContain("<FlatList");
+    expect(text).toContain("<InputFlatList");
     expect(text).not.toContain("<ScrollView");
     expect(text).toContain('mode="filter"');
     expect(text).toContain('key: "CONFIRMED"');

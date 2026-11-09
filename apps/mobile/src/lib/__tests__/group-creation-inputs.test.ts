@@ -13,8 +13,17 @@ const fixture = {
   imagePickerLabel: "Photo (owned) [1].png",
 };
 function load(patch: Record<string, unknown> = {}, input = fixture) {
-  const output: { groupCreate?: { image: string; query: string; change: string; upload: string } } =
-    {};
+  const output: {
+    groupCreate?: {
+      image: string;
+      query: string;
+      change: string;
+      upload: string;
+      generate: string;
+      logoRequired: string;
+      locationRequired: string;
+    };
+  } = {};
   runInNewContext(script, {
     output,
     GROUP_CREATE_FIXTURE_ACK: "owned-friends-and-photo",
@@ -35,6 +44,21 @@ it.each(["en", "it"])(
     expect(new RegExp(output.image).test(fixture.imagePickerLabel)).toBe(true);
     expect(new RegExp(output.image).test("Photo owned 1png")).toBe(false);
     expect(output.query).toBe("owned");
+    expect(
+      new RegExp(output.generate).test(
+        lang === "it" ? "Genera un nome casuale" : "Generate a random name",
+      ),
+    ).toBe(true);
+    expect(
+      new RegExp(output.logoRequired).test(
+        lang === "it" ? "Scegli un logo per il gruppo." : "Choose a group logo.",
+      ),
+    ).toBe(true);
+    expect(
+      new RegExp(output.locationRequired).test(
+        lang === "it" ? "Scegli un luogo verificato." : "Choose a verified location.",
+      ),
+    ).toBe(true);
     expect(output.change).toBe(lang === "it" ? "^Cambia logo$" : "^Change logo$");
     expect(output.upload).toBe(
       lang === "it" ? "^Carica il logo del gruppo$" : "^Upload group logo$",

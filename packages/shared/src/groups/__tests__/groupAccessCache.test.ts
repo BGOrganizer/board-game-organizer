@@ -4,7 +4,11 @@ import {
   beginOptimisticOperation,
   optimisticOperationSignal,
 } from "../../common/optimisticOperation";
-import { revokeCachedGroupAccess } from "../groupAccessCache";
+import {
+  isUnclassifiedEventRead,
+  removeRevokedGroupData,
+  revokeCachedGroupAccess,
+} from "../groupAccessCache";
 
 const owner = { apiUrl: "api", userId: "owner" };
 const group = "group",
@@ -146,4 +150,216 @@ describe("verified Group access loss", () => {
     expect(client.getQueryData(eventDetail)).toBeUndefined();
     expect(client.getQueryData(events)).toEqual(page([other]));
   });
+});
+
+it("handles ordinary pages, malformed entries and independent frozen/shared rows without unnecessary writes", () => {
+  const ids = new Set([event]);
+  for (const value of [
+    undefined,
+    null,
+    0,
+    {},
+    { pages: null },
+    { items: null },
+    { pages: [null, {}] },
+  ])
+    expect(removeRevokedGroupData(value, group, ids)).toBe(value);
+  const personal = { eventId: event, personalAccessOnly: true };
+  const shared = { groupId: group, sharedResultsOnly: true };
+  const data = {
+    items: [null, 1, personal, shared, { groupId: group }, { eventId: event }, { id: "unrelated" }],
+  };
+  expect(removeRevokedGroupData(data, group, ids)).toEqual({
+    items: [null, 1, personal, shared, { id: "unrelated" }],
+  });
+  const safe = page([personal, shared]);
+  expect(removeRevokedGroupData(safe, group, ids)).toBe(safe);
+});
+
+it("cancels Group journal work and leaves unrelated operations and their rollback intact", async () => {
+  const { client, mine } = setup();
+  const revoked = await beginOptimisticOperation(client, [...groupRoot, group, "members"], {
+    queryKey: groupRoot,
+  });
+  const unrelated = await beginOptimisticOperation(client, [...groupRoot, "other-group"], {
+    queryKey: groupRoot,
+  });
+  revokeCachedGroupAccess(client, owner, group, false);
+  expect(revoked.signal.aborted).toBe(true);
+  expect(unrelated.active).toBe(true);
+  revoked.commit(() => page([{ id: group }]));
+  unrelated.rollback();
+  expect(client.getQueryData(mine)).toEqual(page([{ id: "other-group" }]));
+  client.clear();
+});
+
+it("purges cold proposal/review scopes, preserves safe projections and the current key", () => {
+  const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
+  const proposal = [...eventRoot, "proposals", event, "review", group];
+  const review = [...eventRoot, "participants", "review-event", "roles-v2", "review", group];
+  const keep = [...groupRoot, "detail", group];
+  client.setQueryData(proposal, {});
+  client.setQueryData(review, {});
+  client.setQueryData(keep, { id: group });
+  client.setQueryData([...eventRoot, "detail", event], { personalAccessOnly: true });
+  client.setQueryData([...eventRoot, "table", event, "shared"], { sharedResultsOnly: true });
+  revokeCachedGroupAccess(client, owner, group, false, keep);
+  expect(client.getQueryData(proposal)).toBeUndefined();
+  expect(client.getQueryData(review)).toBeUndefined();
+  expect(client.getQueryData(keep)).toEqual({ id: group });
+  expect(client.getQueryData([...eventRoot, "detail", event])).toEqual({
+    personalAccessOnly: true,
+  });
+  expect(client.getQueryData([...eventRoot, "table", event, "shared"])).toEqual({
+    sharedResultsOnly: true,
+  });
+  client.clear();
+});
+
+it("cancels only susceptible in-flight reads, keeps the current key, and restarts an active list safely", async () => {
+  const { QueryObserver } = await import("@tanstack/react-query");
+  const { client, eventDetail, events, other } = setup();
+  const resolvers: ((value: unknown) => void)[] = [];
+  const read = (queryKey: unknown[]) =>
+    client
+      .fetchQuery({ queryKey, queryFn: () => new Promise((resolve) => resolvers.push(resolve)) })
+      .catch(() => undefined);
+  const stale = read(eventDetail);
+  const foreignDetail = [...eventRoot, "detail", "other"];
+  const good = read(foreignDetail);
+  const keep = [...groupRoot, "detail", group];
+  const current = read(keep);
+  const otherListKey = [...eventRoot, "list", { groupId: "other-group" }];
+  const otherList = read(otherListKey);
+  let calls = 0;
+  const observer = new QueryObserver(client, {
+    queryKey: events,
+    queryFn: async () => {
+      calls++;
+      return page([other]);
+    },
+  });
+  const unsubscribe = observer.subscribe(() => {});
+  revokeCachedGroupAccess(client, owner, group, false, keep);
+  resolvers[0]({ groupId: group, private: true });
+  resolvers[1](other);
+  resolvers[2]({ id: group, readOnly: true });
+  resolvers[3](page([other]));
+  await Promise.all([stale, good, current, otherList]);
+  expect(client.getQueryData(eventDetail)).toBeUndefined();
+  expect(client.getQueryData(foreignDetail)).toEqual(other);
+  expect(client.getQueryData(keep)).toEqual({ id: group, readOnly: true });
+  expect(client.getQueryData(otherListKey)).toEqual(page([other]));
+  expect(calls).toBeGreaterThan(0);
+  expect(client.getQueryData(events)).toEqual(page([other]));
+  unsubscribe();
+  client.clear();
+});
+
+it("cancels fetching data-linked and Group-filtered scopes even with no Event identity", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
+  });
+  const keys = [
+    ["tables", owner.apiUrl, owner.userId, "custom", 0],
+    [...eventRoot, "list", { groupId: group }],
+  ];
+  const resolvers: ((value: unknown) => void)[] = [];
+  const reads = keys.map((queryKey) => {
+    client.setQueryData(queryKey, { groupId: group });
+    return client
+      .fetchQuery({ queryKey, queryFn: () => new Promise((resolve) => resolvers.push(resolve)) })
+      .catch(() => undefined);
+  });
+  revokeCachedGroupAccess(client, owner, group, false);
+  for (const resolve of resolvers) resolve({ groupId: group, secret: true });
+  await Promise.all(reads);
+  for (const key of keys) expect(client.getQueryData(key)).toBeUndefined();
+  client.clear();
+});
+
+it("cancels cold unscoped list/activity reads while retaining another Group's filtered source", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
+  });
+  const keys = [
+    [...eventRoot, "list", null],
+    [...eventRoot, "list", {}],
+    [...eventRoot, "list", { groupId: null }],
+    [...eventRoot, "tables", null],
+    ["profile", owner.apiUrl, owner.userId, "activities", "subject"],
+    [...eventRoot, "list", { groupId: "other-group" }],
+  ];
+  const resolvers: ((value: unknown) => void)[] = [];
+  const reads = keys.map((queryKey) =>
+    client
+      .fetchQuery({ queryKey, queryFn: () => new Promise((resolve) => resolvers.push(resolve)) })
+      .catch(() => undefined),
+  );
+  revokeCachedGroupAccess(client, owner, group, false);
+  for (const resolve of resolvers) resolve(page([{ id: "unrelated" }]));
+  await Promise.all(reads);
+  for (const key of keys.slice(0, -1)) expect(client.getQueryData(key)).toBeUndefined();
+  expect(client.getQueryData(keys[5])).toEqual(page([{ id: "unrelated" }]));
+  client.clear();
+});
+
+it("classifies Event reads only from same-owner authoritative Group/standalone scope", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
+  const key = [...eventRoot, "detail", "cold"];
+  expect(isUnclassifiedEventRead(client, key)).toBe(true);
+  for (const data of [
+    null,
+    0,
+    "invalid",
+    {},
+    { groupId: undefined },
+    { groupId: null, personalAccessOnly: true },
+    { groupId: "group", sharedResultsOnly: true },
+    { pages: [null, {}] },
+    { items: [0] },
+  ]) {
+    client.setQueryData(key, data);
+    expect(isUnclassifiedEventRead(client, key)).toBe(true);
+  }
+  client.setQueryData(["events", "foreign-api", owner.userId, "detail", "cold"], {
+    groupId: "known",
+  });
+  client.setQueryData(["events", owner.apiUrl, "foreign-user", "detail", "cold"], {
+    groupId: null,
+  });
+  expect(isUnclassifiedEventRead(client, key)).toBe(true);
+  client.setQueryData(
+    [...eventRoot, "list", {}],
+    page([
+      { id: "unrelated", groupId: "group" },
+      { id: "cold", groupId: "known" },
+    ]),
+  );
+  expect(isUnclassifiedEventRead(client, key)).toBe(false);
+  client.removeQueries({ queryKey: [...eventRoot, "list", {}], exact: true });
+  client.setQueryData([...eventRoot, "tables", null], {
+    items: [{ eventId: "cold", groupId: null }],
+  });
+  expect(isUnclassifiedEventRead(client, key)).toBe(false);
+  client.removeQueries({ queryKey: [...eventRoot, "tables", null], exact: true });
+  client.setQueryData(key, { groupId: null });
+  expect(isUnclassifiedEventRead(client, key)).toBe(false);
+  expect(isUnclassifiedEventRead(client, [...groupRoot, "detail", group])).toBe(false);
+  expect(isUnclassifiedEventRead(client, [...eventRoot, "list", {}])).toBe(false);
+  expect(isUnclassifiedEventRead(client, [...eventRoot, "tables", null])).toBe(false);
+  expect(
+    isUnclassifiedEventRead(client, [...eventRoot, "proposals", "cold", "review", "known"]),
+  ).toBe(false);
+  expect(
+    isUnclassifiedEventRead(client, [
+      ...eventRoot,
+      "participants",
+      "cold",
+      "roles-v2",
+      "review",
+      "known",
+    ]),
+  ).toBe(false);
+  client.clear();
 });

@@ -171,7 +171,7 @@ it("fits whole list artwork without overscan while leaving background artwork un
   );
   expect(source).toContain('presentation === "cover" ? "xMidYMid meet" : "xMidYMid slice"');
   expect(source).toContain('left: presentation === "cover" ? 4 : -4');
-  expect(source).toContain("{ right: 4, bottom: 4 }");
+  expect(source).toContain('{ right: 4, bottom: 4, borderRadius: 8, overflow: "hidden" }');
 });
 it("stretches artwork along the left edge and keeps controls on one full-width horizontal row", () => {
   const render = component("common/ui/LinkedListCard", "LinkedListCard", {
@@ -351,6 +351,7 @@ it("keeps native manager, demonstrator, pending and waiting indicators cumulativ
     "@/lib/useCommunityApi": { useCommunityApi: () => ({ userId: "owner" }) },
     "./EventTableGamesPopover": { EventTableGamesPopover: "Games" },
     "./EventTableSchedulePopover": { EventTableSchedulePopover: "Schedule" },
+    "./EventTableRatingInfo": { EventTableRatingInfo: "RatingInfo" },
   });
   const tree = render({
     table: {
@@ -633,10 +634,21 @@ it.each([
   expect(row.props.name).toBe("@handle");
   expect(row.props.secondary).toBe(label);
 });
-it("renders native identities directly over artwork with a single accessible horizontal toolbar", () => {
+it("renders a full upper-left title in a stock dark scope and wraps controls below without horizontal scrolling", () => {
   const render = component("common/ui/RecordIdentityCard", "RecordIdentityCard", {
     "heroui-native/text": { Typography: "Typography" },
-    "react-native": { View: "View", ScrollView: "ScrollView" },
+    "react-native": { View: "View" },
+    react: { useId: () => "heading", useState: (value: unknown) => [value, vi.fn()] },
+    uniwind: { ScopedTheme: "ScopedTheme" },
+    "react-native-svg": {
+      __esModule: true,
+      default: "Svg",
+      Defs: "Defs",
+      LinearGradient: "LinearGradient",
+      Mask: "Mask",
+      Rect: "Rect",
+      Stop: "Stop",
+    },
     "./ListCard": { ListCard: "ListCard" },
   });
   const tree = render({
@@ -646,14 +658,25 @@ it("renders native identities directly over artwork with a single accessible hor
     children: "Indicators",
   });
   expect(tree.props.background).toBe("Artwork");
-  const [title, toolbar] = tree.props.children.props.children;
-  expect(title.props.children[1].props).toMatchObject({
-    accessibilityRole: "header",
-    children: "Identity",
+  const [scope, toolbar] = tree.props.children.props.children;
+  expect(scope.type).toBe("ScopedTheme");
+  expect(scope.props.theme).toBe("dark");
+  const heading = scope.props.children.type(scope.props.children.props);
+  const title = heading.props.children[2];
+  expect(title.props).toMatchObject({ accessibilityRole: "header", children: "Identity" });
+  expect(title.props.numberOfLines).toBeUndefined();
+  expect(heading.props.style).toMatchObject({
+    alignSelf: "flex-start",
+    alignItems: "flex-start",
+    maxWidth: "100%",
   });
-  expect(toolbar.type).toBe("ScrollView");
-  expect(toolbar.props.horizontal).toBe(true);
-  expect(toolbar.props.style.height).toBe(44);
+  expect(toolbar.type).toBe("View");
+  expect(toolbar.props.horizontal).toBeUndefined();
+  expect(toolbar.props.style).toMatchObject({
+    flexDirection: "row",
+    flexWrap: "wrap",
+    width: "100%",
+  });
   expect(toolbar.props.children).toBe("Indicators");
   const card = component("common/ui/ListCard", "ListCard", {
     "heroui-native/card": { Card: { Body: "Card.Body" } },
@@ -664,8 +687,8 @@ it("renders native identities directly over artwork with a single accessible hor
   expect(background.props.children[1].props.children).toBe("Identity");
   expect(tree.props.children.props.className).not.toBe("bg-background/90");
   expect(tree.props.children.props.style.flexWrap).toBeUndefined();
-  expect(toolbar.props.style.maxWidth).toBe("60%");
-  expect(title.props.style.flex).toBe(1);
+  expect(toolbar.props.style.maxWidth).toBeUndefined();
+  expect(title.props.style.flexShrink).toBe(1);
 });
 it("requires a scroll in the current Results owner scope and rejects detached native callbacks", () => {
   let actor = "owner";

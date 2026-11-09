@@ -99,9 +99,9 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
   expect(fab).toContain("bottom: layout.bottom");
   expect(fab).not.toContain("extraBottom");
   for (const [path, component] of [
-    ["../../components/events/EventList.tsx", "FlatList"],
-    ["../../components/groups/GroupWizard.tsx", "FlatList"],
-    ["../../components/groups/GroupList.tsx", "FlatList"],
+    ["../../components/events/EventList.tsx", "InputFlatList"],
+    ["../../components/groups/GroupWizard.tsx", "InputFlatList"],
+    ["../../components/groups/GroupList.tsx", "InputFlatList"],
   ] as const) {
     const source = ts.createSourceFile(
       path,
@@ -121,7 +121,7 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
             .filter(ts.isJsxAttribute)
             .map((attr) => [attr.name.getText(source), attr.initializer?.getText(source)]),
         );
-        if (component === "FlatList") {
+        if (component === "InputFlatList") {
           expect(props.get("style"), path).toMatch(/flex:\s*1/);
           expect(props.get("contentContainerStyle"), path).toContain("layout.paddingBottom");
         }

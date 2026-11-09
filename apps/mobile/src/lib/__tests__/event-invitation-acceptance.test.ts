@@ -29,7 +29,7 @@ function render(
     .filter((node) => ts.isFunctionDeclaration(node) && node !== fn)
     .map((node) => node.getText(file))
     .join("\n");
-  const code = `${helpers}\n${fn.getText(file).replace(/^export /, "")}; ${name}(props);`;
+  const code = `${helpers}\n${fn.getText(file).replace(/^export /, "")}; ${name === "EventJoinSheet" ? "JoinContent" : name}(props);`;
   return runInNewContext(
     ts.transpileModule(code, {
       compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React },
@@ -37,6 +37,9 @@ function render(
     {
       props,
       TabTrigger: "tab",
+      useRef: (value: unknown) => ({ current: value }),
+      useEffect: (effect: () => void) => effect(),
+      useValidationList: () => ({}),
       useT: () => (text: string) => text,
       useCommunityApi: () => ({ apiUrl: "api" }),
       React: {
@@ -144,6 +147,7 @@ it.each(Array.from({ length: 16 }, (_, value) => [value % 8, value >= 8] as cons
       gamesOnly: false,
       checking: false,
       canSubmit: true,
+      canAttempt: true,
       submit,
       votes: {},
     };
@@ -170,7 +174,7 @@ it.each(Array.from({ length: 16 }, (_, value) => [value % 8, value >= 8] as cons
       Typography: "text",
       View: "view",
       Skeleton: "skeleton",
-      BottomSheetFlatList: "list",
+      InputFlatList: "list",
       UserRoundCheck: "icon",
       CalendarDays: "calendar-icon",
       MapPin: "location-icon",
@@ -219,7 +223,10 @@ it.each(Array.from({ length: 16 }, (_, value) => [value % 8, value >= 8] as cons
     expect(onClose).toHaveBeenCalledOnce();
     const pending = render(
       "EventJoinSheet",
-      { ...context, useEventJoinForm: () => ({ ...form, checking: true, canSubmit: false }) },
+      {
+        ...context,
+        useEventJoinForm: () => ({ ...form, checking: true, canSubmit: false, canAttempt: false }),
+      },
       { eventId: "event", tableId: "table", registrationId: "registration", onClose },
     );
     (pending.props.onOpenChange as (open: boolean) => void)(false);

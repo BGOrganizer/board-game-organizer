@@ -20,21 +20,15 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["lcov", "html", "text"],
-      // ponytail: RN components cannot be unit-tested under vitest — RN 0.85
+      // ponytail: RN components cannot be unit-tested under vitest — RN 0.86
       // ships CJS with Flow syntax, and node's native CJS loader bypasses the
       // Vite transform pipeline (jest-expo is the official path for that, but
       // would add a second test framework for one app). Mobile UI behaviour is
-      // covered by the Maestro E2E flows in pr-ci/main-ci; unit coverage here
-      // targets the pure logic (i18n, and Phase 3: hooks/store/schemas).
+      // covered by retained Maestro flows under the current CI acceptance policy;
+      // unit coverage here targets pure logic, not native frame/touch evidence.
       include: ["src/lib/**", "src/hooks/**", "src/store/**"],
       thresholds: {
-        "src/lib/games/gamePickerWindow.ts": {
-          lines: 100,
-          functions: 100,
-          branches: 100,
-          statements: 100,
-        },
-        "src/lib/games/useGameListWindow.ts": {
+        "src/lib/{inputScrollOffset,artworkLayout}.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

@@ -1,83 +1,104 @@
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import type { ReactNode } from "react";
-import { ScrollView, View } from "react-native";
+import type { LucideIcon } from "lucide-react-native";
+import { type ReactNode, useId, useState } from "react";
+import { View } from "react-native";
+import Svg, { Defs, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
+import { ScopedTheme } from "uniwind";
 import { ListCard } from "./ListCard";
 
-/** Image-backed HeroUI identity with a full, accessible toolbar over the artwork. */
-export function RecordIdentityCard({
-  title,
-  icon,
-  background,
-  titleAccessory,
-  children,
-}: {
-  title: string;
-  icon: ReactNode;
-  background: ReactNode;
-  titleAccessory?: ReactNode;
-  children: ReactNode;
-}) {
-  const backgroundColor = useThemeColor("background");
+type HeadingProps = { title: string; icon: LucideIcon; titleAccessory?: ReactNode };
+function IdentityHeading({ title, icon: Icon, titleAccessory }: HeadingProps) {
+  const [background, foreground] = useThemeColor(["background", "foreground"]);
+  const id = useId().replaceAll(":", "");
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const width = size.width + 64,
+    height = size.height + 64;
   return (
-    <ListCard background={background}>
-      <View
+    <View
+      style={{
+        alignSelf: "flex-start",
+        maxWidth: "100%",
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 8,
+      }}
+      onLayout={({ nativeEvent: { layout } }) =>
+        setSize((old) =>
+          old.width === layout.width && old.height === layout.height
+            ? old
+            : { width: layout.width, height: layout.height },
+        )
+      }
+    >
+      <Svg
+        accessible={false}
+        pointerEvents="none"
+        width={width}
+        height={height}
+        style={{ position: "absolute", left: -32, top: -32 }}
+      >
+        <Defs>
+          <LinearGradient id={`${id}-horizontal`} x1="0" x2="1" y1="0" y2="0">
+            <Stop offset="0" stopColor={background} stopOpacity={0} />
+            <Stop offset={32 / width} stopColor={background} stopOpacity={0.9} />
+            <Stop offset={1 - 32 / width} stopColor={background} stopOpacity={0.9} />
+            <Stop offset="1" stopColor={background} stopOpacity={0} />
+          </LinearGradient>
+          <LinearGradient id={`${id}-vertical`} x1="0" x2="0" y1="0" y2="1">
+            <Stop offset="0" stopColor={foreground} stopOpacity={0} />
+            <Stop offset={32 / height} stopColor={foreground} />
+            <Stop offset={1 - 32 / height} stopColor={foreground} />
+            <Stop offset="1" stopColor={foreground} stopOpacity={0} />
+          </LinearGradient>
+          <Mask id={`${id}-mask`}>
+            <Rect width="100%" height="100%" fill={`url(#${id}-vertical)`} />
+          </Mask>
+        </Defs>
+        <Rect
+          width="100%"
+          height="100%"
+          fill={`url(#${id}-horizontal)`}
+          mask={`url(#${id}-mask)`}
+        />
+      </Svg>
+      <Icon size={20} color={foreground} accessible={false} style={{ marginTop: 4 }} />
+      <Typography
+        accessibilityRole="header"
+        className="text-lg font-semibold text-foreground"
         style={{
-          flexDirection: "row",
-          padding: 16,
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
+          flexShrink: 1,
+          minWidth: 0,
+          textShadowColor: background,
+          textShadowOffset: { width: 0, height: 1 },
+          textShadowRadius: 3,
         }}
       >
+        {title}
+      </Typography>
+      {titleAccessory}
+    </View>
+  );
+}
+
+/** Full title first; informational controls wrap below without horizontal scrolling. */
+export function RecordIdentityCard({
+  background,
+  children,
+  ...heading
+}: HeadingProps & { background: ReactNode; children: ReactNode }) {
+  return (
+    <ListCard background={background}>
+      <View style={{ padding: 16, gap: 12, flex: 1 }}>
+        <ScopedTheme theme="dark">
+          <IdentityHeading {...heading} />
+        </ScopedTheme>
         <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          {icon}
-          <Typography
-            accessibilityRole="header"
-            accessibilityLabel={title}
-            numberOfLines={1}
-            className="text-lg font-semibold text-foreground"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              textShadowColor: backgroundColor,
-              textShadowOffset: { width: 0, height: 0 },
-              textShadowRadius: 4,
-            }}
-          >
-            {title}
-          </Typography>
-          {titleAccessory}
-        </View>
-        <ScrollView
           testID="record-identity-controls"
-          horizontal
-          style={{
-            height: 44,
-            width: "60%",
-            maxWidth: "60%",
-            minWidth: 0,
-            marginLeft: "auto",
-            flexGrow: 0,
-            flexShrink: 0,
-          }}
-          contentContainerStyle={{
-            flexGrow: 1,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "flex-end",
-          }}
+          style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", width: "100%" }}
         >
           {children}
-        </ScrollView>
+        </View>
       </View>
     </ListCard>
   );

@@ -176,7 +176,7 @@ export default defineConfig({
         },
         "src/components/events/{EventDetailsCard,EventTableInfo,EventTableScheduleCard,EventVoteLegend}.tsx":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
-        "src/components/events/{EventDraftTableCard,EventTableRatingBadge}.tsx": {
+        "src/components/events/{EventDraftTableCard,EventTableRatingInfo}.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,
@@ -232,7 +232,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/events/{EventTableCardBody,EventTableCard,EventTableInvitationActions,EventTableRatingBadge,EventTableInfo,EventTableSeats,EventVoteButtons,EventVoteCounts,EventDetail}.tsx":
+        "src/components/events/{EventTableCardBody,EventTableCard,EventTableInvitationActions,EventTableRatingInfo,EventTableInfo,EventTableSeats,EventVoteButtons,EventVoteCounts,EventDetail}.tsx":
           {
             lines: 100,
             functions: 100,

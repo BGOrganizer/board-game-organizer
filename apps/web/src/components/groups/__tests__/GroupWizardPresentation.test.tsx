@@ -152,9 +152,12 @@ it("keeps Public logo and venue validation mandatory, including after clearing a
   nameGroup();
   addFriend();
   fireEvent.click(screen.getByRole("radio", { name: "Public" }));
-  expect(
-    (screen.getByRole("button", { name: "Submit for review" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+  const submit = screen.getByRole("button", { name: "Submit for review" }) as HTMLButtonElement;
+  expect(submit.disabled).toBe(false);
+  fireEvent.click(submit);
+  expect(screen.getByText("Choose a group logo.")).toBeTruthy();
+  expect(screen.getByText("Choose a verified location.")).toBeTruthy();
+  expect(m.create).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Use uploaded logo" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Select verified venue" }));
@@ -162,9 +165,9 @@ it("keeps Public logo and venue validation mandatory, including after clearing a
     (screen.getByRole("button", { name: "Submit for review" }) as HTMLButtonElement).disabled,
   ).toBe(false);
   fireEvent.click(screen.getByRole("button", { name: "Clear prepared logo" }));
-  expect(
-    (screen.getByRole("button", { name: "Submit for review" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+  fireEvent.click(submit);
+  expect(screen.getByText("Choose a group logo.")).toBeTruthy();
+  expect(m.create).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Use uploaded logo" }));
   fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
   expect(m.create).toHaveBeenCalledWith(
@@ -175,10 +178,12 @@ it("keeps Public logo and venue validation mandatory, including after clearing a
     }),
   );
 });
-it("does not expose mutable visibility or creation invitations while editing", () => {
+it("keeps both type cards visible but immutable, with no creation invitations while editing", () => {
   m.group = groupRecord;
   renderWithI18n(<GroupWizard groupId={groupRecord.id} />);
-  expect(screen.queryByRole("radiogroup")).toBeNull();
+  expect(screen.getByRole("radiogroup")).toBeTruthy();
+  for (const label of ["Private", "Public"])
+    expect((screen.getByRole("radio", { name: label }) as HTMLInputElement).disabled).toBe(true);
   expect(screen.queryByRole("button", { name: "Add friend" })).toBeNull();
   expect(screen.getByRole("button", { name: "Save changes" })).not.toBeNull();
 });

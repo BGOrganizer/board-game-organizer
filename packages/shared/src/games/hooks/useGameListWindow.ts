@@ -1,8 +1,10 @@
+"use client";
+
 import type { BggPickerItem } from "@board-game-organizer/schemas";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { gamePickerWindow } from "./gamePickerWindow";
+import { gamePickerWindow } from "../gamePickerWindow";
 
-/** One bounded native presentation workflow; canonical Query pages remain untouched. */
+/** Bounded presentation workflow; canonical Query pages remain untouched. */
 export function useGameListWindow<T extends BggPickerItem>({
   scope,
   pages,

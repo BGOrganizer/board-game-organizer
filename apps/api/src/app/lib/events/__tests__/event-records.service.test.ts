@@ -636,7 +636,7 @@ describe("Event participant source and event-only removal", () => {
     expect(page.items.find((row) => row.userId === guest)).toMatchObject({
       position: "SEATED",
       canRemove: true,
-      canBanGroup: true,
+      canBanGroup: false,
     });
     expect(page.items.some((row) => row.userId === pending.userId)).toBe(false);
     const second = await f.service.participants(owner, event.id, {
@@ -755,7 +755,7 @@ describe("Event participant source and event-only removal", () => {
     await f.service.join(guest, e.id, id, f.participation(e.id, id));
     expect((await f.repo.userRegistrations(e.id, guest))[0].status).toBe("ACCEPTED");
   });
-  it("rejects stale versions, non-managers, pending-only targets and closed/nonplanning changes before cancellation", async () => {
+  it("rejects stale versions, non-managers, pending-only targets and nonplanning changes before cancellation", async () => {
     const f = setup("PRIVATE"),
       e = await f.create();
     await f.service.register(owner, e.id, id, guest);
@@ -783,9 +783,24 @@ describe("Event participant source and event-only removal", () => {
     });
     await expect(
       p.service.removeParticipant(owner, publicEvent.id, guest, { version: 1 }),
-    ).rejects.toMatchObject({ message: "EVENT_BOOKING_CLOSED" });
+    ).rejects.toMatchObject({ message: "EVENT_PARTICIPANT_NOT_FOUND" });
     expect(f.repo.cancelUser).not.toHaveBeenCalled();
     expect(p.repo.cancelUser).not.toHaveBeenCalled();
+  });
+  it("allows manager removal after cutoff but still forbids the manager's own departure", async () => {
+    const f = setup("PUBLIC"),
+      event = await f.create();
+    await f.service.join(owner, event.id, id, f.participation(event.id, id));
+    await f.service.join(guest, event.id, id, f.participation(event.id, id));
+    vi.setSystemTime(new Date(event.bookingClosesAt!));
+    const saved = await f.service.removeParticipant(owner, event.id, guest, {
+      version: f.events.get(event.id)!.version,
+    });
+    expect(f.repo.cancelUser).toHaveBeenCalledWith(event.id, guest, expect.any(String));
+    await expect(
+      f.service.removeParticipant(owner, event.id, owner, { version: saved.version }),
+    ).rejects.toMatchObject({ code: "EVENT_BOOKING_CLOSED" });
+    expect(f.repo.cancelUser).toHaveBeenCalledTimes(1);
   });
   it("retains genuine frozen attendance even when mutable registrations are absent", async () => {
     const f = setup("PRIVATE"),
@@ -1199,16 +1214,17 @@ it.each(["CONFIRMED", "TERMINATED"] as const)(
     expect(s.repo.removeTable).not.toHaveBeenCalled();
   },
 );
-it("preserves exact public cutoffs for both deletion paths", async () => {
+it("permits authorized Planning deletion at the exact public cutoff", async () => {
   const s = setup("PUBLIC"),
     event = await s.create();
+  s.tables.set(other, { ...s.tables.get(id)!, id: other, order: 1 });
   vi.setSystemTime(new Date(event.bookingClosesAt!));
-  await expect(s.service.remove(owner, event.id, { version: event.version })).rejects.toMatchObject(
-    { code: "EVENT_BOOKING_CLOSED" },
-  );
-  await expect(
-    s.service.removeTable(owner, event.id, id, { version: event.version }),
-  ).rejects.toMatchObject({ code: "EVENT_BOOKING_CLOSED" });
+  const saved = await s.service.removeTable(owner, event.id, id, { version: event.version });
+  expect(s.tables.get(id)?.removedAt).toBeDefined();
+  await expect(s.service.remove(owner, event.id, { version: saved.version })).resolves.toEqual({
+    id: event.id,
+    groupId: other,
+  });
 });
 beforeEach(() => {
   vi.useFakeTimers();
@@ -2452,7 +2468,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
   });
 });
 describe("public scheduling, deadline and membership consequences", () => {
-  it("uses implicit fixed-option consent ONLY after explicit acceptance and closes every action at exact cutoff", async () => {
+  it("keeps explicit consent after cutoff, blocks SELF/leaving and permits Planning invitations", async () => {
     const f = setup("PUBLIC"),
       event = await f.create();
     await f.service.register(owner, event.id, id);
@@ -2464,47 +2480,106 @@ describe("public scheduling, deadline and membership consequences", () => {
       f.service.vote(guest, event.id, { kind: "date", optionId: id, vote: "NO" }),
     ).rejects.toMatchObject({ code: "FIXED_OPTION" });
     vi.setSystemTime(new Date("2027-01-02T08:00:00Z"));
-    await expect(f.service.register(owner, event.id, id, waiter)).rejects.toMatchObject({
+    const late = await f.service.register(owner, event.id, id, waiter);
+    expect(late.status).toBe("PENDING");
+    expect((await f.service.tableDetail(waiter, event.id, id)).canRespond).toBe(true);
+    await f.service.registrationAction(waiter, late.id, {
+      action: "decline",
+      version: late.version,
+    });
+    await f.accept(await f.service.register(owner, event.id, id, waiter));
+    await expect(f.service.register(owner, event.id, id)).rejects.toMatchObject({
       code: "EVENT_BOOKING_CLOSED",
     });
+    expect((await f.service.detail(owner, event.id)).canEdit).toBe(true);
     await expect(
       f.service.registrationAction(guest, invite.id, { action: "cancel", version: 2 }),
     ).rejects.toMatchObject({ code: "EVENT_BOOKING_CLOSED" });
+    await expect(
+      f.service.registrationAction(guest, invite.id, { action: "decline", version: 2 }),
+    ).rejects.toMatchObject({ code: "INVITATION_RECIPIENT_REQUIRED" });
+    expect(f.registrations.get(invite.id)?.status).toBe("ACCEPTED");
     expect(f.events.get(event.id)?.status).toBe("PLANNING");
     await f.confirm(event.id);
     expect(f.events.get(event.id)?.status).toBe("CONFIRMED");
   });
-  it("refuses protected target bans but leaves other participants/history untouched", async () => {
-    const f = setup("PUBLIC"),
-      event = await f.create();
-    await f.service.register(owner, event.id, id);
-    await f.accept(await f.service.register(owner, event.id, id, guest));
-    await f.confirm(event.id);
-    vi.setSystemTime(new Date("2027-01-02T08:00:00Z"));
-    await expect(f.service.assertBanAllowed(other, guest)).rejects.toMatchObject({
-      code: "BAN_FROZEN_PARTICIPATION",
-    });
-    await expect(f.service.assertBanAllowed(other, waiter)).resolves.toBeUndefined();
-    expect(f.events.get(event.id)?.status).toBe("CONFIRMED");
-  });
-  it("reopens an affected pre-cutoff confirmed event on ban, retaining the other players and votes", async () => {
-    const f = setup("PRIVATE"),
-      event = await f.service.create(owner, privateBody());
-    await f.service.register(owner, event.id, id);
-    await f.service.register(guest, event.id, id);
-    await f.yes(event.id, owner);
-    await f.yes(event.id, guest);
-    await f.confirm(event.id);
-    await f.service.membershipDeparted(other, guest, "BAN");
-    expect(f.events.get(event.id)?.status).toBe("PLANNING");
-    expect([...f.registrations.values()].find((row) => row.userId === guest)?.status).toBe(
-      "CANCELLED",
-    );
-    expect([...f.registrations.values()].find((row) => row.userId === owner)?.status).toBe(
-      "ACCEPTED",
-    );
-    expect(f.votes.size).toBe(2);
-  });
+  it.each(["PRIVATE", "PUBLIC"] as const)(
+    "preserves Confirmed snapshots and personal read access on %s Group ban, revoking it on replan",
+    async (type) => {
+      const f = setup(type),
+        event = await f.create();
+      await f.service.register(owner, event.id, id);
+      await f.accept(await f.service.register(owner, event.id, id, guest));
+      await f.yes(event.id, owner);
+      await f.yes(event.id, guest);
+      await f.confirm(event.id);
+      const frozen = clone(f.events.get(event.id));
+      const roster = clone(f.tables.get(id));
+      const ban: GroupBan = {
+        id,
+        groupId: other,
+        userId: guest,
+        adminUserId: owner,
+        until: null,
+        memberAccessThrough: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      f.groups.membership.mockImplementation(async (_group, target) => ({
+        status: target === guest ? "LEFT" : "ACCEPTED",
+      }));
+      f.groups.ban.mockImplementation(async (_group, target) => (target === guest ? ban : null));
+      await f.service.membershipDeparted(other, guest, "BAN");
+      expect(f.events.get(event.id)).toEqual(frozen);
+      expect(f.tables.get(id)).toEqual(roster);
+      expect(await f.service.detail(guest, event.id)).toMatchObject({
+        personalAccessOnly: true,
+        role: "participant",
+        readOnly: true,
+        groupId: null,
+        groupName: null,
+        canManage: false,
+        canEdit: false,
+        tableCount: 1,
+      });
+      expect(await f.service.tableDetail(guest, event.id, id)).toMatchObject({
+        personalAccessOnly: true,
+        groupId: null,
+        myPosition: "FROZEN",
+        canInvite: false,
+      });
+      await expect(f.service.participants(guest, event.id, { limit: 20 })).rejects.toMatchObject({
+        code: "EVENT_PERSONAL_ACCESS_ONLY",
+      });
+      await expect(f.service.activityResource(guest, event.id, id, true)).rejects.toMatchObject({
+        code: "EVENT_NOT_FOUND",
+      });
+      expect(await f.service.activityResource(guest, event.id, id)).toMatchObject({
+        href: `/events/${event.id}/tables/${id}`,
+      });
+      await expect(
+        f.service.remove(guest, event.id, { version: frozen!.version }),
+      ).rejects.toMatchObject({ code: "GROUP_BANNED" });
+      ban.until = "2026-01-01T00:00:00Z";
+      expect((await f.service.detail(guest, event.id)).personalAccessOnly).toBe(true);
+      ban.until = null;
+      ban.revokedAt = new Date().toISOString();
+      expect((await f.service.detail(guest, event.id)).personalAccessOnly).toBe(true);
+      delete ban.revokedAt;
+      await f.service.transition(owner, event.id, { action: "replan", version: frozen!.version });
+      expect(f.events.get(event.id)?.status).toBe("PLANNING");
+      expect([...f.registrations.values()].find((row) => row.userId === guest)?.status).toBe(
+        "CANCELLED",
+      );
+      await expect(f.service.detail(guest, event.id)).rejects.toMatchObject({
+        code: "GROUP_BANNED",
+      });
+      f.groups.ban.mockResolvedValue(null);
+      expect([...f.registrations.values()].find((row) => row.userId === guest)?.status).toBe(
+        "CANCELLED",
+      );
+    },
+  );
 });
 describe("singleton consent", () => {
   it.each(Array.from({ length: 8 }, (_, mask) => mask))(

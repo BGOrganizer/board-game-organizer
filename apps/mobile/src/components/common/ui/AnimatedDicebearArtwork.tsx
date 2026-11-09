@@ -68,7 +68,7 @@ export function AnimatedDicebearArtwork({
           ? {
               position: "absolute",
               inset: 0,
-              borderRadius: presentation === "cover" ? 0 : 12,
+              borderRadius: 12,
               overflow: "hidden",
             }
           : { width: size, height: size, flexShrink: 0, borderRadius: 12, overflow: "hidden" }
@@ -82,7 +82,7 @@ export function AnimatedDicebearArtwork({
             left: presentation === "cover" ? 4 : -4,
             top: presentation === "cover" ? 4 : -4,
             ...(presentation === "cover"
-              ? { right: 4, bottom: 4 }
+              ? { right: 4, bottom: 4, borderRadius: 8, overflow: "hidden" }
               : presentation === "background"
                 ? { right: -4, bottom: -4 }
                 : {}),

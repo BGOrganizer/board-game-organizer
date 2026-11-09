@@ -317,7 +317,7 @@ it("asks only for a username, closes before verification, keeps failed input and
   fireEvent.click(sync);
   let dialog = await screen.findByRole("dialog", { name: "BGG username" });
   fireEvent.click(within(dialog).getByRole("button", { name: "Sync collection" }));
-  expect(within(dialog).getByText("Enter a BGG username")).not.toBeNull();
+  expect(within(dialog).getByText("Enter a valid BGG username.")).not.toBeNull();
   fireEvent.change(within(dialog).getByRole("textbox", { name: "BGG username" }), {
     target: { value: "unknown" },
   });

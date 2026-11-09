@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { Platform, View } from "react-native";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { InputField } from "@/components/common/ui/InputField";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 
@@ -56,9 +57,18 @@ export function EventDateTimeField({
     mounted.current = true;
     return () => {
       mounted.current = false;
+      generation.current++;
       if (nativeMode.current) DateTimePickerAndroid.dismiss(nativeMode.current);
     };
   }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Picker callbacks must expire when their captured field constraints or source change.
+  useEffect(() => {
+    generation.current++;
+    if (nativeMode.current) DateTimePickerAndroid.dismiss(nativeMode.current);
+    nativeMode.current = null;
+    setDraft(null);
+    setPickerError("");
+  }, [mode, value, day, timeZone, min, max, isDisabled]);
   let today: string;
   let invalidZone = false;
   try {
@@ -171,7 +181,7 @@ export function EventDateTimeField({
     </GroupedRow>
   );
   return (
-    <View style={{ gap: 6 }}>
+    <InputField invalid={Boolean(error)} style={{ gap: 6 }}>
       {!rowOnly ? (
         <SearchHelpLabel
           required={required}
@@ -230,6 +240,6 @@ export function EventDateTimeField({
           </Dialog.Portal>
         </Dialog>
       ) : null}
-    </View>
+    </InputField>
   );
 }

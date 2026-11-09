@@ -57,6 +57,17 @@ export function eventOptionVotesAreComplete(
     options.some((option) => choices[option.id] === "YES" || choices[option.id] === "IF_NEEDED")
   );
 }
+/** Missing ballots come first; an all-negative set points to its first option. */
+export function eventFirstInvalidVote(
+  options: ReadonlyArray<{ id: string }>,
+  choices: Readonly<Record<string, EventVote>>,
+): number | undefined {
+  if (!options.length || eventOptionVotesAreComplete(options, choices)) return undefined;
+  return Math.max(
+    0,
+    options.findIndex((option) => !["YES", "NO", "IF_NEEDED"].includes(choices[option.id])),
+  );
+}
 /** Each multi-option dimension needs explicit choices; singleton settings need none. */
 export function eventJoinAvailabilityIsComplete(
   event: { dates: ReadonlyArray<{ id: string }>; locations: ReadonlyArray<{ id: string }> },

@@ -321,14 +321,16 @@ it.each(["event", "table"] as const)(
         ),
       }),
     );
-    expect(
-      (
-        screen.getByRole("button", {
-          name: kind === "table" ? "Delete table" : "Delete event",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
     await waitFor(() => expect(screen.getByText("Verifying")).toBeTruthy());
+    fireEvent.click(
+      screen.getByRole("button", { name: kind === "table" ? "Delete table" : "Delete event" }),
+    );
+    expect(
+      await screen.findByText(
+        "Checking whether the previous deletion was saved. Do not submit it again.",
+      ),
+    ).toBeTruthy();
+    expect(fetch.mock.calls.filter(([, init]) => init?.method === "DELETE")).toHaveLength(1);
   },
 );
 it.each(["event", "table"] as const)(
@@ -458,29 +460,33 @@ it("closes confirmation after canonical version/access changes instead of silent
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(mocks.replace).not.toHaveBeenCalled();
 });
-it("disables stale/uneditable and last-Table deletion, but keeps whole-Event deletion available", () => {
+it("explains uneditable, unverified and last-Table deletion while retaining explicit whole-Event deletion", async () => {
   const s = setup();
-  const view = renderWithI18n(
-    s.wrapper({
-      children: <EventDeleteAction event={{ ...s.event, tableCount: 1 }} table={plannedTable} />,
-    }),
-  );
-  expect((screen.getByRole("button", { name: "Delete table" }) as HTMLButtonElement).disabled).toBe(
-    true,
-  );
-  expect(
-    document.getElementById(
-      screen.getByRole("button", { name: "Delete table" }).getAttribute("aria-describedby")!,
-    )?.textContent,
-  ).toContain("at least one table");
+  const cases = [
+    <EventDeleteAction key="last" event={{ ...s.event, tableCount: 1 }} table={plannedTable} />,
+    <EventDeleteAction key="edit" event={{ ...s.event, canEdit: false }} />,
+    <EventDeleteAction key="verify" event={s.event} disabled />,
+  ];
+  const reasons = [
+    "An event must keep at least one table. Delete the event instead.",
+    "This event can no longer be edited.",
+    "Wait until current event and table data are verified.",
+  ];
+  const view = renderWithI18n(s.wrapper({ children: cases[0] }));
+  for (let index = 0; index < cases.length; index++) {
+    view.rerender(s.wrapper({ children: cases[index] }));
+    fireEvent.click(
+      screen.getByRole("button", { name: index === 0 ? "Delete table" : "Delete event" }),
+    );
+    expect(await screen.findByText(reasons[index])).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: /Delete (event|table)\?/ })).toBeNull();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  }
+  expect(mocks.replace).not.toHaveBeenCalled();
   view.rerender(
-    s.wrapper({ children: <EventDeleteAction event={{ ...s.event, canEdit: false }} /> }),
+    s.wrapper({ children: <EventDeleteAction event={{ ...s.event, tableCount: 1 }} /> }),
   );
-  expect((screen.getByRole("button", { name: "Delete event" }) as HTMLButtonElement).disabled).toBe(
-    true,
-  );
-  view.rerender(s.wrapper({ children: <EventDeleteAction event={s.event} disabled /> }));
-  expect((screen.getByRole("button", { name: "Delete event" }) as HTMLButtonElement).disabled).toBe(
-    true,
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Delete event" }));
+  expect(await screen.findByRole("dialog", { name: "Delete event?" })).toBeTruthy();
 });

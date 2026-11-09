@@ -5,7 +5,6 @@ import {
   eventParticipationFlags,
   eventPendingAction,
   eventRecordVisibility,
-  useEventCutoff,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarCheck, CalendarClock, Flag, Globe, LockKeyhole, UsersRound } from "lucide-react";
@@ -18,10 +17,6 @@ export function EventCardIndicators({ event }: { event: PlannedEventResponse }) 
   const { t, i18n } = useLingui();
   const participation = eventParticipationFlags(event.myRegistrations);
   const own = !event.readOnly;
-  const closed = useEventCutoff(
-    event.bookingClosesAt,
-    event.groupType === "PUBLIC" && event.status === "PLANNING",
-  );
   const planning = event.status === "PLANNING",
     confirmed = event.status === "CONFIRMED";
   const status = planning ? t`Planning` : confirmed ? t`Confirmed` : t`Terminated`;
@@ -43,7 +38,7 @@ export function EventCardIndicators({ event }: { event: PlannedEventResponse }) 
           size="compact"
           kind="pending"
           label={t`Participant with pending invitation`}
-          action={closed ? null : eventPendingAction(event)}
+          action={eventPendingAction(event)}
         />
       ) : null}
       {own && participation.waiting ? (

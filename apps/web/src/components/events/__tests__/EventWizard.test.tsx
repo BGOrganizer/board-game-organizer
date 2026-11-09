@@ -320,7 +320,7 @@ it("submits one complete event only on final review, with no server draft or imp
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   expect(screen.getByText(/organizer has no automatic playing seat/)).not.toBeNull();
   expect(screen.queryByRole("button", { name: /^Remove (date|location|table)/ })).toBeNull();
-  expect(screen.getByRole("img", { name: "Rating enabled" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Rating enabled" })).not.toBeNull();
   expect(screen.queryByText("No demonstrator")).toBeNull();
   expect(screen.getByRole("button", { name: "Create event" }).textContent).toBe("");
   fireEvent.click(screen.getByRole("button", { name: "Create event" }));
@@ -586,7 +586,8 @@ it("uses bounded primary player counters and keeps the empty game slot after sel
   fireEvent.click(remove);
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   expect(screen.getByText("Choose at least one game.")).not.toBeNull();
-  expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(screen.queryByRole("button", { name: "Create event" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Choose a game" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose catalog game" }));
   expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(false);
@@ -641,7 +642,7 @@ it("leaves final review immediately but retains the complete failed draft for ex
   expect(m.feedback.onOptimisticUpdate).toHaveBeenCalledWith("create_event");
   expect(m.feedback.onSuccess).not.toHaveBeenCalled();
 });
-it("enables Next initially, then shows field errors and disables it until all schedule fields are valid", () => {
+it("keeps validation attempts reachable, showing blocking schedule errors without advancing", () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => new Response('{"items":[],"nextCursor":null}')),
@@ -657,7 +658,10 @@ it("enables Next initially, then shows field errors and disables it until all sc
   expect(screen.queryByLabelText("Time zone")).toBeNull();
   expect(screen.getByPlaceholderText("Friday game night")).not.toBeNull();
   fireEvent.click(next);
-  expect(next.disabled).toBe(true);
+  expect(next.disabled).toBe(false);
+  expect(screen.getByRole("textbox", { name: "Event name" }).getAttribute("aria-invalid")).toBe(
+    "true",
+  );
   expect(screen.getByText("Enter an event name between 5 and 120 characters.")).not.toBeNull();
   expect(screen.getByText("Choose exactly one valid date and time.")).not.toBeNull();
   expect(screen.getByText("Choose exactly one verified location.")).not.toBeNull();

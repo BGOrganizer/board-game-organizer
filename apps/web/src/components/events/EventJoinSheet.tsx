@@ -4,7 +4,7 @@ import { eventDateWall, eventLocalToIso, useEventJoinForm } from "@board-game-or
 import { Button, Drawer, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarDays, Dices, MapPin, UserRoundCheck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -15,17 +15,17 @@ import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventVoteButtons } from "./EventVoteButtons";
 
-export function EventJoinSheet({
-  eventId,
-  tableId,
-  onClose,
-  registrationId,
-}: {
-  eventId: string;
-  tableId: string;
-  onClose: () => void;
-  registrationId?: string;
-}) {
+type Props = { eventId: string; tableId: string; onClose: () => void; registrationId?: string };
+export function EventJoinSheet(props: Props) {
+  const o = useCommunityApi();
+  return (
+    <JoinContent
+      key={JSON.stringify([o.apiUrl, o.userId, props.eventId, props.tableId, props.registrationId])}
+      {...props}
+    />
+  );
+}
+function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
   const { t } = useLingui();
   const form = useEventJoinForm(useCommunityApi(), eventId, tableId, onClose, registrationId);
   const { event, table, votingTabs } = form;
@@ -34,6 +34,17 @@ export function EventJoinSheet({
     votingTabs.find((value) => value === selection) ??
     votingTabs.find((value) => value === form.initialTab) ??
     votingTabs[0];
+  const seenAttempt = useRef(0);
+  useEffect(() => {
+    if (!form.validationAttempt || seenAttempt.current === form.validationAttempt) return;
+    seenAttempt.current = form.validationAttempt;
+    if (form.invalidChoice) setSelection(form.invalidChoice.tab);
+  }, [form.validationAttempt, form.invalidChoice]);
+  const invalidRow = (kind: string, index: number) =>
+    form.validationAttempt > 0 &&
+    form.invalidChoice?.tab === kind &&
+    tab === kind &&
+    form.invalidChoice.index === index;
   return (
     <Drawer.Backdrop
       isOpen
@@ -42,7 +53,12 @@ export function EventJoinSheet({
       }}
     >
       <Drawer.Content placement="bottom">
-        <Drawer.Dialog className="mx-auto max-h-[85dvh] w-full max-w-2xl">
+        <Drawer.Dialog
+          data-form-scope
+          data-form-source={event?.version}
+          className="mx-auto w-full max-w-2xl"
+          style={{ maxHeight: "calc(var(--app-visible-height, 100dvh) * 0.85)" }}
+        >
           <Drawer.CloseTrigger aria-label={t`Cancel`} />
           <Drawer.Handle />
           <Drawer.Header>
@@ -96,7 +112,7 @@ export function EventJoinSheet({
                     {votingTabs.includes("dates") ? (
                       <Tabs.Panel id="dates">
                         <GroupedList>
-                          {event.dates.map((row) => (
+                          {event.dates.map((row, index) => (
                             <GroupedRow key={row.id} className="flex-wrap">
                               <DateTimeInfo
                                 startsAt={eventLocalToIso(
@@ -109,6 +125,7 @@ export function EventJoinSheet({
                                 inline
                                 label={eventDateWall(event, row).replace("T", " ")}
                                 value={form.votes.dateVotes[row.id]}
+                                isInvalid={invalidRow("dates", index)}
                                 busy={false}
                                 onChange={(vote) => form.choose("date", row.id, vote)}
                               />
@@ -120,7 +137,7 @@ export function EventJoinSheet({
                     {votingTabs.includes("locations") ? (
                       <Tabs.Panel id="locations">
                         <GroupedList>
-                          {event.locations.map((row) => (
+                          {event.locations.map((row, index) => (
                             <LocationListRow
                               key={row.id}
                               name={row.name}
@@ -130,6 +147,7 @@ export function EventJoinSheet({
                                   inline
                                   label={row.name}
                                   value={form.votes.locationVotes[row.id]}
+                                  isInvalid={invalidRow("locations", index)}
                                   busy={false}
                                   onChange={(vote) => form.choose("location", row.id, vote)}
                                 />
@@ -142,11 +160,15 @@ export function EventJoinSheet({
                     {table && votingTabs.includes("games") ? (
                       <Tabs.Panel id="games">
                         <GroupedList>
-                          {table.games.map(({ gameId }) => {
+                          {table.games.map(({ gameId, durationMinutes }, index) => {
                             const game = table.gamesDetail.find((row) => row.id === gameId);
                             return (
                               <GameListRow
                                 key={gameId}
+                                year={game?.year}
+                                average={game?.average}
+                                rank={game?.rank}
+                                durationMinutes={durationMinutes}
                                 name={game?.name ?? t`Unknown`}
                                 imageUrl={game?.imageUrl}
                                 actions={
@@ -154,6 +176,7 @@ export function EventJoinSheet({
                                     inline
                                     label={game?.name ?? t`Unknown`}
                                     value={form.votes.gameVotes[String(gameId)]}
+                                    isInvalid={invalidRow("games", index)}
                                     busy={false}
                                     onChange={(vote) => form.choose("game", String(gameId), vote)}
                                   />
@@ -168,6 +191,12 @@ export function EventJoinSheet({
                 ) : null}
               </>
             )}
+            {form.validationAttempt > 0 && form.invalidChoice ? (
+              <p
+                role="alert"
+                className="text-danger"
+              >{t`Answer every option and choose at least one Yes or If needed in each section.`}</p>
+            ) : null}
             {form.invitationUnavailable ? (
               <p role="alert" className="text-danger">{t`Invitation unavailable`}</p>
             ) : null}
@@ -185,7 +214,11 @@ export function EventJoinSheet({
           </Drawer.Body>
           <Drawer.Footer>
             <Button variant="secondary" onPress={onClose}>{t`Cancel`}</Button>
-            <Button isDisabled={!form.canSubmit} onPress={() => void form.submit()}>
+            <Button
+              data-form-submit
+              isDisabled={!form.canAttempt}
+              onPress={() => void form.submit()}
+            >
               <UserRoundCheck className="size-4" aria-hidden />
               {form.isInvitation ? t`Accept invitation` : t`Join table`}
             </Button>
@@ -221,7 +254,14 @@ function FixedSettings({
       ) : null}
       {location ? <LocationListRow name={location.name} address={location.address} /> : null}
       {gameId !== undefined ? (
-        <GameListRow name={game?.name ?? t`Unknown`} imageUrl={game?.imageUrl} />
+        <GameListRow
+          name={game?.name ?? t`Unknown`}
+          imageUrl={game?.imageUrl}
+          year={game?.year}
+          average={game?.average}
+          rank={game?.rank}
+          durationMinutes={table?.games[0]?.durationMinutes}
+        />
       ) : null}
     </GroupedList>
   );

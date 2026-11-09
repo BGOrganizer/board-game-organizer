@@ -14,7 +14,6 @@ import { FilterChips } from "@/components/common/ui/FilterChips";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GameListCard } from "@/components/games/GameListCard";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { ProfileBggAttribution } from "./ProfileBggAttribution";
 import { ProfileStats } from "./ProfileStats";
 
 const layoutOptions = { estimatedRowHeight: 76, gap: 8 };
@@ -78,7 +77,7 @@ export function ProfileCollection({
   const counts = communityAccessDenied(q.error) ? undefined : (pages?.[0]?.counts ?? knownCounts);
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
   return (
-    <section className="space-y-4" aria-label={t`Collection`}>
+    <section data-input-scope className="space-y-4" aria-label={t`Collection`}>
       {q.isPending && !counts ? (
         <Skeleton className="h-20 w-full rounded-xl" />
       ) : (
@@ -99,10 +98,7 @@ export function ProfileCollection({
       {pages?.[0]?.counts === null && !knownCounts && !other ? (
         <p className="text-sm text-muted">{t`Synchronize again to include expansions and collection counts.`}</p>
       ) : null}
-      <div
-        data-collection-filters
-        className="sticky top-16 z-10 scroll-mt-16 space-y-2 bg-background py-2"
-      >
+      <div data-collection-filters className="sticky top-0 z-10 space-y-2 bg-background py-2">
         <SearchInput
           value={filter.query}
           onChange={filter.setQuery}
@@ -110,10 +106,6 @@ export function ProfileCollection({
           placeholder={t`Filter collection games`}
           inputProps={{
             maxLength: 120,
-            onFocus: (e) =>
-              e.currentTarget
-                .closest("[data-collection-filters]")
-                ?.scrollIntoView?.({ block: "start" }),
           }}
         />
         <FilterChips
@@ -139,7 +131,7 @@ export function ProfileCollection({
           <p className="text-sm text-muted">{t`Synchronize your BGG collection to find games in common.`}</p>
         ) : null}
       </div>
-      <div className="min-h-[60dvh]">
+      <div className="min-h-[var(--input-results-height,60dvh)]">
         {q.isError ? (
           <div role="alert" className="space-y-2">
             <p className="text-danger">{t`Could not load collection`}</p>
@@ -156,7 +148,8 @@ export function ProfileCollection({
               key={scope}
               aria-label={t`Collection games`}
               selectionMode="none"
-              className="h-[60dvh] min-h-32 w-full overflow-auto"
+              data-input-results
+              className="h-[var(--input-results-height,60dvh)] min-h-24 w-full overflow-auto"
             >
               <Collection items={items}>
                 {(item) => {
@@ -189,7 +182,6 @@ export function ProfileCollection({
           </Virtualizer>
         ) : null}
       </div>
-      {other ? <ProfileBggAttribution /> : null}
     </section>
   );
 }

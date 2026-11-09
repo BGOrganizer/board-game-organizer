@@ -8,6 +8,7 @@ import {
   bggPickerQuerySchema,
   groupRecordMemberRoles,
   groupRecordSchema,
+  notificationItemId,
   registerMatchResultsSchema,
   type SaveEventInput,
   saveEventSchema,
@@ -35,6 +36,7 @@ import { MatchService } from "../../src/app/lib/matches/match.service";
 import { MatchInvitationsRepository } from "../../src/app/lib/matches/match-invitations.repository";
 import { MatchesRepository } from "../../src/app/lib/matches/matches.repository";
 import { migrate } from "../../src/app/lib/migrate";
+import { NotificationAttentionRepository } from "../../src/app/lib/notifications/notification-attention.repository";
 import { NotificationsRepository } from "../../src/app/lib/notifications/notifications.repository";
 import { OrganizationAssetsRepository } from "../../src/app/lib/organizations/organization-assets.repository";
 import { OrganizationAssetsService } from "../../src/app/lib/organizations/organization-assets.service";
@@ -1397,6 +1399,35 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       timeZone: "America/New_York",
     });
     const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    // New choices without catalog timing use the automatic fallback, not the old manual hint.
+    expect((await services().eventRecords.table(tableId))?.games).toEqual([
+      { gameId: 1, durationMinutes: 120, durationSource: "DEFAULT" },
+    ]);
+    // Simulate a valid historical record; editing it without a manual-duration control retains it.
+    const historical = await db
+      .collection(COLLECTIONS.EVENT_TABLES)
+      .updateOne(
+        { id: tableId, eventId: event.id },
+        { $set: { games: [{ gameId: 1, durationMinutes: 60, durationSource: "MANUAL" }] } },
+      );
+    expect(historical.modifiedCount).toBe(1);
+    {
+      const { groupId: _context, ...fields } = input;
+      await transaction((s) =>
+        s.plannedEventService.update(OWNER, event.id, {
+          ...fields,
+          version: event.version,
+          removedTableIds: [],
+          tables: input.tables.map((row) => ({
+            ...row,
+            games: row.games.map(({ gameId }) => ({ gameId })),
+          })),
+        }),
+      );
+    }
+    expect((await services().eventRecords.table(tableId))?.games).toEqual([
+      { gameId: 1, durationMinutes: 60, durationSource: "MANUAL" },
+    ]);
     expect((await services().eventRecords.find(event.id))?.dates).toEqual(input.dates);
     expect(
       (await services().plannedEventService.tables(OWNER, event.id, { limit: 1 })).items[0]
@@ -4951,7 +4982,581 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     ).toEqual([]);
   });
 
-  it("refuses a target's frozen public ban atomically, then permits a timed ban only after termination without reviving membership", async () => {
+  async function frozenAccessFixture(type: "PRIVATE" | "PUBLIC", queuedUser?: string) {
+    let group: Awaited<ReturnType<typeof privateGroup>>;
+    if (type === "PRIVATE") group = await privateGroup();
+    else {
+      await transaction((s) => s.relationships.becomeFriends(OWNER, GUEST));
+      const bytes = await sharp({
+        create: {
+          width: 32,
+          height: 16,
+          channels: 4,
+          background: { r: 80, g: 120, b: 40, alpha: 1 },
+        },
+      })
+        .png()
+        .toBuffer();
+      group = await transaction(async (s) => {
+        const asset = await s.groupAssetService.start(OWNER, {
+          mimeType: "image/png",
+          byteLength: bytes.length,
+        });
+        await s.groupAssetService.append(OWNER, asset.id, {
+          offset: 0,
+          base64: bytes.toString("base64"),
+        });
+        await s.groupAssetService.complete(OWNER, asset.id);
+        return s.unifiedGroupService.save(OWNER, {
+          type,
+          name: "Frozen public club",
+          logoAssetId: asset.id,
+          location,
+          invitedUserIds: [],
+        });
+      });
+      group = await transaction((s) =>
+        s.unifiedGroupService.review("moderator", group.id, {
+          version: group.version,
+          decision: "approve",
+        }),
+      );
+      const request = await transaction((s) => s.unifiedGroupService.request(GUEST, group.id));
+      await transaction((s) =>
+        s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+          action: "approve",
+          version: request.version,
+        }),
+      );
+    }
+    const input = plannedInput(group.id);
+    if (type === "PUBLIC") {
+      input.endsAt = "2030-06-03T21:00:00Z";
+      input.bookingClosesAt = "2030-06-02T10:00:00Z";
+    }
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OWNER, GUEST]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    if (queuedUser) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(queuedUser, event.id, tableId, choices));
+    }
+    const frozen = await confirm(event.id);
+    vi.setSystemTime(new Date("2030-06-01T10:01:00Z"));
+    const ban = await transaction((s) =>
+      s.unifiedGroupService.ban(OWNER, group.id, { userId: GUEST, until: null }),
+    );
+    return { group, event: frozen, ban };
+  }
+
+  it("keeps personal notification hierarchy inside frozen Tables and outside Group-context targets", async () => {
+    const { group, event } = await frozenAccessFixture("PUBLIC");
+    const table = await services().eventRecords.table(tableId);
+    const own = await services().eventRecords.userRegistration(tableId, GUEST);
+    if (!table || !own) throw new Error("Missing personal attention fixture");
+    const { confirmed: _confirmed, ...excluded } = table;
+    await db
+      .collection(COLLECTIONS.EVENT_TABLES)
+      .insertOne({ ...excluded, id: secondId, order: 1 });
+    await db
+      .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+      .insertOne({ ...own, id: randomUUID(), tableId: secondId, status: "PENDING", sequence: 3 });
+    const notices = await services().notifications.notifyMany([
+      {
+        kind: "table_invitation",
+        recipientUserId: GUEST,
+        actorUserId: OWNER,
+        resourceName: "Sibling invitation",
+        resourceHref: `/events/${event.id}/tables/${secondId}`,
+        attentionItems: [
+          { id: notificationItemId(secondId, "invitation", undefined, "table"), revision: 1 },
+        ],
+      },
+      {
+        kind: "event_updated",
+        recipientUserId: GUEST,
+        actorUserId: OWNER,
+        resourceName: "Personal Event",
+        resourceHref: `/events/${event.id}`,
+        attentionItems: [{ id: notificationItemId(event.id, "overview"), revision: event.version }],
+      },
+      {
+        kind: "event_updated",
+        recipientUserId: GUEST,
+        actorUserId: OWNER,
+        resourceName: "Frozen Table",
+        resourceHref: `/events/${event.id}/tables/${tableId}`,
+        attentionItems: [
+          {
+            id: notificationItemId(tableId, "overview", undefined, "table"),
+            revision: event.version,
+          },
+        ],
+      },
+      {
+        kind: "event_updated",
+        recipientUserId: GUEST,
+        actorUserId: OWNER,
+        resourceName: "Mixed owners",
+        resourceHref: `/events/${event.id}`,
+        attentionItems: [
+          {
+            id: notificationItemId(tableId, "overview", undefined, "table"),
+            revision: event.version,
+          },
+          { id: notificationItemId(secondId, "invitation", undefined, "table"), revision: 1 },
+          { id: notificationItemId(group.id, "overview", undefined, "group"), revision: 1 },
+        ],
+      },
+      {
+        kind: "event_updated",
+        recipientUserId: GUEST,
+        actorUserId: OWNER,
+        resourceName: "Sibling-only Event notice",
+        resourceHref: `/events/${event.id}`,
+        attentionItems: [
+          { id: notificationItemId(secondId, "invitation", undefined, "table"), revision: 1 },
+        ],
+      },
+    ]);
+    await expect(
+      services().plannedEventService.tableDetail(GUEST, event.id, secondId),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+    const { snapshot, references } = await new NotificationAttentionRepository(db).snapshot(
+      GUEST,
+      [
+        { kind: "table", id: secondId },
+        { kind: "event-list", id: group.id },
+      ],
+      notices.map(String),
+    );
+    expect(references.has(String(notices[0]))).toBe(false);
+    expect(snapshot.targets.map((row) => row.count)).toEqual([0, 0]);
+    expect(references.get(String(notices[1]))).not.toHaveProperty("groupId");
+    expect(references.get(String(notices[1]))).toMatchObject({
+      lists: [{ kind: "event-list", id: "mine" }],
+    });
+    expect(references.get(String(notices[2]))?.tableIds).toEqual([tableId]);
+    expect(references.get(String(notices[3]))?.itemIds).toEqual([
+      notificationItemId(tableId, "overview", undefined, "table"),
+    ]);
+    expect(references.has(String(notices[4]))).toBe(false);
+    const ownedItem = notificationItemId(tableId, "overview", undefined, "table");
+    const itemScope = await new NotificationAttentionRepository(db).snapshot(GUEST, [
+      { kind: "item", id: ownedItem },
+    ]);
+    // Only the standalone owned notice completes; hidden siblings keep the mixed inbox row unread.
+    expect(itemScope.snapshot.targets[0].readEffect?.unread).toBe(1);
+    // Expiry/revocation cannot broaden a preserved personal snapshot into sibling routes.
+    await transaction((s) => s.unifiedGroupService.revoke(OWNER, group.id, GUEST));
+    expect(
+      (
+        await new NotificationAttentionRepository(db).snapshot(GUEST, [], notices.map(String))
+      ).references.has(String(notices[0])),
+    ).toBe(false);
+    expect(
+      (await services().eventRecords.personalTables(GUEST, { limit: 20 })).map((row) => row.id),
+    ).toEqual([tableId]);
+    // Frozen personal participation still belongs in mine even without an active registration row.
+    await db
+      .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+      .updateOne({ tableId, userId: GUEST }, { $set: { status: "CANCELLED" } });
+    const cancelled = await new NotificationAttentionRepository(db).snapshot(
+      GUEST,
+      [],
+      notices.map(String),
+    );
+    expect(cancelled.references.get(String(notices[1]))?.lists).toEqual([
+      { kind: "event-list", id: "mine" },
+    ]);
+    // Demonstrator-only access uses the same frozen Table scope.
+    await db
+      .collection(COLLECTIONS.EVENT_TABLES)
+      .updateOne(
+        { id: tableId },
+        { $set: { "confirmed.playerIds": [OWNER, OTHER], demonstratorUserId: GUEST } },
+      );
+    expect(
+      (
+        await new NotificationAttentionRepository(db).snapshot(GUEST, [], notices.map(String))
+      ).references.get(String(notices[2]))?.tableIds,
+    ).toEqual([tableId]);
+    // Current accepted, unbanned members retain independent sibling and Group-context authority.
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId: group.id, userId: GUEST }, { $set: { status: "ACCEPTED" } });
+    const member = await new NotificationAttentionRepository(db).snapshot(
+      GUEST,
+      [{ kind: "event-list", id: group.id }],
+      notices.map(String),
+    );
+    expect(member.references.has(String(notices[0]))).toBe(true);
+    expect(member.references.get(String(notices[1]))?.groupId).toBe(group.id);
+    expect(member.snapshot.targets[0].count).toBeGreaterThan(0);
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId: group.id, userId: GUEST }, { $set: { status: "LEFT" } });
+    await new NotificationAttentionRepository(db).read(GUEST, {
+      target: { kind: "item", id: ownedItem },
+      through: new Date().toISOString(),
+    });
+    const mixed = await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: notices[3] });
+    expect(mixed).not.toHaveProperty("readAt");
+    expect(
+      mixed?.attentionItems.find((item: { id: string }) => item.id === ownedItem).readAt,
+    ).toBeInstanceOf(Date);
+    expect(
+      mixed?.attentionItems.find(
+        (item: { id: string }) =>
+          item.id === notificationItemId(secondId, "invitation", undefined, "table"),
+      ),
+    ).not.toHaveProperty("readAt");
+  });
+
+  it("hides queued-author PUBLIC profile activity from a banned personal-only frozen viewer", async () => {
+    for (const viewer of [GUEST, OUTSIDER])
+      await transaction((s) => s.relationships.follow(viewer, OTHER));
+    const { event } = await frozenAccessFixture("PUBLIC", OTHER);
+    expect((await services().eventRecords.table(tableId))?.confirmed?.playerIds).toEqual([
+      OWNER,
+      GUEST,
+    ]);
+    expect(await services().eventRecords.userRegistration(tableId, OTHER)).toMatchObject({
+      status: "ACCEPTED",
+    });
+    expect(
+      await db
+        .collection(COLLECTIONS.PROFILE_ACTIVITIES)
+        .countDocuments({ userId: OTHER, eventId: event.id, tableId, kind: "table_join" }),
+    ).toBe(1);
+    const profile = new ProfileService(db);
+    expect(
+      (await profile.feed(OWNER, OTHER, { kind: "table_join", limit: 10 })).items,
+    ).toHaveLength(1);
+    expect(
+      (await profile.feed(OUTSIDER, OTHER, { kind: "table_join", limit: 10 })).items,
+    ).toHaveLength(1);
+    expect((await profile.feed(GUEST, OTHER, { kind: "table_join", limit: 10 })).items).toEqual([]);
+    const candidates = await new ProfileActivitiesRepository(db).networkPage(
+      GUEST,
+      "following",
+      [],
+      undefined,
+      "table_join",
+    );
+    expect(
+      candidates.filter((row) => row.userId === OTHER && row.tableId === tableId),
+    ).toHaveLength(1);
+    expect(
+      (await profile.networkFeed(OUTSIDER, { network: "following", kind: "table_join", limit: 10 }))
+        .items,
+    ).toHaveLength(1);
+    expect(
+      (await profile.networkFeed(GUEST, { network: "following", kind: "table_join", limit: 10 }))
+        .items,
+    ).toEqual([]);
+    expect(
+      await services().plannedEventService.activityResource(GUEST, event.id, tableId),
+    ).toMatchObject({ href: `/events/${event.id}/tables/${tableId}` });
+  });
+
+  it.each(["PRIVATE", "PUBLIC"] as const)(
+    "matches detail, aggregate, personal list and hierarchy authorization for %s frozen access",
+    async (type) => {
+      const { group, event, ban } = await frozenAccessFixture(type);
+      const assertAccess = async (visible: boolean, role = "participant") => {
+        const s = services();
+        expect((await s.eventRecords.list(GUEST, { limit: 20 })).map((row) => row.id)).toEqual(
+          visible ? [event.id] : [],
+        );
+        expect(
+          (await s.eventRecords.personalTables(GUEST, { limit: 20 })).map((row) => row.id),
+        ).toEqual(visible ? [tableId] : []);
+        const hierarchy = await db
+          .collection(COLLECTIONS.EVENTS)
+          .aggregate([
+            { $match: { id: event.id } },
+            ...s.eventRecords.visibleGroups(GUEST, new Date().toISOString()),
+          ])
+          .toArray();
+        expect(hierarchy.map((row) => row.id)).toEqual(visible ? [event.id] : []);
+        expect(
+          (await s.plannedEventService.list(GUEST, { limit: 20 })).items.map((row) => row.id),
+        ).toEqual(visible ? [event.id] : []);
+        expect(
+          (await s.plannedEventService.personalTables(GUEST, { limit: 20 })).items.map(
+            (row) => row.id,
+          ),
+        ).toEqual(visible ? [tableId] : []);
+        if (!visible) {
+          await expect(s.plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
+            code: "GROUP_BANNED",
+          });
+          await expect(
+            s.plannedEventService.tableDetail(GUEST, event.id, tableId),
+          ).rejects.toMatchObject({ code: "GROUP_BANNED" });
+          return;
+        }
+        expect(await s.plannedEventService.detail(GUEST, event.id)).toMatchObject({
+          personalAccessOnly: true,
+          role,
+          groupId: null,
+          readOnly: true,
+          canManage: false,
+          accessRevokedGroupId: group.id,
+        });
+        expect(await s.plannedEventService.tableDetail(GUEST, event.id, tableId)).toMatchObject({
+          personalAccessOnly: true,
+          groupId: null,
+          canInvite: false,
+        });
+        expect(
+          await s.plannedEventService.activityResource(GUEST, event.id, tableId),
+        ).not.toHaveProperty("groupId");
+        const currentBan = await s.groupRecords.ban(group.id, GUEST);
+        if (
+          type === "PRIVATE" ||
+          (!currentBan?.revokedAt &&
+            (!currentBan?.until || Date.parse(currentBan.until) > Date.now()))
+        )
+          await expect(
+            s.unifiedGroupService.members(GUEST, group.id, "accepted", { limit: 20 }),
+          ).rejects.toBeDefined();
+        else
+          expect(await s.unifiedGroupService.detail(GUEST, group.id)).toMatchObject({
+            canViewEvents: false,
+            canViewRankings: false,
+            canSocialInteract: false,
+          });
+        await expect(
+          s.plannedEventService.list(GUEST, { limit: 20 }, group.id),
+        ).rejects.toBeDefined();
+      };
+      await assertAccess(true);
+      for (const historical of [
+        { ...ban, until: "2030-06-01T10:00:00Z" },
+        { ...ban, revokedAt: "2030-06-01T10:01:00Z" },
+      ]) {
+        await services().groupRecords.saveBan(historical);
+        await assertAccess(true);
+      }
+      await services().groupRecords.saveBan(ban);
+      for (const at of ["invalid", "2030-06-01T10:02:00Z"]) {
+        await db
+          .collection(COLLECTIONS.EVENTS)
+          .updateOne({ id: event.id }, { $set: { "confirmed.at": at } });
+        await assertAccess(false);
+      }
+      await db
+        .collection(COLLECTIONS.EVENTS)
+        .updateOne({ id: event.id }, { $unset: { "confirmed.at": "" } });
+      await assertAccess(false);
+      await db
+        .collection(COLLECTIONS.EVENTS)
+        .updateOne({ id: event.id }, { $set: { "confirmed.at": event.confirmed!.at } });
+      const { memberAccessThrough: _checkpoint, ...legacyBan } = ban;
+      await services().groupRecords.saveBan(legacyBan);
+      await assertAccess(type === "PUBLIC");
+      await db
+        .collection(COLLECTIONS.GROUP_BANS)
+        .updateOne({ groupId: group.id, userId: GUEST }, { $unset: { createdAt: "" } });
+      await assertAccess(false);
+      await services().groupRecords.saveBan({
+        ...ban,
+        memberAccessThrough: "invalid",
+        createdAt: "invalid",
+      });
+      await assertAccess(false);
+      await services().groupRecords.saveBan(legacyBan);
+      await db
+        .collection(COLLECTIONS.EVENTS)
+        .updateOne({ id: event.id }, { $set: { visibility: "PRIVATE" } });
+      await assertAccess(false);
+      await services().groupRecords.saveBan(ban);
+      await assertAccess(true);
+      // A demonstrator-only snapshot is personal access, not an invented player seat.
+      await db
+        .collection(COLLECTIONS.EVENT_TABLES)
+        .updateOne(
+          { id: tableId },
+          { $set: { demonstratorUserId: GUEST, "confirmed.playerIds": [OWNER, OTHER] } },
+        );
+      await assertAccess(true, "demonstrator");
+      expect(
+        (await services().plannedEventService.tableDetail(GUEST, event.id, tableId)).myPosition,
+      ).toBe("WAITING");
+      await db
+        .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+        .updateOne({ eventId: event.id, userId: GUEST }, { $set: { status: "CANCELLED" } });
+      expect(
+        (await services().plannedEventService.tableDetail(GUEST, event.id, tableId)).myPosition,
+      ).toBeNull();
+      await assertAccess(true, "demonstrator");
+      await db
+        .collection(COLLECTIONS.EVENT_TABLES)
+        .updateOne({ id: tableId }, { $unset: { demonstratorUserId: "" } });
+      await assertAccess(false);
+      await db
+        .collection(COLLECTIONS.EVENT_TABLES)
+        .updateOne({ id: tableId }, { $set: { "confirmed.playerIds": [OWNER, GUEST] } });
+      await transaction((s) => s.relationships.block(OWNER, GUEST));
+      expect(await services().eventRecords.list(GUEST, { limit: 20 })).toEqual([]);
+      await expect(services().plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
+        code: "EVENT_NOT_FOUND",
+      });
+      await transaction((s) => s.relationships.unblock(OWNER, GUEST));
+      // Current accepted, unbanned authority wins over historical personal-only evidence.
+      await services().groupRecords.saveBan({ ...ban, revokedAt: new Date().toISOString() });
+      await db
+        .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+        .updateOne({ groupId: group.id, userId: GUEST }, { $set: { status: "ACCEPTED" } });
+      expect(await services().plannedEventService.detail(GUEST, event.id)).toMatchObject({
+        groupId: group.id,
+        readOnly: false,
+      });
+      expect(
+        (await services().plannedEventService.detail(GUEST, event.id)).personalAccessOnly,
+      ).not.toBe(true);
+      expect(
+        (await services().eventRecords.list(GUEST, { limit: 20 })).map((row) => row.id),
+      ).toEqual([event.id]);
+    },
+  );
+
+  it.each(["PRIVATE", "PUBLIC"] as const)(
+    "retains the prior membership checkpoint on %s reban and never restores cancelled consent",
+    async (type) => {
+      const { group, event, ban } = await frozenAccessFixture(type);
+      await transaction((s) => s.unifiedGroupService.revoke(OWNER, group.id, GUEST));
+      vi.setSystemTime(new Date("2030-06-01T10:03:00Z"));
+      const reban = await transaction((s) =>
+        s.unifiedGroupService.ban(OWNER, group.id, { userId: GUEST, until: null }),
+      );
+      expect(reban.memberAccessThrough).toBe(ban.memberAccessThrough);
+      expect(reban.createdAt).not.toBe(ban.createdAt);
+      await db
+        .collection(COLLECTIONS.EVENTS)
+        .updateOne({ id: event.id }, { $set: { "confirmed.at": "2030-06-01T10:02:00Z" } });
+      expect((await services().eventRecords.list(GUEST, { limit: 20 })).length).toBe(
+        type === "PUBLIC" ? 1 : 0,
+      );
+      if (type === "PRIVATE")
+        await expect(services().plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
+          code: "GROUP_BANNED",
+        });
+      else
+        expect(
+          (await services().plannedEventService.detail(GUEST, event.id)).personalAccessOnly,
+        ).toBe(true);
+      if (type === "PUBLIC") {
+        await db
+          .collection(COLLECTIONS.EVENTS)
+          .updateOne({ id: event.id }, { $set: { visibility: "PRIVATE" } });
+        expect(await services().eventRecords.list(GUEST, { limit: 20 })).toEqual([]);
+        await expect(services().plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
+          code: "GROUP_BANNED",
+        });
+        await db
+          .collection(COLLECTIONS.EVENTS)
+          .updateOne({ id: event.id }, { $set: { visibility: "PUBLIC" } });
+      }
+      const before = await services().eventRecords.table(tableId);
+      if (!before) throw new Error("Missing frozen Table fixture");
+      const guestRow = await services().eventRecords.userRegistration(tableId, GUEST);
+      if (!guestRow) throw new Error("Missing frozen registration fixture");
+      // Retained invitations, queue places and duties on excluded Tables must also be cleared.
+      // These persisted legacy shapes deliberately exercise cleanup independently of new-write guards.
+      const queueId = randomUUID(),
+        pendingId = randomUUID();
+      const { confirmed: _frozen, ...excluded } = before;
+      await db.collection(COLLECTIONS.EVENT_TABLES).insertMany([
+        { ...excluded, id: queueId, order: 1, demonstratorUserId: GUEST },
+        { ...excluded, id: pendingId, order: 2 },
+      ]);
+      await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).insertMany([
+        { ...guestRow, id: randomUUID(), tableId: queueId, status: "ACCEPTED", sequence: 3 },
+        { ...guestRow, id: randomUUID(), tableId: pendingId, status: "PENDING", sequence: 4 },
+        {
+          ...guestRow,
+          id: randomUUID(),
+          tableId: pendingId,
+          userId: OTHER,
+          status: "ACCEPTED",
+          sequence: 5,
+        },
+      ]);
+      await services().groupRecords.saveBan({
+        ...ban,
+        id: randomUUID(),
+        userId: OTHER,
+        until: "2030-06-01T10:00:00Z",
+      });
+      // A transaction failure after cleanup must restore registrations, duties and the Event epoch.
+      const registrations = await services().eventRecords.allRegistrations(event.id);
+      await expect(
+        transaction(async (s) => {
+          await s.plannedEventService.transition(OWNER, event.id, {
+            action: "replan",
+            version: event.version,
+          });
+          throw new Error("rollback replan");
+        }),
+      ).rejects.toThrow("rollback replan");
+      expect(await services().eventRecords.table(tableId)).toEqual(before);
+      expect(await services().eventRecords.allRegistrations(event.id)).toEqual(registrations);
+      expect((await services().eventRecords.table(queueId))?.demonstratorUserId).toBe(GUEST);
+      expect((await services().eventRecords.find(event.id))?.status).toBe("CONFIRMED");
+      await expect(
+        transaction((s) =>
+          s.plannedEventService.transition(OWNER, event.id, {
+            action: "replan",
+            version: event.version - 1,
+          }),
+        ),
+      ).rejects.toMatchObject({ code: "EVENT_CHANGED" });
+      const next = await transaction((s) =>
+        s.plannedEventService.transition(OWNER, event.id, {
+          action: "replan",
+          version: event.version,
+        }),
+      );
+      expect(next).toMatchObject({
+        status: "PLANNING",
+        version: event.version + 1,
+        planningGeneration: event.planningGeneration + 1,
+      });
+      expect(await services().eventRecords.userRegistration(tableId, GUEST)).toMatchObject({
+        status: "CANCELLED",
+        version: registrations.find((row) => row.userId === GUEST)!.version + 1,
+      });
+      for (const table of [queueId, pendingId])
+        expect(await services().eventRecords.userRegistration(table, GUEST)).toMatchObject({
+          status: "CANCELLED",
+          version: guestRow.version + 1,
+        });
+      expect((await services().eventRecords.table(queueId))?.demonstratorUserId).toBeUndefined();
+      expect((await services().eventRecords.userRegistration(pendingId, OTHER))?.status).toBe(
+        "ACCEPTED",
+      );
+      expect((await services().eventRecords.userRegistration(tableId, OWNER))?.status).toBe(
+        "ACCEPTED",
+      );
+      expect((await services().eventRecords.table(tableId))?.confirmed).toEqual(before.confirmed);
+      expect(next.agreement?.agreed).toBe(false);
+      await expect(services().plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
+        code: "GROUP_BANNED",
+      });
+      await transaction((s) => s.unifiedGroupService.revoke(OWNER, group.id, GUEST));
+      expect((await services().eventRecords.userRegistration(tableId, GUEST))?.status).toBe(
+        "CANCELLED",
+      );
+      expect(await services().eventRecords.personalTables(GUEST, { limit: 20 })).toEqual([]);
+    },
+  );
+
+  it("preserves frozen public participation through bans and termination without reviving membership", async () => {
     const bytes = await sharp({
       create: {
         width: 32,
@@ -5103,13 +5708,16 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     await transaction((s) => s.plannedEventService.register(GUEST, event.id, tableId));
     const frozen = await confirm(event.id);
     vi.setSystemTime(new Date(input.bookingClosesAt));
-    await expect(
-      transaction((s) =>
-        s.unifiedGroupService.ban(OWNER, group.id, { userId: GUEST, until: null }),
-      ),
-    ).rejects.toMatchObject({ code: "BAN_FROZEN_PARTICIPATION" });
-    expect(await db.collection(COLLECTIONS.GROUP_BANS).countDocuments()).toBe(0);
-    expect((await services().groupRecords.membership(group.id, GUEST))?.status).toBe("ACCEPTED");
+    await transaction((s) =>
+      s.unifiedGroupService.ban(OWNER, group.id, { userId: GUEST, until: null }),
+    );
+    expect(await db.collection(COLLECTIONS.GROUP_BANS).countDocuments()).toBe(1);
+    expect((await services().groupRecords.membership(group.id, GUEST))?.status).toBe("LEFT");
+    expect(await services().plannedEventService.detail(GUEST, event.id)).toMatchObject({
+      personalAccessOnly: true,
+      readOnly: true,
+      groupId: null,
+    });
     expect((await services().eventRecords.table(tableId))?.confirmed?.playerIds).toEqual([
       OWNER,
       GUEST,
@@ -5139,8 +5747,10 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       services().unifiedGroupService.members(GUEST, group.id, "accepted", { limit: 20 }),
     ).rejects.toMatchObject({ code: "GROUP_NOT_FOUND" });
     expect(await services().eventRecords.table(tableId)).toEqual(terminated);
-    await expect(services().plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
-      code: "GROUP_BANNED",
+    expect(await services().plannedEventService.detail(GUEST, event.id)).toMatchObject({
+      personalAccessOnly: true,
+      readOnly: true,
+      groupId: null,
     });
     vi.setSystemTime(new Date(until));
     expect((await services().groupRecords.membership(group.id, GUEST))?.status).toBe("LEFT");
@@ -5150,7 +5760,8 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(await services().eventRecords.table(tableId)).toEqual(terminated);
     expect(await services().plannedEventService.detail(GUEST, event.id)).toMatchObject({
       role: "participant",
-      readOnly: false,
+      readOnly: true,
+      personalAccessOnly: true,
       canRegister: false,
       canVote: false,
       canEdit: false,
@@ -5161,7 +5772,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     });
     await expect(
       transaction((s) => s.plannedEventService.register(GUEST, event.id, tableId)),
-    ).rejects.toMatchObject({ code: "EVENT_NOT_PLANNING" });
+    ).rejects.toMatchObject({ code: "GROUP_MEMBER_REQUIRED" });
     expect(
       (
         await services().plannedEventService.tableDetail(GUEST, event.id, tableId)

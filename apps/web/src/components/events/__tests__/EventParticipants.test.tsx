@@ -232,35 +232,14 @@ it("cancels without writes, fences a changed version and leaves cancellation ava
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(fetch).not.toHaveBeenCalled();
 });
-it("uses exactly the existing Group ban POST, never a second non-atomic Event-removal request", async () => {
-  let finish: ((r: Response) => void) | undefined;
+it("offers Event removal only, never a Group ban or shortcut even when old cached flags claim it is allowed", async () => {
   const grouped = {
     ...plannedEvent,
     version: 1,
     groupId: groupRecord.id,
     groupType: "PRIVATE" as const,
   };
-  const fetch = vi.fn((url: string, init?: RequestInit) =>
-    init?.method === "POST"
-      ? new Promise<Response>((resolve) => {
-          finish = resolve;
-        })
-      : Promise.resolve(
-          Response.json(
-            url.includes("/groups/")
-              ? groupRecord
-              : url.includes("/participants?")
-                ? {
-                    items: [],
-                    eventVersion: 2,
-                    groupId: groupRecord.id,
-                    status: "PLANNING",
-                    nextCursor: null,
-                  }
-                : grouped,
-          ),
-        ),
-  );
+  const fetch = vi.fn(async () => Response.json(grouped));
   vi.stubGlobal("fetch", fetch);
   const f = mount([{ ...person, canBanGroup: true }], grouped);
   const historical = [...eventParticipantsQuery(o, "history").queryKey];
@@ -268,34 +247,16 @@ it("uses exactly the existing Group ban POST, never a second non-atomic Event-re
     pages: [{ ...f.data.pages[0], status: "TERMINATED" }],
     pageParams: [""],
   });
-  await choose("Ban from group");
-  const dialog = await screen.findByRole("dialog", { name: "Ban from group: @target-name" });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Ban from group" }));
-  await waitFor(() => expect(finish).toBeDefined());
-  expect(f.client.getQueryData(f.key)).toMatchObject({ pages: [{ items: [] }] });
+  fireEvent.click(await screen.findByRole("button", { name: "Manage participant: @target-name" }));
+  expect(screen.queryByRole("button", { name: "Ban from group" })).toBeNull();
+  expect(screen.queryByRole("link", { name: /Ban/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Remove from event" }));
+  const dialog = await screen.findByRole("dialog", { name: "Remove from event" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
   expect(f.client.getQueryData(historical)).toMatchObject({
     pages: [{ items: [{ userId: "target" }] }],
   });
-  expect(fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toEqual([
-    [
-      `https://api.test/api/groups/${groupRecord.id}/bans`,
-      expect.objectContaining({ body: JSON.stringify({ userId: "target", until: null }) }),
-    ],
-  ]);
-  expect(fetch.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
-  const reply = finish;
-  if (!reply) throw new Error("Missing ban request");
-  await act(async () =>
-    reply(
-      Response.json({
-        id: "ban",
-        groupId: groupRecord.id,
-        userId: "target",
-        until: null,
-        createdAt: new Date().toISOString(),
-      }),
-    ),
-  );
+  expect(fetch).not.toHaveBeenCalled();
 });
 it("does not offer stale manager affordances to ordinary members and shows empty/error paths", async () => {
   const f = mount([person], { ...plannedEvent, canManage: false, role: "member", canEdit: false });

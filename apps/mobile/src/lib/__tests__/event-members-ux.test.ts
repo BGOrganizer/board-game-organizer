@@ -68,7 +68,7 @@ it("keeps Group request states after Overview and uses inline searchable Select 
   expect(request).toContain("<UserRoundPlus");
   expect(request).toContain("<X");
   expect(select).toContain("<Select");
-  expect(select).toContain("<FlatList");
+  expect(select).toContain("<InputFlatList");
   expect(select).toContain("<SearchInput");
   expect(select).toContain("<GroupArtwork");
   expect(select).toContain("isDisabled={busy || locked}");

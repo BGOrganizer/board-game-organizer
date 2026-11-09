@@ -11,8 +11,9 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarCheck2, CalendarClock, Flag, Plus } from "lucide-react-native";
-import { FlatList, View } from "react-native";
+import { View } from "react-native";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
@@ -52,7 +53,7 @@ export function EventList({
         .map((row) => ({ kind: "event", id: row.id }))}
     >
       <View style={{ flex: 1 }}>
-        <FlatList
+        <InputFlatList
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
           data={communityAccessDenied(list.error) ? [] : list.items}

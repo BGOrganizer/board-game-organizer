@@ -29,13 +29,18 @@ it.each([
     expect(card.querySelector(".bg-background\\/90")).toBeNull();
     const caption = heading.parentElement?.parentElement as HTMLElement;
     expect(caption).not.toBeNull();
-    expect(caption.className).toContain("flex-nowrap");
+    expect(caption.className).toContain("flex-col");
     expect(caption.className).not.toContain("absolute");
+    expect(heading.parentElement?.className).toContain("dark");
+    expect(heading.parentElement?.className).toContain("items-start");
+    expect(caption.children[1].className).toContain("flex-wrap");
+    expect(caption.querySelector(".overflow-x-auto")).toBeNull();
     const trigger = within(card).getByRole("button", { name: label });
     expect(trigger.className).toContain(`text-${color}`);
     expect(trigger.querySelector(".size-7.bg-default")).not.toBeNull();
-    expect(heading.className).toContain("truncate");
-    expect(heading.title).toBe(event.name);
+    expect(heading.className).not.toContain("truncate");
+    expect(heading.className).toContain("[overflow-wrap:anywhere]");
+    expect(heading.textContent).toBe(event.name);
     expect(within(details).queryByRole("link")).toBeNull();
     expect(within(details).queryByText(groupRecord.name)).toBeNull();
     const image = card.querySelector("img"),

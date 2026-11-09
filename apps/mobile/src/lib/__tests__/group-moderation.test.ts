@@ -45,7 +45,7 @@ function expression(fileName: string, tag: string, attribute: string) {
 
 it("renders moderation items through the existing Group card and opens their review, not ordinary group detail", () => {
   const item = { id: "11111111-1111-4111-8111-111111111111", name: "Pending club" };
-  const renderItem = runInNewContext(expression("GroupModeration", "FlatList", "renderItem"), {
+  const renderItem = runInNewContext(expression("GroupModeration", "InputFlatList", "renderItem"), {
     GroupCard: "GroupCard",
     React: { createElement: (type: string, props: Record<string, unknown>) => ({ type, props }) },
   });
@@ -90,7 +90,7 @@ it.each([
   "pages only with another page, no active request and no failed-page loop (%s/%s/%s)",
   (hasNextPage, isFetchingNextPage, isFetchNextPageError, fetches) => {
     const q = { hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage: vi.fn() };
-    runInNewContext(expression("GroupModeration", "FlatList", "onEndReached"), { q })();
+    runInNewContext(expression("GroupModeration", "InputFlatList", "onEndReached"), { q })();
     expect(q.fetchNextPage).toHaveBeenCalledTimes(fetches ? 1 : 0);
   },
 );
@@ -112,7 +112,7 @@ it("keeps the queue virtualized, access-filtered and aligned with native list/se
   );
   for (const token of [
     "<ListPage>",
-    "<FlatList",
+    "<InputFlatList",
     "<ListSearch",
     "<EmptyList",
     "listPageContentStyle",

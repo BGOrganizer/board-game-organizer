@@ -2,9 +2,14 @@ import type {
   CommunityPageResponse,
   EventParticipantsResponse,
   GroupPersonResponse,
+  GroupRecordResponse,
   PlannedEventResponse,
 } from "@board-game-organizer/schemas";
-import { formatUsername, withProtectionBypass } from "@board-game-organizer/shared";
+import {
+  formatUsername,
+  groupPersonActions,
+  withProtectionBypass,
+} from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
@@ -59,6 +64,8 @@ const labels = {
   people: it ? "Partecipanti" : "Participants",
   edit: it ? "Modifica evento" : "Edit event",
   manage: it ? "Gestisci partecipante" : "Manage participant",
+  members: it ? "Membri" : "Members",
+  manageMember: it ? "Gestisci membro" : "Manage member",
   remove: it ? "Rimuovi dall’evento" : "Remove from event",
   ban: it ? "Banna dal gruppo" : "Ban from group",
   cancel: it ? "Annulla" : "Cancel",
@@ -81,7 +88,7 @@ async function read<T>(page: Page, path: string): Promise<T> {
     ),
   );
 }
-test("real Event tabs, paged attendance and distinct confirmed Event removal or Group ban", async ({
+test("real Event removal-only menus and separately confirmed Group-context bans", async ({
   page,
 }) => {
   await setupClerkTestingToken({ page });
@@ -107,16 +114,23 @@ test("real Event tabs, paged attendance and distinct confirmed Event removal or 
     person?.userId !== input.targetId ||
     formatUsername(person.username, person.name) !== input.targetName ||
     !person.canRemove ||
-    !person.canBanGroup
+    person.canBanGroup
   )
     throw new Error(
       "Current manager without automatic attendance and ordinary accepted target at the declared source offset required",
     );
   const membershipPath = `groups/${input.groupId}/members?mode=accepted&limit=50&query=${encodeURIComponent(person.username || person.name)}`;
-  const membershipBefore = (
+  const memberBefore = (
     await read<CommunityPageResponse<GroupPersonResponse>>(page, membershipPath)
-  ).items.find((p) => p.userId === input.targetId)?.membership;
-  if (membershipBefore?.status !== "ACCEPTED") throw new Error("Accepted Group member required");
+  ).items.find((p) => p.userId === input.targetId);
+  const membershipBefore = memberBefore?.membership;
+  if (!memberBefore || membershipBefore?.status !== "ACCEPTED")
+    throw new Error("Accepted Group member required");
+  if (input.mode === "ban") {
+    const group = await read<GroupRecordResponse>(page, `groups/${input.groupId}`);
+    if (!groupPersonActions(group, memberBefore).includes("ban"))
+      throw new Error("Current Group authority to exclude the ordinary target is required");
+  }
   const writes: { path: string; method: string }[] = [];
   page.on("request", (request) => {
     const u = new URL(request.url());
@@ -142,16 +156,34 @@ test("real Event tabs, paged attendance and distinct confirmed Event removal or 
   await grid.focus();
   await grid.press("Control+Home");
   for (let n = 0; n < input.targetOffset; n++) await grid.press("ArrowDown");
-  const manage = page.getByRole("button", {
-    name: `${labels.manage}: ${input.targetName}`,
-    exact: true,
-  });
+  let manageTitle = `${labels.manage}: ${input.targetName}`;
+  let manage = page.getByRole("button", { name: manageTitle, exact: true });
   await expect(manage).toBeVisible();
+  await manage.click();
+  const eventActions = page.getByRole("dialog", { name: manageTitle, exact: true });
+  await expect(
+    eventActions.getByRole("button", { name: labels.remove, exact: true }),
+  ).toBeVisible();
+  await expect(eventActions.getByRole("button", { name: labels.ban, exact: true })).toHaveCount(0);
+  await eventActions.getByRole("button", { name: labels.cancel, exact: true }).click();
+  if (input.mode === "ban") {
+    await page.goto(`/groups/${input.groupId}`);
+    await page.getByRole("tab", { name: labels.members, exact: true }).click();
+    manageTitle = `${labels.manageMember}: ${memberBefore.username || memberBefore.name}`;
+    manage = page.getByRole("button", { name: manageTitle, exact: true });
+    const more = page.getByRole("button", { name: labels.more, exact: true });
+    for (let n = 0; n < 10; n++) {
+      await expect(manage.or(more).first()).toBeVisible();
+      if (await manage.count()) break;
+      await more.click();
+    }
+    await expect(manage).toBeVisible();
+  }
   const action = input.mode === "remove" ? labels.remove : labels.ban;
   const open = async () => {
     await manage.click();
     await page
-      .getByRole("dialog", { name: `${labels.manage}: ${input.targetName}`, exact: true })
+      .getByRole("dialog", { name: manageTitle, exact: true })
       .getByRole("button", { name: action, exact: true })
       .click();
   };
@@ -192,7 +224,7 @@ test("real Event tabs, paged attendance and distinct confirmed Event removal or 
   ).items.find((p) => p.userId === input.targetId)?.membership;
   if (input.mode === "remove") expect(memberAfter).toEqual(membershipBefore);
   else expect(memberAfter).toBeUndefined();
-  await page.reload();
+  await page.goto(`/events/${input.eventId}`);
   await page.getByRole("tab", { name: labels.people, exact: true }).click();
   for (let n = 0; n < Math.floor(input.targetOffset / 20); n++)
     await page.getByRole("button", { name: labels.more, exact: true }).click();

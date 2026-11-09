@@ -76,8 +76,7 @@ function setup() {
     acknowledgeItems: vi.fn(),
     retargetItems: vi.fn(),
   };
-  const departure = vi.fn(async () => {}),
-    assertBanAllowed = vi.fn(async () => {});
+  const departure = vi.fn(async () => {});
   const service = new GroupRecordsService(
     groups as never,
     assets as never,
@@ -85,10 +84,9 @@ function setup() {
     relationships as never,
     notifications as never,
     departure,
-    assertBanAllowed,
     {} as never,
   );
-  return { service, groups, members, bans, notifications, departure, assertBanAllowed };
+  return { service, groups, members, bans, notifications, departure };
 }
 beforeEach(() => vi.clearAllMocks());
 it("only creator appoints/demotes accepted members with pinned versions and safe Group capabilities", async () => {
@@ -194,7 +192,7 @@ it("ban, departure and reinvitation cannot restore moderator authority", async (
   });
   expect(f.departure).toHaveBeenCalledWith(id, "mod", "BAN");
 });
-it("a moderator leaving voluntarily loses authority and frozen ban guards remain enforced", async () => {
+it("a departing moderator loses authority and Group bans delegate snapshot-safe departure", async () => {
   const f = setup();
   expect(
     await f.service.membershipAction("mod", id, "mod", { action: "cancel", version: 1 }),
@@ -202,9 +200,7 @@ it("a moderator leaving voluntarily loses authority and frozen ban guards remain
   await expect(
     f.service.save("mod", { version: 1, name: "Forbidden change" }, id),
   ).rejects.toMatchObject({ code: "GROUP_ADMIN_REQUIRED" });
-  f.assertBanAllowed.mockRejectedValueOnce(new Error("BAN_FROZEN_PARTICIPATION"));
-  await expect(f.service.ban("peer", id, { userId: "member", until: null })).rejects.toThrow(
-    "BAN_FROZEN_PARTICIPATION",
-  );
-  expect(f.groups.saveBan).not.toHaveBeenCalled();
+  await f.service.ban("peer", id, { userId: "member", until: null });
+  expect(f.groups.saveBan).toHaveBeenCalledTimes(1);
+  expect(f.departure).toHaveBeenCalledWith(id, "member", "BAN");
 });

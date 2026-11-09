@@ -11,12 +11,15 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CircleOff } from "lucide-react-native";
 import { useState } from "react";
-import { FlatList, Keyboard, View } from "react-native";
+import { Keyboard, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GroupArtwork } from "@/components/groups/GroupArtwork";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useKeyboardHeight } from "@/lib/useKeyboardHeight";
 
 export function EventGroupSelect({
   groupId,
@@ -35,6 +38,13 @@ export function EventGroupSelect({
     options = useCommunityApi(),
     muted = useThemeColor("muted");
   const [open, setOpen] = useState(false);
+  const keyboardHeight = useKeyboardHeight(),
+    insets = useSafeAreaInsets(),
+    { height } = useWindowDimensions();
+  const listHeight = Math.min(
+    320,
+    Math.max(80, height - keyboardHeight - insets.top - insets.bottom - 24),
+  );
   const search = useListSearch<never>([]);
   const groups = useGroupRecords(
     { ...options, enabled: options.enabled !== false && !locked },
@@ -69,28 +79,36 @@ export function EventGroupSelect({
       </Select.Trigger>
       <Select.Portal>
         <Select.Overlay />
-        <Select.Content presentation="popover" width="trigger" style={{ maxHeight: 320, gap: 8 }}>
-          <SearchHelpLabel
-            label={t("Search groups")}
-            help={t("Type at least 4 characters to search")}
-          />
-          <SearchInput
-            value={search.query}
-            onChange={search.setQuery}
-            label={t("Search groups")}
-            placeholder={t("Search groups")}
-          />
-          <FlatList
+        <Select.Content
+          presentation="popover"
+          width="trigger"
+          insets={{ top: insets.top + 8, bottom: insets.bottom + keyboardHeight + 8 }}
+          style={{ maxHeight: listHeight }}
+        >
+          <InputFlatList
+            keyboardAvoidance="external"
             data={rows}
             keyExtractor={(row) => row.id}
             keyboardShouldPersistTaps="handled"
-            style={{ height: Math.min(192, Math.max(144, (rows.length + 1) * 56)), flexShrink: 1 }}
+            style={{ height: listHeight, flexShrink: 1 }}
             ListHeaderComponent={
-              <Select.Item value="none" label={t("No group")}>
-                <CircleOff size={20} color={muted} />
-                <Select.ItemLabel />
-                <Select.ItemIndicator />
-              </Select.Item>
+              <View style={{ gap: 8 }}>
+                <SearchHelpLabel
+                  label={t("Search groups")}
+                  help={t("Type at least 4 characters to search")}
+                />
+                <SearchInput
+                  value={search.query}
+                  onChange={search.setQuery}
+                  label={t("Search groups")}
+                  placeholder={t("Search groups")}
+                />
+                <Select.Item value="none" label={t("No group")}>
+                  <CircleOff size={20} color={muted} />
+                  <Select.ItemLabel />
+                  <Select.ItemIndicator />
+                </Select.Item>
+              </View>
             }
             renderItem={({ item: row }) => (
               <Select.Item value={row.id} label={row.name} disabled={!row.canInvite}>

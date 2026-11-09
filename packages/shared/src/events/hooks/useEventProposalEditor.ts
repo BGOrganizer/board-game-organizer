@@ -79,6 +79,7 @@ export function useEventProposalEditor(
     validInput: Boolean(eventId) && validKind,
     payload: current.payload,
     label: current.label,
+    canAttempt: allowed && !actions.busy && sent.current !== identity,
     canSubmit:
       allowed &&
       !actions.busy &&

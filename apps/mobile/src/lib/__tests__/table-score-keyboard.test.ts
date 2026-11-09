@@ -33,6 +33,8 @@ const base = {
   View: "view",
   Typography: "text",
   Input: "input",
+  InputField: "field",
+  InputScrollView: "scroll",
   Button,
   BottomSheet,
   Switch: { Thumb: "thumb" },
@@ -53,6 +55,30 @@ function render(name: string, props: Record<string, unknown>, context: Record<st
     }).outputText,
     { ...base, ...context, props },
   ) as Node;
+}
+function inputHandlers(props: Record<string, unknown>, context: Record<string, unknown>) {
+  const text = readFileSync(new URL("../useInputFocus.ts", import.meta.url), "utf8");
+  const ast = ts.createSourceFile("focus.ts", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const fn = ast.statements.find(
+    (node) => ts.isFunctionDeclaration(node) && node.name?.text === "useInputFocus",
+  )!;
+  return runInNewContext(
+    ts.transpileModule(`${fn.getText(ast).replace(/^export /, "")};useInputFocus(props);`, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022 },
+    }).outputText,
+    {
+      props,
+      InputScrollContext: "scroll-context",
+      InputFieldContext: "field-context",
+      useContext: () => null,
+      useRef: (value: unknown) => ({ current: value }),
+      useImperativeHandle: () => undefined,
+      useEffect: () => undefined,
+      useFormInteraction: () => null,
+      useBottomSheetInternal: () => ({}),
+      ...context,
+    },
+  );
 }
 function nodes(value: unknown): Node[] {
   if (Array.isArray(value)) return value.flatMap(nodes);
@@ -83,14 +109,16 @@ it.each(["android", "ios"])(
       keyboardType: os === "android" ? "numeric" : "numbers-and-punctuation",
     });
     const focusEvent = { nativeEvent: { target: 17 } };
-    (input.props.onFocus as (event: typeof focusEvent) => void)(focusEvent);
+    const handlers = inputHandlers(input.props, context);
+    handlers.onFocus(focusEvent);
     expect(onFocus).toHaveBeenCalledWith(focusEvent);
     expect(snapToPosition).toHaveBeenCalledWith("80%");
     expect(onChange).not.toHaveBeenCalled();
     expect(onFocus.mock.invocationCallOrder[0]).toBeLessThan(
       snapToPosition.mock.invocationCallOrder[0],
     );
-    expect(input.props.onBlur).toBe(onBlur);
+    handlers.onBlur(focusEvent);
+    expect(onBlur).toHaveBeenCalledWith(focusEvent);
     (input.props.onChangeText as (text: string) => void)("-0.25");
     expect(onChange).toHaveBeenCalledWith("-0.25");
     const nd = render(

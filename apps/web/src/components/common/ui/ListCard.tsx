@@ -22,7 +22,7 @@ export function ListCard({
         </div>
       ) : null}
       {background ? (
-        <Card.Content className="relative flex min-h-56 flex-col justify-end p-0 pt-16">
+        <Card.Content className="relative flex min-h-56 flex-col justify-start p-0">
           {children}
         </Card.Content>
       ) : (

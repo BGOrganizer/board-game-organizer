@@ -8,8 +8,9 @@ import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CircleCheck, Clock3, Flag } from "lucide-react-native";
-import { FlatList, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
@@ -30,7 +31,7 @@ export function TableList() {
         id: row.id,
       }))}
     >
-      <FlatList
+      <InputFlatList
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         data={communityAccessDenied(q.error) ? [] : q.items}

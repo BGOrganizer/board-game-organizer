@@ -13,6 +13,7 @@ import { CalendarClock, Plus, X } from "lucide-react";
 import { useId } from "react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { EventGroupSelect } from "./EventGroupSelect";
@@ -62,10 +63,19 @@ export function EventScheduleFields({
           helpTitle={fieldHelp}
           help={t`Choose a recognizable event name between 5 and 120 characters.`}
         />
-        <Input placeholder={t`Friday game night`} />
+        <NameInput
+          category="evento"
+          isDisabled={busy}
+          onGenerate={(name) => form.patch({ name })}
+          placeholder={t`Friday game night`}
+        />
         {error("name", t`Enter an event name between 5 and 120 characters.`)}
       </TextField>
-      <section className="space-y-2">
+      <section
+        data-form-field
+        data-form-error={fieldError("groupId") || undefined}
+        className="space-y-2"
+      >
         <SearchHelpLabel
           label={t`Group`}
           helpTitle={fieldHelp}
@@ -91,6 +101,7 @@ export function EventScheduleFields({
             <p className="text-danger">{t`Could not load group`}</p>
             <Button
               variant="outline"
+              data-form-control
               onPress={() => void form.groupQuery.refetch()}
             >{t`Try again`}</Button>
           </div>
@@ -116,7 +127,11 @@ export function EventScheduleFields({
           <p className="text-sm text-muted">{t`Private events are visible only to accepted group members. Public-group scheduling rules still apply.`}</p>
         </div>
       ) : null}
-      <section className="space-y-2">
+      <section
+        data-form-field
+        data-form-error={fieldError("dates") || fieldError("startTime") || undefined}
+        className="space-y-2"
+      >
         <SearchHelpLabel
           required
           htmlFor={form.publicGroup ? startFieldId : undefined}
@@ -139,6 +154,7 @@ export function EventScheduleFields({
         {form.publicGroup ? (
           <TextField
             aria-label={t`Start Date and Time`}
+            isInvalid={fieldError("dates") || fieldError("startTime")}
             value={startWall}
             onChange={form.setStartDate}
             isRequired
@@ -278,7 +294,11 @@ export function EventScheduleFields({
           </TextField>
         </>
       ) : null}
-      <section className="space-y-2">
+      <section
+        data-form-field
+        data-form-error={fieldError("locations") || fieldError("timeZone") || undefined}
+        className="space-y-2"
+      >
         <SearchHelpLabel
           required
           label={t`Location`}

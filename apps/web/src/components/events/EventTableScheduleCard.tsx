@@ -3,8 +3,7 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import { eventTableSchedule } from "@board-game-organizer/shared";
 import { Skeleton } from "@heroui/react";
-import { Plural, useLingui } from "@lingui/react/macro";
-import { Timer } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -21,7 +20,6 @@ export function EventTableScheduleCard({
   const { t } = useLingui();
   const schedule = eventTableSchedule(table);
   if (!schedule) return null;
-  const duration = schedule.durationMinutes;
   return (
     <section aria-label={t`Table schedule`}>
       <ListCard>
@@ -41,22 +39,6 @@ export function EventTableScheduleCard({
               </div>
             )}
           </div>
-          <p className="flex items-center gap-2">
-            <Timer className="size-4 shrink-0 text-muted" aria-hidden />
-            <span>
-              {t`Duration`}:{" "}
-              {duration === null ? (
-                t`Unknown`
-              ) : (
-                <Plural
-                  id="event.table.durationMinutes"
-                  value={duration}
-                  one="# minute"
-                  other="# minutes"
-                />
-              )}
-            </span>
-          </p>
           {schedule.demonstrator ? (
             <GroupedList>
               <GroupedRow>

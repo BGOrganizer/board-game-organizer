@@ -49,7 +49,12 @@ it("reviews proposed public information with a pinned version and mandatory reje
   vi.stubGlobal("fetch", fetch);
   mount();
   expect(await screen.findByText("Proposed club")).not.toBeNull();
-  expect((screen.getByRole("button", { name: "Reject" }) as HTMLButtonElement).disabled).toBe(true);
+  const reject = screen.getByRole("button", { name: "Reject" }) as HTMLButtonElement;
+  expect(reject.disabled).toBe(false);
+  fireEvent.click(reject);
+  expect(screen.getByText("Enter a rejection reason.")).toBeTruthy();
+  expect(fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+  expect(navigation.push).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole("textbox", { name: "Rejection reason" }), {
     target: { value: "Please verify the venue" },
   });

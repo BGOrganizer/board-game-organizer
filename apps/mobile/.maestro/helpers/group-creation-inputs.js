@@ -57,4 +57,7 @@ output.groupCreate = {
   removeInvite: exact((it ? "Rimuovi invito" : "Remove invite") + ": " + p.friendName),
   submit: exact(it ? "Invia per approvazione" : "Submit for review"),
   create: exact(it ? "Crea gruppo" : "Create group"),
+  generate: exact(it ? "Genera un nome casuale" : "Generate a random name"),
+  logoRequired: exact(it ? "Scegli un logo per il gruppo." : "Choose a group logo."),
+  locationRequired: exact(it ? "Scegli un luogo verificato." : "Choose a verified location."),
 };

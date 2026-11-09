@@ -59,8 +59,7 @@ export function EventTableSeats({
   const [choose, setChoose] = useState(false),
     [joining, setJoining] = useState(false);
   const canAdd =
-    !closed &&
-    (table.canRegister || table.canInvite) &&
+    ((!closed && table.canRegister) || table.canInvite) &&
     (table.groupType !== "PRIVATE" || hasJoinedEvent !== undefined);
   const join = () => {
     setChoose(false);
@@ -222,7 +221,7 @@ export function EventTableSeats({
                           ? notificationItemId(table.id, "invitation", undefined, "table")
                           : undefined
                       }
-                      readOnly={!table.canRespond || closed}
+                      readOnly={!table.canRespond}
                     />
                   }
                   name={name}
@@ -231,14 +230,17 @@ export function EventTableSeats({
                   badgeContent={<UserRoleBadge roles={roles} />}
                   actions={
                     <>
-                      {own && table.canRespond && pending && !closed && table.myRegistration ? (
+                      {own && table.canRespond && pending && table.myRegistration ? (
                         <EventTableInvitationActions
                           eventId={table.eventId}
                           registration={table.myRegistration}
                         />
                       ) : null}
-                      {!closed &&
-                      (own ? table.canLeave && row.status === "ACCEPTED" : table.canInvite) ? (
+                      {(
+                        own
+                          ? !closed && table.canLeave && row.status === "ACCEPTED"
+                          : table.canInvite
+                      ) ? (
                         <Button
                           isIconOnly
                           size="sm"
@@ -328,7 +330,7 @@ export function EventTableSeats({
                     },
                   ]
                 : []),
-              ...(!closed && table.canInvite
+              ...(table.canInvite
                 ? [
                     {
                       label: t("Invite players"),

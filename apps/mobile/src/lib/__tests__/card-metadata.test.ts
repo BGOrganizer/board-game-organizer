@@ -127,7 +127,7 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
     ["./GroupArtwork", "GroupArtwork"],
     ["./GroupStatusBadge", "GroupStatusBadge"],
     ["./GroupCardIndicators", "GroupCardIndicators"],
-    ["./EventTableRatingBadge", "EventTableRatingBadge"],
+    ["./EventTableRatingInfo", "EventTableRatingInfo"],
     ["./EventTableGamesPopover", "EventTableGamesPopover"],
     ["./EventTableCardIndicators", "EventTableCardIndicators"],
     ["./EventCardIndicators", "EventCardIndicators"],
@@ -272,7 +272,14 @@ it.each(["en", "it"] as const)(
       timeZone: "Asia/Tokyo",
     }).format(new Date(table.confirmed.startsAt));
     expect(text(tree)).toContain(date);
-    expect(text(tree)).toContain(locale === "it" ? "Durata: 30 minuti" : "Duration: 30 minutes");
+    expect(text(tree)).not.toMatch(/Duration:|Durata:/);
+    const metadata = evaluate("games/GameCatalogMetadata", "GameCatalogMetadata", locale, {
+      durationMinutes: 30,
+      average: 7.5,
+    });
+    expect(text(metadata)).toContain(locale === "it" ? "30 minuti" : "30 minutes");
+    expect(nodes(metadata).filter((node) => node.type === "Clock")).toHaveLength(1);
+    expect(text(metadata)).not.toMatch(/Duration:|Durata:|BGG|MANUAL|DEFAULT/);
     expect(text(tree)).not.toContain("120");
     const row = nodes(tree).find((n) => n.type === "UserListRow");
     expect(row?.props).toMatchObject({
@@ -312,7 +319,8 @@ it("does not fabricate native cached dates or unknown selected durations", () =>
     demonstratorUserId: "demo",
   };
   const tree = evaluate("events/EventTableScheduleCard", "EventTableScheduleCard", "it", { table });
-  expect(text(tree)).toContain("Durata: Non indicato");
+  expect(text(tree)).not.toContain("Durata:");
+  expect(evaluate("games/GameCatalogMetadata", "GameCatalogMetadata", "it", {})).toBeNull();
   expect(nodes(tree).some((n) => n.type === "Skeleton")).toBe(true);
   expect(nodes(tree).some((n) => n.type === "CalendarDays")).toBe(false);
   expect(nodes(tree).find((n) => n.type === "UserListRow")?.props.name).toBe("Non indicato");
@@ -330,7 +338,12 @@ it("does not fabricate native cached dates or unknown selected durations", () =>
     table: { ...table, games: [{ gameId: 1, durationMinutes: 1 }], demonstratorUserId: undefined },
     timeZone: "UTC",
   });
-  expect(text(single)).toContain("Durata: 1 minuto");
+  expect(text(single)).not.toContain("Durata:");
+  expect(
+    text(
+      evaluate("games/GameCatalogMetadata", "GameCatalogMetadata", "it", { durationMinutes: 1 }),
+    ),
+  ).toBe("1 minuto");
 });
 it("uses the real common native title component and normal body size for Group metadata", () => {
   const group = { ...groupRecord, location: plannedEvent.locations[0] };

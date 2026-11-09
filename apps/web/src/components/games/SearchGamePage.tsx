@@ -7,8 +7,10 @@ import {
   bggPickerUnavailable,
   useBggAccount,
   useBggPicker,
+  useGameListWindow,
 } from "@board-game-organizer/shared";
-import { Button, Skeleton } from "@heroui/react";
+import { Button, ListBox, Skeleton } from "@heroui/react";
+import { Collection, ListBoxLoadMoreItem, ListLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
 import { hashKey } from "@tanstack/react-query";
 import { ArrowLeft, Gamepad2, LibraryBig, Plus, UsersRound } from "lucide-react";
@@ -18,6 +20,8 @@ import { FilterChips } from "@/components/common/ui/FilterChips";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GameListCard } from "@/components/games/GameListCard";
+
+const layoutOptions = { estimatedRowHeight: 76, gap: 8 };
 
 interface Props {
   apiUrl: string;
@@ -49,7 +53,6 @@ export function SearchGamePage({
   const [debounced, setDebounced] = useState("");
   const [collection, setCollection] = useState(true);
   const [participantSource, setParticipants] = useState(false);
-  const [pageIndex, setPageIndex] = useState(0);
   const selected = useRef(false);
   const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds]);
   const freshToken = useCallback(
@@ -82,25 +85,42 @@ export function SearchGamePage({
   ]);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
-  const requesting = useRef<string | null>(null);
+  const { items, hasMore, beginScroll, endReached } = useGameListWindow({
+    scope,
+    pages: denied ? undefined : picker.data?.pages,
+    excludedIds: excludeSet,
+    ...picker,
+  });
+  const beginUserScroll = (node: HTMLElement) => {
+    beginScroll();
+    if (node.scrollHeight - node.scrollTop - node.clientHeight < 200) endReached();
+  };
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 300);
     return () => clearTimeout(timer);
   }, [query]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: presentation resets for a changed source epoch.
-  useEffect(() => setPageIndex(0), [scope]);
 
   const select = (item: BggPickerItem) => {
     if (scopeRef.current !== scope || denied || selected.current || excludeSet.has(item.id)) return;
     selected.current = true;
-    // Use supplied catalog metadata; missing durations keep the existing manual fallback.
+    // Preserve supplied catalog metadata; scheduling applies its own duration convention.
     onSelect(item);
   };
 
-  const page = denied ? undefined : picker.data?.pages[pageIndex];
-  const items = (page?.items ?? []).filter((item) => !excludeSet.has(item.id));
+  const active = (search && debounced.length >= 4) || (collection && hasCollection) || participants;
   return (
-    <div className="mx-auto w-full max-w-5xl pb-8">
+    <div
+      data-input-scope
+      className="mx-auto w-full max-w-5xl pb-8"
+      onKeyDownCapture={(event) => {
+        const list =
+          event.target instanceof Element
+            ? event.target.closest<HTMLElement>('[role="listbox"]')
+            : null;
+        if (list && ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "End"].includes(event.key))
+          beginUserScroll(list);
+      }}
+    >
       <div className="mb-4 flex items-center gap-2">
         <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft className="h-5 w-5" />
@@ -149,8 +169,11 @@ export function SearchGamePage({
           className="mt-3"
           variant="outline"
           onPress={() => {
-            void account.account.refetch();
-            void picker.refetch();
+            if (account.account.isError) void account.account.refetch();
+            if (picker.isError)
+              void (picker.isFetchNextPageError
+                ? picker.fetchNextPage({ cancelRefetch: false })
+                : picker.refetch());
           }}
         >
           {t`Search failed. Retry`}
@@ -163,68 +186,58 @@ export function SearchGamePage({
           <Skeleton className="h-12 w-full rounded-lg" />
         </div>
       ) : null}
-      {!picker.isPending &&
-      !picker.isError &&
-      items.length === 0 &&
-      (debounced.length >= 4 || (collection && hasCollection) || participants) ? (
+      {!picker.isPending && !picker.isError && !hasMore && items.length === 0 && active ? (
         <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No games found`}</EmptyList>
       ) : null}
-      <div className="mt-3 space-y-2">
-        {items.map((item) => (
-          <GameListCard
-            key={item.id}
-            name={item.name}
-            imageUrl={item.imageUrl}
-            year={item.year}
-            average={item.average}
-            rank={item.rank}
-            actions={
-              <Button
-                isIconOnly
-                className="shrink-0"
-                size="sm"
-                variant="primary"
-                aria-label={`${t`Select`}: ${item.name}`}
-                onPress={() => void select(item)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            }
-          />
-        ))}
-      </div>
-      {picker.data && (pageIndex > 0 || picker.hasNextPage) ? (
-        <nav className="mt-4 flex justify-between" aria-label={t`Game results pages`}>
-          <Button
-            variant="outline"
-            isDisabled={pageIndex === 0}
-            onPress={() => setPageIndex((index) => index - 1)}
-          >
-            {t`Previous`}
-          </Button>
-          <Button
-            variant="outline"
-            isDisabled={
-              (!picker.hasNextPage && pageIndex === picker.data.pages.length - 1) ||
-              picker.isFetchingNextPage
-            }
-            onPress={async () => {
-              if (requesting.current === scope || picker.isFetchingNextPage) return;
-              requesting.current = scope;
-              try {
-                if (pageIndex + 1 === picker.data.pages.length) {
-                  const result = await picker.fetchNextPage();
-                  if (result?.isError) return;
-                }
-                if (scopeRef.current === scope) setPageIndex(pageIndex + 1);
-              } finally {
-                if (requesting.current === scope) requesting.current = null;
-              }
+      {active && (items.length || hasMore) ? (
+        <Virtualizer layout={ListLayout} layoutOptions={layoutOptions} shouldObserveItemSize>
+          <ListBox
+            key={scope}
+            aria-label={t`Board games`}
+            selectionMode="none"
+            data-input-results
+            className="mt-3 h-[var(--input-results-height,60dvh)] min-h-24 w-full overflow-auto"
+            onWheel={(event) => beginUserScroll(event.currentTarget)}
+            onTouchMove={(event) => beginUserScroll(event.currentTarget)}
+            onScroll={(event) => {
+              const node = event.currentTarget;
+              if (node.scrollHeight - node.scrollTop - node.clientHeight < 200) endReached();
             }}
           >
-            {t`Next`}
-          </Button>
-        </nav>
+            <Collection items={items}>
+              {(item) => (
+                <ListBox.Item
+                  id={item.id}
+                  textValue={item.name}
+                  aria-label={`${t`Select`}: ${item.name}`}
+                  className="p-0"
+                  onAction={() => select(item)}
+                >
+                  <GameListCard
+                    name={item.name}
+                    imageUrl={item.imageUrl}
+                    year={item.year}
+                    average={item.average}
+                    rank={item.rank}
+                    actions={
+                      <span
+                        aria-hidden
+                        className="inline-flex size-11 shrink-0 items-center justify-center text-accent"
+                      >
+                        <Plus className="size-4" />
+                      </span>
+                    }
+                  />
+                </ListBox.Item>
+              )}
+            </Collection>
+            {hasMore && !picker.isError ? (
+              <ListBoxLoadMoreItem onLoadMore={endReached} isLoading={picker.isFetchingNextPage}>
+                {picker.isFetchingNextPage ? <Skeleton className="h-12 w-full rounded-xl" /> : null}
+              </ListBoxLoadMoreItem>
+            ) : null}
+          </ListBox>
+        </Virtualizer>
       ) : null}
     </div>
   );

@@ -159,6 +159,39 @@ it("renders a public observer without administration, voting or implicit enrollm
   expect(fetcher.mock.calls.some(([url]) => url.includes("/participants"))).toBe(false);
   client.clear();
 });
+it("limits a preserved personal snapshot to its read-only details without Group or participant destinations", async () => {
+  event = {
+    ...event,
+    status: "CONFIRMED",
+    personalAccessOnly: true,
+    readOnly: true,
+    role: "participant",
+    groupId: null,
+    groupName: null,
+    groupType: null,
+    canManage: false,
+    canEdit: false,
+    canRegister: false,
+    canInvite: false,
+    canVote: false,
+    canConfirm: false,
+    canReplan: false,
+    canFinalize: false,
+  };
+  tables = [];
+  const client = mount();
+  expect(
+    await screen.findByText("Personal access to your table. Group details are hidden."),
+  ).toBeTruthy();
+  expect(screen.queryByRole("tab", { name: "Participants" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete event" })).toBeNull();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/groups/"))).toBe(false);
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/participants"))).toBe(false);
+  expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+  client.clear();
+});
 it("hides Group/Participants/admin destinations for shared final results and resets a no-longer-authorized selected tab", async () => {
   const client = mount();
   await screen.findByRole("tab", { name: "Participants" });
@@ -605,9 +638,12 @@ it("hydrates missing agreement/table fields from a canonical list summary withou
     </QueryClientProvider>,
   );
   expect(screen.getByRole("heading", { name: plannedEvent.name })).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Confirm event" }));
   expect(
-    (screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+    within(await screen.findByRole("dialog")).queryByRole("button", { name: "Confirm" }),
+  ).toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   await waitFor(() => expect(release).toBeTypeOf("function"));
   await act(async () => release());
   fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
@@ -757,9 +793,12 @@ it("opens unified event/table routes, one voting legend and guarded Event deleti
   expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
   expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
   expect(screen.getByRole("button", { name: "Delete event" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Confirm event" }));
   expect(
-    (screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+    within(await screen.findByRole("dialog")).queryByRole("button", { name: "Confirm" }),
+  ).toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(
     document
       .getElementById("page-header-actions")
@@ -796,9 +835,10 @@ it("explains seated game disagreement without replacing players by waiters", asy
   const confirmation = (await screen.findByRole("button", {
     name: "Confirm event",
   })) as HTMLButtonElement;
-  expect(confirmation.disabled).toBe(true);
+  expect(confirmation.hasAttribute("disabled")).toBe(false);
   expect(screen.queryByText(/Seated players agree on date and location/)).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Why confirmation is unavailable" }));
+  expect(screen.queryByRole("button", { name: "Why confirmation is unavailable" })).toBeNull();
+  fireEvent.click(confirmation);
   expect(await screen.findByText(/Seated players agree on date and location/)).not.toBeNull();
 });
 it("keeps a missing agreement disabled even if an inconsistent capability says confirmation is allowed, with all reasons only inside its popover", async () => {
@@ -819,7 +859,7 @@ it("keeps a missing agreement disabled even if an inconsistent capability says c
   fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
   await screen.findByRole("link", { name: "Open table: First table" });
   const confirmation = screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement;
-  expect(confirmation.disabled).toBe(true);
+  expect(confirmation.hasAttribute("disabled")).toBe(false);
   expect(confirmation.className).toContain("button--sm");
   expect(confirmation.className).toContain("min-h-11");
   expect(confirmation.className).toContain("min-w-11");
@@ -827,7 +867,6 @@ it("keeps a missing agreement disabled even if an inconsistent capability says c
   expect(screen.queryByText(/Pending invitations still reserve places/)).toBeNull();
   fireEvent.click(confirmation);
   expect(fetcher.mock.calls.some(([url]) => url.endsWith("/state"))).toBe(false);
-  fireEvent.click(screen.getByRole("button", { name: "Why confirmation is unavailable" }));
   expect(await screen.findByText(/First table: Pending invitations/)).not.toBeNull();
   expect(screen.getByText(/Seated players agree on date and location/)).not.toBeNull();
   expect(screen.getByText(/No compatible accepted players/)).not.toBeNull();
@@ -895,10 +934,14 @@ it("shows a disabled owner confirmation in the app header, explains agreement an
   expect(screen.queryByText("No group")).toBeNull();
   expect(screen.queryByText(/Europe\/Rome/)).toBeNull();
   const button = screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement;
-  expect(button.disabled).toBe(true);
+  expect(button.hasAttribute("disabled")).toBe(false);
   expect(button.textContent).toBe("");
   fireEvent.click(button);
-  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(
+    within(await screen.findByRole("dialog")).queryByRole("button", { name: "Confirm" }),
+  ).toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(screen.getByRole("region", { name: "Details" })).not.toBeNull();
   expect(screen.getByRole("button", { name: "Date and time: Field help" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Event name: Field help" })).toBeNull();
@@ -912,7 +955,7 @@ it("shows a disabled owner confirmation in the app header, explains agreement an
   expect(screen.getByText(date).closest("li")).not.toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Tables" }));
   expect(await screen.findByText("No tables found")).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Why confirmation is unavailable" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm event" }));
   expect(
     await screen.findByText(
       "No complete agreement yet. Check participation and votes for the date, location and game.",
@@ -967,9 +1010,7 @@ it.each(["confirm", "replan"] as const)(
         { ...event, version: 2, canConfirm: false, canReplan: false },
       ),
     );
-    await waitFor(() =>
-      expect(action === "confirm" ? opener.disabled : !opener.isConnected).toBe(true),
-    );
+    await waitFor(() => expect(!opener.isConnected).toBe(true));
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
     expect(
       await screen.findByText("Could not change event state. Refresh and try again."),
@@ -983,7 +1024,7 @@ it.each(["confirm", "replan"] as const)(
     expect(screen.queryByRole("dialog")).toBeNull();
   },
 );
-it("closed public cutoff blocks editing/voting without preventing manual confirmation", async () => {
+it("closed public cutoff permits Planning editing/manual confirmation while public date voting stays fixed", async () => {
   event = {
     ...event,
     groupType: "PUBLIC",
@@ -997,6 +1038,6 @@ it("closed public cutoff blocks editing/voting without preventing manual confirm
     name: "Confirm event",
   })) as HTMLButtonElement;
   expect(confirmation.disabled).toBe(false);
-  expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Edit event" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "2030-06-03 20:00: Yes" })).toBeNull();
 });

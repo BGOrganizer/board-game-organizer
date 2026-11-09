@@ -1,6 +1,5 @@
 import {
   communityAccessDenied,
-  useEventCutoff,
   useEventRecord,
   useEventRecordActions,
 } from "@board-game-organizer/shared";
@@ -36,8 +35,7 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
     });
     router.back();
   };
-  const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
-  if (!event || !event.canInvite || closed)
+  if (!event || !event.canInvite)
     return (
       <View style={{ padding: 20 }}>
         {q.isPending ? (

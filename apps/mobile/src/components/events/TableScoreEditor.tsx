@@ -8,8 +8,7 @@ import {
 import { useBottomSheet } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
-import { useBottomSheetAwareHandlers, useThemeColor } from "heroui-native/hooks";
-import { Input } from "heroui-native/input";
+import { useThemeColor } from "heroui-native/hooks";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
 import { ArrowDown, ArrowUp, Check, ListOrdered, Pencil, Undo2, X } from "lucide-react-native";
@@ -17,6 +16,9 @@ import { useState } from "react";
 import { FlatList, Platform, View } from "react-native";
 import Animated, { LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Input } from "@/components/common/ui/Input";
+import { InputField } from "@/components/common/ui/InputField";
+import { InputScrollView } from "@/components/common/ui/InputScrollView";
 import { ScoreIdentity } from "@/components/ratings/ScoreIdentity";
 import { useT } from "@/lib/i18n";
 
@@ -25,16 +27,17 @@ function ScoreInput({
   name,
   row,
   onChange,
+  attempted,
 }: {
   name: string;
   row: ScoreDraftRow;
+  attempted: boolean;
   onChange: (score: string) => void;
 }) {
   const t = useT(),
-    { onFocus, onBlur } = useBottomSheetAwareHandlers(),
     { snapToPosition } = useBottomSheet();
   return (
-    <View style={{ gap: 8, flex: 1 }}>
+    <InputField style={{ gap: 8, flex: 1 }}>
       <Typography className="text-foreground">{t("Score")}</Typography>
       <Input
         accessibilityLabel={`${t("Score")}: ${name}`}
@@ -42,19 +45,27 @@ function ScoreInput({
         placeholder={t("Enter a score")}
         keyboardType={Platform.OS === "android" ? "numeric" : "numbers-and-punctuation"}
         editable={!row.notParticipated}
+        autoFocus={attempted && !row.notParticipated && normalizeMatchScore(row.rawScore) === null}
+        isInvalid={
+          !row.notParticipated &&
+          (attempted || row.rawScore !== "") &&
+          normalizeMatchScore(row.rawScore) === null
+        }
         value={row.rawScore}
         onChangeText={onChange}
-        onFocus={(event) => {
-          onFocus(event);
+        onFocus={() => {
           // Expand even before Android delivers a keyboard/resize event.
           snapToPosition("80%");
         }}
-        onBlur={onBlur}
       />
-      {!row.notParticipated && row.rawScore !== "" && normalizeMatchScore(row.rawScore) === null ? (
-        <Typography className="text-danger">{t("Enter a valid score")}</Typography>
+      {!row.notParticipated &&
+      (attempted || row.rawScore !== "") &&
+      normalizeMatchScore(row.rawScore) === null ? (
+        <Typography accessibilityRole="alert" className="text-danger">
+          {t("Enter a valid score")}
+        </Typography>
       ) : null}
-    </View>
+    </InputField>
   );
 }
 export function TableScoreEditor({
@@ -85,7 +96,8 @@ export function TableScoreEditor({
     [lowerWins, setLowerWins] = useState(initial?.lowerWins ?? false),
     [ties, setTies] = useState<TableScoreInput["tieBreaks"]>(initial?.tieBreaks ?? []),
     [editing, setEditing] = useState<TableScoreInput["tieBreaks"][number] | null>(null),
-    [scoreId, setScoreId] = useState<string | null>(null);
+    [scoreId, setScoreId] = useState<string | null>(null),
+    [attempted, setAttempted] = useState(false);
   const preview = previewTableResults(
       rows,
       lowerWins,
@@ -116,6 +128,9 @@ export function TableScoreEditor({
       <FlatList
         data={ordered}
         keyExtractor={(id) => id}
+        initialNumToRender={8}
+        maxToRenderPerBatch={6}
+        windowSize={7}
         contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: 24 }}
         ListHeaderComponent={
           <View style={{ gap: 12 }}>
@@ -272,10 +287,19 @@ export function TableScoreEditor({
       <View style={{ padding: 16, paddingBottom: insets.bottom + 16 }}>
         <Button
           testID="table-save-result"
-          isDisabled={!preview.valid || busy || Boolean(editing) || Boolean(scoreId)}
-          onPress={() =>
-            onSubmit({ lowerWins, entries: preview.entries, tieBreaks: preview.tieBreaks })
-          }
+          isDisabled={busy || Boolean(editing) || Boolean(scoreId) || !players.length}
+          onPress={() => {
+            if (busy || editing || scoreId) return;
+            setAttempted(true);
+            if (!preview.valid) {
+              const first = rows.find(
+                (row) => !row.notParticipated && normalizeMatchScore(row.rawScore) === null,
+              );
+              if (first) setScoreId(first.userId);
+              return;
+            }
+            onSubmit({ lowerWins, entries: preview.entries, tieBreaks: preview.tieBreaks });
+          }}
         >
           <Button.Label>{t("Save result")}</Button.Label>
         </Button>
@@ -295,37 +319,42 @@ export function TableScoreEditor({
             topInset={insets.top}
             android_keyboardInputMode="adjustResize"
           >
-            <BottomSheet.Title>{active?.name ?? t("Score")}</BottomSheet.Title>
-            {active && activeRow ? (
-              <>
-                <View
-                  style={{ flexDirection: "row", gap: 12, alignItems: "center", marginTop: 16 }}
-                >
-                  <ScoreInput
-                    name={active.name}
-                    row={activeRow}
-                    onChange={(rawScore) => update(active.id, { rawScore })}
-                  />
-                  <View style={{ width: 110, gap: 8 }}>
-                    <Typography className="text-muted">{t("Did not participate")}</Typography>
-                    <Switch
-                      accessibilityLabel={`${t("Did not participate")}: ${active.name}`}
-                      isSelected={activeRow.notParticipated}
-                      onSelectedChange={(notParticipated) => update(active.id, { notParticipated })}
-                    >
-                      <Switch.Thumb />
-                    </Switch>
+            <InputScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+              <BottomSheet.Title>{active?.name ?? t("Score")}</BottomSheet.Title>
+              {active && activeRow ? (
+                <>
+                  <View
+                    style={{ flexDirection: "row", gap: 12, alignItems: "center", marginTop: 16 }}
+                  >
+                    <ScoreInput
+                      name={active.name}
+                      row={activeRow}
+                      attempted={attempted}
+                      onChange={(rawScore) => update(active.id, { rawScore })}
+                    />
+                    <View style={{ width: 110, gap: 8 }}>
+                      <Typography className="text-muted">{t("Did not participate")}</Typography>
+                      <Switch
+                        accessibilityLabel={`${t("Did not participate")}: ${active.name}`}
+                        isSelected={activeRow.notParticipated}
+                        onSelectedChange={(notParticipated) =>
+                          update(active.id, { notParticipated })
+                        }
+                      >
+                        <Switch.Thumb />
+                      </Switch>
+                    </View>
                   </View>
-                </View>
-                <Button
-                  variant="secondary"
-                  style={{ marginTop: 24 }}
-                  onPress={() => setScoreId(null)}
-                >
-                  <Button.Label>{t("Done")}</Button.Label>
-                </Button>
-              </>
-            ) : null}
+                  <Button
+                    variant="secondary"
+                    style={{ marginTop: 24 }}
+                    onPress={() => setScoreId(null)}
+                  >
+                    <Button.Label>{t("Done")}</Button.Label>
+                  </Button>
+                </>
+              ) : null}
+            </InputScrollView>
           </BottomSheet.Content>
         </BottomSheet.Portal>
       </BottomSheet>

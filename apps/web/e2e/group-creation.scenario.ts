@@ -1,5 +1,6 @@
 import { statSync } from "node:fs";
 import { resolve } from "node:path";
+import { nameDictionaries } from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
@@ -56,6 +57,8 @@ const it = locale === "it",
       ? "I gruppi privati sono solo su invito. I gruppi pubblici sono ricercabili e visibili a tutti gli utenti iscritti dopo l’approvazione."
       : "Private groups are invitation-only. Public groups are searchable and visible to all registered users after approval.",
     name: it ? "Nome del gruppo" : "Group name",
+    generate: it ? "Genera un nome casuale" : "Generate a random name",
+    location: it ? "Scegli un luogo" : "Choose a location",
     add: it ? "Aggiungi amico" : "Add friend",
     search: it ? "Cerca amici" : "Search friends",
     select: `${it ? "Seleziona utente" : "Select user"}: ${friend}`,
@@ -109,7 +112,16 @@ test(`owned Group creation draft ${locale}/${theme}`, async ({ page }) => {
   await page.getByRole("button", { name: `${l.visibility}: ${l.help}`, exact: true }).click();
   await expect(page.getByText(l.legend, { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("textbox", { name: l.name, exact: true }).fill("Unsaved board club");
+  const name = page.getByRole("textbox", { name: l.name, exact: true });
+  await expect(name).toBeEmpty();
+  await page.getByRole("button", { name: l.create, exact: true }).click();
+  await expect(name).toBeFocused();
+  expect(writes).toEqual([]);
+  await page.getByRole("button", { name: l.generate, exact: true }).click();
+  await expect(name).not.toBeEmpty();
+  expect(nameDictionaries[it ? "it" : "en"].gruppo).toContain(await name.inputValue());
+  expect(writes).toEqual([]);
+  await name.fill("Unsaved board club");
   await page.getByRole("button", { name: l.add, exact: true }).click();
   await page.getByRole("textbox", { name: l.search, exact: true }).fill(query);
   await page.getByRole("button", { name: l.select, exact: true }).click();
@@ -120,7 +132,10 @@ test(`owned Group creation draft ${locale}/${theme}`, async ({ page }) => {
   await expect(publicRadio).toBeChecked();
   await expect(page.getByRole("button", { name: l.removeInvite, exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: l.add, exact: true })).toBeDisabled();
-  await expect(page.getByRole("button", { name: l.submit, exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: l.submit, exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: l.submit, exact: true }).click();
+  await expect(page.getByRole("button", { name: l.upload, exact: true })).toBeFocused();
+  expect(writes).toEqual([]);
   await expect(page.getByRole("button", { name: `${l.logo}: ${l.help}`, exact: true })).toHaveCount(
     0,
   );
@@ -147,14 +162,20 @@ test(`owned Group creation draft ${locale}/${theme}`, async ({ page }) => {
   expect(new URL(receipt.url()).origin).toBe(api.origin);
   await expect(page.getByRole("img", { name: l.logo, exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: l.change, exact: true })).toBeEnabled();
-  await expect(page.getByRole("button", { name: l.submit, exact: true })).toBeDisabled(); // Verified venue still absent.
+  await expect(page.getByRole("button", { name: l.submit, exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: l.submit, exact: true }).click();
+  await expect(page.getByRole("button", { name: l.location, exact: true })).toBeFocused();
+  expect(writes).toEqual([]); // A missing verified venue must not submit a Group.
   const change = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: l.change, exact: true }).click();
   await (await change).setFiles([]);
   await expect(page.getByRole("img", { name: l.logo, exact: true })).toBeVisible();
   await page.getByRole("button", { name: l.remove, exact: true }).click();
   await expect(page.getByRole("img", { name: l.empty, exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: l.submit, exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: l.submit, exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: l.submit, exact: true }).click();
+  await expect(page.getByRole("button", { name: l.upload, exact: true })).toBeFocused();
+  expect(writes).toEqual([]);
   await page.getByText(l.private, { exact: true }).click();
   await expect(privateRadio).toBeChecked();
   await expect(page.getByRole("button", { name: l.removeInvite, exact: true })).toHaveCount(0);

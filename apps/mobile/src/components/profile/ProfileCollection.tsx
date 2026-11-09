@@ -2,27 +2,26 @@ import type { BggCollectionCounts, BggCollectionItem } from "@board-game-organiz
 import {
   bggCollectionQuery,
   communityAccessDenied,
+  GAME_PICKER_CHUNK_SIZE,
   useBggCollection,
   useBggCollectionFilters,
+  useGameListWindow,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { hashKey } from "@tanstack/react-query";
-import { useHeaderHeight } from "expo-router/react-navigation";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Gamepad2, Heart, Puzzle, UsersRound } from "lucide-react-native";
-import { memo, type ReactNode, useCallback, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, SectionList, View } from "react-native";
+import { memo, type ReactNode, useCallback, useMemo } from "react";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FilterChips } from "@/components/common/ui/FilterChips";
+import { InputSectionList } from "@/components/common/ui/InputSectionList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GameListCard } from "@/components/games/GameListCard";
-import { GAME_PICKER_CHUNK_SIZE } from "@/lib/games/gamePickerWindow";
-import { useGameListWindow } from "@/lib/games/useGameListWindow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { ProfileBggAttribution } from "./ProfileBggAttribution";
 import { ProfileStats } from "./ProfileStats";
 
 const noExclusions = new Set<number>();
@@ -44,7 +43,6 @@ export function ProfileCollection({
     { i18n } = useLingui(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets();
-  const navigationHeight = useHeaderHeight();
   const other = subjectId !== o.userId;
   const filter = useBggCollectionFilters(viewerSnapshot);
   const options = {
@@ -60,11 +58,6 @@ export function ProfileCollection({
     scope = hashKey(bggCollectionQuery(options).queryKey);
   const pages = communityAccessDenied(q.error) ? undefined : q.data?.pages;
   const window = useGameListWindow({ scope, pages, excludedIds: noExclusions, ...q });
-  const list = useRef<SectionList<BggCollectionItem>>(null);
-  const headerHeight = useRef(0),
-    searchFocused = useRef(false);
-  const [viewportHeight, setViewportHeight] = useState(0),
-    [topHeight, setTopHeight] = useState(0);
   const sections = useMemo(() => [{ key: "games", data: window.items }], [window.items]);
   const counts = communityAccessDenied(q.error) ? undefined : (pages?.[0]?.counts ?? knownCounts);
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
@@ -76,160 +69,129 @@ export function ProfileCollection({
     ),
     [i18n.locale, label, unavailable],
   );
-  const focusSearch = useCallback(() => {
-    searchFocused.current = true;
-    list.current?.getScrollResponder()?.scrollTo({ y: headerHeight.current, animated: false });
-  }, []);
   return (
-    <KeyboardAvoidingView
+    <InputSectionList
       style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={navigationHeight}
-    >
-      <SectionList
-        ref={list}
-        style={{ flex: 1 }}
-        onLayout={(e) => {
-          setViewportHeight(e.nativeEvent.layout.height);
-          if (searchFocused.current) focusSearch();
-        }}
-        onContentSizeChange={() => {
-          if (searchFocused.current) focusSearch();
-        }}
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 20,
-          paddingBottom: insets.bottom + 24,
-          flexGrow: 1,
-          minHeight: viewportHeight + topHeight,
-        }}
-        keyboardShouldPersistTaps="handled"
-        stickySectionHeadersEnabled
-        sections={sections}
-        keyExtractor={key}
-        initialNumToRender={GAME_PICKER_CHUNK_SIZE}
-        maxToRenderPerBatch={6}
-        windowSize={7}
-        onScrollBeginDrag={window.beginScroll}
-        onEndReached={window.endReached}
-        onEndReachedThreshold={0.4}
-        accessibilityActions={
-          window.hasMore ? [{ name: "increment", label: t("Load more games") }] : []
-        }
-        onAccessibilityAction={(e) => {
-          if (e.nativeEvent.actionName === "increment") window.loadMore();
-        }}
-        renderItem={renderItem}
-        ItemSeparatorComponent={GameGap}
-        ListHeaderComponent={
-          <View
-            onLayout={(e) => {
-              headerHeight.current = e.nativeEvent.layout.height + 20;
-              setTopHeight(headerHeight.current);
-              if (searchFocused.current) focusSearch();
-            }}
-            style={{ gap: 16, paddingBottom: 16 }}
-          >
-            {header}
-            {q.isPending && !counts ? (
-              <Skeleton style={{ width: "100%", height: 76, borderRadius: 12 }} />
-            ) : (
-              <ProfileStats
-                items={[
-                  {
-                    label: t("Games without expansions"),
-                    value: counts ? number.format(counts.withoutExpansions) : unavailable,
-                  },
-                  {
-                    label: t("Games including expansions"),
-                    value: counts ? number.format(counts.withExpansions) : unavailable,
-                  },
-                  {
-                    label: t("Wishlist"),
-                    value: counts ? number.format(counts.wishlist) : unavailable,
-                  },
-                ]}
-              />
-            )}
-            {pages?.[0]?.counts === null && !knownCounts && !other ? (
-              <Typography className="text-sm text-muted">
-                {t("Synchronize again to include expansions and collection counts.")}
-              </Typography>
-            ) : null}
-          </View>
-        }
-        renderSectionHeader={() => (
-          <View className="bg-background" style={{ gap: 8, paddingVertical: 8 }}>
-            <SearchInput
-              value={filter.query}
-              onChange={filter.setQuery}
-              label={t("Filter collection")}
-              placeholder={t("Filter collection games")}
-              testID="profile-collection-filter"
-              maxLength={120}
-              onFocus={focusSearch}
-              onBlur={() => {
-                searchFocused.current = false;
-              }}
-            />
-            <FilterChips
-              selected={filter.selected}
-              onToggle={filter.toggle}
-              options={[
-                { key: "games", label: t("Games"), icon: Gamepad2 },
-                { key: "expansions", label: t("Expansions"), icon: Puzzle },
-                { key: "wishlist", label: t("Wishlist"), icon: Heart },
-                ...(other
-                  ? [
-                      {
-                        key: "common" as const,
-                        label: t("In common"),
-                        icon: UsersRound,
-                        disabled: !viewerSnapshot,
-                      },
-                    ]
-                  : []),
+      contentContainerStyle={{
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: insets.bottom + 24,
+        flexGrow: 1,
+      }}
+      keyboardShouldPersistTaps="handled"
+      stickySectionHeadersEnabled
+      sections={sections}
+      keyExtractor={key}
+      initialNumToRender={GAME_PICKER_CHUNK_SIZE}
+      maxToRenderPerBatch={6}
+      windowSize={7}
+      onScrollBeginDrag={window.beginScroll}
+      onEndReached={window.endReached}
+      onEndReachedThreshold={0.4}
+      accessibilityActions={
+        window.hasMore ? [{ name: "increment", label: t("Load more games") }] : []
+      }
+      onAccessibilityAction={(e) => {
+        if (e.nativeEvent.actionName === "increment") window.loadMore();
+      }}
+      renderItem={renderItem}
+      ItemSeparatorComponent={GameGap}
+      ListHeaderComponent={
+        <View style={{ gap: 16, paddingBottom: 16 }}>
+          {header}
+          {q.isPending && !counts ? (
+            <Skeleton style={{ width: "100%", height: 76, borderRadius: 12 }} />
+          ) : (
+            <ProfileStats
+              items={[
+                {
+                  label: t("Games without expansions"),
+                  value: counts ? number.format(counts.withoutExpansions) : unavailable,
+                },
+                {
+                  label: t("Games including expansions"),
+                  value: counts ? number.format(counts.withExpansions) : unavailable,
+                },
+                {
+                  label: t("Wishlist"),
+                  value: counts ? number.format(counts.wishlist) : unavailable,
+                },
               ]}
             />
-            {other && !viewerSnapshot ? (
-              <Typography className="text-sm text-muted">
-                {t("Synchronize your BGG collection to find games in common.")}
+          )}
+          {pages?.[0]?.counts === null && !knownCounts && !other ? (
+            <Typography className="text-sm text-muted">
+              {t("Synchronize again to include expansions and collection counts.")}
+            </Typography>
+          ) : null}
+        </View>
+      }
+      renderSectionHeader={() => (
+        <View className="bg-background" style={{ gap: 8, paddingVertical: 8 }}>
+          <SearchInput
+            value={filter.query}
+            onChange={filter.setQuery}
+            label={t("Filter collection")}
+            placeholder={t("Filter collection games")}
+            testID="profile-collection-filter"
+            maxLength={120}
+          />
+          <FilterChips
+            selected={filter.selected}
+            onToggle={filter.toggle}
+            options={[
+              { key: "games", label: t("Games"), icon: Gamepad2 },
+              { key: "expansions", label: t("Expansions"), icon: Puzzle },
+              { key: "wishlist", label: t("Wishlist"), icon: Heart },
+              ...(other
+                ? [
+                    {
+                      key: "common" as const,
+                      label: t("In common"),
+                      icon: UsersRound,
+                      disabled: !viewerSnapshot,
+                    },
+                  ]
+                : []),
+            ]}
+          />
+          {other && !viewerSnapshot ? (
+            <Typography className="text-sm text-muted">
+              {t("Synchronize your BGG collection to find games in common.")}
+            </Typography>
+          ) : null}
+        </View>
+      )}
+      renderSectionFooter={() => (
+        <View
+          style={{
+            gap: 12,
+          }}
+        >
+          {q.isError ? (
+            <>
+              <Typography accessibilityRole="alert" className="text-danger">
+                {t("Could not load collection")}
               </Typography>
-            ) : null}
-          </View>
-        )}
-        renderSectionFooter={() => (
-          <View
-            style={{
-              gap: 12,
-            }}
-          >
-            {q.isError ? (
-              <>
-                <Typography accessibilityRole="alert" className="text-danger">
-                  {t("Could not load collection")}
-                </Typography>
-                <Button variant="secondary" onPress={() => void q.refetch()}>
-                  <Button.Label>{t("Try again")}</Button.Label>
-                </Button>
-              </>
-            ) : null}
-            {q.isPending && !pages ? (
-              <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
-            ) : null}
-            {!q.isPending && !q.isError && !window.hasMore && !window.items.length ? (
-              <Typography accessibilityLiveRegion="polite" className="text-muted">
-                {t("No games found")}
-              </Typography>
-            ) : null}
-            {other ? <ProfileBggAttribution /> : null}
-            {q.isFetchingNextPage ? (
-              <Skeleton style={{ width: "100%", height: 48, borderRadius: 12 }} />
-            ) : null}
-          </View>
-        )}
-      />
-    </KeyboardAvoidingView>
+              <Button variant="secondary" onPress={() => void q.refetch()}>
+                <Button.Label>{t("Try again")}</Button.Label>
+              </Button>
+            </>
+          ) : null}
+          {q.isPending && !pages ? (
+            <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
+          ) : null}
+          {!q.isPending && !q.isError && !window.hasMore && !window.items.length ? (
+            <Typography accessibilityLiveRegion="polite" className="text-muted">
+              {t("No games found")}
+            </Typography>
+          ) : null}
+          {q.isFetchingNextPage ? (
+            <Skeleton style={{ width: "100%", height: 48, borderRadius: 12 }} />
+          ) : null}
+        </View>
+      )}
+    />
   );
 }
 const CollectionRow = memo(function CollectionRow({

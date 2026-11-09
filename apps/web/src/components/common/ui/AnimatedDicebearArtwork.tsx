@@ -34,7 +34,7 @@ export function AnimatedDicebearArtwork({
   );
   return (
     <span
-      className={`block shrink-0 overflow-hidden ${presentation === "cover" ? "rounded-none" : "rounded-xl bg-accent/10"} ${presentation !== "thumbnail" ? "absolute inset-0" : ""}`}
+      className={`block shrink-0 overflow-hidden ${presentation === "cover" ? "rounded-xl" : "rounded-xl bg-accent/10"} ${presentation !== "thumbnail" ? "absolute inset-0" : ""}`}
       style={presentation !== "thumbnail" ? undefined : { width: size, height: size }}
       aria-hidden="true"
     >
@@ -44,7 +44,7 @@ export function AnimatedDicebearArtwork({
         alt=""
         width={size + 8}
         height={size + 8}
-        className={`dicebear-artwork ${presentation === "cover" ? "absolute inset-0 h-full w-full object-contain p-1" : presentation === "background" ? "absolute inset-0 h-full w-full object-cover" : "relative -top-1 -left-1"} ${variant === "waves" ? "match-waves" : variant === "shapes" ? "table-shapes" : ""}`}
+        className={`dicebear-artwork ${presentation === "cover" ? "absolute inset-0 h-full w-full rounded-xl object-contain p-1" : presentation === "background" ? "absolute inset-0 h-full w-full object-cover" : "relative -top-1 -left-1"} ${variant === "waves" ? "match-waves" : variant === "shapes" ? "table-shapes" : ""}`}
       />
     </span>
   );

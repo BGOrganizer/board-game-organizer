@@ -1,5 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
+import { InputBehavior } from "@/components/common/providers/InputBehavior";
 import { LinguiClientProvider } from "@/components/common/providers/LinguiClientProvider";
 import { SessionQueryProvider } from "@/components/common/providers/SessionQueryProvider";
 import { ThemeScript } from "@/components/common/providers/ThemeScript";
@@ -55,6 +56,7 @@ export default async function RootLayout({
         >
           <SessionQueryProvider>
             <LinguiClientProvider initialLocale={locale} initialMessages={messages}>
+              <InputBehavior />
               {children}
             </LinguiClientProvider>
           </SessionQueryProvider>

@@ -12,6 +12,7 @@ export default defineConfig({
         "src/common/startupQueries.ts",
         "src/common/userIdentity.ts",
         "src/common/recordUserRoles.ts",
+        "src/common/bgo-name-dictionaries.ts",
         "src/events/tablePlayerRating.ts",
         "src/common/optimisticOperation.ts",
         "src/common/clientMutation.ts",
@@ -52,6 +53,10 @@ export default defineConfig({
         "src/events/eventRecordForm.ts",
         "src/events/eventRecordVisibility.ts",
         "src/games/gamePlayerBounds.ts",
+        "src/games/gamePickerWindow.ts",
+        "src/games/hooks/useGameListWindow.ts",
+        "src/events/eventGameDuration.ts",
+        "src/events/eventPersonalAccessCache.ts",
         "src/games/hooks/useBggPicker.ts",
         "src/events/tableScoreForm.ts",
         "src/events/eventTablePeople.ts",
@@ -77,6 +82,13 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/{common/bgo-name-dictionaries,events/eventGameDuration,events/eventPersonalAccessCache,games/gamePickerWindow,games/hooks/useGameListWindow}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "src/{common/recordUserRoles,events/tablePlayerRating}.ts": {
           lines: 100,
           functions: 100,

@@ -3,7 +3,6 @@ import {
   tableCardGames,
   tableParticipation,
   tablePendingAction,
-  useEventCutoff,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
@@ -11,7 +10,6 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import {
   CalendarCheck,
-  CircleOff,
   Clock3,
   Flag,
   ListOrdered,
@@ -27,6 +25,7 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableGamesPopover } from "./EventTableGamesPopover";
+import { EventTableRatingInfo } from "./EventTableRatingInfo";
 import { EventTableSchedulePopover } from "./EventTableSchedulePopover";
 
 /** Current management, demonstration and seat/queue facts coexist without granting permissions. */
@@ -37,10 +36,6 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
   const { userId } = useCommunityApi();
   const [muted, accent, success] = useThemeColor(["muted", "accent", "success"]);
   const participation = tableParticipation(table.myRegistration, table.myPosition);
-  const closed = useEventCutoff(
-    table.bookingClosesAt,
-    table.groupType === "PUBLIC" && table.eventStatus === "PLANNING",
-  );
   const planning = table.eventStatus === "PLANNING";
   const confirmed = table.eventStatus === "CONFIRMED";
   const status = planning ? t("Planning") : confirmed ? t("Confirmed") : t("Terminated");
@@ -69,7 +64,7 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
                   ? t("Player with pending invitation")
                   : undefined
           }
-          action={closed ? null : tablePendingAction(table)}
+          action={tablePendingAction(table)}
         />
       ) : null}
       {table.myPosition === "WAITING" &&
@@ -150,20 +145,7 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
           ) : null}
         </ScrollView>
       </HelpPopover>
-      <HelpPopover
-        size="compact"
-        label={table.rankingEnabled ? t("Rating enabled") : t("Rating disabled")}
-        title={t("Rating")}
-        icon={table.rankingEnabled ? Trophy : CircleOff}
-        tone={table.rankingEnabled ? "accent" : "muted"}
-        triggerClassName="bg-default"
-      >
-        <Typography className="text-foreground">
-          {table.rankingEnabled
-            ? t("This table contributes to player ratings when eligible results are finalized.")
-            : t("This table does not update player ratings.")}
-        </Typography>
-      </HelpPopover>
+      <EventTableRatingInfo enabled={table.rankingEnabled} />
       <EventTableSchedulePopover table={table} kind="dates" />
       <EventTableSchedulePopover table={table} kind="locations" />
       <EventTableGamesPopover games={tableCardGames(table)} name={table.name} />

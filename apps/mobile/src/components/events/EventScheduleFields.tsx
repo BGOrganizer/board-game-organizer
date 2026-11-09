@@ -8,7 +8,6 @@ import {
 import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
@@ -16,6 +15,8 @@ import { CalendarClock, X } from "lucide-react-native";
 import { View } from "react-native";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { InputField } from "@/components/common/ui/InputField";
+import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
@@ -57,14 +58,16 @@ export function EventScheduleFields({
       : t("Choose one date and time. Remove the selected option before choosing another.");
   return (
     <View style={{ gap: 20 }}>
-      <View style={{ gap: 6 }}>
+      <InputField style={{ gap: 6 }}>
         <SearchHelpLabel
           required
           label={t("Event name")}
           helpTitle={fieldHelp}
           help={t("Choose a recognizable event name between 5 and 120 characters.")}
         />
-        <Input
+        <NameInput
+          category="evento"
+          maxLength={120}
           accessibilityLabel={t("Event name")}
           placeholder={t("Friday game night")}
           value={draft.name}
@@ -73,8 +76,8 @@ export function EventScheduleFields({
           isInvalid={fieldError("name")}
         />
         {error("name", t("Enter an event name between 5 and 120 characters."))}
-      </View>
-      <View style={{ gap: 8 }}>
+      </InputField>
+      <InputField invalid={fieldError("groupId")} style={{ gap: 8 }}>
         <SearchHelpLabel
           label={t("Group")}
           helpTitle={fieldHelp}
@@ -107,7 +110,7 @@ export function EventScheduleFields({
         ) : (
           error("groupId", t("An approved group and its administrator are required."))
         )}
-      </View>
+      </InputField>
       {form.publicGroup ? (
         <View style={{ gap: 8 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
@@ -146,7 +149,7 @@ export function EventScheduleFields({
           onChange={form.setStartDate}
         />
       ) : (
-        <View style={{ gap: 8 }}>
+        <InputField invalid={fieldError("dates") || fieldError("startTime")} style={{ gap: 8 }}>
           <SearchHelpLabel
             required
             label={form.flexibleSchedule ? t("Dates and times") : t("Date and time")}
@@ -199,7 +202,7 @@ export function EventScheduleFields({
                 : t("Choose exactly one valid date and time.")}
             </Typography>
           ) : null}
-        </View>
+        </InputField>
       )}
       {form.publicGroup ? (
         <>
@@ -241,7 +244,7 @@ export function EventScheduleFields({
           />
         </>
       ) : null}
-      <View style={{ gap: 8 }}>
+      <InputField invalid={fieldError("locations") || fieldError("timeZone")} style={{ gap: 8 }}>
         <SearchHelpLabel
           required
           label={t("Location")}
@@ -298,7 +301,7 @@ export function EventScheduleFields({
         {draft.locations.length
           ? error("timeZone", t("Could not determine the location time zone. Choose a location."))
           : null}
-      </View>
+      </InputField>
       {form.flexibleSchedule ? (
         <View style={{ gap: 12 }}>
           <Typography accessibilityRole="header" className="font-semibold text-foreground">

@@ -1,7 +1,8 @@
 appId: com.bgo.mobile
-name: Event tabs paged participants and distinct remove-or-Group-ban confirmation
+name: Event removal-only menus and separate Group-context ban confirmation
 # Manual owned disposable PRIVATE PLANNING Event; manager has no automatic seat.
 # Target is an ordinary accepted Group member beyond first Event roster page.
+# Event menus never expose Group bans; ban mode explicitly opens Group Members.
 # Real removal/ban. Separate fresh fixture for each mode. No provisioning/reset/mocks.
 tags: [manual, events, participants]
 ---
@@ -22,9 +23,26 @@ tags: [manual, events, participants]
 - tapOn: ${output.eventPeople.people}
 - assertNotVisible: ${output.eventPeople.edit}
 - scrollUntilVisible:
-    element: ${output.eventPeople.manage}
+    element: ${output.eventPeople.eventManage}
     direction: DOWN
     timeout: 120000
+- tapOn: ${output.eventPeople.eventManage}
+- assertVisible: ${output.eventPeople.remove}
+- assertNotVisible: ${output.eventPeople.ban}
+- tapOn: ${output.eventPeople.cancel}
+- runFlow:
+    when:
+      true: ${!output.eventPeople.removedOnly}
+    commands:
+      - openLink: ${output.eventPeople.groupLink}
+      - extendedWaitUntil:
+          visible: ${output.eventPeople.group}
+          timeout: 120000
+      - tapOn: ${output.eventPeople.members}
+      - scrollUntilVisible:
+          element: ${output.eventPeople.manage}
+          direction: DOWN
+          timeout: 120000
 - tapOn: ${output.eventPeople.manage}
 - tapOn: ${output.eventPeople.action}
 - extendedWaitUntil:
@@ -44,6 +62,20 @@ tags: [manual, events, participants]
 - extendedWaitUntil:
     notVisible: ${output.eventPeople.title}
     timeout: 30000
+- runFlow:
+    when:
+      true: ${!output.eventPeople.removedOnly}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            text: ${output.eventPeople.revoke}
+            enabled: true
+          timeout: 120000
+      - openLink: ${output.eventPeople.link}
+      - extendedWaitUntil:
+          visible: ${output.eventPeople.event}
+          timeout: 120000
+      - tapOn: ${output.eventPeople.people}
 - extendedWaitUntil:
     notVisible: ${output.eventPeople.target}
     timeout: 120000

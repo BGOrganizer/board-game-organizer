@@ -232,7 +232,7 @@ it("projects live seats with optional name/email and immutable ND order without 
     email: "guest@example.test",
     avatarUrl: null,
     username: null,
-    position: "seated",
+    position: "SEATED",
   };
   expect(eventTablePeople(table, [row])[0]).toMatchObject({
     key: tableId,
@@ -241,9 +241,10 @@ it("projects live seats with optional name/email and immutable ND order without 
     registration: row,
     profileLoaded: true,
   });
-  expect(eventTablePeople(table, [{ ...row, name: undefined, email: undefined }])[0]).toMatchObject(
-    { name: "guest", email: null },
-  );
+  expect(eventTablePeople(table, [{ ...row, name: null, email: undefined }])[0]).toMatchObject({
+    name: "guest",
+    email: null,
+  });
   expect(
     eventTablePeople(
       {
@@ -331,10 +332,10 @@ describe("unified unsaved event drafts", () => {
     expect(eventDraft(undefined, id).groupId).toBe(id);
     expect(eventDraft().groupId).toBeNull();
   });
-  it("copies manual durations, missing metadata and fixed-time walls without converting BGG data to manual", () => {
+  it("copies saved historical durations and fixed-time walls without manufacturing manual inputs", () => {
     expect(tableDraft(table, event.timeZone).games[0]).toMatchObject({
       id: 1,
-      manualDurationMinutes: 75,
+      durationMinutes: 75,
       year: null,
     });
     expect(
@@ -349,7 +350,7 @@ describe("unified unsaved event drafts", () => {
       ),
     ).toMatchObject({
       startsWall: "2030-06-03T20:00:00",
-      games: [{ manualDurationMinutes: undefined, name: "Game" }],
+      games: [{ durationMinutes: 60, name: "Game" }],
     });
   });
   it("validates creation and explicit partial edits, never deleting unloaded tables", () => {
@@ -364,7 +365,7 @@ describe("unified unsaved event drafts", () => {
       expect(edited.data).toMatchObject({
         version: 2,
         removedTableIds: [id],
-        tables: [{ id: tableId, games: [{ gameId: 1, manualDurationMinutes: 75 }] }],
+        tables: [{ id: tableId, games: [{ gameId: 1 }] }],
       });
     const created = eventDraftInput(
       {
@@ -570,19 +571,30 @@ describe("location-owned schedule and staged validation", () => {
     (startsWall) => {
       const draft = valid();
       draft.tables[0].startsWall = startsWall;
-      draft.tables[0].games[0] = { ...draft.tables[0].games[0], maxPlayMinutes: 60 };
+      draft.tables[0].games[0] = {
+        ...draft.tables[0].games[0],
+        durationMinutes: undefined,
+        maxPlayMinutes: 60,
+      };
       expect(eventDraftStepIssues(draft, true, 1)).toEqual([]);
       expect(eventDraftInput(draft, true).success).toBe(true);
     },
   );
   it.each([undefined, 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
-    "requires safe positive public duration: %s",
+    "uses automatic 120-minute fallback for invalid/missing catalog duration, preserving full-duration bounds: %s",
     (duration) => {
       const draft = valid();
-      draft.tables[0].games[0].manualDurationMinutes = duration;
-      expect(eventDraftStepIssues(draft, true, 1)).toContain(
-        "tables.0.games.0.manualDurationMinutes",
-      );
+      draft.tables[0].games[0] = {
+        ...draft.tables[0].games[0],
+        durationMinutes: undefined,
+        maxPlayMinutes: duration,
+      };
+      draft.tables[0].startsWall = "2030-06-03T21:00";
+      expect(eventDraftStepIssues(draft, true, 1)).toEqual([]);
+      expect(eventDraftInput(draft, true).success).toBe(true);
+      draft.tables[0].startsWall = "2030-06-03T21:01";
+      expect(eventDraftStepIssues(draft, true, 1)).toContain("tables.0.startsAt");
+      expect(eventDraftInput(draft, true).success).toBe(false);
     },
   );
   it("accepts BGG durations without manufacturing manual overrides, and reports each timing error once", () => {

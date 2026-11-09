@@ -200,7 +200,11 @@ function Editor({
       </div>
     );
   return (
-    <div className="mx-auto max-w-4xl space-y-5 pt-8 pb-28">
+    <div
+      data-form-scope
+      data-form-source={event?.version}
+      className="mx-auto max-w-4xl space-y-5 pt-8 pb-28"
+    >
       <div className="flex flex-wrap justify-center gap-2 py-2">
         {[t`Event`, t`Tables`, t`Review`].map((label, index) => (
           <Button
@@ -231,10 +235,18 @@ function Editor({
         />
       ) : step === 1 ? (
         <>
-          <Button variant="outline" isDisabled={submitting} onPress={form.addTable}>
-            <Plus className="size-4" aria-hidden />
-            {t`Add table`}
-          </Button>
+          <div
+            data-form-field
+            data-form-error={(form.fieldError("tables") && !draft.tables.length) || undefined}
+          >
+            <Button variant="outline" isDisabled={submitting} onPress={form.addTable}>
+              <Plus className="size-4" aria-hidden />
+              {t`Add table`}
+            </Button>
+            {form.fieldError("tables") && !draft.tables.length ? (
+              <p role="alert" className="text-danger">{t`Add at least one table.`}</p>
+            ) : null}
+          </div>
           {draft.tables.map((row, index) => (
             <EventDraftTableEditor
               key={row.key}
@@ -251,9 +263,6 @@ function Editor({
               onDemonstrator={() => setPick({ kind: "demonstrator", key: row.key })}
             />
           ))}
-          {form.fieldError("tables") && !draft.tables.length ? (
-            <p role="alert" className="text-danger">{t`Add at least one table.`}</p>
-          ) : null}
         </>
       ) : (
         <>
@@ -309,7 +318,8 @@ function Editor({
             isIconOnly
             variant="primary"
             aria-label={t`Next`}
-            isDisabled={submitting || form.closed || form.conflict || !form.canNext}
+            data-form-submit
+            isDisabled={submitting || form.closed || form.conflict}
             onPress={form.next}
           >
             <ArrowRight className="size-5" aria-hidden />
@@ -319,6 +329,7 @@ function Editor({
             isIconOnly
             variant="primary"
             aria-label={event ? t`Save event` : t`Create event`}
+            data-form-submit
             isDisabled={
               submitting ||
               Boolean(event && (a.busy || checking)) ||

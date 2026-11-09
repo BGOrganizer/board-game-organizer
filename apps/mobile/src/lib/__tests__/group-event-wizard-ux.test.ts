@@ -9,12 +9,9 @@ it("anchors the Group save FAB outside keyboard avoidance while keeping the form
   const wizard = source("groups", "GroupWizard");
   expect(wizard).toContain('placeholder={t("Group name")}');
   expect(wizard).toContain('accessibilityLabel={t("Group name")}');
-  expect(wizard).toMatch(
-    /<KeyboardAvoidingView[\s\S]*<FlatList[\s\S]*<\/KeyboardAvoidingView>\s*<FloatingActions/,
-  );
-  expect(wizard.indexOf("</KeyboardAvoidingView>")).toBeLessThan(
-    wizard.indexOf("<FloatingActions"),
-  );
+  expect(wizard).toMatch(/<InputFlatList[\s\S]*\/>\s*<FloatingActions/);
+  expect(wizard).toContain("<FormInteractionScope");
+  expect(wizard).not.toContain("<KeyboardAvoidingView");
   expect(wizard).toContain('keyboardShouldPersistTaps="handled"');
   expect(wizard).toContain("paddingBottom: layout.paddingBottom");
 });
@@ -67,12 +64,14 @@ it("keeps date/time proposals and verified location add slots available only for
   expect(card).toContain("<LinkedListCard");
   expect(card).toContain("onPress={() =>");
   expect(card).toContain("<AnimatedDicebearArtwork");
-  expect(source("events", "EventTableCardIndicators")).toContain('t("Rating enabled")');
-  const badge = source("events", "EventTableRatingBadge");
-  expect(badge).toContain('variant={enabled ? "primary" : "secondary"}');
-  expect(badge).toContain('color={enabled ? "accent" : "default"}');
-  expect(badge).toContain("color={enabled ? accentForeground : foreground}");
-  expect(badge).toContain('<Chip.Label>{t("Rating")}</Chip.Label>');
+  expect(source("events", "EventTableCardIndicators")).toContain("<EventTableRatingInfo");
+  expect(source("events", "EventTableRatingInfo")).toContain('t("Rating enabled")');
+  const rating = source("events", "EventTableRatingInfo");
+  expect(rating).toContain('label={enabled ? t("Rating enabled") : t("Rating disabled")}');
+  expect(rating).toContain('tone={enabled ? "accent" : "muted"}');
+  expect(rating).toContain("icon={enabled ? Trophy : CircleOff}");
+  expect(rating).toContain('title={t("Rating")}');
+  expect(rating).toContain('triggerClassName="bg-default"');
   const preview = source("events", "EventCard");
   expect(preview).toContain("titleAccessory=");
   expect(source("events", "EventCardIndicators")).toContain(
@@ -90,14 +89,16 @@ it("keeps date/time proposals and verified location add slots available only for
 });
 it("uses a centered spaced stage strip, arrow-only Next/Back, platform fields and virtualized table cards", () => {
   const text = source("events", "EventWizard");
-  expect(text).toContain("paddingTop: 32");
+  expect(text).toContain("paddingTop: 12");
   expect(text).toContain('justifyContent: "center"');
   expect(text).toContain("<ArrowLeft");
   expect(text).toContain("<ArrowRight");
-  expect(text).toContain("!form.canNext");
+  expect(text).not.toContain("!form.canNext");
+  expect(text).toContain("<FormSubmitButton");
+  expect(text).toContain("onPress={form.next}");
   expect(text).toContain("<EventScheduleFields");
   expect(text).toContain("<EventDraftTableCard");
-  expect(text).toContain("<FlatList");
+  expect(text).toContain("<InputFlatList");
   expect(source("events", "EventScheduleFields")).toContain("form.groupLocked");
   expect(source("events", "EventScheduleFields")).not.toContain("onChangeText={(timeZone)");
 });
@@ -112,10 +113,10 @@ it("owns removal actions inside grouped location/game rows and uses constrained 
     "max={Math.min(row.maxPlayers, playerBounds?.maxPlayers ?? row.maxPlayers)}",
   );
   expect(table).toContain("min={Math.max(row.minPlayers, playerBounds?.minPlayers ?? 2)}");
-  expect(source("events", "EventDraftTableCard")).toContain(
-    'seed={row.id ?? row.key} variant="planets"',
+  expect(source("events", "EventDraftTableCard")).toMatch(
+    /seed=\{row.id \?\? row.key\}\s+variant="planets"/,
   );
-  expect(source("events", "EventDraftTableCard")).toContain("<EventTableRatingBadge");
+  expect(source("events", "EventDraftTableCard")).toContain("<EventTableRatingInfo");
   expect(table).toContain("value <= min");
   expect(table).toContain("value >= max");
   expect(table).toContain('alignItems: "flex-end"');
@@ -123,14 +124,15 @@ it("owns removal actions inside grouped location/game rows and uses constrained 
   expect(table).toContain("color={dangerForeground}");
   expect(source("events", "EventWizardSummary")).not.toContain("onPress=");
 });
-it("keeps draft Table game previews compact and their extra-game count localized", () => {
+it("uses the same full-title identity and compact game metadata for local drafts without fabricated attendance/status", () => {
   const card = source("events", "EventDraftTableCard");
-  expect(card).toContain('row.games[0]?.name ?? t("Unknown")');
-  expect(card).toContain("Math.max(0, row.games.length - 1)");
-  expect(card).toContain("<Dices");
-  expect(card).toContain("remaining > 0");
-  expect(card).toContain("+{remaining}");
-  expect(card).toContain('id: "event.table.moreGames"');
+  expect(card).toMatch(/<RecordIdentityCard\s+title=\{row.name\}\s+icon=\{Dices\}/);
+  expect(card).toContain("<EventTableGamesPopover");
+  expect(card).toContain("durationMinutes: eventGameDuration(game)");
+  expect(card).toContain("<EventTableRatingInfo");
+  expect(card).not.toContain("acceptedCount");
+  expect(card).not.toContain("eventStatus");
+  expect(card).not.toContain("onPress=");
   expect(card).not.toContain('row.games.map((game) => game.name).join(", ")');
 });
 it("uses the same grouped datetime component for public Start, End and Cutoff in creation and editing", () => {

@@ -1,6 +1,7 @@
 "use client";
 import type { ProfileRatingGame } from "@board-game-organizer/schemas";
 import { Button, Label, ListBox, Select } from "@heroui/react";
+import { Collection, ListLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
 import { X } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, useRef, useState } from "react";
@@ -89,23 +90,32 @@ export function RatingGameSelect({
           </Button>
         ) : null}
       </div>
-      <Select.Popover className="w-(--trigger-width) max-w-[calc(100vw-2rem)]">
+      <Select.Popover
+        data-input-scope
+        data-input-overlay
+        className="w-(--trigger-width) max-w-[calc(100vw-2rem)] overflow-y-auto"
+      >
         <div onKeyDownCapture={handleEscape}>
           {children}
-          <ListBox
-            className="max-h-72 overflow-auto"
-            renderEmptyState={() => empty ?? t`No games found`}
-          >
-            {games.map((game) => (
-              <ListBox.Item key={game.id} id={String(game.id)} textValue={game.name}>
-                <span className="flex min-w-0 items-center gap-2">
-                  <LeaderboardGameCover imageUrl={game.imageUrl} />
-                  <span className="min-w-0 flex-1 truncate">{game.name}</span>
-                </span>
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            ))}
-          </ListBox>
+          <Virtualizer layout={ListLayout} shouldObserveItemSize>
+            <ListBox
+              data-input-results
+              className="h-[var(--input-results-height,18rem)] max-h-72 overflow-auto"
+              renderEmptyState={() => empty ?? t`No games found`}
+            >
+              <Collection items={games}>
+                {(game) => (
+                  <ListBox.Item key={game.id} id={String(game.id)} textValue={game.name}>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <LeaderboardGameCover imageUrl={game.imageUrl} />
+                      <span className="min-w-0 flex-1 truncate">{game.name}</span>
+                    </span>
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                )}
+              </Collection>
+            </ListBox>
+          </Virtualizer>
           {footer}
         </div>
       </Select.Popover>

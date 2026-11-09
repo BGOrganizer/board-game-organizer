@@ -42,7 +42,13 @@ export async function GET(request: Request) {
         notifications: result.notifications.map((row) => ({
           ...row,
           attention: attention.references.get(row.id) ?? null,
-          attentionItems: attention.references.has(row.id) ? row.attentionItems : undefined,
+          attentionItems: attention.references.has(row.id)
+            ? attention.personalNotificationIds.has(row.id)
+              ? row.attentionItems?.filter((item) =>
+                  attention.references.get(row.id)?.itemIds?.includes(item.id),
+                )
+              : row.attentionItems
+            : undefined,
         })),
       },
       { headers: { "Cache-Control": "private, no-store" } },

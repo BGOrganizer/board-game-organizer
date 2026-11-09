@@ -7,7 +7,6 @@ import {
   canManageEvent,
   eventRecordKeys,
   useClientMutationDraft,
-  useEventCutoff,
   useEventRecordActions,
 } from "@board-game-organizer/shared";
 import { useRouter } from "expo-router";
@@ -48,10 +47,6 @@ export function EventDeleteAction({
   const verifying = intent?.phase === "verifying";
   const [confirm, setConfirm] = useState<number | null>(null),
     submitted = useRef(false);
-  const closed = useEventCutoff(
-    event.bookingClosesAt,
-    event.groupType === "PUBLIC" && event.status === "PLANNING",
-  );
   const allowed =
     !event.readOnly &&
     !table?.readOnly &&
@@ -66,7 +61,6 @@ export function EventDeleteAction({
     actions.busy ||
     verifying ||
     !event.canEdit ||
-    closed ||
     Boolean(table && event.tableCount <= 1);
   useEffect(() => {
     if (confirm !== null && (!allowed || blocked || confirm !== event.version)) setConfirm(null);
@@ -90,60 +84,55 @@ export function EventDeleteAction({
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
       {verifying ? <ClientRecordBadge phase="verifying" iconSize={HEADER_ICON_SIZE} /> : null}
-      <HelpPopover label={t("Deletion availability")} title={t("Deletion availability")}>
-        <ScrollView
-          style={{ maxHeight: Math.min(320, height * 0.5) }}
-          contentContainerStyle={{ gap: 8 }}
+      {blocked ? (
+        <HelpPopover label={label} title={t("Deletion availability")} icon={Trash2}>
+          <ScrollView
+            style={{ maxHeight: Math.min(320, height * 0.5) }}
+            contentContainerStyle={{ gap: 8 }}
+          >
+            {table && event.tableCount <= 1 ? (
+              <Typography className="text-foreground">
+                {t("An event must keep at least one table. Delete the event instead.")}
+              </Typography>
+            ) : null}
+            {!event.canEdit ? (
+              <Typography className="text-foreground">
+                {t("This event can no longer be edited.")}
+              </Typography>
+            ) : null}
+            {disabled ? (
+              <Typography className="text-foreground">
+                {t("Wait until current event and table data are verified.")}
+              </Typography>
+            ) : null}
+            {actions.busy ? (
+              <Typography className="text-foreground">
+                {t("Another event action is in progress.")}
+              </Typography>
+            ) : null}
+            {verifying ? (
+              <Typography className="text-foreground">
+                {t("Checking whether the previous deletion was saved. Do not submit it again.")}
+              </Typography>
+            ) : null}
+          </ScrollView>
+        </HelpPopover>
+      ) : (
+        <Button
+          hitSlop={4}
+          {...headerButtonProps}
+          variant="danger-soft"
+          accessibilityLabel={label}
+          accessibilityHint={
+            table && event.tableCount <= 1
+              ? t("An event must keep at least one table. Delete the event instead.")
+              : undefined
+          }
+          onPress={() => setConfirm(event.version)}
         >
-          {table && event.tableCount <= 1 ? (
-            <Typography className="text-foreground">
-              {t("An event must keep at least one table. Delete the event instead.")}
-            </Typography>
-          ) : null}
-          {!event.canEdit || closed ? (
-            <Typography className="text-foreground">
-              {t("Deletion is unavailable after the registration deadline.")}
-            </Typography>
-          ) : null}
-          {disabled ? (
-            <Typography className="text-foreground">
-              {t("Wait until current event and table data are verified.")}
-            </Typography>
-          ) : null}
-          {actions.busy ? (
-            <Typography className="text-foreground">
-              {t("Another event action is in progress.")}
-            </Typography>
-          ) : null}
-          {verifying ? (
-            <Typography className="text-foreground">
-              {t("Checking whether the previous deletion was saved. Do not submit it again.")}
-            </Typography>
-          ) : null}
-          {!blocked ? (
-            <Typography className="text-foreground">
-              {table
-                ? t("Delete this table and cancel its active registrations?")
-                : t("Permanently delete this event, all its tables, registrations and votes?")}
-            </Typography>
-          ) : null}
-        </ScrollView>
-      </HelpPopover>
-      <Button
-        hitSlop={4}
-        {...headerButtonProps}
-        variant="danger-soft"
-        accessibilityLabel={label}
-        accessibilityHint={
-          table && event.tableCount <= 1
-            ? t("An event must keep at least one table. Delete the event instead.")
-            : undefined
-        }
-        isDisabled={blocked}
-        onPress={() => setConfirm(event.version)}
-      >
-        <Trash2 size={HEADER_ICON_SIZE} color={danger} accessible={false} />
-      </Button>
+          <Trash2 size={HEADER_ICON_SIZE} color={danger} accessible={false} />
+        </Button>
+      )}
       {confirm ? (
         <ConfirmDialog
           title={table ? t("Delete table?") : t("Delete event?")}

@@ -12,6 +12,7 @@ export function GameListRow({
   year,
   average,
   rank,
+  durationMinutes,
   titleAccessory,
   actions,
   metadata,
@@ -52,7 +53,12 @@ export function GameListRow({
           {titleAccessory}
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <GameCatalogMetadata year={year} average={average} rank={rank} />
+          <GameCatalogMetadata
+            year={year}
+            average={average}
+            rank={rank}
+            durationMinutes={durationMinutes}
+          />
           {metadata}
         </div>
         {children}
@@ -63,6 +69,7 @@ export function GameListRow({
     <GroupedRow className="flex-wrap">
       {onPress ? (
         <Button
+          data-form-control
           variant="ghost"
           aria-label={name}
           className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-2 px-0"

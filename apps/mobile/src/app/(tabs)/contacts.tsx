@@ -35,10 +35,11 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, FlatList, Linking, Pressable, Share, View } from "react-native";
+import { AppState, Linking, Pressable, Share, View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
@@ -684,7 +685,7 @@ export default function ContactsScreen() {
             value="search"
             style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 20 }}
           >
-            <FlatList
+            <InputFlatList
               style={{ flex: 1 }}
               contentContainerStyle={{ gap: 8, paddingTop: 8, paddingRight: 8, paddingBottom: 24 }}
               keyboardShouldPersistTaps="handled"

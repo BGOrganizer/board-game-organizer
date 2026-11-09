@@ -52,6 +52,7 @@ it.each([false, true])(
     expect(confirm.person).toEqual(person);
     evaluate(run, {
       confirm,
+      o: { userId: "owner" },
       closed: false,
       tableId: "table",
       setConfirm,
@@ -72,9 +73,13 @@ it.each([false, true])(
     expect(setConfirm).toHaveBeenLastCalledWith(null);
   },
 );
-it.each(["EventDetail", "EventTableOverview", "EventInvitationPicker"])(
-  "uses exact boundary timer in %s instead of waiting for a list refetch",
+it.each(["EventTableOverview", "EventTableSeats"])(
+  "keeps exact cutoff timers for SELF participation in %s",
   (name) => expect(source(name)).toContain("useEventCutoff"),
+);
+it.each(["EventDetail", "EventInvitationPicker"])(
+  "does not apply participation cutoff to Planning management in %s",
+  (name) => expect(source(name)).not.toContain("useEventCutoff"),
 );
 it.each([
   [{}, true],
@@ -162,7 +167,10 @@ it("preserves whole-event immutable result finalization with per-table draft sco
   expect(source("EventResults")).toContain("f.save(input");
   expect(source("TableScoreEditor")).toMatch(/onSubmit\(\{\s*lowerWins/);
   expect(source("TableScoreEditor")).toContain("previewTableResults");
-  expect(source("TableScoreEditor")).toContain("useBottomSheetAwareHandlers");
+  expect(source("TableScoreEditor")).toContain("@/components/common/ui/Input");
+  expect(readFileSync(new URL("../useInputFocus.ts", import.meta.url), "utf8")).toContain(
+    "useBottomSheetAwareHandlers",
+  );
 });
 it("renders each native voting tab only when the shared form classifies multiple options", () => {
   const text = source("EventJoinSheet");

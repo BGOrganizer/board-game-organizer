@@ -1,6 +1,7 @@
 import {
   type ContactUser,
   communityAccessDenied,
+  formatUsername,
   useListSearch,
   usePeoplePicker,
 } from "@board-game-organizer/shared";
@@ -92,6 +93,8 @@ export function PeoplePicker({
       emptyIcon={<UsersRound size={28} color={foreground} />}
       error={t("Could not load users")}
       renderRow={(person) => {
+        const handle = formatUsername(person.username, "");
+        const name = invitationTable ? handle || person.name : person.name;
         const unavailable = Boolean(
           invitationTable &&
             "invitationBlockReason" in person &&
@@ -102,12 +105,12 @@ export function PeoplePicker({
         };
         return (
           <UserListRow
-            name={person.name}
+            name={name}
             avatarUrl={person.avatarUrl}
-            secondary={person.username}
+            secondary={invitationTable ? undefined : handle || undefined}
             onPress={select}
             isDisabled={disabled || unavailable}
-            accessibilityLabel={`${t("Select user")}: ${person.name}`}
+            accessibilityLabel={`${t("Select user")}: ${name}`}
             actions={
               <>
                 <Button
@@ -115,14 +118,14 @@ export function PeoplePicker({
                   size="sm"
                   style={{ minWidth: 44, minHeight: 44 }}
                   isDisabled={disabled || unavailable}
-                  accessibilityLabel={`${t("Select user")}: ${person.name}`}
+                  accessibilityLabel={`${t("Select user")}: ${name}`}
                   onPress={select}
                 >
                   <UserRoundPlus size={18} color={accent} />
                 </Button>
                 {unavailable ? (
                   <HelpPopover
-                    label={`${t("Why invitation is unavailable")}: ${person.name}`}
+                    label={`${t("Why invitation is unavailable")}: ${name}`}
                     title={t("Invitation unavailable")}
                   >
                     <Typography className="text-foreground">

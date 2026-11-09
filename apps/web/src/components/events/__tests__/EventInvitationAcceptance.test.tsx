@@ -276,7 +276,13 @@ it("PUBLIC invitation shows only Games and cannot accept an all-NO ballot", asyn
   }) as HTMLButtonElement;
   fireEvent.click(await screen.findByRole("button", { name: "Chess: No" }));
   fireEvent.click(screen.getByRole("button", { name: "Alternative game: No" }));
-  expect(confirm.disabled).toBe(true);
+  expect(confirm.disabled).toBe(false);
+  fireEvent.click(confirm);
+  expect(
+    await screen.findByText(
+      "Answer every option and choose at least one Yes or If needed in each section.",
+    ),
+  ).toBeTruthy();
   expect(writes()).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", { name: "Chess: If needed" }));
   await waitFor(() => expect(confirm.disabled).toBe(false));

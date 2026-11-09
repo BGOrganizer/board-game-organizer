@@ -46,6 +46,7 @@ export function LocationListRow({
       {leading ?? <MapPin className="size-5 shrink-0 text-muted" aria-hidden />}
       {onPress ? (
         <Button
+          data-form-control
           variant="ghost"
           className="h-auto min-h-11 min-w-0 flex-1 justify-start px-0"
           aria-label={label ?? name}

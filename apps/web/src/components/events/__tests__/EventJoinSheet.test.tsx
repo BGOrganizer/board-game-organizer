@@ -337,15 +337,29 @@ it("requires three explicit dimensions and saves game votes and initial availabi
   );
   expect(screen.getAllByRole("tab")).toHaveLength(3);
   vote(await screen.findByRole("button", { name: "2030-06-03 20:00: No" }));
-  expect(confirm.disabled).toBe(true);
+  expect(confirm.disabled).toBe(false);
+  fireEvent.click(confirm);
+  expect(
+    await screen.findByText(
+      "Answer every option and choose at least one Yes or If needed in each section.",
+    ),
+  ).toBeTruthy();
+  expect(screen.getByRole("group", { name: "2030-06-03 20:00" }).getAttribute("aria-invalid")).toBe(
+    "true",
+  );
   expect(posts()).toHaveLength(0);
   vote(screen.getByRole("button", { name: "2030-06-03 20:00: If needed" }));
   fireEvent.click(screen.getByRole("tab", { name: "Locations" }));
   vote(await screen.findByRole("button", { name: "Club venue: Yes" }));
-  expect(confirm.disabled).toBe(true);
-  fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+  expect(confirm.disabled).toBe(false);
+  fireEvent.click(confirm);
+  await waitFor(() =>
+    expect(screen.getByRole("tab", { name: "Games" }).getAttribute("aria-selected")).toBe("true"),
+  );
+  expect(posts()).toHaveLength(0);
   vote(await screen.findByRole("button", { name: "Chess: No" }));
-  expect(confirm.disabled).toBe(true);
+  fireEvent.click(confirm);
+  expect(posts()).toHaveLength(0);
   vote(screen.getByRole("button", { name: "Chess: If needed" }));
   await waitFor(() => expect(confirm.disabled).toBe(false));
   expect(screen.queryByRole("button", { name: /Unknown/ })).toBeNull();
@@ -749,7 +763,16 @@ it.each(Array.from({ length: 8 }, (_, mask) => mask))(
     expect(screen.queryAllByRole("tab")).toHaveLength(tabs.length);
     expect(posts()).toHaveLength(0);
     const submit = screen.getByRole("button", { name: "Join table" }) as HTMLButtonElement;
-    if (tabs.length) expect(submit.disabled).toBe(true);
+    if (tabs.length) {
+      expect(submit.disabled).toBe(false);
+      fireEvent.click(submit);
+      expect(
+        await screen.findByText(
+          "Answer every option and choose at least one Yes or If needed in each section.",
+        ),
+      ).toBeTruthy();
+      expect(posts()).toHaveLength(0);
+    }
     for (const name of tabs) {
       fireEvent.click(screen.getByRole("tab", { name }));
       for (const button of screen.getAllByRole("button", { name: /: Yes$/ }))

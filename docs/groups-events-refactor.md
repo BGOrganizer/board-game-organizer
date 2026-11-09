@@ -102,9 +102,15 @@ exceptions supersede older membership-only activity/detail statements below.
   members leave through the danger header action with explicit confirmation, never above tabs.
 - Ban/exclusion may target a nonmember, permanently or until a server-validated future instant.
   Revocation/expiry never restores membership, invitations or bookings. It is not global blocking.
-- Exclusion cancels affected active registrations and reopens affected confirmed events. Refuse the
-  entire ban if the target has frozen participation/demonstrator duties in a CONFIRMED PUBLIC event
-  after its cutoff. TERMINATED history and results remain immutable under membership operations;
+- Exclusion cancels affected PLANNING registrations and duties, but never reopens or rewrites a
+  CONFIRMED Event. In both PRIVATE and PUBLIC Groups, previously authorized frozen players and
+  demonstrators retain narrow read-only access to their own confirmed/terminated Event/Table
+  snapshots. PRIVATE visibility requires the server-captured accepted-membership access checkpoint;
+  effective PUBLIC visibility requires confirmation no later than the ban checkpoint. A ban cannot
+  create access to a later or previously unauthorized snapshot. This exception grants no Group,
+  member-roster, Group-ranking or management access. Expiry/revocation alone restores none of those
+  capabilities. Reopening explicitly reapplies active bans, cancels affected registrations/queues
+  and duties, and recalculates agreement atomically. TERMINATED history/results remain immutable;
   explicit whole-Group deletion above is the only Group-level deletion exception.
 - Group game search and member rankings are paginated at source; the ranking selector and rows use
   the same horizontal page insets as other Group destinations on both clients. Only enabled physical tables with
@@ -162,16 +168,12 @@ exceptions supersede older membership-only activity/detail statements below.
   and Time and the combined Booking Cutoff field precede Location, which is last. Nothing is written
   before final review.
 - Native location picking preserves map → name → favorites → address-search order. Address focus
-  enters search-only mode: map/GPS, name, favorites and confirmation hide from view, touch and
-  accessibility; their state is retained. The same non-collapsable map container keeps its 240-point
-  height and full width: hidden mode changes opacity/flow placement, never map bounds, style, zoom
-  or component identity. Search moves to the top of the same virtualized header after controls leave
-  flow; post-layout scrolling uses no timer or guessed offset. One-tap result selection dismisses
-  the keyboard and restores the full picker. Blur alone does not move a row before its selection;
-  keyboard dismissal also leaves search-only mode. Licensed MapTiler/OSM credits remain visible
-  independently while the map is hidden. Existing camera/activity guards, iOS navigation-header
-  keyboard avoidance, Android resize behavior, four-character/300-ms search, verified addresses,
-  canonical favorites and native Back remain unchanged.
+  uses the local measured scroll owner and keyboard geometry; it never hides/removes the map/GPS,
+  name, favorites or confirmation from layout, touch or accessibility. Map identity, dimensions,
+  camera and entered values remain stable. One-tap result selection retains its keyboard/selection
+  behavior without a search-only layout mode. Licensed MapTiler/OSM credits remain visible. Existing
+  camera/activity guards, iOS navigation-header accommodation, Android resize behavior,
+  four-character/300-ms search, verified addresses, canonical favorites and native Back remain.
 - Date options may store their own `startTime`; historical options without it inherit the Event's
   common clock. Times are local to the venue selected by agreement. The API derives IANA zones from
   verified coordinates and rejects clocks invalid at any proposed venue, never guessing a zone from
@@ -191,14 +193,13 @@ exceptions supersede older membership-only activity/detail statements below.
   registrations, administration and demonstration alone never create a participant. A user with any
   seated/frozen Table is not labeled waiting solely because another Table queues them. Public read-only
   detail permission never grants this privileged Event roster endpoint. Rows disclose no email or ballots.
-- Current managers use the same platform member action sheet for Event participants. Remove from event
-  requires explicit, API/actor/Event-version-pinned confirmation while PLANNING and before any public
-  cutoff. One Group/Event-locked transaction cancels all target PENDING/ACCEPTED registrations in that
-  Event, advances its version once and recomputes agreement. It does not change Group membership, ban
-  the target, invent consent or prevent a later explicit join. Existing Event-seat management permits
-  removing a manager's registration; Group creator/peer protections apply separately to Group bans.
-  Ban from group uses the existing single Group exclusion transaction and frozen-public-duty guards,
-  never a second Event-removal request. TERMINATED history remains immutable. Menu/tab visibility never
+- Current managers use the same platform action sheet for Event participants, with removal only:
+  no Group-ban action or shortcut. Remove from event requires explicit API/actor/Event-version-pinned
+  confirmation while PLANNING, including after a PUBLIC Group participation cutoff. A manager's own
+  voluntary departure remains cutoff-restricted. One Group/Event-locked transaction cancels the
+  target's PENDING/ACCEPTED registrations, advances the Event version once and recomputes agreement.
+  It does not change Group membership, invent consent or promise a later join after cutoff. Group
+  exclusions remain exclusively in their authorized Group context, with creator/peer protections. TERMINATED history remains immutable. Menu/tab visibility never
   triggers Group-member dwell or notification acknowledgments. Negative optimistic intent uses owned
   caches only; later epochs/registrations survive, and uncertain outcomes require verification.
 - Web and native use HeroUI Card compositions for lists and parent links. Group, Event and Table
@@ -209,11 +210,11 @@ exceptions supersede older membership-only activity/detail statements below.
   Background/detail and small picker artwork remain separate presentations.
   Navigation and informational controls remain independent siblings.
   Details start with one HeroUI background-image Card followed immediately by existing top tabs.
-  Original background artwork remains fully opaque, without a whole-image dimming scrim. The
-  title/identity icon stays left and compact controls right in one nonwrapping bottom row; only
-  title uses a semantic text shadow for contrast, never an opaque caption stripe or extra panel.
-  Long titles retain their complete accessible name with a one-line visual ellipsis while the bounded
-  toolbar scrolls horizontally rather than moving below the title. Platform-owned `RecordIdentityCard` frames reuse the same
+  Original background artwork remains fully opaque, without a whole-image dimming scrim. Full
+  multiline titles and their identity icon sit at upper left, with localized stock HeroUI dark
+  gradient/light-foreground contrast. Compact controls occupy a separate full-width wrapping row
+  below, never a horizontally scrolling title toolbar. Actual artwork/bitmap corners are rounded;
+  uploaded logos retain their original proportions. Platform-owned `RecordIdentityCard` frames reuse the same
   role/state help as list cards. Table headers and lists expose the same participation, state, Rating,
   date/location and game controls; administration/moderation are Event/Group concepts, not Table badges. Event headers keep independent accepted,
   pending and authorized waiting-list facts; Group headers keep role, visibility and public review.
@@ -335,8 +336,10 @@ exceptions supersede older membership-only activity/detail statements below.
 - The creator/admin may delete a PLANNING Event or remove one of its Tables through the far-right
   app-header trash action on both clients, after explicit destructive confirmation. Both DELETE
   bodies contain the current **Event** version. The same Group/Event transaction locks, creator
-  authorization and public cutoff checks as planning edits apply; CONFIRMED/TERMINATED records
-  cannot be deleted directly. A Table removal retains at least one Table, marks the selected Table
+  authorization, state and version guards as planning edits apply; the participation cutoff does
+  not disable authorized Planning management. CONFIRMED/TERMINATED records cannot be deleted directly.
+  An unavailable delete/confirm action itself opens its localized reasons, without a separate `?`
+  control or mutation. An available action retains its normal version-pinned confirmation flow. A Table removal retains at least one Table, marks the selected Table
   removed, cancels its active registrations and advances the Event version atomically. Deleting
   the Event removes its Tables, registrations, votes and linked inbox history; unrelated records
   and the existing explicit whole-Group cascade remain unchanged. This is product-record deletion,
@@ -345,8 +348,9 @@ exceptions supersede older membership-only activity/detail statements below.
   selectively on definite failure. Unknown outcomes cannot be blindly reposted.
 - Game pickers exclude games already selected for the current Table. Source-paged picker rows already
   carry catalog metadata (including known durations for collection results), so selection updates
-  the local draft and returns immediately without a separate game-detail request. Missing duration
-  retains the existing explicit manual fallback; final server validation remains mandatory.
+  the local draft and returns immediately without a separate game-detail request. Missing/invalid
+  duration uses the automatic BGO 120-minute fallback, never a manual-duration input or invented BGG
+  provenance. Valid saved historical durations remain authoritative; final API validation is mandatory.
 - Accepting a Table invitation opens the existing availability sheet on both clients, without
   changing participation. Accepting explicitly accepts the current Event and Table configuration.
   Each category with one date, location or game is read-only, has no voting tab/buttons/totals and
@@ -425,7 +429,9 @@ exceptions supersede older membership-only activity/detail statements below.
   never contribute or imply consent; missing detail totals remain partial skeletons.
 - All PUBLIC Group Events, including PRIVATE-visibility Events, require an end and exact booking
   cutoff. Their tables have
-  fixed starts and BGG-derived duration; missing metadata requires explicit administrator duration.
+  fixed starts and catalog-derived duration, with an automatic 120-minute fallback when metadata
+  is missing/invalid. No new manual-duration control is exposed; valid historical saved durations
+  remain readable and are not recalculated.
   Table editors fix the date to the Event day and expose only a start-time field, including Event
   start and the latest start that fits the full duration by Event end. API rejects invalid intervals
   before writes. Native end/deadline/Table clocks use the installed system time picker; Android
@@ -448,8 +454,11 @@ exceptions supersede older membership-only activity/detail statements below.
   older clients remain readable inputs but normalize to empty maps; NO/UNKNOWN/foreign keys are
   rejected. Multiple-option ballots remain complete and explicit. No historical data is rewritten.
   Event/registration versions, authority, exact cutoffs and immutable frozen rosters remain unchanged.
-  After cutoff no user, including the administrator, may
-  invite, register, vote, respond or leave. Confirmation/reopening remain manual operations.
+  After a PUBLIC Group cutoff, SELF enrollment/queue entry and voluntary departure are closed for
+  everyone, including managers. Authorized PLANNING management, accepted-player votes and a
+  recipient's acceptance/decline of a PENDING invitation remain available. Declining an already
+  accepted invitation cannot bypass departure restrictions. Confirmation/reopening remain manual;
+  CONFIRMED must reopen before editing and TERMINATED remains immutable.
 - Confirmation freezes selected date/location/games and accepted eligible rosters. At least one
   table must agree; others remain present but excluded. Reopening preserves votes, invitations,
   priorities, participation and excluded tables except explicit removals/exclusions; it never
@@ -492,7 +501,10 @@ all ACCEPTED target-Table registrations, including queue; pending invitations do
 block/visibility guards still apply. Deduplication and exclusions precede source pagination. Opaque
 source epochs/cursors bind actor, current authority, roster and active publications; before/after
 checks reject mixed snapshots. Demotion clears only role-owned picker/review data and work. Native
-retains its 8/6/7 rendering budget and stable search input.
+retains its 8/6/7 rendering budget and stable search input. Both clients reveal bounded cached
+windows progressively and request further source pages on user scrolling, without a load-more
+button. Focus/keyboard/layout changes do not authorize bulk reveal/fetch; duplicate end events,
+stale source callbacks, retries and accessible scrolling retain their guards.
 
 Existing bounded BGG metadata hydration supplies verified complete min/max player pairs; no bulk
 provider synchronization. Selected games 2–4 and 3–6 permit a 2–6 editor envelope: minimum of known
@@ -508,8 +520,21 @@ to fit another game. Historical shapes stay readable.
 
 All top HeroUI tabs use relevant selected-accent Lucide icons; bottom navigation stays unchanged.
 Required-field stars follow actual conditional validation. Group name inputs have the localized
-Group name placeholder on both clients. Native Group form keyboard avoidance contains only its
-scrolling form, not the save FAB; its existing bottom/safe-area anchor stays outside that resizing layer.
+Group name placeholder on both clients. Group create/edit reuse the same type Cards; both remain
+visible but disabled in edit because type is immutable. Group/Event/Table name fields expose an
+explicit dice action using the single supplied EN/IT dictionary source and unique-names-generator;
+it changes only the unsaved name in the active locale, never autosaves or regenerates during render.
+Table invitations use a normalized handle as primary identity without a secondary line; Group
+invitations use real name plus an optional normalized handle, without inventing missing usernames.
+Native Group form keyboard avoidance contains only its scrolling form, not the save FAB; its
+existing bottom/safe-area anchor stays outside that resizing layer.
+
+Invalid submission validates before writing and reveals the first blocking field in visual order,
+including nontext selectors, previous wizard steps and unmounted virtualized rows. Invalidity alone
+must not make that submit control unpressable; busy/upload/permission/conflict guards remain.
+API/user/source changes and manual navigation cancel stale deferred focus. Local page/list/overlay
+owners accommodate the real keyboard/viewport without hiding components or duplicating avoidance.
+This does not replace Clerk AuthView or promise an internal-input callback its public SDK lacks.
 Native camera logo capture opens the
 existing square crop editor; cancellation retains current permission/upload/owner guards.
 
@@ -664,8 +689,8 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   Repeated existing follows emit no duplicate notice.
 - Counter batches contain at most 50 unique resource targets. Cache-only navigation observers reuse
   the bell watcher: no per-card notification polling or inbox scans. The bounded member dwell timer
-  is the sole automatic item-read exception; cutoff boundary timers only expire displayed invitation
-  affordances. Owned optimistic reads/deletions coordinate actual owner cards/tabs and bell,
+  is the sole automatic item-read exception; cutoff boundary timers expire only cutoff-bound
+  enrollment/departure affordances, never pending invitation responses or Planning management. Owned optimistic reads/deletions coordinate actual owner cards/tabs and bell,
   preserve disjoint writes and roll back selectively. Unknown write
   outcomes require source verification, never automatic write retries; session changes cancel old
   work. Read failures remain observable without user-action toasts.

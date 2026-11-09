@@ -1,6 +1,6 @@
 appId: com.bgo.mobile
 name: Owned Group creation draft visibility and logo controls
-# MANUAL owned Preview only. Stages a logo asset; never presses final submission.
+# MANUAL owned Preview only. Stages a logo asset; only invalid submissions are pressed.
 tags: [manual, groups, draft]
 ---
 - runScript: ../helpers/group-creation-inputs.js
@@ -23,7 +23,21 @@ tags: [manual, groups, draft]
 - assertVisible: ${output.groupCreate.legend}
 - back
 - tapOn:
+    id: save-group-fab
+- assertVisible:
     id: group-name-input
+    focused: true
+- inputText: abc
+- copyTextFrom:
+    id: group-name-input
+- evalScript: ${output.groupCreate.previousName = maestro.copiedText}
+- tapOn: ${output.groupCreate.generate}
+- copyTextFrom:
+    id: group-name-input
+- assertTrue: ${maestro.copiedText !== output.groupCreate.previousName && maestro.copiedText.trim().length >= 5 && maestro.copiedText.length <= 120}
+- tapOn:
+    id: group-name-input
+- eraseText: 120
 - inputText: Unsaved board club
 - hideKeyboard
 - scrollUntilVisible:
@@ -59,7 +73,10 @@ tags: [manual, groups, draft]
     id: group-public-radio
 - assertVisible:
     id: save-group-fab
-    enabled: false
+    enabled: true
+- tapOn:
+    id: save-group-fab
+- assertVisible: ${output.groupCreate.logoRequired}
 - scrollUntilVisible:
     element:
       text: ${output.groupCreate.add}
@@ -87,7 +104,10 @@ tags: [manual, groups, draft]
 - assertVisible: ${output.groupCreate.remove}
 - assertVisible:
     id: save-group-fab
-    enabled: false
+    enabled: true
+- tapOn:
+    id: save-group-fab
+- assertVisible: ${output.groupCreate.locationRequired}
 - takeScreenshot: group-creation-public-logo
 - tapOn: ${output.groupCreate.change}
 - tapOn: ${output.groupCreate.library}
@@ -103,7 +123,10 @@ tags: [manual, groups, draft]
 - assertVisible: ${output.groupCreate.upload}
 - assertVisible:
     id: save-group-fab
-    enabled: false
+    enabled: true
+- tapOn:
+    id: save-group-fab
+- assertVisible: ${output.groupCreate.logoRequired}
 - scrollUntilVisible:
     element:
       id: group-private-radio

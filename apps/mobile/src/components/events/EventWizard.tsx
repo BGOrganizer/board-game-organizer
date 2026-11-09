@@ -27,16 +27,21 @@ import {
   Trash2,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import { BackHandler, FlatList, View } from "react-native";
+import { BackHandler, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderBackButton, headerBackOptions } from "@/components/common/layout/HeaderBackButton";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
+import { FormInteractionScope } from "@/components/common/ui/FormInteractionScope";
+import { FormSubmitButton } from "@/components/common/ui/FormSubmitButton";
+import { InputField } from "@/components/common/ui/InputField";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import GamePicker from "@/components/games/GamePicker";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
 import LocationPicker from "@/components/locations/LocationPicker";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useValidationList } from "@/lib/useValidationList";
 import { EventDraftTableCard } from "./EventDraftTableCard";
 import { EventDraftTableEditor } from "./EventDraftTableEditor";
 import { EventScheduleFields } from "./EventScheduleFields";
@@ -78,12 +83,9 @@ export function EventWizard({
     );
   if (draftId) return <RecoveredEditor draftId={draftId} />;
   return (
-    <Editor
-      key={`${o.apiUrl}/${o.userId}/${eventId ?? groupId ?? "new"}`}
-      event={eventId ? q.data : undefined}
-      groupId={groupId}
-      fromGroup={fromGroup}
-    />
+    <FormInteractionScope key={`${o.apiUrl}/${o.userId}/${eventId ?? groupId ?? "new"}`}>
+      <Editor event={eventId ? q.data : undefined} groupId={groupId} fromGroup={fromGroup} />
+    </FormInteractionScope>
   );
 }
 function RecoveredEditor({ draftId }: { draftId: string }) {
@@ -97,11 +99,9 @@ function RecoveredEditor({ draftId }: { draftId: string }) {
       </Typography>
     );
   return (
-    <Editor
-      key={`${o.apiUrl}/${o.userId}/${draftId}`}
-      recovery={recovery.variables}
-      groupId={recovery.variables.clientInitialGroupId}
-    />
+    <FormInteractionScope key={`${o.apiUrl}/${o.userId}/${draftId}`}>
+      <Editor recovery={recovery.variables} groupId={recovery.variables.clientInitialGroupId} />
+    </FormInteractionScope>
   );
 }
 function Editor({
@@ -145,6 +145,20 @@ function Editor({
   const submitted = useRef(false);
   const { draft, step } = form,
     publicGroup = (form.group?.type ?? event?.groupType) === "PUBLIC";
+  const validationScope = JSON.stringify([
+    o.apiUrl,
+    o.userId,
+    event?.id ?? groupId ?? "new",
+    event?.version,
+    step,
+  ]);
+  const invalidTable = step === 1 ? /^tables\.(\d+)/.exec(form.firstErrorPath ?? "") : null;
+  const validation = useValidationList({
+    scope: validationScope,
+    attempt: form.validationAttempt,
+    index: invalidTable ? Number(invalidTable[1]) : undefined,
+    active: !pick,
+  });
   useEffect(() => {
     if (!pick) return;
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -258,7 +272,7 @@ function Editor({
       {step === 0 ? (
         <EventScheduleFields form={form} busy={submitting} onLocation={() => setPick("location")} />
       ) : step === 1 ? (
-        <>
+        <InputField invalid={form.fieldError("tables") && !draft.tables.length} style={{ gap: 8 }}>
           <Button variant="outline" isDisabled={submitting} onPress={form.addTable}>
             <Plus size={18} color={fg} />
             <Button.Label>{t("Add table")}</Button.Label>
@@ -268,7 +282,7 @@ function Editor({
               {t("Add at least one table.")}
             </Typography>
           ) : null}
-        </>
+        </InputField>
       ) : (
         <EventWizardSummary
           draft={draft}
@@ -288,38 +302,43 @@ function Editor({
           ...headerBackOptions(() => router.back()),
         }}
       />
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingTop: 32,
-          paddingBottom: 12,
-          flexDirection: "row",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
-        {[t("Event"), t("Tables"), t("Review")].map((label, index) => (
-          <Button
-            key={label}
-            size="sm"
-            variant={step === index ? "primary" : "ghost"}
-            accessibilityState={{ selected: step === index }}
-            isDisabled={submitting || index > step}
-            onPress={() => form.goToStep(index)}
-          >
-            <Button.Label>
-              {index + 1}. {label}
-            </Button.Label>
-          </Button>
-        ))}
-      </View>
-      <FlatList
+      <InputFlatList
+        key={validationScope}
+        {...validation}
         data={step === 0 ? [] : draft.tables}
         keyExtractor={(row) => row.key}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 24 }}
-        ListHeaderComponent={header}
+        ListHeaderComponent={
+          <>
+            <View
+              style={{
+                paddingTop: 12,
+                paddingBottom: 24,
+                flexDirection: "row",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              {[t("Event"), t("Tables"), t("Review")].map((label, index) => (
+                <Button
+                  key={label}
+                  size="sm"
+                  variant={step === index ? "primary" : "ghost"}
+                  accessibilityState={{ selected: step === index }}
+                  isDisabled={submitting || index > step}
+                  onPress={() => form.goToStep(index)}
+                >
+                  <Button.Label>
+                    {index + 1}. {label}
+                  </Button.Label>
+                </Button>
+              ))}
+            </View>
+            {header}
+          </>
+        }
         renderItem={({ item: row, index }) =>
           step === 1 ? (
             <EventDraftTableEditor
@@ -405,17 +424,17 @@ function Editor({
           </Button>
         ) : null}
         {step < 2 ? (
-          <Button
+          <FormSubmitButton
             isIconOnly
             variant="primary"
             accessibilityLabel={t("Next")}
-            isDisabled={submitting || form.closed || form.conflict || !form.canNext}
+            isDisabled={submitting || form.closed || form.conflict}
             onPress={form.next}
           >
             <ArrowRight size={20} color={accentForeground} />
-          </Button>
+          </FormSubmitButton>
         ) : (
-          <Button
+          <FormSubmitButton
             isIconOnly
             variant="primary"
             accessibilityLabel={event ? t("Save event") : t("Create event")}
@@ -433,7 +452,7 @@ function Editor({
             ) : (
               <CalendarPlus size={20} color={accentForeground} />
             )}
-          </Button>
+          </FormSubmitButton>
         )}
       </View>
       {remove ? (

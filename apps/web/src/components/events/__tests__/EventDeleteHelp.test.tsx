@@ -36,13 +36,12 @@ beforeEach(() => {
 });
 it.each([
   ["last", "An event must keep at least one table. Delete the event instead."],
-  ["deadline", "Deletion is unavailable after the registration deadline."],
+  ["uneditable", "This event can no longer be edited."],
   ["unverified", "Wait until current event and table data are verified."],
   ["busy", "Another event action is in progress."],
   ["verifying", "Checking whether the previous deletion was saved. Do not submit it again."],
-  ["cutoff", "Deletion is unavailable after the registration deadline."],
 ] as const)(
-  "explains %s immediately before disabled deletion without deciding anything",
+  "opens %s reasons from the Trash action itself without a destructive request",
   async (reason, message) => {
     m.busy = reason === "busy";
     m.verifying = reason === "verifying";
@@ -51,48 +50,53 @@ it.each([
         event={{
           ...event,
           tableCount: reason === "last" ? 1 : 2,
-          canEdit: reason !== "deadline",
-          ...(reason === "cutoff"
-            ? { groupType: "PUBLIC", bookingClosesAt: "2000-01-01T00:00:00Z" }
-            : {}),
+          canEdit: reason !== "uneditable",
         }}
         table={table}
         disabled={reason === "unverified"}
       />,
     );
-    const help = screen.getByRole("button", { name: "Deletion availability" }),
-      trash = screen.getByRole("button", { name: "Delete table" }) as HTMLButtonElement;
-    expect(trash.disabled).toBe(true);
-    expect(help.compareDocumentPosition(trash) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    fireEvent.click(help);
+    const trash = screen.getByRole("button", { name: "Delete table" }) as HTMLButtonElement;
+    expect(trash.getAttribute("aria-disabled")).not.toBe("true");
+    expect(trash.hasAttribute("disabled")).toBe(false);
+    expect(screen.queryByRole("button", { name: "Deletion availability" })).toBeNull();
+    fireEvent.click(trash);
     expect(within(await screen.findByRole("dialog")).getByText(message)).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Delete table?" })).toBeNull();
     expect(m.remove).not.toHaveBeenCalled();
     expect(m.removeTable).not.toHaveBeenCalled();
   },
 );
 it.each([true, false])(
-  "explains enabled deletion (Table=%s) without opening destructive confirmation",
+  "requires explicit destructive confirmation for an available action (Table=%s), including after cutoff",
   async (isTable) => {
-    renderWithI18n(<EventDeleteAction event={event} table={isTable ? table : undefined} />);
-    fireEvent.click(screen.getByRole("button", { name: "Deletion availability" }));
+    renderWithI18n(
+      <EventDeleteAction
+        event={{ ...event, groupType: "PUBLIC", bookingClosesAt: "2000-01-01T00:00:00Z" }}
+        table={isTable ? table : undefined}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Deletion availability" })).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: isTable ? "Delete table" : "Delete event" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: isTable ? "Delete table?" : "Delete event?",
+    });
     expect(
-      await screen.findByText(
+      within(dialog).getByText(
         isTable
           ? "Delete this table and cancel its active registrations?"
           : "Permanently delete this event, all its tables, registrations and votes?",
       ),
     ).toBeTruthy();
-    expect(screen.queryByRole("dialog", { name: /Delete (table|event)\?/ })).toBeNull();
     expect(m.remove).not.toHaveBeenCalled();
     expect(m.removeTable).not.toHaveBeenCalled();
   },
 );
-it.each(["CONFIRMED", "TERMINATED"] as const)(
-  "hides both help and trash outside planning (%s)",
-  (status) => {
-    renderWithI18n(
-      <EventDeleteAction event={{ ...event, status }} table={{ ...table, eventStatus: status }} />,
-    );
-    expect(screen.queryByRole("button")).toBeNull();
-  },
-);
+it.each(["CONFIRMED", "TERMINATED"] as const)("hides deletion outside Planning (%s)", (status) => {
+  renderWithI18n(
+    <EventDeleteAction event={{ ...event, status }} table={{ ...table, eventStatus: status }} />,
+  );
+  expect(screen.queryByRole("button")).toBeNull();
+});

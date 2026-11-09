@@ -25,7 +25,6 @@ import {
 } from "../eventRecordForm";
 import { eventDateWall } from "../eventRecordPolicy";
 import { nextEventDay, publicEventEndIsValid } from "../eventSchedule";
-import { useEventCutoff } from "./useEventCutoff";
 import { useRecordTables } from "./useEventRecords";
 export function useEventRecordForm(
   options: CommunityApiOptions,
@@ -37,6 +36,7 @@ export function useEventRecordForm(
     [error, setError] = useState(false),
     [step, setStep] = useState(0),
     [attempted, setAttempted] = useState([false, false]),
+    [validationAttempt, setValidationAttempt] = useState(0),
     serial = useRef(0);
   const groupQuery = useGroupRecord(
       { ...options, enabled: options.enabled !== false && Boolean(draft.groupId) },
@@ -199,7 +199,7 @@ export function useEventRecordForm(
           : row,
       ),
     }));
-  const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
+  const closed = Boolean(event && event.status !== "PLANNING");
   const issues = eventDraftStepIssues(draft, publicGroup, step);
   const retainedCount =
     (event?.tableCount ?? 0) -
@@ -215,6 +215,7 @@ export function useEventRecordForm(
   const next = () => {
     setAttempted((old) => old.map((value, index) => (index === step ? true : value)));
     if (!issues.length && step < 2) setStep(step + 1);
+    else if (issues.length) setValidationAttempt((old) => old + 1);
   };
   const goToStep = (value: number) => {
     if (value >= 0 && value <= step) setStep(value);
@@ -223,6 +224,10 @@ export function useEventRecordForm(
     setAttempted([true, true]);
     const value = closed ? { success: false as const } : eventDraftInput(draft, publicGroup);
     setError(!value.success);
+    if (!value.success) {
+      setStep(eventDraftStepIssues(draft, publicGroup, 0).length ? 0 : 1);
+      setValidationAttempt((old) => old + 1);
+    }
     return value;
   };
   return {
@@ -237,6 +242,8 @@ export function useEventRecordForm(
     next,
     canNext: !attempted[step] || !issues.length,
     fieldError,
+    validationAttempt,
+    firstErrorPath: issues[0],
     groupQuery,
     patch,
     patchTable,

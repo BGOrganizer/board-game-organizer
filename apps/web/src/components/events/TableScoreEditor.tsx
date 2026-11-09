@@ -56,7 +56,8 @@ export function TableScoreEditor({
   >(null);
   const [scoreEditor, setScoreEditor] = useState<string | null>(null);
   const [scoreDraft, setScoreDraft] = useState({ rawScore: "", notParticipated: false });
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState(false),
+    [attempted, setAttempted] = useState(false);
   const preview = useMemo(
     () =>
       previewMatchResults(
@@ -136,7 +137,7 @@ export function TableScoreEditor({
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <label className="block text-sm" htmlFor={`score-${player.id}`}>
+            <label data-form-field className="block text-sm" htmlFor={`score-${player.id}`}>
               <span className="mb-1 block">{t`Score`}</span>
               <Input
                 id={`score-${player.id}`}
@@ -145,6 +146,11 @@ export function TableScoreEditor({
                 aria-label={`${t`Score`}: ${player.name}`}
                 placeholder={t`Enter a score`}
                 value={scoreDraft.rawScore}
+                autoFocus={
+                  attempted &&
+                  !scoreDraft.notParticipated &&
+                  normalizeMatchScore(scoreDraft.rawScore) === null
+                }
                 disabled={scoreDraft.notParticipated || busy}
                 onChange={(event) =>
                   setScoreDraft((old) => ({ ...old, rawScore: event.target.value }))
@@ -152,7 +158,7 @@ export function TableScoreEditor({
                 aria-required={!scoreDraft.notParticipated}
                 aria-invalid={
                   !scoreDraft.notParticipated &&
-                  scoreDraft.rawScore !== "" &&
+                  (attempted || scoreDraft.rawScore !== "") &&
                   normalizeMatchScore(scoreDraft.rawScore) === null
                 }
                 className="w-full rounded-lg border border-border bg-background px-2 py-2 text-foreground"
@@ -172,7 +178,7 @@ export function TableScoreEditor({
               </Switch.Content>
             </Switch>
             {!scoreDraft.notParticipated &&
-              scoreDraft.rawScore !== "" &&
+              (attempted || scoreDraft.rawScore !== "") &&
               normalizeMatchScore(scoreDraft.rawScore) === null && (
                 <span role="alert" className="text-xs text-danger">{t`Enter a valid score`}</span>
               )}
@@ -362,8 +368,22 @@ export function TableScoreEditor({
       </Switch>
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background p-4 text-center">
         <Button
-          isDisabled={!preview.valid || busy || Boolean(editingTie) || Boolean(scoreEditor)}
-          onPress={() => setConfirm(true)}
+          isDisabled={busy || Boolean(editingTie) || Boolean(scoreEditor) || !players.length}
+          onPress={() => {
+            if (busy || editingTie || scoreEditor) return;
+            setAttempted(true);
+            if (!preview.valid) {
+              const first = rows.find(
+                (row) => !row.notParticipated && normalizeMatchScore(row.rawScore) === null,
+              );
+              if (first) {
+                setScoreDraft({ rawScore: first.rawScore, notParticipated: first.notParticipated });
+                setScoreEditor(first.userId);
+              }
+              return;
+            }
+            setConfirm(true);
+          }}
         >
           {t`Save result`}
         </Button>

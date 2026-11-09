@@ -5,8 +5,11 @@ import { Select } from "heroui-native/select";
 import { Typography } from "heroui-native/text";
 import { X } from "lucide-react-native";
 import type { ReactNode } from "react";
-import { FlatList, View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { useT } from "@/lib/i18n";
+import { useKeyboardHeight } from "@/lib/useKeyboardHeight";
 import { LeaderboardGameCover } from "./LeaderboardGameCover";
 
 export function RatingGameSelect({
@@ -32,6 +35,13 @@ export function RatingGameSelect({
 }) {
   const t = useT(),
     muted = useThemeColor("muted");
+  const keyboardHeight = useKeyboardHeight(),
+    insets = useSafeAreaInsets(),
+    { height } = useWindowDimensions();
+  const listHeight = Math.min(
+    320,
+    Math.max(80, height - keyboardHeight - insets.top - insets.bottom - 24),
+  );
   return (
     <View style={{ gap: 8 }}>
       <Typography className="font-medium text-foreground">{t("Board game")}</Typography>
@@ -64,10 +74,16 @@ export function RatingGameSelect({
           </Select.Trigger>
           <Select.Portal>
             <Select.Overlay />
-            <Select.Content presentation="popover" width="trigger">
-              {children}
-              <FlatList
-                style={{ width: "100%", maxHeight: 280 }}
+            <Select.Content
+              presentation="popover"
+              width="trigger"
+              insets={{ top: insets.top + 8, bottom: insets.bottom + keyboardHeight + 8 }}
+              style={{ maxHeight: listHeight }}
+            >
+              <InputFlatList
+                keyboardAvoidance="external"
+                style={{ width: "100%", height: listHeight }}
+                ListHeaderComponent={<>{children}</>}
                 data={games}
                 keyExtractor={(game) => String(game.id)}
                 keyboardShouldPersistTaps="handled"

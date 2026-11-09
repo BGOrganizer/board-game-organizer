@@ -45,10 +45,19 @@ export function SearchLocationPage({
   onClose: () => void;
 }) {
   const { t } = useLingui();
-  const [name, setName] = useState(initial?.name ?? "");
+  const [name, setName] = useState(initial?.name ?? ""),
+    [attempted, setAttempted] = useState(false);
+  const invalidName = name.trim().length < 4 || name.trim().length > 120;
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Result | null>(initial ? { ...initial } : null);
   const selectedRef = useRef<Result | null>(selected);
+  const validPoint = Boolean(
+    selected &&
+      Number.isFinite(selected.longitude) &&
+      Math.abs(selected.longitude) <= 180 &&
+      Number.isFinite(selected.latitude) &&
+      Math.abs(selected.latitude) <= 90,
+  );
   const [favoriteKey, setFavoriteKey] = useState<string | null>(null);
   const [results, setResults] = useState<Result[]>([]);
   const [searching, setSearching] = useState(false);
@@ -213,7 +222,7 @@ export function SearchLocationPage({
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 pb-24">
+    <div data-form-scope data-input-scope className="mx-auto max-w-3xl space-y-4 pb-24">
       <div className="flex items-center gap-3">
         <Button isIconOnly variant="secondary" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft />
@@ -230,12 +239,18 @@ export function SearchLocationPage({
         className="h-72 w-full rounded-lg bg-default"
       />
       {!process.env.NEXT_PUBLIC_MAPTILER_API_KEY && <p role="alert">{t`Map unavailable`}</p>}
-      <TextField fullWidth value={name} onChange={setName}>
+      <TextField fullWidth value={name} onChange={setName} isInvalid={attempted && invalidName}>
         <Label className="flex items-center gap-2">
           <MapPin aria-hidden="true" className="size-4" />
           {t`Location name`}
         </Label>
         <Input name="locationName" autoComplete="off" maxLength={120} />
+        {attempted && invalidName ? (
+          <p
+            role="alert"
+            className="text-danger"
+          >{t`Enter a location name between 4 and 120 characters.`}</p>
+        ) : null}
       </TextField>
       {favorites.list.isPending ? (
         <Skeleton className="h-12 w-full rounded-lg" />
@@ -325,35 +340,41 @@ export function SearchLocationPage({
       {favorites.list.isError && (
         <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
       )}
-      <SearchInput
-        value={query}
-        onChange={(value) => {
-          cancelLocate();
-          setQuery(value);
-          selectedRef.current = null;
-          marker.current?.remove();
-          marker.current = null;
-          setSelected(null);
-          setFavoriteKey(null);
-          setResults([]);
-        }}
-        label={<Label>{t`Search address/place`}</Label>}
-        placeholder={t`Search address/place`}
-        inputProps={{ className: "min-w-0", name: "address", autoComplete: "off" }}
-      >
-        <Button
-          slot={null}
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          aria-label={t`Center map on my location`}
-          className="mr-1 shrink-0"
-          isDisabled={locating}
-          onPress={locate}
+      <div data-form-field>
+        <SearchInput
+          isInvalid={attempted && !validPoint}
+          value={query}
+          onChange={(value) => {
+            cancelLocate();
+            setQuery(value);
+            selectedRef.current = null;
+            marker.current?.remove();
+            marker.current = null;
+            setSelected(null);
+            setFavoriteKey(null);
+            setResults([]);
+          }}
+          label={<Label>{t`Search address/place`}</Label>}
+          placeholder={t`Search address/place`}
+          inputProps={{ className: "min-w-0", name: "address", autoComplete: "off" }}
         >
-          <LocateFixed className="size-5" aria-hidden="true" />
-        </Button>
-      </SearchInput>
+          <Button
+            slot={null}
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label={t`Center map on my location`}
+            className="mr-1 shrink-0"
+            isDisabled={locating}
+            onPress={locate}
+          >
+            <LocateFixed className="size-5" aria-hidden="true" />
+          </Button>
+        </SearchInput>
+        {attempted && !validPoint ? (
+          <p role="alert" className="text-danger">{t`Choose a verified address.`}</p>
+        ) : null}
+      </div>
       {(searching || locating) && <Skeleton className="h-12 w-full rounded-lg" />}
       {!searching &&
       !locating &&
@@ -364,7 +385,11 @@ export function SearchLocationPage({
         <EmptyList icon={<MapPin className="size-7" />}>{t`No addresses found`}</EmptyList>
       ) : null}
       {results.length > 0 && (
-        <ul aria-label={t`Address results`} className="rounded-lg border">
+        <ul
+          data-input-results
+          aria-label={t`Address results`}
+          className="max-h-[var(--input-results-height,60dvh)] overflow-y-auto rounded-lg border border-border"
+        >
           {results.map((result) => (
             <li key={result.id}>
               <Button
@@ -386,14 +411,12 @@ export function SearchLocationPage({
       )}
       <Button
         variant="primary"
-        isDisabled={
-          locating ||
-          !process.env.NEXT_PUBLIC_MAPTILER_API_KEY ||
-          !selected ||
-          name.trim().length < 4
-        }
+        data-form-submit
+        isDisabled={locating || !process.env.NEXT_PUBLIC_MAPTILER_API_KEY}
         onPress={() => {
-          if (selected && name.trim().length >= 4)
+          if (locating || !process.env.NEXT_PUBLIC_MAPTILER_API_KEY) return;
+          setAttempted(true);
+          if (selected && validPoint && !invalidName)
             onSelect({
               id: initial?.id ?? crypto.randomUUID(),
               name: name.trim(),

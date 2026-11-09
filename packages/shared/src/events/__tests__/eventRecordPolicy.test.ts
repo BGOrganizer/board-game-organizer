@@ -1,7 +1,7 @@
 import type { EventRecord, TableRecord, TableRegistration } from "@board-game-organizer/schemas";
 import { describe, expect, it } from "vitest";
 import {
-  banHasProtectedParticipation,
+  banPreservesFrozenEvent,
   eventDateWall,
   eventRecordCapabilities,
   eventRecordDay,
@@ -11,6 +11,7 @@ import {
   eventRecordSchedulePreview,
   eventTableSchedule,
   hasPublicTableConflict,
+  isFrozenTableParticipant,
   plannedTableInterval,
   publicBookingIsClosed,
   recordIntervalsOverlap,
@@ -119,7 +120,7 @@ it("projects only included frozen schedules, selected-game duration and public d
 });
 
 describe("exact public cutoff and state rights", () => {
-  it("blocks user actions AND administrator invitations at the exact cutoff", () => {
+  it("blocks SELF enrollment at cutoff without freezing Planning management", () => {
     const cutoff = Date.parse(event.bookingClosesAt as string);
     expect(publicBookingIsClosed(event, "PUBLIC", cutoff - 1)).toBe(false);
     expect(publicBookingIsClosed(event, "PUBLIC", cutoff)).toBe(true);
@@ -134,8 +135,8 @@ describe("exact public cutoff and state rights", () => {
     expect(publicBookingIsClosed(event, null, cutoff)).toBe(false);
     const rights = eventRecordCapabilities(event, "PUBLIC", event.adminUserId, true, [], cutoff);
     expect(rights).toEqual({
-      canEdit: false,
-      canInvite: false,
+      canEdit: true,
+      canInvite: true,
       canRegister: false,
       canVote: false,
       canConfirm: true,
@@ -456,7 +457,7 @@ describe("duration snapshots and public overlaps", () => {
     ).toBe(false);
   });
 });
-it("refuses a ban ONLY for that target's protected CONFIRMED public participation", () => {
+it("recognizes only actual frozen players or duties, never an unconfirmed assignment or outsider", () => {
   const roster = {
     ...table,
     confirmed: {
@@ -465,50 +466,69 @@ it("refuses a ban ONLY for that target's protected CONFIRMED public participatio
       startsAt: "2027-01-02T10:00:00Z",
     },
   };
-  const cutoff = Date.parse(event.bookingClosesAt as string);
-  expect(banHasProtectedParticipation("PUBLIC", [frozen], [roster], "user_target", cutoff)).toBe(
-    true,
-  );
-  expect(
-    banHasProtectedParticipation("PUBLIC", [frozen], [roster], "user_target", cutoff - 1),
-  ).toBe(false);
-  expect(banHasProtectedParticipation("PUBLIC", [frozen], [roster], "user_outsider", cutoff)).toBe(
-    false,
-  );
-  expect(banHasProtectedParticipation("PRIVATE", [frozen], [roster], "user_target", cutoff)).toBe(
-    false,
-  );
-  expect(banHasProtectedParticipation("PUBLIC", [event], [roster], "user_target", cutoff)).toBe(
+  expect(isFrozenTableParticipant(roster, "user_target")).toBe(true);
+  expect(isFrozenTableParticipant(roster, "user_outsider")).toBe(false);
+  expect(isFrozenTableParticipant(table, "user_target")).toBe(false);
+  expect(isFrozenTableParticipant({ ...table, demonstratorUserId: "user_demo" }, "user_demo")).toBe(
     false,
   );
   expect(
-    banHasProtectedParticipation(
-      "PUBLIC",
-      [{ ...frozen, status: "TERMINATED" }],
-      [roster],
-      "user_target",
-      cutoff,
-    ),
-  ).toBe(false);
-  expect(banHasProtectedParticipation("PUBLIC", [frozen], [table], "user_target", cutoff)).toBe(
-    false,
-  );
-  expect(
-    banHasProtectedParticipation(
-      "PUBLIC",
-      [frozen],
-      [{ ...roster, demonstratorUserId: "user_demo" }],
-      "user_demo",
-      cutoff,
-    ),
+    isFrozenTableParticipant({ ...roster, demonstratorUserId: "user_demo" }, "user_demo"),
   ).toBe(true);
-  expect(
-    banHasProtectedParticipation(
-      "PUBLIC",
-      [frozen],
-      [{ ...roster, eventId: other }],
-      "user_target",
-      cutoff,
-    ),
-  ).toBe(false);
 });
+it.each(["PRIVATE", "PUBLIC"] as const)(
+  "bounds retained %s access to previously readable confirmed snapshots",
+  (type) => {
+    const frozen: EventRecord = {
+      ...event,
+      status: "CONFIRMED",
+      confirmed: { dateId: id, locationId: id, at },
+    };
+    const ban = { createdAt: at, memberAccessThrough: at };
+    expect(banPreservesFrozenEvent(frozen, type, ban)).toBe(true);
+    expect(banPreservesFrozenEvent({ ...frozen, status: "TERMINATED" }, type, ban)).toBe(true);
+    expect(banPreservesFrozenEvent({ ...frozen, status: "PLANNING" }, type, ban)).toBe(false);
+    expect(banPreservesFrozenEvent({ ...frozen, confirmed: undefined }, type, ban)).toBe(false);
+    expect(banPreservesFrozenEvent(frozen, type, null)).toBe(false);
+    expect(banPreservesFrozenEvent(frozen, type, { createdAt: at })).toBe(type === "PUBLIC");
+    const reban = { createdAt: "2027-01-02T00:00:00Z", memberAccessThrough: at };
+    const reconfirmed = {
+      ...frozen,
+      confirmed: { ...frozen.confirmed!, at: "2027-01-01T12:00:00Z" },
+    };
+    expect(banPreservesFrozenEvent(reconfirmed, type, reban)).toBe(type === "PUBLIC");
+    expect(banPreservesFrozenEvent({ ...reconfirmed, visibility: "PRIVATE" }, type, reban)).toBe(
+      false,
+    );
+    expect(
+      banPreservesFrozenEvent({ ...frozen, visibility: "PRIVATE" }, type, { createdAt: at }),
+    ).toBe(false);
+    expect(
+      banPreservesFrozenEvent(
+        { ...frozen, confirmed: { ...frozen.confirmed!, at: "2027-01-02T00:00:00Z" } },
+        type,
+        ban,
+      ),
+    ).toBe(false);
+    expect(
+      banPreservesFrozenEvent(
+        { ...frozen, confirmed: { ...frozen.confirmed!, at: "invalid" } },
+        type,
+        ban,
+      ),
+    ).toBe(false);
+    expect(
+      banPreservesFrozenEvent(frozen, type, {
+        createdAt: "invalid",
+        memberAccessThrough: "invalid",
+      }),
+    ).toBe(false);
+    expect(
+      banPreservesFrozenEvent(
+        { ...frozen, confirmed: { ...frozen.confirmed!, at: "2027-01-01T01:00:00+01:00" } },
+        type,
+        ban,
+      ),
+    ).toBe(true);
+  },
+);

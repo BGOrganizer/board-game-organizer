@@ -8,6 +8,9 @@ import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { headerBackOptions } from "@/components/common/layout/HeaderBackButton";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { FormInteractionScope } from "@/components/common/ui/FormInteractionScope";
+import { FormSubmitButton } from "@/components/common/ui/FormSubmitButton";
+import { InputScrollView } from "@/components/common/ui/InputScrollView";
 import GamePicker from "@/components/games/GamePicker";
 import LocationPicker from "@/components/locations/LocationPicker";
 import { useT } from "@/lib/i18n";
@@ -31,6 +34,8 @@ export function EventProposalEditor({
   const form = useEventProposalEditor(o, eventId, kind, tableId, draftId);
   const identity = JSON.stringify([o.apiUrl, o.userId, eventId, kind, tableId, draftId]);
   const [closing, setClosing] = useState<string | null>(null);
+  const [attemptedOwner, setAttemptedOwner] = useState<string | null>(null);
+  const invalid = attemptedOwner === identity && !form.canSubmit;
   const closed = useRef(false);
   const close = () => setClosing(identity);
   // Unmount picker/removal guards before dispatching native Back, never recursively pop a guarded picker.
@@ -49,80 +54,90 @@ export function EventProposalEditor({
         ? t("Choose a location")
         : t("Choose date and time");
   return (
-    <View style={{ flex: 1 }}>
-      <Stack.Screen
-        options={{
-          title,
-          gestureEnabled: true,
-          headerTitle: ({ children }) => <HeaderTitle title={children} icon={MessageSquarePlus} />,
-          headerRight: () => null,
-          ...headerBackOptions(close),
-        }}
-      />
-      {closing === identity ? null : form.allowed && kind === "game" ? (
-        <GamePicker
-          onClose={close}
-          proposalScope={{ eventId, tableId: tableId ?? "" }}
-          excludeIds={form.table.data?.games.map((game) => game.gameId)}
-          onSelect={(game) => {
-            if (form.submit({ kind: "game", tableId: tableId ?? "", gameId: game.id }, game.name))
-              close();
+    <FormInteractionScope key={identity} sourceRevision={form.event?.version}>
+      <View style={{ flex: 1 }}>
+        <Stack.Screen
+          options={{
+            title,
+            gestureEnabled: true,
+            headerTitle: ({ children }) => (
+              <HeaderTitle title={children} icon={MessageSquarePlus} />
+            ),
+            headerRight: () => null,
+            ...headerBackOptions(close),
           }}
         />
-      ) : form.allowed && kind === "location" ? (
-        <LocationPicker
-          onClose={close}
-          initial={form.payload?.kind === "location" ? form.payload.location : undefined}
-          onSelect={(location) => {
-            if (form.submit({ kind: "location", location }, location.name)) close();
-          }}
-        />
-      ) : (
-        <View style={{ padding: 20, gap: 16 }}>
-          {form.validInput && (form.q.isPending || (kind === "game" && form.table.isPending)) ? (
-            <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
-          ) : !form.allowed ? (
-            <>
-              <Typography accessibilityRole="alert" className="text-danger">
-                {t(
-                  "Proposals require an enabled category and your own seated participation in a private planning event.",
-                )}
-              </Typography>
-              {form.q.isError || form.table.isError ? (
-                <Button
+        {closing === identity ? null : form.allowed && kind === "game" ? (
+          <GamePicker
+            onClose={close}
+            proposalScope={{ eventId, tableId: tableId ?? "" }}
+            excludeIds={form.table.data?.games.map((game) => game.gameId)}
+            onSelect={(game) => {
+              if (form.submit({ kind: "game", tableId: tableId ?? "", gameId: game.id }, game.name))
+                close();
+            }}
+          />
+        ) : form.allowed && kind === "location" ? (
+          <LocationPicker
+            onClose={close}
+            initial={form.payload?.kind === "location" ? form.payload.location : undefined}
+            onSelect={(location) => {
+              if (form.submit({ kind: "location", location }, location.name)) close();
+            }}
+          />
+        ) : (
+          <InputScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+            {form.validInput && (form.q.isPending || (kind === "game" && form.table.isPending)) ? (
+              <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
+            ) : !form.allowed ? (
+              <>
+                <Typography accessibilityRole="alert" className="text-danger">
+                  {t(
+                    "Proposals require an enabled category and your own seated participation in a private planning event.",
+                  )}
+                </Typography>
+                {form.q.isError || form.table.isError ? (
+                  <Button
+                    onPress={() => {
+                      void form.q.refetch();
+                      if (kind === "game") void form.table.refetch();
+                    }}
+                  >
+                    <Button.Label>{t("Try again")}</Button.Label>
+                  </Button>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <EventDateTimeField
+                  label={t("Choose date and time")}
+                  error={invalid ? t("Choose a valid date and time.") : undefined}
+                  mode="datetime"
+                  timeZone={form.event?.timeZone ?? "UTC"}
+                  value={
+                    form.payload?.kind === "date"
+                      ? `${form.payload.day}T${form.payload.startTime}`
+                      : ""
+                  }
+                  onChange={form.chooseDate}
+                />
+                <FormSubmitButton
+                  isDisabled={!form.canAttempt}
                   onPress={() => {
-                    void form.q.refetch();
-                    if (kind === "game") void form.table.refetch();
+                    setAttemptedOwner(identity);
+                    if (form.submit()) close();
                   }}
                 >
-                  <Button.Label>{t("Try again")}</Button.Label>
-                </Button>
-              ) : null}
-            </>
-          ) : (
-            <EventDateTimeField
-              label={t("Choose date and time")}
-              mode="datetime"
-              timeZone={form.event?.timeZone ?? "UTC"}
-              value={
-                form.payload?.kind === "date" ? `${form.payload.day}T${form.payload.startTime}` : ""
-              }
-              onChange={(wall) => {
-                if (
-                  form.submit(
-                    { kind: "date", day: wall.slice(0, 10), startTime: wall.slice(11, 16) },
-                    wall.replace("T", " "),
-                  )
-                )
-                  close();
-              }}
-            />
-          )}
-          <Button variant="ghost" onPress={close}>
-            <Button.Label>{t("Cancel")}</Button.Label>
-          </Button>
-        </View>
-      )}
-    </View>
+                  <Button.Label>{t("Send proposal")}</Button.Label>
+                </FormSubmitButton>
+              </>
+            )}
+            <Button variant="ghost" onPress={close}>
+              <Button.Label>{t("Cancel")}</Button.Label>
+            </Button>
+          </InputScrollView>
+        )}
+      </View>
+    </FormInteractionScope>
   );
 }

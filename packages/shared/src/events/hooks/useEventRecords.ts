@@ -34,6 +34,7 @@ import {
   eventCreationMatches,
   eventCreationRecord,
 } from "../eventOptimisticCreation";
+import { reconcilePersonalEventAccess } from "../eventPersonalAccessCache";
 import { revokeProposalReview } from "../eventProposalCache";
 
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
@@ -101,7 +102,7 @@ function enabled(o: CommunityApiOptions) {
 export function eventRecordsQuery(o: CommunityApiOptions, filters: ListFilters = {}) {
   return infiniteQueryOptions({
     queryKey: eventRecordKeys.list(o, filters),
-    queryFn: async ({ pageParam, signal, client }) => {
+    queryFn: async ({ pageParam, signal, client, queryKey }) => {
       const result = await communityRequest<CommunityPageResponse<PlannedEventResponse>>(
         o,
         path(
@@ -121,6 +122,7 @@ export function eventRecordsQuery(o: CommunityApiOptions, filters: ListFilters =
       );
       for (const row of result.items)
         if (row.canManage === false) revokeProposalReview(client, o, { eventId: row.id });
+      reconcilePersonalEventAccess(client, o, result, queryKey, pageParam);
       return result;
     },
     enabled: enabled(o),
@@ -169,7 +171,7 @@ export function useEventCreationDraft(o: CommunityApiOptions, draftId?: string) 
 export function eventRecordQuery(o: CommunityApiOptions, id: string) {
   return queryOptions({
     queryKey: eventRecordKeys.detail(o, id),
-    queryFn: async ({ signal, client }) => {
+    queryFn: async ({ signal, client, queryKey }) => {
       const result = await communityRequest<PlannedEventResponse>(
         o,
         `events/${encodeURIComponent(id)}`,
@@ -178,6 +180,7 @@ export function eventRecordQuery(o: CommunityApiOptions, id: string) {
         signal,
       );
       if (result.canManage === false) revokeProposalReview(client, o, { eventId: id });
+      reconcilePersonalEventAccess(client, o, result, queryKey);
       return result;
     },
     enabled: enabled(o) && Boolean(id),
@@ -206,7 +209,7 @@ export function recordTablesQuery(
 ) {
   return infiniteQueryOptions({
     queryKey: eventRecordKeys.tables(o, id, filters),
-    queryFn: async ({ pageParam, signal, client }) => {
+    queryFn: async ({ pageParam, signal, client, queryKey }) => {
       const result = await communityRequest<CommunityPageResponse<PlannedTableResponse>>(
         o,
         path(
@@ -229,6 +232,7 @@ export function recordTablesQuery(
       );
       for (const row of result.items)
         if (row.canManage === false) revokeProposalReview(client, o, { eventId: row.eventId });
+      reconcilePersonalEventAccess(client, o, result, queryKey, pageParam);
       return result;
     },
     enabled: enabled(o) && id !== "",
@@ -261,7 +265,7 @@ export function useRecordTables(
 export function recordTableQuery(o: CommunityApiOptions, id: string, table: string) {
   return queryOptions({
     queryKey: eventRecordKeys.table(o, id, table),
-    queryFn: async ({ signal, client }) => {
+    queryFn: async ({ signal, client, queryKey }) => {
       const result = await communityRequest<PlannedTableResponse>(
         o,
         `events/${encodeURIComponent(id)}/tables/${encodeURIComponent(table)}`,
@@ -270,6 +274,7 @@ export function recordTableQuery(o: CommunityApiOptions, id: string, table: stri
         signal,
       );
       if (result.canManage === false) revokeProposalReview(client, o, { eventId: id });
+      reconcilePersonalEventAccess(client, o, result, queryKey);
       return result;
     },
     enabled: enabled(o) && Boolean(id && table),

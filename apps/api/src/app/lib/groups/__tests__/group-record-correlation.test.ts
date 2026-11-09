@@ -54,7 +54,6 @@ function setup() {
     relationships as never,
     notifications as never,
     vi.fn(async () => undefined),
-    vi.fn(async () => undefined),
     {} as never,
   );
   return { service, repo, records };

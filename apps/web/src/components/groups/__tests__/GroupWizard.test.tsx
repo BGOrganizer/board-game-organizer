@@ -96,10 +96,10 @@ it("retains the selected friend's username from picker to unsaved Group draft wi
   );
   renderWithI18n(<GroupWizard />);
   fireEvent.click(screen.getByRole("button", { name: "Add friend" }));
-  expect(await screen.findByText("friend-handle")).toBeTruthy();
+  expect(await screen.findByText("@friend-handle")).toBeTruthy();
   expect(screen.queryByText("hidden@example.test")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Select user: Known Friend" }));
-  expect(screen.getByText("friend-handle")).toBeTruthy();
+  expect(screen.getByText("@friend-handle")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Remove invite: Known Friend" })).toBeTruthy();
   expect(screen.queryByText("hidden@example.test")).toBeNull();
 });

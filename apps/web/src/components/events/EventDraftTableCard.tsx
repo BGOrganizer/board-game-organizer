@@ -1,12 +1,14 @@
 "use client";
-import type { EventTableDraft } from "@board-game-organizer/shared";
-import { Plural, useLingui } from "@lingui/react/macro";
+import { type EventTableDraft, eventGameDuration } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react/macro";
 import { Dices, Presentation, UsersRound } from "lucide-react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
-import { ListCard } from "@/components/common/ui/ListCard";
-import { ListCardBody } from "@/components/common/ui/ListCardBody";
-import { EventTableRatingBadge } from "./EventTableRatingBadge";
+import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { RecordIdentityCard } from "@/components/common/ui/RecordIdentityCard";
+import { EventTableGamesPopover } from "./EventTableGamesPopover";
+import { EventTableRatingInfo } from "./EventTableRatingInfo";
 
+/** Unsaved local facts only: no persisted status, attendance, navigation or fake IDs. */
 export function EventDraftTableCard({
   row,
   publicGroup = false,
@@ -14,52 +16,53 @@ export function EventDraftTableCard({
   row: EventTableDraft;
   publicGroup?: boolean;
 }) {
-  const { t } = useLingui();
-  const firstGame = row.games[0]?.name ?? t`Unknown`;
-  const remaining = Math.max(0, row.games.length - 1);
+  const { t, i18n } = useLingui();
   return (
-    <ListCard>
-      <div className="flex min-w-0 items-start gap-4 p-4">
-        <AnimatedDicebearArtwork seed={row.id ?? row.key} variant="planets" />
-        <ListCardBody
-          title={row.name}
-          titleAccessory={<EventTableRatingBadge enabled={row.rankingEnabled} />}
+    <RecordIdentityCard
+      title={row.name}
+      heading="h2"
+      icon={Dices}
+      background={
+        <AnimatedDicebearArtwork
+          seed={row.id ?? row.key}
+          variant="planets"
+          presentation="background"
+        />
+      }
+    >
+      <HelpPopover
+        size="compact"
+        label={`${t`Players`}: ${row.name}`}
+        title={t`Players`}
+        icon={UsersRound}
+        triggerClassName="bg-default"
+      >
+        <p>
+          {t`Minimum players`}: {i18n.number(row.minPlayers)}
+        </p>
+        <p>
+          {t`Maximum players`}: {i18n.number(row.maxPlayers)}
+        </p>
+      </HelpPopover>
+      <EventTableRatingInfo enabled={row.rankingEnabled} />
+      {publicGroup || row.demonstratorUserId ? (
+        <HelpPopover
+          size="compact"
+          label={`${t`Demonstrator`}: ${row.name}`}
+          title={t`Demonstrator`}
+          icon={Presentation}
+          tone={row.demonstratorUserId ? "accent" : "muted"}
+          triggerClassName="bg-default"
         >
-          <p className="flex items-center gap-2 text-sm">
-            <Dices className="size-4 shrink-0 text-muted" aria-hidden />
-            <span className="min-w-0 truncate" title={firstGame}>
-              {firstGame}
-            </span>
-            {remaining > 0 ? (
-              <span className="shrink-0">
-                <span aria-hidden>+{remaining}</span>
-                <span className="sr-only">
-                  <Plural
-                    id="event.table.moreGames"
-                    value={remaining}
-                    one="+# game"
-                    other="+# games"
-                  />
-                </span>
-              </span>
-            ) : null}
+          <p>
+            {row.demonstratorUserId ? (row.demonstratorName ?? t`Unknown`) : t`No demonstrator`}
           </p>
-          <p className="flex items-center gap-2 text-sm text-muted">
-            <UsersRound className="size-4 shrink-0" aria-hidden />
-            <span>
-              {t`Minimum players`}: {row.minPlayers} · {t`Maximum players`}: {row.maxPlayers}
-            </span>
-          </p>
-          {publicGroup || row.demonstratorUserId ? (
-            <p className="flex items-center gap-2 text-sm text-muted">
-              <Presentation className="size-4 shrink-0" aria-hidden />
-              <span>
-                {row.demonstratorUserId ? (row.demonstratorName ?? t`Unknown`) : t`No demonstrator`}
-              </span>
-            </p>
-          ) : null}
-        </ListCardBody>
-      </div>
-    </ListCard>
+        </HelpPopover>
+      ) : null}
+      <EventTableGamesPopover
+        name={row.name}
+        games={row.games.map((game) => ({ ...game, durationMinutes: eventGameDuration(game) }))}
+      />
+    </RecordIdentityCard>
   );
 }

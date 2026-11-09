@@ -2,11 +2,12 @@ import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import type { ReactNode } from "react";
-import { FlatList, type FlatListProps, type StyleProp, View, type ViewStyle } from "react-native";
+import { type FlatListProps, type StyleProp, View, type ViewStyle } from "react-native";
 import { useT } from "@/lib/i18n";
 import { nextUserPage, type UserPage } from "@/lib/user-list";
 import { EmptyList } from "./EmptyList";
 import { GroupedList } from "./GroupedList";
+import { InputFlatList } from "./InputFlatList";
 
 export function UserList<T>({
   data,
@@ -44,7 +45,7 @@ export function UserList<T>({
   const t = useT();
   const next = nextUserPage(pages);
   return (
-    <FlatList
+    <InputFlatList
       testID={testID}
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={viewabilityConfig}

@@ -7,6 +7,7 @@ import {
   useListSearch,
 } from "@board-game-organizer/shared";
 import { Button, ListBox, Select, Skeleton } from "@heroui/react";
+import { Collection, ListLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
 import { CircleOff } from "lucide-react";
 import { useState } from "react";
@@ -58,13 +59,13 @@ export function EventGroupSelect({
         if (!locked && !busy && value !== null) onChange(value === "none" ? null : String(value));
       }}
     >
-      <Select.Trigger className="w-full">
+      <Select.Trigger data-form-control className="w-full">
         <Select.Value className="min-w-0 flex-1 truncate text-left">
           {() => (group && !denied ? group.name : groupId ? t`Group` : t`No group`)}
         </Select.Value>
         <Select.Indicator />
       </Select.Trigger>
-      <Select.Popover>
+      <Select.Popover data-input-scope data-input-overlay className="overflow-y-auto">
         <SearchInput
           value={search.query}
           onChange={search.setQuery}
@@ -76,44 +77,43 @@ export function EventGroupSelect({
             />
           }
         />
-        <ListBox
-          aria-label={t`Groups`}
-          className="max-h-48 overflow-y-auto"
-          onScroll={({ currentTarget }) => {
-            if (
-              currentTarget.scrollHeight - currentTarget.scrollTop - currentTarget.clientHeight <
-                160 &&
-              groups.hasNextPage &&
-              !groups.isFetchingNextPage &&
-              !groups.isFetchNextPageError
-            )
-              void loadMore();
-          }}
-        >
-          <ListBox.Item id="none" textValue={t`No group`}>
-            <CircleOff aria-hidden className="size-5" />
-            <span>{t`No group`}</span>
-            <ListBox.ItemIndicator />
-          </ListBox.Item>
-          {rows.map((row) => (
-            <ListBox.Item
-              key={row.id}
-              id={row.id}
-              textValue={row.name}
-              isDisabled={!row.canInvite}
-              className="[content-visibility:auto] [contain-intrinsic-size:auto_3.5rem]"
-            >
-              <GroupArtwork group={row} size={40} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate">{row.name}</span>
-                <span className="text-xs text-muted">
-                  {row.type === "PUBLIC" ? t`Public` : t`Private`}
-                </span>
-              </span>
+        <Virtualizer layout={ListLayout} shouldObserveItemSize>
+          <ListBox
+            data-input-results
+            aria-label={t`Groups`}
+            className="h-[var(--input-results-height,12rem)] max-h-48 overflow-y-auto"
+            onScroll={({ currentTarget }) => {
+              if (
+                currentTarget.scrollHeight - currentTarget.scrollTop - currentTarget.clientHeight <
+                  160 &&
+                groups.hasNextPage &&
+                !groups.isFetchingNextPage &&
+                !groups.isFetchNextPageError
+              )
+                void loadMore();
+            }}
+          >
+            <ListBox.Item id="none" textValue={t`No group`}>
+              <CircleOff aria-hidden className="size-5" />
+              <span>{t`No group`}</span>
               <ListBox.ItemIndicator />
             </ListBox.Item>
-          ))}
-        </ListBox>
+            <Collection items={rows}>
+              {(row) => (
+                <ListBox.Item id={row.id} textValue={row.name} isDisabled={!row.canInvite}>
+                  <GroupArtwork group={row} size={40} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{row.name}</span>
+                    <span className="text-xs text-muted">
+                      {row.type === "PUBLIC" ? t`Public` : t`Private`}
+                    </span>
+                  </span>
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              )}
+            </Collection>
+          </ListBox>
+        </Virtualizer>
         {groups.isPending || groups.isFetchingNextPage ? (
           <Skeleton className="h-16 w-full rounded-xl" />
         ) : null}

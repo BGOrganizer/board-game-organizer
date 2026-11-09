@@ -1,4 +1,5 @@
 "use client";
+import { bggUsernameSchema } from "@board-game-organizer/schemas";
 import { communityAccessDenied, type useBggAccount } from "@board-game-organizer/shared";
 import { Button, Input, Label, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -14,7 +15,7 @@ export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> 
   const [open, setOpen] = useState(false),
     [disconnect, setDisconnect] = useState(false),
     [username, setUsername] = useState(""),
-    [invalid, setInvalid] = useState(false);
+    [attempted, setAttempted] = useState(false);
   const data = communityAccessDenied(bgg.account.error) ? undefined : bgg.account.data,
     active = data?.active;
   const busy =
@@ -30,9 +31,11 @@ export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> 
       bgg.sync.isError ||
       bgg.unlink.isError ||
       data?.lastAttempt?.status === "error");
+  const validUsername = bggUsernameSchema.safeParse(username);
+  const invalid = attempted && !validUsername.success;
   const askUsername = () => {
     setUsername((current) => current || active?.username || "");
-    setInvalid(false);
+    setAttempted(false);
     setOpen(true);
   };
   return (
@@ -118,36 +121,38 @@ export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> 
             {
               label: t`Sync collection`,
               onPress: () => {
-                if (!username.trim()) {
-                  setInvalid(true);
-                  return;
-                }
+                if (busy) return;
+                setAttempted(true);
+                if (!validUsername.success) return;
                 bgg.reset();
-                bgg.link.mutate({ username: username.trim(), synchronize: true });
+                bgg.link.mutate({ username: validUsername.data, synchronize: true });
                 setOpen(false);
               },
             },
           ]}
         >
-          <Label htmlFor="profile-bgg-username">{t`BGG username`}</Label>
-          <Input
-            id="profile-bgg-username"
-            name="bggUsername"
-            spellCheck={false}
-            aria-describedby={invalid ? "profile-bgg-error" : undefined}
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            autoCapitalize="none"
-            autoComplete="off"
-            aria-invalid={invalid}
-          />
-          {invalid ? (
-            <p
-              id="profile-bgg-error"
-              role="alert"
-              className="text-sm text-danger"
-            >{t`Enter a BGG username`}</p>
-          ) : null}
+          <div data-form-field className="space-y-2">
+            <Label htmlFor="profile-bgg-username">{t`BGG username`}</Label>
+            <Input
+              id="profile-bgg-username"
+              name="bggUsername"
+              maxLength={64}
+              spellCheck={false}
+              aria-describedby={invalid ? "profile-bgg-error" : undefined}
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              autoCapitalize="none"
+              autoComplete="off"
+              aria-invalid={invalid}
+            />
+            {invalid ? (
+              <p
+                id="profile-bgg-error"
+                role="alert"
+                className="text-sm text-danger"
+              >{t`Enter a valid BGG username.`}</p>
+            ) : null}
+          </div>
         </ContactConfirmDialog>
       ) : null}
       {disconnect ? (

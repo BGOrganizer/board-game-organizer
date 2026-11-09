@@ -68,6 +68,7 @@ export function ContactConfirmDialog({
   return createPortal(
     <dialog
       ref={dialog}
+      style={{ height: "var(--app-visible-height, 100dvh)" }}
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
@@ -82,7 +83,10 @@ export function ContactConfirmDialog({
         onClick={busy ? undefined : onCancel}
         aria-hidden="true"
       />
-      <div className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-overlay p-4 text-overlay-foreground shadow-overlay sm:p-5">
+      <div
+        data-form-scope
+        className="relative z-10 max-h-[calc(var(--app-visible-height,100dvh)_-_2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-overlay p-4 text-overlay-foreground shadow-overlay sm:p-5"
+      >
         <h2 id={titleId} className="text-lg font-semibold text-overlay-foreground">
           {title}
         </h2>
@@ -103,6 +107,7 @@ export function ContactConfirmDialog({
           {actions.map((action) => (
             <Button
               key={action.label}
+              data-form-submit
               className={buttonClassName}
               variant={action.variant ?? "primary"}
               size="md"

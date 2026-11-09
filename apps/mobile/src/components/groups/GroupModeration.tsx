@@ -8,9 +8,10 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { UsersRound } from "lucide-react-native";
-import { FlatList, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -33,7 +34,7 @@ export function GroupModeration() {
       }))}
     >
       <ListPage>
-        <FlatList
+        <InputFlatList
           style={{ flex: 1 }}
           data={communityAccessDenied(q.error) ? [] : q.items}
           keyExtractor={(row) => row.id}

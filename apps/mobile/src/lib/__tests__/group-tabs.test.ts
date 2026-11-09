@@ -53,5 +53,5 @@ it("includes pending invitations in typed owned tabs, without treating requests 
   expect(list).toContain("useGroupRecords(options, scope, filters.search, filters.selected, type)");
   expect(list).toContain('key: "invited"');
   expect(list).not.toContain('key: "requested"');
-  expect(list).toContain("<FlatList");
+  expect(list).toContain("<InputFlatList");
 });

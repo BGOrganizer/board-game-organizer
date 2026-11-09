@@ -7,6 +7,7 @@ import {
 } from "@board-game-organizer/schemas";
 import { gamePlayerBounds } from "../games/gamePlayerBounds";
 import { eventLocalDateTime, eventLocalToIso } from "./eventForm";
+import { eventGameDuration } from "./eventGameDuration";
 import { eventDateWall } from "./eventRecordPolicy";
 import { eventRecordVisibility } from "./eventRecordVisibility";
 import { publicEventEndIsValid } from "./eventSchedule";
@@ -22,7 +23,7 @@ export type EventTableDraft = {
   demonstratorUserId?: string;
   demonstratorName?: string | null;
   demonstratorAvatarUrl?: string | null;
-  games: Array<BggSearchItem & { manualDurationMinutes?: number }>;
+  games: Array<BggSearchItem & { durationMinutes?: number; manualDurationMinutes?: number }>;
 };
 export type EventRecordDraft = {
   name: string;
@@ -68,7 +69,7 @@ export function tableDraft(row: PlannedTableResponse, timeZone: string): EventTa
         year: null,
         imageUrl: null,
       }),
-      manualDurationMinutes: game.durationSource === "MANUAL" ? game.durationMinutes : undefined,
+      durationMinutes: game.durationMinutes,
     })),
   };
 }
@@ -136,12 +137,7 @@ function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
       maxPlayers: row.maxPlayers,
       rankingEnabled: row.rankingEnabled,
       allowParticipantGames: Boolean(draft.groupId && !publicGroup && row.allowParticipantGames),
-      games: row.games.map((game) => ({
-        gameId: game.id,
-        ...(game.manualDurationMinutes
-          ? { manualDurationMinutes: game.manualDurationMinutes }
-          : {}),
-      })),
+      games: row.games.map((game) => ({ gameId: game.id })),
       ...(publicGroup
         ? {
             startsAt: draftIso(row.startsWall, zone),
@@ -198,11 +194,8 @@ function draftPolicyErrors(
       (end && Date.parse(at) >= Date.parse(end))
     )
       errors.push(["tables", index, "startsAt"]);
-    row.games.forEach((game, gameIndex) => {
-      const duration = game.maxPlayMinutes ?? game.manualDurationMinutes;
-      if (!duration || !Number.isSafeInteger(duration) || duration < 1)
-        errors.push(["tables", index, "games", gameIndex, "manualDurationMinutes"]);
-      else if (at && end && Date.parse(at) + duration * 60_000 > Date.parse(end))
+    row.games.forEach((game) => {
+      if (at && end && Date.parse(at) + eventGameDuration(game) * 60_000 > Date.parse(end))
         errors.push(["tables", index, "startsAt"]);
     });
   });

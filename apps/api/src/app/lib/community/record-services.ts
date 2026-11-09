@@ -37,7 +37,6 @@ export function recordServices(db: Db, session?: ClientSession, notificationIds?
     relationships,
     notifications,
     (id, user, reason) => events.membershipDeparted(id, user, reason),
-    (id, user) => events.assertBanAllowed(id, user),
     new GroupLeaderboardRepository(db, session),
   );
   return {

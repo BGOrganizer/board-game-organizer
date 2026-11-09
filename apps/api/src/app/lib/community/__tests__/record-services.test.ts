@@ -4,7 +4,6 @@ import { expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   groupArgs: [] as unknown[],
   departed: vi.fn(),
-  assertBan: vi.fn(),
 }));
 vi.mock("../../groups/group-records.service", () => ({
   GroupRecordsService: class {
@@ -16,13 +15,12 @@ vi.mock("../../groups/group-records.service", () => ({
 vi.mock("../../events/event-records.service", () => ({
   EventRecordsService: class {
     membershipDeparted = mocks.departed;
-    assertBanAllowed = mocks.assertBan;
   },
 }));
 
 import { recordServices } from "../record-services";
 
-it("binds unified repositories without legacy writers and preserves departure/protected-ban callbacks", async () => {
+it("binds unified repositories without legacy writers and preserves snapshot-safe departure callbacks", async () => {
   const collection = vi.fn((_name: string) => ({})),
     db = { collection } as unknown as Db;
   const services = recordServices(db);
@@ -40,6 +38,10 @@ it("binds unified repositories without legacy writers and preserves departure/pr
     "LEFT",
   );
   expect(mocks.departed).toHaveBeenCalledWith("group", "guest", "LEFT");
-  await (mocks.groupArgs[6] as (id: string, user: string) => Promise<void>)("group", "guest");
-  expect(mocks.assertBan).toHaveBeenCalledWith("group", "guest");
+  await (mocks.groupArgs[5] as (id: string, user: string, reason: "BAN" | "LEFT") => Promise<void>)(
+    "group",
+    "guest",
+    "BAN",
+  );
+  expect(mocks.departed).toHaveBeenCalledWith("group", "guest", "BAN");
 });

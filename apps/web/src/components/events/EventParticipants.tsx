@@ -10,9 +10,8 @@ import {
 import { Button, Skeleton, Table } from "@heroui/react";
 import { TableLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
-import { Ban, UserRoundMinus } from "lucide-react";
+import { UserRoundMinus } from "lucide-react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
-import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { MemberActions } from "@/components/common/ui/MemberActions";
@@ -82,15 +81,6 @@ export function EventParticipants({
                             },
                           ]
                         : []),
-                      ...(m.canAct(person, "ban")
-                        ? [
-                            {
-                              action: "ban" as const,
-                              label: t`Ban from group`,
-                              icon: <Ban className="size-5" aria-hidden />,
-                            },
-                          ]
-                        : []),
                     ];
                     return (
                       <Table.Row id={person.userId} textValue={name}>
@@ -143,7 +133,7 @@ export function EventParticipants({
       {m.managed?.action === "remove" ? (
         <ContactConfirmDialog
           title={t`Remove from event`}
-          description={t`All active registrations for this person in this event will be removed. Group membership stays unchanged and they can join again.`}
+          description={t`All active registrations for this person in this event will be removed. Group membership stays unchanged.`}
           onCancel={m.close}
           actions={
             m.stale
@@ -164,25 +154,6 @@ export function EventParticipants({
             </p>
           ) : null}
         </ContactConfirmDialog>
-      ) : null}
-      {m.managed?.action === "ban" && m.stale ? (
-        <ContactConfirmDialog
-          title={t`Ban from group`}
-          description={stale}
-          onCancel={m.close}
-          actions={[]}
-        />
-      ) : m.managed?.action === "ban" ? (
-        <GroupBanDialog
-          name={formatUsername(
-            m.managed.person.username,
-            m.managed.person.name || t`Username unavailable`,
-          )}
-          timeZone={event.timeZone}
-          busy={false}
-          onCancel={m.close}
-          onConfirm={m.confirm}
-        />
       ) : null}
     </section>
   );

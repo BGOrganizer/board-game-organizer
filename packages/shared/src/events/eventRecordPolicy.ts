@@ -1,12 +1,14 @@
 import type {
   EventRecord,
   EventSchedulePreview,
+  GroupBan,
   PlannedEventCapabilities,
   PlannedTableResponse,
   TableRecord,
   TableRegistration,
 } from "@board-game-organizer/schemas";
 import { eventLocalDateTime, eventLocalToIso } from "./eventForm";
+import { eventRecordVisibility } from "./eventRecordVisibility";
 
 export type EventGroupType = "PRIVATE" | "PUBLIC" | null;
 export function eventDateWall(
@@ -59,6 +61,7 @@ export function eventTableSchedule(
   table: Pick<
     PlannedTableResponse,
     | "eventStatus"
+    | "personalAccessOnly"
     | "confirmed"
     | "games"
     | "groupType"
@@ -75,7 +78,7 @@ export function eventTableSchedule(
     durationMinutes:
       table.games.find((game) => game.gameId === confirmed.gameId)?.durationMinutes ?? null,
     demonstrator:
-      table.groupType === "PUBLIC" && table.demonstratorUserId
+      (table.groupType === "PUBLIC" || table.personalAccessOnly) && table.demonstratorUserId
         ? { name: table.demonstratorName, avatarUrl: table.demonstratorAvatarUrl }
         : null,
   };
@@ -125,10 +128,10 @@ export function eventRecordCapabilities(
   const open = planning && !publicBookingIsClosed(event, groupType, now);
   const accepted = registrations.some((row) => row.userId === userId && row.status === "ACCEPTED");
   return {
-    canEdit: admin && open,
-    canInvite: admin && open,
+    canEdit: admin && planning,
+    canInvite: admin && planning,
     canRegister: open && (groupType === null ? admin : member),
-    canVote: open && accepted,
+    canVote: planning && accepted,
     canConfirm: admin && planning,
     canReplan: admin && event.status === "CONFIRMED",
     canFinalize: admin && event.status === "CONFIRMED",
@@ -211,25 +214,28 @@ export function hasPublicTableConflict(
       recordIntervalsOverlap(interval, plannedTableInterval(event, table, "PUBLIC")),
   );
 }
-export function banHasProtectedParticipation(
+/** Exclusion cannot turn a previously inaccessible private Event into personal access. */
+export function banPreservesFrozenEvent(
+  event: Pick<EventRecord, "status" | "confirmed" | "visibility">,
   groupType: EventGroupType,
-  events: readonly EventRecord[],
-  tables: readonly TableRecord[],
-  userId: string,
-  now: number,
-): boolean {
+  ban: Pick<GroupBan, "createdAt" | "memberAccessThrough"> | null,
+) {
+  if (!ban || event.status === "PLANNING" || !event.confirmed) return false;
+  const through =
+    eventRecordVisibility(event, groupType) === "PUBLIC" ? ban.createdAt : ban.memberAccessThrough;
   return (
-    groupType === "PUBLIC" &&
-    events.some(
-      (event) =>
-        event.status === "CONFIRMED" &&
-        publicBookingIsClosed(event, "PUBLIC", now) &&
-        tables.some(
-          (table) =>
-            table.eventId === event.id &&
-            table.confirmed &&
-            (table.confirmed.playerIds.includes(userId) || table.demonstratorUserId === userId),
-        ),
-    )
+    through !== undefined &&
+    Number.isFinite(Date.parse(event.confirmed.at)) &&
+    Date.parse(event.confirmed.at) <= Date.parse(through)
+  );
+}
+/** Frozen personal access never grants Group membership or management. */
+export function isFrozenTableParticipant(
+  table: Pick<TableRecord, "confirmed" | "demonstratorUserId">,
+  userId: string,
+): boolean {
+  return Boolean(
+    table.confirmed &&
+      (table.confirmed.playerIds.includes(userId) || table.demonstratorUserId === userId),
   );
 }

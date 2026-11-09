@@ -8,7 +8,6 @@ import {
   eventItemTargets,
   eventLocalToIso,
   eventOptionsRequireVote,
-  useEventCutoff,
   useEventRecord,
   useEventRecordActions,
   useRecordTables,
@@ -26,9 +25,9 @@ import {
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
-import { headerButtonProps } from "@/components/common/layout/headerStyles";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -64,9 +63,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     [error, setError] = useState(false),
     event = communityAccessDenied(q.error) ? undefined : q.data;
   const [requestedTab, setTab] = useState("details");
+  const transitionVersion = useRef<number | null>(null);
   const tab =
-    event?.sharedResultsOnly && requestedTab === "participants" ? "details" : requestedTab;
-  const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
+    (event?.sharedResultsOnly || event?.personalAccessOnly) && requestedTab === "participants"
+      ? "details"
+      : requestedTab;
   const confirmationBlocked =
     a.busy || q.isPlaceholderData || !event?.canConfirm || event?.agreement?.agreed !== true;
   const confirmationHint = a.busy
@@ -89,6 +90,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     if (
       a.busy ||
       q.isPlaceholderData ||
+      transitionVersion.current !== event.version ||
       !canManageEvent(event, o.userId) ||
       (action === "confirm" && confirmationBlocked) ||
       (action === "replan" && !event.canReplan)
@@ -97,7 +99,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       return;
     }
     setError(false);
-    a.transition.mutate({ action, version: event.version });
+    a.transition.mutate({ action, version: transitionVersion.current });
     setConfirm(null);
   };
   return (
@@ -129,7 +131,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           <HeaderActions>
             <div className="flex items-center gap-1">
               {confirmationBlocked ? (
-                <HelpPopover label={t`Why confirmation is unavailable`} title={t`Confirm event`}>
+                <HelpPopover label={t`Confirm event`} title={t`Confirm event`} icon={Check}>
                   <div className="space-y-2">
                     <p>{confirmationHint}</p>
                     {event.agreement?.reasons.map((reason) => (
@@ -144,19 +146,20 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     ))}
                   </div>
                 </HelpPopover>
-              ) : null}
-              <Button
-                {...headerButtonProps}
-                variant="primary"
-                aria-label={t`Confirm event`}
-                isDisabled={confirmationBlocked}
-                onPress={() => {
-                  setError(false);
-                  setConfirm("confirm");
-                }}
-              >
-                <Check className="size-4" aria-hidden />
-              </Button>
+              ) : (
+                <Button
+                  {...headerButtonProps}
+                  variant="primary"
+                  aria-label={t`Confirm event`}
+                  onPress={() => {
+                    setError(false);
+                    transitionVersion.current = event.version;
+                    setConfirm("confirm");
+                  }}
+                >
+                  <Check className={HEADER_ICON_CLASS} aria-hidden />
+                </Button>
+              )}
               <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
             </div>
           </HeaderActions>
@@ -176,7 +179,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <TabTrigger icon={Info} id="details">
               {t`Details`}
             </TabTrigger>
-            {!event.sharedResultsOnly ? (
+            {!event.sharedResultsOnly && !event.personalAccessOnly ? (
               <TabTrigger icon={UsersRound} id="participants">
                 {t`Participants`}
               </TabTrigger>
@@ -196,9 +199,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             </NotificationItem>
             {event.readOnly ? (
               <p className="text-sm text-muted">
-                {event.sharedResultsOnly
-                  ? t`Shared finalized results. Group details are hidden.`
-                  : t`Public event. Group membership is not required to participate.`}
+                {event.personalAccessOnly
+                  ? t`Personal access to your table. Group details are hidden.`
+                  : event.sharedResultsOnly
+                    ? t`Shared finalized results. Group details are hidden.`
+                    : t`Public event. Group membership is not required to participate.`}
               </p>
             ) : null}
             {event.groupId && fromGroup !== event.groupId ? (
@@ -233,7 +238,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                           />
                           <NotificationItem
                             itemId={notificationItemId(event.id, "date", row.id)}
-                            readOnly={!voteDates || !event.canVote || closed}
+                            readOnly={!voteDates || !event.canVote}
                           />
                         </div>
                         {voteDates ? (
@@ -243,7 +248,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                           />
                         ) : null}
                       </div>
-                      {voteDates && event.canVote && !closed ? (
+                      {voteDates && event.canVote ? (
                         <EventVoteButtons
                           label={eventDateWall(event, row).replace("T", " ")}
                           value={event.myVotes?.dateVotes[row.id]}
@@ -324,12 +329,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                       titleAccessory={
                         <NotificationItem
                           itemId={notificationItemId(event.id, "location", row.id)}
-                          readOnly={!voteLocations || !event.canVote || closed}
+                          readOnly={!voteLocations || !event.canVote}
                         />
                       }
                       actions={
                         <>
-                          {voteLocations && event.canVote && !closed ? (
+                          {voteLocations && event.canVote ? (
                             <EventVoteButtons
                               label={row.name}
                               value={event.myVotes?.locationVotes[row.id]}
@@ -387,13 +392,14 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             isDisabled={a.busy || q.isPlaceholderData}
             onPress={() => {
               setError(false);
+              transitionVersion.current = event.version;
               setConfirm("replan");
             }}
           >
             <RotateCcw className="size-5" aria-hidden />
           </FloatingActions>
         ) : null}
-        {tab === "details" && event.status === "PLANNING" && event.canEdit && !closed ? (
+        {tab === "details" && event.status === "PLANNING" && event.canEdit ? (
           <FloatingActions
             href={`/events/${event.id}/edit${fromGroup === event.groupId ? `?fromGroup=${encodeURIComponent(fromGroup)}` : ""}`}
             label={t`Edit event`}

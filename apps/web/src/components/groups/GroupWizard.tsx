@@ -8,6 +8,7 @@ import type { CreateGroupVariables, EditGroupVariables } from "@board-game-organ
 import {
   communityAccessDenied,
   creationState,
+  formatUsername,
   groupRecordKeys,
   useClientMutationDraft,
   useFavoriteLocations,
@@ -15,13 +16,14 @@ import {
   useGroupRecord,
   useGroupRecordActions,
 } from "@board-game-organizer/shared";
-import { Avatar, Button, Input, Skeleton, TextField } from "@heroui/react";
+import { Avatar, Button, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Plus, Save, Send, Trash2, UsersRound, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
@@ -118,7 +120,8 @@ function Editor({
     ),
     [picking, setPicking] = useState<"location" | "friend" | null>(null),
     [uploading, setUploading] = useState(false),
-    [submitting, setSubmitting] = useState(false);
+    [submitting, setSubmitting] = useState(false),
+    [attempted, setAttempted] = useState(false);
   const submitted = useRef(false);
   const conflict = Boolean(group && group.version !== baseVersion);
   const favorites = useFavoriteLocations(options, location ? [location] : []);
@@ -138,7 +141,10 @@ function Editor({
     ...revision,
     invitedUserIds: type === "PRIVATE" && !group ? friends.map((user) => user.id) : [],
   });
+  const fieldError = (field: string) =>
+    attempted && !valid.success && valid.error.issues.some((issue) => issue.path[0] === field);
   const save = () => {
+    setAttempted(true);
     if (
       submitted.current ||
       conflict ||
@@ -200,20 +206,18 @@ function Editor({
       />
     );
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-28">
+    <section data-form-scope className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-28">
       <div className="flex items-center gap-2">
         <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={() => router.back()}>
           <ArrowLeft className="size-5" aria-hidden />
         </Button>
         <h1 className="text-xl font-semibold">{group ? t`Edit group` : t`New group`}</h1>
       </div>
-      {!group ? (
-        <GroupVisibilityPicker value={type} disabled={submitting} onChange={changeVisibility} />
-      ) : (
-        <p className="text-sm text-muted">
-          {group.type === "PUBLIC" ? t`Public group` : t`Private group`}
-        </p>
-      )}
+      <GroupVisibilityPicker
+        value={type}
+        disabled={submitting || Boolean(group)}
+        onChange={changeVisibility}
+      />
       {group ? (
         <p className="text-sm text-muted">
           {type === "PUBLIC"
@@ -228,59 +232,84 @@ function Editor({
         >{t`This group changed. Go back and reopen the editor before saving.`}</p>
       ) : null}
       {checking ? <p role="status">{t`Checking saved changes`}</p> : null}
-      <TextField value={name} onChange={setName} isRequired isDisabled={submitting}>
+      <TextField
+        value={name}
+        onChange={setName}
+        isRequired
+        isDisabled={submitting}
+        isInvalid={fieldError("name")}
+      >
         <SearchHelpLabel
           required
           label={t`Group name`}
           helpTitle={t`Field help`}
           help={t`Choose a name, from 5 to 120 characters.`}
         />
-        <Input
+        <NameInput
+          category="gruppo"
+          onGenerate={setName}
+          isDisabled={submitting}
           name="group-name"
           placeholder={t`Group name`}
           autoComplete="off"
           minLength={5}
           maxLength={120}
         />
+        {fieldError("name") ? (
+          <p
+            role="alert"
+            className="text-sm text-danger"
+          >{t`Choose a name, from 5 to 120 characters.`}</p>
+        ) : null}
       </TextField>
-      <GroupLogoPicker
-        value={logo}
-        required={type === "PUBLIC"}
-        disabled={submitting}
-        onChange={setLogo}
-        onBusyChange={setUploading}
-      />
-      <p className="font-bold">
-        {t`Location`}
-        {type === "PUBLIC" ? " *" : ""}
-      </p>
-      <GroupedList>
-        <LocationListRow
-          name={location?.name ?? t`Choose a location`}
-          address={location?.address}
-          label={t`Choose a location`}
-          onPress={submitting || uploading ? undefined : () => setPicking("location")}
-          leading={
-            location ? (
-              <LocationFavoriteButton location={location} favorites={favorites} />
-            ) : undefined
-          }
-          actions={
-            location && type === "PRIVATE" ? (
-              <Button
-                isIconOnly
-                variant="danger-soft"
-                size="sm"
-                aria-label={t`Remove location`}
-                isDisabled={submitting}
-                onPress={() => setLocation(undefined)}
-              >
-                <X className="size-4" aria-hidden />
-              </Button>
-            ) : undefined
-          }
+      <div data-form-error={fieldError("logoAssetId") || undefined}>
+        <GroupLogoPicker
+          value={logo}
+          required={type === "PUBLIC"}
+          disabled={submitting}
+          onChange={setLogo}
+          onBusyChange={setUploading}
         />
-      </GroupedList>
+        {fieldError("logoAssetId") ? (
+          <p role="alert" className="text-sm text-danger">{t`Choose a group logo.`}</p>
+        ) : null}
+      </div>
+      <div data-form-error={fieldError("location") || undefined}>
+        <p className="font-bold">
+          {t`Location`}
+          {type === "PUBLIC" ? " *" : ""}
+        </p>
+        <GroupedList>
+          <LocationListRow
+            name={location?.name ?? t`Choose a location`}
+            address={location?.address}
+            label={t`Choose a location`}
+            onPress={submitting || uploading ? undefined : () => setPicking("location")}
+            leading={
+              location ? (
+                <LocationFavoriteButton location={location} favorites={favorites} />
+              ) : undefined
+            }
+            actions={
+              location && type === "PRIVATE" ? (
+                <Button
+                  isIconOnly
+                  variant="danger-soft"
+                  size="sm"
+                  aria-label={t`Remove location`}
+                  isDisabled={submitting}
+                  onPress={() => setLocation(undefined)}
+                >
+                  <X className="size-4" aria-hidden />
+                </Button>
+              ) : undefined
+            }
+          />
+        </GroupedList>
+        {fieldError("location") ? (
+          <p role="alert" className="text-sm text-danger">{t`Choose a verified location.`}</p>
+        ) : null}
+      </div>
       {favorites.status.isError ? (
         <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
       ) : null}
@@ -299,7 +328,11 @@ function Editor({
                 </Avatar>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm">{user.name}</span>
-                  <span className="block truncate text-xs text-muted">{user.username}</span>
+                  {formatUsername(user.username, "") ? (
+                    <span className="block truncate text-xs text-muted">
+                      {formatUsername(user.username, "")}
+                    </span>
+                  ) : null}
                 </span>
                 <Button
                   isIconOnly
@@ -332,14 +365,11 @@ function Editor({
       ) : null}
       <div className="fixed inset-x-0 bottom-0 z-40 bg-background px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <Button
+          data-form-submit
           className="mx-auto flex w-full max-w-3xl"
           variant="primary"
           isDisabled={
-            submitting ||
-            conflict ||
-            Boolean(group && (actions.busy || checking)) ||
-            uploading ||
-            !valid.success
+            submitting || conflict || Boolean(group && (actions.busy || checking)) || uploading
           }
           onPress={() => void save()}
         >

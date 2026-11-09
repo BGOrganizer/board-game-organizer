@@ -11,7 +11,7 @@ export function EventTableGamesPopover({
   games,
   name,
 }: {
-  games: readonly BggSearchItem[];
+  games: readonly (BggSearchItem & { durationMinutes?: number })[];
   name: string;
 }) {
   const t = useT();
@@ -40,6 +40,7 @@ export function EventTableGamesPopover({
             year={item.year}
             average={item.average}
             rank={item.rank}
+            durationMinutes={item.durationMinutes}
           />
         )}
         ListEmptyComponent={<Typography className="text-muted">{t("No games found")}</Typography>}

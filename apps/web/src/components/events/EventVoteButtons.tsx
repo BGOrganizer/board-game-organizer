@@ -1,6 +1,6 @@
 "use client";
 import type { EventVote } from "@board-game-organizer/schemas";
-import { Button } from "@heroui/react";
+import { Button, Fieldset } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Minus, Vote, X } from "lucide-react";
 import { useState } from "react";
@@ -13,6 +13,7 @@ export function EventVoteButtons({
   onChange,
   inline = false,
   disabledVotes = [],
+  isInvalid = false,
 }: {
   value?: EventVote;
   label: string;
@@ -20,6 +21,7 @@ export function EventVoteButtons({
   onChange: (vote: Exclude<EventVote, "UNKNOWN">) => void;
   inline?: boolean;
   disabledVotes?: readonly EventVote[];
+  isInvalid?: boolean;
 }) {
   const { t } = useLingui(),
     [open, setOpen] = useState(false);
@@ -36,7 +38,13 @@ export function EventVoteButtons({
   const choices = options;
   if (inline)
     return (
-      <div className="flex shrink-0 items-center gap-1">
+      <Fieldset
+        data-form-field
+        data-form-error={isInvalid || undefined}
+        aria-label={label}
+        aria-invalid={isInvalid || undefined}
+        className={`m-0 flex min-w-0 shrink-0 flex-row items-center gap-1 border-0 p-0 ${isInvalid ? "rounded-lg ring-1 ring-danger" : ""}`}
+      >
         {choices.map(({ key, text, Icon, color }) => (
           <Button
             key={key}
@@ -51,7 +59,7 @@ export function EventVoteButtons({
             <Icon className={`size-4 ${value === key ? "" : color}`} aria-hidden />
           </Button>
         ))}
-      </div>
+      </Fieldset>
     );
   return (
     <>

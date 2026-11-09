@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { FLOATING_ACTION_SIZE } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
+import { useFormInteraction } from "./FormInteractionScope";
 
 interface FloatingActionsProps {
   children: ReactNode;
@@ -25,6 +26,7 @@ export function FloatingActions({
 }: FloatingActionsProps) {
   const t = useT();
   const layout = useFloatingActionLayout();
+  const form = useFormInteraction();
 
   return (
     <Button
@@ -33,7 +35,10 @@ export function FloatingActions({
       className="shadow-overlay"
       accessibilityLabel={t(label)}
       testID={testID}
-      onPress={onPress}
+      onPress={() => {
+        onPress?.();
+        form?.requestFirstError();
+      }}
       isDisabled={isDisabled}
       style={{
         position: "absolute",

@@ -1,7 +1,9 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import {
   eventRecordKeys,
+  eventRecordQuery,
   eventRecordsQuery,
+  recordTableQuery,
   recordTablesQuery,
   useEventRecord,
   useEventRecords,
@@ -356,3 +358,50 @@ it("keeps network failures observable, does not fetch disabled identities and pa
   await waitFor(() => expect(q.result.current.isError).toBe(true));
   expect(String(fetch.mock.calls[0][0])).toContain("/api/tables?");
 });
+
+it.each(["event", "table", "events", "tables"] as const)(
+  "reconciles verified %s personal access through its actual query factory",
+  async (kind) => {
+    const { client, options } = setup();
+    const groupKey = ["groups", options.apiUrl, options.userId, "people", "revoked-group"];
+    const otherKey = ["groups", options.apiUrl, options.userId, "people", "other-group"];
+    client.setQueryData(groupKey, { items: [{ email: "private-member" }] });
+    client.setQueryData(otherKey, { items: [{ userId: "allowed" }] });
+    const row = {
+      ...(kind === "table" || kind === "tables" ? plannedTable : plannedEvent),
+      groupId: null,
+      personalAccessOnly: true,
+      readOnly: true,
+      canManage: false,
+      accessRevokedGroupId: "revoked-group",
+    };
+    const result =
+      kind === "events" || kind === "tables" ? { items: [row], nextCursor: null } : row;
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(result), { status: 200 }));
+    vi.stubGlobal("fetch", fetcher);
+    const query =
+      kind === "event"
+        ? eventRecordQuery(options, eventId)
+        : kind === "table"
+          ? recordTableQuery(options, eventId, tableId)
+          : kind === "events"
+            ? eventRecordsQuery(options)
+            : recordTablesQuery(options, null);
+    if (kind === "events")
+      await client.fetchInfiniteQuery(eventRecordsQuery(options)).catch(() => undefined);
+    else if (kind === "tables")
+      await client.fetchInfiniteQuery(recordTablesQuery(options, null)).catch(() => undefined);
+    else if (kind === "event")
+      await client.fetchQuery(eventRecordQuery(options, eventId)).catch(() => undefined);
+    else
+      await client.fetchQuery(recordTableQuery(options, eventId, tableId)).catch(() => undefined);
+    expect(client.getQueryData(query.queryKey)).toEqual(
+      kind === "events" || kind === "tables" ? { pages: [result], pageParams: [""] } : result,
+    );
+    expect(client.getQueryData(groupKey)).toBeUndefined();
+    expect(client.getQueryData(otherKey)).toEqual({ items: [{ userId: "allowed" }] });
+    expect(options.getToken).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    client.clear();
+  },
+);

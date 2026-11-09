@@ -39,7 +39,7 @@ export function GroupBanDialog({
   return (
     <ContactConfirmDialog
       title={`${t`Ban from group`}: ${name}`}
-      description={t`Group exclusion is separate from global blocking. Membership and active registrations are removed; expiry or revocation never restores them. Historical results remain unchanged.`}
+      description={t`Group exclusion is separate from global blocking. Membership and planning participation are removed; confirmed participation and personal table access are preserved. Reopening planning removes excluded users. Expiry or revocation never restores cancelled participation. Historical results remain unchanged.`}
       busy={busy}
       onCancel={onCancel}
       actions={[

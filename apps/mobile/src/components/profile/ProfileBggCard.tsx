@@ -1,8 +1,7 @@
+import { bggUsernameSchema } from "@board-game-organizer/schemas";
 import { communityAccessDenied, type useBggAccount } from "@board-game-organizer/shared";
 import { Button } from "heroui-native/button";
-import { Dialog } from "heroui-native/dialog";
 import { useThemeColor } from "heroui-native/hooks";
-import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { RefreshCw, Unlink2, UserRoundPen } from "lucide-react-native";
@@ -10,6 +9,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
+import { Input } from "@/components/common/ui/Input";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { useT } from "@/lib/i18n";
 import { ProfileBggAttribution } from "./ProfileBggAttribution";
@@ -18,7 +18,8 @@ export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> 
   const t = useT();
   const [open, setOpen] = useState(false),
     [disconnect, setDisconnect] = useState(false),
-    [username, setUsername] = useState("");
+    [username, setUsername] = useState(""),
+    [attempted, setAttempted] = useState(false);
   const [accentForeground, danger, muted] = useThemeColor(["accent-foreground", "danger", "muted"]);
   const data = communityAccessDenied(bgg.account.error) ? undefined : bgg.account.data,
     active = data?.active;
@@ -35,7 +36,9 @@ export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> 
       bgg.sync.isError ||
       bgg.unlink.isError ||
       data?.lastAttempt?.status === "error");
+  const validUsername = bggUsernameSchema.safeParse(username);
   const askUsername = () => {
+    setAttempted(false);
     setUsername((current) => current || active?.username || "");
     setOpen(true);
   };
@@ -121,42 +124,46 @@ export function ProfileBggCard({ bgg }: { bgg: ReturnType<typeof useBggAccount> 
           <ProfileBggAttribution />
         </View>
       </ListCard>
-      <Dialog isOpen={open} onOpenChange={setOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay />
-          <Dialog.Content>
-            <Dialog.Title>{t("BGG username")}</Dialog.Title>
-            <View style={{ gap: 12, marginTop: 12 }}>
-              <Input
-                testID="profile-bgg-username"
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                autoCorrect={false}
-                accessibilityLabel={t("BGG username")}
-                placeholder={t("BGG username")}
-              />
-              <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-                <Button variant="secondary" onPress={() => setOpen(false)}>
-                  <Button.Label>{t("Cancel")}</Button.Label>
-                </Button>
-                <Button
-                  testID="profile-bgg-sync"
-                  variant="primary"
-                  isDisabled={!username.trim() || busy}
-                  onPress={() => {
-                    bgg.reset();
-                    bgg.link.mutate({ username: username.trim(), synchronize: true });
-                    setOpen(false);
-                  }}
-                >
-                  <Button.Label>{t("Sync collection")}</Button.Label>
-                </Button>
-              </View>
-            </View>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog>
+      {open ? (
+        <ConfirmDialog
+          title={t("BGG username")}
+          description={t("Link your BGG username to use your collection when choosing games.")}
+          busy={busy}
+          onCancel={() => setOpen(false)}
+          actions={[
+            {
+              label: t("Sync collection"),
+              variant: "primary",
+              testID: "profile-bgg-sync",
+              onPress: () => {
+                setAttempted(true);
+                if (busy || !validUsername.success) return;
+                bgg.reset();
+                bgg.link.mutate({ username: validUsername.data, synchronize: true });
+                setOpen(false);
+              },
+            },
+          ]}
+        >
+          <Input
+            testID="profile-bgg-username"
+            value={username}
+            onChangeText={setUsername}
+            maxLength={64}
+            editable={!busy}
+            isInvalid={attempted && !validUsername.success}
+            autoCapitalize="none"
+            autoCorrect={false}
+            accessibilityLabel={t("BGG username")}
+            placeholder={t("BGG username")}
+          />
+          {attempted && !validUsername.success ? (
+            <Typography accessibilityRole="alert" className="text-danger">
+              {t("Enter a valid BGG username.")}
+            </Typography>
+          ) : null}
+        </ConfirmDialog>
+      ) : null}
       {disconnect ? (
         <ConfirmDialog
           title={t("Disconnect BoardGameGeek?")}

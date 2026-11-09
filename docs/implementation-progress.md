@@ -1,5 +1,33 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Thirteen approved follow-ups — local verification; E2E not executed by operator request
+
+- The current behavior is specified in [the unified contract](groups-events-refactor.md) and
+  [Profiles](profiles.md). This follow-up separates Planning management from public participation
+  cutoffs, preserves narrowly checkpointed frozen personal access, and reapplies active Group bans
+  on replanning without restoring membership or consent.
+- Revoked Group data is removed from authoritative same-owner RAM and encrypted restore candidates
+  before hydration. Unknown in-flight Event reads cannot republish an old privileged snapshot;
+  personal notification/feed projections retain neither sibling Table authority nor Group targets.
+- Detail titles and wrapping controls, factual local Table previews, immutable Group-type Cards,
+  automatic game paging, automatic 120-minute duration fallback, historical saved durations,
+  actionable unavailable controls, invite identities and first-error navigation are implemented
+  across both clients. Supplied EN/IT dictionaries use the sole approved new runtime dependency,
+  `unique-names-generator`; generation changes an unsaved draft only.
+- **3,550 covered unit tests pass:** web 1,074; mobile 686; API 1,003; schemas 163; shared 624.
+  Existing coverage thresholds pass without reduction; shared and schemas measure 100% for all four
+  metrics. Root typecheck, scoped Biome, strict EN/IT compilation, API/web builds and Android
+  JavaScript/assets export pass. Generated references and unrelated private files are preserved.
+- **All 151 integration cases pass across four disposable replica-set suites**, with zero failures
+  or skips. Collected coverage is 71.59% lines/statements, 81.14% branches and 78.41% functions;
+  the existing integration configuration has no separate numeric threshold. The duration fixture
+  distinguishes new automatic defaults from historical durations retained through editing/replanning.
+- Retained Playwright scenarios and Maestro flows cover the updated draft/error and Group-context
+  action contracts; both changed native flows pass Maestro 2.11 syntax checks. **Authenticated
+  browser/device E2E was not executed, by operator request.** Unit/DOM/VM, syntax and export evidence
+  is not native keyboard/touch, frame-timing, process-restart or production acceptance. No retained
+  suite or CI gate was removed, and no provider, runtime database or deployment was mutated.
+
 ## Card identities, role disclosure and unified Results — local verification; runtime acceptance pending
 
 - Horizontal Cards contain original colored artwork beside content in normal flow. Detail identities

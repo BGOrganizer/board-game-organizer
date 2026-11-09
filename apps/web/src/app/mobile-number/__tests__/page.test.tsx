@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import MobileNumberPage from "../page";
@@ -70,8 +70,10 @@ describe("MobileNumberPage", () => {
   it("requires a non-empty value and saves arbitrary text", async () => {
     renderWithI18n(<MobileNumberPage />);
     const button = screen.getByRole("button", { name: "Continue" });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect((button as HTMLButtonElement).disabled).toBe(false);
     fireEvent.submit(button.closest("form") as HTMLFormElement);
+    expect(screen.getByText("Enter a mobile number.")).toBeTruthy();
+    expect(screen.getByLabelText("Mobile number").getAttribute("aria-invalid")).toBe("true");
     expect(mocks.update).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText("Mobile number"), {
@@ -85,6 +87,29 @@ describe("MobileNumberPage", () => {
       }),
     );
     expect(mocks.replace).toHaveBeenCalledWith("/tables");
+  });
+
+  it("ignores a repeated form submission while the first save is pending", async () => {
+    let finish: () => void = () => {
+      throw new Error("Save has not started");
+    };
+    mocks.update.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    renderWithI18n(<MobileNumberPage />);
+    fireEvent.change(screen.getByLabelText("Mobile number"), { target: { value: "x" } });
+    const button = screen.getByRole("button", { name: "Continue" });
+    const form = button.closest("form") as HTMLFormElement;
+    fireEvent.submit(form);
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.submit(form);
+    expect(mocks.update).toHaveBeenCalledTimes(1);
+    expect(mocks.replace).not.toHaveBeenCalled();
+    await act(async () => finish());
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/tables"));
   });
 
   it("selects a country by name and stores its prefix with the national number", async () => {

@@ -3,7 +3,7 @@ import { Avatar, Style } from "@dicebear/core";
 import planets from "@dicebear/styles/planets.json" with { type: "json" };
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
@@ -14,6 +14,11 @@ import { messages as italian } from "../../../../../../messages/it.js";
 import { EventDraftTableCard } from "../EventDraftTableCard";
 import { EventTableCard } from "../EventTableCard";
 import { EventWizardSummary } from "../EventWizardSummary";
+
+async function closePopover() {
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+}
 
 it.each([
   {
@@ -37,40 +42,50 @@ it.each([
     badge: "Rating enabled",
     person: "Unknown",
   },
-])("shows a readonly table card with $badge and $person", ({ badge, person, ...fields }) => {
-  const row = { ...tableDraft(plannedTable, plannedEvent.timeZone), ...fields };
-  const view = renderWithI18n(<EventDraftTableCard row={row} publicGroup />);
-  expect(screen.getByText(row.name)).not.toBeNull();
-  expect(screen.getByText("Chess")).not.toBeNull();
-  const rating = screen.getByRole("img", { name: badge });
-  expect(rating.className).toContain(fields.rankingEnabled ? "chip--primary" : "chip--secondary");
-  expect(rating.className).toContain(fields.rankingEnabled ? "chip--accent" : "chip--default");
-  expect(screen.getByText("Rating")).not.toBeNull();
-  expect(document.querySelector("img")?.getAttribute("src")).toMatch(/^data:image\/svg\+xml,/);
-  expect(screen.getByText(person)).not.toBeNull();
-  expect(screen.getByText(/Minimum players/).textContent).toContain(String(row.minPlayers));
-  expect(screen.getByText(/Maximum players/).textContent).toContain(String(row.maxPlayers));
-  expect(screen.queryByRole("button")).toBeNull();
-  const artwork = document.querySelector("img")?.getAttribute("src");
-  view.rerender(
-    <EventTableCard
-      context="event"
-      table={{ ...plannedTable, rankingEnabled: fields.rankingEnabled }}
-    />,
-  );
-  expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
-  expect(document.querySelector("img")?.getAttribute("src")).toBe(
-    `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: plannedTable.id, size: 72 }).toString())}`,
-  );
-  expect(
-    screen
-      .getByRole("button", { name: badge })
-      .querySelector(fields.rankingEnabled ? "svg.lucide-trophy" : "svg.lucide-circle-off"),
-  ).not.toBeNull();
-});
+])(
+  "shows local facts in readonly informational popovers: $badge / $person",
+  async ({ badge, person, ...fields }) => {
+    const row = { ...tableDraft(plannedTable, plannedEvent.timeZone), ...fields };
+    const view = renderWithI18n(<EventDraftTableCard row={row} publicGroup />);
+    expect(screen.getByRole("heading", { name: row.name, level: 2 })).not.toBeNull();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    expect(screen.queryByText("Chess")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: badge }));
+    expect(await screen.findByText("Rating")).toBeTruthy();
+    await closePopover();
+    fireEvent.click(screen.getByRole("button", { name: `Players: ${row.name}` }));
+    expect((await screen.findByText(/Minimum players/)).textContent).toContain(
+      String(row.minPlayers),
+    );
+    expect(screen.getByText(/Maximum players/).textContent).toContain(String(row.maxPlayers));
+    await closePopover();
+    fireEvent.click(screen.getByRole("button", { name: `Demonstrator: ${row.name}` }));
+    expect(await screen.findByText(person)).toBeTruthy();
+    await closePopover();
+    expect(document.querySelector("img")?.getAttribute("src")).toMatch(/^data:image\/svg\+xml,/);
+    expect(screen.queryByRole("button", { name: /^(Edit|Remove|Join|Invite)/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Planning" })).toBeNull();
+    const artwork = document.querySelector("img")?.getAttribute("src");
+    view.rerender(
+      <EventTableCard
+        context="event"
+        table={{ ...plannedTable, rankingEnabled: fields.rankingEnabled }}
+      />,
+    );
+    expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
+    expect(document.querySelector("img")?.getAttribute("src")).toBe(
+      `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: plannedTable.id, size: 72 }).toString())}`,
+    );
+    expect(
+      screen
+        .getByRole("button", { name: badge })
+        .querySelector(fields.rankingEnabled ? "svg.lucide-trophy" : "svg.lucide-circle-off"),
+    ).not.toBeNull();
+  },
+);
 it.each([0, 1, 2])(
-  "shows only the first game with its icon and %s additional games",
-  (remaining) => {
+  "keeps all %s additional games in the compact informational popover",
+  async (remaining) => {
     const row = tableDraft(plannedTable, plannedEvent.timeZone);
     row.games.push(
       ...Array.from({ length: remaining }, (_, index) => ({
@@ -80,27 +95,31 @@ it.each([0, 1, 2])(
       })),
     );
     renderWithI18n(<EventDraftTableCard row={row} />);
-    const game = screen.getByText("Chess");
-    expect(game.closest("p")?.querySelector("svg.lucide-dices")).not.toBeNull();
+    expect(screen.queryByText("Chess")).toBeNull();
     expect(screen.queryByText(/Hidden game/)).toBeNull();
-    if (remaining) {
-      expect(screen.getByText(`+${remaining}`)).not.toBeNull();
-      expect(
-        screen.getByText(`+${remaining} ${remaining === 1 ? "game" : "games"}`).className,
-      ).toContain("sr-only");
-    } else expect(screen.queryByText(/^\+\d/)).toBeNull();
+    const games = screen.getByRole("button", { name: `Board games: ${row.name}` });
+    expect(games.querySelector("svg.lucide-dices")).not.toBeNull();
+    fireEvent.click(games);
+    expect(await screen.findByText("Chess")).toBeTruthy();
+    for (let index = 0; index < remaining; index++)
+      expect(screen.getByText(`Hidden game ${index}`)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Select/ })).toBeNull();
   },
 );
-it("does not fabricate a game or an additional count for an empty draft", () => {
+it("does not fabricate a game or an additional count for an empty draft", async () => {
   const row = { ...tableDraft(plannedTable, plannedEvent.timeZone), games: [] };
   renderWithI18n(<EventDraftTableCard row={row} />);
-  expect(screen.getByText("Unknown")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: `Board games: ${row.name}` }));
+  expect(await screen.findByText("No games found")).toBeTruthy();
+  expect(screen.queryByText("Unknown")).toBeNull();
   expect(screen.queryByText(/^\+\d/)).toBeNull();
 });
-it("does not show an unavailable demonstrator field in private/standalone review cards", () => {
-  renderWithI18n(<EventDraftTableCard row={tableDraft(plannedTable, plannedEvent.timeZone)} />);
-  expect(screen.queryByText("No demonstrator")).toBeNull();
-  expect(screen.getByText("Chess")).not.toBeNull();
+it("does not show an unavailable demonstrator field in private/standalone review cards", async () => {
+  const row = tableDraft(plannedTable, plannedEvent.timeZone);
+  renderWithI18n(<EventDraftTableCard row={row} />);
+  expect(screen.queryByRole("button", { name: /^Demonstrator:/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: `Board games: ${row.name}` }));
+  expect(await screen.findByText("Chess")).toBeTruthy();
 });
 it("reviews public start, same-day end and combined cutoff before the venue", () => {
   const draft = {

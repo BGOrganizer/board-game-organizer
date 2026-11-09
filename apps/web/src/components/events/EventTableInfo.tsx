@@ -14,7 +14,7 @@ export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
     <section aria-label={t`Settings`}>
       <RecordIdentityCard
         title={table.name}
-        icon={<Dices className="mt-1 size-5 shrink-0 text-foreground" aria-hidden />}
+        icon={Dices}
         background={
           <AnimatedDicebearArtwork seed={table.id} variant="planets" presentation="background" />
         }

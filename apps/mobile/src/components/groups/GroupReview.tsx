@@ -7,11 +7,14 @@ import {
 } from "@board-game-organizer/shared";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
-import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { useState } from "react";
 import { View } from "react-native";
+import { FormInteractionScope } from "@/components/common/ui/FormInteractionScope";
+import { FormSubmitButton } from "@/components/common/ui/FormSubmitButton";
+import { Input } from "@/components/common/ui/Input";
+import { InputField } from "@/components/common/ui/InputField";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
@@ -32,7 +35,9 @@ export function GroupReview({ groupId }: { groupId: string }) {
     ),
     group = communityAccessDenied(q.error) ? undefined : q.data;
   const busy = a.busy || draft?.phase === "saving" || draft?.phase === "verifying";
+  const [attempted, setAttempted] = useState(false);
   const decide = (decision: "approve" | "reject") => {
+    if (decision === "reject") setAttempted(true);
     if (
       !group ||
       busy ||
@@ -72,40 +77,50 @@ export function GroupReview({ groupId }: { groupId: string }) {
       targets={[{ kind: "group", id: group.id }]}
       readOnOpen={{ kind: "group", id: group.id }}
     >
-      <ScreenScrollView>
-        <GroupDetailsCard group={group} />
-        {group.reviewStatus === "PENDING" ? (
-          <>
-            <Typography className="text-foreground">{t("Rejection reason")}</Typography>
-            <Input
-              accessibilityLabel={t("Rejection reason")}
-              value={reason}
-              onChangeText={setReason}
-              maxLength={1000}
-              editable
-            />
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <Button isDisabled={busy} onPress={() => void decide("approve")}>
-                <Button.Label>{t("Approve")}</Button.Label>
-              </Button>
-              <Button
-                variant="danger"
-                isDisabled={busy || !reason.trim()}
-                onPress={() => void decide("reject")}
-              >
-                <Button.Label>{t("Reject")}</Button.Label>
-              </Button>
-            </View>
-          </>
-        ) : (
-          <Typography className="text-foreground">{t("Review completed")}</Typography>
-        )}
-        {draft?.phase === "verifying" ? (
-          <Typography accessibilityLiveRegion="polite" className="text-foreground">
-            {t("Checking saved changes")}
-          </Typography>
-        ) : null}
-      </ScreenScrollView>
+      <FormInteractionScope>
+        <ScreenScrollView>
+          <GroupDetailsCard group={group} />
+          {group.reviewStatus === "PENDING" ? (
+            <>
+              <InputField style={{ gap: 8 }}>
+                <Typography className="text-foreground">{t("Rejection reason")}</Typography>
+                <Input
+                  accessibilityLabel={t("Rejection reason")}
+                  value={reason}
+                  onChangeText={setReason}
+                  maxLength={1000}
+                  isInvalid={attempted && !reason.trim()}
+                  editable={!busy}
+                />
+                {attempted && !reason.trim() ? (
+                  <Typography accessibilityRole="alert" className="text-danger">
+                    {t("Enter a rejection reason.")}
+                  </Typography>
+                ) : null}
+              </InputField>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <Button isDisabled={busy} onPress={() => void decide("approve")}>
+                  <Button.Label>{t("Approve")}</Button.Label>
+                </Button>
+                <FormSubmitButton
+                  variant="danger"
+                  isDisabled={busy}
+                  onPress={() => void decide("reject")}
+                >
+                  <Button.Label>{t("Reject")}</Button.Label>
+                </FormSubmitButton>
+              </View>
+            </>
+          ) : (
+            <Typography className="text-foreground">{t("Review completed")}</Typography>
+          )}
+          {draft?.phase === "verifying" ? (
+            <Typography accessibilityLiveRegion="polite" className="text-foreground">
+              {t("Checking saved changes")}
+            </Typography>
+          ) : null}
+        </ScreenScrollView>
+      </FormInteractionScope>
     </NotificationAttentionScope>
   );
 }

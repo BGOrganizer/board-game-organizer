@@ -11,7 +11,7 @@ export function GroupIdentityCard({ group }: { group: GroupRecordResponse }) {
   return (
     <RecordIdentityCard
       title={group.name}
-      icon={<UsersRound className="mt-1 size-5 shrink-0 text-foreground" aria-hidden />}
+      icon={UsersRound}
       background={<GroupArtwork group={group} status="none" presentation="background" />}
       titleAccessory={
         <NotificationItem

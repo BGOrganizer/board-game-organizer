@@ -1,6 +1,7 @@
 import { useRef } from "react";
-import { ScrollView, type ScrollViewProps } from "react-native";
+import type { ScrollView, ScrollViewProps } from "react-native";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
+import { InputScrollView } from "./InputScrollView";
 import { ScrollTargetContext } from "./ScrollTargetContext";
 
 export function ScreenScrollView({ style, contentContainerStyle, ...props }: ScrollViewProps) {
@@ -8,7 +9,7 @@ export function ScreenScrollView({ style, contentContainerStyle, ...props }: Scr
   const ref = useRef<ScrollView>(null);
   return (
     <ScrollTargetContext.Provider value={ref}>
-      <ScrollView
+      <InputScrollView
         ref={ref}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"

@@ -44,7 +44,6 @@ export class GroupRecordsService {
     private relationships: RelationshipRepository,
     private notifications: NotificationsRepository,
     private departure: (groupId: string, userId: string, reason: "BAN" | "LEFT") => Promise<void>,
-    private assertBanAllowed: (groupId: string, userId: string) => Promise<void>,
     private leaderboards: GroupLeaderboardRepository,
   ) {}
   private async required(id: string, lock = false) {
@@ -512,13 +511,16 @@ export class GroupRecordsService {
     if (!(await this.users.findById(input.userId))) throw new CommunityError(404, "USER_NOT_FOUND");
     if (input.until !== null && Date.parse(input.until) <= Date.now())
       throw new CommunityError(400, "BAN_EXPIRY_MUST_BE_FUTURE");
-    await this.assertBanAllowed(id, input.userId);
     const at = new Date().toISOString();
+    const previous = await this.groups.ban(id, input.userId);
+    const memberAccessThrough =
+      membership?.status === "ACCEPTED" ? at : previous?.memberAccessThrough;
     const row = {
       id: randomUUID(),
       groupId: id,
       userId: input.userId,
       adminUserId: userId,
+      ...(memberAccessThrough ? { memberAccessThrough } : {}),
       until: input.until === null ? null : new Date(input.until).toISOString(),
       createdAt: at,
       updatedAt: at,

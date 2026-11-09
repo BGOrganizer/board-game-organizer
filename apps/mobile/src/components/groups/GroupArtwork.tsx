@@ -1,9 +1,11 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { useThemeColor } from "heroui-native/hooks";
 import { Crown } from "lucide-react-native";
+import { useState } from "react";
 import { Image, View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
+import { containedArtwork } from "@/lib/artworkLayout";
 import { useT } from "@/lib/i18n";
 export function GroupArtwork({
   group,
@@ -18,24 +20,43 @@ export function GroupArtwork({
 }) {
   const t = useT(),
     warning = useThemeColor("warning");
+  const [frame, setFrame] = useState({ width: size, height: size });
+  const [loaded, setLoaded] = useState({ uri: group.logo, ratio: 1 });
+  const dimensions = containedArtwork(
+    frame.width,
+    frame.height,
+    loaded.uri === group.logo ? loaded.ratio : 1,
+    presentation === "cover" ? 4 : 0,
+  );
   return (
     <View
-      style={
+      onLayout={({ nativeEvent: { layout } }) =>
+        setFrame((old) =>
+          old.width === layout.width && old.height === layout.height
+            ? old
+            : { width: layout.width, height: layout.height },
+        )
+      }
+      style={[
         presentation !== "thumbnail"
           ? { position: "absolute", inset: 0 }
-          : { width: size, height: size, flexShrink: 0 }
-      }
+          : { width: size, height: size, flexShrink: 0 },
+        { alignItems: "center", justifyContent: "center" },
+      ]}
     >
       {group.logo ? (
         <Image
+          key={group.logo}
           source={{ uri: group.logo }}
           resizeMode="contain"
           accessible={false}
-          style={{
-            width: presentation !== "thumbnail" ? "100%" : size,
-            height: presentation !== "thumbnail" ? "100%" : size,
-            borderRadius: presentation === "cover" ? 0 : 12,
-          }}
+          onLoad={({ nativeEvent }) =>
+            setLoaded({
+              uri: group.logo,
+              ratio: nativeEvent.source.width / nativeEvent.source.height,
+            })
+          }
+          style={{ ...dimensions, borderRadius: 12, overflow: "hidden" }}
         />
       ) : (
         <AnimatedDicebearArtwork

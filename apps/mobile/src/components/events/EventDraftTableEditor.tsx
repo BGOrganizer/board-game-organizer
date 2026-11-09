@@ -1,18 +1,21 @@
 import {
+  DEFAULT_GAME_DURATION_MINUTES,
   type EventTableDraft,
+  eventGameDuration,
   gamePlayerBounds,
   publicTableTimeBounds,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { Input } from "heroui-native/input";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
 import { Minus, Plus, Trash2, X } from "lucide-react-native";
 import { View } from "react-native";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { InputField } from "@/components/common/ui/InputField";
+import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -53,20 +56,23 @@ export function EventDraftTableEditor({
   const bounds = publicTableTimeBounds(
     eventStartWall,
     eventEndWall,
-    Math.max(1, ...row.games.map((game) => game.maxPlayMinutes ?? game.manualDurationMinutes ?? 1)),
+    row.games.length
+      ? Math.max(...row.games.map(eventGameDuration))
+      : DEFAULT_GAME_DURATION_MINUTES,
   );
   const [dangerForeground, danger] = useThemeColor(["danger-foreground", "danger"]);
   const helpTitle = t("Field help");
   return (
     <View className="rounded-xl bg-surface" style={{ padding: 16, gap: 16 }}>
-      <View style={{ gap: 6 }}>
+      <InputField style={{ gap: 6 }}>
         <SearchHelpLabel
           required
           label={t("Table name")}
           helpTitle={helpTitle}
           help={t("Name this table so players can recognize it. Use between 1 and 120 characters.")}
         />
-        <Input
+        <NameInput
+          category="tavolo"
           accessibilityLabel={t("Table name")}
           placeholder={t("Strategy table")}
           maxLength={120}
@@ -80,8 +86,8 @@ export function EventDraftTableEditor({
             {t("Enter a table name between 1 and 120 characters.")}
           </Typography>
         ) : null}
-      </View>
-      <View style={{ gap: 8 }}>
+      </InputField>
+      <InputField invalid={fieldError("minPlayers") || fieldError("maxPlayers")} style={{ gap: 8 }}>
         <SearchHelpLabel
           required
           label={t("Number of players")}
@@ -108,7 +114,7 @@ export function EventDraftTableEditor({
             onChange={(maxPlayers) => onChange({ maxPlayers })}
           />
         </View>
-      </View>
+      </InputField>
       {playerBounds ? (
         <Typography className="text-sm text-muted">
           {t("BoardGameGeek player limits")}: {playerBounds.minPlayers}–{playerBounds.maxPlayers}
@@ -200,7 +206,7 @@ export function EventDraftTableEditor({
             }
             onChange={(startsWall) => onChange({ startsWall })}
           />
-          <View style={{ gap: 8 }}>
+          <InputField invalid={fieldError("demonstratorUserId")} style={{ gap: 8 }}>
             <SearchHelpLabel
               label={t("Demonstrator")}
               helpTitle={helpTitle}
@@ -243,10 +249,15 @@ export function EventDraftTableEditor({
                 isDisabled={busy}
               />
             )}
-          </View>
+            {fieldError("demonstratorUserId") ? (
+              <Typography accessibilityRole="alert" className="text-sm text-danger">
+                {t("Choose an available group demonstrator.")}
+              </Typography>
+            ) : null}
+          </InputField>
         </>
       ) : null}
-      <View style={{ gap: 8 }}>
+      <InputField invalid={fieldError("games")} style={{ gap: 8 }}>
         <SearchHelpLabel
           required
           label={t("Games")}
@@ -256,7 +267,7 @@ export function EventDraftTableEditor({
           )}
         />
         <GroupedList>
-          {row.games.map((game, index) => (
+          {row.games.map((game) => (
             <GameListRow
               key={game.id}
               name={game.name}
@@ -264,6 +275,7 @@ export function EventDraftTableEditor({
               year={game.year}
               average={game.average}
               rank={game.rank}
+              durationMinutes={eventGameDuration(game)}
               actions={
                 <Button
                   isIconOnly
@@ -279,66 +291,19 @@ export function EventDraftTableEditor({
                   <X size={18} color={danger} />
                 </Button>
               }
-            >
-              {publicGroup ? (
-                game.maxPlayMinutes ? (
-                  <Typography className="text-sm text-muted">
-                    {t("Duration")}: {game.maxPlayMinutes} {t("minutes")} · BoardGameGeek
-                  </Typography>
-                ) : (
-                  <View style={{ gap: 6 }}>
-                    <SearchHelpLabel
-                      required
-                      label={t("Manual duration in minutes")}
-                      helpTitle={helpTitle}
-                      help={t(
-                        "BoardGameGeek has no duration for this game. Enter a positive whole number of minutes.",
-                      )}
-                    />
-                    <Input
-                      accessibilityLabel={t("Manual duration in minutes")}
-                      keyboardType="number-pad"
-                      value={
-                        game.manualDurationMinutes === undefined
-                          ? ""
-                          : String(game.manualDurationMinutes)
-                      }
-                      onChangeText={(value) =>
-                        onChange({
-                          games: row.games.map((candidate) =>
-                            candidate.id === game.id
-                              ? {
-                                  ...candidate,
-                                  manualDurationMinutes: value ? Number(value) : undefined,
-                                }
-                              : candidate,
-                          ),
-                        })
-                      }
-                      editable={!busy}
-                      isInvalid={fieldError(`games.${index}.manualDurationMinutes`)}
-                    />
-                    {fieldError(`games.${index}.manualDurationMinutes`) ? (
-                      <Typography accessibilityRole="alert" className="text-sm text-danger">
-                        {t("Enter a valid game duration in minutes.")}
-                      </Typography>
-                    ) : null}
-                  </View>
-                )
-              ) : null}
-            </GameListRow>
+            />
           ))}
           <GameListRow
             name={t("Choose a game")}
             onPress={busy || row.games.length >= 20 ? undefined : onGame}
           />
         </GroupedList>
-        {fieldError("games") && !row.games.length ? (
+        {fieldError("games") ? (
           <Typography accessibilityRole="alert" className="text-sm text-danger">
-            {t("Choose at least one game.")}
+            {row.games.length ? t("Choose compatible games.") : t("Choose at least one game.")}
           </Typography>
         ) : null}
-      </View>
+      </InputField>
       <View style={{ alignItems: "flex-end" }}>
         <Button
           isIconOnly

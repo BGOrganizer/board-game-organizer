@@ -1147,8 +1147,10 @@ it.each([false, true])(
     };
     mount();
     await screen.findByRole("heading", { name: table.name, level: 1 });
-    if (missing) expect(await screen.findByText("Duration: Unknown")).not.toBeNull();
-    else expect(screen.queryByRole("region", { name: "Table schedule" })).toBeNull();
+    if (missing) {
+      expect(await screen.findByRole("region", { name: "Table schedule" })).toBeTruthy();
+      expect(screen.queryByText(/^Duration:/)).toBeNull();
+    } else expect(screen.queryByRole("region", { name: "Table schedule" })).toBeNull();
     expect(screen.queryByText("Demonstrator")).toBeNull();
   },
 );
@@ -1248,8 +1250,8 @@ it("rechecks capabilities and cutoff even while a place-action modal is open", a
     ).toBeNull(),
   );
   expect(
-    within(screen.getByRole("dialog")).queryByRole("button", { name: "Invite players" }),
-  ).toBeNull();
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Invite players" }),
+  ).toBeTruthy();
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
 });
 it("rechecks public cutoff and fixed game rules rather than showing stale actions", async () => {

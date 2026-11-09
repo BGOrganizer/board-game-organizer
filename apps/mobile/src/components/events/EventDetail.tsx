@@ -7,7 +7,6 @@ import {
   eventItemTargets,
   eventLocalToIso,
   eventOptionsRequireVote,
-  useEventCutoff,
   useEventRecord,
   useEventRecordActions,
   useRecordTables,
@@ -70,12 +69,14 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     [error, setError] = useState(false),
     event = communityAccessDenied(q.error) ? undefined : q.data;
   const [requestedTab, setTab] = useState("details");
+  const transitionVersion = useRef<number | null>(null);
   const tab =
-    event?.sharedResultsOnly && requestedTab === "participants" ? "details" : requestedTab;
+    (event?.sharedResultsOnly || event?.personalAccessOnly) && requestedTab === "participants"
+      ? "details"
+      : requestedTab;
   const tabRef = useRef(tab);
   tabRef.current = tab;
   const scroll = useRef<ScrollView>(null);
-  const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   const [accentForeground, muted, foreground] = useThemeColor([
     "accent-foreground",
     "muted",
@@ -98,10 +99,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           !event?.readOnly && canManageEvent(event, o.userId) && event?.status === "PLANNING" ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               {confirmationBlocked ? (
-                <HelpPopover
-                  label={t("Why confirmation is unavailable")}
-                  title={t("Confirm event")}
-                >
+                <HelpPopover label={t("Confirm event")} title={t("Confirm event")} icon={Check}>
                   <Typography className="text-foreground">{confirmationHint}</Typography>
                   {event.agreement?.reasons.map((reason) => (
                     <Typography key={reason.tableId} className="text-muted">
@@ -116,20 +114,21 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     </Typography>
                   ))}
                 </HelpPopover>
-              ) : null}
-              <Button
-                {...headerButtonProps}
-                variant="primary"
-                hitSlop={4}
-                accessibilityLabel={t("Confirm event")}
-                isDisabled={confirmationBlocked}
-                onPress={() => {
-                  setError(false);
-                  setConfirm("confirm");
-                }}
-              >
-                <Check size={HEADER_ICON_SIZE} color={accentForeground} />
-              </Button>
+              ) : (
+                <Button
+                  {...headerButtonProps}
+                  variant="primary"
+                  hitSlop={4}
+                  accessibilityLabel={t("Confirm event")}
+                  onPress={() => {
+                    setError(false);
+                    transitionVersion.current = event.version;
+                    setConfirm("confirm");
+                  }}
+                >
+                  <Check size={HEADER_ICON_SIZE} color={accentForeground} />
+                </Button>
+              )}
               <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
             </View>
           ) : !event?.readOnly &&
@@ -165,6 +164,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     if (
       a.busy ||
       q.isPlaceholderData ||
+      transitionVersion.current !== event.version ||
       !canManageEvent(event, o.userId) ||
       (confirm === "confirm" && confirmationBlocked) ||
       (confirm === "replan" && !event.canReplan)
@@ -173,7 +173,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       return;
     }
     setError(false);
-    a.transition.mutate({ action: confirm, version: event.version });
+    a.transition.mutate({ action: confirm, version: transitionVersion.current });
     setConfirm(null);
   };
   const header = (
@@ -187,9 +187,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         </NotificationItem>
         {event.readOnly ? (
           <Typography className="text-sm text-muted">
-            {event.sharedResultsOnly
-              ? t("Shared finalized results. Group details are hidden.")
-              : t("Public event. Group membership is not required to participate.")}
+            {event.personalAccessOnly
+              ? t("Personal access to your table. Group details are hidden.")
+              : event.sharedResultsOnly
+                ? t("Shared finalized results. Group details are hidden.")
+                : t("Public event. Group membership is not required to participate.")}
           </Typography>
         ) : null}
       </View>
@@ -224,7 +226,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     </View>
                     <NotificationItem
                       itemId={notificationItemId(event.id, "date", row.id)}
-                      readOnly={!voteDates || !event.canVote || closed}
+                      readOnly={!voteDates || !event.canVote}
                     />
                   </View>
                   {voteDates ? (
@@ -234,7 +236,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     />
                   ) : null}
                 </View>
-                {voteDates && event.canVote && !closed ? (
+                {voteDates && event.canVote ? (
                   <EventVoteButtons
                     label={eventDateWall(event, row).replace("T", " ")}
                     value={event.myVotes?.dateVotes[row.id]}
@@ -314,13 +316,13 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               titleAccessory={
                 <NotificationItem
                   itemId={notificationItemId(event.id, "location", row.id)}
-                  readOnly={!voteLocations || !event.canVote || closed}
+                  readOnly={!voteLocations || !event.canVote}
                 />
               }
               name={row.name}
               address={row.address}
               actions={
-                voteLocations && event.canVote && !closed ? (
+                voteLocations && event.canVote ? (
                   <EventVoteButtons
                     label={row.name}
                     value={event.myVotes?.locationVotes[row.id]}
@@ -378,7 +380,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 <TabTrigger icon={Info} value="details" style={{ flexDirection: "row", gap: 6 }}>
                   <Tabs.Label>{t("Details")}</Tabs.Label>
                 </TabTrigger>
-                {!event.sharedResultsOnly ? (
+                {!event.sharedResultsOnly && !event.personalAccessOnly ? (
                   <TabTrigger
                     icon={UsersRound}
                     value="participants"
@@ -474,13 +476,14 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               isDisabled={a.busy || q.isPlaceholderData}
               onPress={() => {
                 setError(false);
+                transitionVersion.current = event.version;
                 setConfirm("replan");
               }}
             >
               <RotateCcw size={20} color={foreground} accessible={false} />
             </FloatingActions>
           ) : null}
-          {tab === "details" && event.status === "PLANNING" && event.canEdit && !closed ? (
+          {tab === "details" && event.status === "PLANNING" && event.canEdit ? (
             <FloatingActions
               label={t("Edit event")}
               isDisabled={a.busy || q.isPlaceholderData}

@@ -4,7 +4,8 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
 
-// Execute layout/focus callbacks only; no native keyboard or frame-timing acceptance.
+// Actual component wiring; the shared scroll owner's geometry is checked independently.
+// Neither check is rendered native keyboard/frame-timing acceptance.
 const source = readFileSync(
   new URL("../../components/profile/ProfileCollection.tsx", import.meta.url),
   "utf8",
@@ -17,29 +18,31 @@ const file = ts.createSourceFile(
   ts.ScriptKind.TSX,
 );
 const decl = file.statements.find(
-  (n) => ts.isFunctionDeclaration(n) && n.name?.text === "ProfileCollection",
+  (node) => ts.isFunctionDeclaration(node) && node.name?.text === "ProfileCollection",
 );
 if (!decl) throw Error("Missing Collection");
 const code = ts.transpileModule(
-  decl.getText(file).replace("export ", "") + ";ProfileCollection(props);",
+  `${decl.getText(file).replace("export ", "")};ProfileCollection(props);`,
   { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } },
 ).outputText;
-it("preserves scroll range for empty/few results and pins focused search across keyboard/content layout changes", () => {
-  const states: number[] = [],
-    refs: { current: any }[] = [];
-  let si = 0,
-    ri = 0;
-  const scrollTo = vi.fn(),
-    rows = { items: [] as unknown[], hasMore: false },
-    filter = {
-      query: "Chess",
-      search: "Chess",
-      types: "all",
-      selected: ["games", "expansions"],
-      setQuery: vi.fn(),
-      toggle: vi.fn(),
-    };
-  const c: any = {
+
+it("keeps one keyboard-aware virtualized owner for empty/few results, sticky filters and bounded paging", () => {
+  const window = {
+    items: [] as unknown[],
+    hasMore: false,
+    beginScroll: vi.fn(),
+    endReached: vi.fn(),
+    loadMore: vi.fn(),
+  };
+  const filter = {
+    query: "Chess",
+    search: "Chess",
+    types: "all",
+    selected: ["games", "expansions"],
+    setQuery: vi.fn(),
+    toggle: vi.fn(),
+  };
+  const context: Record<string, unknown> = {
     props: { snapshot: "snapshot", subjectId: "owner", header: "Profile" },
     React: {
       createElement: (type: unknown, props: unknown, ...children: unknown[]) => ({
@@ -48,11 +51,10 @@ it("preserves scroll range for empty/few results and pins focused search across 
         children,
       }),
     },
-    useT: () => (s: string) => s,
+    useT: () => (text: string) => text,
     useLingui: () => ({ i18n: { locale: "en" } }),
     useCommunityApi: () => ({ apiUrl: "https://api.test", userId: "owner" }),
-    useSafeAreaInsets: () => ({ bottom: 0 }),
-    useHeaderHeight: () => 64,
+    useSafeAreaInsets: () => ({ bottom: 20 }),
     useBggCollectionFilters: () => filter,
     useBggCollection: () => ({
       data: {
@@ -64,27 +66,15 @@ it("preserves scroll range for empty/few results and pins focused search across 
     bggCollectionQuery: () => ({ queryKey: ["collection"] }),
     hashKey: () => "scope",
     communityAccessDenied: () => false,
-    useGameListWindow: () => rows,
+    useGameListWindow: () => window,
     noExclusions: new Set(),
-    useMemo: (f: () => unknown) => f(),
-    useCallback: (f: unknown) => f,
-    useRef: (initial: unknown) => {
-      const index = ri++;
-      refs[index] ??= { current: initial };
-      return refs[index];
-    },
-    useState: (initial: number) => {
-      const i = si++;
-      states[i] ??= initial;
-      return [states[i], (n: number) => (states[i] = n)];
-    },
-    Platform: { OS: "android" },
+    useMemo: (factory: () => unknown) => factory(),
+    useCallback: (callback: unknown) => callback,
     GAME_PICKER_CHUNK_SIZE: 8,
-    key: (i: { id: number }) => String(i.id),
+    key: (item: { id: number }) => String(item.id),
   };
   for (const name of [
-    "KeyboardAvoidingView",
-    "SectionList",
+    "InputSectionList",
     "View",
     "Skeleton",
     "ProfileStats",
@@ -92,7 +82,6 @@ it("preserves scroll range for empty/few results and pins focused search across 
     "FilterChips",
     "Typography",
     "Button",
-    "ProfileBggAttribution",
     "CollectionRow",
     "GameGap",
     "Gamepad2",
@@ -100,32 +89,38 @@ it("preserves scroll range for empty/few results and pins focused search across 
     "Puzzle",
     "UsersRound",
   ])
-    c[name] = name;
-  const render = () => {
-    si = ri = 0;
-    return runInNewContext(code, c).children[0];
-  };
+    context[name] = name;
+  const render = () => runInNewContext(code, context);
   let list = render();
-  list.props.ref.current = { getScrollResponder: () => ({ scrollTo }) };
-  list.props.ListHeaderComponent.props.onLayout({ nativeEvent: { layout: { height: 300 } } });
-  list.props.onLayout({ nativeEvent: { layout: { height: 600 } } });
-  list = render();
-  expect(list.props.contentContainerStyle.minHeight).toBe(920);
+  expect(list.type).toBe("InputSectionList");
+  expect(list.props).toMatchObject({
+    stickySectionHeadersEnabled: true,
+    initialNumToRender: 8,
+    maxToRenderPerBatch: 6,
+    windowSize: 7,
+    keyboardShouldPersistTaps: "handled",
+  });
+  expect(list.props.sections[0].data).toBe(window.items);
   const controls = list.props.renderSectionHeader();
-  controls.children[0].props.onFocus();
-  expect(scrollTo).toHaveBeenLastCalledWith({ y: 320, animated: false });
-  rows.items = [{ id: 1 }];
-  list.props.onLayout({ nativeEvent: { layout: { height: 300 } } });
+  expect(controls.children[0].props).toMatchObject({ value: "Chess", onChange: filter.setQuery });
+  expect(controls.children[0].props.onFocus).toBeUndefined();
+  expect(list.props.onLayout).toBeUndefined();
+  expect(list.props.onContentSizeChange).toBeUndefined();
+  expect(source).not.toContain("Keyboard.addListener");
+  expect(source).not.toContain("useHeaderHeight");
+  expect(source).not.toContain("ProfileBggAttribution");
+  window.items = [{ id: 1 }];
+  window.hasMore = true;
   list = render();
-  expect(list.props.contentContainerStyle.minHeight).toBe(620);
-  scrollTo.mockClear();
-  list.props.onContentSizeChange();
-  expect(scrollTo).toHaveBeenCalledOnce();
-  expect(list.props.stickySectionHeadersEnabled).toBe(true);
-  expect(list.props.ItemSeparatorComponent).toBe("GameGap");
-  controls.children[0].props.onBlur();
-  scrollTo.mockClear();
-  list.props.onContentSizeChange();
-  expect(scrollTo).not.toHaveBeenCalled();
+  expect(list.props.sections[0].data).toBe(window.items);
+  list.props.onScrollBeginDrag();
+  list.props.onEndReached();
+  list.props.onAccessibilityAction({ nativeEvent: { actionName: "increment" } });
+  expect(window.beginScroll).toHaveBeenCalledOnce();
+  expect(window.endReached).toHaveBeenCalledOnce();
+  expect(window.loadMore).toHaveBeenCalledOnce();
+  expect(list.props.accessibilityActions).toEqual([
+    { name: "increment", label: "Load more games" },
+  ]);
   expect(filter.query).toBe("Chess");
 });

@@ -51,14 +51,40 @@ it("blurs the active native input via Keyboard.dismiss before opening group opti
   expect(calls).toEqual(["dismiss-and-blur", "open", "close"]);
   expect(setQuery).toHaveBeenCalledWith("");
 });
-it("caps the compact native option viewport while retaining loading/error space", () => {
-  const code = expression("EventGroupSelect", "FlatList", "style");
-  for (const length of [0, 1, 4, 50]) {
-    const style = runInNewContext(code, { rows: { length } });
-    expect(style.height).toBeGreaterThanOrEqual(144);
-    expect(style.height).toBeLessThanOrEqual(192);
+it("caps keyboard-aware options and keeps search inside their own virtualized header", () => {
+  const text = readFileSync(
+    new URL("../../components/events/EventGroupSelect.tsx", import.meta.url),
+    "utf8",
+  );
+  const ast = ts.createSourceFile(
+    "select.tsx",
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let heightExpression = "";
+  function visit(node: ts.Node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "listHeight")
+      heightExpression = node.initializer?.getText(ast) ?? "";
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  expect(heightExpression).not.toBe("");
+  const code = expression("EventGroupSelect", "InputFlatList", "style");
+  for (const keyboardHeight of [0, 300, 500]) {
+    const listHeight = runInNewContext(heightExpression, {
+      height: 800,
+      keyboardHeight,
+      insets: { top: 24, bottom: 20 },
+    });
+    const style = runInNewContext(code, { listHeight });
+    expect(style.height).toBeLessThanOrEqual(Math.min(320, 800 - keyboardHeight - 68));
+    expect(style.height).toBeGreaterThanOrEqual(80);
     expect(style.flexShrink).toBe(1);
   }
+  expect(text).toMatch(/ListHeaderComponent=\{[\s\S]*<SearchInput/);
+  expect(text).toContain('keyboardAvoidance="external"');
 });
 it.each([false, true])(
   "keeps a single virtualized native list, with waiting always after seats (waiting=%s)",

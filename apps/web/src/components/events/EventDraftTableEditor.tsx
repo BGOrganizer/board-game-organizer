@@ -1,6 +1,8 @@
 "use client";
 import {
+  DEFAULT_GAME_DURATION_MINUTES,
   type EventTableDraft,
+  eventGameDuration,
   gamePlayerBounds,
   publicTableTimeBounds,
 } from "@board-game-organizer/shared";
@@ -9,6 +11,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Minus, Plus, Trash2, UserRoundPen, UserRoundPlus, X } from "lucide-react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -44,7 +47,9 @@ export function EventDraftTableEditor({
   const bounds = publicTableTimeBounds(
     eventStartWall,
     eventEndWall,
-    Math.max(1, ...row.games.map((game) => game.maxPlayMinutes ?? game.manualDurationMinutes ?? 1)),
+    row.games.length
+      ? Math.max(...row.games.map(eventGameDuration))
+      : DEFAULT_GAME_DURATION_MINUTES,
   );
   const helpTitle = t`Field help`;
   return (
@@ -62,7 +67,13 @@ export function EventDraftTableEditor({
           helpTitle={helpTitle}
           help={t`Name this table so players can recognize it. Use between 1 and 120 characters.`}
         />
-        <Input placeholder={t`Strategy table`} maxLength={120} />
+        <NameInput
+          category="tavolo"
+          onGenerate={(name) => onChange({ name })}
+          isDisabled={busy}
+          placeholder={t`Strategy table`}
+          maxLength={120}
+        />
         {fieldError("name") ? (
           <p
             role="alert"
@@ -70,7 +81,12 @@ export function EventDraftTableEditor({
           >{t`Enter a table name between 1 and 120 characters.`}</p>
         ) : null}
       </TextField>
-      <fieldset className="space-y-2" aria-label={t`Number of players`}>
+      <fieldset
+        data-form-field
+        data-form-error={fieldError("minPlayers") || fieldError("maxPlayers") || undefined}
+        className="space-y-2"
+        aria-label={t`Number of players`}
+      >
         <SearchHelpLabel
           required
           label={t`Number of players`}
@@ -191,7 +207,11 @@ export function EventDraftTableEditor({
               >{t`Choose a table start and duration within the event.`}</p>
             ) : null}
           </TextField>
-          <div className="space-y-2">
+          <div
+            data-form-field
+            data-form-error={fieldError("demonstratorUserId") || undefined}
+            className="space-y-2"
+          >
             <SearchHelpLabel
               label={t`Demonstrator`}
               helpTitle={helpTitle}
@@ -213,6 +233,7 @@ export function EventDraftTableEditor({
                   className={
                     row.demonstratorUserId ? "min-h-11 min-w-11" : "min-h-11 flex-1 justify-start"
                   }
+                  data-form-control
                   aria-label={t`Choose demonstrator`}
                   isDisabled={busy}
                   onPress={onDemonstrator}
@@ -243,10 +264,20 @@ export function EventDraftTableEditor({
                 ) : null}
               </GroupedRow>
             </GroupedList>
+            {fieldError("demonstratorUserId") ? (
+              <p
+                role="alert"
+                className="text-sm text-danger"
+              >{t`Choose an available group demonstrator.`}</p>
+            ) : null}
           </div>
         </>
       ) : null}
-      <section className="space-y-2">
+      <section
+        data-form-field
+        data-form-error={fieldError("games") || undefined}
+        className="space-y-2"
+      >
         <SearchHelpLabel
           required
           label={t`Games`}
@@ -254,7 +285,7 @@ export function EventDraftTableEditor({
           help={t`Choose at least one game. Use the empty game slot to add another option. Players vote only when multiple games are proposed.`}
         />
         <GroupedList>
-          {row.games.map((game, index) => (
+          {row.games.map((game) => (
             <GameListRow
               key={game.id}
               name={game.name}
@@ -262,6 +293,7 @@ export function EventDraftTableEditor({
               year={game.year}
               average={game.average}
               rank={game.rank}
+              durationMinutes={eventGameDuration(game)}
               actions={
                 <Button
                   isIconOnly
@@ -276,60 +308,17 @@ export function EventDraftTableEditor({
                   <X className="size-4" aria-hidden />
                 </Button>
               }
-            >
-              {publicGroup ? (
-                game.maxPlayMinutes ? (
-                  <p className="text-sm text-muted">
-                    {t`Duration`}: {game.maxPlayMinutes} {t`minutes`} · BoardGameGeek
-                  </p>
-                ) : (
-                  <TextField
-                    value={
-                      game.manualDurationMinutes === undefined
-                        ? ""
-                        : String(game.manualDurationMinutes)
-                    }
-                    onChange={(value) =>
-                      onChange({
-                        games: row.games.map((candidate) =>
-                          candidate.id === game.id
-                            ? {
-                                ...candidate,
-                                manualDurationMinutes: value ? Number(value) : undefined,
-                              }
-                            : candidate,
-                        ),
-                      })
-                    }
-                    isRequired
-                    isDisabled={busy}
-                    isInvalid={fieldError(`games.${index}.manualDurationMinutes`)}
-                  >
-                    <SearchHelpLabel
-                      required
-                      label={t`Manual duration in minutes`}
-                      helpTitle={helpTitle}
-                      help={t`BoardGameGeek has no duration for this game. Enter a positive whole number of minutes.`}
-                    />
-                    <Input type="number" min={1} />
-                    {fieldError(`games.${index}.manualDurationMinutes`) ? (
-                      <p
-                        role="alert"
-                        className="text-sm text-danger"
-                      >{t`Enter a valid game duration in minutes.`}</p>
-                    ) : null}
-                  </TextField>
-                )
-              ) : null}
-            </GameListRow>
+            />
           ))}
           <GameListRow
             name={t`Choose a game`}
             onPress={busy || row.games.length >= 20 ? undefined : onGame}
           />
         </GroupedList>
-        {fieldError("games") && !row.games.length ? (
-          <p role="alert" className="text-sm text-danger">{t`Choose at least one game.`}</p>
+        {fieldError("games") ? (
+          <p role="alert" className="text-sm text-danger">
+            {row.games.length ? t`Choose compatible games.` : t`Choose at least one game.`}
+          </p>
         ) : null}
       </section>
       <div className="flex justify-end">

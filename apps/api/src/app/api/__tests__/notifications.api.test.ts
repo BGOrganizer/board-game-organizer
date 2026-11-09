@@ -85,7 +85,11 @@ describe("notification API", () => {
     vi.clearAllMocks();
     mocks.auth.mockResolvedValue({ userId: "user_1" });
     mocks.list.mockResolvedValue({ notifications: [], unreadCount: 0, nextCursor: null });
-    mocks.attentionSnapshot.mockResolvedValue({ snapshot: attentionZero, references: new Map() });
+    mocks.attentionSnapshot.mockResolvedValue({
+      snapshot: attentionZero,
+      references: new Map(),
+      personalNotificationIds: new Set(),
+    });
     mocks.attentionRead.mockResolvedValue({ updated: 0, snapshot: attentionZero });
     mocks.markRead.mockResolvedValue({ modifiedCount: 1 });
     mocks.deleteOne.mockResolvedValue({ deletedCount: 1 });
@@ -245,6 +249,7 @@ describe("notification API", () => {
     mocks.attentionSnapshot.mockResolvedValue({
       snapshot: { ...attentionZero, unreadCount: 2 },
       references: new Map([[ID, { target }]]),
+      personalNotificationIds: new Set(),
     });
     const response = await listNotifications(new Request("http://x/api/notifications"));
     const body = await response.json();
@@ -257,6 +262,35 @@ describe("notification API", () => {
       [],
       [ID, "1234567890abcdef12345678"],
     );
+  });
+  it("returns only authorized structured items for personal notices without changing independently authorized rows", async () => {
+    const own = { id: "own", revision: 1, readAt: null };
+    const sibling = { id: "sibling", revision: 1, readAt: null };
+    const normalId = "fedcba987654321001234567";
+    const deniedId = "1234567890abcdef12345678";
+    mocks.list.mockResolvedValue({
+      notifications: [
+        { id: ID, readAt: null, attentionItems: [own, sibling] },
+        { id: normalId, readAt: null, attentionItems: [own, sibling] },
+        { id: deniedId, readAt: null, attentionItems: [sibling] },
+      ],
+      nextCursor: null,
+    });
+    mocks.attentionSnapshot.mockResolvedValue({
+      snapshot: attentionZero,
+      personalNotificationIds: new Set([ID]),
+      references: new Map([
+        [ID, { target: { kind: "event", id: "event" }, itemIds: [own.id] }],
+        [normalId, { target: { kind: "event", id: "event" } }],
+      ]),
+    });
+    const response = await listNotifications(new Request("http://x/api/notifications"));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.notifications[0].attentionItems).toEqual([own]);
+    expect(body.notifications[1].attentionItems).toEqual([own, sibling]);
+    expect(body.notifications[2]).not.toHaveProperty("attentionItems");
+    expect(body.notifications[2].attention).toBeNull();
   });
   it("uses explicit supported inbox locale and rejects duplicate/foreign locale input", async () => {
     const response = await listNotifications(new Request("http://x/api/notifications?locale=it"));

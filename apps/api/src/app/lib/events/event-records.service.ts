@@ -36,11 +36,12 @@ import type {
 } from "@board-game-organizer/schemas";
 import { MAX_EVENT_OPTIONS, notificationItemId } from "@board-game-organizer/schemas";
 import {
-  banHasProtectedParticipation,
+  banPreservesFrozenEvent,
   calculateEventAgreement,
   type EventAgreement,
   eventAvailabilityVoteIsAllowed,
   eventDateWall,
+  eventGameDuration,
   eventJoinAvailabilityIsComplete,
   eventLocalDateTime,
   eventLocalToIso,
@@ -57,6 +58,7 @@ import {
   groupBanIsActive,
   hasOtherAcceptedTable,
   hasPublicTableConflict,
+  isFrozenTableParticipant,
   isGroupModerator,
   isPersonalTableParticipant,
   normalizeMatchScore,
@@ -78,6 +80,7 @@ import type { NotificationsRepository } from "../notifications/notifications.rep
 import type { RatingsRepository } from "../ratings/ratings.repository";
 import { publicUserName } from "../users/public-user-name";
 import type { UsersRepository } from "../users/users.repository";
+import { personalEventProjection, personalTableProjection } from "./event-personal-projection";
 import type { EventRecordPage, EventRecordsRepository } from "./event-records.repository";
 import { sharedEventResults, sharedTableResults } from "./event-results-projection";
 
@@ -153,14 +156,27 @@ export class EventRecordsService {
     const own = await this.events.userRegistrations(id, userId);
     let readOnly = false,
       sharedResultsOnly = false,
-      outsideGroup = false;
+      outsideGroup = false,
+      personalOnly = false;
     if (group) {
-      if (groupBanIsActive(await this.groups.ban(group.id, userId), Date.now()))
-        throw new CommunityError(403, "GROUP_BANNED");
+      const ban = await this.groups.ban(group.id, userId);
       const member =
         group.adminUserId === userId ||
         (await this.groups.membership(group.id, userId))?.status === "ACCEPTED";
-      if (!member) {
+      const banned = groupBanIsActive(ban, Date.now());
+      if ((banned || !member) && banPreservesFrozenEvent(event, group.type, ban))
+        personalOnly = (await this.events.allTables(id)).some((table) =>
+          isFrozenTableParticipant(table, userId),
+        );
+      if (banned && (!personalOnly || lock || admin)) throw new CommunityError(403, "GROUP_BANNED");
+      if (personalOnly) {
+        if (lock || admin) throw new CommunityError(403, "GROUP_MEMBER_REQUIRED");
+        if (await this.relationships.isBlocked(userId, event.adminUserId))
+          throw new CommunityError(404, "EVENT_NOT_FOUND");
+        readOnly = true;
+        outsideGroup = true;
+      }
+      if (!member && !personalOnly) {
         outsideGroup = true;
         if (await this.relationships.isBlocked(userId, event.adminUserId))
           throw new CommunityError(404, "EVENT_NOT_FOUND");
@@ -180,17 +196,19 @@ export class EventRecordsService {
       throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
     if (!group && event.adminUserId !== userId && !own.length)
       throw new CommunityError(404, "EVENT_NOT_FOUND");
-    return { event, group, own, readOnly, sharedResultsOnly, outsideGroup };
+    return { event, group, own, readOnly, sharedResultsOnly, outsideGroup, personalOnly };
   }
   /** Feed reads share the exact detail authorization, without expensive detail projections. */
   async activityResource(userId: string, eventId: string, tableId?: string, feed = false) {
-    const { event, group, sharedResultsOnly } = await this.context(
+    const { event, group, sharedResultsOnly, personalOnly } = await this.context(
       userId,
       eventId,
       false,
       false,
       true,
     );
+    // Frozen personal detail is not authority to inspect other users' activity receipts.
+    if (feed && personalOnly) throw new CommunityError(404, "EVENT_NOT_FOUND");
     const privateFeed =
       feed && eventRecordVisibility(event, group?.type ?? null) === "PRIVATE" && Boolean(group);
     if (privateFeed && !(await this.resultFriend(event, userId)))
@@ -201,7 +219,7 @@ export class EventRecordsService {
         href: `/events/${eventId}`,
         ...(privateFeed || sharedResultsOnly
           ? { sharedResultsOnly: true }
-          : event.groupId
+          : event.groupId && !personalOnly
             ? { groupId: event.groupId }
             : {}),
       };
@@ -209,7 +227,8 @@ export class EventRecordsService {
     if (
       !table ||
       table.eventId !== eventId ||
-      ((privateFeed || sharedResultsOnly) && (!table.confirmed || !table.results))
+      ((privateFeed || sharedResultsOnly) && (!table.confirmed || !table.results)) ||
+      (personalOnly && !isFrozenTableParticipant(table, userId))
     )
       throw new CommunityError(404, "TABLE_NOT_FOUND");
     return {
@@ -218,14 +237,14 @@ export class EventRecordsService {
       href: `/events/${eventId}/tables/${tableId}`,
       ...(privateFeed || sharedResultsOnly
         ? { sharedResultsOnly: true }
-        : event.groupId
+        : event.groupId && !personalOnly
           ? { groupId: event.groupId }
           : {}),
     };
   }
-  private open(event: EventRecord, group: GroupRecord | null) {
+  private open(event: EventRecord, group: GroupRecord | null, enforceCutoff = false) {
     if (event.status !== "PLANNING") throw new CommunityError(409, "EVENT_NOT_PLANNING");
-    if (publicBookingIsClosed(event, group?.type ?? null, Date.now()))
+    if (enforceCutoff && publicBookingIsClosed(event, group?.type ?? null, Date.now()))
       throw new CommunityError(409, "EVENT_BOOKING_CLOSED");
   }
   private async notify(
@@ -514,7 +533,7 @@ export class EventRecordsService {
     };
   }
   async detail(userId: string, id: string) {
-    const { event, group, own, readOnly, sharedResultsOnly } = await this.context(
+    const { event, group, own, readOnly, sharedResultsOnly, personalOnly } = await this.context(
       userId,
       id,
       false,
@@ -522,6 +541,8 @@ export class EventRecordsService {
       true,
     );
     const response = await this.response(event, group, userId, own, true, readOnly);
+    if (personalOnly)
+      return personalEventProjection(response, await this.events.allTables(id), own, userId);
     return sharedResultsOnly
       ? sharedEventResults(response, await this.events.allTables(id))
       : response;
@@ -903,7 +924,8 @@ export class EventRecordsService {
     page: Pick<EventRecordPage, "limit" | "cursor"> & { view?: "member" | "review" },
   ): Promise<EventParticipantsResponse> {
     // Public detail access is NOT privileged roster access.
-    const { event, group } = await this.context(userId, id);
+    const { event, group, personalOnly } = await this.context(userId, id);
+    if (personalOnly) throw new CommunityError(403, "EVENT_PERSONAL_ACCESS_ONLY");
     const manager = await this.manager(event, group, userId);
     const review = page.view === "review";
     if (review && !manager) throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
@@ -942,10 +964,7 @@ export class EventRecordsService {
         for (const row of places.waiting) waiting.add(row.id);
       }
     }
-    const removable =
-      manager &&
-      event.status === "PLANNING" &&
-      !publicBookingIsClosed(event, group?.type ?? null, Date.now());
+    const removable = manager && event.status === "PLANNING";
     const items: EventParticipantResponse[] = [];
     for (const row of selected) {
       const profile = profiles.find((value) => value.clerkId === row.userId);
@@ -962,14 +981,7 @@ export class EventRecordsService {
           : isGroupModerator(membership)
             ? ("moderator" as const)
             : null;
-      const canBanGroup = Boolean(
-        manager &&
-          group &&
-          row.userId !== userId &&
-          row.userId !== group.adminUserId &&
-          !excluded &&
-          (group.adminUserId === userId || !isGroupModerator(membership)),
-      );
+      const canBanGroup = false;
       const own = registrations.filter(
         (value) =>
           value.userId === row.userId &&
@@ -1013,7 +1025,10 @@ export class EventRecordsService {
         waiting: isWaiting,
         demonstrator,
         managementRole,
-        canRemove: removable && accepted,
+        canRemove:
+          removable &&
+          accepted &&
+          (row.userId !== userId || !publicBookingIsClosed(event, group?.type ?? null, Date.now())),
         canBanGroup,
       });
     }
@@ -1032,7 +1047,7 @@ export class EventRecordsService {
     input: DeletePlannedRecordInput,
   ) {
     const { event, group } = await this.context(userId, id, true, true);
-    this.open(event, group);
+    this.open(event, group, userId === target);
     if (event.version !== input.version) throw new CommunityError(409, "EVENT_CHANGED");
     const tables = await this.events.allTables(id);
     const rows = await this.events.userRegistrations(id, target);
@@ -1060,14 +1075,12 @@ export class EventRecordsService {
     const rows = await this.events.list(userId, page, groupId);
     const items: PlannedEventResponse[] = [];
     for (const row of rows.slice(0, page.limit)) {
-      const group = row.groupId ? await this.group(row.groupId) : null;
+      const { event, group, own, readOnly, personalOnly } = await this.context(userId, row.id);
+      const response = await this.response(event, group, userId, own, false, readOnly);
       items.push(
-        await this.response(
-          row,
-          group,
-          userId,
-          await this.events.userRegistrations(row.id, userId),
-        ),
+        personalOnly
+          ? personalEventProjection(response, await this.events.allTables(row.id), own, userId)
+          : response,
       );
     }
     const last = items.at(-1);
@@ -1120,6 +1133,8 @@ export class EventRecordsService {
         const stored = current?.games.find((row) => row.gameId === choice.gameId);
         if (
           stored &&
+          Number.isSafeInteger(stored.durationMinutes) &&
+          (stored.durationMinutes ?? 0) > 0 &&
           (choice.manualDurationMinutes === undefined ||
             (stored.durationSource === "MANUAL" &&
               choice.manualDurationMinutes === stored.durationMinutes))
@@ -1127,17 +1142,11 @@ export class EventRecordsService {
           return stored;
         const game = games.find((row) => row.id === choice.gameId);
         const bgg = game?.maxPlayMinutes;
-        const duration = bgg ?? choice.manualDurationMinutes;
-        if (group?.type === "PUBLIC" && !duration)
-          throw new CommunityError(400, "TABLE_DURATION_REQUIRED");
+        const duration = eventGameDuration({ maxPlayMinutes: bgg });
         return {
           gameId: choice.gameId,
-          ...(duration
-            ? {
-                durationMinutes: duration,
-                durationSource: bgg ? ("BGG" as const) : ("MANUAL" as const),
-              }
-            : {}),
+          durationMinutes: duration,
+          durationSource: bgg === duration ? ("BGG" as const) : ("DEFAULT" as const),
         };
       });
       const row: TableRecord = {
@@ -1513,10 +1522,8 @@ export class EventRecordsService {
       selected,
     );
     const games = await this.games.findByIds(table.games.map((game) => game.gameId));
-    const open =
-      !readOnly &&
-      event.status === "PLANNING" &&
-      !publicBookingIsClosed(event, group?.type ?? null, Date.now());
+    const planning = !readOnly && event.status === "PLANNING";
+    const open = planning && !publicBookingIsClosed(event, group?.type ?? null, Date.now());
     const ratingChanges =
       table.results && table.rankingEnabled && table.confirmed
         ? await this.ratings.forTable(table.id, table.confirmed.gameId)
@@ -1632,9 +1639,9 @@ export class EventRecordsService {
             !publicBookingIsClosed(event, group?.type ?? null, Date.now()))) &&
         !my &&
         (Boolean(group) || event.adminUserId === userId),
-      canRespond: open && my?.status === "PENDING" && my.kind === "INVITATION",
+      canRespond: planning && my?.status === "PENDING" && my.kind === "INVITATION",
       canLeave: open && my?.status === "ACCEPTED",
-      canInvite: open && canManage,
+      canInvite: planning && canManage,
       canProposeGames:
         !canManage &&
         open &&
@@ -1700,17 +1707,13 @@ export class EventRecordsService {
     };
   }
   async tableDetail(userId: string, eventId: string, tableId: string) {
-    const { event, group, readOnly, sharedResultsOnly, outsideGroup } = await this.context(
-      userId,
-      eventId,
-      false,
-      false,
-      true,
-    );
+    const { event, group, own, readOnly, sharedResultsOnly, outsideGroup, personalOnly } =
+      await this.context(userId, eventId, false, false, true);
     const table = await this.events.table(tableId);
     if (
       !table ||
       table.eventId !== eventId ||
+      (personalOnly && !isFrozenTableParticipant(table, userId)) ||
       (sharedResultsOnly && (!table.confirmed || !table.results))
     )
       throw new CommunityError(404, "TABLE_NOT_FOUND");
@@ -1724,7 +1727,15 @@ export class EventRecordsService {
       readOnly,
       outsideGroup,
     );
-    return sharedResultsOnly ? sharedTableResults(response) : response;
+    return personalOnly
+      ? personalTableProjection(
+          response,
+          own.find((row) => row.tableId === tableId) ?? null,
+          userId,
+        )
+      : sharedResultsOnly
+        ? sharedTableResults(response)
+        : response;
   }
   async tableLeaderboard(
     userId: string,
@@ -1732,25 +1743,37 @@ export class EventRecordsService {
     tableId: string,
     page: Pick<EventRecordPage, "limit" | "cursor">,
   ): Promise<TableLeaderboardResponse> {
-    const { event, sharedResultsOnly } = await this.context(userId, eventId, false, false, true);
+    const { event, sharedResultsOnly, personalOnly } = await this.context(
+      userId,
+      eventId,
+      false,
+      false,
+      true,
+    );
     if (sharedResultsOnly) throw new CommunityError(403, "EVENT_RESULTS_ONLY");
     const table = await this.events.table(tableId);
-    if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    if (
+      !table ||
+      table.eventId !== eventId ||
+      (personalOnly && !isFrozenTableParticipant(table, userId))
+    )
+      throw new CommunityError(404, "TABLE_NOT_FOUND");
     if (event.status === "PLANNING" || !table.confirmed)
       throw new CommunityError(409, "TABLE_NOT_CONFIRMED");
     const { gameId, playerIds } = table.confirmed;
+    const ratingGroupId = personalOnly ? null : event.groupId;
     // Same transaction session: snapshot, genuine Table statistics and profiles run sequentially.
-    const ratings = await this.ratings.currentForPlayers(playerIds, gameId, event.groupId);
+    const ratings = await this.ratings.currentForPlayers(playerIds, gameId, ratingGroupId);
     const ordered = ratings.sort((a, b) => b.score - a.score || a.userId.localeCompare(b.userId));
     const offset = Number(page.cursor ?? 0),
       selected = ordered.slice(offset, offset + page.limit);
     const stats = await this.ratings.tableStats(
       selected.map((row) => row.userId),
       gameId,
-      event.groupId,
+      ratingGroupId,
     );
     const profiles = await this.users.findByIds(selected.map((row) => row.userId));
-    const globalRatings = event.groupId
+    const globalRatings = ratingGroupId
       ? await this.ratings.currentForPlayers(
           selected.map((row) => row.userId),
           gameId,
@@ -1758,14 +1781,14 @@ export class EventRecordsService {
       : selected;
     return {
       gameId,
-      scope: event.groupId ? "GROUP" : "GLOBAL",
+      scope: ratingGroupId ? "GROUP" : "GLOBAL",
       items: selected.map((row) => {
         const profile = profiles.find((value) => value.clerkId === row.userId),
           counters = stats.get(row.userId);
         return {
           ...row,
           globalRating: globalRatings.find((value) => value.userId === row.userId),
-          ...(event.groupId
+          ...(ratingGroupId
             ? { groupRating: { score: row.score, provisional: row.provisional } }
             : {}),
           name: publicUserName(profile, row.userId),
@@ -1780,7 +1803,7 @@ export class EventRecordsService {
     };
   }
   async tables(userId: string, eventId: string, page: EventRecordPage) {
-    const { event, group, readOnly, sharedResultsOnly } = await this.context(
+    const { event, group, own, readOnly, sharedResultsOnly, personalOnly } = await this.context(
       userId,
       eventId,
       false,
@@ -1790,6 +1813,7 @@ export class EventRecordsService {
     const rows = (await this.events.allTables(eventId)).filter(
       (table) =>
         (!sharedResultsOnly || (table.confirmed && table.results)) &&
+        (!personalOnly || isFrozenTableParticipant(table, userId)) &&
         (!page.query || table.name.toLocaleLowerCase().includes(page.query.toLocaleLowerCase())),
     );
     const after = page.cursor ? rows.filter((row) => row.order > Number(page.cursor)) : rows;
@@ -1805,7 +1829,17 @@ export class EventRecordsService {
         false,
         readOnly,
       );
-      items.push(sharedResultsOnly ? sharedTableResults(response) : response);
+      items.push(
+        personalOnly
+          ? personalTableProjection(
+              response,
+              own.find((item) => item.tableId === row.id) ?? null,
+              userId,
+            )
+          : sharedResultsOnly
+            ? sharedTableResults(response)
+            : response,
+      );
     }
     return {
       items,
@@ -1923,7 +1957,7 @@ export class EventRecordsService {
       false,
       target === undefined,
     );
-    this.open(event, group);
+    this.open(event, group, target === undefined);
     const table = await this.events.table(tableId);
     if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
     if (target === userId) throw new CommunityError(400, "USE_SELF_REGISTRATION");
@@ -1999,6 +2033,8 @@ export class EventRecordsService {
       throw new CommunityError(409, "REGISTRATION_CHANGED");
     const own = row.userId === userId,
       admin = await this.manager(event, group, userId);
+    if (input.action === "cancel" || (input.action === "remove" && own))
+      this.open(event, group, true);
     let acceptedGameVotes = row.gameVotes;
     let status: TableRegistration["status"];
     if (input.action === "accept" || input.action === "decline") {
@@ -2169,7 +2205,28 @@ export class EventRecordsService {
         updatedAt: new Date().toISOString(),
       };
       delete next.lastNotifiedSituation;
+      const removed: string[] = [];
+      if (group) {
+        const tables = await this.events.allTables(id);
+        const users = new Set([
+          ...(await this.events.allRegistrations(id)).map((row) => row.userId),
+          ...tables.flatMap((table) =>
+            table.demonstratorUserId ? [table.demonstratorUserId] : [],
+          ),
+        ]);
+        for (const target of users) {
+          if (!groupBanIsActive(await this.groups.ban(group.id, target), Date.now())) continue;
+          removed.push(target);
+          await this.events.cancelUser(id, target, next.updatedAt);
+          for (const table of tables) {
+            if (table.demonstratorUserId !== target) continue;
+            const { demonstratorUserId: _demo, ...rest } = table;
+            await this.events.saveTable({ ...rest, updatedAt: next.updatedAt });
+          }
+        }
+      }
       await this.events.save(next);
+      if (removed.length) await this.notify("event_booking_removed", next, userId, removed);
       await this.notify(
         "event_replanning",
         next,
@@ -2185,12 +2242,13 @@ export class EventRecordsService {
     const tables = await this.events.allTables(id),
       plan = await this.agreement(event, group, tables);
     if (!plan.agreed) throw new CommunityError(409, "EVENT_NO_AGREEMENT");
-    if (
-      group &&
-      eventRecordVisibility(event, group.type) === "PRIVATE" &&
-      !publicBookingIsClosed(event, group.type, Date.now())
-    )
-      for (const participant of plan.participantIds) await this.member(group, participant);
+    if (group)
+      for (const participant of plan.participantIds) {
+        if (groupBanIsActive(await this.groups.ban(group.id, participant), Date.now()))
+          throw new CommunityError(403, "GROUP_BANNED");
+        if (eventRecordVisibility(event, group.type) === "PRIVATE")
+          await this.member(group, participant);
+      }
     if (!group)
       for (const participant of plan.participantIds)
         if (participant !== userId && (await this.relationships.isBlocked(userId, participant)))
@@ -2243,22 +2301,23 @@ export class EventRecordsService {
     page: EventRecordPage,
     pending = false,
   ) {
-    const { event, group, readOnly, sharedResultsOnly, outsideGroup } = await this.context(
-      userId,
-      eventId,
-      false,
-      false,
-      true,
-    );
+    const { event, group, readOnly, sharedResultsOnly, outsideGroup, personalOnly } =
+      await this.context(userId, eventId, false, false, true);
     if (sharedResultsOnly) throw new CommunityError(403, "EVENT_RESULTS_ONLY");
     const table = await this.events.table(tableId);
-    if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    if (
+      !table ||
+      table.eventId !== eventId ||
+      (personalOnly && !isFrozenTableParticipant(table, userId))
+    )
+      throw new CommunityError(404, "TABLE_NOT_FOUND");
     if (pending && (readOnly || !(await this.manager(event, group, userId))))
       throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
     const rows = await this.events.registrationsPage(
       tableId,
       pending ? "PENDING" : "ACCEPTED",
       page,
+      personalOnly ? table.confirmed?.playerIds : undefined,
     );
     const profiles = await this.users.findByIds(rows.slice(0, page.limit).map((row) => row.userId));
     const all = (await this.events.allRegistrations(eventId)).filter(
@@ -2305,27 +2364,13 @@ export class EventRecordsService {
         rows.length > page.limit && last ? `${last.priorityAt}|${last.sequence}|${last.id}` : null,
     };
   }
-  async assertBanAllowed(groupId: string, target: string) {
-    const group = await this.groups.find(groupId);
-    if (group?.type !== "PUBLIC") return;
-    const events = await this.events.groupEvents(groupId),
-      tables: TableRecord[] = [];
-    for (const event of events) tables.push(...(await this.events.allTables(event.id)));
-    if (banHasProtectedParticipation(group.type, events, tables, target, Date.now()))
-      throw new CommunityError(409, "BAN_FROZEN_PARTICIPATION");
-  }
   async membershipDeparted(groupId: string, target: string, reason: "BAN" | "LEFT") {
-    if (reason === "BAN") await this.assertBanAllowed(groupId, target);
     const group = await this.groups.find(groupId);
     if (!group) throw new CommunityError(404, "GROUP_NOT_FOUND");
     for (const initial of await this.events.groupEvents(groupId)) {
       const event = await this.events.lock(initial.id);
-      if (!event || event.status === "TERMINATED") continue;
-      if (
-        reason === "LEFT" &&
-        (event.status === "CONFIRMED" || publicBookingIsClosed(event, group.type, Date.now()))
-      )
-        continue;
+      if (!event || event.status !== "PLANNING") continue;
+      if (reason === "LEFT" && publicBookingIsClosed(event, group.type, Date.now())) continue;
       const tables = await this.events.allTables(event.id),
         rows = await this.events.userRegistrations(event.id, target);
       const independentPublicParticipation =
@@ -2353,10 +2398,9 @@ export class EventRecordsService {
         ...event,
         status: "PLANNING",
         version: event.version + 1,
-        planningGeneration: event.planningGeneration + Number(event.status === "CONFIRMED"),
+        planningGeneration: event.planningGeneration,
         updatedAt: at,
       };
-      if (event.status === "CONFIRMED") delete next.lastNotifiedSituation;
       await this.events.save(next);
       await this.notify(
         independentPublicParticipation && rows.some((row) => row.status === "ACCEPTED")

@@ -51,7 +51,13 @@ export function ownerListTargets(events: string, groups: string) {
   };
 }
 export function itemFacet(id: string): { total: Document[]; effects: Document[] } {
-  const complete = { $eq: [{ $size: "$_afterItems" }, 0] };
+  const complete = {
+    $and: [
+      { $eq: [{ $size: "$_afterItems" }, 0] },
+      // Hidden unauthorized items remain unread; an owned item ACK cannot consume them.
+      { $eq: [{ $size: { $ifNull: ["$_unscopedItems", "$_items"] } }, { $size: "$_items" }] },
+    ],
+  };
   const lost = (before: string, after: string) => ({
     $and: [{ $gt: [{ $size: before }, 0] }, { $eq: [{ $size: after }, 0] }],
   });

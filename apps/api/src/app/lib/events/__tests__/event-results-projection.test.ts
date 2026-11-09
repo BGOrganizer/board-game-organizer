@@ -1,5 +1,10 @@
-import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-organizer/schemas";
+import type {
+  PlannedEventResponse,
+  PlannedTableResponse,
+  TableRegistration,
+} from "@board-game-organizer/schemas";
 import { expect, it } from "vitest";
+import { personalEventProjection, personalTableProjection } from "../event-personal-projection";
 import { sharedEventResults, sharedTableResults } from "../event-results-projection";
 
 const at = "2030-06-04T20:00:00.000Z";
@@ -132,6 +137,144 @@ function table(): PlannedTableResponse {
   };
 }
 
+function registration(
+  status: TableRegistration["status"],
+  userId = "a",
+  tableId = "table",
+): TableRegistration {
+  return {
+    id: `${userId}-${tableId}`,
+    userId,
+    tableId,
+    eventId: "event",
+    kind: "INVITATION",
+    status,
+    priorityAt: at,
+    sequence: 1,
+    version: 1,
+    gameVotes: { "2": "YES" },
+    createdAt: at,
+    updatedAt: at,
+  };
+}
+it.each(["ACCEPTED", "PENDING", "DECLINED", "CANCELLED"] as const)(
+  "retains factual personal frozen registration status, never foreign identities or cancelled waiting places: %s",
+  (status) => {
+    const source = table(),
+      own = registration(status);
+    const frozen = personalTableProjection(source, own, "a");
+    expect(frozen).toMatchObject({
+      personalAccessOnly: true,
+      sharedResultsOnly: false,
+      groupId: null,
+      groupName: null,
+      groupType: null,
+      accessRevokedGroupId: source.groupId,
+      myPosition: "FROZEN",
+      myRegistration: { ...own, gameVotes: {} },
+      canManage: false,
+      canInvite: false,
+      readOnly: true,
+    });
+    expect(frozen).not.toHaveProperty("groupRatingChanges");
+    expect(frozen).not.toHaveProperty("resultDraft");
+    expect(frozen.resultProfiles?.[0].email).toBeNull();
+    const duty = { ...source, demonstratorUserId: "demo", demonstratorName: "Guide" };
+    const waiting = personalTableProjection(duty, registration(status, "demo"), "demo");
+    expect(waiting.myPosition).toBe(
+      status === "ACCEPTED" || status === "PENDING" ? "WAITING" : null,
+    );
+    expect(waiting.myRegistration?.status ?? null).toBe(
+      status === "ACCEPTED" || status === "PENDING" ? status : null,
+    );
+    expect(waiting.demonstratorName).toBe("Guide");
+    expect(personalTableProjection(source, null, "a").myPosition).toBe("FROZEN");
+    expect(
+      personalTableProjection(source, registration(status, "other"), "a").myRegistration,
+    ).toBeNull();
+    expect(
+      personalTableProjection(source, registration(status, "a", "other-table"), "a").myRegistration,
+    ).toBeNull();
+    expect(
+      personalTableProjection(source, { ...own, eventId: "other-event" }, "a").myRegistration,
+    ).toBeNull();
+  },
+);
+it("restricts personal Event counts and mutable rows to its own frozen/demonstrated Tables, retaining only opaque cache revocation scope", () => {
+  const source = { ...event(), shareResultsWithFriends: false };
+  const own = table(),
+    duty = {
+      ...table(),
+      id: "duty",
+      demonstratorUserId: "a",
+      confirmed: { gameId: 2, playerIds: ["b", "c"], startsAt: at },
+    };
+  const unrelated = {
+    ...table(),
+    id: "unrelated",
+    confirmed: { gameId: 2, playerIds: ["x", "y"], startsAt: at },
+  };
+  const rows = [
+    registration("CANCELLED"),
+    registration("CANCELLED", "a", "duty"),
+    registration("PENDING", "foreign"),
+    registration("ACCEPTED", "a", "unrelated"),
+    { ...registration("ACCEPTED"), eventId: "foreign-event" },
+  ];
+  const foreign = { ...own, id: "foreign-table", eventId: "foreign-event" };
+  const result = personalEventProjection(source, [own, duty, unrelated, foreign], rows, "a");
+  expect(result).toMatchObject({
+    role: "participant",
+    personalAccessOnly: true,
+    readOnly: true,
+    shareResultsWithFriends: false,
+    tableCount: 2,
+    participantCount: 4,
+    myDemonstrator: true,
+    groupId: null,
+    groupName: null,
+    groupType: null,
+    accessRevokedGroupId: source.groupId,
+  });
+  expect(result.myRegistrations).toEqual([{ ...rows[0], gameVotes: {}, position: "FROZEN" }]);
+  expect(result).not.toHaveProperty("myVotes");
+  expect(result).not.toHaveProperty("voteCounts");
+  expect(result).not.toHaveProperty("agreement");
+  const { accessRevokedGroupId: scope, ...visible } = result;
+  expect(scope).toBe(source.groupId);
+  expect(JSON.stringify(visible)).not.toMatch(/SECRET|unselected|foreign/);
+  const demo = personalEventProjection(
+    source,
+    [duty],
+    [registration("ACCEPTED", "a", "duty")],
+    "a",
+  );
+  expect(demo).toMatchObject({
+    role: "demonstrator",
+    myRegistrations: [{ position: "WAITING", status: "ACCEPTED" }],
+  });
+  expect(
+    personalEventProjection(source, [duty], [registration("PENDING", "a", "duty")], "a")
+      .myRegistrations[0].status,
+  ).toBe("PENDING");
+  expect(personalEventProjection(source, [], [], "a")).toMatchObject({
+    role: "viewer",
+    myDemonstrator: false,
+    participantCount: 0,
+    tableCount: 0,
+  });
+  expect(personalEventProjection({ ...source, groupId: null }, [own], [], "a")).toMatchObject({
+    role: "participant",
+    myDemonstrator: false,
+    accessRevokedGroupId: undefined,
+  });
+  expect(
+    personalTableProjection({ ...own, groupId: null }, null, "a").accessRevokedGroupId,
+  ).toBeUndefined();
+  expect(
+    personalTableProjection({ ...own, confirmed: undefined }, null, "a").myPosition,
+  ).toBeNull();
+});
 it("shares only selected Event information and final physical rosters, never Group metadata, ballots, drafts or queue counts", () => {
   const source = Object.assign(event(), {
     futurePrivateField: "PRIVATE-ROOT",

@@ -10,9 +10,10 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Check, Crown, Mail, Plus, UsersRound } from "lucide-react-native";
-import { FlatList, View } from "react-native";
+import { View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -44,7 +45,7 @@ export function GroupList({
         .map((row) => ({ kind: "group", id: row.id }))}
     >
       <ListPage>
-        <FlatList
+        <InputFlatList
           testID="groups-scroll"
           style={{ flex: 1 }}
           data={communityAccessDenied(list.error) ? [] : list.items}

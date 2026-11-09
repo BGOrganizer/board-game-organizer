@@ -95,6 +95,8 @@ export const groupBanSchema = z
     adminUserId: targetUserIdSchema,
     until: z.iso.datetime({ offset: true }).nullable(),
     revokedAt: z.iso.datetime({ offset: true }).optional(),
+    /** Server-captured membership access checkpoint; never supplied by the exclusion request. */
+    memberAccessThrough: z.iso.datetime({ offset: true }).optional(),
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
   })

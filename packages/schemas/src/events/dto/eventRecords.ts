@@ -243,6 +243,10 @@ export type EventVoteCounts = Record<EventVote, number>;
 export interface PlannedEventCapabilities {
   /** Safe Event/Table/result projection only; Group identity, drafts and rankings are absent. */
   sharedResultsOnly?: boolean;
+  /** Frozen personal projection after a Group ban; no readable Group data or authority. */
+  personalAccessOnly?: boolean;
+  /** Opaque scope for purging revoked caches; never a Group link or capability. */
+  accessRevokedGroupId?: string;
   /** Current server-authorized manager, not historical Event authorship. */
   canManage?: boolean;
   /** Display only: current Group administration/moderation or standalone ownership. */
@@ -337,7 +341,7 @@ export interface EventParticipantResponse {
   canRemove: boolean;
   /** Display only: current Group authority, or the standalone Event creator. Older caches omit it. */
   managementRole?: "admin" | "moderator" | null;
-  /** Current Group authority only; frozen-duty checks still run at the Group ban writer. */
+  /** Event rosters expose removal only; banning belongs to the Group screen. */
   canBanGroup: boolean;
 }
 export type EventParticipantsResponse = CommunityPageResponse<EventParticipantResponse> & {
@@ -358,6 +362,9 @@ export type EventSchedulePreview = {
 };
 export type PlannedTableResponse = TableRecord & {
   sharedResultsOnly?: boolean;
+  personalAccessOnly?: boolean;
+  /** Opaque scope for purging revoked caches; never a Group link or capability. */
+  accessRevokedGroupId?: string;
   canManage?: boolean;
   /** Display only: current Group authority (or standalone owner), never historical authorship. */
   managementRole?: "admin" | "moderator" | null;

@@ -18,7 +18,15 @@ const input = {
   mode: "remove",
 };
 function run(change = {}, env = {}) {
-  const output: { eventPeople?: { manage: string; removedOnly: boolean; title: string } } = {};
+  const output: {
+    eventPeople?: {
+      manage: string;
+      eventManage: string;
+      removedOnly: boolean;
+      title: string;
+      revoke: string;
+    };
+  } = {};
   runInNewContext(script, {
     EVENT_PEOPLE_FIXTURE_ACK: "owned-disposable-event-participants",
     EVENT_PEOPLE_BUILD_ACK: "owned-preview-build",
@@ -42,6 +50,23 @@ it.each(["en", "it"])(
     ).toBe(true);
     const b = run({ mode: "ban" }, { EVENT_PEOPLE_LOCALE: locale });
     expect(b.removedOnly).toBe(false);
+    expect(b.eventManage).toBe(a.manage);
+    expect(
+      new RegExp(b.manage).test(
+        (locale === "it" ? "Gestisci membro" : "Manage member") + ": target [name]",
+      ),
+    ).toBe(true);
+    expect(
+      new RegExp(b.manage).test(
+        (locale === "it" ? "Gestisci partecipante" : "Manage participant") + ": @target [name]",
+      ),
+    ).toBe(false);
+    expect(
+      new RegExp(b.revoke).test(
+        (locale === "it" ? "Revoca l'esclusione dal gruppo" : "Revoke group exclusion") +
+          ": @target [name]",
+      ),
+    ).toBe(true);
     expect(
       new RegExp(b.title).test(
         (locale === "it" ? "Banna dal gruppo" : "Ban from group") + ": @target [name]",

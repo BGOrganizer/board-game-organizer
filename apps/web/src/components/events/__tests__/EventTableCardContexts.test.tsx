@@ -72,7 +72,8 @@ it("uses the same normal-flow horizontal artwork, identity and controls in both 
     expect(group.parentElement?.nextElementSibling?.textContent).toBe("·");
     expect(screen.getByText("2/4 participants")).not.toBeNull();
     const image = document.querySelector("img");
-    expect(image?.className).toContain("h-full w-full object-contain");
+    for (const token of ["h-full", "w-full", "rounded-xl", "object-contain"])
+      expect(image?.classList.contains(token)).toBe(true);
     expect(image?.closest(".size-24")?.className).toContain("relative");
     expect(
       screen.getByRole("button", { name: "Rating enabled" }).parentElement?.className,

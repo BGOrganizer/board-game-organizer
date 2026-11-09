@@ -653,7 +653,7 @@ export class EventRecordsRepository {
       .toArray();
     return { tableCount: tables.length, participantCount: rows[0]?.count ?? 0 };
   }
-  /** Shared source visibility for Event readers, including notification hierarchy joins. */
+  /** Shared Event visibility; downstream joins must preserve personalAccessOnly scope. */
   visibleGroups(userId: string, now: string, eventPrefix = "") {
     return [
       {
@@ -693,6 +693,67 @@ export class EventRecordsRepository {
       },
       {
         $lookup: {
+          from: COLLECTIONS.GROUP_BANS,
+          let: {
+            group: "$groupId",
+            confirmedAt: `$${eventPrefix}confirmed.at`,
+            publicEvent: {
+              $and: [
+                { $eq: [{ $arrayElemAt: ["$parentGroup.type", 0] }, "PUBLIC"] },
+                { $ne: [{ $ifNull: [`$${eventPrefix}visibility`, null] }, "PRIVATE"] },
+              ],
+            },
+          },
+          pipeline: [
+            {
+              $match: {
+                userId,
+                $expr: {
+                  $and: [
+                    { $eq: ["$groupId", "$$group"] },
+                    {
+                      $let: {
+                        vars: {
+                          frozenAt: {
+                            $convert: {
+                              input: "$$confirmedAt",
+                              to: "date",
+                              onError: null,
+                              onNull: null,
+                            },
+                          },
+                          through: {
+                            $convert: {
+                              input: {
+                                $cond: ["$$publicEvent", "$createdAt", "$memberAccessThrough"],
+                              },
+                              to: "date",
+                              onError: null,
+                              onNull: null,
+                            },
+                          },
+                        },
+                        in: {
+                          $and: [
+                            { $ne: ["$$frozenAt", null] },
+                            { $ne: ["$$through", null] },
+                            { $lte: ["$$frozenAt", "$$through"] },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+            { $project: { _id: 0, id: 1 } },
+          ],
+          as: "preservedBan",
+        },
+      },
+      {
+        $lookup: {
           from: COLLECTIONS.TABLE_REGISTRATIONS,
           let: { event: `$${eventPrefix}id` },
           pipeline: [
@@ -711,6 +772,30 @@ export class EventRecordsRepository {
             { $project: { _id: 0, id: 1 } },
           ],
           as: "publicRegistration",
+        },
+      },
+      {
+        $lookup: {
+          from: COLLECTIONS.EVENT_TABLES,
+          let: { event: `$${eventPrefix}id`, status: `$${eventPrefix}status` },
+          pipeline: [
+            {
+              $match: {
+                removedAt: { $exists: false },
+                confirmed: { $exists: true },
+                $or: [{ "confirmed.playerIds": userId }, { demonstratorUserId: userId }],
+                $expr: {
+                  $and: [
+                    { $eq: ["$eventId", "$$event"] },
+                    { $in: ["$$status", ["CONFIRMED", "TERMINATED"]] },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+            { $project: { _id: 0, id: 1 } },
+          ],
+          as: "personalFrozenTable",
         },
       },
       {
@@ -735,11 +820,43 @@ export class EventRecordsRepository {
         },
       },
       {
+        $set: {
+          personalAccessOnly: {
+            $and: [
+              { $gt: [{ $size: "$preservedBan" }, 0] },
+              { $gt: [{ $size: "$personalFrozenTable" }, 0] },
+              {
+                $or: [
+                  { $gt: [{ $size: "$groupBan" }, 0] },
+                  {
+                    $and: [
+                      { $ne: [{ $arrayElemAt: ["$parentGroup.adminUserId", 0] }, userId] },
+                      { $eq: [{ $size: "$groupMembership" }, 0] },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      {
         $match: {
           $or: [
             { groupId: null },
             {
               $and: [
+                { personalAccessOnly: true },
+                { "parentGroup.0.approved": { $exists: true } },
+                { "publicEventBlock.0": { $exists: false } },
+                ...(eventPrefix
+                  ? [{ $or: [{ "confirmed.playerIds": userId }, { demonstratorUserId: userId }] }]
+                  : []),
+              ],
+            },
+            {
+              $and: [
+                { personalAccessOnly: false },
                 { "groupBan.0": { $exists: false } },
                 { "parentGroup.0.approved": { $exists: true } },
                 {
@@ -832,12 +949,14 @@ export class EventRecordsRepository {
             ? {
                 "myRegistration.0": { $exists: false },
                 "myDemonstration.0": { $exists: false },
+                "personalFrozenTable.0": { $exists: false },
                 $or: [{ groupId: { $ne: null } }, { adminUserId: userId }],
               }
             : {
                 $or: [
                   { "myRegistration.0": { $exists: true } },
                   { "myDemonstration.0": { $exists: true } },
+                  { "personalFrozenTable.0": { $exists: true } },
                 ],
               },
       });
@@ -864,8 +983,11 @@ export class EventRecordsRepository {
           parentGroup: 0,
           groupMembership: 0,
           groupBan: 0,
+          preservedBan: 0,
           publicRegistration: 0,
           publicEventBlock: 0,
+          personalFrozenTable: 0,
+          personalAccessOnly: 0,
           myRegistration: 0,
           myDemonstration: 0,
         },
@@ -944,8 +1066,17 @@ export class EventRecordsRepository {
     );
     return this.tables.aggregate<TableRecord>(pipeline, this.opts).toArray();
   }
-  registrationsPage(tableId: string, status: "PENDING" | "ACCEPTED", page: EventRecordPage) {
-    const filter: Filter<TableRegistration> = { tableId, status };
+  registrationsPage(
+    tableId: string,
+    status: "PENDING" | "ACCEPTED",
+    page: EventRecordPage,
+    userIds?: readonly string[],
+  ) {
+    const filter: Filter<TableRegistration> = {
+      tableId,
+      status,
+      ...(userIds ? { userId: { $in: [...userIds] } } : {}),
+    };
     if (page.cursor) {
       const [priorityAt, rawSequence, id] = page.cursor.split("|");
       const sequence = Number(rawSequence);

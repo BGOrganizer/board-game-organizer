@@ -10,6 +10,7 @@ import {
 } from "@board-game-organizer/shared";
 import { useUser } from "@clerk/nextjs";
 import { Button, Card, Input, Label, ListBox, Select, TextField } from "@heroui/react";
+import { Collection, ListLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
 import { Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -42,7 +43,8 @@ export default function MobileNumberPage() {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false),
+    [attempted, setAttempted] = useState(false);
   const [error, setError] = useState<string>();
   const savedMobileNumber = getMobileNumber(user?.unsafeMetadata);
 
@@ -52,7 +54,9 @@ export default function MobileNumberPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!user || !mobileNumber.trim()) return;
+    if (!user || isSaving) return;
+    setAttempted(true);
+    if (!mobileNumber.trim()) return;
     const value = fullMobileNumber(country, mobileNumber);
 
     setIsSaving(true);
@@ -108,7 +112,7 @@ export default function MobileNumberPage() {
                 </span>
                 <Select.Indicator />
               </Select.Trigger>
-              <Select.Popover className="w-72">
+              <Select.Popover data-input-scope data-input-overlay className="w-72 overflow-y-auto">
                 <SearchInput
                   value={search}
                   onChange={setSearch}
@@ -120,29 +124,30 @@ export default function MobileNumberPage() {
                     />
                   }
                 />
-                <ListBox
-                  className="max-h-72 overflow-y-auto"
-                  renderEmptyState={() => (
-                    <EmptyList
-                      icon={<Globe className="size-7" />}
-                    >{t`No countries found`}</EmptyList>
-                  )}
-                >
-                  {options.map((item) => (
-                    <ListBox.Item
-                      key={item.code}
-                      id={item.code}
-                      textValue={`${item.name} ${item.callingCode}`}
-                    >
-                      <span className="flex w-full items-center gap-2">
-                        <span aria-hidden="true">{item.flag}</span>
-                        <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                        <span className="text-muted">{item.callingCode}</span>
-                      </span>
-                      <ListBox.ItemIndicator />
-                    </ListBox.Item>
-                  ))}
-                </ListBox>
+                <Virtualizer layout={ListLayout} shouldObserveItemSize>
+                  <ListBox
+                    data-input-results
+                    className="h-[var(--input-results-height,18rem)] max-h-72 overflow-y-auto"
+                    renderEmptyState={() => (
+                      <EmptyList
+                        icon={<Globe className="size-7" />}
+                      >{t`No countries found`}</EmptyList>
+                    )}
+                  >
+                    <Collection items={options}>
+                      {(item) => (
+                        <ListBox.Item id={item.code} textValue={`${item.name} ${item.callingCode}`}>
+                          <span className="flex w-full items-center gap-2">
+                            <span aria-hidden="true">{item.flag}</span>
+                            <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                            <span className="text-muted">{item.callingCode}</span>
+                          </span>
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      )}
+                    </Collection>
+                  </ListBox>
+                </Virtualizer>
               </Select.Popover>
             </Select>
             <TextField
@@ -151,9 +156,13 @@ export default function MobileNumberPage() {
               value={mobileNumber}
               onChange={setMobileNumber}
               isRequired
+              isInvalid={attempted && !mobileNumber.trim()}
             >
               <Label>{t`Mobile number`}</Label>
               <Input type="tel" inputMode="tel" autoComplete="tel-national" />
+              {attempted && !mobileNumber.trim() ? (
+                <p role="alert" className="text-danger">{t`Enter a mobile number.`}</p>
+              ) : null}
             </TextField>
           </div>
           {error ? (
@@ -161,7 +170,7 @@ export default function MobileNumberPage() {
               {error}
             </p>
           ) : null}
-          <Button isDisabled={isSaving || !mobileNumber.trim()} type="submit">
+          <Button data-form-submit isDisabled={isSaving} type="submit">
             {isSaving ? t`Saving…` : t`Continue`}
           </Button>
         </form>

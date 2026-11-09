@@ -119,8 +119,29 @@ export class NotificationAttentionRepository {
                 from: COLLECTIONS.EVENT_TABLES,
                 localField: "id",
                 foreignField: "eventId",
+                let: { personalAccessOnly: "$personalAccessOnly" },
                 pipeline: [
-                  { $match: { removedAt: { $exists: false } } },
+                  {
+                    $match: {
+                      removedAt: { $exists: false },
+                      $expr: {
+                        $or: [
+                          { $ne: ["$$personalAccessOnly", true] },
+                          {
+                            $and: [
+                              { $ne: [{ $ifNull: ["$confirmed", null] }, null] },
+                              {
+                                $or: [
+                                  { $in: [userId, { $ifNull: ["$confirmed.playerIds", []] }] },
+                                  { $eq: ["$demonstratorUserId", userId] },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    },
+                  },
                   { $limit: 20 },
                   { $project: { _id: 0, id: 1 } },
                 ],
@@ -130,7 +151,8 @@ export class NotificationAttentionRepository {
             {
               $project: {
                 _id: 0,
-                groupId: 1,
+                personalAccessOnly: 1,
+                groupId: { $cond: ["$personalAccessOnly", null, "$groupId"] },
                 tableIds: "$attentionTables.id",
                 lists: {
                   $concatArrays: [
@@ -141,6 +163,7 @@ export class NotificationAttentionRepository {
                           $cond: [
                             {
                               $or: [
+                                "$personalAccessOnly",
                                 { $gt: [{ $size: "$myRegistration" }, 0] },
                                 { $gt: [{ $size: "$myDemonstration" }, 0] },
                               ],
@@ -153,7 +176,12 @@ export class NotificationAttentionRepository {
                     ],
                     {
                       $cond: [
-                        { $ne: [{ $ifNull: ["$groupId", null] }, null] },
+                        {
+                          $and: [
+                            { $ne: ["$personalAccessOnly", true] },
+                            { $ne: [{ $ifNull: ["$groupId", null] }, null] },
+                          ],
+                        },
                         [{ kind: "event-list", id: "$groupId" }],
                         [],
                       ],
@@ -311,6 +339,17 @@ export class NotificationAttentionRepository {
                       { $eq: ["$_kind", "table"] },
                       { $ne: ["$_eventId", null] },
                       { $gt: [{ $size: "$_table" }, 0] },
+                      {
+                        $or: [
+                          { $ne: [{ $arrayElemAt: ["$_event.personalAccessOnly", 0] }, true] },
+                          {
+                            $in: [
+                              "$_idTarget",
+                              { $ifNull: [{ $arrayElemAt: ["$_event.tableIds", 0] }, []] },
+                            ],
+                          },
+                        ],
+                      },
                     ],
                   },
                 ],
@@ -452,6 +491,69 @@ export class NotificationAttentionRepository {
       },
       {
         $set: {
+          _unscopedItems: "$_items",
+          _items: {
+            $cond: [
+              { $eq: [{ $arrayElemAt: ["$_event.personalAccessOnly", 0] }, true] },
+              {
+                $filter: {
+                  input: "$_items",
+                  as: "item",
+                  cond: {
+                    $let: {
+                      vars: { candidate: ["$$item"] },
+                      in: {
+                        $let: {
+                          vars: {
+                            tables: itemOwnerIds("$$candidate", "table"),
+                            events: itemOwnerIds("$$candidate", "event"),
+                            groups: itemOwnerIds("$$candidate", "group"),
+                          },
+                          in: {
+                            $and: [
+                              { $eq: [{ $size: "$$groups" }, 0] },
+                              { $setIsSubset: ["$$events", ["$_eventId"]] },
+                              {
+                                $setIsSubset: [
+                                  "$$tables",
+                                  { $ifNull: [{ $arrayElemAt: ["$_event.tableIds", 0] }, []] },
+                                ],
+                              },
+                              {
+                                $gt: [{ $add: [{ $size: "$$events" }, { $size: "$$tables" }] }, 0],
+                              },
+                            ],
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              "$_items",
+            ],
+          },
+        },
+      },
+      {
+        $set: {
+          _kind: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: [{ $arrayElemAt: ["$_event.personalAccessOnly", 0] }, true] },
+                  { $ne: [{ $type: "$attentionItems" }, "missing"] },
+                  { $eq: [{ $size: "$_items" }, 0] },
+                ],
+              },
+              null,
+              "$_kind",
+            ],
+          },
+        },
+      },
+      {
+        $set: {
           _tableIds: {
             $cond: [
               { $eq: ["$_kind", null] },
@@ -559,6 +661,7 @@ export class NotificationAttentionRepository {
                   $setDifference: [{ $setUnion: ["$_items.id", "$_items.sectionId"] }, [null]],
                 },
                 lists: "$_lists",
+                personalAccessOnly: { $arrayElemAt: ["$_event.personalAccessOnly", 0] },
                 containers: {
                   $concatArrays: [
                     { $map: { input: "$_tableIds", as: "id", in: { kind: "table", id: "$$id" } } },
@@ -713,7 +816,9 @@ export class NotificationAttentionRepository {
       }),
     };
     const references = new Map<string, NotificationAttentionReference>();
-    for (const row of result?.notifications ?? [])
+    const personalNotificationIds = new Set<string>();
+    for (const row of result?.notifications ?? []) {
+      if (row.personalAccessOnly) personalNotificationIds.add(String(row._id));
       references.set(String(row._id), {
         target: { kind: row.kind, id: row.id },
         ...(row.eventId ? { eventId: row.eventId } : {}),
@@ -724,7 +829,8 @@ export class NotificationAttentionRepository {
         containers: row.containers,
         ...(row.lists?.length ? { lists: row.lists } : {}),
       });
-    return { snapshot, references };
+    }
+    return { snapshot, references, personalNotificationIds };
   }
   /** Bounded IDs only: generic entry must never consume a derived historical member point. */
   private async readDirect(userId: string, target: NotificationAttentionTarget, filter: Document) {

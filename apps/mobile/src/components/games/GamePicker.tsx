@@ -3,9 +3,11 @@ import {
   type BggPickerTableScope,
   bggPickerQuery,
   bggPickerUnavailable,
+  GAME_PICKER_CHUNK_SIZE,
   resolveApiUrl,
   useBggAccount,
   useBggPicker,
+  useGameListWindow,
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { hashKey } from "@tanstack/react-query";
@@ -17,15 +19,14 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Gamepad2, LibraryBig, Plus, UsersRound } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, View } from "react-native";
+import { type FlatList, View } from "react-native";
 import { HeaderBackButton } from "@/components/common/layout/HeaderBackButton";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GameListCard } from "@/components/games/GameListCard";
-import { GAME_PICKER_CHUNK_SIZE } from "@/lib/games/gamePickerWindow";
-import { useGameListWindow } from "@/lib/games/useGameListWindow";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -96,13 +97,12 @@ export default function GamePicker({
   useEffect(() => {
     list.current?.scrollToOffset({ offset: 0, animated: false });
   }, [scope]);
-  const { items, hasCachedMore, hasMore, loadMore, beginScroll, endReached } = useGameListWindow({
+  const { items, hasMore, loadMore, beginScroll, endReached } = useGameListWindow({
     scope,
     pages: denied ? undefined : picker.data?.pages,
     excludedIds,
     ...picker,
   });
-  const { isFetching, isError } = picker;
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 300);
     return () => clearTimeout(timer);
@@ -111,7 +111,8 @@ export default function GamePicker({
 
   const select = useCallback(
     (item: BggPickerItem) => {
-      if (scopeRef.current !== scope || selected.current || excludedIds.has(item.id)) return;
+      if (scopeRef.current !== scope || denied || selected.current || excludedIds.has(item.id))
+        return;
       selected.current = true;
       if (onSelect) onSelect(item);
       else {
@@ -126,7 +127,7 @@ export default function GamePicker({
         router.back();
       }
     },
-    [scope, excludedIds, onSelect, setPendingGame, slotId, router],
+    [scope, denied, excludedIds, onSelect, setPendingGame, slotId, router],
   );
   const selectLabel = t("Select");
   const renderItem = useCallback(
@@ -142,7 +143,7 @@ export default function GamePicker({
   );
 
   return (
-    <FlatList
+    <InputFlatList
       ref={list}
       keyboardShouldPersistTaps="handled"
       style={{ flex: 1 }}
@@ -153,6 +154,16 @@ export default function GamePicker({
       maxToRenderPerBatch={6}
       windowSize={7}
       onScrollBeginDrag={beginScroll}
+      onMomentumScrollBegin={beginScroll}
+      accessibilityActions={
+        hasMore ? [{ name: "increment", label: t("Load more games") }] : undefined
+      }
+      onAccessibilityAction={({ nativeEvent }) => {
+        if (nativeEvent.actionName === "increment") {
+          beginScroll();
+          loadMore();
+        }
+      }}
       onEndReachedThreshold={0.4}
       onEndReached={endReached}
       ListHeaderComponent={
@@ -207,8 +218,11 @@ export default function GamePicker({
             <Button
               variant="outline"
               onPress={() => {
-                void account.account.refetch();
-                void picker.refetch();
+                if (account.account.isError) void account.account.refetch();
+                if (picker.isError)
+                  void (picker.isFetchNextPageError
+                    ? picker.fetchNextPage({ cancelRefetch: false })
+                    : picker.refetch());
               }}
             >
               <Typography>{t("Search failed. Retry")}</Typography>
@@ -231,11 +245,6 @@ export default function GamePicker({
           {active && !picker.isPending && !picker.isError && !hasMore && items.length === 0 ? (
             <EmptyList icon={<Gamepad2 size={28} color={muted} />}>{t("No games found")}</EmptyList>
           ) : null}
-          {active && !picker.isPending && items.length === 0 && hasMore ? (
-            <Button onPress={loadMore} isDisabled={!hasCachedMore && (isFetching || isError)}>
-              <Button.Label>{t("Load more games")}</Button.Label>
-            </Button>
-          ) : null}
         </View>
       }
       ListFooterComponent={
@@ -245,10 +254,6 @@ export default function GamePicker({
             variant="pulse"
             style={{ width: "100%", height: 48, borderRadius: 12 }}
           />
-        ) : hasMore && items.length > 0 ? (
-          <Button onPress={loadMore} isDisabled={!hasCachedMore && (isFetching || isError)}>
-            <Button.Label>{t("Load more games")}</Button.Label>
-          </Button>
         ) : null
       }
       renderItem={renderItem}

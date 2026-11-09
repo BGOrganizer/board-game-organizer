@@ -180,10 +180,13 @@ it("keeps source-complete admin request attention and explicit invitation reply 
 it("keeps uploaded cover logos whole and leaves non-list background/thumbnail usage intact", () => {
   const group = { ...groupRecord, logo: "data:image/png;base64,test" };
   const q = renderWithI18n(<GroupArtwork group={group} presentation="cover" status="none" />);
-  expect(q.container.querySelector("img")?.className).toContain("object-contain p-1");
+  expect(q.container.querySelector("img")?.className).toContain("rounded-xl object-contain");
+  expect(q.container.querySelector("img")?.style.maxWidth).toBe("calc(100% - 8px)");
   expect(q.container.firstElementChild?.className).toContain("absolute inset-0");
   q.rerender(<GroupArtwork group={group} presentation="background" />);
-  expect(q.container.querySelector("img")?.style.width).toBe("100%");
+  expect(q.container.querySelector("img")?.style.maxWidth).toBe("100%");
+  expect(q.container.querySelector("img")?.style.maxHeight).toBe("100%");
   q.rerender(<GroupArtwork group={group} size={40} />);
-  expect(q.container.querySelector("img")?.style.width).toBe("40px");
+  expect((q.container.firstElementChild as HTMLElement).style.width).toBe("40px");
+  expect(q.container.querySelector("img")?.style.maxWidth).toBe("100%");
 });

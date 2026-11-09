@@ -1,10 +1,7 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import { eventTableSchedule } from "@board-game-organizer/shared";
-import { useLingui } from "@lingui/react";
-import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Timer } from "lucide-react-native";
 import { View } from "react-native";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -19,12 +16,9 @@ export function EventTableScheduleCard({
   table: PlannedTableResponse;
   timeZone?: string;
 }) {
-  const t = useT(),
-    { i18n } = useLingui(),
-    muted = useThemeColor("muted");
+  const t = useT();
   const schedule = eventTableSchedule(table);
   if (!schedule) return null;
-  const duration = schedule.durationMinutes;
   return (
     <View accessibilityLabel={t("Table schedule")}>
       <ListCard>
@@ -45,19 +39,6 @@ export function EventTableScheduleCard({
                 <Skeleton style={{ width: "100%", maxWidth: 208, height: 16, borderRadius: 4 }} />
               </View>
             )}
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Timer size={16} color={muted} accessible={false} />
-            <Typography className="text-sm text-foreground" style={{ flex: 1 }}>
-              {t("Duration")}:{" "}
-              {duration === null
-                ? t("Unknown")
-                : i18n._({
-                    id: "event.table.durationMinutes",
-                    message: "{duration, plural, one {# minute} other {# minutes}}",
-                    values: { duration },
-                  })}
-            </Typography>
           </View>
           {schedule.demonstrator ? (
             <GroupedList>

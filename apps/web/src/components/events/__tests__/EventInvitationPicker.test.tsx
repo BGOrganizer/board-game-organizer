@@ -69,7 +69,7 @@ it.each([false, true])(
     });
     vi.stubGlobal("fetch", fetch);
     mount();
-    fireEvent.click(await screen.findByRole("button", { name: "Select user: Eligible player" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Select user: @eligible" }));
     await waitFor(() => expect(m.back).toHaveBeenCalledOnce());
     expect(fetch.mock.calls.filter(([url]) => url.includes("/invitations")).length).toBeGreaterThan(
       0,
@@ -114,12 +114,13 @@ it("keeps unavailable candidates visible, disables invitation and opens accessib
   );
   vi.stubGlobal("fetch", fetch);
   mount();
-  const unavailable = await screen.findByRole("button", { name: "Select user: Busy demonstrator" });
+  const unavailable = await screen.findByRole("button", { name: "Select user: @busy" });
   expect((unavailable as HTMLButtonElement).disabled).toBe(true);
-  expect(screen.getByText("Busy demonstrator")).not.toBeNull();
+  expect(screen.getByText("@busy")).not.toBeNull();
+  expect(screen.queryByText("Busy demonstrator")).toBeNull();
   fireEvent.click(unavailable);
   const help = screen.getByRole("button", {
-    name: "Why invitation is unavailable: Busy demonstrator",
+    name: "Why invitation is unavailable: @busy",
   });
   expect(help.getAttribute("aria-disabled")).not.toBe("true");
   fireEvent.click(help);

@@ -50,10 +50,10 @@ it.each(["en", "it"] as const)(
     }).format(new Date(table.confirmed.startsAt));
     expect(within(card).getByText(date)).not.toBeNull();
     expect(within(card).getByText(clock)).not.toBeNull();
-    expect(
-      within(card).getByText(locale === "it" ? "Durata: 30 minuti" : "Duration: 30 minutes"),
-    ).not.toBeNull();
-    expect(q.container.querySelectorAll(".lucide-calendar-days, .lucide-clock-3")).toHaveLength(2);
+    expect(within(card).queryByText(/^(Duration|Durata):/)).toBeNull();
+    expect(q.container.querySelectorAll(".lucide-calendar-days")).toHaveLength(1);
+    expect(q.container.querySelectorAll(".lucide-clock-3")).toHaveLength(1);
+    expect(q.container.querySelector(".lucide-clock")).toBeNull();
     const row = within(card).getByRole("listitem");
     expect(within(row).getByText("Game guide")).not.toBeNull();
     expect(within(row).getByText(locale === "it" ? "Dimostratore" : "Demonstrator")).not.toBeNull();
@@ -75,7 +75,7 @@ it("hides planning/excluded snapshots, keeps historical choices and omits nonpub
         timeZone="UTC"
       />,
     );
-    expect(screen.getByText("Duration: 30 minutes")).not.toBeNull();
+    expect(screen.queryByText(/^Duration:/)).toBeNull();
     expect(screen.queryByText("Demonstrator")).toBeNull();
     expect(screen.queryByRole("listitem")).toBeNull();
   }
@@ -97,7 +97,7 @@ it("does not invent a duration, identity or device-zone date while metadata is m
   );
   expect(screen.getByRole("status", { name: "Loading…" })).not.toBeNull();
   expect(q.container.querySelector("time")).toBeNull();
-  expect(screen.getByText("Duration: Unknown")).not.toBeNull();
+  expect(screen.queryByText(/^Duration:/)).toBeNull();
   expect(within(screen.getByRole("listitem")).getByText("Unknown")).not.toBeNull();
   q.rerender(
     <EventTableScheduleCard
@@ -105,5 +105,5 @@ it("does not invent a duration, identity or device-zone date while metadata is m
       timeZone="UTC"
     />,
   );
-  expect(screen.getByText("Duration: 1 minute")).not.toBeNull();
+  expect(screen.queryByText(/^Duration:/)).toBeNull();
 });
