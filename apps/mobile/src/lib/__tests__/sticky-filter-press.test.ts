@@ -11,7 +11,7 @@ function nodes(value: any): Element[] {
     ? [value, ...nodes(value.props.children)]
     : [];
 }
-// Execute the installed patched primitive; this checks host/callback composition, not device hit regions.
+// Execute the installed primitive. Host/class propagation is not native visual or hit-testing acceptance.
 function primitive(isDisabled: boolean) {
   const source = readFileSync(
     new URL(
@@ -34,8 +34,7 @@ function primitive(isDisabled: boolean) {
       useCallback: (fn: unknown) => fn,
       useMemo: (fn: () => unknown) => fn(),
     },
-    "react-native": { Pressable: "ShadowTreePressable", View: "View" },
-    "react-native-gesture-handler": { Pressable: "NativeGesturePressable" },
+    "react-native": { Pressable: "ReactNativePressable", View: "View" },
     "react-native-reanimated": {
       __esModule: true,
       default: { createAnimatedComponent: (value: unknown) => value, View: "AnimatedView" },
@@ -56,7 +55,9 @@ function primitive(isDisabled: boolean) {
     },
     "./pressable-feedback.constants": { DISPLAY_NAME: {} },
     "./pressable-feedback.styles": {
-      pressableFeedbackClassNames: { root: () => "heroui-root" },
+      pressableFeedbackClassNames: {
+        root: ({ className }: { className: string }) => `heroui-root ${className}`,
+      },
       pressableFeedbackStyleSheet: { root: {} },
     },
   };
@@ -84,10 +85,11 @@ function primitive(isDisabled: boolean) {
     onPressOut,
     accessibilityRole: "button",
     accessibilityLabel: "Games",
+    className: "bg-accent flex-row items-center justify-center",
     children: "Games",
   });
   return {
-    host: nodes(tree).find((node) => node.type === "NativeGesturePressable"),
+    host: nodes(tree).find((node) => node.type === "ReactNativePressable"),
     tree,
     onPress,
     onPressIn,
@@ -96,11 +98,13 @@ function primitive(isDisabled: boolean) {
     animateOut,
   };
 }
-it("keeps HeroUI feedback, accessibility and completed-tap semantics on the native gesture host", () => {
+it("restores HeroUI's Uniwind-compatible RN host, styling classes and completed-tap semantics", () => {
   const result = primitive(false),
     host = result.host;
   expect(host).toBeTruthy();
-  expect(nodes(result.tree).some((node) => node.type === "ShadowTreePressable")).toBe(false);
+  expect(nodes(result.tree).some((node) => node.type === "NativeGesturePressable")).toBe(false);
+  for (const token of ["bg-accent", "flex-row", "items-center", "justify-center"])
+    expect(host?.props.className).toContain(token);
   expect(host?.props).toMatchObject({
     disabled: false,
     accessibilityRole: "button",
@@ -117,7 +121,7 @@ it("keeps HeroUI feedback, accessibility and completed-tap semantics on the nati
   host?.props.onPress({ nativeEvent: {} });
   expect(result.onPress).toHaveBeenCalledOnce();
 });
-it("keeps disabled controls disabled and source/runtime patch imports in parity", () => {
+it("keeps disabled controls disabled and rejects a global non-Uniwind third-party host in source/runtime", () => {
   expect(primitive(true).host?.props.disabled).toBe(true);
   const runtime = readFileSync(
     new URL(
@@ -126,8 +130,13 @@ it("keeps disabled controls disabled and source/runtime patch imports in parity"
     ),
     "utf8",
   );
-  expect(runtime).toContain("import { Pressable } from 'react-native-gesture-handler'");
-  expect(runtime).not.toContain("import { Pressable, View } from 'react-native'");
+  expect(runtime).toContain("import { Pressable, View } from 'react-native'");
+  expect(runtime).not.toContain("from 'react-native-gesture-handler'");
+  const patch = readFileSync(
+    new URL("../../../../../patches/heroui-native@1.0.9.patch", import.meta.url),
+    "utf8",
+  );
+  expect(patch).not.toContain("components/pressable-feedback/");
 });
 it("retains the actual sticky header and controlled HeroUI filters instead of press-in/clipping workarounds", () => {
   const collection = readFileSync(

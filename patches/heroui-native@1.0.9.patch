@@ -10,20 +10,6 @@ index 0825189944a9950d74e5fba3792be580eb80ab93..161e02031268c659ae6a115bebf402d5
          children: /*#__PURE__*/_jsx(AnimatedContent, {
            ref: ref,
            placement: placement,
-diff --git a/lib/module/components/pressable-feedback/pressable-feedback.js b/lib/module/components/pressable-feedback/pressable-feedback.js
-index a2adb2d1de6faca39afe22e3a7c951db3d5b0a4a..b79f6d726686faf173fe9df9cd9eef3224f68d71 100644
---- a/lib/module/components/pressable-feedback/pressable-feedback.js
-+++ b/lib/module/components/pressable-feedback/pressable-feedback.js
-@@ -1,7 +1,8 @@
- "use strict";
- 
- import { forwardRef, useCallback, useMemo } from 'react';
--import { Pressable, View } from 'react-native';
-+import { View } from 'react-native';
-+import { Pressable } from 'react-native-gesture-handler';
- import Animated from 'react-native-reanimated';
- import { AnimationSettingsProvider } from "../../helpers/internal/contexts/index.js";
- import * as Slot from "../../primitives/slot/index.js";
 diff --git a/lib/module/components/select/select.js b/lib/module/components/select/select.js
 index ac5bc493af27f79642b1836615e46c3c01e0e0f2..7d2bd3cf96503c5de55215dc172fe33698142956 100644
 --- a/lib/module/components/select/select.js
@@ -74,24 +60,6 @@ index e0d93c930923959c6e6bf8c2c16232dff10767cd..12b70b8dde48c9151a0fb0bf8f4e9675
            >
              <AnimatedContent
                ref={ref}
-diff --git a/src/components/pressable-feedback/pressable-feedback.tsx b/src/components/pressable-feedback/pressable-feedback.tsx
-index 661a2c33bff7e82352db22e283afb1d8c404e2bb..0144ffcba8884aab3a74840ae18d726163cd6fe5 100644
---- a/src/components/pressable-feedback/pressable-feedback.tsx
-+++ b/src/components/pressable-feedback/pressable-feedback.tsx
-@@ -1,12 +1,12 @@
- import { forwardRef, useCallback, useMemo } from 'react';
- 
- import {
--  Pressable,
-   View,
-   type GestureResponderEvent,
-   type LayoutChangeEvent,
- } from 'react-native';
- 
-+import { Pressable } from 'react-native-gesture-handler';
- import Animated from 'react-native-reanimated';
- import { AnimationSettingsProvider } from '../../helpers/internal/contexts';
- import type { PressableRef, ViewRef } from '../../helpers/internal/types';
 diff --git a/src/components/select/select.tsx b/src/components/select/select.tsx
 index e9f86ec7aff695e30d82ccf00d0ba7f97215e059..e951de6b4c62b7cc9a47388e09967b19f9479856 100644
 --- a/src/components/select/select.tsx
