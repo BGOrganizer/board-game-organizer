@@ -1,7 +1,7 @@
 # Board Game Organizer
 
 <p align="center">
-  <img src="docs/assets/bgo-mascot-equipped.png" alt="Board Game Organizer mascot: a playful purple meeple ready to play with cards, a golden die, tokens and game resources" width="360" />
+  <img src="docs/assets/bgo-mascot-organizer.png" alt="Board Game Organizer mascot: a playful purple meeple with cards, a golden die, game resources and a calendar marking a planned game night" width="360" />
 </p>
 
 ![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)
