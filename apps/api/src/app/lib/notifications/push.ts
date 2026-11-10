@@ -17,7 +17,11 @@ function notificationPushTarget(notification: Notification) {
       readAt: item.readAt?.toISOString() ?? null,
     })),
   });
-  return { href: target.href, ...(target.itemId ? { attentionItemId: target.itemId } : {}) };
+  return {
+    href: target.href,
+    ...(target.itemId ? { attentionItemId: target.itemId } : {}),
+    ...(target.section ? { tab: target.section } : {}),
+  };
 }
 
 let googleAccessToken: { value: string; expiresAt: number } | undefined;

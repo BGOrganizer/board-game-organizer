@@ -470,6 +470,7 @@ export class GroupRecordsService {
         userId,
         [notificationItemId(group.id, "invitation")],
         input.attentionThrough ?? new Date().toISOString(),
+        true,
       );
     if (status === "LEFT") {
       await this.retargetMember(id, target, next.version);
@@ -497,7 +498,12 @@ export class GroupRecordsService {
     return this.notifications.retargetItems([
       {
         from: notificationItemId(groupId, "member", userId),
-        to: { id: notificationItemId(groupId, "overview", undefined, "group"), revision, groupId },
+        to: {
+          id: notificationItemId(groupId, "overview", undefined, "group"),
+          sectionId: notificationItemId(groupId, "overview", undefined, "group"),
+          revision,
+          groupId,
+        },
       },
     ]);
   }

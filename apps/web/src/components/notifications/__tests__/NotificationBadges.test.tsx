@@ -25,6 +25,23 @@ import { renderWithI18n } from "@/test-utils";
 
 const options = { apiUrl: "https://api.test", userId: "owner", getToken: async () => "fresh" };
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => options }));
+// This suite exercises marker ownership; the changes hook has separate transport/Alert tests.
+vi.mock("@board-game-organizer/shared", async (original) => ({
+  ...(await original<typeof import("@board-game-organizer/shared")>()),
+  useNotificationChanges: () => ({
+    changes: [],
+    tabCounts: { details: 1, members: 1, tables: 0, participants: 0 },
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    isPending: false,
+    isError: false,
+    isReading: false,
+    readError: undefined,
+    fetchNextPage: vi.fn(),
+    refetch: vi.fn(),
+    markDisplayedAsRead: vi.fn(),
+  }),
+}));
 const table = { kind: "table", id: plannedTable.id } as const,
   event = { kind: "event", id: plannedEvent.id } as const,
   group = { kind: "group", id: groupRecord.id } as const;
@@ -123,7 +140,7 @@ it("places static unread dots after card titles inside navigation, including per
   }
   expect(screen.queryByRole("button", { name: /Accept invitation|Decline invitation/ })).toBeNull();
 });
-it("marks direct Group attention on entry, retaining only actual Members-tab attention, never Events ancestry", async () => {
+it("retains Group information and actual Members-tab attention on entry, never Events ancestry", async () => {
   const client = setup();
   client.setQueryData(groupRecordKeys.detail(options, groupRecord.id), groupRecord);
   const members = { kind: "item", id: notificationItemId(groupRecord.id, "members") } as const;
@@ -134,14 +151,11 @@ it("marks direct Group attention on entry, retaining only actual Members-tab att
     events: 0,
     sections: { connections: 0, requests: 0, search: 0 },
   };
-  let source = counts(),
-    release!: (value: Response) => void;
+  const source = counts();
   source.targets.push(memberRow);
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === "PATCH")
-      return new Promise<Response>((resolve) => {
-        release = resolve;
-      });
+      return Response.json({ error: "Unexpected entry read" }, { status: 500 });
     if (url.includes("/notifications/attention")) {
       const requested = JSON.parse(
         new URL(url).searchParams.get("targets") ?? "[]",
@@ -172,35 +186,29 @@ it("marks direct Group attention on entry, retaining only actual Members-tab att
       <GroupDetail groupId={groupRecord.id} />
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(release).toBeTypeOf("function"));
+  await screen.findByRole("tab", { name: /Details/ });
+  expect(
+    within(screen.getByRole("tab", { name: /Details/ })).getByRole("img", {
+      name: "Needs attention",
+    }),
+  ).toBeTruthy();
   expect(within(screen.getByRole("tab", { name: /Events/ })).queryByRole("img")).toBeNull();
   await waitFor(() =>
     expect(
       within(screen.getByRole("tab", { name: /Members/ })).getByRole("img", {
-        name: "Unread updates",
+        name: "Needs attention",
       }),
     ).toBeTruthy(),
   );
-  source = counts();
-  source.targets.push(memberRow);
-  source.unreadCount = 3;
-  source.summary.groups = 3;
-  source.targets[2].count = 3;
-  source.targets[2].direct = 0;
-  await act(async () => release(Response.json({ updated: 1, snapshot: source })));
   fireEvent.click(screen.getByRole("tab", { name: /Events/ }));
   await screen.findByRole("link", { name: `Open event: ${plannedEvent.name}` });
   expect(within(screen.getByRole("tab", { name: /Events/ })).queryByRole("img")).toBeNull();
   expect(
     within(screen.getByRole("tab", { name: /Members/ })).getByRole("img", {
-      name: "Unread updates",
+      name: "Needs attention",
     }),
   ).toBeTruthy();
-  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
-  expect(
-    JSON.parse(String(fetcher.mock.calls.find(([, init]) => init?.method === "PATCH")?.[1]?.body))
-      .target,
-  ).toEqual(group);
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
   expect(client.getQueryData(groupRecordKeys.detail(options, groupRecord.id))).toEqual(groupRecord);
 });
 it("opens canonical cards without acknowledging their items or accepting an invitation", async () => {
@@ -239,7 +247,7 @@ it("opens canonical cards without acknowledging their items or accepting an invi
     for (const release of held) release(Response.json({ error: "Denied" }, { status: 409 }));
   });
 });
-it("acknowledges only an explicit readonly item, retaining the other point and the bell until completion", async () => {
+it("leaves item markers and bell unread until the Alert supplies a source read, never through item controls", async () => {
   const client = setup();
   const date = {
     kind: "item",
@@ -272,19 +280,12 @@ it("acknowledges only an explicit readonly item, retaining the other point and t
     })),
   };
   client.setQueryData(notificationAttentionQuery(options, [date, location]).queryKey, source);
-  let release!: (response: Response) => void;
-  const fetcher = vi.fn(async (_url: string, init?: RequestInit) =>
-    init?.method === "PATCH"
-      ? new Promise<Response>((resolve) => {
-          release = resolve;
-        })
-      : Response.json(source),
-  );
+  const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => Response.json(source));
   vi.stubGlobal("fetch", fetcher);
   renderWithI18n(
     <QueryClientProvider client={client}>
       <NotificationAttentionScope options={options} targets={[date, location]}>
-        <NotificationItem itemId={date.id} readOnly>
+        <NotificationItem itemId={date.id}>
           <p>Changed date</p>
         </NotificationItem>
         <ul>
@@ -297,30 +298,34 @@ it("acknowledges only an explicit readonly item, retaining the other point and t
     </QueryClientProvider>,
   );
   expect(screen.getAllByRole("img", { name: "Unread updates" })).toHaveLength(2);
-  expect(screen.getAllByRole("button", { name: "Mark as read" })).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "Mark as read" })).toBeNull();
   const locationRow = screen.getByRole("listitem");
   expect(within(locationRow).getByRole("img", { name: "Unread updates" }).closest("li")).toBe(
     locationRow,
   );
   expect(locationRow.querySelector("[data-slot=badge]")).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Mark as read" }));
-  await waitFor(() => expect(release).toBeTypeOf("function"));
-  expect(screen.getAllByRole("img", { name: "Unread updates" })).toHaveLength(1);
+  fireEvent.click(screen.getAllByRole("img", { name: "Unread updates" })[0]);
+  expect(screen.getAllByRole("img", { name: "Unread updates" })).toHaveLength(2);
   expect(
     client.getQueryData<NotificationAttentionSnapshot>(
       notificationAttentionQuery(options, [date, location]).queryKey,
     )?.unreadCount,
   ).toBe(1);
-  expect(
-    JSON.parse(String(fetcher.mock.calls.find(([, init]) => init?.method === "PATCH")?.[1]?.body)),
-  ).toEqual({ target: date, through: source.asOf });
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   source = {
     ...source,
     targets: source.targets.map((row) =>
       row.target.id === date.id ? { ...row, count: 0, direct: 0 } : row,
     ),
   };
-  await act(async () => release(Response.json({ updated: 1, snapshot: source })));
+  await act(async () => {
+    const queryKey = notificationAttentionQuery(options, [date, location]).queryKey;
+    await client.cancelQueries({ queryKey });
+    client.setQueryData(queryKey, source);
+  });
+  await waitFor(() =>
+    expect(screen.getAllByRole("img", { name: "Unread updates" })).toHaveLength(1),
+  );
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
 });
 it("does not mark notification attention when reopening a local failed creation", () => {

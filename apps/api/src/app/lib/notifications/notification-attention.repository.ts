@@ -601,6 +601,31 @@ export class NotificationAttentionRepository {
       { $set: { _lists: ownerListTargets("$_ownerEvents", "$_ownerGroups") } },
     ];
   }
+  /** Shared recipient/current-source authorization for bounded notification-domain projections. */
+  async authorizedSource(
+    userId: string,
+    asOf: string,
+    filter: Document = {},
+    eligibilityAt = new Date().toISOString(),
+  ) {
+    const actor = await this.db
+      .collection(COLLECTIONS.USERS)
+      .findOne({ clerkId: userId }, this.opts);
+    return [
+      {
+        $match: {
+          recipientUserId: userId,
+          readAt: { $exists: false },
+          createdAt: { $lte: new Date(asOf) },
+          ...filter,
+        },
+      },
+      ...this.routing(userId, eligibilityAt, actor?.bgoRole === "ADMIN"),
+    ];
+  }
+  sourceMatches(target: NotificationAttentionTarget) {
+    return this.matches(target);
+  }
   private matches(target: NotificationAttentionTarget): Document {
     if (target.kind === "event-list" || target.kind === "group-list")
       return { _lists: { $elemMatch: target } };
@@ -619,8 +644,8 @@ export class NotificationAttentionRepository {
     userId: string,
     targets: readonly NotificationAttentionTarget[] = [],
     notificationIds: readonly string[] = [],
+    asOf = new Date().toISOString(),
   ) {
-    const asOf = new Date().toISOString();
     const actor = await this.db
       .collection(COLLECTIONS.USERS)
       .findOne({ clerkId: userId }, { ...this.opts, projection: { _id: 0, bgoRole: 1 } });
@@ -697,6 +722,21 @@ export class NotificationAttentionRepository {
                 : {
                     $and: [
                       { $eq: ["$_kind", target.kind] },
+                      {
+                        $not: [
+                          {
+                            $in: [
+                              "$kind",
+                              [
+                                "group_membership_requested",
+                                "group_review_requested",
+                                "event_agreement_ready",
+                                "event_proposal_created",
+                              ],
+                            ],
+                          },
+                        ],
+                      },
                       { $eq: ["$_idTarget", target.id] },
                       { $eq: [{ $size: "$_items" }, 0] },
                       { $eq: [{ $type: "$attentionItems" }, "missing"] },
@@ -850,6 +890,14 @@ export class NotificationAttentionRepository {
                 ...this.matches(target),
                 attentionItems: { $exists: false },
                 _items: { $size: 0 },
+                kind: {
+                  $nin: [
+                    "group_membership_requested",
+                    "group_review_requested",
+                    "event_agreement_ready",
+                    "event_proposal_created",
+                  ],
+                },
               },
             },
             { $limit: 100 },

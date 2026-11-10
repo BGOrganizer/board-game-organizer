@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyAttentionSummary } from "../notificationAttention";
-import { optimisticNotificationData } from "../notificationOptimistic";
+import { notificationReadProtected, optimisticNotificationData } from "../notificationOptimistic";
 
 const at = "2030-01-01T00:00:00.000Z";
 const page = (notifications: Array<{ id: string; readAt: string | null }>, unreadCount = 4) => ({
@@ -112,16 +112,31 @@ describe("notification operation projection", () => {
       expect(
         (optimisticNotificationData(source, action, undefined, at, false) as typeof source).pages[0]
           .attention,
-      ).toEqual(emptyAttentionSummary());
+      ).toEqual(action === "read" ? summary : emptyAttentionSummary());
     }
   });
   it("marks all loaded rows while preserving existing read timestamps", () => {
     const result = apply("read", undefined);
-    expect(result.pages.map((row) => row.unreadCount)).toEqual([0, 0]);
+    expect(result.pages.map((row) => row.unreadCount)).toEqual([4, 4]);
     expect(result.pages[0].notifications).toEqual([
       { id: "one", readAt: "pending-time" },
       { id: "two", readAt: at },
     ]);
+  });
+  it("protects pending invitations and conservatively handles older persisted policy metadata", () => {
+    const protectedData = page([
+      { id: "one", readAt: null, kind: "table_invitation", requiresResponse: true } as never,
+    ]);
+    expect(apply("read", "one", true, protectedData)).toBe(protectedData);
+    expect(
+      apply("read", undefined, true, protectedData).pages[0].notifications[0].readAt,
+    ).toBeNull();
+    expect(apply("delete", "one", true, protectedData).pages[0].notifications).toEqual([]);
+    expect(notificationReadProtected({ kind: "table_invitation" })).toBe(true);
+    expect(notificationReadProtected({ kind: "table_invitation", requiresResponse: false })).toBe(
+      false,
+    );
+    expect(notificationReadProtected({ kind: "follow" })).toBe(false);
   });
   it("does not create missing inbox data or negative counts", () => {
     expect(optimisticNotificationData(undefined, "read", "one", at, false)).toBeUndefined();

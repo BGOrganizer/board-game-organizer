@@ -61,6 +61,7 @@ describe("account-owned canonical persistence", () => {
     "groups",
     "notifications",
     "notification-attention",
+    "notification-changes",
     "profile",
     "favoriteLocations",
     "bgg-account",
@@ -72,6 +73,51 @@ describe("account-owned canonical persistence", () => {
     expect(ownsPersistedQuery([family, owner.apiUrl, owner.userId, ...suffix], owner)).toBe(true);
     expect(ownsPersistedQuery([family, owner.apiUrl, "user-b", ...suffix], owner)).toBe(false);
     expect(ownsPersistedQuery([family, "other-api", owner.userId, ...suffix], owner)).toBe(false);
+  });
+  it("persists authoritative change-feed bases, never optimistic read overlays, and purges removed owned scopes", async () => {
+    const f = fixture();
+    const changes = [
+      "notification-changes",
+      owner.apiUrl,
+      owner.userId,
+      "table",
+      "table-id",
+      "participants",
+    ];
+    const payload = {
+      pages: [
+        {
+          asOf: "2027-01-01T00:00:00.000Z",
+          changes: [
+            { notificationId: "invitation", requiresResponse: true },
+            { notificationId: "information", requiresResponse: false },
+          ],
+          nextCursor: null,
+        },
+      ],
+      pageParams: [""],
+    };
+    f.client.setQueryData(changes, payload);
+    const operation = await beginOptimisticOperation(
+      f.client,
+      ["notifications", owner.apiUrl, owner.userId, "changes-read"],
+      { queryKey: changes },
+      () => ({
+        ...payload,
+        pages: payload.pages.map((page) => ({
+          ...page,
+          changes: page.changes.filter((row) => row.requiresResponse),
+        })),
+      }),
+    );
+    expect(f.client.getQueryData(changes)).not.toEqual(payload);
+    f.persister.flush();
+    expect(f.persister.restoreClient()?.clientState.queries[0]?.state.data).toEqual(payload);
+    await operation.reject(new CommunityApiError(409, "CONFLICT"));
+    expect(f.client.getQueryData(changes)).toEqual(payload);
+    f.client.removeQueries({ queryKey: ["notification-changes", owner.apiUrl, owner.userId] });
+    f.persister.flush();
+    expect(f.persister.restoreClient()?.clientState.queries).toHaveLength(0);
   });
   it("round-trips canonical owned collection pages and purges their persisted payload on removal", () => {
     const f = fixture();

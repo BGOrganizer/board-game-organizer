@@ -57,11 +57,7 @@ export function GroupReview({ groupId }: { groupId: string }) {
       </div>
     );
   return (
-    <NotificationAttentionScope
-      options={o}
-      targets={[{ kind: "group", id: group.id }]}
-      readOnOpen={{ kind: "group", id: group.id }}
-    >
+    <NotificationAttentionScope options={o} targets={[{ kind: "group", id: group.id }]}>
       <div data-form-scope className="space-y-4">
         <GroupDetailsCard group={group} />
         {group.reviewStatus === "PENDING" ? (

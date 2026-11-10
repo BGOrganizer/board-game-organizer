@@ -37,11 +37,11 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { UserMenu } from "@/components/contacts/UserMenu";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { GroupMemberActions } from "./GroupMemberActions";
-import { GroupMemberAttention } from "./GroupMemberAttention";
 export function GroupMembers({ group }: { group: GroupRecordResponse }) {
   const { t, i18n } = useLingui(),
     router = useRouter(),
@@ -148,10 +148,8 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="min-w-0 truncate font-medium">{name(person)}</span>
                     {person.membership?.status === "ACCEPTED" ? (
-                      <GroupMemberAttention
-                        groupId={group.id}
-                        userId={person.userId}
-                        enabled={!managed}
+                      <NotificationItem
+                        itemId={notificationItemId(group.id, "member", person.userId)}
                       />
                     ) : null}
                   </span>

@@ -10,7 +10,7 @@ overrides:
   utf-8-validate: 5.0.10
 
 patchedDependencies:
-  heroui-native@1.0.9: cb8b999dbe3c9bf968556798e3b44b148d8776d103e7adbfcd81a54e23d4eb96
+  heroui-native@1.0.9: c03e97fae0fafbd847d6c93a34ec497810cf55cc7e77b62af99fc3f883cc3cce
   react-native-screens@4.26.2: 6422398ccd8072f91daa23b987282ea4931266806cbcd8fb3e89c97686d248f7
 
 importers:
@@ -254,7 +254,7 @@ importers:
         version: 57.0.1(expo@57.0.27)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1)(utf-8-validate@5.0.10))(@types/react@19.2.18)(bufferutil@4.1.0)(react@19.2.3)(supports-color@8.1.1)(utf-8-validate@5.0.10))(react@19.2.3)
       heroui-native:
         specifier: ^1.0.9
-        version: 1.0.9(patch_hash=cb8b999dbe3c9bf968556798e3b44b148d8776d103e7adbfcd81a54e23d4eb96)(0f5a8fe499df74a5771b75bd80f844d8)
+        version: 1.0.9(patch_hash=c03e97fae0fafbd847d6c93a34ec497810cf55cc7e77b62af99fc3f883cc3cce)(0f5a8fe499df74a5771b75bd80f844d8)
       intl-pluralrules:
         specifier: ^2.0.1
         version: 2.0.1
@@ -18731,7 +18731,7 @@ snapshots:
     dependencies:
       hermes-estree: 0.36.1
 
-  heroui-native@1.0.9(patch_hash=cb8b999dbe3c9bf968556798e3b44b148d8776d103e7adbfcd81a54e23d4eb96)(0f5a8fe499df74a5771b75bd80f844d8):
+  heroui-native@1.0.9(patch_hash=c03e97fae0fafbd847d6c93a34ec497810cf55cc7e77b62af99fc3f883cc3cce)(0f5a8fe499df74a5771b75bd80f844d8):
     dependencies:
       react: 19.2.3
       react-native: 0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1)(utf-8-validate@5.0.10))(@types/react@19.2.18)(bufferutil@4.1.0)(react@19.2.3)(supports-color@8.1.1)(utf-8-validate@5.0.10)

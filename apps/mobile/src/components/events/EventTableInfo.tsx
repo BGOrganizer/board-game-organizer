@@ -14,10 +14,7 @@ export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
         <AnimatedDicebearArtwork seed={table.id} variant="planets" presentation="background" />
       }
       titleAccessory={
-        <NotificationItem
-          itemId={notificationItemId(table.id, "overview", undefined, "table")}
-          readOnly
-        />
+        <NotificationItem itemId={notificationItemId(table.id, "overview", undefined, "table")} />
       }
     >
       <EventTableCardIndicators table={table} />

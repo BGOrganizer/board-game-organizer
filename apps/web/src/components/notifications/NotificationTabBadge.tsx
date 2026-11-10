@@ -6,9 +6,12 @@ import { NotificationCountBadge } from "@/components/common/ui/NotificationCount
 export function NotificationTabBadge({
   target,
   overviewItems,
+  count: suppliedCount,
 }: {
   target: NotificationAttentionTarget;
   overviewItems?: readonly string[];
+  /** Source-complete entity/tab count, including off-page rows. */
+  count?: number;
 }) {
   const attention = useNotificationAttentionContext();
   const row = attention?.get(target);
@@ -20,5 +23,5 @@ export function NotificationTabBadge({
         0,
       )
     : row?.count;
-  return <NotificationCountBadge count={count} />;
+  return <NotificationCountBadge count={suppliedCount ?? count} />;
 }

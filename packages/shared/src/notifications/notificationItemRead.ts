@@ -2,10 +2,12 @@ import type {
   NotificationAttentionCount,
   NotificationAttentionSnapshot,
   NotificationAttentionSummary,
+  NotificationChangesPage,
   NotificationListResponse,
 } from "@board-game-organizer/schemas";
 import type { InfiniteData, QueryKey } from "@tanstack/react-query";
 import { attentionKey } from "./notificationAttention";
+import { notificationChangeTab } from "./notificationChanges";
 
 function isSectionChild(id: string, section: string) {
   try {
@@ -49,9 +51,30 @@ export function projectNotificationItemRead(
   row: NotificationAttentionCount,
   through: string,
   readAt: string,
+  decision = false,
 ): unknown {
   const effect = row.readEffect;
   if (!data || !effect) return data;
+  if (key[0] === "notification-changes") {
+    if (!decision || row.target.kind !== "item") return data;
+    const [kind, id] = JSON.parse(row.target.id) as ["group" | "event" | "table", string];
+    const tab = notificationChangeTab({ kind, id }, "", row.target.id);
+    const current = data as InfiniteData<NotificationChangesPage>;
+    return {
+      ...current,
+      pages: current.pages.map((page) => ({
+        ...page,
+        changes: page.changes.filter(
+          (change) => !(change.itemId === row.target.id && change.effectiveAt <= through),
+        ),
+        ...(tab && key[3] === kind && key[4] === id && page.asOf <= through
+          ? {
+              tabCounts: { ...page.tabCounts, [tab]: Math.max(0, page.tabCounts[tab] - row.count) },
+            }
+          : {}),
+      })),
+    };
+  }
   if (key[0] === "notification-attention") {
     const snapshot = data as NotificationAttentionSnapshot;
     if (

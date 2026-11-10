@@ -23,6 +23,7 @@ import { MatchInvitationsRepository } from "../../src/app/lib/matches/match-invi
 import { MatchesRepository } from "../../src/app/lib/matches/matches.repository";
 import { migrate } from "../../src/app/lib/migrate";
 import { NotificationAttentionRepository } from "../../src/app/lib/notifications/notification-attention.repository";
+import { NotificationChangesRepository } from "../../src/app/lib/notifications/notification-changes.repository";
 import { NotificationsRepository } from "../../src/app/lib/notifications/notifications.repository";
 import { PushSubscriptionsRepository } from "../../src/app/lib/notifications/push-subscriptions.repository";
 import { ProfileService } from "../../src/app/lib/profile/profile.service";
@@ -112,6 +113,245 @@ describe("source-paged entity notification attention", () => {
     createdAt: new Date("2020-01-01T00:00:00.000Z"),
     ...extra,
   });
+  it("pages canonical selected-tab changes at source and preserves hidden points, later arrivals and unrelated owners", async () => {
+    await seedAttentionResources();
+    const dateId = notificationItemId(eventId, "date", groupId);
+    const gameId = notificationItemId(tableId, "game", 1);
+    const inserted = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { id: dateId, revision: 1 },
+          { id: gameId, revision: 2 },
+        ],
+      }),
+    );
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertMany(
+        Array.from({ length: 10 }, () =>
+          note("event_booking_confirmed", `/events/${eventId}/tables/${tableId}`),
+        ),
+      );
+    const changes = new NotificationChangesRepository(db);
+    const tableScope = { kind: "table" as const, id: tableId, tab: "participants" as const };
+    const first = await changes.list(ACTOR, { ...tableScope, limit: 2 });
+    expect(first.changes).toHaveLength(2);
+    expect(first.tabCounts).toEqual({ details: 1, members: 0, tables: 0, participants: 10 });
+    expect(
+      first.changes.every((row) => row.messageCode === "participation" && !row.requiresResponse),
+    ).toBe(true);
+    const next = await changes.list(ACTOR, {
+      ...tableScope,
+      limit: 2,
+      cursor: JSON.parse(first.nextCursor!),
+    });
+    expect(next.asOf).toBe(first.asOf);
+    expect(
+      next.changes
+        .map((row) => row.notificationId)
+        .some((id) => first.changes.some((row) => row.notificationId === id)),
+    ).toBe(false);
+    const details = await changes.list(ACTOR, { ...tableScope, tab: "details", limit: 8 });
+    expect(details.changes.map((row) => row.itemId)).toEqual([gameId]);
+    const session = client.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const receipt = await new NotificationChangesRepository(db, session).read(ACTOR, {
+          scope: { ...tableScope, tab: "details" },
+          through: details.asOf,
+          references: details.changes.map((row) => row.readReference),
+        });
+        // Two canonical owners share this notice: reading its game never subtracts the whole bell notice.
+        expect(receipt.snapshot.unreadCount).toBe(11);
+      });
+    } finally {
+      await session.endSession();
+    }
+    const stored = await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .findOne({ _id: inserted.insertedId });
+    expect(stored?.readAt).toBeUndefined();
+    expect(stored?.attentionItems[0].readAt).toBeUndefined();
+    expect(stored?.attentionItems[1].readAt).toBeInstanceOf(Date);
+    await changes.read(ACTOR, {
+      scope: tableScope,
+      through: first.asOf,
+      references: first.changes.map((row) => row.readReference),
+    });
+    expect((await changes.list(ACTOR, { ...tableScope, limit: 8 })).tabCounts.participants).toBe(8);
+    expect((await changes.list(FOURTH, { ...tableScope, limit: 8 })).changes).toEqual([]);
+    expect((await changes.list(ACTOR, { ...tableScope, tab: "none", limit: 8 })).changes).toEqual(
+      [],
+    );
+  });
+
+  it("unions multiple displayed points from a single notice and preserves off-page/later work exactly once", async () => {
+    await seedAttentionResources();
+    const firstId = notificationItemId(tableId, "game", 1);
+    const secondId = notificationItemId(tableId, "game", 2);
+    const inserted = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { id: firstId, revision: 1 },
+          { id: secondId, revision: 1 },
+        ],
+      }),
+    );
+    const scope = { kind: "table" as const, id: tableId, tab: "details" as const };
+    const changes = new NotificationChangesRepository(db);
+    const page = await changes.list(ACTOR, { ...scope, limit: 2 });
+    expect(page.tabCounts.details).toBe(2);
+    expect(page.changes).toHaveLength(2);
+    const later = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_booking_removed", `/events/${eventId}/tables/${tableId}`, {
+        createdAt: new Date(page.asOf),
+      }),
+    );
+    const receipt = await changes.read(ACTOR, {
+      scope,
+      through: page.asOf,
+      references: page.changes.map((row) => row.readReference),
+    });
+    expect(receipt.snapshot.unreadCount).toBe(1);
+    expect(receipt.snapshot.summary.tables).toBe(1);
+    expect(receipt.readReferences).toHaveLength(2);
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: inserted.insertedId }))
+        ?.readAt,
+    ).toBeInstanceOf(Date);
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: later.insertedId }))?.readAt,
+    ).toBeUndefined();
+    expect(receipt.tabCounts.details).toBe(0);
+  });
+
+  it("protects actionable invitations from Alert, explicit item, inbox and mark-all reads until their real response", async () => {
+    await seedAttentionResources();
+    await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).insertOne({
+      id: groupId,
+      eventId,
+      tableId,
+      userId: ACTOR,
+      kind: "INVITATION",
+      status: "PENDING",
+      version: 1,
+    });
+    const invitation = await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertOne(note("table_invitation", `/events/${eventId}/tables/${tableId}`));
+    const info = await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertOne(note("event_booking_confirmed", `/events/${eventId}/tables/${tableId}`));
+    const changes = new NotificationChangesRepository(db);
+    const scope = { kind: "table" as const, id: tableId, tab: "participants" as const };
+    const page = await changes.list(ACTOR, { ...scope, limit: 8 });
+    expect(
+      page.changes.find((row) => row.notificationId === invitation.insertedId.toHexString())
+        ?.requiresResponse,
+    ).toBe(true);
+    await changes.read(ACTOR, {
+      scope,
+      through: page.asOf,
+      references: page.changes.map((row) => row.readReference),
+    });
+    const inbox = new NotificationsRepository(db);
+    await inbox.markRead(ACTOR, invitation.insertedId.toHexString());
+    await inbox.markAllRead(ACTOR);
+    await new NotificationAttentionRepository(db).read(ACTOR, {
+      target: { kind: "item", id: notificationItemId(tableId, "invitation", undefined, "table") },
+      through: page.asOf,
+    });
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: invitation.insertedId }))
+        ?.readAt,
+    ).toBeUndefined();
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: info.insertedId }))?.readAt,
+    ).toBeInstanceOf(Date);
+    expect(
+      (await inbox.list(ACTOR, 8)).notifications.find(
+        (row) => row.id === invitation.insertedId.toHexString(),
+      )?.requiresResponse,
+    ).toBe(true);
+    // Existing domain decision updates membership first and explicitly acknowledges inside the same transaction.
+    const session = client.startSession();
+    try {
+      await session.withTransaction(async () => {
+        await db
+          .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+          .updateOne({ tableId, userId: ACTOR }, { $set: { status: "DECLINED" } }, { session });
+        await new NotificationsRepository(db, session).acknowledgeItems(
+          ACTOR,
+          [notificationItemId(tableId, "invitation", undefined, "table")],
+          page.asOf,
+          true,
+        );
+      });
+    } finally {
+      await session.endSession();
+    }
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: invitation.insertedId }))
+        ?.readAt,
+    ).toBeInstanceOf(Date);
+    expect((await changes.list(ACTOR, { ...scope, limit: 8 })).tabCounts.participants).toBe(0);
+  });
+
+  it("rejects stale captured revisions/effective times and classifies historical member-to-overview retargets without migrations", async () => {
+    await seedAttentionResources();
+    const scope = { kind: "group" as const, id: groupId, tab: "details" as const };
+    const point = notificationItemId(groupId, "overview", undefined, "group");
+    const inserted = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("group_membership_updated", `/groups/${groupId}`, {
+        attentionItems: [
+          {
+            id: point,
+            sectionId: notificationItemId(groupId, "members"),
+            revision: 2,
+            changedAt: new Date("2020-01-02T00:00:00.000Z"),
+          },
+        ],
+      }),
+    );
+    const changes = new NotificationChangesRepository(db);
+    const page = await changes.list(ACTOR, { ...scope, limit: 8 });
+    expect(page.tabCounts).toEqual({ details: 1, members: 0, tables: 0, participants: 0 });
+    expect(page.changes[0].messageCode).toBe("group_info");
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .updateOne({ _id: inserted.insertedId }, { $set: { "attentionItems.0.revision": 3 } });
+    expect(
+      (
+        await changes.read(ACTOR, {
+          scope,
+          through: page.asOf,
+          references: [page.changes[0].readReference],
+        })
+      ).updated,
+    ).toBe(0);
+    const current = await changes.list(ACTOR, { ...scope, limit: 8 });
+    await changes.read(ACTOR, {
+      scope,
+      through: page.asOf,
+      references: [
+        { ...current.changes[0].readReference, effectiveAt: "2020-01-01T00:00:00.000Z" },
+      ],
+    });
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: inserted.insertedId }))
+        ?.readAt,
+    ).toBeUndefined();
+    await changes.read(ACTOR, {
+      scope,
+      through: current.asOf,
+      references: [current.changes[0].readReference],
+    });
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: inserted.insertedId }))
+        ?.readAt,
+    ).toBeInstanceOf(Date);
+  });
+
   it("counts top-tab scopes beyond loaded inbox pages without turning their parent Group into an entity owner", async () => {
     await seedAttentionResources();
     const date = { kind: "item", id: notificationItemId(eventId, "date", groupId) } as const;

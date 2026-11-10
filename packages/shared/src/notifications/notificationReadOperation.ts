@@ -9,7 +9,7 @@ import {
 } from "./notificationAttentionCache";
 import { projectNotificationItemRead } from "./notificationItemRead";
 
-/** A consent/vote can consume only its captured source point, including inactive container caches. */
+/** A consent decision can consume only its captured source point, including inactive container caches. */
 export async function beginNotificationItemRead(
   client: QueryClient,
   options: CommunityApiOptions,
@@ -23,7 +23,8 @@ export async function beginNotificationItemRead(
     client,
     ["notifications", options.apiUrl, options.userId, "target", attentionKey(target)],
     notificationFilters(options),
-    (data, key) => projectNotificationItemRead(data, key, source.row, source.snapshot.asOf, readAt),
+    (data, key) =>
+      projectNotificationItemRead(data, key, source.row, source.snapshot.asOf, readAt, true),
     notificationReadAliases(client, options, target, source.snapshot.asOf),
   );
   return { operation, through: source.snapshot.asOf };

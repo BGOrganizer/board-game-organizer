@@ -51,13 +51,7 @@ import {
 } from "../../community/queryCache";
 import { isGroupManagerRole } from "../../groups/groupPolicy";
 import { groupRecordDetailQuery, groupRecordKeys } from "../../groups/hooks/useGroupRecords";
-import { attentionKey } from "../../notifications/notificationAttention";
-import {
-  cachedAttention,
-  notificationFilters,
-  notificationReadAliases,
-} from "../../notifications/notificationAttentionCache";
-import { projectNotificationItemRead } from "../../notifications/notificationItemRead";
+import { notificationFilters } from "../../notifications/notificationAttentionCache";
 import { beginNotificationItemRead } from "../../notifications/notificationReadOperation";
 import {
   captureEventConsent,
@@ -815,45 +809,10 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     networkMode: "always",
     mutationFn: (input: ChangeEventVoteInput, context) =>
       write<PlannedEventResponse>(`events/${id}/votes`, "PATCH", input, context),
-    onMutate: async (input) => {
-      const target = {
-        kind: "item",
-        id: notificationItemId(
-          input.kind === "game" ? input.tableId : id,
-          input.kind,
-          input.kind === "game" ? input.gameId : input.optionId,
-        ),
-      } as const;
-      const attention = cachedAttention(client, o, target);
-      if (attention?.row.count) input.attentionThrough = attention.snapshot.asOf;
-      const context = await begin("set_event_vote", undefined, ["vote"], (data) =>
+    onMutate: (input) =>
+      begin("set_event_vote", undefined, ["vote"], (data) =>
         optimisticEventVote(data, id, o.userId, input),
-      );
-      if (attention?.row.count) {
-        try {
-          context.attentionOperation = await beginOptimisticOperation(
-            client,
-            ["notifications", o.apiUrl, o.userId, "target", attentionKey(target)],
-            notificationFilters(o),
-            (data, key) =>
-              projectNotificationItemRead(
-                data,
-                key,
-                attention.row,
-                attention.snapshot.asOf,
-                new Date().toISOString(),
-              ),
-            notificationReadAliases(client, o, target, attention.snapshot.asOf),
-          );
-        } catch (error) {
-          await context.operation.reject(
-            error instanceof Error ? error : new Error("Invalid notification"),
-          );
-          throw error;
-        }
-      }
-      return context;
-    },
+      ),
     onSuccess: eventReceiptSuccess,
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,

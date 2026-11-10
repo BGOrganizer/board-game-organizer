@@ -183,7 +183,7 @@ it("shows a compact identity, persistent tabs and real ordinal GLOBAL rating dat
   expect(screen.getByText("Last rated game change: +2")).not.toBeNull();
   expect(screen.getByRole("img", { name: "OpenSkill rating history" })).not.toBeNull();
   expect(screen.queryByText("2030-06-03")).toBeNull();
-  expect(screen.getByText("Win %")).not.toBeNull();
+  expect(screen.getByText("Win percentage")).not.toBeNull();
   expect(
     useAppStore.getState().profileViews[JSON.stringify(["https://api.test", "owner", "owner"])]
       ?.tab,

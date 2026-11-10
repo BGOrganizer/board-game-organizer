@@ -10,6 +10,7 @@ import {
   eventOptionsRequireVote,
   useEventRecord,
   useEventRecordActions,
+  useNotificationChanges,
   useRecordTables,
 } from "@board-game-organizer/shared";
 import { Button, Skeleton, Tabs } from "@heroui/react";
@@ -39,7 +40,9 @@ import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -68,6 +71,22 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     (event?.sharedResultsOnly || event?.personalAccessOnly) && requestedTab === "participants"
       ? "details"
       : requestedTab;
+  const changes = useNotificationChanges(
+    {
+      ...o,
+      enabled:
+        o.enabled !== false &&
+        Boolean(event) &&
+        !event?.readOnly &&
+        !event?.personalAccessOnly &&
+        !event?.sharedResultsOnly,
+    },
+    {
+      kind: "event",
+      id: eventId,
+      tab: tab === "details" ? "details" : tab === "participants" ? "participants" : "tables",
+    },
+  );
   const confirmationBlocked =
     a.busy || q.isPlaceholderData || !event?.canConfirm || event?.agreement?.agreed !== true;
   const confirmationHint = a.busy
@@ -117,7 +136,6 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               })),
             ]
       }
-      readOnOpen={event.readOnly ? undefined : { kind: "event", id: event.id }}
     >
       <div className="mx-auto max-w-4xl space-y-3 pb-24">
         <Link
@@ -184,20 +202,38 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           <TabBar label={t`Event details`}>
             <TabTrigger icon={Info} id="details">
               {t`Details`}
+              <NotificationTabBadge
+                target={{ kind: "event", id: eventId }}
+                count={changes.tabCounts.details}
+              />
             </TabTrigger>
             {!event.sharedResultsOnly && !event.personalAccessOnly ? (
               <TabTrigger icon={UsersRound} id="participants">
                 {t`Participants`}
+                <NotificationTabBadge
+                  target={{ kind: "event", id: eventId }}
+                  count={changes.tabCounts.participants}
+                />
               </TabTrigger>
             ) : null}
             <TabTrigger icon={Dices} id="tables">
               {t`Tables`}
+              <NotificationTabBadge
+                target={{ kind: "event", id: eventId }}
+                count={changes.tabCounts.tables}
+              />
             </TabTrigger>
           </TabBar>
         </Tabs>
+        {!event.readOnly && !event.personalAccessOnly && !event.sharedResultsOnly ? (
+          <NotificationChangesAlert
+            key={JSON.stringify([o.apiUrl, o.userId, event.id, tab])}
+            model={changes}
+          />
+        ) : null}
         {tab === "details" ? (
           <>
-            <NotificationItem itemId={notificationItemId(event.id, "overview")} readOnly>
+            <NotificationItem itemId={notificationItemId(event.id, "overview")}>
               <div className="flex items-center gap-2">
                 <h2 className="font-semibold">{t`Details`}</h2>
                 <EventVoteLegend />
@@ -219,7 +255,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               aria-label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
               className="space-y-3"
             >
-              <NotificationItem itemId={notificationItemId(event.id, "dates")} readOnly>
+              <NotificationItem itemId={notificationItemId(event.id, "dates")}>
                 <SearchHelpLabel
                   label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
                   helpTitle={t`Field help`}
@@ -242,10 +278,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                             startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
                             timeZone={event.timeZone}
                           />
-                          <NotificationItem
-                            itemId={notificationItemId(event.id, "date", row.id)}
-                            readOnly={!voteDates || !event.canVote}
-                          />
+                          <NotificationItem itemId={notificationItemId(event.id, "date", row.id)} />
                         </div>
                         {voteDates ? (
                           <EventVoteCounts
@@ -316,7 +349,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               </section>
             ) : null}
             <section aria-label={t`Locations`} className="space-y-3">
-              <NotificationItem itemId={notificationItemId(event.id, "locations")} readOnly>
+              <NotificationItem itemId={notificationItemId(event.id, "locations")}>
                 <h2 className="font-semibold">{t`Locations`}</h2>
               </NotificationItem>
               <GroupedList>
@@ -335,7 +368,6 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                       titleAccessory={
                         <NotificationItem
                           itemId={notificationItemId(event.id, "location", row.id)}
-                          readOnly={!voteLocations || !event.canVote}
                         />
                       }
                       actions={
@@ -385,7 +417,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         ) : null}
         {tab === "tables" ? (
           <section aria-label={t`Table list`} className="space-y-3">
-            <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
+            <NotificationItem itemId={notificationItemId(event.id, "tables")}>
               <TableListHeading />
             </NotificationItem>
             <EventTables query={tables} />

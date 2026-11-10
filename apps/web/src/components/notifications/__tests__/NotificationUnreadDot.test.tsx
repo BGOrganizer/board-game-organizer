@@ -66,9 +66,9 @@ it("puts the marker after a shrinkable title, before other card metadata, withou
 });
 
 it.each(["game", "location"])(
-  "keeps a %s marker and explicit read action in the name slot, not vote controls",
+  "keeps a passive %s marker in the name slot with no read action in vote controls",
   (kind) => {
-    const marker = <NotificationItem itemId="source-item" readOnly />;
+    const marker = <NotificationItem itemId="source-item" />;
     renderWithI18n(
       kind === "game" ? (
         <GameListRow name="A long board game name" titleAccessory={marker} />
@@ -83,8 +83,9 @@ it.each(["game", "location"])(
     const dot = screen.getByRole("img", { name: "Unread updates" });
     expect(dot.parentElement?.previousElementSibling?.getAttribute("title")).toContain("long");
     expect(state.read).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Mark as read" }));
-    expect(state.read).toHaveBeenCalledWith({ kind: "item", id: "source-item" });
+    expect(screen.queryByRole("button", { name: "Mark as read" })).toBeNull();
+    fireEvent.click(dot);
+    expect(state.read).not.toHaveBeenCalled();
   },
 );
 

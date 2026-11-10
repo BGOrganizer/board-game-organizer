@@ -5,7 +5,7 @@ import {
   ownGroupActions,
   useGroupRecord,
   useGroupRecordActions,
-  useNotificationAttentionContext,
+  useNotificationChanges,
 } from "@board-game-organizer/shared";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -28,12 +28,12 @@ import { View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
-import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -62,6 +62,18 @@ export function GroupDetail({
     [confirm, setConfirm] = useState<"decline" | "cancel" | "delete" | null>(null),
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
+  const selectedTab =
+    (tab === "members" && !group?.canViewMembers) || (tab === "events" && !group?.canViewEvents)
+      ? "info"
+      : tab;
+  const changes = useNotificationChanges(
+    { ...o, enabled: o.enabled !== false && Boolean(group) },
+    {
+      kind: "group",
+      id: groupId,
+      tab: selectedTab === "info" ? "details" : selectedTab === "members" ? "members" : "none",
+    },
+  );
   const ownBusy = a.isPersonBusy(groupId, o.userId ?? "");
   const canDelete = group?.role === "admin";
   const header = (
@@ -142,7 +154,6 @@ export function GroupDetail({
         { kind: "item", id: notificationItemId(group.id, "members") },
         { kind: "item", id: notificationItemId(group.id, "overview", undefined, "group") },
       ]}
-      readOnOpen={{ kind: "group", id: group.id }}
     >
       <View style={{ flex: 1 }}>
         {header}
@@ -158,16 +169,7 @@ export function GroupDetail({
         <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
           <GroupIdentityCard group={group} />
         </View>
-        <Tabs
-          value={
-            (tab === "events" && !group.canViewEvents) ||
-            (tab === "members" && !group.canViewMembers)
-              ? "info"
-              : tab
-          }
-          onValueChange={setTab}
-          style={{ flex: 1 }}
-        >
+        <Tabs value={selectedTab} onValueChange={setTab} style={{ flex: 1 }}>
           <View style={{ alignSelf: "stretch", marginTop: 8, maxWidth: "100%" }}>
             <TabBar>
               {(
@@ -198,6 +200,7 @@ export function GroupDetail({
                     {key === "info" ? (
                       <NotificationTabBadge
                         target={{ kind: "group", id: group.id }}
+                        count={changes.tabCounts.details}
                         overviewItems={[
                           notificationItemId(group.id, "invitation"),
                           notificationItemId(group.id, "overview", undefined, "group"),
@@ -207,7 +210,12 @@ export function GroupDetail({
                     {key === "events" ? (
                       <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />
                     ) : null}
-                    {key === "members" ? <GroupMembersBadge groupId={group.id} /> : null}
+                    {key === "members" ? (
+                      <NotificationTabBadge
+                        target={{ kind: "item", id: notificationItemId(group.id, "members") }}
+                        count={changes.tabCounts.members}
+                      />
+                    ) : null}
                     {key === "members" &&
                     isGroupManagerRole(group.role) &&
                     (group.pendingRequestCount ?? 0) > 0 ? (
@@ -219,6 +227,14 @@ export function GroupDetail({
                 ))}
             </TabBar>
           </View>
+          {selectedTab === "info" || selectedTab === "members" ? (
+            <View style={{ paddingHorizontal: 20, paddingTop: 8, flexShrink: 1 }}>
+              <NotificationChangesAlert
+                key={JSON.stringify([o.apiUrl, o.userId, group.id, selectedTab])}
+                model={changes}
+              />
+            </View>
+          ) : null}
           <View style={{ flex: 1, paddingTop: 8 }}>
             {tab === "members" && group.canViewMembers ? (
               <GroupMembers group={group} />
@@ -314,15 +330,5 @@ export function GroupDetail({
         ) : null}
       </View>
     </NotificationAttentionScope>
-  );
-}
-function GroupMembersBadge({ groupId }: { groupId: string }) {
-  const attention = useNotificationAttentionContext();
-  return (
-    <NotificationUnreadDot
-      active={Boolean(
-        attention?.get({ kind: "item", id: notificationItemId(groupId, "members") })?.count,
-      )}
-    />
   );
 }

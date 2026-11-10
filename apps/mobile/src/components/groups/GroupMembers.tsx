@@ -15,7 +15,7 @@ import {
   useGroupMemberManagement,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
@@ -34,8 +34,8 @@ import {
   UsersRound,
   X,
 } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, type FlatListProps, View } from "react-native";
+import { useState } from "react";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -46,10 +46,10 @@ import { UserList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupMemberActions } from "./GroupMemberActions";
-import { GroupMemberAttention } from "./GroupMemberAttention";
 export function GroupMembers({ group }: { group: GroupRecordResponse }) {
   const t = useT(),
     options = useCommunityApi(),
@@ -67,31 +67,6 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
     { list, busy } = workflow;
   const [menu, setMenu] = useState<string | null>(null);
   const [staffMenu, setStaffMenu] = useState<string | null>(null);
-  const [focused, setFocused] = useState(false),
-    [active, setActive] = useState(AppState.currentState === "active");
-  const [visibleIds, setVisibleIds] = useState<Set<string>>(() => new Set());
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 100 }).current;
-  const onViewableItemsChanged = useCallback<
-    NonNullable<FlatListProps<GroupPersonResponse>["onViewableItemsChanged"]>
-  >(
-    ({ viewableItems }) =>
-      setVisibleIds(
-        new Set(viewableItems.filter((row) => row.isViewable).map((row) => row.item.userId)),
-      ),
-    [],
-  );
-  useFocusEffect(
-    useCallback(() => {
-      setFocused(true);
-      return () => setFocused(false);
-    }, []),
-  );
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) =>
-      setActive(state === "active"),
-    );
-    return () => subscription.remove();
-  }, []);
   const denied = communityAccessDenied(list.error),
     managed = denied ? null : workflow.managed;
   const selected =
@@ -118,8 +93,6 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
         }))}
     >
       <UserList
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
         testID="group-members-scroll"
         data={denied ? [] : list.items}
         pages={[{ ...list, isLoading: list.isPending }]}
@@ -184,17 +157,8 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
               avatarUrl={person.avatarUrl}
               titleAccessory={
                 person.membership?.status === "ACCEPTED" ? (
-                  <GroupMemberAttention
-                    groupId={group.id}
-                    userId={person.userId}
-                    visible={
-                      focused &&
-                      active &&
-                      !managed &&
-                      !menu &&
-                      !staffMenu &&
-                      visibleIds.has(person.userId)
-                    }
+                  <NotificationItem
+                    itemId={notificationItemId(group.id, "member", person.userId)}
                   />
                 ) : undefined
               }

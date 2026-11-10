@@ -2,6 +2,7 @@ import type {
   NotificationAttentionReference,
   NotificationAttentionSnapshot,
   NotificationAttentionTarget,
+  NotificationChangesPage,
   NotificationListResponse,
 } from "@board-game-organizer/schemas";
 import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query";
@@ -18,7 +19,9 @@ export const attentionRoot = (o: Pick<CommunityApiOptions, "apiUrl" | "userId">)
   ["notification-attention", o.apiUrl, o.userId] as const;
 export const notificationFilters = (o: Pick<CommunityApiOptions, "apiUrl" | "userId">) => ({
   predicate: ({ queryKey }: { queryKey: QueryKey }) =>
-    ["notifications", "notification-attention"].includes(String(queryKey[0])) &&
+    ["notifications", "notification-attention", "notification-changes"].includes(
+      String(queryKey[0]),
+    ) &&
     queryKey[1] === o.apiUrl &&
     queryKey[2] === o.userId,
 });
@@ -54,7 +57,14 @@ function genericInformation(notification: NotificationListResponse["notification
     notification.attentionItems === undefined &&
     !notification.attention?.itemIds?.length &&
     notification.kind !== "group_invitation" &&
-    notification.kind !== "table_invitation"
+    notification.kind !== "table_invitation" &&
+    !notification.requiresResponse &&
+    ![
+      "group_membership_requested",
+      "group_review_requested",
+      "event_agreement_ready",
+      "event_proposal_created",
+    ].includes(notification.kind)
   );
 }
 /** Only actual shared source notices are dependencies; never serialize an owner's whole inbox. */
@@ -64,7 +74,7 @@ export function notificationReadAliases(
   target: NotificationAttentionTarget,
   through: string,
 ) {
-  return client
+  const aliases = client
     .getQueriesData<InfiniteData<NotificationListResponse>>({
       queryKey: ["notifications", o.apiUrl, o.userId],
     })
@@ -77,6 +87,15 @@ export function notificationReadAliases(
         attentionMatches(attentionReference(notification), target, true),
     )
     .map((notification) => ["notifications", o.apiUrl, o.userId, "item", notification.id]);
+  if (target.kind === "item")
+    for (const [, data] of client.getQueriesData<InfiniteData<NotificationChangesPage>>({
+      queryKey: ["notification-changes", o.apiUrl, o.userId],
+    }))
+      for (const page of data?.pages ?? [])
+        for (const row of page.changes)
+          if (row.itemId === target.id && row.effectiveAt <= through)
+            aliases.push(["notifications", o.apiUrl, o.userId, "item", row.notificationId]);
+  return aliases;
 }
 export function projectAttentionRead(
   data: unknown,
@@ -86,7 +105,7 @@ export function projectAttentionRead(
   through: string,
   readAt: string,
 ): unknown {
-  if (!data) return data;
+  if (!data || key[0] === "notification-changes") return data;
   if (key[0] === "notification-attention")
     return projectAttentionSnapshot(data as NotificationAttentionSnapshot, reference, count);
   const inbox = data as InfiniteData<NotificationListResponse>;

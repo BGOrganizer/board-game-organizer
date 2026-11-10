@@ -1,23 +1,11 @@
 "use client";
 import { useNotificationAttentionContext } from "@board-game-organizer/shared";
-import { Button } from "@heroui/react";
-import { useLingui } from "@lingui/react/macro";
-import { Check } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 
-/** Batched source state and explicit reads remain owned by the enclosing scope. */
-export function NotificationItem({
-  itemId,
-  readOnly = false,
-  children,
-}: {
-  itemId?: string;
-  readOnly?: boolean;
-  children?: ReactNode;
-}) {
-  const attention = useNotificationAttentionContext(),
-    { t } = useLingui();
+/** Passive source-backed marker; only the enclosing changes Alert can read information. */
+export function NotificationItem({ itemId, children }: { itemId?: string; children?: ReactNode }) {
+  const attention = useNotificationAttentionContext();
   const element = useRef<HTMLElement>(null),
     positioned = useRef<string | null>(null);
   useEffect(() => {
@@ -42,18 +30,6 @@ export function NotificationItem({
     >
       {children ? <div className="min-w-0 flex-1">{children}</div> : null}
       <NotificationUnreadDot active={Boolean(count)} />
-      {readOnly && count ? (
-        <Button
-          isIconOnly
-          size="sm"
-          variant="secondary"
-          className="min-h-11 min-w-11"
-          aria-label={t`Mark as read`}
-          onPress={() => attention?.read(target)}
-        >
-          <Check className="size-4" aria-hidden />
-        </Button>
-      ) : null}
     </Item>
   );
 }

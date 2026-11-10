@@ -239,20 +239,23 @@ test("PR native acceptance attempts every flow after a failure without weakening
   assert(watchdog.includes("ci-fail-fast.mjs"));
   assert.doesNotMatch(watchdog, /\.steps\[\]/);
 });
-test("managed HeroUI patch preserves popup sizing, controlled initial sheet index and genuine pan closure", () => {
+test("managed HeroUI patch preserves popup sizing, controlled sheets and transformed press hosts", () => {
   const patch = readFileSync(
     new URL("../../patches/heroui-native@1.0.9.patch", import.meta.url),
     "utf8",
   );
-  assert.equal((patch.match(/^diff --git /gm) ?? []).length, 8);
+  assert.equal((patch.match(/^diff --git /gm) ?? []).length, 10);
   assert.deepEqual(
     patch.split("\n").filter((line) => line.startsWith("+") && !line.startsWith("+++")),
     [
       "+        style: StyleSheet.absoluteFill,",
+      "+import { View } from 'react-native';",
+      "+import { Pressable } from 'react-native-gesture-handler';",
       "+      style: StyleSheet.absoluteFill,",
       "+    if (isPanActivated.get() && value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {",
       "+      index: isOpen ? initialIndex ?? 0 : -1,",
       "+            style={StyleSheet.absoluteFill}",
+      "+import { Pressable } from 'react-native-gesture-handler';",
       "+          style={StyleSheet.absoluteFill}",
       "+      if (isPanActivated.get() && value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {",
       "+          index={isOpen ? (initialIndex ?? 0) : -1}",
@@ -260,6 +263,17 @@ test("managed HeroUI patch preserves popup sizing, controlled initial sheet inde
   );
   const workspace = readFileSync(new URL("../../pnpm-workspace.yaml", import.meta.url), "utf8");
   assert(workspace.includes("heroui-native@1.0.9: patches/heroui-native@1.0.9.patch"));
+  for (const path of [
+    "src/components/pressable-feedback/pressable-feedback.tsx",
+    "lib/module/components/pressable-feedback/pressable-feedback.js",
+  ]) {
+    const installed = readFileSync(
+      new URL(`../../node_modules/heroui-native/${path}`, import.meta.url),
+      "utf8",
+    );
+    assert.match(installed, /import \{ Pressable \} from 'react-native-gesture-handler'/);
+    assert.doesNotMatch(installed, /import\s*\{[^}]*\bPressable\b[^}]*\}\s*from 'react-native'/s);
+  }
   for (const [path, expected] of [
     [
       "src/components/popover/popover.tsx",
@@ -292,8 +306,10 @@ test("managed HeroUI patch preserves popup sizing, controlled initial sheet inde
   assert.deepEqual(
     patch.split("\n").filter((line) => line.startsWith("-") && !line.startsWith("---")),
     [
+      "-import { Pressable, View } from 'react-native';",
       "-    if (value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {",
       "-      index: -1,",
+      "-  Pressable,",
       "-      if (value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {",
       "-          index={-1}",
     ],

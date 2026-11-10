@@ -36,10 +36,12 @@ with its four-character minimum.
 - Durable notification inbox with a counted bell and static danger dots inside affected cards/items,
   after shrinkable titles/names. No automatic Group/Event/Table propagation, borders or pulses.
   Top tabs reflect unread rows in their authorized category without making parent cards unread.
-  Accepted members mark Members and their actual row, clearing after five continuously visible
-  seconds. Known source reads/decisions immediately reconcile their related navigation indicators.
-  Pending Group request review and invitation replies remain independent of unread state.
-  Successful votes acknowledge only their displayed change; container entry preserves precise attention.
+  Each Group/Event/Table tab shows one warning change Alert with its sole icon-only danger read
+  action; item dots stay passive. No entry, focus, visibility timer or vote reads information.
+  Accepted members mark Members and their actual row; Table participation marks Participants only.
+  Alert reads capture only displayed information and preserve later/unshown work. Pending invitations
+  remain in the Alert and unread until their response; generic mark-read/mark-all cannot consume them.
+  Known source reads/decisions immediately reconcile related navigation indicators without granting consent.
   Optional push, light/dark and EN/IT. Reading never grants invitation consent.
 - Native cache-first restart: authoritative TanStack Query data persists in account/API-scoped,
   AES-256 MMKV with random device-only SecureStore keys. Restore waits for Clerk identity; it is not

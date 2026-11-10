@@ -23,7 +23,7 @@ it("stores immutable copy inputs without exposing them through locale-specific i
               ],
             }),
           }
-        : { insertMany, find, countDocuments },
+        : { insertMany, find, countDocuments, findOne: vi.fn(async () => null) },
   };
   const repo = new NotificationsRepository(db as never);
   const href =
@@ -50,6 +50,7 @@ it("stores immutable copy inputs without exposing them through locale-specific i
     href,
     createdAt: date.toISOString(),
     readAt: null,
+    requiresResponse: false,
   });
   expect(find).toHaveBeenCalledWith({ recipientUserId: "recipient" }, {});
   expect(saved[0].title).toBe("Table invitation");

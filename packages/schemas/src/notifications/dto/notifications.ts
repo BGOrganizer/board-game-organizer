@@ -40,6 +40,7 @@ export interface NotificationDto {
   /** null means the source explicitly excluded this notification from navigation counts. */
   attention?: NotificationAttentionReference | null;
   attentionItems?: NotificationItemDto[];
+  requiresResponse?: boolean;
 }
 
 export interface NotificationListResponse {

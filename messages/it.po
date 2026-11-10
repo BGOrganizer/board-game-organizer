@@ -6632,3 +6632,78 @@ msgstr "Il tuo posto riservato tornerà disponibile."
 
 msgid "YYYY-MM-DDTHH:mm"
 msgstr "AAAA-MM-GGTHH:mm"
+
+msgid "Win percentage"
+msgstr "Percentuale di vittorie"
+
+msgid "Date updated"
+msgstr "Data aggiornata"
+
+msgid "Date options changed"
+msgstr "Date proposte modificate"
+
+msgid "Location updated"
+msgstr "Luogo aggiornato"
+
+msgid "Location options changed"
+msgstr "Luoghi proposti modificati"
+
+msgid "Game updated"
+msgstr "Gioco aggiornato"
+
+msgid "Games changed"
+msgstr "Giochi modificati"
+
+msgid "Table settings updated"
+msgstr "Impostazioni del tavolo aggiornate"
+
+msgid "Tables changed"
+msgstr "Tavoli modificati"
+
+msgid "Group information updated"
+msgstr "Informazioni del gruppo aggiornate"
+
+msgid "Membership updated"
+msgstr "Adesione al gruppo aggiornata"
+
+msgid "Participation updated"
+msgstr "Partecipazione aggiornata"
+
+msgid "Event updated"
+msgstr "Evento aggiornato"
+
+msgid "Invitation awaiting a response"
+msgstr "Invito in attesa di risposta"
+
+msgid "Invitation updated"
+msgstr "Invito aggiornato"
+
+msgid "Proposal updated"
+msgstr "Proposta aggiornata"
+
+msgid "Review updated"
+msgstr "Revisione aggiornata"
+
+msgid "Information updated"
+msgstr "Informazioni aggiornate"
+
+msgid "New changes"
+msgstr "Aggiornamenti"
+
+msgid "Changes"
+msgstr "Modifiche"
+
+msgid "Invitations remain unread until you respond."
+msgstr "Gli inviti restano non letti fino alla tua risposta."
+
+msgid "Could not mark changes as read. Try again."
+msgstr "Impossibile segnare gli aggiornamenti come letti. Riprova."
+
+msgid "Could not load changes. Try again."
+msgstr "Impossibile caricare gli aggiornamenti. Riprova."
+
+msgid "More changes"
+msgstr "Altri aggiornamenti"
+
+msgid "Mark displayed changes as read"
+msgstr "Segna come letti gli aggiornamenti visualizzati"

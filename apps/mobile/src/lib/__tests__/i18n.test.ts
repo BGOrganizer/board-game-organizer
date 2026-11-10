@@ -61,7 +61,7 @@ describe("translate (runtime)", () => {
     ["Terminated tables", "Terminati"],
     ["Collection", "Collezione"],
     ["Clear selected game", "Azzera gioco selezionato"],
-    ["Win %", "% di vittorie"],
+    ["Win percentage", "Percentuale di vittorie"],
     ["Table name", "Nome tavolo"],
     ["Number of players", "Numero giocatori"],
     ["No players waiting", "Nessun utente in lista d'attesa"],

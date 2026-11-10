@@ -44,7 +44,9 @@ visibility with a current-network/time selection; no offline mode is enabled.
   error focus. Empty/few-result lists retain enough range without focus-driven bulk reveal/fetch. Picker/Collection rows
   reuse the same platform game-card component and spacing. Query changes never reset
   the list to the Profile header. Blur/keyboard dismissal preserve text/chips; clear removes text only.
-  Counter cards share the largest natural height and align number/label rows, including wrapped text.
+  Within each tab, its counter cards share the largest natural height and align number/label rows,
+  including wrapped text. Different tabs may have different counter-row heights. Player labels spell
+  out Win percentage / Percentuale di vittorie; values retain their original percentage semantics.
   Tab, game and activity-filter selections belong to scoped local UI state.
   Owner logout appears only below Activities/Player, remains reachable on profile failure and requires
   confirmation; native retains cache-safe signout. Another user's Collection omits its Powered by

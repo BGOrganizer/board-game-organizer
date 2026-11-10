@@ -9,6 +9,7 @@ import type {
 import { type ClientSession, type Db, ObjectId } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 import { localizedNotificationText, notificationCopy } from "./notification-copy";
+import { notificationRequiresResponse } from "./notification-response-protection";
 
 export type NotificationEvent =
   | {
@@ -178,10 +179,21 @@ export class NotificationsRepository {
     const hasMore = rows.length > limit;
     const notifications = rows.slice(0, limit);
     return {
-      notifications: notifications.map((row) => toDto(row, locale)),
+      notifications: await this.withResponseProtection(notifications, locale),
       unreadCount,
       nextCursor: hasMore ? (notifications.at(-1)?._id.toHexString() ?? null) : null,
     };
+  }
+
+  private async withResponseProtection(rows: Notification[], locale?: "en" | "it") {
+    const result: NotificationDto[] = [];
+    for (const row of rows)
+      result.push({
+        ...toDto(row, locale),
+        requiresResponse:
+          !row.readAt && (await notificationRequiresResponse(this.db, row, this.session)),
+      });
+    return result;
   }
 
   async retargetItems(replacements: readonly { from: string; to: NotificationItem }[]) {
@@ -234,8 +246,13 @@ export class NotificationsRepository {
     );
   }
 
-  /** Called in the same transaction as a successful vote/decision; never acknowledges later arrivals. */
-  async acknowledgeItems(recipientUserId: string, itemIds: readonly string[], through: string) {
+  /** Decision acknowledgements explicitly opt in; informational reads cannot consume required responses. */
+  async acknowledgeItems(
+    recipientUserId: string,
+    itemIds: readonly string[],
+    through: string,
+    decision = false,
+  ) {
     const cutoff = new Date(Math.min(Date.parse(through), Date.now()));
     let legacyRead = 0;
     const members: Record<string, unknown>[] = [];
@@ -309,6 +326,20 @@ export class NotificationsRepository {
     const result = await this.db.collection<Notification>(COLLECTIONS.NOTIFICATIONS).updateMany(
       {
         recipientUserId,
+        ...(!decision
+          ? {
+              kind: {
+                $nin: [
+                  "group_invitation",
+                  "table_invitation",
+                  "group_membership_requested",
+                  "group_review_requested",
+                  "event_agreement_ready",
+                  "event_proposal_created",
+                ],
+              },
+            }
+          : {}),
         readAt: { $exists: false },
         createdAt: { $lte: cutoff },
         $or: [
@@ -379,24 +410,33 @@ export class NotificationsRepository {
     return { ...result, modifiedCount: result.modifiedCount + legacyRead };
   }
 
-  markRead(recipientUserId: string, notificationId: string) {
+  async markRead(recipientUserId: string, notificationId: string) {
+    const filter = {
+      _id: new ObjectId(notificationId),
+      recipientUserId,
+      readAt: { $exists: false },
+    };
+    const note = await this.db
+      .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
+      .findOne(filter, this.opts);
+    if (!note || (await notificationRequiresResponse(this.db, note, this.session)))
+      return { modifiedCount: 0 };
     return this.db
       .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
-      .updateOne(
-        { _id: new ObjectId(notificationId), recipientUserId, readAt: { $exists: false } },
-        { $set: { readAt: new Date() } },
-        this.opts,
-      );
+      .updateOne(filter, { $set: { readAt: new Date() } }, this.opts);
   }
 
-  markAllRead(recipientUserId: string) {
-    return this.db
+  async markAllRead(recipientUserId: string) {
+    let modifiedCount = 0;
+    const cursor = this.db
       .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
-      .updateMany(
-        { recipientUserId, readAt: { $exists: false } },
-        { $set: { readAt: new Date() } },
-        this.opts,
-      );
+      .find({ recipientUserId, readAt: { $exists: false } }, this.opts)
+      .batchSize(100);
+    for await (const note of cursor) {
+      const result = await this.markRead(recipientUserId, note._id.toHexString());
+      modifiedCount += result.modifiedCount;
+    }
+    return { modifiedCount };
   }
 
   deleteOne(recipientUserId: string, notificationId: string) {

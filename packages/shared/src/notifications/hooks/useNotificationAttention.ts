@@ -39,7 +39,6 @@ import {
   notificationReadAliases,
   projectAttentionRead,
 } from "../notificationAttentionCache";
-import { projectNotificationItemRead } from "../notificationItemRead";
 
 export function notificationAttentionQuery(
   options: CommunityApiOptions,
@@ -169,7 +168,7 @@ export function useReadNotificationAttention(options: CommunityApiOptions) {
         notificationFilters(variables.owner),
         (data, key) =>
           variables.target.kind === "item"
-            ? projectNotificationItemRead(data, key, row, variables.snapshot.asOf, readAt)
+            ? data
             : projectAttentionRead(
                 data,
                 key,
@@ -206,7 +205,8 @@ export function useReadNotificationAttention(options: CommunityApiOptions) {
       !options.userId ||
       options.enabled === false ||
       target.kind === "contact" ||
-      !notificationAttentionTargetSchema.safeParse(target).success
+      !notificationAttentionTargetSchema.safeParse(target).success ||
+      (target.kind === "item" && JSON.parse(target.id)[2] === "invitation")
     )
       return;
     if (

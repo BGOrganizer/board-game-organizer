@@ -39,7 +39,6 @@ export default defineConfig({
         ...[
           "common/hooks/useListSearch.ts",
           "games/hooks/useBggCollectionFilters.ts",
-          "notifications/hooks/useNotificationItemDwell.ts",
           "organizations/hooks/useOrganizationPeople.ts",
           "organizations/hooks/useOrganizationSocialActions.ts",
           "community/hooks/usePeopleSocialActions.ts",
@@ -137,12 +136,6 @@ export default defineConfig({
             branches: 100,
             statements: 100,
           },
-        "../../packages/shared/src/notifications/hooks/useNotificationItemDwell.ts": {
-          lines: 100,
-          functions: 100,
-          branches: 100,
-          statements: 100,
-        },
         "src/components/common/providers/ThemeScript.tsx": {
           lines: 100,
           functions: 100,

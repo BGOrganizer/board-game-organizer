@@ -186,7 +186,6 @@ export function EventTableSeats({
                             ? notificationItemId(table.id, "invitation", undefined, "table")
                             : undefined
                         }
-                        readOnly={!table.canRespond}
                       />
                     }
                     name={name}

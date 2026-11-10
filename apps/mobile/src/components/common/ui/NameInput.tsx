@@ -18,7 +18,7 @@ export function NameInput({
 }: ComponentProps<typeof InputGroup.Input> & { category: NameCategory }) {
   const t = useT(),
     { i18n } = useLingui(),
-    muted = useThemeColor("muted");
+    foreground = useThemeColor("accent-foreground");
   const focus = useInputFocus({ ref, onFocus, onBlur, isInvalid: props.isInvalid });
   return (
     <InputGroup>
@@ -26,8 +26,8 @@ export function NameInput({
       <InputGroup.Suffix>
         <Button
           isIconOnly
-          size="sm"
-          variant="ghost"
+          size="md"
+          variant="primary"
           style={{ minWidth: 44, minHeight: 44 }}
           isDisabled={props.isDisabled || props.editable === false}
           accessibilityLabel={t("Generate a random name")}
@@ -40,7 +40,7 @@ export function NameInput({
             )
           }
         >
-          <Dices size={16} color={muted} />
+          <Dices size={20} color={foreground} accessible={false} />
         </Button>
       </InputGroup.Suffix>
     </InputGroup>

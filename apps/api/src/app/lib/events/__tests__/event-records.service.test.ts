@@ -1114,7 +1114,7 @@ it("uses immutable frozen rosters and leaves missing Table evidence unknown", as
   expect((await f.service.detail(guest, event.id)).myRegistrations[0].position).toBeUndefined();
 });
 
-it("acknowledges exactly the successfully voted item at the displayed source cutoff, never a rejected vote", async () => {
+it("keeps notifications unread after successful and rejected votes", async () => {
   const f = setup("PRIVATE"),
     input = privateBody();
   input.tables[0].games.push({ gameId: 2 });
@@ -1123,28 +1123,21 @@ it("acknowledges exactly the successfully voted item at the displayed source cut
     ...f.participation(event.id, id),
     gameVotes: { "1": "YES", "2": "NO" },
   });
-  const through = "2026-01-01T00:00:00.000Z";
   await f.service.vote(owner, event.id, {
     kind: "date",
     optionId: id,
     vote: "YES",
-    attentionThrough: through,
   });
-  expect(f.notifications.acknowledgeItems).toHaveBeenCalledExactlyOnceWith(
-    owner,
-    [JSON.stringify(["event", event.id, "date", id])],
-    through,
-  );
+  expect(f.notifications.acknowledgeItems).not.toHaveBeenCalled();
   await expect(
     f.service.vote(owner, event.id, {
       kind: "game",
       tableId: id,
       gameId: 1,
       vote: "NO",
-      attentionThrough: through,
     }),
   ).rejects.toMatchObject({ code: "GAME_POSITIVE_AVAILABILITY_REQUIRED" });
-  expect(f.notifications.acknowledgeItems).toHaveBeenCalledTimes(1);
+  expect(f.notifications.acknowledgeItems).not.toHaveBeenCalled();
 });
 it.each([null, "PRIVATE", "PUBLIC"] as const)(
   "deletes planning Event/Table atomically through creator/version guards (%s)",
@@ -2637,7 +2630,6 @@ describe("singleton consent", () => {
               ? { kind: "game", tableId: id, gameId: 1 }
               : { kind: dimension, optionId: id }),
             vote: "YES",
-            attentionThrough: event.createdAt,
           }),
         ).rejects.toMatchObject({ code: "FIXED_OPTION" });
       }

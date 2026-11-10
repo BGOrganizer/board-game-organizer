@@ -176,6 +176,7 @@ export const changeEventVoteSchema = z.discriminatedUnion("kind", [
       kind: z.literal("date"),
       optionId: z.uuid(),
       vote: eventAvailabilityVoteSchema,
+      /** Legacy clients may send this validated cutoff; voting never acknowledges notices. */
       attentionThrough: z.iso.datetime({ precision: 3 }).optional(),
     })
     .strict(),

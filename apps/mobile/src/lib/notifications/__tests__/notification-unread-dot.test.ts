@@ -60,6 +60,6 @@ it("keeps the card marker after its shrinkable title and precise markers outside
   expect(marker).toContain("<NotificationUnreadDot");
   expect(marker).toContain("measureLayout");
   expect(marker).toContain("scrollTo");
-  expect(marker).toContain("attention?.read(target)");
+  expect(marker).not.toMatch(/attention\?\.read\(|Mark as read|<Button/);
   expect(marker).not.toMatch(/Pulse|Border|useAppStore/);
 });

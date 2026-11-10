@@ -34,7 +34,7 @@ export function GroupInvitationCard({
             >
               {t("Invitation received")}
             </Typography>
-            <NotificationItem itemId={notificationItemId(groupId, "invitation")} readOnly={false} />
+            <NotificationItem itemId={notificationItemId(groupId, "invitation")} />
           </View>
           <Typography className="text-center text-sm text-muted">
             {t(

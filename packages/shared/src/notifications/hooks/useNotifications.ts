@@ -26,7 +26,7 @@ import {
 import { CommunityApiError } from "../../community/communityApi";
 import { attentionReference, projectAttentionSnapshot } from "../notificationAttention";
 import { attentionRoot, notificationFilters } from "../notificationAttentionCache";
-import { optimisticNotificationData } from "../notificationOptimistic";
+import { notificationReadProtected, optimisticNotificationData } from "../notificationOptimistic";
 
 export interface NotificationsApiOptions {
   apiUrl: string;
@@ -188,7 +188,14 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
   }, [list.data, options.enabled, options.userId, options.apiUrl, queryClient]);
 
   useEffect(() => {
-    if (list.dataUpdatedAt)
+    if (list.dataUpdatedAt) {
+      void queryClient.invalidateQueries(
+        {
+          queryKey: ["notification-changes", options.apiUrl, options.userId],
+          refetchType: resourceBusy() ? "none" : "active",
+        },
+        { cancelRefetch: false },
+      );
       void queryClient.invalidateQueries(
         {
           queryKey: attentionRoot({ apiUrl: options.apiUrl, userId: options.userId }),
@@ -196,6 +203,7 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
         },
         { cancelRefetch: false },
       );
+    }
   }, [list.dataUpdatedAt, options.apiUrl, options.userId, queryClient, resourceBusy]);
 
   const notificationResource = (id?: string) => (id ? [...root, "item", id] : root);
@@ -228,6 +236,18 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
       notificationResource(id),
       notificationFilters(options),
       (data, key) => {
+        if (key[0] === "notification-changes") {
+          if (action === "read" || !data) return data;
+          const current = data as InfiniteData<{ changes: { notificationId: string }[] }>;
+          return {
+            ...current,
+            pages: current.pages.map((page) => ({
+              ...page,
+              changes: page.changes.filter((row) => id && row.notificationId !== id),
+            })),
+          };
+        }
+        if (action === "read" && source && notificationReadProtected(source)) return data;
         knownUnread ??= queryClient
           .getQueriesData<InfiniteData<NotificationListResponse>>({ queryKey: root })
           .some(([, cached]) =>
@@ -235,13 +255,15 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
               page.notifications.some((row) => row.id === id && !row.readAt),
             ),
           );
-        if (key[0] === "notification-attention")
+        if (key[0] === "notification-attention") {
+          if (action === "read" && !id) return data;
           return projectAttentionSnapshot(
             data as NotificationAttentionSnapshot | undefined,
             reference,
             Number(knownUnread),
             !id,
           );
+        }
         const identity = JSON.stringify(key);
         if (capturing && !loaded.has(identity))
           loaded.set(

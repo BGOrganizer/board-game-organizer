@@ -38,7 +38,6 @@ export function GroupDetailsCard({
                 <p className="min-w-0 flex-1 break-words font-semibold">{group.name}</p>
                 <NotificationItem
                   itemId={notificationItemId(group.id, "overview", undefined, "group")}
-                  readOnly
                 />
               </div>
               <p className="flex items-center gap-1 text-sm text-muted">

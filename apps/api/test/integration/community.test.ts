@@ -4185,7 +4185,6 @@ describe("unified groups/events on the real MongoDB replica set", () => {
                 ? { kind, tableId, gameId: 1 }
                 : { kind, optionId: kind === "date" ? dateId : venueId }),
               vote: "YES",
-              attentionThrough: current.updatedAt,
             }),
           ),
         ).rejects.toMatchObject({ code: "FIXED_OPTION" });

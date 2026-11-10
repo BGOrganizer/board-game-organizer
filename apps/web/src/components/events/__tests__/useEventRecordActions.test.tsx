@@ -55,7 +55,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 it.each([true, false])(
-  "coordinates item, ancestors and bell with the real vote mutation, saved=%s",
+  "keeps information unread through a real vote success or rollback, saved=%s",
   async (saved) => {
     const { client, options, wrapper } = setup();
     const target = { kind: "item", id: notificationItemId(eventId, "date", optionId) } as const;
@@ -97,13 +97,12 @@ it.each([true, false])(
     const hook = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
     act(() => hook.result.current.vote.mutate({ kind: "date", optionId, vote: "YES" }));
     await waitFor(() => expect(release).toBeTypeOf("function"));
-    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.unreadCount).toBe(0);
+    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.unreadCount).toBe(1);
     expect(
       client.getQueryData<NotificationAttentionSnapshot>(key)?.targets.map((row) => row.count),
-    ).toEqual([0, 0]);
+    ).toEqual([1, 1]);
     const init = (fetcher.mock.calls as unknown as [string, RequestInit][])[0][1];
     expect(JSON.parse(String(init.body))).toMatchObject({
-      attentionThrough: snapshot.asOf,
       kind: "date",
       optionId,
       vote: "YES",
@@ -120,12 +119,9 @@ it.each([true, false])(
       ),
     );
     await waitFor(() => expect(hook.result.current.vote.isPending).toBe(false));
-    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.unreadCount).toBe(
-      saved ? 0 : 1,
-    );
-    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.targets[0].count).toBe(
-      saved ? 0 : 1,
-    );
+    expect(JSON.parse(String(init.body))).not.toHaveProperty("attentionThrough");
+    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.unreadCount).toBe(1);
+    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.targets[0].count).toBe(1);
     expect(fetcher).toHaveBeenCalledTimes(1);
   },
 );

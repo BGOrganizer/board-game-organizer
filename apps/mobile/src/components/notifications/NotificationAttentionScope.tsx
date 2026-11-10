@@ -4,55 +4,32 @@ import {
   NotificationAttentionProvider,
   useNotificationAttentionContext,
 } from "@board-game-organizer/shared";
-import { useFocusEffect } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Typography } from "heroui-native/text";
-import { type ReactNode, useCallback, useRef } from "react";
+import type { ReactNode } from "react";
 import { View } from "react-native";
 import { useT } from "@/lib/i18n";
 
+/** Source attention and observable errors only; navigation/focus never acknowledges changes. */
 export function NotificationAttentionScope({
   options,
   targets,
-  readOnOpen,
   children,
 }: {
   options: CommunityApiOptions;
   targets: readonly NotificationAttentionTarget[];
-  readOnOpen?: NotificationAttentionTarget;
   children: ReactNode;
 }) {
   return (
     <NotificationAttentionProvider options={options} targets={targets}>
       {children}
-      <AttentionState
-        target={readOnOpen}
-        owner={JSON.stringify([options.apiUrl, options.userId])}
-      />
+      <AttentionState />
     </NotificationAttentionProvider>
   );
 }
-function AttentionState({
-  target,
-  owner,
-}: {
-  target?: NotificationAttentionTarget;
-  owner: string;
-}) {
+function AttentionState() {
   const attention = useNotificationAttentionContext(),
     t = useT();
-  const current = useRef({ attention, target });
-  current.current = { attention, target };
-  const kind = target?.kind,
-    id = target?.id,
-    ready = attention?.ready;
-  useFocusEffect(
-    useCallback(() => {
-      const { attention, target } = current.current;
-      if (ready && target && attention?.owner === owner && target.kind === kind && target.id === id)
-        attention.read(target);
-    }, [owner, kind, id, ready]),
-  );
   return attention?.error ? (
     <View accessibilityRole="alert">
       <Typography className="text-danger">{t("Could not load notifications")}</Typography>

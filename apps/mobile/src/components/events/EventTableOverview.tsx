@@ -187,7 +187,7 @@ export function EventTableOverview({
           </Button>
         </View>
       ) : null}
-      <NotificationItem itemId={notificationItemId(table.id, "games")} readOnly>
+      <NotificationItem itemId={notificationItemId(table.id, "games")}>
         <Typography accessibilityRole="header" className="font-semibold text-foreground">
           {t("Board games")}
         </Typography>
@@ -197,10 +197,7 @@ export function EventTableOverview({
           <GameListRow
             key={game.id}
             titleAccessory={
-              <NotificationItem
-                itemId={notificationItemId(table.id, "game", game.id)}
-                readOnly={!canVote}
-              />
+              <NotificationItem itemId={notificationItemId(table.id, "game", game.id)} />
             }
             name={game.name}
             imageUrl={game.imageUrl}

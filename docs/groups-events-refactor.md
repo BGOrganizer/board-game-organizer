@@ -642,11 +642,13 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   numberless dots. All unread dots use stock HeroUI `danger`, never accent. Card/item dots remain
   inside their own layout, after the shrinkable title/name; precise dots stay outside voting actions.
   No novelty text label, attention border or pulse. Zero/unknown attention has no dot. Rendering,
-  focus and navigation alone never acknowledge attention; the accepted-member dwell below is explicit. The obsolete presentation high-water store is removed;
+  focus, navigation, elapsed visibility and voting never acknowledge Group/Event/Table attention.
+  The obsolete presentation high-water store is removed;
   source change metadata, namespaced identities and acknowledgement cutoffs remain unchanged.
   All counts come from complete recipient-scoped aggregates, not loaded inbox pages.
 - Pending business decisions are separate from unread state. A recipient's actionable invitation
-  keeps its reply indicator after explicit notification reads; an outgoing Group request retains
+  keeps its reply indicator until response. Actionable pending invitations stay visible in the
+  Alert and unread: informational Alert reads and generic mark-read/mark-all skip them; an outgoing Group request retains
   its waiting clock, never an approval action. Group admins get an owner-only complete pending
   REQUEST count excluding active bans; it drives a request-review glyph beside their status and
   on Members, never a numeric unread badge. Other viewers, including unrelated moderators, receive
@@ -672,20 +674,31 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   kind, resource UUID, field and option: equal Group/Event/Table UUIDs cannot collide. Old generic
   notices remain generic; do not infer precise changes from translated descriptions.
 - Accepted Group memberships identify the real member and Members section. Members-tab and member-row
-  dots are independent of pending request-review glyphs. The actual visible member consumes its captured
-  point after five continuous seconds: full intersection plus visible/focused document on web;
-  FlatList viewability plus active app/focused screen on native. Hidden/unfocused time never counts;
-  later signals restart the window. Inbox/push links open Members. Source-proven historical actor
+  dots are passive and independent of pending request-review glyphs; no timer, observer, app-state or
+  focus transition reads them. Inbox/push links open Members. Source-proven historical actor
   membership may identify an accepted member only when current membership and timing agree; otherwise
   historical notices stay generic. Pending membership, discovery and moderation alone never grant
-  member-point access. Departed/excluded members retarget to existing Group Overview, not missing rows.
-- A card or notification link navigates without reading resource/item attention prematurely.
-  A successfully displayed detail consumes only direct, generic informational notices. Group/Table
-  invitations and structured points survive container entry. Inbox/push links locate the first
-  unread point; removed options lead to their existing section. Confirmed/read-only sections expose
-  explicit acknowledgement, so no impossible vote is required.
-- A successful YES/IF_NEEDED/NO vote acknowledges only the displayed item through its captured
-  source cutoff, in the same Mongo transaction as the vote. Successful invitation decisions
+  member-point access. Departed/excluded members retarget to existing Group Overview, not missing rows;
+  canonical item identity wins over stale historical section metadata.
+- Each selected Group/Event/Table tab shows one platform HeroUI warning Alert immediately below its
+  top tabs. It lists bounded, source-paged actual changes and pending invitations, with a suitable
+  indicator and a static danger dot after its shrinkable title. Its top-right icon-only danger
+  action is the sole informational read action in the entity: item dots remain, but item/vote
+  controls have no read buttons. Pending invitations are displayed but excluded from this action;
+  their accept/decline controls keep their existing consent/capability/version guards. Table
+  participation changes and invitations belong only to Participants, never Details. Child Table
+  changes do not become parent Event/Group changes.
+- A card or notification link navigates without reading resource/item attention. Container entry,
+  rendering, focus, scrolling and visibility duration read nothing. Inbox/push links locate the
+  correct tab/first unread point; removed options lead to their existing section. The Alert works
+  for planning and authorized read-only sections without requiring an impossible vote.
+- A successful YES/IF_NEEDED/NO vote never acknowledges notification information, in the API or
+  optimistic client projection. The explicit Alert read captures only its displayed informational
+  references, exact revisions/effective change times and cutoff. Unshown pages, later arrivals,
+  retargeted revisions and unrelated items/tabs/entities survive. Multi-point union effects are
+  reconciled once, never summed in a way that double-subtracts bell counts. Brief descriptions use
+  persisted kinds/canonical points and current authorized labels; missing historical before/after
+  values or deleted names are not reconstructed from translated prose. Successful invitation decisions
   acknowledge that resource's invitation through the captured cutoff without inventing consent.
   Known source read effects update active and inactive navigation/card/bell caches before transport;
   a known decision ACK commits them without waiting for canonical detail refresh. Failures roll back
@@ -694,9 +707,10 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   unread-member discovery through an older cached parent count.
 - One notice affecting multiple points stays unread until all its points are acknowledged. Reading
   an entity's last point immediately clears its related container/navigation dot, even if another
-  affected entity still has unread points. Unrelated points and the bell's single unread notice remain. Explicit Mark as read/Mark all as read and confirmed deletion may
-  clear notifications without voting, accepting invitations or changing domain state. Pending
-  invitation and missing-vote states remain independently visible.
+  affected entity still has unread points. Unrelated points and the bell's single unread notice remain.
+  Explicit informational Mark as read/Mark all as read skip actionable pending invitations and never
+  vote, accept invitations or change domain state. Existing explicit confirmed deletion keeps its
+  separate policy; pending invitation and missing-vote states remain independently visible.
 - Contacts retains Connections / Requests / Search. Entering main Contacts reads nothing in bulk;
   explicit inner selection reads only that subsection. Follows and accepted friendship notices
   belong to Connections; incoming friend requests belong to Requests. Contact rows aggregate their
@@ -705,12 +719,13 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   This display fallback does not change subsection read targets or consume another kind of notice.
   Repeated existing follows emit no duplicate notice.
 - Counter batches contain at most 50 unique resource targets. Cache-only navigation observers reuse
-  the bell watcher: no per-card notification polling or inbox scans. The bounded member dwell timer
-  is the sole automatic item-read exception; cutoff boundary timers expire only cutoff-bound
+  the bell watcher: no per-card notification polling or inbox scans. No notification visibility or
+  dwell timers remain. Cutoff boundary timers expire only cutoff-bound
   enrollment/departure affordances, never pending invitation responses or Planning management. Owned optimistic reads/deletions coordinate actual owner cards/tabs and bell,
   preserve disjoint writes and roll back selectively. Unknown write
   outcomes require source verification, never automatic write retries; session changes cancel old
-  work. Read failures remain observable without user-action toasts.
+  work. Read failures remain observable without user-action toasts. The Alert query reuses the bell
+  watcher rather than polling each mounted Alert.
 
 ## Exact agreement
 

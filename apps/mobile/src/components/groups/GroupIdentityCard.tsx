@@ -12,10 +12,7 @@ export function GroupIdentityCard({ group }: { group: GroupRecordResponse }) {
       icon={UsersRound}
       background={<GroupArtwork group={group} status="none" presentation="background" />}
       titleAccessory={
-        <NotificationItem
-          itemId={notificationItemId(group.id, "overview", undefined, "group")}
-          readOnly
-        />
+        <NotificationItem itemId={notificationItemId(group.id, "overview", undefined, "group")} />
       }
     >
       <GroupCardIndicators group={group} />

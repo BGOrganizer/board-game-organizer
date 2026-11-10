@@ -23,7 +23,7 @@ export function GroupInvitationCard({
         <div className="space-y-3 p-4 text-center">
           <div className="flex min-w-0 items-center justify-center gap-2">
             <h2 className="min-w-0 font-semibold">{t`Invitation received`}</h2>
-            <NotificationItem itemId={notificationItemId(groupId, "invitation")} readOnly={false} />
+            <NotificationItem itemId={notificationItemId(groupId, "invitation")} />
           </div>
           <p className="text-sm text-muted">{t`Membership pending. Events, rankings and group social actions are unavailable until acceptance.`}</p>
           <div className="flex flex-wrap justify-center gap-2">

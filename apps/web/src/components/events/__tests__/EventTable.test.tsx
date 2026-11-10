@@ -98,6 +98,13 @@ beforeEach(() => {
     gameVoteCounts: { "1": { YES: 0, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 } },
   };
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes("/notifications/changes"))
+      return Response.json({
+        asOf: new Date().toISOString(),
+        changes: [],
+        nextCursor: null,
+        tabCounts: { details: 0, members: 0, tables: 0, participants: 0 },
+      });
     if (url.includes("/notifications/attention"))
       return Response.json({
         asOf: new Date().toISOString(),

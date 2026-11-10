@@ -6632,3 +6632,78 @@ msgstr "Your reserved place will become available again."
 
 msgid "YYYY-MM-DDTHH:mm"
 msgstr "YYYY-MM-DDTHH:mm"
+
+msgid "Win percentage"
+msgstr "Win percentage"
+
+msgid "Date updated"
+msgstr "Date updated"
+
+msgid "Date options changed"
+msgstr "Date options changed"
+
+msgid "Location updated"
+msgstr "Location updated"
+
+msgid "Location options changed"
+msgstr "Location options changed"
+
+msgid "Game updated"
+msgstr "Game updated"
+
+msgid "Games changed"
+msgstr "Games changed"
+
+msgid "Table settings updated"
+msgstr "Table settings updated"
+
+msgid "Tables changed"
+msgstr "Tables changed"
+
+msgid "Group information updated"
+msgstr "Group information updated"
+
+msgid "Membership updated"
+msgstr "Membership updated"
+
+msgid "Participation updated"
+msgstr "Participation updated"
+
+msgid "Event updated"
+msgstr "Event updated"
+
+msgid "Invitation awaiting a response"
+msgstr "Invitation awaiting a response"
+
+msgid "Invitation updated"
+msgstr "Invitation updated"
+
+msgid "Proposal updated"
+msgstr "Proposal updated"
+
+msgid "Review updated"
+msgstr "Review updated"
+
+msgid "Information updated"
+msgstr "Information updated"
+
+msgid "New changes"
+msgstr "New changes"
+
+msgid "Changes"
+msgstr "Changes"
+
+msgid "Invitations remain unread until you respond."
+msgstr "Invitations remain unread until you respond."
+
+msgid "Could not mark changes as read. Try again."
+msgstr "Could not mark changes as read. Try again."
+
+msgid "Could not load changes. Try again."
+msgstr "Could not load changes. Try again."
+
+msgid "More changes"
+msgstr "More changes"
+
+msgid "Mark displayed changes as read"
+msgstr "Mark displayed changes as read"

@@ -2089,6 +2089,7 @@ export class EventRecordsService {
         userId,
         [notificationItemId(row.tableId, "invitation", undefined, "table")],
         input.attentionThrough ?? new Date().toISOString(),
+        true,
       );
     if (input.action === "accept" && input.participation.availability)
       await this.events.saveVoter({
@@ -2171,18 +2172,6 @@ export class EventRecordsService {
     event.version++;
     event.updatedAt = at;
     await this.events.save(event);
-    if (input.attentionThrough)
-      await this.notifications.acknowledgeItems(
-        userId,
-        [
-          notificationItemId(
-            input.kind === "game" ? input.tableId : id,
-            input.kind,
-            input.kind === "game" ? input.gameId : input.optionId,
-          ),
-        ],
-        input.attentionThrough,
-      );
     await this.saveSituation(event, group, userId);
     return this.response(
       event,

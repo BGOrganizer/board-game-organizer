@@ -698,7 +698,7 @@ it.each([
     "@/lib/i18n": { useT: () => (id: string) => id },
     "@/lib/useCommunityApi": { useCommunityApi: () => ({ userId: "viewer" }) },
     "./GroupMemberActions": { GroupMemberActions: "Actions" },
-    "./GroupMemberAttention": { GroupMemberAttention: "Attention" },
+    "@/components/notifications/NotificationItem": { NotificationItem: "Attention" },
   });
   const tree = render({ group: groupRecord });
   const children = Array.isArray(tree.props.children) ? tree.props.children : [tree.props.children];

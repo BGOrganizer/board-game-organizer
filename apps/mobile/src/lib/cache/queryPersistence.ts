@@ -40,6 +40,7 @@ export function ownsPersistedQuery(key: QueryKey, owner: CacheOwner) {
       "groups",
       "notifications",
       "notification-attention",
+      "notification-changes",
       "profile",
       "favoriteLocations",
       "bgg-account",

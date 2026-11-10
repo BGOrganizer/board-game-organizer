@@ -5,6 +5,7 @@ import {
   communityAccessDenied,
   tableItemTargets,
   useEventRecord,
+  useNotificationChanges,
   useRecordTable,
 } from "@board-game-organizer/shared";
 import { Button, Tabs } from "@heroui/react";
@@ -17,6 +18,7 @@ import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -39,11 +41,30 @@ export function EventTable({
   const params = useSearchParams();
   const invitationItem = notificationItemId(tableId, "invitation", undefined, "table");
   const [tab, setTab] = useState(() =>
-    params?.get("attention") === invitationItem ? "participants" : "overview",
+    params?.get("tab") === "participants" || params?.get("attention") === invitationItem
+      ? "participants"
+      : "overview",
   );
   const table =
     communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
   const readOnly = Boolean(table?.readOnly || event.data?.readOnly);
+  const selected =
+    (tab === "results" && table?.eventStatus === "PLANNING") ||
+    (tab === "participants" && table?.sharedResultsOnly)
+      ? "overview"
+      : tab;
+  const changes = useNotificationChanges(
+    {
+      ...o,
+      enabled: o.enabled !== false && Boolean(table) && !readOnly && !table?.sharedResultsOnly,
+    },
+    {
+      kind: "table",
+      id: tableId,
+      tab:
+        selected === "overview" ? "details" : selected === "participants" ? "participants" : "none",
+    },
+  );
   const header =
     table && event.data ? (
       <HeaderActions>
@@ -79,11 +100,6 @@ export function EventTable({
         <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
       </NotificationAttentionScope>
     );
-  const selected =
-    (tab === "results" && table.eventStatus === "PLANNING") ||
-    (tab === "participants" && table.sharedResultsOnly)
-      ? "overview"
-      : tab;
   return (
     <NotificationAttentionScope
       options={o}
@@ -96,7 +112,6 @@ export function EventTable({
               ...tableItemTargets(table),
             ]
       }
-      readOnOpen={readOnly ? undefined : { kind: "table", id: tableId }}
     >
       <div className="mx-auto w-full max-w-4xl pb-24">
         {header}
@@ -105,18 +120,30 @@ export function EventTable({
           <TabBar label={t`Table sections`}>
             <TabTrigger icon={Info} id="overview">
               {t`Details`}
-              <NotificationTabBadge target={{ kind: "table", id: tableId }} />
+              <NotificationTabBadge
+                target={{ kind: "table", id: tableId }}
+                count={changes.tabCounts.details}
+              />
             </TabTrigger>
             {!table.sharedResultsOnly ? (
               <TabTrigger icon={UsersRound} id="participants">
                 {t`Participants`}
-                <NotificationTabBadge target={{ kind: "item", id: invitationItem }} />
+                <NotificationTabBadge
+                  target={{ kind: "item", id: invitationItem }}
+                  count={changes.tabCounts.participants}
+                />
               </TabTrigger>
             ) : null}
             {table.eventStatus !== "PLANNING" ? (
               <TabTrigger icon={Trophy} id="results">{t`Results`}</TabTrigger>
             ) : null}
           </TabBar>
+          {selected !== "results" && !readOnly && !table.sharedResultsOnly ? (
+            <NotificationChangesAlert
+              key={JSON.stringify([o.apiUrl, o.userId, table.id, selected])}
+              model={changes}
+            />
+          ) : null}
           <Tabs.Panel id={selected}>
             {selected === "results" ? (
               <EventTableResults table={table} />

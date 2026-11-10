@@ -82,7 +82,7 @@ it("does not fabricate a curve with zero/one points and labels actual ordinal bo
   expect(screen.getByText("6")).not.toBeNull();
 });
 it("reuses three compact semantic-token stat cards without losing long labels", () => {
-  renderWithI18n(
+  const { container } = renderWithI18n(
     <ProfileStats
       items={[
         { label: "Games played", value: "2" },
@@ -93,4 +93,7 @@ it("reuses three compact semantic-token stat cards without losing long labels", 
   );
   expect(screen.getByText("50%").className).toContain("tabular-nums");
   expect(screen.getAllByText(/Games played|Games won|Win rate/)).toHaveLength(3);
+  expect(container.firstElementChild?.className).toContain("grid-rows-[auto_auto]");
+  expect(container.querySelectorAll(".grid-rows-subgrid")).toHaveLength(6);
+  expect(container.querySelectorAll(".h-full")).toHaveLength(3);
 });

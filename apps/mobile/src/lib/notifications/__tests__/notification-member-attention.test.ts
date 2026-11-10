@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
+import { notificationItemId } from "@board-game-organizer/schemas";
 import ts from "typescript";
-import { expect, it, vi } from "vitest";
+import { expect, it } from "vitest";
 
 const source = readFileSync(
   new URL("../../../components/groups/GroupMembers.tsx", import.meta.url),
@@ -31,77 +32,50 @@ function evaluate(expression: string, bindings: Record<string, unknown>) {
     bindings,
   );
 }
-// Execute real native callbacks/props without importing RN Flow. Not rendered/device acceptance.
-it("tracks actual FlatList visible users and forwards native viewability rather than synthetic visibility", () => {
-  const declaration = nodes(
-    (node) =>
-      ts.isVariableDeclaration(node) && node.name.getText(file) === "onViewableItemsChanged",
-  )[0] as ts.VariableDeclaration;
-  const callback = (declaration.initializer as ts.CallExpression).arguments[0];
-  const setVisibleIds = vi.fn();
-  evaluate(callback.getText(file), { setVisibleIds })({
-    viewableItems: [
-      { isViewable: true, item: { userId: "visible" } },
-      { isViewable: false, item: { userId: "offscreen" } },
-    ],
-  });
-  expect([...setVisibleIds.mock.calls[0][0]]).toEqual(["visible"]);
-  const list = readFileSync(
-    new URL("../../../components/common/ui/UserList.tsx", import.meta.url),
-    "utf8",
-  );
-  expect(list).toContain("onViewableItemsChanged={onViewableItemsChanged}");
-  expect(list).toContain("viewabilityConfig={viewabilityConfig}");
-  expect(source).toContain("itemVisiblePercentThreshold: 100");
-});
-it("native app/screen changes stop viewing, and only a visible uncovered member can start dwell", () => {
-  const app = nodes(
-    (node) =>
-      ts.isCallExpression(node) &&
-      ts.isPropertyAccessExpression(node.expression) &&
-      node.expression.getText(file) === "AppState.addEventListener",
-  )[0] as ts.CallExpression;
-  const setActive = vi.fn(),
-    setFocused = vi.fn();
-  const appCallback = evaluate(app.arguments[1].getText(file), { setActive });
-  for (const state of ["active", "inactive", "background"]) appCallback(state);
-  expect(setActive.mock.calls.map(([value]) => value)).toEqual([true, false, false]);
-  const focus = nodes(
-    (node) => ts.isCallExpression(node) && node.expression.getText(file) === "useFocusEffect",
-  )[0] as ts.CallExpression;
-  const focusCallback = (focus.arguments[0] as ts.CallExpression).arguments[0];
-  const cleanup = evaluate(focusCallback.getText(file), { setFocused })();
-  cleanup();
-  expect(setFocused.mock.calls.map(([value]) => value)).toEqual([true, false]);
-  const component = nodes(
-    (node) =>
-      ts.isJsxSelfClosingElement(node) && node.tagName.getText(file) === "GroupMemberAttention",
+// Execute actual row identity/guard expressions; not rendered/device acceptance.
+it("retains the real accepted member's passive canonical marker with no timed/read handler", () => {
+  const marker = nodes(
+    (node) => ts.isJsxSelfClosingElement(node) && node.tagName.getText(file) === "NotificationItem",
   )[0] as ts.JsxSelfClosingElement;
-  const attr = component.attributes.properties
+  const id = marker.attributes.properties
     .filter(ts.isJsxAttribute)
-    .find((attr) => attr.name.getText(file) === "visible");
-  if (!attr?.initializer || !ts.isJsxExpression(attr.initializer) || !attr.initializer.expression)
-    throw new Error("Missing member visibility expression");
-  const expression = attr.initializer.expression.getText(file);
-  const visibleIds = new Set(["member"]),
-    person = { userId: "member" };
-  const bindings = {
-    focused: true,
-    active: true,
-    managed: null,
-    menu: null,
-    staffMenu: null,
-    visibleIds,
-    person,
-  };
-  expect(evaluate(expression, bindings)).toBe(true);
-  for (const patch of [
-    { focused: false },
-    { active: false },
-    { managed: {} },
-    { menu: "open" },
-    { staffMenu: "open" },
-    { visibleIds: new Set() },
-  ])
-    expect(evaluate(expression, { ...bindings, ...patch })).toBe(false);
+    .find((attribute) => attribute.name.getText(file) === "itemId");
+  if (!id?.initializer || !ts.isJsxExpression(id.initializer) || !id.initializer.expression)
+    throw new Error("Missing canonical member point");
+  const group = { id: "11111111-1111-4111-8111-111111111111" },
+    person = { userId: "user_member" };
+  expect(
+    evaluate(id.initializer.expression.getText(file), { group, person, notificationItemId }),
+  ).toBe(notificationItemId(group.id, "member", person.userId));
+  expect(
+    marker.attributes.properties
+      .filter(ts.isJsxAttribute)
+      .map((attribute) => attribute.name.getText(file)),
+  ).toEqual(["itemId"]);
+  const title = nodes(
+    (node) => ts.isJsxAttribute(node) && node.name.getText(file) === "titleAccessory",
+  )[0] as ts.JsxAttribute;
+  const expression = (title.initializer as ts.JsxExpression).expression as ts.ConditionalExpression;
+  for (const status of ["ACCEPTED", "PENDING", "DECLINED"])
+    expect(
+      evaluate(expression.condition.getText(file), { person: { membership: { status } } }),
+    ).toBe(status === "ACCEPTED");
+});
+it("does not acknowledge on elapsed visibility, app state, focus or scrolling and preserves bounded rendering", () => {
+  expect(source).not.toMatch(
+    /GroupMemberAttention|useNotificationItemDwell|useFocusEffect|AppState\.addEventListener|setTimeout|visibleIds|itemVisiblePercentThreshold/,
+  );
+  expect(source).toContain("<UserList");
+  expect(source).toContain("data={denied ? [] : list.items}");
+  const scope = readFileSync(
+      new URL("../../../components/notifications/NotificationAttentionScope.tsx", import.meta.url),
+      "utf8",
+    ),
+    marker = readFileSync(
+      new URL("../../../components/notifications/NotificationItem.tsx", import.meta.url),
+      "utf8",
+    );
+  expect(scope).not.toMatch(/useFocusEffect|useEffect|attention\.read\(/);
+  expect(marker).not.toMatch(/Mark as read|attention\?\.read\(/);
+  expect(marker).toContain("<NotificationUnreadDot");
 });

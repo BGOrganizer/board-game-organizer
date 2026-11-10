@@ -64,7 +64,6 @@ export function GroupDetailsCard({
                   </Typography>
                   <NotificationItem
                     itemId={notificationItemId(group.id, "overview", undefined, "group")}
-                    readOnly
                   />
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>

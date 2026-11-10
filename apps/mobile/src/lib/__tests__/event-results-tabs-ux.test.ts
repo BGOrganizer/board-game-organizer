@@ -8,12 +8,15 @@ const source = (feature: string, file: string) =>
 it("owns confirmed/terminated Table top tabs with platform-specific virtualized overview/results/current ranking", () => {
   const tabs = source("events", "EventTable");
   expect(tabs).toMatch(/<TabTrigger\s+icon=\{Info\}\s+value="overview"/);
-  expect(tabs).toContain('<NotificationTabBadge target={{ kind: "table", id: tableId }} />');
+  expect(tabs).toContain('target={{ kind: "table", id: tableId }}');
+  expect(tabs).toContain("count={changes.tabCounts.participants}");
+  expect(tabs).toContain("count={changes.tabCounts.details}");
   expect(tabs).not.toMatch(/<TabTrigger\s+icon=\{ChartNoAxesCombined\}\s+value="ranking"/);
   expect(tabs).toMatch(/<TabTrigger\s+icon=\{Trophy\}\s+value="results"/);
   expect(tabs).toContain("!table.sharedResultsOnly");
   expect(tabs).toContain('table.eventStatus !== "PLANNING"');
-  expect(tabs).toContain('table.eventStatus === "PLANNING"');
+  // Planning no longer gates a per-item read button: markers stay passive in every state.
+  expect(tabs).not.toContain("readOnly={table.eventStatus");
   expect(tabs).toContain("<EventTableOverview");
   expect(tabs).toContain("<EventTableResults");
   expect(tabs).not.toContain("<EventTableLeaderboard");

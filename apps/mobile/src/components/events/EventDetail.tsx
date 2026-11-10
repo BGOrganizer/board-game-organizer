@@ -9,6 +9,7 @@ import {
   eventOptionsRequireVote,
   useEventRecord,
   useEventRecordActions,
+  useNotificationChanges,
   useRecordTables,
 } from "@board-game-organizer/shared";
 import { Stack, useRouter } from "expo-router";
@@ -43,7 +44,9 @@ import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -74,6 +77,22 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     (event?.sharedResultsOnly || event?.personalAccessOnly) && requestedTab === "participants"
       ? "details"
       : requestedTab;
+  const changes = useNotificationChanges(
+    {
+      ...o,
+      enabled:
+        o.enabled !== false &&
+        Boolean(event) &&
+        !event?.readOnly &&
+        !event?.personalAccessOnly &&
+        !event?.sharedResultsOnly,
+    },
+    {
+      kind: "event",
+      id: eventId,
+      tab: tab === "details" ? "details" : tab === "participants" ? "participants" : "tables",
+    },
+  );
   const tabRef = useRef(tab);
   tabRef.current = tab;
   const scroll = useRef<ScrollView>(null);
@@ -185,7 +204,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const header = (
     <View style={{ gap: 12 }}>
       <View style={{ gap: 8 }}>
-        <NotificationItem itemId={notificationItemId(event.id, "overview")} readOnly>
+        <NotificationItem itemId={notificationItemId(event.id, "overview")}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Typography className="font-semibold text-foreground">{t("Details")}</Typography>
             <EventVoteLegend />
@@ -205,7 +224,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         <EventGroupLink groupId={event.groupId} name={event.groupName} />
       ) : null}
       <View style={{ gap: 8 }}>
-        <NotificationItem itemId={notificationItemId(event.id, "dates")} readOnly>
+        <NotificationItem itemId={notificationItemId(event.id, "dates")}>
           <SearchHelpLabel
             label={event.groupType === "PUBLIC" ? t("Start Date and Time") : t("Date and time")}
             helpTitle={t("Field help")}
@@ -230,10 +249,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                         timeZone={event.timeZone}
                       />
                     </View>
-                    <NotificationItem
-                      itemId={notificationItemId(event.id, "date", row.id)}
-                      readOnly={!voteDates || !event.canVote}
-                    />
+                    <NotificationItem itemId={notificationItemId(event.id, "date", row.id)} />
                   </View>
                   {voteDates ? (
                     <EventVoteCounts
@@ -305,7 +321,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           </GroupedList>
         </View>
       ) : null}
-      <NotificationItem itemId={notificationItemId(event.id, "locations")} readOnly>
+      <NotificationItem itemId={notificationItemId(event.id, "locations")}>
         <Typography className="font-semibold text-foreground">{t("Locations")}</Typography>
       </NotificationItem>
       <GroupedList>
@@ -320,10 +336,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <LocationListRow
               key={row.id}
               titleAccessory={
-                <NotificationItem
-                  itemId={notificationItemId(event.id, "location", row.id)}
-                  readOnly={!voteLocations || !event.canVote}
-                />
+                <NotificationItem itemId={notificationItemId(event.id, "location", row.id)} />
               }
               name={row.name}
               address={row.address}
@@ -372,7 +385,6 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               })),
             ]
       }
-      readOnOpen={event.readOnly ? undefined : { kind: "event", id: event.id }}
     >
       <ScrollTargetContext.Provider value={scroll}>
         <View style={{ flex: 1 }}>
@@ -385,6 +397,10 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               <TabBar>
                 <TabTrigger icon={Info} value="details" style={{ flexDirection: "row", gap: 6 }}>
                   <Tabs.Label>{t("Details")}</Tabs.Label>
+                  <NotificationTabBadge
+                    target={{ kind: "event", id: eventId }}
+                    count={changes.tabCounts.details}
+                  />
                 </TabTrigger>
                 {!event.sharedResultsOnly && !event.personalAccessOnly ? (
                   <TabTrigger
@@ -393,14 +409,30 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     style={{ flexDirection: "row", gap: 6 }}
                   >
                     <Tabs.Label>{t("Participants")}</Tabs.Label>
+                    <NotificationTabBadge
+                      target={{ kind: "event", id: eventId }}
+                      count={changes.tabCounts.participants}
+                    />
                   </TabTrigger>
                 ) : null}
                 <TabTrigger icon={Dices} value="tables" style={{ flexDirection: "row", gap: 6 }}>
                   <Tabs.Label>{t("Tables")}</Tabs.Label>
+                  <NotificationTabBadge
+                    target={{ kind: "event", id: eventId }}
+                    count={changes.tabCounts.tables}
+                  />
                 </TabTrigger>
               </TabBar>
             </View>
           </Tabs>
+          {!event.readOnly && !event.personalAccessOnly && !event.sharedResultsOnly ? (
+            <View style={{ paddingHorizontal: 20, paddingTop: 8, flexShrink: 1 }}>
+              <NotificationChangesAlert
+                key={JSON.stringify([o.apiUrl, o.userId, event.id, tab])}
+                model={changes}
+              />
+            </View>
+          ) : null}
           {tab === "participants" ? (
             event.readOnly ? (
               <View style={{ padding: 20 }}>
@@ -424,7 +456,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 tab === "details" ? (
                   header
                 ) : (
-                  <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
+                  <NotificationItem itemId={notificationItemId(event.id, "tables")}>
                     <TableListHeading />
                   </NotificationItem>
                 )

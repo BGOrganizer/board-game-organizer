@@ -448,16 +448,23 @@ subsection-specific reads.
 All unread dots use stock HeroUI danger, never accent. Card/item dots remain inside their layout
 after shrinkable titles/names, never outside cards or in a wrapping label. No borders or pulses.
 Unread attention belongs only to actual affected entities/items, never automatic Group/Event/Table
-ancestry. Accepted Group-member points mark Members and the real row, then acknowledge only their
-captured cutoff after five continuously visible seconds; hidden/unfocused time does not count.
+ancestry. Accepted Group-member points mark Members and the real row, but never acknowledge on
+visibility, elapsed time or focus. Group/Event/Table details show one selected-tab HeroUI warning
+Alert with the source-backed change list, a danger dot after its title and one icon-only danger read
+action. Item dots remain passive, without per-item read controls. Table participation belongs only
+to Participants, never Details.
 Known source reads/decision ACKs reconcile related navigation/card/bell caches immediately, including
 inactive caches, without waiting for detail refresh. Preserve unrelated/later work and selective rollback.
 Unread state is separate from pending decisions: Group admins see source-complete actionable request
-indicators; recipients see pending invitation reply indicators even after notification reads. Table
+indicators; recipients retain pending invitation reply indicators until they respond. Actionable
+pending invitations appear in the Alert but cannot be marked read by its informational read action
+or generic mark-read/mark-all; only the actual response acknowledges them. Table
 SELF registration is already accepted, not an organizer approval workflow. Event reply attention
 aggregates its own Table invitations. These signals never invent consent/capabilities or read items.
-Opening a container consumes only generic direct information, never invitation or child attention. Successful votes acknowledge only the captured source revision/cutoff in the same
-transaction. Follow [notification attention](docs/groups-events-refactor.md#notification-attention)
+Opening a container, scrolling, time, focus and successful votes never read Group/Event/Table
+information. The Alert action acknowledges only its captured displayed informational selection;
+later revisions, unshown pages and unrelated work survive. Invitation decision ACKs retain their
+existing consent/version/authorization guards. Follow [notification attention](docs/groups-events-refactor.md#notification-attention)
 for partial reads, historical fallbacks, removed items and explicit inbox read/delete behavior.
 
 ### Zustand

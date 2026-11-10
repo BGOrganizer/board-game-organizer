@@ -72,11 +72,7 @@ export function GroupReview({ groupId }: { groupId: string }) {
       </View>
     );
   return (
-    <NotificationAttentionScope
-      options={o}
-      targets={[{ kind: "group", id: group.id }]}
-      readOnOpen={{ kind: "group", id: group.id }}
-    >
+    <NotificationAttentionScope options={o} targets={[{ kind: "group", id: group.id }]}>
       <FormInteractionScope>
         <ScreenScrollView>
           <GroupDetailsCard group={group} />

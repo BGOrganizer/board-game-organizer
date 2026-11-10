@@ -142,7 +142,7 @@ export function EventTableOverview({
           </div>
         ) : null}
         <section className="space-y-3" aria-label={t`Board games`}>
-          <NotificationItem itemId={notificationItemId(table.id, "games")} readOnly>
+          <NotificationItem itemId={notificationItemId(table.id, "games")}>
             <h2 className="font-semibold">{t`Board games`}</h2>
           </NotificationItem>
           <GroupedList>
@@ -153,10 +153,7 @@ export function EventTableOverview({
                 imageUrl={game.imageUrl}
                 year={game.year}
                 titleAccessory={
-                  <NotificationItem
-                    itemId={notificationItemId(table.id, "game", game.id)}
-                    readOnly={!canVote}
-                  />
+                  <NotificationItem itemId={notificationItemId(table.id, "game", game.id)} />
                 }
                 average={game.average}
                 rank={game.rank}
