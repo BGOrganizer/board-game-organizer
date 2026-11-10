@@ -132,8 +132,8 @@ export function EventProposalSection({
                   <Button
                     isIconOnly
                     size="sm"
-                    variant="ghost"
-                    className="min-h-11 min-w-11 p-0"
+                    variant="primary"
+                    className="shrink-0 rounded-full"
                     aria-label={`${row.status === "PENDING" ? t`Review proposal` : t`Proposal details`}: ${label}`}
                     isDisabled={
                       disabled ||
@@ -143,11 +143,7 @@ export function EventProposalSection({
                     }
                     onPress={() => s.open(row)}
                   >
-                    <span
-                      className={`flex size-7 items-center justify-center rounded-lg bg-default ${row.status === "PENDING" ? "text-warning-soft-foreground" : row.status === "ACCEPTED" ? "text-success-soft-foreground" : "text-danger-soft-foreground"}`}
-                    >
-                      <ReviewIcon className="size-4" aria-hidden />
-                    </span>
+                    <ReviewIcon className="size-4" aria-hidden />
                   </Button>
                 ) : null
               }

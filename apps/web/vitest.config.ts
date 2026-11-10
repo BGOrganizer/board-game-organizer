@@ -124,7 +124,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/common/ui/{NotificationUnreadDot,ArtworkStatusPopover,ClientRecordBadge}.tsx":
+        "src/components/common/ui/{NotificationUnreadDot,ArtworkStatusPopover,ClientRecordBadge,ListCardCoverContent}.tsx":
           {
             lines: 100,
             functions: 100,

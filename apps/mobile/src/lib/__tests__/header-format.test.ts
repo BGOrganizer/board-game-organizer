@@ -36,9 +36,14 @@ it("preserves guarded native Back routes while custom close/back actions use the
 it("keeps the centered indicator outside card navigation and one Table legend per list", () => {
   const card = source("common/ui/LinkedListCard");
   expect(card).toContain("StyleSheet.absoluteFill");
-  expect(card).toContain("{cover ? toolbar : null}");
-  expect(card).toContain("<ScrollView");
-  expect(card).toContain("horizontal");
+  expect(card).toContain("<ListCardCoverContent");
+  expect(card).toContain("controls={controls}");
+  expect(card).toContain("controlsDisabled={controlsDisabled}");
+  const cover = source("common/ui/ListCardCoverContent");
+  expect(cover).toContain("<ScrollView");
+  expect(cover).toContain("horizontal");
+  expect(cover).toContain('justifyContent: "flex-end"');
+  expect(cover).toContain('pointerEvents={controlsDisabled ? "none" : "auto"}');
   expect(card).toContain('pointerEvents="none"');
   expect(card).toContain('flexWrap: "wrap"');
   expect(card).toContain('alignItems: "center"');

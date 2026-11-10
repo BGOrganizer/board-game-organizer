@@ -47,17 +47,20 @@ it.each([
   async ({ badge, person, ...fields }) => {
     const row = { ...tableDraft(plannedTable, plannedEvent.timeZone), ...fields };
     const view = renderWithI18n(<EventDraftTableCard row={row} publicGroup />);
-    expect(screen.getByRole("heading", { name: row.name, level: 2 })).not.toBeNull();
+    const card = screen.getByText(row.name).closest(".card");
+    expect(card?.querySelector(".size-24")).not.toBeNull();
+    expect(card?.querySelector(".min-h-56")).toBeNull();
+    expect(card?.querySelector(".bg-background\\/80")).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     expect(screen.queryByText("Chess")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: badge }));
     expect(await screen.findByText("Rating")).toBeTruthy();
     await closePopover();
     fireEvent.click(screen.getByRole("button", { name: `Players: ${row.name}` }));
-    expect((await screen.findByText(/Minimum players/)).textContent).toContain(
-      String(row.minPlayers),
-    );
-    expect(screen.getByText(/Maximum players/).textContent).toContain(String(row.maxPlayers));
+    const players = within(screen.getByRole("dialog"));
+    expect(players.getByText(/Minimum players/).textContent).toContain(String(row.minPlayers));
+    expect(players.getByText(/Maximum players/).textContent).toContain(String(row.maxPlayers));
     await closePopover();
     fireEvent.click(screen.getByRole("button", { name: `Demonstrator: ${row.name}` }));
     expect(await screen.findByText(person)).toBeTruthy();

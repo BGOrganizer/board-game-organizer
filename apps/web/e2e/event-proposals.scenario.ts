@@ -231,6 +231,20 @@ test("real private own-Table proposal or current-manager decision; cancel writes
       name: `${labels.reviewAction}: ${input.gameName}`,
       exact: true,
     });
+    await expect(action).toBeVisible();
+    await expect(action).toHaveClass(/button--primary/);
+    await expect(action).toHaveClass(/button--sm/);
+    await expect(action).toHaveClass(/rounded-full/);
+    const shape = await action.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      return {
+        width: box.width,
+        height: box.height,
+        radius: Number.parseFloat(getComputedStyle(button).borderRadius),
+      };
+    });
+    expect(shape.width).toBeCloseTo(shape.height, 0);
+    expect(shape.radius).toBeGreaterThanOrEqual(shape.height / 2);
     await action.click();
     for (const [index, author] of authors.entries()) {
       if (index > 0 && index % 8 === 0)

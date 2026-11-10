@@ -376,6 +376,7 @@ export default function LocationPicker({
                       className="bg-surface"
                       accessibilityRole="link"
                       accessibilityLabel={t("Map by MapTiler")}
+                      hitSlop={6}
                       onPress={() => void Linking.openURL("https://www.maptiler.com/")}
                       style={{
                         position: "absolute",
@@ -529,47 +530,50 @@ export default function LocationPicker({
             </View>
           }
         />
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-            paddingHorizontal: 16,
-            paddingBottom: insets.bottom,
-          }}
-        >
-          <ScopedTheme theme="light">
-            <Pressable
-              className="bg-surface"
-              accessibilityRole="link"
-              accessibilityLabel={t("Map by MapTiler")}
-              onPress={() => void Linking.openURL("https://www.maptiler.com/")}
-              style={{
-                minHeight: 44,
-                minWidth: 44,
-                justifyContent: "center",
-                padding: 4,
-                borderRadius: 4,
-              }}
-            >
-              <Image
-                source={require("../../../assets/maptiler-logo.png")}
-                resizeMode="contain"
-                style={{ width: 92, height: 24 }}
-              />
-            </Pressable>
-          </ScopedTheme>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={t("© OpenStreetMap contributors")}
-            onPress={() => void Linking.openURL("https://www.openstreetmap.org/copyright")}
-            style={{ flex: 1, minHeight: 44, justifyContent: "center" }}
+        {/* A configured map owns its credits; retain attribution only as a no-map fallback. */}
+        {!mapStyle ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              paddingHorizontal: 16,
+              paddingBottom: insets.bottom,
+            }}
           >
-            <Typography className="text-xs text-foreground">
-              {t("© OpenStreetMap contributors")}
-            </Typography>
-          </Pressable>
-        </View>
+            <ScopedTheme theme="light">
+              <Pressable
+                className="bg-surface"
+                accessibilityRole="link"
+                accessibilityLabel={t("Map by MapTiler")}
+                onPress={() => void Linking.openURL("https://www.maptiler.com/")}
+                style={{
+                  minHeight: 44,
+                  minWidth: 44,
+                  justifyContent: "center",
+                  padding: 4,
+                  borderRadius: 4,
+                }}
+              >
+                <Image
+                  source={require("../../../assets/maptiler-logo.png")}
+                  resizeMode="contain"
+                  style={{ width: 92, height: 24 }}
+                />
+              </Pressable>
+            </ScopedTheme>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={t("© OpenStreetMap contributors")}
+              onPress={() => void Linking.openURL("https://www.openstreetmap.org/copyright")}
+              style={{ flex: 1, minHeight: 44, justifyContent: "center" }}
+            >
+              <Typography className="text-xs text-foreground">
+                {t("© OpenStreetMap contributors")}
+              </Typography>
+            </Pressable>
+          </View>
+        ) : null}
       </KeyboardAvoidingView>
     </FormInteractionScope>
   );

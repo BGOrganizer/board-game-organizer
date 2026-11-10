@@ -17,7 +17,9 @@ type Element = { type: unknown; props: Record<string, any> };
 function component(file: string, name: string, modules: Record<string, unknown>) {
   const text = readFileSync(new URL(`../../components/${file}.tsx`, import.meta.url), "utf8");
   const output: Record<string, (props: any) => Element> = {};
-  const jsx = (type: unknown, props: Record<string, unknown>) => ({ type, props });
+  let cover: ((props: any) => Element) | undefined;
+  const jsx = (type: unknown, props: Record<string, unknown>) =>
+    cover && type === cover ? cover(props) : { type, props };
   const code = ts.transpileModule(text, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -29,6 +31,10 @@ function component(file: string, name: string, modules: Record<string, unknown>)
     exports: output,
     require: (id: string) => {
       if (id === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
+      if (id === "./ListCardCoverContent") {
+        cover = component("common/ui/ListCardCoverContent", "ListCardCoverContent", modules);
+        return { ListCardCoverContent: cover };
+      }
       if (!(id in modules) && id === "heroui-native/hooks")
         return { useThemeColor: (tokens: string | string[]) => tokens };
       if (!(id in modules) && id === "@lingui/react")

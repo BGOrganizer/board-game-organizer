@@ -632,7 +632,12 @@ it("renders real proposal queues, confirms one optimistic decision, and exposes 
     </QueryClientProvider>,
   );
   expect(screen.queryByText("Player")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: /^Review proposal:/ }));
+  const reviewAction = screen.getByRole("button", { name: /^Review proposal:/ });
+  expect(reviewAction.className).toContain("button--primary");
+  expect(reviewAction.className).toContain("button--sm");
+  expect(reviewAction.className).toContain("rounded-full");
+  expect(reviewAction.querySelector(".size-7")).toBeNull();
+  fireEvent.click(reviewAction);
   expect(within(screen.getByRole("dialog")).getByText("Player")).toBeTruthy();
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("dialog")).toBeNull();

@@ -37,11 +37,7 @@ export function EventProposalSection({
     o = useCommunityApi(),
     router = useRouter(),
     s = useEventProposalSection(o, event, kind, table, disabled),
-    [warning, success, danger] = useThemeColor([
-      "warning-soft-foreground",
-      "success-soft-foreground",
-      "danger-soft-foreground",
-    ]);
+    accentForeground = useThemeColor("accent-foreground");
   const openEditor = (draftId?: string) =>
     router.push({
       pathname: "/event/proposal",
@@ -158,43 +154,33 @@ export function EventProposalSection({
               row={row}
               actions={
                 s.manager ? (
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="ghost"
-                    style={{ minWidth: 44, minHeight: 44, padding: 0 }}
-                    accessibilityLabel={`${row.status === "PENDING" ? t("Review proposal") : t("Proposal details")}: ${label}`}
-                    isDisabled={
-                      disabled ||
-                      !s.q.hasVerifiedBase ||
-                      s.actions.busy ||
-                      Boolean(row.clientAction)
-                    }
-                    onPress={() => s.open(row)}
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
                   >
-                    <View
-                      className="bg-default"
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="primary"
+                      className="rounded-full"
+                      style={{ width: 36, height: 36, minWidth: 36, minHeight: 36, padding: 0 }}
+                      hitSlop={4}
+                      accessibilityLabel={`${row.status === "PENDING" ? t("Review proposal") : t("Proposal details")}: ${label}`}
+                      isDisabled={
+                        disabled ||
+                        !s.q.hasVerifiedBase ||
+                        s.actions.busy ||
+                        Boolean(row.clientAction)
+                      }
+                      onPress={() => s.open(row)}
                     >
-                      <ReviewIcon
-                        size={16}
-                        color={
-                          row.status === "PENDING"
-                            ? warning
-                            : row.status === "ACCEPTED"
-                              ? success
-                              : danger
-                        }
-                        accessible={false}
-                      />
-                    </View>
-                  </Button>
+                      <ReviewIcon size={16} color={accentForeground} accessible={false} />
+                    </Button>
+                  </View>
                 ) : null
               }
             >

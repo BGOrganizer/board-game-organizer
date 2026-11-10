@@ -5,6 +5,7 @@ import { useLingui } from "@lingui/react/macro";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ListCard } from "./ListCard";
+import { ListCardCoverContent } from "./ListCardCoverContent";
 
 /** Stretched navigation and informational controls stay siblings. */
 export function LinkedListCard({
@@ -34,36 +35,12 @@ export function LinkedListCard({
 }) {
   const { t } = useLingui();
   const cover = artworkLayout === "cover";
-  const controls = (
-    <>
-      {leadingActions}
-      {actions}
-    </>
-  );
-  const toolbar =
+  const controls =
     leadingActions || actions ? (
-      <div
-        inert={controlsDisabled}
-        onClickCapture={(event) => {
-          if (controlsDisabled) {
-            event.preventDefault();
-            event.stopPropagation();
-          }
-        }}
-        className={
-          cover
-            ? "pointer-events-auto relative mx-2 mb-2 overflow-x-auto overscroll-x-contain p-1"
-            : "pointer-events-auto relative flex w-fit max-w-full flex-wrap items-center gap-1"
-        }
-      >
-        {cover ? (
-          <div className="flex w-max min-w-full flex-nowrap items-center justify-end [&>*]:shrink-0">
-            {controls}
-          </div>
-        ) : (
-          controls
-        )}
-      </div>
+      <>
+        {leadingActions}
+        {actions}
+      </>
     ) : null;
   return (
     <ListCard className={`isolate flex-row ${cover ? "overflow-hidden" : "items-start"}`}>
@@ -79,23 +56,36 @@ export function LinkedListCard({
         }}
         className="absolute inset-0 rounded-xl hover:bg-default focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
       />
-      <Card.Content
-        className={`pointer-events-none relative flex min-w-0 flex-1 ${cover ? "flex-col p-0" : "flex-row items-start gap-4 p-4"}`}
-      >
-        {cover ? (
-          <div className="flex min-w-0 items-start gap-4 p-4 pb-0">
-            <div className="relative size-24 shrink-0 overflow-hidden rounded-lg">{artwork}</div>
-            <div className="min-w-0 flex-1">{children}</div>
-          </div>
-        ) : (
+      {cover ? (
+        <ListCardCoverContent
+          artwork={artwork}
+          controls={controls}
+          controlsDisabled={controlsDisabled}
+        >
+          {children}
+        </ListCardCoverContent>
+      ) : (
+        <Card.Content className="pointer-events-none relative flex min-w-0 flex-1 flex-row items-start gap-4 p-4">
           <div className="min-w-0 flex-1 space-y-2">
             {children}
-            {toolbar}
+            {controls ? (
+              <div
+                inert={controlsDisabled}
+                onClickCapture={(event) => {
+                  if (controlsDisabled) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }
+                }}
+                className="pointer-events-auto relative flex w-fit max-w-full flex-wrap items-center gap-1"
+              >
+                {controls}
+              </div>
+            ) : null}
           </div>
-        )}
-        {cover ? toolbar : null}
-        {cover ? null : <div className="shrink-0">{artwork}</div>}
-      </Card.Content>
+          <div className="shrink-0">{artwork}</div>
+        </Card.Content>
+      )}
     </ListCard>
   );
 }

@@ -334,8 +334,12 @@ exceptions supersede older membership-only activity/detail statements below.
   unlocked wizard, uses compact artwork and a bounded scroll viewport, and paginates/searches at source.
   Opening the native selector dismisses/blurs the active input before displaying options. Locked
   contextual selection starts no other-Group request; errors and explicit no-Group selection remain.
-- Editors keep unsaved values locally. Creation/edits happen only on final confirmation. Table edits
-  are partial upserts; explicit `removedTableIds` remove tables. Unloaded pages are never implicitly
+- Editors keep unsaved values locally. Creation/edits happen only on final confirmation. Wizard
+  Table previews reuse the horizontal Table-list artwork/body/control composition, not the detail
+  background Card. They expose known draft limits, games, Rating and demonstrator information only;
+  no navigation, persisted status or attendance is fabricated. Proposal review actions are circular,
+  accent, and visually match the vote buttons while retaining native 44px touch envelopes and all
+  existing management, verification and pending-action guards. Table edits are partial upserts; explicit `removedTableIds` remove tables. Unloaded pages are never implicitly
   deleted. Versions are pinned; stale drafts require reopening rather than overwriting newer data.
 - The creator/admin may delete a PLANNING Event or remove one of its Tables through the far-right
   app-header trash action on both clients, after explicit destructive confirmation. Both DELETE

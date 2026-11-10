@@ -124,9 +124,14 @@ it("owns removal actions inside grouped location/game rows and uses constrained 
   expect(table).toContain("color={dangerForeground}");
   expect(source("events", "EventWizardSummary")).not.toContain("onPress=");
 });
-it("uses the same full-title identity and compact game metadata for local drafts without fabricated attendance/status", () => {
+it("uses the live list-card layout and factual metadata for local drafts without fabricated attendance/status", () => {
   const card = source("events", "EventDraftTableCard");
-  expect(card).toMatch(/<RecordIdentityCard\s+title=\{row.name\}\s+icon=\{Dices\}/);
+  expect(card).toContain("<ListCardCoverContent");
+  expect(card).toContain("<ListCardBody");
+  expect(card).toContain("title={row.name}");
+  expect(card).toContain('presentation="cover"');
+  expect(card).not.toContain("RecordIdentityCard");
+  expect(source("common/ui", "LinkedListCard")).toContain("<ListCardCoverContent");
   expect(card).toContain("<EventTableGamesPopover");
   expect(card).toContain("durationMinutes: eventGameDuration(game)");
   expect(card).toContain("<EventTableRatingInfo");
