@@ -1,7 +1,11 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { locationFavoriteKey, notificationItemId } from "@board-game-organizer/schemas";
+import {
+  locationFavoriteKey,
+  type NotificationChangesScope,
+  notificationItemId,
+} from "@board-game-organizer/schemas";
 import { type Db, MongoClient, type ObjectId } from "mongodb";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -113,6 +117,15 @@ describe("source-paged entity notification attention", () => {
     createdAt: new Date("2020-01-01T00:00:00.000Z"),
     ...extra,
   });
+  async function captureDisplayedInformation(
+    repository: NotificationChangesRepository,
+    scope: NotificationChangesScope,
+  ) {
+    const page = await repository.list(ACTOR, { ...scope, limit: 8 });
+    const displayed = page.changes.filter((row) => !row.requiresResponse);
+    expect(displayed).toHaveLength(1);
+    return { scope, through: page.asOf, references: displayed.map((row) => row.readReference) };
+  }
   it("pages canonical selected-tab changes at source and preserves hidden points, later arrivals and unrelated owners", async () => {
     await seedAttentionResources();
     const dateId = notificationItemId(eventId, "date", groupId);
@@ -788,7 +801,22 @@ describe("source-paged entity notification attention", () => {
     } as const;
     const before = (await repository.snapshot(ACTOR, [group, table])).snapshot;
     expect(before.targets.map((row) => row.count)).toEqual([1, 1]);
-    await repository.read(ACTOR, { target: group, through: before.asOf });
+    // Entry/item reads cannot stand in for invitation responses, including historical notices.
+    expect((await repository.read(ACTOR, { target: group, through: before.asOf })).updated).toBe(0);
+    const session = client.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const changes = new NotificationChangesRepository(db, session);
+        const selected = await captureDisplayedInformation(changes, {
+          kind: "group",
+          id: groupId,
+          tab: "details",
+        });
+        expect((await changes.read(ACTOR, selected)).updated).toBe(1);
+      });
+    } finally {
+      await session.endSession();
+    }
     const after = (await repository.snapshot(ACTOR, [group, table])).snapshot;
     expect(after.unreadCount).toBe(1);
     expect(after.targets.map((row) => row.count)).toEqual([0, 1]);
@@ -922,7 +950,9 @@ describe("source-paged entity notification attention", () => {
       sections: { requests: 2, connections: 2, search: 0 },
     });
     expect(result.snapshot.targets.map((row) => row.count)).toEqual([131, 2, 3, 4, 2, 2]);
-    expect(result.snapshot.targets.map((row) => row.direct)).toEqual([0, 2, 3, 4, 2, 2]);
+    // Legacy broad-read affordances exclude decisions and derived member points;
+    // complete unread ownership/counts above still include every source row.
+    expect(result.snapshot.targets.map((row) => row.direct)).toEqual([0, 1, 0, 4, 2, 2]);
     expect(result.snapshot.targets[2].events).toBe(0);
     expect(result.snapshot.targets[0]).toMatchObject({ eventId, groupId });
     expect(result.snapshot.targets[1]).toMatchObject({ eventId, groupId });
@@ -938,7 +968,7 @@ describe("source-paged entity notification attention", () => {
       sections: { requests: 0, connections: 0, search: 0 },
     });
   });
-  it("reads direct resources and one Contact section only, without consuming descendants or domain consent", async () => {
+  it("reads captured informational selections and one Contact section only, without consuming descendants or domain consent", async () => {
     await seedAttentionResources();
     await db
       .collection(COLLECTIONS.NOTIFICATIONS)
@@ -954,16 +984,21 @@ describe("source-paged entity notification attention", () => {
     try {
       await session.withTransaction(async () => {
         const repository = new NotificationAttentionRepository(db, session);
-        expect(
-          (await repository.read(ACTOR, { target: targets[2], through: new Date().toISOString() }))
-            .updated,
-        ).toBe(1);
+        const changes = new NotificationChangesRepository(db, session);
+        const groupSelection = await captureDisplayedInformation(changes, {
+          kind: "group",
+          id: groupId,
+          tab: "members",
+        });
+        expect((await changes.read(ACTOR, groupSelection)).updated).toBe(1);
         const result = (await repository.snapshot(ACTOR, targets)).snapshot;
         expect(result.targets.map((row) => row.count)).toEqual([1, 1, 0, 2, 1, 1]);
-        expect(
-          (await repository.read(ACTOR, { target: targets[1], through: new Date().toISOString() }))
-            .updated,
-        ).toBe(1);
+        const eventSelection = await captureDisplayedInformation(changes, {
+          kind: "event",
+          id: eventId,
+          tab: "details",
+        });
+        expect((await changes.read(ACTOR, eventSelection)).updated).toBe(1);
         expect((await repository.snapshot(ACTOR, targets)).snapshot.targets[0].count).toBe(1);
         expect(
           (await repository.read(ACTOR, { target: targets[4], through: new Date().toISOString() }))
@@ -988,7 +1023,13 @@ describe("source-paged entity notification attention", () => {
               through: new Date().toISOString(),
             })
           ).updated,
-        ).toBe(1);
+        ).toBe(0);
+        const tableSelection = await captureDisplayedInformation(changes, {
+          kind: "table",
+          id: tableId,
+          tab: "participants",
+        });
+        expect((await changes.read(ACTOR, tableSelection)).updated).toBe(1);
       });
     } finally {
       await session.endSession();
@@ -1021,17 +1062,26 @@ describe("source-paged entity notification attention", () => {
     const inserted = await db
       .collection(COLLECTIONS.NOTIFICATIONS)
       .insertOne(note("table_invitation", `/events/${eventId}/tables/${tableId}`));
-    const repository = new NotificationAttentionRepository(db),
-      before = (await repository.snapshot(ACTOR, targets)).snapshot;
+    const repository = new NotificationAttentionRepository(db);
+    const selected = await captureDisplayedInformation(new NotificationChangesRepository(db), {
+      kind: "table",
+      id: tableId,
+      tab: "participants",
+    });
     const arrived = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
       note("table_invitation", `/events/${eventId}/tables/${tableId}`, {
-        createdAt: new Date(Date.parse(before.asOf) + 1),
+        createdAt: new Date(Date.parse(selected.through) + 1),
       }),
     );
-    const receipt = await repository.read(ACTOR, {
-      target: { kind: "item", id: notificationItemId(tableId, "invitation", undefined, "table") },
-      through: before.asOf,
-    });
+    const session = client.startSession();
+    let receipt: Awaited<ReturnType<NotificationChangesRepository["read"]>>;
+    try {
+      receipt = await session.withTransaction(() =>
+        new NotificationChangesRepository(db, session).read(ACTOR, selected),
+      );
+    } finally {
+      await session.endSession();
+    }
     expect(receipt.updated).toBe(1);
     expect(receipt.snapshot.targets[0].count).toBe(1);
     expect(
@@ -1135,14 +1185,24 @@ describe("source-paged entity notification attention", () => {
     );
     expect(before.snapshot.targets[0].count).toBe(1);
     expect(before.references.get(String(inserted.insertedId))?.target).toEqual(targets[2]);
+    const selected = await captureDisplayedInformation(new NotificationChangesRepository(db), {
+      kind: "group",
+      id: groupId,
+      tab: "details",
+    });
     const session = client.startSession();
     try {
       await expect(
         session.withTransaction(async () => {
-          const result = await new NotificationAttentionRepository(db, session).read(ACTOR, {
-            target: targets[2],
-            through: before.snapshot.asOf,
-          });
+          expect(
+            (
+              await new NotificationAttentionRepository(db, session).read(ACTOR, {
+                target: targets[2],
+                through: before.snapshot.asOf,
+              })
+            ).updated,
+          ).toBe(0);
+          const result = await new NotificationChangesRepository(db, session).read(ACTOR, selected);
           expect(result.updated).toBe(1);
           throw new Error("Scoped rollback");
         }),
