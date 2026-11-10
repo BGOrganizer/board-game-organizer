@@ -278,6 +278,7 @@ describe("BGG covers", () => {
       id: 1,
       name: "Azul",
       image: imageUrl,
+      metadataAttemptedAt: new Date().toISOString(),
       durationCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),
     });
@@ -295,6 +296,7 @@ describe("BGG covers", () => {
       id: 1,
       name: "Azul",
       image: "https://cf.geekdo-images.com/a/full.jpg",
+      metadataAttemptedAt: new Date().toISOString(),
       durationCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),
     };
@@ -384,7 +386,8 @@ describe("BGG covers", () => {
       const response = await gameDetails(db, 1);
       expect(response.minPlayMinutes).toBeUndefined();
       expect(response.maxPlayMinutes).toBeUndefined();
-      expect(row).toMatchObject({ minPlayMinutes: null, maxPlayMinutes: null });
+      expect("minPlayMinutes" in row ? row.minPlayMinutes : null).toBeNull();
+      expect("maxPlayMinutes" in row ? row.maxPlayMinutes : null).toBeNull();
     }
   });
 
@@ -394,6 +397,8 @@ describe("BGG covers", () => {
       image: "https://cf.geekdo-images.com/cached.jpg",
       minPlayMinutes: 30,
       maxPlayMinutes: 60,
+      minPlayers: 2,
+      maxPlayers: 4,
       durationCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),
     };

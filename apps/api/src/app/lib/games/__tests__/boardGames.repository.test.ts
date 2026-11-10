@@ -103,6 +103,7 @@ describe("BoardGamesRepository", () => {
       "minPlayMinutes",
       "maxPlayMinutes",
       "durationCheckedAt",
+      "metadataAttemptedAt",
     ])
       expect(Object.hasOwn(operation.$set, field) || Object.hasOwn(operation.$unset, field)).toBe(
         false,

@@ -35,6 +35,7 @@ export const boardGameModel = boardGameCsvModel.partial().extend({
   minPlayMinutes: z.number().int().positive().nullable().optional(),
   maxPlayMinutes: z.number().int().positive().nullable().optional(),
   durationCheckedAt: z.string().optional(),
+  metadataAttemptedAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });
 export type BoardGame = z.infer<typeof boardGameModel>;
