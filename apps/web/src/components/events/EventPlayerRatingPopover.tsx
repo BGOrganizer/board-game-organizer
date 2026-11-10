@@ -36,20 +36,19 @@ export function EventPlayerRatingPopover({
             key={row.scope}
             size="compact"
             label={`${label}: ${name}`}
-            title={game ? `${label} · ${game.name}` : label}
+            title={
+              table.eventStatus === "TERMINATED"
+                ? undefined
+                : game
+                  ? `${label} · ${game.name}`
+                  : label
+            }
             icon={Icon}
             tone={global ? "accent" : "success"}
             triggerClassName="bg-default"
             className="w-[min(25rem,calc(100vw-2rem))]"
           >
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="flex items-center gap-1">
-                <Icon
-                  aria-hidden
-                  className={`size-4 shrink-0 ${global ? "text-accent-soft-foreground" : "text-success-soft-foreground"}`}
-                />
-                {label}
-              </p>
+            <div className="flex flex-nowrap items-stretch gap-3">
               {row.state === "notUpdated" ? (
                 <p className="text-muted">{t`Ranking not updated`}</p>
               ) : row.state === "unavailable" ? (
@@ -61,12 +60,12 @@ export function EventPlayerRatingPopover({
               ) : (
                 <>
                   {row.state === "recorded" ? (
-                    <div>
+                    <div className="flex min-w-0 flex-1 flex-col justify-between">
                       <p className="text-xs text-muted">{t`Rating before`}</p>
                       <p>{number.format(row.before as number)}</p>
                     </div>
                   ) : null}
-                  <div>
+                  <div className="flex min-w-0 flex-1 flex-col justify-between">
                     <p className="text-xs text-muted">
                       {row.state === "recorded" ? t`Rating after` : t`Ranking`}
                     </p>
@@ -82,7 +81,7 @@ export function EventPlayerRatingPopover({
                     </p>
                   </div>
                   {row.delta !== undefined ? (
-                    <div>
+                    <div className="flex min-w-0 flex-1 flex-col justify-between">
                       <p className="text-xs text-muted">{t`Rating change`}</p>
                       <p
                         className={`flex items-center gap-1 ${row.delta > 0 ? "text-success-soft-foreground" : row.delta < 0 ? "text-danger-soft-foreground" : "text-muted"}`}

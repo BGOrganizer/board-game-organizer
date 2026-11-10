@@ -22,8 +22,7 @@ export function EventPlayerRatingPopover({
   const t = useT(),
     { i18n } = useLingui();
   const { width } = useWindowDimensions();
-  const [accent, warning, success, danger, muted] = useThemeColor([
-    "accent-soft-foreground",
+  const [warning, success, danger, muted] = useThemeColor([
     "warning-soft-foreground",
     "success-soft-foreground",
     "danger-soft-foreground",
@@ -56,17 +55,21 @@ export function EventPlayerRatingPopover({
             key={row.scope}
             size="compact"
             label={`${label}: ${name}`}
-            title={game ? `${label} · ${game.name}` : label}
+            title={
+              table.eventStatus === "TERMINATED"
+                ? undefined
+                : game
+                  ? `${label} · ${game.name}`
+                  : label
+            }
             icon={Icon}
             tone={global ? "accent" : "success"}
             triggerClassName="bg-default"
             width={Math.min(400, width - 32)}
           >
-            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Icon size={16} color={global ? accent : success} accessible={false} />
-                <Typography className="text-foreground">{label}</Typography>
-              </View>
+            <View
+              style={{ flexDirection: "row", flexWrap: "nowrap", alignItems: "stretch", gap: 12 }}
+            >
               {row.state === "notUpdated" ? (
                 <Typography className="text-muted">{t("Ranking not updated")}</Typography>
               ) : row.state === "unavailable" ? (
@@ -78,14 +81,14 @@ export function EventPlayerRatingPopover({
               ) : (
                 <>
                   {row.state === "recorded" ? (
-                    <View>
+                    <View style={{ flex: 1, minWidth: 0, justifyContent: "space-between" }}>
                       <Typography className="text-xs text-muted">{t("Rating before")}</Typography>
                       <Typography className="text-foreground">
                         {number.format(row.before as number)}
                       </Typography>
                     </View>
                   ) : null}
-                  <View>
+                  <View style={{ flex: 1, minWidth: 0, justifyContent: "space-between" }}>
                     <Typography className="text-xs text-muted">
                       {row.state === "recorded" ? t("Rating after") : t("Ranking")}
                     </Typography>
@@ -104,7 +107,7 @@ export function EventPlayerRatingPopover({
                     </View>
                   </View>
                   {row.delta !== undefined ? (
-                    <View>
+                    <View style={{ flex: 1, minWidth: 0, justifyContent: "space-between" }}>
                       <Typography className="text-xs text-muted">{t("Rating change")}</Typography>
                       <View style={{ flexDirection: "row", gap: 4, alignItems: "center" }}>
                         <Delta

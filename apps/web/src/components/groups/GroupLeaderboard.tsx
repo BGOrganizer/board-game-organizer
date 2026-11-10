@@ -105,12 +105,18 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           games.hasNextPage ? (
             <Button
               variant="secondary"
-              isDisabled={games.isFetchingNextPage}
+              isDisabled={games.isFetchingNextPage || games.isPlaceholderData}
               onPress={() => void games.fetchNextPage()}
             >{t`Load more games`}</Button>
           ) : undefined
         }
-        empty={<p className="text-muted">{t`No games found`}</p>}
+        empty={
+          games.isPlaceholderData ? (
+            <Skeleton className="h-11 w-full rounded-xl" />
+          ) : (
+            <p className="text-muted">{t`No games found`}</p>
+          )
+        }
       >
         <SearchInput
           value={search}

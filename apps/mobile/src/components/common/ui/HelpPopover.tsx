@@ -20,7 +20,7 @@ export function HelpPopover({
   children,
 }: {
   label: string;
-  title: string;
+  title?: string;
   icon?: LucideIcon;
   tone?: "muted" | "warning" | "success" | "accent" | "danger";
   size?: "default" | "compact";
@@ -95,10 +95,13 @@ export function HelpPopover({
           align={align}
           width={width}
           accessible={false}
+          accessibilityLabel={title ? undefined : label}
         >
-          <Popover.Title accessibilityRole="header" importantForAccessibility="yes">
-            {title}
-          </Popover.Title>
+          {title ? (
+            <Popover.Title accessibilityRole="header" importantForAccessibility="yes">
+              {title}
+            </Popover.Title>
+          ) : null}
           {children}
         </Popover.Content>
       </Popover.Portal>

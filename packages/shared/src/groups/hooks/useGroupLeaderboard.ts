@@ -32,6 +32,13 @@ export function useGroupLeaderboard(options: {
       query,
     ],
     queryFn: ({ pageParam, signal }) => page(null, pageParam, signal),
+    // A new search must not unmount its focused selector. Never bridge a private owner/group switch.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === options.apiUrl &&
+      previousQuery.queryKey[2] === options.userId &&
+      previousQuery.queryKey[4] === options.groupId
+        ? previous
+        : undefined,
     enabled,
     initialPageParam: 0,
     getNextPageParam: (p) => p.nextCursor ?? undefined,

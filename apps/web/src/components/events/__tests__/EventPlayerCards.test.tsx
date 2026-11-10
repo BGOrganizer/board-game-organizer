@@ -77,7 +77,8 @@ it.each([null, "group"])(
     expect(document.querySelectorAll('[title="ND"]')).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Global ranking: @winner" }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByRole("heading", { name: /^Global ranking/ })).toBeTruthy();
+    expect(dialog.getAttribute("aria-label")).toBe("Global ranking: @winner");
+    expect(within(dialog).queryByRole("heading")).toBeNull();
     expect(within(dialog).getByText("505")).toBeTruthy();
     expect(within(dialog).getByText("+5")).toBeTruthy();
     expect(within(dialog).queryByText("Group ranking")).toBeNull();
@@ -92,7 +93,8 @@ it.each([null, "group"])(
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
       fireEvent.click(screen.getByRole("button", { name: "Group ranking: @winner" }));
       const groupDialog = await screen.findByRole("dialog");
-      expect(within(groupDialog).getByRole("heading", { name: /^Group ranking/ })).toBeTruthy();
+      expect(groupDialog.getAttribute("aria-label")).toBe("Group ranking: @winner");
+      expect(within(groupDialog).queryByRole("heading")).toBeNull();
       expect(within(groupDialog).queryByText("Global ranking")).toBeNull();
       expect(within(groupDialog).queryByText("505")).toBeNull();
       expect(within(groupDialog).getByText("497")).toBeTruthy();

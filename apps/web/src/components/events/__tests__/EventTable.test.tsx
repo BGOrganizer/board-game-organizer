@@ -1111,7 +1111,9 @@ it("retains immutable exact scores, ND, profiles and both rating scopes, includi
   fireEvent.click(
     screen.getAllByRole("button", { name: "Global ranking: Username unavailable" })[0],
   );
-  expect(await screen.findByRole("heading", { name: /^Global ranking/ })).toBeTruthy();
+  expect(
+    await screen.findByRole("dialog", { name: "Global ranking: Username unavailable" }),
+  ).toBeTruthy();
   expect(screen.getByText("+5")).toBeTruthy();
   expect(screen.queryByText("-3")).toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
@@ -1119,7 +1121,9 @@ it("retains immutable exact scores, ND, profiles and both rating scopes, includi
   fireEvent.click(
     screen.getAllByRole("button", { name: "Group ranking: Username unavailable" })[0],
   );
-  expect(await screen.findByRole("heading", { name: /^Group ranking/ })).toBeTruthy();
+  expect(
+    await screen.findByRole("dialog", { name: "Group ranking: Username unavailable" }),
+  ).toBeTruthy();
   expect(screen.getByText("-3")).toBeTruthy();
   expect(screen.queryByText("+5")).toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });

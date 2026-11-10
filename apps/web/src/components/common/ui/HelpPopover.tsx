@@ -70,7 +70,10 @@ export function HelpPopover({
         )}
       </Popover.Trigger>
       <Popover.Content placement={placement} className={className}>
-        <Popover.Dialog className="whitespace-normal break-words p-3 text-sm">
+        <Popover.Dialog
+          aria-label={title ? undefined : label}
+          className="whitespace-normal break-words p-3 text-sm"
+        >
           {title ? <Popover.Heading>{title}</Popover.Heading> : null}
           {children}
         </Popover.Dialog>

@@ -1,6 +1,6 @@
 import { eventRecordKeys, tableLeaderboardQuery } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -92,7 +92,7 @@ it("shows the frozen game/current ranking and source-pages with fresh tokens and
   expect(screen.queryByRole("heading", { name: "Selected game" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Global ranking: alpha" }));
   expect(await screen.findByRole("heading", { name: "Global ranking · Chess" })).toBeTruthy();
-  expect(screen.getByText("Global ranking")).toBeTruthy();
+  expect(within(screen.getByRole("dialog")).queryByText("Global ranking")).toBeNull();
   expect(screen.getByRole("img", { name: "Provisional rating" })).not.toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

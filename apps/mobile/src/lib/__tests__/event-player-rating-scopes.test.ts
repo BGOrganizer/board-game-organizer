@@ -139,14 +139,30 @@ it("keeps GLOBAL and GROUP adjacent, nonwrapping and semantically distinct witho
     const button = nodes(native).find((node) => node.type === "Button")!;
     expect(button.props.style).toMatchObject({ minWidth: 44, minHeight: 44 });
     expect(button.props.accessibilityLabel).toBe(scope.props.label);
+    expect(nodes(native).some((node) => node.type === "Title")).toBe(false);
+    expect(nodes(native).find((node) => node.type === "Content")?.props.accessibilityLabel).toBe(
+      scope.props.label,
+    );
   }
 });
 it("keeps each immutable history scoped, including direction, provisional status and all recorded fields", () => {
   const [global, group] = popovers(render());
-  expect(global.props.title).toBe("Global ranking · Chess");
-  expect(group.props.title).toBe("Group ranking · Chess");
+  expect(global.props.title).toBeUndefined();
+  expect(group.props.title).toBeUndefined();
+  for (const scope of [global, group]) {
+    expect((scope.props.children as Element).props.style).toMatchObject({
+      flexDirection: "row",
+      flexWrap: "nowrap",
+      alignItems: "stretch",
+    });
+    expect(
+      nodes(scope).filter((node) => node.type === "View" && node.props.style?.flex === 1),
+    ).toHaveLength(3);
+    expect(nodes(scope).some((node) => node.type === "Globe" || node.type === "UsersRound")).toBe(
+      false,
+    );
+  }
   expect(texts(global)).toEqual([
-    "Global ranking",
     "Rating before",
     "1,200",
     "Rating after",
@@ -155,7 +171,6 @@ it("keeps each immutable history scoped, including direction, provisional status
     "+34.5",
   ]);
   expect(texts(group)).toEqual([
-    "Group ranking",
     "Rating before",
     "700",
     "Rating after",
@@ -173,9 +188,7 @@ it("keeps each immutable history scoped, including direction, provisional status
   expect(nodes(group).find((node) => node.type === "TrendingDown")?.props.color).toBe(
     "danger-soft-foreground",
   );
-  expect(nodes(group).find((node) => node.type === "UsersRound")?.props.color).toBe(
-    "success-soft-foreground",
-  );
+  expect(group.props.tone).toBe("success");
 });
 it.each([{ groupId: null }, { groupId: "group", sharedResultsOnly: true }])(
   "never adds GROUP facts for personal/shared-final access %j",
@@ -193,10 +206,7 @@ it.each([
   { results: { ...table.results!, entries: [{ userId: "player", score: "8", rank: 1 }] } },
 ])("retains both not-updated scopes for unrated/all-ND/one-finisher outcomes %j", (patch) => {
   for (const scope of popovers(render({ ...table, ...patch }))) {
-    expect(texts(scope)).toEqual([
-      scope.props.icon === "Globe" ? "Global ranking" : "Group ranking",
-      "Ranking not updated",
-    ]);
+    expect(texts(scope)).toEqual(["Ranking not updated"]);
   }
 });
 it.each([{ ratingChanges: [] }, { results: undefined }, { rankingEnabled: undefined }])(
@@ -205,7 +215,7 @@ it.each([{ ratingChanges: [] }, { results: undefined }, { rankingEnabled: undefi
     // Exercise missing historical/cache fields without relaxing the public response DTO.
     const legacy = { ...table, ...patch } as PlannedTableResponse;
     const [global] = popovers(render(legacy));
-    expect(texts(global)).toEqual(["Global ranking", "Historical ranking unavailable"]);
+    expect(texts(global)).toEqual(["Historical ranking unavailable"]);
   },
 );
 it("retains rated ND zero deltas and never substitutes current facts into immutable history", () => {
@@ -248,10 +258,9 @@ it("retains current scope-specific values without historical labels and keeps un
   );
   expect(global.props.title).toBe("Global ranking");
   expect(group.props.title).toBe("Group ranking");
-  expect(texts(global)).toEqual(["Global ranking", "Ranking", "600"]);
-  expect(texts(group)).toEqual(["Group ranking", "Ranking", "400"]);
+  expect(texts(global)).toEqual(["Ranking", "600"]);
+  expect(texts(group)).toEqual(["Ranking", "400"]);
   expect(texts(popovers(render({ ...table, eventStatus: "CONFIRMED" }))[0])).toEqual([
-    "Global ranking",
     "Ranking unavailable",
   ]);
 });

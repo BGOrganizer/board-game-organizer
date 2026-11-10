@@ -88,21 +88,32 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           setDebouncedSearch("");
         }}
         onEndReached={() => {
-          if (games.hasNextPage && !games.isFetchingNextPage && !games.isFetchNextPageError)
+          if (
+            games.hasNextPage &&
+            !games.isPlaceholderData &&
+            !games.isFetchingNextPage &&
+            !games.isFetchNextPageError
+          )
             void games.fetchNextPage();
         }}
         footer={
           games.hasNextPage ? (
             <Button
               variant="secondary"
-              isDisabled={games.isFetchingNextPage}
+              isDisabled={games.isFetchingNextPage || games.isPlaceholderData}
               onPress={() => void games.fetchNextPage()}
             >
               <Button.Label>{t("Load more games")}</Button.Label>
             </Button>
           ) : undefined
         }
-        empty={<Typography className="text-muted">{t("No games found")}</Typography>}
+        empty={
+          games.isPlaceholderData ? (
+            <Skeleton style={{ width: "100%", height: 44, borderRadius: 8 }} />
+          ) : (
+            <Typography className="text-muted">{t("No games found")}</Typography>
+          )
+        }
       >
         <SearchInput
           value={search}

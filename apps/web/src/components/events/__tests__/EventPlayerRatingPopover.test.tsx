@@ -67,8 +67,15 @@ it.each(["Global", "Group"] as const)(
   async (scope) => {
     show(finalTable, current);
     const dialog = await open(scope);
-    expect(dialog.getByRole("heading", { name: `${scope} ranking · Chess` })).toBeTruthy();
-    expect(dialog.getByText(`${scope} ranking`)).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: `${scope} ranking: @player` })).toBeTruthy();
+    expect(dialog.queryByRole("heading")).toBeNull();
+    expect(dialog.queryByText(`${scope} ranking`)).toBeNull();
+    expect(
+      screen.getByRole("dialog").querySelector(".lucide-globe, .lucide-users-round"),
+    ).toBeNull();
+    const metrics = dialog.getByText("Rating before").parentElement?.parentElement;
+    expect(metrics?.className).toContain("flex-nowrap");
+    expect(metrics?.children).toHaveLength(3);
     expect(dialog.queryByText(`${scope === "Global" ? "Group" : "Global"} ranking`)).toBeNull();
     expect(dialog.getByText("Rating before")).toBeTruthy();
     expect(dialog.getByText("Rating after")).toBeTruthy();
