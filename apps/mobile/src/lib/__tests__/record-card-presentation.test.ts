@@ -715,21 +715,11 @@ it.each([
   expect(row.props.name).toBe("@handle");
   expect(row.props.secondary).toBe(label);
 });
-it("renders a full upper-left title in a stock dark scope and wraps controls below without horizontal scrolling", () => {
+it("places a full top-left title band and one bottom-right control row inside the background card", () => {
   const render = component("common/ui/RecordIdentityCard", "RecordIdentityCard", {
     "heroui-native/text": { Typography: "Typography" },
-    "react-native": { View: "View" },
-    react: { useId: () => "heading", useState: (value: unknown) => [value, vi.fn()] },
+    "react-native": { View: "View", ScrollView: "ScrollView" },
     uniwind: { ScopedTheme: "ScopedTheme" },
-    "react-native-svg": {
-      __esModule: true,
-      default: "Svg",
-      Defs: "Defs",
-      LinearGradient: "LinearGradient",
-      Mask: "Mask",
-      Rect: "Rect",
-      Stop: "Stop",
-    },
     "./ListCard": { ListCard: "ListCard" },
   });
   const tree = render({
@@ -743,21 +733,34 @@ it("renders a full upper-left title in a stock dark scope and wraps controls bel
   expect(scope.type).toBe("ScopedTheme");
   expect(scope.props.theme).toBe("dark");
   const heading = scope.props.children.type(scope.props.children.props);
-  const title = heading.props.children[2];
+  const title = heading.props.children[1];
   expect(title.props).toMatchObject({ accessibilityRole: "header", children: "Identity" });
   expect(title.props.numberOfLines).toBeUndefined();
+  expect(heading.props.className).toBe("bg-background/80");
   expect(heading.props.style).toMatchObject({
-    alignSelf: "flex-start",
-    alignItems: "flex-start",
-    maxWidth: "100%",
-  });
-  expect(toolbar.type).toBe("View");
-  expect(toolbar.props.horizontal).toBeUndefined();
-  expect(toolbar.props.style).toMatchObject({
-    flexDirection: "row",
-    flexWrap: "wrap",
     width: "100%",
+    paddingHorizontal: 16,
+    alignItems: "flex-start",
   });
+  expect(title.props.style.textShadowColor).toBeUndefined();
+  expect(title.props.style.textShadowRadius).toBeUndefined();
+  expect(title.props.style.textShadowOffset).toBeUndefined();
+  expect(toolbar.type).toBe("ScrollView");
+  expect(toolbar.props.horizontal).toBe(true);
+  expect(toolbar.props.style).toMatchObject({
+    width: "100%",
+    marginTop: "auto",
+    height: 52,
+    flexShrink: 0,
+  });
+  expect(toolbar.props.contentContainerStyle).toMatchObject({
+    flexDirection: "row",
+    flexGrow: 1,
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+  });
+  expect(toolbar.props.contentContainerStyle.flexWrap).toBeUndefined();
+  expect(toolbar.props.style.position).toBeUndefined();
   expect(toolbar.props.children).toBe("Indicators");
   const card = component("common/ui/ListCard", "ListCard", {
     "heroui-native/card": { Card: { Body: "Card.Body" } },
@@ -768,6 +771,8 @@ it("renders a full upper-left title in a stock dark scope and wraps controls bel
   expect(background.props.children[1].props.children).toBe("Identity");
   expect(tree.props.children.props.className).not.toBe("bg-background/90");
   expect(tree.props.children.props.style.flexWrap).toBeUndefined();
+  expect(tree.props.children.props.style.flexGrow).toBe(1);
+  expect(tree.props.children.props.style.flex).toBeUndefined();
   expect(toolbar.props.style.maxWidth).toBeUndefined();
   expect(title.props.style.flexShrink).toBe(1);
 });

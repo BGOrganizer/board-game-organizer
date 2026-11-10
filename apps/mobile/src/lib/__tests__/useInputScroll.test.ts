@@ -16,7 +16,7 @@ const code = ts.transpileModule(
   `${fn.getText(ast).replace(/^export /, "")};useInputScroll(getScroller);`,
   { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
 ).outputText;
-function harness() {
+function harness(state?: readonly [number, number]) {
   const frames: (() => void)[] = [],
     cleanups: (() => void)[] = [],
     setters: ReturnType<typeof vi.fn>[] = [];
@@ -29,7 +29,7 @@ function harness() {
     useState: (value: unknown) => {
       const setter = vi.fn();
       setters.push(setter);
-      return [value, setter];
+      return [state?.[setters.length - 1] ?? value, setter];
     },
     useEffect: (effect: () => (() => void) | undefined) => {
       const cleanup = effect();
@@ -51,6 +51,17 @@ function harness() {
   };
   return { owner, scrollTo, cancelErrorFocus, setters, flush, cleanups };
 }
+it.each([
+  [0, 0],
+  [300, 0],
+  [300, 80],
+] as const)(
+  "preserves the viewport plus reveal range for bounded screen/list owners (%s + %s)",
+  (height, extra) => {
+    const h = harness([height, extra]);
+    expect(h.owner.minHeight).toBe(height + extra);
+  },
+);
 it("keeps touch/clear within the focused field pinned, stops repinning after an actual drag, and clears extra range on blur", () => {
   const h = harness(),
     field = {

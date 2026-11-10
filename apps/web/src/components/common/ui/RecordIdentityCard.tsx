@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ListCard } from "./ListCard";
 
-/** Full title first; informational controls wrap below without horizontal scrolling. */
+/** Top-left title band; a single bottom-right control row stays within the card. */
 export function RecordIdentityCard({
   title,
   heading: Heading = "h1",
@@ -20,20 +20,18 @@ export function RecordIdentityCard({
 }) {
   return (
     <ListCard background={background}>
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-3 p-4">
-        <div className="dark relative isolate flex max-w-full items-start gap-2 text-foreground">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -inset-8 -z-10 bg-[linear-gradient(to_right,transparent,var(--background)_32px,var(--background)_calc(100%_-_32px),transparent)] opacity-90 [mask-image:linear-gradient(to_bottom,transparent,var(--foreground)_32px,var(--foreground)_calc(100%_-_32px),transparent)]"
-          />
+      <div className="flex min-w-0 grow flex-col items-start gap-3 py-4">
+        <div className="dark relative flex w-full min-w-0 items-start gap-2 bg-background/80 px-4 py-2 text-foreground">
           <Icon className="mt-1 size-5 shrink-0" aria-hidden />
-          <Heading className="min-w-0 text-lg font-semibold text-foreground [overflow-wrap:anywhere] [text-shadow:0_1px_3px_var(--background)]">
+          <Heading className="min-w-0 text-lg font-semibold text-foreground [overflow-wrap:anywhere]">
             {title}
           </Heading>
           {titleAccessory}
         </div>
-        <div className="relative flex w-full min-w-0 flex-wrap items-center [&>*]:shrink-0">
-          {children}
+        <div className="relative mt-auto w-full min-w-0 shrink-0 overflow-x-auto overscroll-x-contain py-1">
+          <div className="flex w-max min-w-full flex-nowrap items-center justify-end px-4 [&>*]:shrink-0">
+            {children}
+          </div>
         </div>
       </div>
     </ListCard>

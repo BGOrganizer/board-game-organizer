@@ -109,14 +109,42 @@ for (const width of [390, 1280])
       await expect(card.locator('[class~="bg-background/70"]')).toHaveCount(0);
       await expect(card.locator('[class~="bg-background/90"]')).toHaveCount(0);
       const caption = card.locator("h1").locator("xpath=../..");
-      await expect(caption).toHaveCSS("flex-wrap", "nowrap");
+      await expect(caption).toHaveCSS("flex-direction", "column");
       await expect(card.locator("img")).toHaveCSS("opacity", "1");
-      const sameRow = await caption.evaluate((row) => {
-        const heading = row.querySelector("h1")!.getBoundingClientRect(),
-          toolbar = row.lastElementChild!.getBoundingClientRect();
-        return Math.abs(heading.y + heading.height / 2 - toolbar.y - toolbar.height / 2) < 2;
+      await expect(card.locator("h1")).toHaveCSS("text-shadow", "none");
+      await expect(card.locator('[class~="bg-background/80"]')).toHaveCount(1);
+      const layout = await caption.evaluate((content) => {
+        const band = content.firstElementChild!.getBoundingClientRect();
+        const viewport = content.lastElementChild!;
+        const toolbar = viewport.firstElementChild!;
+        const frame = viewport.getBoundingClientRect();
+        const card = content.closest(".card")!.getBoundingClientRect();
+        const centers = [...toolbar.querySelectorAll("button")].map((button) => {
+          const bounds = button.getBoundingClientRect();
+          return bounds.y + bounds.height / 2;
+        });
+        return {
+          titleAbove: band.bottom <= frame.top + 1,
+          bandInside: band.left >= card.left - 1 && band.right <= card.right + 1,
+          controlsInside:
+            frame.left >= card.left - 1 &&
+            frame.right <= card.right + 1 &&
+            frame.bottom <= card.bottom + 1,
+          bottomAligned: card.bottom - frame.bottom <= 24,
+          singleRow: Math.max(...centers) - Math.min(...centers) < 2,
+          noWrap: getComputedStyle(toolbar).flexWrap === "nowrap",
+          rightAligned: getComputedStyle(toolbar).justifyContent === "flex-end",
+        };
       });
-      expect(sameRow).toBe(true);
+      expect(layout).toEqual({
+        titleAbove: true,
+        bandInside: true,
+        controlsInside: true,
+        bottomAligned: true,
+        singleRow: true,
+        noWrap: true,
+        rightAligned: true,
+      });
       expect(await labels(card)).toEqual(expectedLabels);
       return card;
     };

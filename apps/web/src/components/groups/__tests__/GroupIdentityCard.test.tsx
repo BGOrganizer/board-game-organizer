@@ -19,7 +19,14 @@ it.each([
     const { container } = renderWithI18n(<GroupIdentityCard group={group} />);
     const heading = screen.getByRole("heading", { name: group.name });
     expect(heading.closest(".card")?.querySelector(".absolute.inset-0")).not.toBeNull();
-    expect(screen.getByRole("button", { name: new RegExp(`^${label}`) })).not.toBeNull();
+    const indicator = screen.getByRole("button", { name: new RegExp(`^${label}`) });
+    expect(indicator).not.toBeNull();
+    expect(indicator.parentElement?.parentElement?.className).toContain("mt-auto");
+    expect(indicator.parentElement?.parentElement?.className).toContain("overflow-x-auto");
+    expect(indicator.parentElement?.className).toContain("justify-end");
+    expect(indicator.parentElement?.className).toContain("flex-nowrap");
+    expect(heading.parentElement?.className).toContain("bg-background/80");
+    expect(heading.className).not.toContain("text-shadow");
     expect(container.textContent).not.toContain("Events");
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Accept invitation|Delete group/ })).toBeNull();

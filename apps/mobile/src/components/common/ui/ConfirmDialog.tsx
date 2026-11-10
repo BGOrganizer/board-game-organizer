@@ -44,7 +44,7 @@ export function ConfirmDialog({
         <Dialog.Overlay isCloseOnPress={!busy} />
         <FormInteractionScope>
           <Dialog.Content
-            isSwipeable={!busy}
+            isSwipeable={false}
             testID="confirmation-dialog"
             style={{ maxHeight: "90%" }}
           >
@@ -55,6 +55,7 @@ export function ConfirmDialog({
               style={{ alignSelf: "flex-end", minWidth: 44, minHeight: 44 }}
             />
             <InputScrollView
+              sizing="content"
               style={{ flexShrink: 1 }}
               contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
               keyboardShouldPersistTaps="handled"

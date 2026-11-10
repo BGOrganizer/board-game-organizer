@@ -210,7 +210,7 @@ export function EventDateTimeField({
         >
           <Dialog.Portal>
             <Dialog.Overlay />
-            <Dialog.Content>
+            <Dialog.Content isSwipeable={false}>
               <Dialog.Title>{label}</Dialog.Title>
               <DateTimePicker
                 value={draft}

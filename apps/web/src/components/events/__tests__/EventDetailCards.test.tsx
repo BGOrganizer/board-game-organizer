@@ -33,8 +33,13 @@ it.each([
     expect(caption.className).not.toContain("absolute");
     expect(heading.parentElement?.className).toContain("dark");
     expect(heading.parentElement?.className).toContain("items-start");
-    expect(caption.children[1].className).toContain("flex-wrap");
-    expect(caption.querySelector(".overflow-x-auto")).toBeNull();
+    expect(heading.parentElement?.className).toContain("bg-background/80");
+    expect(heading.parentElement?.className).toContain("w-full");
+    expect(heading.className).not.toContain("text-shadow");
+    expect(caption.children[1].className).toContain("mt-auto");
+    expect(caption.children[1].className).toContain("overflow-x-auto");
+    expect(caption.children[1].firstElementChild?.className).toContain("flex-nowrap");
+    expect(caption.children[1].firstElementChild?.className).toContain("justify-end");
     const trigger = within(card).getByRole("button", { name: label });
     expect(trigger.className).toContain(`text-${color}`);
     expect(trigger.querySelector(".size-7.bg-default")).not.toBeNull();

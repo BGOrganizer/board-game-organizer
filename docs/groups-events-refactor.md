@@ -211,9 +211,13 @@ exceptions supersede older membership-only activity/detail statements below.
   Navigation and informational controls remain independent siblings.
   Details start with one HeroUI background-image Card followed immediately by existing top tabs.
   Original background artwork remains fully opaque, without a whole-image dimming scrim. Full
-  multiline titles and their identity icon sit at upper left, with localized stock HeroUI dark
-  gradient/light-foreground contrast. Compact controls occupy a separate full-width wrapping row
-  below, never a horizontally scrolling title toolbar. Actual artwork/bitmap corners are rounded;
+  multiline titles and their identity icon sit at upper left on a semitransparent stock HeroUI dark
+  background band with its matching foreground, without text shadows or a fuzzy gradient. Compact
+  controls stay in one bottom-right row inside the Card; only that row scrolls horizontally when
+  necessary, never wrapping or shrinking touch targets. Titles and controls remain in natural flow
+  so long titles cannot overlap or push controls outside the Card. Confirmation dialogs size to
+  content without a forced empty scroll range or swipe-to-move gesture; oversized content retains
+  scrolling and local keyboard/error-focus handling. Actual artwork/bitmap corners are rounded;
   uploaded logos retain their original proportions. Platform-owned `RecordIdentityCard` frames reuse the same
   role/state help as list cards. Table headers and lists expose the same participation, state, Rating,
   date/location and game controls; administration/moderation are Event/Group concepts, not Table badges. Event headers keep independent accepted,
