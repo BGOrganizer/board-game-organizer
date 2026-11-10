@@ -59,6 +59,8 @@ it.each([
     const trash = screen.getByRole("button", { name: "Delete table" }) as HTMLButtonElement;
     expect(trash.getAttribute("aria-disabled")).not.toBe("true");
     expect(trash.hasAttribute("disabled")).toBe(false);
+    expect(trash.className).toContain("button--danger-soft");
+    expect(trash.className).toContain("opacity-60");
     expect(screen.queryByRole("button", { name: "Deletion availability" })).toBeNull();
     fireEvent.click(trash);
     expect(within(await screen.findByRole("dialog")).getByText(message)).toBeTruthy();

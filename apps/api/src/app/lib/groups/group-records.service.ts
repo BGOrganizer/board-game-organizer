@@ -165,6 +165,7 @@ export class GroupRecordsService {
         rating: row.rating ? 500 + row.rating.conservativeScore : null,
         provisional: row.rating ? row.rating.gamesPlayed < 5 : false,
         left: row.left,
+        groupRole: row.groupRole ?? null,
       })),
       nextCursor,
     };

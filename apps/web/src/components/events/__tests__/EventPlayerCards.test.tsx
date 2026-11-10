@@ -75,19 +75,29 @@ it.each([null, "group"])(
     expect(screen.getByRole("img", { name: "Position: ND" }).textContent).toBe("ND");
     expect(screen.getAllByText("1.50")).toHaveLength(2);
     expect(document.querySelectorAll('[title="ND"]')).toHaveLength(1);
-    fireEvent.click(screen.getByRole("button", { name: "Ranking: @winner" }));
+    fireEvent.click(screen.getByRole("button", { name: "Global ranking: @winner" }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Global ranking")).toBeTruthy();
+    expect(within(dialog).getByRole("heading", { name: /^Global ranking/ })).toBeTruthy();
     expect(within(dialog).getByText("505")).toBeTruthy();
     expect(within(dialog).getByText("+5")).toBeTruthy();
-    expect(Boolean(within(dialog).queryByText("Group ranking"))).toBe(Boolean(groupId));
-    expect(within(dialog).getAllByText("Rating before")).toHaveLength(groupId ? 2 : 1);
-    expect(within(dialog).getAllByText("Rating after")).toHaveLength(groupId ? 2 : 1);
+    expect(within(dialog).queryByText("Group ranking")).toBeNull();
+    expect(within(dialog).getAllByText("Rating before")).toHaveLength(1);
+    expect(within(dialog).getAllByText("Rating after")).toHaveLength(1);
+    expect(within(dialog).getByText("500")).toBeTruthy();
+    expect(
+      Boolean(screen.queryByRole("button", { name: "Group ranking: @winner", hidden: true })),
+    ).toBe(Boolean(groupId));
     if (groupId) {
-      expect(within(dialog).getByText("497")).toBeTruthy();
-      expect(within(dialog).getByText("-3")).toBeTruthy();
+      fireEvent.keyDown(dialog, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      fireEvent.click(screen.getByRole("button", { name: "Group ranking: @winner" }));
+      const groupDialog = await screen.findByRole("dialog");
+      expect(within(groupDialog).getByRole("heading", { name: /^Group ranking/ })).toBeTruthy();
+      expect(within(groupDialog).queryByText("Global ranking")).toBeNull();
+      expect(within(groupDialog).queryByText("505")).toBeNull();
+      expect(within(groupDialog).getByText("497")).toBeTruthy();
+      expect(within(groupDialog).getByText("-3")).toBeTruthy();
     }
-    expect(within(dialog).getAllByText("500")).toHaveLength(groupId ? 2 : 1);
     expect(fetcher).not.toHaveBeenCalled();
   },
 );
@@ -99,13 +109,13 @@ it("distinguishes ineligible rating updates from missing immutable history witho
     results: { ...results, entries: results.entries.filter((row) => row.userId !== "tied") },
   };
   const view = renderWithI18n(<EventTableResults table={oneFinisher} />);
-  fireEvent.click(screen.getByRole("button", { name: "Ranking: @winner" }));
+  fireEvent.click(screen.getByRole("button", { name: "Global ranking: @winner" }));
   expect(await screen.findByText("Ranking not updated")).toBeTruthy();
   expect(screen.queryByText("+5")).toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   view.rerender(<EventTableResults table={{ ...finalTable, ratingChanges: [] }} />);
-  fireEvent.click(screen.getByRole("button", { name: "Ranking: @winner" }));
+  fireEvent.click(screen.getByRole("button", { name: "Global ranking: @winner" }));
   expect(await screen.findByText("Historical ranking unavailable")).toBeTruthy();
   expect(screen.queryByText("Ranking not updated")).toBeNull();
   expect(fetcher).not.toHaveBeenCalled();

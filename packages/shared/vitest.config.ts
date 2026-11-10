@@ -40,6 +40,7 @@ export default defineConfig({
         "src/events/eventTablePending.ts",
         "src/events/eventTableInvitees.ts",
         "src/groups/groupPolicy.ts",
+        "src/groups/groupLeaderboardRoles.ts",
         "src/groups/groupBanForm.ts",
         "src/groups/groupDeletionCache.ts",
         "src/groups/groupAccessCache.ts",
@@ -89,7 +90,7 @@ export default defineConfig({
             branches: 100,
             statements: 100,
           },
-        "src/{common/recordUserRoles,events/tablePlayerRating}.ts": {
+        "src/{common/recordUserRoles,events/tablePlayerRating,groups/groupLeaderboardRoles}.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

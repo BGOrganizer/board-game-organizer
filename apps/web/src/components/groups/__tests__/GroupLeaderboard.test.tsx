@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { GroupLeaderboard } from "@/components/groups/GroupLeaderboard";
 import { renderWithI18n } from "@/test-utils";
@@ -92,6 +92,7 @@ it("filters by selected game and identifies provisional former members", async (
     screen.getByRole("button", { name: "Clear board game selection" }).parentElement,
   );
   expect(screen.getByText("@grace")).toBeTruthy();
+  expect(screen.queryByText("Grace Hopper")).toBeNull();
   expect(screen.getByText("Former group member")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Provisional rating" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
@@ -114,3 +115,57 @@ it("filters by selected game and identifies provisional former members", async (
   expect(picker).toHaveBeenLastCalledWith(expect.objectContaining({ gameId: null }));
   expect(screen.queryByRole("grid")).toBeNull();
 });
+
+it.each([
+  ["ADMIN", "Admin"],
+  ["MODERATOR", "Moderator"],
+  ["MEMBER", "Accepted member"],
+] as const)(
+  "uses the Members-tab %s role badge, popover and secondary label",
+  async (groupRole, label) => {
+    const state = picker();
+    const original = state.players.data.pages[0].players[0];
+    picker.mockReturnValue({
+      ...state,
+      players: {
+        ...state.players,
+        data: {
+          pages: [{ players: [{ ...original, username: "@@grace", groupRole, left: false }] }],
+        },
+      },
+    });
+    renderWithI18n(<GroupLeaderboard groupId="test" />);
+    fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+    fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
+    expect(screen.getByText("@grace")).toBeTruthy();
+    expect(screen.queryByText("Grace Hopper")).toBeNull();
+    expect(screen.getByText(label)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    const popover = await screen.findByRole("dialog");
+    expect(within(popover).getByRole("heading", { name: "Roles and participation" })).toBeTruthy();
+    expect(within(popover).getByText(label)).toBeTruthy();
+  },
+);
+
+it.each([null, undefined])(
+  "does not invent a role or expose real-name fallback when cached role=%s",
+  async (groupRole) => {
+    const state = picker();
+    const original = state.players.data.pages[0].players[0];
+    picker.mockReturnValue({
+      ...state,
+      players: {
+        ...state.players,
+        data: { pages: [{ players: [{ ...original, username: null, groupRole, left: false }] }] },
+      },
+    });
+    renderWithI18n(<GroupLeaderboard groupId="test" />);
+    fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+    fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
+    expect(screen.getByText("Username unavailable")).toBeTruthy();
+    expect(screen.queryByText("Grace Hopper")).toBeNull();
+    for (const label of ["Admin", "Moderator", "Accepted member"])
+      expect(screen.queryByRole("button", { name: label })).toBeNull();
+    expect(screen.queryByLabelText("Loading…") !== null).toBe(groupRole === undefined);
+  },
+);

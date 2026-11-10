@@ -59,6 +59,7 @@ export function RatingGameSelect({
           }}
         >
           <Select.Trigger
+            testID="rating-game-select-trigger"
             accessibilityLabel={value ? `${t("Board game")}: ${value.name}` : t("Board game")}
             style={selectedId !== null ? { paddingRight: 52 } : undefined}
           >
@@ -75,14 +76,16 @@ export function RatingGameSelect({
           <Select.Portal>
             <Select.Overlay />
             <Select.Content
+              testID="rating-game-select-popover"
               presentation="popover"
               width="trigger"
               insets={{ top: insets.top + 8, bottom: insets.bottom + keyboardHeight + 8 }}
-              style={{ maxHeight: listHeight }}
+              style={{ height: listHeight, maxHeight: listHeight, overflow: "hidden" }}
             >
               <InputFlatList
+                testID="rating-game-select-list"
                 keyboardAvoidance="external"
-                style={{ width: "100%", height: listHeight }}
+                style={{ flex: 1, minHeight: 0, width: "100%" }}
                 ListHeaderComponent={<>{children}</>}
                 data={games}
                 keyExtractor={(game) => String(game.id)}

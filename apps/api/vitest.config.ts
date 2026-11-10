@@ -17,6 +17,12 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "src/app/lib/groups/group-leaderboard.repository.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/{api/bgg/picker/route,lib/games/bgg-picker,lib/events/event-results-projection,lib/events/event-personal-projection}.ts":
           {
             lines: 100,

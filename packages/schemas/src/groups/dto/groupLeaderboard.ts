@@ -20,6 +20,7 @@ export const groupLeaderboardResponseSchema = z.object({
       rating: z.number().finite().nullable(),
       provisional: z.boolean(),
       left: z.boolean(),
+      groupRole: z.enum(["ADMIN", "MODERATOR", "MEMBER"]).nullable().optional(),
     }),
   ),
   nextCursor: z.number().int().nonnegative().nullable(),

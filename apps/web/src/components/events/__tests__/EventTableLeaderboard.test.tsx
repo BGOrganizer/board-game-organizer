@@ -90,8 +90,8 @@ it("shows the frozen game/current ranking and source-pages with fresh tokens and
   mount();
   expect(await screen.findByText("alpha")).not.toBeNull();
   expect(screen.queryByRole("heading", { name: "Selected game" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Ranking: alpha" }));
-  expect(await screen.findByText("Ranking · Chess")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Global ranking: alpha" }));
+  expect(await screen.findByRole("heading", { name: "Global ranking · Chess" })).toBeTruthy();
   expect(screen.getByText("Global ranking")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Provisional rating" })).not.toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
@@ -214,7 +214,7 @@ it("preserves cached rows during next-page loading/failure and retries that page
   expect(screen.getByText("alpha")).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("Username unavailable")).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Ranking: Username unavailable" }));
+  fireEvent.click(screen.getByRole("button", { name: "Global ranking: Username unavailable" }));
   expect(await screen.findByText("56")).not.toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

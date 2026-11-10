@@ -37,6 +37,11 @@ it("keeps selected artwork and a separate clear action in the trigger's own boun
   fireEvent.click(trigger);
   const option = await screen.findByRole("option", { name: "Azul" });
   expect(option.querySelector("img")?.getAttribute("src")).toBe(azul.imageUrl);
+  const list = screen.getByRole("listbox");
+  expect(list.className).toContain("min-h-0");
+  expect(list.className).toContain("overflow-auto");
+  expect(list.closest("[data-input-overlay]")?.className).toContain("overflow-hidden");
+  expect(list.closest("[data-input-overlay]")?.className).not.toContain("overflow-y-auto");
   fireEvent.click(option);
   fireEvent.click(clear);
   expect(screen.queryByRole("option")).toBeNull();

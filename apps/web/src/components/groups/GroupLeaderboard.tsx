@@ -1,15 +1,23 @@
 "use client";
 
-import { resolveApiUrl, useGroupLeaderboard } from "@board-game-organizer/shared";
+import {
+  formatUsername,
+  groupLeaderboardRoles,
+  resolveApiUrl,
+  useGroupLeaderboard,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Skeleton, Table } from "@heroui/react";
+import { Button, Skeleton, Table } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Clock3, Dices } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
+import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 
 const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 const protectionBypass = process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
@@ -137,47 +145,57 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
                     <Table.Column>{t`Ranking`}</Table.Column>
                   </Table.Header>
                   <Table.Body>
-                    {rows.map((player) => (
-                      <Table.Row
-                        key={player.userId}
-                        className={player.left ? "opacity-60" : undefined}
-                      >
-                        <Table.Cell>
-                          <span className="flex items-center gap-3">
-                            <Avatar size="sm" color="accent">
-                              <Avatar.Image src={player.avatarUrl ?? undefined} alt="" />
-                              <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-                            </Avatar>
-                            <span className="min-w-0">
-                              <span className="block truncate font-medium">{player.name}</span>
-                              <span className="block truncate text-sm text-muted">
-                                {player.username ? `@${player.username}` : "—"}
-                              </span>
-                              {player.left ? (
-                                <span className="block text-xs">{t`Former group member`}</span>
+                    {rows.map((player) => {
+                      const name = formatUsername(player.username, t`Username unavailable`);
+                      const roles = groupLeaderboardRoles(player);
+                      const primary = roles[0];
+                      const secondary = player.left
+                        ? t`Former group member`
+                        : primary
+                          ? i18n._(recordUserRoleMessages[primary])
+                          : null;
+                      return (
+                        <Table.Row
+                          key={player.userId}
+                          className={player.left ? "opacity-60" : undefined}
+                        >
+                          <Table.Cell>
+                            <span className="flex items-center gap-3">
+                              <UserIdentity
+                                name={name}
+                                avatarUrl={player.avatarUrl}
+                                secondary={secondary}
+                                badge={roles.length ? <UserRoleBadge roles={roles} /> : undefined}
+                              >
+                                {!player.left && player.groupRole === undefined ? (
+                                  <Skeleton
+                                    aria-label={t`Loading…`}
+                                    className="mt-1 h-4 w-22 rounded"
+                                  />
+                                ) : null}
+                              </UserIdentity>
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell>{player.gamesPlayed}</Table.Cell>
+                          <Table.Cell>{player.gamesWon}</Table.Cell>
+                          <Table.Cell>{player.nd}</Table.Cell>
+                          <Table.Cell>
+                            <span className="flex items-center gap-1">
+                              {player.rating === null ? t`Not rated` : number.format(player.rating)}
+                              {player.provisional ? (
+                                <span
+                                  role="img"
+                                  aria-label={t`Provisional rating`}
+                                  title={t`Provisional rating`}
+                                >
+                                  <Clock3 className="size-4 text-warning" aria-hidden="true" />
+                                </span>
                               ) : null}
                             </span>
-                          </span>
-                        </Table.Cell>
-                        <Table.Cell>{player.gamesPlayed}</Table.Cell>
-                        <Table.Cell>{player.gamesWon}</Table.Cell>
-                        <Table.Cell>{player.nd}</Table.Cell>
-                        <Table.Cell>
-                          <span className="flex items-center gap-1">
-                            {player.rating === null ? t`Not rated` : number.format(player.rating)}
-                            {player.provisional ? (
-                              <span
-                                role="img"
-                                aria-label={t`Provisional rating`}
-                                title={t`Provisional rating`}
-                              >
-                                <Clock3 className="size-4 text-warning" aria-hidden="true" />
-                              </span>
-                            ) : null}
-                          </span>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
+                          </Table.Cell>
+                        </Table.Row>
+                      );
+                    })}
                   </Table.Body>
                 </Table.Content>
               </Table.ScrollContainer>

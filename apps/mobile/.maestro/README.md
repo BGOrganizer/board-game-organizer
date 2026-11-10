@@ -156,6 +156,22 @@ with the same fixture ACK/locale/Group ID plus `GROUP_ROLE_API_URL`,
 syntax/discovery nor isolated component layouts prove authenticated/device acceptance.
 Moderator/peer protection, live Event authority, immutable results and transactional
 revocation are also covered by service and disposable-Mongo tests; device execution remains required.
+The web scenario additionally reads the real ranking endpoint and checks identity/role popovers and
+contained picker bounds in light/dark at 390px. Its owned Group needs a rated game with a name of at
+least four characters and a currently accepted ranked player on their bounded first source pages.
+No intercepted API response is acceptance evidence.
+
+`32-group-rankings.yaml` is a separate read-only native flow, outside canonical jobs. Use an already
+onboarded, authorized actor and run ADMIN/MODERATOR/MEMBER fixtures separately in both locales/themes.
+Set `GROUP_RANKING_FIXTURE_ACK=owned-development-group-ranking`,
+`GROUP_RANKING_BUILD_ACK=owned-preview-build`, `GROUP_RANKING_LOCALE=en|it` and
+`GROUP_RANKING_INPUT` JSON with `groupId`, `groupName`, `gameName`, `userId`, `username`, `role`.
+These are actual current fixture facts, not desired membership or fabricated rating rows. The game
+must occur on the initial source page and have at least four name characters; the player needs real
+rated Table history and that current accepted role. The flow searches with the keyboard visible,
+selects the game, source-scrolls to the actual player and opens its role badge. Inspect the captured
+picker/keyboard bounds on a real device; syntax, VM tests and screenshots not yet taken prove none
+of those geometry paths. It performs no provisioning, role change, result write or reset.
 
 ## Manual singleton consent
 

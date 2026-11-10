@@ -9,6 +9,7 @@ export function HelpPopover({
   title,
   className,
   triggerClassName = "",
+  triggerVariant = "ghost",
   placement = "bottom start",
   icon: Icon = CircleHelp,
   tone = "muted",
@@ -23,6 +24,7 @@ export function HelpPopover({
   size?: "default" | "compact";
   className?: string;
   triggerClassName?: string;
+  triggerVariant?: "ghost" | "primary" | "danger-soft";
   indicator?: ReactNode;
   placement?: ComponentProps<typeof Popover.Content>["placement"];
   children: ReactNode;
@@ -34,6 +36,17 @@ export function HelpPopover({
     accent: "text-accent-soft-foreground",
     danger: "text-danger-soft-foreground",
   };
+  const variants = {
+    ghost: "button--ghost",
+    primary: "button--primary",
+    "danger-soft": "button--danger-soft",
+  };
+  const color =
+    triggerVariant === "primary"
+      ? "text-accent-foreground"
+      : triggerVariant === "danger-soft"
+        ? "text-danger-soft-foreground"
+        : colors[tone];
   const symbol = (
     <>
       <Icon className={size === "compact" ? "size-4" : "size-5"} aria-hidden="true" />
@@ -44,7 +57,7 @@ export function HelpPopover({
     <Popover>
       <Popover.Trigger
         aria-label={label}
-        className={`button button--sm button--icon-only button--ghost relative inline-flex min-h-11 min-w-11 items-center justify-center ${colors[tone]} ${size === "compact" ? "p-0" : triggerClassName}`}
+        className={`button button--sm button--icon-only ${variants[triggerVariant]} relative inline-flex min-h-11 min-w-11 items-center justify-center ${color} ${size === "compact" ? "p-0" : triggerClassName}`}
       >
         {size === "compact" ? (
           <span

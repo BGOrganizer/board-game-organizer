@@ -104,7 +104,7 @@ tags: [manual, tables, results]
 - tapOn: ${output.results.results}
 - assertNotVisible: "^Ranking$"
 - tapOn:
-    text: "^Ranking: .*$"
+    text: "^(Global ranking|Ranking globale): .*$"
     index: 0
 - assertVisible: "^(Global ranking|Ranking globale)$"
 - takeScreenshot: table-results-immutable-after-finalization

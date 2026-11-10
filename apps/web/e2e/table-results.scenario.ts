@@ -125,7 +125,12 @@ test("owned admin saves editable scores across reloads; excluded Tables never bl
     players[0]!.username,
     players[0]!.name ?? players[0]!.userId,
   );
-  await page.getByRole("button", { name: `Ranking: ${firstRatingName}`, exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: `${it ? "Ranking globale" : "Global ranking"}: ${firstRatingName}`,
+      exact: true,
+    })
+    .click();
   await expect(
     page.getByRole("dialog").getByText(it ? "Ranking globale" : "Global ranking", { exact: true }),
   ).toBeVisible();
@@ -198,7 +203,12 @@ test("owned admin saves editable scores across reloads; excluded Tables never bl
   await expect(page.getByRole("link", { name: labels.register, exact: true })).toHaveCount(0);
   await page.getByRole("tab", { name: labels.results, exact: true }).click();
   await expect(page.getByRole("tab", { name: "Ranking", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: `Ranking: ${firstRatingName}`, exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: `${it ? "Ranking globale" : "Global ranking"}: ${firstRatingName}`,
+      exact: true,
+    })
+    .click();
   await expect(
     page.getByRole("dialog").getByText(it ? "Ranking globale" : "Global ranking", { exact: true }),
   ).toBeVisible();

@@ -99,7 +99,13 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           !event?.readOnly && canManageEvent(event, o.userId) && event?.status === "PLANNING" ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               {confirmationBlocked ? (
-                <HelpPopover label={t("Confirm event")} title={t("Confirm event")} icon={Check}>
+                <HelpPopover
+                  label={t("Confirm event")}
+                  title={t("Confirm event")}
+                  icon={Check}
+                  triggerVariant="primary"
+                  triggerClassName="opacity-60"
+                >
                   <Typography className="text-foreground">{confirmationHint}</Typography>
                   {event.agreement?.reasons.map((reason) => (
                     <Typography key={reason.tableId} className="text-muted">

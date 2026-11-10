@@ -84,7 +84,13 @@ export function EventDeleteAction({
     <div className="flex items-center gap-1">
       {verifying ? <ClientRecordBadge phase="verifying" /> : null}
       {blocked ? (
-        <HelpPopover label={label} title={t`Deletion availability`} icon={Trash2}>
+        <HelpPopover
+          label={label}
+          title={t`Deletion availability`}
+          icon={Trash2}
+          triggerVariant="danger-soft"
+          triggerClassName="opacity-60"
+        >
           <div className="max-h-[50vh] space-y-2 overflow-y-auto overscroll-contain">
             {hint ? <p>{hint}</p> : null}
             {!event.canEdit ? <p>{t`This event can no longer be edited.`}</p> : null}

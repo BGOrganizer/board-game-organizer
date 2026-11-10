@@ -37,7 +37,7 @@ export function EventDeleteAction({
     actions = useEventRecordActions(options, event.id),
     router = useRouter();
   const { height } = useWindowDimensions();
-  const danger = useThemeColor("danger"),
+  const danger = useThemeColor("danger-soft-foreground"),
     foreground = useThemeColor("danger-foreground");
   const intent = useClientMutationDraft<DeletePlannedRecordInput & { tableId?: string }>(
     eventRecordKeys.mutation(options, event.id, table ? "remove-table" : "remove"),
@@ -85,7 +85,13 @@ export function EventDeleteAction({
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
       {verifying ? <ClientRecordBadge phase="verifying" iconSize={HEADER_ICON_SIZE} /> : null}
       {blocked ? (
-        <HelpPopover label={label} title={t("Deletion availability")} icon={Trash2}>
+        <HelpPopover
+          label={label}
+          title={t("Deletion availability")}
+          icon={Trash2}
+          triggerVariant="danger-soft"
+          triggerClassName="opacity-60"
+        >
           <ScrollView
             style={{ maxHeight: Math.min(320, height * 0.5) }}
             contentContainerStyle={{ gap: 8 }}

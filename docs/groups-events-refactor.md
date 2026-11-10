@@ -113,8 +113,13 @@ exceptions supersede older membership-only activity/detail statements below.
   and duties, and recalculates agreement atomically. TERMINATED history/results remain immutable;
   explicit whole-Group deletion above is the only Group-level deletion exception.
 - Group game search and member rankings are paginated at source; the ranking selector and rows use
-  the same horizontal page insets as other Group destinations on both clients. Only enabled physical tables with
-  at least two scoring finishers contribute games, wins, withdrawals and rating statistics.
+  the same horizontal page insets as other Group destinations on both clients. The searchable game
+  selector keeps its list and scrollbar inside the bounded popover, including with a native keyboard.
+  Ranking identities use @username first and the current Group role below, with the same avatar
+  role badge/explanation as Members. Roles come from the creator or same-Group ACCEPTED membership,
+  never historical statistics or an incomplete roster cache; former/pending members receive no role
+  badge. Older cached responses without role metadata remain unbadged until refreshed. Only enabled
+  physical tables with at least two scoring finishers contribute games, wins, withdrawals and rating statistics.
 
 ## Events and Tables
 
@@ -347,8 +352,11 @@ exceptions supersede older membership-only activity/detail statements below.
   bodies contain the current **Event** version. The same Group/Event transaction locks, creator
   authorization, state and version guards as planning edits apply; the participation cutoff does
   not disable authorized Planning management. CONFIRMED/TERMINATED records cannot be deleted directly.
-  An unavailable delete/confirm action itself opens its localized reasons, without a separate `?`
-  control or mutation. An available action retains its normal version-pinned confirmation flow. A Table removal retains at least one Table, marks the selected Table
+  An unavailable delete/confirm action, or finalization waiting for complete results, itself opens
+  its localized reasons, without a separate `?` control or mutation. It retains the available action's
+  primary/danger-soft semantic colors and icon at reduced opacity, and stays interactive for help.
+  Transient busy/verification and authoritative capability guards remain intact. An available action
+  retains its normal version-pinned confirmation flow. A Table removal retains at least one Table, marks the selected Table
   removed, cancels its active registrations and advances the Event version atomically. Deleting
   the Event removes its Tables, registrations, votes and linked inbox history; unrelated records
   and the existing explicit whole-Group cascade remain unchanged. This is product-record deletion,
@@ -742,9 +750,10 @@ there are no repeated identical notifications or player reminders to change vote
   The same roster reader stays mounted across Details/Participants; hidden UI never advances paging.
   Exact invitation-attention links start on Participants without accepting or reading invitations.
   Shared final access exposes Details/Results only, with no private roster or GROUP ranking scope.
-  Results rows contain avatar, one @username/known fallback and a small ranking control below it.
-  Confirmed rows expose current GLOBAL and applicable authorized GROUP ratings on separate popup
-  rows; they do not invent final standings or scores. Terminated rows preserve immutable classified
+  Results rows contain avatar, one @username/known fallback and adjacent, nonwrapping ranking icons:
+  GLOBAL uses a Globe/accent glyph; authorized GROUP uses UsersRound/success and is absent for
+  personal/shared-final access. Each opens only its own scope's complete details. Confirmed rows
+  expose current ratings without inventing final standings or scores. Terminated rows preserve immutable classified
   order, shared ties, bottom-right #n avatar badges, unranked ND and exact far-right scores. Popups
   use recorded before/after/delta, semantic direction icons and scope labels, never live replacement.
   Disabled/all-ND/fewer-than-two-finisher outcomes say Ranking not updated; genuinely missing history
@@ -753,9 +762,9 @@ there are no repeated identical notifications or player reminders to change vote
   includes API/user/Event/Table/game and the canonical frozen roster; changed-game/roster responses
   cannot populate another snapshot and retry invalidates only owned Table metadata. Existing cache-
   first navigation, native 8/6/7 rendering, progressive web pages and owner/stale-callback guards remain.
-- Planning deletion has an informational question mark immediately before trash. It explains last-
-  Table, cutoff, unverified metadata, busy and uncertain-save blockers without triggering a write.
-  Both controls are absent after confirmation/termination. The last active Table cannot be deleted
+- Planning Table deletion uses the trash action itself for unavailable-action explanations, including
+  last-Table, unverified metadata, busy and uncertain-save blockers, without triggering a write.
+  The action is absent after confirmation/termination. The last active Table cannot be deleted
   independently; whole-Event deletion retains its separate explicit confirmation and cascade scope.
 - Result registration opens one Table editor titled Register result / Registra Risultato. Save result
   persists provisional `resultDraft` scores on that Table, with the complete frozen roster, exact

@@ -1,8 +1,13 @@
 import type { GroupLeaderboardResponse } from "@board-game-organizer/schemas";
-import { resolveApiUrl, useGroupLeaderboard } from "@board-game-organizer/shared";
+import {
+  formatUsername,
+  groupLeaderboardRoles,
+  RECORD_USER_ROLES,
+  resolveApiUrl,
+  useGroupLeaderboard,
+} from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
-import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
@@ -13,6 +18,8 @@ import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { LeaderboardStat } from "@/components/ratings/LeaderboardStat";
 import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
 import { useT } from "@/lib/i18n";
@@ -157,25 +164,40 @@ function PlayerRow({
   format: Intl.NumberFormat;
 }) {
   const warning = useThemeColor("warning");
+  const name = formatUsername(player.username, t("Username unavailable"));
+  const roles = groupLeaderboardRoles(player);
+  const primary = roles[0];
+  const secondary = player.left
+    ? t("Former group member")
+    : primary
+      ? t(RECORD_USER_ROLES[primary].message)
+      : null;
   return (
     <View
+      testID={`group-ranking-player-${player.userId}`}
       className="rounded-xl bg-surface p-3"
       style={{ opacity: player.left ? 0.55 : 1, gap: 10 }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <Avatar size="md">
-          {player.avatarUrl ? <Avatar.Image source={{ uri: player.avatarUrl }} /> : null}
-          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-        </Avatar>
+        <UserAvatar
+          name={name}
+          avatarUrl={player.avatarUrl}
+          badgeContent={roles.length ? <UserRoleBadge roles={roles} /> : undefined}
+        />
         <View style={{ flex: 1 }}>
           <Typography className="font-medium text-foreground" numberOfLines={1}>
-            {player.name}
+            {name}
           </Typography>
-          <Typography className="text-sm text-muted" numberOfLines={1}>
-            {player.username ? `@${player.username}` : "—"}
-          </Typography>
-          {player.left ? (
-            <Typography className="text-sm text-foreground">{t("Former group member")}</Typography>
+          {secondary ? (
+            <Typography className="text-sm text-muted" numberOfLines={1}>
+              {secondary}
+            </Typography>
+          ) : null}
+          {!player.left && player.groupRole === undefined ? (
+            <Skeleton
+              accessibilityLabel={t("Loading…")}
+              style={{ width: 88, height: 16, borderRadius: 4 }}
+            />
           ) : null}
         </View>
       </View>

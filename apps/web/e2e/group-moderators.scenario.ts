@@ -1,5 +1,6 @@
 import type {
   CommunityPageResponse,
+  GroupLeaderboardResponse,
   GroupPersonResponse,
   GroupRecordResponse,
 } from "@board-game-organizer/schemas";
@@ -38,6 +39,10 @@ if (
   throw new Error("Development Clerk keys required");
 const it = locale === "it",
   labels = {
+    ranking: "Ranking",
+    boardGame: it ? "Gioco da tavolo" : "Board game",
+    searchGames: it ? "Cerca giochi da tavolo" : "Search board games",
+    roles: it ? "Ruoli e partecipazione" : "Roles and participation",
     members: it ? "Membri" : "Members",
     manage: it ? "Gestisci membro" : "Manage member",
     promote: it ? "Rendi moderatore" : "Make moderator",
@@ -141,3 +146,82 @@ test("creator cancels destructive actions, confirms role changes and reloads the
     await sheet.getByRole("button", { name: labels.cancel, exact: true }).click();
   }
 });
+
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`owned Group rankings use current roles and a contained game viewport (${colorScheme})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 520 });
+    await page.emulateMedia({ colorScheme });
+    await setupClerkTestingToken({ page });
+    await page.goto("/");
+    await clerk.signIn({ page, emailAddress: email });
+    await page.goto("/");
+    await completeMobileNumberIfNeeded(page);
+    const gamePage = await read<GroupLeaderboardResponse>(
+      page,
+      `groups/${groupId}/leaderboard?limit=25`,
+    );
+    const game = gamePage.games.find((row) => row.name.trim().length >= 4);
+    if (!game)
+      throw new Error(
+        "Owned Group-ranking fixture requires a rated game (name at least four characters) on its first source page",
+      );
+    const playerPage = await read<GroupLeaderboardResponse>(
+      page,
+      `groups/${groupId}/leaderboard?limit=25&gameId=${game.id}`,
+    );
+    const players = playerPage.players
+      .filter((player) => !player.left && player.groupRole && player.username)
+      .slice(0, 4);
+    if (!players.length)
+      throw new Error(
+        "Owned Group-ranking fixture requires a currently accepted ranked player on the first source page and the current role-projecting API",
+      );
+    await page.goto(`/groups/${groupId}`);
+    await page.getByRole("tab", { name: labels.ranking, exact: true }).click();
+    await page.getByRole("button", { name: new RegExp(labels.boardGame) }).click();
+    await page
+      .getByRole("searchbox", { name: labels.searchGames, exact: true })
+      .fill(game.name.slice(0, 4));
+    const option = page.getByRole("option", { name: game.name, exact: true });
+    await expect(option).toBeVisible();
+    await expect
+      .poll(() =>
+        page.getByRole("listbox").evaluate((list) => {
+          const popover = list.closest('[data-slot="select-popover"]');
+          if (!popover) return false;
+          const inner = list.getBoundingClientRect(),
+            outer = popover.getBoundingClientRect();
+          return (
+            inner.top >= outer.top - 1 &&
+            inner.bottom <= outer.bottom + 1 &&
+            inner.left >= outer.left - 1 &&
+            inner.right <= outer.right + 1 &&
+            getComputedStyle(popover).overflowY === "hidden" &&
+            getComputedStyle(list).overflowY === "auto"
+          );
+        }),
+      )
+      .toBe(true);
+    await option.click();
+    const grid = page.getByRole("grid");
+    const captions = {
+      ADMIN: it ? "Amministratore" : "Admin",
+      MODERATOR: it ? "Moderatore" : "Moderator",
+      MEMBER: it ? "Membro accettato" : "Accepted member",
+    };
+    for (const player of players) {
+      const handle = formatUsername(player.username, "Username unavailable");
+      const row = grid.getByRole("row").filter({ has: page.getByText(handle, { exact: true }) });
+      await expect(row.getByText(handle, { exact: true })).toBeVisible();
+      const caption = captions[player.groupRole!];
+      await expect(row.getByText(caption, { exact: true })).toBeVisible();
+      await row.getByRole("button", { name: caption, exact: true }).click();
+      const popup = page.getByRole("dialog", { name: labels.roles, exact: true });
+      await expect(popup.getByText(caption, { exact: true })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(popup).toHaveCount(0);
+    }
+  });
+}

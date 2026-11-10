@@ -131,7 +131,13 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           <HeaderActions>
             <div className="flex items-center gap-1">
               {confirmationBlocked ? (
-                <HelpPopover label={t`Confirm event`} title={t`Confirm event`} icon={Check}>
+                <HelpPopover
+                  label={t`Confirm event`}
+                  title={t`Confirm event`}
+                  icon={Check}
+                  triggerVariant="primary"
+                  triggerClassName="opacity-60"
+                >
                   <div className="space-y-2">
                     <p>{confirmationHint}</p>
                     {event.agreement?.reasons.map((reason) => (

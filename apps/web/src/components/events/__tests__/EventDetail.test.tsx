@@ -666,7 +666,10 @@ it("retries uncached event and table failures instead of turning them into empty
 it("honors a results-only capability without showing an unavailable planning action", async () => {
   event = { ...event, status: "CONFIRMED", canReplan: false, canFinalize: true };
   mount();
-  expect(await screen.findByRole("button", { name: "Finalize event" })).not.toBeNull();
+  const help = await screen.findByRole("button", { name: "Why finalization is unavailable" });
+  expect(help.className).toContain("button--primary");
+  expect(help.className).toContain("opacity-60");
+  expect(screen.queryByRole("button", { name: "Finalize event" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Reopen planning" })).toBeNull();
 });
 it("confirms manually, permits replan after cutoff, and keeps failed transitions actionable", async () => {
@@ -691,7 +694,8 @@ it("confirms manually, permits replan after cutoff, and keeps failed transitions
   };
   mount();
   expect(await screen.findByRole("link", { name: "Open group: Our group" })).not.toBeNull();
-  expect(screen.getByRole("button", { name: "Finalize event" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Why finalization is unavailable" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Finalize event" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Register results" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Reopen planning" }));

@@ -50,26 +50,33 @@ export function EventFinalizeAction({
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
       {event.resultsReady !== true ? (
-        <HelpPopover label={t("Why finalization is unavailable")} title={t("Finalize event")}>
+        <HelpPopover
+          label={t("Why finalization is unavailable")}
+          title={t("Finalize event")}
+          icon={Flag}
+          triggerVariant="primary"
+          triggerClassName="opacity-60"
+        >
           <Typography className="text-foreground">
             {t(
               "Save results for every included table before finalizing. Excluded tables do not require results.",
             )}
           </Typography>
         </HelpPopover>
-      ) : null}
-      <Button
-        {...headerButtonProps}
-        variant="primary"
-        accessibilityLabel={t("Finalize event")}
-        testID="event-finalize-results"
-        isDisabled={blocked}
-        onPress={() =>
-          setConfirm({ scope, version: event.version, shareResultsWithFriends: false })
-        }
-      >
-        <Flag size={HEADER_ICON_SIZE} color={foreground} accessible={false} />
-      </Button>
+      ) : (
+        <Button
+          {...headerButtonProps}
+          variant="primary"
+          accessibilityLabel={t("Finalize event")}
+          testID="event-finalize-results"
+          isDisabled={blocked}
+          onPress={() =>
+            setConfirm({ scope, version: event.version, shareResultsWithFriends: false })
+          }
+        >
+          <Flag size={HEADER_ICON_SIZE} color={foreground} accessible={false} />
+        </Button>
+      )}
       {confirm ? (
         <ConfirmDialog
           title={t("Finalize event?")}

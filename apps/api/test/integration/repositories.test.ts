@@ -2600,6 +2600,66 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     expect(await db.collection(COLLECTIONS.MATCHES).countDocuments()).toBe(3);
   });
 
+  it("projects current creator, moderator and accepted-member ranking roles without restoring former or pending membership", async () => {
+    const groupId = "3f454adb-43e3-47ad-8c29-57b97a55a200";
+    const eventId = "3f454adb-43e3-47ad-8c29-57b97a55a201";
+    const ids = ["role_admin", "role_moderator", "role_member", "role_former", "role_pending"];
+    await db
+      .collection(COLLECTIONS.GROUPS)
+      .insertOne({ id: groupId, type: "PRIVATE", adminUserId: ids[0] });
+    await db.collection(COLLECTIONS.GROUP_MEMBERSHIPS).insertMany([
+      { id: "role_moderator", groupId, userId: ids[1], status: "ACCEPTED", role: "MODERATOR" },
+      { id: "role_member", groupId, userId: ids[2], status: "ACCEPTED", role: "MEMBER" },
+      {
+        id: "role_former",
+        groupId: "other-group",
+        userId: ids[3],
+        status: "ACCEPTED",
+        role: "MODERATOR",
+      },
+      { id: "role_pending", groupId, userId: ids[4], status: "PENDING", role: "MODERATOR" },
+    ]);
+    await db
+      .collection(COLLECTIONS.EVENTS)
+      .insertOne({ id: eventId, groupId, status: "TERMINATED" });
+    await db.collection(COLLECTIONS.EVENT_TABLES).insertOne({
+      id: "3f454adb-43e3-47ad-8c29-57b97a55a202",
+      eventId,
+      rankingEnabled: true,
+      confirmed: { gameId: 42, playerIds: ids },
+      results: {
+        entries: ids.map((userId, index) => ({
+          userId,
+          score: String(10 - index),
+          rank: index + 1,
+        })),
+      },
+    });
+    const standings = new GroupLeaderboardRepository(db);
+    const read = async () =>
+      new Map(
+        (await standings.players(groupId, 42, 0, 25)).rows.map((row) => [
+          row._id,
+          { role: row.groupRole, left: row.left },
+        ]),
+      );
+    expect(await read()).toEqual(
+      new Map([
+        [ids[0], { role: "ADMIN", left: false }],
+        [ids[1], { role: "MODERATOR", left: false }],
+        [ids[2], { role: "MEMBER", left: false }],
+        [ids[3], { role: null, left: true }],
+        [ids[4], { role: null, left: true }],
+      ]),
+    );
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId, userId: ids[1] }, { $set: { role: "MEMBER" } });
+    await db.collection(COLLECTIONS.GROUP_MEMBERSHIPS).deleteOne({ groupId, userId: ids[2] });
+    expect((await read()).get(ids[1])).toEqual({ role: "MEMBER", left: false });
+    expect((await read()).get(ids[2])).toEqual({ role: null, left: true });
+  });
+
   it("accepts invited friends, allows group member match invite after unfriend, and keeps group history after archive", async () => {
     await seedMatchDependencies();
     await relationships.becomeFriends(ACTOR, THIRD);

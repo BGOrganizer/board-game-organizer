@@ -99,6 +99,7 @@ export class GroupLeaderboardRepository {
         username: string | null;
         avatarUrl: string | null;
         left: boolean;
+        groupRole: "ADMIN" | "MODERATOR" | "MEMBER" | null;
       }>(
         [
           ...tableStatisticsStages(gameId, groupId),
@@ -144,6 +145,25 @@ export class GroupLeaderboardRepository {
               name: { $ifNull: [{ $arrayElemAt: ["$profile.name", 0] }, "$_id"] },
               username: { $ifNull: [{ $arrayElemAt: ["$profile.username", 0] }, null] },
               avatarUrl: { $ifNull: [{ $arrayElemAt: ["$profile.avatarUrl", 0] }, null] },
+              groupRole: {
+                $cond: [
+                  { $eq: ["$_id", { $arrayElemAt: ["$group.adminUserId", 0] }] },
+                  "ADMIN",
+                  {
+                    $cond: [
+                      { $gt: [{ $size: "$members" }, 0] },
+                      {
+                        $cond: [
+                          { $eq: [{ $arrayElemAt: ["$members.role", 0] }, "MODERATOR"] },
+                          "MODERATOR",
+                          "MEMBER",
+                        ],
+                      },
+                      null,
+                    ],
+                  },
+                ],
+              },
               left: {
                 $and: [
                   { $eq: [{ $size: "$members" }, 0] },

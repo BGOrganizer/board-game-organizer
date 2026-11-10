@@ -3,15 +3,7 @@ import { tablePlayerRatingRows } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import {
-  ChartNoAxesCombined,
-  Clock3,
-  Globe,
-  Minus,
-  TrendingDown,
-  TrendingUp,
-  UsersRound,
-} from "lucide-react-native";
+import { Clock3, Globe, Minus, TrendingDown, TrendingUp, UsersRound } from "lucide-react-native";
 import { useWindowDimensions, View } from "react-native";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { useT } from "@/lib/i18n";
@@ -40,34 +32,40 @@ export function EventPlayerRatingPopover({
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
   const game = table.gamesDetail.find((row) => row.id === table.confirmed?.gameId);
   return (
-    <HelpPopover
-      size="compact"
-      label={`${t("Ranking")}: ${name}`}
-      title={game ? `${t("Ranking")} · ${game.name}` : t("Ranking")}
-      icon={ChartNoAxesCombined}
-      tone="accent"
-      triggerClassName="bg-default"
-      width={Math.min(400, width - 32)}
+    <View
+      style={{
+        flexDirection: "row",
+        flexWrap: "nowrap",
+        flexShrink: 0,
+        alignItems: "center",
+        gap: 4,
+      }}
     >
-      <View style={{ gap: 12 }}>
-        {tablePlayerRatingRows(table, userId, current).map((row) => {
-          const Icon = row.scope === "GLOBAL" ? Globe : UsersRound;
-          const Delta =
-            row.delta !== undefined && row.delta > 0
-              ? TrendingUp
-              : row.delta !== undefined && row.delta < 0
-                ? TrendingDown
-                : Minus;
-          return (
-            <View
-              key={row.scope}
-              style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 }}
-            >
+      {tablePlayerRatingRows(table, userId, current).map((row) => {
+        const global = row.scope === "GLOBAL";
+        const Icon = global ? Globe : UsersRound;
+        const label = global ? t("Global ranking") : t("Group ranking");
+        const Delta =
+          row.delta !== undefined && row.delta > 0
+            ? TrendingUp
+            : row.delta !== undefined && row.delta < 0
+              ? TrendingDown
+              : Minus;
+        return (
+          <HelpPopover
+            key={row.scope}
+            size="compact"
+            label={`${label}: ${name}`}
+            title={game ? `${label} · ${game.name}` : label}
+            icon={Icon}
+            tone={global ? "accent" : "success"}
+            triggerClassName="bg-default"
+            width={Math.min(400, width - 32)}
+          >
+            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Icon size={16} color={accent} accessible={false} />
-                <Typography className="text-foreground">
-                  {row.scope === "GLOBAL" ? t("Global ranking") : t("Group ranking")}
-                </Typography>
+                <Icon size={16} color={global ? accent : success} accessible={false} />
+                <Typography className="text-foreground">{label}</Typography>
               </View>
               {row.state === "notUpdated" ? (
                 <Typography className="text-muted">{t("Ranking not updated")}</Typography>
@@ -132,9 +130,9 @@ export function EventPlayerRatingPopover({
                 </>
               )}
             </View>
-          );
-        })}
-      </View>
-    </HelpPopover>
+          </HelpPopover>
+        );
+      })}
+    </View>
   );
 }

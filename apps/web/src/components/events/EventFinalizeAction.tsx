@@ -46,21 +46,28 @@ export function EventFinalizeAction({
   return (
     <div className="flex items-center gap-1">
       {event.resultsReady !== true ? (
-        <HelpPopover label={t`Why finalization is unavailable`} title={t`Finalize event`}>
+        <HelpPopover
+          label={t`Why finalization is unavailable`}
+          title={t`Finalize event`}
+          icon={Flag}
+          triggerVariant="primary"
+          triggerClassName="opacity-60"
+        >
           <p>{t`Save results for every included table before finalizing. Excluded tables do not require results.`}</p>
         </HelpPopover>
-      ) : null}
-      <Button
-        {...headerButtonProps}
-        variant="primary"
-        aria-label={t`Finalize event`}
-        isDisabled={blocked}
-        onPress={() =>
-          setConfirm({ scope, version: event.version, shareResultsWithFriends: false })
-        }
-      >
-        <Flag className="size-5" aria-hidden />
-      </Button>
+      ) : (
+        <Button
+          {...headerButtonProps}
+          variant="primary"
+          aria-label={t`Finalize event`}
+          isDisabled={blocked}
+          onPress={() =>
+            setConfirm({ scope, version: event.version, shareResultsWithFriends: false })
+          }
+        >
+          <Flag className="size-5" aria-hidden />
+        </Button>
+      )}
       {confirm ? (
         <ContactConfirmDialog
           title={t`Finalize event?`}

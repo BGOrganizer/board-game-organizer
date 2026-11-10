@@ -65,6 +65,7 @@ export * from "./games/hooks/useBggCollectionFilters";
 export * from "./games/hooks/useBggPicker";
 export * from "./games/hooks/useGameListWindow";
 export * from "./groups/groupBanForm";
+export * from "./groups/groupLeaderboardRoles";
 export * from "./groups/groupLogoUpload";
 export * from "./groups/groupOptimisticCreation";
 export * from "./groups/groupPolicy";

@@ -131,10 +131,17 @@ it.each([false, undefined])(
   "fails closed for missing/incomplete server readiness (%s) and explains exclusions",
   (ready) => {
     renderWithI18n(<EventFinalizeAction event={{ ...event(), resultsReady: ready }} />);
-    expect(
-      (screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Why finalization is unavailable" }));
+    const help = screen.getByRole("button", { name: "Why finalization is unavailable" });
+    expect(help.className).toContain("button--primary");
+    expect(help.className).toContain("opacity-60");
+    expect(help.querySelector(".lucide-flag")).toBeTruthy();
+    expect(help.hasAttribute("disabled")).toBe(false);
+    expect(help.getAttribute("aria-disabled")).not.toBe("true");
+    expect(help.tabIndex).toBe(0);
+    expect(screen.queryByRole("button", { name: "Finalize event" })).toBeNull();
+    fireEvent.click(help);
+    expect(m.mutate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "Finalize event?" })).toBeNull();
     expect(
       screen.getByText(
         "Save results for every included table before finalizing. Excluded tables do not require results.",

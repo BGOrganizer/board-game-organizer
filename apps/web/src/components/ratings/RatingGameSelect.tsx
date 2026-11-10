@@ -93,14 +93,14 @@ export function RatingGameSelect({
       <Select.Popover
         data-input-scope
         data-input-overlay
-        className="w-(--trigger-width) max-w-[calc(100vw-2rem)] overflow-y-auto"
+        className="flex w-(--trigger-width) max-w-[calc(100vw-2rem)] flex-col overflow-hidden"
       >
-        <div onKeyDownCapture={handleEscape}>
+        <div className="flex min-h-0 flex-col overflow-hidden" onKeyDownCapture={handleEscape}>
           {children}
           <Virtualizer layout={ListLayout} shouldObserveItemSize>
             <ListBox
               data-input-results
-              className="h-[var(--input-results-height,18rem)] max-h-72 overflow-auto"
+              className="h-[var(--input-results-height,18rem)] min-h-0 max-h-72 overflow-auto"
               renderEmptyState={() => empty ?? t`No games found`}
             >
               <Collection items={games}>

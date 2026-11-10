@@ -459,7 +459,7 @@ it.each([
     expect(fetcher.mock.calls.some(([url]) => url.includes("/leaderboard?"))).toBe(false);
     fireEvent.click(screen.getByRole("tab", { name: "Results" }));
     expect(await screen.findByText("Current owner")).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Ranking: Current owner" }));
+    fireEvent.click(screen.getByRole("button", { name: "Global ranking: Current owner" }));
     expect(
       await screen.findByText(eventStatus === "CONFIRMED" ? "42" : "Ranking not updated"),
     ).not.toBeNull();
@@ -545,7 +545,7 @@ it("hides immutable deltas when Table ranking was disabled even if stale cache c
   mount();
   fireEvent.click(await screen.findByRole("tab", { name: "Results" }));
   expect(await screen.findByText("2")).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Ranking: Owner" }));
+  fireEvent.click(screen.getByRole("button", { name: "Global ranking: Owner" }));
   expect(await screen.findByText("Ranking not updated")).toBeTruthy();
   expect(screen.queryByText("99")).toBeNull();
   expect(screen.queryByText("+1")).toBeNull();
@@ -1101,15 +1101,34 @@ it("retains immutable exact scores, ND, profiles and both rating scopes, includi
   fireEvent.click(screen.getByRole("tab", { name: "Results" }));
   expect(screen.getAllByText("ND")).toHaveLength(2);
   expect(screen.getByText("1.50")).not.toBeNull();
-  fireEvent.click(screen.getAllByRole("button", { name: "Ranking: Username unavailable" })[0]);
-  expect(await screen.findByText("Global ranking")).toBeTruthy();
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "Global ranking: Username unavailable" })[0],
+  );
+  expect(await screen.findByRole("heading", { name: /^Global ranking/ })).toBeTruthy();
   expect(screen.getByText("+5")).toBeTruthy();
-  expect(screen.getByText("-3")).toBeTruthy();
+  expect(screen.queryByText("-3")).toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  fireEvent.click(screen.getAllByRole("button", { name: "Ranking: Username unavailable" })[1]);
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "Group ranking: Username unavailable" })[0],
+  );
+  expect(await screen.findByRole("heading", { name: /^Group ranking/ })).toBeTruthy();
+  expect(screen.getByText("-3")).toBeTruthy();
+  expect(screen.queryByText("+5")).toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "Global ranking: Username unavailable" })[1],
+  );
   expect(await screen.findByText("0")).toBeTruthy();
-  expect(screen.getByText("+7")).toBeTruthy();
+  expect(screen.queryByText("+7")).toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "Group ranking: Username unavailable" })[1],
+  );
+  expect(await screen.findByText("+7")).toBeTruthy();
+  expect(screen.queryByText("0")).toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   broken = false;
