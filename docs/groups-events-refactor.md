@@ -682,7 +682,7 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   canonical item identity wins over stale historical section metadata.
 - Each selected Group/Event/Table tab shows one platform HeroUI warning Alert immediately below its
   top tabs. It lists bounded, source-paged actual changes and pending invitations, with a suitable
-  indicator and a static danger dot after its shrinkable title. Its top-right icon-only danger
+  indicator and a static danger dot after its shrinkable title. Its top-right compact icon-only warning
   action is the sole informational read action in the entity: item dots remain, but item/vote
   controls have no read buttons. Pending invitations are displayed but excluded from this action;
   their accept/decline controls keep their existing consent/capability/version guards. Table

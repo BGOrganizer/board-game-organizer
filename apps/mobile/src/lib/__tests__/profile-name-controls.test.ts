@@ -36,7 +36,7 @@ function nodes(value: any): Element[] {
     : [];
 }
 it.each(["tavolo", "evento", "gruppo"])(
-  "keeps %s generation explicit, larger and on the accent foreground pair",
+  "keeps %s generation compact and ghost with the same accent icon",
   (category) => {
     for (const locale of ["en", "it"]) {
       const generateName = vi.fn(() => "Generated draft name"),
@@ -56,14 +56,14 @@ it.each(["tavolo", "evento", "gruppo"])(
       const tree = nodes(render({ category, onChangeText, maxLength: 10 })),
         button = tree.find((node) => node.type === "Button");
       expect(button?.props).toMatchObject({
-        size: "md",
-        variant: "primary",
+        size: "sm",
+        variant: "ghost",
         style: { minWidth: 44, minHeight: 44 },
         isDisabled: false,
       });
       expect(tree.find((node) => node.type === "Dices")?.props).toMatchObject({
         size: 20,
-        color: "accent-foreground",
+        color: "accent",
         accessible: false,
       });
       expect(onChangeText).not.toHaveBeenCalled();

@@ -52,7 +52,7 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
   const t = useT(),
     [warning, foreground, secondary] = useThemeColor([
       "warning-soft-foreground",
-      "danger-foreground",
+      "warning-foreground",
       "default-foreground",
     ]);
   const [contentHeight, setContentHeight] = useState(0);
@@ -149,16 +149,28 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
       <Button
         isIconOnly
         size="sm"
-        variant="danger"
+        variant="ghost"
         accessibilityLabel={t("Mark displayed changes as read")}
         testID="notification-changes-read"
-        style={{ minWidth: 44, minHeight: 44, alignSelf: "flex-start" }}
+        style={{ minWidth: 44, minHeight: 44, padding: 0, alignSelf: "flex-start" }}
         isDisabled={!canRead || model.isReading}
         onPress={() => {
           if (canRead && !model.isReading) model.markDisplayedAsRead();
         }}
       >
-        <Check size={20} color={foreground} accessible={false} />
+        <View
+          className="bg-warning"
+          accessible={false}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Check size={16} color={foreground} accessible={false} />
+        </View>
       </Button>
     </Alert>
   );

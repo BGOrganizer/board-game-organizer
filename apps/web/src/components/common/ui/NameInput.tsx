@@ -26,8 +26,8 @@ export function NameInput({
           type="button"
           slot={null}
           isIconOnly
-          size="md"
-          variant="primary"
+          size="sm"
+          variant="ghost"
           className="min-h-11 min-w-11"
           isDisabled={isDisabled}
           aria-label={t`Generate a random name`}
@@ -40,7 +40,7 @@ export function NameInput({
             )
           }
         >
-          <Dices className="size-5" aria-hidden />
+          <Dices className="size-5 text-accent" aria-hidden />
         </Button>
       </InputGroup.Suffix>
     </InputGroup>

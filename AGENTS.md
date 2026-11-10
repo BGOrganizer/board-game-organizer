@@ -450,8 +450,8 @@ after shrinkable titles/names, never outside cards or in a wrapping label. No bo
 Unread attention belongs only to actual affected entities/items, never automatic Group/Event/Table
 ancestry. Accepted Group-member points mark Members and the real row, but never acknowledge on
 visibility, elapsed time or focus. Group/Event/Table details show one selected-tab HeroUI warning
-Alert with the source-backed change list, a danger dot after its title and one icon-only danger read
-action. Item dots remain passive, without per-item read controls. Table participation belongs only
+Alert with the source-backed change list, a danger dot after its title and one compact icon-only
+warning read action. Item dots remain passive, without per-item read controls. Table participation belongs only
 to Participants, never Details.
 Known source reads/decision ACKs reconcile related navigation/card/bell caches immediately, including
 inactive caches, without waiting for detail refresh. Preserve unrelated/later work and selective rollback.

@@ -11,7 +11,7 @@ vi.mock("@board-game-organizer/shared", async (original) => ({
   generateName: generate,
 }));
 it.each<NameCategory>(["tavolo", "evento", "gruppo"])(
-  "uses the larger accent action for %s without submitting the form",
+  "uses a compact ghost action with an unchanged accent icon for %s without submitting",
   (category) => {
     const onGenerate = vi.fn(),
       submit = vi.fn((event: FormEvent) => event.preventDefault());
@@ -21,8 +21,9 @@ it.each<NameCategory>(["tavolo", "evento", "gruppo"])(
       </form>,
     );
     const button = screen.getByRole("button", { name: "Generate a random name" });
-    expect(button.className).toContain("button--md");
-    expect(button.className).toContain("button--primary");
+    expect(button.className).toContain("button--sm");
+    expect(button.className).toContain("button--ghost");
+    expect(button.querySelector("svg")?.classList.contains("text-accent")).toBe(true);
     expect(button.querySelector("svg")?.classList.contains("size-5")).toBe(true);
     fireEvent.click(button);
     expect(generate).toHaveBeenLastCalledWith(category, "en");

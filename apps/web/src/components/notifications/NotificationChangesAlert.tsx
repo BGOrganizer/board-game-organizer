@@ -124,16 +124,21 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
       <Button
         isIconOnly
         size="sm"
-        variant="danger"
+        variant="ghost"
         aria-label={t`Mark displayed changes as read`}
         data-testid="notification-changes-read"
-        className="shrink-0 self-start"
+        className="min-h-11 min-w-11 shrink-0 self-start p-0"
         isDisabled={!canRead || model.isReading}
         onPress={() => {
           if (canRead && !model.isReading) model.markDisplayedAsRead();
         }}
       >
-        <Check className="size-5" aria-hidden />
+        <span
+          className="inline-flex size-7 items-center justify-center rounded-lg bg-warning text-warning-foreground"
+          aria-hidden
+        >
+          <Check className="size-4" />
+        </span>
       </Button>
     </Alert>
   );

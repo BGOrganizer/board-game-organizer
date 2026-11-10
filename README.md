@@ -36,7 +36,7 @@ with its four-character minimum.
 - Durable notification inbox with a counted bell and static danger dots inside affected cards/items,
   after shrinkable titles/names. No automatic Group/Event/Table propagation, borders or pulses.
   Top tabs reflect unread rows in their authorized category without making parent cards unread.
-  Each Group/Event/Table tab shows one warning change Alert with its sole icon-only danger read
+  Each Group/Event/Table tab shows one warning change Alert with its sole compact icon-only warning read
   action; item dots stay passive. No entry, focus, visibility timer or vote reads information.
   Accepted members mark Members and their actual row; Table participation marks Participants only.
   Alert reads capture only displayed information and preserve later/unshown work. Pending invitations

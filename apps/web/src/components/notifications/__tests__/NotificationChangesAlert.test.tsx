@@ -47,7 +47,7 @@ describe("NotificationChangesAlert explicit selected-tab information reads", () 
     expect(screen.queryByTestId("notification-changes-alert")).toBeNull();
     expect(q.container.firstChild).not.toBeNull();
   });
-  it("lists information and protected invitations, with exactly one danger informational read action", async () => {
+  it("lists information and protected invitations, with exactly one compact warning read action", async () => {
     const m = model();
     renderWithI18n(<NotificationChangesAlert model={m} />);
     expect(screen.getByText("Date updated")).toBeTruthy();
@@ -55,7 +55,11 @@ describe("NotificationChangesAlert explicit selected-tab information reads", () 
     expect(screen.getByText("Invitations remain unread until you respond.")).toBeTruthy();
     expect(screen.getAllByRole("img", { name: "Unread updates" })).toHaveLength(1);
     const read = screen.getByRole("button", { name: "Mark displayed changes as read" });
-    expect(read.className).toContain("danger");
+    expect(read.className).toContain("button--ghost");
+    expect(read.className).toContain("min-h-11");
+    expect(read.querySelector(".bg-warning.text-warning-foreground.size-7")).toBeTruthy();
+    expect(read.querySelector("svg")?.classList.contains("size-4")).toBe(true);
+    expect(read.className).not.toContain("danger");
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(m.markDisplayedAsRead).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText("Date updated"));
