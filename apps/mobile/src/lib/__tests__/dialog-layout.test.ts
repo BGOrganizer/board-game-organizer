@@ -39,9 +39,14 @@ function nodes(value: unknown): Element[] {
   return [];
 }
 
-it.each([false, true])(
-  "keeps confirmation dialogs stationary and their busy/close guards intact (busy=%s)",
-  (busy) => {
+it.each([
+  { busy: false, platform: "ios" },
+  { busy: true, platform: "ios" },
+  { busy: false, platform: "android" },
+  { busy: true, platform: "android" },
+])(
+  "keeps all dialog content intrinsic and stationary without scrolling ($platform, busy=$busy)",
+  ({ busy, platform }) => {
     const render = component("common/ui/ConfirmDialog", "ConfirmDialog", {
       "heroui-native/button": { Button: { Label: "Label" } },
       "heroui-native/dialog": {
@@ -54,11 +59,18 @@ it.each([false, true])(
           Description: "Description",
         }),
       },
-      "react-native": { View: "View" },
+      "react-native": {
+        View: "View",
+        KeyboardAvoidingView: "Avoiding",
+        Platform: { OS: platform },
+      },
       "@/lib/i18n": { useT: () => (text: string) => text },
+      "@/lib/inputScrollContext": {
+        InputScrollContext: { Provider: "ScrollOwner" },
+        InputFieldContext: { Provider: "FieldOwner" },
+      },
       "./FormInteractionScope": { FormInteractionScope: "Scope" },
       "./FormSubmitButton": { FormSubmitButton: "Submit" },
-      "./InputScrollView": { InputScrollView: "InputScroll" },
     });
     const onCancel = vi.fn(),
       action = vi.fn();
@@ -73,13 +85,22 @@ it.each([false, true])(
     const all = nodes(tree);
     expect(all.find((n) => n.type === "Content")?.props).toMatchObject({
       isSwipeable: false,
-      style: { maxHeight: "90%" },
+      style: { flexShrink: 0 },
     });
-    expect(all.find((n) => n.type === "InputScroll")?.props).toMatchObject({
-      sizing: "content",
-      style: { flexShrink: 1 },
-      keyboardShouldPersistTaps: "handled",
+    const content = all.find((n) => n.type === "Content");
+    expect(content?.props.style).not.toHaveProperty("height");
+    expect(content?.props.style).not.toHaveProperty("maxHeight");
+    expect(all.map((n) => n.type)).not.toContain("InputScroll");
+    expect(all.map((n) => n.type)).not.toContain("ScrollView");
+    expect(all.map((n) => n.type)).not.toContain("Scroll");
+    expect(all.find((n) => n.type === "Avoiding")?.props).toMatchObject({
+      pointerEvents: "box-none",
+      style: { flex: 1, justifyContent: "center" },
+      behavior: platform === "ios" ? "padding" : undefined,
     });
+    expect(all.find((n) => n.type === "ScrollOwner")?.props.value).toBeNull();
+    expect(all.find((n) => n.type === "FieldOwner")?.props.value).toBeNull();
+    expect(all.some((n) => n.type === "View" && n.props.children === "Full content")).toBe(true);
     expect(all.find((n) => n.type === "Overlay")?.props.isCloseOnPress).toBe(!busy);
     expect(all.find((n) => n.type === "Close")?.props).toMatchObject({
       isDisabled: busy,
@@ -99,7 +120,7 @@ it.each([false, true])(
 );
 
 it.each(["ios", "android"])(
-  "sizes dialog scroll content naturally on %s without changing screen/sheet defaults",
+  "preserves optional content-sized scroll owners on %s without changing screen/sheet defaults",
   (platform) => {
     for (const inSheet of [false, true])
       for (const sizing of [undefined, "fill", "content"])

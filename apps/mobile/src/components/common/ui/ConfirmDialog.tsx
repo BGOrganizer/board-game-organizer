@@ -1,11 +1,11 @@
 import { Button } from "heroui-native/button";
 import { Dialog } from "heroui-native/dialog";
 import type { ReactNode } from "react";
-import { View } from "react-native";
+import { KeyboardAvoidingView, Platform, View } from "react-native";
 import { useT } from "@/lib/i18n";
+import { InputFieldContext, InputScrollContext } from "@/lib/inputScrollContext";
 import { FormInteractionScope } from "./FormInteractionScope";
 import { FormSubmitButton } from "./FormSubmitButton";
-import { InputScrollView } from "./InputScrollView";
 
 type ConfirmDialogAction = {
   label: string;
@@ -42,52 +42,57 @@ export function ConfirmDialog({
     >
       <Dialog.Portal unstable_accessibilityContainerViewIsModal>
         <Dialog.Overlay isCloseOnPress={!busy} />
-        <FormInteractionScope>
-          <Dialog.Content
-            isSwipeable={false}
-            testID="confirmation-dialog"
-            style={{ maxHeight: "90%" }}
-          >
-            <Dialog.Close
-              isDisabled={busy}
-              accessibilityLabel={t("Cancel")}
-              testID={cancelTestID}
-              style={{ alignSelf: "flex-end", minWidth: 44, minHeight: 44 }}
-            />
-            <InputScrollView
-              sizing="content"
-              style={{ flexShrink: 1 }}
-              contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
-              keyboardShouldPersistTaps="handled"
-            >
-              <View style={{ gap: 8, marginBottom: 8 }}>
-                <Dialog.Title>{title}</Dialog.Title>
-                <Dialog.Description>{description}</Dialog.Description>
-              </View>
-              {children ? <View style={{ gap: 12 }}>{children}</View> : null}
-            </InputScrollView>
-            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
-              {actions.map((action, index) => (
-                <FormSubmitButton
-                  key={action.label}
-                  variant={action.variant}
-                  size="sm"
-                  style={{ minWidth: 44, minHeight: 44, flexShrink: 1 }}
-                  isDisabled={busy}
-                  testID={action.testID ?? `confirmation-action-${index}`}
-                  onPress={() => {
-                    if (!busy) action.onPress();
-                  }}
+        <KeyboardAvoidingView
+          pointerEvents="box-none"
+          style={{ flex: 1, justifyContent: "center" }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <FormInteractionScope>
+            <InputScrollContext.Provider value={null}>
+              <InputFieldContext.Provider value={null}>
+                <Dialog.Content
+                  isSwipeable={false}
+                  testID="confirmation-dialog"
+                  style={{ flexShrink: 0 }}
                 >
-                  {action.icon}
-                  <Button.Label style={{ textAlign: "center", flexShrink: 1 }}>
-                    {action.label}
-                  </Button.Label>
-                </FormSubmitButton>
-              ))}
-            </View>
-          </Dialog.Content>
-        </FormInteractionScope>
+                  <Dialog.Close
+                    isDisabled={busy}
+                    accessibilityLabel={t("Cancel")}
+                    testID={cancelTestID}
+                    style={{ alignSelf: "flex-end", minWidth: 44, minHeight: 44 }}
+                  />
+                  <View style={{ gap: 12, paddingBottom: 16 }}>
+                    <View style={{ gap: 8, marginBottom: 8 }}>
+                      <Dialog.Title>{title}</Dialog.Title>
+                      <Dialog.Description>{description}</Dialog.Description>
+                    </View>
+                    {children ? <View style={{ gap: 12 }}>{children}</View> : null}
+                  </View>
+                  <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+                    {actions.map((action, index) => (
+                      <FormSubmitButton
+                        key={action.label}
+                        variant={action.variant}
+                        size="sm"
+                        style={{ minWidth: 44, minHeight: 44, flexShrink: 1 }}
+                        isDisabled={busy}
+                        testID={action.testID ?? `confirmation-action-${index}`}
+                        onPress={() => {
+                          if (!busy) action.onPress();
+                        }}
+                      >
+                        {action.icon}
+                        <Button.Label style={{ textAlign: "center", flexShrink: 1 }}>
+                          {action.label}
+                        </Button.Label>
+                      </FormSubmitButton>
+                    ))}
+                  </View>
+                </Dialog.Content>
+              </InputFieldContext.Provider>
+            </InputScrollContext.Provider>
+          </FormInteractionScope>
+        </KeyboardAvoidingView>
       </Dialog.Portal>
     </Dialog>
   );

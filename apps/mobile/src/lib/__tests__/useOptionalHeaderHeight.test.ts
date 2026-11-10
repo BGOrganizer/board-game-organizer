@@ -256,11 +256,14 @@ it.each(containers)("%s preserves local scroll callbacks, sizes and caller overr
   }
 });
 
-it("keeps affected portal, sheet and invitation callers on the shared input containers", () => {
+it("keeps dialogs non-scrolling while sheets and lists retain their header-safe input containers", () => {
   expect(source("components/events/EventGroupSelect.tsx")).toContain("<Select.Portal>");
   expect(source("components/events/EventGroupSelect.tsx")).toContain("<InputFlatList");
-  expect(source("components/common/ui/ConfirmDialog.tsx")).toContain("<Dialog.Portal");
-  expect(source("components/common/ui/ConfirmDialog.tsx")).toContain("<InputScrollView");
+  const dialog = source("components/common/ui/ConfirmDialog.tsx");
+  expect(dialog).toContain("<Dialog.Portal");
+  expect(dialog).toContain("<KeyboardAvoidingView");
+  expect(dialog).not.toContain("InputScrollView");
+  expect(dialog).not.toContain("useHeaderHeight");
   expect(source("components/events/TableScoreEditor.tsx")).toContain("<BottomSheet.Portal>");
   expect(source("components/events/TableScoreEditor.tsx")).toContain("<InputScrollView");
   expect(source("components/events/EventInvitationPicker.tsx")).toContain("<PeoplePicker");
@@ -274,8 +277,11 @@ it.each([
 ])("keeps %s on the portal-safe shared dialog for %s (%s)", (consumer, parent) => {
   expect(source(`components/events/${parent}.tsx`)).toContain(`<${consumer}`);
   expect(source(`components/events/${consumer}.tsx`)).toContain("<ConfirmDialog");
-  expect(source("components/common/ui/ConfirmDialog.tsx")).toContain("<Dialog.Portal");
-  expect(source("components/common/ui/ConfirmDialog.tsx")).toContain("<InputScrollView");
+  const dialog = source("components/common/ui/ConfirmDialog.tsx");
+  expect(dialog).toContain("<Dialog.Portal");
+  expect(dialog).toContain("<KeyboardAvoidingView");
+  expect(dialog).not.toContain("ScrollView");
+  expect(dialog).not.toContain("useHeaderHeight");
 });
 
 it("uses the same optional height in LocationPicker without relaxing the inline Back guard", () => {
@@ -288,6 +294,7 @@ it("uses the same optional height in LocationPicker without relaxing the inline 
   expect(picker).toContain("usePreventRemove(Boolean(onClose), () => onClose?.())");
   for (const path of [
     "components/locations/LocationPicker.tsx",
+    "components/common/ui/ConfirmDialog.tsx",
     ...containers.map((name) => `components/common/ui/${name}.tsx`),
   ])
     expect(source(path)).not.toMatch(/\buseHeaderHeight\b/);

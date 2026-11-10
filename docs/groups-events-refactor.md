@@ -215,9 +215,10 @@ exceptions supersede older membership-only activity/detail statements below.
   background band with its matching foreground, without text shadows or a fuzzy gradient. Compact
   controls stay in one bottom-right row inside the Card; only that row scrolls horizontally when
   necessary, never wrapping or shrinking touch targets. Titles and controls remain in natural flow
-  so long titles cannot overlap or push controls outside the Card. Confirmation dialogs size to
-  content without a forced empty scroll range or swipe-to-move gesture; oversized content retains
-  scrolling and local keyboard/error-focus handling. Actual artwork/bitmap corners are rounded;
+  so long titles cannot overlap or push controls outside the Card. Native confirmation dialogs use
+  normal-flow content with intrinsic height, no inner scroll container or percentage height cap,
+  and no swipe-to-move gesture. Portal-level keyboard avoidance and first-error focus remain;
+  dialog inputs never scroll an underlying screen or sheet. Actual artwork/bitmap corners are rounded;
   uploaded logos retain their original proportions. Platform-owned `RecordIdentityCard` frames reuse the same
   role/state help as list cards. Table headers and lists expose the same participation, state, Rating,
   date/location and game controls; administration/moderation are Event/Group concepts, not Table badges. Event headers keep independent accepted,
