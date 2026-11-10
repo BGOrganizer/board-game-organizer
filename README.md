@@ -1,5 +1,9 @@
 # Board Game Organizer
 
+<p align="center">
+  <img src="docs/assets/bgo-mascot.png" alt="Board Game Organizer mascot: a playful purple meeple hugging a golden die" width="280" />
+</p>
+
 ![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)
 ![Codecov](https://codecov.io/gh/BGOrganizer/board-game-organizer/branch/main/graph/badge.svg)
 
