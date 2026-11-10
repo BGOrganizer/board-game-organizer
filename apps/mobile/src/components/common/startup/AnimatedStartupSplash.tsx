@@ -77,9 +77,9 @@ export function AnimatedStartupSplash({ startedAt }: { startedAt: number }) {
     >
       <View importantForAccessibility="no-hide-descendants">
         <Animated.Image
-          source={require("../../../../assets/icon.png")}
+          source={require("../../../../assets/splash.png")}
           resizeMode="contain"
-          style={[{ width: 200, height: 200, borderRadius: 100, overflow: "hidden" }, logoStyle]}
+          style={[{ width: 280, height: 280 }, logoStyle]}
         />
       </View>
     </Animated.View>

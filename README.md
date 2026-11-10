@@ -4,6 +4,8 @@
   <img src="docs/assets/bgo-mascot-organizer.png" alt="Board Game Organizer mascot: a playful purple meeple with cards, a golden die, game resources and a calendar marking a planned game night" width="360" />
 </p>
 
+Artwork sources, export commands and platform variants: [Mascot and app artwork](docs/branding.md).
+
 ![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)
 ![Codecov](https://codecov.io/gh/BGOrganizer/board-game-organizer/branch/main/graph/badge.svg)
 
