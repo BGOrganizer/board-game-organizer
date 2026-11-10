@@ -175,6 +175,7 @@ export async function bggPickerPage(
                 minPlayMinutes: 1,
                 maxPlayMinutes: 1,
                 durationCheckedAt: 1,
+                metadataAttemptedAt: 1,
                 imageCheckedAt: 1,
               },
             },

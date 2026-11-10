@@ -1,14 +1,26 @@
-import type { BggCollectionGame, BggCollectionQuery } from "@board-game-organizer/schemas";
+import type {
+  BggCollectionGame,
+  BggCollectionQuery,
+  BoardGame,
+} from "@board-game-organizer/schemas";
 import type { Db } from "mongodb";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BggAccountRepository } from "../bgg-account.repository";
 
 const input: BggCollectionQuery = { snapshot: "snapshot", query: "", limit: 2 };
 const counts = { withoutExpansions: 2, withExpansions: 3, wishlist: 1 };
+beforeEach(() => vi.stubEnv("BGG_TOKEN", ""));
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 function fixture(
   rows: Partial<BggCollectionGame>[] = [],
   nextSnapshot = "snapshot",
   legacy = false,
+  catalog: Array<Pick<BoardGame, "id" | "name"> & Partial<BoardGame>> = [
+    { id: 1, name: "Game 1", average: 6, rank: 7 },
+  ],
 ) {
   const active = {
     id: 1,
@@ -31,15 +43,29 @@ function fixture(
   };
   const find = vi.fn().mockReturnValue(cursor);
   const aggregate = vi.fn().mockReturnValue(cursor);
+  const catalogFind = vi.fn(() => ({ toArray: async () => catalog }));
+  const bulkWrite = vi.fn(async () => ({}));
+  const quota = { updateOne: vi.fn(async () => ({ upsertedCount: 1 })) };
   const db = {
     collection: (name: string) =>
       name === "bggAccounts"
         ? accounts
         : name === "bggCollectionGames"
           ? { find, aggregate }
-          : { find: () => ({ toArray: async () => [{ id: 1, average: 6, rank: 7 }] }) },
+          : name === "bggQuota"
+            ? quota
+            : { find: catalogFind, bulkWrite },
   } as unknown as Db;
-  return { repository: new BggAccountRepository(db), accounts, find, aggregate, cursor };
+  return {
+    repository: new BggAccountRepository(db),
+    accounts,
+    find,
+    aggregate,
+    cursor,
+    catalogFind,
+    bulkWrite,
+    quota,
+  };
 }
 const row = (id: number): Partial<BggCollectionGame> => ({
   gameId: id,
@@ -56,6 +82,78 @@ const row = (id: number): Partial<BggCollectionGame> => ({
 });
 
 describe("authorized collection pages", () => {
+  it("keeps legacy expansion identity when a visible collection game is absent from the catalog", async () => {
+    const h = fixture(
+      [{ ...row(2), isExpansion: undefined, subtype: "boardgameexpansion" }],
+      "snapshot",
+      false,
+      [],
+    );
+    expect((await h.repository.page("owner", input)).items[0]).toMatchObject({
+      id: 2,
+      isExpansion: true,
+      minPlayMinutes: null,
+      maxPlayMinutes: null,
+    });
+  });
+  it("hydrates only the visible page in one quota-controlled batch and returns the recovered duration", async () => {
+    vi.stubEnv("BGG_TOKEN", "test-token");
+    const h = fixture([row(1), row(2), row(3)]);
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        '<items><item id="1"><playingtime value="45"/></item><item id="2"><minplaytime value="60"/><maxplaytime value="90"/></item></items>',
+    });
+    vi.stubGlobal("fetch", fetch);
+    const page = await h.repository.page("owner", input);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledWith(
+      "https://boardgamegeek.com/xmlapi2/thing?id=1,2",
+      expect.objectContaining({ headers: { Authorization: "Bearer test-token" } }),
+    );
+    expect(page.items).toMatchObject([
+      { id: 1, minPlayMinutes: 45, maxPlayMinutes: 45 },
+      { id: 2, minPlayMinutes: 60, maxPlayMinutes: 90 },
+    ]);
+    expect(h.catalogFind).toHaveBeenCalledWith({ id: { $in: [1, 2] } });
+    expect(h.bulkWrite).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          updateOne: expect.objectContaining({
+            filter: { id: 2 },
+            upsert: true,
+            update: expect.objectContaining({
+              $setOnInsert: { id: 2, name: "Game 2", yearPublished: 2020, isExpansion: false },
+              $set: expect.objectContaining({
+                minPlayMinutes: 60,
+                maxPlayMinutes: 90,
+                durationCheckedAt: expect.any(String),
+              }),
+            }),
+          }),
+        }),
+      ]),
+    );
+    expect(page.nextCursor).not.toBeNull();
+    expect(h.accounts.findOne).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps cached collection metadata and consent guards when another request owns the provider quota", async () => {
+    vi.stubEnv("BGG_TOKEN", "test-token");
+    const h = fixture([row(1)], "other", false, [
+      { id: 1, name: "Game 1", minPlayMinutes: 30, maxPlayMinutes: 60 },
+    ]);
+    h.quota.updateOne.mockRejectedValue(
+      Object.assign(new Error("quota occupied"), { code: 11000 }),
+    );
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    await expect(h.repository.page("owner", input)).rejects.toMatchObject({ status: 409 });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(h.bulkWrite).not.toHaveBeenCalled();
+    expect(h.accounts.findOne).toHaveBeenCalledTimes(2);
+  });
   it.each(["games", "expansions", "none"] as const)(
     "applies %s at source; wishlist independently includes both types before pagination",
     async (types) => {

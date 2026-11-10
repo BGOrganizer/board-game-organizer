@@ -12,6 +12,7 @@ import type { ClientSession, Db, Filter } from "mongodb";
 import { z } from "zod";
 import { CommunityError } from "@/app/lib/community.error";
 import { COLLECTIONS } from "@/app/lib/db";
+import { hydrateGames } from "./bgg";
 import { parseBggCollection } from "./bgg-collection";
 
 const collectionCursor = z
@@ -321,7 +322,18 @@ export class BggAccountRepository {
           .find({ id: { $in: visible.map((row) => row.gameId) } })
           .toArray()
       : [];
-    const metadata = new Map(catalog.map((row) => [row.id, row]));
+    const byId = new Map(catalog.map((row) => [row.id, row]));
+    const games: BoardGame[] = visible.map(
+      (row) =>
+        byId.get(row.gameId) ?? {
+          id: row.gameId,
+          name: row.name,
+          yearPublished: row.year,
+          isExpansion: row.isExpansion ?? row.subtype === "boardgameexpansion",
+        },
+    );
+    await hydrateGames(this.db, games, true);
+    const metadata = new Map(games.map((row) => [row.id, row]));
     const current = await this.get(userId);
     if (
       current.active?.snapshot !== input.snapshot ||

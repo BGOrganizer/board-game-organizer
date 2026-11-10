@@ -7,6 +7,7 @@ type GameRow = {
   id: number;
   name: string;
   yearPublished?: number | null;
+  isExpansion?: boolean;
   bayesAverage?: number | null;
   average?: number | null;
   rank?: number | null;
@@ -18,7 +19,13 @@ type GameRow = {
   minPlayMinutes?: number | null;
   maxPlayMinutes?: number | null;
   durationCheckedAt?: string;
+  metadataAttemptedAt?: string;
 };
+
+const METADATA_RETENTION_MS = 7 * 86400_000;
+const METADATA_RETRY_MS = 5 * 60_000;
+const positiveInteger = (value: number | null | undefined) =>
+  Number.isSafeInteger(value) && Number(value) > 0;
 
 // Older imports guessed this URL from the game ID; it is not a BGG cover.
 const inventedCover = /^https:\/\/cf\.geekdo-static\.com\/covers\/\d+\.jpg$/;
@@ -40,19 +47,23 @@ function bggImage(url: string | null | undefined): string | null {
 // ponytail: cold searches can show placeholders; prewarm popular games if that becomes common.
 export async function hydrateGames(db: Db, games: GameRow[], durations = false): Promise<void> {
   const token = process.env.BGG_TOKEN;
+  const now = Date.now();
+  const stale = (value: string | undefined, age: number) =>
+    !value || !Number.isFinite(Date.parse(value)) || now - Date.parse(value) >= age;
   const missing = games.filter(
     (game) =>
-      (!cover(game.image) &&
-        (!game.imageCheckedAt || Date.now() - Date.parse(game.imageCheckedAt) > 7 * 86400_000)) ||
+      (!cover(game.image) && stale(game.imageCheckedAt, METADATA_RETENTION_MS)) ||
       (durations &&
-        (!game.durationCheckedAt ||
-          Date.now() - Date.parse(game.durationCheckedAt) > 7 * 86400_000 ||
-          !game.playerCountsCheckedAt ||
-          Date.now() - Date.parse(game.playerCountsCheckedAt) > 7 * 86400_000)),
+        stale(game.metadataAttemptedAt, METADATA_RETRY_MS) &&
+        (!positiveInteger(game.minPlayMinutes) ||
+          !positiveInteger(game.maxPlayMinutes) ||
+          stale(game.durationCheckedAt, METADATA_RETENTION_MS) ||
+          !positiveInteger(game.minPlayers) ||
+          !positiveInteger(game.maxPlayers) ||
+          stale(game.playerCountsCheckedAt, METADATA_RETENTION_MS))),
   );
   if (!token || missing.length === 0) return;
 
-  const now = Date.now();
   const quota = db.collection<{ _id: string; nextAt: Date }>(COLLECTIONS.BGG_QUOTA);
   try {
     const claim = await quota.updateOne(
@@ -127,36 +138,46 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
       });
     }
     const checkedAt = new Date().toISOString();
+    const updates = missing.map((game) => {
+      const metadata = found.get(game.id);
+      const min = metadata?.min ?? game.minPlayMinutes ?? null;
+      const max = metadata?.max ?? game.maxPlayMinutes ?? null;
+      const validDuration = min === null || max === null || min <= max;
+      return {
+        image: metadata?.image ?? cover(game.image),
+        imageCheckedAt: checkedAt,
+        metadataAttemptedAt: checkedAt,
+        ...(metadata?.minPlayers != null && metadata.maxPlayers != null
+          ? {
+              minPlayers: metadata.minPlayers,
+              maxPlayers: metadata.maxPlayers,
+              playerCountsCheckedAt: checkedAt,
+            }
+          : {}),
+        // Omitted values must not overwrite metadata another request recovered meanwhile.
+        ...(validDuration && metadata?.min != null ? { minPlayMinutes: metadata.min } : {}),
+        ...(validDuration && metadata?.max != null ? { maxPlayMinutes: metadata.max } : {}),
+        ...(metadata?.min != null && metadata.max != null ? { durationCheckedAt: checkedAt } : {}),
+      };
+    });
     await db.collection<GameRow>(COLLECTIONS.BOARD_GAMES).bulkWrite(
-      missing.map((game) => ({
+      missing.map((game, index) => ({
         updateOne: {
           filter: { id: game.id },
           update: {
-            $set: {
-              image: found.get(game.id)?.image ?? cover(game.image),
-              imageCheckedAt: checkedAt,
-              minPlayers: found.get(game.id)?.minPlayers ?? game.minPlayers ?? null,
-              maxPlayers: found.get(game.id)?.maxPlayers ?? game.maxPlayers ?? null,
-              playerCountsCheckedAt: checkedAt,
-              minPlayMinutes: found.get(game.id)?.min ?? game.minPlayMinutes ?? null,
-              maxPlayMinutes: found.get(game.id)?.max ?? game.maxPlayMinutes ?? null,
-              durationCheckedAt: checkedAt,
+            $set: updates[index],
+            $setOnInsert: {
+              id: game.id,
+              name: game.name,
+              ...(game.yearPublished != null ? { yearPublished: game.yearPublished } : {}),
+              ...(game.isExpansion !== undefined ? { isExpansion: game.isExpansion } : {}),
             },
           },
+          upsert: true,
         },
       })),
     );
-    for (const game of missing)
-      Object.assign(game, {
-        image: found.get(game.id)?.image ?? cover(game.image),
-        imageCheckedAt: checkedAt,
-        minPlayers: found.get(game.id)?.minPlayers ?? game.minPlayers ?? null,
-        maxPlayers: found.get(game.id)?.maxPlayers ?? game.maxPlayers ?? null,
-        playerCountsCheckedAt: checkedAt,
-        minPlayMinutes: found.get(game.id)?.min ?? game.minPlayMinutes ?? null,
-        maxPlayMinutes: found.get(game.id)?.max ?? game.maxPlayMinutes ?? null,
-        durationCheckedAt: checkedAt,
-      });
+    for (const [index, game] of missing.entries()) Object.assign(game, updates[index]);
   } catch (error) {
     // Cover delivery is optional: BGG outages must not break local catalog search.
     console.warn("BGG cover lookup failed", error instanceof Error ? error.name : "unknown error");
@@ -196,6 +217,7 @@ export async function searchGames(
           minPlayMinutes: 1,
           maxPlayMinutes: 1,
           durationCheckedAt: 1,
+          metadataAttemptedAt: 1,
         },
       },
     )

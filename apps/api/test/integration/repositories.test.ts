@@ -1720,6 +1720,91 @@ describe("direct Preview catalog import on MongoDB replica set", () => {
 });
 
 describe("BGG account collection snapshots on MongoDB replica set", () => {
+  it("hydrates only visible collection durations, persists successful dates and keeps global quota and retry state", async () => {
+    const repository = new BggAccountRepository(db);
+    const identity = { id: 41, username: "alice", avatarUrl: null };
+    const snapshot = await repository.stage(ACTOR, identity);
+    await repository.publish(ACTOR, snapshot, identity, [
+      ...parseBggCollection(
+        '<items><item objectid="987620" subtype="boardgame"><name>Alpha</name></item><item objectid="987622" subtype="boardgame"><name>Gamma</name></item></items>',
+        ACTOR,
+        snapshot,
+      ),
+      ...parseBggCollection(
+        '<items><item objectid="987621" subtype="boardgameexpansion"><name>Beta</name></item></items>',
+        ACTOR,
+        snapshot,
+        true,
+      ),
+    ]);
+    const catalog = db.collection(COLLECTIONS.BOARD_GAMES);
+    expect(await catalog.findOne({ id: 987621 })).toBeNull();
+    const old = "2026-11-01T00:00:00.000Z";
+    await catalog.updateOne(
+      { id: 987620 },
+      { $set: { minPlayMinutes: null, maxPlayMinutes: null, durationCheckedAt: old } },
+    );
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '<items><item id="987620"><playingtime value="45"/></item></items>',
+    });
+    vi.stubEnv("BGG_TOKEN", "test-token");
+    vi.stubGlobal("fetch", fetch);
+    try {
+      const input = { snapshot, query: "", limit: 2 };
+      const page = await repository.page(ACTOR, input);
+      expect(page.items).toMatchObject([
+        { id: 987620, minPlayMinutes: 45, maxPlayMinutes: 45 },
+        { id: 987621, minPlayMinutes: null, maxPlayMinutes: null },
+      ]);
+      expect(fetch).toHaveBeenCalledWith(
+        "https://boardgamegeek.com/xmlapi2/thing?id=987620,987621",
+        expect.any(Object),
+      );
+      const recovered = await catalog.findOne({ id: 987620 });
+      const missing = await catalog.findOne({ id: 987621 });
+      expect(recovered).toMatchObject({
+        minPlayMinutes: 45,
+        maxPlayMinutes: 45,
+        durationCheckedAt: expect.any(String),
+        metadataAttemptedAt: expect.any(String),
+      });
+      expect(recovered?.durationCheckedAt).not.toBe(old);
+      expect(missing?.metadataAttemptedAt).toEqual(recovered?.metadataAttemptedAt);
+      expect(missing).toMatchObject({ id: 987621, name: "Beta", isExpansion: true });
+      expect(missing).not.toHaveProperty("durationCheckedAt");
+      expect(await catalog.findOne({ id: 987622 })).not.toHaveProperty("metadataAttemptedAt");
+      await repository.page(ACTOR, { ...input, cursor: page.nextCursor ?? "" });
+      expect(fetch).toHaveBeenCalledOnce();
+      expect(await catalog.findOne({ id: 987622 })).not.toHaveProperty("metadataAttemptedAt");
+      await db
+        .collection<{ _id: string; nextAt: Date }>(COLLECTIONS.BGG_QUOTA)
+        .updateOne({ _id: "covers" }, { $set: { nextAt: new Date(0) } });
+      await repository.page(ACTOR, input);
+      expect(fetch).toHaveBeenCalledOnce();
+      await catalog.updateMany(
+        { id: { $in: [987620, 987621] } },
+        { $set: { metadataAttemptedAt: new Date(Date.now() - 301_000).toISOString() } },
+      );
+      fetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () => '<items><item id="987621"><playingtime value="60"/></item></items>',
+      });
+      const refreshed = await repository.page(ACTOR, input);
+      expect(refreshed.items[1]).toMatchObject({
+        id: 987621,
+        minPlayMinutes: 60,
+        maxPlayMinutes: 60,
+      });
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(await catalog.findOne({ id: 987621 })).toHaveProperty("durationCheckedAt");
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
   it("source-filters shared collections and common BGG IDs with both active epochs, legacy wishlist and Profile block guards", async () => {
     await seedUser(users, ACTOR, "actor@example.test");
     await seedUser(users, TARGET, "target@example.test");
