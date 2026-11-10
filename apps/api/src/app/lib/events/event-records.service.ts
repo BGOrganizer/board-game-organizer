@@ -194,7 +194,11 @@ export class EventRecordsService {
     }
     if (admin && !(await this.manager(event, group, userId)))
       throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
-    if (!group && event.adminUserId !== userId && !own.length)
+    if (
+      !group &&
+      event.adminUserId !== userId &&
+      (!own.length || (await this.relationships.isBlocked(userId, event.adminUserId)))
+    )
       throw new CommunityError(404, "EVENT_NOT_FOUND");
     return { event, group, own, readOnly, sharedResultsOnly, outsideGroup, personalOnly };
   }
@@ -476,7 +480,7 @@ export class EventRecordsService {
       canProposeDates:
         !canManage &&
         !readOnly &&
-        group?.type === "PRIVATE" &&
+        group?.type !== "PUBLIC" &&
         event.status === "PLANNING" &&
         Boolean(event.allowParticipantDates) &&
         positioned.some(
@@ -485,7 +489,7 @@ export class EventRecordsService {
       canProposeLocations:
         !canManage &&
         !readOnly &&
-        group?.type === "PRIVATE" &&
+        group?.type !== "PUBLIC" &&
         event.status === "PLANNING" &&
         Boolean(event.allowParticipantLocations) &&
         positioned.some(
@@ -553,7 +557,7 @@ export class EventRecordsService {
     proposalId: string,
   ): Promise<ReviewEventProposalResponse> {
     const { event, group } = await this.context(userId, id, true);
-    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    if (group?.type === "PUBLIC") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
     const row = await this.events.proposal(proposalId);
     if (
       !row ||
@@ -632,7 +636,7 @@ export class EventRecordsService {
   async proposalPickerExclusions(userId: string, id: string, tableId: string) {
     const { event, group } = await this.context(userId, id, true);
     this.open(event, group);
-    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    if (group?.type === "PUBLIC") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
     if (await this.manager(event, group, userId))
       throw new CommunityError(403, "PROPOSAL_MANAGER_CANNOT_SUBMIT");
     const table = await this.events.table(tableId);
@@ -663,11 +667,13 @@ export class EventRecordsService {
   }
   private async assertProposalSeat(
     event: EventRecord,
-    group: GroupRecord,
+    group: GroupRecord | null,
     userId: string,
     tableId?: string,
   ) {
-    await this.member(group, userId);
+    if (group) await this.member(group, userId);
+    else if (await this.relationships.isBlocked(event.adminUserId, userId))
+      throw new CommunityError(403, "BLOCKED_PARTICIPANT");
     const tables = await this.events.allTables(event.id),
       registrations = await this.events.allRegistrations(event.id);
     if (tableId && !tables.some((table) => table.id === tableId))
@@ -705,7 +711,7 @@ export class EventRecordsService {
     },
   ): Promise<EventProposalsResponse> {
     const { event, group } = await this.context(userId, id, Boolean(page.clientRequestId));
-    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    if (group?.type === "PUBLIC") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
     if (page.mode === "review" && !(await this.manager(event, group, userId)))
       throw new CommunityError(403, "EVENT_ADMIN_REQUIRED");
     if (page.tableId) {
@@ -723,7 +729,7 @@ export class EventRecordsService {
       const last = items.at(-1);
       return {
         eventId: id,
-        groupId: group.id,
+        groupId: event.groupId,
         eventVersion: event.version,
         mode: page.mode,
         items,
@@ -736,7 +742,7 @@ export class EventRecordsService {
     const last = items.at(-1);
     return {
       eventId: id,
-      groupId: group.id,
+      groupId: event.groupId,
       eventVersion: event.version,
       mode: page.mode,
       items,
@@ -750,7 +756,7 @@ export class EventRecordsService {
   ): Promise<EventProposalResponse> {
     const { event, group } = await this.context(userId, id, true);
     this.open(event, group);
-    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    if (group?.type === "PUBLIC") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
     if (await this.manager(event, group, userId))
       throw new CommunityError(403, "PROPOSAL_MANAGER_CANNOT_SUBMIT");
     const hash = createHash("sha256")
@@ -823,7 +829,7 @@ export class EventRecordsService {
     const row: EventProposal = {
       id: randomUUID(),
       eventId: id,
-      groupId: group.id,
+      groupId: event.groupId,
       userId,
       clientRequestId: input.clientRequestId,
       requestHash: hash,
@@ -841,7 +847,7 @@ export class EventRecordsService {
       "event_proposal_created",
       event,
       userId,
-      await this.groups.managerIds(group),
+      group ? await this.groups.managerIds(group) : [event.adminUserId],
       payload.kind === "game" ? payload.tableId : undefined,
     );
     return this.proposalResponse(row);
@@ -854,7 +860,7 @@ export class EventRecordsService {
   ): Promise<ReviewEventProposalResponse> {
     const { event, group } = await this.context(userId, id, true, true);
     this.open(event, group);
-    if (group?.type !== "PRIVATE") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
+    if (group?.type === "PUBLIC") throw new CommunityError(403, "PROPOSALS_PRIVATE_GROUP_ONLY");
     const row = await this.events.proposal(proposalId);
     if (!row || row.eventId !== id) throw new CommunityError(404, "PROPOSAL_NOT_FOUND");
     const status = input.action === "accept" ? ("ACCEPTED" as const) : ("REJECTED" as const);
@@ -1172,7 +1178,7 @@ export class EventRecordsService {
         createdAt: current?.createdAt ?? at,
         updatedAt: at,
       };
-      if (group?.type !== "PRIVATE" && row.allowParticipantGames)
+      if (group?.type === "PUBLIC" && row.allowParticipantGames)
         throw new CommunityError(400, "PROPOSALS_PRIVATE_GROUP_ONLY");
       if (group?.type === "PUBLIC") this.tableInterval(event, row, "PUBLIC");
       result.push(row);
@@ -1183,11 +1189,11 @@ export class EventRecordsService {
     if (event.visibility === "PUBLIC" && group?.type !== "PUBLIC")
       throw new CommunityError(400, "EVENT_VISIBILITY_NOT_ALLOWED");
     if (
-      group?.type !== "PRIVATE" &&
+      group?.type === "PUBLIC" &&
       (event.allowParticipantDates || event.allowParticipantLocations)
     )
       throw new CommunityError(400, "PROPOSALS_PRIVATE_GROUP_ONLY");
-    if (group?.type !== "PRIVATE" && (event.dates.length !== 1 || event.locations.length !== 1))
+    if (group?.type === "PUBLIC" && (event.dates.length !== 1 || event.locations.length !== 1))
       throw new CommunityError(400, "EVENT_FIXED_SCHEDULE_REQUIRED");
     if (
       !event.dates.length ||
@@ -1359,6 +1365,9 @@ export class EventRecordsService {
   async update(userId: string, id: string, input: EditPlannedEventInput) {
     const { event, group } = await this.context(userId, id, true, true);
     this.open(event, group);
+    const visibility = eventRecordVisibility(event, group?.type ?? null);
+    if (input.visibility !== undefined && input.visibility !== visibility)
+      throw new CommunityError(400, "EVENT_VISIBILITY_IMMUTABLE");
     if (event.version !== input.version) throw new CommunityError(409, "EVENT_CHANGED");
     const currentTables = await this.events.allTables(id),
       registrations = await this.events.allRegistrations(id);
@@ -1377,7 +1386,7 @@ export class EventRecordsService {
             (eventDateWall(event, row) !== eventDateWall(input, date) ||
               (event.timeZone !== timeZone &&
                 !(
-                  group?.type === "PRIVATE" &&
+                  group?.type !== "PUBLIC" &&
                   row.startTime !== undefined &&
                   date.startTime !== undefined
                 ))),
@@ -1400,7 +1409,7 @@ export class EventRecordsService {
     const next = {
       ...event,
       ...fields,
-      visibility: input.visibility ?? eventRecordVisibility(event, group?.type ?? null),
+      visibility,
       locations,
       timeZone,
       ...(input.endsAt ? { endsAt: new Date(input.endsAt).toISOString() } : {}),
@@ -1418,23 +1427,6 @@ export class EventRecordsService {
     ].sort((a, b) => a.order - b.order);
     if (!merged.length || merged.length > 20) throw new CommunityError(400, "EVENT_TABLE_LIMIT");
     const active = registrations.filter((row) => merged.some((table) => table.id === row.tableId));
-    if (
-      group?.type === "PUBLIC" &&
-      eventRecordVisibility(event, group.type) === "PUBLIC" &&
-      next.visibility === "PRIVATE"
-    ) {
-      for (const user of new Set(
-        active
-          .filter((row) => row.status === "ACCEPTED" || row.status === "PENDING")
-          .map((row) => row.userId),
-      )) {
-        if (
-          user !== group.adminUserId &&
-          (await this.groups.membership(group.id, user))?.status !== "ACCEPTED"
-        )
-          throw new CommunityError(409, "EVENT_VISIBILITY_HAS_NONMEMBERS");
-      }
-    }
     if (group?.type === "PUBLIC" && active.length) {
       const changed =
         eventDateWall(event, event.dates[0]) !== eventDateWall(next, next.dates[0]) ||
@@ -1645,7 +1637,7 @@ export class EventRecordsService {
       canProposeGames:
         !canManage &&
         open &&
-        group?.type === "PRIVATE" &&
+        group?.type !== "PUBLIC" &&
         Boolean(table.allowParticipantGames) &&
         my?.status === "ACCEPTED" &&
         myPosition === "SEATED",
@@ -1913,9 +1905,9 @@ export class EventRecordsService {
   async join(userId: string, eventId: string, tableId: string, input?: JoinTableInput) {
     const { group, own } = await this.context(userId, eventId, true, false, false, true);
     const availability = input?.availability;
-    if (group?.type === "PRIVATE" && !availability && !hasOtherAcceptedTable(own, tableId))
+    if (group?.type !== "PUBLIC" && !availability && !hasOtherAcceptedTable(own, tableId))
       throw new CommunityError(400, "EVENT_AVAILABILITY_REQUIRED");
-    if (group?.type !== "PRIVATE" && availability)
+    if (group?.type === "PUBLIC" && availability)
       throw new CommunityError(400, "EVENT_AVAILABILITY_NOT_REQUIRED");
     if (!input) throw new CommunityError(400, "TABLE_GAME_AVAILABILITY_REQUIRED");
     return this.register(userId, eventId, tableId, undefined, input);
@@ -1936,7 +1928,7 @@ export class EventRecordsService {
       throw new CommunityError(400, "INVALID_JOIN_GAME_VOTES");
     const availability = input.availability;
     if (availability) {
-      if (group?.type !== "PRIVATE") throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
+      if (group?.type === "PUBLIC") throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
       if (availability.version !== event.version) throw new CommunityError(409, "EVENT_CHANGED");
       if (!eventJoinAvailabilityIsComplete(event, availability))
         throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
@@ -2048,7 +2040,7 @@ export class EventRecordsService {
         if (!table || table.eventId !== event.id) throw new CommunityError(404, "TABLE_NOT_FOUND");
         const participation = input.participation;
         if (!participation) throw new CommunityError(400, "TABLE_GAME_AVAILABILITY_REQUIRED");
-        if (group?.type === "PRIVATE" && !participation.availability)
+        if (group?.type !== "PUBLIC" && !participation.availability)
           throw new CommunityError(400, "EVENT_AVAILABILITY_REQUIRED");
         this.validateParticipation(event, group, table, participation);
         acceptedGameVotes = eventVotingChoices(

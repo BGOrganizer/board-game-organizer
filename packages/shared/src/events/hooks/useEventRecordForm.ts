@@ -12,6 +12,7 @@ import { communityAccessDenied } from "../../community/communityApi";
 import { isGroupManagerRole } from "../../groups/groupPolicy";
 import { useGroupRecord } from "../../groups/hooks/useGroupRecords";
 import {
+  changeEventDraftGroup,
   type EventRecordDraft,
   type EventTableDraft,
   eventDateOptionId,
@@ -24,6 +25,7 @@ import {
   tableDraft,
 } from "../eventRecordForm";
 import { eventDateWall } from "../eventRecordPolicy";
+import { eventRecordVisibility } from "../eventRecordVisibility";
 import { nextEventDay, publicEventEndIsValid } from "../eventSchedule";
 import { useRecordTables } from "./useEventRecords";
 export function useEventRecordForm(
@@ -32,10 +34,19 @@ export function useEventRecordForm(
   initialGroupId?: string,
   recoveredDraft?: EventRecordDraft,
 ) {
-  const [draft, setDraft] = useState(() => recoveredDraft ?? eventDraft(event, initialGroupId)),
+  const [draft, setDraft] = useState<EventRecordDraft>(() => {
+      const value = recoveredDraft ?? eventDraft(event, initialGroupId);
+      return {
+        ...value,
+        ...(event ? { groupId: event.groupId } : {}),
+        visibility: event
+          ? eventRecordVisibility(event, event.groupType)
+          : (value.visibility ?? "PRIVATE"),
+      };
+    }),
     [error, setError] = useState(false),
     [step, setStep] = useState(0),
-    [attempted, setAttempted] = useState([false, false]),
+    [attempted, setAttempted] = useState([false, false, false]),
     [validationAttempt, setValidationAttempt] = useState(0),
     serial = useRef(0);
   const groupQuery = useGroupRecord(
@@ -69,11 +80,11 @@ export function useEventRecordForm(
   }, [existingId, approvedLocation, group?.type]);
   const groupLocked = Boolean(event || initialGroupId);
   const publicGroup = (group?.type ?? event?.groupType) === "PUBLIC";
-  const flexibleSchedule = (group?.type ?? event?.groupType) === "PRIVATE";
+  const flexibleSchedule = !draft.groupId || (group?.type ?? event?.groupType) === "PRIVATE";
   useEffect(() => {
     if (existingId || !publicGroup) return;
     setDraft((old) =>
-      old.dates.length === 1
+      old.dates.length
         ? old
         : {
             ...old,
@@ -89,8 +100,9 @@ export function useEventRecordForm(
   }, [existingId, publicGroup]);
   const setStartDate = (wall: string) => {
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(wall)) return;
-    setDraft((old) =>
-      patchEventDraft(
+    setDraft((old) => {
+      const end = old.endsWall ? `${wall.slice(0, 10)}T${old.endsWall.slice(11, 16)}` : "";
+      return patchEventDraft(
         old,
         {
           tables: old.tables.map((row) => ({
@@ -99,7 +111,7 @@ export function useEventRecordForm(
               ? `${wall.slice(0, 10)}T${row.startsWall.slice(11, 16)}`
               : "",
           })),
-          endsWall: publicEventEndIsValid(wall, old.endsWall) ? old.endsWall : "",
+          endsWall: publicEventEndIsValid(wall, end) ? end : "",
           cutoffWall: old.cutoffWall.slice(0, 10) < wall.slice(0, 10) ? old.cutoffWall : "",
           dates: [
             {
@@ -111,14 +123,26 @@ export function useEventRecordForm(
         },
         event?.dates,
         false,
-      ),
-    );
+      );
+    });
   };
   const patch = (change: Partial<EventRecordDraft>) =>
     setDraft((old) => {
       if (groupLocked && change.groupId !== undefined && change.groupId !== old.groupId) return old;
-      return patchEventDraft(old, change, event?.dates, flexibleSchedule);
+      if (
+        change.visibility !== undefined &&
+        ((event && change.visibility !== eventRecordVisibility(event, event.groupType)) ||
+          (!publicGroup && change.visibility === "PUBLIC"))
+      )
+        return old;
+      const value =
+        change.groupId !== undefined && change.groupId !== old.groupId
+          ? { ...change, visibility: "PRIVATE" as const }
+          : change;
+      return patchEventDraft(old, value, event?.dates, flexibleSchedule);
     });
+  const selectGroup = (id: string | null, type: "PRIVATE" | "PUBLIC" | null) =>
+    setDraft((old) => (groupLocked ? old : changeEventDraftGroup(old, id, type)));
   const patchTable = (key: string, change: Partial<EventTableDraft>) =>
     setDraft((old) => ({
       ...old,
@@ -132,17 +156,30 @@ export function useEventRecordForm(
       20
     )
       return;
-    const key = `new-${++serial.current}`;
-    setDraft((old) => ({
-      ...old,
-      tables: [
-        ...old.tables,
-        {
-          ...newTableDraft(key),
-          startsWall: old.dates[0] ? eventDateWall(old, old.dates[0]) : "",
-        },
-      ],
-    }));
+    let key: string;
+    do {
+      key = `new-${++serial.current}`;
+    } while (draft.tables.some((row) => row.key === key));
+    setDraft((old) => {
+      if (
+        (event?.tableCount ?? 0) -
+          old.removedTableIds.length +
+          old.tables.filter((row) => !row.id).length >=
+        20
+      )
+        return old;
+      return {
+        ...old,
+        tables: [
+          ...old.tables,
+          {
+            ...newTableDraft(key),
+            startsWall: old.dates[0] ? eventDateWall(old, old.dates[0]) : "",
+          },
+        ],
+      };
+    });
+    return key;
   };
   const removeTable = (key: string) =>
     setDraft((old) => {
@@ -205,7 +242,7 @@ export function useEventRecordForm(
     (event?.tableCount ?? 0) -
     draft.removedTableIds.length +
     draft.tables.filter((row) => !row.id).length;
-  if (step === 1 && retainedCount < 1) issues.push("tables");
+  if (step === 2 && retainedCount < 1) issues.push("tables");
   if (step === 0 && draft.groupId && (!group?.canInvite || !isGroupManagerRole(group.role)))
     issues.push("groupId");
   const fieldError = (path: string) =>
@@ -214,18 +251,29 @@ export function useEventRecordForm(
     );
   const next = () => {
     setAttempted((old) => old.map((value, index) => (index === step ? true : value)));
-    if (!issues.length && step < 2) setStep(step + 1);
+    if (!issues.length && step < 3) setStep(step + 1);
     else if (issues.length) setValidationAttempt((old) => old + 1);
   };
   const goToStep = (value: number) => {
     if (value >= 0 && value <= step) setStep(value);
   };
   const validate = () => {
-    setAttempted([true, true]);
-    const value = closed ? { success: false as const } : eventDraftInput(draft, publicGroup);
+    setAttempted([true, true, true]);
+    const unauthorizedGroup = Boolean(
+      draft.groupId && (!group?.canInvite || !isGroupManagerRole(group.role)),
+    );
+    const value =
+      closed || unauthorizedGroup
+        ? { success: false as const }
+        : eventDraftInput(draft, publicGroup);
     setError(!value.success);
     if (!value.success) {
-      setStep(eventDraftStepIssues(draft, publicGroup, 0).length ? 0 : 1);
+      setStep(
+        unauthorizedGroup
+          ? 0
+          : ([0, 1, 2].find((stage) => eventDraftStepIssues(draft, publicGroup, stage).length) ??
+              2),
+      );
       setValidationAttempt((old) => old + 1);
     }
     return value;
@@ -234,6 +282,8 @@ export function useEventRecordForm(
     draft,
     group,
     groupLocked,
+    visibilityLocked: Boolean(event),
+    selectGroup,
     flexibleSchedule,
     publicGroup,
     setStartDate,

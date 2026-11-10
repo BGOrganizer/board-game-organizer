@@ -25,7 +25,7 @@ export function useEventProposalEditor(
     );
   const event = communityAccessDenied(q.error) ? undefined : q.data;
   const category = kind === "date" || kind === "location" || kind === "game" ? kind : undefined;
-  const actions = useEventProposalActions(o, eventId, event?.groupId ?? "", category, tableId);
+  const actions = useEventProposalActions(o, eventId, event?.groupId ?? null, category, tableId);
   const recovery = useEventProposalIntents(o, eventId, category, tableId).find(
     (intent) =>
       intent.draftId === draftId &&
@@ -53,7 +53,7 @@ export function useEventProposalEditor(
       validKind &&
       event &&
       !q.isPlaceholderData &&
-      event.groupType === "PRIVATE" &&
+      event.groupType !== "PUBLIC" &&
       event.canManage !== true &&
       event.role !== "admin" &&
       !event.readOnly &&

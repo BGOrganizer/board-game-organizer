@@ -32,7 +32,7 @@ export function EventGroupSelect({
   group?: GroupRecordResponse;
   locked: boolean;
   busy: boolean;
-  onChange: (id: string | null) => void;
+  onChange: (id: string | null, type: "PRIVATE" | "PUBLIC" | null) => void;
 }) {
   const t = useT(),
     options = useCommunityApi(),
@@ -70,7 +70,12 @@ export function EventGroupSelect({
         label: group && !denied ? group.name : groupId ? t("Group") : t("No group"),
       }}
       onValueChange={(value) => {
-        if (!locked && !busy && value) onChange(value.value === "none" ? null : value.value);
+        if (locked || busy || !value) return;
+        if (value.value === "none") onChange(null, null);
+        else {
+          const selected = rows.find((row) => row.id === value.value);
+          if (selected?.canInvite) onChange(selected.id, selected.type);
+        }
       }}
     >
       <Select.Trigger accessibilityLabel={t("Group")}>

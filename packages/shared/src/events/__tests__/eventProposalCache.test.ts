@@ -9,12 +9,14 @@ import {
   EVENT_PROPOSAL_PAGE_SIZE,
   type EventProposalScope,
   eventProposalKeys,
+  filterRevokedStandaloneEventRestore,
   projectProposalReview,
   reconcileProposalAccessError,
   revokeProposalReview,
 } from "../eventProposalCache";
+import { eventProposalsPageQuery } from "../hooks/useEventProposals";
 
-const owner = { apiUrl: "https://api.test", userId: "actor" },
+const owner = { apiUrl: "https://api.test", userId: "actor", getToken: async () => "fresh" },
   scope: EventProposalScope = { eventId: "event", groupId: "group", kind: "date", mode: "review" };
 const proposal = (id = "p1"): EventProposalResponse => ({
   id,
@@ -419,4 +421,239 @@ it("keeps denied observers terminal, blocks late restore, and distinguishes mana
   reconcileProposalAccessError(c, owner, scope, new CommunityApiError(403, "GROUP_BANNED"));
   expect(c.getQueryState(cold)).toBeUndefined();
   revokeProposalReview(c, owner, { eventId: "missing" });
+});
+
+it("enables standalone proposal source pages without a Group key while keeping owner/kind guards", () => {
+  const standalone = { ...scope, groupId: null };
+  const options = eventProposalsPageQuery(owner, standalone);
+  expect(options.enabled).toBe(true);
+  expect(options.queryKey[6]).toBeNull();
+  expect(options.queryKey).not.toEqual(eventProposalsPageQuery(owner, scope).queryKey);
+  expect(eventProposalsPageQuery({ ...owner, userId: null }, standalone).enabled).toBe(false);
+  expect(eventProposalsPageQuery({ ...owner, enabled: false }, standalone).enabled).toBe(false);
+  expect(eventProposalsPageQuery(owner, { ...standalone, kind: "game" }).enabled).toBe(false);
+  expect(
+    eventProposalsPageQuery(owner, { ...standalone, kind: "game", tableId: "table" }).enabled,
+  ).toBe(true);
+});
+it("reconciles standalone creation/receipts and revokes only its Event proposal scopes, never unrelated Group access", () => {
+  const c = client();
+  const standalone = { ...scope, groupId: null };
+  const review = eventProposalKeys.page(owner, standalone);
+  const mine = eventProposalKeys.page(owner, { ...standalone, mode: "mine" });
+  const group = ["groups", owner.apiUrl, owner.userId, "group"];
+  const other = eventProposalKeys.page(owner, { ...standalone, eventId: "other-event" });
+  const data = { ...page(), groupId: null, items: [{ ...proposal(), groupId: null }] };
+  c.setQueryData(review, data);
+  c.setQueryData(mine, { ...data, mode: "mine" });
+  c.setQueryData(group, { id: "group", canManage: true });
+  c.setQueryData(other, { ...data, eventId: "other-event" });
+  const row = { ...proposal("p2"), groupId: null };
+  const created = commitProposalCreation(
+    { ...data, mode: "mine" },
+    mine,
+    row,
+    owner.userId,
+  ) as EventProposalsResponse;
+  expect(created.items.map((p) => p.id)).toContain("p2");
+  expect(
+    (
+      commitProposalReceipt(created, {
+        ...row,
+        version: 2,
+        status: "ACCEPTED",
+      }) as EventProposalsResponse
+    ).items.find((p) => p.id === "p2")?.status,
+  ).toBe("ACCEPTED");
+  reconcileProposalAccessError(
+    c,
+    owner,
+    standalone,
+    new CommunityApiError(404, "EVENT_NOT_FOUND"),
+    mine,
+  );
+  expect(c.getQueryData(review)).toBeUndefined();
+  expect(c.getQueryData(mine)).toBeUndefined();
+  expect(c.getQueryState(mine)?.status).toBe("error");
+  expect(c.getQueryData(group)).toEqual({ id: "group", canManage: true });
+  expect(c.getQueryData(other)).toBeDefined();
+});
+it("cancels in-flight standalone proposal reads on definitive access loss so late responses cannot restore them", async () => {
+  const c = client();
+  const standalone = { ...scope, groupId: null, mode: "mine" as const };
+  const key = eventProposalKeys.page(owner, standalone);
+  let signal: AbortSignal | undefined;
+  let finish: ((value: EventProposalsResponse) => void) | undefined;
+  const pending = c
+    .fetchQuery({
+      queryKey: key,
+      queryFn: (context) => {
+        signal = context.signal;
+        return new Promise<EventProposalsResponse>((resolve) => {
+          finish = resolve;
+        });
+      },
+    })
+    .catch(() => undefined);
+  reconcileProposalAccessError(
+    c,
+    owner,
+    standalone,
+    new CommunityApiError(404, "EVENT_NOT_FOUND"),
+    eventProposalKeys.page(owner, { ...standalone, kind: "location" }),
+  );
+  expect(signal?.aborted).toBe(true);
+  finish?.({ ...page(), groupId: null });
+  await pending;
+  expect(c.getQueryData(key)).toBeUndefined();
+});
+
+it("revokes standalone Event writers, rosters and scoped pickers without erasing unrelated rows or owners", async () => {
+  const c = client(),
+    standalone = { ...scope, groupId: null },
+    denied = eventProposalKeys.page(owner, standalone),
+    root = ["events", owner.apiUrl, owner.userId],
+    details = ["detail", "table", "tables", "participants", "seats", "invitees", "leaderboard"].map(
+      (kind) => [...root, kind, "event"],
+    ),
+    list = [...root, "list", { groupId: null }],
+    tables = [...root, "tables", null],
+    picker = (proposal: unknown, collection: unknown) => [
+      "bgg-picker",
+      owner.apiUrl,
+      owner.userId,
+      "",
+      true,
+      false,
+      null,
+      proposal,
+      "sources-v2",
+      false,
+      collection,
+    ],
+    proposalPicker = picker({ eventId: "event" }, null),
+    collectionPicker = picker(null, { eventId: "event" }),
+    safePicker = picker({ eventId: "other" }, null),
+    unscopedPicker = picker(null, null),
+    malformedPicker = picker("bad", {}),
+    retained = [
+      [...root, "detail", "other"],
+      ["events", owner.apiUrl, "foreign", "detail", "event"],
+      ["events", "foreign", owner.userId, "detail", "event"],
+      ["groups", owner.apiUrl, owner.userId, "detail", "group"],
+      [...root, "list", { groupId: "group" }],
+      safePicker,
+      unscopedPicker,
+      malformedPicker,
+    ];
+  for (const key of [denied, ...details, proposalPicker, collectionPicker, ...retained])
+    c.setQueryData(key, { id: "event", private: true });
+  const pages = (items: unknown[]) => ({
+    pages: [{ items, nextCursor: "unchanged" }],
+    pageParams: [""],
+  });
+  c.setQueryData(list, pages([{ id: "event" }, { id: "other" }]));
+  c.setQueryData(
+    tables,
+    pages([
+      { id: "table", eventId: "event" },
+      { id: "safe", eventId: "other" },
+    ]),
+  );
+  const operation = await beginOptimisticOperation(
+    c,
+    [...root, "event", "write"],
+    { queryKey: root },
+    (data) => data,
+    [],
+    undefined,
+    "event-fifo",
+  );
+  const queued = await beginOptimisticOperation(
+    c,
+    [...root, "event", "write"],
+    { queryKey: ["cold"] },
+    (data) => data,
+    [],
+    undefined,
+    "event-fifo",
+  );
+  const ready = queued.prepare();
+  const rejected = expect(ready).rejects.toThrow("MUTATION_OWNER_CHANGED");
+  const unaffected = await beginOptimisticOperation(c, [...root, "other", "write"], {
+    queryKey: ["cold-other"],
+  });
+  const failureKey = [...root, "mutation", "event", "propose", "date", null];
+  const failed = c.getMutationCache().build(c, { mutationKey: failureKey });
+  failed.state.status = "error";
+  const foreignFailure = c
+    .getMutationCache()
+    .build(c, { mutationKey: [...root, "mutation", "other", "propose"] });
+  foreignFailure.state.status = "error";
+  reconcileProposalAccessError(
+    c,
+    owner,
+    standalone,
+    new CommunityApiError(404, "EVENT_NOT_FOUND"),
+    denied,
+  );
+  await rejected;
+  expect(operation.signal.aborted).toBe(true);
+  expect(queued.signal.aborted).toBe(true);
+  expect(unaffected.active).toBe(true);
+  for (const key of [...details, proposalPicker, collectionPicker])
+    expect(c.getQueryData(key)).toBeUndefined();
+  expect(c.getQueryState(denied)?.error).toMatchObject({ code: "EVENT_NOT_FOUND" });
+  for (const key of retained) expect(c.getQueryData(key)).toBeDefined();
+  expect(c.getQueryData(list)).toEqual(pages([{ id: "other" }]));
+  expect(c.getQueryData(tables)).toEqual(pages([{ id: "safe", eventId: "other" }]));
+  expect(c.getMutationCache().getAll()).not.toContain(failed);
+  expect(c.getMutationCache().getAll()).toContain(foreignFailure);
+});
+it("filters disk-only standalone privileges using a retained verified denial, including review rosters", () => {
+  const c = client(),
+    root = ["events", owner.apiUrl, owner.userId];
+  const queryKey = eventProposalKeys.page(owner, { ...scope, groupId: null, mode: "mine" });
+  c.getQueryCache()
+    .build(c, { queryKey })
+    .setState({ status: "error", error: new CommunityApiError(404, "EVENT_NOT_FOUND") });
+  const saved = (queryKey: readonly unknown[], data: unknown = { private: true }) => ({
+    queryKey,
+    state: { data },
+  });
+  const list = saved([...root, "list", {}], {
+    pages: [{ items: [{ id: "event" }, { id: "safe" }] }],
+    pageParams: [""],
+  });
+  const safe = [
+    saved([...root, "detail", "safe"]),
+    saved(["events", owner.apiUrl, "other", "detail", "event"]),
+    saved(["events", "other", owner.userId, "detail", "event"]),
+    saved(["groups", owner.apiUrl, owner.userId, "detail", "group"]),
+  ];
+  const privateRows = [
+    saved([...root, "detail", "event"]),
+    saved(eventProposalKeys.page(owner, { ...scope, groupId: null }, "unseen-page")),
+    saved(["bgg-picker", owner.apiUrl, owner.userId, "", true, false, null, { eventId: "event" }]),
+  ];
+  expect(filterRevokedStandaloneEventRestore(c, [...privateRows, list, ...safe])).toEqual([
+    { ...list, state: { data: { pages: [{ items: [{ id: "safe" }] }], pageParams: [""] } } },
+    ...safe,
+  ]);
+  // The same scope becomes eligible again only after an authorized read replaces its denial.
+  c.setQueryData(queryKey, page());
+  expect(filterRevokedStandaloneEventRestore(c, privateRows)).toEqual(privateRows);
+  const review = [...root, "participants", "event", "roles-v2", "review", null];
+  c.getQueryCache()
+    .build(c, { queryKey: review })
+    .setState({ error: new CommunityApiError(401, "Unauthorized") });
+  expect(filterRevokedStandaloneEventRestore(c, privateRows)).toEqual([]);
+  c.getQueryCache()
+    .find({ queryKey: review, exact: true })!
+    .setState({ error: new CommunityApiError(403, "EVENT_ADMIN_REQUIRED") });
+  expect(filterRevokedStandaloneEventRestore(c, privateRows)).toEqual(privateRows);
+  c.getQueryCache()
+    .find({ queryKey: review, exact: true })!
+    .setState({ error: new Error("offline") });
+  expect(filterRevokedStandaloneEventRestore(c, privateRows)).toEqual(privateRows);
 });

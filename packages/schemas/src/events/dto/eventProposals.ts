@@ -48,7 +48,7 @@ export type EventProposalResponse = Omit<EventProposal, "requestHash" | "payload
 };
 export type EventProposalsResponse = CommunityPageResponse<EventProposalResponse> & {
   eventId: string;
-  groupId: string;
+  groupId: string | null;
   eventVersion: number;
   mode: "mine" | "review";
 };

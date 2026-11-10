@@ -1,10 +1,22 @@
 import { expect, it } from "vitest";
 import {
+  eventSummaryWallTime,
   nextEventDay,
   publicEventBounds,
   publicEventEndIsValid,
   publicTableTimeBounds,
 } from "../eventSchedule";
+
+it.each([
+  ["en", "June 3, 2030 · 20:00 · 23:00"],
+  ["it", "3 giugno 2030 · 20:00 · 23:00"],
+])(
+  "formats textual review dates without changing the location wall clock in %s",
+  (locale, expected) => {
+    expect(eventSummaryWallTime("2030-06-03T20:00", locale, "2030-06-03T23:00")).toBe(expected);
+    expect(eventSummaryWallTime("2030-06-03T20:00", locale)).toBe(expected.replace(" · 23:00", ""));
+  },
+);
 
 it("bounds same-day ends and limits registration to days before the event", () => {
   expect(publicEventBounds("2030-06-03T20:00")).toEqual({

@@ -1,3 +1,16 @@
+/** Already venue-local wall clocks: format them without reinterpreting their zone. */
+export function eventSummaryWallTime(wall: string, locale: string, endWall?: string) {
+  const start = new Date(`${wall}Z`);
+  const day = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(start);
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "UTC",
+  });
+  return `${day} · ${time.format(start)}${endWall ? ` · ${time.format(new Date(`${endWall}Z`))}` : ""}`;
+}
+
 /** Local wall-clock bounds, not instants or a replacement for venue-zone validation. */
 export function publicEventBounds(start: string) {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(start) || !Number.isFinite(Date.parse(`${start}Z`)))

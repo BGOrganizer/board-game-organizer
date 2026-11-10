@@ -48,7 +48,6 @@ export function eventProposalsPageQuery(
         o.userId &&
         o.enabled !== false &&
         scope.eventId &&
-        scope.groupId &&
         (scope.kind !== "game" || scope.tableId),
     ),
     retry: (count, error) => !communityAccessDenied(error) && count < 1,

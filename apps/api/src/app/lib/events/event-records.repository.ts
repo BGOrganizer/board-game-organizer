@@ -843,7 +843,7 @@ export class EventRecordsRepository {
       {
         $match: {
           $or: [
-            { groupId: null },
+            { groupId: null, "publicEventBlock.0": { $exists: false } },
             {
               $and: [
                 { personalAccessOnly: true },

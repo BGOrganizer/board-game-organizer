@@ -7,16 +7,14 @@ import {
   publicEventBounds,
   type useEventRecordForm,
 } from "@board-game-organizer/shared";
-import { Button, Input, Skeleton, Switch, TextField } from "@heroui/react";
+import { Button, Input, Switch, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarClock, Plus, X } from "lucide-react";
 import { useId } from "react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationListRow } from "@/components/locations/LocationListRow";
-import { EventGroupSelect } from "./EventGroupSelect";
 
 export function EventScheduleFields({
   form,
@@ -31,17 +29,18 @@ export function EventScheduleFields({
   onDateTimeChange: (value: string) => void;
   onLocation: () => void;
 }) {
-  const { t, i18n } = useLingui();
-  const startFieldId = useId();
+  const { t, i18n } = useLingui(),
+    id = useId();
   const { draft, fieldError } = form;
   const startWall = draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : "";
-  const bounds = publicEventBounds(startWall);
+  const day = startWall.slice(0, 10),
+    bounds = publicEventBounds(startWall);
   const cutoffMin =
     draft.version === undefined && draft.locations[0]?.timeZone
       ? publicEventBounds(eventLocalDateTime(new Date().toISOString(), draft.timeZone).slice(0, 16))
           .endMin
       : undefined;
-  const fieldHelp = t`Field help`;
+  const helpTitle = t`Field help`;
   const error = (path: string, message: string) =>
     fieldError(path) ? (
       <p role="alert" className="text-sm text-danger">
@@ -50,119 +49,130 @@ export function EventScheduleFields({
     ) : null;
   return (
     <div className="space-y-5">
-      <TextField
-        value={draft.name}
-        onChange={(name) => form.patch({ name })}
-        isRequired
-        isDisabled={busy}
-        isInvalid={fieldError("name")}
-      >
-        <SearchHelpLabel
-          required
-          label={t`Event name`}
-          helpTitle={fieldHelp}
-          help={t`Choose a recognizable event name between 5 and 120 characters.`}
-        />
-        <NameInput
-          category="evento"
-          isDisabled={busy}
-          onGenerate={(name) => form.patch({ name })}
-          placeholder={t`Friday game night`}
-        />
-        {error("name", t`Enter an event name between 5 and 120 characters.`)}
-      </TextField>
-      <section
-        data-form-field
-        data-form-error={fieldError("groupId") || undefined}
-        className="space-y-2"
-      >
-        <SearchHelpLabel
-          label={t`Group`}
-          helpTitle={fieldHelp}
-          help={
-            form.groupLocked
-              ? t`This event belongs to this group. The group cannot be changed.`
-              : t`Choose one of your groups, or create a standalone event without a group.`
-          }
-        />
-        {draft.groupId && form.groupQuery.isPending ? (
-          <Skeleton className="h-12 w-full rounded-xl" />
-        ) : (
-          <EventGroupSelect
-            groupId={draft.groupId}
-            group={form.group}
-            locked={form.groupLocked}
-            busy={busy}
-            onChange={(groupId) => form.patch({ groupId, locations: [] })}
-          />
-        )}
-        {draft.groupId && form.groupQuery.isError ? (
-          <div role="alert">
-            <p className="text-danger">{t`Could not load group`}</p>
-            <Button
-              variant="outline"
-              data-form-control
-              onPress={() => void form.groupQuery.refetch()}
-            >{t`Try again`}</Button>
-          </div>
-        ) : (
-          error("groupId", t`An approved group and its administrator are required.`)
-        )}
-      </section>
       {form.publicGroup ? (
-        <div className="space-y-2">
-          <Switch
-            aria-label={t`Public event`}
-            isSelected={draft.visibility !== "PRIVATE"}
-            isDisabled={busy}
-            onChange={(selected) => form.patch({ visibility: selected ? "PUBLIC" : "PRIVATE" })}
-          >
-            <Switch.Content>
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-              {t`Public event`}
-            </Switch.Content>
-          </Switch>
-          <p className="text-sm text-muted">{t`Private events are visible only to accepted group members. Public-group scheduling rules still apply.`}</p>
-        </div>
-      ) : null}
-      <section
-        data-form-field
-        data-form-error={fieldError("dates") || fieldError("startTime") || undefined}
-        className="space-y-2"
-      >
-        <SearchHelpLabel
-          required
-          htmlFor={form.publicGroup ? startFieldId : undefined}
-          label={
-            form.publicGroup
-              ? t`Start Date and Time`
-              : form.flexibleSchedule
-                ? t`Dates and times`
-                : t`Date and time`
-          }
-          helpTitle={fieldHelp}
-          help={
-            form.publicGroup
-              ? t`Choose the event start date and time.`
-              : form.flexibleSchedule
-                ? t`Propose dates and times for members to vote on. Times are local to the chosen location.`
-                : t`Choose one date and time. Remove the selected option before choosing another.`
-          }
-        />
-        {form.publicGroup ? (
+        <>
           <TextField
-            aria-label={t`Start Date and Time`}
-            isInvalid={fieldError("dates") || fieldError("startTime")}
-            value={startWall}
-            onChange={form.setStartDate}
+            value={day}
+            onChange={(value) =>
+              form.setStartDate(`${value}T${startWall.slice(11, 16) || draft.startTime}`)
+            }
             isRequired
             isDisabled={busy}
+            isInvalid={fieldError("dates")}
           >
-            <Input id={startFieldId} name="startsAt" autoComplete="off" type="datetime-local" />
+            <SearchHelpLabel
+              required
+              htmlFor={`${id}-day`}
+              label={t`Event date`}
+              helpTitle={helpTitle}
+              help={t`Choose the day of the event. Start and end times are on this same day.`}
+            />
+            <Input id={`${id}-day`} name="eventDay" type="date" autoComplete="off" />
+            {error("dates", t`Choose exactly one valid date and time.`)}
           </TextField>
-        ) : (
+          <section
+            className="space-y-2"
+            data-form-field
+            data-form-error={fieldError("startTime") || fieldError("endsAt") || undefined}
+          >
+            <SearchHelpLabel
+              required
+              label={t`Start / end time`}
+              helpTitle={helpTitle}
+              help={t`Choose a later time on the same day as the event start. All public tables must finish by this time.`}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <TextField
+                aria-label={t`Start time`}
+                value={startWall.slice(11, 16)}
+                onChange={(time) => form.setStartDate(`${day}T${time}`)}
+                isRequired
+                isDisabled={busy || !day}
+                isInvalid={fieldError("startTime")}
+              >
+                <Input name="startTime" type="time" autoComplete="off" />
+              </TextField>
+              <TextField
+                aria-label={t`End time`}
+                value={draft.endsWall.slice(11, 16)}
+                isRequired
+                isDisabled={
+                  busy ||
+                  !day ||
+                  Boolean(bounds.endMin && bounds.endMax && bounds.endMin > bounds.endMax)
+                }
+                isInvalid={fieldError("endsAt")}
+                onChange={(time) => {
+                  const endsWall = time ? `${day}T${time}` : "";
+                  if (
+                    !time ||
+                    (bounds.endMin &&
+                      bounds.endMax &&
+                      endsWall >= bounds.endMin &&
+                      endsWall <= bounds.endMax)
+                  )
+                    form.patch({ endsWall });
+                }}
+              >
+                <Input
+                  name="endsAt"
+                  type="time"
+                  min={bounds.endMin?.slice(11, 16)}
+                  max={bounds.endMax?.slice(11, 16)}
+                  autoComplete="off"
+                />
+              </TextField>
+            </div>
+            {error("startTime", t`Choose exactly one valid date and time.`)}
+            {error("endsAt", t`Choose a later end time on the same day as the start.`)}
+          </section>
+          <TextField
+            value={draft.cutoffWall}
+            isRequired
+            isDisabled={busy || !startWall}
+            isInvalid={fieldError("bookingClosesAt")}
+            onChange={(cutoffWall) => {
+              if (
+                !cutoffWall ||
+                (bounds.cutoffMax &&
+                  cutoffWall <= bounds.cutoffMax &&
+                  (!cutoffMin || cutoffWall >= cutoffMin))
+              )
+                form.patch({ cutoffWall });
+            }}
+          >
+            <SearchHelpLabel
+              required
+              label={t`Registration Deadline Date and Time`}
+              helpTitle={helpTitle}
+              help={t`Registration closes on a day before the event starts. A new event needs a future deadline.`}
+            />
+            <Input
+              name="bookingClosesAt"
+              type="datetime-local"
+              min={cutoffMin}
+              max={bounds.cutoffMax}
+              autoComplete="off"
+            />
+            {error("bookingClosesAt", t`Choose a registration deadline on a day before the event.`)}
+          </TextField>
+        </>
+      ) : (
+        <section
+          data-form-field
+          data-form-error={fieldError("dates") || fieldError("startTime") || undefined}
+          className="space-y-2"
+        >
+          <SearchHelpLabel
+            required
+            label={form.flexibleSchedule ? t`Dates and times` : t`Date and time`}
+            helpTitle={helpTitle}
+            help={
+              form.flexibleSchedule
+                ? t`Propose dates and times for participants to vote on. Times are local to the chosen location.`
+                : t`Choose one date and time. Remove the selected option before choosing another.`
+            }
+          />
           <GroupedList>
             {draft.dates.map((date) => (
               <GroupedRow key={date.id}>
@@ -216,84 +226,15 @@ export function EventScheduleFields({
               </GroupedRow>
             ) : null}
           </GroupedList>
-        )}
-        {fieldError("dates") || fieldError("startTime") ? (
-          <p role="alert" className="text-sm text-danger">
-            {form.flexibleSchedule
-              ? t`Choose at least one valid date and time.`
-              : t`Choose exactly one valid date and time.`}
-          </p>
-        ) : null}
-      </section>
-      {form.publicGroup ? (
-        <>
-          <TextField
-            value={draft.endsWall}
-            onChange={(endsWall) => {
-              if (
-                !endsWall ||
-                (bounds.endMin &&
-                  bounds.endMax &&
-                  endsWall >= bounds.endMin &&
-                  endsWall <= bounds.endMax)
-              )
-                form.patch({ endsWall });
-            }}
-            isRequired
-            isDisabled={
-              busy ||
-              !startWall ||
-              Boolean(bounds.endMin && bounds.endMax && bounds.endMin > bounds.endMax)
-            }
-            isInvalid={fieldError("endsAt")}
-          >
-            <SearchHelpLabel
-              required
-              label={t`End Date and Time`}
-              helpTitle={fieldHelp}
-              help={t`Choose a later time on the same day as the event start. All public tables must finish by this time.`}
-            />
-            <Input
-              name="endsAt"
-              autoComplete="off"
-              type="datetime-local"
-              min={bounds.endMin}
-              max={bounds.endMax}
-            />
-            {error("endsAt", t`Choose a later end time on the same day as the start.`)}
-          </TextField>
-          <TextField
-            value={draft.cutoffWall}
-            onChange={(cutoffWall) => {
-              if (
-                !cutoffWall ||
-                (bounds.cutoffMax &&
-                  cutoffWall <= bounds.cutoffMax &&
-                  (!cutoffMin || cutoffWall >= cutoffMin))
-              )
-                form.patch({ cutoffWall });
-            }}
-            isRequired
-            isDisabled={busy || !startWall}
-            isInvalid={fieldError("bookingClosesAt")}
-          >
-            <SearchHelpLabel
-              required
-              label={t`Registration Deadline Date and Time`}
-              helpTitle={fieldHelp}
-              help={t`Registration closes on a day before the event starts. A new event needs a future deadline.`}
-            />
-            <Input
-              name="bookingClosesAt"
-              autoComplete="off"
-              type="datetime-local"
-              min={cutoffMin}
-              max={bounds.cutoffMax}
-            />
-            {error("bookingClosesAt", t`Choose a registration deadline on a day before the event.`)}
-          </TextField>
-        </>
-      ) : null}
+          {fieldError("dates") || fieldError("startTime") ? (
+            <p role="alert" className="text-sm text-danger">
+              {form.flexibleSchedule
+                ? t`Choose at least one valid date and time.`
+                : t`Choose exactly one valid date and time.`}
+            </p>
+          ) : null}
+        </section>
+      )}
       <section
         data-form-field
         data-form-error={fieldError("locations") || fieldError("timeZone") || undefined}
@@ -302,10 +243,10 @@ export function EventScheduleFields({
         <SearchHelpLabel
           required
           label={t`Location`}
-          helpTitle={fieldHelp}
+          helpTitle={helpTitle}
           help={
             form.flexibleSchedule
-              ? t`Propose verified addresses for members to vote on. Each location determines its local time zone.`
+              ? t`Propose verified addresses for participants to vote on. Each location determines its local time zone.`
               : t`Each event has one verified address. Its time zone is automatic. Remove the location before choosing another.`
           }
         />
@@ -351,7 +292,7 @@ export function EventScheduleFields({
       {form.flexibleSchedule ? (
         <section className="space-y-3" aria-label={t`Participant proposals`}>
           <h2 className="font-semibold">{t`Participant proposals`}</h2>
-          <p className="text-sm text-muted">{t`Only seated participants may submit proposals. Managers review each proposal before it becomes an option.`}</p>
+          <p className="text-sm text-muted">{t`Only seated participants may submit proposals. Proposals are reviewed before they become options.`}</p>
           {(
             [
               ["allowParticipantDates", t`Allow date proposals`],

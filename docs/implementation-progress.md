@@ -1,5 +1,31 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Event creation/edit completion — 2026-11-10
+
+- Implemented the agreed four stages on web/native: Event, Dates / Locations, Tables, Review.
+  Group/visibility are immutable after creation; PUBLIC Group selection requires confirmation
+  before discarding flexible choices and never automatically publishes. Standalone and PRIVATE
+  Group Events retain flexible scheduling and opt-in proposals; PUBLIC Groups retain their exact
+  time, duration, cutoff and verified-location guards. See the [current contract](groups-events-refactor.md).
+- Tables expand independently, newly added/invalid Tables open, and nested picker navigation
+  preserves expansion. Reviews use textual EN/IT dates and one public date · start · end line.
+  Updated both source/compiled catalogs, existing browser tests and current manual Maestro paths.
+- Standalone proposal reads now enforce reciprocal blocks, including source pagination before
+  limits. Verified read denial fences dependent writers, late responses and native disk-only
+  restoration while retaining unrelated Events/owners. POST denial alone does not revoke access.
+- All **3,825 unit tests** and existing coverage thresholds pass: web 1,130; mobile 807; API 1,046;
+  schemas 180; shared 662. Shared and schemas retain 100% coverage. All **77 community integration
+  cases** pass against a disposable MongoDB replica set, including nullable proposals, rollback,
+  immutable visibility and standalone block-aware source paging.
+- Web/API production builds, Android JS/assets export, scoped Biome and strict EN/IT compilation
+  pass. Web/API/mobile/schemas typechecks pass. Shared typecheck retains exactly the same **29
+  pre-existing test-fixture diagnostics**, independently reproduced in the base checkout; no new
+  diagnostics were introduced.
+- Authenticated browser/device E2E was not executed: owned runtime fixtures were not supplied and
+  no Android device/emulator was connected. Updated Maestro YAML parses and its Table identity
+  helper passes EN/IT VM checks; these are not Maestro/device acceptance. No CI gates, provider
+  configuration or application database were changed.
+
 ## Thirteen approved follow-ups — local verification; E2E not executed by operator request
 
 - The current behavior is specified in [the unified contract](groups-events-refactor.md) and

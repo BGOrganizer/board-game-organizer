@@ -302,6 +302,10 @@ FULL is a small full PLANNING Table where the actor can join/invite; CONFIRMED i
 player with `TABLE_UX_USERNAME` and `TABLE_UX_EMAIL`. Web additionally requires `E2E_EMAIL` and existing
 Development Clerk test keys. Run `pnpm --filter web exec playwright test --config e2e/table-player-ux.config.ts`.
 Missing inputs fail. Repeat both themes and enlarged text; syntax/discovery is not device acceptance.
+The draft inspection advances through Event and Dates / Locations, then expands the fixture Table
+inside the four-step editor. `24-game-picker-reentry.yaml` follows the same navigation and checks
+that its open Table survives picker cancellation and selection. Retained legacy draft journeys are
+not evidence of the current unified editor's runtime acceptance.
 
 `16-table-schedule.yaml` and `apps/web/e2e/table-schedule.config.ts` are explicit manual,
 read-only detail scenarios, outside canonical suites/jobs. Use an isolated Development API and an

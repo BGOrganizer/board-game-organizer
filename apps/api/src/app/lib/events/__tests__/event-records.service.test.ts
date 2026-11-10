@@ -438,8 +438,8 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     notifications as never,
     ratings as never,
   );
-  const create = async () => {
-    const input = body();
+  const create = async (visibility?: "PRIVATE" | "PUBLIC") => {
+    const input = { ...body(), ...(visibility ? { visibility } : {}) };
     if (type) input.groupId = other;
     if (type === "PUBLIC") {
       input.endsAt = "2027-01-03T18:00:00Z";
@@ -467,7 +467,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
           ? table.games.map((game) => [String(game.gameId), "YES" as const])
           : [],
       ),
-      ...(type === "PRIVATE"
+      ...(type !== "PUBLIC"
         ? {
             availability: {
               version: event.version,
@@ -1314,7 +1314,7 @@ describe("atomic invitation acceptance", () => {
           code: "INVALID_JOIN_GAME_VOTES",
         },
       ];
-      if (type === "PRIVATE") {
+      if (type !== "PUBLIC") {
         const availability = choices.availability!;
         invalid.push(
           { input: { ...choices, availability: undefined }, code: "EVENT_AVAILABILITY_REQUIRED" },
@@ -1395,7 +1395,7 @@ describe("atomic invitation acceptance", () => {
         gameVotes: {},
       });
       expect(f.registrations.size).toBe(1);
-      if (type === "PRIVATE")
+      if (type !== "PUBLIC")
         expect(f.repo.saveVoter).toHaveBeenLastCalledWith(
           expect.objectContaining({
             eventId: event.id,
@@ -1587,7 +1587,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     input.tables[0].games.push({ gameId: 2 });
     const event = await f.service.create(owner, input);
     await expect(f.service.join(owner, event.id, id)).rejects.toMatchObject({
-      code: "TABLE_GAME_AVAILABILITY_REQUIRED",
+      code: "EVENT_AVAILABILITY_REQUIRED",
     });
     for (const gameVotes of [
       {},
@@ -1596,17 +1596,21 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       { "3": "YES" },
     ])
       await expect(
-        f.service.join(owner, event.id, id, { version: event.version, gameVotes } as never),
+        f.service.join(owner, event.id, id, {
+          ...f.participation(event.id, id),
+          gameVotes,
+        } as never),
       ).rejects.toMatchObject({ code: "INVALID_JOIN_GAME_VOTES" });
     await expect(
       f.service.join(owner, event.id, id, {
+        ...f.participation(event.id, id),
         version: event.version + 1,
         gameVotes: { "1": "YES" },
       }),
     ).rejects.toMatchObject({ code: "EVENT_CHANGED" });
     expect(f.repo.saveRegistration).not.toHaveBeenCalled();
     const row = await f.service.join(owner, event.id, id, {
-      version: event.version,
+      ...f.participation(event.id, id),
       gameVotes: { "1": "YES", "2": "NO" },
     });
     expect(row.gameVotes).toEqual({ "1": "YES", "2": "NO" });
@@ -1805,8 +1809,8 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       f.service.vote(guest, event.id, { kind: "date", optionId: id, vote: "UNKNOWN" } as never),
     ).rejects.toMatchObject({ code: "INVALID_VOTE" });
   });
-  it("preserves fixed/standalone enrollment, rejecting irrelevant preferences and forged invitation preferences", async () => {
-    for (const type of [null, "PUBLIC"] as const) {
+  it("preserves fixed PUBLIC enrollment, rejecting irrelevant preferences and forged invitation preferences", async () => {
+    for (const type of ["PUBLIC"] as const) {
       const f = setup(type),
         event = await f.create(),
         availability = {
@@ -2279,7 +2283,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       }),
     ).rejects.toMatchObject({ code: "PUBLIC_SCHEDULE_HAS_REGISTRATIONS" });
   });
-  it.each([null, "PUBLIC"] as const)(
+  it.each(["PUBLIC"] as const)(
     "refuses additional dates and locations before any write: %s",
     async (type) => {
       for (const dimension of ["dates", "locations"] as const) {
@@ -2457,7 +2461,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       event = await f.create(),
       invite = await f.service.register(owner, event.id, id, guest);
     f.relationships.isBlocked.mockResolvedValue(true);
-    await expect(f.accept(invite)).rejects.toMatchObject({ code: "BLOCKED_PARTICIPANT" });
+    await expect(f.accept(invite)).rejects.toMatchObject({ code: "EVENT_NOT_FOUND" });
   });
 });
 describe("public scheduling, deadline and membership consequences", () => {
@@ -2650,7 +2654,7 @@ describe("singleton consent", () => {
       expect(f.repo.saveRegistration).not.toHaveBeenCalled();
       const accepted = await f.service.join(owner, event.id, id, choices);
       expect(accepted.gameVotes).toEqual({});
-      expect(f.repo.saveVoter).toHaveBeenCalledTimes(type === "PRIVATE" ? 1 : 0);
+      expect(f.repo.saveVoter).toHaveBeenCalledTimes(type !== "PUBLIC" ? 1 : 0);
     },
   );
 });
@@ -2742,6 +2746,185 @@ describe("current Group management authority", () => {
     });
     await f.service.remove(owner, event.id, { version: event.version });
     expect(f.events.size).toBe(0);
+  });
+});
+
+describe("standalone flexible Event proposals", () => {
+  async function prepared() {
+    const f = setup();
+    const input = {
+      ...privateBody(),
+      groupId: null,
+      allowParticipantDates: true,
+      allowParticipantLocations: true,
+      tables: [{ ...body().tables[0], allowParticipantGames: true }],
+    };
+    const e = await f.service.create(owner, input);
+    const enroll = async (userId: string) =>
+      f.accept(await f.service.register(owner, e.id, id, userId));
+    const version = () => f.events.get(e.id)!.version;
+    const submit = (
+      payload: import("@board-game-organizer/schemas").EventProposalPayload,
+      userId = guest,
+    ) =>
+      f.service.submitProposal(userId, e.id, {
+        eventVersion: version(),
+        clientRequestId: randomUUID(),
+        payload,
+      });
+    return { ...f, e, enroll, version, submit };
+  }
+  it("retains multiple options/consent, author-only source pages, sole-admin review and nullable receipts for every proposal kind", async () => {
+    const f = await prepared();
+    expect(f.e).toMatchObject({
+      groupId: null,
+      groupType: null,
+      visibility: "PRIVATE",
+      managementRole: "admin",
+    });
+    expect(f.e.dates).toHaveLength(2);
+    const registration = await f.service.register(owner, f.e.id, id, guest);
+    await expect(
+      f.service.registrationAction(guest, registration.id, {
+        action: "accept",
+        version: registration.version,
+        participation: { version: f.version(), gameVotes: {} },
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_AVAILABILITY_REQUIRED" });
+    await f.accept(registration);
+    expect(await f.service.detail(guest, f.e.id)).toMatchObject({
+      canProposeDates: true,
+      canProposeLocations: true,
+      canManage: false,
+    });
+    expect(await f.service.tableDetail(guest, f.e.id, id)).toMatchObject({ canProposeGames: true });
+    expect(await f.service.proposalPickerExclusions(guest, f.e.id, id)).toEqual([1]);
+    const date = await f.submit({ kind: "date", day: "2027-01-05", startTime: "16:00" });
+    const venue = await f.submit({
+      kind: "location",
+      location: { ...location, id: randomUUID(), address: "Via Roma 2", latitude: 41.91 },
+    });
+    const game = await f.submit({ kind: "game", tableId: id, gameId: 2 });
+    for (const row of [date, venue, game]) {
+      expect(row.groupId).toBeNull();
+      expect((await f.service.proposalDetail(guest, f.e.id, row.id)).proposal.id).toBe(row.id);
+      const page = await f.service.proposals(owner, f.e.id, {
+        mode: "review",
+        kind: row.payload.kind,
+        limit: 1,
+        ...(row.payload.kind === "game" ? { tableId: id } : {}),
+      });
+      expect(page.groupId).toBeNull();
+      expect(page.items.map((p) => p.id)).toEqual([row.id]);
+    }
+    await f.submit({ kind: "date", day: "2027-01-06", startTime: "17:00" });
+    const first = await f.service.proposals(guest, f.e.id, {
+      mode: "mine",
+      kind: "date",
+      limit: 1,
+    });
+    expect(first.nextCursor).toBeTruthy();
+    const second = await f.service.proposals(guest, f.e.id, {
+      mode: "mine",
+      kind: "date",
+      limit: 1,
+      cursor: first.nextCursor!,
+    });
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0].id).not.toBe(first.items[0].id);
+    await expect(
+      f.service.proposals(guest, f.e.id, { mode: "review", kind: "date", limit: 1 }),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    for (const row of [date, venue, game]) {
+      const receipt = await f.service.reviewProposal(owner, f.e.id, row.id, {
+        action: "accept",
+        eventVersion: f.version(),
+        version: 1,
+      });
+      expect(receipt.proposal).toMatchObject({ groupId: null, status: "ACCEPTED" });
+    }
+    expect(f.events.get(f.e.id)!.dates).toHaveLength(3);
+    expect(f.events.get(f.e.id)!.locations).toHaveLength(3);
+    expect(f.tables.get(id)!.games.map((g) => g.gameId)).toEqual([1, 2]);
+    expect(f.groups.lock).not.toHaveBeenCalled();
+    expect(f.groups.managerIds).not.toHaveBeenCalled();
+    const notices = f.notifications.notifyMany.mock.calls.flatMap(
+      ([rows]) => rows as { kind: string; recipientUserId: string }[],
+    );
+    expect(
+      notices
+        .filter((n) => n.kind === "event_proposal_created")
+        .every((n) => n.recipientUserId === owner),
+    ).toBe(true);
+    expect(JSON.stringify(notices)).not.toContain('"groupId"');
+    await expect(f.service.register(guest, f.e.id, id, waiter)).rejects.toMatchObject({
+      code: "EVENT_ADMIN_REQUIRED",
+    });
+    f.relationships.isFriend.mockResolvedValue(false);
+    await expect(f.service.register(owner, f.e.id, id, waiter)).rejects.toMatchObject({
+      code: "CONFIRMED_FRIEND_REQUIRED",
+    });
+    await f.service.remove(f.e.adminUserId, f.e.id, { version: f.version() });
+    expect(f.events.has(f.e.id)).toBe(false);
+  });
+  it("never grants proposals to pending/queue/admin-only users and freshly rechecks blocks and seats on approval", async () => {
+    const f = await prepared();
+    await f.enroll(guest);
+    await f.enroll(waiter);
+    await f.enroll("queued");
+    await f.service.register(owner, f.e.id, id, "pending");
+    const payload = { kind: "date" as const, day: "2027-01-05", startTime: "16:00" };
+    for (const user of ["queued", "pending"]) {
+      expect((await f.service.detail(user, f.e.id)).canProposeDates).toBe(false);
+      expect((await f.service.tableDetail(user, f.e.id, id)).canProposeGames).toBe(false);
+      await expect(f.submit(payload, user)).rejects.toMatchObject({
+        code: "PROPOSAL_SEAT_REQUIRED",
+      });
+    }
+    await expect(f.submit(payload, owner)).rejects.toMatchObject({
+      code: "PROPOSAL_MANAGER_CANNOT_SUBMIT",
+    });
+    const row = await f.submit(payload);
+    f.relationships.isBlocked.mockResolvedValue(true);
+    await expect(f.submit({ ...payload, day: "2027-01-06" })).rejects.toMatchObject({
+      code: "EVENT_NOT_FOUND",
+    });
+    for (const read of [
+      () => f.service.detail(guest, f.e.id),
+      () => f.service.tableDetail(guest, f.e.id, id),
+      () => f.service.proposalDetail(guest, f.e.id, row.id),
+      () => f.service.proposals(guest, f.e.id, { mode: "mine", kind: "date", limit: 5 }),
+      () => f.service.proposalPickerExclusions(guest, f.e.id, id),
+    ])
+      await expect(read()).rejects.toMatchObject({ code: "EVENT_NOT_FOUND" });
+    expect((await f.service.detail(owner, f.e.id)).canEdit).toBe(true);
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        action: "accept",
+        eventVersion: f.version(),
+        version: 1,
+      }),
+    ).rejects.toMatchObject({ code: "BLOCKED_PARTICIPANT" });
+    f.relationships.isBlocked.mockResolvedValue(false);
+    for (const [key, registration] of f.registrations)
+      if (registration.userId === guest) f.registrations.delete(key);
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, row.id, {
+        action: "accept",
+        eventVersion: f.version(),
+        version: 1,
+      }),
+    ).rejects.toMatchObject({ code: "PROPOSAL_SEAT_REQUIRED" });
+    expect(f.proposals.get(row.id)?.status).toBe("PENDING");
+    expect(
+      (
+        await f.service.reviewProposal(owner, f.e.id, row.id, {
+          action: "reject",
+          eventVersion: f.version(),
+          version: 1,
+        })
+      ).proposal.status,
+    ).toBe("REJECTED");
   });
 });
 
@@ -3370,7 +3553,7 @@ describe("private participant proposals", () => {
     ).toBe("ACCEPTED");
   });
   it("keeps source authority, stale decisions, canonical duplicates and removed targets guarded", async () => {
-    for (const type of [null, "PUBLIC"] as const) {
+    for (const type of ["PUBLIC"] as const) {
       const f = setup(type),
         e = await f.create();
       await expect(
@@ -3441,9 +3624,42 @@ describe("independent Event access, enrollment and verified game capacity", () =
     tables: [],
     removedTableIds: [],
   });
+  it.each([
+    { type: null, stored: undefined, normalized: "PRIVATE" },
+    { type: "PRIVATE", stored: undefined, normalized: "PRIVATE" },
+    { type: "PUBLIC", stored: undefined, normalized: "PUBLIC" },
+    { type: "PUBLIC", stored: "PRIVATE", normalized: "PRIVATE" },
+    { type: "PUBLIC", stored: "PUBLIC", normalized: "PUBLIC" },
+  ] as const)(
+    "keeps $type/$stored visibility immutable and preserves omitted historical edits",
+    async ({ type, stored, normalized }) => {
+      const f = setup(type),
+        e = await f.create();
+      const current = f.events.get(e.id)!;
+      if (stored === undefined) delete current.visibility;
+      else current.visibility = stored;
+      const edit = visibilityEdit(e, normalized);
+      const before = clone(current);
+      const notices = f.notifications.notifyMany.mock.calls.length;
+      await expect(
+        f.service.update(owner, e.id, {
+          ...edit,
+          visibility: normalized === "PUBLIC" ? "PRIVATE" : "PUBLIC",
+        }),
+      ).rejects.toMatchObject({ code: "EVENT_VISIBILITY_IMMUTABLE" });
+      expect(f.events.get(e.id)).toEqual(before);
+      expect(f.repo.save).not.toHaveBeenCalled();
+      expect(f.notifications.notifyMany).toHaveBeenCalledTimes(notices);
+      const same = await f.service.update(owner, e.id, edit);
+      expect(same.visibility).toBe(normalized);
+      const { visibility: _visibility, ...omitted } = edit;
+      const saved = await f.service.update(owner, e.id, { ...omitted, version: same.version });
+      expect(saved.visibility).toBe(normalized);
+    },
+  );
   it("keeps a PRIVATE Event in a PUBLIC Group member-only without changing fixed scheduling or public deadlines", async () => {
     const f = setup("PUBLIC"),
-      e = await f.create();
+      e = await f.create("PRIVATE");
     const saved = await f.service.update(owner, e.id, visibilityEdit(e, "PRIVATE"));
     expect(saved).toMatchObject({
       visibility: "PRIVATE",
@@ -3509,21 +3725,20 @@ describe("independent Event access, enrollment and verified game capacity", () =
     expect(f.tables.get(id)?.confirmed?.playerIds).not.toContain("queue-only");
     expect(await f.groups.membership(other, guest)).toBeNull();
   });
-  it("does not silently orphan/remove nonmember enrollments on a public->private edit", async () => {
+  it("rejects visibility changes regardless of active nonmember or member enrollments", async () => {
     const f = setup("PUBLIC"),
       e = await f.create();
     f.groups.membership.mockResolvedValue(null);
     const registration = await f.service.join(guest, e.id, id, f.participation(e.id, id));
     const current = await f.service.detail(owner, e.id);
-    await expect(
-      f.service.update(owner, e.id, visibilityEdit(current, "PRIVATE")),
-    ).rejects.toMatchObject({ code: "EVENT_VISIBILITY_HAS_NONMEMBERS" });
-    expect(f.events.get(e.id)?.visibility).toBe("PUBLIC");
-    expect(f.registrations.get(registration.id)?.status).toBe("ACCEPTED");
-    f.groups.membership.mockResolvedValue({ status: "ACCEPTED" });
-    expect(
-      (await f.service.update(owner, e.id, visibilityEdit(current, "PRIVATE"))).visibility,
-    ).toBe("PRIVATE");
+    for (const member of [false, true]) {
+      f.groups.membership.mockResolvedValue(member ? { status: "ACCEPTED" } : null);
+      await expect(
+        f.service.update(owner, e.id, visibilityEdit(current, "PRIVATE")),
+      ).rejects.toMatchObject({ code: "EVENT_VISIBILITY_IMMUTABLE" });
+      expect(f.events.get(e.id)?.visibility).toBe("PUBLIC");
+      expect(f.registrations.get(registration.id)?.status).toBe("ACCEPTED");
+    }
   });
   it("preserves accepted public participation after Group departure while retaining private membership cleanup", async () => {
     for (const type of ["PUBLIC", "PRIVATE"] as const) {
@@ -3853,7 +4068,7 @@ describe("immutable private Event results audience", () => {
     await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 403 });
   });
   it("does not accept redundant public/standalone sharing flags", async () => {
-    for (const type of [null, "PUBLIC"] as const) {
+    for (const type of ["PUBLIC", null] as const) {
       const f = setup(type),
         e = await f.create();
       f.events.set(e.id, { ...f.events.get(e.id)!, status: "CONFIRMED" });

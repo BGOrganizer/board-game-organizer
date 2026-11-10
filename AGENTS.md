@@ -180,8 +180,10 @@ Public Group discovery uses paginated four-character searches. Pending membershi
 group Event/ranking/social access. Group exclusions remain distinct from global blocking. Events
 are standalone or grouped, with location-derived time zones, unsaved client drafts, Tables,
 explicit consent, exact public cutoffs, duration/overlap constraints, manual agreement confirmation
-and immutable results. Standalone and PUBLIC Group Events have one date/time and verified location;
-PRIVATE Group Events may propose multiple date/time and verified-location options for voting. New/edited Tables require a minimum of at
+and immutable results. PUBLIC Group Events have one date/time and verified location; standalone
+and PRIVATE Group Events may propose multiple date/time and verified-location options for voting,
+with opt-in participant proposals. Event Group and visibility are immutable after creation.
+New/edited Tables require a minimum of at
 least two players not exceeding their maximum; historical record shapes remain readable. PUBLIC
 Group Events end later on their start's local calendar day. Registration deadline must fall on an
 earlier local calendar day and remain future for creation. Table starts include Event start and the

@@ -2,10 +2,9 @@
 import {
   type EventRecordDraft,
   eventDateWall,
-  eventLocalToIso,
+  eventSummaryWallTime,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
-import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
@@ -20,7 +19,7 @@ export function EventWizardSummary({
   groupName?: string | null;
   publicGroup?: boolean;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold">{draft.name}</h1>
@@ -38,48 +37,35 @@ export function EventWizardSummary({
       </section>
       <section className="space-y-2">
         <SearchHelpLabel
-          label={publicGroup ? t`Start Date and Time` : t`Date and time`}
+          label={publicGroup ? t`Date and start/end time` : t`Dates and times`}
           helpTitle={t`Field help`}
           help={t`Times are local to the location chosen for the event.`}
         />
         <GroupedList>
           {draft.dates.map((date) => (
             <GroupedRow key={date.id}>
-              <DateTimeInfo
-                startsAt={eventLocalToIso(eventDateWall(draft, date), draft.timeZone)}
-                timeZone={draft.timeZone}
-              />
+              <p className="min-w-0 flex-1 text-sm text-foreground">
+                {eventSummaryWallTime(
+                  eventDateWall(draft, date),
+                  i18n.locale,
+                  publicGroup ? draft.endsWall : undefined,
+                )}
+              </p>
             </GroupedRow>
           ))}
         </GroupedList>
       </section>
       {publicGroup ? (
-        <>
-          <section className="space-y-2">
-            <h2 className="font-semibold">{t`End Date and Time`}</h2>
-            <GroupedList>
-              <GroupedRow>
-                <DateTimeInfo
-                  startsAt={eventLocalToIso(draft.endsWall, draft.timeZone)}
-                  timeZone={draft.timeZone}
-                  timeLabel={t`End time`}
-                />
-              </GroupedRow>
-            </GroupedList>
-          </section>
-          <section className="space-y-2">
-            <h2 className="font-semibold">{t`Registration Deadline Date and Time`}</h2>
-            <GroupedList>
-              <GroupedRow>
-                <DateTimeInfo
-                  startsAt={eventLocalToIso(draft.cutoffWall, draft.timeZone)}
-                  timeZone={draft.timeZone}
-                  timeLabel={t`Registration Deadline Date and Time`}
-                />
-              </GroupedRow>
-            </GroupedList>
-          </section>
-        </>
+        <section className="space-y-2">
+          <h2 className="font-semibold">{t`Registration Deadline Date and Time`}</h2>
+          <GroupedList>
+            <GroupedRow>
+              <p className="min-w-0 flex-1 text-sm text-foreground">
+                {eventSummaryWallTime(draft.cutoffWall, i18n.locale)}
+              </p>
+            </GroupedRow>
+          </GroupedList>
+        </section>
       ) : null}
       <section className="space-y-2">
         <SearchHelpLabel

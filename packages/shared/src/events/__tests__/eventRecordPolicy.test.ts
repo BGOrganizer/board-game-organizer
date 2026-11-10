@@ -219,6 +219,9 @@ it("previews proposed or chosen clocks without turning proposals into an agreed 
     ],
   };
   expect(eventRecordDisplayTimeZone(multi, "PRIVATE")).toBeNull();
+  expect(eventRecordDisplayTimeZone(multi, null)).toBeNull();
+  expect(eventRecordDisplayTimeZone(event, null)).toBe("UTC");
+  expect(eventRecordDisplayTimeZone({ ...multi, status: "CONFIRMED" }, null)).toBe("UTC");
   expect(eventRecordDisplayTimeZone(multi, "PUBLIC")).toBe("UTC");
   expect(eventRecordDisplayTimeZone({ ...multi, status: "CONFIRMED" }, "PRIVATE")).toBe("UTC");
 });

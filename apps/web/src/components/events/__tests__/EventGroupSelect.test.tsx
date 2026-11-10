@@ -89,7 +89,7 @@ it("preloads a compact searchable Select with group artwork, explicit no-group a
   );
   expect(options.getToken).toHaveBeenCalledTimes(3);
   fireEvent.click(await screen.findByRole("option", { name: /Second group/ }));
-  expect(change).toHaveBeenCalledWith(second.id);
+  expect(change).toHaveBeenCalledWith(second.id, second.type);
   expect(screen.queryByRole("listbox")).toBeNull();
 });
 it("keeps request failures observable, supports retry and still offers explicit no-group", async () => {

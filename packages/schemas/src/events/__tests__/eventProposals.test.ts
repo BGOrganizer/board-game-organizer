@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   eventProposalPayloadSchema,
+  eventProposalSchema,
   reviewEventProposalSchema,
   submitEventProposalSchema,
 } from "../../index";
@@ -8,6 +9,33 @@ import {
 const id = "11111111-1111-4111-8111-111111111111";
 const payload = { kind: "date", day: "2030-06-04", startTime: "20:30" };
 describe("private participant proposal boundaries", () => {
+  it("persists explicit null Group identity for standalone proposals without weakening strict validation", () => {
+    const row = {
+      id,
+      eventId: id,
+      groupId: null,
+      userId: "user_guest",
+      clientRequestId: id,
+      requestHash: "a".repeat(64),
+      payloadKey: "b".repeat(64),
+      payload,
+      label: "June game",
+      status: "PENDING",
+      version: 1,
+      submittedEventVersion: 1,
+      createdAt: "2030-06-01T00:00:00Z",
+      updatedAt: "2030-06-01T00:00:00Z",
+    };
+    expect(eventProposalSchema.parse(row)).toEqual(row);
+    expect(eventProposalSchema.parse({ ...row, groupId: id }).groupId).toBe(id);
+    for (const invalid of [
+      { ...row, groupId: undefined },
+      { ...row, groupId: "" },
+      { ...row, role: "moderator" },
+      { ...row, eventId: null },
+    ])
+      expect(eventProposalSchema.safeParse(invalid).success).toBe(false);
+  });
   it("requires exact version/correlation/payload, not role, votes, status or client canonical identity", () => {
     const input = { eventVersion: 1, clientRequestId: id, payload };
     expect(submitEventProposalSchema.parse(input)).toEqual(input);

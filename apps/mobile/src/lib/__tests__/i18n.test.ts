@@ -54,6 +54,18 @@ describe("createAppI18n", () => {
 
 describe("translate (runtime)", () => {
   it.each([
+    ["Dates / Locations", "Date / Luoghi"],
+    ["Event visibility", "Visibilità dell’evento"],
+    [
+      "Event visibility cannot be changed after creation.",
+      "La visibilità dell’evento non può essere modificata dopo la creazione.",
+    ],
+    ["Date and start/end time", "Data e orari di inizio/fine"],
+    ["Start / end time", "Orari di inizio / fine"],
+    [
+      "The organizer has no automatic playing seat.",
+      "L’organizzatore non occupa automaticamente un posto al tavolo.",
+    ],
     ["Confirmed events", "Confermati"],
     ["Confirmed tables", "Confermati"],
     ["Planning", "In pianificazione"],

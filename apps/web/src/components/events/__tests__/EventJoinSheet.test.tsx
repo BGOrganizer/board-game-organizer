@@ -380,7 +380,7 @@ it("requires three explicit dimensions and saves game votes and initial availabi
 it.each(["PRIVATE", "PUBLIC", null] as const)(
   "opens Games for existing participation, showing schedule tabs only for multiple PRIVATE choices: %s",
   async (groupType) => {
-    multipleOptions(groupType === "PRIVATE" ? 7 : 4);
+    multipleOptions(groupType !== "PUBLIC" ? 7 : 4);
     event = {
       ...event,
       groupType,
@@ -394,9 +394,9 @@ it.each(["PRIVATE", "PUBLIC", null] as const)(
     expect((await screen.findByRole("tab", { name: "Games" })).getAttribute("aria-selected")).toBe(
       "true",
     );
-    expect(screen.getAllByRole("tab")).toHaveLength(groupType === "PRIVATE" ? 3 : 1);
+    expect(screen.getAllByRole("tab")).toHaveLength(groupType !== "PUBLIC" ? 3 : 1);
     vote(await screen.findByRole("button", { name: "Chess: Yes" }));
-    if (groupType === "PRIVATE") {
+    if (groupType !== "PUBLIC") {
       fireEvent.click(screen.getByRole("tab", { name: "Dates" }));
       expect(
         (await screen.findByRole("button", { name: "2030-06-03 20:00: Yes" })).getAttribute(
@@ -408,7 +408,7 @@ it.each(["PRIVATE", "PUBLIC", null] as const)(
       expect(screen.queryByRole("tab", { name: "Dates" })).toBeNull();
       expect(screen.queryByRole("button", { name: /2030-06-03.*: Yes/ })).toBeNull();
     }
-    if (groupType === "PRIVATE") {
+    if (groupType !== "PUBLIC") {
       fireEvent.click(screen.getByRole("tab", { name: "Locations" }));
       expect(
         (await screen.findByRole("button", { name: "Club venue: If needed" })).getAttribute(
@@ -430,7 +430,7 @@ it.each(["PRIVATE", "PUBLIC", null] as const)(
     expect(JSON.parse(posts()[0][1].body as string)).toEqual({
       version: 1,
       gameVotes: { "1": "YES", "99": "NO" },
-      ...(groupType === "PRIVATE"
+      ...(groupType !== "PUBLIC"
         ? {
             availability: {
               version: 1,
@@ -460,6 +460,9 @@ it.each(["PUBLIC", null] as const)(
     expect(JSON.parse(String(posts()[0][1].body))).toEqual({
       version: 1,
       gameVotes: { "1": "IF_NEEDED", "99": "NO" },
+      ...(groupType !== "PUBLIC"
+        ? { availability: { version: 1, dateVotes: {}, locationVotes: {} } }
+        : {}),
     });
   },
 );

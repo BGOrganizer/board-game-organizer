@@ -131,18 +131,14 @@ it("reviews public start, same-day end and combined cutoff before the venue", ()
     cutoffWall: "2030-06-02T19:00",
   };
   renderWithI18n(<EventWizardSummary draft={draft} publicGroup />);
-  const start = screen.getByText("Start Date and Time"),
-    end = screen.getByText("End Date and Time"),
+  const schedule = screen.getByText("Date and start/end time"),
     cutoff = screen.getByText("Registration Deadline Date and Time"),
     location = screen.getByText("Location");
-  expect(start.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(end.compareDocumentPosition(cutoff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(schedule.compareDocumentPosition(cutoff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(cutoff.compareDocumentPosition(location) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  for (const label of [start, end, cutoff]) {
-    const section = label.closest("section");
-    expect(section?.querySelector("li time")).not.toBeNull();
-    expect(section?.querySelectorAll("li")).toHaveLength(1);
-  }
+  expect(screen.getByText("June 3, 2030 \u00b7 20:00 \u00b7 23:00")).not.toBeNull();
+  expect(screen.getByText("June 2, 2030 \u00b7 19:00")).not.toBeNull();
+  expect(screen.queryByText("End Date and Time")).toBeNull();
   expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
 });
 it("uses the requested Italian registration-deadline label in the grouped summary", () => {
@@ -159,16 +155,16 @@ it("uses the requested Italian registration-deadline label in the grouped summar
       />
     </I18nProvider>,
   );
-  expect(
-    screen.getByText("Date e ora Termine iscrizioni").closest("section")?.querySelector("li time"),
-  ).not.toBeNull();
+  expect(screen.getByText("Date e ora Termine iscrizioni")).not.toBeNull();
+  expect(screen.getByText("2 giugno 2030 \u00b7 19:00")).not.toBeNull();
+  expect(screen.getByText("3 giugno 2030 \u00b7 20:00 \u00b7 23:00")).not.toBeNull();
 });
 it.each(["Friday group", null])(
   "labels readonly single date/location summary, group=%s",
   (groupName) => {
     renderWithI18n(<EventWizardSummary draft={eventDraft(plannedEvent)} groupName={groupName} />);
     expect(screen.getByText(groupName ?? "No group")).not.toBeNull();
-    const date = screen.getByText("Date and time").closest("section");
+    const date = screen.getByText("Dates and times").closest("section");
     const location = screen.getByText("Location").closest("section");
     if (!date || !location) throw new Error("Missing labelled summary sections");
     expect(within(date).queryByRole("textbox")).toBeNull();

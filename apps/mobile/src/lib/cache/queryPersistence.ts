@@ -1,6 +1,7 @@
 import {
   bggPickerUnavailable,
   filterPersonalEventAccessRestore,
+  filterRevokedStandaloneEventRestore,
   isRetiredActivityFeed,
   optimisticBaseData,
 } from "@board-game-organizer/shared";
@@ -146,27 +147,28 @@ export function restoreSessionCache(
   // Storage can finish opening after a verified same-owner authority loss. Prune disk-only
   // privileges before hydrate emits synchronous cache events or persistence can observe them.
   // Include removed rows when deriving old parent associations, never when restoring their data.
-  const queries = filterPersonalEventAccessRestore(client, saved.clientState.queries).flatMap(
-    (row) => {
-      const current = client.getQueryState(row.queryKey);
-      if (removed.has(row.queryHash) || bggPickerUnavailable(current?.error)) return [];
-      return [
-        {
-          ...row,
-          state:
-            current?.status === "error"
-              ? {
-                  ...row.state,
-                  ...current,
-                  data: row.state.data,
-                  dataUpdatedAt: row.state.dataUpdatedAt,
-                  isInvalidated: true,
-                }
-              : row.state,
-        },
-      ];
-    },
-  );
+  const queries = filterRevokedStandaloneEventRestore(
+    client,
+    filterPersonalEventAccessRestore(client, saved.clientState.queries),
+  ).flatMap((row) => {
+    const current = client.getQueryState(row.queryKey);
+    if (removed.has(row.queryHash) || bggPickerUnavailable(current?.error)) return [];
+    return [
+      {
+        ...row,
+        state:
+          current?.status === "error"
+            ? {
+                ...row.state,
+                ...current,
+                data: row.state.data,
+                dataUpdatedAt: row.state.dataUpdatedAt,
+                isInvalidated: true,
+              }
+            : row.state,
+      },
+    ];
+  });
   hydrate(client, { mutations: [], queries });
 }
 

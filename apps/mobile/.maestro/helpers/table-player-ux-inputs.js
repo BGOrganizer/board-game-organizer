@@ -34,6 +34,7 @@ output.ux = {
   full: link("FULL"),
   confirmed: link("CONFIRMED"),
   edit: "bgo:///event/wizard?eventId=" + parts("FREE")[1],
+  tableTrigger: "event-draft-table-" + parts("FREE")[2],
   username: literal(required("TABLE_UX_USERNAME")),
   email: literal(required("TABLE_UX_EMAIL")),
   waiting: literal(it ? "Lista d'attesa" : "Waiting list"),

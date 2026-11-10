@@ -27,7 +27,7 @@ export function EventGroupSelect({
   group?: GroupRecordResponse;
   locked: boolean;
   busy: boolean;
-  onChange: (id: string | null) => void;
+  onChange: (id: string | null, type: "PRIVATE" | "PUBLIC" | null) => void;
 }) {
   const { t } = useLingui(),
     options = useCommunityApi();
@@ -56,7 +56,12 @@ export function EventGroupSelect({
         if (!value) search.setQuery("");
       }}
       onChange={(value) => {
-        if (!locked && !busy && value !== null) onChange(value === "none" ? null : String(value));
+        if (locked || busy || value === null) return;
+        if (value === "none") onChange(null, null);
+        else {
+          const selected = rows.find((row) => row.id === String(value));
+          if (selected?.canInvite) onChange(selected.id, selected.type);
+        }
       }}
     >
       <Select.Trigger data-form-control className="w-full">

@@ -18,11 +18,11 @@ export function useEventProposalSection(
   table?: PlannedTableResponse,
   disabled = false,
 ) {
-  const visible = event.groupType === "PRIVATE" && !event.readOnly && Boolean(event.groupId);
+  const visible = event.groupType !== "PUBLIC" && !event.readOnly;
   const manager = event.canManage === true;
   const scope = {
     eventId: event.id,
-    groupId: event.groupId ?? "",
+    groupId: event.groupId,
     kind,
     tableId: kind === "game" ? table?.id : undefined,
     mode: manager ? ("review" as const) : ("mine" as const),
@@ -38,7 +38,7 @@ export function useEventProposalSection(
     },
     scope,
   );
-  const actions = useEventProposalActions(o, event.id, event.groupId ?? "", kind, table?.id);
+  const actions = useEventProposalActions(o, event.id, event.groupId, kind, table?.id);
   const intents = useEventProposalIntents(o, event.id, kind, table?.id)
     .slice(0, 5)
     .filter(

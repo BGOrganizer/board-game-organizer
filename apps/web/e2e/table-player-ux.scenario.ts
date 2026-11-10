@@ -89,6 +89,8 @@ for (const width of [390, 1280])
     // Existing valid owned PLANNING Event; inspect draft only, never save.
     await page.goto(`${free.split("/tables/")[0]}/edit`);
     await main.getByRole("button", { name: it ? "Avanti" : "Next", exact: true }).click();
+    await main.getByRole("button", { name: it ? "Avanti" : "Next", exact: true }).click();
+    await main.getByTestId(`event-draft-table-${free.split("/tables/")[1]}`).click();
     await expect(
       main.getByRole("textbox", { name: it ? "Nome tavolo" : "Table name", exact: true }).first(),
     ).toBeVisible();

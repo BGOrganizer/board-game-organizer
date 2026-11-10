@@ -45,11 +45,20 @@ it("fails closed when own registration vanishes before confirmation even if cach
   };
   const fetcher = vi.fn(async (url: string, _init?: RequestInit) =>
     Response.json(
-      url.includes("/seats?")
-        ? { items: url.includes("pending=true") ? [] : [registration], nextCursor: null }
-        : url.includes("/tables/")
-          ? table
-          : { ...plannedEvent, myRegistrations: [registration], canVote: true },
+      url.includes("/proposals?")
+        ? {
+            eventId,
+            groupId: null,
+            eventVersion: plannedEvent.version,
+            mode: "mine",
+            items: [],
+            nextCursor: null,
+          }
+        : url.includes("/seats?")
+          ? { items: url.includes("pending=true") ? [] : [registration], nextCursor: null }
+          : url.includes("/tables/")
+            ? table
+            : { ...plannedEvent, myRegistrations: [registration], canVote: true },
     ),
   );
   vi.stubGlobal("fetch", fetcher);

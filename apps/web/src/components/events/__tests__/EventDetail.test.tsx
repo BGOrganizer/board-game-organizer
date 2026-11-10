@@ -70,6 +70,15 @@ beforeEach(() => {
   failWrite = false;
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (fail) return new Response("{}", { status: 503 });
+    if (url.includes("/proposals?"))
+      return Response.json({
+        eventId: event.id,
+        groupId: event.groupId,
+        eventVersion: event.version,
+        mode: new URL(url).searchParams.get("mode") === "review" ? "review" : "mine",
+        items: [],
+        nextCursor: null,
+      });
     if (url.includes("/participants?"))
       return Response.json({
         items: [],

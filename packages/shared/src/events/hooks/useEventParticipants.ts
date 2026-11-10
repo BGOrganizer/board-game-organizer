@@ -40,7 +40,7 @@ export function eventParticipantsQuery(
           reconcileProposalAccessError(
             client,
             o,
-            { eventId: id, groupId: view.groupId ?? "" },
+            { eventId: id, groupId: view.groupId },
             error,
             queryKey,
           );

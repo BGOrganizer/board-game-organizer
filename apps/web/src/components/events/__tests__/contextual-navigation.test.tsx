@@ -55,15 +55,24 @@ function setup(full = false) {
   };
   const fetcher = vi.fn(async (url: string) =>
     Response.json(
-      url.includes("/groups/")
-        ? group
-        : url.includes("/seats?")
-          ? { items: url.includes("pending=true") ? [] : rows, nextCursor: null }
-          : url.includes("/tables?")
-            ? { items: [], nextCursor: null }
-            : url.includes(`/tables/${tableId}`)
-              ? table
-              : event,
+      url.includes("/proposals?")
+        ? {
+            eventId: event.id,
+            groupId: event.groupId,
+            eventVersion: event.version,
+            mode: "mine",
+            items: [],
+            nextCursor: null,
+          }
+        : url.includes("/groups/")
+          ? group
+          : url.includes("/seats?")
+            ? { items: url.includes("pending=true") ? [] : rows, nextCursor: null }
+            : url.includes("/tables?")
+              ? { items: [], nextCursor: null }
+              : url.includes(`/tables/${tableId}`)
+                ? table
+                : event,
     ),
   );
   vi.stubGlobal("fetch", fetcher);

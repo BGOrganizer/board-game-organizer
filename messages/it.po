@@ -6707,3 +6707,63 @@ msgstr "Altri aggiornamenti"
 
 msgid "Mark displayed changes as read"
 msgstr "Segna come letti gli aggiornamenti visualizzati"
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Change group"
+msgstr "Cambia gruppo"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose the day of the event. Start and end times are on this same day."
+msgstr "Scegli il giorno dell’evento. Gli orari di inizio e fine sono nello stesso giorno."
+
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Date and start/end time"
+msgstr "Data e orari di inizio/fine"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Dates / Locations"
+msgstr "Date / Luoghi"
+
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
+msgid "Event visibility"
+msgstr "Visibilità dell’evento"
+
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
+msgid "Event visibility cannot be changed after creation."
+msgstr "La visibilità dell’evento non può essere modificata dopo la creazione."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Only seated participants may submit proposals. Proposals are reviewed before they become options."
+msgstr "Solo i partecipanti con un posto al tavolo possono inviare proposte. Le proposte vengono valutate prima di diventare opzioni."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Only seated players may propose games for this table. Proposals are reviewed before they become options."
+msgstr "Solo i giocatori con un posto a questo tavolo possono proporre giochi. Le proposte vengono valutate prima di diventare opzioni."
+
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
+msgid "Public events require an approved public group."
+msgstr "Gli eventi pubblici richiedono un gruppo pubblico approvato."
+
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
+msgid "Public events require an approved public group. Private events remain private when you change groups."
+msgstr "Gli eventi pubblici richiedono un gruppo pubblico approvato. Gli eventi privati rimangono privati quando cambi gruppo."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Public groups allow one date and one location and do not allow participant proposals. Keep the first options and disable proposals?"
+msgstr "I gruppi pubblici consentono una sola data e un solo luogo e non consentono proposte dei partecipanti. Mantenere le prime opzioni e disattivare le proposte?"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Start / end time"
+msgstr "Orari di inizio / fine"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "The organizer has no automatic playing seat."
+msgstr "L’organizzatore non occupa automaticamente un posto al tavolo."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Propose dates and times for participants to vote on. Times are local to the chosen location."
+msgstr "Proponi date e orari da far votare ai partecipanti. Gli orari sono locali al luogo scelto."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Propose verified addresses for participants to vote on. Each location determines its local time zone."
+msgstr "Proponi indirizzi verificati da far votare ai partecipanti. Ogni luogo determina il proprio fuso orario."

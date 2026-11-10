@@ -163,15 +163,27 @@ exceptions supersede older membership-only activity/detail statements below.
   destinations share the same content inset without nesting virtualized lists in scrolling parents.
 - PLANNING / CONFIRMED / TERMINATED. There is no persisted server draft or event cancellation.
   The organizer plays only through explicit table registration, never an automatic seat.
-- Standalone and PUBLIC Group Events have exactly one date/time and one verified location.
+- PUBLIC Group Events have exactly one date/time and one verified location. Standalone and
   PRIVATE Group Events may propose up to 20 distinct date/time options and 20 verified locations;
   accepted players vote independently on those option IDs. Different times on the same day are
-  distinct proposals. Web and native editors use a combined date/time field and retain an empty
-  add row beneath private proposals until the limit; standalone add rows disappear after
-  selection. PUBLIC start is one editable, non-removable combined field, initially tomorrow for a
-  new draft; its verified Location starts empty, never copied automatically from the Group. End Date
-  and Time and the combined Booking Cutoff field precede Location, which is last. Nothing is written
-  before final review.
+  distinct choices. Both clients retain combined date/time add rows beneath flexible options until
+  the limit. PUBLIC Group Events use a date-only field (tomorrow for a new draft), followed by
+  side-by-side start/end time-only controls on that same day, then a combined registration deadline
+  on an earlier day and the verified Location. New public drafts have no preset venue. Native
+  Android time pickers reject out-of-range selections rather than clamping them.
+- Creation/edit has four stages: Event, Dates / Locations, Tables, Review. Public/Private radio
+  cards always remain visible; Public is available only in an approved PUBLIC Group. Changing Group
+  resets visibility to PRIVATE and never publishes implicitly. Switching to a PUBLIC Group requires
+  confirmation before retaining only the first date/location and disabling participant proposals.
+  Name and Group share a row beneath the cards. Existing Event Group and visibility are immutable,
+  enforced by both clients and API. Standalone Events remain PRIVATE with their sole creator/admin.
+- Table editors are independently expandable HeroUI accordion items with stable draft identities,
+  a Table icon and name or localized numbered fallback. Add Table follows the last item and opens
+  it; invalid Tables open on validation. Expansion survives picker selection/cancellation and Back.
+  Ranking and optional game-proposal switches follow the games. Nested game/demonstrator lists use
+  distinct semantic surfaces. Review uses textual-month dates in the selected locale; PUBLIC Group
+  schedules appear on one date · start · end line. The organizer has no automatic playing seat.
+  Nothing is written before final confirmation.
 - Native location picking preserves map → name → favorites → address-search order. Address focus
   uses the local measured scroll owner and keyboard geometry; it never hides/removes the map/GPS,
   name, favorites or confirmation from layout, touch or accessibility. Map identity, dimensions,
@@ -557,13 +569,15 @@ existing square crop editor; cancellation retains current permission/upload/owne
 
 ### Participant option proposals
 
-Private Group Events expose opt-in `allowParticipantDates` / `allowParticipantLocations`, and
+Standalone and PRIVATE Group Events expose opt-in `allowParticipantDates` / `allowParticipantLocations`, and
 Tables expose `allowParticipantGames`. Missing historical flags are off. New submissions require
 PLANNING, an enabled category and a current ACCEPTED effective seat: anywhere in the Event for
 its date/location, only the target Table for games. Pending reservations, accepted queues and
 management/demonstration alone do not qualify. Current Group creators/moderators cannot submit
 participant proposals even when seated; they edit/review instead (`PROPOSAL_MANAGER_CANNOT_SUBMIT`).
-A demoted historical author is not a current manager. Standalone/PUBLIC Group Events cannot enable
+A demoted historical author is not a current manager. Standalone review/management belongs only
+to its creator/admin; no Group moderators or automatic seats are introduced. Either-direction blocks
+deny standalone participant reads and actions, including proposals. PUBLIC Group Events cannot enable
 these flags, including PRIVATE-visibility Events whose PUBLIC Group scheduling remains fixed.
 
 Authenticated `GET /events/:id/proposals` source-pages `mine` or current-manager-only `review`

@@ -15,7 +15,7 @@ export const eventProposalSchema = z
   .object({
     id: z.uuid(),
     eventId: z.uuid(),
-    groupId: z.uuid(),
+    groupId: z.uuid().nullable(),
     userId: targetUserIdSchema,
     clientRequestId: clientRequestIdSchema,
     requestHash: z.string().regex(/^[a-f0-9]{64}$/),

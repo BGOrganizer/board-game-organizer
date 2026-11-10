@@ -52,8 +52,8 @@ export function EventDraftTableEditor({
       : DEFAULT_GAME_DURATION_MINUTES,
   );
   const helpTitle = t`Field help`;
-  return (
-    <section className="space-y-4 rounded-xl bg-default p-4">
+  const information = (
+    <>
       <TextField
         value={row.name}
         onChange={(name) => onChange({ name })}
@@ -123,6 +123,10 @@ export function EventDraftTableEditor({
           className="text-sm text-danger"
         >{t`Choose valid player counts within the limits of the selected games.`}</p>
       ) : null}
+    </>
+  );
+  const options = (
+    <>
       <div className="flex items-center justify-between gap-3">
         <SearchHelpLabel
           label={t`Enable ratings`}
@@ -147,7 +151,7 @@ export function EventDraftTableEditor({
           <SearchHelpLabel
             label={t`Allow game proposals`}
             helpTitle={helpTitle}
-            help={t`Only seated players may propose games for this table. Managers review each proposal.`}
+            help={t`Only seated players may propose games for this table. Proposals are reviewed before they become options.`}
           />
           <Switch
             aria-label={t`Allow game proposals`}
@@ -163,6 +167,10 @@ export function EventDraftTableEditor({
           </Switch>
         </div>
       ) : null}
+    </>
+  );
+  const scheduleAndGames = (
+    <>
       {publicGroup ? (
         <>
           <TextField
@@ -321,6 +329,13 @@ export function EventDraftTableEditor({
           </p>
         ) : null}
       </section>
+    </>
+  );
+  return (
+    <section className="space-y-4">
+      {information}
+      {scheduleAndGames}
+      {options}
       <div className="flex justify-end">
         <Button
           isIconOnly

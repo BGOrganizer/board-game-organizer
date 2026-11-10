@@ -102,6 +102,7 @@ function setup() {
 }
 function review(ui: ReturnType<typeof renderWithI18n>, name: string) {
   fireEvent.change(ui.getByRole("textbox", { name: "Event name" }), { target: { value: name } });
+  fireEvent.click(ui.getByRole("button", { name: "Next" }));
   fireEvent.change(ui.getByLabelText("Date and time"), { target: { value: "2030-06-03T20:00" } });
   fireEvent.click(ui.getByRole("button", { name: "Add date" }));
   fireEvent.click(ui.getByRole("button", { name: "Choose a location" }));
@@ -254,9 +255,11 @@ it("retains a rejected raw draft after immediate navigation, restores all editor
   expect((recovered.getByRole("textbox", { name: "Event name" }) as HTMLInputElement).value).toBe(
     "Recoverable event",
   );
+  fireEvent.click(recovered.getByRole("button", { name: "Next" }));
   expect(recovered.getByRole("button", { name: "Remove location: Club venue" })).toBeDefined();
   expect(recovered.getByRole("button", { name: "Remove date: 2030-06-03 20:00" })).toBeDefined();
   fireEvent.click(recovered.getByRole("button", { name: "Next" }));
+  fireEvent.click(recovered.getByRole("button", { name: "First table" }));
   expect((recovered.getByRole("textbox", { name: "Table name" }) as HTMLInputElement).value).toBe(
     "First table",
   );

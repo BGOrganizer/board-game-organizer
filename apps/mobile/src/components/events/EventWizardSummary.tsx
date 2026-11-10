@@ -1,11 +1,11 @@
 import {
   type EventRecordDraft,
   eventDateWall,
-  eventLocalToIso,
+  eventSummaryWallTime,
 } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
 import { Typography } from "heroui-native/text";
 import { View } from "react-native";
-import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
@@ -21,10 +21,11 @@ export function EventWizardSummary({
   groupName?: string | null;
   publicGroup?: boolean;
 }) {
-  const t = useT();
+  const t = useT(),
+    { i18n } = useLingui();
   return (
     <View style={{ gap: 20 }}>
-      <Typography className="font-bold text-foreground" accessibilityRole="header">
+      <Typography accessibilityRole="header" className="text-xl font-bold text-foreground">
         {draft.name}
       </Typography>
       <View style={{ gap: 8 }}>
@@ -41,52 +42,37 @@ export function EventWizardSummary({
       </View>
       <View style={{ gap: 8 }}>
         <SearchHelpLabel
-          label={publicGroup ? t("Start Date and Time") : t("Date and time")}
+          label={publicGroup ? t("Date and start/end time") : t("Dates and times")}
           helpTitle={t("Field help")}
           help={t("Times are local to the location chosen for the event.")}
         />
         <GroupedList>
           {draft.dates.map((date) => (
             <GroupedRow key={date.id}>
-              <DateTimeInfo
-                startsAt={eventLocalToIso(eventDateWall(draft, date), draft.timeZone)}
-                timeZone={draft.timeZone}
-              />
+              <Typography className="text-sm text-foreground" style={{ flex: 1, minWidth: 0 }}>
+                {eventSummaryWallTime(
+                  eventDateWall(draft, date),
+                  i18n.locale,
+                  publicGroup ? draft.endsWall : undefined,
+                )}
+              </Typography>
             </GroupedRow>
           ))}
         </GroupedList>
       </View>
       {publicGroup ? (
-        <>
-          <View style={{ gap: 8 }}>
-            <Typography className="font-semibold text-foreground">
-              {t("End Date and Time")}
-            </Typography>
-            <GroupedList>
-              <GroupedRow>
-                <DateTimeInfo
-                  startsAt={eventLocalToIso(draft.endsWall, draft.timeZone)}
-                  timeZone={draft.timeZone}
-                  timeLabel={t("End time")}
-                />
-              </GroupedRow>
-            </GroupedList>
-          </View>
-          <View style={{ gap: 8 }}>
-            <Typography className="font-semibold text-foreground">
-              {t("Registration Deadline Date and Time")}
-            </Typography>
-            <GroupedList>
-              <GroupedRow>
-                <DateTimeInfo
-                  startsAt={eventLocalToIso(draft.cutoffWall, draft.timeZone)}
-                  timeZone={draft.timeZone}
-                  timeLabel={t("Registration Deadline Date and Time")}
-                />
-              </GroupedRow>
-            </GroupedList>
-          </View>
-        </>
+        <View style={{ gap: 8 }}>
+          <Typography accessibilityRole="header" className="font-semibold text-foreground">
+            {t("Registration Deadline Date and Time")}
+          </Typography>
+          <GroupedList>
+            <GroupedRow>
+              <Typography className="text-sm text-foreground" style={{ flex: 1, minWidth: 0 }}>
+                {eventSummaryWallTime(draft.cutoffWall, i18n.locale)}
+              </Typography>
+            </GroupedRow>
+          </GroupedList>
+        </View>
       ) : null}
       <View style={{ gap: 8 }}>
         <SearchHelpLabel

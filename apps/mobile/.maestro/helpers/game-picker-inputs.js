@@ -22,7 +22,7 @@ var it = locale === "it";
 output.picker = {
   eventLink: "bgo:///event/wizard?eventId=" + eventId,
   eventName: literal(required("PICKER_EVENT_NAME")),
-  tables: it ? "^2\\. Tavoli$" : "^2\\. Tables$",
+  next: it ? "^Avanti$" : "^Next$",
   choose: it ? "^Scegli un gioco$" : "^Choose a game$",
   back: it ? "^Indietro$" : "^Back$",
   first: literal(first),

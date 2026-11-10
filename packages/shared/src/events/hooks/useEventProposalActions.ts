@@ -30,7 +30,6 @@ import {
   type EventProposalCategory,
   eventProposalKeys,
   projectProposalReview,
-  reconcileProposalAccessError,
   revokeProposalReview,
 } from "../eventProposalCache";
 import { eventRecordKeys } from "./useEventRecords";
@@ -39,7 +38,7 @@ type ClientOwner = {
   apiUrl: string;
   userId: string | null | undefined;
   eventId: string;
-  groupId: string;
+  groupId: string | null;
 };
 export type SubmitEventProposalVariables = {
   eventVersion: number;
@@ -79,7 +78,7 @@ export function useEventProposalIntents(
 export function useEventProposalActions(
   o: CommunityApiOptions,
   eventId: string,
-  groupId: string,
+  groupId: string | null,
   kind?: EventProposalCategory,
   tableId?: string,
 ) {
@@ -134,12 +133,12 @@ export function useEventProposalActions(
       review
         ? [
             eventProposalKeys.reviewResource(captured, eventId),
-            eventProposalKeys.groupReviewResource(captured, groupId),
+            ...(groupId ? [eventProposalKeys.groupReviewResource(captured, groupId)] : []),
           ]
         : [],
       undefined,
       JSON.stringify(["event-actions", ...eventRecordKeys.root(captured), eventId]),
-      [["groups", o.apiUrl, o.userId, groupId]],
+      groupId ? [["groups", o.apiUrl, o.userId, groupId]] : [],
     );
     o.feedback?.onOptimisticUpdate?.(action);
     return { operation, owner: captured, options: o, action };
@@ -149,7 +148,6 @@ export function useEventProposalActions(
     if (!c?.operation.active) return;
     c.options.feedback?.onError?.(error, optimisticFailureAction(error, c.action));
     await c.operation.reject(error);
-    reconcileProposalAccessError(client, c.owner, c.owner, error);
     if (c.operation.active) await c.operation.wait();
   }
   function settle(_data: unknown, _error: Error | null, _v: unknown, c: Context | undefined) {
@@ -172,10 +170,11 @@ export function useEventProposalActions(
         },
         { cancelRefetch: false },
       );
-      void client.invalidateQueries(
-        { queryKey: ["groups", c.owner.apiUrl, c.owner.userId] },
-        { cancelRefetch: false },
-      );
+      if (c.owner.groupId)
+        void client.invalidateQueries(
+          { queryKey: ["groups", c.owner.apiUrl, c.owner.userId] },
+          { cancelRefetch: false },
+        );
     }
     void client.invalidateQueries({ queryKey: ["bgg-picker", c.owner.apiUrl, c.owner.userId] });
     void client.invalidateQueries({ queryKey: ["notifications", c.owner.apiUrl, c.owner.userId] });

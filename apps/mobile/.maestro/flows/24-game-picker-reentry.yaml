@@ -13,7 +13,11 @@ tags: [manual, games, performance]
 - extendedWaitUntil:
     visible: ${output.picker.eventName}
     timeout: 120000
-- tapOn: ${output.picker.tables}
+- tapOn: ${output.picker.next}
+- tapOn: ${output.picker.next}
+- tapOn:
+    id: "event-draft-table-.*"
+    index: 0
 - tapOn: ${output.picker.choose}
 - extendedWaitUntil:
     visible: ${output.picker.first}

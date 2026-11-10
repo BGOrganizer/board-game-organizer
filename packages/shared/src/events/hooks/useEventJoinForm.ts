@@ -54,7 +54,7 @@ export function useEventJoinForm(
     [validationAttempt, setValidationAttempt] = useState(0);
   const initialized = useRef({ scope, availability: false, games: false, submitted: false });
   const sameOwner = draftScope === scope;
-  const requiresAvailability = event?.groupType === "PRIVATE",
+  const requiresAvailability = Boolean(event && event.groupType !== "PUBLIC"),
     isInvitation = registrationId !== undefined,
     gamesOnly = isInvitation && event?.groupType === "PUBLIC";
   const dates = event?.dates ?? emptyOptions,

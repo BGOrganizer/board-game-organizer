@@ -1,10 +1,20 @@
 import {
   type CreateEventVariables,
   clearSessionQueryCache,
+  eventDraft,
   eventRecordQuery,
+  useEventRecordForm,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   eventId,
@@ -70,22 +80,33 @@ vi.mock("@/components/locations/SearchLocationPage", () => ({
   ),
 }));
 vi.mock("@/components/games/SearchGamePage", () => ({
-  SearchGamePage: ({ onSelect }: { onSelect: (value: unknown) => void }) => (
-    <button
-      type="button"
-      onClick={() =>
-        onSelect({
-          id: 1,
-          name: "Chess",
-          year: null,
-          imageUrl: null,
-          maxPlayMinutes: 60,
-          ...m.playerBounds,
-        })
-      }
-    >
-      Choose catalog game
-    </button>
+  SearchGamePage: ({
+    onSelect,
+    onClose,
+  }: {
+    onSelect: (value: unknown) => void;
+    onClose: () => void;
+  }) => (
+    <>
+      <button
+        type="button"
+        onClick={() =>
+          onSelect({
+            id: 1,
+            name: "Chess",
+            year: null,
+            imageUrl: null,
+            maxPlayMinutes: 60,
+            ...m.playerBounds,
+          })
+        }
+      >
+        Choose catalog game
+      </button>
+      <button type="button" onClick={onClose}>
+        Cancel game picker
+      </button>
+    </>
   ),
 }));
 afterEach(async () => {
@@ -110,6 +131,16 @@ function mount(edit = false, groupId?: string, existingClient?: QueryClient) {
     </QueryClientProvider>,
   );
   return { client, ui };
+}
+function openSchedule() {
+  if (screen.queryByRole("textbox", { name: "Event name" }))
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+}
+async function expandExistingTable() {
+  if (screen.queryByLabelText("Date and time"))
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  const trigger = await screen.findByRole("button", { name: plannedTable.name });
+  if (trigger.getAttribute("aria-expanded") !== "true") fireEvent.click(trigger);
 }
 it("changes Group inline through Select, preserves the draft and permits explicit no-group", async () => {
   const group = {
@@ -138,18 +169,20 @@ it("changes Group inline through Select, preserves the draft and permits explici
   expect((screen.getByRole("textbox", { name: "Event name" }) as HTMLInputElement).value).toBe(
     "Unsaved event name",
   );
+  openSchedule();
   await screen.findByRole("button", { name: "Remove location: Club venue" });
+  fireEvent.click(screen.getByRole("button", { name: "1. Event" }));
   fireEvent.click(screen.getByRole("button", { name: /Group$/ }));
   fireEvent.click(await screen.findByRole("option", { name: "No group" }));
-  await waitFor(() =>
-    expect(screen.queryByRole("button", { name: "Remove location: Club venue" })).toBeNull(),
-  );
+  openSchedule();
+  expect(screen.getByRole("button", { name: "Remove location: Club venue" })).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "1. Event" }));
   expect((screen.getByRole("textbox", { name: "Event name" }) as HTMLInputElement).value).toBe(
     "Unsaved event name",
   );
   expect(m.replace).not.toHaveBeenCalled();
 });
-it("initializes public start tomorrow without removal or venue defaults and bounds one combined cutoff/end picker before Location", async () => {
+it("initializes public start tomorrow without venue defaults and bounds separate date and start/end clocks before Location", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(
@@ -168,40 +201,43 @@ it("initializes public start tomorrow without removal or venue defaults and boun
     ),
   );
   mount(false, optionId);
-  const start = (await screen.findByLabelText("Start Date and Time")) as HTMLInputElement;
+  await screen.findByRole("button", { name: /Group$/ });
+  fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
+    target: { value: "Public game night" },
+  });
+  openSchedule();
+  const date = (await screen.findByLabelText(/^Event date \*$/)) as HTMLInputElement;
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const day = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
-  await waitFor(() => expect(start.value.startsWith(day)).toBe(true));
+  await waitFor(() => expect(date.value).toBe(day));
+  expect(date.type).toBe("date");
   expect(screen.queryByRole("button", { name: /^Remove date/ })).toBeNull();
   expect(screen.queryByText("Club venue")).toBeNull();
-  expect(screen.getByRole("button", { name: "Choose a location" })).not.toBeNull();
-  fireEvent.change(start, { target: { value: "2030-06-03T20:00" } });
-  const end = screen.getByLabelText(/^End Date and Time \*$/) as HTMLInputElement,
+  fireEvent.change(date, { target: { value: "2030-06-03" } });
+  const start = screen.getByLabelText("Start time") as HTMLInputElement,
+    end = screen.getByLabelText("End time") as HTMLInputElement,
     cutoff = screen.getByLabelText(/^Registration Deadline Date and Time \*$/) as HTMLInputElement;
-  expect(end.type).toBe("datetime-local");
-  expect(cutoff.type).toBe("datetime-local");
-  expect(end.min).toBe("2030-06-03T20:01");
-  expect(end.max).toBe("2030-06-03T23:59");
+  fireEvent.change(start, { target: { value: "20:00" } });
+  expect(start.type).toBe("time");
+  expect(end.type).toBe("time");
+  expect(end.min).toBe("20:01");
+  expect(end.max).toBe("23:59");
   expect(cutoff.max).toBe("2030-06-02T23:59");
   expect(end.compareDocumentPosition(cutoff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(
     cutoff.compareDocumentPosition(screen.getByRole("button", { name: "Choose a location" })) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
-  fireEvent.change(end, { target: { value: "2030-06-04T01:00" } });
+  fireEvent.change(end, { target: { value: "20:00" } });
   expect(end.value).toBe("");
-  fireEvent.change(end, { target: { value: "2030-06-03T20:00" } });
-  expect(end.value).toBe("");
-  fireEvent.change(end, { target: { value: "2030-06-03T22:00" } });
-  expect(end.value).toBe("2030-06-03T22:00");
-  fireEvent.change(cutoff, { target: { value: "2030-06-03T20:00" } });
-  expect(cutoff.value).toBe("");
+  fireEvent.change(end, { target: { value: "22:00" } });
+  expect(end.value).toBe("22:00");
   fireEvent.change(cutoff, { target: { value: "2030-06-03T19:00" } });
   expect(cutoff.value).toBe("");
   fireEvent.change(cutoff, { target: { value: "2030-06-02T23:00" } });
   expect(cutoff.value).toBe("2030-06-02T23:00");
-  fireEvent.change(start, { target: { value: "2030-06-04T20:00" } });
+  fireEvent.change(start, { target: { value: "23:00" } });
   expect(end.value).toBe("");
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
@@ -230,17 +266,21 @@ it("keeps private add slots, independent same-day clocks, location choices and p
   );
   vi.stubGlobal("fetch", fetch);
   mount(false, optionId);
-  await screen.findByRole("button", { name: "Remove location: Club venue" });
-  fireEvent.click(screen.getByRole("button", { name: "Next" }));
-  expect(screen.getByText("Choose at least one valid date and time.")).not.toBeNull();
+  await screen.findByRole("button", { name: /Group$/ });
   fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
     target: { value: "Private game night" },
   });
+  openSchedule();
+  await screen.findByRole("button", { name: "Remove location: Club venue" });
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  expect(screen.getByText("Choose at least one valid date and time.")).not.toBeNull();
+  openSchedule();
   fireEvent.change(screen.getByLabelText("Date and time"), {
     target: { value: "2030-06-03T18:15" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect((screen.getByLabelText("Date and time") as HTMLInputElement).value).toBe("");
+  openSchedule();
   fireEvent.change(screen.getByLabelText("Date and time"), {
     target: { value: "2030-06-03T21:30" },
   });
@@ -252,6 +292,7 @@ it("keeps private add slots, independent same-day clocks, location choices and p
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(screen.getByRole("button", { name: "Remove date: 2030-06-03 18:15" })).not.toBeNull();
   expect(screen.getByRole("button", { name: "Remove date: 2030-06-03 21:30" })).not.toBeNull();
+  openSchedule();
   fireEvent.change(screen.getByLabelText("Date and time"), {
     target: { value: "2030-06-03T21:30" },
   });
@@ -301,6 +342,7 @@ it("submits one complete event only on final review, with no server draft or imp
   fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
     target: { value: "Friday games" },
   });
+  openSchedule();
   fireEvent.change(screen.getByLabelText("Date and time"), {
     target: { value: "2030-06-03T20:00" },
   });
@@ -355,6 +397,7 @@ it.each([false, true])(
       fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
         target: { value: "Unsaved draft" },
       });
+      openSchedule();
       fireEvent.change(screen.getByLabelText("Date and time"), {
         target: { value: "2030-06-03T20:00" },
       });
@@ -363,8 +406,10 @@ it.each([false, true])(
       fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
     }
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    if (edit) fireEvent.click(await screen.findByRole("button", { name: /^Remove game:/ }));
-    else fireEvent.click(screen.getByRole("button", { name: "Add table" }));
+    if (edit) {
+      await expandExistingTable();
+      fireEvent.click(await screen.findByRole("button", { name: /^Remove game:/ }));
+    } else fireEvent.click(screen.getByRole("button", { name: "Add table" }));
     fireEvent.click(screen.getByRole("button", { name: "Increase Minimum players" }));
     fireEvent.click(screen.getByRole("button", { name: "Increase Maximum players" }));
     expect(screen.getByLabelText("Minimum players").textContent).toBe("3");
@@ -418,6 +463,7 @@ it("requires explicit table removal and sends only loaded upserts plus removed I
   mount(true);
   await screen.findByRole("textbox", { name: "Event name" });
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  await expandExistingTable();
   fireEvent.click(await screen.findByRole("button", { name: "Remove table" }));
   expect(fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove table" }));
@@ -456,6 +502,7 @@ it.each([409, 503])(
       target: { value: "Retained Event edit" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await expandExistingTable();
     await screen.findByRole("button", { name: "Remove table" });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.click(screen.getByRole("button", { name: "Save event" }));
@@ -484,6 +531,7 @@ it.each([409, 503])(
       ((await screen.findByRole("textbox", { name: "Event name" })) as HTMLInputElement).value,
     ).toBe("Retained Event edit");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await expandExistingTable();
     await screen.findByRole("button", { name: "Remove table" });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect((screen.getByRole("button", { name: "Save event" }) as HTMLButtonElement).disabled).toBe(
@@ -532,6 +580,10 @@ it("locks the contextual group in its disabled Select and derives its location c
   mount(false, optionId);
   const groupSelect = await screen.findByRole("button", { name: /Group$/ });
   expect(groupSelect.hasAttribute("disabled")).toBe(true);
+  fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
+    target: { value: "Context event" },
+  });
+  openSchedule();
   await screen.findByRole("button", { name: "Remove location: Club venue" });
   expect(screen.queryByRole("button", { name: "Friday group" })).toBeNull();
   expect(screen.queryByRole("button", { name: "No group" })).toBeNull();
@@ -556,6 +608,7 @@ it("uses bounded primary player counters and keeps the empty game slot after sel
   mount(true);
   await screen.findByRole("textbox", { name: "Event name" });
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  await expandExistingTable();
   await screen.findByPlaceholderText("Strategy table");
   expect(screen.queryByRole("textbox", { name: "Minimum players" })).toBeNull();
   expect(
@@ -607,6 +660,7 @@ it("leaves final review immediately but retains the complete failed draft for ex
   fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
     target: { value: "Friday games" },
   });
+  openSchedule();
   fireEvent.change(screen.getByLabelText("Date and time"), {
     target: { value: "2030-06-03T20:00" },
   });
@@ -652,7 +706,7 @@ it("keeps validation attempts reachable, showing blocking schedule errors withou
   expect(next.disabled).toBe(false);
   expect(next.textContent).toBe("");
   expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
-  expect((screen.getByRole("button", { name: "3. Review" }) as HTMLButtonElement).disabled).toBe(
+  expect((screen.getByRole("button", { name: "4. Review" }) as HTMLButtonElement).disabled).toBe(
     true,
   );
   expect(screen.queryByLabelText("Time zone")).toBeNull();
@@ -663,16 +717,16 @@ it("keeps validation attempts reachable, showing blocking schedule errors withou
     "true",
   );
   expect(screen.getByText("Enter an event name between 5 and 120 characters.")).not.toBeNull();
-  expect(screen.getByText("Choose exactly one valid date and time.")).not.toBeNull();
-  expect(screen.getByText("Choose exactly one verified location.")).not.toBeNull();
+  expect(screen.queryByText("Choose at least one valid date and time.")).toBeNull();
   fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
     target: { value: "Friday games" },
   });
+  openSchedule();
   fireEvent.change(screen.getByLabelText("Date and time"), {
     target: { value: "2030-06-03T20:00" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
-  expect(screen.queryByRole("button", { name: "Add date" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Add date" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
   expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(false);
@@ -682,6 +736,153 @@ it("keeps validation attempts reachable, showing blocking schedule errors withou
   expect(
     screen.getByRole("button", { name: "Remove date: 2030-06-03 20:00" }).closest("li"),
   ).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Choose a location" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Choose a location" })).not.toBeNull();
   expect(m.replace).not.toHaveBeenCalled();
+});
+
+it.each([null, "PRIVATE", "PUBLIC"] as const)(
+  "shows both visibility cards with public available only for a public group: %s",
+  async (type) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.includes("/groups/") ? { ...groupRecord, type } : { items: [], nextCursor: null },
+        ),
+      ),
+    );
+    mount(false, type ? optionId : undefined);
+    const privateRadio = screen.getByRole("radio", { name: "Private" }) as HTMLInputElement;
+    const publicRadio = screen.getByRole("radio", { name: "Public" }) as HTMLInputElement;
+    expect(privateRadio.checked).toBe(true);
+    await waitFor(() => expect(publicRadio.disabled).toBe(type !== "PUBLIC"));
+    expect(privateRadio.disabled).toBe(false);
+    if (type === "PUBLIC") {
+      fireEvent.click(publicRadio);
+      expect(publicRadio.checked).toBe(true);
+    }
+  },
+);
+
+it("locks both event visibility cards and the group selector when editing", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.includes("/tables?")
+          ? { items: [plannedTable], nextCursor: null }
+          : url.includes("/groups/")
+            ? { ...groupRecord, type: "PUBLIC" }
+            : { ...plannedEvent, groupId: optionId, groupType: "PUBLIC", visibility: "PUBLIC" },
+      ),
+    ),
+  );
+  mount(true);
+  const publicRadio = (await screen.findByRole("radio", { name: "Public" })) as HTMLInputElement;
+  expect(publicRadio.checked).toBe(true);
+  expect(publicRadio.disabled).toBe(true);
+  expect((screen.getByRole("radio", { name: "Private" }) as HTMLInputElement).disabled).toBe(true);
+  expect(
+    ((await screen.findByRole("button", { name: /Group$/ })) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("radio", { name: "Private" }));
+  expect(publicRadio.checked).toBe(true);
+});
+
+it("restores canonical edit ownership and visibility despite a tampered recovered draft and rejects later changes", () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  clients.push(client);
+  const canonical = { ...plannedEvent, visibility: "PRIVATE" as const };
+  const recovered = {
+    ...eventDraft(canonical),
+    groupId: optionId,
+    visibility: "PUBLIC" as const,
+    name: "Recovered unsaved name",
+  };
+  const { result } = renderHook(
+    () =>
+      useEventRecordForm(
+        { apiUrl: "https://api.test", userId: "owner", getToken: async () => "fresh" },
+        canonical,
+        undefined,
+        recovered,
+      ),
+    {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  expect(result.current.draft).toMatchObject({
+    groupId: null,
+    visibility: "PRIVATE",
+    name: "Recovered unsaved name",
+  });
+  expect(result.current.groupLocked).toBe(true);
+  expect(result.current.visibilityLocked).toBe(true);
+  act(() => {
+    result.current.patch({ groupId: optionId });
+    result.current.selectGroup(optionId, "PUBLIC");
+    result.current.patch({ visibility: "PUBLIC" });
+  });
+  expect(result.current.draft).toMatchObject({
+    groupId: null,
+    visibility: "PRIVATE",
+    name: "Recovered unsaved name",
+  });
+});
+
+it("keeps several table panels open, expands new and invalid tables, and preserves expansion through picker cancellation", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.includes("/tables?")
+          ? { items: [plannedTable], nextCursor: null }
+          : url.includes("/favorites")
+            ? { items: [], nextCursor: null }
+            : plannedEvent,
+      ),
+    ),
+  );
+  mount(true);
+  await screen.findByRole("textbox", { name: "Event name" });
+  openSchedule();
+  await expandExistingTable();
+  fireEvent.click(screen.getByRole("button", { name: "Add table" }));
+  const tableNames = screen.getAllByRole("textbox", { name: "Table name" });
+  expect(tableNames).toHaveLength(2);
+  fireEvent.change(tableNames[1], { target: { value: "Second table" } });
+  const first = screen.getByRole("button", { name: "First table" });
+  const second = screen.getByRole("button", { name: "Second table" });
+  expect(first.getAttribute("aria-expanded")).toBe("true");
+  expect(second.getAttribute("aria-expanded")).toBe("true");
+  fireEvent.click(screen.getAllByRole("button", { name: "Choose a game" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Cancel game picker" }));
+  expect(screen.getAllByRole("textbox", { name: "Table name" })).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: "Remove game: Chess" }));
+  fireEvent.click(screen.getByRole("button", { name: "First table" }));
+  expect(screen.getByRole("button", { name: "First table" }).getAttribute("aria-expanded")).toBe(
+    "false",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "First table" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    ),
+  );
+  expect(screen.getByRole("button", { name: "Second table" }).getAttribute("aria-expanded")).toBe(
+    "true",
+  );
+  expect(screen.getAllByText("Choose at least one game.")).toHaveLength(2);
+  fireEvent.click(screen.getAllByRole("button", { name: "Choose a game" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Choose catalog game" }));
+  expect(screen.getAllByRole("textbox", { name: "Table name" })).toHaveLength(2);
+  expect(screen.getByRole("button", { name: "Second table" }).getAttribute("aria-expanded")).toBe(
+    "true",
+  );
 });

@@ -14,11 +14,11 @@ import {
   useEventRecordForm,
   useFavoriteLocations,
 } from "@board-game-organizer/shared";
-import { Button, Skeleton } from "@heroui/react";
+import { Accordion, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, ArrowRight, CalendarPlus, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarPlus, Plus, Save, Table2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
@@ -26,6 +26,7 @@ import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDraftTableCard } from "./EventDraftTableCard";
 import { EventDraftTableEditor } from "./EventDraftTableEditor";
+import { EventInformationFields } from "./EventInformationFields";
 import { EventScheduleFields } from "./EventScheduleFields";
 import { EventWizardSummary } from "./EventWizardSummary";
 
@@ -111,11 +112,26 @@ function Editor({
       null,
     ),
     [remove, setRemove] = useState<string | null>(null),
-    [submitting, setSubmitting] = useState(false);
+    [submitting, setSubmitting] = useState(false),
+    [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
   const submitted = useRef(false);
   const favorites = useFavoriteLocations(o, form.draft.locations);
   const { draft, step } = form,
-    publicGroup = (form.group?.type ?? event?.groupType) === "PUBLIC";
+    publicGroup = form.publicGroup;
+  useEffect(() => {
+    if (step !== 2 || !form.validationAttempt) return;
+    setExpandedTables((old) => {
+      const next = new Set(old);
+      draft.tables.forEach((row, index) => {
+        if (form.fieldError(`tables.${index}`)) next.add(row.key);
+      });
+      return next.size === old.size ? old : next;
+    });
+  }, [step, form.validationAttempt, form.fieldError, draft.tables]);
+  const addTable = () => {
+    const key = form.addTable();
+    if (key) setExpandedTables((old) => new Set([...old, key]));
+  };
   const save = () => {
     const parsed = form.validate();
     if (!parsed.success || submitted.current || (event && (a.busy || checking)) || form.conflict)
@@ -206,7 +222,7 @@ function Editor({
       className="mx-auto max-w-4xl space-y-5 pt-8 pb-28"
     >
       <div className="flex flex-wrap justify-center gap-2 py-2">
-        {[t`Event`, t`Tables`, t`Review`].map((label, index) => (
+        {[t`Event`, t`Dates / Locations`, t`Tables`, t`Review`].map((label, index) => (
           <Button
             key={label}
             variant={step === index ? "primary" : "ghost"}
@@ -226,6 +242,8 @@ function Editor({
         >{t`This event changed. Go back and reopen the editor before saving.`}</p>
       ) : null}
       {step === 0 ? (
+        <EventInformationFields form={form} busy={submitting} />
+      ) : step === 1 ? (
         <EventScheduleFields
           form={form}
           busy={submitting}
@@ -233,13 +251,62 @@ function Editor({
           onDateTimeChange={setNewDateTime}
           onLocation={() => setPick("location")}
         />
-      ) : step === 1 ? (
+      ) : step === 2 ? (
         <>
+          <Accordion
+            allowsMultipleExpanded
+            variant="default"
+            expandedKeys={expandedTables}
+            onExpandedChange={(keys) => setExpandedTables(new Set([...keys].map(String)))}
+          >
+            {draft.tables.map((row, index) => (
+              <Accordion.Item
+                key={row.key}
+                id={row.key}
+                className="mb-3 overflow-hidden rounded-xl bg-default"
+              >
+                <Accordion.Heading>
+                  <Accordion.Trigger
+                    data-testid={`event-draft-table-${row.key}`}
+                    isDisabled={submitting}
+                  >
+                    <Table2 className="me-2 size-5 shrink-0 text-muted" aria-hidden />
+                    <span className="min-w-0 flex-1 break-words">
+                      {row.name.trim() || `${t`Table`} #${index + 1}`}
+                    </span>
+                    <Accordion.Indicator />
+                  </Accordion.Trigger>
+                </Accordion.Heading>
+                <Accordion.Panel>
+                  <Accordion.Body>
+                    <EventDraftTableEditor
+                      key={row.key}
+                      row={row}
+                      privateGroup={form.flexibleSchedule}
+                      publicGroup={publicGroup}
+                      eventStartWall={draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : ""}
+                      eventEndWall={draft.endsWall}
+                      busy={submitting}
+                      fieldError={(path) => form.fieldError(`tables.${index}.${path}`)}
+                      onChange={(value) => form.patchTable(row.key, value)}
+                      onRemove={() => setRemove(row.key)}
+                      onGame={() => setPick({ kind: "game", key: row.key })}
+                      onDemonstrator={() => setPick({ kind: "demonstrator", key: row.key })}
+                    />
+                  </Accordion.Body>
+                </Accordion.Panel>
+              </Accordion.Item>
+            ))}
+          </Accordion>
           <div
             data-form-field
             data-form-error={(form.fieldError("tables") && !draft.tables.length) || undefined}
           >
-            <Button variant="outline" isDisabled={submitting} onPress={form.addTable}>
+            <Button
+              variant="outline"
+              isDisabled={submitting || draft.tables.length >= 20}
+              onPress={addTable}
+            >
               <Plus className="size-4" aria-hidden />
               {t`Add table`}
             </Button>
@@ -247,22 +314,6 @@ function Editor({
               <p role="alert" className="text-danger">{t`Add at least one table.`}</p>
             ) : null}
           </div>
-          {draft.tables.map((row, index) => (
-            <EventDraftTableEditor
-              key={row.key}
-              row={row}
-              privateGroup={form.flexibleSchedule}
-              publicGroup={publicGroup}
-              eventStartWall={draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : ""}
-              eventEndWall={draft.endsWall}
-              busy={submitting}
-              fieldError={(path) => form.fieldError(`tables.${index}.${path}`)}
-              onChange={(value) => form.patchTable(row.key, value)}
-              onRemove={() => setRemove(row.key)}
-              onGame={() => setPick({ kind: "game", key: row.key })}
-              onDemonstrator={() => setPick({ kind: "demonstrator", key: row.key })}
-            />
-          ))}
         </>
       ) : (
         <>
@@ -276,19 +327,19 @@ function Editor({
               <EventDraftTableCard key={row.key} row={row} publicGroup={publicGroup} />
             ))}
           </div>
-          <p>{t`Nothing is saved until final confirmation. The organizer has no automatic playing seat.`}</p>
+          <p>{t`The organizer has no automatic playing seat.`}</p>
         </>
       )}
-      {step > 0 && event && form.tables.isPending ? (
+      {step >= 2 && event && form.tables.isPending ? (
         <Skeleton className="h-32 w-full rounded-xl" />
       ) : null}
-      {step > 0 && form.tables.isError ? (
+      {step >= 2 && form.tables.isError ? (
         <div role="alert">
           <p className="text-danger">{t`Could not load tables`}</p>
           <Button onPress={() => void form.tables.refetch()}>{t`Try again`}</Button>
         </div>
       ) : null}
-      {step > 0 && form.tables.hasNextPage ? (
+      {step >= 2 && form.tables.hasNextPage ? (
         <Button
           isDisabled={form.tables.isFetchingNextPage}
           onPress={() => void form.tables.fetchNextPage()}
@@ -313,7 +364,7 @@ function Editor({
             <ArrowLeft className="size-5" aria-hidden />
           </Button>
         ) : null}
-        {step < 2 ? (
+        {step < 3 ? (
           <Button
             isIconOnly
             variant="primary"

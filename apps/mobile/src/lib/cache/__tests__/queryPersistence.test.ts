@@ -4,6 +4,7 @@ import {
   eventRecordQuery,
   optimisticProfileSocialData,
   projectProposalReview,
+  reconcileProposalAccessError,
   revokeProposalReview,
 } from "@board-game-organizer/shared";
 import {
@@ -847,3 +848,86 @@ it.each([false, true])(
     unsubscribe();
   },
 );
+
+it("rejects disk-only standalone proposal/roster/picker pages before subscribers or persistence can observe them", () => {
+  const disk = fixture(),
+    live = fixture(),
+    root = ["events", owner.apiUrl, owner.userId];
+  const own = eventProposalKeys.page(owner, {
+    eventId: "event",
+    groupId: null,
+    kind: "date",
+    mode: "mine",
+  });
+  const hidden = eventProposalKeys.page(
+    owner,
+    { eventId: "event", groupId: null, kind: "location", mode: "mine" },
+    "disk-only",
+  );
+  const detail = [...root, "detail", "event"],
+    roster = [...root, "participants", "event", "roles-v2", "member", null],
+    picker = [
+      "bgg-picker",
+      owner.apiUrl,
+      owner.userId,
+      "",
+      false,
+      false,
+      null,
+      null,
+      "sources-v2",
+      true,
+      { eventId: "event" },
+    ],
+    list = [...root, "list", { groupId: null }],
+    unrelated = [...root, "detail", "unrelated"],
+    group = ["groups", owner.apiUrl, owner.userId, "detail", "group"];
+  for (const queryKey of [own, hidden, detail, roster, picker])
+    disk.client.setQueryData(queryKey, { private: "revoked bytes" });
+  disk.client.setQueryData(list, {
+    pages: [
+      {
+        items: [{ id: "event", private: "revoked bytes" }, { id: "unrelated" }],
+        nextCursor: "next",
+      },
+    ],
+    pageParams: [""],
+  });
+  disk.client.setQueryData(unrelated, { id: "unrelated" });
+  disk.client.setQueryData(group, { id: "group" });
+  disk.persister.flush();
+  const saved = disk.persister.restoreClient()!;
+  live.client.getQueryCache().build(live.client, { queryKey: own });
+  reconcileProposalAccessError(
+    live.client,
+    owner,
+    { eventId: "event", groupId: null },
+    new CommunityApiError(404, "EVENT_NOT_FOUND"),
+    own,
+  );
+  const observed: string[] = [];
+  const stop = live.client.getQueryCache().subscribe(() =>
+    observed.push(
+      JSON.stringify(
+        live.client
+          .getQueryCache()
+          .getAll()
+          .map((q) => q.state.data),
+      ),
+    ),
+  );
+  restoreSessionCache(live.client, saved, new Set());
+  stop();
+  expect(observed.join(" ")).not.toContain("revoked bytes");
+  for (const queryKey of [own, hidden, detail, roster, picker])
+    expect(live.client.getQueryData(queryKey)).toBeUndefined();
+  expect(live.client.getQueryState(own)?.error).toMatchObject({ code: "EVENT_NOT_FOUND" });
+  expect(live.client.getQueryData(list)).toEqual({
+    pages: [{ items: [{ id: "unrelated" }], nextCursor: "next" }],
+    pageParams: [""],
+  });
+  expect(live.client.getQueryData(unrelated)).toEqual({ id: "unrelated" });
+  expect(live.client.getQueryData(group)).toEqual({ id: "group" });
+  live.persister.flush();
+  expect(live.data.get("queries")).not.toContain("revoked bytes");
+});

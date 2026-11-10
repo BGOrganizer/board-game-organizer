@@ -325,7 +325,7 @@ it.each([null, "PRIVATE", "PUBLIC"] as const)(
       participation: {
         version,
         gameVotes: {},
-        ...(groupType === "PRIVATE"
+        ...(groupType !== "PUBLIC"
           ? { availability: { version, dateVotes: {}, locationVotes: {} } }
           : {}),
       },

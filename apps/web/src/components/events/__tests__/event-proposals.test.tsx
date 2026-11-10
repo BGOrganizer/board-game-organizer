@@ -463,7 +463,7 @@ it("restored cached private content grants no review action before authoritative
   const f = setup();
   f.client
     .getQueryCache()
-    .find({ queryKey: eventProposalKeys.page(o, scope), exact: true })
+    .find({ queryKey: eventProposalKeys.page(o, scope) })
     ?.setState({ isInvalidated: true });
   let complete: (value: Response) => void = () => {};
   vi.stubGlobal(
@@ -779,10 +779,12 @@ it("edits private category opt-ins through the real wizard and sends all three f
       <EventWizard eventId={event.id} />
     </QueryClientProvider>,
   );
+  fireEvent.click(await screen.findByRole("button", { name: "Next" }));
   fireEvent.click(await screen.findByRole("switch", { name: "Allow date proposals" }));
   fireEvent.click(screen.getByRole("switch", { name: "Allow location proposals" }));
   expect(writes).toEqual([]);
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  fireEvent.click(await screen.findByRole("button", { name: table.name }));
   fireEvent.click(await screen.findByRole("switch", { name: "Allow game proposals" }));
   expect(writes).toEqual([]);
   fireEvent.click(screen.getByRole("button", { name: "Next" }));

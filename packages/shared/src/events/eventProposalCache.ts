@@ -1,14 +1,15 @@
 import type { EventProposalResponse, EventProposalsResponse } from "@board-game-organizer/schemas";
 import { hashKey, notifyManager, type QueryClient, type QueryKey } from "@tanstack/react-query";
-import { cancelOptimisticResource } from "../common/optimisticOperation";
+import { cancelOptimisticResource, updateOptimisticBase } from "../common/optimisticOperation";
 import { CommunityApiError } from "../community/communityApi";
+import { filterCommunityPages } from "../community/queryCache";
 import { revokeCachedGroupAccess } from "../groups/groupAccessCache";
 
 type Owner = { apiUrl: string; userId?: string | null };
 export type EventProposalCategory = "date" | "location" | "game";
 export type EventProposalScope = {
   eventId: string;
-  groupId: string;
+  groupId: string | null;
   kind: EventProposalCategory;
   tableId?: string;
   mode: "mine" | "review";
@@ -130,7 +131,7 @@ export function commitProposalCreation(
 export function reconcileProposalAccessError(
   client: QueryClient,
   owner: Owner,
-  target: { eventId: string; groupId: string },
+  target: { eventId: string; groupId: string | null },
   error: unknown,
   keepKey?: QueryKey,
 ) {
@@ -145,8 +146,105 @@ export function reconcileProposalAccessError(
       "EVENT_NOT_FOUND",
       "Unauthorized",
     ].includes(error.code)
-  )
-    revokeCachedGroupAccess(client, owner, target.groupId, false);
+  ) {
+    if (target.groupId) revokeCachedGroupAccess(client, owner, target.groupId, false);
+    else revokeStandaloneEventAccess(client, owner, target.eventId, error, keepKey);
+  }
+}
+function eventPicker(key: QueryKey, eventId: string) {
+  return [key[7], key[10]].some(
+    (value) =>
+      value !== null &&
+      typeof value === "object" &&
+      "eventId" in value &&
+      value.eventId === eventId,
+  );
+}
+function standaloneList(key: QueryKey) {
+  return (
+    key[0] === "events" &&
+    ((key[3] === "list" &&
+      (!key[4] || typeof key[4] !== "object" || !("groupId" in key[4]) || !key[4].groupId)) ||
+      (key[3] === "tables" && key[4] === null))
+  );
+}
+function withoutEvent(data: unknown, eventId: string) {
+  return filterCommunityPages<{ id?: string; eventId?: string }>(
+    data,
+    (row) => row.id !== eventId && row.eventId !== eventId,
+  );
+}
+/** Only a verified source read denial may revoke the standalone Event and dependent writers. */
+function revokeStandaloneEventAccess(
+  client: QueryClient,
+  owner: Owner,
+  eventId: string,
+  error: CommunityApiError,
+  keepKey?: QueryKey,
+) {
+  const queries = client.getQueryCache().findAll({
+    predicate: (q) =>
+      q.queryKey[1] === owner.apiUrl &&
+      q.queryKey[2] === owner.userId &&
+      ((q.queryKey[0] === "events" && (q.queryKey[4] === eventId || standaloneList(q.queryKey))) ||
+        (q.queryKey[0] === "bgg-picker" && eventPicker(q.queryKey, eventId))),
+  });
+  notifyManager.batch(() => {
+    // This prefix also fences cold queued submissions with no materialized Query data.
+    cancelOptimisticResource(client, ["events", owner.apiUrl, owner.userId, eventId]);
+    for (const mutation of client.getMutationCache().findAll({
+      mutationKey: ["events", owner.apiUrl, owner.userId, "mutation", eventId, "propose"],
+      status: "error",
+    }))
+      client.getMutationCache().remove(mutation);
+    for (const q of queries) {
+      // Let the rejecting source fetch publish its real denial instead of a CancelledError.
+      if (!keepKey || hashKey(q.queryKey) !== hashKey(keepKey))
+        void client.cancelQueries({ queryKey: q.queryKey, exact: true }, { revert: false });
+      if (standaloneList(q.queryKey)) {
+        updateOptimisticBase(client, q.queryKey, (data) => withoutEvent(data, eventId));
+        void client.invalidateQueries({ queryKey: q.queryKey, exact: true, refetchType: "active" });
+      } else {
+        q.setState({ data: undefined, dataUpdatedAt: 0, error, status: "error" });
+        if (!keepKey || hashKey(q.queryKey) !== hashKey(keepKey))
+          client.removeQueries({ queryKey: q.queryKey, exact: true });
+      }
+    }
+  });
+}
+/** A retained denied source query fences disk-only Event scopes before native hydration. */
+export function filterRevokedStandaloneEventRestore<
+  T extends { queryKey: QueryKey; state: { data: unknown } },
+>(client: QueryClient, saved: readonly T[]): T[] {
+  let filtered = [...saved];
+  for (const query of client.getQueryCache().getAll()) {
+    const key = query.queryKey;
+    if (
+      key[0] !== "events" ||
+      typeof key[4] !== "string" ||
+      !(
+        (key[3] === "proposals" && key[6] === null) ||
+        (key[3] === "participants" && key[6] === "review" && key[7] === null)
+      ) ||
+      !(query.state.error instanceof CommunityApiError) ||
+      !["EVENT_NOT_FOUND", "Unauthorized"].includes(query.state.error.code)
+    )
+      continue;
+    const eventId = key[4];
+    filtered = filtered.flatMap((row) => {
+      const candidate = row.queryKey;
+      if (candidate[1] !== key[1] || candidate[2] !== key[2]) return [row];
+      if (
+        (candidate[0] === "events" && candidate[4] === eventId) ||
+        (candidate[0] === "bgg-picker" && eventPicker(candidate, eventId))
+      )
+        return [];
+      return standaloneList(candidate)
+        ? [{ ...row, state: { ...row.state, data: withoutEvent(row.state.data, eventId) } }]
+        : [row];
+    });
+  }
+  return filtered;
 }
 /** Verified management loss is distinct from membership loss. Own proposals/ordinary writes survive. */
 export function revokeProposalReview(

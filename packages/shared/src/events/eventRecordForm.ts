@@ -80,7 +80,7 @@ export function eventDraft(data?: PlannedEventResponse, groupId?: string): Event
     if (
       !data ||
       data.timeZone === zone ||
-      (data.groupType === "PRIVATE" && date.startTime !== undefined)
+      (data.groupType !== "PUBLIC" && date.startTime !== undefined)
     )
       return { ...date };
     const id = eventDateOptionId(used);
@@ -89,7 +89,7 @@ export function eventDraft(data?: PlannedEventResponse, groupId?: string): Event
   });
   return {
     name: data?.name ?? "",
-    visibility: data ? eventRecordVisibility(data, data.groupType) : undefined,
+    visibility: data ? eventRecordVisibility(data, data.groupType) : "PRIVATE",
     groupId: data?.groupId ?? groupId ?? null,
     timeZone: zone,
     startTime: data?.startTime ?? "20:00",
@@ -118,10 +118,8 @@ function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
     visibility: eventRecordVisibility(draft, publicGroup ? "PUBLIC" : "PRIVATE"),
     timeZone: zone,
     startTime: draft.startTime,
-    allowParticipantDates: Boolean(draft.groupId && !publicGroup && draft.allowParticipantDates),
-    allowParticipantLocations: Boolean(
-      draft.groupId && !publicGroup && draft.allowParticipantLocations,
-    ),
+    allowParticipantDates: Boolean(!publicGroup && draft.allowParticipantDates),
+    allowParticipantLocations: Boolean(!publicGroup && draft.allowParticipantLocations),
     dates: draft.dates,
     locations: draft.locations,
     ...(publicGroup
@@ -136,7 +134,7 @@ function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
       minPlayers: row.minPlayers,
       maxPlayers: row.maxPlayers,
       rankingEnabled: row.rankingEnabled,
-      allowParticipantGames: Boolean(draft.groupId && !publicGroup && row.allowParticipantGames),
+      allowParticipantGames: Boolean(!publicGroup && row.allowParticipantGames),
       games: row.games.map((game) => ({ gameId: game.id })),
       ...(publicGroup
         ? {
@@ -155,7 +153,7 @@ function draftPolicyErrors(
   const zone = draft.locations[0]?.timeZone;
   const day = draft.dates[0]?.day;
   const start = zone && day ? draftIso(eventDateWall(draft, draft.dates[0]), zone) : undefined;
-  const flexible = Boolean(draft.groupId && !publicGroup);
+  const flexible = !publicGroup;
   if (!flexible && draft.dates.length !== 1) errors.push(["dates"]);
   if (!flexible && draft.locations.length !== 1) errors.push(["locations"]);
   if (new Set(draft.dates.map((date) => eventDateWall(draft, date))).size !== draft.dates.length)
@@ -207,29 +205,31 @@ export function eventDraftStepIssues(
   publicGroup: boolean,
   step: number,
 ): string[] {
+  if (step > 2) return [];
   const { tables, ...schedule } = draftPayload(draft, publicGroup);
-  const result =
-    step === 0
-      ? createPlannedEventSchema
-          .omit({ tables: true })
-          .safeParse({ ...schedule, groupId: draft.groupId })
-      : (draft.version === undefined
-          ? createPlannedEventSchema
-          : editPlannedEventSchema
-        ).shape.tables.safeParse(tables);
+  const tableStep = step === 2;
+  const result = !tableStep
+    ? createPlannedEventSchema
+        .omit({ tables: true })
+        .safeParse({ ...schedule, groupId: draft.groupId })
+    : (draft.version === undefined
+        ? createPlannedEventSchema
+        : editPlannedEventSchema
+      ).shape.tables.safeParse(tables);
   const paths = result.success
     ? []
     : result.error.issues.map((issue) =>
-        (step === 0 ? issue.path : ["tables", ...issue.path]).join("."),
+        (!tableStep ? issue.path : ["tables", ...issue.path]).join("."),
       );
+  const belongsToStep = (path: string) => {
+    const field = path.split(".")[0];
+    if (field === "tables") return tableStep;
+    const information = ["name", "groupId", "visibility"].includes(field);
+    return step === 0 ? information : step === 1 && !information;
+  };
   return [
-    ...new Set([
-      ...paths,
-      ...draftPolicyErrors(draft, publicGroup)
-        .filter((path) => (path[0] === "tables") === (step !== 0))
-        .map((path) => path.join(".")),
-    ]),
-  ];
+    ...new Set([...paths, ...draftPolicyErrors(draft, publicGroup).map((path) => path.join("."))]),
+  ].filter(belongsToStep);
 }
 export function eventDraftInput(draft: EventRecordDraft, publicGroup: boolean) {
   const base = draftPayload(draft, publicGroup);
@@ -280,6 +280,43 @@ export function patchEventDraft(
   }
   return next;
 }
+/** A public-Group transition must explicitly acknowledge losing flexible draft choices. */
+export function eventGroupChangeNeedsConfirmation(draft: EventRecordDraft, publicGroup: boolean) {
+  return (
+    publicGroup &&
+    (draft.dates.length > 1 ||
+      draft.locations.length > 1 ||
+      Boolean(draft.allowParticipantDates || draft.allowParticipantLocations) ||
+      draft.tables.some((row) => row.allowParticipantGames))
+  );
+}
+export function changeEventDraftGroup(
+  old: EventRecordDraft,
+  groupId: string | null,
+  type: "PRIVATE" | "PUBLIC" | null,
+) {
+  if (old.groupId === groupId) return old;
+  const publicGroup = type === "PUBLIC";
+  return patchEventDraft(
+    old,
+    {
+      groupId,
+      visibility: "PRIVATE",
+      ...(publicGroup
+        ? {
+            dates: old.dates.slice(0, 1),
+            locations: old.locations.slice(0, 1),
+            allowParticipantDates: false,
+            allowParticipantLocations: false,
+            tables: old.tables.map((row) => ({ ...row, allowParticipantGames: false })),
+          }
+        : {}),
+    },
+    [],
+    !publicGroup,
+  );
+}
+
 /** Game edits clamp only unsaved limits; unknown metadata never invents a BGG bound. */
 export function patchTableDraft(
   row: EventTableDraft,

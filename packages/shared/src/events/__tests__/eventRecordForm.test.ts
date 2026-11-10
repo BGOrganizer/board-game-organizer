@@ -5,10 +5,12 @@ import type {
 } from "@board-game-organizer/schemas";
 import { describe, expect, it, vi } from "vitest";
 import {
+  changeEventDraftGroup,
   eventDateOptionId,
   eventDraft,
   eventDraftInput,
   eventDraftStepIssues,
+  eventGroupChangeNeedsConfirmation,
   newTableDraft,
   patchEventDraft,
   patchTableDraft,
@@ -78,7 +80,7 @@ it("keeps solo-only games invalid instead of reducing the Table minimum or weake
   const games = [{ id: 1, name: "Solo", year: null, imageUrl: null, minPlayers: 1, maxPlayers: 1 }];
   const row = patchTableDraft({ ...newTableDraft("solo"), name: "Solo table" }, { games });
   expect(row).toMatchObject({ minPlayers: 2, maxPlayers: 2 });
-  expect(eventDraftStepIssues({ ...eventDraft(event), tables: [row] }, false, 1)).toContain(
+  expect(eventDraftStepIssues({ ...eventDraft(event), tables: [row] }, false, 2)).toContain(
     "tables.0.maxPlayers",
   );
 });
@@ -88,12 +90,12 @@ it("validates known game bounds in drafts without inventing limits for unknown g
   draft.tables[0].games[0] = { ...draft.tables[0].games[0], minPlayers: 3, maxPlayers: 6 };
   draft.tables[0].minPlayers = 2;
   draft.tables[0].maxPlayers = 7;
-  expect(eventDraftStepIssues(draft, false, 1)).toEqual(
+  expect(eventDraftStepIssues(draft, false, 2)).toEqual(
     expect.arrayContaining(["tables.0.minPlayers", "tables.0.maxPlayers"]),
   );
   draft.tables[0].minPlayers = 3;
   draft.tables[0].maxPlayers = 6;
-  expect(eventDraftStepIssues(draft, false, 1)).toEqual([]);
+  expect(eventDraftStepIssues(draft, false, 2)).toEqual([]);
   expect(eventDraftInput(draft, false).success).toBe(true);
 });
 
@@ -165,7 +167,7 @@ const table: PlannedTableResponse = {
   createdAt: event.createdAt,
   updatedAt: event.updatedAt,
 };
-it("retains opt-in proposal fields only for private Group drafts and defaults historical data off", () => {
+it("retains opt-in proposal fields for standalone and private Group drafts and defaults historical data off", () => {
   expect(eventDraft(event)).toMatchObject({
     allowParticipantDates: false,
     allowParticipantLocations: false,
@@ -194,9 +196,9 @@ it("retains opt-in proposal fields only for private Group drafts and defaults hi
   expect(standalone).toMatchObject({
     success: true,
     data: {
-      allowParticipantDates: false,
-      allowParticipantLocations: false,
-      tables: [{ allowParticipantGames: false }],
+      allowParticipantDates: true,
+      allowParticipantLocations: true,
+      tables: [{ allowParticipantGames: true }],
     },
   });
   const publicDraft = {
@@ -282,11 +284,9 @@ it("validates private date/time and location proposals, rejects duplicate or inv
     timeZone: "America/New_York",
   });
   expect(eventDraftInput(draft, false).success).toBe(true);
-  expect(eventDraftStepIssues(draft, false, 0)).toEqual([]);
-  expect(eventDraftStepIssues({ ...draft, groupId: null }, false, 0)).toEqual(
-    expect.arrayContaining(["dates", "locations"]),
-  );
-  expect(eventDraftStepIssues(draft, true, 0)).toEqual(
+  expect(eventDraftStepIssues(draft, false, 1)).toEqual([]);
+  expect(eventDraftStepIssues({ ...draft, groupId: null }, false, 1)).toEqual([]);
+  expect(eventDraftStepIssues(draft, true, 1)).toEqual(
     expect.arrayContaining(["dates", "locations"]),
   );
   expect(
@@ -294,7 +294,7 @@ it("validates private date/time and location proposals, rejects duplicate or inv
       .success,
   ).toBe(false);
   const gap = { ...draft, dates: [{ id: dateId, day: "2030-03-31", startTime: "02:30" }] };
-  expect(eventDraftStepIssues(gap, false, 0)).toContain("dates");
+  expect(eventDraftStepIssues(gap, false, 1)).toContain("dates");
   const moved = patchEventDraft(draft, { locations: draft.locations.slice(1) }, [], true);
   expect(moved.dates).toEqual(draft.dates);
   const loaded = eventDraft({
@@ -321,6 +321,53 @@ it("validates private date/time and location proposals, rejects duplicate or inv
   expect(changedLegacy.dates[1].id).toBe(draft.dates[1].id);
 });
 describe("unified unsaved event drafts", () => {
+  it("preserves flexible options across private/standalone groups and never publishes on group selection", () => {
+    const draft = {
+      ...eventDraft(event),
+      visibility: "PUBLIC" as const,
+      dates: [...event.dates, { id: tableId, day: "2030-06-04" }],
+      locations: [...event.locations, { ...event.locations[0], id: tableId }],
+      allowParticipantDates: true,
+      allowParticipantLocations: true,
+      tables: [{ ...tableDraft(table, event.timeZone), allowParticipantGames: true }],
+    };
+    expect(eventGroupChangeNeedsConfirmation(draft, false)).toBe(false);
+    expect(eventGroupChangeNeedsConfirmation(draft, true)).toBe(true);
+    const privateDraft = changeEventDraftGroup(draft, id, "PRIVATE");
+    expect(privateDraft).toMatchObject({ ...draft, groupId: id, visibility: "PRIVATE" });
+    expect(changeEventDraftGroup(privateDraft, null, null)).toMatchObject({
+      ...privateDraft,
+      groupId: null,
+      visibility: "PRIVATE",
+    });
+    const publicDraft = changeEventDraftGroup(draft, id, "PUBLIC");
+    expect(publicDraft).toMatchObject({
+      groupId: id,
+      visibility: "PRIVATE",
+      dates: [draft.dates[0]],
+      locations: [draft.locations[0]],
+      allowParticipantDates: false,
+      allowParticipantLocations: false,
+      tables: [{ ...draft.tables[0], allowParticipantGames: false }],
+    });
+    expect(eventGroupChangeNeedsConfirmation(publicDraft, true)).toBe(false);
+    expect(changeEventDraftGroup(publicDraft, id, "PUBLIC")).toBe(publicDraft);
+    expect(draft.dates).toHaveLength(2);
+    expect(draft.allowParticipantDates).toBe(true);
+    for (const flag of ["allowParticipantDates", "allowParticipantLocations"] as const)
+      expect(eventGroupChangeNeedsConfirmation({ ...eventDraft(event), [flag]: true }, true)).toBe(
+        true,
+      );
+    expect(
+      eventGroupChangeNeedsConfirmation(
+        {
+          ...eventDraft(event),
+          tables: [{ ...tableDraft(table, event.timeZone), allowParticipantGames: true }],
+        },
+        true,
+      ),
+    ).toBe(true);
+  });
   it("allocates only per-event option identities and preserves stable dates and snapshots", () => {
     expect(eventDateOptionId([])).toBe(dateId);
     expect(eventDateOptionId([{ id: dateId }])).toBe("00000000-0000-4000-8000-000000000002");
@@ -451,16 +498,20 @@ describe("location-owned schedule and staged validation", () => {
   });
   it("validates schedule independently from tables and reports exact field paths", () => {
     const draft = valid();
-    expect(eventDraftStepIssues({ ...draft, tables: [] }, false, 0)).toEqual([]);
-    expect(eventDraftStepIssues(draft, true, 0)).toEqual([]);
+    expect(eventDraftStepIssues({ ...draft, tables: [] }, false, 1)).toEqual([]);
     expect(eventDraftStepIssues(draft, true, 1)).toEqual([]);
+    expect(eventDraftStepIssues(draft, true, 2)).toEqual([]);
+    expect(
+      eventDraftStepIssues({ ...draft, name: "", dates: [], locations: [] }, false, 1),
+    ).toEqual(expect.arrayContaining(["dates", "locations", "timeZone"]));
     expect(
       eventDraftStepIssues({ ...draft, name: "", dates: [], locations: [] }, false, 0),
-    ).toEqual(expect.arrayContaining(["name", "dates", "locations", "timeZone"]));
-    expect(eventDraftStepIssues({ ...draft, version: undefined, tables: [] }, false, 1)).toEqual([
+    ).toEqual(["name"]);
+    expect(eventDraftStepIssues(draft, true, 3)).toEqual([]);
+    expect(eventDraftStepIssues({ ...draft, version: undefined, tables: [] }, false, 2)).toEqual([
       "tables",
     ]);
-    expect(eventDraftStepIssues({ ...draft, tables: [] }, false, 1)).toEqual([]);
+    expect(eventDraftStepIssues({ ...draft, tables: [] }, false, 2)).toEqual([]);
     expect(
       eventDraftStepIssues(
         {
@@ -468,7 +519,7 @@ describe("location-owned schedule and staged validation", () => {
           tables: [{ ...draft.tables[0], name: "", minPlayers: 1, maxPlayers: 1, games: [] }],
         },
         false,
-        1,
+        2,
       ),
     ).toEqual(
       expect.arrayContaining([
@@ -482,7 +533,7 @@ describe("location-owned schedule and staged validation", () => {
       eventDraftStepIssues(
         { ...draft, tables: [{ ...draft.tables[0], minPlayers: 3, maxPlayers: 2 }] },
         false,
-        1,
+        2,
       ),
     ).toContain("tables.0.maxPlayers");
     expect(
@@ -492,8 +543,8 @@ describe("location-owned schedule and staged validation", () => {
           dates: [...draft.dates, { id: tableId, day: "2030-06-04" }],
           locations: [...draft.locations, { ...draft.locations[0], id: tableId }],
         },
-        false,
-        0,
+        true,
+        1,
       ),
     ).toEqual(expect.arrayContaining(["dates", "locations"]));
   });
@@ -535,25 +586,25 @@ describe("location-owned schedule and staged validation", () => {
     { endsWall: "2030-06-03T23:00", cutoffWall: "2030-06-03T19:59", field: "bookingClosesAt" },
   ])("requires public endpoints and correct order: $field", ({ endsWall, cutoffWall, field }) => {
     const draft = { ...valid(), endsWall, cutoffWall };
-    expect(eventDraftStepIssues(draft, true, 0)).toContain(field);
+    expect(eventDraftStepIssues(draft, true, 1)).toContain(field);
     expect(eventDraftInput(draft, true).success).toBe(false);
   });
   it("refuses nonexistent local starts, while private events do not require public endpoints", () => {
     const draft = { ...valid(), dates: [{ id: dateId, day: "2030-03-31" }], startTime: "02:30" };
-    expect(eventDraftStepIssues(draft, false, 0)).toContain("startTime");
+    expect(eventDraftStepIssues(draft, false, 1)).toContain("startTime");
     expect(eventDraftInput(draft, false).success).toBe(false);
-    expect(eventDraftStepIssues({ ...valid(), endsWall: "", cutoffWall: "" }, false, 0)).toEqual(
+    expect(eventDraftStepIssues({ ...valid(), endsWall: "", cutoffWall: "" }, false, 1)).toEqual(
       [],
     );
-    expect(eventDraftStepIssues({ ...valid(), locations: [] }, true, 0)).toContain("timeZone");
-    expect(eventDraftStepIssues({ ...valid(), dates: [] }, true, 0)).toContain("dates");
+    expect(eventDraftStepIssues({ ...valid(), locations: [] }, true, 1)).toContain("timeZone");
+    expect(eventDraftStepIssues({ ...valid(), dates: [] }, true, 1)).toContain("dates");
   });
   it("requires future cutoffs for creation but preserves existing historical clocks", () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2030-06-02T11:00:00Z"));
     try {
       const draft = { ...valid(), version: undefined };
-      expect(eventDraftStepIssues(draft, true, 0)).toContain("bookingClosesAt");
-      expect(eventDraftStepIssues(valid(), true, 0)).not.toContain("bookingClosesAt");
+      expect(eventDraftStepIssues(draft, true, 1)).toContain("bookingClosesAt");
+      expect(eventDraftStepIssues(valid(), true, 1)).not.toContain("bookingClosesAt");
     } finally {
       clock.mockRestore();
     }
@@ -563,7 +614,7 @@ describe("location-owned schedule and staged validation", () => {
     (startsWall) => {
       const draft = valid();
       draft.tables[0].startsWall = startsWall;
-      expect(eventDraftStepIssues(draft, true, 1)).toContain("tables.0.startsAt");
+      expect(eventDraftStepIssues(draft, true, 2)).toContain("tables.0.startsAt");
     },
   );
   it.each(["2030-06-03T20:00", "2030-06-03T22:00"])(
@@ -576,7 +627,7 @@ describe("location-owned schedule and staged validation", () => {
         durationMinutes: undefined,
         maxPlayMinutes: 60,
       };
-      expect(eventDraftStepIssues(draft, true, 1)).toEqual([]);
+      expect(eventDraftStepIssues(draft, true, 2)).toEqual([]);
       expect(eventDraftInput(draft, true).success).toBe(true);
     },
   );
@@ -590,10 +641,10 @@ describe("location-owned schedule and staged validation", () => {
         maxPlayMinutes: duration,
       };
       draft.tables[0].startsWall = "2030-06-03T21:00";
-      expect(eventDraftStepIssues(draft, true, 1)).toEqual([]);
+      expect(eventDraftStepIssues(draft, true, 2)).toEqual([]);
       expect(eventDraftInput(draft, true).success).toBe(true);
       draft.tables[0].startsWall = "2030-06-03T21:01";
-      expect(eventDraftStepIssues(draft, true, 1)).toContain("tables.0.startsAt");
+      expect(eventDraftStepIssues(draft, true, 2)).toContain("tables.0.startsAt");
       expect(eventDraftInput(draft, true).success).toBe(false);
     },
   );
@@ -604,16 +655,16 @@ describe("location-owned schedule and staged validation", () => {
       maxPlayMinutes: 60,
       manualDurationMinutes: undefined,
     };
-    expect(eventDraftStepIssues(draft, true, 1)).toEqual([]);
+    expect(eventDraftStepIssues(draft, true, 2)).toEqual([]);
     expect(eventDraftInput(draft, true).success).toBe(true);
     draft.tables[0].startsWall = "2030-06-04T04:00";
     expect(
-      eventDraftStepIssues(draft, true, 1).filter((path) => path === "tables.0.startsAt"),
+      eventDraftStepIssues(draft, true, 2).filter((path) => path === "tables.0.startsAt"),
     ).toHaveLength(1);
     expect(
-      eventDraftStepIssues({ ...draft, endsWall: "", dates: [], locations: [] }, true, 1),
+      eventDraftStepIssues({ ...draft, endsWall: "", dates: [], locations: [] }, true, 2),
     ).toContain("tables.0.startsAt");
-    expect(eventDraftStepIssues({ ...valid(), endsWall: "" }, true, 1)).toEqual([]);
+    expect(eventDraftStepIssues({ ...valid(), endsWall: "" }, true, 2)).toEqual([]);
   });
 });
 it("allows all-ND physical tables but never incomplete or empty score drafts, retaining exact tied decimals", () => {

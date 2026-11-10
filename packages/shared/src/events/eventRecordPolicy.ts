@@ -90,7 +90,7 @@ export function eventRecordDisplayTimeZone(
 ): string | null {
   if (
     event.status === "PLANNING" &&
-    groupType === "PRIVATE" &&
+    groupType !== "PUBLIC" &&
     new Set(event.locations.map((location) => location.timeZone ?? event.timeZone)).size > 1
   )
     return null;

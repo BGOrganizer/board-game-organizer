@@ -62,8 +62,8 @@ export function EventDraftTableEditor({
   );
   const [dangerForeground, danger] = useThemeColor(["danger-foreground", "danger"]);
   const helpTitle = t("Field help");
-  return (
-    <View className="rounded-xl bg-surface" style={{ padding: 16, gap: 16 }}>
+  const information = (
+    <>
       <InputField style={{ gap: 6 }}>
         <SearchHelpLabel
           required
@@ -125,6 +125,10 @@ export function EventDraftTableEditor({
           {t("Choose valid player counts within the limits of the selected games.")}
         </Typography>
       ) : null}
+    </>
+  );
+  const options = (
+    <>
       <View
         style={{
           flexDirection: "row",
@@ -163,7 +167,7 @@ export function EventDraftTableEditor({
               label={t("Allow game proposals")}
               helpTitle={helpTitle}
               help={t(
-                "Only seated players may propose games for this table. Managers review each proposal.",
+                "Only seated players may propose games for this table. Proposals are reviewed before they become options.",
               )}
             />
           </View>
@@ -176,6 +180,10 @@ export function EventDraftTableEditor({
           />
         </View>
       ) : null}
+    </>
+  );
+  const scheduleAndGames = (
+    <>
       {publicGroup ? (
         <>
           {day ? (
@@ -304,6 +312,13 @@ export function EventDraftTableEditor({
           </Typography>
         ) : null}
       </InputField>
+    </>
+  );
+  return (
+    <View style={{ gap: 16 }}>
+      {information}
+      {scheduleAndGames}
+      {options}
       <View style={{ alignItems: "flex-end" }}>
         <Button
           isIconOnly

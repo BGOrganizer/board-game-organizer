@@ -98,6 +98,15 @@ beforeEach(() => {
     gameVoteCounts: { "1": { YES: 0, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 } },
   };
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes("/proposals?"))
+      return Response.json({
+        eventId: plannedEvent.id,
+        groupId: plannedEvent.groupId,
+        eventVersion: plannedEvent.version,
+        mode: new URL(url).searchParams.get("mode") === "review" ? "review" : "mine",
+        items: [],
+        nextCursor: null,
+      });
     if (url.includes("/notifications/changes"))
       return Response.json({
         asOf: new Date().toISOString(),

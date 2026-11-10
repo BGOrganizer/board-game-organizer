@@ -37,6 +37,9 @@ tags: [manual, tables, profile]
 - assertVisible: ${output.ux.win}
 - openLink: ${output.ux.edit}
 - tapOn: ${output.ux.next}
+- tapOn: ${output.ux.next}
+- tapOn:
+    id: ${output.ux.tableTrigger}
 - assertVisible: ${output.ux.name}
 - assertVisible: ${output.ux.nameHelp}
 - tapOn: ${output.ux.countHelp}
