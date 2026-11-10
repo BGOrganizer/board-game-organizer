@@ -7,7 +7,8 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title, {
       body: data.description,
       data: { href: data.href ?? "/notifications", attentionItemId: data.attentionItemId },
-      icon: "/favicon.ico",
+      icon: "/branding/notification-icon.png",
+      badge: "/branding/notification-badge.png",
     }),
   );
 });

@@ -28,6 +28,41 @@ function worker() {
     });
   return { click, openWindow, close };
 }
+it("shows the mascot icon and monochrome badge while retaining the push destination", () => {
+  const showNotification = vi.fn(async () => {}),
+    waitUntil = vi.fn();
+  type PushEvent = { data: { json: () => unknown }; waitUntil: typeof waitUntil };
+  const handlers = new Map<string, (event: PushEvent) => void>();
+  runInNewContext(readFileSync("public/firebase-messaging-sw.js", "utf8"), {
+    self: {
+      registration: { showNotification },
+      addEventListener: (name: string, handler: (event: PushEvent) => void) =>
+        handlers.set(name, handler),
+    },
+  });
+  const point = notificationItemId(id, "member", "user_member");
+  handlers.get("push")?.({
+    data: {
+      json: () => ({
+        data: {
+          title: "Game night",
+          description: "A seat is available",
+          href: `/groups/${id}`,
+          attentionItemId: point,
+        },
+      }),
+    },
+    waitUntil,
+  });
+  expect(showNotification).toHaveBeenCalledWith("Game night", {
+    body: "A seat is available",
+    data: { href: `/groups/${id}`, attentionItemId: point },
+    icon: "/branding/notification-icon.png",
+    badge: "/branding/notification-badge.png",
+  });
+  expect(waitUntil).toHaveBeenCalledWith(showNotification.mock.results[0].value);
+});
+
 it("routes member hints to Members, preserving the exact point and same-origin guard", () => {
   const { click, openWindow, close } = worker(),
     point = notificationItemId(id, "member", "user_member");

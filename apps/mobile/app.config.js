@@ -1,3 +1,6 @@
+// Generated from installed HeroUI tokens for native APIs that require hex colors.
+const { nativeColors } = require("./assets/branding.json");
+
 module.exports = {
   expo: {
     name: "Board Game Organizer",
@@ -22,7 +25,7 @@ module.exports = {
         foregroundImage: "./assets/adaptive-icon-foreground.png",
         backgroundImage: "./assets/adaptive-icon-background.png",
         monochromeImage: "./assets/adaptive-icon-monochrome.png",
-        backgroundColor: "#4c2482",
+        backgroundColor: nativeColors.lightBackground,
       },
       package: "com.bgo.mobile",
     },
@@ -36,9 +39,11 @@ module.exports = {
       [
         "expo-splash-screen",
         {
-          image: "./assets/icon.png",
-          imageWidth: 200,
-          backgroundColor: "#ffffff",
+          image: "./assets/splash.png",
+          imageWidth: 280,
+          resizeMode: "contain",
+          backgroundColor: nativeColors.lightBackground,
+          dark: { backgroundColor: nativeColors.darkBackground },
         },
       ],
       "@clerk/expo",
@@ -59,7 +64,10 @@ module.exports = {
         { locationWhenInUsePermission: "Show your position on the match location map." },
       ],
       "@maplibre/maplibre-react-native",
-      ["expo-notifications", { icon: "./assets/notification-icon.png", color: "#006fee" }],
+      [
+        "expo-notifications",
+        { icon: "./assets/notification-icon.png", color: nativeColors.notificationTint },
+      ],
       "@react-native-community/datetimepicker",
     ],
     extra: {
