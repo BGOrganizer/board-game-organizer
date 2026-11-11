@@ -151,6 +151,21 @@ it("pages only the chosen own snapshot, never adds catalog search or personal pr
   expect(f.aggregate.mock.calls[1][0]).toContainEqual({ $skip: 1 });
 });
 
+it("returns community player-count metadata from the collection catalog", async () => {
+  const f = setup();
+  const suggestedPlayers = {
+    fetchedAt: "2026-11-11T12:00:00.000Z",
+    totalVotes: 16,
+    rows: [
+      { players: 4, orMore: false, best: 12, recommended: 3, notRecommended: 1, sampleCount: 16 },
+    ],
+  };
+  Object.assign(f.state.catalog[0], { suggestedPlayers });
+  const result = await f.read({ collection: "1" });
+  expect(result.items[0]).toMatchObject({ id: 1, suggestedPlayers });
+  expect(result.items[1]).not.toHaveProperty("suggestedPlayers");
+});
+
 it.each([false, true])(
   "unions all authorized accepted/queue owners and optionally own publication before paging: own=%s",
   async (own) => {
