@@ -9,10 +9,9 @@ Skills are task-scoped guides, not authority to expand a task. Resolve conflicts
 
 Before implementation:
 
-- Inventory with `pnpm dlx skills@latest list --agent pi`. Pi also discovers `.agents/skills`
-  directly: `Agents: not linked` does not prove absence. Verify actual Pi discovery/diagnostics or
-  `/skill:<name>`. A CLI success message is not proof that canonical files or links were removed.
-- Select explicit skill names and `--agent pi` on installation, in project scope; do not install
+- Inventory with `pnpm dlx skills@latest list`. Verify actual skill paths and the intended agent's
+  discovery/diagnostics; a lock entry or CLI success alone does not establish availability.
+- Select explicit skill names and the intended agent on installation, in project scope; do not install
   whole vendor collections. Managed sources/integrity live in `skills-lock.json`; the tracked
   project-authored guide is [`.pi/skills/bgo-component-architecture/SKILL.md`](../.pi/skills/bgo-component-architecture/SKILL.md).
 - Load the smallest applicable set. Read bundled references only as needed; inspect bundled scripts
@@ -20,7 +19,7 @@ Before implementation:
   versions. This file references guides; do not duplicate their full bodies here.
 - If a global skill has the same name, inspect diagnostics and use the project's locked guide
   explicitly rather than assuming which copy `/skill:<name>` selected. Do not delete global skills
-  or Pi packages as a project cleanup side effect.
+  or global agent packages as a project cleanup side effect.
 - Do not hand-edit installed vendor skills or integrity records outside an explicit skill-management
   task. Retained guides must not be upgraded incidentally while installing another guide.
 - No skill may add npm/yarn, ESLint, Prettier, Expo web, another UI system, duplicated server state,

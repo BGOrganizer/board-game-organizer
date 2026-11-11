@@ -191,20 +191,6 @@ Vercel preview protection bypass is a **query parameter**, not a custom header. 
   returned JSON explicitly and pass `GH_TOKEN` to `gh api`.
 - Main APK builds need 180 minutes; clean local EAS builds can exceed 90 minutes.
 
-## Board automation
-
-`pi-board-agent` runs separately and uses gitignored `.pi/board-agent.yml`. It manages project-board
-refinement, task worktrees, cumulative PRs, CI watchdog behavior, and Telegram notifications.
-
-`/board-agent init-project` creates configured project fields and views. Tokens need repository
-Issues, Pull requests, Contents, Actions, and Metadata permissions plus organization Projects
-read/write.
-
-Never store this token in the repository.
-
-These commands are reference only. Running the workflow engine requires explicit operator opt-in.
-
-
 ## Localization
 
 Lingui configuration lives at repository root. Source catalogs are `messages/en.po` and

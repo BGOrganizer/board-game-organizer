@@ -275,8 +275,7 @@ git config gpg.format ssh
 git config commit.gpgsign true
 ```
 
-Keep the machine's valid SSH public key in `user.signingkey`. The board-agent container uses
-`/root/.ssh/mancioshell_github.pub`; local Windows development uses the configured user key.
+Keep the machine's valid SSH public key in `user.signingkey`; use the configured local signing identity.
 
 Verify signatures with:
 
@@ -311,14 +310,11 @@ artifacts or treat default-branch controllers as activated by a feature-branch e
 - Preserve [LICENSE](LICENSE) (`AGPL-3.0-only`), copyleft/source-availability obligations,
   third-party notices and attribution. Do not change licensing terms without explicit operator scope.
 
-## 10. Skills and automation
+## 10. Skills
 
-Inventory with `pnpm dlx skills@latest list --agent pi`, load the smallest applicable project-locked
+Inventory with `pnpm dlx skills@latest list`, load the smallest applicable project-locked
 guides from [Agent skills](docs/agent-skills.md), and verify actual discovery if links or installation change.
 A lock entry or CLI success is not proof of availability. Missing guides do not authorize automatic installation.
-Install only explicitly selected skills in project scope for `--agent pi`; never upgrade retained vendor guides
+Install only explicitly selected skills in project scope for the intended agent; never upgrade retained vendor guides
 or remove global skills incidentally. Use current installed APIs over examples, pnpm over npm/yarn,
 and Biome over ESLint/Prettier; no alternate UI/state system or unrequested dependency.
-
-`pi-board-agent` runs separately. [Board automation](docs/development.md#board-automation) is operational
-reference only: a workflow-engine run always requires explicit operator opt-in.
