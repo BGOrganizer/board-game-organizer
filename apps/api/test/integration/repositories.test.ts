@@ -84,7 +84,7 @@ describe("source-paged entity notification attention", () => {
     { kind: "contacts" as const, id: "requests" as const },
     { kind: "contacts" as const, id: "connections" as const },
   ] as const;
-  async function seedAttentionResources() {
+  async function seedAttentionResources(frozenPlayer = false) {
     await db.collection(COLLECTIONS.GROUPS).insertOne({
       id: groupId,
       type: "PRIVATE",
@@ -102,10 +102,22 @@ describe("source-paged entity notification attention", () => {
     });
     await db
       .collection(COLLECTIONS.EVENTS)
-      .insertOne({ id: eventId, groupId, adminUserId: THIRD, status: "PLANNING", version: 1 });
+      .insertOne({
+        id: eventId,
+        groupId,
+        adminUserId: THIRD,
+        status: frozenPlayer ? "CONFIRMED" : "PLANNING",
+        version: 1,
+      });
     await db
       .collection(COLLECTIONS.EVENT_TABLES)
-      .insertOne({ id: tableId, eventId, name: "Attention table", version: 1 });
+      .insertOne({
+        id: tableId,
+        eventId,
+        name: "Attention table",
+        version: 1,
+        ...(frozenPlayer ? { confirmed: { gameId: 1, playerIds: [ACTOR] } } : {}),
+      });
   }
   const note = (kind: string, href: string, extra: Record<string, unknown> = {}) => ({
     recipientUserId: ACTOR,
@@ -199,7 +211,7 @@ describe("source-paged entity notification attention", () => {
   });
 
   it("unions multiple displayed points from a single notice and preserves off-page/later work exactly once", async () => {
-    await seedAttentionResources();
+    await seedAttentionResources(true);
     const firstId = notificationItemId(tableId, "game", 1);
     const secondId = notificationItemId(tableId, "game", 2);
     const inserted = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
@@ -407,7 +419,8 @@ describe("source-paged entity notification attention", () => {
         .slice(targets.length, targets.length + scopes.length)
         .map((row) => row.count),
     ).toEqual([0, 1, 1, 0]);
-    expect(first.snapshot.summary).toMatchObject({ tables: 1, events: 1, groups: 0 });
+    expect(first.snapshot.targets[0].count).toBe(1);
+    expect(first.snapshot.summary).toMatchObject({ tables: 0, events: 1, groups: 0 });
     expect(first.references.get(String(inserted.insertedId))?.lists).toEqual([
       scopes[1],
       scopes[2],
@@ -428,7 +441,7 @@ describe("source-paged entity notification attention", () => {
         .map((row) => row.count),
     ).toEqual([0, 0]);
     const after = (await repository.snapshot(ACTOR, [...targets, ...scopes])).snapshot;
-    expect(after.summary).toMatchObject({ tables: 1, events: 0, groups: 0 });
+    expect(after.summary).toMatchObject({ tables: 0, events: 0, groups: 0 });
     expect(after.targets.slice(targets.length).map((row) => row.count)).toEqual([0, 0, 0, 0]);
     expect(after.unreadCount).toBe(first.snapshot.unreadCount);
   });
@@ -466,7 +479,7 @@ describe("source-paged entity notification attention", () => {
     await db
       .collection(COLLECTIONS.EVENTS)
       .updateOne({ id: eventId }, { $set: { status: "CONFIRMED" } });
-    expect(await counts()).toEqual([0, 1, 1]);
+    expect(await counts()).toEqual([0, 0, 1]);
     await db
       .collection(COLLECTIONS.EVENT_TABLES)
       .updateOne({ id: tableId }, { $set: { confirmed: { gameId: 1, playerIds: [TARGET] } } });
@@ -485,7 +498,7 @@ describe("source-paged entity notification attention", () => {
     await db
       .collection(COLLECTIONS.TABLE_REGISTRATIONS)
       .updateOne({ id: tableId }, { $set: { status: "PENDING" } });
-    expect(await counts()).toEqual([0, 1, 0]);
+    expect(await counts()).toEqual([1, 0, 0]);
     await db
       .collection(COLLECTIONS.EVENTS)
       .updateOne({ id: eventId }, { $set: { adminUserId: THIRD } });
@@ -588,7 +601,7 @@ describe("source-paged entity notification attention", () => {
     ).toBe(true);
   });
   it("clears each actual container of a mixed Event/Table notice as its own last point is read", async () => {
-    await seedAttentionResources();
+    await seedAttentionResources(true);
     const date = { kind: "item", id: notificationItemId(eventId, "date", groupId) } as const;
     const game = { kind: "item", id: notificationItemId(tableId, "game", 1) } as const;
     await new NotificationsRepository(db).notifyMany([
@@ -915,7 +928,7 @@ describe("source-paged entity notification attention", () => {
     }
   });
   it("counts all unread source rows beyond inbox pages, only for their actual entity", async () => {
-    await seedAttentionResources();
+    await seedAttentionResources(true);
     const tableNote = note("table_invitation", `/events/${eventId}/tables/${tableId}`);
     await db
       .collection(COLLECTIONS.NOTIFICATIONS)
@@ -1153,7 +1166,8 @@ describe("source-paged entity notification attention", () => {
       version: 1,
     });
     const invited = (await repository.snapshot(ACTOR, targets)).snapshot;
-    expect(invited.summary).toMatchObject({ tables: 1, events: 1, groups: 0 });
+    expect(invited.summary).toMatchObject({ tables: 0, events: 1, groups: 0 });
+    expect(invited.targets[0].count).toBe(1);
     expect(invited.targets[0]).not.toHaveProperty("groupId");
     await db
       .collection(COLLECTIONS.TABLE_REGISTRATIONS)

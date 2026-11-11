@@ -535,14 +535,10 @@ test("native social flows select the search input and named actions, never the h
 });
 test("contact searches wait for API results, not an already-visible address-book duplicate", () => {
   const steps = nativeSteps("helpers/contact-search.yaml");
-  const target = {
-    text: "${CONTACT_ACTIONS}",
-    below: { text: "^Search results$" },
-    above: { text: "^Device Contacts$" },
-  };
+  const target = "${CONTACT_ACTIONS}";
   assert(contains(steps, "extendedWaitUntil", { visible: target, timeout: 90000 }));
   assert(contains(steps, "assertVisible", target));
-  assert(!contains(steps, "extendedWaitUntil", { visible: "${CONTACT_ACTIONS}", timeout: 90000 }));
+  assert(contains(steps, "assertNotVisible", "Device Contacts"));
   assert(contains(steps, "tapOn", { id: "contact-search-input" }));
   assert(!contains(steps, "tapOn", "^Search users by name or email$"));
   const cleared = steps.findIndex((step) => step.assertNotVisible === "Clear search");
@@ -1215,7 +1211,7 @@ test("native journeys never assert or tap disappearing feedback; durable inbox c
   assert(contains(journey("09-group-invitations"), "tapOn", "New group invitation"));
 });
 
-test("device contact sharing scrolls the actionable row into view and restores the search field", () => {
+test("device contact sharing scrolls the actionable row and returns to the separate Search tab", () => {
   const steps = nativeSteps("helpers/contacts-permissions.yaml");
   assert(
     contains(steps, "scrollUntilVisible", {
@@ -1234,13 +1230,11 @@ test("device contact sharing scrolls the actionable row into view and restores t
   assert(contains(steps, "assertVisible", "E2E Unregistered"));
   const invite = steps.findIndex((step) => step.tapOn === "Send invite: E2E Unregistered");
   assert(invite >= 0);
-  assert(
-    contains(steps.slice(invite), "scrollUntilVisible", {
-      element: { id: "contact-search-input" },
-      direction: "UP",
-      timeout: 30000,
-    }),
+  const search = steps.findIndex(
+    (step, index) => index > invite && step.openLink === "bgo:///contacts?tab=search",
   );
+  assert(search > invite);
+  assert(contains(steps.slice(0, invite), "openLink", "bgo:///contacts?tab=device"));
   assert.deepEqual(steps.at(-1), { assertVisible: { id: "contact-search-input" } });
 });
 

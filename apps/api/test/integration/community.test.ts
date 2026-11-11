@@ -4979,7 +4979,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(await services().eventRecords.voter(event.id, OWNER)).toEqual(before);
     expect(
       (await services().plannedEventService.personalTables(OWNER, { limit: 20 })).items,
-    ).toHaveLength(2);
+    ).toHaveLength(0);
     await confirm(event.id);
     const personal = await services().plannedEventService.personalTables(OWNER, { limit: 1 });
     expect(personal.items.map((row) => row.id)).toEqual([tableId]);
@@ -5928,7 +5928,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         );
         expect(
           (await s.eventRecords.personalTables(GUEST, { limit: 20 })).map((row) => row.id),
-        ).toEqual(visible ? [tableId] : []);
+        ).toEqual(visible && role === "participant" ? [tableId] : []);
         const hierarchy = await db
           .collection(COLLECTIONS.EVENTS)
           .aggregate([
@@ -5944,7 +5944,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
           (await s.plannedEventService.personalTables(GUEST, { limit: 20 })).items.map(
             (row) => row.id,
           ),
-        ).toEqual(visible ? [tableId] : []);
+        ).toEqual(visible && role === "participant" ? [tableId] : []);
         if (!visible) {
           await expect(s.plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
             code: "GROUP_BANNED",
