@@ -9,8 +9,7 @@ portrait or a redrawn face. Launcher/touch/notification icons resize the complet
 Favicons use a tight square crop of its original face with the adjacent card/die edges.
 The monochrome variant uses the original full-character alpha silhouette, preserving eye
 glints and the smile as cutouts from the original pixels while removing other interior
-details for Android notifications, web badges and themed icons. The original ImageGen
-prompt is stored beside the master. Earlier approved mascot versions remain available.
+details for Android notifications, web badges and themed icons.
 
 Run from the repository root after installing the locked workspace dependencies:
 
