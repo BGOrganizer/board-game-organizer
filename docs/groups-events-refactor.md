@@ -496,7 +496,9 @@ exceptions supersede older membership-only activity/detail statements below.
 ### Event planning settings and seat order
 
 Event-level planning settings appear below Name/Group in creation/edit step 0 and in the summary.
-Historical and new Events default to Assisted, More players, reduction disabled. Settings are editable
+Historical and new Events default to Assisted and Players. Selecting BGG Best in either client also
+accepts player-count reduction in Assisted planning; there is no separate reduction switch. Existing
+stored settings are not rewritten until the Event is saved. Settings are editable
 only while PLANNING and apply to every Table. Manual keeps the current visible allocation when selected:
 the server first captures one common proposal, then persists its priority order and seat/queue
 boundary transactionally. This allocation boundary is server-owned, not a Table setting override.
@@ -515,7 +517,7 @@ BGG quality compares the number of Best configurations, then Recommended configu
 Not Recommended configurations; unknown data adds no recommendation. More players maximizes distinct
 actual attendance, then this BGG player-count quality, then YES date/location
 and game preferences, then original option order. Ideal count prioritizes BGG quality before attendance.
-Only Assisted + Ideal count + explicit Allow reduction for Best can reduce a seated group to a BGG Best
+Only Assisted + BGG Best with reduction enabled can reduce a seated group to a BGG Best
 count; it retains locked users and all remaining consent/hard game bounds. Unknown recommendations do
 not authorize reduction. Joint selection remains deterministic, budgeted and exact; exhausting the
 budget fails closed. PLANNING never changes to CONFIRMED automatically: a current manager explicitly
@@ -537,8 +539,13 @@ request. The editor retains a failed draft and requires an explicit fresh review
 unsaved session. Successful save becomes the next edit baseline. Mutations use the existing fresh-token,
 scoped intent/journal feedback and selective reconciliation. No invitation acceptance is inferred.
 
+Create/edit API writes derive `allowBestReduction` from the effective `playerPreference`: BEST enables
+it and MORE_PLAYERS disables it. The legacy boolean remains accepted for compatible clients but cannot
+override that choice. Existing stored Events retain their recorded policy until edited. Event list/detail
+settings popovers report the stored policy; restricted result-only projections do not invent missing settings.
+
 Manual acceptance on both web and an installed native development build:
-1. Create with defaults, inspect each help popover, choose Manual/Ideal count/reduction, review summary,
+1. Create with defaults, inspect each help popover, choose Manual/BGG Best, review summary,
    save and reopen. Confirm no Table-level settings exist and confirmed Events cannot edit them.
 2. With two seated accepted users, a pending reservation and accepted queue, enter reorder. Verify normal
    leave/remove/invite controls disappear; test each boundary, pending immobility, lock/unlock, save,

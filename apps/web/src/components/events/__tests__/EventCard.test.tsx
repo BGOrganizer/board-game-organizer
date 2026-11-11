@@ -137,12 +137,13 @@ it("suppresses stale private roles while retaining four ordinary information con
       }}
     />,
   );
-  expect(screen.getAllByRole("button")).toHaveLength(4);
+  expect(screen.getAllByRole("button")).toHaveLength(5);
   for (const name of [
     "Planning",
     "Private event",
     "Dates and times: Friday games",
     "Locations: Friday games",
+    "Settings",
   ])
     expect(screen.getByRole("button", { name })).not.toBeNull();
 });

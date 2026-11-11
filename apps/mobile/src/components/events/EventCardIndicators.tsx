@@ -13,6 +13,7 @@ import {
   Flag,
   Globe,
   LockKeyhole,
+  Settings,
   UsersRound,
 } from "lucide-react-native";
 import { ScrollView, useWindowDimensions, View } from "react-native";
@@ -115,6 +116,42 @@ export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
       </HelpPopover>
       <EventSchedulePopover event={event} kind="dates" />
       <EventSchedulePopover event={event} kind="locations" />
+      {!event.sharedResultsOnly && !event.personalAccessOnly ? (
+        <HelpPopover
+          size="compact"
+          label={t("Settings")}
+          title={t("Settings")}
+          icon={Settings}
+          triggerClassName="bg-default"
+        >
+          <View style={{ gap: 8 }}>
+            <Typography>
+              <Typography className="font-semibold">
+                {event.planningMode === "MANUAL" ? t("Manual") : t("Assisted")}
+              </Typography>
+              :{" "}
+              {event.planningMode === "MANUAL"
+                ? t("Managers arrange the seats; confirmation is always manual.")
+                : t(
+                    "The app seeks agreement while protecting seated players; confirmation is always manual.",
+                  )}
+            </Typography>
+            <Typography>
+              <Typography className="font-semibold">
+                {event.playerPreference === "BEST" ? t("BGG Best") : t("Players")}
+              </Typography>
+              :{" "}
+              {event.playerPreference === "BEST"
+                ? event.allowBestReduction
+                  ? t(
+                      "Prefer BGG's ideal player count, allowing fewer players in Assisted planning.",
+                    )
+                  : t("Preserve seated players")
+                : t("Maximize the number of players.")}
+            </Typography>
+          </View>
+        </HelpPopover>
+      ) : null}
     </>
   );
 }

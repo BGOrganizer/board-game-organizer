@@ -1314,7 +1314,7 @@ export class EventRecordsService {
       planningGeneration: 1,
       planningMode: input.planningMode ?? "ASSISTED",
       playerPreference: input.playerPreference ?? "MORE_PLAYERS",
-      allowBestReduction: input.allowBestReduction ?? false,
+      allowBestReduction: input.playerPreference === "BEST",
       allowParticipantDates: input.allowParticipantDates ?? false,
       allowParticipantLocations: input.allowParticipantLocations ?? false,
       nextPriority: 0,
@@ -1450,6 +1450,7 @@ export class EventRecordsService {
     const next = {
       ...event,
       ...fields,
+      allowBestReduction: (input.playerPreference ?? event.playerPreference) === "BEST",
       visibility,
       locations,
       timeZone,

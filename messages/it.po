@@ -6896,3 +6896,24 @@ msgstr "Impossibile salvare l'ordine dei posti"
 
 msgid "Ideal count (BGG Best)"
 msgstr "Numero ideale (BGG Best)"
+
+msgid "BGG Best"
+msgstr "BGG Best"
+
+msgid "BGG Best allows reducing the seated group in Assisted planning."
+msgstr "BGG Best consente di ridurre i giocatori nella modalità Assistita."
+
+msgid "Managers arrange the seats; confirmation is always manual."
+msgstr "I gestori organizzano i posti; la conferma è sempre manuale."
+
+msgid "Maximize the number of players."
+msgstr "Massimizza il numero di giocatori."
+
+msgid "Prefer BGG's ideal player count, allowing fewer players in Assisted planning."
+msgstr "Privilegia il numero ideale BGG, consentendo meno giocatori in modalità Assistita."
+
+msgid "Prefer the player count rated Best by the BGG community. Selecting BGG Best allows Assisted planning to reduce the seated group to reach that count. Locked seats and pending invitations remain protected; Manual planning never removes players automatically."
+msgstr "Privilegia il numero di giocatori valutato Best dalla community BGG. Scegliendo BGG Best, la modalità Assistita può ridurre i giocatori seduti per raggiungere quel numero. I posti bloccati e gli inviti pendenti restano protetti; la modalità Manuale non rimuove mai giocatori automaticamente."
+
+msgid "The app seeks agreement while protecting seated players; confirmation is always manual."
+msgstr "L'app cerca la concordia proteggendo i giocatori seduti; la conferma è sempre manuale."

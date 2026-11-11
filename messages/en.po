@@ -6896,3 +6896,33 @@ msgstr "Could not save seat order"
 
 msgid "Ideal count (BGG Best)"
 msgstr "Ideal count (BGG Best)"
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "BGG Best"
+msgstr "BGG Best"
+
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "BGG Best allows reducing the seated group in Assisted planning."
+msgstr "BGG Best allows reducing the seated group in Assisted planning."
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Managers arrange the seats; confirmation is always manual."
+msgstr "Managers arrange the seats; confirmation is always manual."
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Maximize the number of players."
+msgstr "Maximize the number of players."
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Prefer BGG's ideal player count, allowing fewer players in Assisted planning."
+msgstr "Prefer BGG's ideal player count, allowing fewer players in Assisted planning."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Prefer the player count rated Best by the BGG community. Selecting BGG Best allows Assisted planning to reduce the seated group to reach that count. Locked seats and pending invitations remain protected; Manual planning never removes players automatically."
+msgstr "Prefer the player count rated Best by the BGG community. Selecting BGG Best allows Assisted planning to reduce the seated group to reach that count. Locked seats and pending invitations remain protected; Manual planning never removes players automatically."
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "The app seeks agreement while protecting seated players; confirmation is always manual."
+msgstr "The app seeks agreement while protecting seated players; confirmation is always manual."

@@ -11,6 +11,49 @@ import { EventVoteLegend } from "../EventVoteLegend";
 
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
 
+it.each(["card", "detail"] as const)(
+  "summarizes event planning settings from the %s without navigating",
+  (surface) => {
+    const event = {
+      ...plannedEvent,
+      planningMode: "MANUAL" as const,
+      playerPreference: "BEST" as const,
+      allowBestReduction: true,
+    };
+    renderWithI18n(
+      surface === "card" ? <EventCard event={event} /> : <EventDetailsCard event={event} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    const popover = screen.getByRole("dialog");
+    expect(within(popover).getByText("Manual")).toBeTruthy();
+    expect(within(popover).getByText("BGG Best")).toBeTruthy();
+    expect(popover.textContent).toContain("Managers arrange the seats");
+    expect(popover.textContent).toContain("allowing fewer players in Assisted planning");
+  },
+);
+it("describes historical defaults as Assisted and Players", () => {
+  renderWithI18n(<EventCard event={plannedEvent} />);
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  const popover = screen.getByRole("dialog");
+  expect(within(popover).getByText("Assisted")).toBeTruthy();
+  expect(within(popover).getByText("Players")).toBeTruthy();
+  expect(popover.textContent).toContain("Maximize the number of players.");
+});
+it("keeps legacy Best settings truthful until the Event is edited", () => {
+  renderWithI18n(
+    <EventCard event={{ ...plannedEvent, playerPreference: "BEST", allowBestReduction: false }} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  expect(screen.getByRole("dialog").textContent).toContain("Preserve seated players");
+});
+it.each(["sharedResultsOnly", "personalAccessOnly"] as const)(
+  "does not invent settings for the restricted %s projection",
+  (scope) => {
+    renderWithI18n(<EventCard event={{ ...plannedEvent, [scope]: true }} />);
+    expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
+  },
+);
+
 it.each([
   ["PLANNING", "Planning", "warning"],
   ["CONFIRMED", "Confirmed", "success"],

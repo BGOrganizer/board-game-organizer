@@ -753,6 +753,21 @@ it("restores saved planning settings and serializes them while historical and ne
     });
 });
 
+it("includes reduction whenever Best is selected, including a legacy draft with reduction disabled", () => {
+  const draft = {
+    ...eventDraft(event),
+    tables: [tableDraft(table, event.timeZone)],
+    playerPreference: "BEST" as const,
+    allowBestReduction: false,
+  };
+  const parsed = eventDraftInput(draft, false);
+  expect(parsed.success).toBe(true);
+  if (parsed.success) expect(parsed.data.allowBestReduction).toBe(true);
+  expect(
+    eventDraft({ ...event, playerPreference: "BEST", allowBestReduction: false })
+      .allowBestReduction,
+  ).toBe(true);
+});
 it("serializes legacy local drafts without planning fields using the same safe defaults", () => {
   const draft = {
     ...eventDraft(event),

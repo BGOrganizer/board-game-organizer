@@ -1229,6 +1229,32 @@ afterEach(() => {
 });
 
 describe("creation correlation without client identity authority", () => {
+  it.each([undefined, false, true])(
+    "derives reduction from player preference on create and edit despite legacy flag=%s",
+    async (allowBestReduction) => {
+      const f = setup();
+      const input = { ...body(), playerPreference: "BEST" as const, allowBestReduction };
+      const created = await f.service.create(owner, input);
+      expect(created.allowBestReduction).toBe(true);
+      expect(f.events.get(created.id)?.allowBestReduction).toBe(true);
+      const { groupId: _group, ...fields } = input;
+      const players = await f.service.update(owner, created.id, {
+        ...fields,
+        playerPreference: "MORE_PLAYERS",
+        allowBestReduction: true,
+        version: created.version,
+        removedTableIds: [],
+      });
+      expect(players.allowBestReduction).toBe(false);
+      const best = await f.service.update(owner, created.id, {
+        ...fields,
+        version: players.version,
+        removedTableIds: [],
+      });
+      expect(best.allowBestReduction).toBe(true);
+      expect(f.events.get(created.id)?.allowBestReduction).toBe(true);
+    },
+  );
   it("persists and returns the optional correlation on create/read/list and keeps it immutable across planning edits", async () => {
     const f = setup();
     const clientRequestId = "99999999-9999-4999-8999-999999999999";

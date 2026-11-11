@@ -36,7 +36,7 @@ it("does not fabricate participation or management when an Event is view-only", 
   };
   const view = renderWithI18n(<EventCard event={event} />);
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
-  expect(screen.getAllByRole("button")).toHaveLength(4);
+  expect(screen.getAllByRole("button")).toHaveLength(5);
   view.rerender(<EventDetailsCard event={event} />);
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Management" })).toBeNull();

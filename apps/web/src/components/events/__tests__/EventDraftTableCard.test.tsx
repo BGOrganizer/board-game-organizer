@@ -136,9 +136,9 @@ it.each([false, true])("reviews manual Best settings and reduction=%s", (allowBe
     />,
   );
   expect(screen.getByText("Manual")).toBeTruthy();
-  expect(screen.getByText("Ideal count")).toBeTruthy();
+  expect(screen.getByText("BGG Best")).toBeTruthy();
   expect(
-    screen.getByText(allowBestReduction ? "Allow reduction for Best" : "Preserve seated players"),
+    screen.getByText("BGG Best allows reducing the seated group in Assisted planning."),
   ).toBeTruthy();
 });
 it("reviews public start, same-day end and combined cutoff before the venue", () => {

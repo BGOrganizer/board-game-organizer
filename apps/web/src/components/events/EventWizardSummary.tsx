@@ -38,11 +38,9 @@ export function EventWizardSummary({
       <section className="space-y-2">
         <h2 className="font-semibold">{t`Settings`}</h2>
         <p>{draft.planningMode === "MANUAL" ? t`Manual` : t`Assisted`}</p>
-        <p>{draft.playerPreference === "BEST" ? t`Ideal count` : t`More players`}</p>
+        <p>{draft.playerPreference === "BEST" ? t`BGG Best` : t`Players`}</p>
         {draft.playerPreference === "BEST" ? (
-          <p>
-            {draft.allowBestReduction ? t`Allow reduction for Best` : t`Preserve seated players`}
-          </p>
+          <p>{t`BGG Best allows reducing the seated group in Assisted planning.`}</p>
         ) : null}
       </section>
       <section className="space-y-2">

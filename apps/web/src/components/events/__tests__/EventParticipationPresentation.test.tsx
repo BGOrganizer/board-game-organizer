@@ -36,7 +36,7 @@ it.each([
     <EventCard event={{ ...plannedEvent, role: "invited", myRegistrations: [...rows] }} />,
   );
   const button = screen.getByRole("button", { name: label });
-  expect(screen.getAllByRole("button")).toHaveLength(reply ? 7 : 6);
+  expect(screen.getAllByRole("button")).toHaveLength(reply ? 8 : 7);
   expect(screen.getByRole("button", { name: "Participant on the waiting list" })).not.toBeNull();
   if (reply)
     expect(

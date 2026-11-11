@@ -1,7 +1,8 @@
 "use client";
 import type { useEventRecordForm } from "@board-game-organizer/shared";
-import { Card, Radio, RadioGroup, Switch } from "@heroui/react";
+import { Card, Radio, RadioGroup } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Hand, Sparkles, Trophy, Users } from "lucide-react";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
@@ -29,11 +30,13 @@ export function EventPlanningSettings({
         {
           value: "MANUAL",
           label: t`Manual`,
+          icon: Hand,
           help: t`Manual planning keeps the current seats. Every seated player must agree before a manager can confirm.`,
         },
         {
           value: "ASSISTED",
           label: t`Assisted`,
+          icon: Sparkles,
           help: t`Assistance recalculates the allocation when planning changes. Switching to Assisted can change the allocation; confirmation always requires a manager.`,
         },
       ],
@@ -41,17 +44,23 @@ export function EventPlanningSettings({
     {
       value: draft.playerPreference ?? "MORE_PLAYERS",
       name: t`Player count`,
-      change: (value: string) => form.patch({ playerPreference: value as "MORE_PLAYERS" | "BEST" }),
+      change: (value: string) =>
+        form.patch({
+          playerPreference: value as "MORE_PLAYERS" | "BEST",
+          allowBestReduction: value === "BEST",
+        }),
       options: [
         {
           value: "MORE_PLAYERS",
-          label: t`More players`,
+          label: t`Players`,
+          icon: Users,
           help: t`Maximize participation before preferring BGG player-count recommendations.`,
         },
         {
           value: "BEST",
-          label: t`Ideal count (BGG Best)`,
-          help: t`Prefer BGG Best player counts. Allow reduction for Best explicitly permits assistance to reduce the seated group; locked players remain protected.`,
+          label: t`BGG Best`,
+          icon: Trophy,
+          help: t`Prefer the player count rated Best by the BGG community. Selecting BGG Best allows Assisted planning to reduce the seated group to reach that count. Locked seats and pending invitations remain protected; Manual planning never removes players automatically.`,
         },
       ],
     },
@@ -75,35 +84,37 @@ export function EventPlanningSettings({
           {group.options.map((option) => (
             <Card
               key={option.value}
-              className="min-w-0 p-3"
+              className={`min-h-28 min-w-0 border-2 p-0 ${group.value === option.value ? "border-accent" : "border-transparent"}`}
               variant={group.value === option.value ? "secondary" : "default"}
             >
-              <div className="flex items-center justify-between gap-2">
-                <Radio value={option.value} className="min-w-0 flex-1">
-                  <Radio.Control>
-                    <Radio.Indicator />
-                  </Radio.Control>
-                  <Radio.Content className="min-w-0 break-words">{option.label}</Radio.Content>
-                </Radio>
+              <Radio
+                id={`event-setting-${option.value}`}
+                value={option.value}
+                aria-label={option.label}
+                className="w-full"
+              >
+                <Radio.Content className="flex w-full flex-col items-stretch p-3 pb-0">
+                  <span className="inline-flex w-full items-center justify-between gap-2">
+                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-default text-accent">
+                      <option.icon className="size-5" aria-hidden />
+                    </span>
+                    <Radio.Control className="size-5 shrink-0">
+                      <Radio.Indicator />
+                    </Radio.Control>
+                  </span>
+                </Radio.Content>
+              </Radio>
+              <div className="flex min-w-0 items-center gap-1 px-3 pb-3">
+                <label
+                  htmlFor={`event-setting-${option.value}`}
+                  className="min-w-0 break-words font-semibold text-foreground"
+                >
+                  {option.label}
+                </label>
                 <HelpPopover label={`${option.label}: ${t`Field help`}`} title={option.label}>
                   {option.help}
                 </HelpPopover>
               </div>
-              {option.value === "BEST" && group.value === "BEST" ? (
-                <Switch
-                  aria-label={t`Allow reduction for Best`}
-                  isSelected={draft.allowBestReduction ?? false}
-                  isDisabled={busy}
-                  onChange={(allowBestReduction) => form.patch({ allowBestReduction })}
-                >
-                  <Switch.Content>
-                    <Switch.Control>
-                      <Switch.Thumb />
-                    </Switch.Control>
-                    {t`Allow reduction for Best`}
-                  </Switch.Content>
-                </Switch>
-              ) : null}
             </Card>
           ))}
         </RadioGroup>

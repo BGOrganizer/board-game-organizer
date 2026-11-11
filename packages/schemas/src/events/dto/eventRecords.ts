@@ -74,6 +74,7 @@ export const createPlannedEventSchema = z
     timeZone: zoneSchema,
     planningMode: z.enum(["MANUAL", "ASSISTED"]).optional(),
     playerPreference: z.enum(["MORE_PLAYERS", "BEST"]).optional(),
+    // Legacy callers may still send this field; Event writes derive it from playerPreference.
     allowBestReduction: z.boolean().optional(),
     allowParticipantDates: z.boolean().optional(),
     allowParticipantLocations: z.boolean().optional(),

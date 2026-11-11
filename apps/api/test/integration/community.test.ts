@@ -1886,8 +1886,8 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     input.tables[0].maxPlayers = 3;
     input.planningMode = "ASSISTED";
     input.playerPreference = "BEST";
-    input.allowBestReduction = true;
     const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    expect(event.allowBestReduction).toBe(true);
     await transaction((s) => s.plannedEventService.register(OWNER, event.id, tableId));
     for (const userId of [GUEST, OTHER]) {
       const invitation = await transaction((s) =>

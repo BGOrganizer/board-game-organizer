@@ -1,9 +1,10 @@
 import type { useEventRecordForm } from "@board-game-organizer/shared";
 import { Card } from "heroui-native/card";
+import { useThemeColor } from "heroui-native/hooks";
 import { Radio } from "heroui-native/radio";
 import { RadioGroup } from "heroui-native/radio-group";
-import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
+import { Hand, Sparkles, Trophy, Users } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -18,6 +19,7 @@ export function EventPlanningSettings({
   busy: boolean;
 }) {
   const t = useT();
+  const accent = useThemeColor("accent");
   const { draft } = form;
   const [warnAssistance, setWarnAssistance] = useState(false);
   const chooseMode = (value: string) => {
@@ -33,6 +35,7 @@ export function EventPlanningSettings({
         {
           value: "MANUAL",
           label: t("Manual"),
+          icon: Hand,
           help: t(
             "Manual planning keeps the current seats. Every seated player must agree before a manager can confirm.",
           ),
@@ -40,6 +43,7 @@ export function EventPlanningSettings({
         {
           value: "ASSISTED",
           label: t("Assisted"),
+          icon: Sparkles,
           help: t(
             "Assistance recalculates the allocation when planning changes. Switching to Assisted can change the allocation; confirmation always requires a manager.",
           ),
@@ -49,18 +53,24 @@ export function EventPlanningSettings({
     {
       value: draft.playerPreference ?? "MORE_PLAYERS",
       name: t("Player count"),
-      change: (value: string) => form.patch({ playerPreference: value as "MORE_PLAYERS" | "BEST" }),
+      change: (value: string) =>
+        form.patch({
+          playerPreference: value as "MORE_PLAYERS" | "BEST",
+          allowBestReduction: value === "BEST",
+        }),
       options: [
         {
           value: "MORE_PLAYERS",
-          label: t("More players"),
+          label: t("Players"),
+          icon: Users,
           help: t("Maximize participation before preferring BGG player-count recommendations."),
         },
         {
           value: "BEST",
-          label: t("Ideal count (BGG Best)"),
+          label: t("BGG Best"),
+          icon: Trophy,
           help: t(
-            "Prefer BGG Best player counts. Allow reduction for Best explicitly permits assistance to reduce the seated group; locked players remain protected.",
+            "Prefer the player count rated Best by the BGG community. Selecting BGG Best allows Assisted planning to reduce the seated group to reach that count. Locked seats and pending invitations remain protected; Manual planning never removes players automatically.",
           ),
         },
       ],
@@ -87,40 +97,66 @@ export function EventPlanningSettings({
           {group.options.map((option) => (
             <Card
               key={option.value}
-              style={{ flex: 1, minWidth: 0, padding: 12 }}
+              style={{ flex: 1, minWidth: 0, minHeight: 112, padding: 0, borderWidth: 2 }}
+              className={group.value === option.value ? "border-accent" : "border-transparent"}
               variant={group.value === option.value ? "secondary" : "default"}
             >
+              <RadioGroup.Item
+                value={option.value}
+                accessibilityLabel={option.label}
+                style={{ width: "100%", padding: 12, paddingBottom: 0 }}
+              >
+                <View pointerEvents="none" style={{ width: "100%", gap: 8 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                    }}
+                  >
+                    <View
+                      className="bg-default"
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 8,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <option.icon size={20} color={accent} accessible={false} />
+                    </View>
+                    <Radio
+                      accessible={false}
+                      pointerEvents="none"
+                      importantForAccessibility="no-hide-descendants"
+                    />
+                  </View>
+                </View>
+              </RadioGroup.Item>
               <View
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 8,
-                  justifyContent: "space-between",
+                  gap: 4,
+                  paddingHorizontal: 12,
+                  paddingBottom: 12,
                 }}
               >
-                <RadioGroup.Item
-                  value={option.value}
-                  accessibilityLabel={option.label}
-                  style={{ flex: 1, minWidth: 0 }}
+                <Typography
+                  className="font-semibold text-foreground"
+                  style={{ flexShrink: 1 }}
+                  onPress={() => {
+                    if (!busy) group.change(option.value);
+                  }}
                 >
-                  <Radio />
-                  <Typography style={{ flex: 1, flexShrink: 1 }}>{option.label}</Typography>
-                </RadioGroup.Item>
+                  {option.label}
+                </Typography>
                 <HelpPopover label={`${option.label}: ${t("Field help")}`} title={option.label}>
                   {option.help}
                 </HelpPopover>
               </View>
-              {option.value === "BEST" && group.value === "BEST" ? (
-                <View style={{ gap: 8 }}>
-                  <Typography>{t("Allow reduction for Best")}</Typography>
-                  <Switch
-                    accessibilityLabel={t("Allow reduction for Best")}
-                    isSelected={draft.allowBestReduction ?? false}
-                    isDisabled={busy}
-                    onSelectedChange={(allowBestReduction) => form.patch({ allowBestReduction })}
-                  />
-                </View>
-              ) : null}
             </Card>
           ))}
         </RadioGroup>

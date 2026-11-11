@@ -43,14 +43,10 @@ export function EventWizardSummary({
       <View style={{ gap: 8 }}>
         <Typography>{t("Settings")}</Typography>
         <Typography>{draft.planningMode === "MANUAL" ? t("Manual") : t("Assisted")}</Typography>
-        <Typography>
-          {draft.playerPreference === "BEST" ? t("Ideal count") : t("More players")}
-        </Typography>
+        <Typography>{draft.playerPreference === "BEST" ? t("BGG Best") : t("Players")}</Typography>
         {draft.playerPreference === "BEST" ? (
           <Typography>
-            {draft.allowBestReduction
-              ? t("Allow reduction for Best")
-              : t("Preserve seated players")}
+            {t("BGG Best allows reducing the seated group in Assisted planning.")}
           </Typography>
         ) : null}
       </View>

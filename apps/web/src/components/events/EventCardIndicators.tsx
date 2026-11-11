@@ -7,7 +7,15 @@ import {
   eventRecordVisibility,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarCheck, CalendarClock, Flag, Globe, LockKeyhole, UsersRound } from "lucide-react";
+import {
+  CalendarCheck,
+  CalendarClock,
+  Flag,
+  Globe,
+  LockKeyhole,
+  Settings,
+  UsersRound,
+} from "lucide-react";
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { EventSchedulePopover } from "./EventSchedulePopover";
@@ -97,6 +105,32 @@ export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
       </HelpPopover>
       <EventSchedulePopover event={event} kind="dates" />
       <EventSchedulePopover event={event} kind="locations" />
+      {!event.sharedResultsOnly && !event.personalAccessOnly ? (
+        <HelpPopover
+          size="compact"
+          label={t`Settings`}
+          title={t`Settings`}
+          icon={Settings}
+          triggerClassName="bg-default"
+        >
+          <div className="space-y-2">
+            <p>
+              <strong>{event.planningMode === "MANUAL" ? t`Manual` : t`Assisted`}</strong>:{" "}
+              {event.planningMode === "MANUAL"
+                ? t`Managers arrange the seats; confirmation is always manual.`
+                : t`The app seeks agreement while protecting seated players; confirmation is always manual.`}
+            </p>
+            <p>
+              <strong>{event.playerPreference === "BEST" ? t`BGG Best` : t`Players`}</strong>:{" "}
+              {event.playerPreference === "BEST"
+                ? event.allowBestReduction
+                  ? t`Prefer BGG's ideal player count, allowing fewer players in Assisted planning.`
+                  : t`Preserve seated players`
+                : t`Maximize the number of players.`}
+            </p>
+          </div>
+        </HelpPopover>
+      ) : null}
     </>
   );
 }
