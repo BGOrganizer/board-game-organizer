@@ -71,6 +71,18 @@ export function notificationChangeMessage(
   kind: string,
   itemId?: string,
 ): NotificationChangeRow["messageCode"] {
+  if (
+    [
+      "event_agreement_ready",
+      "event_agreement_blocked",
+      "event_confirmed",
+      "event_replanning",
+      "event_terminated",
+      "event_cancelled",
+    ].includes(kind)
+  )
+    return kind as NotificationChangeRow["messageCode"];
+
   if (itemId) {
     const field = (JSON.parse(itemId) as string[])[2];
     if (
@@ -89,17 +101,6 @@ export function notificationChangeMessage(
     return "member_update";
   if (kind.includes("proposal")) return "proposal";
   if (kind.includes("review")) return "review";
-  if (
-    [
-      "event_agreement_ready",
-      "event_agreement_blocked",
-      "event_confirmed",
-      "event_replanning",
-      "event_terminated",
-      "event_cancelled",
-    ].includes(kind)
-  )
-    return "event_state";
   return scope.kind === "group" ? "group_info" : "information";
 }
 /** Read only the bounded visible selection; invitations retain their independent response workflow. */

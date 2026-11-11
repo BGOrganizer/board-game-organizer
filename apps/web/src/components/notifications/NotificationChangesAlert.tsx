@@ -11,6 +11,12 @@ import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnread
 
 type Model = ReturnType<typeof useNotificationChanges>;
 const messages = {
+  event_agreement_ready: msg`Event planning is ready for confirmation.`,
+  event_agreement_blocked: msg`Event planning needs review. Check participant availability and votes.`,
+  event_confirmed: msg`The event has been confirmed.`,
+  event_replanning: msg`Event planning has reopened. Check dates, locations and votes.`,
+  event_terminated: msg`The event has ended. Results are available.`,
+  event_cancelled: msg`The event has been cancelled.`,
   date: msg`Date updated`,
   dates: msg`Date options changed`,
   location: msg`Location updated`,
@@ -62,12 +68,17 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
           <NotificationUnreadDot active={model.changes.length > 0} />
         </div>
         {model.changes.length ? (
-          <Virtualizer layout={ListLayout} layoutOptions={{ estimatedRowHeight: 44 }}>
+          <Virtualizer
+            layout={ListLayout}
+            layoutOptions={{ estimatedRowHeight: 44 }}
+            shouldObserveItemSize
+          >
             <ListBox
               aria-label={t`Changes`}
               selectionMode="none"
               items={model.changes}
               className="max-h-60 min-h-10 w-full overflow-auto"
+              style={{ height: Math.min(240, Math.max(44, model.changes.length * 56)) }}
               onScroll={(event) => {
                 const list = event.currentTarget;
                 if (list.scrollTop > 0) scrolling.current = true;
@@ -83,7 +94,9 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
                   id={`${row.notificationId}:${row.itemId ?? "generic"}`}
                   textValue={label(row)}
                 >
-                  <span className="whitespace-normal text-sm">{label(row)}</span>
+                  <Alert.Description className="whitespace-normal text-sm">
+                    {label(row)}
+                  </Alert.Description>
                 </ListBox.Item>
               )}
             </ListBox>
@@ -133,10 +146,7 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
           if (canRead && !model.isReading) model.markDisplayedAsRead();
         }}
       >
-        <span
-          className="inline-flex size-7 items-center justify-center rounded-lg bg-warning text-warning-foreground"
-          aria-hidden
-        >
+        <span className="inline-flex size-7 items-center justify-center text-warning" aria-hidden>
           <Check className="size-4" />
         </span>
       </Button>

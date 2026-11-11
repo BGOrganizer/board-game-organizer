@@ -98,4 +98,5 @@ export * from "./profile/activityNarrative";
 export * from "./profile/hooks/usePreferredLanguageSync";
 export * from "./profile/hooks/useProfile";
 export * from "./profile/hooks/useProfileView";
+export * from "./profile/personalRatingColor";
 export * from "./profile/profileMetrics";

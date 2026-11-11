@@ -159,7 +159,7 @@ describe("notificationChanges canonical classification", () => {
       ["group_invitation_accepted", "member_update"],
       ["event_proposal_created", "proposal"],
       ["group_reviewed", "review"],
-      ["event_confirmed", "event_state"],
+      ["event_confirmed", "event_confirmed"],
       ["group_banned", "group_info"],
       ["event_updated", "information"],
     ])
@@ -314,4 +314,19 @@ describe("notificationChanges decision reconciliation", () => {
       ),
     ).toBe(data);
   });
+});
+
+it.each([
+  "event_agreement_ready",
+  "event_agreement_blocked",
+  "event_confirmed",
+  "event_replanning",
+  "event_terminated",
+  "event_cancelled",
+])("preserves the specific Event state %s even for an overview change", (kind) => {
+  const s = { kind: "event", id: "11111111-1111-4111-8111-111111111111", tab: "details" } as const;
+  expect(notificationChangeMessage(s, kind)).toBe(kind);
+  expect(notificationChangeMessage(s, kind, notificationItemId("event", s.id, "overview"))).toBe(
+    kind,
+  );
 });

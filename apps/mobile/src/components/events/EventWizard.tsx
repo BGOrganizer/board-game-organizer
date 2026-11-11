@@ -21,8 +21,8 @@ import { Typography } from "heroui-native/text";
 import {
   ArrowLeft,
   ArrowRight,
+  CalendarDays,
   CalendarPlus,
-  Dices,
   Plus,
   Save,
   Table2,
@@ -315,7 +315,7 @@ function Editor({
       <Stack.Screen
         options={{
           title: event ? t("Edit event") : t("Create event"),
-          headerTitle: ({ children }) => <HeaderTitle title={children} icon={Dices} />,
+          headerTitle: ({ children }) => <HeaderTitle title={children} icon={CalendarDays} />,
           gestureEnabled: true,
           ...headerBackOptions(() => router.back()),
         }}

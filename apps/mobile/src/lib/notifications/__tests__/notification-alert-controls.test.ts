@@ -88,7 +88,7 @@ it("keeps the warning read face compact without shrinking its accessible touch t
     isDisabled: false,
     style: { minWidth: 44, minHeight: 44, padding: 0 },
   });
-  const face = nodes(button).find((node) => node.props.className === "bg-warning")!;
+  const face = nodes(button).find((node) => node.props.style?.width === 28)!;
   expect(face.props.style).toMatchObject({
     width: 28,
     height: 28,
@@ -97,7 +97,7 @@ it("keeps the warning read face compact without shrinking its accessible touch t
   });
   expect(nodes(face).find((node) => node.type === "Check")?.props).toMatchObject({
     size: 16,
-    color: "warning-foreground",
+    color: "warning",
     accessible: false,
   });
   expect(read).not.toHaveBeenCalled();

@@ -50,3 +50,8 @@ launches. Expo Go and development-client splash screens do not establish release
 appearance; see [Expo splash guidance](https://docs.expo.dev/versions/v57.0.0/sdk/splash-screen/).
 Local asset/configuration and unit checks do not establish device acceptance. Preserve
 the existing five-second startup limit, bounded warmup and reduced-motion behavior.
+
+Android 12 masks the native splash canvas to a 192 dp circle. The Android-only image width
+is 134 dp so even the corners of the complete square artwork fit within that mask. The
+subsequent animated overlay and iOS retain the 280 dp image with contain sizing. This native
+configuration change requires a fresh Android binary; an OTA update alone cannot apply it.

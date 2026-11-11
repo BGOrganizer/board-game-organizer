@@ -3,6 +3,7 @@ import {
   bggCollectionQuery,
   communityAccessDenied,
   GAME_PICKER_CHUNK_SIZE,
+  personalRatingColor,
   useBggCollection,
   useBggCollectionFilters,
   useGameListWindow,
@@ -10,6 +11,7 @@ import {
 import { useLingui } from "@lingui/react";
 import { hashKey } from "@tanstack/react-query";
 import { Button } from "heroui-native/button";
+import { Chip } from "heroui-native/chip";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Gamepad2, Heart, Puzzle, UsersRound } from "lucide-react-native";
@@ -217,13 +219,15 @@ const CollectionRow = memo(function CollectionRow({
       average={item.average}
       rank={item.rank}
       actions={
-        <Typography
+        <Chip
+          size="sm"
+          variant="soft"
+          color={personalRatingColor(item.userRating)}
           accessibilityLabel={`${label}: ${rating}`}
-          className="font-semibold text-foreground"
-          style={{ minWidth: 44, textAlign: "center" }}
+          style={{ minWidth: 44, justifyContent: "center" }}
         >
-          {rating}
-        </Typography>
+          <Chip.Label>{rating}</Chip.Label>
+        </Chip>
       }
     />
   );

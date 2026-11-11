@@ -14,6 +14,12 @@ import { useT } from "@/lib/i18n";
 type Model = ReturnType<typeof useNotificationChanges>;
 const key = (row: NotificationChangeRow) => `${row.notificationId}:${row.itemId ?? "generic"}`;
 const messages = {
+  event_agreement_ready: "Event planning is ready for confirmation.",
+  event_agreement_blocked: "Event planning needs review. Check participant availability and votes.",
+  event_confirmed: "The event has been confirmed.",
+  event_replanning: "Event planning has reopened. Check dates, locations and votes.",
+  event_terminated: "The event has ended. Results are available.",
+  event_cancelled: "The event has been cancelled.",
   date: "Date updated",
   dates: "Date options changed",
   location: "Location updated",
@@ -50,11 +56,7 @@ const ChangeRow = memo(function ChangeRow({ row }: { row: NotificationChangeRow 
 /** One explicit information read action. Pending invitations remain protected until their response. */
 export function NotificationChangesAlert({ model }: { model: Model }) {
   const t = useT(),
-    [warning, foreground, secondary] = useThemeColor([
-      "warning-soft-foreground",
-      "warning-foreground",
-      "default-foreground",
-    ]);
+    [warning, secondary] = useThemeColor(["warning", "default-foreground"]);
   const [contentHeight, setContentHeight] = useState(0);
   const armed = useRef(false);
   const more = useCallback(() => {
@@ -159,7 +161,6 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
         }}
       >
         <View
-          className="bg-warning"
           accessible={false}
           style={{
             width: 28,
@@ -169,7 +170,7 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
             justifyContent: "center",
           }}
         >
-          <Check size={16} color={foreground} accessible={false} />
+          <Check size={16} color={warning} accessible={false} />
         </View>
       </Button>
     </Alert>

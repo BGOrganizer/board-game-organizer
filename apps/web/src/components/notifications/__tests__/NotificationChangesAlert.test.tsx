@@ -57,7 +57,7 @@ describe("NotificationChangesAlert explicit selected-tab information reads", () 
     const read = screen.getByRole("button", { name: "Mark displayed changes as read" });
     expect(read.className).toContain("button--ghost");
     expect(read.className).toContain("min-h-11");
-    expect(read.querySelector(".bg-warning.text-warning-foreground.size-7")).toBeTruthy();
+    expect(read.querySelector(".text-warning")).toBeTruthy();
     expect(read.querySelector("svg")?.classList.contains("size-4")).toBe(true);
     expect(read.className).not.toContain("danger");
     expect(screen.getAllByRole("button")).toHaveLength(1);
@@ -151,4 +151,14 @@ describe("NotificationChangesAlert explicit selected-tab information reads", () 
     expect(screen.queryByRole("button", { name: "More changes" })).toBeNull();
     expect(waiting.fetchNextPage).not.toHaveBeenCalled();
   });
+});
+
+it("renders a descriptive planning warning without an optional current label", () => {
+  renderWithI18n(
+    <NotificationChangesAlert model={model({ changes: [row("event_agreement_blocked")] })} />,
+  );
+  expect(
+    screen.getByText("Event planning needs review. Check participant availability and votes."),
+  ).toBeTruthy();
+  expect(screen.getByRole("listbox").style.height).toBe("56px");
 });

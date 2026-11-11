@@ -4,7 +4,11 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
 
-const icons = { UsersRound: Symbol("group"), Dices: Symbol("event"), MapPin: Symbol("location") };
+const icons = {
+  UsersRound: Symbol("group"),
+  CalendarDays: Symbol("event"),
+  MapPin: Symbol("location"),
+};
 const HeaderBackButton = Symbol("small back control");
 const backSource = ts.createSourceFile(
   "back.tsx",
@@ -156,7 +160,7 @@ it("closes an inline picker on native Back while standalone routes retain normal
 });
 it.each([
   ["groups/GroupWizard", "UsersRound", "New group", "Edit group"],
-  ["events/EventWizard", "Dices", "Create event", "Edit event"],
+  ["events/EventWizard", "CalendarDays", "Create event", "Edit event"],
 ] as const)(
   "restores complete %s header after inline location confirm/cancel",
   (path, icon, createTitle, editTitle) => {

@@ -39,7 +39,7 @@ export function EventInformationFields({
         busy={busy}
         onChange={(visibility) => form.patch({ visibility })}
       />
-      <div className="grid grid-cols-2 items-start gap-4">
+      <div className="grid grid-cols-1 items-start gap-4">
         <TextField
           value={draft.name}
           onChange={(name) => form.patch({ name })}

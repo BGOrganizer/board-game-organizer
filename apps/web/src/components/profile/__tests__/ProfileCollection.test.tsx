@@ -169,13 +169,17 @@ it("renders global snapshot counters before filter, personal votes/N/A in place 
   renderWithI18n(<ProfileCollection snapshot="snapshot" />);
   await screen.findByRole("option", { name: /Chess/ });
   expect(
-    within(screen.getByRole("option", { name: /Chess/ })).getByText("8.5").parentElement
-      ?.textContent,
+    within(screen.getByRole("option", { name: /Chess/ }))
+      .getByLabelText("Personal BGG rating: 8.5")
+      .getAttribute("aria-label"),
   ).toContain("Personal BGG rating: 8.5");
+  expect(screen.getByLabelText("Personal BGG rating: 8.5").className).toContain("chip--accent");
   expect(
-    within(screen.getByRole("option", { name: /Expansion/ })).getByText("N/A").parentElement
-      ?.textContent,
+    within(screen.getByRole("option", { name: /Expansion/ }))
+      .getByLabelText("Personal BGG rating: N/A")
+      .getAttribute("aria-label"),
   ).toContain("Personal BGG rating: N/A");
+  expect(screen.getByLabelText("Personal BGG rating: N/A").className).toContain("chip--default");
   expect(screen.queryByRole("button", { name: /Select:/ })).toBeNull();
   expect(screen.getByText("Games without expansions")).not.toBeNull();
   expect(screen.getByText("Games including expansions")).not.toBeNull();

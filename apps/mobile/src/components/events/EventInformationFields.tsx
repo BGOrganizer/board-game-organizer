@@ -43,8 +43,8 @@ export function EventInformationFields({
         busy={busy}
         onChange={(visibility) => form.patch({ visibility })}
       />
-      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-        <InputField invalid={fieldError("name")} style={{ flex: 1, minWidth: 0, gap: 8 }}>
+      <View style={{ gap: 12 }}>
+        <InputField invalid={fieldError("name")} style={{ minWidth: 0, gap: 8 }}>
           <SearchHelpLabel
             required
             label={t("Event name")}
@@ -66,7 +66,7 @@ export function EventInformationFields({
             </Typography>
           ) : null}
         </InputField>
-        <InputField invalid={fieldError("groupId")} style={{ flex: 1, minWidth: 0, gap: 8 }}>
+        <InputField invalid={fieldError("groupId")} style={{ minWidth: 0, gap: 8 }}>
           <SearchHelpLabel
             label={t("Group")}
             helpTitle={t("Field help")}

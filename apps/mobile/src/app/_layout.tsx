@@ -7,6 +7,7 @@ import { Stack } from "expo-router";
 import { HeroUINativeProvider } from "heroui-native";
 import {
   Bell,
+  CalendarDays,
   Dices,
   LogIn,
   type LucideIcon,
@@ -149,8 +150,14 @@ function RootNavigator() {
             name="group/[groupId]"
             options={titleOptions(t("Group details"), UsersRound)}
           />
-          <Stack.Screen name="event/[eventId]" options={titleOptions(t("Event details"), Dices)} />
-          <Stack.Screen name="event/wizard" options={titleOptions(t("Configure event"), Dices)} />
+          <Stack.Screen
+            name="event/[eventId]"
+            options={titleOptions(t("Event details"), CalendarDays)}
+          />
+          <Stack.Screen
+            name="event/wizard"
+            options={titleOptions(t("Configure event"), CalendarDays)}
+          />
           <Stack.Screen
             name="event/results"
             options={titleOptions(t("Register event results"), Trophy)}

@@ -175,7 +175,7 @@ exceptions supersede older membership-only activity/detail statements below.
   cards always remain visible; Public is available only in an approved PUBLIC Group. Changing Group
   resets visibility to PRIVATE and never publishes implicitly. Switching to a PUBLIC Group requires
   confirmation before retaining only the first date/location and disabling participant proposals.
-  Name and Group share a row beneath the cards. Existing Event Group and visibility are immutable,
+  Name and Group occupy separate full-width rows beneath the cards. Existing Event Group and visibility are immutable,
   enforced by both clients and API. Standalone Events remain PRIVATE with their sole creator/admin.
 - Table editors are independently expandable HeroUI accordion items with stable draft identities,
   a Table icon and name or localized numbered fallback. Add Table follows the last item and opens

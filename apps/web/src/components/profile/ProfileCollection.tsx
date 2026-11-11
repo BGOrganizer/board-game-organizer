@@ -2,10 +2,11 @@
 import type { BggCollectionCounts } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
+  personalRatingColor,
   useBggCollection,
   useBggCollectionFilters,
 } from "@board-game-organizer/shared";
-import { Button, ListBox, Skeleton } from "@heroui/react";
+import { Button, Chip, ListBox, Skeleton } from "@heroui/react";
 import { Collection, ListBoxLoadMoreItem, ListLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
 import { Gamepad2, Heart, Puzzle, UsersRound } from "lucide-react";
@@ -163,10 +164,15 @@ export function ProfileCollection({
                         average={item.average}
                         rank={item.rank}
                         actions={
-                          <span className="min-w-11 text-center font-semibold tabular-nums">
-                            <span className="sr-only">{`${t`Personal BGG rating`}: `}</span>
-                            {rating}
-                          </span>
+                          <Chip
+                            size="sm"
+                            variant="soft"
+                            color={personalRatingColor(item.userRating)}
+                            aria-label={`${t`Personal BGG rating`}: ${rating}`}
+                            className="min-w-11 justify-center font-semibold tabular-nums"
+                          >
+                            <Chip.Label>{rating}</Chip.Label>
+                          </Chip>
                         }
                       />
                     </ListBox.Item>

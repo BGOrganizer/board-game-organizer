@@ -41,6 +41,9 @@ module.exports = {
         {
           image: "./assets/splash.png",
           imageWidth: 280,
+          // Android 12 masks the 288dp canvas to a 192dp circle. Keep the entire
+          // square artwork inside it (134 * sqrt(2) < 192), without cropping pixels.
+          android: { imageWidth: 134 },
           resizeMode: "contain",
           backgroundColor: nativeColors.lightBackground,
           dark: { backgroundColor: nativeColors.darkBackground },

@@ -6767,3 +6767,23 @@ msgstr "Proponi date e orari da far votare ai partecipanti. Gli orari sono local
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Propose verified addresses for participants to vote on. Each location determines its local time zone."
 msgstr "Proponi indirizzi verificati da far votare ai partecipanti. Ogni luogo determina il proprio fuso orario."
+
+#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+msgid "Event planning is ready for confirmation."
+msgstr "La pianificazione dell?evento ? pronta per la conferma."
+
+#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+msgid "Event planning needs review. Check participant availability and votes."
+msgstr "La pianificazione dell?evento ? da verificare. Controlla disponibilit? e voti dei partecipanti."
+
+#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+msgid "Event planning has reopened. Check dates, locations and votes."
+msgstr "La pianificazione dell?evento ? stata riaperta. Controlla date, luoghi e voti."
+
+#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+msgid "The event has ended. Results are available."
+msgstr "L?evento ? terminato. I risultati sono disponibili."
+
+#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+msgid "The event has been cancelled."
+msgstr "L?evento ? stato annullato."
