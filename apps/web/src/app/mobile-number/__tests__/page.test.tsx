@@ -123,10 +123,19 @@ describe("MobileNumberPage", () => {
     renderWithI18n(<MobileNumberPage />);
     fireEvent.click(screen.getByRole("button", { name: /Country calling code/ }));
     const search = screen.getByRole("searchbox", { name: "Search countries" });
-    fireEvent.change(search, { target: { value: "zzzz" } });
+    const searchCountries = async (value: string) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        fireEvent.change(search, { target: { value } });
+        await act(() => vi.advanceTimersByTimeAsync(300));
+      } finally {
+        vi.useRealTimers();
+      }
+    };
+    await searchCountries("zzzz");
     expect(await screen.findByText("No countries found")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
-    fireEvent.change(search, { target: { value: "ital" } });
+    await searchCountries("ital");
     const italy = await screen.findByRole("option", { name: /Italy/ });
     expect(italy.textContent).toContain("+39");
     fireEvent.click(italy);
