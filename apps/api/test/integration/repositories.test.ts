@@ -1759,7 +1759,7 @@ describe("BGG account collection snapshots on MongoDB replica set", () => {
         { id: 987621, minPlayMinutes: null, maxPlayMinutes: null },
       ]);
       expect(fetch).toHaveBeenCalledWith(
-        "https://boardgamegeek.com/xmlapi2/thing?id=987620,987621",
+        "https://boardgamegeek.com/xmlapi2/thing?id=987620,987621&stats=1",
         expect.any(Object),
       );
       const recovered = await catalog.findOne({ id: 987620 });
