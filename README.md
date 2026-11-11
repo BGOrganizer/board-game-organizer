@@ -226,13 +226,16 @@ those fields are not supplied by the rankings CSV. The manual workflow selects P
 verifies matching credentials and a non-CI target, and preserves resumable chunk windows. It does
 not perform bulk provider enrichment. BGG account validation/synchronization uses the API's `BGG_TOKEN`.
 
-Reading a collection page also enriches that page's missing/stale catalog durations through BGG
-XML API2, using the same shared one-request-per-five-seconds quota as search and game selection.
+Reading a collection page also enriches that page's missing/stale catalog durations and average weight (difficulty) through BGG
+XML API2 (`thing?stats=1`), using the same shared one-request-per-five-seconds quota as search and game selection.
 Only the visible page is requested, including its verified collection IDs absent from the local
 catalog. A busy quota or unavailable provider keeps the cached page usable; there is no full-catalog
 scan or provider request inside a transaction. HTTP 202/429 retain the shared one-minute backoff.
 `metadataAttemptedAt` records parsed metadata attempts and prevents retrying unavailable/partial
-metadata for five minutes. `durationCheckedAt` and `playerCountsCheckedAt` advance only when BGG
+metadata for five minutes. `weightCheckedAt` advances only for a finite BGG `averageweight` from 1 to 5; missing/zero
+weight remains eligible after the existing retry delay. Weight is stored as `averageWeight` on
+canonical games and returned by search, detail, collection and picker DTOs.
+`durationCheckedAt` and `playerCountsCheckedAt` advance only when BGG
 returns the corresponding complete valid pair. Existing verified values survive omitted/invalid
 responses. Missing minutes are eligible even with a legacy fresh success timestamp; successful
 complete metadata retains the existing seven-day freshness policy. Refresh happens on a subsequent

@@ -72,6 +72,7 @@ export function parseBggCollection(
     const subtype = item?.getAttribute("subtype");
     if (!item || (subtype !== "boardgame" && !(expansion && subtype === "boardgameexpansion")))
       continue;
+    if (item.getElementsByTagName("status").item(0)?.getAttribute("own") !== "1") continue;
     const gameId = Number(item.getAttribute("objectid"));
     const name = item.getElementsByTagName("name").item(0)?.textContent?.trim();
     if (!Number.isSafeInteger(gameId) || gameId <= 0 || !name) continue;
@@ -134,14 +135,14 @@ export async function fetchBggCollection(username: string, userId: string, snaps
   // Publish neither partition until BOTH complete; 202/429 keep the previous active snapshot.
   const base = parseBggCollection(
     await bggFetch(
-      `collection?username=${encodeURIComponent(username)}&stats=1&excludesubtype=boardgameexpansion`,
+      `collection?username=${encodeURIComponent(username)}&own=1&stats=1&excludesubtype=boardgameexpansion`,
     ),
     userId,
     snapshot,
   );
   const expansions = parseBggCollection(
     await bggFetch(
-      `collection?username=${encodeURIComponent(username)}&stats=1&subtype=boardgameexpansion`,
+      `collection?username=${encodeURIComponent(username)}&own=1&stats=1&subtype=boardgameexpansion`,
     ),
     userId,
     snapshot,

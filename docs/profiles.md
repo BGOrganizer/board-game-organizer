@@ -119,8 +119,9 @@ invalidate affected authenticated profile caches without fetching inactive queri
 BGG uses the existing real server link/sync/unlink endpoints. The client requests a username, never
 a BGG password or application token. Last-success metadata is distinct from the latest attempt;
 failed publication preserves a previous active snapshot. Explicit synchronization fetches complete
-base-game and expansion partitions before publishing either, because BGG can label expansions as
-`boardgame` in a combined collection. Snapshot publication stores personal ratings/wishlist and
+owned (`own=1`) base-game and expansion partitions before publishing either, because BGG can label expansions as
+`boardgame` in a combined collection. The parser also rejects items without explicit `own="1"`;
+wishlist status is retained only for owned games, including owned wishlist entries. Snapshot publication stores personal ratings/wishlist and
 full-snapshot counters atomically with the active identity. Expansions remain unavailable in the
 playable game selector and are never imported as base games. Historical snapshots have no complete
 expansion/wishlist totals: the UI reports `N/A` and offers an explicit new sync, not invented zeros

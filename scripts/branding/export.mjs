@@ -88,6 +88,12 @@ const icon = await sharp(await fit(mascot, 1024, 880))
   .png()
   .toBuffer();
 const outputs = new Map([
+  [
+    "apps/mobile/assets/splash-android.png",
+    await sharp({ create: { width: 1, height: 1, channels: 4, background: transparent } })
+      .png()
+      .toBuffer(),
+  ],
   ["apps/mobile/assets/icon.png", icon],
   ["apps/mobile/assets/splash.png", await sharp(mascot).resize(1024, 1024).png().toBuffer()],
   ["apps/mobile/assets/adaptive-icon-foreground.png", await fit(mascot, 1024, 544)],

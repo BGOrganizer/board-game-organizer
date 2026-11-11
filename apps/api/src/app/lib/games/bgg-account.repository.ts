@@ -366,6 +366,7 @@ export class BggAccountRepository {
           rank: stats?.rank ?? null,
           bayesAverage: stats?.bayesAverage ?? null,
           minPlayMinutes: stats?.minPlayMinutes ?? null,
+          averageWeight: stats?.averageWeight ?? null,
           maxPlayMinutes: stats?.maxPlayMinutes ?? null,
         };
       }),

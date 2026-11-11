@@ -6,8 +6,8 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { BellRing, Check, ChevronDown, RotateCcw } from "lucide-react-native";
-import { memo, useCallback, useRef, useState } from "react";
-import { FlatList, View } from "react-native";
+import { memo, useCallback } from "react";
+import { ScrollView, View } from "react-native";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { useT } from "@/lib/i18n";
 
@@ -57,15 +57,9 @@ const ChangeRow = memo(function ChangeRow({ row }: { row: NotificationChangeRow 
 export function NotificationChangesAlert({ model }: { model: Model }) {
   const t = useT(),
     [warning, secondary] = useThemeColor(["warning", "default-foreground"]);
-  const [contentHeight, setContentHeight] = useState(0);
-  const armed = useRef(false);
   const more = useCallback(() => {
     if (model.hasNextPage && !model.isFetchingNextPage) void model.fetchNextPage();
   }, [model.hasNextPage, model.isFetchingNextPage, model.fetchNextPage]);
-  const renderItem = useCallback(
-    ({ item }: { item: NotificationChangeRow }) => <ChangeRow row={item} />,
-    [],
-  );
   if (!model.changes.length && model.isPending)
     return <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />;
   if (!model.changes.length && !model.isError && !model.readError) return null;
@@ -86,32 +80,18 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
           <NotificationUnreadDot active={model.changes.length > 0} />
         </View>
         {model.changes.length ? (
-          <FlatList
+          <ScrollView
             testID="notification-changes-list"
-            data={model.changes}
-            keyExtractor={key}
-            renderItem={renderItem}
-            initialNumToRender={8}
-            maxToRenderPerBatch={6}
-            windowSize={7}
-            style={{ width: "100%", height: Math.min(240, Math.max(40, contentHeight || 240)) }}
-            onContentSizeChange={(_width, height) =>
-              setContentHeight((old) => (old === height ? old : height))
-            }
-            onScrollBeginDrag={() => {
-              armed.current = true;
+            style={{
+              width: "100%",
+              height: Math.min(240, Math.max(64, model.changes.length * 72)),
             }}
-            onEndReached={() => {
-              if (armed.current) more();
-            }}
-            onEndReachedThreshold={0.3}
-            accessibilityActions={
-              model.hasNextPage ? [{ name: "increment", label: t("More changes") }] : []
-            }
-            onAccessibilityAction={(event) => {
-              if (event.nativeEvent.actionName === "increment") more();
-            }}
-          />
+            nestedScrollEnabled
+          >
+            {model.changes.map((row) => (
+              <ChangeRow key={key(row)} row={row} />
+            ))}
+          </ScrollView>
         ) : null}
         {model.changes.some((row) => row.requiresResponse) ? (
           <Typography className="text-sm text-muted">

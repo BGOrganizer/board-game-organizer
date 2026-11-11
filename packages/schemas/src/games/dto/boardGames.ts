@@ -11,6 +11,7 @@ export const bggSearchItemSchema = z.object({
   minPlayers: z.number().int().positive().nullable().optional(),
   maxPlayers: z.number().int().positive().nullable().optional(),
   minPlayMinutes: z.number().int().positive().nullable().optional(),
+  averageWeight: z.number().min(1).max(5).nullable().optional(),
   maxPlayMinutes: z.number().int().positive().nullable().optional(),
 });
 export const bggSearchResponseSchema = z.object({ items: z.array(bggSearchItemSchema) });

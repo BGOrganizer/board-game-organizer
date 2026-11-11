@@ -1,8 +1,7 @@
 "use client";
 import type { NotificationChangeRow } from "@board-game-organizer/schemas";
 import type { useNotificationChanges } from "@board-game-organizer/shared";
-import { Alert, Button, ListBox, Skeleton } from "@heroui/react";
-import { ListLayout, Virtualizer } from "@heroui/react/rac";
+import { Alert, Button, Skeleton } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { BellRing, Check, ChevronDown, RotateCcw } from "lucide-react";
@@ -68,39 +67,24 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
           <NotificationUnreadDot active={model.changes.length > 0} />
         </div>
         {model.changes.length ? (
-          <Virtualizer
-            layout={ListLayout}
-            layoutOptions={{ estimatedRowHeight: 44 }}
-            shouldObserveItemSize
+          <ul
+            aria-label={t`Changes`}
+            className="max-h-60 min-h-10 w-full overflow-auto"
+            onScroll={(event) => {
+              const list = event.currentTarget;
+              if (list.scrollTop > 0) scrolling.current = true;
+              if (scrolling.current && list.scrollTop + list.clientHeight >= list.scrollHeight - 32)
+                more();
+            }}
           >
-            <ListBox
-              aria-label={t`Changes`}
-              selectionMode="none"
-              items={model.changes}
-              className="max-h-60 min-h-10 w-full overflow-auto"
-              style={{ height: Math.min(240, Math.max(44, model.changes.length * 56)) }}
-              onScroll={(event) => {
-                const list = event.currentTarget;
-                if (list.scrollTop > 0) scrolling.current = true;
-                if (
-                  scrolling.current &&
-                  list.scrollTop + list.clientHeight >= list.scrollHeight - 32
-                )
-                  more();
-              }}
-            >
-              {(row: NotificationChangeRow) => (
-                <ListBox.Item
-                  id={`${row.notificationId}:${row.itemId ?? "generic"}`}
-                  textValue={label(row)}
-                >
-                  <Alert.Description className="whitespace-normal text-sm">
-                    {label(row)}
-                  </Alert.Description>
-                </ListBox.Item>
-              )}
-            </ListBox>
-          </Virtualizer>
+            {model.changes.map((row: NotificationChangeRow) => (
+              <li key={`${row.notificationId}:${row.itemId ?? "generic"}`}>
+                <Alert.Description className="whitespace-normal text-sm">
+                  {label(row)}
+                </Alert.Description>
+              </li>
+            ))}
+          </ul>
         ) : null}
         {model.changes.some((row) => row.requiresResponse) ? (
           <Alert.Description>{t`Invitations remain unread until you respond.`}</Alert.Description>

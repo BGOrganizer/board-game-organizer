@@ -19,6 +19,8 @@ type GameRow = {
   minPlayMinutes?: number | null;
   maxPlayMinutes?: number | null;
   durationCheckedAt?: string;
+  averageWeight?: number | null;
+  weightCheckedAt?: string;
   metadataAttemptedAt?: string;
 };
 
@@ -55,7 +57,9 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
       (!cover(game.image) && stale(game.imageCheckedAt, METADATA_RETENTION_MS)) ||
       (durations &&
         stale(game.metadataAttemptedAt, METADATA_RETRY_MS) &&
-        (!positiveInteger(game.minPlayMinutes) ||
+        (!(Number(game.averageWeight) >= 1 && Number(game.averageWeight) <= 5) ||
+          stale(game.weightCheckedAt, METADATA_RETENTION_MS) ||
+          !positiveInteger(game.minPlayMinutes) ||
           !positiveInteger(game.maxPlayMinutes) ||
           stale(game.durationCheckedAt, METADATA_RETENTION_MS) ||
           !positiveInteger(game.minPlayers) ||
@@ -84,7 +88,7 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
 
   try {
     const response = await fetch(
-      `https://boardgamegeek.com/xmlapi2/thing?id=${missing.map((game) => game.id).join(",")}`,
+      `https://boardgamegeek.com/xmlapi2/thing?id=${missing.map((game) => game.id).join(",")}&stats=1`,
       {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(7000),
@@ -105,6 +109,7 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
     const found = new Map<
       number,
       {
+        averageWeight: number | null;
         image: string | null;
         min: number | null;
         max: number | null;
@@ -129,7 +134,11 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
       const minPlayers = minutes("minplayers"),
         maxPlayers = minutes("maxplayers");
       const validPlayers = minPlayers !== null && maxPlayers !== null && minPlayers <= maxPlayers;
+      const weight = Number(
+        item.getElementsByTagName("averageweight").item(0)?.getAttribute("value"),
+      );
       found.set(id, {
+        averageWeight: Number.isFinite(weight) && weight >= 1 && weight <= 5 ? weight : null,
         image: image ?? thumbnail,
         min: valid ? min : null,
         max: valid ? max : null,
@@ -144,6 +153,9 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
       const max = metadata?.max ?? game.maxPlayMinutes ?? null;
       const validDuration = min === null || max === null || min <= max;
       return {
+        ...(metadata?.averageWeight != null
+          ? { averageWeight: metadata.averageWeight, weightCheckedAt: checkedAt }
+          : {}),
         image: metadata?.image ?? cover(game.image),
         imageCheckedAt: checkedAt,
         metadataAttemptedAt: checkedAt,
@@ -217,6 +229,8 @@ export async function searchGames(
           minPlayMinutes: 1,
           maxPlayMinutes: 1,
           durationCheckedAt: 1,
+          averageWeight: 1,
+          weightCheckedAt: 1,
           metadataAttemptedAt: 1,
         },
       },
@@ -234,6 +248,7 @@ export async function searchGames(
     average: row.average ?? null,
     rank: row.rank ?? null,
     imageUrl: cover(row.image),
+    ...(row.averageWeight != null ? { averageWeight: row.averageWeight } : {}),
     ...(row.minPlayers ? { minPlayers: row.minPlayers } : {}),
     ...(row.maxPlayers ? { maxPlayers: row.maxPlayers } : {}),
     ...(row.minPlayMinutes ? { minPlayMinutes: row.minPlayMinutes } : {}),
@@ -253,6 +268,7 @@ export async function gameDetails(db: Db, id: number): Promise<BggThingResponse>
     bayesAverage: row.bayesAverage ?? null,
     average: row.average ?? null,
     rank: row.rank ?? null,
+    ...(row.averageWeight != null ? { averageWeight: row.averageWeight } : {}),
     ...(row.minPlayers ? { minPlayers: row.minPlayers } : {}),
     ...(row.maxPlayers ? { maxPlayers: row.maxPlayers } : {}),
     ...(row.minPlayMinutes ? { minPlayMinutes: row.minPlayMinutes } : {}),

@@ -109,7 +109,7 @@ describe("authorized collection pages", () => {
     const page = await h.repository.page("owner", input);
     expect(fetch).toHaveBeenCalledOnce();
     expect(fetch).toHaveBeenCalledWith(
-      "https://boardgamegeek.com/xmlapi2/thing?id=1,2",
+      "https://boardgamegeek.com/xmlapi2/thing?id=1,2&stats=1",
       expect.objectContaining({ headers: { Authorization: "Bearer test-token" } }),
     );
     expect(page.items).toMatchObject([
@@ -288,7 +288,7 @@ describe("authorized collection pages", () => {
           isExpansion: undefined,
           wishlist: undefined,
           userRating: undefined,
-          xml: '<item objectid="1" subtype="boardgame"><name>Legacy</name><status wishlist="1"/><stats><rating value="7.25"><average value="4"/></rating></stats></item>',
+          xml: '<item objectid="1" subtype="boardgame"><name>Legacy</name><status own="1" wishlist="1"/><stats><rating value="7.25"><average value="4"/></rating></stats></item>',
         },
       ],
       "snapshot",

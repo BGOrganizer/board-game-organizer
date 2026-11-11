@@ -47,7 +47,7 @@ it("repairs missing and partial minutes despite a legacy fresh success timestamp
   expect(missing).toMatchObject({ minPlayMinutes: 45, maxPlayMinutes: 45, durationCheckedAt: now });
   expect(partial).toMatchObject({ minPlayMinutes: 30, maxPlayMinutes: 90, durationCheckedAt: now });
   expect(h.fetch).toHaveBeenCalledOnce();
-  expect(h.fetch.mock.calls[0][0]).toBe("https://boardgamegeek.com/xmlapi2/thing?id=1,2");
+  expect(h.fetch.mock.calls[0][0]).toBe("https://boardgamegeek.com/xmlapi2/thing?id=1,2&stats=1");
   await hydrateGames(h.db, [missing, partial], true);
   expect(h.fetch).toHaveBeenCalledOnce();
 });
@@ -183,4 +183,48 @@ it("treats malformed cache dates as eligible rather than hiding missing minutes 
   const row = { ...game(), metadataAttemptedAt: "invalid", durationCheckedAt: "invalid" };
   await hydrateGames(h.db, [row], true);
   expect(row).toMatchObject({ minPlayMinutes: 45, maxPlayMinutes: 45, durationCheckedAt: now });
+});
+
+it.each(["0", "NaN", "", "5.1", "-1"])(
+  "does not mark absent or invalid weight as fetched: %s",
+  async (value) => {
+    const h = fixture(
+      '<items><item id="1"><statistics><ratings><averageweight value="' +
+        value +
+        '"/></ratings></statistics></item></items>',
+    );
+    const row = game();
+    await hydrateGames(h.db, [row], true);
+    expect(row).not.toHaveProperty("weightCheckedAt");
+    expect(row).not.toHaveProperty("averageWeight");
+  },
+);
+it("recovers missing decimal weight in the existing quota batch and persists it", async () => {
+  const h = fixture(
+    '<items><item id="1"><statistics><ratings><averageweight value="3.275"/></ratings></statistics></item></items>',
+  );
+  const row = { ...game(), minPlayMinutes: 45, maxPlayMinutes: 45 };
+  await hydrateGames(h.db, [row], true);
+  expect(row).toMatchObject({ averageWeight: 3.275, weightCheckedAt: now });
+  expect(h.catalog.bulkWrite).toHaveBeenCalledWith([
+    expect.objectContaining({
+      updateOne: expect.objectContaining({
+        update: expect.objectContaining({
+          $set: expect.objectContaining({ averageWeight: 3.275, weightCheckedAt: now }),
+        }),
+      }),
+    }),
+  ]);
+  await hydrateGames(h.db, [row], true);
+  expect(h.fetch).toHaveBeenCalledOnce();
+});
+
+it("preserves verified weight and its success timestamp when a refresh omits weight", async () => {
+  const h = fixture('<items><item id="1"/></items>');
+  const row = { ...game(), averageWeight: 4.125, weightCheckedAt: "2026-10-01T00:00:00Z" };
+  await hydrateGames(h.db, [row], true);
+  expect(row).toMatchObject({ averageWeight: 4.125, weightCheckedAt: "2026-10-01T00:00:00Z" });
+  expect(h.catalog.bulkWrite.mock.calls[0][0][0].updateOne.update.$set).not.toHaveProperty(
+    "weightCheckedAt",
+  );
 });

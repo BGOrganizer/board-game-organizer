@@ -83,7 +83,7 @@ describe("BGG covers", () => {
       },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://boardgamegeek.com/xmlapi2/thing?id=1,2",
+      "https://boardgamegeek.com/xmlapi2/thing?id=1,2&stats=1",
       expect.objectContaining({ headers: { Authorization: "Bearer test-token" } }),
     );
     expect(games.bulkWrite).toHaveBeenCalledOnce();
@@ -280,9 +280,12 @@ describe("BGG covers", () => {
       image: imageUrl,
       metadataAttemptedAt: new Date().toISOString(),
       durationCheckedAt: new Date().toISOString(),
+      averageWeight: 2.5,
+      weightCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),
     });
     expect(await gameDetails(db, 1)).toEqual({
+      averageWeight: 2.5,
       id: 1,
       name: "Azul",
       imageUrl,
@@ -298,6 +301,8 @@ describe("BGG covers", () => {
       image: "https://cf.geekdo-images.com/a/full.jpg",
       metadataAttemptedAt: new Date().toISOString(),
       durationCheckedAt: new Date().toISOString(),
+      averageWeight: 2.5,
+      weightCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),
     };
     games.find.mockReturnValue(cursor([row]));
@@ -305,6 +310,7 @@ describe("BGG covers", () => {
     vi.stubGlobal("fetch", fetchMock);
     expect(await searchGames(db, "Azul")).toEqual([
       {
+        averageWeight: 2.5,
         id: 1,
         name: "Azul",
         year: null,
@@ -400,6 +406,8 @@ describe("BGG covers", () => {
       minPlayers: 2,
       maxPlayers: 4,
       durationCheckedAt: new Date().toISOString(),
+      averageWeight: 2.5,
+      weightCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),
     };
     games.findOne.mockResolvedValue(row);
@@ -430,6 +438,8 @@ it("hydrates verified player counts on ordinary visible catalog pages despite an
     ...sample,
     image: "https://cf.geekdo-images.com/cached.jpg",
     durationCheckedAt: new Date().toISOString(),
+    averageWeight: 2.5,
+    weightCheckedAt: new Date().toISOString(),
   };
   games.find.mockReturnValue(cursor([row]));
   const fetch = vi.fn().mockResolvedValue({
@@ -487,6 +497,8 @@ it("refreshes expired player metadata without overwriting verified previous boun
     minPlayers: 2,
     maxPlayers: 4,
     durationCheckedAt: new Date().toISOString(),
+    averageWeight: 2.5,
+    weightCheckedAt: new Date().toISOString(),
     playerCountsCheckedAt: new Date(Date.now() - 8 * 86400_000).toISOString(),
   };
   games.findOne.mockResolvedValue(row);

@@ -51,7 +51,8 @@ appearance; see [Expo splash guidance](https://docs.expo.dev/versions/v57.0.0/sd
 Local asset/configuration and unit checks do not establish device acceptance. Preserve
 the existing five-second startup limit, bounded warmup and reduced-motion behavior.
 
-Android 12 masks the native splash canvas to a 192 dp circle. The Android-only image width
-is 134 dp so even the corners of the complete square artwork fit within that mask. The
-subsequent animated overlay and iOS retain the 280 dp image with contain sizing. This native
-configuration change requires a fresh Android binary; an OTA update alone cannot apply it.
+Android 12 masks native splash artwork and cannot display the full 280 dp mascot there.
+The Android native layer therefore shows the theme background with a transparent placeholder
+(`splash-android.png`). As soon as the application overlay mounts, the complete mascot appears
+at 280 dp with its existing animation; no smaller mascot precedes it. iOS retains its native
+280 dp artwork. This configuration change requires a new Android binary, not only an OTA update.

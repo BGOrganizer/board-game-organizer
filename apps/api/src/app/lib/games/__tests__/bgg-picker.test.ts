@@ -126,6 +126,7 @@ it("pages only the chosen own snapshot, never adds catalog search or personal pr
       imageUrl: "https://cf.geekdo-images.com/cover.png",
       average: null,
       rank: null,
+      averageWeight: null,
       bayesAverage: null,
       minPlayers: 2,
       maxPlayers: 6,

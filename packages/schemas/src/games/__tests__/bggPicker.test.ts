@@ -82,3 +82,21 @@ it("keeps historical missing player metadata readable and accepts only positive 
     }),
   ).toMatchObject({ minPlayers: null, maxPlayers: null });
 });
+
+it.each([1, 3.275, 5])("preserves canonical difficulty through game DTOs: %s", (averageWeight) => {
+  const row = { id: 1, name: "Game", year: null, imageUrl: null, averageWeight };
+  expect(boardGameModel.parse({ id: row.id, name: row.name, averageWeight }).averageWeight).toBe(
+    averageWeight,
+  );
+  expect(bggSearchItemSchema.parse(row).averageWeight).toBe(averageWeight);
+});
+it.each([0, -1, 5.01, Number.NaN, Number.POSITIVE_INFINITY])(
+  "rejects invalid canonical difficulty: %s",
+  (averageWeight) => {
+    const row = { id: 1, name: "Game", year: null, imageUrl: null, averageWeight };
+    expect(boardGameModel.safeParse({ id: row.id, name: row.name, averageWeight }).success).toBe(
+      false,
+    );
+    expect(bggSearchItemSchema.safeParse(row).success).toBe(false);
+  },
+);

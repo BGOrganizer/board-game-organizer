@@ -160,5 +160,5 @@ it("renders a descriptive planning warning without an optional current label", (
   expect(
     screen.getByText("Event planning needs review. Check participant availability and votes."),
   ).toBeTruthy();
-  expect(screen.getByRole("listbox").style.height).toBe("56px");
+  expect(screen.getByRole("list").textContent).toContain("Event planning needs review.");
 });
