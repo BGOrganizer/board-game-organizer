@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The upstream Keybase endpoint returns 404. Fetch the same pinned Codecov identity
-# from a public keyserver; fingerprint validation, not the server, establishes trust.
+# Fetch Codecov's published verification key directly, avoiding the public
+# keyserver's DNS dependency. Fingerprint validation still establishes trust.
 expected=27034E7FDB850E0BBC2C62FF806BB28AED779869
 key_file=$(mktemp)
 trap 'rm -f "$key_file"' EXIT
@@ -10,7 +10,7 @@ trap 'rm -f "$key_file"' EXIT
 for attempt in 1 2 3; do
   if curl --fail --silent --show-error --location --retry 2 --retry-delay 2 \
     --retry-all-errors --connect-timeout 10 --max-time 20 \
-    "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${expected}" --output "$key_file"; then
+    "https://uploader.codecov.io/verification.gpg" --output "$key_file"; then
     # Exactly one primary key; do not import additional attacker-supplied signing identities.
     if fingerprints=$(gpg --batch --with-colons --show-keys "$key_file"); then
       primary=$(printf '%s\n' "$fingerprints" | awk -F: '

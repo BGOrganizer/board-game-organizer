@@ -18,6 +18,7 @@ count=0
 [[ -f "$TEST_STATE/count" ]] && count=$(< "$TEST_STATE/count")
 count=$((count + 1))
 printf '%s' "$count" > "$TEST_STATE/count"
+[[ "$*" == *https://uploader.codecov.io/verification.gpg* ]] || exit 99
 [[ "$TEST_MODE" == unavailable ]] && exit 22
 [[ "$TEST_MODE" == transient && "$count" == 1 ]] && exit 22
 printf 'test-only key payload' > "\${@: -1}"
