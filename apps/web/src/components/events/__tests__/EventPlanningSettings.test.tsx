@@ -1,8 +1,29 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { EventPlanningSettings } from "../EventPlanningSettings";
 import { EventSeatOrderEditor } from "../EventSeatOrderEditor";
+
+it("separates the Mode and Preference explanations above their choices", async () => {
+  renderWithI18n(
+    <EventPlanningSettings form={{ draft: {}, patch: vi.fn() } as never} busy={false} />,
+  );
+  expect(screen.queryByText("Settings")).toBeNull();
+  expect(
+    screen.getByText("Mode").compareDocumentPosition(screen.getByText("Preference")) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Mode: Field help" }));
+  expect(screen.getByRole("dialog").textContent).toContain(
+    "Manual: managers arrange the seats. Assisted:",
+  );
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.click(screen.getByRole("button", { name: "Preference: Field help" }));
+  expect(screen.getByRole("dialog").textContent).toContain(
+    "Players prioritizes the largest number of participants. BGG Best prioritizes",
+  );
+});
 
 it("defaults to Assisted and Players and selecting BGG Best includes reduction without a switch", () => {
   const patch = vi.fn();

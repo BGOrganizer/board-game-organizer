@@ -6926,3 +6926,15 @@ msgstr "Prefer the player count rated Best by the BGG community. Selecting BGG B
 #: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "The app seeks agreement while protecting seated players; confirmation is always manual."
 msgstr "The app seeks agreement while protecting seated players; confirmation is always manual."
+
+msgid "Mode"
+msgstr "Mode"
+
+msgid "Preference"
+msgstr "Preference"
+
+msgid "Manual: managers arrange the seats. Assisted: the app seeks agreement and arranges players automatically. Both apply to every table, protect locked seats and pending invitations, compact the queue after departures, and require manual confirmation."
+msgstr "Manual: managers arrange the seats. Assisted: the app seeks agreement and arranges players automatically. Both apply to every table, protect locked seats and pending invitations, compact the queue after departures, and require manual confirmation."
+
+msgid "Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically."
+msgstr "Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically."

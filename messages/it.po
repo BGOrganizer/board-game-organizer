@@ -6917,3 +6917,15 @@ msgstr "Privilegia il numero di giocatori valutato Best dalla community BGG. Sce
 
 msgid "The app seeks agreement while protecting seated players; confirmation is always manual."
 msgstr "L'app cerca la concordia proteggendo i giocatori seduti; la conferma è sempre manuale."
+
+msgid "Mode"
+msgstr "Modalità"
+
+msgid "Preference"
+msgstr "Preferenza"
+
+msgid "Manual: managers arrange the seats. Assisted: the app seeks agreement and arranges players automatically. Both apply to every table, protect locked seats and pending invitations, compact the queue after departures, and require manual confirmation."
+msgstr "Manuale: i gestori organizzano i posti. Assistita: l’app cerca la concordia e organizza i giocatori automaticamente. Entrambe valgono per tutti i tavoli, proteggono posti bloccati e inviti pendenti, compattano la coda dopo le uscite e richiedono una conferma manuale."
+
+msgid "Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically."
+msgstr "Giocatori privilegia il maggior numero di partecipanti. BGG Best privilegia il numero di giocatori preferito dalla community BGG e consente di ridurre i giocatori seduti in modalità Assistita. La modalità Manuale non rimuove mai giocatori automaticamente."

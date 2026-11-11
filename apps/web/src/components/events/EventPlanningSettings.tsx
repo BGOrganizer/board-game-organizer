@@ -25,6 +25,8 @@ export function EventPlanningSettings({
     {
       value: draft.planningMode ?? "ASSISTED",
       name: t`Planning mode`,
+      label: t`Mode`,
+      help: t`Manual: managers arrange the seats. Assisted: the app seeks agreement and arranges players automatically. Both apply to every table, protect locked seats and pending invitations, compact the queue after departures, and require manual confirmation.`,
       change: chooseMode,
       options: [
         {
@@ -44,6 +46,8 @@ export function EventPlanningSettings({
     {
       value: draft.playerPreference ?? "MORE_PLAYERS",
       name: t`Player count`,
+      label: t`Preference`,
+      help: t`Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically.`,
       change: (value: string) =>
         form.patch({
           playerPreference: value as "MORE_PLAYERS" | "BEST",
@@ -67,57 +71,54 @@ export function EventPlanningSettings({
   ];
   return (
     <section className="space-y-3">
-      <SearchHelpLabel
-        label={t`Settings`}
-        helpTitle={t`Field help`}
-        help={t`These settings apply to every table. Confirmation is always manual. Pending invitations keep their reserved positions. Locked players keep their exact seats; departures and removals compact everyone and promote the queue.`}
-      />
       {groups.map((group) => (
-        <RadioGroup
-          key={group.name}
-          aria-label={group.name}
-          value={group.value}
-          isDisabled={busy}
-          onChange={group.change}
-          className="grid grid-cols-2 gap-3"
-        >
-          {group.options.map((option) => (
-            <Card
-              key={option.value}
-              className={`min-h-28 min-w-0 border-2 p-0 ${group.value === option.value ? "border-accent" : "border-transparent"}`}
-              variant={group.value === option.value ? "secondary" : "default"}
-            >
-              <Radio
-                id={`event-setting-${option.value}`}
-                value={option.value}
-                aria-label={option.label}
-                className="w-full"
+        <div key={group.name} className="space-y-2">
+          <SearchHelpLabel label={group.label} helpTitle={t`Field help`} help={group.help} />
+          <RadioGroup
+            aria-label={group.name}
+            value={group.value}
+            isDisabled={busy}
+            onChange={group.change}
+            className="grid grid-cols-2 gap-3"
+          >
+            {group.options.map((option) => (
+              <Card
+                key={option.value}
+                className={`min-h-28 min-w-0 border-2 p-0 ${group.value === option.value ? "border-accent" : "border-transparent"}`}
+                variant={group.value === option.value ? "secondary" : "default"}
               >
-                <Radio.Content className="flex w-full flex-col items-stretch p-3 pb-0">
-                  <span className="inline-flex w-full items-center justify-between gap-2">
-                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-default text-accent">
-                      <option.icon className="size-5" aria-hidden />
-                    </span>
-                    <Radio.Control className="size-5 shrink-0">
-                      <Radio.Indicator />
-                    </Radio.Control>
-                  </span>
-                </Radio.Content>
-              </Radio>
-              <div className="flex min-w-0 items-center gap-1 px-3 pb-3">
-                <label
-                  htmlFor={`event-setting-${option.value}`}
-                  className="min-w-0 break-words font-semibold text-foreground"
+                <Radio
+                  id={`event-setting-${option.value}`}
+                  value={option.value}
+                  aria-label={option.label}
+                  className="w-full"
                 >
-                  {option.label}
-                </label>
-                <HelpPopover label={`${option.label}: ${t`Field help`}`} title={option.label}>
-                  {option.help}
-                </HelpPopover>
-              </div>
-            </Card>
-          ))}
-        </RadioGroup>
+                  <Radio.Content className="flex w-full flex-col items-stretch p-3 pb-0">
+                    <span className="inline-flex w-full items-center justify-between gap-2">
+                      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-default text-accent">
+                        <option.icon className="size-5" aria-hidden />
+                      </span>
+                      <Radio.Control className="size-5 shrink-0">
+                        <Radio.Indicator />
+                      </Radio.Control>
+                    </span>
+                  </Radio.Content>
+                </Radio>
+                <div className="flex min-w-0 items-center gap-1 px-3 pb-3">
+                  <label
+                    htmlFor={`event-setting-${option.value}`}
+                    className="min-w-0 break-words font-semibold text-foreground"
+                  >
+                    {option.label}
+                  </label>
+                  <HelpPopover label={`${option.label}: ${t`Field help`}`} title={option.label}>
+                    {option.help}
+                  </HelpPopover>
+                </div>
+              </Card>
+            ))}
+          </RadioGroup>
+        </div>
       ))}
       {warnAssistance ? (
         <ContactConfirmDialog

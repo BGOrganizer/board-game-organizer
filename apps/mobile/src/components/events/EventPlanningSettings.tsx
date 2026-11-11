@@ -30,6 +30,10 @@ export function EventPlanningSettings({
     {
       value: draft.planningMode ?? "ASSISTED",
       name: t("Planning mode"),
+      label: t("Mode"),
+      help: t(
+        "Manual: managers arrange the seats. Assisted: the app seeks agreement and arranges players automatically. Both apply to every table, protect locked seats and pending invitations, compact the queue after departures, and require manual confirmation.",
+      ),
       change: chooseMode,
       options: [
         {
@@ -53,6 +57,10 @@ export function EventPlanningSettings({
     {
       value: draft.playerPreference ?? "MORE_PLAYERS",
       name: t("Player count"),
+      label: t("Preference"),
+      help: t(
+        "Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically.",
+      ),
       change: (value: string) =>
         form.patch({
           playerPreference: value as "MORE_PLAYERS" | "BEST",
@@ -78,88 +86,83 @@ export function EventPlanningSettings({
   ];
   return (
     <View style={{ gap: 12 }}>
-      <SearchHelpLabel
-        label={t("Settings")}
-        helpTitle={t("Field help")}
-        help={t(
-          "These settings apply to every table. Confirmation is always manual. Pending invitations keep their reserved positions. Locked players keep their exact seats; departures and removals compact everyone and promote the queue.",
-        )}
-      />
       {groups.map((group) => (
-        <RadioGroup
-          key={group.name}
-          accessibilityLabel={group.name}
-          value={group.value}
-          isDisabled={busy}
-          onValueChange={group.change}
-          style={{ flexDirection: "row", gap: 12 }}
-        >
-          {group.options.map((option) => (
-            <Card
-              key={option.value}
-              style={{ flex: 1, minWidth: 0, minHeight: 112, padding: 0, borderWidth: 2 }}
-              className={group.value === option.value ? "border-accent" : "border-transparent"}
-              variant={group.value === option.value ? "secondary" : "default"}
-            >
-              <RadioGroup.Item
-                value={option.value}
-                accessibilityLabel={option.label}
-                style={{ width: "100%", padding: 12, paddingBottom: 0 }}
+        <View key={group.name} style={{ gap: 8 }}>
+          <SearchHelpLabel label={group.label} helpTitle={t("Field help")} help={group.help} />
+          <RadioGroup
+            accessibilityLabel={group.name}
+            value={group.value}
+            isDisabled={busy}
+            onValueChange={group.change}
+            style={{ flexDirection: "row", gap: 12 }}
+          >
+            {group.options.map((option) => (
+              <Card
+                key={option.value}
+                style={{ flex: 1, minWidth: 0, minHeight: 112, padding: 0, borderWidth: 2 }}
+                className={group.value === option.value ? "border-accent" : "border-transparent"}
+                variant={group.value === option.value ? "secondary" : "default"}
               >
-                <View pointerEvents="none" style={{ width: "100%", gap: 8 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 8,
-                    }}
-                  >
+                <RadioGroup.Item
+                  value={option.value}
+                  accessibilityLabel={option.label}
+                  style={{ width: "100%", padding: 12, paddingBottom: 0 }}
+                >
+                  <View pointerEvents="none" style={{ width: "100%", gap: 8 }}>
                     <View
-                      className="bg-default"
                       style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 8,
+                        flexDirection: "row",
                         alignItems: "center",
-                        justifyContent: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
                       }}
                     >
-                      <option.icon size={20} color={accent} accessible={false} />
+                      <View
+                        className="bg-default"
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 8,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <option.icon size={20} color={accent} accessible={false} />
+                      </View>
+                      <Radio
+                        accessible={false}
+                        pointerEvents="none"
+                        importantForAccessibility="no-hide-descendants"
+                      />
                     </View>
-                    <Radio
-                      accessible={false}
-                      pointerEvents="none"
-                      importantForAccessibility="no-hide-descendants"
-                    />
                   </View>
-                </View>
-              </RadioGroup.Item>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  paddingHorizontal: 12,
-                  paddingBottom: 12,
-                }}
-              >
-                <Typography
-                  className="font-semibold text-foreground"
-                  style={{ flexShrink: 1 }}
-                  onPress={() => {
-                    if (!busy) group.change(option.value);
+                </RadioGroup.Item>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    paddingHorizontal: 12,
+                    paddingBottom: 12,
                   }}
                 >
-                  {option.label}
-                </Typography>
-                <HelpPopover label={`${option.label}: ${t("Field help")}`} title={option.label}>
-                  {option.help}
-                </HelpPopover>
-              </View>
-            </Card>
-          ))}
-        </RadioGroup>
+                  <Typography
+                    className="font-semibold text-foreground"
+                    style={{ flexShrink: 1 }}
+                    onPress={() => {
+                      if (!busy) group.change(option.value);
+                    }}
+                  >
+                    {option.label}
+                  </Typography>
+                  <HelpPopover label={`${option.label}: ${t("Field help")}`} title={option.label}>
+                    {option.help}
+                  </HelpPopover>
+                </View>
+              </Card>
+            ))}
+          </RadioGroup>
+        </View>
       ))}
       {warnAssistance ? (
         <ConfirmDialog
