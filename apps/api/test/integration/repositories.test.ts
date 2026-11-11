@@ -100,24 +100,20 @@ describe("source-paged entity notification attention", () => {
       status: "ACCEPTED",
       version: 1,
     });
-    await db
-      .collection(COLLECTIONS.EVENTS)
-      .insertOne({
-        id: eventId,
-        groupId,
-        adminUserId: THIRD,
-        status: frozenPlayer ? "CONFIRMED" : "PLANNING",
-        version: 1,
-      });
-    await db
-      .collection(COLLECTIONS.EVENT_TABLES)
-      .insertOne({
-        id: tableId,
-        eventId,
-        name: "Attention table",
-        version: 1,
-        ...(frozenPlayer ? { confirmed: { gameId: 1, playerIds: [ACTOR] } } : {}),
-      });
+    await db.collection(COLLECTIONS.EVENTS).insertOne({
+      id: eventId,
+      groupId,
+      adminUserId: THIRD,
+      status: frozenPlayer ? "CONFIRMED" : "PLANNING",
+      version: 1,
+    });
+    await db.collection(COLLECTIONS.EVENT_TABLES).insertOne({
+      id: tableId,
+      eventId,
+      name: "Attention table",
+      version: 1,
+      ...(frozenPlayer ? { confirmed: { gameId: 1, playerIds: [ACTOR] } } : {}),
+    });
   }
   const note = (kind: string, href: string, extra: Record<string, unknown> = {}) => ({
     recipientUserId: ACTOR,
