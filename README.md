@@ -157,3 +157,10 @@ or permission. Native cache retention, build requirements and implementation rul
 - [Operations](docs/organizations-events-operations.md) | environment isolation, providers and deployment gates.
 - [Verification checkpoint](docs/implementation-progress.md) | completed checks and remaining acceptance work.
 - [Mascot and app artwork](docs/branding.md) | source assets and platform exports.
+
+## Source availability and permissions
+
+The source is publicly viewable, with **all rights reserved**; this project is not offered under
+an open-source license. Using or reusing the project code requires prior written authorization
+from the applicable copyright holder. See [LICENSE](LICENSE) for the full notice, hosting-platform
+exceptions, third-party materials and permission requests.

@@ -1,5 +1,10 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+This file records verification history, not current product instructions or fresh acceptance evidence.
+Older designs and local-only authorizations below may be superseded. Read the current
+[domain contract](groups-events-refactor.md), [root instructions](../AGENTS.md) and workflow source first.
+Historical test counts describe their recorded revision only; they do not prove the current head.
+
 ## Event creation/edit completion — 2026-11-10
 
 - Implemented the agreed four stages on web/native: Event, Dates / Locations, Tables, Review.
@@ -2687,7 +2692,7 @@ provisioning, new PR creation or merges to `main`.
   to feature head `b264374`; keep subsequent fixes synchronized with `feat/organizations-events`.
 - Original worktree/index is preserved. Its generated API `next-env.d.ts` currently points to
   development types; do not reset that unrelated generated change or the user's other work.
-- Approved behavior: `docs/organizations-events.md`.
+- Approved behavior: `docs/groups-events-refactor.md`.
 - Operational/release requirements: `docs/organizations-events-operations.md`.
 
 ## Implemented

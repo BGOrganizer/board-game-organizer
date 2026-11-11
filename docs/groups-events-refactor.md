@@ -3,7 +3,7 @@
 This is the approved contract implemented on `feat/social-api-refactor` (existing PR #22).
 It describes the current source, not a deployed or E2E-accepted release. Verification and remaining
 runtime limitations are recorded in [implementation progress](implementation-progress.md).
-The [old contract](organizations-events.md) is retained as a historical deployment reference only.
+Retired contracts are available in Git history; they are not current implementation instructions.
 The [Community extension](community.md) and approved Event-access extension below separate Event
 visibility from immutable Group type. PUBLIC Events permit explicit voluntary enrollment without
 Group membership; approved private final-result sharing grants only Event/Table/result reads, never

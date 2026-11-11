@@ -1,16 +1,17 @@
-# Organizations and events: operational gates
+# Groups and events: operational gates
 
-> The [unified refactor](groups-events-refactor.md) supersedes the legacy domain/worker sections
-> below. Isolation, secrets, moderator authorization and publication safeguards remain applicable.
-> Legacy Inngest functions are unregistered; unified event confirmation is manual. This source
-> change does not deploy providers, run application migrations or authorize any database reset.
-
-The feature is not production-verified merely because unit tests, replica-set integration tests or a JavaScript export pass. Track current evidence in `implementation-progress.md`.
+The [unified domain](groups-events-refactor.md) governs current behavior. These procedures cover
+provider/environment isolation, moderation, diagnostics and delivery. Legacy Inngest writers are
+unregistered; confirmation is manual. This guide does not authorize provider operations or database resets.
+See the [checkpoint](implementation-progress.md) for the limits of recorded verification.
 
 ## Database and moderation
 
-- Run `pnpm --filter api migrate` against the intended replica-set database before deploying community writes. The migration creates organization, membership, logo/chunk, event/table/booking and deadline-outbox indexes, including upload TTL and booking uniqueness.
-- Grant moderators only through server-owned Clerk **public** metadata: `bgoRole: "ADMIN"`. Never grant authority through `unsafeMetadata` or a mirrored MongoDB role. Review handlers resolve fresh Clerk authority.
+- Run `pnpm --filter api migrate` against the intended replica-set database before deploying community writes. The migration maintains current Group/Event/Table/registration, social, profile, rating and asset indexes,
+  along with retained legacy compatibility indexes; inspect `lib/migrate.ts` for the exact writes. It also drops
+  the legacy `relationships` collection.
+- Grant global BGO moderation authority only through server-owned Clerk **public** metadata: `bgoRole: "ADMIN"`. Never grant authority through `unsafeMetadata` or a mirrored MongoDB role. Review handlers resolve fresh Clerk authority. Group creators assign accepted Group moderators through the BGO API;
+  this separate delegated role is not a Clerk Organization or global BGO moderation grant.
 - Pending/rejected changes stay private. Replacing a revision does not discard the approved revision. Referenced logos remain claimed; replaced, unreferenced assets are released for TTL deletion. MongoDB TTL cleanup is asynchronous.
 
 ## Preview logo quota and scoped request diagnostics
@@ -61,45 +62,12 @@ only the diagnostic fields or sanitized response body. New logging requires the 
 Preview; an installed APK pointing to an older immutable origin does not switch to a new deployment.
 These logs do not relax any consent, membership, transaction, duplicate or overlap guard.
 
-## Durable deadlines
+## Retired deadline workers
 
-Real Inngest configuration/registration/delivery remains excluded from local acceptance. By explicit
-operator request, draft saving and publication do not require Inngest. Publication still requires an
-approved organization and at least one valid table. Exact-cutoff mutation guards, transactional roster
-freezing and the durable outbox remain mandatory.
-
-Without a worker, closure is materialized on the first authorized event/table read after cutoff;
-there is no autonomous execution or five-minute recovery. Do not claim background closure or provider
-acceptance in this mode. Supply the following server-only configuration for autonomous execution:
-
-| Variable | Purpose |
-| --- | --- |
-| `INNGEST_EVENT_KEY` | Authenticate event delivery |
-| `INNGEST_SIGNING_KEY` | Verify provider execution requests |
-| `INNGEST_ENV` | Select the intended Inngest environment |
-| `MONGODB_DB_NAME` | Bind delivery IDs and execution to the exact database |
-
-Register the deployed **`/api/inngest`** endpoint with Inngest. It serves GET/POST/PUT through the SDK; application endpoints still require Clerk authentication. Use distinct production and preview environments. Do not enable unsigned development execution on a production deployment.
-
-If Vercel Preview protection is enabled, configure its bypass as a **query parameter** on the registered endpoint URL, not a custom header. Keep the bypass value secret and out of logs/screenshots.
-
-MongoDB stores deadline delivery before committing publication, even when configuration is absent.
-Dispatch is a no-op until configured; when configured it happens afterward. Provider event IDs include the database name and event revision, so retries are idempotent. A revision-aware sleeper freezes the roster; five-minute recovery retries persisted deliveries and closes overdue events. Authorized reads also enforce closure if a worker is delayed. These fallbacks are not proof of actual provider delivery.
-
-### Required provider acceptance
-
-Use an isolated database and test Clerk users, never production fixtures:
-
-1. Publish a future event with a short, explicit future cutoff, one sufficiently populated table and one undersubscribed table.
-2. Verify registration, persisted outbox delivery and the provider's successful sleep/execution trace.
-3. Do **not** read event/detail endpoints to trigger the synchronous fallback. Inspect the isolated database to prove the worker created the eligible fixed match and cancelled the undersubscribed one.
-4. Reschedule a second event before cutoff; verify the old revision cannot freeze the new schedule.
-5. Exercise retry/recovery and replay: no duplicate matches, rating events or notifications.
-6. At exact cutoff, verify requests, invitations, approvals, edits, removals and cancellation fail for both members and administrators, including private drafts. Results remain writable only by the administrator or frozen assigned demonstrator.
-7. Delete all isolated fixtures/users after verification, including after failure.
-
-No production-provider success is currently attested. Real registration/credentials and delivery
-traces remain an external acceptance gate for autonomous closure, not a publication prerequisite.
+Legacy automatic cutoff closure, Match creation, sleeper recovery and deadline outbox execution are
+retired and must not be registered or restored. `/api/inngest` retains SDK verification but no legacy
+writers are registered. Current Events require explicit manager confirmation and exact server cutoff guards.
+Historical records remain intact; documentation cleanup does not authorize migration or deletion.
 
 ## Infisical and deployment isolation
 
@@ -231,6 +199,18 @@ Local routing, gate, mocked-HTTP and DAG tests plus actionlint validate source b
 They do not change live branch settings, deploy a trusted controller or attest provider/device E2E.
 Run the regression suite with `node --test .github/scripts/*.test.mjs`.
 
+## APK rebuild and reuse
+
+Mobile change detection compares against the last successful PR workflow run on the branch, not the
+PR base. Mobile code, related workspace packages, compiled localization and changes to the mobile
+lockfile dependency graph trigger APK rebuilds. Web/API-only, Maestro-only, unit-test-only and
+unrelated lockfile changes do not. Compare each reusable artifact's own source commit with the PR
+head, and verify its checksum/size and matching API/environment inputs before reuse.
+
+CI web uses the immutable isolated API URL; E2E APKs use the verified per-PR alias. Published
+Development web and APK both use the immutable Development API Preview URL. Never redirect E2E
+at Development or Production. Preview protection bypass remains a secret query parameter.
+
 ## Main delivery and manual environment selection
 
 By explicit operator request, Main delivery has no browser/native E2E gates or their Preview APK,
@@ -248,6 +228,16 @@ retained disabled PR hooks still exist for explicitly owned local acceptance. Lo
 means that green coverage, builds and smoke **do not attest** native startup, keyboard, permissions,
 authenticated UI or full user journeys. A failed prepared release can leave a tag/draft; apply the
 existing explicit orphan/version recovery procedure, never silently delete tags or call it published.
+
+Main verification has no workflow-wide concurrency group: every merge is checked. Only release
+preparation is serialized, so a newer merge may supersede a pending release, never its verification.
+Release commits use `[skip ci]` to avoid recursion. If preparation leaves an orphan tag without a
+published release, coordinate tag removal and version-state restoration under explicit release-recovery
+scope before retrying; semantic-release treats existing tags as published history. Do not perform
+that recovery as an incidental documentation change.
+
+Preview/test Clerk uses `CLERK_SECRET_KEY`; Production uses `CLERK_SECRET_KEY_PRODUCTION` and
+production publishable keys. Never mix instances: their tokens are not interchangeable.
 
 `mobile-development.yml` remains `main`-only and now selects `preview` or `production`. Both use
 the same distributable `internal` profile/action, 180-minute allowance, MapTiler/Sentry and optional
@@ -269,7 +259,8 @@ and the direct Preview-only MongoDB importer share `parseBoardGamesCsv`, the str
 zero ranks/averages and nullable category ranks are preserved. Missing catalog rows/history are not
 deleted. Reimports do not overwrite XML-derived `image`, complete min/max player pairs, durations
 or their cache timestamps; those fields are not present in the rankings CSV. Only legacy `thumbnail`
-is removed, including a final cleanup on completed imports. No bulk XML/provider sync is added.
+is removed, including a final cleanup on completed imports. After a complete remote CSV import, bounded enrichment hydrates the top 200 ranked base games under
+the existing shared quota. Partial imports do not start enrichment; see [catalog development](development.md#boardgamegeek-catalog).
 The protected API must expose import schema version 2 before importing. Resume uses 500-row
 chunks from the same CSV and target; empty/out-of-file windows fail before requests. Partial windows
 do not perform full-catalog thumbnail cleanup. Preview bypass stays a separate masked secret and is
@@ -293,7 +284,7 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 - API address verification uses server-only `MAPTILER_GEOCODING_KEY`; web/mobile use their documented public MapTiler keys. Preserve canonical returned addresses/coordinates and attribution.
 - BGO is non-commercial. MapTiler Free is compatible within its quotas and terms; no commercial subscription is a prerequisite. Preserve required attribution and comply with geocoding storage terms.
 - `expo-image-picker` changes native permissions. A JavaScript export is insufficient: create a fresh native build and exercise camera/library denial, retry, Settings-return refresh, replacement and cancelled picking in Maestro.
-- Run the new organization/event acceptance flows on both clients; verify failure/empty/privacy/cutoff paths, not only successful forms. Never silently skip missing authenticated E2E configuration.
+- Run the current Group/Event/Table acceptance flows on both clients; verify failure/empty/privacy/cutoff paths, not only successful forms. Never silently skip missing authenticated E2E configuration.
 - [The managed HeroUI Native 1.0.9 patch](../patches/heroui-native@1.0.9.patch) gives the default animated popover wrapper absolute-fill bounds in both source and distributed modules. Run `38166070753` showed visible help omitted from the accessibility tree and zero-height containers skipped by Maestro. The patch retains mounting, positioning, touch pass-through and animations; its native acceptance remains subject to the full Maestro gate.
 - By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; Main E2E gates and the manual mobile-E2E workflow are removed by explicit operator request. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. Cleanup still waits for fixture mirroring and CI API consumers when tests are skipped. A green gate does not establish web/native E2E acceptance.
 - When re-enabled, PR Maestro attempts all 13 ordered flows after an earlier flow failure when native preparation succeeded and the run is not cancelled. Each failed step remains failed; final report verification still runs and rejects failed, skipped or missing reports. Shared-session failures may cascade into later flows, so inspect their actual traces before treating each failure as an independent defect.

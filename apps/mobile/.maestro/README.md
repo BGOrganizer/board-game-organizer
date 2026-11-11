@@ -2,7 +2,7 @@
 
 Android, Maestro CLI 2.11.0. `config.yaml` discovers only the same 13 canonical
 journeys invoked by `.github/scripts/maestro-e2e.sh`; see
-[AGENTS.md](../../../AGENTS.md#13-cicd) for current CI enablement. Retained flows are not execution evidence.
+[AGENTS.md](../../../AGENTS.md#8-git-and-delivery) for current CI enablement. Retained flows are not execution evidence.
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
 Do not run the helpers directory or treat helpers as independent test reports.
 
@@ -234,7 +234,7 @@ through `ZZ Page 43`. Initial contacts and notification permissions are denied.
 | 13-event-draft | Primary owns 12's pending organization | Event filters/search, contextual creation/help, actual calendar/time and bounded table rejection/correction, game and persisted ratings switch; pending-org publication rejected; draft saved, read-only table/help/roster/privacy, editor header navigation, table removal and reset cancel/confirm. Saved detail and parent list prove draft has zero tables/participants. |
 | 04-dark-mode | Primary authenticated; runner enabled night mode | Authenticated cold launch, explicit logout without clearing app state, welcome/sign-in remain usable. Ends signed out. |
 
-Domain behavior remains defined in [organizations/events](../../../docs/organizations-events.md)
+Domain behavior remains defined in [Groups/Events/Tables](../../../docs/groups-events-refactor.md)
 and [operational gates](../../../docs/organizations-events-operations.md), not this test plan.
 
 ## Synchronization and selectors

@@ -24,7 +24,8 @@ visibility with a current-network/time selection; no offline mode is enabled.
   account identity, synchronization/unlink controls or owner logout. Collection shows three full-snapshot counters before its scoped 300-ms,
   clearable name filter and source-paged virtualized list: unique titles without expansions, unique
   titles including expansions, and wishlist titles including expansions. Counters do not change with
-  the filter or restrict to `own=1`; wishlist can overlap either total. Rows reuse the game-selection
+  the filter. New synchronization imports only explicitly owned games (`own=1`); wishlist flags on
+  those owned games can overlap either total. Existing snapshots retain their published contents until resynchronized. Rows reuse the game-selection
   identity/cover/catalog layout, replacing selection with the owner's personal BGG rating or `N/A`,
   never the public BGG average or GLOBAL OpenSkill. Games and Expansions chips initially include
   both types (OR). Wishlist independently shows wished games AND expansions regardless of either type
@@ -32,7 +33,8 @@ visibility with a current-network/time selection; no offline mode is enabled.
   the selected results before source paging. All-off types without Wishlist is empty, never all games.
   Counters retain whole-snapshot totals.
   In common exists on other-user collections: exact BGG IDs in both published snapshots, including
-  expansions/wishlist rather than assuming possession. It is disabled with a sync hint if the viewer
+  expansions and wishlist flags within each published snapshot. Newly synchronized snapshots contain
+  owned games; the intersection remains based on exact IDs rather than inferred status. It is disabled with a sync hint if the viewer
   has no published snapshot. Both snapshot epochs are pinned/rechecked; no full collection is fetched
   into client memory to calculate an intersection. Canonical Collection cache identity includes viewer,
   subject, both applicable snapshots and every filter.
