@@ -158,9 +158,14 @@ or permission. Native cache retention, build requirements and implementation rul
 - [Verification checkpoint](docs/implementation-progress.md) | completed checks and remaining acceptance work.
 - [Mascot and app artwork](docs/branding.md) | source assets and platform exports.
 
-## Source availability and permissions
+## License
 
-The source is publicly viewable, with **all rights reserved**; this project is not offered under
-an open-source license. Using or reusing the project code requires prior written authorization
-from the applicable copyright holder. See [LICENSE](LICENSE) for the full notice, hosting-platform
-exceptions, third-party materials and permission requests.
+Copyright (c) 2026 Alessandro Mancini and the respective contributors.
+
+Board Game Organizer is licensed under the **GNU Affero General Public License v3.0 only**
+(`AGPL-3.0-only`). You may use, modify and redistribute the covered software, including commercially,
+under the license terms. Distributing covered versions requires providing the corresponding source;
+modified versions used over a network must offer their corresponding source to the users interacting
+with them. See [LICENSE](LICENSE) for the full terms.
+
+Third-party dependencies and separately licensed materials retain their own licenses and attribution.

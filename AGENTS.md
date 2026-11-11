@@ -308,8 +308,8 @@ artifacts or treat default-branch controllers as activated by a feature-branch e
   not incidental modification during unrelated work.
 - Preview bypass is a query parameter through `withProtectionBypass()`, never a custom header.
   Preserve exact test/production Clerk and run-scoped database isolation; no E2E fallback to production.
-- Preserve [LICENSE](LICENSE), third-party notices and attribution. Public source visibility is not
-  permission for reuse; do not replace the project's rights notice with a permissive license.
+- Preserve [LICENSE](LICENSE) (`AGPL-3.0-only`), copyleft/source-availability obligations,
+  third-party notices and attribution. Do not change licensing terms without explicit operator scope.
 
 ## 10. Skills and automation
 
