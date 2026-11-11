@@ -1726,12 +1726,12 @@ describe("BGG account collection snapshots on MongoDB replica set", () => {
     const snapshot = await repository.stage(ACTOR, identity);
     await repository.publish(ACTOR, snapshot, identity, [
       ...parseBggCollection(
-        '<items><item objectid="987620" subtype="boardgame"><name>Alpha</name></item><item objectid="987622" subtype="boardgame"><name>Gamma</name></item></items>',
+        '<items><item objectid="987620" subtype="boardgame"><name>Alpha</name><status own="1"/></item><item objectid="987622" subtype="boardgame"><name>Gamma</name><status own="1"/></item></items>',
         ACTOR,
         snapshot,
       ),
       ...parseBggCollection(
-        '<items><item objectid="987621" subtype="boardgameexpansion"><name>Beta</name></item></items>',
+        '<items><item objectid="987621" subtype="boardgameexpansion"><name>Beta</name><status own="1"/></item></items>',
         ACTOR,
         snapshot,
         true,
@@ -1814,10 +1814,10 @@ describe("BGG account collection snapshots on MongoDB replica set", () => {
     expect((await profiles.profile(ACTOR, TARGET)).collection).toBeNull();
     const snapshot = await repo.stage(TARGET, identity);
     const xml =
-      '<items><item objectid="987610" subtype="boardgame"><name>Alpha [title]</name><image>https://cf.geekdo-images.com/alpha.jpg</image><status own="0" wishlist="1"/><stats><rating value="8.5"/></stats></item><item objectid="987611" subtype="boardgame"><name>Beta</name><status own="1"/></item><item objectid="987612" subtype="boardgameexpansion"><name>Expansion</name><status own="0" wishlist="1"/></item></items>';
+      '<items><item objectid="987610" subtype="boardgame"><name>Alpha [title]</name><image>https://cf.geekdo-images.com/alpha.jpg</image><status own="1" wishlist="1"/><stats><rating value="8.5"/></stats></item><item objectid="987611" subtype="boardgame"><name>Beta</name><status own="1"/></item><item objectid="987612" subtype="boardgameexpansion"><name>Expansion</name><status own="1" wishlist="1"/></item></items>';
     await new BoardGamesRepository(db).bulkUpsert([{ id: 987610, name: "Alpha", image: null }]);
     const expansionXml =
-      '<items><item objectid="987612" subtype="boardgameexpansion"><name>Expansion</name><status own="0" wishlist="1"/></item></items>';
+      '<items><item objectid="987612" subtype="boardgameexpansion"><name>Expansion</name><status own="1" wishlist="1"/></item></items>';
     await repo.publish(TARGET, snapshot, identity, [
       ...parseBggCollection(xml, TARGET, snapshot),
       ...parseBggCollection(expansionXml, TARGET, snapshot, true),
@@ -1904,12 +1904,12 @@ describe("BGG account collection snapshots on MongoDB replica set", () => {
     const identity = { id: 41, username: "alice", avatarUrl: null };
     const snapshot = await repository.stage(ACTOR, identity);
     const base = parseBggCollection(
-      '<items><item objectid="987601" subtype="boardgame"><name>Alpha [owned]</name><status own="0" wishlist="1"/><stats><rating value="8.5"><average value="3"/></rating></stats></item><item objectid="987602" subtype="boardgame"><name>Beta</name><status own="1"/></item></items>',
+      '<items><item objectid="987601" subtype="boardgame"><name>Alpha [owned]</name><status own="1" wishlist="1"/><stats><rating value="8.5"><average value="3"/></rating></stats></item><item objectid="987602" subtype="boardgame"><name>Beta</name><status own="1"/></item></items>',
       ACTOR,
       snapshot,
     );
     const expansions = parseBggCollection(
-      '<items><item objectid="987603" subtype="boardgame"><name>Expansion</name><status wishlist="1"/><stats><rating value="N/A"/></stats></item></items>',
+      '<items><item objectid="987603" subtype="boardgame"><name>Expansion</name><status own="1" wishlist="1"/><stats><rating value="N/A"/></stats></item></items>',
       ACTOR,
       snapshot,
       true,
@@ -1957,7 +1957,7 @@ describe("BGG account collection snapshots on MongoDB replica set", () => {
     const alice = { id: 41, username: "alice", avatarUrl: null };
     const first = await repository.stage(ACTOR, alice);
     const games = parseBggCollection(
-      '<items><item objectid="987600" subtype="boardgame"><name>Rare Game</name><status own="0" wishlist="1"/></item></items>',
+      '<items><item objectid="987600" subtype="boardgame"><name>Rare Game</name><status own="1" wishlist="1"/></item></items>',
       ACTOR,
       first,
     );

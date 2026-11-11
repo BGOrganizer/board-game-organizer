@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       snapshot,
       identity,
       parseBggCollection(
-        '<items><item objectid="295947" subtype="boardgame"><name>Cascadia</name><yearpublished>2021</yearpublished></item></items>',
+        '<items><item objectid="295947" subtype="boardgame"><name>Cascadia</name><yearpublished>2021</yearpublished><status own="1"/></item></items>',
         userId,
         snapshot,
       ),
