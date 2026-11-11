@@ -12,24 +12,34 @@ import {
   personalTableSection,
 } from "../eventList";
 
-it("partitions Events by real own participation, never administration or another user's registration", () => {
+it("partitions Events by participation and current management authority", () => {
   const event = {
     groupId: null,
     adminUserId: "owner",
     role: "admin",
     myRegistrations: [],
   } as unknown as PlannedEventResponse;
-  expect(personalEventSection(event, "owner")).toBe("available");
+  expect(personalEventSection(event, "owner")).toBe("mine");
   expect(personalEventSection(event, "other")).toBeNull();
   expect(personalEventSection({ ...event, groupId: "group" }, "other")).toBe("available");
+  expect(personalEventSection({ ...event, groupId: "group", canManage: true }, "other")).toBe(
+    "mine",
+  );
+  expect(personalEventSection({ ...event, groupId: "group", canManage: false }, "owner")).toBe(
+    "available",
+  );
   expect(personalEventSection({ ...event, myDemonstrator: true }, "owner")).toBe("mine");
   expect(personalEventSection({ ...event, role: "demonstrator" }, "other")).toBe("mine");
   for (const status of ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED"] as const) {
     const own = { userId: "owner", status } as TableRegistration;
-    expect(personalEventSection({ ...event, myRegistrations: [own] }, "owner")).toBe(
-      status === "PENDING" || status === "ACCEPTED" ? "mine" : "available",
-    );
+    expect(personalEventSection({ ...event, myRegistrations: [own] }, "owner")).toBe("mine");
     expect(personalEventSection({ ...event, myRegistrations: [own] }, "other")).toBeNull();
+    expect(
+      personalEventSection(
+        { ...event, groupId: "group", canManage: false, myRegistrations: [own] },
+        "owner",
+      ),
+    ).toBe(status === "PENDING" || status === "ACCEPTED" ? "mine" : "available");
   }
 });
 
@@ -78,15 +88,13 @@ it("splits seated/frozen/demonstrator Tables from invitations, requests and queu
   }
 });
 
-it("combines explicit active participation without inventing a seat from missing positions", () => {
+it("shows only frozen confirmed players in the combined personal Table list", () => {
   const base = { eventStatus: "PLANNING", myRegistration: null } as PlannedTableResponse;
   expect(isPersonalTableParticipant(base, "owner")).toBe(false);
-  expect(isPersonalTableParticipant({ ...base, demonstratorUserId: "owner" }, "owner")).toBe(true);
+  expect(isPersonalTableParticipant({ ...base, demonstratorUserId: "owner" }, "owner")).toBe(false);
   for (const status of ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED"] as const) {
     const table = { ...base, myRegistration: { userId: "owner", status } as TableRegistration };
-    expect(isPersonalTableParticipant(table, "owner")).toBe(
-      ["PENDING", "ACCEPTED"].includes(status),
-    );
+    expect(isPersonalTableParticipant(table, "owner")).toBe(false);
     expect(isPersonalTableParticipant(table, "foreign")).toBe(false);
     expect(personalTableSection(table, "owner")).toBe(status === "PENDING" ? "waiting" : null);
   }

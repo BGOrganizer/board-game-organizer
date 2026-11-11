@@ -366,7 +366,7 @@ it("submits one complete event only on final review, with no server draft or imp
   expect(screen.queryByText("No demonstrator")).toBeNull();
   expect(screen.getByRole("button", { name: "Create event" }).textContent).toBe("");
   fireEvent.click(screen.getByRole("button", { name: "Create event" }));
-  await waitFor(() => expect(m.replace).toHaveBeenCalledWith("/events?section=available"));
+  await waitFor(() => expect(m.replace).toHaveBeenCalledWith("/events?section=mine"));
   const posts = fetch.mock.calls.filter(([, init]) => init?.method === "POST");
   expect(posts).toHaveLength(1);
   const body = JSON.parse(String(posts[0][1]?.body));
@@ -676,7 +676,7 @@ it("leaves final review immediately but retains the complete failed draft for ex
   fireEvent.click(screen.getByRole("button", { name: "Choose catalog game" }));
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(screen.getByRole("button", { name: "Create event" }));
-  expect(m.replace).toHaveBeenCalledWith("/events?section=available");
+  expect(m.replace).toHaveBeenCalledWith("/events?section=mine");
   await waitFor(() =>
     expect(m.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "create_event"),
   );

@@ -1,5 +1,4 @@
 "use client";
-import { eventListStatuses } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useListSearch,
@@ -7,7 +6,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CircleCheck, Clock3, Flag } from "lucide-react";
+import { CircleCheck, Flag } from "lucide-react";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -18,7 +17,7 @@ import { TableListHeading } from "./TableListHeading";
 export function TableList() {
   const { t } = useLingui(),
     o = useCommunityApi(),
-    f = useListSearch(eventListStatuses, 0),
+    f = useListSearch(["CONFIRMED", "TERMINATED"] as const, 0),
     q = useRecordTables(o, null, { query: f.search, statuses: f.selected }),
     end = useInfiniteScroll({
       hasNextPage: !!q.hasNextPage,
@@ -45,7 +44,6 @@ export function TableList() {
           onToggle={f.toggle}
           options={[
             { key: "CONFIRMED", label: t`Confirmed tables`, icon: CircleCheck },
-            { key: "PLANNING", label: t`Planning`, icon: Clock3 },
             { key: "TERMINATED", label: t`Terminated tables`, icon: Flag },
           ]}
         />

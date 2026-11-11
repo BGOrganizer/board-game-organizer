@@ -94,7 +94,7 @@ export async function warmStartupBackground(
       () =>
         client.prefetchInfiniteQuery(
           infiniteQueryOptions({
-            queryKey: ["contacts", "suggestions", apiUrl, userId],
+            queryKey: ["contacts", "suggestions", apiUrl, userId, "device"],
             queryFn: ({ pageParam, signal }) =>
               fetchSuggestionPageWithToken(
                 apiUrl,

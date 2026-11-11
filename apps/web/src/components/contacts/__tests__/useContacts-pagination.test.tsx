@@ -98,7 +98,7 @@ it("reloads cancelled first pages after a mutation without refetching loaded or 
         pageParams: [""],
       });
     }
-    client.setQueryData(["contacts", "suggestions", api, user], {
+    client.setQueryData(["contacts", "suggestions", api, user, "device"], {
       pages: [{ users: [], hasContacts: false, nextCursor: null }],
       pageParams: [""],
     });

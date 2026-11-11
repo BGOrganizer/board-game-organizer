@@ -53,7 +53,9 @@ it.each(["mine", "available"])(
       "utf8",
     );
     expect(text).toContain("useListSearch(eventListStatuses, 0)");
-    expect(text).toContain("statuses: filters.selected");
+    expect(text).toContain(
+      'statuses: !groupId && section === "available" ? ["PLANNING"] : filters.selected',
+    );
     expect(text).toContain("section: groupId ? undefined : section");
     expect(text).toContain('mode="filter"');
   },
@@ -198,7 +200,8 @@ it("native list bodies retain a single virtualized list, filters, chips, legend 
     expect(text).not.toContain("<ScrollView");
     expect(text).toContain('mode="filter"');
     expect(text).toContain('key: "CONFIRMED"');
-    expect(text).toContain('key: "PLANNING"');
+    if (name === "TableList") expect(text).not.toContain('key: "PLANNING"');
+    else expect(text).toContain('key: "PLANNING"');
     expect(text).toContain('key: "TERMINATED"');
     expect(text).not.toContain('key: "past"');
     expect(text).not.toContain('key: "future"');

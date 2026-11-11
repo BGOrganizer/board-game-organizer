@@ -6,7 +6,10 @@ const source = (file: string) =>
   readFileSync(new URL(`../../components/${file}.tsx`, import.meta.url), "utf8");
 it("uses consent responses and queue/seat states, never approval actions on spontaneous table joins", () => {
   const card = source("events/EventTableCard") + source("events/EventTableInvitationActions"),
-    table = source("events/EventTableOverview") + source("events/EventTableSeats");
+    table =
+      source("events/EventTableOverview") +
+      source("events/EventTableSeats") +
+      source("events/EventSeatListHeading");
   expect(card).toContain("setAccepting(true)");
   expect(card).toContain("<EventJoinSheet");
   expect(card).toContain("registrationId={registration.id}");
@@ -23,7 +26,10 @@ it("uses consent responses and queue/seat states, never approval actions on spon
   expect(table).toContain("Waiting list");
 });
 it("keeps leave/removal destructive, confirmed and target-pending-disabled; view permissions remain server capabilities", () => {
-  const table = source("events/EventTableOverview") + source("events/EventTableSeats");
+  const table =
+    source("events/EventTableOverview") +
+    source("events/EventTableSeats") +
+    source("events/EventSeatListHeading");
   for (const token of [
     "canLeave",
     "canInvite",
@@ -51,7 +57,8 @@ it("uses grouped games, virtualized user places, avatar badges and one explicit 
   expect(roster).toContain("<AddUserRow");
   expect(roster).toContain("badge={{");
   expect(roster).toContain('t("Seats list")');
-  expect(roster).toContain("<IconLegend");
+  expect(roster).toContain("<EventSeatListHeading");
+  expect(source("events/EventSeatListHeading")).toContain("<IconLegend");
   expect(vote).toContain('variant="secondary"');
   expect(vote).toContain("<ConfirmDialog");
   expect(vote).toContain('"success"');

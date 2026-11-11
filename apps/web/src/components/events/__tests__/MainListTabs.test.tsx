@@ -52,6 +52,7 @@ it("keeps Registered and Available source pages separate, with Group context uns
     ...plannedEvent,
     id: "available",
     name: "Own administration",
+    groupId: "club",
     myRegistrations: [],
   };
   const fetcher = vi.fn(async (url: string) => {
@@ -72,7 +73,7 @@ it("keeps Registered and Available source pages separate, with Group context uns
   const ui = render(<Events canCreate={false} />);
   await screen.findByRole("link", { name: "Open event: My invitation" });
   expect(screen.queryByRole("link", { name: "Open event: Own administration" })).toBeNull();
-  const registered = screen.getByRole("tab", { name: /Registered/ });
+  const registered = screen.getByRole("tab", { name: /Participation/ });
   await waitFor(() =>
     expect(within(registered).getByRole("img", { name: "Needs attention" })).toBeTruthy(),
   );
@@ -87,7 +88,7 @@ it("keeps Registered and Available source pages separate, with Group context uns
   expect(
     fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("section") === "available"),
   ).toBe(true);
-  fireEvent.click(screen.getByRole("tab", { name: /Registered/ }));
+  fireEvent.click(screen.getByRole("tab", { name: /Participation/ }));
   await screen.findByRole("link", { name: "Open event: My invitation" });
   ui.unmount();
   render(<Events groupId="club" canCreate={false} />);
@@ -101,11 +102,13 @@ it("keeps Registered and Available source pages separate, with Group context uns
   ).toBe(true);
 });
 
-it("combines seats, demonstrations, invitations, requests and queue in one source-paged list, never admin-only", async () => {
+it("shows confirmed players and past frozen participation, excluding planning, queue and duty alone", async () => {
   const seated = {
     ...plannedTable,
     id: "seated",
     name: "Seated table",
+    eventStatus: "CONFIRMED",
+    confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
     myRegistration: seat("owner"),
     myPosition: "SEATED",
   };
@@ -127,7 +130,13 @@ it("combines seats, demonstrations, invitations, requests and queue in one sourc
     name: "Requested table",
     myRegistration: { ...invited.myRegistration, kind: "SELF" },
   };
-  const queued = { ...seated, id: "queue", name: "Queued table", myPosition: "WAITING" };
+  const queued = {
+    ...seated,
+    eventStatus: "PLANNING",
+    id: "queue",
+    name: "Queued table",
+    myPosition: "WAITING",
+  };
   const unknown = {
     ...seated,
     id: "unknown",
@@ -146,14 +155,9 @@ it("combines seats, demonstrations, invitations, requests and queue in one sourc
   vi.stubGlobal("fetch", fetcher);
   render(<Tables />);
   await screen.findByRole("link", { name: "Open table: Seated table" });
-  for (const name of [
-    "Demonstration table",
-    "Invited table",
-    "Requested table",
-    "Queued table",
-    "Position not yet loaded",
-  ])
-    expect(screen.getByRole("link", { name: `Open table: ${name}` })).toBeTruthy();
+  for (const name of ["Demonstration table", "Invited table", "Requested table", "Queued table"])
+    expect(screen.queryByRole("link", { name: `Open table: ${name}` })).toBeNull();
+  expect(screen.getByRole("link", { name: "Open table: Position not yet loaded" })).toBeTruthy();
   expect(screen.queryByRole("link", { name: "Open table: Admin only table" })).toBeNull();
   expect(screen.queryByRole("tablist")).toBeNull();
   expect(screen.getAllByRole("button", { name: "Table legend" })).toHaveLength(1);
@@ -190,6 +194,8 @@ it("keeps combined-list errors observable and retries/paginates the same canonic
           ...plannedTable,
           id: u.searchParams.has("cursor") ? "second" : "first",
           name: u.searchParams.has("cursor") ? "Second waiting" : "First waiting",
+          eventStatus: "CONFIRMED",
+          confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
           myRegistration: { ...seat("owner"), status: "PENDING" },
         },
       ],
@@ -277,13 +283,16 @@ it.each(["events", "tables"] as const)(
       confirmed = resource === "events" ? "Confirmed events" : "Confirmed tables",
       terminated = resource === "events" ? "Terminated events" : "Terminated tables";
     await screen.findByRole("link", { name: link("Alpha confirmed") });
-    for (const name of [confirmed, "Planning", terminated])
+    for (const name of resource === "events"
+      ? [confirmed, "Planning", terminated]
+      : [confirmed, terminated])
       expect(
         screen.getByRole("button", { name, pressed: true }).querySelector("svg"),
       ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Past" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Future" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    if (resource === "events") fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    else expect(screen.queryByRole("button", { name: "Planning" })).toBeNull();
     await screen.findByRole("link", { name: link("Zeta terminated") });
     fireEvent.click(screen.getByRole("button", { name: confirmed, pressed: true }));
     await waitFor(() =>
@@ -296,12 +305,15 @@ it.each(["events", "tables"] as const)(
       expect(screen.queryByRole("link", { name: link("Beta planning") })).toBeNull(),
     );
     await screen.findByRole("link", { name: link("Zeta terminated") });
-    expect(fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "z")).toBe(
-      true,
+    await waitFor(() =>
+      expect(
+        fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "z"),
+      ).toBe(true),
     );
     fireEvent.click(screen.getByRole("button", { name: terminated, pressed: true }));
     await screen.findByText(resource === "events" ? "No events found" : "No tables found");
-    fireEvent.click(screen.getByRole("button", { name: "Planning", pressed: true }));
+    if (resource === "events")
+      fireEvent.click(screen.getByRole("button", { name: "Planning", pressed: true }));
     await waitFor(() =>
       expect(
         fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("statuses") === ""),

@@ -60,8 +60,10 @@ for (const resource of ["events", "tables"] as const)
       await clerk.signIn({ page, emailAddress: email });
       await page.goto("/");
       await completeMobileNumberIfNeeded(page);
+      const resourceStates =
+        resource === "tables" ? (["CONFIRMED", "TERMINATED"] as const) : states;
       const fixtures = new Map<string, { id: string; name: string; eventId?: string }>();
-      for (const state of states) {
+      for (const state of resourceStates) {
         const data = await read(page, resource, state);
         if (!data.items.length)
           throw new Error(`Owned ${resource} fixture required for ${state} and STATUS_QUERY`);
@@ -78,13 +80,15 @@ for (const resource of ["events", "tables"] as const)
               it ? "In pianificazione" : "Planning",
               it ? "Terminati" : "Terminated events",
             ]
-          : [
-              it ? "Confermati" : "Confirmed tables",
-              it ? "In pianificazione" : "Planning",
-              it ? "Terminati" : "Terminated tables",
-            ];
-      const selected = new Set<string>(states);
-      for (const wanted of states) {
+          : [it ? "Confermati" : "Confirmed tables", it ? "Terminati" : "Terminated tables"];
+      if (resource === "tables") {
+        expect((await read(page, resource, "PLANNING")).items).toEqual([]);
+        await expect(
+          main.getByRole("button", { name: it ? "In pianificazione" : "Planning", exact: true }),
+        ).toHaveCount(0);
+      }
+      const selected = new Set<string>(resourceStates);
+      for (const wanted of resourceStates) {
         const response = page.waitForResponse((response) => {
           const url = new URL(response.url());
           return (
@@ -93,7 +97,7 @@ for (const resource of ["events", "tables"] as const)
             url.searchParams.get("statuses") === wanted
           );
         });
-        for (const [index, state] of states.entries())
+        for (const [index, state] of resourceStates.entries())
           if (selected.has(state) !== (state === wanted)) {
             await main.getByRole("button", { name: names[index], exact: true }).click();
             if (selected.has(state)) selected.delete(state);
@@ -112,12 +116,12 @@ for (const resource of ["events", "tables"] as const)
             ? `/events/${fixture.id}`
             : `/events/${fixture.eventId}/tables/${fixture.id}`;
         await expect(main.locator(`a[href="${href}"]`)).toBeVisible();
-        for (const [index, state] of states.entries())
+        for (const [index, state] of resourceStates.entries())
           await expect(
             main.getByRole("button", { name: names[index], exact: true }),
           ).toHaveAttribute("aria-pressed", String(state === wanted));
       }
-      await main.getByRole("button", { name: names[2], exact: true }).click();
+      await main.getByRole("button", { name: names[names.length - 1], exact: true }).click();
       await expect(
         main.getByText(
           it

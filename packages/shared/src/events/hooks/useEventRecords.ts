@@ -58,7 +58,9 @@ export const eventRecordKeys = {
           (period) => !filters.periods || filters.periods.includes(period),
         ),
         statuses: eventListStatuses.filter(
-          (status) => !filters.statuses || filters.statuses.includes(status),
+          (status) =>
+            (filters.groupId || filters.section !== "available" || status === "PLANNING") &&
+            (!filters.statuses || filters.statuses.includes(status)),
         ),
         query: filters.query?.trim() ?? "",
       },
@@ -78,7 +80,9 @@ export const eventRecordKeys = {
         statuses: id
           ? null
           : eventListStatuses.filter(
-              (status) => !filters.statuses || filters.statuses.includes(status),
+              (status) =>
+                (filters.section || status !== "PLANNING") &&
+                (!filters.statuses || filters.statuses.includes(status)),
             ),
         query: filters.query?.trim() ?? "",
       },
@@ -142,6 +146,9 @@ export function useEventRecords(
       (q.data?.pages.flatMap((p) => p.items) ?? []).filter(
         (row) =>
           (!filters.statuses || filters.statuses.includes(row.status)) &&
+          (filters.groupId ||
+            filters.section !== "available" ||
+            (row.status === "PLANNING" && Boolean(row.groupId) && row.canRegister)) &&
           (filters.groupId ||
             personalEventSection(row, o.userId ?? "") === (filters.section ?? "mine")),
       ),

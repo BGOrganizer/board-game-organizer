@@ -19,19 +19,9 @@ appId: com.bgo.mobile
     id: "contact-search-input"
     text: ${output.contactEmailPattern}
 - hideKeyboard
-# Device Contacts already contains the target before the remote search completes.
-# Wait for its API result above that section, not the old address-book suggestion.
+# Search now owns only remote results; the address book is in its separate tab.
+- assertNotVisible: "Device Contacts"
 - extendedWaitUntil:
-    visible:
-      text: ${CONTACT_ACTIONS}
-      below:
-        text: "^Search results$"
-      above:
-        text: "^Device Contacts$"
+    visible: ${CONTACT_ACTIONS}
     timeout: 90000
-- assertVisible:
-    text: ${CONTACT_ACTIONS}
-    below:
-      text: "^Search results$"
-    above:
-      text: "^Device Contacts$"
+- assertVisible: ${CONTACT_ACTIONS}

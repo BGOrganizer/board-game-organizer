@@ -119,8 +119,8 @@ describe("provisional Event creation", () => {
   it("honors list source scope, text, selected periods and venue-local public day boundaries", () => {
     const row = eventCreationRecord(intent, "owner");
     expect(eventCreationMatches(row, {})).toBe(true);
-    expect(eventCreationMatches(row, { section: "mine" })).toBe(false);
-    expect(eventCreationMatches(row, { section: "available" })).toBe(true);
+    expect(eventCreationMatches(row, { section: "available" })).toBe(false);
+    expect(eventCreationMatches(row, { section: "mine" })).toBe(true);
     expect(eventCreationMatches({ ...row, groupId }, { groupId, section: "mine" })).toBe(true);
     expect(eventCreationMatches(row, { groupId })).toBe(false);
     expect(eventCreationMatches(row, { query: " FRIDAY " })).toBe(true);

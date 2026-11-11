@@ -146,7 +146,11 @@ export async function fetchSuggestionPageWithToken(
   protectionBypass?: string | null,
   signal?: AbortSignal,
 ): Promise<{ users: ContactUser[]; hasContacts: boolean; nextCursor: string | null }> {
-  const params = new URLSearchParams({ limit: "20", ...(cursor ? { cursor } : {}) });
+  const params = new URLSearchParams({
+    limit: "20",
+    scope: "contacts",
+    ...(cursor ? { cursor } : {}),
+  });
   const res = await fetch(
     withProtectionBypass(`${apiUrl}/api/users/suggestions?${params}`, protectionBypass),
     {
@@ -439,9 +443,9 @@ export function useContacts(
   );
 
   const suggestionsQuery = useInfiniteQuery({
-    queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token],
-    queryFn: ({ pageParam }) =>
-      fetchSuggestionPageWithToken(apiUrl, token, getToken, pageParam, protectionBypass),
+    queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token, "device"],
+    queryFn: ({ pageParam, signal }) =>
+      fetchSuggestionPageWithToken(apiUrl, token, getToken, pageParam, protectionBypass, signal),
     initialPageParam: "",
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled,
@@ -724,7 +728,7 @@ export function useContacts(
       const operation = await beginOptimisticOperation(
         queryClient,
         ["contacts-sync", apiUrl, currentUserId ?? token],
-        { queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token] },
+        { queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token, "device"] },
         (data) => contactSnapshotPresence(data, true),
       );
       return operation;
@@ -741,7 +745,7 @@ export function useContacts(
     },
     onSettled: () => {
       void queryClient.invalidateQueries({
-        queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token],
+        queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token, "device"],
       });
     },
   });

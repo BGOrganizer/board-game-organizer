@@ -49,9 +49,36 @@ it("hides excluded Tables from personal cache immediately but keeps the full Eve
     ({ id }: { id: string | null }) => useRecordTables({ ...options, enabled: false }, id),
     { wrapper, initialProps: { id: null as string | null } },
   );
-  expect(q.result.current.items.map((row) => row.id)).toEqual([plannedTable.id, "included"]);
+  expect(q.result.current.items.map((row) => row.id)).toEqual(["included"]);
   q.rerender({ id: eventId });
   expect(q.result.current.items).toHaveLength(4);
+});
+it("drops restored Available rows that are closed, standalone, managed or already registered", () => {
+  const { client, options, wrapper } = setup();
+  const valid = {
+    ...plannedEvent,
+    id: "eligible",
+    groupId: "club",
+    canManage: false,
+    myRegistrations: [],
+  };
+  const rows = [
+    valid,
+    { ...valid, id: "closed", canRegister: false },
+    { ...valid, id: "standalone", groupId: null },
+    { ...valid, id: "confirmed", status: "CONFIRMED" as const },
+    { ...valid, id: "manager", canManage: true },
+    { ...valid, id: "joined", myRegistrations: [seat("owner")] },
+  ];
+  client.setQueryData(eventRecordsQuery(options, { section: "available" }).queryKey, {
+    pages: [{ items: rows, nextCursor: null }],
+    pageParams: [""],
+  });
+  const result = renderHook(
+    () => useEventRecords({ ...options, enabled: false }, { section: "available" }),
+    { wrapper },
+  );
+  expect(result.result.current.items.map((row) => row.id)).toEqual(["eligible"]);
 });
 it("canonicalizes equivalent first-page keys and scopes identities by API/user/resource", () => {
   const { options: o } = setup();
@@ -120,7 +147,7 @@ it("removes lifecycle-changed cached rows immediately without changing other fil
     wrapper,
   });
   expect(events.result.current.items).toHaveLength(1);
-  expect(tables.result.current.items).toHaveLength(1);
+  expect(tables.result.current.items).toHaveLength(0);
   act(() => {
     client.setQueryData(eventKey, {
       pages: [{ items: [{ ...event, status: "CONFIRMED" }], nextCursor: null }],
@@ -169,7 +196,8 @@ it("does not borrow a legacy seat-only cache for the combined personal list and 
   vi.stubGlobal("fetch", fetch);
   const q = renderHook(() => useRecordTables(options, null), { wrapper });
   expect(q.result.current.items).toEqual([]);
-  await waitFor(() => expect(q.result.current.items.map((row) => row.id)).toEqual([pending.id]));
+  await waitFor(() => expect(q.result.current.isSuccess).toBe(true));
+  expect(q.result.current.items).toEqual([]);
   expect(options.getToken).toHaveBeenCalledTimes(1);
 });
 

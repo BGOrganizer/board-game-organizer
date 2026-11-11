@@ -6,7 +6,7 @@ onFlowComplete:
 ---
 # Manual, isolated fixture. No resets, provider setup or domain writes.
 # Actor A already authenticated; CACHE_TABLE_NAME/GROUP_NAME/EVENT_NAME are unique,
-# visible first-page rows. Actor B (EMAIL_2/PASSWORD_2) has empty Tables/Private Groups/Registered Events.
+# visible first-page rows (Tables require confirmed frozen participation). Actor B (EMAIL_2/PASSWORD_2) has empty Tables/Private Groups/Participation Events.
 # Both actors use EN. Run on a fresh MMKV-capable native build.
 - runScript: ../helpers/cache-inputs.js
 - setAirplaneMode: disabled

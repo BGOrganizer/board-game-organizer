@@ -26,7 +26,7 @@ it("uses first-step header back, compact reachable counters, row game selection 
   expect(wizard).toContain("step > 0 ? (");
   expect(wizard).toContain("...headerBackOptions(() => router.back())");
   expect(wizard).toContain("<CalendarPlus");
-  expect(wizard).toContain('params: { section: "available" }');
+  expect(wizard).toContain('params: { section: "mine" }');
   expect(wizard).toContain('pathname: "/(tabs)/events"');
   expect(source("groups", "GroupWizard")).toContain('"/(tabs)/groups"');
   const editor = source("events", "EventDraftTableEditor");

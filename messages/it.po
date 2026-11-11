@@ -6929,3 +6929,6 @@ msgstr "Manuale: i gestori organizzano i posti. Assistita: l’app cerca la conc
 
 msgid "Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically."
 msgstr "Giocatori privilegia il maggior numero di partecipanti. BGG Best privilegia il numero di giocatori preferito dalla community BGG e consente di ridurre i giocatori seduti in modalità Assistita. La modalità Manuale non rimuove mai giocatori automaticamente."
+
+msgid "Participation"
+msgstr "Partecipazione"

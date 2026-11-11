@@ -29,13 +29,15 @@ output.status = {
   query: query,
   filter: literal(it ? "Filtra" : "Filter"),
   clear: literal(it ? "Cancella filtro" : "Clear filter"),
-  registered: literal(it ? "Iscritti" : "Registered"),
+  registered: literal(it ? "Partecipazione" : "Participation"),
   emptyEvents: literal(it ? "Nessun evento trovato" : "No events found"),
   emptyTables: literal(it ? "Nessun tavolo trovato" : "No tables found"),
 };
 for (const resource of ["EVENT", "TABLE"]) {
   output.status[resource] = {};
-  for (const state of ["CONFIRMED", "PLANNING", "TERMINATED"]) {
+  for (const state of resource === "TABLE"
+    ? ["CONFIRMED", "TERMINATED"]
+    : ["CONFIRMED", "PLANNING", "TERMINATED"]) {
     const name = required(`STATUS_${resource}_${state}`);
     if (!name.toLowerCase().includes(query.toLowerCase()))
       throw new Error("Every owned fixture name must contain STATUS_QUERY");

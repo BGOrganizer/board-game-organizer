@@ -79,6 +79,7 @@ describe("translate (runtime)", () => {
     ["No players waiting", "Nessun utente in lista d'attesa"],
     ["Username unavailable", "Nome utente non disponibile"],
     ["Registered", "Iscritti"],
+    ["Participation", "Partecipazione"],
     ["Available", "Disponibili"],
     [
       "Local storage is unavailable. Data will be refreshed online.",

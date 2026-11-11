@@ -247,21 +247,31 @@ describe("Contacts tabs", () => {
     mocks.following = false;
     renderWithI18n(<Contacts />);
     expect(screen.getByText("No connections yet")).toBeTruthy();
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Connections",
+      "Requests",
+      "Contacts",
+      "Search",
+    ]);
+    expect(
+      screen.getByRole("tab", { name: "Contacts" }).querySelector("svg.lucide-book-user"),
+    ).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "Friends" })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
-    expect(screen.getByRole("heading", { name: "Search results" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Device Contacts" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Search results" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Device Contacts" })).toBeNull();
     expect(screen.getByText("Type at least 4 characters to search")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
     expect(screen.getByText("No contacts to invite")).toBeTruthy();
   });
 
-  it("shows registered device contacts only in Search with their social actions", () => {
+  it("shows registered device contacts only in Contacts with their social actions", () => {
     mocks.following = false;
     mocks.suggestion = true;
     renderWithI18n(<Contacts />);
 
     expect(screen.queryByRole("heading", { name: "Contacts on BGO" })).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
     const device = screen.getByRole("heading", { name: "Device Contacts" }).closest("section");
     expect(device).not.toBeNull();
     expect(within(device as HTMLElement).getByText("Target User")).toBeTruthy();
@@ -404,6 +414,10 @@ describe("Contacts tabs", () => {
     renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
     expect(screen.getByRole("searchbox", { name: "Search users by name or email" })).toBeTruthy();
+    expect(screen.queryByText("Target User")).toBeNull();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search users by name or email" }), {
+      target: { value: "Target" },
+    });
     expect(screen.getByText("Target User")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Create invite|Add contacts/i })).toBeNull();
   });

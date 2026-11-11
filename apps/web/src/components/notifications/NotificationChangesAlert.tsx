@@ -5,7 +5,6 @@ import { Alert, Button, Skeleton } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { BellRing, Check, ChevronDown, RotateCcw } from "lucide-react";
-import { useRef } from "react";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 
 type Model = ReturnType<typeof useNotificationChanges>;
@@ -36,7 +35,6 @@ const messages = {
 /** Protected decisions are listed, but the sole read action never resolves or reads them. */
 export function NotificationChangesAlert({ model }: { model: Model }) {
   const { t, i18n } = useLingui();
-  const scrolling = useRef(false);
   const canRead = model.changes.some((row) => !row.requiresResponse);
   const label = (row: NotificationChangeRow) => {
     const message =
@@ -67,19 +65,10 @@ export function NotificationChangesAlert({ model }: { model: Model }) {
           <NotificationUnreadDot active={model.changes.length > 0} />
         </div>
         {model.changes.length ? (
-          <ul
-            aria-label={t`Changes`}
-            className="max-h-60 min-h-10 w-full overflow-auto"
-            onScroll={(event) => {
-              const list = event.currentTarget;
-              if (list.scrollTop > 0) scrolling.current = true;
-              if (scrolling.current && list.scrollTop + list.clientHeight >= list.scrollHeight - 32)
-                more();
-            }}
-          >
+          <ul aria-label={t`Changes`} className="min-h-10 w-full min-w-0 [overflow-wrap:anywhere]">
             {model.changes.map((row: NotificationChangeRow) => (
               <li key={`${row.notificationId}:${row.itemId ?? "generic"}`}>
-                <Alert.Description className="whitespace-normal text-sm">
+                <Alert.Description className="whitespace-normal text-sm [overflow-wrap:anywhere]">
                   {label(row)}
                 </Alert.Description>
               </li>

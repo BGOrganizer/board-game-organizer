@@ -10,6 +10,7 @@ vi.mock("@/app/lib/db", () => ({
     USERS: "users",
     BLOCKS: "blocks",
     FOLLOWS: "follows",
+    FRIEND_REQUESTS: "friendRequests",
     CONTACT_LINKS: "contactLinks",
   },
 }));
@@ -43,6 +44,55 @@ beforeEach(() => {
 });
 
 describe("GET /api/users/suggestions", () => {
+  it("includes already connected device contacts with accurate actions only in contacts scope, preserving block guards", async () => {
+    contactClerkIdsForUser.mockResolvedValue(["friend", "blocked", "user_1"]);
+    getDbMock.mockResolvedValue({
+      collection: (name: string) => ({
+        find: (filter: Record<string, unknown>) => ({
+          toArray: async () => {
+            if (name === "users")
+              return ["friend", "blocked", "user_1"].map((clerkId) => ({ clerkId, name: clerkId }));
+            if (name === "blocks") return filter.fromUserId ? [{ toUserId: "blocked" }] : [];
+            if (name === "follows")
+              return filter.fromUserId === "user_1"
+                ? [{ toUserId: "friend" }]
+                : [{ fromUserId: "friend" }];
+            if (name === "friendRequests")
+              return [
+                { fromUserId: "user_1", toUserId: "friend" },
+                { fromUserId: "friend", toUserId: "user_1" },
+              ];
+            return [];
+          },
+        }),
+      }),
+    } as never);
+    expect(
+      (await (await GET(new Request("http://localhost/api/users/suggestions?limit=1"))).json())
+        .users,
+    ).toEqual([]);
+    const result = await (
+      await GET(new Request("http://localhost/api/users/suggestions?scope=contacts&limit=1"))
+    ).json();
+    expect(result.users).toEqual([
+      expect.objectContaining({
+        id: "friend",
+        isFollowing: true,
+        isFollower: true,
+        isFriend: true,
+      }),
+    ]);
+    expect(
+      (await GET(new Request("http://localhost/api/users/suggestions?scope=other"))).status,
+    ).toBe(400);
+    expect(
+      (
+        await GET(
+          new Request("http://localhost/api/users/suggestions?scope=contacts&scope=contacts"),
+        )
+      ).status,
+    ).toBe(400);
+  });
   it("returns 401 when unauthenticated", async () => {
     authMock.mockResolvedValue({ userId: null });
     const res = await GET(new Request("http://localhost/api/users/suggestions"));

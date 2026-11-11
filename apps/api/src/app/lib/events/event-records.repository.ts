@@ -11,6 +11,7 @@ import type {
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { ProfileActivitiesRepository } from "../profile/profile-activities.repository";
+import { availableEventExpression, managedEventExpression } from "./event-list-eligibility";
 import { eventPeriodStages } from "./event-periods";
 
 export interface EventRecordPage {
@@ -932,14 +933,20 @@ export class EventRecordsRepository {
     ];
   }
   async list(userId: string, page: EventRecordPage, groupId?: string) {
+    const now = new Date();
+    const available = !groupId && page.section === "available";
     const pipeline: Record<string, unknown>[] = [
       {
         $match: {
-          status: { $in: page.statuses ?? ["PLANNING", "CONFIRMED", "TERMINATED"] },
+          status: {
+            $in: (page.statuses ?? ["PLANNING", "CONFIRMED", "TERMINATED"]).filter(
+              (status) => !available || status === "PLANNING",
+            ),
+          },
           ...(groupId ? { groupId } : {}),
         },
       },
-      ...this.visibleGroups(userId, new Date().toISOString()),
+      ...this.visibleGroups(userId, now.toISOString()),
       ...eventPeriodStages(page.periods, Date.now()),
     ];
     if (!groupId) {
@@ -950,13 +957,14 @@ export class EventRecordsRepository {
                 "myRegistration.0": { $exists: false },
                 "myDemonstration.0": { $exists: false },
                 "personalFrozenTable.0": { $exists: false },
-                $or: [{ groupId: { $ne: null } }, { adminUserId: userId }],
+                $expr: availableEventExpression(userId, now),
               }
             : {
                 $or: [
                   { "myRegistration.0": { $exists: true } },
                   { "myDemonstration.0": { $exists: true } },
                   { "personalFrozenTable.0": { $exists: true } },
+                  { $expr: managedEventExpression(userId) },
                 ],
               },
       });
@@ -1009,7 +1017,11 @@ export class EventRecordsRepository {
       { $unwind: "$event" },
       {
         $match: {
-          "event.status": { $in: page.statuses ?? ["PLANNING", "CONFIRMED", "TERMINATED"] },
+          "event.status": {
+            $in: (page.statuses ?? ["PLANNING", "CONFIRMED", "TERMINATED"]).filter(
+              (status) => page.section || status !== "PLANNING",
+            ),
+          },
           $or: [{ "event.status": "PLANNING" }, { "confirmed.gameId": { $exists: true } }],
         },
       },
@@ -1032,15 +1044,17 @@ export class EventRecordsRepository {
                 demonstratorUserId: { $ne: userId },
                 $nor: [{ "event.status": { $ne: "PLANNING" }, "confirmed.playerIds": userId }],
               }
-            : {
-                $or: [
-                  page.section === "mine"
-                    ? { ownRows: { $elemMatch: { status: "ACCEPTED" } } }
-                    : { "ownRows.0": { $exists: true } },
-                  { demonstratorUserId: userId },
-                  { "event.status": { $ne: "PLANNING" }, "confirmed.playerIds": userId },
-                ],
-              },
+            : !page.section
+              ? { "confirmed.playerIds": userId }
+              : {
+                  $or: [
+                    page.section === "mine"
+                      ? { ownRows: { $elemMatch: { status: "ACCEPTED" } } }
+                      : { "ownRows.0": { $exists: true } },
+                    { demonstratorUserId: userId },
+                    { "event.status": { $ne: "PLANNING" }, "confirmed.playerIds": userId },
+                  ],
+                },
       },
       { $set: { originalTable: "$$ROOT", groupId: "$event.groupId" } },
       ...this.visibleGroups(userId, new Date().toISOString(), "event."),

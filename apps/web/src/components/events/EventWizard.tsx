@@ -155,7 +155,7 @@ function Editor({
         ? `/events/${event.id}${fromGroup === event.groupId ? `?fromGroup=${encodeURIComponent(fromGroup)}` : ""}`
         : targetGroup
           ? `/groups/${targetGroup}?tab=events`
-          : "/events?section=available",
+          : "/events?section=mine",
     );
   };
   if (pick === "location")

@@ -9,6 +9,7 @@ import type {
 import { attentionKey, emptyAttentionSummary } from "@board-game-organizer/shared";
 import { type ClientSession, type Db, type Document, ObjectId } from "mongodb";
 import { COLLECTIONS } from "../db";
+import { availableEventExpression, managedEventExpression } from "../events/event-list-eligibility";
 import { EventRecordsRepository } from "../events/event-records.repository";
 import { GroupRecordsRepository } from "../groups/group-records.repository";
 import { itemFacet, itemOwnerIds, ownerListTargets } from "./notification-item-pipeline";
@@ -119,7 +120,7 @@ export class NotificationAttentionRepository {
                 from: COLLECTIONS.EVENT_TABLES,
                 localField: "id",
                 foreignField: "eventId",
-                let: { personalAccessOnly: "$personalAccessOnly" },
+                let: { personalAccessOnly: "$personalAccessOnly", eventStatus: "$status" },
                 pipeline: [
                   {
                     $match: {
@@ -143,7 +144,18 @@ export class NotificationAttentionRepository {
                     },
                   },
                   { $limit: 20 },
-                  { $project: { _id: 0, id: 1 } },
+                  {
+                    $project: {
+                      _id: 0,
+                      id: 1,
+                      personal: {
+                        $and: [
+                          { $in: ["$$eventStatus", ["CONFIRMED", "TERMINATED"]] },
+                          { $in: [userId, { $ifNull: ["$confirmed.playerIds", []] }] },
+                        ],
+                      },
+                    },
+                  },
                 ],
                 as: "attentionTables",
               },
@@ -154,26 +166,35 @@ export class NotificationAttentionRepository {
                 personalAccessOnly: 1,
                 groupId: { $cond: ["$personalAccessOnly", null, "$groupId"] },
                 tableIds: "$attentionTables.id",
+                personalTableIds: {
+                  $map: {
+                    input: { $filter: { input: "$attentionTables", cond: "$$this.personal" } },
+                    as: "table",
+                    in: "$$table.id",
+                  },
+                },
                 lists: {
                   $concatArrays: [
-                    [
-                      {
-                        kind: "event-list",
-                        id: {
-                          $cond: [
-                            {
-                              $or: [
-                                "$personalAccessOnly",
-                                { $gt: [{ $size: "$myRegistration" }, 0] },
-                                { $gt: [{ $size: "$myDemonstration" }, 0] },
-                              ],
-                            },
-                            "mine",
-                            "available",
+                    {
+                      $cond: [
+                        {
+                          $or: [
+                            "$personalAccessOnly",
+                            managedEventExpression(userId),
+                            { $gt: [{ $size: "$myRegistration" }, 0] },
+                            { $gt: [{ $size: "$myDemonstration" }, 0] },
                           ],
                         },
-                      },
-                    ],
+                        [{ kind: "event-list", id: "mine" }],
+                        {
+                          $cond: [
+                            availableEventExpression(userId, new Date(now)),
+                            [{ kind: "event-list", id: "available" }],
+                            [],
+                          ],
+                        },
+                      ],
+                    },
                     {
                       $cond: [
                         {
@@ -656,7 +677,19 @@ export class NotificationAttentionRepository {
           $group: {
             _id: null,
             inbox: { $sum: 1 },
-            tables: sum({ $gt: [{ $size: "$_tableIds" }, 0] }),
+            tables: sum({
+              $gt: [
+                {
+                  $size: {
+                    $setIntersection: [
+                      "$_tableIds",
+                      { $ifNull: [{ $arrayElemAt: ["$_event.personalTableIds", 0] }, []] },
+                    ],
+                  },
+                },
+                0,
+              ],
+            }),
             events: sum({ $gt: [{ $size: "$_ownerEvents" }, 0] }),
             groups: sum({ $gt: [{ $size: "$_ownerGroups" }, 0] }),
             contacts: sum({ $eq: ["$_kind", "contact"] }),

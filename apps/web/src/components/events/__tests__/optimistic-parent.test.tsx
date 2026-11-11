@@ -138,7 +138,7 @@ it.each([403, 404])(
       ({ readParent }) => ({
         events: useEventRecordActions(options, ""),
         parent: useGroupRecord({ ...options, enabled: readParent }, groupRecord.id),
-        list: useEventRecords({ ...options, enabled: false }, { section: "available" }),
+        list: useEventRecords({ ...options, enabled: false }, { section: "mine" }),
       }),
       { wrapper, initialProps: { readParent: false } },
     );

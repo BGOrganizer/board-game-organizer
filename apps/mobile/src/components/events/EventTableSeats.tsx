@@ -17,7 +17,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundCheck, UserRoundX } from "lucide-react-native";
+import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX } from "lucide-react-native";
 import { type ReactNode, useRef, useState } from "react";
 import { type ScrollView, SectionList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,8 +26,6 @@ import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { HelpPopover } from "@/components/common/ui/HelpPopover";
-import { IconLegend } from "@/components/common/ui/IconLegend";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
@@ -35,6 +33,7 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventJoinSheet } from "./EventJoinSheet";
+import { EventSeatListHeading } from "./EventSeatListHeading";
 import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
 export function EventTableSeats({
@@ -72,7 +71,11 @@ export function EventTableSeats({
   if (order.editing)
     return (
       <View style={{ flex: 1, display: active ? "flex" : "none" }}>
-        <EventSeatOrderEditor model={order} />
+        <EventSeatOrderEditor
+          model={order}
+          header={header}
+          demonstratorUserId={table.demonstratorUserId}
+        />
       </View>
     );
   return (
@@ -96,63 +99,7 @@ export function EventTableSeats({
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={<View style={{ gap: 16, paddingBottom: 8 }}>{header}</View>}
           renderSectionHeader={({ section }) => (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-                paddingTop: section.key === "waiting" ? 12 : 0,
-              }}
-            >
-              <Typography accessibilityRole="header" className="font-semibold text-foreground">
-                {section.title}
-              </Typography>
-              <HelpPopover
-                label={`${section.title}: ${t("Field help")}`}
-                title={section.title}
-                width={300}
-              >
-                {section.key === "waiting" ? (
-                  <>
-                    <Typography className="text-sm text-foreground">
-                      {t(
-                        "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves.",
-                      )}
-                    </Typography>
-                    <Typography className="text-sm text-foreground">
-                      {t(
-                        "Accepted waiting players may vote. Pending invitations do not vote or count toward agreement.",
-                      )}
-                    </Typography>
-                    <Typography className="text-sm text-foreground">
-                      {t("Only the organizer and recipient can see pending invitation identities.")}
-                    </Typography>
-                  </>
-                ) : (
-                  <>
-                    <IconLegend
-                      items={[
-                        { icon: UserRoundCheck, description: t("Accepted player") },
-                        { icon: Mail, description: t("Invitation pending") },
-                      ]}
-                    />
-                    <Typography className="text-sm text-foreground">
-                      {t(
-                        "Pending invitations reserve a place but do not vote or count toward agreement.",
-                      )}
-                    </Typography>
-                    <Typography className="text-sm text-foreground">
-                      {t(
-                        "Free places allow joining or invitations. Places are not assigned physical seats.",
-                      )}
-                    </Typography>
-                    <Typography className="text-sm text-foreground">
-                      {t("Only the organizer and recipient can see pending invitation identities.")}
-                    </Typography>
-                  </>
-                )}
-              </HelpPopover>
-            </View>
+            <EventSeatListHeading waiting={section.key === "waiting"} />
           )}
           renderSectionFooter={({ section }) =>
             section.key === "waiting" &&

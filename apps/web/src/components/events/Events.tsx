@@ -35,7 +35,7 @@ export function Events({
       <Tabs selectedKey={section} onSelectionChange={(key) => setSection(String(key))}>
         <TabBar label={t`Events navigation`}>
           <TabTrigger icon={CalendarCheck} id="mine">
-            {t`Registered events`}
+            {t`Participation`}
             <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
             <Tabs.Indicator />
           </TabTrigger>

@@ -17,7 +17,7 @@ output.cacheEventPattern = literal(
 );
 literal(typeof EMAIL_2 === "undefined" ? "" : EMAIL_2, "EMAIL_2");
 literal(typeof PASSWORD_2 === "undefined" ? "" : PASSWORD_2, "PASSWORD_2");
-output.registeredLabel = "Registered";
+output.registeredLabel = "Participation";
 output.availableLabel = "Available";
 output.connectionsLabel = "Connections";
 output.noTablesLabel = "No tables found";

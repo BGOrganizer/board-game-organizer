@@ -14,23 +14,13 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import {
-  ArrowUpDown,
-  Clock3,
-  LogOut,
-  Mail,
-  UserRoundCheck,
-  UserRoundPlus,
-  UserRoundX,
-} from "lucide-react";
+import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundPlus, UserRoundX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { HelpPopover } from "@/components/common/ui/HelpPopover";
-import { IconLegend } from "@/components/common/ui/IconLegend";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
@@ -38,6 +28,7 @@ import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventJoinSheet } from "./EventJoinSheet";
+import { EventSeatListHeading } from "./EventSeatListHeading";
 import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
 export function EventTableSeats({
@@ -78,7 +69,11 @@ export function EventTableSeats({
   if (order.editing)
     return (
       <div hidden={!active}>
-        <EventSeatOrderEditor model={order} />
+        <EventSeatOrderEditor
+          model={order}
+          header={header}
+          demonstratorUserId={table.demonstratorUserId}
+        />
       </div>
     );
   return (
@@ -100,30 +95,7 @@ export function EventTableSeats({
         { title: t`Waiting list`, rows: roster.waitingRows, waiting: true },
       ].map((section) => (
         <section key={section.title} className="space-y-3" aria-label={section.title}>
-          <div className="flex items-center gap-1">
-            <h2 className="font-semibold">{section.title}</h2>
-            <HelpPopover label={`${section.title}: ${t`Field help`}`} title={section.title}>
-              {section.waiting ? (
-                <>
-                  <p>{t`When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves.`}</p>
-                  <p className="mt-2 text-sm">{t`Accepted waiting players may vote. Pending invitations do not vote or count toward agreement.`}</p>
-                  <p className="mt-2 text-sm">{t`Only the organizer and recipient can see pending invitation identities.`}</p>
-                </>
-              ) : (
-                <>
-                  <IconLegend
-                    items={[
-                      { icon: UserRoundCheck, description: t`Accepted player` },
-                      { icon: Mail, description: t`Invitation pending` },
-                    ]}
-                  />
-                  <p className="mt-3 text-sm">{t`Pending invitations reserve a place but do not vote or count toward agreement.`}</p>
-                  <p className="mt-2 text-sm">{t`Free places allow joining or invitations. Places are not assigned physical seats.`}</p>
-                  <p className="mt-2 text-sm">{t`Only the organizer and recipient can see pending invitation identities.`}</p>
-                </>
-              )}
-            </HelpPopover>
-          </div>
+          <EventSeatListHeading waiting={section.waiting} />
           <GroupedList>
             {section.rows.map((item) => {
               if (item.kind === "pending") {

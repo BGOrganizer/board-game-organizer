@@ -31,7 +31,7 @@ export function EventList({
     list = useEventRecords(o, {
       groupId,
       section: groupId ? undefined : section,
-      statuses: filters.selected,
+      statuses: !groupId && section === "available" ? ["PLANNING"] : filters.selected,
       query: filters.search,
     }),
     end = useInfiniteScroll({
@@ -60,11 +60,15 @@ export function EventList({
           mode="filter"
           selected={filters.selected}
           onToggle={filters.toggle}
-          options={[
-            { key: "CONFIRMED", label: t`Confirmed events`, icon: CalendarCheck2 },
-            { key: "PLANNING", label: t`Planning`, icon: CalendarClock },
-            { key: "TERMINATED", label: t`Terminated events`, icon: Flag },
-          ]}
+          options={
+            !groupId && section === "available"
+              ? []
+              : [
+                  { key: "CONFIRMED", label: t`Confirmed events`, icon: CalendarCheck2 },
+                  { key: "PLANNING", label: t`Planning`, icon: CalendarClock },
+                  { key: "TERMINATED", label: t`Terminated events`, icon: Flag },
+                ]
+          }
         />
         {(communityAccessDenied(list.error) ? [] : list.items).map((event) => (
           <EventCard

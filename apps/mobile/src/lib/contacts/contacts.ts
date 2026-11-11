@@ -6,7 +6,7 @@ interface DeviceContact {
   phones?: Array<{ number?: string | null }> | null;
 }
 
-const CONTACT_TABS = ["connections", "requests", "search"] as const;
+const CONTACT_TABS = ["connections", "requests", "device", "search"] as const;
 
 export type ContactTab = (typeof CONTACT_TABS)[number];
 
@@ -15,17 +15,15 @@ export function contactTab(value: string | string[] | undefined): ContactTab {
   if (candidate === "friends" || candidate === "following" || candidate === "followers")
     return "connections";
   if (candidate === "blocked") return "requests";
-  if (candidate === "suggestions") return "search";
+  if (candidate === "suggestions") return "device";
   return CONTACT_TABS.includes(candidate as ContactTab) ? (candidate as ContactTab) : "connections";
 }
 
-export function contactSearchRows(
-  searchResults: ContactUser[],
+export function contactDeviceRows(
   registered: ContactUser[],
   unregistered: Array<{ id: string; name: string }>,
 ) {
   return [
-    ...searchResults.map((user) => ({ kind: "user" as const, id: `user:${user.id}`, user })),
     { kind: "device-header" as const, id: "device-header" },
     ...registered.map((user) => ({ kind: "bgo" as const, id: `bgo:${user.id}`, user })),
     ...unregistered.map((contact) => ({

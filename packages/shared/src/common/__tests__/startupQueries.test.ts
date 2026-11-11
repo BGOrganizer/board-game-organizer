@@ -157,9 +157,11 @@ it("progressively warms scoped first pages, linked events and authorized groups,
   );
   expect(new Set(headers).size).toBe(22);
   expect(
-    client.getQueryData(["contacts", "suggestions", options.apiUrl, options.userId]),
+    client.getQueryData(["contacts", "suggestions", options.apiUrl, options.userId, "device"]),
   ).toBeDefined();
-  expect(client.getQueryData(["contacts", "suggestions", options.apiUrl, "other"])).toBeUndefined();
+  expect(
+    client.getQueryData(["contacts", "suggestions", options.apiUrl, "other", "device"]),
+  ).toBeUndefined();
   expect(
     client
       .getQueryCache()

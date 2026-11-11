@@ -5,7 +5,6 @@ import { useLingui } from "@lingui/react/macro";
 import { Hand, Sparkles, Trophy, Users } from "lucide-react";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
-import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 export function EventPlanningSettings({
   form,
@@ -33,13 +32,11 @@ export function EventPlanningSettings({
           value: "MANUAL",
           label: t`Manual`,
           icon: Hand,
-          help: t`Manual planning keeps the current seats. Every seated player must agree before a manager can confirm.`,
         },
         {
           value: "ASSISTED",
           label: t`Assisted`,
           icon: Sparkles,
-          help: t`Assistance recalculates the allocation when planning changes. Switching to Assisted can change the allocation; confirmation always requires a manager.`,
         },
       ],
     },
@@ -58,13 +55,11 @@ export function EventPlanningSettings({
           value: "MORE_PLAYERS",
           label: t`Players`,
           icon: Users,
-          help: t`Maximize participation before preferring BGG player-count recommendations.`,
         },
         {
           value: "BEST",
           label: t`BGG Best`,
           icon: Trophy,
-          help: t`Prefer the player count rated Best by the BGG community. Selecting BGG Best allows Assisted planning to reduce the seated group to reach that count. Locked seats and pending invitations remain protected; Manual planning never removes players automatically.`,
         },
       ],
     },
@@ -111,9 +106,6 @@ export function EventPlanningSettings({
                   >
                     {option.label}
                   </label>
-                  <HelpPopover label={`${option.label}: ${t`Field help`}`} title={option.label}>
-                    {option.help}
-                  </HelpPopover>
                 </div>
               </Card>
             ))}

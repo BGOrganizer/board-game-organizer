@@ -128,34 +128,30 @@ exceptions supersede older membership-only activity/detail statements below.
   Standalone invitations are friend-only. PRIVATE Event participation requires accepted Group
   membership; approved PUBLIC Events also permit explicit outsider SELF enrollment.
   Successful grouped creation returns to that Group's Events tab; standalone creation returns to
-  main Events' Available tab and edits retain their Event detail destination. Creation selects an optional Group
+  main Events' Participation tab and edits retain their Event detail destination. Creation selects an optional Group
   inline through the platform HeroUI Select, with searchable source-paged Group items and explicit
   No group; no separate Group search screen. Launching from a Group presets and locks that selection;
   existing Event Group identity remains immutable.
-- Main Events has Registered / Available top tabs (Italian: Iscritti / Disponibili). Registered includes
-  active own registrations (accepted, pending invitation or request) at a nonremoved Table, or an
-  actual demonstrator duty. Available includes other accessible Events of accepted Group members/
-  creators, plus own admin-only standalone Events. Administration alone is not participation. Public
-  non-members and pending Group invitations/requests gain no list access merely by reading a public
-  source. Explicit accepted PUBLIC Event enrollment, including queue positions, qualifies Registered
-  and personal Tables independently of Group membership. Live exclusions still deny access.
-  Demonstration counts even for an admin.
-- Main Tables has one combined source-paged list, without inner tabs: explicit active participation,
-  seated/frozen players, demonstrators, invitations awaiting response, historical pending requests
-  and accepted queued players. Admin-only Tables never qualify, including confirmed/terminated ones;
-  declined/left rows and excluded frozen-event Tables do not qualify. Missing cached position metadata
-  neither hides an explicit active registration nor proves a seat. Canonical agreement/reservation/
-  frozen-roster projections still determine positions. The API walks bounded authorized source chunks
-  before emitting a page; it never concatenates independently paginated client sections. Optional
-  legacy mine/waiting requests remain supported, with their canonical position checks and distinct
-  cache identities; the combined list never borrows a cached seat-only first page.
-- Main Event sections and combined Tables, owned Private/Public Group tabs and Group-context Events retain chips,
+- Main Events has Participation / Available top tabs (Italian: Partecipazione / Disponibili).
+  Participation includes accepted/pending own registrations at nonremoved Tables, demonstrator duty,
+  and Events the actor currently manages: standalone creator, Group creator, or accepted Group moderator.
+  Management does not create a player seat. Available contains only other PLANNING Group Events where
+  the actor is an accepted member (including the Group creator) and enrollment is open. Own participation
+  and managed Events do not appear twice. Standalone Events, confirmed/terminated Events, pending members,
+  nonmembers and exact/expired PUBLIC Group cutoffs do not qualify for Available. Current visibility,
+  exclusions and preserved frozen participation remain authoritative.
+- Main Tables is one source-paged list of CONFIRMED/TERMINATED Tables whose immutable confirmed roster
+  contains the actor. Planning registrations, pending invitations, queues, demonstrator duty and management
+  alone do not qualify. The Table remains readable through its Event under the existing guards. Legacy
+  mine/waiting API sections retain their existing position-based behavior and distinct caches.
+- Participation, combined Tables, owned Private/Public Group tabs and Group-context Events retain chips,
   clear input and help but use Filter / Filtra, named placeholders and brief filtering help, with no
   character minimum. Queries debounce 300 ms and filter escaped names inside that authorized scope
   before response pagination. Group Search remains separate discovery with its four-character minimum.
   Group-context Events remain one contextual list, not another copy of the main section tabs.
-  Main Tables and main/Group-context Events replace date-period chips with Confirmed / Planning /
-  Terminated lifecycle chips (Confermati / In pianificazione / Terminati), initially all enabled.
+  Main Tables offers Confirmed / Terminated chips; Participation and Group-context Events retain
+  Confirmed / Planning / Terminated chips, initially all enabled. Available has no status chips and
+  always requests PLANNING Events. All lists retain their name filter.
   Enabled states are combined with OR and the escaped name query with AND before source pagination;
   disabling every state returns an empty list. Table state comes from its parent Event, never the
   registration or a guessed date. Legacy API period parameters remain supported independently.
@@ -985,3 +981,13 @@ there are no repeated identical notifications or player reminders to change vote
   actor lock and replaces all links in one transaction; inbox mark-all-read is transactional too.
   BGG retains its existing valid staged workflow and atomic snapshot publication, not a transaction
   held open across external provider requests. No live migration, reset or backfill is performed.
+
+### Contacts tab separation and change alerts
+
+Contacts navigation is Connections / Requests / Contacts / Search. Contacts owns consented device contacts,
+including existing social connections, local unregistered rows, permission/synchronization feedback and paging.
+Web shows the authenticated synced registered contacts available to that client; it does not request a browser
+address book. Search owns only its query and remote results, initially empty and cleared below four characters.
+The new Contacts tab derives attention from its loaded actor rows without inventing a server read subsection.
+Event/Group/Table change alerts wrap to the available width and grow with their loaded content; explicit
+More changes paging and protected invitation reads remain unchanged.

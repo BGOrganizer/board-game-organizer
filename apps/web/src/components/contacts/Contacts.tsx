@@ -297,7 +297,7 @@ export function Contacts() {
 
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
-  const searchResults = contacts.search.data?.users ?? [];
+  const searchResults = query.trim().length >= 4 ? (contacts.search.data?.users ?? []) : [];
 
   const connections = contactConnections(
     friendsRows,
@@ -306,7 +306,7 @@ export function Contacts() {
     suggestions,
     blockedRows,
   );
-  const bgoContacts = connections.find((section) => section.key === "device")?.users ?? [];
+  const bgoContacts = suggestions;
   const connectionLabels = {
     friends: t`Friends`,
     following: t`Following`,
@@ -372,6 +372,7 @@ export function Contacts() {
         { kind: "contacts", id: "search" },
         ...[
           ...connections.flatMap((section) => section.users),
+          ...bgoContacts,
           ...searchResults,
           ...pendingRows.flatMap((row) => (row.profile ? [row.profile] : [])),
           ...sentRows.flatMap((row) => (row.profile ? [row.profile] : [])),
@@ -423,6 +424,11 @@ export function Contacts() {
               />
               <Tabs.Indicator />
             </TabTrigger>
+            <TabTrigger icon={BookUser} id="device" className="relative">
+              {t`Contacts`}
+              <ContactSectionBadge section="device" userIds={bgoContacts.map((user) => user.id)} />
+              <Tabs.Indicator />
+            </TabTrigger>
             <TabTrigger
               icon={Search}
               id="search"
@@ -432,50 +438,13 @@ export function Contacts() {
               {t`Search`}
               <ContactSectionBadge
                 section="search"
-                userIds={[...searchResults, ...bgoContacts].map((user) => user.id)}
+                userIds={searchResults.map((user) => user.id)}
               />
               <Tabs.Indicator />
             </TabTrigger>
           </TabBar>
 
-          <Tabs.Panel id="search" className="space-y-3 pt-4">
-            <SearchInput
-              value={query}
-              onChange={(value) => {
-                setQuery(value);
-                if (!value) contacts.runSearch("");
-              }}
-              placeholder={t`Search users`}
-              label={
-                <SearchHelpLabel
-                  label={t`Search users by name or email`}
-                  help={t`Type at least 4 characters to search`}
-                />
-              }
-            />
-
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Search className="size-4" aria-hidden="true" />
-              {t`Search results`}
-            </h2>
-            {query.trim().length < 4 && (
-              <EmptyList icon={<Search className="size-7" />}>
-                {t`Type at least 4 characters to search`}
-              </EmptyList>
-            )}
-            {contacts.search.isLoading && <ContactListSkeleton count={2} />}
-            {query.trim().length >= 4 &&
-              !contacts.search.isLoading &&
-              !contacts.search.isError &&
-              searchResults.length === 0 && (
-                <EmptyList icon={<SearchX className="size-7" />}>{t`No users found`}</EmptyList>
-              )}
-            {contacts.search.isError ? (
-              <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
-            ) : null}
-            <GroupedList style={{ overflow: "visible" }}>
-              {searchResults.map((user) => contactCard(user))}
-            </GroupedList>
+          <Tabs.Panel id="device" className="space-y-3 pt-4">
             <section className="space-y-2" aria-labelledby="device-contacts-title">
               <h2
                 id="device-contacts-title"
@@ -507,6 +476,42 @@ export function Contacts() {
                 >{t`Retry`}</button>
               ) : null}
             </section>
+          </Tabs.Panel>
+
+          <Tabs.Panel id="search" className="space-y-3 pt-4">
+            <SearchInput
+              value={query}
+              onChange={(value) => {
+                setQuery(value);
+                if (value.trim().length < 4) contacts.runSearch("");
+              }}
+              placeholder={t`Search users`}
+              label={
+                <SearchHelpLabel
+                  label={t`Search users by name or email`}
+                  help={t`Type at least 4 characters to search`}
+                />
+              }
+            />
+
+            {query.trim().length < 4 && (
+              <EmptyList icon={<Search className="size-7" />}>
+                {t`Type at least 4 characters to search`}
+              </EmptyList>
+            )}
+            {contacts.search.isLoading && <ContactListSkeleton count={2} />}
+            {query.trim().length >= 4 &&
+              !contacts.search.isLoading &&
+              !contacts.search.isError &&
+              searchResults.length === 0 && (
+                <EmptyList icon={<SearchX className="size-7" />}>{t`No users found`}</EmptyList>
+              )}
+            {contacts.search.isError ? (
+              <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+            ) : null}
+            <GroupedList style={{ overflow: "visible" }}>
+              {searchResults.map((user) => contactCard(user))}
+            </GroupedList>
           </Tabs.Panel>
 
           <Tabs.Panel id="requests" className="space-y-3 pt-4">
@@ -640,14 +645,14 @@ function ContactSectionBadge({
   section,
   userIds,
 }: {
-  section: "connections" | "requests" | "search";
+  section: "connections" | "requests" | "search" | "device";
   userIds: readonly string[];
 }) {
   const attention = useNotificationAttentionContext();
   return (
     <NotificationCountBadge
       count={
-        attention?.get({ kind: "contacts", id: section })?.count ||
+        (section === "device" ? 0 : attention?.get({ kind: "contacts", id: section })?.count) ||
         Number(userIds.some((id) => (attention?.get({ kind: "contact", id })?.count ?? 0) > 0))
       }
       corner

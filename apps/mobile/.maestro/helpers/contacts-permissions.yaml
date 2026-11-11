@@ -6,7 +6,7 @@ appId: com.bgo.mobile
     timeout: 30000
 - tapOn: "Don.t allow"
 - tapOn: "Search"
-- assertVisible: "Search results"
+- assertNotVisible: "Search results"
 - tapOn: "Search users by name or email: Search help"
 - extendedWaitUntil:
     visible: "Search help"
@@ -14,6 +14,7 @@ appId: com.bgo.mobile
 - assertVisible: "Type at least 4 characters to search"
 - back
 - assertNotVisible: "Search help"
+- openLink: bgo:///contacts?tab=device
 - tapOn:
     id: "enable-contacts-btn"
 - assertVisible: "Access to contacts"
@@ -60,7 +61,7 @@ appId: com.bgo.mobile
 - back
 - assertNotVisible: "Requests awaiting your reply."
 - assertNotVisible: "Blocked"
-- tapOn: "Search"
+- openLink: bgo:///contacts?tab=device
 - assertVisible: "Device Contacts"
 - extendedWaitUntil:
     visible: "E2E Target"
@@ -85,10 +86,6 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     notVisible: "^(Copy|Copy to clipboard|Copy link)$"
     timeout: 30000
-- scrollUntilVisible:
-    element:
-      id: "contact-search-input"
-    direction: UP
-    timeout: 30000
+- openLink: bgo:///contacts?tab=search
 - assertVisible:
     id: "contact-search-input"

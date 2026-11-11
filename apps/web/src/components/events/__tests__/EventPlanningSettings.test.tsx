@@ -36,8 +36,8 @@ it("defaults to Assisted and Players and selecting BGG Best includes reduction w
   fireEvent.click(screen.getByRole("radio", { name: "BGG Best" }));
   expect(patch).toHaveBeenCalledWith({ playerPreference: "BEST", allowBestReduction: true });
   expect(screen.queryByRole("switch")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "BGG Best: Field help" }));
-  expect(screen.getByRole("dialog").textContent).toContain("allows Assisted planning to reduce");
+  for (const label of ["Manual", "Assisted", "Players", "BGG Best"])
+    expect(screen.queryByRole("button", { name: `${label}: Field help` })).toBeNull();
 });
 it("shows roster conflicts without silently clearing the draft and disables saving", () => {
   const reset = vi.fn(),

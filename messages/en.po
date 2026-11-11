@@ -6938,3 +6938,6 @@ msgstr "Manual: managers arrange the seats. Assisted: the app seeks agreement an
 
 msgid "Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically."
 msgstr "Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically."
+
+msgid "Participation"
+msgstr "Participation"

@@ -41,7 +41,7 @@ export function Events({
       >
         <MainTabBar>
           <TabTrigger icon={CalendarCheck} value="mine" style={{ flexDirection: "row", gap: 6 }}>
-            <Tabs.Label numberOfLines={1}>{t("Registered")}</Tabs.Label>
+            <Tabs.Label numberOfLines={1}>{t("Participation")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
           </TabTrigger>
           <TabTrigger

@@ -54,7 +54,7 @@ import { UserList as ContactList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { type ContactTab, contactSearchRows, contactTab } from "@/lib/contacts/contacts";
+import { type ContactTab, contactDeviceRows, contactTab } from "@/lib/contacts/contacts";
 import {
   pendingRegisteredContacts,
   type SyncedContacts,
@@ -122,7 +122,9 @@ export default function ContactsScreen() {
     feedback: mutationFeedback,
   };
   const attentionRead = useReadNotificationAttention(attentionOptions);
-  const readSection = (id: ContactTab) => attentionRead.read({ kind: "contacts", id });
+  const readSection = (id: ContactTab) => {
+    if (id !== "device") attentionRead.read({ kind: "contacts", id });
+  };
   const router = useRouter();
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string | string[] }>();
   const tab = contactTab(tabParam);
@@ -528,7 +530,7 @@ export default function ContactsScreen() {
   const suggestions = contacts.suggestions.data?.users ?? [];
   const visibleSuggestions =
     contacts.suggestions.isLoading || contactsPermission === "checking" ? [] : suggestions;
-  const searchResults = contacts.search.data?.users ?? [];
+  const searchResults = query.trim().length >= 4 ? (contacts.search.data?.users ?? []) : [];
   const connections = contactConnections(
     friendsRows,
     followingRows,
@@ -536,9 +538,8 @@ export default function ContactsScreen() {
     visibleSuggestions,
     blockedRows,
   );
-  const bgoContacts = connections.find((section) => section.key === "device")?.users ?? [];
-  const searchRows = contactSearchRows(
-    searchResults,
+  const bgoContacts = visibleSuggestions;
+  const deviceRows = contactDeviceRows(
     bgoContacts,
     contacts.suggestions.hasNextPage ? [] : unregistered,
   );
@@ -628,6 +629,7 @@ export default function ContactsScreen() {
         { kind: "contacts", id: "search" },
         ...[
           ...connections.flatMap((section) => section.users),
+          ...bgoContacts,
           ...searchResults,
           ...pendingRows.flatMap((row) => (row.profile ? [row.profile] : [])),
           ...sentRows.flatMap((row) => (row.profile ? [row.profile] : [])),
@@ -672,24 +674,28 @@ export default function ContactsScreen() {
                 )}
               />
             </TabTrigger>
+            <TabTrigger icon={BookUser} value="device" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Label>{t("Contacts")}</Tabs.Label>
+              <ContactSectionBadge section="device" userIds={bgoContacts.map((user) => user.id)} />
+            </TabTrigger>
             <TabTrigger icon={Search} value="search" style={{ flexDirection: "row", gap: 6 }}>
               <Tabs.Label>{t("Search")}</Tabs.Label>
               <ContactSectionBadge
                 section="search"
-                userIds={[...searchResults, ...bgoContacts].map((user) => user.id)}
+                userIds={searchResults.map((user) => user.id)}
               />
             </TabTrigger>
           </MainTabBar>
 
           <Tabs.Content
-            value="search"
+            value="device"
             style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 20 }}
           >
             <InputFlatList
               style={{ flex: 1 }}
               contentContainerStyle={{ gap: 8, paddingTop: 8, paddingRight: 8, paddingBottom: 24 }}
               keyboardShouldPersistTaps="handled"
-              data={searchRows}
+              data={deviceRows}
               keyExtractor={(row) => row.id}
               onEndReached={() => {
                 if (contacts.suggestions.hasNextPage) {
@@ -722,67 +728,23 @@ export default function ContactsScreen() {
                 </>
               }
               ListHeaderComponent={
-                <View style={{ marginBottom: 12, gap: 8 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <SearchHelpLabel
-                        label={t("Search users by name or email")}
-                        help={t("Type at least 4 characters to search")}
-                      />
-                      <SearchInput
-                        testID="contact-search-input"
-                        value={query}
-                        onChange={(value) => {
-                          setQuery(value);
-                          if (!value) contacts.runSearch("");
-                        }}
-                        label={t("Search users by name or email")}
-                        placeholder={t("Search users")}
-                      />
-                    </View>
-                    {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
-                      <Button
-                        isIconOnly
-                        variant="outline"
-                        accessibilityLabel={t("Add contacts")}
-                        onPress={confirmAndRequestContacts}
-                        isDisabled={requestingContacts || syncingContacts}
-                        testID="enable-contacts-btn"
-                      >
-                        <BookUser size={18} color={foreground} />
-                      </Button>
-                    ) : null}
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Search size={18} color={foreground} />
-                    <Typography
-                      accessibilityRole="header"
-                      className="font-semibold text-foreground"
+                <View style={{ alignItems: "flex-end", paddingVertical: 8 }}>
+                  {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                    <Button
+                      isIconOnly
+                      variant="outline"
+                      accessibilityLabel={t("Add contacts")}
+                      onPress={confirmAndRequestContacts}
+                      isDisabled={requestingContacts || syncingContacts}
+                      testID="enable-contacts-btn"
                     >
-                      {t("Search results")}
-                    </Typography>
-                  </View>
-                  {query.trim().length < 4 && (
-                    <EmptyList icon={<Search size={28} color={muted} />}>
-                      {t("Type at least 4 characters to search")}
-                    </EmptyList>
-                  )}
-                  {contacts.search.isLoading && <ContactListSkeleton count={2} />}
-                  {query.trim().length >= 4 &&
-                    !contacts.search.isLoading &&
-                    !contacts.search.isError &&
-                    searchResults.length === 0 && (
-                      <EmptyList icon={<SearchX size={28} color={muted} />}>
-                        {t("No users found")}
-                      </EmptyList>
-                    )}
-                  {contacts.search.isError ? (
-                    <Typography className="text-danger">{t("Could not load contacts")}</Typography>
+                      <BookUser size={18} color={foreground} />
+                    </Button>
                   ) : null}
                 </View>
               }
               renderItem={({ item }) => {
-                if (item.kind === "user" || item.kind === "bgo") {
+                if (item.kind === "bgo") {
                   return (
                     <GroupedList style={{ overflow: "visible" }}>
                       {contactRow(item.user)}
@@ -867,6 +829,62 @@ export default function ContactsScreen() {
                   </GroupedList>
                 );
               }}
+            />
+          </Tabs.Content>
+
+          <Tabs.Content
+            value="search"
+            style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 20 }}
+          >
+            <InputFlatList
+              style={{ flex: 1 }}
+              contentContainerStyle={{ gap: 8, paddingTop: 8, paddingBottom: 24 }}
+              keyboardShouldPersistTaps="handled"
+              data={searchResults}
+              keyExtractor={(user) => user.id}
+              ListHeaderComponent={
+                <View style={{ marginBottom: 12, gap: 8 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <SearchHelpLabel
+                        label={t("Search users by name or email")}
+                        help={t("Type at least 4 characters to search")}
+                      />
+                      <SearchInput
+                        testID="contact-search-input"
+                        value={query}
+                        onChange={(value) => {
+                          setQuery(value);
+                          if (value.trim().length < 4) contacts.runSearch("");
+                        }}
+                        label={t("Search users by name or email")}
+                        placeholder={t("Search users")}
+                      />
+                    </View>
+                  </View>
+
+                  {query.trim().length < 4 && (
+                    <EmptyList icon={<Search size={28} color={muted} />}>
+                      {t("Type at least 4 characters to search")}
+                    </EmptyList>
+                  )}
+                  {contacts.search.isLoading && <ContactListSkeleton count={2} />}
+                  {query.trim().length >= 4 &&
+                    !contacts.search.isLoading &&
+                    !contacts.search.isError &&
+                    searchResults.length === 0 && (
+                      <EmptyList icon={<SearchX size={28} color={muted} />}>
+                        {t("No users found")}
+                      </EmptyList>
+                    )}
+                  {contacts.search.isError ? (
+                    <Typography className="text-danger">{t("Could not load contacts")}</Typography>
+                  ) : null}
+                </View>
+              }
+              renderItem={({ item }) => (
+                <GroupedList style={{ overflow: "visible" }}>{contactRow(item)}</GroupedList>
+              )}
             />
           </Tabs.Content>
 
@@ -1018,7 +1036,7 @@ function ContactSectionBadge({
   return (
     <NotificationCountBadge
       count={
-        attention?.get({ kind: "contacts", id: section })?.count ||
+        (section === "device" ? 0 : attention?.get({ kind: "contacts", id: section })?.count) ||
         Number(userIds.some((id) => (attention?.get({ kind: "contact", id })?.count ?? 0) > 0))
       }
     />

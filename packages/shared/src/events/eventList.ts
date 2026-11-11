@@ -14,15 +14,18 @@ export function isPersonalEventTableVisible(
   return table.eventStatus === "PLANNING" || Boolean(table.confirmed);
 }
 
-/** Participation is explicit; administration alone never places an Event in Registered. */
+/** Participation includes current management authority without inventing a player seat. */
 export function personalEventSection(
   event: Pick<
     PlannedEventResponse,
     "groupId" | "adminUserId" | "myRegistrations" | "role" | "myDemonstrator"
-  >,
+  > &
+    Partial<Pick<PlannedEventResponse, "canManage">>,
   userId: string,
 ): EventListSection | null {
   if (
+    event.canManage ||
+    (!event.groupId && event.adminUserId === userId) ||
     event.myDemonstrator ||
     event.role === "demonstrator" ||
     event.myRegistrations.some(
@@ -42,11 +45,8 @@ export function isPersonalTableParticipant(
   userId: string,
 ) {
   return (
-    isPersonalEventTableVisible(table) &&
-    (table.demonstratorUserId === userId ||
-      (table.eventStatus !== "PLANNING" && Boolean(table.confirmed?.playerIds.includes(userId))) ||
-      (table.myRegistration?.userId === userId &&
-        ["PENDING", "ACCEPTED"].includes(table.myRegistration.status)))
+    (table.eventStatus === "CONFIRMED" || table.eventStatus === "TERMINATED") &&
+    Boolean(table.confirmed?.playerIds.includes(userId))
   );
 }
 

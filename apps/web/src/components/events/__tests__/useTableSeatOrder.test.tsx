@@ -1,9 +1,11 @@
 import { eventRecordKeys, eventTableRoster, useTableSeatOrder } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook } from "@testing-library/react";
+import { act, fireEvent, renderHook, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { plannedTable, seat } from "@/test-fixtures/eventRecords";
+import { renderWithI18n } from "@/test-utils";
+import { EventSeatOrderEditor } from "../EventSeatOrderEditor";
 
 const snapshot = () => ({
   version: 1,
@@ -298,5 +300,47 @@ it("does not overwrite newer authoritative roster and Table versions with a dela
   expect(
     f.client.getQueryData<{ pages: Array<{ items: typeof fresh }> }>(seatsKey)?.pages[0].items,
   ).toEqual(fresh);
+  f.client.clear();
+});
+
+it("keeps the two roster lists and updates avatar roles when crossing their boundary", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json(snapshot())),
+  );
+  const f = setup();
+  function Editor() {
+    const model = useTableSeatOrder(f.o, { ...plannedTable, canManage: true, eventVersion: 1 });
+    return (
+      <>
+        <button type="button" onClick={() => void model.start()}>
+          Edit roster
+        </button>
+        <EventSeatOrderEditor model={model} />
+      </>
+    );
+  }
+  renderWithI18n(
+    <f.wrapper>
+      <Editor />
+    </f.wrapper>,
+  );
+  await act(async () => {
+    fireEvent.click(screen.getByText("Edit roster"));
+  });
+  const seats = screen.getByRole("region", { name: "Seats list" });
+  const waiting = screen.getByRole("region", { name: "Waiting list" });
+  const before = within(waiting).getByRole("button", { name: "Move up" }).closest("li")!;
+  expect(within(before).getByRole("button", { name: /Player on the waiting list/ })).toBeTruthy();
+  fireEvent.click(within(before).getByRole("button", { name: "Move up" }));
+  expect(within(seats).getAllByRole("button", { name: /Confirmed player/ })).toHaveLength(2);
+  expect(within(waiting).getByRole("button", { name: /Player on the waiting list/ })).toBeTruthy();
+  const promoted = within(seats).getAllByRole("listitem")[1];
+  expect(promoted.textContent).toContain("c");
+  expect(within(promoted).queryByRole("button", { name: /Player on the waiting list/ })).toBeNull();
+  const help = screen.getByText(/Locked players are protected from assistance/);
+  expect(help.compareDocumentPosition(seats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Discard unsaved order" }));
+  expect(within(waiting).getAllByRole("listitem")[0].textContent).toContain("c");
   f.client.clear();
 });

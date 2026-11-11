@@ -534,7 +534,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         };
         const list = eventRecordsQuery(
           context.owner,
-          saved.groupId ? { groupId: saved.groupId } : { section: "available" },
+          saved.groupId ? { groupId: saved.groupId } : { section: "mine" },
         );
         const page = await context.operation.read(list.queryKey, () =>
           client.fetchInfiniteQuery({ ...list, staleTime: 0, retry: false, networkMode: "always" }),

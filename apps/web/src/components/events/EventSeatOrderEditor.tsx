@@ -1,16 +1,32 @@
 "use client";
-import { formatUsername, type useTableSeatOrder } from "@board-game-organizer/shared";
+import {
+  formatUsername,
+  tableUserRoles,
+  type useTableSeatOrder,
+} from "@board-game-organizer/shared";
 import { Button, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown, ArrowUp, Check, LockKeyhole, LockKeyholeOpen, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import type { ReactNode } from "react";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
-export function EventSeatOrderEditor({ model }: { model: ReturnType<typeof useTableSeatOrder> }) {
-  const { t } = useLingui();
-  const [page, setPage] = useState(0);
-  const offset = page * 40;
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
+import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
+import { EventSeatListHeading } from "./EventSeatListHeading";
+export function EventSeatOrderEditor({
+  model,
+  header,
+  demonstratorUserId,
+}: {
+  model: ReturnType<typeof useTableSeatOrder>;
+  header?: ReactNode;
+  demonstratorUserId?: string | null;
+}) {
+  const { t, i18n } = useLingui();
   return (
     <section className="space-y-3 pb-20" aria-label={t`Reorder seats`}>
+      {header}
       {model.loading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
       {model.error || model.stale ? (
         <div role="alert">
@@ -22,81 +38,86 @@ export function EventSeatOrderEditor({ model }: { model: ReturnType<typeof useTa
           <Button
             variant="secondary"
             onPress={() => {
-              setPage(0);
               void model.start();
             }}
           >{t`Review latest roster`}</Button>
         </div>
       ) : null}
-      {model.rows.slice(offset, offset + 40).map((row, position) => {
-        const index = offset + position;
-        return (
-          <div key={row.id} className="flex items-center gap-2 rounded-xl bg-surface p-3">
-            <UserIdentity
-              name={formatUsername(row.username, row.name ?? t`Username unavailable`)}
-              avatarUrl={row.avatarUrl}
-              secondary={index < model.seatedCount ? t`Seats list` : t`Waiting list`}
-            />
-
-            {row.status === "ACCEPTED" ? (
-              <>
-                {index > 0 ? (
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label={t`Move up`}
-                    isDisabled={model.busy || !model.canMove(index, -1)}
-                    onPress={() => model.move(index, -1)}
-                  >
-                    <ArrowUp className="size-4" />
-                  </Button>
-                ) : null}
-                {index < model.rows.length - 1 ? (
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label={t`Move down`}
-                    isDisabled={model.busy || !model.canMove(index, 1)}
-                    onPress={() => model.move(index, 1)}
-                  >
-                    <ArrowDown className="size-4" />
-                  </Button>
-                ) : null}
-                {index < model.seatedCount ? (
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label={row.locked ? t`Unlock player` : t`Lock player`}
-                    isDisabled={model.busy}
-                    onPress={() => model.lock(index)}
-                  >
-                    <Chip color={row.locked ? "danger" : "default"} variant="soft">
-                      {row.locked ? (
-                        <LockKeyhole className="size-4" />
-                      ) : (
-                        <LockKeyholeOpen className="size-4" />
-                      )}
-                    </Chip>
-                  </Button>
-                ) : null}
-              </>
-            ) : null}
-          </div>
-        );
-      })}
-      {offset > 0 ? (
-        <Button
-          variant="secondary"
-          onPress={() => setPage((value) => value - 1)}
-        >{t`Previous page`}</Button>
-      ) : null}
-      {offset + 40 < model.rows.length ? (
-        <Button
-          variant="secondary"
-          onPress={() => setPage((value) => value + 1)}
-        >{t`Next page`}</Button>
-      ) : null}
       <p className="text-sm text-muted">{t`Locked players are protected from assistance. Unlock a player before moving them. Pending invitations keep their reserved places.`}</p>
+      {[false, true].map((waiting) => (
+        <section
+          key={String(waiting)}
+          className="space-y-3"
+          aria-label={waiting ? t`Waiting list` : t`Seats list`}
+        >
+          <EventSeatListHeading waiting={waiting} />
+          <GroupedList>
+            {model.rows.map((row, index) => {
+              if (index >= model.seatedCount !== waiting) return null;
+              const roles = tableUserRoles({
+                ...row,
+                demonstrator: row.userId === demonstratorUserId,
+                position: index < model.seatedCount ? "SEATED" : "WAITING",
+              });
+              return (
+                <GroupedRow key={row.id}>
+                  <UserIdentity
+                    name={formatUsername(row.username, row.name ?? t`Username unavailable`)}
+                    avatarUrl={row.avatarUrl}
+                    badge={<UserRoleBadge roles={roles} />}
+                    secondary={roles[0] ? i18n._(recordUserRoleMessages[roles[0]]) : undefined}
+                  />
+
+                  {row.status === "ACCEPTED" ? (
+                    <>
+                      {index > 0 ? (
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          aria-label={t`Move up`}
+                          isDisabled={model.busy || !model.canMove(index, -1)}
+                          onPress={() => model.move(index, -1)}
+                        >
+                          <ArrowUp className="size-4" />
+                        </Button>
+                      ) : null}
+                      {index < model.rows.length - 1 ? (
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          aria-label={t`Move down`}
+                          isDisabled={model.busy || !model.canMove(index, 1)}
+                          onPress={() => model.move(index, 1)}
+                        >
+                          <ArrowDown className="size-4" />
+                        </Button>
+                      ) : null}
+                      {index < model.seatedCount ? (
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          aria-label={row.locked ? t`Unlock player` : t`Lock player`}
+                          isDisabled={model.busy}
+                          onPress={() => model.lock(index)}
+                        >
+                          <Chip color={row.locked ? "danger" : "default"} variant="soft">
+                            {row.locked ? (
+                              <LockKeyhole className="size-4" />
+                            ) : (
+                              <LockKeyholeOpen className="size-4" />
+                            )}
+                          </Chip>
+                        </Button>
+                      ) : null}
+                    </>
+                  ) : null}
+                </GroupedRow>
+              );
+            })}
+          </GroupedList>
+        </section>
+      ))}
+
       <Button
         isIconOnly
         variant="secondary"

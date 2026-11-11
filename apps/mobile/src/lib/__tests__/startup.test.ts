@@ -33,7 +33,7 @@ function seed(client: QueryClient) {
     client.setQueryData(key, { pages: [{ items: [], nextCursor: null }], pageParams: [""] });
   for (const type of startupRelationshipTypes)
     client.setQueryData(["contacts", type, apiUrl, userId], []);
-  client.setQueryData(["contacts", "suggestions", apiUrl, userId], {
+  client.setQueryData(["contacts", "suggestions", apiUrl, userId, "device"], {
     users: [],
     hasContacts: false,
   });
