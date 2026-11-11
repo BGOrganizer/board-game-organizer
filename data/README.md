@@ -16,7 +16,8 @@ BGG_CSV_PATH=/absolute/path/boardgames_ranks.csv docker compose up -d
 ```
 
 Every MongoDB container start imports into a staging collection, validates the result, adds indexes,
-then replaces `boardGames`. Existing catalog data is preserved if parsing or transformation fails.
+then merges into `boardGames` by BGG ID. Games absent from the CSV and XML-enriched metadata are
+preserved. Existing catalog data is preserved if parsing or transformation fails.
 MongoDB becomes healthy only after replica-set initialization and import complete.
 
 Check progress:
