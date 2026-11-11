@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { playerPollSchema } from "../models/playerPoll";
 
 /** All columns in the BGG rankings CSV; empty category ranks become null. */
 export const boardGameCsvModel = z
@@ -33,6 +34,7 @@ export const boardGameModel = boardGameCsvModel.partial().extend({
   maxPlayers: z.number().int().positive().nullable().optional(),
   playerCountsCheckedAt: z.string().optional(),
   minPlayMinutes: z.number().int().positive().nullable().optional(),
+  suggestedPlayers: playerPollSchema.optional(),
   averageWeight: z.number().min(1).max(5).nullable().optional(),
   maxPlayMinutes: z.number().int().positive().nullable().optional(),
   weightCheckedAt: z.string().optional(),

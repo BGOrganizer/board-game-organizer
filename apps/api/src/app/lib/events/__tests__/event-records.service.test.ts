@@ -4078,3 +4078,344 @@ describe("immutable private Event results audience", () => {
     }
   });
 });
+
+describe("atomic manager seat order", () => {
+  const seed = async () => {
+    const f = setup();
+    const event = await f.create();
+    for (const [index, userId] of [owner, guest, waiter].entries()) {
+      const key = randomUUID();
+      f.registrations.set(key, {
+        id: key,
+        eventId: event.id,
+        tableId: id,
+        userId,
+        kind: "SELF",
+        status: "ACCEPTED",
+        priorityAt: event.createdAt,
+        sequence: index,
+        version: 1,
+        gameVotes: {},
+        createdAt: event.createdAt,
+        updatedAt: event.createdAt,
+      });
+    }
+    return { ...f, event };
+  };
+  it("moves across the full seated/waiting boundary, saves locks and rejects stale retry", async () => {
+    const f = await seed();
+    const snapshot = await f.service.seatOrderSnapshot(owner, f.event.id, id);
+    expect(snapshot.registrations.map((row) => row.userId)).toEqual([owner, guest, waiter]);
+    const rows = [snapshot.registrations[0], snapshot.registrations[2], snapshot.registrations[1]];
+    const input = {
+      version: snapshot.version,
+      allocationKey: snapshot.allocationKey,
+      registrations: rows.map((row, index) => ({
+        id: row.id,
+        version: row.version,
+        locked: index === 1,
+      })),
+    };
+    const saved = await f.service.reorderSeats(owner, f.event.id, id, input);
+    expect(saved.registrations.map((row) => row.userId)).toEqual([owner, waiter, guest]);
+    expect(saved.registrations[1].locked).toBe(true);
+    await expect(f.service.reorderSeats(owner, f.event.id, id, input)).rejects.toMatchObject({
+      status: 409,
+    });
+    const again = await f.service.seatOrderSnapshot(owner, f.event.id, id);
+    expect(again.registrations.map((row) => row.userId)).toEqual([owner, waiter, guest]);
+  });
+  it("requires current manager and rejects changed or incomplete rosters", async () => {
+    const f = await seed();
+    await expect(f.service.seatOrderSnapshot(guest, f.event.id, id)).rejects.toMatchObject({
+      status: 403,
+    });
+    const snapshot = await f.service.seatOrderSnapshot(owner, f.event.id, id);
+    await expect(
+      f.service.reorderSeats(owner, f.event.id, id, {
+        version: snapshot.version,
+        allocationKey: snapshot.allocationKey,
+        registrations: [],
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    const rows = snapshot.registrations.map((row) => ({
+      id: row.id,
+      version: row.version,
+      locked: false,
+    }));
+    rows[0].version++;
+    await expect(
+      f.service.reorderSeats(owner, f.event.id, id, {
+        version: snapshot.version,
+        allocationKey: snapshot.allocationKey,
+        registrations: rows,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+  it("protects pending reservations and requires explicit unlock before manual moves", async () => {
+    const f = await seed();
+    const original = [...f.registrations.values()];
+    original[1].locked = true;
+    f.registrations.set(original[1].id, original[1]);
+    const snapshot = await f.service.seatOrderSnapshot(owner, f.event.id, id);
+    const rows = [snapshot.registrations[0], snapshot.registrations[2], snapshot.registrations[1]];
+    await expect(
+      f.service.reorderSeats(owner, f.event.id, id, {
+        version: snapshot.version,
+        allocationKey: snapshot.allocationKey,
+        registrations: rows.map((row) => ({
+          id: row.id,
+          version: row.version,
+          locked: Boolean(row.locked),
+        })),
+      }),
+    ).rejects.toMatchObject({ message: "LOCKED_SEAT_PROTECTED" });
+    original[1].status = "PENDING";
+    original[1].locked = false;
+    f.registrations.set(original[1].id, original[1]);
+    await expect(
+      f.service.reorderSeats(owner, f.event.id, id, {
+        version: snapshot.version,
+        allocationKey: (await f.service.seatOrderSnapshot(owner, f.event.id, id)).allocationKey,
+        registrations: rows.map((row) => ({ id: row.id, version: row.version, locked: false })),
+      }),
+    ).rejects.toMatchObject({ message: "PENDING_RESERVATION_PROTECTED" });
+  });
+  it("never promotes a queued pending invitation by expanding only the seated boundary", async () => {
+    const f = await seed();
+    f.events.set(f.event.id, { ...f.events.get(f.event.id)!, planningMode: "MANUAL" });
+    f.tables.set(id, { ...f.tables.get(id)!, maxPlayers: 3, seatedCapacity: 2 });
+    const pending = [...f.registrations.values()][2];
+    f.registrations.set(pending.id, { ...pending, status: "PENDING" });
+    const snapshot = await f.service.seatOrderSnapshot(owner, f.event.id, id);
+    expect(snapshot.seatedCount).toBe(2);
+    await expect(
+      f.service.reorderSeats(owner, f.event.id, id, {
+        version: snapshot.version,
+        allocationKey: snapshot.allocationKey,
+        seatedCount: 3,
+        registrations: snapshot.registrations.map((row) => ({
+          id: row.id,
+          version: row.version,
+          locked: false,
+        })),
+      }),
+    ).rejects.toMatchObject({ message: "PENDING_RESERVATION_PROTECTED" });
+    expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+  });
+  it("rejects capacity shrink below a locked raw priority slot even with Best reduction enabled", async () => {
+    const f = await seed();
+    f.events.set(f.event.id, {
+      ...f.events.get(f.event.id)!,
+      planningMode: "ASSISTED",
+      playerPreference: "BEST",
+      allowBestReduction: true,
+    });
+    f.tables.set(id, { ...f.tables.get(id)!, maxPlayers: 3 });
+    const last = [...f.registrations.values()][2];
+    f.registrations.set(last.id, { ...last, locked: true });
+    f.games.findByIds.mockImplementation(async (ids) =>
+      ids.map((gameId) => ({
+        id: gameId,
+        name: "Game",
+        maxPlayMinutes: 60,
+        minPlayers: 2,
+        maxPlayers: 3,
+        suggestedPlayers: {
+          totalVotes: 10,
+          fetchedAt: "2026-11-11T00:00:00Z",
+          rows: [2, 3].map((players) => ({
+            players,
+            orMore: false,
+            best: players === 2 ? 10 : 0,
+            recommended: players === 3 ? 10 : 0,
+            notRecommended: 0,
+            sampleCount: 10,
+          })),
+        },
+      })),
+    );
+    const before = await f.service.seatOrderSnapshot(owner, f.event.id, id);
+    expect(before.seatedCount).toBe(3);
+    expect(before.registrations[2]).toMatchObject({ userId: waiter, locked: true });
+    const { groupId: _group, ...input } = body();
+    await expect(
+      f.service.update(owner, f.event.id, {
+        ...input,
+        version: before.version,
+        tables: [{ ...input.tables[0], maxPlayers: 2 }],
+        removedTableIds: [],
+      }),
+    ).rejects.toMatchObject({ message: "LOCKED_SEAT_PROTECTED" });
+    expect(f.tables.get(id)?.maxPlayers).toBe(3);
+    expect(
+      (await f.service.seatOrderSnapshot(owner, f.event.id, id)).registrations[2],
+    ).toMatchObject({ userId: waiter, locked: true });
+  });
+  it("never allows planning edits after confirmation", async () => {
+    const f = await seed();
+    f.events.set(f.event.id, { ...f.events.get(f.event.id)!, status: "CONFIRMED" });
+    await expect(f.service.seatOrderSnapshot(owner, f.event.id, id)).rejects.toMatchObject({
+      message: "EVENT_NOT_PLANNING",
+    });
+  });
+});
+
+it("preserves the visible Best boundary on switching to Manual, persists explicit promotions and compacts locks", async () => {
+  const f = setup();
+  f.games.findByIds.mockImplementation(async (ids) =>
+    ids.map((gameId) => ({
+      id: gameId,
+      name: "Game",
+      maxPlayMinutes: 60,
+      minPlayers: 2,
+      maxPlayers: 4,
+      suggestedPlayers: {
+        totalVotes: 10,
+        fetchedAt: "2026-11-11T00:00:00Z",
+        rows: [
+          {
+            players: 2,
+            orMore: false,
+            best: 10,
+            recommended: 0,
+            notRecommended: 0,
+            sampleCount: 10,
+          },
+          {
+            players: 3,
+            orMore: false,
+            best: 0,
+            recommended: 10,
+            notRecommended: 0,
+            sampleCount: 10,
+          },
+          {
+            players: 4,
+            orMore: false,
+            best: 0,
+            recommended: 0,
+            notRecommended: 10,
+            sampleCount: 10,
+          },
+        ],
+      },
+    })),
+  );
+  const input = body();
+  input.tables[0].maxPlayers = 4;
+  input.planningMode = "ASSISTED";
+  input.playerPreference = "BEST";
+  input.allowBestReduction = true;
+  const event = await f.service.create(owner, input);
+  await f.service.register(owner, event.id, id);
+  for (const user of [guest, waiter, "user_four"]) {
+    const invitation = await f.service.register(owner, event.id, id, user);
+    await f.accept(invitation);
+  }
+  const before = await f.service.seatOrderSnapshot(owner, event.id, id);
+  expect(before.seatedCount).toBe(2);
+  const { groupId: _group, tables: _tables, ...fields } = input;
+  await f.service.update(owner, event.id, {
+    ...fields,
+    planningMode: "MANUAL",
+    version: before.version,
+    tables: [],
+    removedTableIds: [],
+  });
+  const manual = await f.service.seatOrderSnapshot(owner, event.id, id);
+  expect(manual.seatedCount).toBe(2);
+  expect(f.tables.get(id)?.seatedCapacity).toBe(2);
+  expect(manual.registrations.map((row) => row.userId)).toEqual(
+    before.registrations.map((row) => row.userId),
+  );
+  const saved = await f.service.reorderSeats(owner, event.id, id, {
+    version: manual.version,
+    allocationKey: manual.allocationKey,
+    seatedCount: 3,
+    registrations: manual.registrations.map((row, index) => ({
+      id: row.id,
+      version: row.version,
+      locked: index === 2,
+    })),
+  });
+  expect((await f.service.seatOrderSnapshot(owner, event.id, id)).seatedCount).toBe(3);
+  expect(f.tables.get(id)?.seatedCapacity).toBe(3);
+  const first = saved.registrations[0];
+  await f.service.registrationAction(owner, first.id, { action: "cancel", version: first.version });
+  const compacted = await f.service.seatOrderSnapshot(owner, event.id, id);
+  expect(compacted.seatedCount).toBe(3);
+  expect(compacted.registrations[1]).toMatchObject({ userId: waiter, locked: true });
+  const invitation = await f.service.register(owner, event.id, id, "user_new");
+  await f.accept(invitation);
+  expect((await f.service.seatOrderSnapshot(owner, event.id, id)).seatedCount).toBe(4);
+});
+
+it("requires a fresh roster review when catalog recovery changes an Assisted allocation without changing the Event version", async () => {
+  const f = setup();
+  const event = await f.create();
+  f.events.set(event.id, {
+    ...f.events.get(event.id)!,
+    planningMode: "ASSISTED",
+    playerPreference: "BEST",
+    allowBestReduction: true,
+  });
+  f.tables.set(id, { ...f.tables.get(id)!, maxPlayers: 3 });
+  let bestCount = 2;
+  f.games.findByIds.mockImplementation(async (ids) =>
+    ids.map((gameId) => ({
+      id: gameId,
+      name: "Game",
+      maxPlayMinutes: 60,
+      suggestedPlayers: {
+        totalVotes: 10,
+        fetchedAt: "2026-11-11T00:00:00Z",
+        rows: [2, 3].map((players) => ({
+          players,
+          orMore: false,
+          best: players === bestCount ? 10 : 0,
+          recommended: players === bestCount ? 0 : 10,
+          notRecommended: 0,
+          sampleCount: 10,
+        })),
+      },
+    })),
+  );
+  for (const [sequence, userId] of [owner, guest, waiter].entries()) {
+    const key = randomUUID();
+    f.registrations.set(key, {
+      id: key,
+      eventId: event.id,
+      tableId: id,
+      userId,
+      kind: "SELF",
+      status: "ACCEPTED",
+      priorityAt: event.createdAt,
+      sequence,
+      version: 1,
+      gameVotes: {},
+      createdAt: event.createdAt,
+      updatedAt: event.createdAt,
+    });
+  }
+  const snapshot = await f.service.seatOrderSnapshot(owner, event.id, id);
+  expect(snapshot.seatedCount).toBe(2);
+  bestCount = 3;
+  await expect(
+    f.service.reorderSeats(owner, event.id, id, {
+      version: snapshot.version,
+      allocationKey: snapshot.allocationKey,
+      seatedCount: snapshot.seatedCount,
+      registrations: snapshot.registrations.map((row) => ({
+        id: row.id,
+        version: row.version,
+        locked: false,
+      })),
+    }),
+  ).rejects.toMatchObject({ status: 409, message: "EVENT_CHANGED" });
+  expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+  const fresh = await f.service.seatOrderSnapshot(owner, event.id, id);
+  expect(fresh.version).toBe(snapshot.version);
+  expect(fresh.seatedCount).toBe(3);
+  expect(fresh.allocationKey).not.toBe(snapshot.allocationKey);
+});

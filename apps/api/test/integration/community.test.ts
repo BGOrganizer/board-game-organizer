@@ -1849,6 +1849,231 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     }
     return group;
   }
+  it("persists a reduced Assisted allocation when switching to Manual and saves a free-seat promotion", async () => {
+    const group = await privateGroup();
+    await db.collection(COLLECTIONS.BOARD_GAMES).updateOne(
+      { id: 1 },
+      {
+        $set: {
+          minPlayers: 2,
+          maxPlayers: 3,
+          suggestedPlayers: {
+            totalVotes: 10,
+            fetchedAt: new Date().toISOString(),
+            rows: [
+              {
+                players: 2,
+                orMore: false,
+                best: 10,
+                recommended: 0,
+                notRecommended: 0,
+                sampleCount: 10,
+              },
+              {
+                players: 3,
+                orMore: false,
+                best: 0,
+                recommended: 10,
+                notRecommended: 0,
+                sampleCount: 10,
+              },
+            ],
+          },
+        },
+      },
+    );
+    const input = plannedInput(group.id);
+    input.tables[0].maxPlayers = 3;
+    input.planningMode = "ASSISTED";
+    input.playerPreference = "BEST";
+    input.allowBestReduction = true;
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    await transaction((s) => s.plannedEventService.register(OWNER, event.id, tableId));
+    for (const userId of [GUEST, OTHER]) {
+      const invitation = await transaction((s) =>
+        s.plannedEventService.register(OWNER, event.id, tableId, userId),
+      );
+      const choices = await participation(event.id, tableId);
+      await transaction((s) =>
+        s.plannedEventService.registrationAction(userId, invitation.id, {
+          action: "accept",
+          version: invitation.version,
+          participation: choices,
+        }),
+      );
+    }
+    const assisted = await transaction((s) =>
+      s.plannedEventService.seatOrderSnapshot(OWNER, event.id, tableId),
+    );
+    expect(assisted.seatedCount).toBe(2);
+    const { groupId: _group, tables: _tables, ...fields } = input;
+    await transaction((s) =>
+      s.plannedEventService.update(OWNER, event.id, {
+        ...fields,
+        planningMode: "MANUAL",
+        version: assisted.version,
+        tables: [],
+        removedTableIds: [],
+      }),
+    );
+    const manual = await transaction((s) =>
+      s.plannedEventService.seatOrderSnapshot(OWNER, event.id, tableId),
+    );
+    expect(manual.seatedCount).toBe(2);
+    expect((await services().eventRecords.table(tableId))?.seatedCapacity).toBe(2);
+    expect(manual.registrations.map((row) => row.id)).toEqual(
+      assisted.registrations.map((row) => row.id),
+    );
+    await transaction((s) =>
+      s.plannedEventService.reorderSeats(OWNER, event.id, tableId, {
+        version: manual.version,
+        allocationKey: manual.allocationKey,
+        seatedCount: 3,
+        registrations: manual.registrations.map((row) => ({
+          id: row.id,
+          version: row.version,
+          locked: false,
+        })),
+      }),
+    );
+    expect(
+      (await transaction((s) => s.plannedEventService.seatOrderSnapshot(OWNER, event.id, tableId)))
+        .seatedCount,
+    ).toBe(3);
+  });
+  it("rejects a transactional capacity shrink below an exact locked slot under Best reduction", async () => {
+    const group = await privateGroup();
+    const input = plannedInput(group.id);
+    input.tables[0].maxPlayers = 3;
+    input.planningMode = "ASSISTED";
+    input.playerPreference = "BEST";
+    input.allowBestReduction = true;
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    await transaction((s) => s.plannedEventService.register(OWNER, event.id, tableId));
+    for (const userId of [GUEST, OTHER]) {
+      const invitation = await transaction((s) =>
+        s.plannedEventService.register(OWNER, event.id, tableId, userId),
+      );
+      const choices = await participation(event.id, tableId);
+      await transaction((s) =>
+        s.plannedEventService.registrationAction(userId, invitation.id, {
+          action: "accept",
+          version: invitation.version,
+          participation: choices,
+        }),
+      );
+    }
+    const snapshot = await transaction((s) =>
+      s.plannedEventService.seatOrderSnapshot(OWNER, event.id, tableId),
+    );
+    const saved = await transaction((s) =>
+      s.plannedEventService.reorderSeats(OWNER, event.id, tableId, {
+        version: snapshot.version,
+        allocationKey: snapshot.allocationKey,
+        seatedCount: 3,
+        registrations: snapshot.registrations.map((row, index) => ({
+          id: row.id,
+          version: row.version,
+          locked: index === 2,
+        })),
+      }),
+    );
+    await db.collection(COLLECTIONS.BOARD_GAMES).updateOne(
+      { id: 1 },
+      {
+        $set: {
+          minPlayers: 2,
+          maxPlayers: 3,
+          suggestedPlayers: {
+            totalVotes: 10,
+            fetchedAt: new Date().toISOString(),
+            rows: [2, 3].map((players) => ({
+              players,
+              orMore: false,
+              best: players === 2 ? 10 : 0,
+              recommended: players === 3 ? 10 : 0,
+              notRecommended: 0,
+              sampleCount: 10,
+            })),
+          },
+        },
+      },
+    );
+    const { groupId: _group, ...fields } = input;
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.update(OWNER, event.id, {
+          ...fields,
+          version: saved.version,
+          tables: [{ ...input.tables[0], maxPlayers: 2 }],
+          removedTableIds: [],
+        }),
+      ),
+    ).rejects.toMatchObject({ message: "LOCKED_SEAT_PROTECTED" });
+    expect((await services().eventRecords.table(tableId))?.maxPlayers).toBe(3);
+    const after = await transaction((s) =>
+      s.plannedEventService.seatOrderSnapshot(OWNER, event.id, tableId),
+    );
+    expect(after.seatedCount).toBe(3);
+    expect(after.registrations[2]).toMatchObject({ id: saved.registrations[2].id, locked: true });
+  });
+  it("serializes seat order writes, rejects stale races and compacts locks after departure", async () => {
+    const group = await privateGroup();
+    const input = plannedInput(group.id);
+    input.planningMode = "MANUAL";
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    await transaction((s) => s.plannedEventService.register(OWNER, event.id, tableId, undefined));
+    for (const userId of [GUEST, OTHER]) {
+      const invitation = await transaction((s) =>
+        s.plannedEventService.register(OWNER, event.id, tableId, userId),
+      );
+      const choices = await participation(event.id, tableId);
+      await transaction((s) =>
+        s.plannedEventService.registrationAction(userId, invitation.id, {
+          action: "accept",
+          version: invitation.version,
+          participation: choices,
+        }),
+      );
+    }
+    const snapshot = await transaction((s) =>
+      s.plannedEventService.seatOrderSnapshot(OWNER, event.id, tableId),
+    );
+    const request = {
+      version: snapshot.version,
+      allocationKey: snapshot.allocationKey,
+      registrations: snapshot.registrations.map((row, index) => ({
+        id: row.id,
+        version: row.version,
+        locked: index === 1,
+      })),
+    };
+    const raced = await Promise.allSettled([
+      transaction((s) => s.plannedEventService.reorderSeats(OWNER, event.id, tableId, request)),
+      transaction((s) => s.plannedEventService.reorderSeats(OWNER, event.id, tableId, request)),
+    ]);
+    expect(raced.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(raced.filter((result) => result.status === "rejected")).toHaveLength(1);
+    const saved = await transaction((s) =>
+      s.plannedEventService.seatOrderSnapshot(OWNER, event.id, tableId),
+    );
+    expect(saved.registrations[1]).toMatchObject({ userId: GUEST, locked: true });
+    const first = saved.registrations[0];
+    await transaction((s) =>
+      s.plannedEventService.registrationAction(OWNER, first.id, {
+        action: "cancel",
+        version: first.version,
+      }),
+    );
+    const compacted = await transaction((s) =>
+      s.plannedEventService.seatOrderSnapshot(OWNER, event.id, tableId),
+    );
+    expect(compacted.registrations.map((row) => row.userId)).toEqual([GUEST, OTHER]);
+    expect(compacted.registrations[0].locked).toBe(true);
+    await expect(
+      transaction((s) => s.plannedEventService.reorderSeats(GUEST, event.id, tableId, request)),
+    ).rejects.toMatchObject({ status: 403 });
+  });
   it("persists standalone flexible proposals with sole-admin authority, source paging, fresh seats and atomic rollback", async () => {
     await transaction((s) => s.relationships.becomeFriends(OWNER, GUEST));
     await transaction((s) => s.relationships.becomeFriends(OWNER, OTHER));

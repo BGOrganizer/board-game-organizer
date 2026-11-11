@@ -250,7 +250,7 @@ it.each(
   },
 );
 
-it("chooses more YES over more IF_NEEDED players; distinct attendance is only a vote tie-break", () => {
+it("maximizes attendance before YES preferences", () => {
   const base = fixture(["a", "b", "c", "d"], 4);
   const input: EventAgreementInput = {
     ...base,
@@ -268,8 +268,8 @@ it("chooses more YES over more IF_NEEDED players; distinct attendance is only a 
     },
   };
   const result = calculateEventAgreement(input);
-  expect(result.agreed && result.dateId).toBe("later");
-  expect(result.agreed && result.participantIds).toEqual(["a", "b", "c"]);
+  expect(result.agreed && result.dateId).toBe("earlier");
+  expect(result.agreed && result.participantIds).toEqual(["a", "b", "c", "d"]);
 });
 
 it("ties prefer original date, location and game order, never admin preference", () => {
@@ -293,7 +293,7 @@ it("ties prefer original date, location and game order, never admin preference",
   );
 });
 
-it("finds the joint distinct-player optimum rather than greedily choosing each table", () => {
+it("blocks every table whose seated players disagree instead of confirming subsets", () => {
   const base = fixture(["a", "b", "c", "d"], 4);
   const input: EventAgreementInput = {
     ...base,
@@ -323,9 +323,7 @@ it("finds the joint distinct-player optimum rather than greedily choosing each t
     },
   };
   const result = calculateEventAgreement(input);
-  expect(result.agreed && result.includedTables.map((row) => row.gameId)).toEqual([2, 1]);
-  expect(result.agreed && result.participantIds).toEqual(["a", "b", "c", "d"]);
-  expect(result.agreed && result.yesGameVotes).toBe(4);
+  expect(result.agreed).toBe(false);
 });
 
 it("can confirm at least one table without deleting or forcing other tables", () => {
@@ -355,7 +353,7 @@ it("does not mutate caller registrations, votes or option order", () => {
   expect(JSON.stringify(input)).toBe(before);
 });
 
-it("fixed public date/location cannot make four weak game votes beat three YES votes", () => {
+it("fixed public options preserve all four seated players despite weaker preferences", () => {
   const base = fixture(["a", "b", "c", "d"], 4);
   const input: EventAgreementInput = {
     ...base,
@@ -373,8 +371,8 @@ it("fixed public date/location cannot make four weak game votes beat three YES v
     },
   };
   const result = calculateEventAgreement(input);
-  expect(result.agreed && result.includedTables[0].gameId).toBe(1);
-  expect(result.agreed && result.participantIds).toEqual(["a", "b", "c"]);
+  expect(result.agreed && result.includedTables[0].gameId).toBe(2);
+  expect(result.agreed && result.participantIds).toEqual(["a", "b", "c", "d"]);
 });
 
 it("does not repeat an agreement notification merely because the same players adjust YES to IF_NEEDED", () => {
@@ -426,7 +424,7 @@ it("projects displaced and promoted players without stealing a pending seat", ()
   ];
   expect(projectReservedPlaces(rows, 2)).toEqual(allocateReservedPlaces(rows, 2));
   const selected = projectReservedPlaces(rows, 2, ["c"]);
-  expect(selected.seated.map((row) => row.id)).toEqual(["b", "c"]);
+  expect(selected.seated.map((row) => row.id)).toEqual(["c", "b"]);
   expect(selected.waiting.map((row) => row.id)).toEqual(["a", "d"]);
 });
 
@@ -448,4 +446,344 @@ it("keeps the blocked situation stable when additional invitations do not change
   expect(calculateEventAgreement(input).situationKey).toBe(
     calculateEventAgreement(additional).situationKey,
   );
+});
+
+it("Manual never replaces date-incompatible seated players with accepted waiters", () => {
+  const input = fixture(["a", "b", "c"], 2);
+  input.planningMode = "MANUAL";
+  input.dateIds = ["d", "other"];
+  input.dateVotes = { a: { d: "YES" }, b: { d: "NO" }, c: { d: "YES" } };
+  expect(calculateEventAgreement(input).agreed).toBe(false);
+  input.planningMode = "ASSISTED";
+  expect(calculateEventAgreement(input).agreed).toBe(true);
+});
+it("does not drop a seated game dissenter even when a consenting seated subset reaches minimum", () => {
+  const input = fixture(["a", "b", "c"], 3);
+  input.tables = [{ ...input.tables[0], minPlayers: 2, gameIds: [1, 2] }];
+  input.gameVotes = {
+    t: { a: { 1: "YES", 2: "NO" }, b: { 1: "YES", 2: "NO" }, c: { 1: "NO", 2: "YES" } },
+  };
+  expect(calculateEventAgreement(input).agreed).toBe(false);
+});
+it("Best reduces only with explicit Assisted reduction and preserves locked users", () => {
+  const input = fixture(["a", "b", "c"], 3);
+  input.tables = [
+    {
+      ...input.tables[0],
+      minPlayers: 2,
+      gamePolls: {
+        1: {
+          totalVotes: 10,
+          fetchedAt: "2026-11-11T00:00:00Z",
+          rows: [
+            {
+              players: 2,
+              orMore: false,
+              best: 10,
+              recommended: 0,
+              notRecommended: 0,
+              sampleCount: 10,
+            },
+            {
+              players: 3,
+              orMore: false,
+              best: 0,
+              recommended: 10,
+              notRecommended: 0,
+              sampleCount: 10,
+            },
+          ],
+        },
+      },
+    },
+  ];
+  input.playerPreference = "BEST";
+  let result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds.length).toBe(3);
+  input.allowBestReduction = true;
+  input.registrations = input.registrations.map((row) => ({ ...row, locked: row.userId === "c" }));
+  result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds).toEqual(["a", "b", "c"]);
+  input.registrations = input.registrations.map((row) => ({ ...row, locked: row.userId === "a" }));
+  result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds).toEqual(["a", "b"]);
+  input.planningMode = "MANUAL";
+  result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds.length).toBe(3);
+});
+
+it("cannot replace a locked date-incompatible player with a compatible waiting player", () => {
+  const input = votes(fixture(["a", "b", "c"], 2), "dateVotes", "b", "NO");
+  input.registrations = input.registrations.map((row) => ({ ...row, locked: row.userId === "b" }));
+  expect(calculateEventAgreement(input).agreed).toBe(false);
+});
+it("does not reduce an all-locked group or fabricate Best recommendations from missing polls", () => {
+  const input = fixture(["a", "b", "c", "d"], 4);
+  input.playerPreference = "BEST";
+  input.allowBestReduction = true;
+  input.registrations = input.registrations.map((row) => ({ ...row, locked: true }));
+  input.tables = [
+    {
+      ...input.tables[0],
+      gamePolls: {
+        1: {
+          totalVotes: 1,
+          fetchedAt: "2026-11-11T00:00:00Z",
+          rows: [
+            {
+              players: 2,
+              orMore: false,
+              best: 1,
+              recommended: 0,
+              notRecommended: 0,
+              sampleCount: 1,
+            },
+          ],
+        },
+      },
+    },
+  ];
+  let result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds.length).toBe(4);
+  input.tables = [{ ...input.tables[0], gamePolls: undefined }];
+  result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds.length).toBe(4);
+});
+it("explicit Best reduction can fit a smaller game but never below its hard minimum", () => {
+  const input = fixture(["a", "b", "c"], 3);
+  input.playerPreference = "BEST";
+  input.allowBestReduction = true;
+  input.tables = [
+    {
+      ...input.tables[0],
+      gameIds: [1],
+      gamePlayerBounds: { 1: { minPlayers: 2, maxPlayers: 2 } },
+      gamePolls: {
+        1: {
+          totalVotes: 1,
+          fetchedAt: "2026-11-11T00:00:00Z",
+          rows: [
+            {
+              players: 2,
+              orMore: false,
+              best: 1,
+              recommended: 0,
+              notRecommended: 0,
+              sampleCount: 1,
+            },
+          ],
+        },
+      },
+    },
+  ];
+  let result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds.length).toBe(2);
+  input.tables = [
+    { ...input.tables[0], gamePlayerBounds: { 1: { minPlayers: 3, maxPlayers: 3 } } },
+  ];
+  result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds.length).toBe(3);
+});
+it("uses BGG quality before YES preference when attendance ties and preserves exact joint search", () => {
+  const input = fixture();
+  const poll = (best: number, recommended: number) => ({
+    totalVotes: 3,
+    fetchedAt: "2026-11-11T00:00:00Z",
+    rows: [
+      {
+        players: 2,
+        orMore: false,
+        best,
+        recommended,
+        notRecommended: 0,
+        sampleCount: best + recommended,
+      },
+    ],
+  });
+  input.tables = input.tables.map((table) => ({
+    ...table,
+    gameIds: [1, 2],
+    gamePolls: { 1: poll(0, 3), 2: poll(3, 0) },
+  }));
+  input.gameVotes = { t: { a: { 1: "YES", 2: "IF_NEEDED" }, b: { 1: "YES", 2: "IF_NEEDED" } } };
+  const result = calculateEventAgreement(input);
+  expect(result.agreed && result.includedTables[0].gameId).toBe(2);
+});
+
+it("uses verified BGG quality for the first eligible waiting-prefix allocation", () => {
+  const input = votes(fixture(["a", "b", "c"], 2), "dateVotes", "b", "NO");
+  input.tables = input.tables.map((table) => ({
+    ...table,
+    gamePolls: {
+      1: {
+        totalVotes: 1,
+        fetchedAt: "2026-11-11T00:00:00Z",
+        rows: [
+          { players: 2, orMore: false, best: 1, recommended: 0, notRecommended: 0, sampleCount: 1 },
+        ],
+      },
+    },
+  }));
+  const result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds).toEqual(["a", "c"]);
+});
+
+it("does not invent a Best reduction when hard bounds require a smaller group but poll data is unknown", () => {
+  const input = fixture(["a", "b", "c"], 3);
+  input.playerPreference = "BEST";
+  input.allowBestReduction = true;
+  input.tables = [
+    { ...input.tables[0], gameIds: [1], gamePlayerBounds: { 1: { minPlayers: 2, maxPlayers: 2 } } },
+  ];
+  const result = calculateEventAgreement(input);
+  expect(result.agreed).toBe(false);
+  expect(result.tables[0]).toMatchObject({ phase: "BLOCKED", reason: "NO_COMPATIBLE_PLAYERS" });
+});
+
+it("Manual retains the saved seat boundary and promotes the first queue entry after departure", () => {
+  const input = fixture(["a", "b", "c", "d"], 4);
+  input.planningMode = "MANUAL";
+  input.tables = [{ ...input.tables[0], seatedCapacity: 2 }];
+  let result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds).toEqual(["a", "b"]);
+  expect(result.agreed && result.includedTables[0].waitingIds).toEqual(["c", "d"]);
+  input.registrations = input.registrations.filter((row) => row.userId !== "a");
+  result = calculateEventAgreement(input);
+  expect(result.agreed && result.participantIds).toEqual(["b", "c"]);
+});
+
+it("Best and Recommended rank ahead of weaker classifications before YES preferences", () => {
+  const input = fixture();
+  input.playerPreference = "BEST";
+  const poll = (best: number, recommended: number, no: number) => ({
+    totalVotes: 5,
+    fetchedAt: "2026-11-11T00:00:00Z",
+    rows: [
+      {
+        players: 2,
+        orMore: false,
+        best,
+        recommended,
+        notRecommended: no,
+        sampleCount: best + recommended + no,
+      },
+    ],
+  });
+  input.tables = input.tables.map((table) => ({
+    ...table,
+    gameIds: [1, 2],
+    gamePolls: { 1: poll(0, 0, 5), 2: poll(0, 5, 0) },
+  }));
+  input.gameVotes = { t: { a: { 1: "YES", 2: "IF_NEEDED" }, b: { 1: "YES", 2: "IF_NEEDED" } } };
+  let result = calculateEventAgreement(input);
+  expect(result.agreed && result.includedTables[0].gameId).toBe(2);
+  input.tables = input.tables.map((table) => ({
+    ...table,
+    gamePolls: { 1: poll(5, 0, 0), 2: poll(0, 5, 0) },
+  }));
+  result = calculateEventAgreement(input);
+  expect(result.agreed && result.includedTables[0].gameId).toBe(1);
+});
+
+it("one Best configuration dominates two merely Recommended configurations across a common Event date", () => {
+  const input = fixture(["a", "b", "c"], 3);
+  input.playerPreference = "BEST";
+  input.locationIds = ["l"];
+  const poll = (first: number, bestFirst: boolean) => ({
+    totalVotes: 10,
+    fetchedAt: "2026-11-11T00:00:00Z",
+    rows: [
+      {
+        players: first,
+        orMore: false,
+        best: bestFirst ? 10 : 0,
+        recommended: bestFirst ? 0 : 10,
+        notRecommended: 0,
+        sampleCount: 10,
+      },
+      {
+        players: first === 3 ? 2 : 3,
+        orMore: false,
+        best: 0,
+        recommended: first === 3 ? 10 : 0,
+        notRecommended: first === 3 ? 0 : 10,
+        sampleCount: 10,
+      },
+    ],
+  });
+  input.tables = [
+    { ...input.tables[0], gameIds: [1], gamePolls: { 1: poll(3, true) } },
+    { ...input.tables[0], id: "u", gameIds: [1], gamePolls: { 1: poll(3, false) } },
+  ];
+  input.registrations = [
+    ...input.registrations,
+    ...input.registrations.map((row, index) => ({
+      ...row,
+      id: "u-" + row.id,
+      tableId: "u",
+      userId: ["d", "e", "f"][index],
+    })),
+  ];
+  input.dateVotes = {
+    a: { d: "YES", "d-other": "YES" },
+    b: { d: "YES", "d-other": "YES" },
+    c: { d: "YES", "d-other": "NO" },
+    d: { d: "YES", "d-other": "YES" },
+    e: { d: "YES", "d-other": "YES" },
+    f: { d: "NO", "d-other": "YES" },
+  };
+  input.gameVotes = {};
+  const result = calculateEventAgreement(input);
+  expect(result.agreed && result.dateId).toBe("d");
+  expect(result.agreed && result.participantIds.length).toBe(5);
+});
+
+it("bounds Best reduction candidate preparation before allocating quadratic roster subsets", () => {
+  const input = fixture(
+    Array.from({ length: 1001 }, (_, index) => "user" + index),
+    1001,
+  );
+  input.playerPreference = "BEST";
+  input.allowBestReduction = true;
+  expect(() => calculateEventAgreement(input)).toThrow("AGREEMENT_COMPLEXITY_LIMIT");
+});
+
+it.each([0, 1, 2])(
+  "anchors the exact locked slot %i during projection and compacts it only after departure",
+  (index) => {
+    const input = fixture(["a", "b", "c", "d"], 3);
+    input.registrations[index].locked = true;
+    const locked = input.registrations[index];
+    const selected = input.registrations
+      .filter((row) => row.userId !== "a" || index === 0)
+      .map((row) => row.userId);
+    const projection = projectReservedPlaces(input.registrations, 3, selected);
+    expect(projection.seated[index].id).toBe(locked.id);
+    if (index > 0) {
+      const departed = input.registrations.filter((row) => row.userId !== "a");
+      expect(projectReservedPlaces(departed, 3).seated[index - 1].id).toBe(locked.id);
+    }
+  },
+);
+it("rejects an automated reduction that would leave the last locked ordinal outside the boundary", () => {
+  const input = fixture(["a", "b", "c"], 3);
+  input.registrations[2].locked = true;
+  expect(
+    projectReservedPlaces(input.registrations, 3, ["a", "c"]).seated.map((row) => row.id),
+  ).toEqual(["a", "b", "c"]);
+});
+it("anchors a compatible locked slot when replacing an incompatible seated player from the queue", () => {
+  let input = fixture(["a", "b", "c", "d"], 3);
+  input.tables[0].minPlayers = 3;
+  input.registrations[2].locked = true;
+  input = votes(input, "dateVotes", "a", "NO");
+  const result = calculateEventAgreement(input);
+  expect(result.agreed).toBe(true);
+  if (!result.agreed) return;
+  const projected = projectReservedPlaces(
+    input.registrations,
+    3,
+    result.includedTables[0].participantIds,
+  );
+  expect(projected.seated.map((row) => row.id)).toEqual(["b", "d", "c"]);
 });

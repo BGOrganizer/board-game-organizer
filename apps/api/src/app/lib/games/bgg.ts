@@ -1,9 +1,12 @@
-import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/schemas";
+import type { BggSearchItem, BggThingResponse, PlayerPoll } from "@board-game-organizer/schemas";
 import { DOMParser } from "@xmldom/xmldom";
 import type { Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
+import { parsePlayerPoll } from "./bgg-player-poll";
+
 type GameRow = {
+  suggestedPlayers?: PlayerPoll;
   id: number;
   name: string;
   yearPublished?: number | null;
@@ -52,20 +55,23 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
   const now = Date.now();
   const stale = (value: string | undefined, age: number) =>
     !value || !Number.isFinite(Date.parse(value)) || now - Date.parse(value) >= age;
-  const missing = games.filter(
-    (game) =>
-      (!cover(game.image) && stale(game.imageCheckedAt, METADATA_RETENTION_MS)) ||
-      (durations &&
-        stale(game.metadataAttemptedAt, METADATA_RETRY_MS) &&
-        (!(Number(game.averageWeight) >= 1 && Number(game.averageWeight) <= 5) ||
-          stale(game.weightCheckedAt, METADATA_RETENTION_MS) ||
-          !positiveInteger(game.minPlayMinutes) ||
-          !positiveInteger(game.maxPlayMinutes) ||
-          stale(game.durationCheckedAt, METADATA_RETENTION_MS) ||
-          !positiveInteger(game.minPlayers) ||
-          !positiveInteger(game.maxPlayers) ||
-          stale(game.playerCountsCheckedAt, METADATA_RETENTION_MS))),
-  );
+  const missing = games
+    .filter(
+      (game) =>
+        (!cover(game.image) && stale(game.imageCheckedAt, METADATA_RETENTION_MS)) ||
+        (durations &&
+          stale(game.metadataAttemptedAt, METADATA_RETRY_MS) &&
+          (stale(game.suggestedPlayers?.fetchedAt, METADATA_RETENTION_MS) ||
+            !(Number(game.averageWeight) >= 1 && Number(game.averageWeight) <= 5) ||
+            stale(game.weightCheckedAt, METADATA_RETENTION_MS) ||
+            !positiveInteger(game.minPlayMinutes) ||
+            !positiveInteger(game.maxPlayMinutes) ||
+            stale(game.durationCheckedAt, METADATA_RETENTION_MS) ||
+            !positiveInteger(game.minPlayers) ||
+            !positiveInteger(game.maxPlayers) ||
+            stale(game.playerCountsCheckedAt, METADATA_RETENTION_MS))),
+    )
+    .slice(0, 20);
   if (!token || missing.length === 0) return;
 
   const quota = db.collection<{ _id: string; nextAt: Date }>(COLLECTIONS.BGG_QUOTA);
@@ -109,6 +115,7 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
     const found = new Map<
       number,
       {
+        suggestedPlayers?: PlayerPoll;
         averageWeight: number | null;
         image: string | null;
         min: number | null;
@@ -138,6 +145,7 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
         item.getElementsByTagName("averageweight").item(0)?.getAttribute("value"),
       );
       found.set(id, {
+        suggestedPlayers: parsePlayerPoll(item, new Date().toISOString()),
         averageWeight: Number.isFinite(weight) && weight >= 1 && weight <= 5 ? weight : null,
         image: image ?? thumbnail,
         min: valid ? min : null,
@@ -153,6 +161,7 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
       const max = metadata?.max ?? game.maxPlayMinutes ?? null;
       const validDuration = min === null || max === null || min <= max;
       return {
+        ...(metadata?.suggestedPlayers ? { suggestedPlayers: metadata.suggestedPlayers } : {}),
         ...(metadata?.averageWeight != null
           ? { averageWeight: metadata.averageWeight, weightCheckedAt: checkedAt }
           : {}),
@@ -229,6 +238,7 @@ export async function searchGames(
           minPlayMinutes: 1,
           maxPlayMinutes: 1,
           durationCheckedAt: 1,
+          suggestedPlayers: 1,
           averageWeight: 1,
           weightCheckedAt: 1,
           metadataAttemptedAt: 1,
@@ -248,6 +258,7 @@ export async function searchGames(
     average: row.average ?? null,
     rank: row.rank ?? null,
     imageUrl: cover(row.image),
+    ...(row.suggestedPlayers ? { suggestedPlayers: row.suggestedPlayers } : {}),
     ...(row.averageWeight != null ? { averageWeight: row.averageWeight } : {}),
     ...(row.minPlayers ? { minPlayers: row.minPlayers } : {}),
     ...(row.maxPlayers ? { maxPlayers: row.maxPlayers } : {}),
@@ -268,6 +279,7 @@ export async function gameDetails(db: Db, id: number): Promise<BggThingResponse>
     bayesAverage: row.bayesAverage ?? null,
     average: row.average ?? null,
     rank: row.rank ?? null,
+    ...(row.suggestedPlayers ? { suggestedPlayers: row.suggestedPlayers } : {}),
     ...(row.averageWeight != null ? { averageWeight: row.averageWeight } : {}),
     ...(row.minPlayers ? { minPlayers: row.minPlayers } : {}),
     ...(row.maxPlayers ? { maxPlayers: row.maxPlayers } : {}),

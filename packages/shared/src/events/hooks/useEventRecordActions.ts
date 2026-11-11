@@ -1,5 +1,4 @@
 "use client";
-
 import type {
   ChangeEventStateInput,
   ChangeEventVoteInput,
@@ -15,6 +14,8 @@ import type {
   TableInviteeResponse,
   TableRegistration,
   TableRegistrationReceipt,
+  TableSeatOrderInput,
+  TableSeatOrderSnapshot,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import { notificationItemId, tableRegistrationReceiptSchema } from "@board-game-organizer/schemas";
@@ -1045,6 +1046,76 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
+  const reorderSeats = useMutation({
+    mutationKey: [...mutationKey, "reorder-seats"],
+    scope,
+    networkMode: "always",
+    mutationFn: (variables: { tableId: string; input: TableSeatOrderInput }, context) =>
+      write<TableSeatOrderSnapshot>(
+        `events/${id}/tables/${variables.tableId}/seats/order`,
+        "PATCH",
+        variables.input,
+        context,
+        variables,
+      ),
+    onMutate: () => begin("reorder_table_seats"),
+    onSuccess: (value, variables, context) => {
+      if (!context?.operation.active) return;
+      const owner = context.owner;
+      const positions = new Map(
+        value.registrations.map((row, index) => [
+          row.id,
+          {
+            ...row,
+            position: index < value.seatedCount ? ("SEATED" as const) : ("WAITING" as const),
+          },
+        ]),
+      );
+      notifyManager.batch(() => {
+        for (const [key] of client.getQueriesData({
+          queryKey: eventRecordKeys.root(owner),
+          predicate: (q) => affected(q.queryKey, context.eventId),
+        }))
+          updateOptimisticBase(client, key, (current) =>
+            mapCommunityCache<Row>(current, (row) => {
+              if ("tableId" in row && row.tableId === variables.tableId) {
+                const saved = positions.get(row.id);
+                return saved && row.version <= saved.version ? { ...row, ...saved } : row;
+              }
+              if (
+                "games" in row &&
+                row.id === variables.tableId &&
+                row.eventId === context.eventId
+              ) {
+                if ((row.eventVersion ?? 0) > value.version) return row;
+                const own = value.registrations.find((person) => person.userId === owner.userId);
+                if (own && row.myRegistration && row.myRegistration.version > own.version)
+                  return row;
+                const ownPosition = own ? (positions.get(own.id)?.position ?? null) : null;
+                return {
+                  ...row,
+                  eventVersion: value.version,
+                  seatedCount: value.registrations
+                    .slice(0, value.seatedCount)
+                    .filter((person) => person.status === "ACCEPTED").length,
+                  pendingCount: value.registrations
+                    .slice(0, value.seatedCount)
+                    .filter((person) => person.status === "PENDING").length,
+                  waitingCount: value.registrations.length - value.seatedCount,
+                  myRegistration: own ? { ...row.myRegistration, ...own } : null,
+                  myPosition: ownPosition,
+                  ...(ownPosition === "WAITING" ? { canProposeGames: false } : {}),
+                };
+              }
+              return row;
+            }),
+          );
+        complete(context);
+      });
+    },
+    onError: (error, _variables, context) => failure(error, context),
+    onSettled: settle,
+  });
   const transition = useMutation({
     mutationKey: [...mutationKey, "transition"],
     scope,
@@ -1155,6 +1226,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     register,
     invite,
     respond,
+    reorderSeats,
     transition,
     saveResult,
     finalize,

@@ -47,6 +47,7 @@ export const COMMUNITY_FEEDBACK_MESSAGES = {
   leave_table: { success: "You left the table", error: "Could not leave table" },
   upload_organization_logo: { success: "Logo upload started", error: "Could not upload logo" },
   create_event: { success: "Event saved", error: "Could not create event" },
+  reorder_table_seats: { success: "Seat order saved", error: "Could not save seat order" },
   update_event: { success: "Event updated", error: "Could not update event" },
   cancel_event: { success: "Event cancelled", error: "Could not cancel event" },
   request_event_booking: { success: "Booking request sent", error: "Could not request a place" },

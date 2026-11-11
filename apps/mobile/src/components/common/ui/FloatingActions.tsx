@@ -13,6 +13,7 @@ interface FloatingActionsProps {
   isDisabled?: boolean;
   variant?: ButtonVariant;
   left?: boolean;
+  className?: string;
 }
 
 export function FloatingActions({
@@ -23,6 +24,7 @@ export function FloatingActions({
   isDisabled = false,
   variant,
   left,
+  className,
 }: FloatingActionsProps) {
   const t = useT();
   const layout = useFloatingActionLayout();
@@ -32,7 +34,7 @@ export function FloatingActions({
     <Button
       isIconOnly
       variant={variant}
-      className="shadow-overlay"
+      className={`shadow-overlay ${className ?? ""}`}
       accessibilityLabel={t(label)}
       testID={testID}
       onPress={() => {

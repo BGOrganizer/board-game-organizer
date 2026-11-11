@@ -10,10 +10,19 @@ import {
   useEventCutoff,
   useEventRecordActions,
   useEventTableRoster,
+  useTableSeatOrder,
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Clock3, LogOut, Mail, UserRoundCheck, UserRoundPlus, UserRoundX } from "lucide-react";
+import {
+  ArrowUpDown,
+  Clock3,
+  LogOut,
+  Mail,
+  UserRoundCheck,
+  UserRoundPlus,
+  UserRoundX,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
@@ -29,6 +38,7 @@ import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventJoinSheet } from "./EventJoinSheet";
+import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
 export function EventTableSeats({
   table,
@@ -47,6 +57,7 @@ export function EventTableSeats({
     o = useCommunityApi(),
     router = useRouter(),
     a = useEventRecordActions(o, table.eventId);
+  const order = useTableSeatOrder(o, table);
   const roster = useEventTableRoster(o, table),
     closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
   const [choose, setChoose] = useState(false),
@@ -64,9 +75,26 @@ export function EventTableSeats({
     setChoose(false);
     setJoining(true);
   };
+  if (order.editing)
+    return (
+      <div hidden={!active}>
+        <EventSeatOrderEditor model={order} />
+      </div>
+    );
   return (
     <div className="space-y-3" hidden={!active}>
       {header}
+      {table.canManage && table.eventStatus === "PLANNING" ? (
+        <Button
+          isIconOnly
+          variant="primary"
+          className="fixed right-6 bottom-6 z-40 size-14 rounded-full"
+          aria-label={t`Reorder seats`}
+          onPress={() => void order.start()}
+        >
+          <ArrowUpDown className="size-5" />
+        </Button>
+      ) : null}
       {[
         { title: t`Seats list`, rows: roster.seatRows, waiting: false },
         { title: t`Waiting list`, rows: roster.waitingRows, waiting: true },
@@ -145,7 +173,12 @@ export function EventTableSeats({
                     <Button
                       className="min-h-11 min-w-0 flex-1 justify-start px-0"
                       variant="ghost"
-                      isDisabled={reserved || !canAdd || a.blocking}
+                      isDisabled={
+                        reserved ||
+                        item.key !== roster.rows.find((row) => row.kind === "empty")?.key ||
+                        !canAdd ||
+                        a.blocking
+                      }
                       onPress={() => {
                         if (table.canInvite || table.groupType === "PRIVATE") setChoose(true);
                         else void join();

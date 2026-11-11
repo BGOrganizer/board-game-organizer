@@ -18,6 +18,7 @@ export * from "./events/models/eventRecord";
 export * from "./events/models/events";
 export * from "./games/dto/bggCollection";
 export * from "./games/models/bggCollection";
+export * from "./games/models/playerPoll";
 export * from "./groups/dto/groupLeaderboard";
 export * from "./groups/dto/groupRecords";
 export * from "./groups/dto/groups";

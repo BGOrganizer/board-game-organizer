@@ -32,10 +32,13 @@ import type {
   TableRecord,
   TableRegistration,
   TableResultsInput,
+  TableSeatOrderInput,
+  TableSeatOrderSnapshot,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import { MAX_EVENT_OPTIONS, notificationItemId } from "@board-game-organizer/schemas";
 import {
+  allocateReservedPlaces,
   banPreservesFrozenEvent,
   calculateEventAgreement,
   type EventAgreement,
@@ -64,6 +67,7 @@ import {
   normalizeMatchScore,
   personalTableSection,
   plannedTableInterval,
+  planningSeatCapacity,
   projectReservedPlaces,
   publicBookingIsClosed,
   rankMatchResults,
@@ -303,6 +307,9 @@ export class EventRecordsService {
       }),
     );
     return calculateEventAgreement({
+      planningMode: event.planningMode ?? "ASSISTED",
+      playerPreference: event.playerPreference ?? "MORE_PLAYERS",
+      allowBestReduction: event.allowBestReduction ?? false,
       dateIds: event.dates.map((row) => row.id),
       locationIds: event.locations.map((row) => row.id),
       fixedDateAndLocation: group?.type === "PUBLIC",
@@ -310,8 +317,14 @@ export class EventRecordsService {
         id: table.id,
         minPlayers: table.minPlayers,
         maxPlayers: table.maxPlayers,
+        seatedCapacity: table.seatedCapacity,
         gameIds: table.games.map((game) => game.gameId),
         gamePlayerBounds: playerBounds,
+        gamePolls: Object.fromEntries(
+          catalog.flatMap((game) =>
+            game.suggestedPlayers ? [[game.id, game.suggestedPlayers]] : [],
+          ),
+        ),
         fixedGame: group?.type === "PUBLIC" && table.games.length === 1,
       })),
       registrations: registrations.map((row) => ({
@@ -321,6 +334,7 @@ export class EventRecordsService {
         status: row.status === "ACCEPTED" ? "ACCEPTED" : "PENDING",
         priorityAt: row.priorityAt,
         sequence: row.sequence,
+        locked: row.locked,
       })),
       dateVotes: Object.fromEntries(voters.map((row) => [row.userId, row.dateVotes])),
       locationVotes: Object.fromEntries(voters.map((row) => [row.userId, row.locationVotes])),
@@ -401,7 +415,7 @@ export class EventRecordsService {
                   status:
                     entry.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
                 })),
-              table.maxPlayers,
+              planningSeatCapacity(table, event.planningMode),
               selected,
             ).seated.map((entry) => entry.id)
           : [];
@@ -691,7 +705,7 @@ export class EventRecordsService {
             ...row,
             status: row.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
           })),
-        table.maxPlayers,
+        planningSeatCapacity(table, event.planningMode),
         chosen,
       ).seated;
       if (seats.some((row) => row.userId === userId && row.status === "ACCEPTED")) return;
@@ -963,7 +977,7 @@ export class EventRecordsService {
               ...row,
               status: row.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
             })),
-          table.maxPlayers,
+          planningSeatCapacity(table, event.planningMode),
           chosen,
         );
         for (const row of places.seated) if (row.status === "ACCEPTED") seated.add(row.userId);
@@ -1162,6 +1176,9 @@ export class EventRecordsService {
         order: current?.order ?? event.nextTableOrder++,
         minPlayers: table.minPlayers,
         maxPlayers: table.maxPlayers,
+        ...(current?.seatedCapacity !== undefined
+          ? { seatedCapacity: Math.min(table.maxPlayers, current.seatedCapacity) }
+          : {}),
         games: options,
         rankingEnabled: table.rankingEnabled,
         allowParticipantGames:
@@ -1295,6 +1312,9 @@ export class EventRecordsService {
       status: "PLANNING",
       version: 1,
       planningGeneration: 1,
+      planningMode: input.planningMode ?? "ASSISTED",
+      playerPreference: input.playerPreference ?? "MORE_PLAYERS",
+      allowBestReduction: input.allowBestReduction ?? false,
       allowParticipantDates: input.allowParticipantDates ?? false,
       allowParticipantLocations: input.allowParticipantLocations ?? false,
       nextPriority: 0,
@@ -1374,6 +1394,27 @@ export class EventRecordsService {
     for (const removed of input.removedTableIds)
       if (!currentTables.some((table) => table.id === removed))
         throw new CommunityError(400, "TABLE_NOT_FOUND");
+    if (input.planningMode === "MANUAL" && event.planningMode !== "MANUAL") {
+      const at = new Date().toISOString();
+      const visiblePlan = await this.agreement(event, group, currentTables, registrations);
+      for (const table of currentTables) {
+        const { rows: ordered, seatedCount } = await this.seatOrder(
+          event,
+          group,
+          table,
+          visiblePlan,
+        );
+        table.seatedCapacity = ordered.length > seatedCount ? seatedCount : table.maxPlayers;
+        await this.events.saveTable(table);
+        for (const [index, row] of ordered.entries()) {
+          row.priorityAt = at;
+          row.sequence = index;
+          row.version++;
+          row.updatedAt = at;
+          await this.events.saveRegistration(row);
+        }
+      }
+    }
     const retained = currentTables.filter((table) => !input.removedTableIds.includes(table.id));
     if (input.tables.some((table) => table.id && input.removedTableIds.includes(table.id)))
       throw new CommunityError(400, "TABLE_CHANGED_AND_REMOVED");
@@ -1425,6 +1466,27 @@ export class EventRecordsService {
       ...retained.filter((table) => !edits.some((row) => row.id === table.id)),
       ...edits,
     ].sort((a, b) => a.order - b.order);
+    for (const table of merged) {
+      const old = currentTables.find((row) => row.id === table.id);
+      if (old && table.maxPlayers < old.maxPlayers) {
+        const { rows } = await this.seatOrder(event, group, old);
+        const raw = allocateReservedPlaces(
+          registrations
+            .filter((row) => row.tableId === old.id)
+            .map((row) => ({
+              ...row,
+              status: row.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
+            })),
+          planningSeatCapacity(old, event.planningMode),
+        ).seated;
+        if (
+          [rows, raw].some((order) =>
+            order.some((row, index) => row.locked && index >= table.maxPlayers),
+          )
+        )
+          throw new CommunityError(409, "LOCKED_SEAT_PROTECTED");
+      }
+    }
     if (!merged.length || merged.length > 20) throw new CommunityError(400, "EVENT_TABLE_LIMIT");
     const active = registrations.filter((row) => merged.some((table) => table.id === row.tableId));
     if (group?.type === "PUBLIC" && active.length) {
@@ -1510,7 +1572,7 @@ export class EventRecordsService {
         ...row,
         status: row.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
       })),
-      table.maxPlayers,
+      planningSeatCapacity(table, event.planningMode),
       selected,
     );
     const games = await this.games.findByIds(table.games.map((game) => game.gameId));
@@ -1982,6 +2044,14 @@ export class EventRecordsService {
       updatedAt: at,
     };
     await this.events.saveRegistration(row);
+    if (
+      event.planningMode === "MANUAL" &&
+      table.seatedCapacity !== undefined &&
+      table.seatedCapacity < table.maxPlayers
+    ) {
+      table.seatedCapacity++;
+      await this.events.saveTable(table);
+    }
     if (availability)
       await this.events.saveVoter({
         eventId,
@@ -2275,6 +2345,150 @@ export class EventRecordsService {
     await this.notify("event_confirmed", next, userId, plan.participantIds);
     return this.response(next, group, userId, own, true);
   }
+  private async seatOrder(
+    event: EventRecord,
+    group: GroupRecord | null,
+    table: TableRecord,
+    proposal?: EventAgreement,
+  ) {
+    const rows = (await this.events.allRegistrations(event.id)).filter(
+      (row) => row.tableId === table.id,
+    );
+    const plan = proposal ?? (await this.agreement(event, group));
+    const selected = plan.agreed
+      ? plan.includedTables.find((row) => row.tableId === table.id)?.participantIds
+      : undefined;
+    const projected = projectReservedPlaces(
+      rows.map((row) => ({
+        ...row,
+        status: row.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
+      })),
+      planningSeatCapacity(table, event.planningMode),
+      selected,
+    );
+    const ids = [...projected.seated, ...projected.waiting].map((row) => row.id);
+    return {
+      rows: ids.map((id) => rows.find((row) => row.id === id)!),
+      seatedCount: projected.seated.length,
+    };
+  }
+  async seatOrderSnapshot(
+    userId: string,
+    eventId: string,
+    tableId: string,
+  ): Promise<TableSeatOrderSnapshot> {
+    const { event, group } = await this.context(userId, eventId, true, true);
+    this.open(event, group);
+    const table = await this.events.table(tableId);
+    if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    return this.seatOrderResponse(event, group, table);
+  }
+  private seatOrderKey(rows: readonly TableRegistration[], seatedCount: number) {
+    return createHash("sha256")
+      .update(
+        JSON.stringify({
+          seatedCount,
+          rows: rows.map((row) => [row.id, row.version, row.status, Boolean(row.locked)]),
+        }),
+      )
+      .digest("hex");
+  }
+  private async seatOrderResponse(
+    event: EventRecord,
+    group: GroupRecord | null,
+    table: TableRecord,
+  ): Promise<TableSeatOrderSnapshot> {
+    const { rows: registrations, seatedCount } = await this.seatOrder(event, group, table);
+    if (registrations.length > 1000) throw new CommunityError(409, "ROSTER_TOO_LARGE");
+    const profiles = await this.users.findByIds(registrations.map((row) => row.userId));
+    return {
+      version: event.version,
+      allocationKey: this.seatOrderKey(registrations, seatedCount),
+      capacity: table.maxPlayers,
+      seatedCount,
+      registrations: registrations.map((row) => {
+        const profile = profiles.find((profile) => profile.clerkId === row.userId);
+        return {
+          ...row,
+          name: profile ? publicUserName(profile) : null,
+          username: profile?.username ?? null,
+          avatarUrl: profile?.avatarUrl ?? null,
+        };
+      }),
+    };
+  }
+  async reorderSeats(userId: string, eventId: string, tableId: string, input: TableSeatOrderInput) {
+    const { event, group } = await this.context(userId, eventId, true, true);
+    this.open(event, group);
+    if (event.version !== input.version) throw new CommunityError(409, "EVENT_CHANGED");
+    const table = await this.events.table(tableId);
+    if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    const { rows: before, seatedCount: previousSeatedCount } = await this.seatOrder(
+      event,
+      group,
+      table,
+    );
+    if (input.allocationKey !== this.seatOrderKey(before, previousSeatedCount))
+      throw new CommunityError(409, "EVENT_CHANGED");
+    const seatedCount = input.seatedCount ?? previousSeatedCount;
+    if (
+      seatedCount < previousSeatedCount ||
+      seatedCount > Math.min(table.maxPlayers, before.length)
+    )
+      throw new CommunityError(400, "INVALID_SEAT_COUNT");
+    const ids = new Set(input.registrations.map((row) => row.id));
+    if (
+      ids.size !== before.length ||
+      input.registrations.length !== before.length ||
+      before.some((row) => !ids.has(row.id))
+    )
+      throw new CommunityError(409, "EVENT_CHANGED");
+    const at = new Date().toISOString();
+    for (const [index, request] of input.registrations.entries()) {
+      const row = before.find((row) => row.id === request.id)!;
+      const previousIndex = before.indexOf(row);
+      if (row.version !== request.version) throw new CommunityError(409, "EVENT_CHANGED");
+      if (
+        row.status === "PENDING" &&
+        (previousIndex !== index ||
+          request.locked ||
+          previousIndex < previousSeatedCount !== index < seatedCount)
+      )
+        throw new CommunityError(400, "PENDING_RESERVATION_PROTECTED");
+      if (row.locked && request.locked && previousIndex !== index)
+        throw new CommunityError(400, "LOCKED_SEAT_PROTECTED");
+      if (request.locked && (row.status !== "ACCEPTED" || index >= seatedCount))
+        throw new CommunityError(400, "INVALID_SEAT_LOCK");
+      // No accepted player crosses a fixed pending invitation reservation.
+      if (
+        before.some(
+          (entry, slot) =>
+            entry.status === "PENDING" &&
+            ((previousIndex < slot && index > slot) || (previousIndex > slot && index < slot)),
+        )
+      )
+        throw new CommunityError(400, "PENDING_RESERVATION_PROTECTED");
+    }
+    for (const [index, request] of input.registrations.entries()) {
+      const row = before.find((row) => row.id === request.id);
+      if (!row) throw new CommunityError(409, "EVENT_CHANGED");
+      row.priorityAt = at;
+      row.sequence = index;
+      row.locked = request.locked;
+      row.version++;
+      row.updatedAt = at;
+      await this.events.saveRegistration(row);
+    }
+    if (event.planningMode === "MANUAL") {
+      table.seatedCapacity = before.length > seatedCount ? seatedCount : table.maxPlayers;
+      await this.events.saveTable(table);
+    }
+    event.version++;
+    event.updatedAt = at;
+    await this.events.save(event);
+    await this.saveSituation(event, group, userId);
+    return this.seatOrderResponse(event, group, table);
+  }
   async seats(
     userId: string,
     eventId: string,
@@ -2313,7 +2527,7 @@ export class EventRecordsService {
         ...row,
         status: row.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
       })),
-      table.maxPlayers,
+      planningSeatCapacity(table, event.planningMode),
       selected,
     );
     const seated = new Set(

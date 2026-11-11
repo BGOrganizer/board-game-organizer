@@ -12,6 +12,7 @@ import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialo
 import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { EventGroupSelect } from "./EventGroupSelect";
+import { EventPlanningSettings } from "./EventPlanningSettings";
 import { EventVisibilityPicker } from "./EventVisibilityPicker";
 
 export function EventInformationFields({
@@ -109,6 +110,7 @@ export function EventInformationFields({
           ) : null}
         </section>
       </div>
+      <EventPlanningSettings form={form} busy={busy} />
       {pending ? (
         <ContactConfirmDialog
           title={t`Change group`}

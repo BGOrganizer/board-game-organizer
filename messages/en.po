@@ -6787,3 +6787,112 @@ msgstr "The event has ended. Results are available."
 #: apps/web/src/components/notifications/NotificationChangesAlert.tsx
 msgid "The event has been cancelled."
 msgstr "The event has been cancelled."
+
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Allow reduction for Best"
+msgstr "Allow reduction for Best"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Assistance recalculates the allocation when planning changes. Switching to Assisted can change the allocation; confirmation always requires a manager."
+msgstr "Assistance recalculates the allocation when planning changes. Switching to Assisted can change the allocation; confirmation always requires a manager."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Assisted"
+msgstr "Assisted"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Could not save seat order"
+msgstr "Could not save seat order"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Discard unsaved order"
+msgstr "Discard unsaved order"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Ideal count"
+msgstr "Ideal count"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Lock player"
+msgstr "Lock player"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Locked players are protected from assistance. Unlock a player before moving them. Pending invitations keep their reserved places."
+msgstr "Locked players are protected from assistance. Unlock a player before moving them. Pending invitations keep their reserved places."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Manual"
+msgstr "Manual"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Manual planning keeps the current seats. Every seated player must agree before a manager can confirm."
+msgstr "Manual planning keeps the current seats. Every seated player must agree before a manager can confirm."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Maximize participation before preferring BGG player-count recommendations."
+msgstr "Maximize participation before preferring BGG player-count recommendations."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "More players"
+msgstr "More players"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Planning mode"
+msgstr "Planning mode"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Player count"
+msgstr "Player count"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Prefer BGG Best player counts. Allow reduction for Best explicitly permits assistance to reduce the seated group; locked players remain protected."
+msgstr "Prefer BGG Best player counts. Allow reduction for Best explicitly permits assistance to reduce the seated group; locked players remain protected."
+
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Preserve seated players"
+msgstr "Preserve seated players"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Reorder seats"
+msgstr "Reorder seats"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Review latest roster"
+msgstr "Review latest roster"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Save seat order"
+msgstr "Save seat order"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "The roster changed. Review a fresh snapshot before saving."
+msgstr "The roster changed. Review a fresh snapshot before saving."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "These settings apply to every table. Confirmation is always manual. Pending invitations keep their reserved positions. Locked players keep their exact seats; departures and removals compact everyone and promote the queue."
+msgstr "These settings apply to every table. Confirmation is always manual. Pending invitations keep their reserved positions. Locked players keep their exact seats; departures and removals compact everyone and promote the queue."
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Unlock player"
+msgstr "Unlock player"
+
+msgid "Seat order saved"
+msgstr "Seat order saved"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reorder_table_seats.success"
+msgstr "Seat order saved"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reorder_table_seats.error"
+msgstr "Could not save seat order"
+
+msgid "Ideal count (BGG Best)"
+msgstr "Ideal count (BGG Best)"

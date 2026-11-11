@@ -406,6 +406,13 @@ describe("BGG covers", () => {
       minPlayers: 2,
       maxPlayers: 4,
       durationCheckedAt: new Date().toISOString(),
+      suggestedPlayers: {
+        totalVotes: 1,
+        rows: [
+          { players: 2, orMore: false, best: 1, recommended: 0, notRecommended: 0, sampleCount: 1 },
+        ],
+        fetchedAt: new Date().toISOString(),
+      },
       averageWeight: 2.5,
       weightCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),

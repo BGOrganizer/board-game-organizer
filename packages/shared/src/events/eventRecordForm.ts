@@ -31,6 +31,9 @@ export type EventRecordDraft = {
   groupId: string | null;
   timeZone: string;
   startTime: string;
+  planningMode?: "MANUAL" | "ASSISTED";
+  playerPreference?: "MORE_PLAYERS" | "BEST";
+  allowBestReduction?: boolean;
   allowParticipantDates?: boolean;
   allowParticipantLocations?: boolean;
   endsWall: string;
@@ -93,6 +96,9 @@ export function eventDraft(data?: PlannedEventResponse, groupId?: string): Event
     groupId: data?.groupId ?? groupId ?? null,
     timeZone: zone,
     startTime: data?.startTime ?? "20:00",
+    planningMode: data?.planningMode ?? "ASSISTED",
+    playerPreference: data?.playerPreference ?? "MORE_PLAYERS",
+    allowBestReduction: data?.allowBestReduction ?? false,
     allowParticipantDates: data?.allowParticipantDates ?? false,
     allowParticipantLocations: data?.allowParticipantLocations ?? false,
     endsWall: data?.endsAt ? eventLocalDateTime(data.endsAt, zone) : "",
@@ -115,6 +121,9 @@ function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
   const zone = draft.locations[0]?.timeZone ?? "";
   return {
     name: draft.name,
+    planningMode: draft.planningMode ?? "ASSISTED",
+    playerPreference: draft.playerPreference ?? "MORE_PLAYERS",
+    allowBestReduction: draft.allowBestReduction ?? false,
     visibility: eventRecordVisibility(draft, publicGroup ? "PUBLIC" : "PRIVATE"),
     timeZone: zone,
     startTime: draft.startTime,

@@ -493,6 +493,66 @@ exceptions supersede older membership-only activity/detail statements below.
   priorities, participation and excluded tables except explicit removals/exclusions; it never
   silently extends the cutoff. TERMINATED events cannot reopen.
 
+### Event planning settings and seat order
+
+Event-level planning settings appear below Name/Group in creation/edit step 0 and in the summary.
+Historical and new Events default to Assisted, More players, reduction disabled. Settings are editable
+only while PLANNING and apply to every Table. Manual keeps the current visible allocation when selected:
+the server first captures one common proposal, then persists its priority order and seat/queue
+boundary transactionally. This allocation boundary is server-owned, not a Table setting override.
+Explicit reorder promotions persist it; explicit new registrations open free capacity in priority order.
+Switching back to Assisted warns through a confirmation dialog before changing the draft. Manual never substitutes waiting players
+for agreement and requires every accepted seated player at an included Table to agree. Departures and
+removals still compact all remaining reservations and promote the first waiting person in either mode.
+
+Assisted uses the common Event date/location and recalculates from current consent, options and roster.
+Game disagreement cannot discard an accepted seated player merely because a consenting subset reaches
+the minimum. Date/location insufficiency may use the earliest compatible accepted queue prefix, while
+pending invitations retain their reservations. Locked seated players cannot be excluded by assistance;
+a locked incompatible participant prevents an agreement rather than acquiring a fabricated ballot.
+
+BGG quality compares the number of Best configurations, then Recommended configurations, then fewer
+Not Recommended configurations; unknown data adds no recommendation. More players maximizes distinct
+actual attendance, then this BGG player-count quality, then YES date/location
+and game preferences, then original option order. Ideal count prioritizes BGG quality before attendance.
+Only Assisted + Ideal count + explicit Allow reduction for Best can reduce a seated group to a BGG Best
+count; it retains locked users and all remaining consent/hard game bounds. Unknown recommendations do
+not authorize reduction. Joint selection remains deterministic, budgeted and exact; exhausting the
+budget fails closed. PLANNING never changes to CONFIRMED automatically: a current manager explicitly
+confirms against a fresh transactional recalculation. Existing cutoff, authority, duration, overlap,
+excluded-Table and frozen-roster guards still apply.
+
+The manager-only PLANNING Participants reorder action opens an owner-scoped, transient complete roster
+snapshot, capped at 1,000 reservations, rendered with web pagination/native virtualization. It does not persist a second
+server-data cache or a draft to MMKV. Adjacent controls reorder accepted seats and queue, including the
+last-seat/first-queue boundary; a free-place promotion fills the first opening. Pending reservations are
+fixed. Accepted seated users have local lock toggles; moving a locked user requires unlocking them first. A successful seat-order receipt reconciles existing owned roster caches before closing the editor, even if the subsequent refresh fails; a conflict retains the draft and requires a successful fresh review.
+Locks anchor the exact ordinal seat, including during automatic queue replacement and Best reduction. Reductions cannot end before the last locked slot. Pending reservations keep both their ordinal and their seated/waiting side of the boundary. Capacity shrink checks raw priority slots as well as the visible projection and cannot discard a locked user. Explicit exits/removals compact locks with their users,
+without numeric gaps. Only the first free-place row offers join/invite actions on both clients.
+
+Save atomically validates current manager, Event version, a captured allocation fingerprint (including
+changes caused by newly recovered catalog facts), complete reservation identities/versions,
+pending slots, lock constraints and capacity before writing. Concurrent roster changes reject the entire
+request. The editor retains a failed draft and requires an explicit fresh review; reset discards only the
+unsaved session. Successful save becomes the next edit baseline. Mutations use the existing fresh-token,
+scoped intent/journal feedback and selective reconciliation. No invitation acceptance is inferred.
+
+Manual acceptance on both web and an installed native development build:
+1. Create with defaults, inspect each help popover, choose Manual/Ideal count/reduction, review summary,
+   save and reopen. Confirm no Table-level settings exist and confirmed Events cannot edit them.
+2. With two seated accepted users, a pending reservation and accepted queue, enter reorder. Verify normal
+   leave/remove/invite controls disappear; test each boundary, pending immobility, lock/unlock, save,
+   reopen, reset and a failed save. Verify only the first free row is actionable.
+3. Change the roster from another manager/session while an editor is open. Saving must fail without
+   overwriting either session; explicitly review the new snapshot before retrying.
+4. Exercise Manual game disagreement, Assisted date/location queue recovery and locked incompatibility.
+   Verify More players/Best objectives with known poll fixtures, unknown/tied poll data, reduction off/on,
+   and protected locks. Confirm only through the explicit manager action.
+5. Remove/leave a preceding seat and verify compaction/promotion in both modes. Recheck public cutoffs,
+   Group moderator demotion, blocks, overlapping duties and immutable final results.
+
+These are manual acceptance instructions; unit/integration results do not claim browser/device acceptance.
+
 ### Event access and shared final results
 
 - Missing historical visibility inherits PUBLIC only from PUBLIC Groups; otherwise PRIVATE. No
@@ -749,14 +809,14 @@ A/B/C is evaluated per table, against one common event date/time and location:
 2. **B:** seated players reach the date/location minimum but disagree on game; wait for votes or
    administrator edits. Do not replace them merely to obtain another game.
 3. **C:** seated players lack date/location agreement; consider accepted waiters in priority order,
-   stopping at the earliest prefix enabling full agreement. Preserve higher-priority eligible
+   stopping at the earliest prefix enabling full agreement in Assisted mode. Preserve higher-priority eligible
    players, capacity and pending reservations; displaced users remain waiting.
 
 The same eligible people must support every multiple-option dimension with YES/IF_NEEDED; UNKNOWN
 is not positive there. Accepted registration supplies compatibility for each singleton independently,
-without a persisted or counted YES preference. YES preference wins before distinct-person count
-(one person across multiple tables counts once),
-then original option order. Only considered players' votes count. Bounded exact search fails closed
+without a persisted or counted YES preference. Event planning settings determine the objective
+before YES preferences; see [Event planning settings](#event-planning-settings-and-seat-order).
+One person across multiple tables counts once, with original option order as the final tie-break. Only considered players' votes count. Bounded exact search fails closed
 with `AGREEMENT_COMPLEXITY_LIMIT`, never with an approximate fabricated agreement. Confirmation
 rechecks authoritative inputs transactionally. Administrator notifications use semantic deduplication;
 there are no repeated identical notifications or player reminders to change votes.

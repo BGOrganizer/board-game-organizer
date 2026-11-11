@@ -90,5 +90,7 @@ if (end === games.length) {
   });
   if (!cleanup.ok) throw new Error(`Legacy thumbnail cleanup HTTP ${cleanup.status}`);
   console.log(`Removed legacy thumbnail field from ${(await cleanup.json()).removed} games.`);
+  const { enrichBoardGames } = await import("./enrich-boardgames.mjs");
+  await enrichBoardGames(endpoint.href, TOKEN);
 }
 console.log(`Done (chunks ${start / CHUNK}-${end / CHUNK}). Wrote ${total} games.`);

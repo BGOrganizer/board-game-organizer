@@ -72,6 +72,9 @@ export const createPlannedEventSchema = z
     clientRequestId: clientRequestIdSchema.optional(),
     name: z.string().trim().min(5).max(120),
     timeZone: zoneSchema,
+    planningMode: z.enum(["MANUAL", "ASSISTED"]).optional(),
+    playerPreference: z.enum(["MORE_PLAYERS", "BEST"]).optional(),
+    allowBestReduction: z.boolean().optional(),
     allowParticipantDates: z.boolean().optional(),
     allowParticipantLocations: z.boolean().optional(),
     startTime: eventTimeSchema,
@@ -419,3 +422,32 @@ export type TableSeatResponse = TableRegistration & {
   avatarUrl: string | null;
   position: TableSeatPosition;
 };
+
+export const tableSeatOrderSchema = z
+  .object({
+    version: z.number().int().positive(),
+    allocationKey: z.string().regex(/^[a-f0-9]{64}$/),
+    seatedCount: z.number().int().nonnegative().optional(),
+    registrations: z
+      .array(
+        z
+          .object({ id: z.uuid(), version: z.number().int().positive(), locked: z.boolean() })
+          .strict(),
+      )
+      .max(1000),
+  })
+  .strict();
+export type TableSeatOrderInput = z.infer<typeof tableSeatOrderSchema>;
+export interface TableSeatOrderSnapshot {
+  version: number;
+  allocationKey: string;
+  capacity: number;
+  seatedCount: number;
+  registrations: Array<
+    TableRegistration & {
+      name?: string | null;
+      username?: string | null;
+      avatarUrl?: string | null;
+    }
+  >;
+}

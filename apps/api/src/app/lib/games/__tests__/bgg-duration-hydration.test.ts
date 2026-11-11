@@ -228,3 +228,40 @@ it("preserves verified weight and its success timestamp when a refresh omits wei
     "weightCheckedAt",
   );
 });
+
+it("persists a complete player-count poll and preserves it when later responses omit it", async () => {
+  const h = fixture(
+    '<items><item id="1"><poll name="suggested_numplayers" totalvotes="5"><results numplayers="7+"><result value="Best" numvotes="3"/><result value="Recommended" numvotes="1"/><result value="Not Recommended" numvotes="1"/></results></poll></item></items>',
+  );
+  const row = game();
+  await hydrateGames(h.db, [row], true);
+  expect(row).toHaveProperty("suggestedPlayers.fetchedAt", now);
+  expect(row).toHaveProperty("suggestedPlayers.rows.0.sampleCount", 5);
+  const saved = structuredClone(row);
+  vi.setSystemTime(new Date("2026-11-19T00:00:00Z"));
+  h.fetch.mockResolvedValue({
+    ok: true,
+    status: 200,
+    text: async () => '<items><item id="1"/></items>',
+  });
+  await hydrateGames(h.db, [row], true);
+  expect(row).toHaveProperty(
+    "suggestedPlayers",
+    (saved as typeof saved & { suggestedPlayers: unknown }).suggestedPlayers,
+  );
+  expect(h.catalog.bulkWrite.mock.calls[1][0][0].updateOne.update.$set).not.toHaveProperty(
+    "suggestedPlayers",
+  );
+});
+it("keeps provider batches bounded to twenty IDs while leaving later games eligible for lazy recovery", async () => {
+  const h = fixture("<items/>");
+  const rows = Array.from({ length: 25 }, (_, index) => game(index + 1));
+  await hydrateGames(h.db, rows, true);
+  expect(h.fetch.mock.calls[0][0]).toBe(
+    "https://boardgamegeek.com/xmlapi2/thing?id=" +
+      Array.from({ length: 20 }, (_, index) => index + 1).join(",") +
+      "&stats=1",
+  );
+  expect(rows[20].metadataAttemptedAt).toBeUndefined();
+  expect(h.catalog.bulkWrite.mock.calls[0][0]).toHaveLength(20);
+});

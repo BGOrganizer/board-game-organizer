@@ -41,6 +41,20 @@ export function EventWizardSummary({
         <Typography className="text-foreground">{groupName ?? t("No group")}</Typography>
       </View>
       <View style={{ gap: 8 }}>
+        <Typography>{t("Settings")}</Typography>
+        <Typography>{draft.planningMode === "MANUAL" ? t("Manual") : t("Assisted")}</Typography>
+        <Typography>
+          {draft.playerPreference === "BEST" ? t("Ideal count") : t("More players")}
+        </Typography>
+        {draft.playerPreference === "BEST" ? (
+          <Typography>
+            {draft.allowBestReduction
+              ? t("Allow reduction for Best")
+              : t("Preserve seated players")}
+          </Typography>
+        ) : null}
+      </View>
+      <View style={{ gap: 8 }}>
         <SearchHelpLabel
           label={publicGroup ? t("Date and start/end time") : t("Dates and times")}
           helpTitle={t("Field help")}

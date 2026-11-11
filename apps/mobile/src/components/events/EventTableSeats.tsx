@@ -10,19 +10,21 @@ import {
   useEventCutoff,
   useEventRecordActions,
   useEventTableRoster,
+  useTableSeatOrder,
 } from "@board-game-organizer/shared";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Clock3, LogOut, Mail, UserRoundCheck, UserRoundX } from "lucide-react-native";
+import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundCheck, UserRoundX } from "lucide-react-native";
 import { type ReactNode, useRef, useState } from "react";
 import { type ScrollView, SectionList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { IconLegend } from "@/components/common/ui/IconLegend";
@@ -33,6 +35,7 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventJoinSheet } from "./EventJoinSheet";
+import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
 export function EventTableSeats({
   table,
@@ -51,8 +54,9 @@ export function EventTableSeats({
     o = useCommunityApi(),
     router = useRouter(),
     insets = useSafeAreaInsets(),
-    [danger, muted] = useThemeColor(["danger", "muted"]),
+    [danger, muted, accentForeground] = useThemeColor(["danger", "muted", "accent-foreground"]),
     a = useEventRecordActions(o, table.eventId);
+  const order = useTableSeatOrder(o, table);
   const roster = useEventTableRoster(o, table),
     closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
   const scroll = useRef<ScrollView>(null);
@@ -65,6 +69,12 @@ export function EventTableSeats({
     setChoose(false);
     setJoining(true);
   };
+  if (order.editing)
+    return (
+      <View style={{ flex: 1, display: active ? "flex" : "none" }}>
+        <EventSeatOrderEditor model={order} />
+      </View>
+    );
   return (
     <ScrollTargetContext.Provider value={scroll}>
       <View style={{ flex: 1 }}>
@@ -186,7 +196,12 @@ export function EventTableSeats({
               return (
                 <AddUserRow
                   label={label}
-                  isDisabled={reserved || !canAdd || a.blocking}
+                  isDisabled={
+                    reserved ||
+                    item.key !== roster.rows.find((row) => row.kind === "empty")?.key ||
+                    !canAdd ||
+                    a.blocking
+                  }
                   onPress={() => {
                     if (table.canInvite || table.groupType === "PRIVATE") setChoose(true);
                     else void join();
@@ -307,6 +322,11 @@ export function EventTableSeats({
             ) : null
           }
         />
+        {active && table.canManage && table.eventStatus === "PLANNING" ? (
+          <FloatingActions label={t("Reorder seats")} onPress={() => void order.start()}>
+            <ArrowUpDown size={20} color={accentForeground} />
+          </FloatingActions>
+        ) : null}
         {choose ? (
           <ConfirmDialog
             title={table.canInvite ? t("Choose a place action") : t("Join table")}

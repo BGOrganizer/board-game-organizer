@@ -17,6 +17,12 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "src/app/lib/games/bgg-player-poll.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/lib/notifications/notification-response-protection.ts": {
           lines: 100,
           functions: 100,

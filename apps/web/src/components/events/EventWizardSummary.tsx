@@ -36,6 +36,16 @@ export function EventWizardSummary({
         <p>{groupName ?? t`No group`}</p>
       </section>
       <section className="space-y-2">
+        <h2 className="font-semibold">{t`Settings`}</h2>
+        <p>{draft.planningMode === "MANUAL" ? t`Manual` : t`Assisted`}</p>
+        <p>{draft.playerPreference === "BEST" ? t`Ideal count` : t`More players`}</p>
+        {draft.playerPreference === "BEST" ? (
+          <p>
+            {draft.allowBestReduction ? t`Allow reduction for Best` : t`Preserve seated players`}
+          </p>
+        ) : null}
+      </section>
+      <section className="space-y-2">
         <SearchHelpLabel
           label={publicGroup ? t`Date and start/end time` : t`Dates and times`}
           helpTitle={t`Field help`}

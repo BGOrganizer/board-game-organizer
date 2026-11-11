@@ -1,3 +1,4 @@
+import { classifyPlayerCount, type PlayerPoll } from "@board-game-organizer/schemas";
 export type AgreementVote = "UNKNOWN" | "YES" | "NO" | "IF_NEEDED";
 export type AgreementVotes = Readonly<Record<string, Readonly<Record<string, AgreementVote>>>>;
 export interface AgreementRegistration {
@@ -7,17 +8,23 @@ export interface AgreementRegistration {
   status: "PENDING" | "ACCEPTED";
   priorityAt: string;
   sequence: number;
+  locked?: boolean;
 }
 export interface AgreementTable {
   id: string;
   minPlayers: number;
   maxPlayers: number;
+  seatedCapacity?: number;
   gameIds: readonly number[];
   gamePlayerBounds?: Readonly<Record<number, { minPlayers: number; maxPlayers: number }>>;
   /** Legacy hint; implicit compatibility depends on the actual singleton game count. */
   fixedGame: boolean;
+  gamePolls?: Readonly<Record<number, PlayerPoll>>;
 }
 export interface EventAgreementInput {
+  planningMode?: "MANUAL" | "ASSISTED";
+  playerPreference?: "MORE_PLAYERS" | "BEST";
+  allowBestReduction?: boolean;
   dateIds: readonly string[];
   locationIds: readonly string[];
   fixedDateAndLocation: boolean;
@@ -82,6 +89,7 @@ interface Candidate {
   gameId: number;
   people: AgreementRegistration[];
   gameYes: number;
+  quality: number;
 }
 interface Prepared {
   table: AgreementTable;
@@ -90,13 +98,28 @@ interface Prepared {
   state: TableAgreementState;
 }
 
+/** Manual remembers an explicit allocation boundary; Assisted uses physical capacity. */
+export function planningSeatCapacity(
+  table: Pick<AgreementTable, "maxPlayers" | "seatedCapacity">,
+  mode?: "MANUAL" | "ASSISTED",
+) {
+  return mode === "MANUAL"
+    ? Math.min(table.maxPlayers, table.seatedCapacity ?? table.maxPlayers)
+    : table.maxPlayers;
+}
+
 function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
   const rows = input.registrations.filter((row) => row.tableId === table.id);
-  const { seated, waiting } = allocateReservedPlaces(rows, table.maxPlayers);
+  const seatCapacity = planningSeatCapacity(table, input.planningMode);
+  const { seated, waiting } = allocateReservedPlaces(rows, seatCapacity);
   const pending = seated.filter((row) => row.status === "PENDING");
   const accepted = seated.filter((row) => row.status === "ACCEPTED");
   const queued = waiting.filter((row) => row.status === "ACCEPTED");
-  const capacity = table.maxPlayers - pending.length;
+  const capacity = seatCapacity - pending.length;
+  const reservedFloor = seated.reduce(
+    (floor, row, index) => (row.locked || row.status === "PENDING" ? index + 1 : floor),
+    0,
+  );
   const state: TableAgreementState = {
     tableId: table.id,
     phase: "BLOCKED",
@@ -105,6 +128,8 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
     initialSeatedIds: accepted.map((row) => row.userId),
     consideredWaitingIds: [],
   };
+  // Encode lexicographic BGG quality across all Tables: Best, Recommended, fewer Not Recommended.
+  const qualityScale = input.tables.length + 1;
   const result: Prepared = { table, accepted: [...accepted, ...queued], candidates: [], state };
   if (capacity < table.minPlayers) {
     state.reason = "PENDING_RESERVATIONS";
@@ -124,14 +149,29 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
   for (const [dateIndex, date] of input.dateIds.entries()) {
     for (const [locationIndex, location] of input.locationIds.entries()) {
       const base = accepted.filter((row) => dateLocation(row, date, location));
+      if (accepted.some((row) => row.locked && !base.includes(row))) continue;
       if (base.length >= table.minPlayers) seatedDateLocation = true;
       for (const [gameIndex, gameId] of table.gameIds.entries()) {
-        const people = base.filter((row) => positive(gameVote(row, gameId)));
+        // Game disagreement never authorizes removing an accepted seated player.
+        if (base.some((row) => !positive(gameVote(row, gameId)))) continue;
+        if (input.planningMode === "MANUAL" && base.length !== accepted.length) continue;
+        const people = base;
         const bounds = table.gamePlayerBounds?.[gameId];
-        const minimum = Math.max(table.minPlayers, bounds?.minPlayers ?? table.minPlayers);
+        const minimum = Math.max(
+          table.minPlayers,
+          bounds?.minPlayers ?? table.minPlayers,
+          reservedFloor - pending.length,
+        );
         if (
           capacity < minimum ||
-          (bounds && (minimum > bounds.maxPlayers || people.length > bounds.maxPlayers))
+          (bounds &&
+            (minimum > bounds.maxPlayers ||
+              (people.length > bounds.maxPlayers &&
+                !(
+                  input.planningMode !== "MANUAL" &&
+                  input.playerPreference === "BEST" &&
+                  input.allowBestReduction
+                ))))
         )
           continue;
         const eligibleWaiting = queued.filter(
@@ -151,6 +191,7 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
           gameId,
           people,
           gameYes: 0,
+          quality: 0,
           firstPrefix,
           waiting: eligibleWaiting,
         });
@@ -161,10 +202,55 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
   if (seatedOptions.length > 0) {
     state.phase = "SEATED";
     state.reason = null;
-    result.candidates = seatedOptions.map((option) => ({
+    const expanded = seatedOptions.flatMap((option) => {
+      const rows =
+        option.people.length <=
+        (table.gamePlayerBounds?.[option.gameId]?.maxPlayers ?? table.maxPlayers)
+          ? [option]
+          : [];
+      if (
+        input.planningMode !== "MANUAL" &&
+        input.playerPreference === "BEST" &&
+        input.allowBestReduction
+      ) {
+        for (
+          let count = Math.max(
+            table.minPlayers,
+            reservedFloor - pending.length,
+            table.gamePlayerBounds?.[option.gameId]?.minPlayers ?? table.minPlayers,
+          );
+          count < option.people.length &&
+          count <= (table.gamePlayerBounds?.[option.gameId]?.maxPlayers ?? table.maxPlayers);
+          count++
+        ) {
+          if (classifyPlayerCount(table.gamePolls?.[option.gameId], count) !== "BEST") continue;
+          const locked = option.people.filter((row) => row.locked);
+          // The ordinal floor already includes every locked seat.
+          const retained = new Set(
+            [
+              ...locked,
+              ...option.people.filter((row) => !row.locked).slice(0, count - locked.length),
+            ].map((row) => row.id),
+          );
+          rows.push({ ...option, people: option.people.filter((row) => retained.has(row.id)) });
+        }
+      }
+      return rows;
+    });
+    result.candidates = expanded.map((option) => ({
       ...option,
+      quality: {
+        BEST: qualityScale ** 2,
+        RECOMMENDED: qualityScale,
+        UNKNOWN: 0,
+        NOT_RECOMMENDED: -1,
+      }[classifyPlayerCount(table.gamePolls?.[option.gameId], option.people.length)],
       gameYes: option.people.filter((row) => gameVote(row, option.gameId) === "YES").length,
     }));
+    if (!result.candidates.length) {
+      state.phase = "BLOCKED";
+      state.reason = "NO_COMPATIBLE_PLAYERS";
+    }
     return result;
   }
   // Case B must not replace seated players merely because waiting players prefer another game.
@@ -172,6 +258,7 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
     state.reason = "GAME_DISAGREEMENT";
     return result;
   }
+  if (input.planningMode === "MANUAL") return result;
   const prefix = Math.min(...options.map((option) => option.firstPrefix));
   if (!Number.isFinite(prefix)) return result;
   state.phase = "WAITING";
@@ -189,6 +276,12 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
       return {
         ...option,
         people,
+        quality: {
+          BEST: qualityScale ** 2,
+          RECOMMENDED: qualityScale,
+          UNKNOWN: 0,
+          NOT_RECOMMENDED: -1,
+        }[classifyPlayerCount(table.gamePolls?.[option.gameId], people.length)],
         gameYes: people.filter((row) => gameVote(row, option.gameId) === "YES").length,
       };
     });
@@ -203,20 +296,28 @@ interface Selection {
   dateLocationYes: number;
   gameYes: number;
   order: number[];
+  quality: number;
 }
 function earlier(a: readonly number[], b: readonly number[]) {
   const index = a.findIndex((value, position) => value !== b[position]);
   return a[index] < b[index];
 }
-function better(a: Selection, b: Selection) {
-  return (
-    a.dateLocationYes > b.dateLocationYes ||
-    (a.dateLocationYes === b.dateLocationYes &&
-      (a.gameYes > b.gameYes ||
-        (a.gameYes === b.gameYes &&
-          (a.users.size > b.users.size ||
-            (a.users.size === b.users.size && earlier(a.order, b.order))))))
-  );
+function better(a: Selection, b: Selection, best: boolean) {
+  const objectives = best
+    ? [
+        a.quality - b.quality,
+        a.users.size - b.users.size,
+        a.dateLocationYes - b.dateLocationYes,
+        a.gameYes - b.gameYes,
+      ]
+    : [
+        a.users.size - b.users.size,
+        a.quality - b.quality,
+        a.dateLocationYes - b.dateLocationYes,
+        a.gameYes - b.gameYes,
+      ];
+  const difference = objectives.find((value) => value !== 0) ?? 0;
+  return difference > 0 || (difference === 0 && earlier(a.order, b.order));
 }
 
 /**
@@ -241,6 +342,22 @@ export function projectReservedPlaces(
   const seated = all.filter((row) =>
     row.status === "PENDING" ? pending.has(row.id) : participants.has(row.userId),
   );
+  const anchors = new Map(
+    base.seated.flatMap((row, index) =>
+      row.locked || row.status === "PENDING" ? [[index, row] as const] : [],
+    ),
+  );
+  const selectedIds = new Set(seated.map((row) => row.id));
+  if ([...anchors].some(([index, row]) => index >= seated.length || !selectedIds.has(row.id)))
+    return base;
+  const anchoredIds = new Set([...anchors.values()].map((row) => row.id));
+  const free = seated.filter((row) => !anchoredIds.has(row.id));
+  let freeIndex = 0;
+  const fixed = Array.from(
+    { length: seated.length },
+    (_, index) => anchors.get(index) ?? free[freeIndex++],
+  );
+  seated.splice(0, seated.length, ...fixed);
   const ids = new Set(seated.map((row) => row.id));
   return { seated, waiting: all.filter((row) => !ids.has(row.id)) };
 }
@@ -255,7 +372,19 @@ export function calculateEventAgreement(
     input.locationIds.length *
     input.tables.reduce((sum, table) => sum + table.gameIds.length, 0) *
     Math.max(1, input.registrations.length);
-  if (preparationWork > 1_000_000) throw new Error("AGREEMENT_COMPLEXITY_LIMIT");
+  const reductionWork =
+    input.planningMode !== "MANUAL" && input.playerPreference === "BEST" && input.allowBestReduction
+      ? input.dateIds.length *
+        input.locationIds.length *
+        input.tables.reduce((sum, table) => {
+          const seated = Math.min(
+            table.maxPlayers,
+            input.registrations.filter((row) => row.tableId === table.id).length,
+          );
+          return sum + table.gameIds.length * seated * seated;
+        }, 0)
+      : 0;
+  if (preparationWork + reductionWork > 1_000_000) throw new Error("AGREEMENT_COMPLEXITY_LIMIT");
   const prepared = input.tables.map((table) => prepare(input, table));
   let winner: Selection | undefined;
   let searched = 0;
@@ -300,47 +429,37 @@ export function calculateEventAgreement(
             users,
             dateLocationYes: score(users),
             gameYes,
+            quality: selected.reduce((sum, item) => sum + item.candidate.quality, 0),
             order,
           };
-          if (!winner || better(candidate, winner)) winner = candidate;
+          if (!winner || better(candidate, winner, input.playerPreference === "BEST"))
+            winner = candidate;
           return;
         }
         if (winner) {
           const possible = new Set(users);
-          let addedCapacity = 0;
-          let addedVotes = 0;
-          let gameUpper = gameYes;
+          let quality = selected.reduce((sum, item) => sum + item.candidate.quality, 0),
+            gameUpper = gameYes;
           const firstOrder = [...order];
           for (const remaining of choices.slice(index)) {
-            let maxPeople = 0,
-              maxDateVotes = 0,
-              maxGameVotes = 0;
-            for (const option of remaining.options) {
+            quality += Math.max(...remaining.options.map((option) => option.quality));
+            gameUpper += Math.max(...remaining.options.map((option) => option.gameYes));
+            for (const option of remaining.options)
               for (const person of option.people) possible.add(person.userId);
-              const newcomers = option.people.filter((row) => !users.has(row.userId));
-              maxPeople = Math.max(maxPeople, newcomers.length);
-              maxDateVotes = Math.max(
-                maxDateVotes,
-                newcomers.reduce((sum, row) => sum + dateLocationYes(row.userId), 0),
-              );
-              maxGameVotes = Math.max(maxGameVotes, option.gameYes);
-            }
-            addedCapacity += maxPeople;
-            addedVotes += maxDateVotes;
-            gameUpper += maxGameVotes;
             firstOrder.push(Math.min(...remaining.options.map((option) => option.gameIndex)));
           }
-          const votesUpper = Math.min(score(possible), score(users) + addedVotes);
-          const peopleUpper = Math.min(possible.size, users.size + addedCapacity);
-          if (
-            votesUpper < winner.dateLocationYes ||
-            (votesUpper === winner.dateLocationYes &&
-              (gameUpper < winner.gameYes ||
-                (gameUpper === winner.gameYes &&
-                  (peopleUpper < winner.users.size ||
-                    (peopleUpper === winner.users.size && !earlier(firstOrder, winner.order))))))
-          )
-            return;
+          const upper: Selection = {
+            dateIndex,
+            locationIndex,
+            choices: [],
+            users: possible,
+            quality,
+            gameYes: gameUpper,
+            dateLocationYes: score(possible),
+            order: firstOrder,
+          };
+          // Component-wise optimistic bounds use the same objective ordering as the exact result.
+          if (!better(upper, winner, input.playerPreference === "BEST")) return;
         }
         const next = choices[index];
         for (const option of next.options) {

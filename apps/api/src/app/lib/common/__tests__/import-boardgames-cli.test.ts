@@ -23,7 +23,19 @@ it.each([
   let cleanups = 0;
   let postedGame: Record<string, unknown> | undefined;
   const server = createServer(async (request, response) => {
-    if (request.method === "GET") {
+    if (request.url?.includes("/enrich")) {
+      response.setHeader("Content-Type", "application/json");
+      response.end(
+        JSON.stringify({
+          count: 0,
+          recovered: 0,
+          skipped: 0,
+          incomplete: 0,
+          nextOffset: null,
+          retryAfterMs: 5000,
+        }),
+      );
+    } else if (request.method === "GET") {
       response.setHeader("Content-Type", "application/json");
       response.end(JSON.stringify(target));
     } else if (request.method === "PATCH") {

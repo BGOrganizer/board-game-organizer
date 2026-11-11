@@ -717,3 +717,56 @@ it("projects immutable result ranks/profiles/deltas separately from paginated ac
   });
   expect(rows[2]).toMatchObject({ userId: "c", profileLoaded: false });
 });
+
+it("restores saved planning settings and serializes them while historical and new drafts use protected defaults", () => {
+  expect(eventDraft()).toMatchObject({
+    planningMode: "ASSISTED",
+    playerPreference: "MORE_PLAYERS",
+    allowBestReduction: false,
+  });
+  expect(eventDraft(event)).toMatchObject({
+    planningMode: "ASSISTED",
+    playerPreference: "MORE_PLAYERS",
+    allowBestReduction: false,
+  });
+  const draft = {
+    ...eventDraft({
+      ...event,
+      planningMode: "MANUAL",
+      playerPreference: "BEST",
+      allowBestReduction: true,
+    }),
+    tables: [tableDraft(table, event.timeZone)],
+  };
+  expect(draft).toMatchObject({
+    planningMode: "MANUAL",
+    playerPreference: "BEST",
+    allowBestReduction: true,
+  });
+  const parsed = eventDraftInput(draft, false);
+  expect(parsed.success).toBe(true);
+  if (parsed.success)
+    expect(parsed.data).toMatchObject({
+      planningMode: "MANUAL",
+      playerPreference: "BEST",
+      allowBestReduction: true,
+    });
+});
+
+it("serializes legacy local drafts without planning fields using the same safe defaults", () => {
+  const draft = {
+    ...eventDraft(event),
+    tables: [tableDraft(table, event.timeZone)],
+    planningMode: undefined,
+    playerPreference: undefined,
+    allowBestReduction: undefined,
+  };
+  const parsed = eventDraftInput(draft, false);
+  expect(parsed.success).toBe(true);
+  if (parsed.success)
+    expect(parsed.data).toMatchObject({
+      planningMode: "ASSISTED",
+      playerPreference: "MORE_PLAYERS",
+      allowBestReduction: false,
+    });
+});

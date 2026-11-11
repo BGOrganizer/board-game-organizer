@@ -15,6 +15,7 @@ import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 import { EventGroupSelect } from "./EventGroupSelect";
+import { EventPlanningSettings } from "./EventPlanningSettings";
 import { EventVisibilityPicker } from "./EventVisibilityPicker";
 
 export function EventInformationFields({
@@ -103,6 +104,7 @@ export function EventInformationFields({
           ) : null}
         </InputField>
       </View>
+      <EventPlanningSettings form={form} busy={busy} />
       {pending ? (
         <ConfirmDialog
           title={t("Change group")}

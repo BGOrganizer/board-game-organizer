@@ -287,3 +287,18 @@ These documents hold the detailed specifications and procedures; this README doe
 ## License
 
 MIT is the declared license; a standalone `LICENSE` file is not currently included.
+
+BGG player-count recommendations retain the complete `suggested_numplayers` poll as
+`suggestedPlayers` (Best/Recommended/Not Recommended counts per exact or open-ended count,
+per-row samples, provider total and fetched timestamp). Classification uses a strict unique
+plurality; ties, absent rows and zero samples are unknown. These are community preferences,
+not replacements for hard min/max players. Omitted/invalid polls preserve previous verified data
+and do not acquire a new success timestamp. The existing quota, retry and HTTP 202/429 backoff apply.
+
+After a complete successful remote CSV import, the import workflow script follows with bounded
+enrichment of the first 200 base games with positive integer general rank, sorted by rank then ID.
+Each API request hydrates at most 20 IDs under the shared quota; orchestration stays in the CLI.
+Partial CSV runs do not start enrichment. Fresh records are skipped; incomplete batches report
+counts and fail explicitly without rolling back the usable CSV. Rerunning resumes through the
+metadata cache; other catalog games remain lazily enriched. No import is performed merely by
+installing or testing this code. See [Event planning](docs/groups-events-refactor.md#event-planning-settings-and-seat-order).

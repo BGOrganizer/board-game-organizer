@@ -80,7 +80,7 @@ jobs:
           test -s /tmp/ranks.csv
           # The shared parser validates all 16 columns, BOM, quoted/reordered headers and every row
           # before the import script's first request. Do not reject valid CSV with a '^id,' probe.
-      - name: 🚚 Import through the shared CSV parser and repository contract
+      - name: 🚚 Import CSV and enrich the top 200 ranked base games
         env:
           BGG_CSV: /tmp/ranks.csv
           BGG_IMPORT_TOKEN: ${{ secrets[inputs.target == 'production' && 'CLERK_SECRET_KEY_PRODUCTION' || 'CLERK_SECRET_KEY'] }}

@@ -37,7 +37,19 @@ it.each([
       ).toBe("unit&bypass");
       expect(request.headers.authorization).toBe("Bearer unit-token");
       response.setHeader("Content-Type", "application/json");
-      if (request.method === "GET")
+      if (request.url?.includes("/enrich")) {
+        response.setHeader("Content-Type", "application/json");
+        response.end(
+          JSON.stringify({
+            count: 0,
+            recovered: 0,
+            skipped: 0,
+            incomplete: 0,
+            nextOffset: null,
+            retryAfterMs: 5000,
+          }),
+        );
+      } else if (request.method === "GET")
         response.end(JSON.stringify({ schemaVersion: 2, databaseName: "catalog" }));
       else if (request.method === "PATCH") {
         cleanups++;

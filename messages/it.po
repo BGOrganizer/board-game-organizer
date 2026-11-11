@@ -6787,3 +6787,112 @@ msgstr "L?evento ? terminato. I risultati sono disponibili."
 #: apps/web/src/components/notifications/NotificationChangesAlert.tsx
 msgid "The event has been cancelled."
 msgstr "L?evento ? stato annullato."
+
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Allow reduction for Best"
+msgstr "Consenti riduzione per Best"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Assistance recalculates the allocation when planning changes. Switching to Assisted can change the allocation; confirmation always requires a manager."
+msgstr "L'assistenza ricalcola i posti quando cambia la pianificazione. Passare ad Assistita può modificare i posti; la conferma richiede sempre un gestore."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Assisted"
+msgstr "Assistita"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Could not save seat order"
+msgstr "Impossibile salvare l'ordine dei posti"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Discard unsaved order"
+msgstr "Scarta ordine non salvato"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Ideal count"
+msgstr "Numero ideale"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Lock player"
+msgstr "Blocca giocatore"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Locked players are protected from assistance. Unlock a player before moving them. Pending invitations keep their reserved places."
+msgstr "I giocatori bloccati sono protetti dall'assistenza. Sblocca un giocatore prima di spostarlo. Gli inviti in attesa mantengono i posti riservati."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Manual"
+msgstr "Manuale"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Manual planning keeps the current seats. Every seated player must agree before a manager can confirm."
+msgstr "La pianificazione manuale mantiene i posti attuali. Tutti i giocatori seduti devono essere d'accordo prima della conferma di un gestore."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Maximize participation before preferring BGG player-count recommendations."
+msgstr "Massimizza la partecipazione prima di preferire i numeri di giocatori consigliati da BGG."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "More players"
+msgstr "Più giocatori"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Planning mode"
+msgstr "Modalità di pianificazione"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Player count"
+msgstr "Numero di giocatori"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Prefer BGG Best player counts. Allow reduction for Best explicitly permits assistance to reduce the seated group; locked players remain protected."
+msgstr "Preferisce i numeri di giocatori Best di BGG. Consenti riduzione per Best autorizza esplicitamente l'assistenza a ridurre il gruppo seduto; i giocatori bloccati restano protetti."
+
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Preserve seated players"
+msgstr "Mantieni i giocatori seduti"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Reorder seats"
+msgstr "Riordina posti"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Review latest roster"
+msgstr "Verifica l'elenco aggiornato"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Save seat order"
+msgstr "Salva ordine dei posti"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "The roster changed. Review a fresh snapshot before saving."
+msgstr "L'elenco dei giocatori è cambiato. Verifica l'elenco aggiornato prima di salvare."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "These settings apply to every table. Confirmation is always manual. Pending invitations keep their reserved positions. Locked players keep their exact seats; departures and removals compact everyone and promote the queue."
+msgstr "Queste opzioni si applicano a tutti i tavoli. La conferma è sempre manuale. Gli inviti in attesa mantengono le posizioni riservate. I giocatori bloccati mantengono il posto esatto; uscite e rimozioni compattano tutti e promuovono la coda."
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Unlock player"
+msgstr "Sblocca giocatore"
+
+msgid "Seat order saved"
+msgstr "Ordine dei posti salvato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reorder_table_seats.success"
+msgstr "Ordine dei posti salvato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reorder_table_seats.error"
+msgstr "Impossibile salvare l'ordine dei posti"
+
+msgid "Ideal count (BGG Best)"
+msgstr "Numero ideale (BGG Best)"
