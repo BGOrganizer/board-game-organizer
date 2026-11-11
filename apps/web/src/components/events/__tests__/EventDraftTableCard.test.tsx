@@ -124,6 +124,23 @@ it("does not show an unavailable demonstrator field in private/standalone review
   fireEvent.click(screen.getByRole("button", { name: `Board games: ${row.name}` }));
   expect(await screen.findByText("Chess")).toBeTruthy();
 });
+it.each([false, true])("reviews manual Best settings and reduction=%s", (allowBestReduction) => {
+  renderWithI18n(
+    <EventWizardSummary
+      draft={{
+        ...eventDraft(plannedEvent),
+        planningMode: "MANUAL",
+        playerPreference: "BEST",
+        allowBestReduction,
+      }}
+    />,
+  );
+  expect(screen.getByText("Manual")).toBeTruthy();
+  expect(screen.getByText("Ideal count")).toBeTruthy();
+  expect(
+    screen.getByText(allowBestReduction ? "Allow reduction for Best" : "Preserve seated players"),
+  ).toBeTruthy();
+});
 it("reviews public start, same-day end and combined cutoff before the venue", () => {
   const draft = {
     ...eventDraft(plannedEvent),

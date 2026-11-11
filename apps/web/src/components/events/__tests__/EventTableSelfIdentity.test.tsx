@@ -6,7 +6,7 @@ import {
   useRecordTable,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import {
@@ -32,6 +32,38 @@ function Seats() {
   ) : null;
 }
 const clients: QueryClient[] = [];
+it("opens the manager reorder editor and hides ordinary roster actions until reset", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  clients.push(client);
+  mocks.options = { apiUrl: "https://api.test", userId: actor, getToken: async () => "fresh" };
+  const table = { ...plannedTable, canManage: true, eventVersion: 1 };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.endsWith("/seats/order")
+          ? {
+              version: 1,
+              allocationKey: "a".repeat(64),
+              capacity: 4,
+              seatedCount: 1,
+              registrations: [seat("player")],
+            }
+          : { items: [], nextCursor: null },
+      ),
+    ),
+  );
+  renderWithI18n(
+    <QueryClientProvider client={client}>
+      <EventTableSeats table={table} onRemove={vi.fn()} />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Reorder seats" }));
+  expect(await screen.findByRole("region", { name: "Reorder seats" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Remove player/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Discard unsaved order" }));
+  expect(await screen.findByRole("button", { name: "Reorder seats" })).toBeTruthy();
+});
 afterEach(() => {
   cleanup();
   for (const client of clients.splice(0)) client.clear();
