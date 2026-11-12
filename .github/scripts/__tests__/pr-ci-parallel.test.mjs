@@ -81,7 +81,7 @@ test("PR E2E hooks remain explicitly disabled; approved Main/manual E2E workflow
   assert.match(jobs["cleanup-e2e-user"].if, /^always\(\).*mode == 'pr'/);
   const browser = jobs["e2e-playwright"];
   assert.match(browser.if, /e2e-enabled == 'true'/);
-  assert(browser.steps.some((item) => item.run === "pnpm test:e2e"));
+  assert(browser.steps.some((item) => item.run === "bun run test:e2e"));
   const main = parse(readFileSync(".github/workflows/main-ci.yml", "utf8"));
   assert.equal(main.jobs["e2e-playwright"], undefined);
   assert.equal(main.jobs["e2e-maestro"], undefined);

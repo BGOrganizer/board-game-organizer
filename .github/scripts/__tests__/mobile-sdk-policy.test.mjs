@@ -61,17 +61,14 @@ test("CI validates the installed SDK before Doctor and EAS, without moving SDK m
   assert.ok(check >= 0 && doctor > check && build > doctor);
   assert.match(
     action.slice(check, doctor),
-    /EXPO_OFFLINE: '1'[\s\S]*run: pnpm exec expo install --check/,
+    /EXPO_OFFLINE: '1'[\s\S]*run: bunx --no-install expo install --check/,
   );
   assert.match(
     action.slice(doctor, build),
-    /EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK: '1'[\s\S]*run: pnpm exec expo-doctor/,
+    /EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK: '1'[\s\S]*run: bunx --no-install expo-doctor/,
   );
   assert.match(action.slice(build), /EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK: '1'/);
-  assert.doesNotMatch(
-    action,
-    /pnpm dlx expo-doctor|EXPO_NO_DEPENDENCY_VALIDATION|continue-on-error/,
-  );
+  assert.doesNotMatch(action, /bunx expo-doctor|EXPO_NO_DEPENDENCY_VALIDATION|continue-on-error/);
   const pkg = JSON.parse(readFileSync(join(repo, "apps/mobile/package.json"), "utf8"));
   assert.match(pkg.devDependencies["expo-doctor"], /^\d+\.\d+\.\d+$/);
   assert.equal(pkg.expo?.install?.exclude, undefined);

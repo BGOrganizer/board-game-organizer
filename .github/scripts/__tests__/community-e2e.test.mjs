@@ -260,8 +260,11 @@ test("managed HeroUI patch preserves popup sizing, controlled initial sheet inde
       "+          index={isOpen ? (initialIndex ?? 0) : -1}",
     ],
   );
-  const workspace = readFileSync(new URL("../../../pnpm-workspace.yaml", import.meta.url), "utf8");
-  assert(workspace.includes("heroui-native@1.0.9: patches/heroui-native@1.0.9.patch"));
+  const workspace = readFileSync(new URL("../../../package.json", import.meta.url), "utf8");
+  assert.equal(
+    JSON.parse(workspace).patchedDependencies["heroui-native@1.0.9"],
+    "patches/heroui-native@1.0.9.patch",
+  );
   for (const [path, expected] of [
     [
       "src/components/popover/popover.tsx",

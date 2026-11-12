@@ -167,7 +167,7 @@ test("cold native builds configure client and daemon memory separately without o
 
 test("APK disk preparation removes unused hosted tools/images without deleting SDK runtime tools or app data", () => {
   const cleanup = build.runs.steps.find((step) => step.name === "🧹 Free disk space");
-  const setup = build.runs.steps.find((step) => step.uses === "./.github/actions/setup-pnpm");
+  const setup = build.runs.steps.find((step) => step.uses === "./.github/actions/setup-bun");
   assert(build.runs.steps.indexOf(cleanup) < build.runs.steps.indexOf(setup));
   const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
   const result = spawnSync(

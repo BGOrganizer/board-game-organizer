@@ -75,7 +75,7 @@ test("every main merge runs all non-E2E gates once in parallel before preparing 
   );
   assert.equal(
     step("coverage", "🧪 Vitest with coverage").run,
-    "pnpm --filter ${{ matrix.app }} test:coverage",
+    'bun run --filter "$WORKSPACE" test:coverage',
   );
   assert.match(
     step("release", "🔒 Release only latest validated main commit").run,

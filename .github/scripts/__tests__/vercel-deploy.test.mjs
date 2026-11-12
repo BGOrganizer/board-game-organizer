@@ -132,7 +132,8 @@ test("remote configuration builds and publishes only the selected monorepo app",
       assert.equal(result.status, 0, result.stderr);
       assert.deepEqual(JSON.parse(readFileSync(join(folder, ".vercel/deploy.json"), "utf8")), {
         framework: "nextjs",
-        buildCommand: `pnpm --filter ${app} build`,
+        buildCommand: `bunx bun@1.4.4 run --filter ${app} build`,
+        installCommand: "bunx bun@1.4.4 install --frozen-lockfile",
         outputDirectory: `apps/${app}/.next`,
       });
     }

@@ -27,7 +27,7 @@ test("deployment and provisioning jobs avoid unused installs; native reuse keeps
   ]) {
     for (const id of jobs)
       assert(
-        !workflow.jobs[id].steps.some((step) => step.uses === "./.github/actions/setup-pnpm"),
+        !workflow.jobs[id].steps.some((step) => step.uses === "./.github/actions/setup-bun"),
         id,
       );
   }
@@ -37,14 +37,14 @@ test("deployment and provisioning jobs avoid unused installs; native reuse keeps
     [main, "notify-telegram"],
   ]) {
     assert.equal(
-      workflow.jobs[id].steps.find((step) => step.uses === "./.github/actions/setup-pnpm").with
+      workflow.jobs[id].steps.find((step) => step.uses === "./.github/actions/setup-bun").with
         .install,
       "false",
     );
   }
   assert(
     pr.jobs["build-mobile-internal"].steps.some(
-      (step) => step.uses === "./.github/actions/setup-pnpm",
+      (step) => step.uses === "./.github/actions/setup-bun",
     ),
   );
   assert.equal(
@@ -56,7 +56,7 @@ test("deployment and provisioning jobs avoid unused installs; native reuse keeps
   for (const name of ["mobile-build", "vercel-deploy"])
     assert(
       load(`.github/actions/${name}/action.yml`).runs.steps.some(
-        (step) => step.uses === "./.github/actions/setup-pnpm",
+        (step) => step.uses === "./.github/actions/setup-bun",
       ),
     );
 });
@@ -70,8 +70,8 @@ test("APK discovery reuses the list's revision instead of fetching each run agai
 });
 
 test("third-party actions and CLI installs have reviewed fixed identities", () => {
-  const setup = readFileSync(".github/actions/setup-pnpm/action.yml", "utf8");
-  assert.match(setup, /pnpm\/action-setup@[a-f0-9]{40} # v4/);
+  const setup = readFileSync(".github/actions/setup-bun/action.yml", "utf8");
+  assert.match(setup, /oven-sh\/setup-bun@[a-f0-9]{40} # v2/);
   for (const workflow of [pr, main]) {
     for (const job of Object.values(workflow.jobs)) {
       for (const step of job.steps ?? []) {
@@ -82,11 +82,11 @@ test("third-party actions and CLI installs have reviewed fixed identities", () =
   }
   assert.match(
     readFileSync(".github/actions/mobile-build/action.yml", "utf8"),
-    /pnpm add --global eas-cli@27\.7\.2/,
+    /bun add --global eas-cli@27\.7\.2/,
   );
   assert.match(
     readFileSync(".github/actions/vercel-deploy/action.yml", "utf8"),
-    /pnpm add --global vercel@65\.14\.0/,
+    /bun add --global vercel@65\.14\.0/,
   );
 });
 

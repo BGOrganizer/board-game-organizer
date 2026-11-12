@@ -58,7 +58,7 @@ jobs:
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 💬 Check eligible commits
         env:
@@ -70,11 +70,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$CI_MODE" = pr ]; then
-            pnpm exec commitlint --from "$PR_BASE" --to "$PR_HEAD"
+            bunx --no-install commitlint --from "$PR_BASE" --to "$PR_HEAD"
           elif [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] && git merge-base --is-ancestor "$BEFORE" "$AFTER" 2>/dev/null; then
-            pnpm exec commitlint --from "$BEFORE" --to "$AFTER"
+            bunx --no-install commitlint --from "$BEFORE" --to "$AFTER"
           else
-            pnpm exec commitlint --from HEAD~1 --to HEAD
+            bunx --no-install commitlint --from HEAD~1 --to HEAD
           fi
 
   lint:
@@ -89,10 +89,10 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🧹 Biome check
-        run: pnpm lint
+        run: bun run lint
 
       - name: 🔒 Check CI isolation and MapTiler build configuration
         run: node --test .github/scripts/__tests__/*.test.mjs
@@ -109,16 +109,18 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🧪 tsc --noEmit
-        run: pnpm typecheck
+        run: bun run typecheck
 
   unit-tests:
     name: Unit tests (${{ matrix.app }})
     needs: [context]
     if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
+    env:
+      WORKSPACE: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('@board-game-organizer/{0}', matrix.app) || matrix.app }}
     strategy:
       fail-fast: true
       matrix:
@@ -130,12 +132,12 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🧪 Vitest
         env:
           TEST_SCRIPT: ${{ needs.context.outputs.mode == 'pr' && 'test:coverage' || 'test' }}
-        run: pnpm --filter ${{ matrix.app }} "$TEST_SCRIPT"
+        run: bun run --filter "$WORKSPACE" "$TEST_SCRIPT"
 
       - name: 🔏 Verify Codecov signing key
         if: needs.context.outputs.mode == 'pr'
@@ -170,14 +172,14 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🐳 Vitest integration (MongoDB in Docker)
         env:
           CI_MODE: ${{ needs.context.outputs.mode }}
         run: |
-          if [ "$CI_MODE" = pr ]; then pnpm --filter api test:integration --coverage;
-          else pnpm --filter api test:integration; fi
+          if [ "$CI_MODE" = pr ]; then bun run --filter api test:integration --coverage;
+          else bun run --filter api test:integration; fi
 
       - name: 🔏 Verify Codecov signing key
         if: needs.context.outputs.mode == 'pr'
@@ -212,9 +214,9 @@ jobs:
         with:
           fetch-depth: 1
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
       - name: 🏗️ Build API
-        run: pnpm --filter api build
+        run: bun run --filter api build
 
   build-web:
     name: Build Web
@@ -227,9 +229,9 @@ jobs:
         with:
           fetch-depth: 1
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
       - name: 🏗️ Build Web
-        run: pnpm --filter web build
+        run: bun run --filter web build
 
   # Compare against the last successful PR run; ignore unrelated web/API edits.
   # Reuse APK only when the artifact's own mobile inputs also match HEAD.
@@ -248,7 +250,7 @@ jobs:
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: ♻️ Find last successful APK build
         id: reuse
@@ -657,7 +659,7 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: ☕ Set up JDK 17 (Maestro requirement)
         uses: actions/setup-java@v4
@@ -831,7 +833,7 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🌐 Install Playwright browsers
         working-directory: apps/web
@@ -849,7 +851,7 @@ jobs:
           # Clerk testing token (global setup) + ticket sign-in helper:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-        run: pnpm test:e2e
+        run: bun run test:e2e
 
       - name: 📤 Upload Playwright report
         if: always() && !cancelled()
@@ -1056,7 +1058,7 @@ jobs:
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
         with:
           install: 'false'
 
@@ -1099,7 +1101,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APK_PATH: ${{ steps.meta.outputs.apk-path }}
         run: |
-          pnpm add --global eas-cli@27.7.2
+          bun add --global eas-cli@27.7.2
           node ../../.github/scripts/eas-upload.mjs "$GITHUB_WORKSPACE/$APK_PATH"
 
       - name: 📦 Publish/update draft prerelease

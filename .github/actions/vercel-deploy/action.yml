@@ -50,13 +50,13 @@ runs:
   using: composite
   steps:
     - name: 🧰 Setup workspace
-      uses: ./.github/actions/setup-pnpm
+      uses: ./.github/actions/setup-bun
       with:
         install: 'false'
 
     - name: 📦 Install Vercel CLI
       shell: bash
-      run: pnpm add --global vercel@65.14.0
+      run: bun add --global vercel@65.14.0
 
     - name: 🔗 Stage Vercel project link
       shell: bash
@@ -84,7 +84,8 @@ runs:
         if (!app) throw new Error('Unsupported Vercel app workspace');
         fs.writeFileSync('.vercel/deploy.json', JSON.stringify({
           framework: 'nextjs',
-          buildCommand: `pnpm --filter ${app} build`,
+          buildCommand: `bunx bun@1.4.4 run --filter ${app} build`,
+          installCommand: 'bunx bun@1.4.4 install --frozen-lockfile',
           outputDirectory: `${process.env.VERCEL_APP_PATH}/.next`,
         }, null, 2));
         console.log(`Vercel workspace=${app}`);
@@ -102,7 +103,7 @@ runs:
         EXTRA_ENV: ${{ inputs.extra-env }}
       run: |
         set -euo pipefail
-        # ponytail: skip remote build cache until pnpm repairs cached hoisted workspace links.
+        # ponytail: skip remote build cache until clean remote installs have been verified.
         flags=(--yes --force --local-config .vercel/deploy.json --token "$VERCEL_TOKEN")
         if [ "$PRODUCTION" = 'true' ]; then
           test "$VERCEL_ENVIRONMENT" = 'production'

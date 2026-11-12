@@ -32,8 +32,8 @@ credential scope; scripts implement routing, provenance, publication and recover
 
 ## Tool identities
 
-Third-party pnpm/Codecov actions use reviewed commit SHAs with major-version comments.
-EAS CLI **27.7.2** and Vercel CLI **65.14.0** use exact pnpm global installs.
+Third-party Bun/Codecov actions use reviewed commit SHAs with major-version comments.
+EAS CLI **27.7.2** and Vercel CLI **65.14.0** use exact Bun global installs.
 Maestro **2.11.0** is downloaded from its tagged GitHub release and checked against the release asset's
 SHA-256 before extraction. Updating these identities is an explicit dependency/tooling task;
 never replace them with moving tags, `@latest` or a remote installer piped into a shell.

@@ -18,13 +18,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🧹 Biome
-        run: pnpm lint
+        run: bun run lint
 
       - name: 🧪 TypeScript
-        run: pnpm typecheck
+        run: bun run typecheck
 
       - name: 🔒 CI isolation contract
         run: node --test .github/scripts/__tests__/*.test.mjs
@@ -32,6 +32,8 @@ jobs:
   coverage:
     name: Unit tests and coverage (${{ matrix.app }})
     runs-on: ubuntu-latest
+    env:
+      WORKSPACE: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('@board-game-organizer/{0}', matrix.app) || matrix.app }}
     strategy:
       fail-fast: true
       matrix:
@@ -43,10 +45,10 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🧪 Vitest with coverage
-        run: pnpm --filter ${{ matrix.app }} test:coverage
+        run: bun run --filter "$WORKSPACE" test:coverage
 
       - name: 🔏 Verify Codecov signing key
         id: codecov-key
@@ -75,10 +77,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🐳 Run API integration tests
-        run: pnpm --filter api test:integration --coverage
+        run: bun run --filter api test:integration --coverage
       - name: 🔏 Verify Codecov signing key
         run: bash .github/scripts/prepare-codecov-key.sh
       - name: 📤 Upload integration coverage to Codecov
@@ -108,9 +110,9 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
       - name: 🏗️ Verify app build
-        run: pnpm --filter ${{ matrix.app }} build
+        run: bun run --filter ${{ matrix.app }} build
 
   # Release bump/tag only after every merged-code quality, coverage and build gate succeeds.
   release:
@@ -135,7 +137,7 @@ jobs:
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🔒 Release only latest validated main commit
         id: current
@@ -167,7 +169,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SKIP_PUBLISH: "true"
-        run: pnpm release
+        run: bun run release
 
       - name: 🔎 Resolve release info
         id: meta
@@ -336,7 +338,7 @@ jobs:
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
         with:
           install: 'false'
 
@@ -365,7 +367,7 @@ jobs:
         run: |
           APK=$(find "$GITHUB_WORKSPACE/apk" -name '*.apk' -print -quit)
           test -n "$APK"
-          pnpm add --global eas-cli@27.7.2
+          bun add --global eas-cli@27.7.2
           node ../../.github/scripts/eas-upload.mjs "$APK"
 
       - name: 📦 Stage release notes from the pinned bump commit
@@ -484,7 +486,7 @@ jobs:
           ref: ${{ needs.release.outputs.sha }}
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
         with:
           install: 'false'
 
