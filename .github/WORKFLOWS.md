@@ -23,7 +23,7 @@ credential scope; scripts implement routing, provenance, publication and recover
 - Deployment actions prepare their own minimal tooling; callers do not install unused app dependencies.
 - EAS publication jobs install the locked workspace dependencies: even uploading an existing APK resolves Expo config plugins.
 - Native builds install dependencies unless the same checkout was already installed for APK inspection.
-- Publication/notification jobs set up tooling without installing the application workspace.
+- Notification-only jobs set up tooling without installing the application workspace.
 - APK discovery reads candidate IDs/revisions together, then verifies each candidate's relevant diff,
   successful build, unexpired artifact, embedded API/configuration and checksum.
 - PR publication depends only on shared checks and the Development lane. Repeated current-head checks

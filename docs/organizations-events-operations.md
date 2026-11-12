@@ -161,7 +161,7 @@ verification never authorize deletion. Candidate pages are collected before dele
 shifting Clerk pagination offsets. Production Clerk keys are rejected before requests.
 
 CLI pins, third-party action SHAs, cleanup regression tests and local validation commands are
-indexed in [.github/README.md](../.github/README.md). No remote settings or services are changed by
+indexed in [GitHub automation](../.github/WORKFLOWS.md). No remote settings or services are changed by
 local tests, and local checks do not establish device/E2E acceptance or measured CI savings.
 
 ### Activate trusted controllers before relying on lane independence
