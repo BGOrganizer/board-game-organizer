@@ -31,6 +31,7 @@ jobs:
 
   coverage:
     name: Unit tests and coverage (${{ matrix.app }})
+    environment: production
     runs-on: ubuntu-latest
     env:
       WORKSPACE: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('@board-game-organizer/{0}', matrix.app) || matrix.app }}
@@ -71,6 +72,7 @@ jobs:
 
   integration-tests:
     name: Integration tests (API)
+    environment: production
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -117,6 +119,7 @@ jobs:
   # Release bump/tag only after every merged-code quality, coverage and build gate succeeds.
   release:
     name: Prepare version and tag
+    environment: production
     needs:
       - quality
       - coverage

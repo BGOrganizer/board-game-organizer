@@ -86,27 +86,28 @@ Webhook routing stays non-CI. Development API deployments receive no CI override
 runtime attestation must pass before seeding; cleanup uses the successful deployment's recorded
 DB name, including partial reruns. Web public-key validation runs inside the actual Vercel build.
 
-The current 13 GitHub repository Secrets all remain used:
+GitHub `development` and `production` each contain the same 12 Secret names:
 
 - Vercel: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_API_PROJECT_ID`, `VERCEL_WEB_PROJECT_ID`,
   `VERCEL_PROTECTION_BYPASS`.
-- Clerk: `CLERK_SECRET_KEY` for development E2E provisioning/attestation/cleanup/import;
-  `CLERK_SECRET_KEY_PRODUCTION` for explicit production catalog import and read-only manual-build
-  API attestation. Manual operations select the matching existing environment, never a key fallback.
+- Clerk: `CLERK_SECRET_KEY`, resolved from the job's selected environment.
 - Mobile: `EXPO_TOKEN`; `GOOGLE_SERVICES_JSON` for optional push-enabled APKs. In GitHub,
   `GOOGLE_SERVICES_JSON` contains the original JSON document, not Base64 or a file path; the build
   action writes it to a restricted temporary file and passes that path to Expo.
 - Release/reporting: `RELEASE_PAT`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `CODECOV_TOKEN`.
 
-No GitHub Secret needs deletion for this migration. MongoDB credentials, webhook secrets and other
-server-only app configuration stay in Infisical/Vercel, not GitHub. Keep existing public GitHub
-Variables used by native builds and E2E; they are not credentials. GitHub `development` contains
-an environment-scoped `CLERK_SECRET_KEY`. Every PR job consuming that key must select
-`environment: development`, including provisioning, mirroring, browser tests and cleanup;
-otherwise GitHub falls back to a potentially different repository Secret. PR APK builds and Development preview
-publication likewise select `development` for Expo, release and Telegram credentials. This GitHub environment
-does not select an Infisical environment: the deployed API reads the Vercel Preview value supplied
-by its existing sync. No credentials were deleted, rotated or synchronized as part of this code change.
+Every custom-secret consumer selects `development` in PR/branch and cleanup workflows, or
+`production` in Main delivery, including coverage uploads and release preparation. The workflow
+contract tests enforce this. GitHub environment selection does not select an Infisical environment:
+the deployed API reads the Vercel value supplied by its existing sync. MongoDB credentials,
+webhook secrets and other server-only configuration stay in Infisical/Vercel, not GitHub.
+
+All 12 repository duplicates were removed at the operator's explicit request, including the seven
+still consumed by older default-branch workflows without an environment. Until the operator merges
+these workflow changes, those older jobs no longer receive their credentials; a feature-branch edit
+does not complete that rollout. The sole remaining repository Secret is the legacy
+`CLERK_SECRET_KEY_PRODUCTION`, still referenced by the older Main E2E jobs.
+The eight public GitHub Variables remain repository-scoped; none were changed or copied.
 
 ## Unified branch/PR CI rollout
 

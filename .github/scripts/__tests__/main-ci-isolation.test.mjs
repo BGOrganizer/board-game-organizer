@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { parse } from "yaml";
 
@@ -7,6 +7,20 @@ const workflow = parse(readFileSync(".github/workflows/main-ci.yml", "utf8"));
 const jobs = workflow.jobs;
 const prJobs = parse(readFileSync(".github/workflows/pr-ci.yml", "utf8")).jobs;
 const step = (job, name) => jobs[job].steps.find((item) => item.name === name);
+
+test("every workflow job consuming custom secrets selects its GitHub environment", () => {
+  for (const file of readdirSync(".github/workflows").filter((file) => file.endsWith(".yml"))) {
+    const current = parse(readFileSync(`.github/workflows/${file}`, "utf8"));
+    for (const [name, job] of Object.entries(current.jobs)) {
+      if (!/\bsecrets[.[]/.test(JSON.stringify(job))) continue;
+      assert.equal(
+        job.environment,
+        file === "main-ci.yml" ? "production" : "development",
+        `${file}: ${name}`,
+      );
+    }
+  }
+});
 
 test("PR partial reruns retain deployment-owned database identity for fixture and cleanup consumers", () => {
   const action = parse(readFileSync(".github/actions/vercel-deploy/action.yml", "utf8"));

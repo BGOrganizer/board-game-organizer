@@ -12,6 +12,7 @@ permissions:
 jobs:
   cleanup:
     name: Clean orphaned test users
+    environment: development
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
