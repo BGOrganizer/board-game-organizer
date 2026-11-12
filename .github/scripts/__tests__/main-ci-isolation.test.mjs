@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { parse } from "yaml";
@@ -7,6 +8,49 @@ const workflow = parse(readFileSync(".github/workflows/main-ci.yml", "utf8"));
 const jobs = workflow.jobs;
 const prJobs = parse(readFileSync(".github/workflows/pr-ci.yml", "utf8")).jobs;
 const step = (job, name) => jobs[job].steps.find((item) => item.name === name);
+
+test("production APK configuration rejects missing or cross-environment API URLs", () => {
+  const source = step("build-apk", "🔒 Require the Production Clerk public key").run.match(
+    /<<'NODE'\n([\s\S]*?)\nNODE/,
+  )[1];
+  for (const apiUrl of [
+    "https://api.board-game-organizer.com",
+    "https://preview.example.invalid",
+    "",
+  ]) {
+    const result = spawnSync(process.execPath, ["--input-type=module"], {
+      input: source,
+      encoding: "utf8",
+      env: { ...process.env, CLERK_PUBLISHABLE_KEY: "pk_live_fixture", API_URL: apiUrl },
+    });
+    assert.equal(
+      result.status,
+      apiUrl === "https://api.board-game-organizer.com" ? 0 : 1,
+      result.stderr,
+    );
+  }
+});
+
+test("environment-specific variables use common names and scoped consumers", () => {
+  const shared = new Set(["EXPO_PUBLIC_MAPTILER_API_KEY", "EXPO_PUBLIC_SENTRY_DSN"]);
+  for (const file of readdirSync(".github/workflows").filter((file) => file.endsWith(".yml"))) {
+    const current = parse(readFileSync(`.github/workflows/${file}`, "utf8"));
+    for (const [name, job] of Object.entries(current.jobs)) {
+      const variables = [...JSON.stringify(job).matchAll(/\bvars\.([A-Z][A-Z0-9_]*)/g)].map(
+        (match) => match[1],
+      );
+      for (const variable of variables) {
+        assert(!variable.endsWith("_PRODUCTION"), `${file}: ${name}: ${variable}`);
+        if (shared.has(variable)) continue;
+        assert.equal(
+          job.environment,
+          file === "main-ci.yml" ? "production" : "development",
+          `${file}: ${name}`,
+        );
+      }
+    }
+  }
+});
 
 test("Codecov authenticates with job-scoped OIDC without static tokens on PR and main", () => {
   for (const [name, current] of [
@@ -162,15 +206,17 @@ test("unit and integration Codecov uploads fail closed and retain coverage repor
 test("published APK is production-targeted, checksummed and pinned to the release SHA", () => {
   const build = step("build-apk", "🏗️ Build APK (eas build --local, internal profile)");
   assert.equal(build.with.profile, "internal");
-  assert.equal(build.with["api-url"], "https://api.board-game-organizer.com");
+  assert.equal(build.with["api-url"], "${{ vars.EXPO_PUBLIC_API_URL }}");
   assert.equal(
     build.with["clerk-publishable-key"],
-    "${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}",
+    "${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}",
   );
   assert.equal(jobs["build-apk"]["timeout-minutes"], 180);
   assert.equal(jobs["build-apk"].environment, "production");
   const keyGate = step("build-apk", "🔒 Require the Production Clerk public key");
   assert.equal(keyGate.env.CLERK_PUBLISHABLE_KEY, build.with["clerk-publishable-key"]);
+  assert.equal(keyGate.env.API_URL, build.with["api-url"]);
+  assert.match(keyGate.run, /process.env.API_URL !== 'https:\/\/api.board-game-organizer.com'/);
   assert.match(keyGate.run, /requireClerkTarget\('production'/);
   const artifact = jobs["build-apk"].steps.find((s) => s.uses === "actions/upload-artifact@v4");
   assert.equal(artifact.with.path, "apps/mobile/build-output/");

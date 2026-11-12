@@ -224,11 +224,15 @@ jobs:
 
       - name: 🔒 Require the Production Clerk public key
         env:
-          CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
         run: |
           node --input-type=module <<'NODE'
           import { requireClerkTarget } from './.github/scripts/clerk-target.mjs';
           requireClerkTarget('production', process.env.CLERK_PUBLISHABLE_KEY, 'pk');
+          if (process.env.API_URL !== 'https://api.board-game-organizer.com') {
+            throw new Error('Production API must use its canonical public URL');
+          }
           NODE
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
@@ -239,8 +243,8 @@ jobs:
           # Production build: the released APK must talk to the LIVE Clerk
           # instance (pk_live). The pk_test variable stays for preview builds
           # (PR builds).
-          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
-          api-url: https://api.board-game-organizer.com
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
           maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}

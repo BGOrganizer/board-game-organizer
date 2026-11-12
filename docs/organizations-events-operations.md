@@ -110,7 +110,15 @@ still consumed by older default-branch workflows without an environment. Until t
 these workflow changes, those older jobs no longer receive their credentials; a feature-branch edit
 does not complete that rollout. The legacy repository `CLERK_SECRET_KEY_PRODUCTION` was also
 removed at the operator's request; no repository Secrets remain.
-The eight public GitHub Variables remain repository-scoped; none were changed or copied.
+Each environment has four Variables with identical names: `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`,
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_WEB_ORIGIN`.
+Development Clerk keys use the test instance and Production keys use the live instance; no
+`_PRODUCTION`-suffixed variable or cross-environment fallback remains. Production URLs use the
+canonical custom domains. Development URL variables record the last published Development preview;
+they are reference defaults, not moving aliases. PR builds/deploys retain their own verified
+run-specific URLs instead of falling back to these defaults. `EXPO_PUBLIC_WEB_ORIGIN` is currently
+configuration only and has no runtime consumer. Only `EXPO_PUBLIC_MAPTILER_API_KEY` and
+`EXPO_PUBLIC_SENTRY_DSN` remain repository-scoped, shared by explicit operator choice.
 
 ## Unified branch/PR CI rollout
 
