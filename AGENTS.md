@@ -15,10 +15,6 @@ Core rules:
 - Internationalize every user-facing string and update both English and Italian catalogs.
 - Fix root causes in shared code instead of patching each caller.
 - Do not add speculative abstractions, dependencies, or scaffolding.
-- Within each app, reuse components when screens share a real layout or interaction pattern. Prefer
-  small composable pieces that remove duplication; do not force different users, games, and dates
-  into one component with many conditional branches. Keep web and mobile UI components
-  platform-specific.
 - Never weaken validation, authentication, authorization, accessibility, or data-safety checks.
 - Never commit credentials, private MCP configuration, or generated environment files. Tracked
   `.env.example` templates may contain names and placeholders only.
@@ -29,8 +25,6 @@ Core rules:
   Provider artwork keeps its brand colors; required dark artwork uses an existing HeroUI light
   surface scope for contrast, never a literal white backplate.
 - Use `import type` for type-only imports.
-- Honor the operator's branch, commit, and push scope; local-only work must stay local.
-- Open a pull request only when the user explicitly asks.
 - Read applicable existing domain/operations documents before changing that area; link them rather
   than duplicating their specifications. This file and README describe current behavior, not a roadmap.
 
@@ -76,12 +70,6 @@ Subdirectory instructions specialize the root rules without duplicating them. Ex
 and repository invariants override generic skill examples. Historical notes never grant permission
 for new provider operations or establish production/device acceptance.
 
-Current list behavior: Events **Participation** includes participation and current management;
-**Available** includes only enrollable PLANNING member-Group Events without existing participation or management.
-Main Tables includes CONFIRMED/TERMINATED frozen players only. Available has no status chips;
-Tables has only Confirmed/Terminated. Standalone creation returns to Participation.
-See the contract for exact source predicates, paging, invitations and contextual lists.
-
 ## 3. Workspace and commands
 
 `apps/api`, `apps/web` and `apps/mobile` own application entry points and platform adapters.
@@ -96,7 +84,6 @@ Run from the root; on PowerShell use `pnpm.cmd` if execution policy blocks the s
 | Task | Command |
 | --- | --- |
 | Install locked dependencies | `pnpm install --frozen-lockfile` |
-| API / web / native dev server | `pnpm --filter api dev` / `pnpm --filter web dev` / `pnpm --filter mobile dev` |
 | Lint / typecheck | `pnpm lint` / `pnpm typecheck` |
 | One workspace's tests | `pnpm --filter web test` (or `api`, `mobile`, `@board-game-organizer/shared`, `@board-game-organizer/schemas`) |
 | Unit coverage | `pnpm --filter web test:coverage` (same tested workspaces) |
@@ -114,11 +101,20 @@ and each app's instructions. Do not run imports/migrations merely as ordinary va
 
 - Keep Next.js and Expo Router entry files in their apps. Keep DOM/HeroUI web and React Native/
   HeroUI Native structure, layout, navigation, permissions, accessibility, and refs platform-owned.
+- Prefer an existing helper, then a pure function, then a shared hook; do not extract speculative reuse.
 - Share actual platform-independent behavior via pure functions and hooks. Not every non-JSX hook
   belongs in `shared`: Clerk/environment/feedback/native adapters remain in their respective apps.
-- A headless provider may share one workflow instance through context/children when a hook alone
-  is insufficient. It must not impose a universal page layout, host UI, platform flags, placeholder
-  slots, or duplicated Query/store data. Preserve narrow Next.js client boundaries.
+- Reuse components within each app when a real layout or interaction pattern is shared. Prefer small
+  composable pieces over many conditional branches for unrelated content.
+- A headless provider may share one workflow instance across children when a hook alone is insufficient.
+  It must not impose a universal page layout, host UI, placeholder slots or duplicated Query/store data.
+  Avoid giant contexts and module-level mutable user/request state.
+  Preserve narrow Next.js client boundaries; never mark the whole shared package `"use client"`.
+- Use `children` for static composition and render props when returning state/actions to children.
+  Do not build a universal page renderer with platform flags or `cloneElement` contracts. Share
+  behavior such as paging, while keeping web/native rendering and accessibility platform-owned.
+- Use installed HeroUI controls where available. Custom controls must cover an unsupported need and
+  retain accessibility and the existing semantic styling.
 - One public/top-level component per file, named after it. Private components used only in that
   module may remain there, defined at module scope rather than inside render. Framework route
   metadata/configuration exports are allowed. Short local hooks/types/helpers need not each split.
@@ -199,12 +195,8 @@ and each app's instructions. Do not run imports/migrations merely as ordinary va
 
 ## 7. Verification
 
-Vitest covers web, mobile pure logic, API, and schemas. Each coverage config enforces at least 50%
+Vitest covers web, mobile pure logic, API, shared logic and schemas. Each coverage config enforces at least 50%
 for lines, functions, branches, and statements.
-
-Mobile component unit tests are not run under Vitest because React Native 0.86 packages include Flow
-syntax loaded outside Vite transforms. Keep mobile unit coverage focused on pure logic; Maestro owns
-native UI behavior.
 
 API integration tests use Testcontainers with MongoDB configured as a single-node replica set so
 transactions behave like production.
@@ -222,30 +214,18 @@ user-visible success, empty, failure, and action path on both clients.
 Social E2E uses two provisioned users. Wait for Clerk webhook mirroring before searching for the
 target.
 
-Never allow missing E2E environment variables to silently skip authenticated tests. Inspect JUnit
-skip counts when expected flows appear suspiciously fast.
-
 When extending `useContacts`, update every test mock. UI code reads pending state from each
 mutation; a missing mutation object crashes tests before assertions.
 
-Useful validation order:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm --filter mobile test
-pnpm --filter web test
-pnpm --filter api test
-pnpm --filter @board-game-organizer/schemas test
-pnpm --filter @board-game-organizer/shared test
-pnpm --filter api test:integration
-pnpm build
-```
+Run scoped lint and typecheck first, then relevant unit/coverage and integration tests, followed by
+builds and applicable UI acceptance. Use the [command table](#3-workspace-and-commands) and app guides;
+do not run unrelated checks merely to duplicate evidence.
 
 E2E coverage requirements and CI enablement are separate. Retain/update required Playwright and Maestro
 paths and report what was actually executed. PR E2E is explicitly disabled by current policy; main/manual
 E2E gates have been removed. Green unit/build/source checks do not prove authenticated browser/native
-acceptance. Never silently skip missing authenticated test configuration or fabricate reports.
+acceptance. Never silently skip missing authenticated test configuration or fabricate reports. Inspect
+JUnit skip counts when expected journeys complete suspiciously quickly.
 
 ## 8. Git and delivery
 
@@ -253,11 +233,11 @@ acceptance. Never silently skip missing authenticated test configuration or fabr
 
 For each feature, fix, documentation change, dependency update, or CI change:
 
-1. honor the operator's selected branch; otherwise start a new branch from current `main`;
+1. honor the operator's selected branch and local-only/commit/push scope; otherwise start a new branch from current `main`;
 2. implement the complete task;
 3. run relevant checks;
-4. commit with a signed Conventional Commit;
-5. push the branch so the unified `pr-ci.yml` branch/PR path validates it;
+4. when authorized, commit with a signed Conventional Commit;
+5. when authorized, push with `git push origin <branch>` so the unified branch/PR CI validates it;
 6. open a PR only after the user explicitly requests it.
 
 Allowed commit types:
@@ -282,8 +262,6 @@ Verify signatures with:
 ```bash
 git log --show-signature -1
 ```
-
-Use `git push origin <branch>`. Do not open a PR proactively.
 
 Every job using local GitHub actions must checkout first. CI/workflow files and
 [operational gates](docs/organizations-events-operations.md) govern actual routing, required checks,
@@ -312,9 +290,12 @@ artifacts or treat default-branch controllers as activated by a feature-branch e
 
 ## 10. Skills
 
-Inventory with `pnpm dlx skills@latest list`, load the smallest applicable project-locked
-guides from [Agent skills](docs/agent-skills.md), and verify actual discovery if links or installation change.
-A lock entry or CLI success is not proof of availability. Missing guides do not authorize automatic installation.
-Install only explicitly selected skills in project scope for the intended agent; never upgrade retained vendor guides
-or remove global skills incidentally. Use current installed APIs over examples, pnpm over npm/yarn,
-and Biome over ESLint/Prettier; no alternate UI/state system or unrequested dependency.
+Load the project-locked `ponytail` guide at `.agents/skills/ponytail/SKILL.md` for programming
+work across all apps, packages, scripts and workflows. Use its **full** level by default unless
+the operator selects another level or disables it. Apply the smallest complete change within
+the existing architecture; required callers, EN/IT parity, safeguards and verification remain
+part of completion. Its minimum-test guidance never reduces this repository's required coverage.
+
+Read [Agent skills](docs/agent-skills.md) for task selection, inventory, installation scope and
+conflict resolution. Guides supplement these instructions; they do not authorize new work,
+provider operations, dependencies or changes to project conventions.

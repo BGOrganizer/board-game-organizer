@@ -2,40 +2,40 @@
 
 Read the [root instructions](../../AGENTS.md) first. These rules apply to `apps/mobile`.
 
-`apps/mobile` is native-only Expo Router. Root provider order is:
+`apps/mobile` is native-only Expo Router. `src/app/_layout.tsx` initializes Sentry before rendering.
+Its provider nesting is:
 
 ```text
-Sentry initialization
-GestureHandlerRootView
-I18nProvider
-HeroUINativeProvider
-ClerkProvider
-QueryProvider
-Expo Router Stack
+Sentry.ErrorBoundary
+  GestureHandlerRootView
+    I18nProvider
+      HeroUINativeProvider
+        NavigationTheme
+          RootNavigator
+            ClerkProvider
+              MobileQueryProvider
+                Expo Router Stack and startup/push coordinators
 ```
 
 Keep `index.tsx` authentication navigation declarative with `<Redirect>`; an effect-driven
 `router.replace` raced cold-start navigation.
 
-Keep `I18nProvider` above `HeroUINativeProvider`: HeroUI's sibling portal host must inherit Lingui
-context, including search-help components rendered inside Select overlays.
+HeroUI's sibling portal host must inherit Lingui context, including search-help components inside
+Select overlays; preserve that context when changing the provider tree.
 
-Use heroui-native components and Uniwind classes. When HeroUI Native provides an appropriate
-component, use it instead of a custom or React Native substitute. Use explicit React Native style
+Use `heroui-native` and Uniwind classes; icons use `lucide-react-native` only. Use explicit React Native style
 objects for structural layout (`flex`, row direction, gaps, dimensions) because generated utility
 availability is not reliable at runtime. Use classes for theme-aware visual styling. Every text
 element needs a visible theme-aware color or heroui-native's Typography default.
 
-`global.css` must retain `@source "./src"`; otherwise app utility classes are not generated.
+`global.css` must retain `@source "./src"` and the hoisted HeroUI library source; otherwise required
+utilities are not generated.
 
 `ThemeSync` maps Zustand `system | light | dark` to `Uniwind.setTheme`. `NavigationTheme` maps
 resolved HeroUI tokens into Expo Router's navigation theme and system status-bar mode; headers,
 scene backgrounds and bottom tabs must not fall back to a separate navigation palette. Inactive
 tab icons use `muted`; selected mobile chips and tabs must visibly reflect active state. Resolve
-native icon/style colors with `useThemeColor`, never captured palette constants. Keep the hoisted
-HeroUI library source in global CSS and retain `@source "./src"`.
-
-Use `lucide-react-native` icons only.
+native icon/style colors with `useThemeColor`, never captured palette constants.
 
 Address-book suggestions require explicit `expo-contacts` permission. Sync emails and phone numbers
 to `POST /api/contacts/sync`; persist only unambiguous registered matches in `contactLinks` and
@@ -54,21 +54,21 @@ runtime helpers instead of Lingui Babel macros.
 
 ## State, environment and native builds
 
-Read [State, cache and startup](../../docs/state-and-cache.md) before modifying reads or query families.
-Reuse the encrypted account/API-owned MMKV adapter for eligible canonical data; no screen-local cache,
-optimistic persistence, offline write replay or permission bypass. Keep the five-second total splash limit,
-three priority workers and permission-free startup; do not warm a raw address book without prior permission.
+[State, cache and startup](../../docs/state-and-cache.md) defines native persistence eligibility,
+restore/purge behavior, startup workers and the five-second total splash budget. Apply that policy
+when changing reads; no new permission prompt belongs in ordinary startup. An already granted
+contacts permission may enable bounded address-book warmup as described there.
 
 Public environment comes from `app.config.js` and `Constants.expoConfig.extra`.
 FCM may use the private `GOOGLE_SERVICES_JSON` file-secret path; never commit the generated file.
 MapLibre, MMKV/Nitro and permission/dependency changes require a fresh native build, not Expo Go or OTA alone.
 Expo web is not a product target even though the package exposes a web script.
 
-## Checks
+## Development and verification
 
-From the root: `pnpm --filter mobile test`, `pnpm --filter mobile test:coverage`,
-`pnpm --filter mobile typecheck` and `pnpm --filter mobile lint`.
-Vitest covers pure logic; React Native Flow source is not transformed for component tests.
-Use [Maestro](.maestro/README.md) for real native UI acceptance, without mocked acceptance, optional
-required steps, synthetic visibility markers, disabled animation or increased waits to hide defects.
-Keep platform-specific auth/permissions/keyboard/Settings-return and error paths covered.
+`pnpm --filter mobile dev` starts Metro for a development client, not a native build.
+Use `pnpm --filter mobile android` for local Android builds, or `pnpm --filter mobile ios` on macOS.
+The [shared validation commands](../../AGENTS.md#3-workspace-and-commands) cover pure-logic Vitest
+checks. Native component tests are not run in Vitest because React Native Flow source is not transformed.
+Use [Maestro](.maestro/README.md) for actual device UI acceptance, covering permissions, keyboard,
+Settings-return, startup and error paths. Preserve the root coverage and evidence requirements.

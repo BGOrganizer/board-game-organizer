@@ -12,8 +12,9 @@ Before implementation:
 - Inventory with `pnpm dlx skills@latest list`. Verify actual skill paths and the intended agent's
   discovery/diagnostics; a lock entry or CLI success alone does not establish availability.
 - Select explicit skill names and the intended agent on installation, in project scope; do not install
-  whole vendor collections. Managed sources/integrity live in `skills-lock.json`; the tracked
-  project-authored guide is [`.pi/skills/bgo-component-architecture/SKILL.md`](../.pi/skills/bgo-component-architecture/SKILL.md).
+  whole vendor collections. Managed sources/integrity live in `skills-lock.json`.
+  Repository-specific architecture rules live in [AGENTS.md](../AGENTS.md#4-architecture-and-ui-ownership),
+  rather than an installed skill.
 - Load the smallest applicable set. Read bundled references only as needed; inspect bundled scripts
   before executing them. Prefer first-party guides and verify community advice against installed
   versions. This file references guides; do not duplicate their full bodies here.
@@ -28,12 +29,49 @@ Before implementation:
 - Installed for future use does not mean implemented, enabled, or authorized. Report the skill names
   actually used, not every available guide. Skill installation does not prove runtime acceptance.
 
+## Project-wide programming baseline
+
+`ponytail` from [dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) is the default
+programming guide for this repository, at **full** level. Read the installed
+`.agents/skills/ponytail/SKILL.md` when implementing, fixing, refactoring, reviewing code or choosing
+dependencies in any app, package, script or workflow. Combine it with the relevant domain/platform
+guide below; it supplies implementation judgment, not framework APIs.
+
+The guide favors the smallest change that fully completes the task: inspect callers and failure
+cases, reuse existing implementations before adding code or dependencies, and avoid speculative
+abstractions/options. This aligns with [architecture ownership](../AGENTS.md#4-architecture-and-ui-ownership)
+and [verification](../AGENTS.md#7-verification); those rules stay the single source of project policy.
+
+Apply these interpretations in BGO:
+
+- Existing HeroUI components, Query ownership and platform adapters take precedence over generic
+  standard-library/native-widget examples. Reuse must respect the web/native ownership boundary.
+- A small diff still completes every authorized requirement, affected caller, EN/IT catalog and
+  required test/acceptance path. The guide's small-test baseline does not replace project gates.
+- Preserve useful comments explaining domain constraints, security and platform behavior; a short
+  code change must remain readable and correct at edge cases.
+- Report actual verification and material limits concisely. The guide's closing-note convention
+  does not require repetitive warnings or a list of irrelevant things not done.
+
+The operator can select `lite` or `ultra`, or disable Ponytail. `full` remains the project default;
+`ultra` questioning is not enabled automatically. Only the core `ponytail` skill is installed:
+review/audit/debt/gain/help companions and editor/plugin integrations are separate choices.
+
+## Choosing guides
+
+Read the applicable `SKILL.md` under `.agents/skills/<name>/` before applying it. Start with the
+smallest relevant entry below, then load another guide only when the task crosses its boundary.
+For example, a mobile translated form normally needs `expo-overview`, `heroui-native`, `uniwind`
+and `lingui-best-practices`; add Query or navigation guidance only when those behaviors change.
+A documentation-only task does not require the mobile stack.
+
 Load skills by affected task:
 
 | Task | Skills and repository-specific scope |
 | --- | --- |
+| Programming across the project | `ponytail` (full) as the baseline, then the applicable guides below |
 | React/Next.js implementation and performance | `vercel-react-best-practices`; TanStack Query, not suggested SWR, owns remote data |
-| Component architecture, extraction, or feature ownership | `bgo-component-architecture`, then `vercel-composition-patterns` and the relevant platform guide |
+| Component architecture, extraction, or feature ownership | [AGENTS.md architecture rules](../AGENTS.md#4-architecture-and-ui-ownership), then `vercel-composition-patterns` and the relevant platform guide |
 | Web UI/accessibility | `heroui-react` while implementing; `web-design-guidelines` for final review |
 | React Native rendering/lists/performance | `vercel-react-native-skills`; no automatic FlashList, NativeWind, or alternative UI dependency |
 | General Expo work/navigation | `expo-overview`, then `expo-router` only for touched routes/layouts/links/headers; generic `@expo/ui` routing is not applicable here |
@@ -54,27 +92,13 @@ Load skills by affected task:
 | Existing native Sentry integration | `sentry-react-native-sdk`; verify installed SDK/Expo APIs and existing release/Fabric safeguards; no new web/API instrumentation or SDK upgrade |
 | Development secret injection | `infisical-user-setup-guide`, with its CLI local-development reference; explicit per-app/environment scope, not a root Turbo process receiving every app's secrets |
 
-**Clerk Organizations are never BGO organizations.** BGO organizations, moderation, membership,
-permissions, and events belong to the BGO MongoDB/API domain. Do not load `clerk-orgs` for a BGO
-organization task or map BGO membership/authorization onto Clerk tenancy without an explicit domain
-change request. Shared naming is not shared identity or authority.
+## Repository safeguards
 
-Use MapTiler and installed MapLibre APIs, not Mapbox integration examples. Verified addresses and
-attribution remain mandatory. This product is noncommercial; comply with applicable quotas and
-storage/plan terms rather than inventing a commercial-subscription requirement.
-
-HeroUI and Uniwind supply the existing design system. Generic Expo examples for `@expo/ui`, native
-palette files, custom Buttons, or spinners do not supersede available HeroUI controls, existing
-CSS/tokens, or skeleton/cached-content policy. Tailwind v4 CSS advice does not apply indiscriminately
-to native structural layout. Use current library docs and established flows.
-
-Sentry examples do not authorize PII collection, replay/profiling/logging changes, sample-rate
-increases, or enabling replay/feedback in production. Preserve existing release/Fabric safeguards.
-Existing `sendDefaultPii: true` requires a separate explicit privacy review, not silent change from
-skill installation. Never put tokens, secrets, address-book data, or arbitrary request bodies in
-logs/breadcrumbs. Infisical injection likewise does not authorize credential rotation, Production,
-CORS, Vercel-sync, or identity/permission changes. Never log/export/commit private values or bake
-secrets into images. Client `NEXT_PUBLIC_*`/`EXPO_PUBLIC_*` values are public even if labeled Secret.
+The [root security rules](../AGENTS.md#9-security-configuration-and-external-services) govern Clerk
+versus BGO authority, MapTiler attribution/quotas, Sentry privacy and Infisical scope.
+Use version-matched installed MapLibre APIs rather than the generic React Native GL JS examples.
+HeroUI/Uniwind remain the UI system: no `@expo/ui` substitution, extra theme, custom spinner or
+unrequested framework. Tailwind v4 web advice does not override native structural style requirements.
 
 ## Documentation
 
@@ -82,4 +106,81 @@ Use `create-readme` for README changes and `create-agentsmd` for repository inst
 Both project-locked guides come from `github/awesome-copilot`. Generic examples never override
 repository commands, safety or package choices. If a required guide is absent, report it and
 use current code and official documentation where sufficient; do not automatically reinstall it.
-A lockfile entry alone does not establish installation or agent discovery.
+
+
+## GitHub Actions
+
+| Skill | When to use it | Application in BGO |
+| --- | --- | --- |
+| `github-actions-efficiency` | Investigate slow, queued, duplicated or expensive CI; change caching, concurrency, triggers or matrices | Measure runs and distinguish queue time, wall-clock time and runner minutes. Preserve required checks and existing deployment/acceptance gates. Separate static findings from live evidence. A suggested test push requires authorization under the current task. |
+| `github-actions-hardening` | Review workflow security or design a workflow that handles credentials, artifacts or external contributions | Map actual trigger permissions and trust boundaries; inspect expression injection, token scopes, action pins, caches and artifact provenance. Audit findings first; do not silently change provider permissions or secrets. Verify broad skill claims against actual GitHub settings and official documentation. |
+| `github-actions-templates` | Add a workflow or reusable job when existing local actions do not already cover the need | Adapt patterns to current repository versions, pnpm, Biome and existing composite actions. Examples using npm, old Node/action versions, Kubernetes or external scanners are examples, not project requirements. |
+
+For an existing CI change, start with the relevant efficiency or security guide; consult templates
+only for a concrete missing pattern. For a new workflow, use templates for structure and hardening
+for review. Read `.github/workflows`, their local actions/scripts and the affected app instructions
+before editing. Installing these guides does not itself change workflows or prove live CI behavior.
+
+## Authentication and provider operations
+
+Use `clerk` to select a focused guide; do not load the entire collection.
+
+| Skill | When to use it in this project |
+| --- | --- |
+| `clerk-nextjs-patterns` | Web/API Clerk middleware, server authentication and Next.js integration. |
+| `clerk-expo` | Mobile Clerk flows, session integration and native OAuth. |
+| `clerk-custom-ui` | Custom sign-in/sign-up flows or Clerk component appearance. |
+| `clerk-cli` | Explicit Clerk inspection or administration through the installed CLI; inspect scope before mutations. |
+| `clerk-backend-api` | Inspect or call Clerk REST endpoints when the task requires backend operations. |
+| `clerk-webhooks` | Verify webhook signatures and synchronize the existing local user mirror. |
+| `clerk-testing` | Test authenticated flows alongside the relevant Playwright or Maestro guide. |
+| `clerk-setup` | A requested new Clerk integration; ordinary maintenance uses the existing integration guides. |
+| `clerk-orgs` | Only an explicit Clerk tenancy task. BGO Groups, membership and moderation remain MongoDB/API concepts. |
+| `clerk-billing` | Only an explicitly requested billing feature; availability does not mean BGO has billing enabled. |
+
+## Additional Expo and EAS guides
+
+| Skill | When to use it in this project |
+| --- | --- |
+| `expo-project-structure` | Scaffold a new Expo project only; do not reorganize this existing app to match a template. |
+| `eas-update` | Configure or diagnose OTA updates, channels and runtime compatibility within an explicit update task. Native changes still require a new binary. |
+| `eas-update-insights` | Inspect adoption, crashes and embedded-versus-OTA usage after a published update; do not infer health from a successful upload. |
+
+`eas-app-stores`, covered above, owns production builds, signing and store submission.
+`expo-dev-client` owns development builds. Neither guide authorizes publication, signing changes,
+paid services or provider provisioning outside the requested task.
+
+## Inventory and sources
+
+`skills-lock.json` records exact source integrity. The tables above cover every locked skill;
+this source index identifies where each family comes from. The installation is project-scoped,
+not a global agent installation.
+
+| Source repository | Guides |
+| --- | --- |
+| `github/awesome-copilot` | `create-readme`, `create-agentsmd`, `github-actions-efficiency`, `github-actions-hardening` |
+| `wshobson/agents` | `github-actions-templates` |
+| `dietrichgebert/ponytail` | `ponytail` |
+| `clerk/skills` | All eleven `clerk` / `clerk-*` guides listed above |
+| `expo/skills` | All nine `expo-*` and three `eas-*` guides listed above |
+| `heroui-inc/heroui` | `heroui-react`, `heroui-native` |
+| `infisical/ai-skills` | `infisical-user-setup-guide` |
+| `lingui/skills` | `lingui-best-practices` |
+| `foreztgump/maestro-mobile-testing-skill` | `maestro-mobile-testing` |
+| `maptiler/maptiler-skills` | `maptiler` |
+| `currents-dev/playwright-best-practices-skill` | `playwright-best-practices` |
+| `getsentry/sentry-agent-skills` | `sentry-react-native-sdk` |
+| `uni-stack/uniwind` | `uniwind` |
+| `axross/skills` | `tanstack-query-development` (canonical copy missing at this inventory) |
+| `vercel-labs/agent-skills` | `vercel-composition-patterns`, `vercel-react-best-practices`, `vercel-react-native-skills`, `web-design-guidelines` (canonical copies missing at this inventory) |
+| `mkgp-dev/codex-skills` | `zustand-state-management` (canonical copy missing at this inventory) |
+
+Inventory after the Ponytail installation: **44 locked guides, 38 present under `.agents/skills`,
+6 missing canonical copies**. A missing canonical copy is not evidence that no global copy exists;
+verify discovery and source before use. These six remain documented for their intended scope,
+but are not presented as locally ready. Do not reinstall or upgrade them implicitly.
+
+To refresh the inventory, run `pnpm dlx skills@latest list --agent codex` (substitute the intended
+agent), compare it with the lockfile and check the actual `SKILL.md` paths. Keep this guide current
+when installing/removing guides. Preserve unrelated locked entries during a scoped installation;
+CLI output alone is not proof that existing guide integrity was preserved.
