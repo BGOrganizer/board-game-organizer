@@ -4,7 +4,7 @@
   <img src="docs/assets/bgo-mascot-organizer.png" alt="Board Game Organizer mascot with cards, a die and a calendar" width="320" />
 </p>
 
-[![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml)
+[![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml "CI")
 [![Codecov](https://codecov.io/gh/BGOrganizer/board-game-organizer/branch/main/graph/badge.svg)](https://codecov.io/gh/BGOrganizer/board-game-organizer)
 
 Organize board-game nights across web and native mobile: find players, manage collections,

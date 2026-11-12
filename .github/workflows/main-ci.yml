@@ -1,4 +1,4 @@
-name: 🚀 Main CI/CD (quality + coverage → release → production)
+name: Release
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
   # Every merged commit gets its own verification run; only release preparation
   # is serialized. GitHub can replace a pending run in a concurrency group.
   quality:
-    name: 🧹 Lint and typecheck merged code
+    name: Lint, typecheck and CI contracts
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -27,11 +27,10 @@ jobs:
         run: pnpm typecheck
 
       - name: 🔒 CI isolation contract
-        run: node --test .github/scripts/*.test.mjs
+        run: node --test .github/scripts/__tests__/*.test.mjs
 
-  # -------------------------------------------------- coverage upload (Codecov)
   coverage:
-    name: 📊 Coverage upload (Codecov)
+    name: Unit tests and coverage (${{ matrix.app }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -54,7 +53,7 @@ jobs:
         run: bash .github/scripts/prepare-codecov-key.sh
 
       - name: 📤 Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
@@ -68,9 +67,8 @@ jobs:
           path: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/**', matrix.app) || format('apps/{0}/coverage/**', matrix.app) }}
           if-no-files-found: warn
 
-  # -------------------------------------------------- MongoDB replica-set integration
   integration-tests:
-    name: 🐳 API integration tests (Testcontainers)
+    name: Integration tests (API)
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -84,7 +82,7 @@ jobs:
       - name: 🔏 Verify Codecov signing key
         run: bash .github/scripts/prepare-codecov-key.sh
       - name: 📤 Upload integration coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: apps/api/coverage/lcov.info
@@ -98,7 +96,7 @@ jobs:
           path: apps/api/coverage/**
           if-no-files-found: warn
   build:
-    name: 🏗️ Build (${{ matrix.app }})
+    name: Build (${{ matrix.app }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -116,7 +114,7 @@ jobs:
 
   # Release bump/tag only after every merged-code quality, coverage and build gate succeeds.
   release:
-    name: 📦 semantic-release (bump + changelog, no publish)
+    name: Prepare version and tag
     needs:
       - quality
       - coverage
@@ -191,10 +189,9 @@ jobs:
     permissions:
       contents: write
 
-  # -------------------------------------------------- mobile internal APK (build only)
   build-apk:
-    name: 📱 Build APK (internal)
-    needs: [release, coverage]
+    name: Build APK (Production)
+    needs: [release]
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     # A fresh eas build --local from a cold cache (cache key changes after the
@@ -209,15 +206,17 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha }}
 
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
 
       - name: 🔒 Require the Production Clerk public key
         env:
           CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
         run: |
           node --input-type=module <<'NODE'
-          import { requireClerkTarget } from './.github/scripts/manual-target.mjs';
+          import { requireClerkTarget } from './.github/scripts/clerk-target.mjs';
           requireClerkTarget('production', process.env.CLERK_PUBLISHABLE_KEY, 'pk');
           NODE
       - name: 🏗️ Build APK (eas build --local, internal profile)
@@ -228,7 +227,7 @@ jobs:
           expo-token: ${{ secrets.EXPO_TOKEN }}
           # Production build: the released APK must talk to the LIVE Clerk
           # instance (pk_live). The pk_test variable stays for preview builds
-          # (PR and Preview-targeted manual builds).
+          # (PR builds).
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
           api-url: https://api.board-game-organizer.com
           maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
@@ -253,9 +252,8 @@ jobs:
           if-no-files-found: error
     environment: production
 
-  # -------------------------------------------------- production deploys
   deploy-production:
-    name: 🚀 Vercel production (${{ matrix.app }})
+    name: Deploy ${{ matrix.app }} (Production)
     needs: [release, build-apk]
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
@@ -279,9 +277,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.release.outputs.sha }}
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
 
       - name: 🔒 Ensure this release is still latest
         env:
@@ -322,9 +317,8 @@ jobs:
       contents: read
       statuses: write
 
-  # ------------------------------------------------ publish release (after ALL gates)
   publish-release:
-    name: 📦 Publish release v${{ needs.release.outputs.version }}
+    name: Publish release v${{ needs.release.outputs.version }}
     needs:
       - release
       - build-apk
@@ -343,6 +337,8 @@ jobs:
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
+        with:
+          install: 'false'
 
       - name: 📥 Download internal APK
         uses: actions/download-artifact@v4
@@ -369,7 +365,7 @@ jobs:
         run: |
           APK=$(find "$GITHUB_WORKSPACE/apk" -name '*.apk' -print -quit)
           test -n "$APK"
-          npm install -g eas-cli@latest
+          pnpm add --global eas-cli@27.7.2
           node ../../.github/scripts/eas-upload.mjs "$APK"
 
       - name: 📦 Stage release notes from the pinned bump commit
@@ -475,9 +471,8 @@ jobs:
       contents: write
     environment: production
 
-  # -------------------------------------------------- Telegram notification
   notify-telegram:
-    name: 📣 Telegram release notification
+    name: Notify Telegram
     needs: [release, publish-release, deploy-production]
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
@@ -490,6 +485,9 @@ jobs:
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
+        with:
+          install: 'false'
+
       - name: 🔒 Notify only the current production release
         env:
           RELEASE_SHA: ${{ needs.release.outputs.sha }}

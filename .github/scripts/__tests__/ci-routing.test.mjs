@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveCiContext } from "./ci-context.mjs";
-import { requireCurrentPr } from "./ci-current-pr.mjs";
-import { internalJobs, qualityJobs, verifyCiGate } from "./ci-gate.mjs";
+import { resolveCiContext } from "../ci-context.mjs";
+import { requireCurrentPr } from "../ci-current-pr.mjs";
+import { internalJobs, qualityJobs, verifyCiGate } from "../ci-gate.mjs";
 
 const repository = "BGOrganizer/board-game-organizer",
   sha = "a".repeat(40),

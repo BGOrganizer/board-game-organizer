@@ -10,7 +10,7 @@ import {
   mobileBuildJob,
   mobileLockGraph,
   sourceAffectsMobile,
-} from "./mobile-build-changed.mjs";
+} from "../mobile-build-changed.mjs";
 
 const repo = mkdtempSync(join(tmpdir(), "mobile-build-changed-"));
 after(() => rmSync(repo, { recursive: true, force: true }));

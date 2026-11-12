@@ -3,7 +3,7 @@
 // Used by the PR pipeline to build the draft-release changelog.
 //
 // Usage: node scripts/release/pr-changelog.mjs <base-ref> <head-ref>
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 const [base, head] = process.argv.slice(2);
 if (!base || !head) {
@@ -11,7 +11,11 @@ if (!base || !head) {
   process.exit(1);
 }
 
-const commits = execSync(`git log --pretty=format:%s ${base}...${head}`, { encoding: "utf8" })
+const commits = execFileSync(
+  "git",
+  ["log", "--pretty=format:%s", "--end-of-options", `${base}...${head}`],
+  { encoding: "utf8" },
+)
   .split("\n")
   .filter(Boolean);
 

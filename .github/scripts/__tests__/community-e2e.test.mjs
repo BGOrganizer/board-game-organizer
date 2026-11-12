@@ -9,21 +9,21 @@ import { runInNewContext } from "node:vm";
 import { parseAllDocuments } from "yaml";
 
 const action = readFileSync(
-  new URL("../actions/maestro-e2e/action.yml", import.meta.url),
+  new URL("../../actions/maestro-e2e/action.yml", import.meta.url),
   "utf8",
 ).replace(/\r\n/g, "\n");
-const script = readFileSync(new URL("./maestro-e2e.sh", import.meta.url), "utf8").replace(
+const script = readFileSync(new URL(".././maestro-e2e.sh", import.meta.url), "utf8").replace(
   /\r\n/g,
   "\n",
 );
 const workflows = ["pr-ci.yml"].map((name) =>
-  readFileSync(new URL(`../workflows/${name}`, import.meta.url), "utf8").replace(/\r\n/g, "\n"),
+  readFileSync(new URL(`../../workflows/${name}`, import.meta.url), "utf8").replace(/\r\n/g, "\n"),
 );
 const flows = [...workflows[0].matchAll(/^\s+flow: ([\w-]+)$/gm)].map((match) => match[1]);
 
 // Read actual reachable subflows with their declared parameters, not unused helper text.
 function nativeSteps(name, env = {}, stack = []) {
-  const url = new URL(`../../apps/mobile/.maestro/${name}`, import.meta.url);
+  const url = new URL(`../../../apps/mobile/.maestro/${name}`, import.meta.url);
   assert(!stack.includes(url.href), `Recursive native flow: ${name}`);
   const docs = parseAllDocuments(readFileSync(url, "utf8"));
   for (const doc of docs) assert.deepEqual(doc.errors, []);
@@ -62,7 +62,7 @@ const contains = (steps, command, value) =>
   steps.some((step) => JSON.stringify(step[command]) === JSON.stringify(value));
 test("workspace discovers only the canonical ordered journeys, never helpers or missing-fixture scenarios", () => {
   const docs = parseAllDocuments(
-    readFileSync(new URL("../../apps/mobile/.maestro/config.yaml", import.meta.url), "utf8"),
+    readFileSync(new URL("../../../apps/mobile/.maestro/config.yaml", import.meta.url), "utf8"),
   );
   assert.equal(docs.length, 1);
   assert.deepEqual(docs[0].errors, []);
@@ -161,7 +161,7 @@ test("native photo variants converge on required uploaded organization artwork",
 
 test("native calendar scripts reject impossible dates, including non-leap February", () => {
   const source = readFileSync(
-    new URL("../../apps/mobile/.maestro/helpers/event-date.js", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/helpers/event-date.js", import.meta.url),
     "utf8",
   );
   for (const DATE of ["02/29/2030", "02/30/2032", "04/31/2030", "01/01/1999"])
@@ -183,7 +183,9 @@ test("native acceptance flows are invoked and require real, distinct JUnit repor
   for (const name of ["08-groups", "09-group-invitations", "12-organizations", "13-event-draft"])
     assert(flows.includes(name), `${name} missing from the executable Maestro commands`);
   for (const name of flows)
-    assert(existsSync(new URL(`../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url)));
+    assert(
+      existsSync(new URL(`../../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url)),
+    );
   assert(script.includes('--output "/tmp/maestro-reports/$FLOW.xml"'));
   assert(script.includes('--test-output-dir "/tmp/maestro-debug/$FLOW"'));
   assert(script.includes("trap persist EXIT"));
@@ -233,7 +235,7 @@ test("PR native acceptance attempts every flow after a failure without weakening
   }
   assert.doesNotMatch(native, /continue-on-error/);
   const watchdog = readFileSync(
-    new URL("../workflows/pr-ci-fail-fast.yml", import.meta.url),
+    new URL("../../workflows/pr-ci-fail-fast.yml", import.meta.url),
     "utf8",
   );
   assert(watchdog.includes("ci-fail-fast.mjs"));
@@ -241,7 +243,7 @@ test("PR native acceptance attempts every flow after a failure without weakening
 });
 test("managed HeroUI patch preserves popup sizing, controlled initial sheet index and genuine pan closure", () => {
   const patch = readFileSync(
-    new URL("../../patches/heroui-native@1.0.9.patch", import.meta.url),
+    new URL("../../../patches/heroui-native@1.0.9.patch", import.meta.url),
     "utf8",
   );
   assert.equal((patch.match(/^diff --git /gm) ?? []).length, 8);
@@ -258,7 +260,7 @@ test("managed HeroUI patch preserves popup sizing, controlled initial sheet inde
       "+          index={isOpen ? (initialIndex ?? 0) : -1}",
     ],
   );
-  const workspace = readFileSync(new URL("../../pnpm-workspace.yaml", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../../../pnpm-workspace.yaml", import.meta.url), "utf8");
   assert(workspace.includes("heroui-native@1.0.9: patches/heroui-native@1.0.9.patch"));
   for (const [path, expected] of [
     [
@@ -279,7 +281,7 @@ test("managed HeroUI patch preserves popup sizing, controlled initial sheet inde
     ],
   ]) {
     const installed = readFileSync(
-      new URL(`../../node_modules/heroui-native/${path}`, import.meta.url),
+      new URL(`../../../node_modules/heroui-native/${path}`, import.meta.url),
       "utf8",
     );
     const driven = installed.split("if (isDrivenEntering) {")[1].split("// Fallback path:")[0];
@@ -317,14 +319,14 @@ test("managed HeroUI patch preserves popup sizing, controlled initial sheet inde
     ],
   ]) {
     assert.match(
-      readFileSync(new URL(`../../node_modules/heroui-native/${path}`, import.meta.url), "utf8"),
+      readFileSync(new URL(`../../../node_modules/heroui-native/${path}`, import.meta.url), "utf8"),
       expected,
     );
   }
 });
 test("fresh native launch preserves real contacts and notification permission prompts", () => {
   const welcome = readFileSync(
-    new URL("../../apps/mobile/.maestro/flows/01-launch-welcome.yaml", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/flows/01-launch-welcome.yaml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
   const launch = welcome.split("- launchApp:")[1]?.split(/\n- /)[0];
@@ -368,19 +370,19 @@ test("native help and legends wait for visible portal content without dropping a
 });
 test("native device verification uses Clerk development fixtures, without disabling Device Trust", () => {
   const provision = readFileSync(
-    new URL("../actions/provision-e2e-user/action.yml", import.meta.url),
+    new URL("../../actions/provision-e2e-user/action.yml", import.meta.url),
     "utf8",
   );
   assert.match(provision, /case "\$CLERK_SECRET_KEY" in\s+sk_test_\*/);
   assert.equal((provision.match(/\+clerk_test@gmail\.com/g) ?? []).length, 2);
   const helper = readFileSync(
-    new URL("../../apps/mobile/.maestro/helpers/verify-clerk-device.yaml", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/helpers/verify-clerk-device.yaml", import.meta.url),
     "utf8",
   );
   assert(helper.includes('visible: "Check your email|Mobile number|Matches"'));
   assert(helper.includes('inputText: "424242"'));
   const signIn = readFileSync(
-    new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
     "utf8",
   );
   assert(signIn.includes('visible: "^Email address$"'));
@@ -421,7 +423,7 @@ test("native sign-in fully replaces remembered actor/target credentials before a
   const targetEmail = "e2e_target.38247581797.1.abcdef+clerk_test@gmail.com";
   assert(targetEmail.length > 50 && targetEmail.length <= 100);
   const signIn = readFileSync(
-    new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
   assert(signIn.includes('visible: "Last used"'));
@@ -445,7 +447,7 @@ test("native sign-in fully replaces remembered actor/target credentials before a
     /inputText: \$\{AUTH_EMAIL\}\n- assertVisible: \$\{output.authEmailPattern\}\n- tapOn: "Continue"/,
   );
   const script = readFileSync(
-    new URL("../../apps/mobile/.maestro/helpers/auth-email.js", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/helpers/auth-email.js", import.meta.url),
     "utf8",
   );
   const output = {};
@@ -469,7 +471,7 @@ test("native sign-in fully replaces remembered actor/target credentials before a
 });
 test("native country search verifies complete input before empty and short-code outcomes", () => {
   const login = readFileSync(
-    new URL("../../apps/mobile/.maestro/flows/02-login.yaml", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/flows/02-login.yaml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
   for (const [character, prefix] of [
@@ -501,7 +503,7 @@ test("native country search verifies complete input before empty and short-code 
 });
 test("native password entry selects the input placeholder, never the heading or account hint", () => {
   const signIn = readFileSync(
-    new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
     "utf8",
   );
   const selector = signIn.match(/^- tapOn: "([^"\n]*assword[^"\n]*)"$/m)?.[1];
@@ -559,7 +561,7 @@ test("contact searches wait for API results, not an already-visible address-book
   );
   assert(contains(steps, "runScript", "contact-email.js"));
   const script = readFileSync(
-    new URL("../../apps/mobile/.maestro/helpers/contact-email.js", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/helpers/contact-email.js", import.meta.url),
     "utf8",
   );
   const context = { CONTACT_EMAIL: "fixture+clerk_test@example.test", output: {} };
@@ -574,7 +576,7 @@ test("contact searches wait for API results, not an already-visible address-book
 
 test("native profile completion closes only the actual keyboard before Continue", () => {
   const flow = readFileSync(
-    new URL("../../apps/mobile/.maestro/flows/02-login.yaml", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/flows/02-login.yaml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
   const completion = flow.split('- inputText: "not a formatted phone"')[1];
@@ -627,7 +629,7 @@ test("native community acceptance follows confirmed counts and table-only legend
 test("native event acceptance uses the catalog game actually seeded by CI", () => {
   const steps = journey("13-event-draft");
   const seed = readFileSync(
-    new URL("../../apps/api/src/app/api/admin/ci-db/route.ts", import.meta.url),
+    new URL("../../../apps/api/src/app/api/admin/ci-db/route.ts", import.meta.url),
     "utf8",
   );
   assert(seed.includes('name: "Cascadia"'));
@@ -641,13 +643,13 @@ test("the gallery fixture is committed and pushed to the emulator before communi
   assert(push >= 0);
   assert(script.includes('if [ "$FLOW" = "12-organizations" ]'));
   assert(push < script.indexOf("maestro test"));
-  assert(existsSync(new URL("../../apps/mobile/assets/icon.png", import.meta.url)));
+  assert(existsSync(new URL("../../../apps/mobile/assets/icon.png", import.meta.url)));
   assert(script.includes("android.intent.action.MEDIA_SCANNER_SCAN_FILE"));
 });
 
 test("emulator survives successful boot only, with guaranteed job teardown", () => {
   const emulator = readFileSync(
-    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    new URL("../../actions/android-emulator/action.yml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
   assert(emulator.includes("nohup bash -c '"));
@@ -661,7 +663,7 @@ test("emulator survives successful boot only, with guaranteed job teardown", () 
 });
 test("emulator watcher records the real child PID and exit status with supported software rendering", () => {
   const emulator = readFileSync(
-    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    new URL("../../actions/android-emulator/action.yml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
   assert.match(emulator, /-gpu swiftshader -memory/);
@@ -699,7 +701,7 @@ test("emulator watcher records the real child PID and exit status with supported
 
 test("native UI acceptance installs and selects rendering-enabled Google APIs for Expo Location, never ATD", () => {
   const emulator = readFileSync(
-    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    new URL("../../actions/android-emulator/action.yml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
   assert(emulator.includes('"$SDKMGR" "system-images;android-34;google_apis;x86_64"'));
@@ -739,7 +741,7 @@ test("native UI acceptance installs and selects rendering-enabled Google APIs fo
 });
 test("native boot verifies KVM and never falls back to software CPU emulation", () => {
   const emulator = readFileSync(
-    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    new URL("../../actions/android-emulator/action.yml", import.meta.url),
     "utf8",
   );
   for (const guard of ["test -c /dev/kvm", "test -r /dev/kvm", "test -w /dev/kvm"])
@@ -757,7 +759,7 @@ test("native boot verifies KVM and never falls back to software CPU emulation", 
 });
 test("KVM permission checks await the triggered rule and fail before the accelerator probe when denied", () => {
   const emulator = readFileSync(
-    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    new URL("../../actions/android-emulator/action.yml", import.meta.url),
     "utf8",
   );
   const guards = emulator.match(/# Fail early[^\n]*\n([\s\S]*?)# Keep the same emulator/)[1];
@@ -810,7 +812,7 @@ test("KVM permission checks await the triggered rule and fail before the acceler
 });
 test("group update acceptance targets the saved detail heading instead of duplicate toast/form text", () => {
   const groups = readFileSync(
-    new URL("../../apps/web/e2e/groups.spec.ts", import.meta.url),
+    new URL("../../../apps/web/e2e/groups.spec.ts", import.meta.url),
     "utf8",
   );
   assert.doesNotMatch(groups, /page\.getByText\("Updated Players"\)/);
@@ -821,7 +823,7 @@ test("group update acceptance targets the saved detail heading instead of duplic
 });
 test("boot lifetime spans steps, but failed boot kills its process", () => {
   const emulator = readFileSync(
-    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    new URL("../../actions/android-emulator/action.yml", import.meta.url),
     "utf8",
   );
   const trap = emulator.match(/^\s*(trap 'if \[ "\$EMULATOR_READY".* EXIT)$/m)?.[1];
@@ -1026,7 +1028,7 @@ test("final dark-mode acceptance signs out explicitly without clearing authentic
 
 test("native event date selects the real calendar year, month and fully qualified day", () => {
   const source = readFileSync(
-    new URL("../../apps/mobile/.maestro/helpers/event-date.js", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/helpers/event-date.js", import.meta.url),
     "utf8",
   );
   const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
@@ -1047,7 +1049,7 @@ test("native event date selects the real calendar year, month and fully qualifie
   ])
     assert.throws(() => runInNewContext(source, { DATE, maestro: { copiedText }, output: {} }));
   const helper = readFileSync(
-    new URL("../../apps/mobile/.maestro/helpers/event-date.yaml", import.meta.url),
+    new URL("../../../apps/mobile/.maestro/helpers/event-date.yaml", import.meta.url),
     "utf8",
   );
   assert(helper.includes('id: "android:id/date_picker_header_date"'));
@@ -1081,7 +1083,7 @@ test("native BGG collection uses its seeded actor and the current four-step matc
 test("native group invitations settle confirmations, handle permission and verify removal on the actual group list", () => {
   const setup = parseAllDocuments(
     readFileSync(
-      new URL("../../apps/mobile/.maestro/helpers/friendship-create.yaml", import.meta.url),
+      new URL("../../../apps/mobile/.maestro/helpers/friendship-create.yaml", import.meta.url),
       "utf8",
     ),
   )[1].toJSON();
@@ -1336,15 +1338,15 @@ test("retained legacy preference flow requires explicit sheet closure before edi
 
 test("unified table scores retain native focus handlers and keyboard-relative positioning", () => {
   const editor = readFileSync(
-    new URL("../../apps/mobile/src/components/events/TableScoreEditor.tsx", import.meta.url),
+    new URL("../../../apps/mobile/src/components/events/TableScoreEditor.tsx", import.meta.url),
     "utf8",
   );
   const input = readFileSync(
-    new URL("../../apps/mobile/src/components/common/ui/Input.tsx", import.meta.url),
+    new URL("../../../apps/mobile/src/components/common/ui/Input.tsx", import.meta.url),
     "utf8",
   );
   const focus = readFileSync(
-    new URL("../../apps/mobile/src/lib/useInputFocus.ts", import.meta.url),
+    new URL("../../../apps/mobile/src/lib/useInputFocus.ts", import.meta.url),
     "utf8",
   );
   assert(editor.includes('import { Input } from "@/components/common/ui/Input"'));
@@ -1521,7 +1523,7 @@ test("native command artifacts redact raw and JSON-escaped credentials before up
 
 test("JUnit validation fails closed for absent, fabricated, skipped, failed, or malformed results", () => {
   const folder = mkdtempSync(join(tmpdir(), "bgo-maestro-junit-"));
-  const script = fileURLToPath(new URL("./verify-maestro-reports.py", import.meta.url));
+  const script = fileURLToPath(new URL(".././verify-maestro-reports.py", import.meta.url));
   const file = join(folder, "01-launch-welcome.xml");
   const run = (...names) =>
     spawnSync(process.platform === "win32" ? "python" : "python3", [script, folder, ...names], {

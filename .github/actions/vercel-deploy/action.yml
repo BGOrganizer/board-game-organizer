@@ -56,7 +56,7 @@ runs:
 
     - name: 📦 Install Vercel CLI
       shell: bash
-      run: npm i -g vercel@latest
+      run: pnpm add --global vercel@65.14.0
 
     - name: 🔗 Stage Vercel project link
       shell: bash
@@ -136,9 +136,10 @@ runs:
       uses: actions/github-script@v7
       env:
         APP_NAME: ${{ inputs.app-name }}
+        DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
       with:
         script: |
-          const url = '${{ steps.deploy.outputs.url }}';
+          const url = process.env.DEPLOYMENT_URL;
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
@@ -151,10 +152,11 @@ runs:
       uses: actions/github-script@v7
       env:
         APP_NAME: ${{ inputs.app-name }}
+        DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
         STATUS_CONTEXT: ${{ inputs.status-context }}
       with:
         script: |
-          const url = '${{ steps.deploy.outputs.url }}';
+          const url = process.env.DEPLOYMENT_URL;
           github.rest.repos.createCommitStatus({
             owner: context.repo.owner,
             repo: context.repo.repo,

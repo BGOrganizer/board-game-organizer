@@ -26,7 +26,7 @@ test("composite mobile action takes the public key as input, never unsupported v
 
 test("every mobile-build caller explicitly supplies the repository MapTiler variable", () => {
   let callers = 0;
-  for (const name of ["pr-ci.yml", "main-ci.yml", "mobile-development.yml"]) {
+  for (const name of ["pr-ci.yml", "main-ci.yml"]) {
     const lines = readFileSync(`.github/workflows/${name}`, "utf8").split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
       if (!lines[i].includes("uses: ./.github/actions/mobile-build")) continue;
@@ -46,7 +46,7 @@ test("every mobile-build caller explicitly supplies the repository MapTiler vari
 
 test("web validates real public keys inside the remote build, not a Secret-masked pull", () => {
   assert.doesNotMatch(deployAction, /vercel pull|vercel build|--prebuilt/);
-  const url = new URL("../../apps/web/next.config.ts", import.meta.url).href;
+  const url = new URL("../../../apps/web/next.config.ts", import.meta.url).href;
   const run = (overrides = {}) =>
     spawnSync(process.execPath, ["-e", `import(${JSON.stringify(url)})`], {
       encoding: "utf8",

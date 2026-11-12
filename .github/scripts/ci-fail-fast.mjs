@@ -3,6 +3,13 @@ import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 const shared = new Set([
+  "Route branch / PR",
+  "Check commits",
+  "Lint and CI contracts",
+  "Typecheck",
+  "Integration tests (API)",
+  "Build API",
+  "Build Web",
   "🔀 Resolve CI context",
   "💬 commitlint (Conventional Commits)",
   "🧹 Biome lint & format",
@@ -16,7 +23,7 @@ export function sharedQualityFailed(jobs) {
     (job) =>
       ["failure", "timed_out", "startup_failure"].includes(job.conclusion) &&
       (shared.has(job.name) ||
-        /^🧪 Unit tests \((mobile|web|api|schemas|shared)\)( \+ coverage)?$/.test(job.name)),
+        /^(?:🧪 )?Unit tests \((mobile|web|api|schemas|shared)\)( \+ coverage)?$/.test(job.name)),
   );
 }
 async function main() {
@@ -29,6 +36,8 @@ async function main() {
       `https://api.github.com/repos/${repository}/actions/runs/${id}${path}`,
       {
         method,
+        redirect: "error",
+        signal: AbortSignal.timeout(30_000),
         headers: {
           Authorization: `Bearer ${process.env.GH_TOKEN}`,
           Accept: "application/vnd.github+json",

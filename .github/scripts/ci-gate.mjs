@@ -5,7 +5,6 @@ export const qualityJobs = ["commitlint", "lint", "typecheck", "unit-tests", "in
 export const internalJobs = [
   "build-api",
   "build-web",
-  "detect-mobile-changes",
   "deploy-preview-api",
   "deploy-preview-web",
   "build-mobile-internal",

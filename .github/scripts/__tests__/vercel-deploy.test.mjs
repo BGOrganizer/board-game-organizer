@@ -149,7 +149,7 @@ test("remote configuration builds and publishes only the selected monorepo app",
 });
 
 test("remote API build validates real base DB and webhook routing before switching to isolated DB", () => {
-  const url = new URL("../../apps/api/next.config.ts", import.meta.url).href;
+  const url = new URL("../../../apps/api/next.config.ts", import.meta.url).href;
   const run = (overrides = {}) =>
     spawnSync(
       process.execPath,

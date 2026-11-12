@@ -1,8 +1,8 @@
-name: PR CI cancellation cleanup
+name: CI cleanup
 
 on:
   workflow_run:
-    workflows: ["🚦 PR CI/CD (quality gates → draft prerelease + Telegram)"]
+    workflows: ["CI", "🚦 PR CI/CD (quality gates → draft prerelease + Telegram)"]
     types: [completed]
 
 permissions:
@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   cleanup:
+    name: Recover CI users and database
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion != 'success' &&
@@ -21,6 +22,10 @@ jobs:
       # workflow_run executes trusted default-branch code, never the PR checkout.
       - name: 📥 Checkout trusted cleanup code
         uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
       - name: 🗑️ Remove only this run's CI users and database
         env:
           GH_TOKEN: ${{ github.token }}

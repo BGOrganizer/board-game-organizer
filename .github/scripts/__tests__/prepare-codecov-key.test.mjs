@@ -6,7 +6,7 @@ import { delimiter, join, resolve } from "node:path";
 import { test } from "node:test";
 
 const fingerprint = "27034E7FDB850E0BBC2C62FF806BB28AED779869";
-const script = resolve(import.meta.dirname, "prepare-codecov-key.sh").replaceAll("\\", "/");
+const script = resolve(import.meta.dirname, "../prepare-codecov-key.sh").replaceAll("\\", "/");
 function run(mode) {
   const dir = mkdtempSync(join(tmpdir(), "bgo-codecov-key-"));
   const state = dir.replaceAll("\\", "/");
@@ -73,7 +73,7 @@ for (const mode of ["unavailable", "malformed", "wrong", "multiple", "import-fai
   });
 
 test("retains provider signature/checksum verification and blocking PR upload gates", () => {
-  const workflow = readFileSync(resolve(import.meta.dirname, "../workflows/pr-ci.yml"), "utf8");
+  const workflow = readFileSync(resolve(import.meta.dirname, "../../workflows/pr-ci.yml"), "utf8");
   assert.equal(
     (workflow.match(/run: bash \.github\/scripts\/prepare-codecov-key\.sh/g) ?? []).length,
     2,

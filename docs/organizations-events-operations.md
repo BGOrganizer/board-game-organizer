@@ -133,6 +133,37 @@ retained suites. No skips or script/VM tests establish authenticated browser/nat
 Main delivery and manual operations follow the explicit operator-approved policy below; these
 PR changes alone do not establish live default-branch activation.
 
+### Workflow names and required checks
+
+The short workflow names are `CI`, `Release`, `CI cleanup`, `CI watchdog` and `Test users`.
+Controller subscriptions and APK reuse accept both old and new source labels during rollout;
+the watchdog also recognizes old and new shared-quality job names. The final aggregate check
+keeps its existing `PR ready` / `Branch checks` labels.
+
+Renaming workflow/job display names requires a coordinated default-branch rollout and review of
+GitHub branch-protection required checks. The current remote configuration still lists historical
+individual job labels, including retired labels; editing YAML does not migrate these settings.
+Do not claim that new check labels satisfy those historical requirements. Changing required checks
+is a separate repository-settings operation, not performed by this local workflow refactor.
+
+### CI script ownership and cleanup safety
+
+Deploy composites own their minimal tool setup; native builds own dependency installation unless
+APK cache inspection has already installed the same checkout. Publication/notification helpers
+need Node and CLI tools, not an application dependency install. Unit/integration/build jobs keep
+their locked workspace installation and the two publication lanes remain independent.
+
+Per-run cleanup deletes explicit provisioned IDs and/or the exact run/attempt username namespace;
+it never falls through to an age sweep. The scheduled sweep requires a development Clerk key,
+E2E metadata, a recognized owner namespace and minimum age, then verifies a completed same-repository
+PR CI run through GitHub. Active/queued reruns, unknown legacy owners and unavailable ownership
+verification never authorize deletion. Candidate pages are collected before deletion to avoid
+shifting Clerk pagination offsets. Production Clerk keys are rejected before requests.
+
+CLI pins, third-party action SHAs, cleanup regression tests and local validation commands are
+indexed in [.github/README.md](../.github/README.md). No remote settings or services are changed by
+local tests, and local checks do not establish device/E2E acceptance or measured CI savings.
+
 ### Activate trusted controllers before relying on lane independence
 
 `pr-ci-fail-fast.yml` and `pr-ci-cleanup.yml` execute trusted **default-branch** definitions, not
@@ -155,14 +186,14 @@ The independently applicable trusted-controller bundle is:
 .github/workflows/pr-ci-fail-fast.yml
 .github/workflows/pr-ci-cleanup.yml
 .github/scripts/ci-fail-fast.mjs
-.github/scripts/ci-fail-fast.test.mjs
+.github/scripts/__tests__/ci-fail-fast.test.mjs
 .github/scripts/cleanup-pr-e2e.sh
 .github/scripts/cleanup-e2e-clerk-users.sh
 ```
 
 Use these files from the verified implementation revision on a new branch based on current `main`,
 not a cherry-pick that implicitly imports the whole feature branch. Run the standalone watchdog
-check (`node --test .github/scripts/ci-fail-fast.test.mjs`), shell syntax and workflow validation.
+check (`node --test .github/scripts/__tests__/ci-fail-fast.test.mjs`), shell syntax and workflow validation.
 Opening that maintenance PR or merging it still requires the operator's explicit scope; do not
 push directly to `main`. Observe actual trusted runs after activation before migrating settings.
 
@@ -197,7 +228,7 @@ gh api repos/BGOrganizer/board-game-organizer/commits/HEAD_SHA/check-runs --pagi
 
 Local routing, gate, mocked-HTTP and DAG tests plus actionlint validate source behavior only.
 They do not change live branch settings, deploy a trusted controller or attest provider/device E2E.
-Run the regression suite with `node --test .github/scripts/*.test.mjs`.
+Run the regression suite with `node --test .github/scripts/__tests__/*.test.mjs`.
 
 ## APK rebuild and reuse
 
@@ -239,21 +270,12 @@ that recovery as an incidental documentation change.
 Preview/test Clerk uses `CLERK_SECRET_KEY`; Production uses `CLERK_SECRET_KEY_PRODUCTION` and
 production publishable keys. Never mix instances: their tokens are not interchangeable.
 
-`mobile-development.yml` remains `main`-only and now selects `preview` or `production`. Both use
-the same distributable `internal` profile/action, 180-minute allowance, MapTiler/Sentry and optional
-FCM inputs as PR Development; `development` in this workflow does not mean a development client.
-Preview requires an immutable owned API deployment URL; Production defaults to the fixed
-`https://api.board-game-organizer.com`. Inputs reject credentials, extra paths/query/hash, non-HTTPS
-or foreign targets. Preview ownership is checked against the configured Vercel API project before
-forwarding application credentials. Runtime attestation requires a non-CI database matching its
-webhook database. API/Clerk test/live families are selected explicitly through the target's GitHub
-`development`/`production` environment; a missing Production key never falls back to a test key.
-The run publishes environment-labeled APK/checksum/source artifacts, not a Preview attachment on
-an unrelated Production release. Download these from that workflow run; no release/store deployment
-is implied by a successful manual build.
+The standalone manual mobile-build and BGG import workflows have been removed. Mobile delivery
+uses the PR/main pipelines. Remote catalog imports remain available through
+[the import CLI](../apps/api/scripts/import-boardgames.mjs) and the direct database importer.
+Operators must verify the intended API/database and Clerk environment before forwarding credentials.
 
-`import-boardgames.yml` uses the same target/ownership/runtime checks and explicit Clerk key
-selection. CSV URLs must be public HTTPS (workflow inputs are not secret storage). Its Node importer
+The Node importer
 and the direct Preview-only MongoDB importer share `parseBoardGamesCsv`, the strict complete
 16-column model and repository upserts by BGG ID. BOM, quoted/reordered columns, expansion flags,
 zero ranks/averages and nullable category ranks are preserved. Missing catalog rows/history are not
@@ -267,7 +289,7 @@ do not perform full-catalog thumbnail cleanup. Preview bypass stays a separate m
 URL-encoded inside the importer, never interpolated into logged workflow outputs. HTTP redirects
 and response-body logging remain disallowed when forwarding credentials.
 
-Source/static/mocked-HTTP checks do not dispatch these workflows, attest configured live values or
+Source/static/mocked-HTTP checks do not attest configured live values or
 perform real catalog imports/deployments. Activation still follows protected-main review/merge.
 
 ## EAS registration quota

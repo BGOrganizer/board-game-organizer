@@ -1,4 +1,4 @@
-name: E2E user cleanup
+name: Test users
 
 on:
   schedule:
@@ -7,16 +7,22 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   cleanup:
-    name: Cleanup orphaned Clerk E2E users
+    name: Clean orphaned test users
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
       - name: Delete E2E users older than two hours
         env:
+          GH_TOKEN: ${{ github.token }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           E2E_USER_MAX_AGE_SECONDS: "7200"
         run: bash .github/scripts/cleanup-e2e-clerk-users.sh

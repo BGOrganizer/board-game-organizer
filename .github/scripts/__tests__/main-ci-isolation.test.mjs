@@ -92,7 +92,7 @@ test("unit and integration Codecov uploads fail closed and retain coverage repor
     const signing = jobs[id].steps.find(
       (s) => s.run === "bash .github/scripts/prepare-codecov-key.sh",
     );
-    const upload = jobs[id].steps.find((s) => s.uses === "codecov/codecov-action@v5");
+    const upload = jobs[id].steps.find((s) => s.uses?.startsWith("codecov/codecov-action@"));
     assert(signing);
     assert.equal(signing["continue-on-error"], undefined);
     assert.equal(upload.if, undefined);
@@ -103,7 +103,8 @@ test("unit and integration Codecov uploads fail closed and retain coverage repor
     );
   }
   assert.equal(
-    jobs["integration-tests"].steps.find((s) => s.uses === "codecov/codecov-action@v5").with.flags,
+    jobs["integration-tests"].steps.find((s) => s.uses?.startsWith("codecov/codecov-action@")).with
+      .flags,
     "integration",
   );
   for (const [label, config] of [
@@ -113,7 +114,7 @@ test("unit and integration Codecov uploads fail closed and retain coverage repor
     assert(config.strategy.matrix.app.includes("schemas"), label);
     assert(config.strategy.matrix.app.includes("shared"), label);
     assert.match(
-      config.steps.find((s) => s.uses === "codecov/codecov-action@v5").with.files,
+      config.steps.find((s) => s.uses?.startsWith("codecov/codecov-action@")).with.files,
       /packages\/\{0\}\/coverage\/lcov\.info/,
     );
   }

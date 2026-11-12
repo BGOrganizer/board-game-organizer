@@ -57,10 +57,11 @@ The Compose importer stages and validates CSV rows, then merges them into `board
 missing catalog games and XML-enriched fields remain intact. It does not replace the catalog.
 Every container start repeats the import before becoming healthy. `docker compose down` preserves the volume.
 
-Remote imports use [the catalog workflow](../.github/workflows/import-boardgames.yml) and
-[the import CLI](../apps/api/scripts/import-boardgames.mjs). The direct database alternative is
+Remote imports use [the import CLI](../apps/api/scripts/import-boardgames.mjs). The direct database alternative is
 [import-boardgames-direct.ts](../apps/api/scripts/import-boardgames-direct.ts).
 These are operator tasks with explicit environment/credential checks, not application startup steps.
+The manual BGG import and standalone mobile-build GitHub workflows have been removed;
+mobile delivery remains in the PR/main pipelines.
 Both remote and direct import use the complete rankings CSV parser.
 
 User synchronization requests owned games (`own=1`) in separate base-game and expansion partitions;
@@ -88,7 +89,7 @@ plurality; ties, absent rows and zero samples are unknown. These are community p
 not replacements for hard min/max players. Omitted/invalid polls preserve previous verified data
 and do not acquire a new success timestamp. The existing quota, retry and HTTP 202/429 backoff apply.
 
-After a complete successful remote CSV import, the import workflow script follows with bounded
+After a complete successful remote CSV import, the import CLI follows with bounded
 enrichment of the first 200 base games with positive integer general rank, sorted by rank then ID.
 Each API request hydrates at most 20 IDs under the shared quota; orchestration stays in the CLI.
 Partial CSV runs do not start enrichment. Fresh records are skipped; incomplete batches report
@@ -104,10 +105,33 @@ the push run routes without duplicating it. Internal validation and Development 
 PR browser/native E2E jobs are retained but explicitly disabled by current policy; a green CI does not prove E2E acceptance.
 Main and manual mobile E2E workflow gates have been removed; local suites remain available.
 
-[Main CI](../.github/workflows/main-ci.yml), [manual mobile builds](../.github/workflows/mobile-development.yml)
-and [operational gates](organizations-events-operations.md) define actual deployment, isolation and release requirements.
+[Main CI](../.github/workflows/main-ci.yml) and [operational gates](organizations-events-operations.md) define actual deployment, isolation and release requirements.
 Infisical is the deployment configuration source of truth. Keep test/production Clerk instances and runtime databases isolated.
 Use signed Conventional Commits; open a PR only when requested.
+
+Workflow display names are **CI**, **Release**, **CI cleanup**, **CI watchdog** and **Test users**.
+Job labels use action + target, with CI/Development/Production distinguished for deployment and APKs.
+`CI` also handles branch checks. APK reuse compares each candidate's actual inputs and checksum;
+there is no separate unused last-green mobile-diff job. Its regression suite remains part of CI contracts.
+The README badge keeps the native GitHub workflow URL and displays the short `CI` workflow name.
+
+### Independent CI recovery workflows
+
+Normal per-run user/database cleanup already lives in `pr-ci.yml`. Three separate controllers
+provide recovery independently of that run:
+
+| Workflow | Trigger | Purpose |
+| --- | --- | --- |
+| `pr-ci-fail-fast.yml` | PR CI `workflow_run: in_progress` | Watch shared quality jobs and cancel the source run after a shared failure; lane-specific failures remain isolated. |
+| `pr-ci-cleanup.yml` | PR CI `workflow_run: completed`, unsuccessful same-repository PR runs only | Recover run-scoped test users and the isolated database after failure/cancellation using verified deployment evidence. |
+| `e2e-user-cleanup.yml` | Hourly at minute 17 UTC, or manual dispatch | Sweep marked E2E users older than two hours only after GitHub verifies their owning CI run is completed; active or unidentifiable owners stay untouched. |
+
+GitHub emits these events; the main workflow does not call the controllers with `uses`.
+The workflow-run controllers use trusted default-branch code. Keeping recovery outside the
+source run allows it to execute after that run is cancelled; putting it solely in the cancelled
+run would lose that independence. Scheduled orphan cleanup also needs to run when no PR runs.
+See [controller activation](organizations-events-operations.md#activate-trusted-controllers-before-relying-on-lane-independence)
+before treating branch edits as live protection.
 
 ## Dependency updates
 

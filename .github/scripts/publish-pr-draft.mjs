@@ -41,6 +41,8 @@ export async function publishDevelopmentDraft(input, request = fetch) {
   async function call(url, method = "GET", body, upload = false) {
     const response = await request(url, {
       method,
+      redirect: "error",
+      signal: AbortSignal.timeout(upload ? 600_000 : 30_000),
       headers: {
         Authorization: `Bearer ${input.token}`,
         Accept: "application/vnd.github+json",

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { parse } from "yaml";
-import { mobileBuildInputs } from "./mobile-build-inputs.mjs";
+import { mobileBuildInputs } from "../mobile-build-inputs.mjs";
 
 const pr = parse(readFileSync(".github/workflows/pr-ci.yml", "utf8"));
 const emulator = parse(readFileSync(".github/actions/android-emulator/action.yml", "utf8"));
@@ -52,7 +52,7 @@ test("successful APK build may be reused after failed acceptance, with independe
   assert.doesNotMatch(find.run, /\.conclusion == "success" and any\(\.pull_requests/);
   assert.match(
     find.run,
-    /\.name == "📱 Mobile APK \(internal\) — build or reuse" and \.conclusion == "success"/,
+    /\.name == "APK \(CI\): build or reuse" or \.name == "📱 Mobile APK \(internal\) — build or reuse"\) and \.conclusion == "success"/,
   );
   assert.match(find.run, /\.expired==false/);
   assert.match(find.run, /mobile-build-changed\.mjs "\$RUN_SHA" "\$HEAD_SHA"/);

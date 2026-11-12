@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { parse } from "yaml";
-import { publishDevelopmentDraft } from "./publish-pr-draft.mjs";
+import { publishDevelopmentDraft } from "../publish-pr-draft.mjs";
 
 const sha = "a".repeat(40),
   repository = "BGOrganizer/board-game-organizer";

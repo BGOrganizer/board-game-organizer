@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const repo = fileURLToPath(new URL("../../", import.meta.url));
+const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const mobile = createRequire(join(repo, "apps/mobile/package.json"));
 const expoRoot = dirname(mobile.resolve("expo/package.json"));
 const sdk = JSON.parse(readFileSync(join(expoRoot, "bundledNativeModules.json"), "utf8"));

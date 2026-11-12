@@ -18,13 +18,12 @@ test("one application workflow routes branch/PR events and overlaps checks after
   assert.equal(pr.concurrency["cancel-in-progress"], true);
   assert.deepEqual(pr.permissions, { contents: "read", actions: "read" });
   assert(pr.concurrency.group.includes("github.event_name"));
-  for (const name of [...quality, "build-web", "detect-mobile-changes"]) {
+  for (const name of [...quality, "build-web"]) {
     assert.deepEqual(jobs[name].needs, ["context"], `${name} waits only for routing`);
   }
   for (const name of ["commitlint", "lint", "typecheck", "unit-tests", "integration-tests"])
     assert(jobs[name].if.includes("'branch'"), name);
-  for (const name of ["build-api", "build-web", "detect-mobile-changes"])
-    assert(!jobs[name].if.includes("'branch'"), name);
+  for (const name of ["build-api", "build-web"]) assert(!jobs[name].if.includes("'branch'"), name);
   for (const name of ["deploy-preview-api", "deploy-development-api"]) {
     for (const gate of quality)
       assert.ok(jobs[name].needs.includes(gate), `${name} must await ${gate}`);
@@ -102,6 +101,7 @@ test("Development publication ignores Internal results but requires every common
       mode,
       trusted,
       always: () => true,
+      success: () => !cancelled && release.needs.every((name) => results[name] === "success"),
       cancelled: () => cancelled,
     });
   assert.equal(allowed(success), true);
@@ -192,8 +192,9 @@ test("parallel web and native acceptance use separate mirrored user pairs, BGG f
   assert.equal(browser.env.E2E_EMAIL, `\${{ needs.provision.outputs.email }}`);
   assert.equal(browser.env.E2E_EMAIL_2, `\${{ needs.provision.outputs.email_2 }}`);
   const sync = jobs["sync-e2e-users"].steps.find((item) => item.env?.USER_ID);
-  assert(sync.run.includes("native_user_id"));
-  assert(sync.run.includes("native_user_id_2"));
+  assert.equal(sync.env.NATIVE_USER_ID, "${{ needs.provision.outputs.native_user_id }}");
+  assert.equal(sync.env.NATIVE_USER_ID_2, "${{ needs.provision.outputs.native_user_id_2 }}");
+  assert.doesNotMatch(sync.run, /\$\{\{/);
   assert(sync.run.includes('for actor in "$USER_ID" "$NATIVE_USER_ID"'));
   assert(sync.run.includes("set -euo pipefail"));
   const cleanupUsers = jobs["cleanup-e2e-user"].steps.find((item) => item.env?.USER_ID);
@@ -234,7 +235,7 @@ test("PR publishes the verified development APK to EAS and keeps GitHub and Tele
 });
 
 test("watchdog cancels only shared-quality failures; independent cleanup survives cancellation", () => {
-  assert.deepEqual(watchdog.on.workflow_run.workflows, [pr.name]);
+  assert(watchdog.on.workflow_run.workflows.includes(pr.name));
   assert.deepEqual(watchdog.on.workflow_run.types, ["in_progress"]);
   assert.equal(watchdog.permissions.actions, "write");
   assert.equal(watchdog.jobs["cancel-failed-run"].steps[0].uses, "actions/checkout@v4");
@@ -242,10 +243,10 @@ test("watchdog cancels only shared-quality failures; independent cleanup survive
   const controller = readFileSync(".github/scripts/ci-fail-fast.mjs", "utf8");
   assert.match(controller, /sharedQualityFailed/);
   assert.match(controller, /api\("\/cancel", "POST"\)/);
-  assert.deepEqual(cleanup.on.workflow_run.workflows, [pr.name]);
+  assert(cleanup.on.workflow_run.workflows.includes(pr.name));
   assert.deepEqual(cleanup.on.workflow_run.types, ["completed"]);
   assert.match(cleanup.jobs.cleanup.if, /conclusion != 'success'/);
-  assert.match(cleanup.jobs.cleanup.steps[1].run, /cleanup-pr-e2e\.sh/);
+  assert.match(cleanup.jobs.cleanup.steps.find((step) => step.run)?.run, /cleanup-pr-e2e\.sh/);
   assert.equal(cleanup.jobs.cleanup.environment, "development");
   const steps = jobs["deploy-preview-api"].steps.map((item) => item.name);
   assert.equal(
@@ -262,10 +263,7 @@ test("watchdog cancels only shared-quality failures; independent cleanup survive
   );
   const script = readFileSync(".github/scripts/cleanup-pr-e2e.sh", "utf8");
   assert.match(script, /E2E_RUN_KEY/);
-  assert.match(
-    readFileSync(".github/scripts/cleanup-e2e-clerk-users.sh", "utf8"),
-    /e2e_target_\$\{RUN_KEY\}_/,
-  );
+  assert.match(readFileSync(".github/scripts/cleanup-e2e-clerk-users.mjs", "utf8"), /runKey/);
   assert.match(script, /\.projectId == \$project/);
   assert.match(script, /\.databaseName == \$db/);
   assert.match(script, /bgo_ci_\$\{RUN_ID\}_\$\{ATTEMPT\}/);

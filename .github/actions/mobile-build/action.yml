@@ -1,13 +1,14 @@
 name: Mobile APK (EAS local build)
-description: >
-  Builds an Android APK locally on the runner with `eas build --local`
-  (no EAS cloud credits needed), following the expo-react-native-cicd
-  pipeline. Builds ONE profile per invocation: `development` (dev client)
-  or `internal` (release, for distribution). Exposes version/build
-  metadata and the artifact path. The mobile.yml workflow runs this action
-  for BOTH profiles in parallel.
+description: >-
+  Builds one Android APK profile locally with EAS and exposes artifact metadata.
+  The calling workflow selects the API environment; this action owns workspace
+  setup, native toolchains, build caches and APK checksums.
 
 inputs:
+  install-dependencies:
+    description: Install the workspace; disable only when the caller already installed this checkout
+    required: false
+    default: 'true'
   profile:
     description: 'EAS profile to build (must match an eas.json profile): development or internal'
     required: true
@@ -78,6 +79,8 @@ runs:
 
     - name: 🧰 Setup workspace
       uses: ./.github/actions/setup-pnpm
+      with:
+        install: ${{ inputs.install-dependencies }}
 
     - name: ☕ Set up JDK 17
       uses: actions/setup-java@v4
@@ -87,7 +90,7 @@ runs:
 
     - name: ⚡ Install EAS CLI
       shell: bash
-      run: npm install -g eas-cli@latest
+      run: pnpm add --global eas-cli@27.7.2
 
     - name: ⚡ Verify EAS CLI installation
       shell: bash

@@ -78,6 +78,8 @@ async function main() {
         per_page: "100",
       });
       const response = await fetch(`https://api.github.com/repos/${repo}/pulls?${query}`, {
+        redirect: "error",
+        signal: AbortSignal.timeout(30_000),
         headers: {
           Authorization: `Bearer ${process.env.GH_TOKEN}`,
           Accept: "application/vnd.github+json",

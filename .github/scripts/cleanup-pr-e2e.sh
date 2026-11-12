@@ -40,12 +40,14 @@ curl -fsS --retry 3 -H "Authorization: Bearer $VERCEL_TOKEN" \
   jq -e --arg host "$HOST" --arg project "$VERCEL_API_PROJECT_ID" \
     '.url == $host and .projectId == $project and .target != "production"' > /dev/null
 
-curl -fsS --retry 3 "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$VERCEL_PROTECTION_BYPASS" \
+BYPASS=$(printf '%s' "$VERCEL_PROTECTION_BYPASS" | jq -sRr @uri)
+
+curl -fsS --retry 3 "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
   -H "Authorization: Bearer $CLERK_SECRET_KEY" |
   jq -e --arg db "$DB_NAME" '.databaseName == $db' > /dev/null
 
 curl -fsS --retry 3 -X POST \
-  "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$VERCEL_PROTECTION_BYPASS" \
+  "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
   -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
   -d "$(jq -cn --arg name "$DB_NAME" '{action:"cleanup",databaseName:$name}')" |
   jq -e '.ok == true' > /dev/null

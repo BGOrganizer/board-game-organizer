@@ -16,6 +16,8 @@ export async function requireCurrentPr(
     throw new Error("Verified PR publication context required");
   async function get(path) {
     const response = await request(`https://api.github.com/repos/${repository}${path}`, {
+      redirect: "error",
+      signal: AbortSignal.timeout(30_000),
       headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
     });
     if (!response.ok) throw new Error(`PR publication check failed (${response.status})`);
