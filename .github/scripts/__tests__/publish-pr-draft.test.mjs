@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { parse } from "yaml";
-import { publishDevelopmentDraft } from "../publish-pr-draft.mjs";
+import { promotePreviewTag, publishDevelopmentDraft as publish } from "../publish-pr-draft.mjs";
+
+const publishDevelopmentDraft = (input, request) =>
+  publish(input, request, async (_tag, _head, guard) => guard());
 
 const sha = "a".repeat(40),
   repository = "BGOrganizer/board-game-organizer";
@@ -38,6 +41,8 @@ function github(options = {}) {
   const release = {
     id: 10,
     draft: true,
+    prerelease: true,
+    tag_name: "v1.3.2-pr.22",
     name: "board-game-organizer-v1.3.2-pr.22",
     html_url: `https://github.com/${repository}/releases/tag/draft`,
     ...options.release,
@@ -73,6 +78,10 @@ function github(options = {}) {
     request: async (url, init = {}) => {
       const method = init.method ?? "GET";
       calls.push({ url, method });
+      if (method === "HEAD") {
+        assert.equal(init.headers, undefined);
+        return new Response(null, { status: options.headFailure ? 404 : 200 });
+      }
       assert.equal(init.headers.Authorization, "Bearer private-unit-token");
       if (url.endsWith("/pulls/22")) {
         reads++;
@@ -112,7 +121,7 @@ function github(options = {}) {
         assert.equal(Buffer.from(await init.body.arrayBuffer()).toString(), bytes.toString());
         return Response.json(asset, { status: 201 });
       }
-      if (method === "PATCH") return Response.json(release);
+      if (method === "PATCH") return Response.json({ ...release, ...JSON.parse(init.body) });
       if (method === "DELETE") return new Response(null, { status: 204 });
       throw new Error(`Unexpected unit HTTP request ${method} ${url}`);
     },
@@ -148,6 +157,11 @@ test("creates a missing draft and includes a valid optional EAS URL", async () =
   const create = fake.writes.find((r) => r.url.endsWith("/releases") && r.method === "POST");
   assert.equal(create.body.target_commitish, sha);
   assert.equal(create.body.draft, true);
+  const published = fake.writes.find((r) => r.method === "PATCH").body;
+  assert.equal(published.draft, false);
+  assert.equal(published.prerelease, true);
+  assert.equal(published.make_latest, "false");
+  assert.equal(create.body.tag_name, "development-pr-22");
   assert(
     fake.writes
       .find((r) => r.method === "PATCH")
@@ -170,7 +184,7 @@ test("does not overwrite a published release or remove the previous APK on a sta
     assert(!fake.writes.some((r) => r.method === "DELETE"));
     assert(!fake.writes.some((r) => r.method === "PATCH"));
   }
-  const afterPatch = github({ staleAt: 4 });
+  const afterPatch = github({ staleAt: 5 });
   await assert.rejects(publishDevelopmentDraft(input, afterPatch.request), /superseded/);
   assert(afterPatch.writes.some((r) => r.method === "PATCH"));
   assert(!afterPatch.writes.some((r) => r.method === "DELETE"));
@@ -243,4 +257,127 @@ test("release and notification actions pass untrusted fields as environment data
     const action = parse(readFileSync(`.github/actions/${name}/action.yml`, "utf8"));
     for (const step of action.runs.steps) assert(!/\$\{\{\s*inputs\./.test(step.run ?? ""));
   }
+});
+
+test("one public preview page survives new APK uploads and app version changes", async () => {
+  const release = {
+    draft: false,
+    prerelease: true,
+    tag_name: "development-pr-22",
+    name: "board-game-organizer-development-pr.22",
+    body: "<!-- bgo:development-pr=22 -->",
+    html_url: `https://github.com/${repository}/releases/tag/development-pr-22`,
+  };
+  const first = github({ release });
+  const initial = await publishDevelopmentDraft(input, first.request);
+  const second = github({
+    release,
+    asset: {
+      browser_download_url: `https://github.com/${repository}/releases/download/development-pr-22/new.apk`,
+    },
+  });
+  const updated = await publishDevelopmentDraft({ ...input, version: "2.0.0" }, second.request);
+  assert.equal(initial.release_id, updated.release_id);
+  assert.equal(initial.release_url, updated.release_url);
+  assert.notEqual(initial.apk_url, updated.apk_url);
+  assert(!second.writes.some((r) => r.url.endsWith("/releases") && r.method === "POST"));
+  assert.equal(second.writes.find((r) => r.method === "PATCH").body.make_latest, "false");
+});
+
+test("anonymous downloads must be available before retiring a previous APK", async () => {
+  const fake = github({ headFailure: true });
+  await assert.rejects(publishDevelopmentDraft(input, fake.request), /unavailable/);
+  assert.equal(fake.calls.filter((r) => r.method === "HEAD").length, 3);
+  assert(!fake.writes.some((r) => r.method === "DELETE"));
+  const race = github();
+  await assert.rejects(
+    publish(input, race.request, async () => {
+      throw Error("Tag lease failed");
+    }),
+    /lease/,
+  );
+  assert(!race.writes.some((r) => r.method === "PATCH" || r.method === "DELETE"));
+  await assert.rejects(
+    publishDevelopmentDraft(input, github({ release: { tag_name: "development-pr-999" } }).request),
+    /different channel/,
+  );
+});
+
+test("preview tag promotion uses exact leases, refuses unmanaged refs and keeps errors private", async () => {
+  const tag = "development-pr-22",
+    ref = `refs/tags/${tag}`,
+    old = "b".repeat(40);
+  const calls = [];
+  let guarded = false;
+  const execute = (_command, args) => {
+    calls.push(args);
+    if (args[0] === "ls-remote") return "";
+    assert(guarded);
+    return "";
+  };
+  await promotePreviewTag(
+    tag,
+    sha,
+    async () => {
+      guarded = true;
+    },
+    false,
+    execute,
+  );
+  assert.deepEqual(calls[1], ["push", `--force-with-lease=${ref}:`, "origin", `${sha}:${ref}`]);
+  const existing = (_command, args) => {
+    if (args[0] === "ls-remote") return `${old}\t${ref}\n`;
+    calls.push(args);
+    return "";
+  };
+  await promotePreviewTag(tag, sha, async () => {}, true, existing);
+  assert(calls.at(-1).includes(`--force-with-lease=${ref}:${old}`));
+  await assert.rejects(
+    promotePreviewTag(tag, sha, async () => {}, false, existing),
+    /unmanaged/,
+  );
+  await assert.rejects(
+    promotePreviewTag("main", sha, async () => {}, false, execute),
+    /identity/,
+  );
+  await assert.rejects(
+    promotePreviewTag(tag, "bad", async () => {}, false, execute),
+    /identity/,
+  );
+  await assert.rejects(
+    promotePreviewTag(
+      tag,
+      sha,
+      async () => {},
+      true,
+      () => "bad ref",
+    ),
+    /unmanaged/,
+  );
+  await assert.rejects(
+    promotePreviewTag(
+      tag,
+      sha,
+      async () => {},
+      true,
+      (_c, args) => {
+        if (args[0] === "ls-remote") return `${old}\t${ref}`;
+        throw Error("private-credential");
+      },
+    ),
+    (error) =>
+      /could not be promoted/.test(error.message) && !error.message.includes("private-credential"),
+  );
+  let writes = 0;
+  await promotePreviewTag(
+    tag,
+    sha,
+    async () => {},
+    true,
+    (_c, args) => {
+      if (args[0] === "ls-remote") return `${sha}\t${ref}`;
+      writes++;
+    },
+  );
+  assert.equal(writes, 0);
 });

@@ -223,7 +223,7 @@ test("PR publishes the verified development APK to EAS and keeps GitHub and Tele
   assert.match(upload.run, /node .*eas-upload\.mjs "\$GITHUB_WORKSPACE\/\$APK_PATH"/);
   assert.equal(publish.with["eas-build-url"], `\${{ steps.eas.outputs.url }}`);
   assert.equal(publish.with["apk-path"], `\${{ steps.meta.outputs.apk-path }}`);
-  assert.match(notify.run, /steps\.draft\.outputs\.apk_url/);
+  assert.match(notify.run, /steps\.draft\.outputs\.release_url/);
   assert.equal(notify.env.EAS_BUILD_URL, `\${{ steps.eas.outputs.url }}`);
   assert.match(notify.run, /if \[ -n "\$EAS_BUILD_URL" \]/);
   const action = parse(readFileSync(".github/actions/publish-draft-release/action.yml", "utf8"));

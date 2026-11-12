@@ -22,6 +22,7 @@ credential scope; scripts implement routing, provenance, publication and recover
 
 - Deployment actions prepare their own minimal tooling; callers do not install unused app dependencies.
 - EAS publication jobs install the locked workspace dependencies: even uploading an existing APK resolves Expo config plugins.
+- Each PR has one public Development prerelease, never marked Latest. Telegram links to its stable page; uploads retain revision/checksum verification and EAS remains optional only for its known quota exception.
 - Native builds install dependencies unless the same checkout was already installed for APK inspection.
 - Notification-only jobs set up tooling without installing the application workspace.
 - APK discovery reads candidate IDs/revisions together, then verifies each candidate's relevant diff,

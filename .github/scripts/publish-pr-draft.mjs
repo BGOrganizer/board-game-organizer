@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, createReadStream, openAsBlob, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { requireCurrentPr } from "./ci-current-pr.mjs";
 
@@ -12,8 +13,56 @@ function https(value, host) {
   return url.href;
 }
 
-/** Upload a revision-named APK before replacing links or removing known old APK assets. */
-export async function publishDevelopmentDraft(input, request = fetch) {
+/** Move only a managed preview tag, with a lease so a concurrent publication wins safely. */
+export async function promotePreviewTag(
+  tag,
+  headSha,
+  guard,
+  allowExisting,
+  execute = execFileSync,
+) {
+  if (
+    !/^(?:development-pr-[1-9]\d*|untagged-[a-f0-9]+|v\d+\.\d+\.\d+(?:[-+][\w.-]+)?-pr\.[1-9]\d*)$/.test(
+      tag,
+    ) ||
+    !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/i.test(headSha)
+  )
+    throw new Error("Invalid Development tag identity");
+  const ref = `refs/tags/${tag}`;
+  let existing;
+  try {
+    existing = execute("git", ["ls-remote", "--tags", "origin", ref], { encoding: "utf8" }).trim();
+  } catch {
+    throw new Error("Cannot inspect the Development tag");
+  }
+  const expected = existing ? existing.split(/\s+/)[0] : "";
+  if (
+    existing &&
+    (!allowExisting ||
+      !/^[a-f0-9]{40}(?:[a-f0-9]{24})?\s/.test(existing) ||
+      existing.split(/\s+/)[1] !== ref)
+  )
+    throw new Error("Refusing to replace an unmanaged Development tag");
+  await guard();
+  if (expected !== headSha) {
+    try {
+      execute(
+        "git",
+        ["push", `--force-with-lease=${ref}:${expected}`, "origin", `${headSha}:${ref}`],
+        { encoding: "utf8", stdio: "pipe" },
+      );
+    } catch {
+      throw new Error("Development tag changed or could not be promoted; refusing publication");
+    }
+  }
+}
+
+/** One public preview per PR; upload and verify before replacing the current APK. */
+export async function publishDevelopmentDraft(
+  input,
+  request = fetch,
+  publishTag = promotePreviewTag,
+) {
   if (
     !/^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/.test(input.version) ||
     !/^[\w.-]+\.apk$/.test(input.apkName) ||
@@ -59,15 +108,28 @@ export async function publishDevelopmentDraft(input, request = fetch) {
     if (!response.ok) throw new Error(`Development release request failed (${response.status})`);
     return response.status === 204 ? null : response.json();
   }
-  const tag = `v${input.version}-pr.${input.number}`,
-    name = `board-game-organizer-${tag}`;
+  const canonicalTag = `development-pr-${input.number}`,
+    name = `board-game-organizer-development-pr.${input.number}`,
+    owner = `<!-- bgo:development-pr=${input.number} -->`,
+    legacyName = new RegExp(`^board-game-organizer-v[\\w.+-]+-pr\\.${input.number}$`);
   let release;
   for (let page = 1; !release; page++) {
     const rows = await call(`${api}/releases?per_page=100&page=${page}`);
-    release = rows.find((row) => row.name === name || row.tag_name === tag);
+    release = rows.find(
+      (row) => row.name === name || row.tag_name === canonicalTag || legacyName.test(row.name),
+    );
     if (release || rows.length < 100) break;
   }
-  if (release && !release.draft) throw new Error("Refusing to replace a published release");
+  const managed = release?.name === name && release?.body?.includes(owner);
+  if (release && (!release.prerelease || (!release.draft && !managed)))
+    throw new Error("Refusing to replace an unrelated or stable release");
+  const tag = release?.tag_name || canonicalTag;
+  if (
+    tag !== canonicalTag &&
+    !/^untagged-[a-f0-9]+$/.test(tag) &&
+    !new RegExp(`^v[\\w.+-]+-pr\\.${input.number}$`).test(tag)
+  )
+    throw new Error("Development release tag belongs to a different channel");
   await current();
   if (!release)
     release = await call(`${api}/releases`, "POST", {
@@ -76,6 +138,7 @@ export async function publishDevelopmentDraft(input, request = fetch) {
       name,
       draft: true,
       prerelease: true,
+      body: owner,
     });
   if (!Number.isSafeInteger(release.id) || release.id < 1)
     throw new Error("Invalid draft release receipt");
@@ -92,12 +155,14 @@ export async function publishDevelopmentDraft(input, request = fetch) {
   if (!Number.isSafeInteger(asset.id) || asset.size !== size || asset.digest !== `sha256:${digest}`)
     throw new Error("Uploaded APK checksum/size receipt mismatch");
   const apkUrl = https(asset.browser_download_url, "github.com");
+  await publishTag(tag, input.headSha, current, Boolean(managed));
   await current();
   const body = [
+    owner,
     "## Development preview disponibile",
     "",
     `**PR:** #${input.number} — ${input.title}`,
-    `**Commit:** ${input.headSha}`,
+    `**Commit:** [${input.headSha}](https://github.com/${input.repository}/tree/${input.headSha})`,
     "",
     "Questa pubblicazione non certifica il superamento del flusso Internal/E2E.",
     `[Stato verifiche Internal e merge](https://github.com/${input.repository}/actions/runs/${input.runId})`,
@@ -113,7 +178,37 @@ export async function publishDevelopmentDraft(input, request = fetch) {
     "",
     input.changelog,
   ].join("\n");
-  await call(`${api}/releases/${release.id}`, "PATCH", { draft: true, prerelease: true, body });
+  const published = await call(`${api}/releases/${release.id}`, "PATCH", {
+    name,
+    tag_name: tag,
+    target_commitish: input.headSha,
+    draft: false,
+    prerelease: true,
+    make_latest: "false",
+    body,
+  });
+  if (
+    published.id !== release.id ||
+    published.draft !== false ||
+    published.prerelease !== true ||
+    published.tag_name !== tag
+  )
+    throw new Error("Invalid public Development release receipt");
+  const releaseUrl = https(published.html_url, "github.com");
+  // Anonymous requests deliberately carry no GitHub token, including after redirects.
+  for (const url of [releaseUrl, apkUrl]) {
+    for (let attempt = 0; ; attempt++) {
+      const response = await request(url, {
+        method: "HEAD",
+        redirect: "follow",
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (response.ok) break;
+      if (attempt === 2)
+        throw new Error(`Public Development download unavailable (${response.status})`);
+      await delay(1000);
+    }
+  }
   // Native APK names include a build timestamp; retain ownership across successive builds.
   const ownedStem = input.apkName.replace(/-\d{14}(?=-development[.-])/, "").slice(0, -4);
   // Delete only captured prior Development APKs, never concurrent/new or unrelated assets.
@@ -129,7 +224,7 @@ export async function publishDevelopmentDraft(input, request = fetch) {
     }
   }
   return {
-    release_url: https(release.html_url, "github.com"),
+    release_url: releaseUrl,
     release_id: release.id,
     apk_url: apkUrl,
   };
@@ -167,7 +262,9 @@ async function main() {
   });
   for (const [key, value] of Object.entries(result))
     appendFileSync(e.GITHUB_OUTPUT, `${key}=${value}\n`);
-  console.log("Verified Development draft published; Internal status remains independent.");
+  console.log(
+    "Verified public Development preview published; Internal status remains independent.",
+  );
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]))
   await main().catch((error) => {

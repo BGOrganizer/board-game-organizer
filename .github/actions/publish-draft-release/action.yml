@@ -1,7 +1,7 @@
-name: Publish / update PR Development draft release
+name: Publish / update public PR Development preview
 description: >-
   Publishes the verified Development APK and matching Web/API links independently
-  of Internal/E2E status. Only the latest trusted PR head may update the draft.
+  of Internal/E2E status. One public prerelease per PR provides a stable download page.
 
 inputs:
   github-token:
@@ -40,7 +40,7 @@ inputs:
     required: true
 outputs:
   release_url:
-    description: Draft release URL
+    description: Stable public PR prerelease page URL
     value: ${{ steps.release.outputs.release_url }}
   release_id:
     description: Draft release ID

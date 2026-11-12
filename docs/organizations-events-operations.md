@@ -103,7 +103,7 @@ server-only app configuration stay in Infisical/Vercel, not GitHub. Keep existin
 Variables used by native builds and E2E; they are not credentials. GitHub `development` contains
 an environment-scoped `CLERK_SECRET_KEY`. Every PR job consuming that key must select
 `environment: development`, including provisioning, mirroring, browser tests and cleanup;
-otherwise GitHub falls back to a potentially different repository Secret. PR APK builds and draft
+otherwise GitHub falls back to a potentially different repository Secret. PR APK builds and Development preview
 publication likewise select `development` for Expo, release and Telegram credentials. This GitHub environment
 does not select an Infisical environment: the deployed API reads the Vercel Preview value supplied
 by its existing sync. No credentials were deleted, rotated or synchronized as part of this code change.
@@ -149,8 +149,8 @@ is a separate repository-settings operation, not performed by this local workflo
 ### CI script ownership and cleanup safety
 
 Deploy composites own their minimal tool setup; native builds own dependency installation unless
-APK cache inspection has already installed the same checkout. Publication/notification helpers
-need Node and CLI tools, not an application dependency install. Unit/integration/build jobs keep
+APK cache inspection has already installed the same checkout. EAS publication also installs locked
+workspace dependencies to resolve Expo config plugins; notification-only helpers need just tooling. Unit/integration/build jobs keep
 their locked workspace installation and the two publication lanes remain independent.
 
 Per-run cleanup deletes explicit provisioned IDs and/or the exact run/attempt username namespace;
@@ -163,6 +163,17 @@ shifting Clerk pagination offsets. Production Clerk keys are rejected before req
 CLI pins, third-party action SHAs, cleanup regression tests and local validation commands are
 indexed in [GitHub automation](../.github/WORKFLOWS.md). No remote settings or services are changed by
 local tests, and local checks do not establish device/E2E acceptance or measured CI savings.
+
+### PR Development downloads
+
+Each PR has one public Development prerelease, separate from stable releases and never marked
+Latest. Telegram uses its stable page URL; the current APK retains revision/run naming and
+checksum verification. New previews use `development-pr-<number>`; an existing draft keeps its
+tag/page when promoted, avoiding duplicate releases. Only a managed preview tag can advance to
+the verified PR head, with an exact Git lease and fresh current-run checks. Stable tags remain untouched.
+After uploading and verifying the new asset, the publisher verifies anonymous access to both the
+page and APK before retiring captured previous APKs. EAS upload remains attempted first; its link
+is omitted only for the existing recognized monthly-quota exception. Publication does not certify E2E acceptance.
 
 ### Activate trusted controllers before relying on lane independence
 

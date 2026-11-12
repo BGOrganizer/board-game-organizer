@@ -1030,7 +1030,7 @@ jobs:
           retention-days: 7
 
   draft-release:
-    name: Publish PR draft and notify
+    name: Publish PR preview and notify
     # Common quality + Development only. Internal/E2E cannot block publication.
     if: success() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
     environment: development
@@ -1102,7 +1102,7 @@ jobs:
           bun add --global eas-cli@27.7.2
           node ../../.github/scripts/eas-upload.mjs "$GITHUB_WORKSPACE/$APK_PATH"
 
-      - name: 📦 Publish/update draft prerelease
+      - name: 📦 Publish/update public PR prerelease
         id: draft
         uses: ./.github/actions/publish-draft-release
         with:
@@ -1123,7 +1123,7 @@ jobs:
           EAS_BUILD_URL: ${{ steps.eas.outputs.url }}
         run: |
           cat > /tmp/telegram-links.html <<EOF
-          📱 <a href="${{ steps.draft.outputs.apk_url }}">APK (PR, GitHub)</a>
+          📱 <a href="${{ steps.draft.outputs.release_url }}">APK (PR, GitHub)</a>
           🌐 <a href="${{ needs.deploy-development-web.outputs.url }}">Web (development preview)</a>
           🔌 <a href="${{ needs.deploy-development-api.outputs.url }}">API (development preview)</a>
           EOF

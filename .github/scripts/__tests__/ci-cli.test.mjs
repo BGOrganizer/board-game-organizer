@@ -61,7 +61,9 @@ async function cli(
   const errorMock = t.mock.method(console, "error", (...a) => errors.push(a.join(" ")));
   const logMock = t.mock.method(console, "log", (...a) => logs.push(a.join(" ")));
   const timeoutMock = t.mock.method(timers, "setTimeout", async () => {});
-  const execMock = t.mock.method(cp, "execFileSync", () => "Unit changelog");
+  const execMock = t.mock.method(cp, "execFileSync", (_command, args) =>
+    args[0] === "ls-remote" ? "" : "Unit changelog",
+  );
   const write = fs.writeFileSync;
   const writeMock = t.mock.method(fs, "writeFileSync", (path, ...args) =>
     path === "/tmp/pr-changelog.md" ? undefined : write(path, ...args),
@@ -208,6 +210,7 @@ test("publication CLI generates changelog and safe output receipts without expos
   assert.equal((await cli(t, "publish-pr-draft", { PR_BASE_SHA: "bad" })).code, 1);
   const digest = `sha256:${createHash("sha256").update("unit").digest("hex")}`;
   const result = await cli(t, "publish-pr-draft", {}, async (url, options) => {
+    if (options.method === "HEAD") return new Response(null, { status: 200 });
     if (url.endsWith("/pulls/22")) return Response.json(pr);
     if (url.endsWith("/actions/runs/100")) return Response.json(run);
     if (url.includes("/actions/workflows/pr-ci.yml/runs?"))
@@ -227,7 +230,12 @@ test("publication CLI generates changelog and safe output receipts without expos
         digest,
         browser_download_url: `https://github.com/${repo}/releases/download/draft/apk.apk`,
       });
-    if (options.method === "PATCH") return Response.json({ id: 1 });
+    if (options.method === "PATCH")
+      return Response.json({
+        id: 1,
+        ...JSON.parse(options.body),
+        html_url: `https://github.com/${repo}/releases/tag/development-pr-22`,
+      });
     throw Error("Unexpected publication request");
   });
   assert.equal(result.code, 0);
