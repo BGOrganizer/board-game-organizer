@@ -32,6 +32,9 @@ jobs:
   coverage:
     name: Unit tests and coverage (${{ matrix.app }})
     environment: production
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     env:
       WORKSPACE: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('@board-game-organizer/{0}', matrix.app) || matrix.app }}
@@ -58,7 +61,7 @@ jobs:
       - name: 📤 Upload coverage to Codecov
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
           flags: unit,${{ matrix.app }}
           fail_ci_if_error: true
@@ -73,6 +76,9 @@ jobs:
   integration-tests:
     name: Integration tests (API)
     environment: production
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -88,7 +94,7 @@ jobs:
       - name: 📤 Upload integration coverage to Codecov
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: apps/api/coverage/lcov.info
           flags: integration
           fail_ci_if_error: true

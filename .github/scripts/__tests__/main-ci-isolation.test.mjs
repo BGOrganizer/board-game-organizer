@@ -8,6 +8,32 @@ const jobs = workflow.jobs;
 const prJobs = parse(readFileSync(".github/workflows/pr-ci.yml", "utf8")).jobs;
 const step = (job, name) => jobs[job].steps.find((item) => item.name === name);
 
+test("Codecov authenticates with job-scoped OIDC without static tokens on PR and main", () => {
+  for (const [name, current] of [
+    ["pr", prJobs],
+    ["main", jobs],
+  ]) {
+    let consumers = 0;
+    for (const [id, job] of Object.entries(current)) {
+      const uploads = job.steps.filter((item) => item.uses?.startsWith("codecov/codecov-action@"));
+      if (!uploads.length) {
+        assert.notEqual(job.permissions?.["id-token"], "write", `${name}: ${id}`);
+        continue;
+      }
+      consumers++;
+      assert.equal(job.permissions["id-token"], "write", `${name}: ${id}`);
+      assert.equal(job.permissions.contents, "read");
+      for (const upload of uploads) {
+        assert.equal(upload.with.use_oidc, true);
+        assert.equal(upload.with.token, undefined);
+        assert.equal(upload.with.fail_ci_if_error, true);
+        assert.equal(upload["continue-on-error"], undefined);
+      }
+    }
+    assert.equal(consumers, 2);
+  }
+});
+
 test("every workflow job consuming custom secrets selects its GitHub environment", () => {
   for (const file of readdirSync(".github/workflows").filter((file) => file.endsWith(".yml"))) {
     const current = parse(readFileSync(`.github/workflows/${file}`, "utf8"));

@@ -94,7 +94,10 @@ GitHub `development` and `production` each contain the same 12 Secret names:
 - Mobile: `EXPO_TOKEN`; `GOOGLE_SERVICES_JSON` for optional push-enabled APKs. In GitHub,
   `GOOGLE_SERVICES_JSON` contains the original JSON document, not Base64 or a file path; the build
   action writes it to a restricted temporary file and passes that path to Expo.
-- Release/reporting: `RELEASE_PAT`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `CODECOV_TOKEN`.
+- Release/reporting: `RELEASE_PAT`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. The existing
+  `CODECOV_TOKEN` entries are unused: coverage uploads authenticate with GitHub OIDC, using
+  `use_oidc: true` and job-scoped `id-token: write`. Upload failures and signature verification
+  remain blocking; no static-token fallback is used.
 
 Every custom-secret consumer selects `development` in PR/branch and cleanup workflows, or
 `production` in Main delivery, including coverage uploads and release preparation. The workflow
@@ -105,8 +108,8 @@ webhook secrets and other server-only configuration stay in Infisical/Vercel, no
 All 12 repository duplicates were removed at the operator's explicit request, including the seven
 still consumed by older default-branch workflows without an environment. Until the operator merges
 these workflow changes, those older jobs no longer receive their credentials; a feature-branch edit
-does not complete that rollout. The sole remaining repository Secret is the legacy
-`CLERK_SECRET_KEY_PRODUCTION`, still referenced by the older Main E2E jobs.
+does not complete that rollout. The legacy repository `CLERK_SECRET_KEY_PRODUCTION` was also
+removed at the operator's request; no repository Secrets remain.
 The eight public GitHub Variables remain repository-scoped; none were changed or copied.
 
 ## Unified branch/PR CI rollout

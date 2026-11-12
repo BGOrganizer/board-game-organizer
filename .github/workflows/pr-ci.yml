@@ -117,6 +117,10 @@ jobs:
   unit-tests:
     name: Unit tests (${{ matrix.app }})
     environment: development
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     needs: [context]
     if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
@@ -148,7 +152,7 @@ jobs:
         if: needs.context.outputs.mode == 'pr'
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
           flags: unit,${{ matrix.app }}
           fail_ci_if_error: true
@@ -164,6 +168,10 @@ jobs:
   integration-tests:
     name: Integration tests (API)
     environment: development
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     needs: [context]
     if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
@@ -191,7 +199,7 @@ jobs:
         if: needs.context.outputs.mode == 'pr'
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: apps/api/coverage/lcov.info
           flags: integration
           fail_ci_if_error: true
