@@ -9,7 +9,7 @@ Skills are task-scoped guides, not authority to expand a task. Resolve conflicts
 
 Before implementation:
 
-- Inventory with `bunx skills@latest list`. Verify actual skill paths and the intended agent's
+- Inventory with `bunx skills@1.8.1 list`. Verify actual skill paths and the intended agent's
   discovery/diagnostics; a lock entry or CLI success alone does not establish availability.
 - Select explicit skill names and the intended agent on installation, in project scope; do not install
   whole vendor collections. Managed sources/integrity live in `skills-lock.json`.
@@ -90,7 +90,7 @@ Load skills by affected task:
 | Native Maestro flows | `maestro-mobile-testing` (project-locked, reviewed against Maestro 2.11); current acceptance contracts/CI gates and version-matched official docs remain authoritative; no mocked acceptance, optional required steps, synthetic visibility markers, animation disabling, or Limrun/cloud dependency |
 | Lingui/localization | `lingui-best-practices`; web macros, mobile `useT`/`translate`, EN/IT source and compiled catalogs; no mobile Babel or suggested ESLint plugin |
 | Existing native Sentry integration | `sentry-react-native-sdk`; verify installed SDK/Expo APIs and existing release/Fabric safeguards; no new web/API instrumentation or SDK upgrade |
-| Development secret injection | `infisical-user-setup-guide`, with its CLI local-development reference; explicit per-app/environment scope, not a root Turbo process receiving every app's secrets |
+| Development secret injection | `infisical-setup`, with its CLI local-development reference; explicit per-app/environment scope, not a root Turbo process receiving every app's secrets |
 
 ## Repository safeguards
 
@@ -164,7 +164,7 @@ not a global agent installation.
 | `clerk/skills` | All eleven `clerk` / `clerk-*` guides listed above |
 | `expo/skills` | All nine `expo-*` and three `eas-*` guides listed above |
 | `heroui-inc/heroui` | `heroui-react`, `heroui-native` |
-| `infisical/ai-skills` | `infisical-user-setup-guide` |
+| `infisical/ai-skills` | `infisical-setup` (formerly `infisical-user-setup-guide`) |
 | `lingui/skills` | `lingui-best-practices` |
 | `foreztgump/maestro-mobile-testing-skill` | `maestro-mobile-testing` |
 | `maptiler/maptiler-skills` | `maptiler` |
@@ -175,12 +175,30 @@ not a global agent installation.
 | `vercel-labs/agent-skills` | `vercel-composition-patterns`, `vercel-react-best-practices`, `vercel-react-native-skills`, `web-design-guidelines` (canonical copies missing at this inventory) |
 | `mkgp-dev/codex-skills` | `zustand-state-management` (canonical copy missing at this inventory) |
 
-Inventory after the Ponytail installation: **44 locked guides, 38 present under `.agents/skills`,
+Desktop inventory after the Clerk/Infisical repair: **44 locked guides, 38 present under `.agents/skills`,
 6 missing canonical copies**. A missing canonical copy is not evidence that no global copy exists;
 verify discovery and source before use. These six remain documented for their intended scope,
 but are not presented as locally ready. Do not reinstall or upgrade them implicitly.
 
-To refresh the inventory, run `bunx skills@latest list --agent codex` (substitute the intended
+The version 2 lock records portable content hashes and a commit revision for every source.
+Clerk's eleven skills use their current `skills/<name>/SKILL.md` paths; Infisical uses the
+upstream `infisical-setup` name. Historical revisions for the other installed guides were
+checked against their complete local contents, retaining their instructions rather than
+upgrading them during this repair.
+For a new checkout, restore the locked set with:
+
+```bash
+bunx skills@1.8.1 experimental_install --agent codex --frozen-lockfile
+bunx skills@1.8.1 list --agent codex
+```
+
+A version 1 lock cannot be restored frozen on an empty installation with this CLI: its migration
+needs existing files to derive version 2 hashes. Use the repaired version 2 lock rather than
+disabling integrity checks. Existing upstream path/name changes require a scoped repair; do not
+update unrelated guides just to make restore succeed. Restore existing skills before adding new
+ones on another machine so their hashes remain verifiable.
+
+To refresh the inventory, run `bunx skills@1.8.1 list --agent codex` (substitute the intended
 agent), compare it with the lockfile and check the actual `SKILL.md` paths. Keep this guide current
 when installing/removing guides. Preserve unrelated locked entries during a scoped installation;
 CLI output alone is not proof that existing guide integrity was preserved.
