@@ -31,11 +31,7 @@ test("deployment and provisioning jobs avoid unused installs; native reuse keeps
         id,
       );
   }
-  for (const [workflow, id] of [
-    [pr, "draft-release"],
-    [main, "publish-release"],
-    [main, "notify-telegram"],
-  ]) {
+  for (const [workflow, id] of [[main, "notify-telegram"]]) {
     assert.equal(
       workflow.jobs[id].steps.find((step) => step.uses === "./.github/actions/setup-bun").with
         .install,
@@ -59,6 +55,20 @@ test("deployment and provisioning jobs avoid unused installs; native reuse keeps
         (step) => step.uses === "./.github/actions/setup-bun",
       ),
     );
+});
+
+test("EAS publication installs workspace dependencies before resolving Expo plugins", () => {
+  for (const [workflow, id] of [
+    [pr, "draft-release"],
+    [main, "publish-release"],
+  ]) {
+    const steps = workflow.jobs[id].steps;
+    const setupIndex = steps.findIndex((step) => step.uses === "./.github/actions/setup-bun");
+    const uploadIndex = steps.findIndex((step) => step.run?.includes("eas-upload.mjs"));
+    assert(setupIndex >= 0 && uploadIndex > setupIndex, id);
+    assert.equal(steps[setupIndex].with?.install ?? "true", "true", id);
+    assert.equal(steps[uploadIndex]["working-directory"], "apps/mobile", id);
+  }
 });
 
 test("APK discovery reuses the list's revision instead of fetching each run again", () => {

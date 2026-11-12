@@ -21,6 +21,7 @@ E2E provisioning and publication/notification entrypoints. Workflows describe de
 credential scope; scripts implement routing, provenance, publication and recovery logic.
 
 - Deployment actions prepare their own minimal tooling; callers do not install unused app dependencies.
+- EAS publication jobs install the locked workspace dependencies: even uploading an existing APK resolves Expo config plugins.
 - Native builds install dependencies unless the same checkout was already installed for APK inspection.
 - Publication/notification jobs set up tooling without installing the application workspace.
 - APK discovery reads candidate IDs/revisions together, then verifies each candidate's relevant diff,
