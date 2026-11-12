@@ -12,14 +12,14 @@ services:
     volumes:
       - mongodb-data:/data/db
       - type: bind
-        source: ${BGG_CSV_PATH:-./data/boardgames_ranks.csv}
+        source: ${BGG_CSV_PATH:-./scripts/mongodb/data/boardgames_ranks.csv}
         target: /data/boardgames_ranks.csv
         read_only: true
         bind:
           create_host_path: false
-      - ./docker/mongodb/start-mongodb.sh:/scripts/start-mongodb.sh:ro
-      - ./docker/mongodb/import-bgg.sh:/scripts/import-bgg.sh:ro
-      - ./docker/mongodb/import-bgg.js:/scripts/import-bgg.js:ro
+      - ./scripts/mongodb/start-mongodb.sh:/scripts/start-mongodb.sh:ro
+      - ./scripts/mongodb/import-bgg.sh:/scripts/import-bgg.sh:ro
+      - ./scripts/mongodb/import-bgg.js:/scripts/import-bgg.js:ro
     healthcheck:
       test:
         [

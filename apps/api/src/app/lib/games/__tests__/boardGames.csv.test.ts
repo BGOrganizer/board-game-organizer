@@ -10,7 +10,7 @@ const row = '1,"Game, with ""quotes""",2024,0,0,7.25,42,0,,1,,,,,2,';
 
 describe("BGG rankings CSV", () => {
   it("keeps the Docker local projection aligned with every CSV model field and merges instead of replacing hydrated catalog records", () => {
-    const source = readFileSync(resolve("../../docker/mongodb/import-bgg.js"), "utf8");
+    const source = readFileSync(resolve("../../scripts/mongodb/import-bgg.js"), "utf8");
     for (const field of Object.keys(boardGameCsvModel.shape))
       expect(source).toMatch(new RegExp(`\\b${field}:`));
     expect(source).toContain('whenMatched: "merge"');

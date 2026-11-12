@@ -45,7 +45,7 @@ Main navigation is **Tables / Events / Groups / Community / Contacts**:
 - **Node.js 26** and **pnpm 11.25.0**, matching CI and `packageManager`.
 - **Docker with Compose** for the local MongoDB replica set and integration tests.
 - Clerk development keys, public MapTiler keys for each client and a server MapTiler key for address verification.
-- A BGG rankings CSV at `data/boardgames_ranks.csv`; see [catalog setup](data/README.md).
+- A BGG rankings CSV at `scripts/mongodb/data/boardgames_ranks.csv`; see [catalog setup](scripts/mongodb/README.md).
 - For mobile: an Android/iOS development build and the matching native toolchain. Expo Go and Expo web are unsupported.
 
 ### Install and configure
@@ -82,6 +82,8 @@ pnpm --filter api migrate
 ```
 
 Compose initializes MongoDB 7 as replica set `rs0` and imports the CSV before reporting healthy.
+To update the catalog later, replace the CSV and recreate the MongoDB container; follow the
+[catalog update procedure](scripts/mongodb/README.md#update-the-local-catalog).
 The API template contains the local connection URI. `docker compose logs -f mongodb` shows import progress.
 Migrations create indexes and remove the legacy `relationships` collection; run them against your intended local database.
 

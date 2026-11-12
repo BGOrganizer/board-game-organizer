@@ -52,7 +52,7 @@ Native performance and runtime acceptance are tracked in the [implementation che
 
 ## BoardGameGeek catalog
 
-Local setup uses the rankings CSV described in [data/README.md](../data/README.md).
+Local setup uses the rankings CSV described in [scripts/mongodb/README.md](../scripts/mongodb/README.md).
 The Compose importer stages and validates CSV rows, then merges them into `boardGames` by BGG ID;
 missing catalog games and XML-enriched fields remain intact. It does not replace the catalog.
 Every container start repeats the import before becoming healthy. `docker compose down` preserves the volume.
