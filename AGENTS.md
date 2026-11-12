@@ -42,7 +42,7 @@ Core rules:
 
 ## 2. Current scope and required references
 
-This pnpm/Turborepo TypeScript monorepo has web and native mobile clients backed by one API.
+This Bun/Turborepo TypeScript monorepo has web and native mobile clients backed by one API.
 The active domain is **Groups / Events / Tables**, not operational Matches/Organizations.
 The [unified contract](docs/groups-events-refactor.md) governs roles, consent, planning modes,
 votes, explicit manager confirmation, immutable results and list eligibility.
@@ -75,25 +75,26 @@ for new provider operations or establish production/device acceptance.
 `apps/api`, `apps/web` and `apps/mobile` own application entry points and platform adapters.
 `packages/shared` owns pure domain logic and reusable hooks; `schemas` owns models/DTOs;
 `query` owns Query setup; `store` owns local UI/drafts. Configuration packages remain small.
-Current versions come from manifests and `pnpm-lock.yaml`, not copied version lists.
-Use Node.js 26 and pnpm 11.25.0 to match CI; preserve Expo-managed exact mobile pins.
+Current versions come from manifests and `bun.lock`, not copied version lists.
+Use Node.js 26 and the Bun version declared in the root `packageManager`, synchronized with CI
+and EAS; preserve Expo-managed exact mobile pins.
 Do not upgrade Vitest beyond the compatible 3.2 baseline without the required migration/checks.
 
-Run from the root; on PowerShell use `pnpm.cmd` if execution policy blocks the shim.
+Run from the repository root. Bun installs dependencies; Node.js remains the application/test runtime.
 
 | Task | Command |
 | --- | --- |
-| Install locked dependencies | `pnpm install --frozen-lockfile` |
-| Lint / typecheck | `pnpm lint` / `pnpm typecheck` |
-| One workspace's tests | `pnpm --filter web test` (or `api`, `mobile`, `@board-game-organizer/shared`, `@board-game-organizer/schemas`) |
-| Unit coverage | `pnpm --filter web test:coverage` (same tested workspaces) |
-| One test file | `pnpm --filter web test src/components/events/__tests__/useTableSeatOrder.test.tsx` |
-| MongoDB integration | `pnpm --filter api test:integration` |
-| Web E2E | `pnpm --filter web test:e2e` |
-| API/web builds | `pnpm build` |
-| Extract / compile translations | `pnpm i18n:extract` / `pnpm i18n:compile` |
+| Install locked dependencies | `bun install --frozen-lockfile` |
+| Lint / typecheck | `bun run lint` / `bun run typecheck` |
+| One workspace's tests | `bun run --filter web test` (or `api`, `mobile`, `@board-game-organizer/shared`, `@board-game-organizer/schemas`) |
+| Unit coverage | `bun run --filter web test:coverage` (same tested workspaces) |
+| One test file | `bun run --filter web test src/components/events/__tests__/useTableSeatOrder.test.tsx` |
+| MongoDB integration | `bun run --filter api test:integration` |
+| Web E2E | `bun run --filter web test:e2e` |
+| API/web builds | `bun run build` |
+| Extract / compile translations | `bun run i18n:extract` / `bun run i18n:compile` |
 
-There is no root test script. `pnpm build` does not build native binaries.
+There is no root test script. `bun run build` does not build native binaries.
 See [README setup](README.md#get-started), [dependency updates](docs/development.md#dependency-updates)
 and each app's instructions. Do not run imports/migrations merely as ordinary validation.
 

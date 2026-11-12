@@ -3,7 +3,7 @@
  * 50 nomi completi per categoria, disponibili in italiano e inglese.
  * Le voci alla stessa posizione nelle due lingue sono corrispondenti.
  *
- * Installazione: pnpm add unique-names-generator
+ * Installazione: bun add unique-names-generator
  * Esempio: generateName("tavolo", "it")
  */
 import { uniqueNamesGenerator } from "unique-names-generator";

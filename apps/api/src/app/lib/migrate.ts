@@ -43,7 +43,7 @@ import { COLLECTIONS } from "@/app/lib/db";
  * collection, whose data model was replaced by `follows` + `friendRequests`
  * + `blocks`.
  *
- * Run via `pnpm --filter api migrate` (see scripts/migrate.ts).
+ * Run via `bun run --filter api migrate` (see scripts/migrate.ts).
  */
 interface IndexDef {
   key: Record<string, number | string>;

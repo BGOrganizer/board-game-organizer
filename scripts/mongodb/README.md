@@ -14,7 +14,7 @@ A reduced CSV containing only ID/name/year is insufficient.
 
 ```sh
 docker compose up -d --wait --wait-timeout 600
-pnpm --filter api migrate
+bun run --filter api migrate
 ```
 
 Compose starts MongoDB 7, initializes replica set `rs0`, imports the catalog and reports healthy

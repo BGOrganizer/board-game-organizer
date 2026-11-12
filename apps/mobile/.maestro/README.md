@@ -288,7 +288,7 @@ Event and personal Table in each of CONFIRMED, PLANNING, TERMINATED, with names 
 `STATUS_EVENT_CONFIRMED`, `STATUS_EVENT_PLANNING`, `STATUS_EVENT_TERMINATED`,
 `STATUS_TABLE_CONFIRMED`, `STATUS_TABLE_PLANNING`, `STATUS_TABLE_TERMINATED` (unique first-page names).
 Web requires `STATUS_API_URL` (local/Preview), `STATUS_THEME` (`light`/`dark`), `E2E_EMAIL` and existing
-Development Clerk test credentials. Run `pnpm --filter web exec playwright test --config e2e/list-status.config.ts`.
+Development Clerk test credentials. Run `bun run --filter web exec playwright test --config e2e/list-status.config.ts`.
 Every state fixture is mandatory; all-off must remain empty after clearing search. Repeat native
 EN/IT, light/dark and enlarged text. Profile flows 17/18 now enter Collection explicitly; 17 also
 checks that clearing the selected game removes its chart. Syntax/discovery is not runtime acceptance.
@@ -300,7 +300,7 @@ Use an owned Development/Preview actor in the selected `TABLE_UX_LOCALE` (`en`/`
 FREE belongs to an editable, valid future PLANNING Event with one small Table and available places;
 FULL is a small full PLANNING Table where the actor can join/invite; CONFIRMED includes a first-page
 player with `TABLE_UX_USERNAME` and `TABLE_UX_EMAIL`. Web additionally requires `E2E_EMAIL` and existing
-Development Clerk test keys. Run `pnpm --filter web exec playwright test --config e2e/table-player-ux.config.ts`.
+Development Clerk test keys. Run `bun run --filter web exec playwright test --config e2e/table-player-ux.config.ts`.
 Missing inputs fail. Repeat both themes and enlarged text; syntax/discovery is not device acceptance.
 The draft inspection advances through Event and Dates / Locations, then expands the fixture Table
 inside the four-step editor. `24-game-picker-reentry.yaml` follows the same navigation and checks
@@ -319,7 +319,7 @@ Both use `SCHEDULE_LOCALE` (`en`/`it`), `SCHEDULE_PUBLIC_PATH`, `SCHEDULE_PRIVAT
 `SCHEDULE_PUBLIC_DATE`, `SCHEDULE_PRIVATE_DATE`, `SCHEDULE_PUBLIC_TIME`, `SCHEDULE_PRIVATE_TIME`
 and `SCHEDULE_DEMONSTRATOR`. Maestro also needs the complete localized `SCHEDULE_DURATION_LABEL`;
 web needs numeric `SCHEDULE_MINUTES`, `E2E_EMAIL` and existing Development Clerk test keys.
-Run web with `pnpm --filter web exec playwright test --config e2e/table-schedule.config.ts`.
+Run web with `bun run --filter web exec playwright test --config e2e/table-schedule.config.ts`.
 Missing inputs fail. Native screenshot review must verify actual avatar/user-row rendering, metadata
 order below Settings, EN/IT, themes and enlarged text; syntax and VM checks do not prove these.
 
@@ -351,7 +351,7 @@ overlays and Table consent/queue subtitles in both locales/themes and at enlarge
 registrations are created; existing container/notification reads retain their ordinary behavior.
 
 Web parity has an explicit manual Playwright configuration, `apps/web/e2e/card-metadata.config.ts`.
-Run `pnpm --filter web exec playwright test --config e2e/card-metadata.config.ts` against the isolated
+Run `bun run --filter web exec playwright test --config e2e/card-metadata.config.ts` against the isolated
 Preview, with the same named fixture, `E2E_EMAIL`, Development Clerk test credentials,
 `CARD_LOCALE`, `CARD_VENUE`, `CARD_VENUE_ADDRESS`, `CARD_EVENT_DAY` (`YYYY-MM-DD`) and `CARD_EVENT_TIME` (`HH:mm`).
 It uses real auth/reads, computed typography/full-height artwork and informational popovers at
@@ -403,7 +403,7 @@ Native additionally requires `RESULTS_BUILD_ACK=owned-preview-build`, `RESULTS_E
 It checks excluded-action absence, saves, restarts without clearing authentication, reloads/edits
 saved scores, then finalizes from the Event header and opens immutable Results.
 Web additionally requires `RESULTS_API_URL`, `E2E_EMAIL` and Development Clerk test keys:
-`pnpm --filter web exec playwright test --config e2e/table-results.config.ts`.
+`bun run --filter web exec playwright test --config e2e/table-results.config.ts`.
 It checks cancellation, persistence/editing across reload, unchanged player statistics before
 finalization, excluded Table non-contribution, and updated statistics after finalization.
 Missing/invalid inputs fail. Syntax/discovery/helper checks are not authenticated/device acceptance;
@@ -426,7 +426,7 @@ restart/cache restore and source privacy. Review screenshots for adjacent row su
 centered tab bars without an empty tail; repeat with enlarged text. Viewer-specific fixture narratives
 use Tu/You and the actual actor/recipient's grammar.
 
-Web: `pnpm --filter web exec playwright test --config e2e/community.config.ts` additionally requires
+Web: `bun run --filter web exec playwright test --config e2e/community.config.ts` additionally requires
 `COMMUNITY_THEME=light|dark`, `COMMUNITY_API_URL`, `E2E_EMAIL`, Development Clerk test keys,
 `COMMUNITY_FRIEND_ID`, `COMMUNITY_FOLLOWED_ID`, `COMMUNITY_INCOMING_ID`, `COMMUNITY_PRIVATE_TEXT`,
 `COMMUNITY_BEFORE_TEXT`, `COMMUNITY_PUBLIC_EVENT_PATH`, `COMMUNITY_PUBLIC_TABLE_PATH` and
@@ -502,7 +502,7 @@ application mutation occurs. Run EN/IT, themes and enlarged text; review empty k
 counter alignment. Behavior follows [Profile](../../../docs/profiles.md), including disabled common
 filter without a viewer snapshot and hidden Collection on the unsynced subject.
 
-Web read-only scenario: `pnpm --filter web exec playwright test --config e2e/collection-filters.config.ts`
+Web read-only scenario: `bun run --filter web exec playwright test --config e2e/collection-filters.config.ts`
 uses the same JSON/fixture acknowledgment, plus `COLLECTION_THEME=light|dark`, `COLLECTION_API_URL`,
 explicit local/Preview `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and Development Clerk keys. It checks real
 source filters at 390/1280 widths, counts/common scopes and absence of owner controls/writes. Fixture

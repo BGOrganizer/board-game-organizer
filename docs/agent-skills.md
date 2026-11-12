@@ -9,7 +9,7 @@ Skills are task-scoped guides, not authority to expand a task. Resolve conflicts
 
 Before implementation:
 
-- Inventory with `pnpm dlx skills@latest list`. Verify actual skill paths and the intended agent's
+- Inventory with `bunx skills@latest list`. Verify actual skill paths and the intended agent's
   discovery/diagnostics; a lock entry or CLI success alone does not establish availability.
 - Select explicit skill names and the intended agent on installation, in project scope; do not install
   whole vendor collections. Managed sources/integrity live in `skills-lock.json`.
@@ -114,7 +114,7 @@ use current code and official documentation where sufficient; do not automatical
 | --- | --- | --- |
 | `github-actions-efficiency` | Investigate slow, queued, duplicated or expensive CI; change caching, concurrency, triggers or matrices | Measure runs and distinguish queue time, wall-clock time and runner minutes. Preserve required checks and existing deployment/acceptance gates. Separate static findings from live evidence. A suggested test push requires authorization under the current task. |
 | `github-actions-hardening` | Review workflow security or design a workflow that handles credentials, artifacts or external contributions | Map actual trigger permissions and trust boundaries; inspect expression injection, token scopes, action pins, caches and artifact provenance. Audit findings first; do not silently change provider permissions or secrets. Verify broad skill claims against actual GitHub settings and official documentation. |
-| `github-actions-templates` | Add a workflow or reusable job when existing local actions do not already cover the need | Adapt patterns to current repository versions, pnpm, Biome and existing composite actions. Examples using npm, old Node/action versions, Kubernetes or external scanners are examples, not project requirements. |
+| `github-actions-templates` | Add a workflow or reusable job when existing local actions do not already cover the need | Adapt patterns to current repository versions, Bun, Biome and existing composite actions. Examples using npm, old Node/action versions, Kubernetes or external scanners are examples, not project requirements. |
 
 For an existing CI change, start with the relevant efficiency or security guide; consult templates
 only for a concrete missing pattern. For a new workflow, use templates for structure and hardening
@@ -180,7 +180,7 @@ Inventory after the Ponytail installation: **44 locked guides, 38 present under 
 verify discovery and source before use. These six remain documented for their intended scope,
 but are not presented as locally ready. Do not reinstall or upgrade them implicitly.
 
-To refresh the inventory, run `pnpm dlx skills@latest list --agent codex` (substitute the intended
+To refresh the inventory, run `bunx skills@latest list --agent codex` (substitute the intended
 agent), compare it with the lockfile and check the actual `SKILL.md` paths. Keep this guide current
 when installing/removing guides. Preserve unrelated locked entries during a scoped installation;
 CLI output alone is not proof that existing guide integrity was preserved.

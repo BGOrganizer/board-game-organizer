@@ -42,7 +42,7 @@ Main navigation is **Tables / Events / Groups / Community / Contacts**:
 
 ### Requirements
 
-- **Node.js 26** and **pnpm 11.25.0**, matching CI and `packageManager`.
+- **Node.js 26** and **Bun 1.4.4**, matching CI and `packageManager`.
 - **Docker with Compose** for the local MongoDB replica set and integration tests.
 - Clerk development keys, public MapTiler keys for each client and a server MapTiler key for address verification.
 - A BGG rankings CSV at `scripts/mongodb/data/boardgames_ranks.csv`; see [catalog setup](scripts/mongodb/README.md).
@@ -53,7 +53,7 @@ Main navigation is **Tables / Events / Groups / Community / Contacts**:
 From the repository root:
 
 ```sh
-pnpm install --frozen-lockfile
+bun install --frozen-lockfile
 ```
 
 Copy each template to the corresponding private file, then fill its placeholders:
@@ -65,7 +65,7 @@ Copy each template to the corresponding private file, then fill its placeholders
 | Mobile | `apps/mobile/.env.example` | `apps/mobile/.env` |
 
 Use the same Clerk development instance across the API and clients. Configure Clerk user webhooks
-for profile/contact discovery; existing users can be mirrored with `pnpm --filter api backfill:users`.
+for profile/contact discovery; existing users can be mirrored with `bun run --filter api backfill:users`.
 Sentry and push credentials are optional; the notification inbox works without push configuration.
 BGG linking and synchronization need the API's `BGG_TOKEN`.
 
@@ -78,7 +78,7 @@ With the CSV in place and Docker running:
 
 ```sh
 docker compose up -d --wait --wait-timeout 600
-pnpm --filter api migrate
+bun run --filter api migrate
 ```
 
 Compose initializes MongoDB 7 as replica set `rs0` and imports the CSV before reporting healthy.
@@ -93,34 +93,34 @@ Run each command in its own terminal:
 
 | App | Command | Local endpoint |
 | --- | --- | --- |
-| API | `pnpm --filter api dev` | <http://localhost:4000> |
-| Web | `pnpm --filter web dev` | <http://localhost:3000> |
-| Mobile | `pnpm --filter mobile dev` | Expo development-client server |
+| API | `bun run --filter api dev` | <http://localhost:4000> |
+| Web | `bun run --filter web dev` | <http://localhost:3000> |
+| Mobile | `bun run --filter mobile dev` | Expo development-client server |
 
-`pnpm dev` starts all workspace development tasks through Turborepo.
-For a first local Android build use `pnpm --filter mobile android`; on macOS with Xcode use
-`pnpm --filter mobile ios`. Starting Metro alone does not build the native app.
+`bun run dev` starts all workspace development tasks through Turborepo.
+For a first local Android build use `bun run --filter mobile android`; on macOS with Xcode use
+`bun run --filter mobile ios`. Starting Metro alone does not build the native app.
 
 ## Commands
 
-Run from the repository root. On Windows PowerShell, use `pnpm.cmd` if execution policy blocks `pnpm.ps1`.
+Run from the repository root. Bun manages dependencies and scripts; application tools retain Node.js.
 
 | Task | Command |
 | --- | --- |
-| Lint and formatting checks | `pnpm lint` |
-| Type checking | `pnpm typecheck` |
-| App unit tests | `pnpm --filter web test` (or `api`, `mobile`) |
-| Shared logic tests | `pnpm --filter @board-game-organizer/shared test` |
-| Schema tests | `pnpm --filter @board-game-organizer/schemas test` |
-| Unit coverage | `pnpm --filter web test:coverage` (also API, mobile, shared and schemas) |
-| MongoDB integration tests | `pnpm --filter api test:integration` |
-| One web test file | `pnpm --filter web test src/components/events/__tests__/useTableSeatOrder.test.tsx` |
-| Web E2E | `pnpm --filter web test:e2e` |
-| Production web/API builds | `pnpm build` |
-| Extract / compile translations | `pnpm i18n:extract` / `pnpm i18n:compile` |
+| Lint and formatting checks | `bun run lint` |
+| Type checking | `bun run typecheck` |
+| App unit tests | `bun run --filter web test` (or `api`, `mobile`) |
+| Shared logic tests | `bun run --filter @board-game-organizer/shared test` |
+| Schema tests | `bun run --filter @board-game-organizer/schemas test` |
+| Unit coverage | `bun run --filter web test:coverage` (also API, mobile, shared and schemas) |
+| MongoDB integration tests | `bun run --filter api test:integration` |
+| One web test file | `bun run --filter web test src/components/events/__tests__/useTableSeatOrder.test.tsx` |
+| Web E2E | `bun run --filter web test:e2e` |
+| Production web/API builds | `bun run build` |
+| Extract / compile translations | `bun run i18n:extract` / `bun run i18n:compile` |
 | Regenerate / verify artwork | `node scripts/branding/export.mjs` / `node scripts/branding/export.mjs --check` |
 
-There is no root `pnpm test`. `pnpm build` runs the web/API build scripts; it does not produce a native binary.
+There is no root `bun run test`; use the workspace scripts above, which retain Vitest rather than the separate `bun test` runner. `bun run build` runs the web/API build scripts; it does not produce a native binary.
 Integration tests start a Testcontainers replica set and need Docker. Web E2E requires running apps or an
 explicit `PLAYWRIGHT_BASE_URL`, the matching API/Clerk configuration and provisioned test users.
 Native UI acceptance uses the retained [Maestro flows](apps/mobile/.maestro); mobile Vitest covers pure logic.

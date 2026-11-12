@@ -66,8 +66,8 @@ Expo web is not a product target even though the package exposes a web script.
 
 ## Development and verification
 
-`pnpm --filter mobile dev` starts Metro for a development client, not a native build.
-Use `pnpm --filter mobile android` for local Android builds, or `pnpm --filter mobile ios` on macOS.
+`bun run --filter mobile dev` starts Metro for a development client, not a native build.
+Use `bun run --filter mobile android` for local Android builds, or `bun run --filter mobile ios` on macOS.
 The [shared validation commands](../../AGENTS.md#3-workspace-and-commands) cover pure-logic Vitest
 checks. Native component tests are not run in Vitest because React Native Flow source is not transformed.
 Use [Maestro](.maestro/README.md) for actual device UI acceptance, covering permissions, keyboard,

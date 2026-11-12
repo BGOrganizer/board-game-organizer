@@ -33,7 +33,7 @@ not reliably inline those environment reads from shared package source. Apply ca
 
 ## Development and verification
 
-Start with `pnpm --filter web dev` from the root; Next.js serves port 3000.
+Start with `bun run --filter web dev` from the root; Next.js serves port 3000.
 Use the [shared validation commands](../../AGENTS.md#3-workspace-and-commands).
 Colocate component tests under their feature; browser acceptance lives in `e2e`.
 Playwright needs the matching API/Clerk target and real provisioned users. Assert API-loaded profile

@@ -44,7 +44,7 @@ Relationship list enrichment uses local users through `lib/enrichUsers.ts`.
 partial list here. Models/DTOs live in `packages/schemas`, and indexes in `lib/migrate.ts`.
 
 Migrations maintain current and retained compatibility indexes; inspect `lib/migrate.ts` for the exact
-writes. `pnpm --filter api migrate` also drops legacy `relationships`, so run it only against the
+writes. `bun run --filter api migrate` also drops legacy `relationships`, so run it only against the
 intended replica set within an authorized migration scope.
 
 ## Relationship invariants
@@ -77,9 +77,9 @@ Keep catalog persistence and DTOs consistent with those contracts; do not duplic
 
 ## Development and verification
 
-Start with `pnpm --filter api dev` from the root; the API listens on port 4000.
+Start with `bun run --filter api dev` from the root; the API listens on port 4000.
 Use the [shared validation commands](../../AGENTS.md#3-workspace-and-commands).
-Run Biome from the API workspace (`pnpm --filter api exec biome check <path-relative-to-api>`)
+Run Biome from the API workspace (`bun run --cwd apps/api biome check <path-relative-to-api>`)
 so file checks use the same configuration as the API lint job. Unit tests live near their library;
 replica-set integration tests live in `test/integration`.
 

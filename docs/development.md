@@ -133,24 +133,43 @@ run would lose that independence. Scheduled orphan cleanup also needs to run whe
 See [controller activation](organizations-events-operations.md#activate-trusted-controllers-before-relying-on-lane-independence)
 before treating branch edits as live protection.
 
+## Bun installation and runtime
+
+When switching package managers in an existing checkout, move the old root and workspace
+`node_modules` trees into an ignored backup before the first Bun install. A frozen install
+does not remove every stale nested package left by a different linker; a fresh checkout
+also avoids this problem. Keep the backup until installation and checks have passed.
+
+Use Bun 1.4.4 for dependency installation and script orchestration; retain Node.js 26 for Next.js,
+Vitest, Expo and CLI shebangs. `bun.lock` is the only package-manager lockfile, workspace globs,
+version overrides and native patches live in the root `package.json`, and `bunfig.toml` explicitly
+keeps hoisted installs. The exact Bun version is shared by CI and every EAS profile; local EAS
+builds use the runner's installed Bun. Vercel receives exact-version frozen install and build commands without
+changing its application runtime to Bun.
+
+The [dependency policy](../scripts/dependencies/README.md) preserves registry-only sources, the
+one-day age gate for newly resolved versions and the previous lifecycle-script allowlist.
+Bun's automatic env loading is disabled: app/framework loaders and explicit per-app injection
+remain responsible for private configuration. Do not use `--bun` to switch the runtime incidentally.
+A Bun security scanner hook enforces this policy before installs; it is not a CVE scanner.
+
 ## Dependency updates
 
-Use pnpm, keep `pnpm-lock.yaml` synchronized, and install the graph rather than editing only the
+Use Bun, keep `bun.lock` synchronized, and install the graph rather than editing only the
 lockfile.
 
 ```bash
-pnpm outdated -r
-pnpm update -r                         # compatible updates within declared ranges
-pnpm --filter mobile exec expo install --fix
-pnpm dedupe
-pnpm peers check
-pnpm --filter mobile exec expo install --check
+bun outdated
+bun update --recursive             # compatible updates across all workspaces
+bun run --cwd apps/mobile expo install --fix
+bun dedupe
+bun run --cwd apps/mobile expo install --check
 ```
 
 Upgrade major versions one package family at a time; do not use a blanket `--latest` update without
 running and fixing the full validation suite. Expo owns compatible versions of React Native and
 native modules. Do not force npm-latest versions over Expo's compatibility matrix. Keep mobile
-`react`, `react-dom`, and other exact Expo-managed versions pinned when a caret would let pnpm
+`react`, `react-dom`, and other exact Expo-managed versions pinned when a caret would let Bun
 dedupe to an incompatible version. Keep Vitest 3.2 until the web JSX transform and constructor mocks
 are migrated for Vitest 5.
 
@@ -221,8 +240,8 @@ Lingui configuration lives at repository root. Source catalogs are `messages/en.
 `messages/it.po`; compiled catalogs are committed.
 
 ```bash
-pnpm i18n:extract
-pnpm i18n:compile
+bun run i18n:extract
+bun run i18n:compile
 ```
 
 Web uses Lingui macros through `apps/web/babel.config.js`. Mobile uses `useT()` and `translate()`

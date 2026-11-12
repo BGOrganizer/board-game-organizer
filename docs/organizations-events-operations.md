@@ -7,7 +7,7 @@ See the [checkpoint](implementation-progress.md) for the limits of recorded veri
 
 ## Database and moderation
 
-- Run `pnpm --filter api migrate` against the intended replica-set database before deploying community writes. The migration maintains current Group/Event/Table/registration, social, profile, rating and asset indexes,
+- Run `bun run --filter api migrate` against the intended replica-set database before deploying community writes. The migration maintains current Group/Event/Table/registration, social, profile, rating and asset indexes,
   along with retained legacy compatibility indexes; inspect `lib/migrate.ts` for the exact writes. It also drops
   the legacy `relationships` collection.
 - Grant global BGO moderation authority only through server-owned Clerk **public** metadata: `bgoRole: "ADMIN"`. Never grant authority through `unsafeMetadata` or a mirrored MongoDB role. Review handlers resolve fresh Clerk authority. Group creators assign accepted Group moderators through the BGO API;
@@ -75,7 +75,7 @@ Infisical remains the source of project environment values. The shared deploymen
 source and builds on Vercel, where synced Secrets are available; it does not export them with
 `vercel pull` or require Secret-to-Config conversions. `NEXT_PUBLIC_*` values remain browser-public
 regardless of their Vercel type. Generated per-deployment build configuration explicitly selects
-`pnpm --filter api build` or `pnpm --filter web build` and the corresponding app's `.next` output;
+`bun run --filter api build` or `bun run --filter web build` and the corresponding app's `.next` output;
 API deployments must not build Web with API-only environment values. Project settings are not changed.
 
 Per-deployment overrides never update project variables. For isolated API Previews, build-only
