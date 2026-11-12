@@ -1,7 +1,7 @@
 {
   "name": "board-game-organizer",
   "private": true,
-  "packageManager": "pnpm@11.25.0",
+  "packageManager": "bun@1.4.4",
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
@@ -30,7 +30,32 @@
     "semantic-release": "^25.0.9",
     "turbo": "^2.10.12",
     "typescript": "^7.0.2",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "jsonc-parser": "3.3.1"
   },
-  "license": "AGPL-3.0-only"
+  "license": "AGPL-3.0-only",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "utf-8-validate": "5.0.10"
+  },
+  "patchedDependencies": {
+    "heroui-native@1.0.9": "patches/heroui-native@1.0.9.patch",
+    "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch"
+  },
+  "trustedDependencies": [
+    "@firebase/util",
+    "@sentry/cli",
+    "browser-tabs-lock",
+    "bufferutil",
+    "core-js",
+    "esbuild",
+    "sharp",
+    "unrs-resolver",
+    "utf-8-validate"
+  ]
 }
