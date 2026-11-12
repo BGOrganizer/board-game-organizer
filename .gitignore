@@ -13,8 +13,8 @@ out/
 .env.*
 !.env.example
 .mcp.json
-google-services.json
-service-account.json
+google-services.json*
+service-account.json*
 *.log
 .DS_Store
 coverage/
@@ -28,14 +28,11 @@ apps/mobile/build-output/
 .vercel/
 test-results/
 playwright-report/
-.pi/*
-!.pi/skills/
-.pi/skills/*
-!.pi/skills/bgo-component-architecture/
-.pi/skills/bgo-component-architecture/*
-!.pi/skills/bgo-component-architecture/SKILL.md
+.pi/
 core.*
 
-data/*
-!data/README.md
+/scripts/mongodb/data/
 boardgames_ranks.csv
+/docker/raspberry/
+/compose.raspberry.yaml
+/compose.raspberry.telegram.yaml
