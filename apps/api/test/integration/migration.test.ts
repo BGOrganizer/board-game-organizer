@@ -1,7 +1,8 @@
 import { MongoClient } from "mongodb";
-import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
+import { type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrate } from "../../src/app/lib/migrate";
+import { mongodbContainer } from "../../testing/mongodb-container";
 
 /** Creates application collections/indexes and drops legacy `relationships`. */
 describe("database migration", () => {
@@ -9,7 +10,7 @@ describe("database migration", () => {
   let client: MongoClient;
 
   beforeAll(async () => {
-    container = await new GenericContainer("mongo:7")
+    container = await mongodbContainer()
       .withExposedPorts(27017)
       .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/i))
       .start();
@@ -64,7 +65,7 @@ describe("database migration", () => {
       /duplicate key/i,
     );
 
-    // MongoDB drop() on a missing collection resolves ok — no error, so the
+    // MongoDB drop() on a missing collection resolves ok â€” no error, so the
     // migration reports the (no-op) drop as done.
     expect(result.droppedLegacyRelationships).toBe(true);
   });

@@ -147,7 +147,13 @@ describe("BGG collection parser", () => {
   });
 
   it("rejects unavailable BGG and distinguishes rate limits from unknown users", async () => {
+    vi.stubEnv("BGG_TOKEN", "");
+    const unexpectedFetch = vi.fn(() => {
+      throw new Error("Unexpected real provider request");
+    });
+    vi.stubGlobal("fetch", unexpectedFetch);
     await expect(fetchBggUser("alice")).rejects.toMatchObject({ kind: "unavailable" });
+    expect(unexpectedFetch).not.toHaveBeenCalled();
     vi.stubEnv("BGG_TOKEN", "test-token");
     const fetchMock = vi
       .fn()

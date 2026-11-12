@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { EventRecord } from "@board-game-organizer/schemas";
 import { type Db, MongoClient } from "mongodb";
-import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
+import { type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
 import { RelationshipRepository } from "../../src/app/lib/contacts/relationship.repository";
 import { COLLECTIONS as C } from "../../src/app/lib/db";
@@ -10,6 +10,7 @@ import { migrate } from "../../src/app/lib/migrate";
 import { ProfileRepository } from "../../src/app/lib/profile/profile.repository";
 import { ProfileService } from "../../src/app/lib/profile/profile.service";
 import { ProfileActivitiesRepository } from "../../src/app/lib/profile/profile-activities.repository";
+import { mongodbContainer } from "../../testing/mongodb-container";
 
 let container: StartedTestContainer,
   client: MongoClient,
@@ -19,7 +20,7 @@ const at = "2030-06-03T12:00:00.000Z",
   subject = "subject",
   viewer = "viewer";
 beforeAll(async () => {
-  container = await new GenericContainer("mongo:7")
+  container = await mongodbContainer()
     .withCommand(["--replSet", "rs0", "--bind_ip_all"])
     .withExposedPorts(27017)
     .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/))

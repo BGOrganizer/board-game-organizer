@@ -7,7 +7,7 @@ import {
   notificationItemId,
 } from "@board-game-organizer/schemas";
 import { type Db, MongoClient, type ObjectId } from "mongodb";
-import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
+import { type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { importDirectCsv } from "../../scripts/import-boardgames-direct";
 import { ContactLinksRepository } from "../../src/app/lib/contacts/contacts.repository";
@@ -33,6 +33,7 @@ import { PushSubscriptionsRepository } from "../../src/app/lib/notifications/pus
 import { ProfileService } from "../../src/app/lib/profile/profile.service";
 import { RatingsRepository } from "../../src/app/lib/ratings/ratings.repository";
 import { UsersRepository } from "../../src/app/lib/users/users.repository";
+import { mongodbContainer } from "../../testing/mongodb-container";
 
 const ACTOR = "user_actor";
 const TARGET = "user_target";
@@ -1227,7 +1228,7 @@ describe("source-paged entity notification attention", () => {
 });
 
 beforeAll(async () => {
-  container = await new GenericContainer("mongo:7")
+  container = await mongodbContainer()
     .withCommand(["mongod", "--replSet", "rs0", "--bind_ip_all"])
     .withExposedPorts(27017)
     .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/))

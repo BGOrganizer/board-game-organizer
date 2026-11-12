@@ -10,13 +10,21 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // Provider-backed cases install their own mocks; never inherit a local BGG credential.
+    env: { BGG_TOKEN: "" },
     // Integration tests (testcontainers) run separately via
-    // `pnpm test:integration` (vitest.integration.config.ts).
+    // `bun run test:integration` (vitest.integration.config.ts).
     exclude: ["test/integration/**", "node_modules/**", "dist/**", ".next/**"],
     coverage: {
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "testing/mongodb-container.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/lib/games/bgg-player-poll.ts": {
           lines: 100,
           functions: 100,

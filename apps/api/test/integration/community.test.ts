@@ -18,7 +18,7 @@ import {
 import { eventParticipation, normalizeMatchScore } from "@board-game-organizer/shared";
 import { type ClientSession, type Db, MongoClient } from "mongodb";
 import sharp from "sharp";
-import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
+import { type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { recordServices } from "../../src/app/lib/community/record-services";
 import { RelationshipRepository } from "../../src/app/lib/contacts/relationship.repository";
@@ -47,6 +47,7 @@ import { ProfileService } from "../../src/app/lib/profile/profile.service";
 import { ProfileActivitiesRepository } from "../../src/app/lib/profile/profile-activities.repository";
 import { RatingsRepository } from "../../src/app/lib/ratings/ratings.repository";
 import { UsersRepository } from "../../src/app/lib/users/users.repository";
+import { mongodbContainer } from "../../testing/mongodb-container";
 
 // External Clerk/MapTiler/provider boundaries have their own request/authentication tests.
 // These tests exercise real repositories, locks, indexes, transactions and Sharp preparation.
@@ -252,7 +253,7 @@ async function book(eventId: string, tableId: string, userId: string, confirm = 
   return row;
 }
 beforeAll(async () => {
-  container = await new GenericContainer("mongo:7")
+  container = await mongodbContainer()
     .withCommand(["--replSet", "rs0", "--bind_ip_all"])
     .withExposedPorts(27017)
     .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/))
