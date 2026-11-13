@@ -84,13 +84,20 @@ function proposal(kind: string, status = "PENDING", change: Record<string, any> 
     "./EventProposalItem": { EventProposalItem: "ProposalItem" },
     "./EventProposalReviewDialog": { EventProposalReviewDialog: "ReviewDialog" },
   });
-  const item = find(
-    render({ event: { id: "event", version: 1 }, kind, disabled: change.disabled }),
-    "ProposalItem",
-  );
+  const renderSection = () =>
+    render({ event: { id: "event", version: 1 }, kind, disabled: change.disabled });
+  const item = find(renderSection(), "ProposalItem");
   if (!item) throw new Error("Missing proposal row");
-  return { item, row, state };
+  return { item, row, state, renderSection };
 }
+it.each(["date", "location", "game"])(
+  "renders no native %s section when its category is hidden",
+  (kind) => {
+    const { state, renderSection } = proposal(kind);
+    state.visible = false;
+    expect(renderSection()).toBeNull();
+  },
+);
 it.each(["date", "location", "game"])(
   "matches %s moderation to the actual native vote circle without shrinking its touch envelope",
   (kind) => {

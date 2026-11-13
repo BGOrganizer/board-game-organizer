@@ -91,6 +91,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/events/hooks/useEventProposalSection.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/{lib/sentry,instrumentation,instrumentation-client,sentry.server.config,sentry.edge.config}.ts":
           {
             lines: 100,

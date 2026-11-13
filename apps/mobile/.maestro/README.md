@@ -142,7 +142,8 @@ selectable until accepted, while an actor's own submitted game is excluded on pi
   PENDING proposal, without an intermediate editor/Send. The pending row has no Pending label.
   Search must retain focus after debouncing; reopening the picker must exclude that own suggestion.
 - `accept|reject`: current manager, no automatic seat assumed; target is pending at the declared
-  source offset and its proposer still has its own Table seat. Pages are fixed at five records.
+  source offset and its proposer still has its own Table seat. Enable the game category for this UI
+  journey; disabled categories retain server history but hide their section. Pages are fixed at five records.
   Cancel preserves the request, then one versioned decision updates that exact server-ID row.
   Acceptance adds the canonical game; rejection does not. Browser checks canonical receipts,
   unchanged existing ballots and exactly one proposal POST. Native status assertions target the
@@ -152,6 +153,18 @@ These are game-path execution scenarios, not exhaustive runtime acceptance. Actu
 runs, native date/location pickers, role-loss/offline/cache restoration, all themes/text sizes and
 platform layout/focus behavior still require owned runtime acceptance. Unit/API/disposable-Mongo
 and Maestro syntax results do not substitute for those runs.
+
+`33-proposal-visibility.yaml` is a separate read-only, opt-in check for an owned private Event/Table.
+Set `PROPOSAL_BUILD_ACK=owned-preview-build`, `PROPOSAL_LOCALE=en|it`, Event/Table IDs and display
+selectors as `PROPOSAL_EVENT_ID`, `PROPOSAL_TABLE_ID`, `PROPOSAL_EVENT_NAME`, `PROPOSAL_TABLE_NAME`.
+`PROPOSAL_MASK=0..7` must match the actual flags (date=1, location=2, game=4); repeat all combinations
+for manager and ordinary participant fixtures with minimal single-option detail pages, bringing
+each category's area into view when inspecting absent headings. Disabled sections have no header or empty label;
+enabled empty queues retain their empty state. The browser proposal scenario checks actual API flags
+on both detail pages. Neither path changes flags or creates fixtures; repeat with owned preconfigured
+records, including historical missing flags and re-enabled retained requests.
+For browser visibility-only fixtures, select `--grep 'detail proposal sections'` with the existing
+proposal config so the submission/review journey is not run against disabled categories.
 
 ## Manual Group moderator actions
 

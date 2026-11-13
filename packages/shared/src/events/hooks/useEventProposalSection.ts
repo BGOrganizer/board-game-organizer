@@ -18,7 +18,14 @@ export function useEventProposalSection(
   table?: PlannedTableResponse,
   disabled = false,
 ) {
-  const visible = event.groupType !== "PUBLIC" && !event.readOnly;
+  const visible =
+    event.groupType !== "PUBLIC" &&
+    !event.readOnly &&
+    (kind === "date"
+      ? event.allowParticipantDates === true
+      : kind === "location"
+        ? event.allowParticipantLocations === true
+        : table?.allowParticipantGames === true);
   const manager = event.canManage === true;
   const scope = {
     eventId: event.id,

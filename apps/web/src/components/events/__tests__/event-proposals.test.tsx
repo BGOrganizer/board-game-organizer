@@ -149,6 +149,89 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
+it.each(Array.from({ length: 16 }, (_, i) => [i % 8, i < 8] as const))(
+  "shows only opted-in categories for mask %s (manager=%s), independently of submission permission",
+  (mask, manager) => {
+    const f = setup(),
+      value = {
+        ...event,
+        canManage: manager,
+        role: manager ? ("admin" as const) : ("participant" as const),
+        allowParticipantDates: Boolean(mask & 1),
+        allowParticipantLocations: Boolean(mask & 2),
+        canProposeDates: false,
+        canProposeLocations: false,
+      },
+      tableValue = { ...table, allowParticipantGames: Boolean(mask & 4), canProposeGames: false };
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    for (const kind of ["date", "location", "game"] as const)
+      f.client.setQueryData(
+        eventProposalKeys.page(o, {
+          ...scope,
+          kind,
+          mode: manager ? "review" : "mine",
+          ...(kind === "game" ? { tableId: table.id } : {}),
+        }),
+        page([], manager ? "review" : "mine"),
+      );
+    renderWithI18n(
+      <QueryClientProvider client={f.client}>
+        <EventProposalSection event={value} kind="date" />
+        <EventProposalSection event={value} kind="location" />
+        <EventProposalSection event={value} table={tableValue} kind="game" />
+      </QueryClientProvider>,
+    );
+    for (const [bit, name] of [
+      [1, "Proposed dates/times"],
+      [2, "Proposed locations"],
+      [4, "Proposed games"],
+    ] as const)
+      expect(Boolean(screen.queryByRole("heading", { name }))).toBe(Boolean(mask & bit));
+    expect(screen.queryAllByText("No proposals")).toHaveLength(
+      [1, 2, 4].filter((bit) => mask & bit).length,
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  },
+);
+it("treats missing historical flags or a missing Table as disabled without requesting proposals", () => {
+  const f = setup(),
+    value = { ...event },
+    tableValue = { ...table },
+    fetch = vi.fn();
+  Reflect.deleteProperty(value, "allowParticipantDates");
+  Reflect.deleteProperty(value, "allowParticipantLocations");
+  Reflect.deleteProperty(tableValue, "allowParticipantGames");
+  vi.stubGlobal("fetch", fetch);
+  renderWithI18n(
+    <QueryClientProvider client={f.client}>
+      <EventProposalSection event={value} kind="date" />
+      <EventProposalSection event={value} kind="location" />
+      <EventProposalSection event={value} table={tableValue} kind="game" />
+      <EventProposalSection event={value} kind="game" />
+    </QueryClientProvider>,
+  );
+  expect(screen.queryByRole("heading", { name: /Proposed/ })).toBeNull();
+  expect(screen.queryByText("No proposals")).toBeNull();
+  expect(fetch).not.toHaveBeenCalled();
+});
+it("hides retained proposals and cancels a captured decision when its category is disabled", () => {
+  const f = setup();
+  const h = renderHook(({ value }) => useEventProposalSection(o, value, "date"), {
+    wrapper: f.wrapper,
+    initialProps: { value: event },
+  });
+  act(() => h.result.current.open(row()));
+  expect(h.result.current.validDecision).toBe(true);
+  h.rerender({ value: { ...event, allowParticipantDates: false } });
+  expect(h.result.current.visible).toBe(false);
+  expect(h.result.current.decision).toBeNull();
+  expect(h.result.current.validDecision).toBe(false);
+  expect(f.client.getQueryData(eventProposalKeys.page(o, scope))).toEqual(page());
+  h.rerender({ value: event });
+  expect(h.result.current.visible).toBe(true);
+  expect(h.result.current.q.items).toEqual([row()]);
+});
 it("renders date/time icons without zone shifts, verified place labels and the real proposed game cover", () => {
   const view = renderWithI18n(<EventProposalItem row={row()} />);
   const date = screen.getByTestId(`event-proposal-${optionId}`);

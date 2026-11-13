@@ -103,6 +103,36 @@ async function read<T>(page: Page, path: string): Promise<T> {
     ),
   );
 }
+test("detail proposal sections follow each category opt-in", async ({ page }) => {
+  await setupClerkTestingToken({ page });
+  await page.goto("/");
+  await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
+  await page.goto("/");
+  await completeMobileNumberIfNeeded(page);
+  const event = await read<PlannedEventResponse>(page, `events/${input.eventId}`);
+  const table = await read<PlannedTableResponse>(
+    page,
+    `events/${input.eventId}/tables/${input.tableId}`,
+  );
+  expect(event.groupType).toBe("PRIVATE");
+  expect(event.readOnly).not.toBe(true);
+  await page.goto(`/events/${input.eventId}`);
+  await expect(page.getByText(event.name, { exact: true }).first()).toBeVisible();
+  for (const [enabled, name] of [
+    [event.allowParticipantDates, it ? "Date/Orari Proposti" : "Proposed dates/times"],
+    [event.allowParticipantLocations, it ? "Luoghi Proposti" : "Proposed locations"],
+  ] as const) {
+    const section = page.getByRole("region", { name, exact: true });
+    if (enabled === true) await expect(section).toBeVisible();
+    else await expect(section).toBeHidden();
+  }
+  await page.goto(`/events/${input.eventId}/tables/${input.tableId}`);
+  await expect(page.getByText(table.name, { exact: true }).first()).toBeVisible();
+  const games = page.getByRole("region", { name: labels.own, exact: true });
+  if (table.allowParticipantGames === true) await expect(games).toBeVisible();
+  else await expect(games).toBeHidden();
+});
+
 test("real private own-Table proposal or current-manager decision; cancel writes nothing", async ({
   page,
 }) => {
@@ -120,10 +150,11 @@ test("real private own-Table proposal or current-manager decision; cancel writes
     event.groupId !== input.groupId ||
     event.groupType !== "PRIVATE" ||
     event.status !== "PLANNING" ||
+    table.allowParticipantGames !== true ||
     table.eventId !== input.eventId ||
     table.games.some((g) => g.gameId === input.gameId)
   )
-    throw new Error("Private planning Event with an unselected base-game candidate required");
+    throw new Error("Private planning Event with enabled game proposals and an unselected candidate required");
   const base = `events/${input.eventId}/proposals?kind=game&tableId=${input.tableId}`;
   const writes: string[] = [];
   page.on("request", (r) => {

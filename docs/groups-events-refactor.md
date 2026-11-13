@@ -682,7 +682,10 @@ proposal headers are distinct; pending rows omit the Pending label, retain appro
 location artwork or the catalog game cover, and keep accepted/rejected and local mutation feedback.
 Native dialog generations/owner fences reject cancelled or detached callbacks. Existing failed-draft
 recovery and uncertain receipt verification remain explicit; canonical options still require approval.
-Managers see the authorized review queue; other participants see only their own proposals. Fixed
+Managers see the authorized review queue; other participants see only their own proposals.
+Disabled categories hide their entire proposal section in Event/Table detail on both clients,
+including its header and empty state. Re-enabling the category exposes its retained history again;
+this presentation rule does not delete requests or change server review authorization. Fixed
 five-row source pages bound presentation (five unique choices for manager review), including
 inside existing native lists. Picker input identity stays stable through debounced search and cache
 updates, while list budgets and stale-callback fences reset without remounting that input. Game artwork
