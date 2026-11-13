@@ -37,6 +37,7 @@ it.each([undefined, "development", "production"])(
     vi.stubEnv("APP_VARIANT", variant);
     const development = variant !== "production";
     const result = config();
+    expect(result.extra.sentryEnvironment).toBe(variant ?? "development");
     expect(result.android.package).toBe(
       development ? "com.bgo.boardgameorganizer.dev" : "com.bgo.boardgameorganizer",
     );

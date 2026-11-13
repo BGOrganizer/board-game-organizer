@@ -6932,3 +6932,7 @@ msgstr "Giocatori privilegia il maggior numero di partecipanti. BGG Best privile
 
 msgid "Participation"
 msgstr "Partecipazione"
+
+#: apps/web/src/app/global-error.tsx
+msgid "Something went wrong"
+msgstr "Si è verificato un errore"

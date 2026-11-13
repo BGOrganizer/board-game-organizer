@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 if (process.env.VERCEL === "1") {
@@ -15,6 +16,16 @@ if (process.env.VERCEL === "1") {
   }
 }
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT:
+      process.env.VERCEL_ENV === "production" ? "production" : "development",
+  },
+};
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  telemetry: false,
+  sourcemaps: { disable: true },
+  release: { create: false, finalize: false },
+});

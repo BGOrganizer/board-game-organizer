@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { I18nProvider } from "@lingui/react";
 import * as Sentry from "@sentry/react-native";
+import Constants from "expo-constants";
 import { Stack } from "expo-router";
 import { HeroUINativeProvider } from "heroui-native";
 import {
@@ -45,6 +46,7 @@ const sentryIntegrations = __DEV__
 
 Sentry.init({
   dsn: sentryDsn,
+  environment: Constants.expoConfig?.extra?.sentryEnvironment ?? "development",
 
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/

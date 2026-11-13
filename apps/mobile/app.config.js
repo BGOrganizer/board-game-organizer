@@ -111,6 +111,7 @@ module.exports = {
       "@react-native-community/datetimepicker",
     ],
     extra: {
+      sentryEnvironment: variant,
       apiUrl: process.env.EXPO_PUBLIC_API_URL,
       maptilerApiKey: process.env.EXPO_PUBLIC_MAPTILER_API_KEY,
       clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,

@@ -6941,3 +6941,7 @@ msgstr "Players prioritizes the largest number of participants. BGG Best priorit
 
 msgid "Participation"
 msgstr "Participation"
+
+#: apps/web/src/app/global-error.tsx
+msgid "Something went wrong"
+msgstr "Something went wrong"

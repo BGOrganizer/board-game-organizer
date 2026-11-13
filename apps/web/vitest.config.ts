@@ -91,6 +91,19 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/{lib/sentry,instrumentation,instrumentation-client,sentry.server.config,sentry.edge.config}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
+        "src/app/global-error.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/events/EventPlayerRatingPopover.tsx": {
           lines: 100,
           functions: 100,

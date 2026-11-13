@@ -184,7 +184,7 @@ Copy examples; never commit generated environment files.
 
 | App | File | Variables |
 | --- | --- | --- |
-| web | `apps/web/.env.local` | Clerk publishable key, API URL, public MapTiler key; optional Firebase web push |
+| web | `apps/web/.env.local` | Clerk publishable key, API URL, public MapTiler key; optional Firebase web push and Sentry |
 | api | `apps/api/.env.local` | Clerk server/webhook keys, MongoDB, server MapTiler key, origins, BGG; deadline-worker and optional push configuration |
 | mobile | `apps/mobile/.env` | Clerk publishable key, API URL, public MapTiler key; optional Sentry/FCM |
 
@@ -226,6 +226,25 @@ launcher labels and independent permissions, open each variant's scheme, sign in
 corresponding Clerk instance and verify each environment's push reaches only its own installation.
 Keep test fixtures isolated; the retained Maestro journeys target Development. Config/prebuild and
 unit checks do not establish installed-device coexistence or actual push delivery.
+
+Sentry uses separate projects for Web and Mobile: configure the Web project's public DSN as
+`NEXT_PUBLIC_SENTRY_DSN` in the Web app's Infisical/Vercel environments, and the Mobile project's
+DSN as `EXPO_PUBLIC_SENTRY_DSN` in the Mobile environments. Do not exchange their DSNs.
+Web selects `production` only for `VERCEL_ENV=production`; Preview/local builds use `development`.
+Mobile selects the environment from `APP_VARIANT` in its Expo configuration, including release-mode
+Development APKs. Neither platform derives this label from `NODE_ENV` or `__DEV__`.
+
+Web instruments browser, Node and Edge errors within the Web app; it does not instrument the API.
+Without a Web DSN, event delivery is disabled. Web tracing, replay, logs and breadcrumbs are not
+enabled, and error events remove structured user/request context. Exception messages/stacks remain:
+do not include credentials or private payloads in thrown errors. Web builds do not upload source maps
+or create/finalize Sentry releases. Mobile retains its existing monitoring/privacy settings and
+release/Fabric safeguards. Unit/build checks do not establish live delivery: verify an owned test
+error in the correct project/environment after deployment and after installing each fresh APK.
+The opt-in browser envelope check runs with `SENTRY_ACCEPTANCE_WEB_DSN` and an owned local/Preview
+`PLAYWRIGHT_BASE_URL`: `bun run --filter web test:e2e --config e2e/sentry.config.ts`.
+It intercepts delivery to test Development project/environment routing, removed context and ingest
+failure tolerance without publishing test events; it does not prove live Sentry ingestion.
 
 Production endpoints:
 
