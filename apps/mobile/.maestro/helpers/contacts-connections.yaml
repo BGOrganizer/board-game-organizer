@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 - runFlow:
     file: switch-actor.yaml

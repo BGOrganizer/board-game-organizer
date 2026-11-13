@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 - tapOn: "Contacts"
 - extendedWaitUntil:
@@ -14,7 +14,7 @@ appId: com.bgo.mobile
 - assertVisible: "Type at least 4 characters to search"
 - back
 - assertNotVisible: "Search help"
-- openLink: bgo:///contacts?tab=device
+- openLink: bgo-dev:///contacts?tab=device
 - tapOn:
     id: "enable-contacts-btn"
 - assertVisible: "Access to contacts"
@@ -61,7 +61,7 @@ appId: com.bgo.mobile
 - back
 - assertNotVisible: "Requests awaiting your reply."
 - assertNotVisible: "Blocked"
-- openLink: bgo:///contacts?tab=device
+- openLink: bgo-dev:///contacts?tab=device
 - assertVisible: "Device Contacts"
 - extendedWaitUntil:
     visible: "E2E Target"
@@ -86,6 +86,6 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     notVisible: "^(Copy|Copy to clipboard|Copy link)$"
     timeout: 30000
-- openLink: bgo:///contacts?tab=search
+- openLink: bgo-dev:///contacts?tab=search
 - assertVisible:
     id: "contact-search-input"

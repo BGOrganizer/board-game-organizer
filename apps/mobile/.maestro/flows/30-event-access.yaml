@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Owned Event privacy, public enrollment, collection sources and final sharing
 # MANUAL current Preview. Explicit mode/fixtures; enrollment persists and finalize is irreversible.
 tags: [manual, events, privacy]
@@ -92,7 +92,7 @@ tags: [manual, events, privacy]
     when:
       true: ${output.access.mode === 'presentation'}
     commands:
-      - openLink: bgo:///groups
+      - openLink: bgo-dev:///groups
       - extendedWaitUntil:
           visible: ${output.access.groupListTab}
           timeout: 120000
@@ -138,7 +138,7 @@ tags: [manual, events, privacy]
       - assertVisible: ${output.access.approvedGame}
       - takeScreenshot: event-table-approved-games
       - back
-      - openLink: bgo:///tables
+      - openLink: bgo-dev:///tables
       - extendedWaitUntil:
           visible:
             id: list-search-input

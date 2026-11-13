@@ -1,22 +1,60 @@
+const { readFileSync } = require("node:fs");
+const { resolve } = require("node:path");
 // Generated from installed HeroUI tokens for native APIs that require hex colors.
 const { nativeColors } = require("./assets/branding.json");
+const locales = {
+  en: require("./assets/locales/en.json"),
+  it: require("./assets/locales/it.json"),
+};
+const variant = process.env.APP_VARIANT ?? "development";
+if (variant !== "development" && variant !== "production")
+  throw new Error("APP_VARIANT must be development or production");
+const development = variant === "development";
+const appNameKey = development ? "app_name_development" : "app_name";
+const androidPackage = development
+  ? "com.bgo.boardgameorganizer.dev"
+  : "com.bgo.boardgameorganizer";
+if (process.env.GOOGLE_SERVICES_JSON) {
+  let clients;
+  try {
+    clients = JSON.parse(
+      readFileSync(resolve(__dirname, process.env.GOOGLE_SERVICES_JSON), "utf8"),
+    ).client;
+  } catch {
+    throw new Error("Cannot read GOOGLE_SERVICES_JSON as a Firebase app configuration");
+  }
+  if (
+    !Array.isArray(clients) ||
+    !clients.some(
+      (client) => client?.client_info?.android_client_info?.package_name === androidPackage,
+    )
+  )
+    throw new Error("GOOGLE_SERVICES_JSON does not match the selected Android app variant");
+}
 
 module.exports = {
   expo: {
-    name: "Board Game Organizer",
+    name: locales.en.android[appNameKey],
     slug: "board-game-organizer",
     version: "1.3.2",
     orientation: "portrait",
-    scheme: "bgo",
     userInterfaceStyle: "automatic",
     icon: "./assets/icon.png",
     newArchEnabled: true,
-    locales: { en: "./assets/locales/en.json", it: "./assets/locales/it.json" },
+    locales: Object.fromEntries(
+      Object.entries(locales).map(([locale, strings]) => [
+        locale,
+        { ...strings, android: { app_name: strings.android[appNameKey] } },
+      ]),
+    ),
     ios: {
+      scheme: "bgo",
       supportsTablet: true,
       bundleIdentifier: "com.bgo.mobile",
+      infoPlist: { CFBundleDisplayName: locales.en.android.app_name },
     },
     android: {
+      scheme: development ? "bgo-dev" : "bgo",
       ...(process.env.GOOGLE_SERVICES_JSON
         ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
         : {}),
@@ -27,7 +65,7 @@ module.exports = {
         monochromeImage: "./assets/adaptive-icon-monochrome.png",
         backgroundColor: nativeColors.lightBackground,
       },
-      package: "com.bgo.mobile",
+      package: androidPackage,
     },
     web: {
       bundler: "metro",

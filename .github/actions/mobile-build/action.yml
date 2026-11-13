@@ -5,6 +5,9 @@ description: >-
   setup, native toolchains, build caches and APK checksums.
 
 inputs:
+  app-environment:
+    description: Android application variant (development or production), independent of EAS profile
+    required: true
   install-dependencies:
     description: Install the workspace; disable only when the caller already installed this checkout
     required: false
@@ -56,6 +59,17 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Select Android app variant
+      shell: bash
+      env:
+        APP_VARIANT: ${{ inputs.app-environment }}
+      run: |
+        case "$APP_VARIANT" in
+          development|production) ;;
+          *) echo "::error::App environment must be development or production"; exit 1 ;;
+        esac
+        printf 'APP_VARIANT=%s\n' "$APP_VARIANT" >> "$GITHUB_ENV"
+
     - name: 🗺️ Verify MapTiler key
       shell: bash
       env:

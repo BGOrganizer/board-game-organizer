@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Real BGG synchronization and cache-safe confirmed logout
 # Requires already authenticated owned UNLINKED Development/Preview account.
 # Mutates only that test account through real API/provider requests; no mocks/resets.
@@ -7,7 +7,7 @@ tags: [manual, profile, bgg, auth]
 - runScript: ../helpers/profile-bgg-inputs.js
 - launchApp:
     clearState: false
-- openLink: bgo:///profile
+- openLink: bgo-dev:///profile
 - extendedWaitUntil:
     visible: ${output.profileBgg.owner}
     timeout: 120000

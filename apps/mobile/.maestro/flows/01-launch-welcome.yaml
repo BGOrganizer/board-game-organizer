@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, auth]
 ---
 # Fixture: signed-out app, primary onboarding unset, owned address book seeded.

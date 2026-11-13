@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 # Android native picker emits date first, time second. Both are required commits.
 - tapOn: "Pick date and time"

@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Owned collection counters personal ratings filtering and source paging
 # Read-only current Preview build. Fixture contract: README manual-profile-collection.
 # No provider requests, provisioning, mocks, resets or notification acknowledgments.
@@ -7,7 +7,7 @@ tags: [manual, profile, bgg]
 - runScript: ../helpers/profile-collection-inputs.js
 - launchApp:
     clearState: false
-- openLink: bgo:///profile
+- openLink: bgo-dev:///profile
 - extendedWaitUntil:
     visible: ${output.collection.owner}
     timeout: 120000

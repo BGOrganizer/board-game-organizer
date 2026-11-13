@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 - assertNotVisible: "^Choose (date|game|location)$"
 - tapOn:
@@ -91,7 +91,7 @@ appId: com.bgo.mobile
     timeout: 30000
 - assertVisible: "Updated game night"
 # Verify the saved edit in the list and reopened detail before destructive actions.
-- openLink: bgo:///matches
+- openLink: bgo-dev:///matches
 - extendedWaitUntil:
     visible: "Updated game night"
     timeout: 30000

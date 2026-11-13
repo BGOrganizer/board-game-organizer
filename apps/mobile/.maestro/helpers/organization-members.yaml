@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [isolated-fixture, organizations]
 ---
 # Approved owned ORGANIZATION_LINK; genuinely signed-in creator.
@@ -6,7 +6,7 @@ tags: [isolated-fixture, organizations]
 # REQUEST_NAME, REJECT_NAME, BAN_REQUEST_NAME: distinct pending requesters.
 # FRIEND_USERNAME and INVITED_NAME: eligible friend's username and display name.
 # Every participant belongs to this isolated fixture; no production mutation.
-- assertTrue: ${ORGANIZATION_LINK.startsWith("bgo://") && ORGANIZATION_LINK.includes("/organization/")}
+- assertTrue: ${ORGANIZATION_LINK.startsWith("bgo-dev://") && ORGANIZATION_LINK.includes("/organization/")}
 - openLink: ${ORGANIZATION_LINK}
 - extendedWaitUntil:
     visible:

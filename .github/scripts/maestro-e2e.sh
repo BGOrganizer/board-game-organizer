@@ -84,27 +84,27 @@ case "${1:-}" in
     test -f "$APK"
     echo "APK found: $APK"
     adb install -r "$APK" || { sleep 30; adb install -r "$APK"; }
-    adb shell pm clear com.bgo.mobile || true
+    adb shell pm clear com.bgo.boardgameorganizer.dev || true
     # Clerk Android OAuth must return through both app and SDK callbacks.
     adb shell cmd package resolve-activity --brief \
       -a android.intent.action.VIEW \
       -c android.intent.category.BROWSABLE \
-      -d 'clerk://com.bgo.mobile.hosted-callback' \
+      -d 'clerk://com.bgo.boardgameorganizer.dev.hosted-callback' \
       | tee /tmp/clerk-hosted-callback.txt \
-      | grep -q 'com.bgo.mobile'
+      | grep -q 'com.bgo.boardgameorganizer.dev'
     adb shell cmd package resolve-activity --brief \
       -a android.intent.action.VIEW \
       -c android.intent.category.BROWSABLE \
-      -d 'clerk://com.bgo.mobile.oauth' \
+      -d 'clerk://com.bgo.boardgameorganizer.dev.oauth' \
       | tee /tmp/clerk-oauth-callback.txt \
-      | grep -q 'com.bgo.mobile'
+      | grep -q 'com.bgo.boardgameorganizer.dev'
     cat /tmp/clerk-hosted-callback.txt /tmp/clerk-oauth-callback.txt
     ;;
   warm)
     # Pre-warm native modules before the first cold-start acceptance flow.
-    adb shell am start -n com.bgo.mobile/.MainActivity || true
+    adb shell am start -n com.bgo.boardgameorganizer.dev/.MainActivity || true
     sleep 60
-    adb shell am force-stop com.bgo.mobile || true
+    adb shell am force-stop com.bgo.boardgameorganizer.dev || true
     ;;
   seed)
     TARGET_PHONE="${E2E_TARGET_PHONE:?Target phone required}"

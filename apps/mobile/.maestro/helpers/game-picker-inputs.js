@@ -20,7 +20,7 @@ var first = required("PICKER_FIRST_GAME"),
 if (first === later) throw new Error("Distinct first-page and later-page games required");
 var it = locale === "it";
 output.picker = {
-  eventLink: "bgo:///event/wizard?eventId=" + eventId,
+  eventLink: "bgo-dev:///event/wizard?eventId=" + eventId,
   eventName: literal(required("PICKER_EVENT_NAME")),
   next: it ? "^Avanti$" : "^Next$",
   choose: it ? "^Scegli un gioco$" : "^Choose a game$",

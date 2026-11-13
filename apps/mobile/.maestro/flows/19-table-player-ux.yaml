@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Table labels, waiting states and usernames
 # Owned Development/Preview fixtures; already authenticated in selected EN/IT locale.
 # FREE: editable valid future Event with one small Table. FULL: small full PLANNING Table.
@@ -32,7 +32,7 @@ tags: [manual, tables, profile]
     direction: DOWN
     timeout: 120000
 - assertNotVisible: ${output.ux.email}
-- openLink: bgo:///profile
+- openLink: bgo-dev:///profile
 - tapOn: ${output.ux.player}
 - assertVisible: ${output.ux.win}
 - openLink: ${output.ux.edit}

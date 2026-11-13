@@ -200,13 +200,32 @@ remains address-only. Persist only server-reverified provider labels/coordinates
 time zones, never unverified free text. A verified POI need not have a street/civic address. Set `NEXT_PUBLIC_MAPTILER_API_KEY` for web, `EXPO_PUBLIC_MAPTILER_API_KEY` for mobile (and GitHub Actions APK builds), and server-only `MAPTILER_GEOCODING_KEY` for API deployments. Configure the public web key on Vercel web Preview/Production and the geocoding key on Vercel API Preview/Production. Keep MapTiler/OpenStreetMap attribution visible. MapTiler Free terms limit commercial use; review plan and storage terms before production. Native MapLibre requires a development build, not Expo Go. Never commit token values.
 
 Mobile reads public variables through `apps/mobile/app.config.js` and `Constants.expoConfig.extra`.
+Android application identity uses `APP_VARIANT=development|production`, independently of the
+EAS Gradle profile (both CI APK lanes use `internal`). Local configuration defaults to Development;
+the EAS `development` and `production` profiles select their matching variants. For an `internal`
+build select `APP_VARIANT` explicitly. Development uses `com.bgo.boardgameorganizer.dev`,
+`bgo-dev:` links and a localized Dev launcher name; Production uses `com.bgo.boardgameorganizer`
+and `bgo:`. The iOS identifier remains `com.bgo.mobile` with `bgo:` links. Android package changes
+require fresh installs: the former `com.bgo.mobile` APK is not upgraded in place. Retained Android
+Maestro journeys target the Development package and scheme.
+
 Android FCM builds optionally read `GOOGLE_SERVICES_JSON`: EAS may provide a file secret, while
-GitHub Actions expects the JSON document as a repository secret. Never commit
+GitHub Actions expects the JSON document in the selected environment's `GOOGLE_SERVICES_JSON`
+secret. Supplied JSON must contain a client matching the selected Android package; invalid files
+fail configuration without logging their contents. Use the respective Development/Production
+Firebase project and API sender credentials; changing identifiers also requires matching EAS
+signing credentials and fresh native authentication/deep-link/push acceptance. Never commit
 `google-services.json`. API push delivery optionally uses Firebase service-account and APNs token
 credentials; web push optionally uses `NEXT_PUBLIC_FIREBASE_*` values documented in app env
 examples. Inbox behavior must remain functional when push credentials are absent. Web public
 variables must be read inside `apps/web` and passed to workspace helpers: Next.js does not reliably
 inline `NEXT_PUBLIC_*` reads from workspace package source.
+
+For Android variant acceptance, install both fresh APKs on one owned device, check their localized
+launcher labels and independent permissions, open each variant's scheme, sign in through the
+corresponding Clerk instance and verify each environment's push reaches only its own installation.
+Keep test fixtures isolated; the retained Maestro journeys target Development. Config/prebuild and
+unit checks do not establish installed-device coexistence or actual push delivery.
 
 Production endpoints:
 

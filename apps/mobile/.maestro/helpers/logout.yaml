@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 # Setup navigation uses a real route. Profile-button navigation is tested in 03.
 # Never tap Logout while a previous confirmation or route is still active.
@@ -6,7 +6,7 @@ appId: com.bgo.mobile
     notVisible:
       id: "confirmation-dialog"
     timeout: 30000
-- openLink: bgo:///profile
+- openLink: bgo-dev:///profile
 - extendedWaitUntil:
     visible: "Powered by BoardGameGeek|Logout"
     timeout: 120000

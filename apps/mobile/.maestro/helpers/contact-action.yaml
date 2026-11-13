@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 # Menu selection and confirmation are separate states. No navigation until both close.
 - tapOn: ${CONTACT_ACTIONS}

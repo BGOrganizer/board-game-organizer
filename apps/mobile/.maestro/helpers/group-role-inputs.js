@@ -36,7 +36,7 @@ var it = locale === "it",
   ban = it ? "Banna dal gruppo" : "Ban from group",
   remove = it ? "Rimuovi membro" : "Remove member";
 output.groupRole = {
-  link: "bgo:///group/" + id,
+  link: "bgo-dev:///group/" + id,
   group: literal(required("GROUP_ROLE_GROUP_NAME")),
   members: literal(it ? "Membri" : "Members"),
   manage: literal(

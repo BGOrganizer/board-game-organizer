@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, organizations]
 ---
 # Camera denial is real OS state; account and address book remain intact.
@@ -13,7 +13,7 @@ tags: [ci, organizations]
     visible:
       id: "profile-button"
     timeout: 120000
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible:
       id: "community-tab-organizations"

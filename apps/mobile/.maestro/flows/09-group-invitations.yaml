@@ -1,9 +1,9 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, groups, invitations]
 ---
 # Establish friendship here; never assume a previous social test left it active.
 - runFlow: ../helpers/friendship-create.yaml
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - tapOn:
     id: "create-group-fab"
 - tapOn: "Group name"
@@ -120,7 +120,7 @@ tags: [ci, groups, invitations]
     notVisible:
       id: "confirmation-dialog"
     timeout: 30000
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible: "No groups yet"
     timeout: 30000

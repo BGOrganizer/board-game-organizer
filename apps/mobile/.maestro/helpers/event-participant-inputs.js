@@ -37,9 +37,9 @@ var it = locale === "it",
         ? "Banna dal gruppo"
         : "Ban from group";
 output.eventPeople = {
-  link: "bgo:///event/" + p.eventId,
+  link: "bgo-dev:///event/" + p.eventId,
   event: exact(p.eventName),
-  groupLink: "bgo:///group/" + p.groupId,
+  groupLink: "bgo-dev:///group/" + p.groupId,
   group: exact(p.groupName),
   people: exact(it ? "Partecipanti" : "Participants"),
   tables: exact(it ? "Tavoli" : "Tables"),

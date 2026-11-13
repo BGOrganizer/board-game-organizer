@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Real owner and visible, empty or blocked profiles
 # Authenticated Development/Preview build; owned real fixtures in selected EN/IT locale.
 # Read-only: opening Profile/Activities never acknowledges source notifications.
@@ -7,7 +7,7 @@ tags: [manual, profile]
 - runScript: ../helpers/profile-inputs.js
 - launchApp:
     clearState: false
-- openLink: bgo:///profile
+- openLink: bgo-dev:///profile
 - extendedWaitUntil:
     visible: ${output.profile.owner}
     timeout: 120000
@@ -20,7 +20,7 @@ tags: [manual, profile]
 - assertVisible: ${output.profile.logoutTitle}
 - tapOn: ${output.profile.cancel}
 - assertNotVisible: ${output.profile.logoutTitle}
-- openLink: bgo:///contacts?tab=search
+- openLink: bgo-dev:///contacts?tab=search
 - extendedWaitUntil:
     visible:
       id: contact-search-input

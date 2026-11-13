@@ -14,6 +14,7 @@
         }
       },
       "env": {
+        "APP_VARIANT": "development",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "bun": "1.4.4"
@@ -29,6 +30,9 @@
       "bun": "1.4.4"
     },
     "production": {
+      "env": {
+        "APP_VARIANT": "production"
+      },
       "autoIncrement": true,
       "bun": "1.4.4"
     }

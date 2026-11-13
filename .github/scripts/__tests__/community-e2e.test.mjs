@@ -28,7 +28,7 @@ function nativeSteps(name, env = {}, stack = []) {
   const docs = parseAllDocuments(readFileSync(url, "utf8"));
   for (const doc of docs) assert.deepEqual(doc.errors, []);
   assert.equal(docs.length, 2);
-  assert.equal(docs[0].toJSON().appId, "com.bgo.mobile");
+  assert.equal(docs[0].toJSON().appId, "com.bgo.boardgameorganizer.dev");
   const result = [];
   const resolve = (value) => {
     if (typeof value === "string")
@@ -133,7 +133,7 @@ test("actor changes require completed logout, real sign-in and exact API-backed 
       timeout: 60000,
     }),
   );
-  assert(contains(steps.slice(identity), "openLink", "bgo:///matches"));
+  assert(contains(steps.slice(identity), "openLink", "bgo-dev:///matches"));
   assert(
     contains(steps, "extendedWaitUntil", {
       notVisible: { id: "confirmation-dialog" },
@@ -555,7 +555,7 @@ test("contact searches wait for API results, not an already-visible address-book
       text: "${output.contactEmailPattern}",
     }),
   );
-  assert(contains(steps, "openLink", "bgo:///contacts?tab=search"));
+  assert(contains(steps, "openLink", "bgo-dev:///contacts?tab=search"));
   assert(
     contains(steps, "extendedWaitUntil", {
       visible: { id: "contact-search-input" },
@@ -1130,7 +1130,7 @@ test("native group invitations settle confirmations, handle permission and verif
   );
   assert(contains(steps, "extendedWaitUntil", { visible: "^· 2 members$", timeout: 30000 }));
   const leave = steps.findLastIndex((step) => step.tapOn?.id === "confirmation-action-0");
-  assert(contains(steps.slice(leave), "openLink", "bgo:///groups"));
+  assert(contains(steps.slice(leave), "openLink", "bgo-dev:///groups"));
   assert(
     contains(steps.slice(leave), "extendedWaitUntil", { visible: "No groups yet", timeout: 30000 }),
   );
@@ -1166,7 +1166,7 @@ test("canonical match flow verifies saved feature states instead of transient fe
     timeout: 30000,
   });
   assert.equal(edit[update + 2].assertVisible, "Updated game night");
-  assert.equal(edit[update + 3].openLink, "bgo:///matches");
+  assert.equal(edit[update + 3].openLink, "bgo-dev:///matches");
   assert.deepEqual(edit[update + 4].extendedWaitUntil, {
     visible: "Updated game night",
     timeout: 30000,
@@ -1236,10 +1236,10 @@ test("device contact sharing scrolls the actionable row and returns to the separ
   const invite = steps.findIndex((step) => step.tapOn === "Send invite: E2E Unregistered");
   assert(invite >= 0);
   const search = steps.findIndex(
-    (step, index) => index > invite && step.openLink === "bgo:///contacts?tab=search",
+    (step, index) => index > invite && step.openLink === "bgo-dev:///contacts?tab=search",
   );
   assert(search > invite);
-  assert(contains(steps.slice(0, invite), "openLink", "bgo:///contacts?tab=device"));
+  assert(contains(steps.slice(0, invite), "openLink", "bgo-dev:///contacts?tab=device"));
   assert.deepEqual(steps.at(-1), { assertVisible: { id: "contact-search-input" } });
 });
 

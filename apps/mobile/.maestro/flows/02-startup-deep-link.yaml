@@ -1,9 +1,9 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, startup]
 ---
 # Fixture: primary actor completed onboarding; no ordinary matches exist yet.
 - killApp
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible: "Search groups"
     timeout: 120000

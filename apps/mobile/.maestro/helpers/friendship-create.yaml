@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 # Normalize any existing friendship through real UI; new request/accept stay mandatory.
 - runFlow:

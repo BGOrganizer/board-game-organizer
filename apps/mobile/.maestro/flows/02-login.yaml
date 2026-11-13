@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, auth, onboarding]
 ---
 # Primary fixture must be new to onboarding. An absent form is a fixture failure.
@@ -89,11 +89,11 @@ tags: [ci, auth, onboarding]
     visible: "Matches"
     timeout: 120000
 - assertNotVisible: "Mobile number"
-- openLink: bgo:///profile
+- openLink: bgo-dev:///profile
 - extendedWaitUntil:
     visible: ${output.authEmailPattern}
     timeout: 120000
 - assertVisible: ${output.authEmailPattern}
-- openLink: bgo:///matches
+- openLink: bgo-dev:///matches
 - assertVisible:
     id: "profile-button"

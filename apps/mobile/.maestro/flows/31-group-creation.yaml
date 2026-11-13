@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Owned Group creation draft visibility and logo controls
 # MANUAL owned Preview only. Stages a logo asset; only invalid submissions are pressed.
 tags: [manual, groups, draft]
@@ -6,7 +6,7 @@ tags: [manual, groups, draft]
 - runScript: ../helpers/group-creation-inputs.js
 - launchApp:
     clearState: false
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible:
       id: create-group-fab

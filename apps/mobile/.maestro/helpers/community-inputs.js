@@ -44,6 +44,6 @@ output.community = {
   ),
   tableText: literal(required("COMMUNITY_TABLE_TEXT")),
   register: it ? "^Registra Risultato$" : "^Register result$",
-  eventLink: "bgo:///event/" + eventId,
-  tableLink: "bgo:///event/table?eventId=" + eventId + "&tableId=" + tableId,
+  eventLink: "bgo-dev:///event/" + eventId,
+  tableLink: "bgo-dev:///event/table?eventId=" + eventId + "&tableId=" + tableId,
 };

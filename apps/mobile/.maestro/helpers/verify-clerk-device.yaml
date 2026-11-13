@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 - extendedWaitUntil:
     visible: "Check your email|Mobile number|Matches"

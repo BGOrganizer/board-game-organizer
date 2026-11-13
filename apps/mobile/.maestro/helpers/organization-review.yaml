@@ -1,17 +1,17 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [isolated-fixture, moderation]
 ---
 # Real BGO moderator and isolated pending proposal, separate fixture per decision.
-- assertTrue: ${REVIEW_LINK.startsWith("bgo://") && REVIEW_LINK.includes("/moderation/")}
+- assertTrue: ${REVIEW_LINK.startsWith("bgo-dev://") && REVIEW_LINK.includes("/moderation/")}
 - assertTrue: ${["Approve", "Reject"].includes(DECISION)}
 - assertTrue: ${REASON.trim().length > 0}
 # Enter through the list so successful moderation must pop its detail, not duplicate the list.
-- openLink: "bgo:///groups?section=organizations"
+- openLink: "bgo-dev:///groups?section=organizations"
 - extendedWaitUntil:
     visible:
       id: "community-tab-organizations"
     timeout: 30000
-- openLink: "bgo:///moderation"
+- openLink: "bgo-dev:///moderation"
 - extendedWaitUntil:
     visible: "Organization moderation"
     timeout: 30000

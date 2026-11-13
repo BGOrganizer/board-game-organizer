@@ -1,8 +1,8 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, matches]
 ---
 # Primary actor; clean ordinary match list. Game cafe favorite survives deletion.
-- openLink: bgo:///matches
+- openLink: bgo-dev:///matches
 - extendedWaitUntil:
     visible: "No matches yet.*"
     timeout: 120000

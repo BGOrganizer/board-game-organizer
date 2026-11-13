@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, theme, auth]
 ---
 # Runner sets Android night mode before this flow. Stop/start must retain auth.

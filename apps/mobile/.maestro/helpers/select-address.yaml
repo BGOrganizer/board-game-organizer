@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 # Caller opens an empty address search. Only a provider result may be confirmed.
 - extendedWaitUntil:

@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Explicit singleton and mixed-option Table consent
 # MUTATING, manual only. Already authenticated in selected EN/IT locale. Non-admin accepted
 # PRIVATE Group member; one owned disposable Event/Table, max=2, owner seated, no other own

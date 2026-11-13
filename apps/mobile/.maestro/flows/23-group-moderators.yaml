@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Owned Group member actions and creator-only role changes
 # Manual owned Development/Preview Group. Signed-in creator; target starts as ordinary
 # accepted member. Ban/Remove are cancelled. Role changes are real; failure may leave

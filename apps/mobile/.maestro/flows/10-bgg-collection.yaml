@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, bgg]
 ---
 # Seeded BGG collection belongs to primary actor, not 09's target actor.
@@ -7,7 +7,7 @@ tags: [ci, bgg]
     env:
       AUTH_EMAIL: ${EMAIL}
       AUTH_PASSWORD: ${PASSWORD}
-- openLink: bgo:///profile
+- openLink: bgo-dev:///profile
 - extendedWaitUntil:
     visible: "bgg-e2e"
     timeout: 60000
@@ -15,7 +15,7 @@ tags: [ci, bgg]
 - assertVisible: "Matches played: .*"
 - assertVisible: "Powered by BoardGameGeek"
 - assertNotVisible: "Sync with BoardGameGeek"
-- openLink: bgo:///matches
+- openLink: bgo-dev:///matches
 - tapOn:
     id: "create-match-fab"
 - extendedWaitUntil:
@@ -72,7 +72,7 @@ tags: [ci, bgg]
 - tapOn: "Collection"
 - assertVisible: "Cascadia"
 # Unfinished wizard must not create a match. Setup navigation has an explicit route.
-- openLink: bgo:///profile
+- openLink: bgo-dev:///profile
 - extendedWaitUntil:
     visible: "bgg-e2e"
     timeout: 60000
@@ -94,7 +94,7 @@ tags: [ci, bgg]
 - assertVisible: "BGG username"
 - tapOn: "Cancel"
 - assertNotVisible: "BGG username"
-- openLink: bgo:///matches
+- openLink: bgo-dev:///matches
 - extendedWaitUntil:
     visible:
       id: "create-match-fab"

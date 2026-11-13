@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Event removal-only menus and separate Group-context ban confirmation
 # Manual owned disposable PRIVATE PLANNING Event; manager has no automatic seat.
 # Target is an ordinary accepted Group member beyond first Event roster page.

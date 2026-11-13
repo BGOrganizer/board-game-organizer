@@ -26,8 +26,8 @@ function exact(v) {
 }
 var it = COLLECTION_LOCALE === "it";
 output.sharedCollection = {
-  link: "bgo:///user/" + encodeURIComponent(p.subjectId),
-  unsyncedLink: "bgo:///user/" + encodeURIComponent(p.unsyncedId),
+  link: "bgo-dev:///user/" + encodeURIComponent(p.subjectId),
+  unsyncedLink: "bgo-dev:///user/" + encodeURIComponent(p.unsyncedId),
   subject: exact(p.subjectName),
   unsynced: exact(p.unsyncedName),
   tab: exact(it ? "Collezione" : "Collection"),

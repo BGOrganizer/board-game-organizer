@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Encrypted query cache cold restart and account isolation
 tags: [manual, cache]
 onFlowComplete:
@@ -12,23 +12,23 @@ onFlowComplete:
 - setAirplaneMode: disabled
 - launchApp:
     clearState: false
-- openLink: bgo:///tables
+- openLink: bgo-dev:///tables
 - extendedWaitUntil:
     visible: ${output.cacheTablePattern}
     timeout: 120000
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible: ${output.cacheGroupPattern}
     timeout: 120000
 - takeScreenshot: cache-groups-reference
-- openLink: bgo:///events
+- openLink: bgo-dev:///events
 - assertVisible: ${output.registeredLabel}
 - assertVisible: ${output.availableLabel}
 - extendedWaitUntil:
     visible: ${output.cacheEventPattern}
     timeout: 120000
 - takeScreenshot: cache-events-tabs
-- openLink: bgo:///contacts
+- openLink: bgo-dev:///contacts
 - assertVisible: ${output.connectionsLabel}
 - takeScreenshot: cache-contacts-tabs
 # Actual process death + offline native launch: RAM cannot satisfy these rows.
@@ -36,19 +36,19 @@ onFlowComplete:
 - stopApp
 - launchApp:
     clearState: false
-- openLink: bgo:///tables
+- openLink: bgo-dev:///tables
 - extendedWaitUntil:
     visible: ${output.cacheTablePattern}
     timeout: 15000
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - assertVisible: ${output.cacheGroupPattern}
-- openLink: bgo:///events
+- openLink: bgo-dev:///events
 - assertVisible: ${output.cacheEventPattern}
 - setAirplaneMode: disabled
 - stopApp
 - launchApp:
     clearState: false
-- openLink: bgo:///tables
+- openLink: bgo-dev:///tables
 - extendedWaitUntil:
     visible: ${output.cacheTablePattern}
     timeout: 120000
@@ -59,21 +59,21 @@ onFlowComplete:
     env:
       AUTH_EMAIL: ${EMAIL_2}
       AUTH_PASSWORD: ${PASSWORD_2}
-- openLink: bgo:///profile
+- openLink: bgo-dev:///profile
 - extendedWaitUntil:
     visible: ${output.authEmailPattern}
     timeout: 120000
-- openLink: bgo:///tables
+- openLink: bgo-dev:///tables
 - extendedWaitUntil:
     visible: ${output.noTablesLabel}
     timeout: 120000
 - assertNotVisible: ${output.cacheTablePattern}
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible: "No groups found"
     timeout: 120000
 - assertNotVisible: ${output.cacheGroupPattern}
-- openLink: bgo:///events
+- openLink: bgo-dev:///events
 - extendedWaitUntil:
     visible: "No events found"
     timeout: 120000

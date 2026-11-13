@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Real Community network and public read-only details
 # Already authenticated owned Development/Preview account, correct locale, known current network.
 # Real fixture activities: post-relation friend/followed; forbidden private/pre-relation text is recent.
@@ -9,7 +9,7 @@ tags: [manual, community, profiles]
 - stopApp
 - launchApp:
     clearState: false
-- openLink: bgo:///community
+- openLink: bgo-dev:///community
 - extendedWaitUntil:
     visible: ${output.community.visible}
     timeout: 120000
@@ -34,7 +34,7 @@ tags: [manual, community, profiles]
     visible: ${output.community.tableText}
     timeout: 120000
 - assertNotVisible: ${output.community.register}
-- openLink: bgo:///community
+- openLink: bgo-dev:///community
 - assertVisible: ${output.community.kind}
 - assertVisible: ${output.community.filtered}
 - takeScreenshot: community-activity-kind-and-public-read-only
@@ -43,7 +43,7 @@ tags: [manual, community, profiles]
 - stopApp
 - launchApp:
     clearState: false
-- openLink: bgo:///community
+- openLink: bgo-dev:///community
 - extendedWaitUntil:
     visible: ${output.community.visible}
     timeout: 120000

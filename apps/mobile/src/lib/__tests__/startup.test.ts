@@ -43,12 +43,17 @@ it("normalizes only owned bgo deep links and never treats development-client lin
     null,
     undefined,
     "https://evil.test",
+    "bgo-development:///groups",
+    "bgo-devil:///groups",
     "exp+mobile://expo-development-client",
   ])
     expect(startupLinkPath(input)).toBeNull();
   expect(startupLinkPath("bgo:///group/123?source=push")).toBe("/group/123");
   expect(startupLinkPath("bgo://groups")).toBe("/groups");
   expect(startupLinkPath("bgo:event/123")).toBe("/event/123");
+  expect(startupLinkPath("bgo-dev:///group/123?source=push")).toBe("/group/123");
+  expect(startupLinkPath("bgo-dev://groups")).toBe("/groups");
+  expect(startupLinkPath("bgo-dev:event/123")).toBe("/event/123");
 });
 it("retains the total five-second budget including slow Clerk restoration", () => {
   expect(remainingSplashMs(1000, 1000)).toBe(5000);

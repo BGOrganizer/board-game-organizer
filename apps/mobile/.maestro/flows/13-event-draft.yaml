@@ -1,8 +1,8 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, events]
 ---
 # Primary actor; 12 created a pending organization. Pending must never publish.
-- openLink: bgo:///events
+- openLink: bgo-dev:///events
 - assertNotVisible: "New event"
 - assertVisible:
     id: "list-filter-future"
@@ -29,7 +29,7 @@ tags: [ci, events]
     timeout: 30000
 - tapOn: "Clear search"
 - assertNotVisible: "Clear search"
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - tapOn:
     id: "community-tab-organizations"
 - extendedWaitUntil:

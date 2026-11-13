@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, profile, auth]
 ---
 # 05 leaves the primary actor on the tab root. Exercise header navigation, not setup.

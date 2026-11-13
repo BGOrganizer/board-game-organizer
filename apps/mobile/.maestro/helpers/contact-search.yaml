@@ -1,6 +1,6 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
-- openLink: bgo:///contacts?tab=search
+- openLink: bgo-dev:///contacts?tab=search
 - extendedWaitUntil:
     visible:
       id: "contact-search-input"

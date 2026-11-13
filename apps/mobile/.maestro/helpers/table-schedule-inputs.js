@@ -33,7 +33,7 @@ function link(kind) {
     /^\/events\/([\da-f-]{36})\/tables\/([\da-f-]{36})$/,
   );
   if (!parts) throw new Error("Invalid SCHEDULE_" + kind + "_PATH");
-  return "bgo:///event/table?eventId=" + parts[1] + "&tableId=" + parts[2];
+  return "bgo-dev:///event/table?eventId=" + parts[1] + "&tableId=" + parts[2];
 }
 var locale = required("SCHEDULE_LOCALE");
 if (locale !== "en" && locale !== "it") throw new Error("SCHEDULE_LOCALE must be en or it");

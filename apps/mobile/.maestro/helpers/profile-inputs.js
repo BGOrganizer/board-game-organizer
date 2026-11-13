@@ -25,7 +25,7 @@ function literal(value) {
 function link(key) {
   var id = required(key);
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error("Invalid " + key);
-  return "bgo:///user/" + id;
+  return "bgo-dev:///user/" + id;
 }
 var locale = required("PROFILE_LOCALE");
 if (locale !== "en" && locale !== "it") throw new Error("PROFILE_LOCALE must be en or it");

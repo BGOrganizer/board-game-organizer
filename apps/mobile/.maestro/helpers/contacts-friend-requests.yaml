@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 # Primary: cancelled confirmation must preserve menu, cancelled request must free slot.
 - runFlow:

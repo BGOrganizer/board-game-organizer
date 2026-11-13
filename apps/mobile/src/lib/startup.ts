@@ -10,8 +10,9 @@ import type { QueryClient } from "@tanstack/react-query";
 export { startupRelationshipTypes } from "@board-game-organizer/shared";
 export const STARTUP_SPLASH_LIMIT_MS = 5000;
 export function startupLinkPath(url: string | null | undefined): string | null {
-  if (!url?.startsWith("bgo:")) return null;
-  return `/${url.slice(4).replace(/^\/+/, "").split("?")[0]}`;
+  const match = /^(?:bgo|bgo-dev):(.*)$/.exec(url ?? "");
+  if (!match) return null;
+  return `/${match[1].replace(/^\/+/, "").split("?")[0]}`;
 }
 export function remainingSplashMs(startedAt: number, now: number) {
   return Math.max(0, STARTUP_SPLASH_LIMIT_MS - (now - startedAt));

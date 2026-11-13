@@ -1,8 +1,8 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, groups]
 ---
 # Primary actor, no active group. Archival must remove selectable/listed group.
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible: "No groups yet"
     timeout: 30000
@@ -15,7 +15,7 @@ tags: [ci, groups]
 - assertVisible: "No groups yet"
 - runFlow: ../helpers/group-create-edit.yaml
 - back
-- openLink: bgo:///matches
+- openLink: bgo-dev:///matches
 - tapOn:
     id: "create-match-fab"
 - extendedWaitUntil:
@@ -27,7 +27,7 @@ tags: [ci, groups]
 - tapOn: "Weekend Games"
 - assertVisible: "Weekend Games"
 - back
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible: "Open group: Weekend Games"
     timeout: 30000

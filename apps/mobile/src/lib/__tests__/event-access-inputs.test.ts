@@ -114,7 +114,7 @@ it("rejects incomplete picker/public enrollment fixtures rather than skipping re
         (locale === "it" ? "Seleziona: " : "Select: ") + "Azul [owned]",
       ),
     ).toBe(true);
-    expect(result.groupDraftLink).toBe("bgo:///group/wizard");
+    expect(result.groupDraftLink).toBe("bgo-dev:///group/wizard");
     expect(
       new RegExp(result.maximumFour).test(
         locale === "it" ? "Giocatori massimi: 4" : "Maximum players: 4",

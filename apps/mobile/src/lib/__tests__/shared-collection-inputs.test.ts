@@ -33,7 +33,7 @@ function run(p: Record<string, unknown> = input, extra: Record<string, unknown> 
 }
 it.each(["en", "it"])("keeps literals/deep links and explicit viewer mode in %s", (locale) => {
   const result = run(input, { COLLECTION_LOCALE: locale });
-  expect(result.link).toBe("bgo:///user/user_subject");
+  expect(result.link).toBe("bgo-dev:///user/user_subject");
   expect(result.viewerSynced).toBe(true);
   expect(new RegExp(String(result.subject)).test(input.subjectName)).toBe(true);
   expect(new RegExp(String(result.subject)).test("ClubXXXone")).toBe(false);

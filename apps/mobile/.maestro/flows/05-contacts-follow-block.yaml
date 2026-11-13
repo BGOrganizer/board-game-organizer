@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [ci, contacts, notifications]
 ---
 # Fixture: primary actor signed in, clean social graph, contacts permission denied.

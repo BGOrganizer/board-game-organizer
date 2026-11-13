@@ -61,7 +61,7 @@ export function Startup({
     Boolean(getMobileNumber(user?.unsafeMetadata));
   const linkPath = startupLinkPath(initialLink);
   const destination = (initialNotificationHref ?? linkPath ?? pathname).split("?")[0];
-  const deepLink = Boolean(initialNotificationHref || initialLink?.startsWith("bgo:"));
+  const deepLink = Boolean(initialNotificationHref || linkPath);
   const canWarm =
     eligible &&
     !restoring &&

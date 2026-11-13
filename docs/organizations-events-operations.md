@@ -94,6 +94,12 @@ GitHub `development` and `production` each contain the same 12 Secret names:
 - Mobile: `EXPO_TOKEN`; `GOOGLE_SERVICES_JSON` for optional push-enabled APKs. In GitHub,
   `GOOGLE_SERVICES_JSON` contains the original JSON document, not Base64 or a file path; the build
   action writes it to a restricted temporary file and passes that path to Expo.
+  Both PR APK lanes select `APP_VARIANT=development` (`com.bgo.boardgameorganizer.dev`);
+  Main selects `production` (`com.bgo.boardgameorganizer`), including EAS upload configuration.
+  This selection is independent of the shared `internal` EAS build profile. The configuration
+  digest includes the variant to prevent cross-environment APK reuse. Firebase client JSON and
+  API sender credentials must belong to the corresponding environment; these code changes do
+  not synchronize credentials, provision signing identities or attest installed-device acceptance.
 - Release/reporting: `RELEASE_PAT`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. The existing
   `CODECOV_TOKEN` entries are unused: coverage uploads authenticate with GitHub OIDC, using
   `use_oidc: true` and job-scoped `id-token: write`. Upload failures and signature verification

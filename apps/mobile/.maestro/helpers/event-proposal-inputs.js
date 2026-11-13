@@ -53,7 +53,7 @@ var it = locale === "it",
 output.eventProposal = {
   submitting: p.mode === "submit-game",
   pages: Math.floor(p.proposalOffset / 5),
-  link: "bgo:///event/table?eventId=" + p.eventId + "&tableId=" + p.tableId,
+  link: "bgo-dev:///event/table?eventId=" + p.eventId + "&tableId=" + p.tableId,
   own: exact(it ? "Giochi Proposti" : "Proposed games"),
   empty: exact(it ? "Nessuna proposta" : "No proposals"),
   noGames: exact(it ? "Nessun gioco trovato" : "No games found"),

@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Real Table and Event lifecycle filters
 # Owned Development/Preview actor, selected EN/IT locale, small source-paged real fixtures.
 # Tables require confirmed/terminated frozen participation; Events require all three states matching STATUS_QUERY.
@@ -9,7 +9,7 @@ tags: [manual, tables, events]
 - stopApp
 - launchApp:
     clearState: false
-- openLink: bgo:///tables
+- openLink: bgo-dev:///tables
 - extendedWaitUntil:
     visible: ${output.status.filter}
     timeout: 120000
@@ -20,7 +20,7 @@ tags: [manual, tables, events]
       TERMINATED_NAME: ${output.status.TABLE.TERMINATED}
       EMPTY_TEXT: ${output.status.emptyTables}
 - takeScreenshot: table-lifecycle-all-off
-- openLink: bgo:///events
+- openLink: bgo-dev:///events
 - extendedWaitUntil:
     visible: ${output.status.registered}
     timeout: 120000

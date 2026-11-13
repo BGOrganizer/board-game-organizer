@@ -42,7 +42,7 @@ for (let index = 0; index < 3; index++) {
   });
 }
 output.single = {
-  link: "bgo:///event/table?eventId=" + path[1] + "&tableId=" + path[2],
+  link: "bgo-dev:///event/table?eventId=" + path[1] + "&tableId=" + path[2],
   name: literal(String(input.name)),
   mode: input.mode,
   mask: input.mask,

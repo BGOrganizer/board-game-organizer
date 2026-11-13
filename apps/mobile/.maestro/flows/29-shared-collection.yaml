@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Authorized shared collection chips and sticky empty search
 # MANUAL read-only current Preview. Run with both viewerSynced modes, EN/IT and themes.
 tags: [manual, profile, bgg]

@@ -1,8 +1,8 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [isolated-fixture, organizations]
 ---
 # Signed-in invited recipient; approved owned organization; one explicit decision.
-- assertTrue: ${ORGANIZATION_LINK.startsWith("bgo://") && ORGANIZATION_LINK.includes("/organization/")}
+- assertTrue: ${ORGANIZATION_LINK.startsWith("bgo-dev://") && ORGANIZATION_LINK.includes("/organization/")}
 - assertTrue: ${["Accept", "Reject"].includes(DECISION)}
 - assertTrue: ${EXPECTED_ACTION.length > 0}
 - openLink: ${ORGANIZATION_LINK}

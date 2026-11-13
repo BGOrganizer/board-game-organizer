@@ -24,7 +24,7 @@ function parts(kind) {
 }
 function link(kind) {
   var value = parts(kind);
-  return "bgo:///event/table?eventId=" + value[1] + "&tableId=" + value[2];
+  return "bgo-dev:///event/table?eventId=" + value[1] + "&tableId=" + value[2];
 }
 var locale = required("TABLE_UX_LOCALE");
 if (locale !== "en" && locale !== "it") throw new Error("TABLE_UX_LOCALE must be en or it");
@@ -33,7 +33,7 @@ output.ux = {
   free: link("FREE"),
   full: link("FULL"),
   confirmed: link("CONFIRMED"),
-  edit: "bgo:///event/wizard?eventId=" + parts("FREE")[1],
+  edit: "bgo-dev:///event/wizard?eventId=" + parts("FREE")[1],
   tableTrigger: "event-draft-table-" + parts("FREE")[2],
   username: literal(required("TABLE_UX_USERNAME")),
   email: literal(required("TABLE_UX_EMAIL")),

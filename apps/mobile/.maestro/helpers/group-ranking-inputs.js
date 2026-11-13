@@ -36,7 +36,7 @@ if (
   throw new Error("Invalid owned Group-ranking fixture");
 var it = locale === "it";
 output.groupRanking = {
-  link: "bgo:///group/" + groupId,
+  link: "bgo-dev:///group/" + groupId,
   group: literal(group),
   ranking: "^Ranking$",
   game: literal(game),

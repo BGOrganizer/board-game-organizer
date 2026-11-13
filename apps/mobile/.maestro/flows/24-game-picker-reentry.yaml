@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Owned cached collection paging and game picker reentry
 # Authenticated Development/Preview fixture, editable PLANNING Event with one Table.
 # Linked published collection has >250 games; first/later fixtures are not already selected.

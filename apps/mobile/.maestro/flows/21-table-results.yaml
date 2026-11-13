@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Owned provisional Table results and atomic Event finalization
 # MUTATING: owned disposable Development/Preview fixture, exactly one included two-player
 # Table and one excluded Table. Verify APK API target and selected EN/IT locale first.

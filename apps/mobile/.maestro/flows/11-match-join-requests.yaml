@@ -1,9 +1,9 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 tags: [isolated-fixture, matches]
 ---
 # Additional link scenario, not one of CI's 13 canonical reports.
 # Requires primary-owned PUBLIC PLANNING match with a free slot and no target invitation.
-- assertTrue: ${PUBLIC_MATCH_LINK.startsWith("bgo://match/")}
+- assertTrue: ${PUBLIC_MATCH_LINK.startsWith("bgo-dev://match/")}
 - runFlow:
     file: "../helpers/switch-actor.yaml"
     env:
@@ -72,4 +72,4 @@ tags: [isolated-fixture, matches]
     notVisible: "E2E Target"
     timeout: 30000
 - assertNotVisible: "Approve join request: E2E Target"
-- openLink: bgo:///matches
+- openLink: bgo-dev:///matches

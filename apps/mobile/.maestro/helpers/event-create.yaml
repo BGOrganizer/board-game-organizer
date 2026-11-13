@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 - assertVisible: "Event detail"
 - tapOn: "Event name"

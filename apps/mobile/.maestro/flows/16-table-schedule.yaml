@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Included frozen Table schedule
 # Read-only manual real fixtures, already authenticated in the selected EN/IT locale.
 # PUBLIC included with known duration+guide; PRIVATE included with unknown duration;

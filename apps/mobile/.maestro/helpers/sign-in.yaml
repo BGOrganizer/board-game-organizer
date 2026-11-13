@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 ---
 - runScript: auth-email.js
 - assertVisible: "Sign in / Register"

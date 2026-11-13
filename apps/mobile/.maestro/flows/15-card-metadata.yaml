@@ -1,4 +1,4 @@
-appId: com.bgo.mobile
+appId: com.bgo.boardgameorganizer.dev
 name: Group Event and Table card metadata
 # Explicit existing PRIVATE fixture; actor already signed in, same fixture as web manual scenario.
 # Two Event dates/venues, two Table games. No setup, consent shortcuts, resets or mocked responses.
@@ -7,7 +7,7 @@ tags: [manual, cards]
 - runScript: ../helpers/card-inputs.js
 - launchApp:
     clearState: false
-- openLink: bgo:///groups
+- openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible:
       id: "list-search-input"
@@ -40,7 +40,7 @@ tags: [manual, cards]
     timeout: 20000
 - assertVisible: ${output.cardGroupRole}
 - takeScreenshot: card-group-member-identity-role
-- openLink: bgo:///events
+- openLink: bgo-dev:///events
 - tapOn:
     id: "list-search-input"
 - eraseText: 120
@@ -98,7 +98,7 @@ tags: [manual, cards]
     timeout: 20000
 - assertVisible: ${output.cardMembers}
 - takeScreenshot: card-event-parent-group-list-style
-- openLink: bgo:///tables
+- openLink: bgo-dev:///tables
 - tapOn:
     id: "list-search-input"
 - eraseText: 120
@@ -181,7 +181,7 @@ tags: [manual, cards]
     timeout: 20000
 - assertVisible: ${output.cardTableStatus}
 - takeScreenshot: card-table-participant-identity-status
-- openLink: bgo:///events
+- openLink: bgo-dev:///events
 - extendedWaitUntil:
     visible: ${output.cardEvent}
     timeout: 120000
