@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef } from "react";
+import { blockAppRestart } from "@/lib/appRestartGuard";
 import type { InputScrollTarget } from "@/lib/inputScrollContext";
 
 type Field = { target: () => InputScrollTarget | null; invalid: () => boolean; reveal: () => void };
@@ -15,10 +16,13 @@ export const useFormInteraction = () => useContext(Context);
 export function FormInteractionScope({
   children,
   sourceRevision,
+  blocksAppRestart = true,
 }: {
   children: ReactNode;
   sourceRevision?: number;
+  blocksAppRestart?: boolean;
 }) {
+  useEffect(() => (blocksAppRestart ? blockAppRestart() : undefined), [blocksAppRestart]);
   const fields = useRef(new Set<Field>());
   const generation = useRef(0);
   const revision = useRef(sourceRevision);

@@ -6936,3 +6936,39 @@ msgstr "Partecipazione"
 #: apps/web/src/app/global-error.tsx
 msgid "Something went wrong"
 msgstr "Si è verificato un errore"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "An update is available"
+msgstr "È disponibile un aggiornamento"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Update and restart"
+msgstr "Aggiorna e riavvia"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Later"
+msgstr "Più tardi"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Downloading the update…"
+msgstr "Download dell’aggiornamento in corso…"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Restarting the app…"
+msgstr "Riavvio dell’app in corso…"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "The update could not be downloaded. Try again or choose Later."
+msgstr "Impossibile scaricare l’aggiornamento. Riprova o scegli Più tardi."
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "The app could not restart. Try again or choose Later."
+msgstr "Impossibile riavviare l’app. Riprova o scegli Più tardi."
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "The update is downloaded. Restart when you are ready."
+msgstr "L’aggiornamento è stato scaricato. Riavvia quando vuoi."
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Update now, or choose Later to be reminded the next time you start the app."
+msgstr "Aggiorna ora o scegli Più tardi per visualizzare l’avviso al prossimo avvio dell’app."

@@ -290,7 +290,7 @@ test("PR keeps independent Development publication and isolated Internal cleanup
     find("build-mobile-development", "🏗️ Build internal APK against development Preview").with[
       "api-url"
     ],
-    "${{ needs.deploy-development-api.outputs.url }}",
+    "${{ needs.deploy-development-api.outputs.branch-url }}",
   );
   assert.equal(find("draft-release", "📥 Download development APK").with.name, "apk-development");
 });

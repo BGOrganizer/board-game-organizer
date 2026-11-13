@@ -250,10 +250,16 @@ failure tolerance without publishing test events; it does not prove live Sentry 
 
 `expo-updates` enables native Android/iOS bundle updates after a fresh binary containing this
 configuration is installed. Existing APKs without it cannot acquire the capability through OTA.
-Expo web is not a product target. The native default checks at launch, downloads in the background
-and uses the downloaded update on a later cold launch, without waiting at startup or restarting an
-active form. Development clients use their Extensions preview flow instead of this standalone
-release behavior. No application update worker or forced reload is added.
+Expo web is not a product target. Native automatic checks are disabled (`checkAutomatically: NEVER`):
+after startup, the app checks without downloading and offers a HeroUI **Update and restart / Later**
+dialog on the main read-only lists. Download starts only after acceptance. Later dismisses the
+dialog for the current JS session, including background/foreground transitions, until the next full
+app start. There is no daily cooldown or persisted dismissal. Editors, confirmation overlays,
+pending selections, keyboard, background state and in-flight mutations block prompt/restart.
+If they appear during download, a new confirmation is required when safe again. Check failures
+are reported without blocking startup; download/restart failures offer retry or Later. An accepted
+download can also be applied by Expo on the next cold start. Development clients use their
+Extensions preview flow instead of this standalone release behavior.
 
 `runtimeVersion` uses Expo's `fingerprint` policy to reject native-incompatible updates. This is
 separate from CI's provenance digest. `EXPO_UPDATE_CHANNEL` defaults to `APP_VARIANT`; optional
@@ -264,17 +270,25 @@ no `channel`: its native header comes from the validated app config. The named `
 and `production` profiles fix their matching channels. APK artifacts record `update-channel.txt`,
 and the configuration digest includes the channel before reuse.
 
-Publication is explicit; the PR/Main workflows do not publish OTA bundles. After authorizing a
-specific project, channel, platform and message, use the EAS CLI's `update --channel <channel>
+PR Development and Main Production publication automatically publish an Android OTA after their
+quality, deployment, smoke and current-source gates. Isolated `ci-pr-N` builds do not publish OTA.
+See [operational gates](organizations-events-operations.md) for artifact/runtime checks and ordering.
+For an explicitly authorized manual publication, use the EAS CLI's `update --channel <channel>
 --environment <environment> --platform android --message <message>` from `apps/mobile`.
 SDK 57 requires the EAS environment flag. Supply the same `APP_VARIANT`, `EXPO_UPDATE_CHANNEL`,
 API URL, public keys, Sentry DSN, bypass and Firebase configuration as the target binary; do not
 dump them into logs. EAS environment values must agree with the intended Infisical configuration.
-The fingerprint also includes app version/configuration and `eas.json`: changing these can require
-a new APK. In particular, each immutable Development API URL belongs to its existing binary;
-do not assume the latest Preview URL is compatible with an older installed APK.
+`fingerprint.config.js` excludes only Expo version/build-number labels and retains the SDK default
+script filter. Native dependencies, permissions, Firebase, channel, other app configuration and
+`eas.json` still participate: changing these requires a new APK. Development uses a stable API
+alias per PR, bound only after delivery gates, so a new verified API deployment does not itself
+invalidate the runtime. CI compares the export runtime with the verified APK before uploading.
 JavaScript changes must also remain compatible with that API; a native fingerprint does not
 validate server contracts.
+
+The first binary with this consent policy and fingerprint configuration must be installed manually.
+An older `ON_LOAD` binary can download/apply automatically and cannot acquire true consent via a
+JavaScript-only popup. Subsequent compatible JS/asset changes use the automated OTA lane.
 
 Keep `EXPO_TOKEN` server-side. Local EAS setup may read this single value from Infisical staging
 `/github` into the process environment; never put it in Expo `extra`, a public variable or Git.

@@ -79,10 +79,21 @@ it.each([
       description: "Description",
       busy,
       onCancel,
+      cancelLabel: platform === "android" ? "Later" : undefined,
+      blocksAppRestart: platform !== "android",
       children: "Full content",
-      actions: [{ label: "Confirm", variant: "primary", onPress: action }],
+      actions: [
+        {
+          label: "Confirm",
+          variant: platform === "android" ? "ghost" : "primary",
+          onPress: action,
+        },
+      ],
     });
     const all = nodes(tree);
+    expect(all.find((n) => n.type === "Scope")?.props.blocksAppRestart).toBe(
+      platform !== "android",
+    );
     expect(all.find((n) => n.type === "Content")?.props).toMatchObject({
       isSwipeable: false,
       style: { flexShrink: 0 },
@@ -104,7 +115,7 @@ it.each([
     expect(all.find((n) => n.type === "Overlay")?.props.isCloseOnPress).toBe(!busy);
     expect(all.find((n) => n.type === "Close")?.props).toMatchObject({
       isDisabled: busy,
-      accessibilityLabel: "Cancel",
+      accessibilityLabel: platform === "android" ? "Later" : "Cancel",
       style: { minWidth: 44, minHeight: 44 },
     });
     (tree.props.onOpenChange as (open: boolean) => void)(true);
@@ -114,6 +125,7 @@ it.each([
     const submit = all.find((n) => n.type === "Submit");
     if (!submit) throw new Error("Missing confirmation action");
     expect(submit.props.isDisabled).toBe(busy);
+    expect(submit.props.variant).toBe(platform === "android" ? "ghost" : "primary");
     (submit.props.onPress as () => void)();
     expect(action).toHaveBeenCalledTimes(busy ? 0 : 1);
   },

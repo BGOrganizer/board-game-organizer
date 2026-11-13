@@ -5,6 +5,11 @@ import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
+it("ignores version labels while preserving the SDK default fingerprint script filter", () => {
+  expect(require("../../../fingerprint.config.js")).toEqual({
+    sourceSkips: ["ExpoConfigVersions", "PackageJsonAndroidAndIosScriptsIfNotContainRun"],
+  });
+});
 const configPath = require.resolve("../../../app.config.js");
 let folder: string;
 function config() {
@@ -43,7 +48,7 @@ it.each([undefined, "development", "production"])(
     expect(result.updates).toEqual({
       url: "https://u.expo.dev/f19004af-2669-49ca-8c46-2697b66841b6",
       requestHeaders: { "expo-channel-name": variant ?? "development" },
-      checkAutomatically: "ON_LOAD",
+      checkAutomatically: "NEVER",
       fallbackToCacheTimeout: 0,
     });
     expect(result.android.package).toBe(

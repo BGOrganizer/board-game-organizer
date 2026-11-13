@@ -9,7 +9,7 @@ import { FormSubmitButton } from "./FormSubmitButton";
 
 type ConfirmDialogAction = {
   label: string;
-  variant: "danger" | "danger-soft" | "primary";
+  variant: "danger" | "danger-soft" | "primary" | "ghost";
   onPress: () => void;
   icon?: ReactNode;
   testID?: string;
@@ -22,6 +22,8 @@ export function ConfirmDialog({
   onCancel,
   actions,
   cancelTestID = "confirmation-cancel",
+  cancelLabel,
+  blocksAppRestart = true,
   children,
 }: {
   title: string;
@@ -30,6 +32,8 @@ export function ConfirmDialog({
   onCancel: () => void;
   actions: readonly ConfirmDialogAction[];
   cancelTestID?: string;
+  cancelLabel?: string;
+  blocksAppRestart?: boolean;
   children?: ReactNode;
 }) {
   const t = useT();
@@ -47,7 +51,7 @@ export function ConfirmDialog({
           style={{ flex: 1, justifyContent: "center" }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <FormInteractionScope>
+          <FormInteractionScope blocksAppRestart={blocksAppRestart}>
             <InputScrollContext.Provider value={null}>
               <InputFieldContext.Provider value={null}>
                 <Dialog.Content
@@ -57,7 +61,7 @@ export function ConfirmDialog({
                 >
                   <Dialog.Close
                     isDisabled={busy}
-                    accessibilityLabel={t("Cancel")}
+                    accessibilityLabel={cancelLabel ?? t("Cancel")}
                     testID={cancelTestID}
                     style={{ alignSelf: "flex-end", minWidth: 44, minHeight: 44 }}
                   />

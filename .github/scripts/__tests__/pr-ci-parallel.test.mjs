@@ -44,7 +44,7 @@ test("APK builds overlap but embed separate isolated and development Preview URL
     step("build-mobile-development", "🏗️ Build internal APK against development Preview").with[
       "api-url"
     ],
-    `\${{ needs.deploy-development-api.outputs.url }}`,
+    `\${{ needs.deploy-development-api.outputs.branch-url }}`,
   );
   assert.ok(jobs["e2e-maestro"].needs.includes("build-mobile-internal"));
   assert.ok(!jobs["e2e-maestro"].needs.includes("build-mobile-development"));
@@ -67,7 +67,7 @@ test("APK builds overlap but embed separate isolated and development Preview URL
   );
   assert.match(
     step("deploy-development-web", "🚀 Deploy Web against Development API").with["extra-env"],
-    /needs\.deploy-development-api\.outputs\.url/,
+    /needs\.deploy-development-api\.outputs\.branch-url/,
   );
 });
 

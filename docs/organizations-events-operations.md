@@ -271,11 +271,21 @@ OTA-enabled APKs also bind a validated channel to the binary: isolated `ci-pr-N`
 `development-pr-N`, or `production`. The channel participates in the configuration digest and is
 recorded in `update-channel.txt`. Keep `internal.channel` absent in EAS configuration so it cannot
 override the app's dynamic native header. Expo runtime compatibility uses its own fingerprint,
-not this provenance digest. PR/Main do not publish OTA updates; see
-[OTA configuration and explicit publication](development.md#mobile-ota-updates).
+not this provenance digest. Development publication and pinned Main release publication now export
+and publish Android Hermes updates after their quality/deployment/smoke checks. The shared publisher
+verifies the APK checksum, exact source, embedded project/channel and configuration digest, then
+compares the SDK runtime and Hermes bytecode versions before uploading. A fresh PR/current-main
+check follows export. OTA errors remain blocking; the EAS build-registration quota exception does
+not apply. EAS environment configuration must remain unchanged during the publication step: the
+public CLI rereads it after the local preflight. See [OTA configuration](development.md#mobile-ota-updates).
 
 CI web uses the immutable isolated API URL; E2E APKs use the verified per-PR alias. Published
-Development web and APK both use the immutable Development API Preview URL. Never redirect E2E
+Development web and APK use a stable `api-development-pr-N` Preview alias, distinct from the CI
+`api-pr-N` alias. The deploy job only computes its URL; the publication job assigns it after smoke,
+non-CI database attestation and current-PR checks, then verifies the exact ready deployment target.
+Immutable deployment URLs remain the source of deployment attestation. Development producers and
+publisher use the same pinned merge SHA; `source-head.txt` records the actual checkout, while the
+PR-head guard independently rejects stale/closed/untrusted PRs. Never redirect E2E
 at Development or Production. Preview protection bypass remains a secret query parameter.
 
 ## Main delivery and manual environment selection

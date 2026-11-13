@@ -385,6 +385,19 @@ jobs:
           bun add --global eas-cli@27.7.2
           node ../../.github/scripts/eas-upload.mjs "$APK"
 
+      - name: 📡 Publish verified Production OTA
+        uses: ./.github/actions/mobile-update
+        with:
+          source-sha: ${{ needs.release.outputs.sha }}
+          app-environment: production
+          update-channel: production
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
       - name: 📦 Stage release notes from the pinned bump commit
         id: prepare
         env:

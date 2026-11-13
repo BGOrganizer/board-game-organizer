@@ -14,6 +14,7 @@ import { usePathname } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Linking } from "react-native";
 import { AnimatedStartupSplash } from "@/components/common/startup/AnimatedStartupSplash";
+import { OtaUpdateCoordinator } from "@/components/common/startup/OtaUpdateCoordinator";
 import { NotificationBadgeSync } from "@/components/notifications/NotificationBadgeSync";
 import { warmRegisteredContacts } from "@/lib/contacts/registeredContacts";
 import { hideStartupSplash } from "@/lib/splash";
@@ -229,5 +230,17 @@ export function Startup({
     };
   }, [ready, restoring, eligible, userId, sessionId, getToken, queryClient]);
 
-  return ready ? <NotificationBadgeSync /> : <AnimatedStartupSplash startedAt={startedAt} />;
+  return ready ? (
+    <>
+      <NotificationBadgeSync />
+      <OtaUpdateCoordinator
+        startupSettled={
+          !restoring &&
+          !isStartupAuthPending(isAuthLoaded, isRestoredSignedIn, isSignedIn, isUserLoaded)
+        }
+      />
+    </>
+  ) : (
+    <AnimatedStartupSplash startedAt={startedAt} />
+  );
 }

@@ -21,7 +21,9 @@ const code = ts.transpileModule(fn.getText(ast).replace(/^export /, ""), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React },
 }).outputText;
 // Exercise the scope's actual registered callbacks and measurement ordering, not native focus timing.
-function harness() {
+function harness(blocksAppRestart = true) {
+  const releaseRestart = vi.fn();
+  const holdRestart = vi.fn(() => releaseRestart);
   const frames: (() => void)[] = [],
     cleanups: (() => void)[] = [];
   let cursor = 0,
@@ -30,23 +32,26 @@ function harness() {
   const component = runInNewContext(`${code};FormInteractionScope;`, {
     React: { createElement: (_: unknown, props: { value: unknown }) => props.value },
     Context: { Provider: null },
+    blockAppRestart: holdRestart,
     useRef: (value: unknown) => {
       const index = cursor++;
       refs[index] ??= { current: value };
       return refs[index];
     },
     useMemo: (factory: () => unknown) => factory(),
-    useEffect: (effect: () => () => void) => {
+    useEffect: (effect: () => (() => void) | undefined) => {
       if (!effectMounted) {
-        cleanups.push(effect());
-        effectMounted = true;
+        const cleanup = effect();
+        if (cleanup) cleanups.push(cleanup);
       }
     },
     requestAnimationFrame: (callback: () => void) => frames.push(callback),
   });
   const render = (sourceRevision: number) => {
     cursor = 0;
-    return component({ children: null, sourceRevision });
+    const result = component({ children: null, sourceRevision, blocksAppRestart });
+    effectMounted = true;
+    return result;
   };
   const form = render(1);
   const flush = async () => {
@@ -74,11 +79,24 @@ function harness() {
     render,
     flush,
     field,
+    holdRestart,
+    releaseRestart,
     unmount: () => {
       for (const cleanup of cleanups) cleanup();
     },
   };
 }
+it("holds a restart block for mounted forms, while the OTA dialog opts out", () => {
+  const form = harness();
+  expect(form.holdRestart).toHaveBeenCalledOnce();
+  form.render(2);
+  expect(form.holdRestart).toHaveBeenCalledOnce();
+  form.unmount();
+  expect(form.releaseRestart).toHaveBeenCalledOnce();
+  const ota = harness(false);
+  expect(ota.holdRestart).not.toHaveBeenCalled();
+  ota.unmount();
+});
 it("uses visual top rather than registration order, skips invisible and corrected fields", async () => {
   const h = harness(),
     lower = h.field(400),

@@ -116,6 +116,7 @@
         "tailwind-variants": "^3.3.1",
         "tailwindcss": "^4.3.3",
         "uniwind": "^1.12.0",
+        "zustand": "5.0.15",
       },
       "devDependencies": {
         "@board-game-organizer/biome-config": "workspace:*",

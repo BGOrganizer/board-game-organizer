@@ -8,6 +8,16 @@ Do not run the helpers directory or treat helpers as independent test reports.
 
 ## Manual OTA startup
 
+`34-ota-consent.yaml` covers a real compatible update with `OTA_CASE=later`, `update`,
+`download-error` or `no-update`. Prepare independent owned fixtures for each case and both EN/IT.
+Set the same build/channel/account guards described below and an `OTA_EXPECTED_TEXT` visible on
+the main list in the expected bundle. The no-update case requires a channel with no newer update;
+the other cases require a newer compatible update that is not already downloaded. Later must
+survive Home/foreground and reappear after killing the process. The error case temporarily enables
+airplane mode after checking, then retries online; restore connectivity manually if the flow fails.
+Update/retry must show the changed text and preserve the account. This flow is opt-in and never
+publishes or changes Production.
+
 `32-ota-startup.yaml` is opt-in and does not publish updates. Use a fresh standalone Development
 APK, an owned complete account and an already downloaded compatible update on `development-pr-N`.
 Verify the installed native channel/runtime against the approved update before running. Set
@@ -16,8 +26,11 @@ copy) and `OTA_ACCOUNT_NAME` (the owned profile identity). The flow opens Profil
 launches without clearing state and checks updated copy and retained account. Prepare matching
 EN/IT fixtures; this is Android Development only, never Production.
 
-Separately verify download while the app stays open, draft preservation until a deliberate cold
-launch, offline/ingest-error fallback to the embedded/cached bundle and rejection of a different
+Separately verify no check/download/restart in editors, confirmation overlays, with keyboard,
+pending selections, mutations or in background; if these appear during an accepted download,
+return to the main list and require a fresh restart confirmation. Verify restart failure recovery
+on a device capable of producing a real native reload failure (unit tests inject this fault),
+offline/check-error fallback to the embedded/cached bundle and rejection of a different
 channel or native runtime. An unavailable update must not force a restart or block startup;
 application network errors retain their normal behavior. Neither this flow nor prebuild/unit checks
 prove delivery until actually executed on a device. See [OTA configuration](../../../docs/development.md#mobile-ota-updates).

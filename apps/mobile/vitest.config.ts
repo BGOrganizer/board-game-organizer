@@ -26,8 +26,20 @@ export default defineConfig({
       // would add a second test framework for one app). Mobile UI behaviour is
       // covered by retained Maestro flows under the current CI acceptance policy;
       // unit coverage here targets pure logic, not native frame/touch evidence.
-      include: ["app.config.js", "src/lib/**", "src/hooks/**", "src/store/**"],
+      include: [
+        "app.config.js",
+        "fingerprint.config.js",
+        "src/lib/**",
+        "src/hooks/**",
+        "src/store/**",
+      ],
       thresholds: {
+        "{fingerprint.config.js,src/lib/otaUpdates.ts,src/lib/appRestartGuard.ts}": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "app.config.js": {
           lines: 100,
           functions: 100,

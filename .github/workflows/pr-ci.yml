@@ -938,10 +938,12 @@ jobs:
     environment: development
     outputs:
       url: ${{ steps.deploy.outputs.deployment-url }}
+      branch-url: ${{ steps.client-url.outputs.url }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: 🔗 Restore PR branch metadata
@@ -975,6 +977,12 @@ jobs:
             -H "Authorization: Bearer $CLERK_SECRET_KEY" | \
             jq -e '.webhookDbReady == true and .webhookDatabaseName == .databaseName and (.databaseName | type) == "string" and (.databaseName | length) > 0 and (.databaseName | startswith("bgo_ci_") | not)' > /dev/null
 
+      - name: 🔗 Resolve stable Development client API URL
+        id: client-url
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/development-api-alias.mjs --url
+
   deploy-development-web:
     name: Deploy Web (Development)
     permissions:
@@ -989,6 +997,12 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: 🔗 Restore PR branch metadata
+        run: git switch -C "$GITHUB_HEAD_REF"
+
       - name: 🚀 Deploy Web against Development API
         id: deploy
         uses: ./.github/actions/vercel-deploy
@@ -1002,7 +1016,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
           extra-env: |
-            NEXT_PUBLIC_API_URL=${{ needs.deploy-development-api.outputs.url }}
+            NEXT_PUBLIC_API_URL=${{ needs.deploy-development-api.outputs.branch-url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
   build-mobile-development:
@@ -1015,6 +1029,8 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
 
       - name: 🏗️ Build internal APK against development Preview
         uses: ./.github/actions/mobile-build
@@ -1024,7 +1040,7 @@ jobs:
           update-channel: development-pr-${{ github.event.pull_request.number }}
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          api-url: ${{ needs.deploy-development-api.outputs.url }}
+          api-url: ${{ needs.deploy-development-api.outputs.branch-url }}
           maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -1032,11 +1048,10 @@ jobs:
 
       - name: 🏷️ Record development API URL in APK artifact
         env:
-          API_URL: ${{ needs.deploy-development-api.outputs.url }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
         run: |
           printf '%s\n' "$API_URL" > apps/mobile/build-output/api-url.txt
-          printf '%s\n' "$PR_HEAD_SHA" > apps/mobile/build-output/source-head.txt
+          git rev-parse HEAD > apps/mobile/build-output/source-head.txt
 
       - name: 📤 Upload development APK
         uses: actions/upload-artifact@v4
@@ -1071,6 +1086,7 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
@@ -1084,8 +1100,8 @@ jobs:
 
       - name: 🔒 Verify APK development API URL
         env:
-          EXPECTED_API_URL: ${{ needs.deploy-development-api.outputs.url }}
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          EXPECTED_HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           test -n "$EXPECTED_API_URL" && test "$(cat apk/api-url.txt)" = "$EXPECTED_API_URL"
@@ -1120,6 +1136,37 @@ jobs:
           bun add --global eas-cli@27.7.2
           node ../../.github/scripts/eas-upload.mjs "$GITHUB_WORKSPACE/$APK_PATH"
 
+      - name: 🔗 Activate Development API after smoke and current PR checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          OTA_SOURCE_SHA: ${{ github.sha }}
+          DEVELOPMENT_API_URL: ${{ needs.deploy-development-api.outputs.url }}
+          DEVELOPMENT_WEB_URL: ${{ needs.deploy-development-web.outputs.url }}
+          VERCEL_API_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          VERCEL_WEB_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          bun add --global vercel@65.14.0
+          node .github/scripts/development-api-alias.mjs
+
+      - name: 📡 Publish verified Development OTA
+        uses: ./.github/actions/mobile-update
+        with:
+          source-sha: ${{ github.sha }}
+          app-environment: development
+          update-channel: development-pr-${{ github.event.pull_request.number }}
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          api-url: ${{ needs.deploy-development-api.outputs.branch-url }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
       - name: 📦 Publish/update public PR prerelease
         id: draft
         uses: ./.github/actions/publish-draft-release
@@ -1134,7 +1181,7 @@ jobs:
           apk-name: ${{ steps.meta.outputs.apk-name }}
           eas-build-url: ${{ steps.eas.outputs.url }}
           web-preview-url: ${{ needs.deploy-development-web.outputs.url }}
-          api-preview-url: ${{ needs.deploy-development-api.outputs.url }}
+          api-preview-url: ${{ needs.deploy-development-api.outputs.branch-url }}
 
       - name: 🔗 Compose Telegram links
         env:
@@ -1143,7 +1190,7 @@ jobs:
           cat > /tmp/telegram-links.html <<EOF
           📱 <a href="${{ steps.draft.outputs.release_url }}">APK (PR, GitHub)</a>
           🌐 <a href="${{ needs.deploy-development-web.outputs.url }}">Web (development preview)</a>
-          🔌 <a href="${{ needs.deploy-development-api.outputs.url }}">API (development preview)</a>
+          🔌 <a href="${{ needs.deploy-development-api.outputs.branch-url }}">API (development preview)</a>
           EOF
           if [ -n "$EAS_BUILD_URL" ]; then
             printf '☁️ <a href="%s">Build (EAS preview)</a>\n' "$EAS_BUILD_URL" >> /tmp/telegram-links.html

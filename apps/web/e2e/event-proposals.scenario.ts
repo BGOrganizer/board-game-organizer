@@ -154,7 +154,9 @@ test("real private own-Table proposal or current-manager decision; cancel writes
     table.eventId !== input.eventId ||
     table.games.some((g) => g.gameId === input.gameId)
   )
-    throw new Error("Private planning Event with enabled game proposals and an unselected candidate required");
+    throw new Error(
+      "Private planning Event with enabled game proposals and an unselected candidate required",
+    );
   const base = `events/${input.eventId}/proposals?kind=game&tableId=${input.tableId}`;
   const writes: string[] = [];
   page.on("request", (r) => {

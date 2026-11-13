@@ -48,7 +48,7 @@ module.exports = {
     updates: {
       url: "https://u.expo.dev/f19004af-2669-49ca-8c46-2697b66841b6",
       requestHeaders: { "expo-channel-name": updateChannel },
-      checkAutomatically: "ON_LOAD",
+      checkAutomatically: "NEVER",
       fallbackToCacheTimeout: 0,
     },
     orientation: "portrait",
