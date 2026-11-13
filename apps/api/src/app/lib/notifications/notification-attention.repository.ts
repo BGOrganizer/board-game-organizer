@@ -340,33 +340,18 @@ export class NotificationAttentionRepository {
                           {
                             $not: [
                               {
-                                $or: [
+                                $anyElementTrue: [
                                   {
-                                    $in: [
-                                      "$kind",
-                                      [
-                                        "group_membership_requested",
-                                        "group_membership_updated",
-                                        "group_invitation_accepted",
-                                      ],
-                                    ],
-                                  },
-                                  {
-                                    $anyElementTrue: [
-                                      {
-                                        $map: {
-                                          input: { $ifNull: ["$attentionItems", []] },
-                                          as: "item",
-                                          in: {
-                                            $regexMatch: {
-                                              input: "$$item.id",
-                                              regex:
-                                                '^\\[\\s*"group"\\s*,[^,]+,\\s*"members?"\\s*,',
-                                            },
-                                          },
+                                    $map: {
+                                      input: { $ifNull: ["$attentionItems", []] },
+                                      as: "item",
+                                      in: {
+                                        $regexMatch: {
+                                          input: "$$item.id",
+                                          regex: '^\\[\\s*"group"\\s*,[^,]+,\\s*"members?"\\s*,',
                                         },
                                       },
-                                    ],
+                                    },
                                   },
                                 ],
                               },

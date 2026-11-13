@@ -203,7 +203,7 @@ it("renders an unknown join as intent, not an accepted seat, and offers reads wi
       },
     }),
   );
-  await screen.findByRole("img", { name: "Checking saved changes" });
+  await screen.findByRole("button", { name: "Checking saved changes" });
   expect(screen.getByText("You")).toBeTruthy();
   const editor = mount(client);
   const reads = fetcher.mock.calls.filter(
@@ -315,13 +315,13 @@ it.each(["accept", "invite"] as const)(
         });
     });
     const label = action === "accept" ? "Accepting invitation" : "Sending invitation";
-    await screen.findByRole("img", { name: label });
+    await screen.findByRole("button", { name: label });
     await waitFor(() => expect(release).toBeDefined());
     expect(driver.result.current.table.data?.myRegistration?.status).not.toBe("ACCEPTED");
     const respond = release;
     if (!respond) throw new Error("Missing held roster request");
     await act(async () => respond(Response.json({ error: "REJECTED" }, { status: 409 })));
-    await waitFor(() => expect(screen.queryByRole("img", { name: label })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("button", { name: label })).toBeNull());
     roster.unmount();
     driver.unmount();
     clearSessionQueryCache(client);

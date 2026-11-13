@@ -5759,7 +5759,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         resourceHref: `/events/${event.id}`,
         attentionItems: [
           {
-            id: notificationItemId(tableId, "overview", undefined, "table"),
+            id: notificationItemId(tableId, "games", undefined, "table"),
             revision: event.version,
           },
           { id: notificationItemId(secondId, "invitation", undefined, "table"), revision: 1 },
@@ -5795,16 +5795,20 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       lists: [{ kind: "event-list", id: "mine" }],
     });
     expect(references.get(String(notices[2]))?.tableIds).toEqual([tableId]);
+    expect(references.get(String(notices[3]))?.tableIds).toEqual([tableId]);
     expect(references.get(String(notices[3]))?.itemIds).toEqual([
-      notificationItemId(tableId, "overview", undefined, "table"),
+      notificationItemId(tableId, "games", undefined, "table"),
     ]);
     expect(references.has(String(notices[4]))).toBe(false);
-    const ownedItem = notificationItemId(tableId, "overview", undefined, "table");
+    const ownedItem = notificationItemId(tableId, "overview", undefined, "table"),
+      mixedOwnedItem = notificationItemId(tableId, "games", undefined, "table");
     const itemScope = await new NotificationAttentionRepository(db).snapshot(GUEST, [
       { kind: "item", id: ownedItem },
+      { kind: "item", id: mixedOwnedItem },
     ]);
     // Only the standalone owned notice completes; hidden siblings keep the mixed inbox row unread.
     expect(itemScope.snapshot.targets[0].readEffect?.unread).toBe(1);
+    expect(itemScope.snapshot.targets[1].readEffect?.unread).toBe(0);
     // Expiry/revocation cannot broaden a preserved personal snapshot into sibling routes.
     await transaction((s) => s.unifiedGroupService.revoke(OWNER, group.id, GUEST));
     expect(
@@ -5855,19 +5859,31 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
       .updateOne({ groupId: group.id, userId: GUEST }, { $set: { status: "LEFT" } });
     await new NotificationAttentionRepository(db).read(GUEST, {
-      target: { kind: "item", id: ownedItem },
+      target: { kind: "item", id: mixedOwnedItem },
       through: new Date().toISOString(),
     });
     const mixed = await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: notices[3] });
     expect(mixed).not.toHaveProperty("readAt");
     expect(
-      mixed?.attentionItems.find((item: { id: string }) => item.id === ownedItem).readAt,
+      mixed?.attentionItems.find((item: { id: string }) => item.id === mixedOwnedItem)?.readAt,
     ).toBeInstanceOf(Date);
     expect(
       mixed?.attentionItems.find(
         (item: { id: string }) =>
           item.id === notificationItemId(secondId, "invitation", undefined, "table"),
       ),
+    ).not.toHaveProperty("readAt");
+    const standalone = await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: notices[2] });
+    expect(standalone).not.toHaveProperty("readAt");
+    await new NotificationAttentionRepository(db).read(GUEST, {
+      target: { kind: "item", id: ownedItem },
+      through: new Date().toISOString(),
+    });
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: notices[2] }))?.readAt,
+    ).toBeInstanceOf(Date);
+    expect(
+      await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: notices[3] }),
     ).not.toHaveProperty("readAt");
   });
 

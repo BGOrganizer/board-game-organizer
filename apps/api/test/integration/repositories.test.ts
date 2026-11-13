@@ -563,13 +563,20 @@ describe("source-paged entity notification attention", () => {
       expect(receipt.readReferences.map((row) => row.notificationId)).toEqual([
         info.insertedId.toHexString(),
       ]);
-      expect(
-        (
-          await new NotificationAttentionRepository(db).snapshot(ACTOR, [
-            { kind: "group", id: groupId },
-          ])
-        ).snapshot.targets[0].count,
-      ).toBe(0);
+      const attention = await new NotificationAttentionRepository(db).snapshot(
+        ACTOR,
+        [
+          { kind: "group", id: groupId },
+          { kind: "item", id: member },
+        ],
+        Object.values(members.insertedIds).map(String),
+      );
+      // The owned generic history keeps its Group signal without exposing a member identity.
+      expect(attention.snapshot.targets.map((row) => row.count)).toEqual([1, 0]);
+      expect(attention.references.has(String(members.insertedIds[0]))).toBe(false);
+      const generic = attention.references.get(String(members.insertedIds[1]));
+      expect(generic).toMatchObject({ target: { kind: "group", id: groupId } });
+      expect(generic?.itemIds).toBeUndefined();
       for (const _id of Object.values(members.insertedIds))
         expect(
           (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id }))?.readAt,
