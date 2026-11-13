@@ -4,6 +4,7 @@ const calls = vi.hoisted(() => ({
   image: vi.fn(),
   network: vi.fn(),
   resources: vi.fn(),
+  ulimits: vi.fn(),
 }));
 vi.mock("testcontainers", () => ({
   GenericContainer: class {
@@ -12,6 +13,7 @@ vi.mock("testcontainers", () => ({
     }
     withNetworkMode = calls.network;
     withResourcesQuota = calls.resources;
+    withUlimits = calls.ulimits;
   },
 }));
 
@@ -24,6 +26,7 @@ describe("integration MongoDB selection", () => {
     expect(calls.image).toHaveBeenCalledWith("mongo:7");
     expect(calls.network).not.toHaveBeenCalled();
     expect(calls.resources).not.toHaveBeenCalled();
+    expect(calls.ulimits).not.toHaveBeenCalled();
   });
 
   it("uses the Pi image, private network and bounded database resources", () => {
@@ -35,6 +38,7 @@ describe("integration MongoDB selection", () => {
     expect(calls.image).toHaveBeenCalledWith("local/mongo-pi4:7");
     expect(calls.network).toHaveBeenCalledWith("test-network");
     expect(calls.resources).toHaveBeenCalledWith({ memory: 536870912, cpu: 1 });
+    expect(calls.ulimits).toHaveBeenCalledWith({ nofile: { soft: 64000, hard: 64000 } });
   });
 
   it("reads environment overrides when called by integration fixtures", () => {
