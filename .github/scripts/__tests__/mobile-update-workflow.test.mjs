@@ -81,6 +81,7 @@ test("Development producers consume a stable non-CI URL, assigning it only after
   );
   const publication = pr.jobs["draft-release"];
   const alias = find(publication, "🔗 Activate Development API after smoke and current PR checks");
+  assert.equal(alias.env.VERCEL_ORG_ID, expression("secrets.VERCEL_ORG_ID"));
   assert.equal(
     alias.env.DEVELOPMENT_API_URL,
     expression("needs.deploy-development-api.outputs.url"),

@@ -9,6 +9,7 @@ const options = {
   apiProjectId: "prj_api",
   webProjectId: "prj_web",
   token: "private-vercel",
+  orgId: "team_owned",
   bypass: "private bypass&token",
   clerkKey: "sk_test_private",
   sourceSha,
@@ -24,6 +25,7 @@ function fixture(fault) {
       command(args) {
         calls.push(args);
         assert.deepEqual(args.slice(-2), ["--token", "private-vercel"]);
+        assert.deepEqual(args.slice(-4, -2), ["--scope", "team_owned"]);
         if (args[0] === "alias") return "";
         if (args[0] === "inspect") {
           if (args[1] === developmentApiUrl("22")) {
@@ -145,6 +147,7 @@ test("production, credentials in URLs, paths and invalid source inputs fail befo
     { clerkKey: "sk_live_private" },
     { sourceSha: "invalid" },
     { bypass: "" },
+    { orgId: "" },
   ]) {
     const { calls, dependencies } = fixture();
     await assert.rejects(activateDevelopmentApi({ ...options, ...change }, dependencies));

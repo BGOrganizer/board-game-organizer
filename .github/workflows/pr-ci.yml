@@ -1147,6 +1147,7 @@ jobs:
           VERCEL_API_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
           VERCEL_WEB_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: |

@@ -45,6 +45,7 @@ export async function activateDevelopmentApi(
   const alias = developmentApiUrl(options.pr.number);
   if (
     !options.token ||
+    !options.orgId ||
     !options.apiProjectId ||
     !options.webProjectId ||
     !options.branch ||
@@ -53,7 +54,7 @@ export async function activateDevelopmentApi(
     !options.bypass
   )
     throw new Error("Verified Development publication inputs required");
-  const provider = (args) => command([...args, "--token", options.token]);
+  const provider = (args) => command([...args, "--scope", options.orgId, "--token", options.token]);
   async function deployment(url, projectId) {
     const inspected = JSON.parse(await provider(["inspect", url, "--json"]));
     if (!/^dpl_[a-zA-Z0-9]+$/.test(inspected.id) || inspected.readyState !== "READY")
@@ -125,6 +126,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         apiProjectId: env.VERCEL_API_PROJECT_ID,
         webProjectId: env.VERCEL_WEB_PROJECT_ID,
         token: env.VERCEL_TOKEN,
+        orgId: env.VERCEL_ORG_ID,
         bypass: env.VERCEL_PROTECTION_BYPASS,
         clerkKey: env.CLERK_SECRET_KEY,
         sourceSha: env.OTA_SOURCE_SHA,
