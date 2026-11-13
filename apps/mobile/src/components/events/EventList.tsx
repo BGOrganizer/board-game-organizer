@@ -11,6 +11,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarCheck2, CalendarClock, Flag, Plus } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { View } from "react-native";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
@@ -24,10 +25,12 @@ export function EventList({
   groupId,
   canCreate = true,
   section = "mine",
+  header,
 }: {
   groupId?: string;
   canCreate?: boolean;
   section?: EventListSection;
+  header?: ReactNode;
 }) {
   const t = useT(),
     router = useRouter(),
@@ -66,24 +69,27 @@ export function EventList({
             paddingBottom: layout.paddingBottom,
           }}
           ListHeaderComponent={
-            <ListSearch
-              query={filters.query}
-              onQueryChange={filters.setQuery}
-              label={t("Filter")}
-              placeholder={t("Filter events")}
-              mode="filter"
-              selected={filters.selected}
-              onToggle={filters.toggle}
-              options={
-                !groupId && section === "available"
-                  ? []
-                  : [
-                      { key: "CONFIRMED", label: t("Confirmed events"), icon: CalendarCheck2 },
-                      { key: "PLANNING", label: t("Planning"), icon: CalendarClock },
-                      { key: "TERMINATED", label: t("Terminated events"), icon: Flag },
-                    ]
-              }
-            />
+            <View style={{ gap: 12 }}>
+              {header}
+              <ListSearch
+                query={filters.query}
+                onQueryChange={filters.setQuery}
+                label={t("Filter")}
+                placeholder={t("Filter events")}
+                mode="filter"
+                selected={filters.selected}
+                onToggle={filters.toggle}
+                options={
+                  !groupId && section === "available"
+                    ? []
+                    : [
+                        { key: "CONFIRMED", label: t("Confirmed events"), icon: CalendarCheck2 },
+                        { key: "PLANNING", label: t("Planning"), icon: CalendarClock },
+                        { key: "TERMINATED", label: t("Terminated events"), icon: Flag },
+                      ]
+                }
+              />
+            </View>
           }
           renderItem={({ item }) => (
             <EventCard

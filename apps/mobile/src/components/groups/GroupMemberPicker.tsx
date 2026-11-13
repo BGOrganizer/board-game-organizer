@@ -1,13 +1,18 @@
-import { communityAccessDenied, useGroupPeople, useListSearch } from "@board-game-organizer/shared";
+import {
+  communityAccessDenied,
+  groupUserRoles,
+  useGroupPeople,
+  useListSearch,
+} from "@board-game-organizer/shared";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
-import { Typography } from "heroui-native/text";
 import { UserRoundPlus, UsersRound } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { UserList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 export function GroupMemberPicker({
@@ -54,6 +59,7 @@ export function GroupMemberPicker({
         <UserListRow
           name={row.name ?? row.userId}
           avatarUrl={row.avatarUrl}
+          badgeContent={<UserRoleBadge roles={groupUserRoles(row)} />}
           secondary={row.isAdmin ? t("Admin") : undefined}
           actions={
             <Button

@@ -1,9 +1,16 @@
 "use client";
-import { communityAccessDenied, useGroupPeople, useListSearch } from "@board-game-organizer/shared";
+import {
+  communityAccessDenied,
+  groupUserRoles,
+  useGroupPeople,
+  useListSearch,
+} from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { UserRoundPlus } from "lucide-react";
 import { ListSearch } from "@/components/common/ui/ListSearch";
+import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 export function GroupMemberPicker({
@@ -45,7 +52,11 @@ export function GroupMemberPicker({
             key={row.userId}
             className="flex items-center justify-between gap-3 rounded-xl bg-default p-3"
           >
-            <span>{row.name ?? row.userId}</span>
+            <UserIdentity
+              name={row.name ?? row.userId}
+              avatarUrl={row.avatarUrl}
+              badge={<UserRoleBadge roles={groupUserRoles(row)} />}
+            />
             <Button
               isIconOnly
               size="sm"

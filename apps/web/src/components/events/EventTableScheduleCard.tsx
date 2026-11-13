@@ -9,6 +9,7 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 
 export function EventTableScheduleCard({
   table,
@@ -45,6 +46,7 @@ export function EventTableScheduleCard({
                 <UserIdentity
                   name={schedule.demonstrator.name ?? t`Unknown`}
                   avatarUrl={schedule.demonstrator.avatarUrl}
+                  badge={<UserRoleBadge roles={["demonstrator"]} />}
                   secondary={t`Demonstrator`}
                 />
               </GroupedRow>

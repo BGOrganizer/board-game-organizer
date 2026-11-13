@@ -17,6 +17,7 @@ describe("notificationChanges DTOs", () => {
     expect(notificationChangesQuerySchema.parse({ ...scope, tab: "none", limit: "50" }).tab).toBe(
       "none",
     );
+    expect(notificationChangesQuerySchema.parse({ ...scope, tab: "all" }).tab).toBe("all");
     const cursor = { ...reference, itemId: "", asOf: reference.effectiveAt };
     expect(
       notificationChangesQuerySchema.parse({ ...scope, cursor: JSON.stringify(cursor) }).cursor,
@@ -27,7 +28,7 @@ describe("notificationChanges DTOs", () => {
       { cursor: "bad JSON" },
       { cursor: "{}" },
       { id: "bad" },
-      { tab: "all" },
+      { tab: "unknown" },
       { extra: true },
     ])
       expect(notificationChangesQuerySchema.safeParse({ ...scope, ...invalid }).success).toBe(

@@ -1,7 +1,7 @@
 import { notificationIdSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { getDb } from "@/app/lib/db";
+import { getDb, withTransaction } from "@/app/lib/db";
 import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
 
 export const OPTIONS = corsOptions;
@@ -26,12 +26,13 @@ async function handle(
   }
 
   try {
-    const repository = new NotificationsRepository(await getDb());
     if (method === "DELETE") {
-      const result = await repository.deleteOne(userId, id.data);
+      const result = await withTransaction((session, db) =>
+        new NotificationsRepository(db, session).deleteOne(userId, id.data),
+      );
       if (!result.deletedCount) return corsJson({ error: "Not found" }, { status: 404 }, request);
     } else {
-      await repository.markRead(userId, id.data);
+      await new NotificationsRepository(await getDb()).markRead(userId, id.data);
     }
     return corsJson({ success: true }, {}, request);
   } catch {

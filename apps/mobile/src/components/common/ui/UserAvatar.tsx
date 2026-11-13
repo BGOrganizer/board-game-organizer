@@ -1,12 +1,16 @@
 import { Avatar } from "heroui-native/avatar";
 import { useThemeColor } from "heroui-native/hooks";
+import { Typography } from "heroui-native/text";
 import type { LucideIcon } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
+import { useT } from "@/lib/i18n";
+import { IconBadge } from "./IconBadge";
 
 export type UserBadge = {
   icon: LucideIcon;
   label: string;
+  description?: string;
   color: "accent" | "success" | "warning" | "danger";
 };
 
@@ -16,26 +20,32 @@ export function UserAvatar({
   online,
   badge,
   badgeContent,
+  topBadgeContent,
 }: {
   name: string;
   avatarUrl?: string | null;
   online?: boolean;
   badge?: UserBadge;
   badgeContent?: ReactNode;
+  topBadgeContent?: ReactNode;
 }) {
-  const [badgeColor, success, muted, surface] = useThemeColor([
-    badge?.color ?? "foreground",
-    "success",
-    "muted",
-    "surface",
-  ]);
-  const BadgeIcon = badge?.icon;
+  const t = useT();
+  const [success, muted, surface] = useThemeColor(["success", "muted", "surface"]);
+  const bottom =
+    badgeContent ??
+    (badge ? (
+      <IconBadge icon={badge.icon} label={badge.label} title={badge.label} color={badge.color}>
+        <Typography className="text-foreground">{badge.description ?? badge.label}</Typography>
+      </IconBadge>
+    ) : undefined);
+  const dual = Boolean(bottom && topBadgeContent);
   return (
     <View
       style={{
         position: "relative",
-        marginRight: badgeContent ? 12 : 0,
-        marginBottom: badgeContent ? 12 : 0,
+        marginRight: bottom || topBadgeContent ? 12 : 0,
+        marginTop: dual ? 8 : topBadgeContent ? 12 : 0,
+        marginBottom: dual ? 8 : bottom ? 12 : 0,
       }}
     >
       <Avatar size="md" alt={name}>
@@ -44,10 +54,13 @@ export function UserAvatar({
       </Avatar>
       {online !== undefined ? (
         <View
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={online ? t("Online") : t("Offline")}
           style={{
             position: "absolute",
             top: -1,
-            right: -1,
+            ...(topBadgeContent ? { left: -1 } : { right: -1 }),
             width: 10,
             height: 10,
             borderRadius: 5,
@@ -57,25 +70,11 @@ export function UserAvatar({
           }}
         />
       ) : null}
-      {badgeContent}
-      {badge && BadgeIcon ? (
-        <View
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel={badge.label}
-          className="rounded-full border border-muted/20 bg-surface"
-          style={{
-            position: "absolute",
-            right: -4,
-            bottom: -4,
-            width: 22,
-            height: 22,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <BadgeIcon size={13} color={badgeColor} />
-        </View>
+      {bottom ? (
+        <View style={{ position: "absolute", right: -20, bottom: -20 }}>{bottom}</View>
+      ) : null}
+      {topBadgeContent ? (
+        <View style={{ position: "absolute", right: -20, top: -20 }}>{topBadgeContent}</View>
       ) : null}
     </View>
   );

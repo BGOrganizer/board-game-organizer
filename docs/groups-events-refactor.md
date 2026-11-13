@@ -244,6 +244,18 @@ exceptions supersede older membership-only activity/detail statements below.
   personal/direct entry, omitted when opened from that Event. Parent-ID URL hints remain presentation
   context only. Group context, Back, FAB/header actions and route parameters are unchanged.
   Voting help still explains accepted-only voting, pending reserved places and explicit Table consent.
+- User-item badges share a fixed 22px round HeroUI Chip and 13px glyph on both clients. Current
+  integrations are either actions or titled explanation popovers; the reusable noninteractive mode
+  is available but unused by screens. A multimeaning plus uses the primary glyph's foreground and
+  stays absolutely positioned inside the same 22px face. Role/relationship badges sit at the avatar's
+  lower-right corner. Authorized local seat-lock toggles sit upper-right and retain Save/Discard.
+  Interactive targets remain 44px; only dual-badge rows reserve the additional space needed for
+  disjoint targets, reusing existing row padding and preserving avatar dimensions.
+- Detail identity cards and tab bars scroll with the active Group/Event/Table content. Native
+  variable lists own their header through FlatList/SectionList; static tabs use one scrolling owner.
+  Web detail lists use document scrolling and measured row windowing where required. Source paging,
+  cached-page presentation limits, draft state, keyboard handling and notification deep links remain
+  authoritative; no same-axis ScrollView wraps a virtualized list and no new sticky header is added.
 - Group detail labels are Details / Members / Events / Ranking; Table detail starts with Details.
   Existing internal tab keys and all permission/state guards remain unchanged. Group member,
   Event participant and Table participant rows prefer one `@username`; missing handles retain a
@@ -728,7 +740,7 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   All counts come from complete recipient-scoped aggregates, not loaded inbox pages.
 - Pending business decisions are separate from unread state. A recipient's actionable invitation
   keeps its reply indicator until response. Actionable pending invitations stay visible in the
-  Alert and unread: informational Alert reads and generic mark-read/mark-all skip them; an outgoing Group request retains
+  popover and unread: informational resource reads and generic mark-read/mark-all skip them; an outgoing Group request retains
   its waiting clock, never an approval action. Group admins get an owner-only complete pending
   REQUEST count excluding active bans; it drives a request-review glyph beside their status and
   on Members, never a numeric unread badge. Other viewers, including unrelated moderators, receive
@@ -760,22 +772,31 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   historical notices stay generic. Pending membership, discovery and moderation alone never grant
   member-point access. Departed/excluded members retarget to existing Group Overview, not missing rows;
   canonical item identity wins over stale historical section metadata.
-- Each selected Group/Event/Table tab shows one platform HeroUI warning Alert immediately below its
-  top tabs. It lists bounded, source-paged actual changes and pending invitations, with a suitable
-  indicator and a static danger dot after its shrinkable title. Its top-right compact icon-only warning
-  action is the sole informational read action in the entity: item dots remain, but item/vote
-  controls have no read buttons. Pending invitations are displayed but excluded from this action;
-  their accept/decline controls keep their existing consent/capability/version guards. Table
-  participation changes and invitations belong only to Participants, never Details. Child Table
-  changes do not become parent Event/Group changes.
+- Group/Event/Table detail cards expose one compact warning-colored bell popover at the right of their title
+  band, replacing the below-tab Alert. Its warning tone stays constant; an 8px danger dot remains
+  inside the trigger bounds when the resource has unread changes. The popover combines the resource's
+  authorized tabs, not child-resource attention. Opening it reads nothing. Its minimum size grows
+  naturally with content; only exhausted viewport/safe-area space introduces vertical scrolling.
+  Rows remain source-paged and virtualized, and reentry reveals a bounded window of cached pages.
+  A danger-soft CheckCheck action, matching the Notifications page, beside the popover title explicitly reads all informational changes
+  from the captured resource snapshot, including unloaded pages. Item/vote controls retain passive
+  dots and no read buttons. Pending invitations remain displayed and unread until their guarded
+  response; this action grants no consent. The ordinary page/tab dot scopes remain independent.
+- Source supersession preserves the complete inbox history while exposing older duplicates as read.
+  Duplicates use recipient, actual notification kind and canonical point identity; different dates,
+  options, members and owners remain independent. Generic history without proven point identity is
+  retained conservatively. Event-state notices share a family and are checked against the current
+  Event status and persisted planning situation, so a superseded ready/blocked state is not shown as
+  current. A newer already-read notice also supersedes older copies; deleting its inbox row does not
+  resurrect them. Only superseded points are retired: other points of that row can stay unread.
 - A card or notification link navigates without reading resource/item attention. Container entry,
   rendering, focus, scrolling and visibility duration read nothing. Inbox/push links locate the
-  correct tab/first unread point; removed options lead to their existing section. The Alert works
-  for planning and authorized read-only sections without requiring an impossible vote.
+  correct tab/first unread point; removed options lead to their existing section. The information popover works
+  for planning and authorized information sections without requiring an impossible vote.
 - A successful YES/IF_NEEDED/NO vote never acknowledges notification information, in the API or
-  optimistic client projection. The explicit Alert read captures only its displayed informational
-  references, exact revisions/effective change times and cutoff. Unshown pages, later arrivals,
-  retargeted revisions and unrelated items/tabs/entities survive. Multi-point union effects are
+  optimistic client projection. The explicit resource read captures informational references, exact revisions/effective change
+  times and cutoff across all source pages of that resource. Later arrivals, retargeted revisions
+  and unrelated items/entities survive; tab-specific reads retain their narrower selection. Multi-point union effects are
   reconciled once, never summed in a way that double-subtracts bell counts. Brief descriptions use
   persisted kinds/canonical points and current authorized labels; missing historical before/after
   values or deleted names are not reconstructed from translated prose. Successful invitation decisions

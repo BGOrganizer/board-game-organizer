@@ -15,7 +15,7 @@ import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -38,11 +38,13 @@ export function EventTableOverview({
   tableId,
   context = "personal",
   section = "overview",
+  header: detailHeader,
 }: {
   eventId: string;
   tableId: string;
   context?: "personal" | "event";
   section?: "overview" | "participants";
+  header?: ReactNode;
 }) {
   const t = useT(),
     o = useCommunityApi(),
@@ -253,6 +255,7 @@ export function EventTableOverview({
       <Stack.Screen options={{ title: table.name }} />
       {table.sharedResultsOnly ? (
         <ScreenScrollView>
+          {detailHeader}
           {header}
           {eventRecovery}
         </ScreenScrollView>
@@ -267,6 +270,7 @@ export function EventTableOverview({
           }
           header={
             <>
+              {detailHeader}
               {section === "overview" ? header : null}
               {eventRecovery}
             </>

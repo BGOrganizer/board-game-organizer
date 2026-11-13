@@ -71,8 +71,9 @@ it.each([null, "group"])(
     renderWithI18n(<EventTableResults table={{ ...finalTable, groupId }} />);
     expect(screen.getByText("@winner")).toBeTruthy();
     expect(screen.queryByText("Winner full name")).toBeNull();
-    expect(screen.getAllByRole("img", { name: "Position: #1" })).toHaveLength(2);
-    expect(screen.getByRole("img", { name: "Position: ND" }).textContent).toBe("ND");
+    expect(screen.getAllByRole("button", { name: "Position: #1" })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Position: ND" })).toBeTruthy();
+    expect(screen.getByText("Position: ND")).toBeTruthy();
     expect(screen.getAllByText("1.50")).toHaveLength(2);
     expect(document.querySelectorAll('[title="ND"]')).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Global ranking: @winner" }));

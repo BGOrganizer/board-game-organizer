@@ -34,7 +34,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react-native";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
@@ -50,7 +50,13 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupMemberActions } from "./GroupMemberActions";
-export function GroupMembers({ group }: { group: GroupRecordResponse }) {
+export function GroupMembers({
+  group,
+  header,
+}: {
+  group: GroupRecordResponse;
+  header?: ReactNode;
+}) {
   const t = useT(),
     options = useCommunityApi(),
     router = useRouter(),
@@ -108,26 +114,29 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
         error={t("Could not load group members")}
         skeleton={<Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />}
         header={
-          isGroupManagerRole(group.role) ? (
-            <View style={{ gap: 12 }}>
-              <AddUserRow
-                label={t("Invite friends")}
-                isDisabled={!group.canInvite || workflow.blocking || denied}
-                onPress={() =>
-                  router.push({ pathname: "/group/invite", params: { groupId: group.id } })
-                }
-                actions={
-                  !group.canInvite ? (
-                    <HelpPopover label={t("Invitations unavailable")} title={t("Invite friends")}>
-                      <Typography className="text-foreground">
-                        {t("Invitations require an approved group.")}
-                      </Typography>
-                    </HelpPopover>
-                  ) : undefined
-                }
-              />
-            </View>
-          ) : undefined
+          <>
+            {header}
+            {isGroupManagerRole(group.role) ? (
+              <View style={{ gap: 12 }}>
+                <AddUserRow
+                  label={t("Invite friends")}
+                  isDisabled={!group.canInvite || workflow.blocking || denied}
+                  onPress={() =>
+                    router.push({ pathname: "/group/invite", params: { groupId: group.id } })
+                  }
+                  actions={
+                    !group.canInvite ? (
+                      <HelpPopover label={t("Invitations unavailable")} title={t("Invite friends")}>
+                        <Typography className="text-foreground">
+                          {t("Invitations require an approved group.")}
+                        </Typography>
+                      </HelpPopover>
+                    ) : undefined
+                  }
+                />
+              </View>
+            ) : null}
+          </>
         }
         renderRow={(person) => {
           const allowed = groupPersonActions(group, person);

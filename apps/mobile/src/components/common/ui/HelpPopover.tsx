@@ -3,7 +3,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Popover } from "heroui-native/popover";
 import { CircleHelp, type LucideIcon } from "lucide-react-native";
 import type { ComponentProps, ReactNode } from "react";
-import { View } from "react-native";
+import { View, type ViewStyle } from "react-native";
 
 export function HelpPopover({
   label,
@@ -17,6 +17,7 @@ export function HelpPopover({
   indicator,
   triggerClassName,
   triggerVariant = "ghost",
+  contentStyle,
   children,
 }: {
   label: string;
@@ -28,6 +29,7 @@ export function HelpPopover({
   indicator?: ReactNode;
   triggerClassName?: string;
   triggerVariant?: "ghost" | "primary" | "danger-soft";
+  contentStyle?: ViewStyle;
   align?: Extract<ComponentProps<typeof Popover.Content>, { presentation: "popover" }>["align"];
   onOpenChange?: ComponentProps<typeof Popover>["onOpenChange"];
   children: ReactNode;
@@ -96,6 +98,7 @@ export function HelpPopover({
           width={width}
           accessible={false}
           accessibilityLabel={title ? undefined : label}
+          style={contentStyle}
         >
           {title ? (
             <Popover.Title accessibilityRole="header" importantForAccessibility="yes">

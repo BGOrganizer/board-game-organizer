@@ -145,7 +145,7 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
     "utf8",
   );
   expect(leaderboard).toContain("<FlatList");
-  expect(leaderboard).toMatch(/style=\{\{ flex: 1, marginTop: 16 \}\}/);
+  expect(leaderboard).toContain("ListHeaderComponent=");
 });
 
 it("keeps text inside explicit labels when native location buttons contain icons", () => {

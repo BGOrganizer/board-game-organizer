@@ -21,6 +21,7 @@ import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialo
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
@@ -115,13 +116,9 @@ export function EventTableSeats({
                       avatarUrl={item.avatarUrl}
                       secondary={label}
                       badge={
-                        <span
-                          role="img"
-                          aria-label={label}
-                          className="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5 text-warning"
-                        >
-                          <Icon className="size-4" aria-hidden />
-                        </span>
+                        <IconBadge icon={Icon} label={label} title={label} color="warning">
+                          <p>{label}</p>
+                        </IconBadge>
                       }
                     />
                   </GroupedRow>

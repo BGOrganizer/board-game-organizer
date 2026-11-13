@@ -5,6 +5,37 @@ Older designs and local-only authorizations below may be superseded. Read the cu
 [domain contract](groups-events-refactor.md), [root instructions](../AGENTS.md) and workflow source first.
 Historical test counts describe their recorded revision only; they do not prove the current head.
 
+## Avatar badges, resource notifications and detail scrolling — 2026-11-13
+
+- Web and mobile use the shared per-platform avatar badge controls described in the
+  [current contract](groups-events-refactor.md#notification-attention): 22px circles, 13px glyphs,
+  internal multiple-meaning plus and accessible action/popover targets. Seat locks retain the
+  existing save/discard workflow. Detail card, tabs and content share their vertical scroll owner
+  while paged data, bounded cache presentation and virtualization remain active.
+- Detail notification controls use a warning-colored Bell and a danger-soft CheckCheck read action,
+  matching the Notifications page. Resource-wide captured reads exclude pending decisions, child
+  resources and later revisions. Superseded notices remain in inbox history; deleting a winner or
+  purging its actor preserves the older read state transactionally.
+- Local completed checks: 905 mobile tests, 708 shared tests, 189 schema tests and 105 scoped API
+  tests pass; shared/schema coverage is 100% across all four metrics. Focused native icon checks
+  also pass after the final Bell/CheckCheck correction. The 21 final focused web tests measure
+  100% coverage for the popover, title action, document windowing and its layout helper; eight
+  real-hook cases additionally verify snapshot reads, exact revisions, retry and owner changes.
+  The broad local web run, API/web builds and Android export were interrupted by a container
+  restart and do not establish completion. Exact-commit CI reports govern their subsequent results.
+- A disposable official MongoDB7 replica set under QEMU exercised 14 new scenarios and five
+  existing regressions across focused runs, including actual rollback, partial read, permissions,
+  source counts and purge isolation. Nonselected cases were intentionally excluded by test-name
+  filters. This was a temporary bootstrap adapter, not the unavailable Docker/Testcontainers gate;
+  no standard integration configuration, remote database or provider was changed.
+- Real Chromium component geometry checks used a controlled model: natural popover growth, overflow
+  only at the viewport limit, internal unread dot, updated glyphs, bounded DOM with 1,000 rows and
+  requesting another page when a short document cannot scroll. They do not prove authenticated
+  product behavior. Authenticated browser/device acceptance remains unexecuted; the opt-in
+  [Playwright/Maestro paths](../apps/mobile/.maestro/README.md#avatar-badges-resource-notices-and-detail-scrolling)
+  require existing owned fixtures and a connected device. No provider operation or publication
+  follows from these local checks.
+
 ## Event creation/edit completion — 2026-11-10
 
 - Implemented the agreed four stages on web/native: Event, Dates / Locations, Tables, Review.

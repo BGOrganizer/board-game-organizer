@@ -6,13 +6,18 @@ import type {
   NotificationAttentionTarget,
   ReadNotificationAttentionInput,
 } from "@board-game-organizer/schemas";
-import { attentionKey, emptyAttentionSummary } from "@board-game-organizer/shared";
+import {
+  attentionKey,
+  emptyAttentionSummary,
+  notificationParticipationKinds,
+} from "@board-game-organizer/shared";
 import { type ClientSession, type Db, type Document, ObjectId } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { availableEventExpression, managedEventExpression } from "../events/event-list-eligibility";
 import { EventRecordsRepository } from "../events/event-records.repository";
 import { GroupRecordsRepository } from "../groups/group-records.repository";
 import { itemFacet, itemOwnerIds, ownerListTargets } from "./notification-item-pipeline";
+import { notificationSupersessionPipeline } from "./notification-supersession";
 import { NotificationsRepository } from "./notifications.repository";
 
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -33,8 +38,10 @@ export class NotificationAttentionRepository {
   private get opts() {
     return this.session ? { session: this.session } : {};
   }
-  private routing(userId: string, now: string, moderator: boolean): Document[] {
+  private routing(userId: string, now: string, moderator: boolean, sourceAt = now): Document[] {
     return [
+      ...notificationSupersessionPipeline(sourceAt),
+      { $match: { readAt: { $exists: false } } },
       {
         $set: {
           _tablePath: pathMatch(`^/events/(${uuid})/tables/(${uuid})$`),
@@ -333,18 +340,33 @@ export class NotificationAttentionRepository {
                           {
                             $not: [
                               {
-                                $anyElementTrue: [
+                                $or: [
                                   {
-                                    $map: {
-                                      input: { $ifNull: ["$attentionItems", []] },
-                                      as: "item",
-                                      in: {
-                                        $regexMatch: {
-                                          input: "$$item.id",
-                                          regex: '^\\[\\s*"group"\\s*,[^,]+,\\s*"members?"\\s*,',
+                                    $in: [
+                                      "$kind",
+                                      [
+                                        "group_membership_requested",
+                                        "group_membership_updated",
+                                        "group_invitation_accepted",
+                                      ],
+                                    ],
+                                  },
+                                  {
+                                    $anyElementTrue: [
+                                      {
+                                        $map: {
+                                          input: { $ifNull: ["$attentionItems", []] },
+                                          as: "item",
+                                          in: {
+                                            $regexMatch: {
+                                              input: "$$item.id",
+                                              regex:
+                                                '^\\[\\s*"group"\\s*,[^,]+,\\s*"members?"\\s*,',
+                                            },
+                                          },
                                         },
                                       },
-                                    },
+                                    ],
                                   },
                                 ],
                               },
@@ -354,7 +376,23 @@ export class NotificationAttentionRepository {
                       },
                     ],
                   },
-                  { $and: [{ $eq: ["$_kind", "event"] }, { $ne: ["$_eventId", null] }] },
+                  {
+                    $and: [
+                      { $eq: ["$_kind", "event"] },
+                      { $ne: ["$_eventId", null] },
+                      {
+                        $not: [
+                          {
+                            $and: [
+                              { $eq: [{ $arrayElemAt: ["$_event.personalAccessOnly", 0] }, true] },
+                              { $in: ["$kind", notificationParticipationKinds] },
+                              { $eq: [{ $type: "$attentionItems" }, "missing"] },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
                   {
                     $and: [
                       { $eq: ["$_kind", "table"] },
@@ -641,7 +679,7 @@ export class NotificationAttentionRepository {
           ...filter,
         },
       },
-      ...this.routing(userId, eligibilityAt, actor?.bgoRole === "ADMIN"),
+      ...this.routing(userId, eligibilityAt, actor?.bgoRole === "ADMIN", asOf),
     ];
   }
   sourceMatches(target: NotificationAttentionTarget) {

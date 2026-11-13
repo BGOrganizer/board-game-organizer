@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { contactConnections } from "../contactConnections";
+import { contactConnections, hasContactRelationship } from "../contactConnections";
 import type { ContactUser, RelationshipRow } from "../hooks/useContacts";
 
 const user = (id: string, extra: Partial<ContactUser> = {}): ContactUser => ({
@@ -59,4 +59,15 @@ it("keeps blocked users only in Blocked even when cached social lists still cont
     ["blocked", ["blocked"]],
     ["device", []],
   ]);
+});
+
+it("reserves a relationship badge only for a canonical known fact", () => {
+  expect(hasContactRelationship(user("unknown"))).toBe(false);
+  expect(
+    hasContactRelationship(
+      user("none", { isFriend: false, isFollowing: false, isFollower: false, blockedByMe: false }),
+    ),
+  ).toBe(false);
+  for (const fact of ["blockedByMe", "isFriend", "isFollowing", "isFollower"] as const)
+    expect(hasContactRelationship(user("known", { [fact]: true }))).toBe(true);
 });

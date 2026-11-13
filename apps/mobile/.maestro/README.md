@@ -579,6 +579,41 @@ light/dark, narrow/desktop (web), enlarged text and tall viewports. Separately e
 empty, nonmanager, stale/revoked role, network/rollback and immutable-history paths on owned fixtures;
 unit/Mongo cases do not replace that runtime matrix. Syntax is not acceptance.
 
+## Avatar badges, resource notices and detail scrolling
+
+The opt-in flows `35-user-badges.yaml`, `36-notification-popover.yaml` and
+`37-detail-document-scroll.yaml` use an already authenticated Development build and owned fixtures.
+Run both EN/IT, light/dark and enlarged text. Their web counterparts are
+`user-badges.config.ts`, `notification-popover.config.ts` and `detail-scroll.config.ts` under
+`apps/web/e2e`; use the existing Development Clerk setup and an explicit local/Preview web URL.
+Read the guards and input validation in each scenario before running it. These scenarios do not
+provision users or fixtures and do not run in the canonical CI suites.
+
+- Badges: native requires `BADGE_LOCALE`, `BADGE_GROUP_ID`, `BADGE_EVENT_ID`,
+  `BADGE_TABLE_ID`, `BADGE_RELATIONSHIP_LABEL`, `BADGE_RELATIONSHIP_EXPLANATION`,
+  `BADGE_GROUP_ROLE_LABEL` and `BADGE_ROLE_LABEL`. Use a manager-owned table with an editable
+  seat; the flow toggles the lock and discards the draft. Verify the 22px circle, 13px glyph,
+  internal plus and separate 44px targets on device, including an avatar with both badges.
+  Web uses `BADGE_GROUP_PATH=/groups/<id>` and
+  `BADGE_TABLE_PATH=/events/<eventId>/tables/<tableId>` instead of the three native IDs.
+- Notices: set `NOTIFICATION_ACK=owned-disposable-notifications`, `NOTIFICATION_KIND`,
+  `NOTIFICATION_ID`, `NOTIFICATION_EVENT_ID` for tables, `NOTIFICATION_LOCALE`,
+  `NOTIFICATION_EXPECTED_TEXT` and `NOTIFICATION_CASE=empty|read|mixed|pending|read-error`.
+  Mixed fixtures also need `NOTIFICATION_PENDING_TEXT`. Read cases really acknowledge notices;
+  use a fresh disposable fixture per case. The read-error case toggles airplane mode: restore
+  connectivity if interrupted. Web uses `NOTIFICATION_POPOVER_ACK=owned-disposable-notifications`,
+  `NOTIFICATION_POPOVER_API_URL` and validated `NOTIFICATION_POPOVER_INPUT` JSON. It additionally
+  exercises overflow and query failure, checks retained inbox history and protects unrelated notices.
+- Scrolling: set `DETAIL_SCROLL_ACK=owned-preview-build`, `DETAIL_SCROLL_KIND`,
+  `DETAIL_SCROLL_ID`, `DETAIL_SCROLL_EVENT_ID` for tables, `DETAIL_SCROLL_TAB` and
+  `DETAIL_SCROLL_LAST_ROW`. Web uses equivalent `DETAIL_SCROLL_INPUT` JSON with
+  `kind`, `id`, optional `eventId`, `tab`, `lastRow` and `mode=list|static`. Choose a last row
+  beyond the first source page. Check that the detail card leaves the viewport and later pages
+  load without a second vertical scroller, including empty/error and tab reentry paths.
+
+Browser geometry checks with a controlled component model, YAML parsing and source/unit tests do
+not establish authenticated product acceptance or native frame timing.
+
 ## Evidence
 
 YAML parsing and source-policy tests validate structure, not product acceptance.

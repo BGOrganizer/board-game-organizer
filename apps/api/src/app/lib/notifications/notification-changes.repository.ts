@@ -112,7 +112,23 @@ export class NotificationChangesRepository {
           },
         },
       },
-      { $match: { _tab: { $ne: null } } },
+      {
+        $match: {
+          _tab: { $ne: null },
+          ...(scope.kind === "group"
+            ? {
+                $or: [{ _tab: { $ne: "members" } }, { "_group.0.memberReadable": true }],
+              }
+            : scope.kind === "event"
+              ? {
+                  $or: [
+                    { _tab: { $ne: "participants" } },
+                    { "_event.0.personalAccessOnly": { $ne: true } },
+                  ],
+                }
+              : {}),
+        },
+      },
     ];
   }
   private async row(
@@ -169,7 +185,7 @@ export class NotificationChangesRepository {
             $facet: {
               counts: [{ $group: { _id: "$_tab", count: { $sum: 1 } } }],
               rows: [
-                { $match: { _tab: query.tab } },
+                ...(query.tab === "all" ? [] : [{ $match: { _tab: query.tab } }]),
                 ...after,
                 { $sort: { _effectiveAt: -1, _id: -1, _itemId: 1 } },
                 { $limit: query.limit + 1 },
@@ -223,7 +239,7 @@ export class NotificationChangesRepository {
             })),
             {
               $match: {
-                _tab: input.scope.tab,
+                ...(input.scope.tab === "all" ? {} : { _tab: input.scope.tab }),
                 _itemId: reference.itemId ?? "",
                 _effectiveAt: new Date(reference.effectiveAt),
                 ...(reference.revision !== undefined

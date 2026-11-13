@@ -2,11 +2,12 @@
 
 import {
   type ContactUser,
+  hasContactRelationship,
   useRelationshipList,
   withProtectionBypass,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -15,6 +16,8 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserRelationshipBadge } from "@/components/common/ui/UserRelationshipBadge";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 
 interface Props {
@@ -174,10 +177,12 @@ export function SearchUserPage({
       <GroupedList className="mt-3">
         {shown.map((u) => (
           <GroupedRow key={u.id}>
-            <Avatar size="md" color="accent">
-              <Avatar.Image src={u.avatarUrl ?? undefined} alt={u.name} />
-              <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
-            </Avatar>
+            <UserAvatar
+              name={u.name}
+              avatarUrl={u.avatarUrl}
+              size="md"
+              badge={hasContactRelationship(u) ? <UserRelationshipBadge user={u} /> : undefined}
+            />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{u.name}</p>
               <p className="truncate text-xs text-muted">{u.username}</p>

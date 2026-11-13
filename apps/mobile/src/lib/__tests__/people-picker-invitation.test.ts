@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
-import { formatUsername } from "@board-game-organizer/shared";
+import { formatUsername, hasContactRelationship } from "@board-game-organizer/shared";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
 
@@ -40,10 +40,12 @@ function renderRow(invitationTable: boolean, disabled: boolean) {
       invitationTable: invitationTable ? { eventId: "event", tableId: "table" } : undefined,
       disabled,
       formatUsername,
+      hasContactRelationship,
       onSelect,
       accent: "theme-accent",
       t: (value: string) => value,
       UserListRow: "UserListRow",
+      UserRelationshipBadge: "UserRelationshipBadge",
       Button: "Button",
       UserRoundPlus: "UserRoundPlus",
       HelpPopover: "HelpPopover",

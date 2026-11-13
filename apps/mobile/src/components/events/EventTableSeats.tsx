@@ -95,7 +95,12 @@ export function EventTableSeats({
           }
           stickySectionHeadersEnabled={false}
           keyExtractor={(row) => row.key}
-          contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: insets.bottom + 32 }}
+          contentContainerStyle={{
+            padding: 20,
+            paddingTop: 12,
+            gap: 8,
+            paddingBottom: insets.bottom + 32,
+          }}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={<View style={{ gap: 16, paddingBottom: 8 }}>{header}</View>}
           renderSectionHeader={({ section }) => (

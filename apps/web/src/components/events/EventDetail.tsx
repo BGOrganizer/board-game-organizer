@@ -40,7 +40,7 @@ import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
+import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -84,7 +84,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     {
       kind: "event",
       id: eventId,
-      tab: tab === "details" ? "details" : tab === "participants" ? "participants" : "tables",
+      tab: "all",
     },
   );
   const confirmationBlocked =
@@ -193,7 +193,14 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
           </HeaderActions>
         ) : null}
-        <EventDetailsCard event={event} />
+        <EventDetailsCard
+          event={event}
+          titleAction={
+            !event.readOnly && !event.personalAccessOnly && !event.sharedResultsOnly ? (
+              <NotificationChangesPopover model={changes} />
+            ) : undefined
+          }
+        />
         <Tabs
           selectedKey={tab}
           onSelectionChange={(value) => setTab(String(value))}
@@ -225,12 +232,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             </TabTrigger>
           </TabBar>
         </Tabs>
-        {!event.readOnly && !event.personalAccessOnly && !event.sharedResultsOnly ? (
-          <NotificationChangesAlert
-            key={JSON.stringify([o.apiUrl, o.userId, event.id, tab])}
-            model={changes}
-          />
-        ) : null}
+
         {tab === "details" ? (
           <>
             <NotificationItem itemId={notificationItemId(event.id, "overview")}>

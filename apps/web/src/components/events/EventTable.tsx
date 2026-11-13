@@ -18,7 +18,7 @@ import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
+import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -61,8 +61,7 @@ export function EventTable({
     {
       kind: "table",
       id: tableId,
-      tab:
-        selected === "overview" ? "details" : selected === "participants" ? "participants" : "none",
+      tab: "all",
     },
   );
   const header =
@@ -115,7 +114,14 @@ export function EventTable({
     >
       <div className="mx-auto w-full max-w-4xl pb-24">
         {header}
-        <EventTableInfo table={table} />
+        <EventTableInfo
+          table={table}
+          titleAction={
+            !readOnly && !table.sharedResultsOnly ? (
+              <NotificationChangesPopover model={changes} />
+            ) : undefined
+          }
+        />
         <Tabs selectedKey={selected} onSelectionChange={(key) => setTab(String(key))}>
           <TabBar label={t`Table sections`}>
             <TabTrigger icon={Info} id="overview">
@@ -138,12 +144,7 @@ export function EventTable({
               <TabTrigger icon={Trophy} id="results">{t`Results`}</TabTrigger>
             ) : null}
           </TabBar>
-          {selected !== "results" && !readOnly && !table.sharedResultsOnly ? (
-            <NotificationChangesAlert
-              key={JSON.stringify([o.apiUrl, o.userId, table.id, selected])}
-              model={changes}
-            />
-          ) : null}
+
           <Tabs.Panel id={selected}>
             {selected === "results" ? (
               <EventTableResults table={table} />

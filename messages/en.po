@@ -6768,23 +6768,23 @@ msgstr "Propose dates and times for participants to vote on. Times are local to 
 msgid "Propose verified addresses for participants to vote on. Each location determines its local time zone."
 msgstr "Propose verified addresses for participants to vote on. Each location determines its local time zone."
 
-#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
 msgid "Event planning is ready for confirmation."
 msgstr "Event planning is ready for confirmation."
 
-#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
 msgid "Event planning needs review. Check participant availability and votes."
 msgstr "Event planning needs review. Check participant availability and votes."
 
-#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
 msgid "Event planning has reopened. Check dates, locations and votes."
 msgstr "Event planning has reopened. Check dates, locations and votes."
 
-#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
 msgid "The event has ended. Results are available."
 msgstr "The event has ended. Results are available."
 
-#: apps/web/src/components/notifications/NotificationChangesAlert.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
 msgid "The event has been cancelled."
 msgstr "The event has been cancelled."
 
@@ -6981,3 +6981,13 @@ msgstr "The update is downloaded. Restart when you are ready."
 #: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
 msgid "Update now, or choose Later to be reminded the next time you start the app."
 msgstr "Update now, or choose Later to be reminded the next time you start the app."
+
+#: apps/mobile/src/components/notifications/NotificationChangesPopover.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "Mark all changes as read"
+msgstr "Mark all changes as read"
+
+#: apps/mobile/src/components/notifications/NotificationChangesPopover.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "No new changes"
+msgstr "No new changes"

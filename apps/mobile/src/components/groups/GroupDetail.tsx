@@ -33,7 +33,7 @@ import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
+import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -71,7 +71,7 @@ export function GroupDetail({
     {
       kind: "group",
       id: groupId,
-      tab: selectedTab === "info" ? "details" : selectedTab === "members" ? "members" : "none",
+      tab: "all",
     },
   );
   const ownBusy = a.isPersonBusy(groupId, o.userId ?? "");
@@ -144,6 +144,82 @@ export function GroupDetail({
     (action) =>
       action === "request" || (action === "cancel" && group.myMembership?.status !== "ACCEPTED"),
   );
+  const detailHeader = (
+    <View>
+      <View style={{ gap: 8 }}>
+        {error ? (
+          <Typography accessibilityRole="alert" className="text-danger">
+            {confirm === "delete"
+              ? t("Could not delete group")
+              : t("Could not update group membership")}
+          </Typography>
+        ) : null}
+      </View>
+      <View style={{ paddingTop: 12 }}>
+        <GroupIdentityCard
+          group={group}
+          titleAction={<NotificationChangesPopover model={changes} />}
+        />
+      </View>
+      <View style={{ alignSelf: "stretch", marginTop: 8, maxWidth: "100%" }}>
+        <TabBar>
+          {(
+            [
+              ["info", t("Details"), Info],
+              ["members", t("Members"), UsersRound],
+              ["events", t("Events"), CalendarDays],
+              ["rankings", t("Ranking"), ChartNoAxesCombined],
+            ] as const
+          )
+            .filter(
+              ([key]) =>
+                key === "info" ||
+                (key === "members"
+                  ? group.canViewMembers
+                  : key === "events"
+                    ? group.canViewEvents
+                    : group.canViewRankings),
+            )
+            .map(([key, label, icon]) => (
+              <TabTrigger
+                icon={icon}
+                key={key}
+                value={key}
+                style={{ flexDirection: "row", gap: 6 }}
+              >
+                <Tabs.Label>{label}</Tabs.Label>
+                {key === "info" ? (
+                  <NotificationTabBadge
+                    target={{ kind: "group", id: group.id }}
+                    count={changes.tabCounts.details}
+                    overviewItems={[
+                      notificationItemId(group.id, "invitation"),
+                      notificationItemId(group.id, "overview", undefined, "group"),
+                    ]}
+                  />
+                ) : null}
+                {key === "events" ? (
+                  <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />
+                ) : null}
+                {key === "members" ? (
+                  <NotificationTabBadge
+                    target={{ kind: "item", id: notificationItemId(group.id, "members") }}
+                    count={changes.tabCounts.members}
+                  />
+                ) : null}
+                {key === "members" &&
+                isGroupManagerRole(group.role) &&
+                (group.pendingRequestCount ?? 0) > 0 ? (
+                  <View accessible accessibilityLabel={t("Requests to review")}>
+                    <UserRoundPlus size={16} color={warning} accessible={false} />
+                  </View>
+                ) : null}
+              </TabTrigger>
+            ))}
+        </TabBar>
+      </View>
+    </View>
+  );
   return (
     <NotificationAttentionScope
       options={o}
@@ -157,98 +233,21 @@ export function GroupDetail({
     >
       <View style={{ flex: 1 }}>
         {header}
-        <View style={{ paddingHorizontal: 20, gap: 8 }}>
-          {error ? (
-            <Typography accessibilityRole="alert" className="text-danger">
-              {confirm === "delete"
-                ? t("Could not delete group")
-                : t("Could not update group membership")}
-            </Typography>
-          ) : null}
-        </View>
-        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-          <GroupIdentityCard group={group} />
-        </View>
         <Tabs value={selectedTab} onValueChange={setTab} style={{ flex: 1 }}>
-          <View style={{ alignSelf: "stretch", marginTop: 8, maxWidth: "100%" }}>
-            <TabBar>
-              {(
-                [
-                  ["info", t("Details"), Info],
-                  ["members", t("Members"), UsersRound],
-                  ["events", t("Events"), CalendarDays],
-                  ["rankings", t("Ranking"), ChartNoAxesCombined],
-                ] as const
-              )
-                .filter(
-                  ([key]) =>
-                    key === "info" ||
-                    (key === "members"
-                      ? group.canViewMembers
-                      : key === "events"
-                        ? group.canViewEvents
-                        : group.canViewRankings),
-                )
-                .map(([key, label, icon]) => (
-                  <TabTrigger
-                    icon={icon}
-                    key={key}
-                    value={key}
-                    style={{ flexDirection: "row", gap: 6 }}
-                  >
-                    <Tabs.Label>{label}</Tabs.Label>
-                    {key === "info" ? (
-                      <NotificationTabBadge
-                        target={{ kind: "group", id: group.id }}
-                        count={changes.tabCounts.details}
-                        overviewItems={[
-                          notificationItemId(group.id, "invitation"),
-                          notificationItemId(group.id, "overview", undefined, "group"),
-                        ]}
-                      />
-                    ) : null}
-                    {key === "events" ? (
-                      <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />
-                    ) : null}
-                    {key === "members" ? (
-                      <NotificationTabBadge
-                        target={{ kind: "item", id: notificationItemId(group.id, "members") }}
-                        count={changes.tabCounts.members}
-                      />
-                    ) : null}
-                    {key === "members" &&
-                    isGroupManagerRole(group.role) &&
-                    (group.pendingRequestCount ?? 0) > 0 ? (
-                      <View accessible accessibilityLabel={t("Requests to review")}>
-                        <UserRoundPlus size={16} color={warning} accessible={false} />
-                      </View>
-                    ) : null}
-                  </TabTrigger>
-                ))}
-            </TabBar>
-          </View>
-          {selectedTab === "info" || selectedTab === "members" ? (
-            <View style={{ paddingHorizontal: 20, paddingTop: 8, flexShrink: 1 }}>
-              <NotificationChangesAlert
-                key={JSON.stringify([o.apiUrl, o.userId, group.id, selectedTab])}
-                model={changes}
-              />
-            </View>
-          ) : null}
           <View style={{ flex: 1, paddingTop: 8 }}>
             {tab === "members" && group.canViewMembers ? (
-              <GroupMembers group={group} />
+              <GroupMembers group={group} header={detailHeader} />
             ) : tab === "events" && group.canViewEvents ? (
               <Events
                 groupId={group.id}
+                header={detailHeader}
                 canCreate={isGroupManagerRole(group.role) && group.canInvite}
               />
             ) : tab === "rankings" && group.canViewRankings ? (
-              <View style={{ flex: 1, paddingHorizontal: 20 }}>
-                <GroupLeaderboard groupId={group.id} />
-              </View>
+              <GroupLeaderboard groupId={group.id} header={detailHeader} />
             ) : (
               <ScreenScrollView contentContainerStyle={{ paddingTop: 0 }}>
+                {detailHeader}
                 <GroupDetailsCard group={group} identity={null} />
                 {bodyActions.length ? (
                   <GroupJoinRequest

@@ -3,10 +3,11 @@ import {
   type ContactUser,
   communityAccessDenied,
   formatUsername,
+  hasContactRelationship,
   useListSearch,
   usePeoplePicker,
 } from "@board-game-organizer/shared";
-import { Avatar, Button, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserRoundPlus, UsersRound } from "lucide-react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -14,6 +15,8 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { ListSearch } from "@/components/common/ui/ListSearch";
+import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserRelationshipBadge } from "@/components/common/ui/UserRelationshipBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 export function PeoplePicker({
@@ -93,10 +96,16 @@ export function PeoplePicker({
           );
           return (
             <GroupedRow key={person.id}>
-              <Avatar size="md">
-                <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
-                <Avatar.Fallback>{person.name.charAt(0)}</Avatar.Fallback>
-              </Avatar>
+              <UserAvatar
+                name={name}
+                avatarUrl={person.avatarUrl}
+                size="md"
+                badge={
+                  hasContactRelationship(person) ? (
+                    <UserRelationshipBadge user={person} />
+                  ) : undefined
+                }
+              />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{name}</span>
                 {!invitationTable && handle ? (

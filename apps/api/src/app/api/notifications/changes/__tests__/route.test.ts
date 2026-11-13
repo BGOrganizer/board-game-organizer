@@ -57,6 +57,16 @@ describe("notification changes route controller", () => {
     mocks.list.mockRejectedValueOnce(new Error("database unavailable"));
     expect((await GET(new Request(url))).status).toBe(500);
   });
+  it("accepts whole-entity scope while retaining exact bounded read references", async () => {
+    const all = { ...scope, tab: "all" };
+    const params = new URLSearchParams(all);
+    expect(
+      (await GET(new Request(`http://localhost/api/notifications/changes?${params}`))).status,
+    ).toBe(200);
+    expect(mocks.list).toHaveBeenCalledWith("recipient", { ...all, limit: 8 });
+    expect((await PATCH(request({ scope: all, through, references: [] }))).status).toBe(200);
+    expect(mocks.read).toHaveBeenCalledWith("recipient", { scope: all, through, references: [] });
+  });
   it("validates exact read selections and uses the shared transaction boundary", async () => {
     expect((await PATCH(request({ scope, through, references: [] }))).status).toBe(200);
     expect(mocks.transaction).toHaveBeenCalledTimes(1);

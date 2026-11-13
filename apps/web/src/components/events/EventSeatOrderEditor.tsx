@@ -4,12 +4,13 @@ import {
   tableUserRoles,
   type useTableSeatOrder,
 } from "@board-game-organizer/shared";
-import { Button, Chip, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown, ArrowUp, Check, LockKeyhole, LockKeyholeOpen, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
@@ -65,6 +66,17 @@ export function EventSeatOrderEditor({
                     name={formatUsername(row.username, row.name ?? t`Username unavailable`)}
                     avatarUrl={row.avatarUrl}
                     badge={<UserRoleBadge roles={roles} />}
+                    topBadge={
+                      row.status === "ACCEPTED" && index < model.seatedCount ? (
+                        <IconBadge
+                          icon={row.locked ? LockKeyhole : LockKeyholeOpen}
+                          label={row.locked ? t`Unlock player` : t`Lock player`}
+                          color={row.locked ? "danger" : "default"}
+                          onPress={() => model.lock(index)}
+                          isDisabled={model.busy}
+                        />
+                      ) : undefined
+                    }
                     secondary={roles[0] ? i18n._(recordUserRoleMessages[roles[0]]) : undefined}
                   />
 
@@ -90,23 +102,6 @@ export function EventSeatOrderEditor({
                           onPress={() => model.move(index, 1)}
                         >
                           <ArrowDown className="size-4" />
-                        </Button>
-                      ) : null}
-                      {index < model.seatedCount ? (
-                        <Button
-                          isIconOnly
-                          variant="ghost"
-                          aria-label={row.locked ? t`Unlock player` : t`Lock player`}
-                          isDisabled={model.busy}
-                          onPress={() => model.lock(index)}
-                        >
-                          <Chip color={row.locked ? "danger" : "default"} variant="soft">
-                            {row.locked ? (
-                              <LockKeyhole className="size-4" />
-                            ) : (
-                              <LockKeyholeOpen className="size-4" />
-                            )}
-                          </Chip>
                         </Button>
                       ) : null}
                     </>

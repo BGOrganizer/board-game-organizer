@@ -10,6 +10,7 @@ import { type ClientSession, type Db, ObjectId } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 import { localizedNotificationText, notificationCopy } from "./notification-copy";
 import { notificationRequiresResponse } from "./notification-response-protection";
+import { notificationSupersessionPipeline } from "./notification-supersession";
 
 export type NotificationEvent =
   | {
@@ -152,6 +153,7 @@ export class NotificationsRepository {
     cursor?: string,
     locale?: "en" | "it",
   ): Promise<NotificationListResponse> {
+    const asOf = new Date().toISOString();
     let cursorFilter = {};
     if (cursor) {
       const cursorId = new ObjectId(cursor);
@@ -169,13 +171,29 @@ export class NotificationsRepository {
 
     const rows = await this.db
       .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
-      .find({ recipientUserId, ...cursorFilter }, this.opts)
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(limit + 1)
+      .aggregate<Notification>(
+        [
+          { $match: { recipientUserId, ...cursorFilter } },
+          { $sort: { createdAt: -1, _id: -1 } },
+          { $limit: limit + 1 },
+          ...notificationSupersessionPipeline(asOf),
+        ],
+        this.opts,
+      )
       .toArray();
-    const unreadCount = await this.db
+    const [count] = await this.db
       .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
-      .countDocuments({ recipientUserId, readAt: { $exists: false } }, this.opts);
+      .aggregate<{ count: number }>(
+        [
+          { $match: { recipientUserId, readAt: { $exists: false } } },
+          ...notificationSupersessionPipeline(asOf),
+          { $match: { readAt: { $exists: false } } },
+          { $count: "count" },
+        ],
+        this.opts,
+      )
+      .toArray();
+    const unreadCount = count?.count ?? 0;
     const hasMore = rows.length > limit;
     const notifications = rows.slice(0, limit);
     return {
@@ -439,7 +457,43 @@ export class NotificationsRepository {
     return { modifiedCount };
   }
 
-  deleteOne(recipientUserId: string, notificationId: string) {
+  private async retainSupersededReads(recipientUserId: string) {
+    const asOf = new Date().toISOString();
+    const rows = this.db
+      .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
+      .aggregate<Notification & { _storedItems?: NotificationItem[] }>(
+        [
+          { $match: { recipientUserId, readAt: { $exists: false } } },
+          { $set: { _storedItems: "$attentionItems" } },
+          ...notificationSupersessionPipeline(asOf),
+        ],
+        this.opts,
+      );
+    for await (const row of rows) {
+      if (!row.readAt && JSON.stringify(row.attentionItems) === JSON.stringify(row._storedItems))
+        continue;
+      // Compare the captured full item set so a concurrent retarget can never be consumed.
+      await this.db.collection<Notification>(COLLECTIONS.NOTIFICATIONS).updateOne(
+        {
+          _id: row._id,
+          recipientUserId,
+          readAt: { $exists: false },
+          attentionItems: row._storedItems ?? { $exists: false },
+        },
+        {
+          $set: {
+            ...(row.readAt ? { readAt: row.readAt } : {}),
+            ...(row.attentionItems ? { attentionItems: row.attentionItems } : {}),
+          },
+        },
+        this.opts,
+      );
+    }
+  }
+
+  async deleteOne(recipientUserId: string, notificationId: string) {
+    // Deleting the winner must not revive unread duplicates from the retained inbox history.
+    await this.retainSupersededReads(recipientUserId);
     return this.db
       .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
       .deleteOne({ _id: new ObjectId(notificationId), recipientUserId }, this.opts);
@@ -452,6 +506,17 @@ export class NotificationsRepository {
   }
 
   async deleteForUser(userId: string) {
+    const recipients = this.db
+      .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
+      .aggregate<{ _id: string }>(
+        [
+          { $match: { actorUserId: userId, recipientUserId: { $ne: userId } } },
+          { $group: { _id: "$recipientUserId" } },
+        ],
+        this.opts,
+      );
+    // Other inboxes retain superseded reads when this actor's winning notice disappears.
+    for await (const recipient of recipients) await this.retainSupersededReads(recipient._id);
     await this.db
       .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
       .deleteMany({ $or: [{ recipientUserId: userId }, { actorUserId: userId }] }, this.opts);

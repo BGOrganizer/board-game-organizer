@@ -145,6 +145,12 @@ test("owned admin saves editable scores across reloads; excluded Tables never bl
     await page.getByRole("textbox", { name: label, exact: true }).fill(index === 0 ? "2.25" : "1");
     await page.getByRole("button", { name: labels.close, exact: true }).click();
   }
+  const position = it ? "Posizione" : "Position";
+  await page.getByRole("button", { name: `${position}: #1`, exact: true }).click();
+  await expect(
+    page.getByRole("dialog", { name: position }).getByText("#1", { exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: labels.save, exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: labels.cancel, exact: true }).click();
   expect(

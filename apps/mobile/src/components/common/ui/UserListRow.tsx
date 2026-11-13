@@ -11,6 +11,7 @@ export function UserListRow({
   online,
   badge,
   badgeContent,
+  topBadgeContent,
   titleAccessory,
   children,
   actions,
@@ -24,6 +25,7 @@ export function UserListRow({
   online?: boolean;
   badge?: UserBadge;
   badgeContent?: ReactNode;
+  topBadgeContent?: ReactNode;
   titleAccessory?: ReactNode;
   children?: ReactNode;
   actions?: ReactNode;
@@ -48,6 +50,7 @@ export function UserListRow({
           online={online}
           badge={badge}
           badgeContent={badgeContent}
+          topBadgeContent={topBadgeContent}
         />
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
           <View style={{ minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>

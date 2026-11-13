@@ -14,7 +14,7 @@ import {
   isGroupModerator,
   useGroupMemberManagement,
 } from "@board-game-organizer/shared";
-import { Avatar, Button, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   Ban,
@@ -34,6 +34,8 @@ import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { IconBadge } from "@/components/common/ui/IconBadge";
+import { UserAvatar } from "@/components/common/ui/UserAvatar";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { UserMenu } from "@/components/contacts/UserMenu";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -127,23 +129,25 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                   : null;
             return (
               <GroupedRow key={person.userId}>
-                <span className="relative shrink-0">
-                  <Avatar size="md">
-                    <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
-                    <Avatar.Fallback>{name(person).replace(/^@/, "").charAt(0)}</Avatar.Fallback>
-                  </Avatar>
-                  {!person.optimisticInvited && !person.ban ? (
-                    <UserRoleBadge roles={roles} />
-                  ) : badge ? (
-                    <span
-                      role="img"
-                      aria-label={badge.label}
-                      className="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5"
-                    >
-                      <badge.Icon className={`size-4 ${badge.color}`} aria-hidden />
-                    </span>
-                  ) : null}
-                </span>
+                <UserAvatar
+                  name={name(person)}
+                  avatarUrl={person.avatarUrl}
+                  size="md"
+                  badge={
+                    !person.optimisticInvited && !person.ban ? (
+                      <UserRoleBadge roles={roles} />
+                    ) : badge ? (
+                      <IconBadge
+                        icon={badge.Icon}
+                        label={badge.label}
+                        title={badge.label}
+                        color={person.ban ? "danger" : "warning"}
+                      >
+                        <p>{badge.label}</p>
+                      </IconBadge>
+                    ) : undefined
+                  }
+                />
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="min-w-0 truncate font-medium">{name(person)}</span>

@@ -1,7 +1,7 @@
 import type { EventListSection } from "@board-game-organizer/schemas";
 import { Tabs } from "heroui-native/tabs";
 import { CalendarCheck, CalendarSearch } from "lucide-react-native";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
@@ -15,15 +15,17 @@ export function Events({
   groupId,
   canCreate = true,
   initialSection = "mine",
+  header,
 }: {
   groupId?: string;
   canCreate?: boolean;
   initialSection?: EventListSection;
+  header?: ReactNode;
 }) {
   const t = useT();
   const options = useCommunityApi();
   const [section, setSection] = useState<EventListSection>(initialSection);
-  if (groupId) return <EventList groupId={groupId} canCreate={canCreate} />;
+  if (groupId) return <EventList groupId={groupId} canCreate={canCreate} header={header} />;
   return (
     <NotificationAttentionScope
       options={options}

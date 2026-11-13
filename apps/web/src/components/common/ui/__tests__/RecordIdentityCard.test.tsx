@@ -4,6 +4,22 @@ import { expect, it } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { RecordIdentityCard } from "../RecordIdentityCard";
 
+it("keeps the resource notification action in the title band, separate from card actions", () => {
+  renderWithI18n(
+    <RecordIdentityCard
+      title="Owned resource"
+      icon={Dices}
+      background={null}
+      titleAction={<button type="button">Resource notices</button>}
+    >
+      <button type="button">Edit resource</button>
+    </RecordIdentityCard>,
+  );
+  const band = screen.getByRole("heading", { name: "Owned resource" }).parentElement;
+  expect(band?.contains(screen.getByRole("button", { name: "Resource notices" }))).toBe(true);
+  expect(band?.contains(screen.getByRole("button", { name: "Edit resource" }))).toBe(false);
+});
+
 it.each([undefined, "h2"] as const)(
   "keeps the complete title in a top-left semantic band and controls bottom-right (%s)",
   (heading) => {

@@ -7,6 +7,7 @@ import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
 
 export function EventTableScheduleCard({
@@ -45,6 +46,7 @@ export function EventTableScheduleCard({
               <UserListRow
                 name={schedule.demonstrator.name ?? t("Unknown")}
                 avatarUrl={schedule.demonstrator.avatarUrl}
+                badgeContent={<UserRoleBadge roles={["demonstrator"]} />}
                 secondary={t("Demonstrator")}
               />
             </GroupedList>

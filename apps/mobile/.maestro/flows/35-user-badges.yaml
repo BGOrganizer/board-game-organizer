@@ -1,0 +1,49 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Avatar role and relationship explanations with local seat locks
+# Logged-in manager; existing owned fixtures. No save or server mutation.
+# Run separately in EN and IT using BADGE_* inputs validated by the helper.
+tags: [manual, users, badges]
+---
+- runScript: ../helpers/user-badge-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.badges.contacts}
+- extendedWaitUntil:
+    visible: ${output.badges.relationship}
+    timeout: 120000
+- tapOn: ${output.badges.relationship}
+- assertVisible: ${output.badges.explanation}
+- back
+- openLink: ${output.badges.group}
+- extendedWaitUntil:
+    visible: ${output.badges.members}
+    timeout: 120000
+- tapOn: ${output.badges.members}
+- tapOn: ${output.badges.groupRole}
+- assertVisible: ${output.badges.roles}
+- back
+- openLink: ${output.badges.event}
+- extendedWaitUntil:
+    visible: ${output.badges.participants}
+    timeout: 120000
+- tapOn: ${output.badges.participants}
+- scrollUntilVisible:
+    element: ${output.badges.role}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.badges.role}
+- assertVisible: ${output.badges.roles}
+- back
+- openLink: ${output.badges.table}
+- extendedWaitUntil:
+    visible: ${output.badges.participants}
+    timeout: 120000
+- tapOn: ${output.badges.participants}
+- tapOn: ${output.badges.reorder}
+- tapOn:
+    text: ${output.badges.lock}
+    index: 0
+- assertVisible: ${output.badges.unlock}
+- tapOn: ${output.badges.discard}
+- assertVisible: ${output.badges.lock}
+- takeScreenshot: user-badges-local-lock-discarded

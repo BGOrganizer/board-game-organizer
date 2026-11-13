@@ -10,8 +10,9 @@ it("stores immutable copy inputs without exposing them through locale-specific i
     saved = rows.map((row) => ({ ...row, _id: new ObjectId() }));
     return { insertedIds: { 0: saved[0]._id } };
   });
-  const find = vi.fn(() => ({ sort: () => ({ limit: () => ({ toArray: async () => saved }) }) }));
-  const countDocuments = vi.fn(async () => 1);
+  const aggregate = vi.fn((pipeline: Record<string, unknown>[]) => ({
+    toArray: async () => (pipeline.some((stage) => "$count" in stage) ? [{ count: 1 }] : saved),
+  }));
   const db = {
     collection: (name: string) =>
       name === "users"
@@ -23,7 +24,7 @@ it("stores immutable copy inputs without exposing them through locale-specific i
               ],
             }),
           }
-        : { insertMany, find, countDocuments, findOne: vi.fn(async () => null) },
+        : { insertMany, aggregate, findOne: vi.fn(async () => null) },
   };
   const repo = new NotificationsRepository(db as never);
   const href =
@@ -52,7 +53,7 @@ it("stores immutable copy inputs without exposing them through locale-specific i
     readAt: null,
     requiresResponse: false,
   });
-  expect(find).toHaveBeenCalledWith({ recipientUserId: "recipient" }, {});
+  expect(aggregate.mock.calls[0][0][0]).toEqual({ $match: { recipientUserId: "recipient" } });
   expect(saved[0].title).toBe("Table invitation");
   expect((await repo.list("recipient", 5, undefined, "en")).notifications[0].title).toBe(
     "Table invitation",

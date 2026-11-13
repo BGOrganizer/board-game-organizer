@@ -15,6 +15,7 @@ export function HelpPopover({
   tone = "muted",
   size = "default",
   indicator,
+  onOpenChange,
   children,
 }: {
   label: string;
@@ -26,6 +27,7 @@ export function HelpPopover({
   triggerClassName?: string;
   triggerVariant?: "ghost" | "primary" | "danger-soft";
   indicator?: ReactNode;
+  onOpenChange?: (open: boolean) => void;
   placement?: ComponentProps<typeof Popover.Content>["placement"];
   children: ReactNode;
 }) {
@@ -54,7 +56,7 @@ export function HelpPopover({
     </>
   );
   return (
-    <Popover>
+    <Popover onOpenChange={onOpenChange}>
       <Popover.Trigger
         aria-label={label}
         className={`button button--sm button--icon-only ${variants[triggerVariant]} relative inline-flex min-h-11 min-w-11 items-center justify-center ${color} ${size === "compact" ? "p-0" : triggerClassName}`}

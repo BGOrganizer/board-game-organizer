@@ -7,8 +7,7 @@ import {
   useEventParticipants,
   type useEventRecordActions,
 } from "@board-game-organizer/shared";
-import { Button, Skeleton, Table } from "@heroui/react";
-import { TableLayout, Virtualizer } from "@heroui/react/rac";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { UserRoundMinus } from "lucide-react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
@@ -17,10 +16,10 @@ import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { MemberActions } from "@/components/common/ui/MemberActions";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
+import { WindowedList } from "@/components/common/ui/WindowedList";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
-const layoutOptions = { estimatedRowHeight: 76, headingHeight: 1, gap: 8 };
 export function EventParticipants({
   event,
   actions,
@@ -42,76 +41,49 @@ export function EventParticipants({
   return (
     <section aria-label={t`Participants`} className="space-y-3">
       {q.items.length ? (
-        <Virtualizer layout={TableLayout} layoutOptions={layoutOptions} shouldObserveItemSize>
-          <Table>
-            <Table.ScrollContainer
-              onWheelCapture={q.beginScroll}
-              onTouchStartCapture={q.beginScroll}
-              onKeyDownCapture={(e) => {
-                if (["ArrowDown", "PageDown", "End"].includes(e.key)) q.beginScroll();
-              }}
-            >
-              <Table.Content
-                aria-label={t`Participants`}
-                selectionMode="none"
-                className="h-[60vh] min-h-64 w-full overflow-auto"
-                onScroll={(e) => {
-                  const n = e.currentTarget;
-                  if (n.scrollTop + n.clientHeight >= n.scrollHeight - 200) q.endReached();
-                }}
-              >
-                <Table.Header className="sr-only">
-                  <Table.Column id="participant" isRowHeader>{t`Participants`}</Table.Column>
-                </Table.Header>
-                <Table.Body items={q.items}>
-                  {(person) => {
-                    const name = formatUsername(
-                      person.username,
-                      person.name || t`Username unavailable`,
-                    );
-                    const roles = eventUserRoles(person);
-                    const primary = roles[0];
-                    const items = [
-                      ...(m.canAct(person, "remove")
-                        ? [
-                            {
-                              action: "remove" as const,
-                              label: t`Remove from event`,
-                              icon: <UserRoundMinus className="size-5" aria-hidden />,
-                            },
-                          ]
-                        : []),
-                    ];
-                    return (
-                      <Table.Row id={person.userId} textValue={name}>
-                        <Table.Cell className="p-0">
-                          <GroupedList>
-                            <GroupedRow>
-                              <UserIdentity
-                                name={name}
-                                avatarUrl={person.avatarUrl}
-                                secondary={
-                                  primary ? i18n._(recordUserRoleMessages[primary]) : undefined
-                                }
-                                badge={<UserRoleBadge roles={roles} />}
-                              />
-                              <MemberActions
-                                title={`${t`Manage participant`}: ${name}`}
-                                busy={m.isBusy(person)}
-                                items={items}
-                                onAction={(action) => m.open(person, action)}
-                              />
-                            </GroupedRow>
-                          </GroupedList>
-                        </Table.Cell>
-                      </Table.Row>
-                    );
-                  }}
-                </Table.Body>
-              </Table.Content>
-            </Table.ScrollContainer>
-          </Table>
-        </Virtualizer>
+        <WindowedList
+          key={event.id}
+          items={q.items}
+          itemKey={(person) => person.userId}
+          label={t`Participants`}
+          estimatedRowHeight={76}
+          onBeginScroll={q.beginScroll}
+          onEndReached={q.endReached}
+          renderItem={(person) => {
+            const name = formatUsername(person.username, person.name || t`Username unavailable`);
+            const roles = eventUserRoles(person);
+            const primary = roles[0];
+            const items = [
+              ...(m.canAct(person, "remove")
+                ? [
+                    {
+                      action: "remove" as const,
+                      label: t`Remove from event`,
+                      icon: <UserRoundMinus className="size-5" aria-hidden />,
+                    },
+                  ]
+                : []),
+            ];
+            return (
+              <GroupedList>
+                <GroupedRow>
+                  <UserIdentity
+                    name={name}
+                    avatarUrl={person.avatarUrl}
+                    secondary={primary ? i18n._(recordUserRoleMessages[primary]) : undefined}
+                    badge={<UserRoleBadge roles={roles} />}
+                  />
+                  <MemberActions
+                    title={`${t`Manage participant`}: ${name}`}
+                    busy={m.isBusy(person)}
+                    items={items}
+                    onAction={(action) => m.open(person, action)}
+                  />
+                </GroupedRow>
+              </GroupedList>
+            );
+          }}
+        />
       ) : null}
       {q.isPending || q.isFetchingNextPage ? <Skeleton className="h-20 w-full rounded-xl" /> : null}
       {!q.isPending && !q.isError && !q.items.length && !q.hasMore ? (

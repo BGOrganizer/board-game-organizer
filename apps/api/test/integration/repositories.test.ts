@@ -135,6 +135,612 @@ describe("source-paged entity notification attention", () => {
     expect(displayed).toHaveLength(1);
     return { scope, through: page.asOf, references: displayed.map((row) => row.readReference) };
   }
+  it("semantic supersession keeps independent points and recipients while latest-read points never resurrect", async () => {
+    await seedAttentionResources();
+    const date = notificationItemId(eventId, "date", groupId);
+    const game = notificationItemId(tableId, "game", 1);
+    const old = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { id: date, revision: 1 },
+          { id: game, revision: 1 },
+        ],
+      }),
+    );
+    const latest = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        actorUserId: THIRD,
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+        attentionItems: [{ id: date, revision: 2 }],
+        readAt: new Date("2021-01-02T00:00:00.000Z"),
+      }),
+    );
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        recipientUserId: FOURTH,
+        createdAt: new Date("2022-01-01T00:00:00.000Z"),
+        attentionItems: [{ id: game, revision: 3 }],
+      }),
+    );
+    const changes = new NotificationChangesRepository(db);
+    expect(
+      (await changes.list(ACTOR, { kind: "event", id: eventId, tab: "all", limit: 8 })).changes,
+    ).toEqual([]);
+    expect(
+      (await changes.list(ACTOR, { kind: "table", id: tableId, tab: "all", limit: 8 })).changes.map(
+        (row) => row.itemId,
+      ),
+    ).toEqual([game]);
+    const inbox = await new NotificationsRepository(db).list(ACTOR, 8);
+    expect(inbox.notifications).toHaveLength(2);
+    const prior = inbox.notifications.find((row) => row.id === old.insertedId.toHexString());
+    expect(prior).toBeDefined();
+    expect(prior?.readAt).toBeNull();
+    expect(prior?.attentionItems?.find((item) => item.id === date)?.readAt).toBeTruthy();
+    expect(prior?.attentionItems?.find((item) => item.id === game)?.readAt).toBeNull();
+    expect(
+      inbox.notifications.find((row) => row.id === latest.insertedId.toHexString())?.readAt,
+    ).toBeTruthy();
+    expect(inbox.unreadCount).toBe(1);
+    const stored = await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: old.insertedId });
+    expect(stored?.attentionItems[0].readAt).toBeUndefined();
+  });
+
+  it("semantic supersession orders retargeted effective times, kind boundaries and equal-time ids deterministically", async () => {
+    await seedAttentionResources();
+    const game = notificationItemId(tableId, "game", 1);
+    const first = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { id: game, revision: 5, changedAt: new Date("2023-01-01T00:00:00.000Z") },
+        ],
+      }),
+    );
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        createdAt: new Date("2022-01-01T00:00:00.000Z"),
+        attentionItems: [{ id: game, revision: 9 }],
+      }),
+    );
+    const scope = { kind: "table" as const, id: tableId, tab: "all" as const, limit: 8 };
+    const changes = new NotificationChangesRepository(db);
+    expect((await changes.list(ACTOR, scope)).changes.map((row) => row.notificationId)).toEqual([
+      first.insertedId.toHexString(),
+    ]);
+    const tied = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { id: game, revision: 6, changedAt: new Date("2023-01-01T00:00:00.000Z") },
+        ],
+      }),
+    );
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_proposal_accepted", `/events/${eventId}`, {
+        attentionItems: [
+          { id: game, revision: 7, changedAt: new Date("2024-01-01T00:00:00.000Z") },
+        ],
+      }),
+    );
+    expect((await changes.list(ACTOR, scope)).changes.map((row) => row.notificationId)).toEqual(
+      expect.arrayContaining([tied.insertedId.toHexString()]),
+    );
+    expect((await changes.list(ACTOR, scope)).changes).toHaveLength(2);
+  });
+
+  it("semantic supersession hides outdated event states, retains the latest ready state and never guesses generic targets", async () => {
+    await seedAttentionResources();
+    for (const [index, kind] of [
+      "event_agreement_ready",
+      "event_agreement_blocked",
+      "event_agreement_ready",
+    ].entries()) {
+      await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+        note(kind, `/events/${eventId}`, {
+          createdAt: new Date(`202${index}-01-01T00:00:00.000Z`),
+        }),
+      );
+    }
+    const changes = new NotificationChangesRepository(db);
+    const scope = { kind: "event" as const, id: eventId, tab: "all" as const, limit: 8 };
+    const latest = await changes.list(ACTOR, scope);
+    expect(latest.changes.map((row) => row.messageCode)).toEqual(["event_agreement_ready"]);
+    await new NotificationsRepository(db).markRead(ACTOR, latest.changes[0].notificationId);
+    expect((await changes.list(ACTOR, scope)).changes).toEqual([]);
+    await db
+      .collection(COLLECTIONS.EVENTS)
+      .updateOne({ id: eventId }, { $set: { status: "CONFIRMED" } });
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_replanning", `/events/${eventId}`, {
+        createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      }),
+    );
+    expect((await changes.list(ACTOR, scope)).changes).toEqual([]);
+    // Same proposer can submit different dates; missing canonical proposal IDs are never inferred from actor/href.
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertMany([
+        note("event_proposal_created", `/events/${eventId}`),
+        note("event_proposal_created", `/events/${eventId}`),
+      ]);
+    expect((await changes.list(ACTOR, scope)).changes).toHaveLength(2);
+    expect((await new NotificationsRepository(db).list(ACTOR, 8)).notifications).toHaveLength(6);
+  });
+
+  it("semantic supersession resource-all reads every captured tab without child owners, pending invitations or changed revisions", async () => {
+    await seedAttentionResources();
+    await db
+      .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+      .insertOne({ eventId, tableId, userId: ACTOR, kind: "INVITATION", status: "PENDING" });
+    const game = notificationItemId(tableId, "game", 1),
+      date = notificationItemId(eventId, "date", groupId);
+    const mixed = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { id: game, revision: 1 },
+          { id: date, revision: 1 },
+        ],
+      }),
+    );
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertMany([
+        note("table_invitation", `/events/${eventId}/tables/${tableId}`),
+        note("table_invitation", `/events/${eventId}/tables/${tableId}`),
+        ...Array.from({ length: 12 }, () =>
+          note("event_booking_confirmed", `/events/${eventId}/tables/${tableId}`),
+        ),
+      ]);
+    const changes = new NotificationChangesRepository(db);
+    const scope = { kind: "table" as const, id: tableId, tab: "all" as const };
+    const captured = await changes.list(ACTOR, { ...scope, limit: 50 }, "2021-01-01T00:00:00.000Z");
+    expect(captured.changes).toHaveLength(15);
+    expect(captured.changes.filter((row) => row.requiresResponse)).toHaveLength(2);
+    await db.collection(COLLECTIONS.NOTIFICATIONS).updateOne(
+      { _id: mixed.insertedId },
+      {
+        $set: {
+          "attentionItems.0.revision": 2,
+          "attentionItems.0.changedAt": new Date("2022-01-01T00:00:00.000Z"),
+        },
+      },
+    );
+    const receipt = await changes.read(ACTOR, {
+      scope,
+      through: captured.asOf,
+      references: captured.changes.map((row) => row.readReference),
+    });
+    expect(receipt.readReferences).toHaveLength(12);
+    expect(receipt.snapshot.unreadCount).toBe(3);
+    const remaining = await changes.list(ACTOR, { ...scope, limit: 50 });
+    expect(remaining.changes).toHaveLength(3);
+    expect(remaining.changes.filter((row) => row.requiresResponse)).toHaveLength(2);
+    expect(
+      remaining.changes
+        .filter((row) => !row.requiresResponse)
+        .map((row) => ({ item: row.itemId, revision: row.revision })),
+    ).toEqual([{ item: game, revision: 2 }]);
+    const stored = await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .findOne({ _id: mixed.insertedId });
+    expect(stored?.attentionItems.every((item: { readAt?: Date }) => !item.readAt)).toBe(true);
+  });
+
+  it("semantic supersession keeps a captured read and cursor isolated from a winner arriving after their cutoff", async () => {
+    await seedAttentionResources();
+    const date = notificationItemId(eventId, "date", groupId);
+    const old = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [{ id: date, revision: 1 }],
+      }),
+    );
+    const scope = { kind: "event" as const, id: eventId, tab: "all" as const };
+    const changes = new NotificationChangesRepository(db);
+    const captured = await changes.list(ACTOR, { ...scope, limit: 8 }, "2025-01-01T00:00:00.000Z");
+    const arrival = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        attentionItems: [{ id: date, revision: 2 }],
+      }),
+    );
+    expect(
+      (await changes.list(ACTOR, { ...scope, limit: 8 }, captured.asOf)).changes.map(
+        (row) => row.notificationId,
+      ),
+    ).toEqual([old.insertedId.toHexString()]);
+    await changes.read(ACTOR, {
+      scope,
+      through: captured.asOf,
+      references: captured.changes.map((row) => row.readReference),
+    });
+    expect(
+      (await changes.list(ACTOR, { ...scope, limit: 8 })).changes.map((row) => row.notificationId),
+    ).toEqual([arrival.insertedId.toHexString()]);
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: arrival.insertedId }))?.readAt,
+    ).toBeUndefined();
+  });
+
+  it("semantic supersession does not resurrect old unread points when the winning inbox row is deleted", async () => {
+    await seedAttentionResources();
+    const date = notificationItemId(eventId, "date", groupId),
+      game = notificationItemId(tableId, "game", 1);
+    const old = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { id: date, revision: 1 },
+          { id: game, revision: 1 },
+        ],
+      }),
+    );
+    const latest = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+        attentionItems: [{ id: date, revision: 2 }],
+      }),
+    );
+    const session = client.startSession();
+    try {
+      await session.withTransaction(() =>
+        new NotificationsRepository(db, session).deleteOne(ACTOR, latest.insertedId.toHexString()),
+      );
+    } finally {
+      await session.endSession();
+    }
+    const changes = new NotificationChangesRepository(db);
+    expect(
+      (await changes.list(ACTOR, { kind: "event", id: eventId, tab: "all", limit: 8 })).changes,
+    ).toEqual([]);
+    expect(
+      (await changes.list(ACTOR, { kind: "table", id: tableId, tab: "all", limit: 8 })).changes.map(
+        (row) => row.itemId,
+      ),
+    ).toEqual([game]);
+    const stored = await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: old.insertedId });
+    expect(stored?.attentionItems[0].readAt).toBeInstanceOf(Date);
+    expect(stored?.attentionItems[1].readAt).toBeUndefined();
+    expect(stored?.readAt).toBeUndefined();
+  });
+
+  it("semantic supersession collapses converged historical retargets into one canonical point", async () => {
+    await seedAttentionResources();
+    const section = notificationItemId(eventId, "dates");
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { id: section, revision: 2 },
+          { id: section, revision: 2 },
+        ],
+      }),
+    );
+    const changes = new NotificationChangesRepository(db),
+      scope = { kind: "event" as const, id: eventId, tab: "all" as const };
+    const captured = await changes.list(ACTOR, { ...scope, limit: 8 });
+    expect(captured.changes).toHaveLength(1);
+    await changes.read(ACTOR, {
+      scope,
+      through: captured.asOf,
+      references: captured.changes.map((row) => row.readReference),
+    });
+    expect((await changes.list(ACTOR, { ...scope, limit: 8 })).changes).toEqual([]);
+  });
+
+  it("semantic supersession preserves social inbox rows with missing historical hrefs", async () => {
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne({
+      recipientUserId: ACTOR,
+      actorUserId: TARGET,
+      kind: "follow",
+      title: "Historical follow",
+      description: "Fixture",
+      createdAt: new Date("2020-01-01T00:00:00.000Z"),
+    });
+    expect((await new NotificationsRepository(db).list(ACTOR, 8)).unreadCount).toBe(1);
+    expect(
+      (await new NotificationAttentionRepository(db).snapshot(ACTOR, [])).snapshot.unreadCount,
+    ).toBe(1);
+  });
+
+  it("semantic supersession treats mixed generic and structured state metadata as one whole-Event timeline", async () => {
+    await seedAttentionResources();
+    const overview = notificationItemId(eventId, "overview");
+    const old = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_agreement_ready", `/events/${eventId}`, {
+        attentionItems: [{ id: overview, revision: 1 }],
+      }),
+    );
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_agreement_blocked", `/events/${eventId}`, {
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+      }),
+    );
+    const changes = new NotificationChangesRepository(db),
+      scope = { kind: "event" as const, id: eventId, tab: "all" as const, limit: 8 };
+    expect((await changes.list(ACTOR, scope)).changes.map((row) => row.messageCode)).toEqual([
+      "event_agreement_blocked",
+    ]);
+    await db.collection(COLLECTIONS.EVENTS).deleteOne({ id: eventId });
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_cancelled", `/events/${eventId}`, {
+        createdAt: new Date("2022-01-01T00:00:00.000Z"),
+      }),
+    );
+    const inbox = await new NotificationsRepository(db).list(ACTOR, 8);
+    expect(
+      inbox.notifications.find((row) => row.id === old.insertedId.toHexString())?.readAt,
+    ).toBeTruthy();
+    expect(inbox.notifications.filter((row) => !row.readAt).map((row) => row.kind)).toEqual([
+      "event_cancelled",
+    ]);
+  });
+
+  it("semantic supersession validates planning readiness against the current persisted situation, including missed-recipient transitions", async () => {
+    await seedAttentionResources();
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertOne(note("event_agreement_ready", `/events/${eventId}`));
+    await db
+      .collection(COLLECTIONS.EVENTS)
+      .updateOne({ id: eventId }, { $set: { lastNotifiedSituation: "[]" } });
+    const changes = new NotificationChangesRepository(db),
+      scope = { kind: "event" as const, id: eventId, tab: "all" as const, limit: 8 };
+    expect((await changes.list(ACTOR, scope)).changes).toEqual([]);
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_agreement_blocked", `/events/${eventId}`, {
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+      }),
+    );
+    await db.collection(COLLECTIONS.EVENTS).updateOne(
+      { id: eventId },
+      {
+        $set: {
+          lastNotifiedSituation: JSON.stringify({
+            dateId: groupId,
+            locationId: tableId,
+            tables: [],
+          }),
+        },
+      },
+    );
+    expect((await changes.list(ACTOR, scope)).changes).toEqual([]);
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_agreement_ready", `/events/${eventId}`, {
+        createdAt: new Date("2022-01-01T00:00:00.000Z"),
+      }),
+    );
+    expect((await changes.list(ACTOR, scope)).changes.map((row) => row.messageCode)).toEqual([
+      "event_agreement_ready",
+    ]);
+  });
+
+  it.each(["invited", "discovery"])(
+    "source permission all keeps own Group information but rejects member captures for %s readers",
+    async (mode) => {
+      await seedAttentionResources();
+      await db.collection(COLLECTIONS.GROUP_MEMBERSHIPS).insertOne({
+        id: tableId,
+        groupId,
+        userId: TARGET,
+        status: "ACCEPTED",
+        updatedAt: "2019-01-01T00:00:00.000Z",
+        version: 1,
+      });
+      const member = notificationItemId(groupId, "member", TARGET);
+      const members = await db.collection(COLLECTIONS.NOTIFICATIONS).insertMany([
+        note("group_membership_updated", `/groups/${groupId}`, {
+          attentionItems: [{ id: member, revision: 1 }],
+        }),
+        note("group_membership_updated", `/groups/${groupId}`),
+      ]);
+      const info = await db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .insertOne(note("group_reviewed", `/groups/${groupId}`));
+      const changes = new NotificationChangesRepository(db),
+        scope = { kind: "group" as const, id: groupId, tab: "all" as const };
+      const before = await changes.list(ACTOR, { ...scope, limit: 8 });
+      expect(before.changes).toHaveLength(3);
+      if (mode === "invited")
+        await db
+          .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+          .updateOne(
+            { groupId, userId: ACTOR },
+            { $set: { kind: "INVITATION", status: "PENDING" } },
+          );
+      else {
+        await db.collection(COLLECTIONS.GROUP_MEMBERSHIPS).deleteOne({ groupId, userId: ACTOR });
+        await db
+          .collection(COLLECTIONS.GROUPS)
+          .updateOne({ id: groupId }, { $set: { type: "PUBLIC" } });
+      }
+      expect(
+        (await changes.list(ACTOR, { ...scope, limit: 8 })).changes.map(
+          (row) => row.notificationId,
+        ),
+      ).toEqual([info.insertedId.toHexString()]);
+      const receipt = await changes.read(ACTOR, {
+        scope,
+        through: before.asOf,
+        references: before.changes.map((row) => row.readReference),
+      });
+      expect(receipt.readReferences.map((row) => row.notificationId)).toEqual([
+        info.insertedId.toHexString(),
+      ]);
+      expect(
+        (
+          await new NotificationAttentionRepository(db).snapshot(ACTOR, [
+            { kind: "group", id: groupId },
+          ])
+        ).snapshot.targets[0].count,
+      ).toBe(0);
+      for (const _id of Object.values(members.insertedIds))
+        expect(
+          (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id }))?.readAt,
+        ).toBeUndefined();
+    },
+  );
+
+  it("source permission all preserves frozen Event details and child ownership without exposing its restricted participants", async () => {
+    await seedAttentionResources(true);
+    const date = notificationItemId(eventId, "date", groupId),
+      game = notificationItemId(tableId, "game", 1);
+    const mixed = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { id: date, revision: 1 },
+          { id: game, revision: 1 },
+        ],
+      }),
+    );
+    const participation = await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertOne(note("event_booking_removed", `/events/${eventId}`));
+    const changes = new NotificationChangesRepository(db),
+      scope = { kind: "event" as const, id: eventId, tab: "all" as const };
+    const captured = await changes.list(ACTOR, { ...scope, limit: 8 });
+    expect(captured.changes).toHaveLength(2);
+    await db
+      .collection(COLLECTIONS.EVENTS)
+      .updateOne({ id: eventId }, { $set: { "confirmed.at": "2022-01-01T00:00:00.000Z" } });
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId, userId: ACTOR }, { $set: { status: "LEFT" } });
+    await db.collection(COLLECTIONS.GROUP_BANS).insertOne({
+      groupId,
+      userId: ACTOR,
+      until: null,
+      createdAt: "2023-01-01T00:00:00.000Z",
+      memberAccessThrough: "2023-01-01T00:00:00.000Z",
+    });
+    expect(
+      (await changes.list(ACTOR, { ...scope, limit: 8 })).changes.map((row) => row.itemId),
+    ).toEqual([date]);
+    expect(
+      (await changes.list(ACTOR, { kind: "table", id: tableId, tab: "all", limit: 8 })).changes.map(
+        (row) => row.itemId,
+      ),
+    ).toEqual([game]);
+    const receipt = await changes.read(ACTOR, {
+      scope,
+      through: captured.asOf,
+      references: captured.changes.map((row) => row.readReference),
+    });
+    expect(receipt.readReferences.map((row) => row.itemId)).toEqual([date]);
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: participation.insertedId }))
+        ?.readAt,
+    ).toBeUndefined();
+    const stored = await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .findOne({ _id: mixed.insertedId });
+    expect(stored?.attentionItems[0].readAt).toBeInstanceOf(Date);
+    expect(stored?.attentionItems[1].readAt).toBeUndefined();
+    expect(
+      (
+        await new NotificationAttentionRepository(db).snapshot(ACTOR, [
+          { kind: "event", id: eventId },
+        ])
+      ).snapshot.targets[0].count,
+    ).toBe(0);
+  });
+
+  it("purge supersession preserves other inboxes' independent points and rolls actor cleanup back atomically", async () => {
+    await seedAttentionResources();
+    await seedUser(users, FOURTH, "fourth@example.com");
+    const date = notificationItemId(eventId, "date", groupId),
+      game = notificationItemId(tableId, "game", 1);
+    const older = await db.collection(COLLECTIONS.NOTIFICATIONS).insertMany([
+      note("event_updated", `/events/${eventId}`, {
+        actorUserId: THIRD,
+        attentionItems: [
+          { id: date, revision: 1 },
+          { id: game, revision: 1 },
+        ],
+      }),
+      note("event_updated", `/events/${eventId}`, {
+        actorUserId: ACTOR,
+        recipientUserId: THIRD,
+        attentionItems: [{ id: date, revision: 1 }],
+      }),
+      note("event_updated", `/events/${eventId}`, {
+        actorUserId: THIRD,
+        recipientUserId: FOURTH,
+        attentionItems: [{ id: game, revision: 1 }],
+      }),
+    ]);
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertMany([
+      note("event_updated", `/events/${eventId}`, {
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+        readAt: new Date("2022-01-01T00:00:00.000Z"),
+        attentionItems: [{ id: date, revision: 2 }],
+      }),
+      note("event_updated", `/events/${eventId}`, {
+        recipientUserId: THIRD,
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+        attentionItems: [{ id: date, revision: 2 }],
+      }),
+      note("event_updated", `/events/${eventId}`, { recipientUserId: TARGET }),
+    ]);
+    await db.collection(COLLECTIONS.PUSH_SUBSCRIPTIONS).insertMany([
+      { userId: TARGET, token: "purged-fixture-token" },
+      { userId: ACTOR, token: "retained-fixture-token" },
+    ]);
+    const session = client.startSession();
+    try {
+      await expect(
+        session.withTransaction(async () => {
+          await new NotificationsRepository(db, session).deleteForUser(TARGET);
+          throw new Error("Rollback actor purge");
+        }),
+      ).rejects.toThrow("Rollback actor purge");
+      expect(
+        await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments({ actorUserId: TARGET }),
+      ).toBe(3);
+      expect(
+        (
+          await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: older.insertedIds[0] })
+        )?.attentionItems.every((point: { readAt?: Date }) => !point.readAt),
+      ).toBe(true);
+      expect(
+        await db.collection(COLLECTIONS.PUSH_SUBSCRIPTIONS).countDocuments({ userId: TARGET }),
+      ).toBe(1);
+      await session.withTransaction(async () => {
+        await new NotificationsRepository(db, session).deleteForUser(TARGET);
+      });
+    } finally {
+      await session.endSession();
+    }
+    expect(
+      await db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .countDocuments({ $or: [{ actorUserId: TARGET }, { recipientUserId: TARGET }] }),
+    ).toBe(0);
+    expect(
+      await db.collection(COLLECTIONS.PUSH_SUBSCRIPTIONS).countDocuments({ userId: TARGET }),
+    ).toBe(0);
+    expect(
+      await db.collection(COLLECTIONS.PUSH_SUBSCRIPTIONS).countDocuments({ userId: ACTOR }),
+    ).toBe(1);
+    const partial = await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .findOne({ _id: older.insertedIds[0] });
+    expect(
+      partial?.attentionItems.find((point: { id: string }) => point.id === date)?.readAt,
+    ).toBeInstanceOf(Date);
+    expect(
+      partial?.attentionItems.find((point: { id: string }) => point.id === game)?.readAt,
+    ).toBeUndefined();
+    expect(partial?.readAt).toBeUndefined();
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: older.insertedIds[1] }))
+        ?.readAt,
+    ).toBeInstanceOf(Date);
+    const unrelated = await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .findOne({ _id: older.insertedIds[2] });
+    expect(unrelated?.attentionItems[0].readAt).toBeUndefined();
+    expect(unrelated?.readAt).toBeUndefined();
+    expect((await new NotificationsRepository(db).list(ACTOR, 8)).unreadCount).toBe(1);
+    expect((await new NotificationsRepository(db).list(THIRD, 8)).unreadCount).toBe(0);
+  });
+
   it("pages canonical selected-tab changes at source and preserves hidden points, later arrivals and unrelated owners", async () => {
     await seedAttentionResources();
     const dateId = notificationItemId(eventId, "date", groupId);
@@ -506,7 +1112,7 @@ describe("source-paged entity notification attention", () => {
     await seedAttentionResources();
     await db
       .collection(COLLECTIONS.NOTIFICATIONS)
-      .insertOne(note("group_membership_updated", `/groups/${groupId}`));
+      .insertOne(note("group_reviewed", `/groups/${groupId}`));
     const repository = new NotificationAttentionRepository(db);
     const scopes = [
       { kind: "group-list", id: "PRIVATE" },
@@ -951,15 +1557,15 @@ describe("source-paged entity notification attention", () => {
       targets,
       page.notifications.filter((row) => !row.readAt).map((row) => row.id),
     );
-    expect(result.snapshot.unreadCount).toBe(141);
+    expect(result.snapshot.unreadCount).toBe(140);
     expect(result.snapshot.summary).toEqual({
       tables: 131,
-      events: 2,
+      events: 1,
       groups: 3,
       contacts: 4,
       sections: { requests: 2, connections: 2, search: 0 },
     });
-    expect(result.snapshot.targets.map((row) => row.count)).toEqual([131, 2, 3, 4, 2, 2]);
+    expect(result.snapshot.targets.map((row) => row.count)).toEqual([131, 1, 3, 4, 2, 2]);
     // Legacy broad-read affordances exclude decisions and derived member points;
     // complete unread ownership/counts above still include every source row.
     expect(result.snapshot.targets.map((row) => row.direct)).toEqual([0, 1, 0, 4, 2, 2]);
@@ -984,7 +1590,7 @@ describe("source-paged entity notification attention", () => {
       .collection(COLLECTIONS.NOTIFICATIONS)
       .insertMany([
         note("table_invitation", `/events/${eventId}/tables/${tableId}`),
-        note("event_confirmed", `/events/${eventId}`),
+        note("event_replanning", `/events/${eventId}`),
         note("group_membership_updated", `/groups/${groupId}`),
         note("follow", "/contacts"),
         note("friend_request", "/contacts"),
@@ -1111,8 +1717,8 @@ describe("source-paged entity notification attention", () => {
       .collection(COLLECTIONS.NOTIFICATIONS)
       .insertMany([
         note("table_invitation", `/events/${eventId}/tables/${tableId}`),
-        note("event_confirmed", `/events/${eventId}`),
-        note("group_membership_updated", `/groups/${groupId}`),
+        note("event_replanning", `/events/${eventId}`),
+        note("group_reviewed", `/groups/${groupId}`),
       ]);
     const repository = new NotificationAttentionRepository(db);
     await db
@@ -1149,7 +1755,7 @@ describe("source-paged entity notification attention", () => {
       .collection(COLLECTIONS.NOTIFICATIONS)
       .insertMany([
         note("table_invitation", `/events/${eventId}/tables/${tableId}`),
-        note("event_confirmed", `/events/${eventId}`),
+        note("event_replanning", `/events/${eventId}`),
       ]);
     const repository = new NotificationAttentionRepository(db);
     expect((await repository.snapshot(ACTOR, targets)).snapshot.summary.events).toBe(0);

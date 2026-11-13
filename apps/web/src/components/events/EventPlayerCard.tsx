@@ -1,6 +1,7 @@
-import { Avatar, Skeleton } from "@heroui/react";
+import { Skeleton } from "@heroui/react";
 import type { ReactNode } from "react";
 import { ListCard } from "@/components/common/ui/ListCard";
+import { UserAvatar } from "@/components/common/ui/UserAvatar";
 export function EventPlayerCard({
   name,
   username,
@@ -21,10 +22,7 @@ export function EventPlayerCard({
           <Skeleton className="h-12 w-full rounded-lg" />
         ) : (
           <div className="flex items-center gap-3">
-            <Avatar size="md">
-              <Avatar.Image src={avatarUrl ?? undefined} alt="" />
-              <Avatar.Fallback>{name.charAt(0) || "?"}</Avatar.Fallback>
-            </Avatar>
+            <UserAvatar name={name || "?"} avatarUrl={avatarUrl} size="md" />
             <div className="min-w-0 flex-1">
               <p className="break-words font-semibold">{name}</p>
               <p className="truncate text-sm text-muted">{username ? `@${username}` : "—"}</p>

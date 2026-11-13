@@ -54,6 +54,9 @@ import {
 } from "@/app/api/notifications/route";
 import { POST as registerPush, DELETE as removePush } from "@/app/api/push-subscriptions/route";
 
+import { withTransaction } from "@/app/lib/db";
+import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
+
 const attentionZero = {
   asOf: "2027-01-01T00:00:00.000Z",
   unreadCount: 0,
@@ -396,6 +399,8 @@ describe("notification API", () => {
       (await deleteNotification(new Request("http://x", { method: "DELETE" }), context())).status,
     ).toBe(200);
     expect(mocks.deleteOne).toHaveBeenCalledWith("user_1", ID);
+    expect(withTransaction).toHaveBeenCalledTimes(1);
+    expect(NotificationsRepository).toHaveBeenCalledWith({}, { id: "notifications" });
     mocks.deleteOne.mockResolvedValueOnce({ deletedCount: 0 });
     expect(
       (await deleteNotification(new Request("http://x", { method: "DELETE" }), context())).status,

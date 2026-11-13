@@ -42,6 +42,10 @@ tags: [manual, tables, results]
 - inputText: "1"
 - hideKeyboard
 - tapOn: ${output.results.done}
+- tapOn: "^(Position|Posizione): #1$"
+- assertVisible: "^(Position|Posizione)$"
+- assertVisible: "^#1$"
+- back
 - tapOn:
     id: table-save-result
 - extendedWaitUntil:

@@ -286,7 +286,7 @@ describe("Contacts tabs", () => {
     expect(screen.getAllByText("Target User")).toHaveLength(1);
     expect(screen.getByText("target-player")).toBeTruthy();
     expect(screen.queryByText("target@example.com")).toBeNull();
-    expect(screen.getByRole("img", { name: "Friends" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Friends" })).toBeTruthy();
     expect(screen.getAllByRole("list")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Remove friend" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Actions: Target User" }));
@@ -311,19 +311,40 @@ describe("Contacts tabs", () => {
       [3, "Blocked User", "Blocked", "text-danger"],
     ] as const) {
       expect(within(rows[index]).getByText(name)).toBeTruthy();
-      expect(within(rows[index]).getByRole("img", { name: label }).className).toContain(color);
+      expect(
+        within(rows[index]).getByRole("button", { name: label }).querySelector("[data-slot=chip]")
+          ?.className,
+      ).toContain(color.replace("text-", "chip--"));
     }
     expect(screen.getAllByRole("list")).toHaveLength(1);
   });
+
+  it.each([
+    ["Friends", "Friendship accepted."],
+    ["Following", "People you follow."],
+    ["Followers", "People who follow you."],
+    ["Blocked", "People you have blocked."],
+  ])(
+    "opens the %s avatar explanation without opening the user menu",
+    async (label, explanation) => {
+      mocks.friends = true;
+      mocks.mixed = true;
+      renderWithI18n(<Contacts />);
+      fireEvent.click(screen.getByRole("button", { name: label }));
+      expect(await screen.findByRole("dialog", { name: label })).toBeTruthy();
+      expect(screen.getByText(explanation)).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Remove friend" })).toBeNull();
+    },
+  );
 
   it("shows blocked users in connections, not requests, even with stale following data", () => {
     mocks.blockedByMe = true;
     renderWithI18n(<Contacts />);
 
     expect(screen.getAllByText("Target User")).toHaveLength(1);
-    expect(screen.getByRole("img", { name: "Blocked" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Blocked" })).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
-    expect(screen.queryByRole("img", { name: "Blocked" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Blocked" })).toBeNull();
     expect(screen.queryByText("Target User")).toBeNull();
   });
 
@@ -346,10 +367,14 @@ describe("Contacts tabs", () => {
     const [received, sent] = screen.getAllByRole("listitem");
     expect(screen.getAllByRole("list")).toHaveLength(1);
     expect(screen.queryByRole("heading", { name: /Request details/i })).toBeNull();
-    expect(within(received).getByRole("img", { name: "Received" }).className).toContain(
-      "text-accent",
-    );
-    expect(within(sent).getByRole("img", { name: "Sent" }).className).toContain("text-warning");
+    expect(
+      within(received).getByRole("button", { name: "Received" }).querySelector("[data-slot=chip]")
+        ?.className,
+    ).toContain("chip--accent");
+    expect(
+      within(sent).getByRole("button", { name: "Sent" }).querySelector("[data-slot=chip]")
+        ?.className,
+    ).toContain("chip--warning");
     fireEvent.click(within(received).getByRole("button", { name: "Actions: Target User" }));
     fireEvent.click(within(received).getByRole("button", { name: "Accept friend request" }));
     fireEvent.click(within(received).getByRole("button", { name: "Decline friend request" }));

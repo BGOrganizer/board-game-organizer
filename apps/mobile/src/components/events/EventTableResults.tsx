@@ -9,16 +9,25 @@ import {
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { useMemo, useRef } from "react";
+import { ListOrdered, Trophy } from "lucide-react-native";
+import { type ReactNode, useMemo, useRef } from "react";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { IconBadge } from "@/components/common/ui/IconBadge";
+import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
 
-export function EventTableResults({ table }: { table: PlannedTableResponse }) {
+export function EventTableResults({
+  table,
+  header,
+}: {
+  table: PlannedTableResponse;
+  header?: ReactNode;
+}) {
   const t = useT(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets();
@@ -63,16 +72,23 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
   ]);
   if (!table.confirmed && (!terminated || !table.results))
     return (
-      <Typography className="text-foreground" style={{ margin: 20 }}>
-        {t("Excluded from confirmation")}
-      </Typography>
+      <ScreenScrollView>
+        {header}
+        <Typography className="text-foreground">{t("Excluded from confirmation")}</Typography>
+      </ScreenScrollView>
     );
   return (
     <FlatList
+      ListHeaderComponent={<>{header}</>}
       key={owner}
       data={rows}
       keyExtractor={(row) => row.key}
-      contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: insets.bottom + 32 }}
+      contentContainerStyle={{
+        padding: 20,
+        paddingTop: header ? 12 : 20,
+        gap: 8,
+        paddingBottom: insets.bottom + 32,
+      }}
       initialNumToRender={8}
       maxToRenderPerBatch={6}
       windowSize={7}
@@ -123,30 +139,23 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
             <UserListRow
               name={name}
               avatarUrl={item.avatarUrl}
+              secondary={
+                terminated
+                  ? `${t("Position")}: ${item.rank === null || item.rank === undefined ? t("ND") : `#${item.rank}`}`
+                  : undefined
+              }
               badgeContent={
                 terminated ? (
-                  <View
-                    accessible
-                    accessibilityLabel={`${t("Position")}: ${item.rank === null || item.rank === undefined ? t("ND") : `#${item.rank}`}`}
-                    className={item.rank === 1 ? "bg-success" : "bg-default"}
-                    style={{
-                      position: "absolute",
-                      right: -4,
-                      bottom: -4,
-                      paddingHorizontal: 4,
-                      borderRadius: 12,
-                    }}
+                  <IconBadge
+                    icon={item.rank === 1 ? Trophy : ListOrdered}
+                    color={item.rank === 1 ? "success" : "default"}
+                    label={`${t("Position")}: ${item.rank === null || item.rank === undefined ? t("ND") : `#${item.rank}`}`}
+                    title={t("Position")}
                   >
-                    <Typography
-                      className={
-                        item.rank === 1
-                          ? "text-xs text-success-foreground"
-                          : "text-xs text-foreground"
-                      }
-                    >
+                    <Typography className="text-foreground">
                       {item.rank === null || item.rank === undefined ? t("ND") : `#${item.rank}`}
                     </Typography>
-                  </View>
+                  </IconBadge>
                 ) : undefined
               }
               actions={

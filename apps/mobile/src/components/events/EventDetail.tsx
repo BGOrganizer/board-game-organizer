@@ -38,13 +38,14 @@ import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
+import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
@@ -90,7 +91,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     {
       kind: "event",
       id: eventId,
-      tab: tab === "details" ? "details" : tab === "participants" ? "participants" : "tables",
+      tab: "all",
     },
   );
   const tabRef = useRef(tab);
@@ -370,6 +371,51 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       <EventProposalSection event={event} kind="location" disabled={q.isPlaceholderData} />
     </View>
   );
+  const detailHeader = (
+    <View style={{ gap: 12 }}>
+      <EventDetailsCard
+        event={event}
+        titleAction={
+          !event.readOnly && !event.personalAccessOnly && !event.sharedResultsOnly ? (
+            <NotificationChangesPopover model={changes} />
+          ) : undefined
+        }
+      />
+      <Tabs value={tab} onValueChange={setTab}>
+        <View>
+          <TabBar>
+            <TabTrigger icon={Info} value="details" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Label>{t("Details")}</Tabs.Label>
+              <NotificationTabBadge
+                target={{ kind: "event", id: eventId }}
+                count={changes.tabCounts.details}
+              />
+            </TabTrigger>
+            {!event.sharedResultsOnly && !event.personalAccessOnly ? (
+              <TabTrigger
+                icon={UsersRound}
+                value="participants"
+                style={{ flexDirection: "row", gap: 6 }}
+              >
+                <Tabs.Label>{t("Participants")}</Tabs.Label>
+                <NotificationTabBadge
+                  target={{ kind: "event", id: eventId }}
+                  count={changes.tabCounts.participants}
+                />
+              </TabTrigger>
+            ) : null}
+            <TabTrigger icon={Dices} value="tables" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Label>{t("Tables")}</Tabs.Label>
+              <NotificationTabBadge
+                target={{ kind: "event", id: eventId }}
+                count={changes.tabCounts.tables}
+              />
+            </TabTrigger>
+          </TabBar>
+        </View>
+      </Tabs>
+    </View>
+  );
   return (
     <NotificationAttentionScope
       options={o}
@@ -389,59 +435,21 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       <ScrollTargetContext.Provider value={scroll}>
         <View style={{ flex: 1 }}>
           {screenHeader}
-          <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-            <EventDetailsCard event={event} />
-          </View>
-          <Tabs value={tab} onValueChange={setTab}>
-            <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-              <TabBar>
-                <TabTrigger icon={Info} value="details" style={{ flexDirection: "row", gap: 6 }}>
-                  <Tabs.Label>{t("Details")}</Tabs.Label>
-                  <NotificationTabBadge
-                    target={{ kind: "event", id: eventId }}
-                    count={changes.tabCounts.details}
-                  />
-                </TabTrigger>
-                {!event.sharedResultsOnly && !event.personalAccessOnly ? (
-                  <TabTrigger
-                    icon={UsersRound}
-                    value="participants"
-                    style={{ flexDirection: "row", gap: 6 }}
-                  >
-                    <Tabs.Label>{t("Participants")}</Tabs.Label>
-                    <NotificationTabBadge
-                      target={{ kind: "event", id: eventId }}
-                      count={changes.tabCounts.participants}
-                    />
-                  </TabTrigger>
-                ) : null}
-                <TabTrigger icon={Dices} value="tables" style={{ flexDirection: "row", gap: 6 }}>
-                  <Tabs.Label>{t("Tables")}</Tabs.Label>
-                  <NotificationTabBadge
-                    target={{ kind: "event", id: eventId }}
-                    count={changes.tabCounts.tables}
-                  />
-                </TabTrigger>
-              </TabBar>
-            </View>
-          </Tabs>
-          {!event.readOnly && !event.personalAccessOnly && !event.sharedResultsOnly ? (
-            <View style={{ paddingHorizontal: 20, paddingTop: 8, flexShrink: 1 }}>
-              <NotificationChangesAlert
-                key={JSON.stringify([o.apiUrl, o.userId, event.id, tab])}
-                model={changes}
-              />
-            </View>
-          ) : null}
           {tab === "participants" ? (
             event.readOnly ? (
-              <View style={{ padding: 20 }}>
+              <ScreenScrollView>
+                {detailHeader}
                 <Typography className="text-muted">
                   {t("Public event. Group membership is not required to participate.")}
                 </Typography>
-              </View>
+              </ScreenScrollView>
             ) : (
-              <EventParticipants event={event} actions={a} disabled={q.isPlaceholderData} />
+              <EventParticipants
+                event={event}
+                actions={a}
+                disabled={q.isPlaceholderData}
+                header={detailHeader}
+              />
             )
           ) : (
             <FlatList
@@ -451,15 +459,23 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               }}
               data={tab === "tables" && !communityAccessDenied(tables.error) ? tables.items : []}
               keyExtractor={(row) => row.id}
-              contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 112 }}
+              contentContainerStyle={{
+                padding: 20,
+                paddingTop: 12,
+                gap: 12,
+                paddingBottom: insets.bottom + 112,
+              }}
               ListHeaderComponent={
-                tab === "details" ? (
-                  header
-                ) : (
-                  <NotificationItem itemId={notificationItemId(event.id, "tables")}>
-                    <TableListHeading />
-                  </NotificationItem>
-                )
+                <View style={{ gap: 12 }}>
+                  {detailHeader}
+                  {tab === "details" ? (
+                    header
+                  ) : (
+                    <NotificationItem itemId={notificationItemId(event.id, "tables")}>
+                      <TableListHeading />
+                    </NotificationItem>
+                  )}
+                </View>
               }
               ListEmptyComponent={
                 tab === "tables" && !tables.isPending && !tables.isError ? (

@@ -68,7 +68,7 @@ show user-action toasts.
 Notification reads never grant consent. Pending invitations remain unread until their actual response;
 container entry, time, focus, scrolling and successful votes never acknowledge information.
 Reads/decision acknowledgments reconcile related active and inactive caches immediately, preserving
-later/unshown changes and selective rollback. The source-backed selection, dots, Alerts, inbox and
+later/unshown changes and selective rollback. The source-backed selection, dots, resource popovers, inbox and
 partial-read rules live in [Notification attention](groups-events-refactor.md#notification-attention).
 
 ## Zustand

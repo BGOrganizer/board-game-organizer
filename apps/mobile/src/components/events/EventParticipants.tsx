@@ -12,6 +12,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { UserRoundMinus } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -26,10 +27,12 @@ export function EventParticipants({
   event,
   actions,
   disabled = false,
+  header,
 }: {
   event: PlannedEventResponse;
   actions: ReturnType<typeof useEventRecordActions>;
   disabled?: boolean;
+  header?: ReactNode;
 }) {
   const t = useT(),
     o = useCommunityApi(),
@@ -45,8 +48,14 @@ export function EventParticipants({
   return (
     <>
       <FlatList
+        ListHeaderComponent={<>{header}</>}
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: insets.bottom + 112 }}
+        contentContainerStyle={{
+          padding: 20,
+          paddingTop: header ? 12 : 20,
+          gap: 8,
+          paddingBottom: insets.bottom + 112,
+        }}
         data={q.items}
         keyExtractor={(person) => person.userId}
         initialNumToRender={8}

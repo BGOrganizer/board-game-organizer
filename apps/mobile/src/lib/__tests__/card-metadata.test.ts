@@ -122,6 +122,7 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
     ["@/components/common/ui/ListCard", "ListCard"],
     ["@/components/common/ui/GroupedList", "GroupedList"],
     ["@/components/common/ui/UserListRow", "UserListRow"],
+    ["@/components/common/ui/UserRoleBadge", "UserRoleBadge"],
     ["@/components/common/ui/ArtworkStatusPopover", "ArtworkStatusPopover"],
     ["@/components/common/ui/AnimatedDicebearArtwork", "AnimatedDicebearArtwork"],
     ["./GroupArtwork", "GroupArtwork"],

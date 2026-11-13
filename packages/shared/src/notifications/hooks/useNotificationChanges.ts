@@ -12,7 +12,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import {
   beginOptimisticOperation,
@@ -30,6 +30,7 @@ import {
 } from "../notificationChangeProjection";
 import { reconcileNotificationChangesRead } from "../notificationChangeReconciliation";
 import { displayedNotificationReferences } from "../notificationChanges";
+import { readNotificationChangesSnapshot } from "../notificationChangesReadAll";
 
 export const notificationChangesRoot = (options: Pick<CommunityApiOptions, "apiUrl" | "userId">) =>
   ["notification-changes", options.apiUrl, options.userId] as const;
@@ -78,6 +79,28 @@ export function useNotificationChanges(
     scope.tab,
     query.data?.pages[0]?.asOf,
   ]);
+  const scopeIdentity = JSON.stringify([
+    options.apiUrl,
+    options.userId,
+    scope.kind,
+    scope.id,
+    scope.tab,
+  ]);
+  const scopeOwner = useRef(scopeIdentity);
+  scopeOwner.current = scopeIdentity;
+  const allController = useRef<AbortController | null>(null);
+  const [allRead, setAllRead] = useState<{ owner: string; pending: boolean; error: unknown }>({
+    owner: scopeIdentity,
+    pending: false,
+    error: null,
+  });
+  useEffect(() => {
+    setAllRead({ owner: scopeIdentity, pending: false, error: null });
+    return () => {
+      allController.current?.abort();
+      allController.current = null;
+    };
+  }, [scopeIdentity]);
   const owner = useRef(identity);
   owner.current = identity;
   const [window, setWindow] = useState({ identity, end: 0 });
@@ -159,6 +182,57 @@ export function useNotificationChanges(
     if (!through || !references.length || !options.userId || mutation.isPending || busy()) return;
     mutation.mutate({ scope: { ...scope }, through, references, owner: { ...options } });
   };
+  const markAllAsRead = async () => {
+    const first = pages[0];
+    if (
+      !first ||
+      scope.tab !== "all" ||
+      !options.userId ||
+      mutation.isPending ||
+      busy() ||
+      allController.current
+    )
+      return;
+    const captured = scopeIdentity;
+    const capturedOptions = { ...options };
+    const capturedScope = { ...scope };
+    const controller = new AbortController();
+    allController.current = controller;
+    setAllRead({ owner: captured, pending: true, error: null });
+    const current = () => !controller.signal.aborted && scopeOwner.current === captured;
+    try {
+      await readNotificationChangesSnapshot(
+        first,
+        async (cursor) => {
+          const params = new URLSearchParams({ ...capturedScope, limit: "50", cursor });
+          return notificationChangesPageSchema.parse(
+            await communityRequest(
+              capturedOptions,
+              `notifications/changes?${params}`,
+              "GET",
+              undefined,
+              controller.signal,
+            ),
+          );
+        },
+        async (through, references) => {
+          if (current())
+            await mutation.mutateAsync({
+              scope: capturedScope,
+              through,
+              references,
+              owner: capturedOptions,
+            });
+        },
+        current,
+      );
+      if (current()) setAllRead({ owner: captured, pending: false, error: null });
+    } catch (error) {
+      if (current()) setAllRead({ owner: captured, pending: false, error });
+    } finally {
+      if (allController.current === controller) allController.current = null;
+    }
+  };
   const readOwner = mutation.variables?.owner;
   const readScope = mutation.variables?.scope;
   const ownsReadError =
@@ -178,7 +252,11 @@ export function useNotificationChanges(
     isError: query.isError,
     refetch: query.refetch,
     markDisplayedAsRead,
-    isReading: mutation.isPending || busy(),
-    readError: ownsReadError ? mutation.error : null,
+    markAllAsRead,
+    resetWindow: () => setWindow({ identity, end: 0 }),
+    isReading: mutation.isPending || busy() || (allRead.owner === scopeIdentity && allRead.pending),
+    readError:
+      (allRead.owner === scopeIdentity ? allRead.error : null) ??
+      (ownsReadError ? mutation.error : null),
   };
 }

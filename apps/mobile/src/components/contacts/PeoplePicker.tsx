@@ -2,6 +2,7 @@ import {
   type ContactUser,
   communityAccessDenied,
   formatUsername,
+  hasContactRelationship,
   useListSearch,
   usePeoplePicker,
 } from "@board-game-organizer/shared";
@@ -15,6 +16,7 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { UserList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { UserRelationshipBadge } from "@/components/common/ui/UserRelationshipBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 export function PeoplePicker({
@@ -107,6 +109,9 @@ export function PeoplePicker({
           <UserListRow
             name={name}
             avatarUrl={person.avatarUrl}
+            badgeContent={
+              hasContactRelationship(person) ? <UserRelationshipBadge user={person} /> : undefined
+            }
             secondary={invitationTable ? undefined : handle || undefined}
             onPress={select}
             isDisabled={disabled || unavailable}

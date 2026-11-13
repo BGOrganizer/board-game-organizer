@@ -1,6 +1,7 @@
 import {
   type ContactUser,
   contactConnections,
+  hasContactRelationship,
   reportPresence,
   resolveApiUrl,
   type SyncedContactIdentifiers,
@@ -52,6 +53,7 @@ import {
 } from "@/components/common/ui/UserActionsSheet";
 import { UserList as ContactList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { UserRelationshipBadge } from "@/components/common/ui/UserRelationshipBadge";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { type ContactTab, contactDeviceRows, contactTab } from "@/lib/contacts/contacts";
@@ -586,7 +588,12 @@ export default function ContactsScreen() {
   const contactRow = (
     user: ContactUser,
     friendRequest?: FriendRequestContext,
-    badge?: { icon: LucideIcon; label: string; color: "accent" | "success" | "warning" | "danger" },
+    badge?: {
+      icon: LucideIcon;
+      label: string;
+      description?: string;
+      color: "accent" | "success" | "warning" | "danger";
+    },
   ) => (
     <UserListRow
       key={user.id}
@@ -596,6 +603,9 @@ export default function ContactsScreen() {
       secondary={user.username}
       online={user.presence.online}
       badge={badge}
+      badgeContent={
+        badge || !hasContactRelationship(user) ? undefined : <UserRelationshipBadge user={user} />
+      }
       actions={
         <Pressable
           accessibilityRole="button"
@@ -923,6 +933,10 @@ export default function ContactsScreen() {
                   ? contactRow(row.profile, type === "received" ? "incoming" : "outgoing", {
                       icon: type === "received" ? Mail : Send,
                       label: type === "received" ? t("Received") : t("Sent"),
+                      description:
+                        type === "received"
+                          ? t("Requests awaiting your reply.")
+                          : t("Requests awaiting their reply."),
                       color: type === "received" ? "accent" : "warning",
                     })
                   : null
@@ -958,6 +972,7 @@ export default function ContactsScreen() {
                 contactRow(user, undefined, {
                   icon: connectionIcons[type],
                   label: connectionLabels[type],
+                  description: connectionDescriptions[type],
                   color: connectionColors[type],
                 })
               }

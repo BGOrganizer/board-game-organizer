@@ -19,7 +19,7 @@ import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
+import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -68,8 +68,7 @@ export function EventTable({
     {
       kind: "table",
       id: tableId,
-      tab:
-        selected === "overview" ? "details" : selected === "participants" ? "participants" : "none",
+      tab: "all",
     },
   );
   const header = (
@@ -115,6 +114,48 @@ export function EventTable({
         <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
       </NotificationAttentionScope>
     );
+  const detailHeader = (
+    <View style={{ gap: 12 }}>
+      <EventTableInfo
+        table={table}
+        titleAction={
+          !readOnly && !table.sharedResultsOnly ? (
+            <NotificationChangesPopover model={changes} />
+          ) : undefined
+        }
+      />
+      <View style={{ alignItems: "center" }}>
+        <TabBar style={{ alignSelf: "center", width: "auto" }}>
+          <TabTrigger
+            icon={Info}
+            value="overview"
+            testID="table-overview-tab"
+            style={{ flexDirection: "row", gap: 6 }}
+          >
+            <Tabs.Label>{t("Details")}</Tabs.Label>
+            <NotificationTabBadge
+              target={{ kind: "table", id: tableId }}
+              count={changes.tabCounts.details}
+            />
+          </TabTrigger>
+          {!table.sharedResultsOnly ? (
+            <TabTrigger icon={UsersRound} value="participants" testID="table-participants-tab">
+              <Tabs.Label>{t("Participants")}</Tabs.Label>
+              <NotificationTabBadge
+                target={{ kind: "item", id: invitationItem }}
+                count={changes.tabCounts.participants}
+              />
+            </TabTrigger>
+          ) : null}
+          {table.eventStatus !== "PLANNING" ? (
+            <TabTrigger icon={Trophy} value="results" testID="table-results-tab">
+              <Tabs.Label>{t("Results")}</Tabs.Label>
+            </TabTrigger>
+          ) : null}
+        </TabBar>
+      </View>
+    </View>
+  );
   return (
     <NotificationAttentionScope
       options={o}
@@ -130,56 +171,16 @@ export function EventTable({
     >
       <View style={{ flex: 1 }}>
         {header}
-        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-          <EventTableInfo table={table} />
-        </View>
         <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
-          <View style={{ alignItems: "center", paddingTop: 12 }}>
-            <TabBar style={{ alignSelf: "center", width: "auto" }}>
-              <TabTrigger
-                icon={Info}
-                value="overview"
-                testID="table-overview-tab"
-                style={{ flexDirection: "row", gap: 6 }}
-              >
-                <Tabs.Label>{t("Details")}</Tabs.Label>
-                <NotificationTabBadge
-                  target={{ kind: "table", id: tableId }}
-                  count={changes.tabCounts.details}
-                />
-              </TabTrigger>
-              {!table.sharedResultsOnly ? (
-                <TabTrigger icon={UsersRound} value="participants" testID="table-participants-tab">
-                  <Tabs.Label>{t("Participants")}</Tabs.Label>
-                  <NotificationTabBadge
-                    target={{ kind: "item", id: invitationItem }}
-                    count={changes.tabCounts.participants}
-                  />
-                </TabTrigger>
-              ) : null}
-              {table.eventStatus !== "PLANNING" ? (
-                <TabTrigger icon={Trophy} value="results" testID="table-results-tab">
-                  <Tabs.Label>{t("Results")}</Tabs.Label>
-                </TabTrigger>
-              ) : null}
-            </TabBar>
-          </View>
-          {selected !== "results" && !readOnly && !table.sharedResultsOnly ? (
-            <View style={{ paddingHorizontal: 20, paddingTop: 8, flexShrink: 1 }}>
-              <NotificationChangesAlert
-                key={JSON.stringify([o.apiUrl, o.userId, table.id, selected])}
-                model={changes}
-              />
-            </View>
-          ) : null}
           <View style={{ flex: 1 }}>
             {selected === "results" ? (
-              <EventTableResults table={table} />
+              <EventTableResults table={table} header={detailHeader} />
             ) : (
               <EventTableOverview
                 eventId={eventId}
                 tableId={tableId}
                 context={context}
+                header={detailHeader}
                 section={selected === "participants" ? "participants" : "overview"}
               />
             )}

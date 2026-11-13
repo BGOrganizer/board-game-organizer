@@ -9,7 +9,7 @@ export const notificationChangesScopeSchema = z
   .object({
     kind: z.enum(["group", "event", "table"]),
     id: z.uuid(),
-    tab: z.enum(["details", "members", "tables", "participants", "none"]),
+    tab: z.enum(["details", "members", "tables", "participants", "all", "none"]),
   })
   .strict();
 export type NotificationChangesScope = z.infer<typeof notificationChangesScopeSchema>;

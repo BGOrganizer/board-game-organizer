@@ -330,6 +330,11 @@ it("keeps the two roster lists and updates avatar roles when crossing their boun
   });
   const seats = screen.getByRole("region", { name: "Seats list" });
   const waiting = screen.getByRole("region", { name: "Waiting list" });
+  const lock = within(seats).getAllByRole("button", { name: "Lock player" })[0];
+  expect(lock.parentElement?.style.top).not.toBe("");
+  fireEvent.click(lock);
+  expect(within(seats).getByRole("button", { name: "Unlock player" })).toBeTruthy();
+  fireEvent.click(within(seats).getByRole("button", { name: "Unlock player" }));
   const before = within(waiting).getByRole("button", { name: "Move up" }).closest("li")!;
   expect(within(before).getByRole("button", { name: /Player on the waiting list/ })).toBeTruthy();
   fireEvent.click(within(before).getByRole("button", { name: "Move up" }));

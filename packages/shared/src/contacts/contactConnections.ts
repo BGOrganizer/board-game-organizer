@@ -48,3 +48,10 @@ export function contactConnections(
     },
   ] as const;
 }
+
+/** Unknown/absent relationship facts do not reserve an avatar badge target. */
+export function hasContactRelationship(
+  user: Pick<ContactUser, "id" | "isFriend" | "isFollowing" | "isFollower" | "blockedByMe">,
+): boolean {
+  return Boolean(user.blockedByMe || user.isFriend || user.isFollowing || user.isFollower);
+}

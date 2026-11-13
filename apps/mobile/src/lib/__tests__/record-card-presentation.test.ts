@@ -39,6 +39,8 @@ function component(file: string, name: string, modules: Record<string, unknown>)
         return { useThemeColor: (tokens: string | string[]) => tokens };
       if (!(id in modules) && id === "@lingui/react")
         return { useLingui: () => ({ i18n: { _: (id: string) => id } }) };
+      if (!(id in modules) && id === "@/components/common/ui/IconBadge")
+        return { IconBadge: "IconBadge" };
       if (!(id in modules) && id === "@/components/common/ui/UserRoleBadge")
         return { UserRoleBadge: "UserRoleBadge" };
       if (!(id in modules)) throw new Error(`Unexpected presentation dependency ${id}`);
@@ -794,10 +796,12 @@ it("requires a scroll in the current Results owner scope and rejects detached na
     "heroui-native/button": { Button: "Button" },
     "heroui-native/skeleton": { Skeleton: "Skeleton" },
     "heroui-native/text": { Typography: "Typography" },
+    "lucide-react-native": { Trophy: "Trophy", ListOrdered: "ListOrdered" },
     react: { useMemo: (fn: () => unknown) => fn(), useRef: () => scrolled },
     "react-native": { FlatList: "FlatList", View: "View" },
     "react-native-safe-area-context": { useSafeAreaInsets: () => ({ bottom: 0 }) },
     "@/components/common/ui/GroupedList": { GroupedList: "GroupedList" },
+    "@/components/common/ui/ScreenScrollView": { ScreenScrollView: "ScreenScrollView" },
     "@/components/common/ui/UserListRow": { UserListRow: "UserListRow" },
     "@/lib/i18n": { useT: () => (id: string) => id },
     "@/lib/useCommunityApi": {
@@ -825,6 +829,26 @@ it("requires a scroll in the current Results owner scope and rejects detached na
   expect(loadMore).toHaveBeenCalledTimes(1);
   second.props.onEndReached();
   expect(loadMore).toHaveBeenCalledTimes(2);
+  const history = render({
+    table: {
+      ...table,
+      eventStatus: "TERMINATED",
+      results: {
+        lowerWins: false,
+        entries: [{ userId: "owner", rank: 1, score: "10" }],
+        tieBreaks: [],
+        finalizedAt: plannedTable.createdAt,
+      },
+    },
+  });
+  for (const rank of [1, 2, null, undefined]) {
+    const item = history.props.renderItem({
+      item: { userId: "owner", name: "Player", rank, score: "10", profileLoaded: true },
+    }).props.children;
+    expect(item.props.secondary).toBe(`Position: ${rank == null ? "ND" : `#${rank}`}`);
+    expect(item.props.badgeContent.props.icon).toBe(rank === 1 ? "Trophy" : "ListOrdered");
+    expect(item.props.badgeContent.props.title).toBe("Position");
+  }
 });
 it("uses actual HeroUI background compositions and keeps the existing API-owned roster hook", () => {
   const source = (file: string) =>
@@ -846,4 +870,63 @@ it("uses actual HeroUI background compositions and keeps the existing API-owned 
   expect(roster).toContain("useEventTableRoster(o, table)");
   expect(roster).toContain("active &&");
   expect(roster).toContain("roster.waitingRows");
+});
+
+it("keeps seat lock actions on the avatar and edits only the local order", () => {
+  const lock = vi.fn(),
+    save = vi.fn();
+  const model = { rows: [], seatedCount: 1, lock, save, canMove: () => false, busy: false };
+  const render = component("events/EventSeatOrderEditor", "EventSeatOrderEditor", {
+    "@board-game-organizer/shared": shared,
+    "heroui-native/button": { Button: "Button" },
+    "heroui-native/skeleton": { Skeleton: "Skeleton" },
+    "heroui-native/text": { Typography: "Typography" },
+    "lucide-react-native": Object.fromEntries(
+      ["ArrowDown", "ArrowUp", "Check", "LockKeyhole", "LockKeyholeOpen", "RotateCcw"].map(
+        (icon) => [icon, icon],
+      ),
+    ),
+    "react-native": { SectionList: "SectionList", View: "View" },
+    "react-native-safe-area-context": { useSafeAreaInsets: () => ({ bottom: 0 }) },
+    "@/components/common/ui/FloatingActions": { FloatingActions: "FloatingActions" },
+    "@/components/common/ui/GroupedList": { GroupedList: "GroupedList" },
+    "@/components/common/ui/UserListRow": { UserListRow: "UserListRow" },
+    "./EventSeatListHeading": { EventSeatListHeading: "EventSeatListHeading" },
+    "@/lib/i18n": { useT: () => (message: string) => message },
+  });
+  const tree = render({ model });
+  const list = tree.props.children.find((child: Element) => child?.type === "SectionList");
+  const row = {
+    id: "registration",
+    userId: "person",
+    name: "Player",
+    status: "ACCEPTED",
+    locked: false,
+  };
+  const item = list.props.renderItem({ item: row, index: 0, section: { key: "seats" } }).props
+    .children;
+  expect(item.props.topBadgeContent.props.label).toBe("Lock player");
+  expect(item.props.topBadgeContent.props.icon).toBe("LockKeyholeOpen");
+  item.props.topBadgeContent.props.onPress();
+  expect(lock).toHaveBeenCalledWith(0);
+  expect(save).not.toHaveBeenCalled();
+  const locked = list.props.renderItem({
+    item: { ...row, locked: true },
+    index: 0,
+    section: { key: "seats" },
+  }).props.children;
+  expect(locked.props.topBadgeContent.props).toMatchObject({
+    label: "Unlock player",
+    icon: "LockKeyhole",
+    color: "danger",
+  });
+  const pending = list.props.renderItem({
+    item: { ...row, status: "PENDING" },
+    index: 0,
+    section: { key: "seats" },
+  }).props.children;
+  expect(pending.props.topBadgeContent).toBeUndefined();
+  const waiting = list.props.renderItem({ item: row, index: 0, section: { key: "waiting" } }).props
+    .children;
+  expect(waiting.props.topBadgeContent).toBeUndefined();
 });

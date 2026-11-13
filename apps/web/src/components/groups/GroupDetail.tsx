@@ -32,7 +32,7 @@ import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { NotificationChangesAlert } from "@/components/notifications/NotificationChangesAlert";
+import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
@@ -66,7 +66,7 @@ export function GroupDetail({
     {
       kind: "group",
       id: groupId,
-      tab: selectedTab === "info" ? "details" : selectedTab === "members" ? "members" : "none",
+      tab: "all",
     },
   );
   const ownBusy = a.isPersonBusy(groupId, o.userId ?? "");
@@ -147,7 +147,10 @@ export function GroupDetail({
             {failure}
           </p>
         ) : null}
-        <GroupIdentityCard group={group} />
+        <GroupIdentityCard
+          group={group}
+          titleAction={<NotificationChangesPopover model={changes} />}
+        />
         <Tabs selectedKey={selectedTab} onSelectionChange={(key) => setTab(String(key))}>
           <TabBar label={t`Group sections`}>
             <TabTrigger icon={Info} id="info">
@@ -189,12 +192,7 @@ export function GroupDetail({
               <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Ranking`}</TabTrigger>
             ) : null}
           </TabBar>
-          {selectedTab === "info" || selectedTab === "members" ? (
-            <NotificationChangesAlert
-              key={JSON.stringify([o.apiUrl, o.userId, group.id, selectedTab])}
-              model={changes}
-            />
-          ) : null}
+
           <Tabs.Panel id="info" className="pt-0">
             <GroupDetailsCard group={group} identity={null} />
             {bodyActions.length ? (

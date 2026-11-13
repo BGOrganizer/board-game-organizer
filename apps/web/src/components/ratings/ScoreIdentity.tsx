@@ -1,8 +1,10 @@
 import type { MatchGameRating } from "@board-game-organizer/schemas";
 import type { ScorePlayer } from "@board-game-organizer/shared";
-import { Avatar } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 
+import { ListOrdered, Trophy } from "lucide-react";
+import { IconBadge } from "@/components/common/ui/IconBadge";
+import { UserAvatar } from "@/components/common/ui/UserAvatar";
 import { GameRating } from "./GameRating";
 
 export function ScoreIdentity({
@@ -19,19 +21,27 @@ export function ScoreIdentity({
   const { t } = useLingui();
   return (
     <>
-      <span className="relative shrink-0">
-        <Avatar size="sm" color="accent">
-          <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
-          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-        </Avatar>
-        {rank != null && (
-          <span className="absolute -right-0.5 -bottom-0.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-0.5 text-center text-[10px] leading-none font-bold text-accent-foreground ring-1 ring-surface">
-            {rank}
-          </span>
-        )}
-      </span>
+      <UserAvatar
+        name={player.name || "?"}
+        avatarUrl={player.avatarUrl}
+        badge={
+          rank != null ? (
+            <IconBadge
+              icon={rank === 1 ? Trophy : ListOrdered}
+              label={`${t`Position`}: #${rank}`}
+              title={t`Position`}
+              color={rank === 1 ? "success" : "default"}
+            >
+              <p>#{rank}</p>
+            </IconBadge>
+          ) : undefined
+        }
+      />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{player.name}</span>
+        {rank != null ? (
+          <span className="block text-xs text-muted">{`${t`Position`}: #${rank}`}</span>
+        ) : null}
         {showGameRating ? (
           <GameRating rating={gameRating} showDelta />
         ) : (

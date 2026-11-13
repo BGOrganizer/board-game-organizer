@@ -103,14 +103,14 @@ it.each([
     expect(screen.queryByText("Display name")).toBeNull();
     expect(screen.getByText(label)).toBeTruthy();
     const badge = screen.getByRole("button", { name: new RegExp(`^${label} ·`) });
-    expect(badge.className).toContain(`text-${color}`);
+    expect(badge.querySelector("[data-slot=chip]")?.className).toContain(`chip--${color}`);
     expect(badge.parentElement?.className).toContain("absolute");
     expect(badge.querySelector(".lucide-plus")).not.toBeNull();
     fireEvent.click(badge);
     expect(await screen.findByText("Roles and participation")).toBeTruthy();
     expect(screen.getAllByText("Accepted participant")).toHaveLength(1);
     expect(badge.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
-    expect(name.closest("tr")).not.toBeNull();
+    expect(name.closest("li")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Manage participant: @target-name" })).toBeNull();
   },
 );

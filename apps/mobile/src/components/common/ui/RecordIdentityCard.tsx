@@ -6,8 +6,13 @@ import { ScrollView, View } from "react-native";
 import { ScopedTheme } from "uniwind";
 import { ListCard } from "./ListCard";
 
-type HeadingProps = { title: string; icon: LucideIcon; titleAccessory?: ReactNode };
-function IdentityHeading({ title, icon: Icon, titleAccessory }: HeadingProps) {
+type HeadingProps = {
+  title: string;
+  icon: LucideIcon;
+  titleAccessory?: ReactNode;
+  titleAction?: ReactNode;
+};
+function IdentityHeading({ title, icon: Icon, titleAccessory, titleAction }: HeadingProps) {
   const foreground = useThemeColor("foreground");
   return (
     <View
@@ -30,6 +35,9 @@ function IdentityHeading({ title, icon: Icon, titleAccessory }: HeadingProps) {
         {title}
       </Typography>
       {titleAccessory}
+      {titleAction ? (
+        <View style={{ marginLeft: "auto", flexShrink: 0 }}>{titleAction}</View>
+      ) : null}
     </View>
   );
 }
@@ -42,7 +50,7 @@ export function RecordIdentityCard({
 }: HeadingProps & { background: ReactNode; children: ReactNode }) {
   return (
     <ListCard background={background}>
-      <View style={{ paddingVertical: 16, gap: 12, flexGrow: 1 }}>
+      <View testID="record-identity-card" style={{ paddingVertical: 16, gap: 12, flexGrow: 1 }}>
         <ScopedTheme theme="dark">
           <IdentityHeading {...heading} />
         </ScopedTheme>

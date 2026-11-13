@@ -147,3 +147,43 @@ it("uses stable non-mutating roster cache identity and supports the legacy facto
   );
   expect(data.pages[0].items[0].userId).toBe("alpha");
 });
+
+it.each([1, 2, null])(
+  "keeps historical position %s visible and opens its avatar explanation",
+  async (rank) => {
+    const { wrapper: Wrapper } = setup();
+    renderWithI18n(
+      <Wrapper>
+        <EventTableResults
+          table={{
+            ...table,
+            eventStatus: "TERMINATED",
+            results: {
+              lowerWins: false,
+              entries: [{ userId: "p00", rank, score: rank === null ? null : "10" }],
+              tieBreaks: [],
+              finalizedAt: plannedTable.createdAt,
+            },
+            resultProfiles: [
+              {
+                userId: "p00",
+                name: "Historic player",
+                username: "historic",
+                email: null,
+                avatarUrl: null,
+              },
+            ],
+          }}
+        />
+      </Wrapper>,
+    );
+    const label = `Position: ${rank === null ? "ND" : `#${rank}`}`;
+    expect(screen.getByText(label)).toBeTruthy();
+    const badge = screen.getByRole("button", { name: label });
+    expect(
+      badge.querySelector(rank === 1 ? ".lucide-trophy" : ".lucide-list-ordered"),
+    ).toBeTruthy();
+    fireEvent.click(badge);
+    expect(await screen.findByRole("dialog", { name: "Position" })).toBeTruthy();
+  },
+);

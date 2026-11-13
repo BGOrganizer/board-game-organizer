@@ -91,6 +91,31 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/notifications/NotificationChangesPopover.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/WindowedList.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/lib/windowed-list.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/components/common/ui/{IconBadge,UserAvatar,UserRelationshipBadge,UserRoleBadge}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/ratings/ScoreIdentity.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "../../packages/shared/src/events/hooks/useEventProposalSection.ts": {
           lines: 100,
           functions: 100,

@@ -9,9 +9,11 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { ListOrdered, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
@@ -77,15 +79,21 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
               <UserIdentity
                 name={name}
                 avatarUrl={row.avatarUrl}
+                secondary={
+                  terminated
+                    ? `${t`Position`}: ${row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}`
+                    : undefined
+                }
                 badge={
                   terminated ? (
-                    <span
-                      role="img"
-                      aria-label={`${t`Position`}: ${row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}`}
-                      className={`absolute -right-1 -bottom-1 rounded-full px-1 text-xs ${row.rank === 1 ? "bg-success text-success-foreground" : "bg-default text-foreground"}`}
+                    <IconBadge
+                      icon={row.rank === 1 ? Trophy : ListOrdered}
+                      color={row.rank === 1 ? "success" : "default"}
+                      label={`${t`Position`}: ${row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}`}
+                      title={t`Position`}
                     >
-                      {row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}
-                    </span>
+                      <p>{row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}</p>
+                    </IconBadge>
                   ) : undefined
                 }
               >

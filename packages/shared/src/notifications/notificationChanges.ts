@@ -32,7 +32,7 @@ export function notificationChangeTab(
   scope: Pick<NotificationChangesScope, "kind" | "id">,
   kind: string,
   itemId?: string,
-): Exclude<NotificationChangesScope["tab"], "none"> | null {
+): Exclude<NotificationChangesScope["tab"], "none" | "all"> | null {
   if (itemId) {
     try {
       const [owner, id, field] = JSON.parse(itemId) as string[];
@@ -41,7 +41,7 @@ export function notificationChangeTab(
         (
           notificationChangeFieldTabs[scope.kind] as Record<
             string,
-            Exclude<NotificationChangesScope["tab"], "none">
+            Exclude<NotificationChangesScope["tab"], "none" | "all">
           >
         )[field] ?? null
       );

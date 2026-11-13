@@ -8,6 +8,7 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       include: [
         "src/notifications/notificationChanges.ts",
+        "src/notifications/notificationChangesReadAll.ts",
         "src/notifications/notificationChangeProjection.ts",
         "src/notifications/notificationChangeReconciliation.ts",
         "src/profile/activityFeed.ts",
@@ -86,6 +87,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/notifications/notificationChangesReadAll.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/notifications/{notificationChanges,notificationChangeProjection,notificationChangeReconciliation}.ts":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/{common/bgo-name-dictionaries,events/eventGameDuration,events/eventPersonalAccessCache,games/gamePickerWindow,games/hooks/useGameListWindow}.ts":

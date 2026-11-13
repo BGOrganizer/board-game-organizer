@@ -5,7 +5,6 @@ import {
   type useTableSeatOrder,
 } from "@board-game-organizer/shared";
 import { Button } from "heroui-native/button";
-import { Chip } from "heroui-native/chip";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
@@ -22,6 +21,7 @@ import { SectionList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
@@ -37,12 +37,7 @@ export function EventSeatOrderEditor({
 }) {
   const t = useT();
   const insets = useSafeAreaInsets();
-  const [foreground, successForeground, dangerForeground, defaultForeground] = useThemeColor([
-    "foreground",
-    "success-foreground",
-    "danger-soft-foreground",
-    "default-foreground",
-  ]);
+  const [foreground, successForeground] = useThemeColor(["foreground", "success-foreground"]);
   return (
     <View style={{ flex: 1, minHeight: 300 }}>
       {model.loading ? <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} /> : null}
@@ -95,6 +90,17 @@ export function EventSeatOrderEditor({
                 name={formatUsername(row.username, row.name ?? t("Username unavailable"))}
                 avatarUrl={row.avatarUrl}
                 badgeContent={<UserRoleBadge roles={roles} />}
+                topBadgeContent={
+                  row.status === "ACCEPTED" && index < model.seatedCount ? (
+                    <IconBadge
+                      icon={row.locked ? LockKeyhole : LockKeyholeOpen}
+                      label={row.locked ? t("Unlock player") : t("Lock player")}
+                      color={row.locked ? "danger" : "default"}
+                      onPress={() => model.lock(index)}
+                      isDisabled={model.busy}
+                    />
+                  ) : undefined
+                }
                 secondary={roles[0] ? t(RECORD_USER_ROLES[roles[0]].message) : undefined}
                 actions={
                   row.status === "ACCEPTED" ? (
@@ -121,30 +127,6 @@ export function EventSeatOrderEditor({
                           style={{ minWidth: 44, minHeight: 44 }}
                         >
                           <ArrowDown size={18} color={foreground} />
-                        </Button>
-                      ) : null}
-                      {index < model.seatedCount ? (
-                        <Button
-                          isIconOnly
-                          variant="ghost"
-                          accessibilityLabel={row.locked ? t("Unlock player") : t("Lock player")}
-                          isDisabled={model.busy}
-                          onPress={() => model.lock(index)}
-                          style={{ minWidth: 44, minHeight: 44 }}
-                        >
-                          <Chip
-                            pointerEvents="none"
-                            accessible={false}
-                            importantForAccessibility="no-hide-descendants"
-                            color={row.locked ? "danger" : "default"}
-                            variant="soft"
-                          >
-                            {row.locked ? (
-                              <LockKeyhole size={16} color={dangerForeground} />
-                            ) : (
-                              <LockKeyholeOpen size={16} color={defaultForeground} />
-                            )}
-                          </Chip>
                         </Button>
                       ) : null}
                     </>

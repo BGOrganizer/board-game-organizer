@@ -3,6 +3,7 @@
 import {
   type ContactUser,
   contactConnections,
+  hasContactRelationship,
   reportPresence,
   resolveApiUrl,
   useContacts,
@@ -10,7 +11,7 @@ import {
   useReadNotificationAttention,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Card, Chip, Skeleton, Tabs } from "@heroui/react";
+import { Card, Chip, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -28,12 +29,15 @@ import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { IconBadge } from "@/components/common/ui/IconBadge";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
+import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserRelationshipBadge } from "@/components/common/ui/UserRelationshipBadge";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -58,41 +62,46 @@ function ContactCard({
   online,
   menu,
   badge,
+  user,
 }: {
+  user: ContactUser;
   userId: string;
   name: string;
   username?: string | null;
   avatarUrl: string | null;
   online: boolean;
   menu?: React.ReactNode;
-  badge?: { icon: LucideIcon; label: string; color: string };
+  badge?: {
+    icon: LucideIcon;
+    label: string;
+    description?: string;
+    color: "accent" | "success" | "warning" | "danger";
+  };
 }) {
-  const BadgeIcon = badge?.icon,
-    attention = useNotificationAttentionContext();
+  const attention = useNotificationAttentionContext();
   return (
     <GroupedRow className="relative flex-col sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="relative shrink-0">
-          <Avatar size="md" color="accent">
-            <Avatar.Image src={avatarUrl ?? undefined} alt={name} />
-            <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
-          </Avatar>
-          <span
-            className={`absolute -right-0.5 -top-0.5 block h-2.5 w-2.5 rounded-full border-2 border-surface ${
-              online ? "bg-success" : "bg-muted"
-            }`}
-            title={online ? "online" : "offline"}
-          />
-          {badge && BadgeIcon ? (
-            <span
-              role="img"
-              aria-label={badge.label}
-              className={`absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-surface bg-surface ${badge.color}`}
-            >
-              <BadgeIcon className="size-3" aria-hidden="true" />
-            </span>
-          ) : null}
-        </div>
+        <UserAvatar
+          name={name}
+          avatarUrl={avatarUrl}
+          size="md"
+          online={online}
+          badge={
+            badge ? (
+              <IconBadge
+                icon={badge.icon}
+                label={badge.label}
+                title={badge.label}
+                color={badge.color}
+              >
+                <p>{badge.description ?? badge.label}</p>
+              </IconBadge>
+            ) : hasContactRelationship(user) ? (
+              <UserRelationshipBadge user={user} />
+            ) : undefined
+          }
+        />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <p className="min-w-0 truncate font-medium">{name}</p>
@@ -334,9 +343,15 @@ export function Contacts() {
   const contactCard = (
     user: ContactUser,
     friendRequest?: "incoming" | "outgoing",
-    badge?: { icon: LucideIcon; label: string; color: string },
+    badge?: {
+      icon: LucideIcon;
+      label: string;
+      description?: string;
+      color: "accent" | "success" | "warning" | "danger";
+    },
   ) => (
     <ContactCard
+      user={user}
       key={`${friendRequest ?? "contact"}-${user.id}`}
       userId={user.id}
       name={user.name}
@@ -551,7 +566,8 @@ export function Contacts() {
                   ? contactCard(row.profile, "incoming", {
                       icon: Mail,
                       label: t`Received`,
-                      color: "text-accent",
+                      description: t`Requests awaiting your reply.`,
+                      color: "accent",
                     })
                   : null,
               )}
@@ -560,7 +576,8 @@ export function Contacts() {
                   ? contactCard(row.profile, "outgoing", {
                       icon: Send,
                       label: t`Sent`,
-                      color: "text-warning",
+                      description: t`Requests awaiting their reply.`,
+                      color: "warning",
                     })
                   : null,
               )}
@@ -612,7 +629,15 @@ export function Contacts() {
                     contactCard(user, undefined, {
                       icon: connectionIcons[section.key],
                       label: connectionLabels[section.key],
-                      color: connectionColors[section.key],
+                      description: connectionDescriptions[section.key],
+                      color: (
+                        {
+                          friends: "accent",
+                          following: "warning",
+                          followers: "success",
+                          blocked: "danger",
+                        } as const
+                      )[section.key],
                     }),
                   ),
                 )}

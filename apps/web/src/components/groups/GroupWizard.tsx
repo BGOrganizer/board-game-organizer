@@ -16,7 +16,7 @@ import {
   useGroupRecord,
   useGroupRecordActions,
 } from "@board-game-organizer/shared";
-import { Avatar, Button, Skeleton, TextField } from "@heroui/react";
+import { Button, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Plus, Save, Send, Trash2, UsersRound, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -25,6 +25,7 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { UserAvatar } from "@/components/common/ui/UserAvatar";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { LocationListRow } from "@/components/locations/LocationListRow";
@@ -322,10 +323,7 @@ function Editor({
           <GroupedList>
             {friends.map((user) => (
               <GroupedRow key={user.id}>
-                <Avatar size="md">
-                  <Avatar.Image src={user.avatarUrl ?? undefined} alt="" />
-                  <Avatar.Fallback>{user.name.charAt(0)}</Avatar.Fallback>
-                </Avatar>
+                <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="md" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm">{user.name}</span>
                   {formatUsername(user.username, "") ? (

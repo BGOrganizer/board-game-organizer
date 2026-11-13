@@ -1,10 +1,11 @@
 import type { MatchGameRating } from "@board-game-organizer/schemas";
 import type { ScorePlayer } from "@board-game-organizer/shared";
 
-import { Avatar } from "heroui-native/avatar";
 import { Typography } from "heroui-native/text";
-
+import { ListOrdered, Trophy } from "lucide-react-native";
 import { View } from "react-native";
+import { IconBadge } from "@/components/common/ui/IconBadge";
+import { UserAvatar } from "@/components/common/ui/UserAvatar";
 import { useT } from "@/lib/i18n";
 import { GameRating } from "./GameRating";
 
@@ -22,44 +23,29 @@ export function ScoreIdentity({
   const t = useT();
   return (
     <>
-      <View style={{ width: 48, height: 48 }}>
-        <Avatar size="md">
-          {player.avatarUrl && <Avatar.Image source={{ uri: player.avatarUrl }} />}
-          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-        </Avatar>
-        {rank != null && (
-          <View
-            style={{
-              position: "absolute",
-              right: -2,
-              bottom: -2,
-              minWidth: 18,
-              height: 18,
-              paddingHorizontal: 1,
-              borderRadius: 9,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            className="bg-accent"
-          >
-            <Typography
-              className="font-bold text-accent-foreground"
-              style={{
-                fontSize: 10,
-                lineHeight: 14,
-                includeFontPadding: false,
-                textAlign: "center",
-              }}
+      <UserAvatar
+        name={player.name || "?"}
+        avatarUrl={player.avatarUrl}
+        badgeContent={
+          rank != null ? (
+            <IconBadge
+              icon={rank === 1 ? Trophy : ListOrdered}
+              label={`${t("Position")}: #${rank}`}
+              title={t("Position")}
+              color={rank === 1 ? "success" : "default"}
             >
-              {rank}
-            </Typography>
-          </View>
-        )}
-      </View>
+              <Typography className="text-foreground">#{rank}</Typography>
+            </IconBadge>
+          ) : undefined
+        }
+      />
       <View style={{ flex: 1, gap: 2 }}>
         <Typography className="font-medium text-foreground" numberOfLines={1}>
           {player.name}
         </Typography>
+        {rank != null ? (
+          <Typography className="text-xs text-muted">{`${t("Position")}: #${rank}`}</Typography>
+        ) : null}
         {showGameRating ? (
           <GameRating rating={gameRating} showDelta />
         ) : (
