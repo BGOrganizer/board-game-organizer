@@ -14,6 +14,7 @@ const build = parse(readFileSync(".github/actions/mobile-build/action.yml", "utf
 const internal = pr.jobs["build-mobile-internal"].steps;
 const fixture = {
   APP_VARIANT: "development",
+  EXPO_UPDATE_CHANNEL: "ci-pr-22",
   MOBILE_BUILD_PROFILE: "internal",
   EXPO_PUBLIC_API_URL: "https://pr-22.example.invalid",
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: "fixture-public-clerk",
@@ -25,43 +26,85 @@ const fixture = {
 
 test("build and upload callers explicitly separate app identity from the shared internal profile", () => {
   assert.equal(build.inputs["app-environment"].required, true);
+  assert.equal(build.inputs["update-channel"].required, true);
+  const eas = JSON.parse(readFileSync("apps/mobile/eas.json", "utf8"));
+  assert.equal(eas.build.internal.channel, undefined);
+  assert.equal(eas.build.development.channel, "development");
+  assert.equal(eas.build.production.channel, "production");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: Assert the literal GitHub expression.
+  const prNumber = "${{ github.event.pull_request.number }}";
   let callers = 0;
   for (const [file, variant] of [
     ["pr-ci.yml", "development"],
     ["main-ci.yml", "production"],
   ]) {
     const workflow = parse(readFileSync(`.github/workflows/${file}`, "utf8"));
-    for (const job of Object.values(workflow.jobs))
+    for (const [jobId, job] of Object.entries(workflow.jobs))
       for (const step of job.steps ?? []) {
         if (step.uses === "./.github/actions/mobile-build") {
           assert.equal(step.with.profile, "internal");
           assert.equal(step.with["app-environment"], variant);
+          assert.equal(
+            step.with["update-channel"],
+            variant === "production"
+              ? "production"
+              : `${jobId === "build-mobile-internal" ? "ci" : "development"}-pr-${prNumber}`,
+          );
           callers++;
         }
-        if (step.run?.includes("scripts/eas-upload.mjs"))
+        if (step.run?.includes("scripts/eas-upload.mjs")) {
           assert.equal(step.env.APP_VARIANT, variant);
+          assert.equal(
+            step.env.EXPO_UPDATE_CHANNEL,
+            variant === "production" ? "production" : `development-pr-${prNumber}`,
+          );
+        }
+        assert.doesNotMatch(step.run ?? "", /\beas update(?:\s|$)/);
       }
   }
   assert.equal(callers, 3);
 });
 
-test("app variant selection fails closed before build setup and exports only supported values", () => {
+test("app variant and OTA channel fail closed before build setup and export only supported pairs", () => {
   const step = build.runs.steps[0];
   assert.equal(step.name, "Select Android app variant");
   // biome-ignore lint/suspicious/noTemplateCurlyInString: Assert the literal GitHub expression.
   assert.equal(step.env.APP_VARIANT, "${{ inputs.app-environment }}");
-  for (const variant of ["development", "production", "", "staging", "production\nGH_TOKEN=bad"]) {
+  for (const [variant, channel, valid] of [
+    ["development", "development", true],
+    ["development", "ci-pr-22", true],
+    ["development", "development-pr-22", true],
+    ["production", "production", true],
+    ["development", "production", false],
+    ["production", "development-pr-22", false],
+    ["production", "ci-pr-22", false],
+    ["development", "development-pr-0", false],
+    ["development", "ci-pr-01", false],
+    ["development", "internal", false],
+    ["development", "", false],
+    ["", "production", false],
+    ["staging", "production", false],
+    ["production\nGH_TOKEN=bad", "production", false],
+    ["development", "ci-pr-22\nGH_TOKEN=bad", false],
+  ]) {
     const folder = mkdtempSync(join(tmpdir(), "bgo-variant-"));
     const envFile = join(folder, "env");
     writeFileSync(envFile, "");
     try {
       const result = spawnSync("bash", ["-e", "-c", step.run], {
         encoding: "utf8",
-        env: { ...process.env, APP_VARIANT: variant, GITHUB_ENV: envFile },
+        env: {
+          ...process.env,
+          APP_VARIANT: variant,
+          EXPO_UPDATE_CHANNEL: channel,
+          GITHUB_ENV: envFile,
+        },
       });
-      const valid = variant === "development" || variant === "production";
       assert.equal(result.status, valid ? 0 : 1);
-      assert.equal(readFileSync(envFile, "utf8"), valid ? `APP_VARIANT=${variant}\n` : "");
+      assert.equal(
+        readFileSync(envFile, "utf8"),
+        valid ? `APP_VARIANT=${variant}\nEXPO_UPDATE_CHANNEL=${channel}\n` : "",
+      );
       assert.doesNotMatch(result.stdout + result.stderr, /GH_TOKEN=bad/);
     } finally {
       rmSync(folder, { recursive: true, force: true });
@@ -109,6 +152,7 @@ test("successful APK build may be reused after failed acceptance, with independe
   const buildStep = internal.find((step) => step.id === "build");
   for (const [env, input] of [
     ["EXPO_PUBLIC_API_URL", "api-url"],
+    ["EXPO_UPDATE_CHANNEL", "update-channel"],
     ["EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY", "clerk-publishable-key"],
     ["EXPO_PUBLIC_MAPTILER_API_KEY", "maptiler-api-key"],
     ["EXPO_PUBLIC_SENTRY_DSN", "sentry-dsn"],
@@ -121,6 +165,7 @@ test("successful APK build may be reused after failed acceptance, with independe
   assert.match(buildStep.if, /verify-apk.outputs.reused != 'true'/);
   const mobileBuild = build.runs.steps.find((step) => step.name.startsWith("📱 Build"));
   assert.match(mobileBuild.run, /mobile-build-inputs.mjs > build-output\/build-inputs.sha256/);
+  assert.match(mobileBuild.run, /EXPO_UPDATE_CHANNEL.*> build-output\/update-channel.txt/);
   assert.match(mobileBuild.run, /sha256sum -- \*\.apk > apk.sha256/);
 });
 

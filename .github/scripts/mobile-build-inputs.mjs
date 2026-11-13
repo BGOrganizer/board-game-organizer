@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 // Only the digest leaves this process; never emit private input values.
 const names = [
   "APP_VARIANT",
+  "EXPO_UPDATE_CHANNEL",
   "MOBILE_BUILD_PROFILE",
   "EXPO_PUBLIC_API_URL",
   "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY",

@@ -10,6 +10,13 @@ const variant = process.env.APP_VARIANT ?? "development";
 if (variant !== "development" && variant !== "production")
   throw new Error("APP_VARIANT must be development or production");
 const development = variant === "development";
+const updateChannel = process.env.EXPO_UPDATE_CHANNEL ?? variant;
+if (
+  development
+    ? !/^(development|(ci|development)-pr-[1-9][0-9]*)$/.test(updateChannel)
+    : updateChannel !== "production"
+)
+  throw new Error("EXPO_UPDATE_CHANNEL must match APP_VARIANT and a supported channel");
 const appNameKey = development ? "app_name_development" : "app_name";
 const androidPackage = development
   ? "com.bgo.boardgameorganizer.dev"
@@ -37,6 +44,13 @@ module.exports = {
     name: locales.en.android[appNameKey],
     slug: "board-game-organizer",
     version: "1.3.2",
+    runtimeVersion: { policy: "fingerprint" },
+    updates: {
+      url: "https://u.expo.dev/f19004af-2669-49ca-8c46-2697b66841b6",
+      requestHeaders: { "expo-channel-name": updateChannel },
+      checkAutomatically: "ON_LOAD",
+      fallbackToCacheTimeout: 0,
+    },
     orientation: "portrait",
     userInterfaceStyle: "automatic",
     icon: "./assets/icon.png",

@@ -8,6 +8,9 @@ inputs:
   app-environment:
     description: Android application variant (development or production), independent of EAS profile
     required: true
+  update-channel:
+    description: OTA destination (ci-pr-N, development-pr-N, or production)
+    required: true
   install-dependencies:
     description: Install the workspace; disable only when the caller already installed this checkout
     required: false
@@ -63,12 +66,14 @@ runs:
       shell: bash
       env:
         APP_VARIANT: ${{ inputs.app-environment }}
+        EXPO_UPDATE_CHANNEL: ${{ inputs.update-channel }}
       run: |
         case "$APP_VARIANT" in
-          development|production) ;;
-          *) echo "::error::App environment must be development or production"; exit 1 ;;
-        esac
-        printf 'APP_VARIANT=%s\n' "$APP_VARIANT" >> "$GITHUB_ENV"
+          development) [[ "$EXPO_UPDATE_CHANNEL" =~ ^(development|(ci|development)-pr-[1-9][0-9]*)$ ]] ;;
+          production) [[ "$EXPO_UPDATE_CHANNEL" == production ]] ;;
+          *) false ;;
+        esac || { echo "::error::Invalid app variant or OTA channel"; exit 1; }
+        printf 'APP_VARIANT=%s\nEXPO_UPDATE_CHANNEL=%s\n' "$APP_VARIANT" "$EXPO_UPDATE_CHANNEL" >> "$GITHUB_ENV"
 
     - name: 🗺️ Verify MapTiler key
       shell: bash
@@ -193,6 +198,7 @@ runs:
           --non-interactive \
           --output "./build-output/${{ steps.meta.outputs.artifact-name }}"
         node ../../.github/scripts/mobile-build-inputs.mjs > build-output/build-inputs.sha256
+        printf '%s\n' "$EXPO_UPDATE_CHANNEL" > build-output/update-channel.txt
         (cd build-output && sha256sum -- *.apk > apk.sha256)
         echo "✅ ${{ inputs.profile }} APK built:"
         ls -lh build-output/

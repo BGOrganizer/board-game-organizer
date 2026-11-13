@@ -6,6 +6,22 @@ journeys invoked by `.github/scripts/maestro-e2e.sh`; see
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
 Do not run the helpers directory or treat helpers as independent test reports.
 
+## Manual OTA startup
+
+`32-ota-startup.yaml` is opt-in and does not publish updates. Use a fresh standalone Development
+APK, an owned complete account and an already downloaded compatible update on `development-pr-N`.
+Verify the installed native channel/runtime against the approved update before running. Set
+`OTA_BUILD_ACK=owned-preview-build`, `OTA_CHANNEL`, `OTA_EXPECTED_TEXT` (unique updated profile
+copy) and `OTA_ACCOUNT_NAME` (the owned profile identity). The flow opens Profile across two cold
+launches without clearing state and checks updated copy and retained account. Prepare matching
+EN/IT fixtures; this is Android Development only, never Production.
+
+Separately verify download while the app stays open, draft preservation until a deliberate cold
+launch, offline/ingest-error fallback to the embedded/cached bundle and rejection of a different
+channel or native runtime. An unavailable update must not force a restart or block startup;
+application network errors retain their normal behavior. Neither this flow nor prebuild/unit checks
+prove delivery until actually executed on a device. See [OTA configuration](../../../docs/development.md#mobile-ota-updates).
+
 ## Manual Group creation presentation
 
 `31-group-creation.yaml` and `apps/web/e2e/group-creation.config.ts` are opt-in only.

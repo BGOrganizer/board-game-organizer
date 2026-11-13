@@ -1,0 +1,25 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Owned downloaded OTA survives cold launches and preserves the account
+tags: [manual, ota, startup]
+---
+# Operator first verifies the installed channel/runtime and completes the download.
+- assertTrue: ${typeof OTA_BUILD_ACK === 'string' && OTA_BUILD_ACK === 'owned-preview-build'}
+- assertTrue: ${typeof OTA_CHANNEL === 'string' && /^development-pr-[1-9][0-9]*$/.test(OTA_CHANNEL)}
+- assertTrue: ${typeof OTA_EXPECTED_TEXT === 'string' && OTA_EXPECTED_TEXT.length > 0}
+- assertTrue: ${typeof OTA_ACCOUNT_NAME === 'string' && OTA_ACCOUNT_NAME.length > 0}
+- killApp
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///profile
+- extendedWaitUntil:
+    visible: ${OTA_EXPECTED_TEXT}
+    timeout: 60000
+- assertVisible: ${OTA_ACCOUNT_NAME}
+- killApp
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///profile
+- extendedWaitUntil:
+    visible: ${OTA_EXPECTED_TEXT}
+    timeout: 60000
+- assertVisible: ${OTA_ACCOUNT_NAME}

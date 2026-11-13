@@ -246,6 +246,41 @@ The opt-in browser envelope check runs with `SENTRY_ACCEPTANCE_WEB_DSN` and an o
 It intercepts delivery to test Development project/environment routing, removed context and ingest
 failure tolerance without publishing test events; it does not prove live Sentry ingestion.
 
+### Mobile OTA updates
+
+`expo-updates` enables native Android/iOS bundle updates after a fresh binary containing this
+configuration is installed. Existing APKs without it cannot acquire the capability through OTA.
+Expo web is not a product target. The native default checks at launch, downloads in the background
+and uses the downloaded update on a later cold launch, without waiting at startup or restarting an
+active form. Development clients use their Extensions preview flow instead of this standalone
+release behavior. No application update worker or forced reload is added.
+
+`runtimeVersion` uses Expo's `fingerprint` policy to reject native-incompatible updates. This is
+separate from CI's provenance digest. `EXPO_UPDATE_CHANNEL` defaults to `APP_VARIANT`; optional
+explicit values are `development`, `ci-pr-N`, `development-pr-N` for Development, or only
+`production` for Production. CI selects `ci-pr-N` for isolated test APKs, `development-pr-N` for
+distributed PR APKs and `production` on Main. The shared `internal` EAS profile deliberately has
+no `channel`: its native header comes from the validated app config. The named `development`
+and `production` profiles fix their matching channels. APK artifacts record `update-channel.txt`,
+and the configuration digest includes the channel before reuse.
+
+Publication is explicit; the PR/Main workflows do not publish OTA bundles. After authorizing a
+specific project, channel, platform and message, use the EAS CLI's `update --channel <channel>
+--environment <environment> --platform android --message <message>` from `apps/mobile`.
+SDK 57 requires the EAS environment flag. Supply the same `APP_VARIANT`, `EXPO_UPDATE_CHANNEL`,
+API URL, public keys, Sentry DSN, bypass and Firebase configuration as the target binary; do not
+dump them into logs. EAS environment values must agree with the intended Infisical configuration.
+The fingerprint also includes app version/configuration and `eas.json`: changing these can require
+a new APK. In particular, each immutable Development API URL belongs to its existing binary;
+do not assume the latest Preview URL is compatible with an older installed APK.
+JavaScript changes must also remain compatible with that API; a native fingerprint does not
+validate server contracts.
+
+Keep `EXPO_TOKEN` server-side. Local EAS setup may read this single value from Infisical staging
+`/github` into the process environment; never put it in Expo `extra`, a public variable or Git.
+Before Production publication, validate a compatible owned Development update and its recovery
+behavior. Manual native acceptance is documented in the [Maestro guide](../apps/mobile/.maestro/README.md#manual-ota-startup).
+
 Production endpoints:
 
 - Web: `https://board-game-organizer.com`

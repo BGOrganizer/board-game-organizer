@@ -267,6 +267,13 @@ lockfile dependency graph trigger APK rebuilds. Web/API-only, Maestro-only, unit
 unrelated lockfile changes do not. Compare each reusable artifact's own source commit with the PR
 head, and verify its checksum/size and matching API/environment inputs before reuse.
 
+OTA-enabled APKs also bind a validated channel to the binary: isolated `ci-pr-N`, distributed
+`development-pr-N`, or `production`. The channel participates in the configuration digest and is
+recorded in `update-channel.txt`. Keep `internal.channel` absent in EAS configuration so it cannot
+override the app's dynamic native header. Expo runtime compatibility uses its own fingerprint,
+not this provenance digest. PR/Main do not publish OTA updates; see
+[OTA configuration and explicit publication](development.md#mobile-ota-updates).
+
 CI web uses the immutable isolated API URL; E2E APKs use the verified per-PR alias. Published
 Development web and APK both use the immutable Development API Preview URL. Never redirect E2E
 at Development or Production. Preview protection bypass remains a secret query parameter.

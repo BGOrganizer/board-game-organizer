@@ -23,6 +23,7 @@ const client = (packageName: string) => ({
 beforeEach(() => {
   folder = mkdtempSync(join(tmpdir(), "bgo-app-config-"));
   vi.stubEnv("APP_VARIANT", undefined);
+  vi.stubEnv("EXPO_UPDATE_CHANNEL", undefined);
   vi.stubEnv("GOOGLE_SERVICES_JSON", undefined);
 });
 afterEach(() => {
@@ -38,6 +39,13 @@ it.each([undefined, "development", "production"])(
     const development = variant !== "production";
     const result = config();
     expect(result.extra.sentryEnvironment).toBe(variant ?? "development");
+    expect(result.runtimeVersion).toEqual({ policy: "fingerprint" });
+    expect(result.updates).toEqual({
+      url: "https://u.expo.dev/f19004af-2669-49ca-8c46-2697b66841b6",
+      requestHeaders: { "expo-channel-name": variant ?? "development" },
+      checkAutomatically: "ON_LOAD",
+      fallbackToCacheTimeout: 0,
+    });
     expect(result.android.package).toBe(
       development ? "com.bgo.boardgameorganizer.dev" : "com.bgo.boardgameorganizer",
     );
@@ -56,6 +64,35 @@ it.each([undefined, "development", "production"])(
     expect(result.extra.eas.projectId).toBe("f19004af-2669-49ca-8c46-2697b66841b6");
   },
 );
+
+it.each([
+  ["development", "development"],
+  ["development", "ci-pr-42"],
+  ["development", "development-pr-42"],
+  ["production", "production"],
+])("embeds only the selected %s OTA channel %s", (variant, channel) => {
+  vi.stubEnv("APP_VARIANT", variant);
+  vi.stubEnv("EXPO_UPDATE_CHANNEL", channel);
+  expect(config().updates.requestHeaders["expo-channel-name"]).toBe(channel);
+});
+
+it.each([
+  ["production", "development"],
+  ["production", "ci-pr-42"],
+  ["production", "development-pr-42"],
+  ["production", ""],
+  ["development", "production"],
+  ["development", ""],
+  ["development", "internal"],
+  ["development", "development-pr-0"],
+  ["development", "ci-pr-01"],
+  ["development", "ci-pr--1"],
+  ["development", "development-pr-42\nGH_TOKEN=private-sentinel"],
+])("rejects a channel outside the %s lane without exposing its value", (variant, channel) => {
+  vi.stubEnv("APP_VARIANT", variant);
+  vi.stubEnv("EXPO_UPDATE_CHANNEL", channel);
+  expect(config).toThrow("EXPO_UPDATE_CHANNEL must match APP_VARIANT and a supported channel");
+});
 
 it.each(["", "staging", "Production"])("rejects an unknown variant %s", (variant) => {
   vi.stubEnv("APP_VARIANT", variant);

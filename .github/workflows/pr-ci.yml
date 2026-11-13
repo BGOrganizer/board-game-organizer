@@ -308,6 +308,7 @@ jobs:
       - name: 🔑 Fingerprint current APK configuration
         env:
           APP_VARIANT: development
+          EXPO_UPDATE_CHANNEL: ci-pr-${{ github.event.pull_request.number }}
           MOBILE_BUILD_PROFILE: internal
           EXPO_PUBLIC_API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
           EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -341,6 +342,7 @@ jobs:
           install-dependencies: 'false' # Cache inspection already installed this checkout.
           profile: internal
           app-environment: development
+          update-channel: ci-pr-${{ github.event.pull_request.number }}
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ needs.deploy-preview-api.outputs.branch-url }}
@@ -1019,6 +1021,7 @@ jobs:
         with:
           profile: internal
           app-environment: development
+          update-channel: development-pr-${{ github.event.pull_request.number }}
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ needs.deploy-development-api.outputs.url }}
@@ -1110,6 +1113,7 @@ jobs:
         working-directory: apps/mobile
         env:
           APP_VARIANT: development
+          EXPO_UPDATE_CHANNEL: development-pr-${{ github.event.pull_request.number }}
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APK_PATH: ${{ steps.meta.outputs.apk-path }}
         run: |

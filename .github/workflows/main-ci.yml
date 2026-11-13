@@ -240,6 +240,7 @@ jobs:
         with:
           profile: internal
           app-environment: production
+          update-channel: production
           expo-token: ${{ secrets.EXPO_TOKEN }}
           # Production build: the released APK must talk to the LIVE Clerk
           # instance (pk_live). The pk_test variable stays for preview builds
@@ -376,6 +377,7 @@ jobs:
         working-directory: apps/mobile
         env:
           APP_VARIANT: production
+          EXPO_UPDATE_CHANNEL: production
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           APK=$(find "$GITHUB_WORKSPACE/apk" -name '*.apk' -print -quit)
