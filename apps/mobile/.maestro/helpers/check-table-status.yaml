@@ -1,0 +1,38 @@
+appId: com.bgo.boardgameorganizer.dev
+---
+- assertNotVisible:
+    id: list-filter-PLANNING
+- tapOn: ${output.status.filter}
+- eraseText: 120
+- inputText: ${output.status.query}
+- hideKeyboard
+- scrollUntilVisible:
+    element: ${CONFIRMED_NAME}
+    direction: DOWN
+    timeout: 120000
+- scrollUntilVisible:
+    element:
+      id: list-filter-TERMINATED
+    direction: UP
+    timeout: 120000
+- tapOn:
+    id: list-filter-TERMINATED
+- extendedWaitUntil:
+    visible: ${CONFIRMED_NAME}
+    timeout: 120000
+- assertNotVisible: ${TERMINATED_NAME}
+- tapOn:
+    id: list-filter-CONFIRMED
+- tapOn:
+    id: list-filter-TERMINATED
+- extendedWaitUntil:
+    visible: ${TERMINATED_NAME}
+    timeout: 120000
+- assertNotVisible: ${CONFIRMED_NAME}
+- tapOn:
+    id: list-filter-TERMINATED
+- extendedWaitUntil:
+    visible: ${EMPTY_TEXT}
+    timeout: 120000
+- tapOn: ${output.status.clear}
+- assertVisible: ${EMPTY_TEXT}

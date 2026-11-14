@@ -1,25 +1,144 @@
-name: 🚀 Main CI/CD (bump → build → E2E → publish release → Telegram)
+name: Release
 
 on:
   push:
     branches: [main]
 
 permissions:
-  contents: write # semantic-release commits the bump; publish-release creates the release
-  statuses: write # vercel-deploy / github-script sets commit status for production
-
-concurrency:
-  group: main-ci
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  # ------------------------------------------------------------- bump (no release)
-  release:
-    name: 📦 semantic-release (bump + changelog, no publish)
+  # Every merged commit gets its own verification run; only release preparation
+  # is serialized. GitHub can replace a pending run in a concurrency group.
+  quality:
+    name: Lint, typecheck and CI contracts
     runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-bun
+
+      - name: 🧹 Biome
+        run: bun run lint
+
+      - name: 🧪 TypeScript
+        run: bun run typecheck
+
+      - name: 🔒 CI isolation contract
+        run: node --test .github/scripts/__tests__/*.test.mjs
+
+  coverage:
+    name: Unit tests and coverage (${{ matrix.app }})
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    env:
+      WORKSPACE: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('@board-game-organizer/{0}', matrix.app) || matrix.app }}
+    strategy:
+      fail-fast: true
+      matrix:
+        app: [mobile, web, api, schemas, shared]
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-bun
+
+      - name: 🧪 Vitest with coverage
+        run: bun run --filter "$WORKSPACE" test:coverage
+
+      - name: 🔏 Verify Codecov signing key
+        id: codecov-key
+        run: bash .github/scripts/prepare-codecov-key.sh
+
+      - name: 📤 Upload coverage to Codecov
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
+        with:
+          use_oidc: true
+          files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
+          flags: unit,${{ matrix.app }}
+          fail_ci_if_error: true
+      - name: 📤 Preserve unit coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.app }}-main
+          path: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/**', matrix.app) || format('apps/{0}/coverage/**', matrix.app) }}
+          if-no-files-found: warn
+
+  integration-tests:
+    name: Integration tests (API)
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-bun
+
+      - name: 🐳 Run API integration tests
+        run: bun run --filter api test:integration --coverage
+      - name: 🔏 Verify Codecov signing key
+        run: bash .github/scripts/prepare-codecov-key.sh
+      - name: 📤 Upload integration coverage to Codecov
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
+        with:
+          use_oidc: true
+          files: apps/api/coverage/lcov.info
+          flags: integration
+          fail_ci_if_error: true
+      - name: 📤 Preserve integration coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api-integration-main
+          path: apps/api/coverage/**
+          if-no-files-found: warn
+  build:
+    name: Build (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        app:
+          - api
+          - web
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-bun
+      - name: 🏗️ Verify app build
+        run: bun run --filter ${{ matrix.app }} build
+
+  # Release bump/tag only after every merged-code quality, coverage and build gate succeeds.
+  release:
+    name: Prepare version and tag
+    environment: production
+    needs:
+      - quality
+      - coverage
+      - integration-tests
+      - build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: main-release
+      cancel-in-progress: false
     outputs:
       version: ${{ steps.meta.outputs.version }}
       published: ${{ steps.meta.outputs.published }}
+      sha: ${{ steps.meta.outputs.sha }}
     steps:
       - name: 📥 Checkout (full history for semantic-release)
         uses: actions/checkout@v4
@@ -27,9 +146,21 @@ jobs:
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
+
+      - name: 🔒 Release only latest validated main commit
+        id: current
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" = "$GITHUB_SHA" ]; then
+            echo 'ok=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ok=false' >> "$GITHUB_OUTPUT"
+            echo 'Newer main commit exists; this run was verified but will not release.'
+          fi
 
       - name: 🔑 Configure push credentials (release PAT bypasses branch protection)
+        if: steps.current.outputs.ok == 'true'
         # actions/checkout sets an Authorization extraheader that OVERRIDES the
         # credentials embedded in the URL — the push would authenticate as the
         # workflow bot (no bypass). Remove it and set the remote URL with the
@@ -43,56 +174,35 @@ jobs:
           git config --global user.email "bot@bgo.dev"
 
       - name: 🚀 Run semantic-release (SKIP_PUBLISH — release created after the gates)
+        if: steps.current.outputs.ok == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SKIP_PUBLISH: "true"
-        run: pnpm release
+        run: bun run release
 
       - name: 🔎 Resolve release info
         id: meta
         run: |
           VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
-          LAST=$(git log -1 --format=%s)
+          SHA=$(git rev-parse HEAD)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if echo "$LAST" | grep -q '^chore(release):'; then
-            echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          if [ "${{ steps.current.outputs.ok }}" = true ] && [ "$SHA" != "$GITHUB_SHA" ]; then
+            test "$(git log -1 --format=%s)" != ''
+            git log -1 --format=%s | grep -q '^chore(release):'
+            test "$(git rev-parse "v$VERSION^{}")" = "$SHA"
+            test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$SHA"
+            echo 'published=true' >> "$GITHUB_OUTPUT"
           else
-            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo 'published=false' >> "$GITHUB_OUTPUT"
           fi
-          echo "new version: $VERSION (bump committed: $LAST)"
+          echo "verified merge: $GITHUB_SHA; release SHA: $SHA; version: $VERSION"
+    permissions:
+      contents: write
 
-  # -------------------------------------------------- coverage upload (Codecov)
-  coverage:
-    name: 📊 Coverage upload (Codecov)
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app: [mobile, web, api]
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🧪 Vitest with coverage
-        run: pnpm --filter ${{ matrix.app }} test:coverage
-
-      - name: 📤 Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: apps/${{ matrix.app }}/coverage/lcov.info
-          flags: unit,${{ matrix.app }}
-          fail_ci_if_error: false
-
-  # -------------------------------------------------- mobile internal APK (build only)
   build-apk:
-    name: 📱 Build APK (internal)
-    needs: release
+    name: Build APK (Production)
+    needs: [release]
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     # A fresh eas build --local from a cold cache (cache key changes after the
@@ -102,50 +212,71 @@ jobs:
     # builds reuse the EAS/gradle caches and finish much faster.
     timeout-minutes: 180
     steps:
-      - name: 📥 Checkout
+      - name: 📥 Checkout pinned release commit
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          ref: ${{ needs.release.outputs.sha }}
 
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
 
-      - name: 🔄 Sync to the release commit (version bump)
-        # The run's checkout is on the trigger SHA (pre-bump): semantic-release
-        # pushed the version bump (app.config.js → VERSION) mid-run. Sync to
-        # origin/main so the APK is built with the RELEASED version.
+      - name: 🔒 Require the Production Clerk public key
+        env:
+          CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
         run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
-
+          node --input-type=module <<'NODE'
+          import { requireClerkTarget } from './.github/scripts/clerk-target.mjs';
+          requireClerkTarget('production', process.env.CLERK_PUBLISHABLE_KEY, 'pk');
+          if (process.env.API_URL !== 'https://api.board-game-organizer.com') {
+            throw new Error('Production API must use its canonical public URL');
+          }
+          NODE
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
         uses: ./.github/actions/mobile-build
         with:
           profile: internal
+          app-environment: production
+          update-channel: production
           expo-token: ${{ secrets.EXPO_TOKEN }}
           # Production build: the released APK must talk to the LIVE Clerk
           # instance (pk_live). The pk_test variable stays for preview builds
-          # (pr-ci / mobile-e2e / mobile-development).
-          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
+          # (PR builds).
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+      - name: 🔒 Record production APK provenance
+        env:
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          printf '%s\n' "$RELEASE_SHA" > apps/mobile/build-output/source-head.txt
+          printf '%s\n' https://api.board-game-organizer.com > apps/mobile/build-output/api-url.txt
+          (cd apps/mobile/build-output && sha256sum --check apk.sha256)
 
-      - name: 📤 Upload APK artifact (shared with E2E + publish-release)
+      - name: 📤 Upload verified production APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-internal-main
-          path: ${{ steps.build.outputs.artifact-path }}
+          path: apps/mobile/build-output/
           retention-days: 7
+          if-no-files-found: error
+    environment: production
 
-  # -------------------------------------------------- production deploys
   deploy-production:
-    name: 🚀 Vercel production (${{ matrix.app }})
-    needs: release
+    name: Deploy ${{ matrix.app }} (Production)
+    needs: [release, build-apk]
+    if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     environment: production
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - app: api
@@ -159,20 +290,17 @@ jobs:
             project-id-secret: VERCEL_WEB_PROJECT_ID
             status-context: vercel/web/production
     steps:
-      - name: 📥 Checkout
+      - name: 📥 Checkout pinned release commit
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          ref: ${{ needs.release.outputs.sha }}
 
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync to the release commit (version bump)
-        # Same as build-apk: deploy the released code (bump commit), not the
-        # pre-bump trigger SHA (package.json version drift).
+      - name: 🔒 Ensure this release is still latest
+        env:
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
         run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
 
       - name: 🚀 Deploy to Vercel (production)
         uses: ./.github/actions/vercel-deploy
@@ -191,281 +319,190 @@ jobs:
           # build-time override here (deterministic, like the Clerk keys).
           extra-env: ${{ matrix.app == 'web' && 'NEXT_PUBLIC_API_URL=https://api.board-game-organizer.com' || '' }}
 
-  # -------------------------------------------------- Maestro E2E (released APK)
-  e2e-maestro:
-    name: 🎬 Maestro E2E (mobile — released APK)
-    needs: [release, build-apk]
-    if: needs.build-apk.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync to the release commit (version bump)
-        run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
-
-      - name: ☕ Set up JDK 17 (Maestro requirement)
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: 📥 Download internal APK
-        uses: actions/download-artifact@v4
-        with:
-          name: apk-internal-main
-          path: apk
-
-      - name: 🔎 Resolve APK path
-        id: apk
-        run: |
-          APK=$(find apk -name '*.apk' | head -1)
-          echo "path=$APK" >> "$GITHUB_OUTPUT"
-
-      - name: 👤 Provision E2E test user
-        id: provision
-        uses: ./.github/actions/provision-e2e-user
-        with:
-          # Production E2E runs against the LIVE Clerk instance (web
-          # production + released APK use pk_live). The preview/test
-          # instance key (CLERK_SECRET_KEY) stays for pr-ci only.
-          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
-
-      - name: ⚡ Install Maestro CLI
-        run: |
-          curl -Ls "https://get.maestro.mobile.dev" | bash
-          export PATH="$PATH:$HOME/.maestro/bin"
-          maestro --version
-
-      - name: 🚀 Maestro E2E flows (released APK)
-        uses: ./.github/actions/maestro-e2e
-        with:
-          apk-path: ${{ steps.apk.outputs.path }}
-          username: ${{ steps.provision.outputs.username }}
-          password: ${{ steps.provision.outputs.password }}
-
-      - name: 🗑️ Cleanup E2E test user
-        if: always()
+      - name: 🔎 Read-only production smoke
         env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
-          USER_ID: ${{ steps.provision.outputs.user_id }}
+          APP: ${{ matrix.app }}
         run: |
-          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
+          set -euo pipefail
+          if [ "$APP" = api ]; then
+            url=https://api.board-game-organizer.com/api/health
+          else
+            url=https://board-game-organizer.com/
+          fi
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 30 "$url" -o /dev/null
+    permissions:
+      contents: read
+      statuses: write
 
-      - name: 📥 Collect Maestro reports (workspace)
-        if: always()
-        run: |
-          mkdir -p maestro-reports maestro-debug
-          ls maestro-reports/*.xml 2>/dev/null | grep -q . || \
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
-          echo "---- maestro-reports ----"; ls -la maestro-reports || true
-          echo "---- maestro-debug ----"; ls -la maestro-debug || true
-
-      - name: 📤 Upload Maestro reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: maestro-reports-main
-          path: |
-            maestro-reports/**
-            maestro-debug/**
-            fail-screen.png
-            ui-fail.xml
-            fail-logcat.txt
-            maestro-rec.mp4
-          if-no-files-found: warn
-
-  # -------------------------------------------------- Playwright E2E (production)
-  e2e-playwright:
-    name: 🎭 Playwright E2E (web — production)
-    needs: [release, deploy-production]
-    if: needs.release.outputs.published == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync to the release commit (version bump)
-        run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
-
-      - name: 👤 Provision E2E test user
-        id: provision
-        uses: ./.github/actions/provision-e2e-user
-        with:
-          # Production E2E runs against the LIVE Clerk instance (web
-          # production uses pk_live). The preview/test instance key
-          # (CLERK_SECRET_KEY) stays for pr-ci only.
-          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
-
-      - name: 🔄 Mirror E2E users into the production users collection
-        # Deterministic seeding: the Clerk webhook only fires for the Clerk
-        # dashboard webhook URL (production endpoint) and can lag; the admin
-        # sync-user endpoint (Bearer == the API production's CLERK_SECRET_KEY
-        # env, currently the LIVE key) mirrors both users synchronously so the
-        # contacts E2E search finds the target.
-        env:
-          API_URL: https://api.board-game-organizer.com
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
-        run: |
-          AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
-          curl -fsS -X POST "$API_URL/api/admin/sync-user" \
-            -H "$AUTH" -H "Content-Type: application/json" \
-            -d '{"clerkId":"${{ steps.provision.outputs.user_id }}","email":"${{ steps.provision.outputs.email }}","name":"E2E Test"}' \
-            && echo "actor synced"
-          curl -fsS -X POST "$API_URL/api/admin/sync-user" \
-            -H "$AUTH" -H "Content-Type: application/json" \
-            -d '{"clerkId":"${{ steps.provision.outputs.user_id_2 }}","email":"${{ steps.provision.outputs.email_2 }}","name":"E2E Target"}' \
-            && echo "target synced"
-
-      - name: 🌐 Install Playwright browsers
-        working-directory: apps/web
-        run: |
-          npx playwright install --with-deps chromium
-
-      - name: 🎭 Run Playwright against production
-        working-directory: apps/web
-        env:
-          PLAYWRIGHT_BASE_URL: https://board-game-organizer.com
-          E2E_EMAIL: ${{ steps.provision.outputs.email }}
-          E2E_EMAIL_2: ${{ steps.provision.outputs.email_2 }}
-          E2E_USERNAME_2: ${{ steps.provision.outputs.username_2 }}
-          # Clerk testing token (global setup) + ticket sign-in helper —
-          # LIVE instance (web production now serves pk_live):
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
-        run: pnpm test:e2e
-
-      - name: 📤 Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-main
-          path: apps/web/playwright-report/**
-          if-no-files-found: warn
-
-      - name: 🗑️ Cleanup E2E test user
-        if: always()
-        env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
-          USER_ID: ${{ steps.provision.outputs.user_id }}
-        run: |
-          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
-
-  # ------------------------------------------------ publish release (after ALL gates)
   publish-release:
-    name: 📦 Publish release v${{ needs.release.outputs.version }}
-    needs: [release, build-apk, deploy-production, e2e-maestro, e2e-playwright]
+    name: Publish release v${{ needs.release.outputs.version }}
+    needs:
+      - release
+      - build-apk
+      - deploy-production
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     outputs:
       release_url: ${{ steps.publish.outputs.release_url }}
+      eas_build_url: ${{ steps.eas.outputs.url }}
     steps:
-      - name: "📥 Checkout (full history: bump commit + merge commit)"
+      - name: 📥 Checkout pinned release commit (full history)
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.release.outputs.sha }}
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync to the release commit
-        run: |
-          git fetch origin main
-          git checkout -f origin/main
-
-      - name: 📦 Create the GitHub release (changelog from the bump commit)
-        id: publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.release.outputs.version }}
-        run: |
-          # The bump commit body IS the release notes (embedded by semantic-release).
-          NOTES=$(git log -1 --pretty=%B | tail -n +3)
-          PAYLOAD=$(jq -n --arg tag "v$VERSION" --arg name "v$VERSION" --arg body "$NOTES" \
-            '{tag_name:$tag, name:$name, body:$body, draft:false, prerelease:false}')
-          curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/releases" \
-            -d "$PAYLOAD" > /tmp/release.json
-          echo "release_url=$(jq -r .html_url /tmp/release.json)" >> "$GITHUB_OUTPUT"
-          echo "release created: $(jq -r .html_url /tmp/release.json)"
+        uses: ./.github/actions/setup-bun
 
       - name: 📥 Download internal APK
         uses: actions/download-artifact@v4
         with:
           name: apk-internal-main
           path: apk
+      - name: 🔒 Verify production APK provenance and current release
+        env:
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+          test "$(cat apk/source-head.txt)" = "$RELEASE_SHA"
+          test "$(cat apk/api-url.txt)" = https://api.board-game-organizer.com
+          test "$(find apk -maxdepth 1 -name '*.apk' | wc -l)" = 1
+          (cd apk && sha256sum --check apk.sha256)
+
+      - name: ☁️ Upload verified production APK to EAS
+        id: eas
+        working-directory: apps/mobile
+        env:
+          APP_VARIANT: production
+          EXPO_UPDATE_CHANNEL: production
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          APK=$(find "$GITHUB_WORKSPACE/apk" -name '*.apk' -print -quit)
+          test -n "$APK"
+          bun add --global eas-cli@27.7.2
+          node ../../.github/scripts/eas-upload.mjs "$APK"
+
+      - name: 📡 Publish verified Production OTA
+        uses: ./.github/actions/mobile-update
+        with:
+          source-sha: ${{ needs.release.outputs.sha }}
+          app-environment: production
+          update-channel: production
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
+      - name: 📦 Stage release notes from the pinned bump commit
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+          # Keep the release private until its verified APK and links are attached.
+          NOTES=$(git log -1 --pretty=%B | tail -n +3)
+          PAYLOAD=$(jq -n --arg tag "v$VERSION" --arg name "v$VERSION" --arg body "$NOTES" --arg sha "$RELEASE_SHA" \
+            '{tag_name:$tag, name:$name, body:$body, target_commitish:$sha, draft:true, prerelease:false}')
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" -H 'Content-Type: application/json' \
+            "https://api.github.com/repos/${{ github.repository }}/releases" \
+            -d "$PAYLOAD" > /tmp/release.json
+          jq -e '.id | numbers | select(. > 0)' /tmp/release.json > /dev/null
+          jq -e '.html_url | strings | select(startswith("https://github.com/"))' /tmp/release.json > /dev/null
+          jq -e --arg tag "v$VERSION" '.draft == true and .tag_name == $tag' /tmp/release.json > /dev/null
 
       - name: 📎 Attach APK with clean name
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.release.outputs.version }}
         run: |
+          set -euo pipefail
           CLEAN_NAME="board-game-organizer-${VERSION}-internal.apk"
           cp "$(find apk -name '*.apk' | head -1)" "/tmp/$CLEAN_NAME"
           REL_ID=$(jq -r .id /tmp/release.json)
-          curl -sL -X POST -H "Authorization: Bearer $GH_TOKEN" \
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"/tmp/$CLEAN_NAME" \
-            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL_ID/assets?name=$CLEAN_NAME" | \
-            jq -r '"Attached: " + .name'
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL_ID/assets?name=$CLEAN_NAME" > /tmp/apk-upload.json
+          DIGEST="sha256:$(sha256sum "/tmp/$CLEAN_NAME" | cut -d' ' -f1)"
+          SIZE=$(stat -c %s "/tmp/$CLEAN_NAME")
+          jq -e --arg name "$CLEAN_NAME" --arg digest "$DIGEST" --argjson size "$SIZE" \
+            '(.id | type) == "number" and .id > 0 and .name == $name and .size == $size and .digest == $digest' /tmp/apk-upload.json > /dev/null
 
       - name: 🔗 Append production links to the release body
         env:
           GH_TOKEN: ${{ github.token }}
+          EAS_BUILD_URL: ${{ steps.eas.outputs.url }}
         run: |
+          set -euo pipefail
           REL_ID=$(jq -r .id /tmp/release.json)
-          BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          BODY=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" | jq -r .body)
           NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://board-game-organizer.com\n- **API:** https://api.board-game-organizer.com\n- **APK:** allegato alla release' "$BODY")
+          if [ -n "$EAS_BUILD_URL" ]; then
+            NEW_BODY=$(printf '%s\n- **Build EAS:** %s' "$NEW_BODY" "$EAS_BUILD_URL")
+          fi
           PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{body:$body}')
-          curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
+          curl -fsS -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" -H 'Content-Type: application/json' \
             "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" -d "$PAYLOAD" | \
             jq -r '"Release body aggiornato: " + .tag_name'
+
+      - name: 🚀 Publish verified production release
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+          test "$(git rev-parse "v$VERSION^{}")" = "$RELEASE_SHA"
+          REL_ID=$(jq -er '.id | numbers | select(. > 0)' /tmp/release.json)
+          curl -fsS -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Content-Type: application/json' \
+            "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" \
+            -d '{"draft":false}' > /tmp/published-release.json
+          jq -e --arg tag "v$VERSION" '.draft == false and .tag_name == $tag and (.html_url | startswith("https://github.com/"))' /tmp/published-release.json > /dev/null
+          echo "release_url=$(jq -r .html_url /tmp/published-release.json)" >> "$GITHUB_OUTPUT"
 
       - name: 🗑️ Delete the merged PR draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           # HEAD~1 is the merge commit of the PR that triggered this run.
           MSG=$(git log -1 --format=%s HEAD~1)
           PR=$(echo "$MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
           if [ -z "$PR" ]; then echo "No PR number in merge message — skip draft deletion"; exit 0; fi
-          FOUND=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          FOUND=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" | \
             jq -r --arg suffix "-pr.$PR" '.[] | select(.draft == true and (.tag_name | endswith($suffix))) | .id')
           if [ -n "$FOUND" ]; then
             for rel_id in $FOUND; do
               echo "Deleting draft $rel_id (merged PR #$PR)"
-              curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+              curl -fsS -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
                 "https://api.github.com/repos/${{ github.repository }}/releases/$rel_id" -w "HTTP %{http_code}\n"
             done
           else
             echo "No draft for PR #$PR — nothing to delete"
           fi
+    permissions:
+      contents: write
+    environment: production
 
-  # -------------------------------------------------- Telegram notification
   notify-telegram:
-    name: 📣 Telegram release notification
+    name: Notify Telegram
     needs: [release, publish-release, deploy-production]
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
@@ -474,16 +511,27 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          ref: ${{ needs.release.outputs.sha }}
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
+        with:
+          install: 'false'
+
+      - name: 🔒 Notify only the current production release
+        env:
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+        run: |
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
 
       - name: 📥 Fetch release changelog
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.release.outputs.version }}
         run: |
-          curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" \
             | jq -r '.body' > /tmp/changelog.md
 
@@ -491,12 +539,16 @@ jobs:
         env:
           VERSION: ${{ needs.release.outputs.version }}
           RELEASE_URL: ${{ needs.publish-release.outputs.release_url }}
+          EAS_BUILD_URL: ${{ needs.publish-release.outputs.eas_build_url }}
         run: |
           cat > /tmp/telegram-links.html <<EOF
-          📱 <a href="$RELEASE_URL">APK (internal)</a>
+          📱 <a href="$RELEASE_URL">APK (GitHub)</a>
           🌐 <a href="https://board-game-organizer.com">Web (produzione)</a>
           🔌 <a href="https://api.board-game-organizer.com">API (produzione)</a>
           EOF
+          if [ -n "$EAS_BUILD_URL" ]; then
+            printf '☁️ <a href="%s">Build (EAS production)</a>\n' "$EAS_BUILD_URL" >> /tmp/telegram-links.html
+          fi
 
       - name: 📤 Send Telegram notification
         uses: ./.github/actions/telegram-notify
@@ -506,3 +558,4 @@ jobs:
           title: 🚀 Board Game Organizer v${{ needs.release.outputs.version }} — release
           changelog-file: /tmp/changelog.md
           links-file: /tmp/telegram-links.html
+    environment: production

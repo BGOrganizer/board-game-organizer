@@ -1,0 +1,62 @@
+"use client";
+import type { GroupRecordResponse } from "@board-game-organizer/schemas";
+import { useLingui } from "@lingui/react/macro";
+import { Crown } from "lucide-react";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
+import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
+export function GroupArtwork({
+  group,
+  size = 64,
+  status = "overlay",
+  presentation = "thumbnail",
+}: {
+  group: Pick<GroupRecordResponse, "id" | "logo" | "role">;
+  size?: number;
+  status?: "overlay" | "none";
+  presentation?: "thumbnail" | "background" | "cover";
+}) {
+  const { t } = useLingui();
+  return (
+    <span
+      className={`flex items-center justify-center ${presentation !== "thumbnail" ? "absolute inset-0" : "relative shrink-0"}`}
+      style={presentation !== "thumbnail" ? undefined : { width: size, height: size }}
+    >
+      {group.logo ? (
+        // biome-ignore lint/performance/noImgElement: Authenticated, optimized MongoDB data URI, not a remote image.
+        <img
+          src={group.logo}
+          alt=""
+          width={size}
+          height={size}
+          className="h-auto w-auto rounded-xl object-contain"
+          style={{
+            maxWidth: presentation === "cover" ? "calc(100% - 8px)" : "100%",
+            maxHeight: presentation === "cover" ? "calc(100% - 8px)" : "100%",
+          }}
+        />
+      ) : (
+        <AnimatedDicebearArtwork
+          seed={group.id}
+          variant="landscape"
+          size={size}
+          presentation={presentation}
+        />
+      )}
+      {status === "overlay" && group.role === "admin" ? (
+        <span
+          role="img"
+          aria-label={t`Group admin`}
+          className="absolute left-0 top-0 rounded-br-lg bg-surface p-1"
+        >
+          <Crown aria-hidden className="size-4 text-warning" />
+        </span>
+      ) : null}
+      {status === "overlay" && (group.role === "invited" || group.role === "requested") ? (
+        <PendingArtworkBadge
+          kind={group.role === "invited" ? "invitation" : "request"}
+          label={group.role === "invited" ? t`Invitation received` : t`Membership requested`}
+        />
+      ) : null}
+    </span>
+  );
+}

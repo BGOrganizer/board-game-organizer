@@ -1,0 +1,241 @@
+import type {
+  EventRecord,
+  EventSchedulePreview,
+  GroupBan,
+  PlannedEventCapabilities,
+  PlannedTableResponse,
+  TableRecord,
+  TableRegistration,
+} from "@board-game-organizer/schemas";
+import { eventLocalDateTime, eventLocalToIso } from "./eventForm";
+import { eventRecordVisibility } from "./eventRecordVisibility";
+
+export type EventGroupType = "PRIVATE" | "PUBLIC" | null;
+export function eventDateWall(
+  event: Pick<EventRecord, "startTime">,
+  date: EventRecord["dates"][number],
+) {
+  return `${date.day}T${date.startTime ?? event.startTime}`;
+}
+/** Preview a proposal without treating it as an agreed date for Past/Future filtering. */
+export function eventRecordPreviewDate(
+  event: Pick<EventRecord, "dates" | "confirmed" | "status">,
+): EventRecord["dates"][number] | undefined {
+  return (
+    (event.status !== "PLANNING" && event.confirmed
+      ? event.dates.find((date) => date.id === event.confirmed?.dateId)
+      : undefined) ?? event.dates[0]
+  );
+}
+/** One canonical, bounded preview for Event cards and the Table response projection. */
+export function eventRecordSchedulePreview(
+  event: Pick<
+    EventRecord,
+    "dates" | "locations" | "startTime" | "status" | "confirmed" | "timeZone"
+  >,
+): EventSchedulePreview {
+  const date = eventRecordPreviewDate(event);
+  const location =
+    (event.status !== "PLANNING" && event.confirmed
+      ? event.locations.find((row) => row.id === event.confirmed?.locationId)
+      : undefined) ?? event.locations[0];
+  return {
+    localStartsAt: date ? eventDateWall(event, date) : null,
+    location: location ?? null,
+    // Keep the existing total-proposals +n convention; frozen Events expose only their choice.
+    dateCount: event.status === "PLANNING" ? event.dates.length : Number(Boolean(date)),
+    locationCount: event.status === "PLANNING" ? event.locations.length : Number(Boolean(location)),
+    timeZone: event.timeZone,
+    dates: (event.status === "PLANNING"
+      ? event.dates
+      : event.dates.filter((row) => row.id === event.confirmed?.dateId)
+    ).map((row) => ({ id: row.id, localStartsAt: eventDateWall(event, row) })),
+    locations:
+      event.status === "PLANNING"
+        ? event.locations
+        : event.locations.filter((row) => row.id === event.confirmed?.locationId),
+  };
+}
+/** Included frozen Tables only; retain their immutable schedule in terminated history too. */
+export function eventTableSchedule(
+  table: Pick<
+    PlannedTableResponse,
+    | "eventStatus"
+    | "personalAccessOnly"
+    | "confirmed"
+    | "games"
+    | "groupType"
+    | "demonstratorUserId"
+    | "demonstratorName"
+    | "demonstratorAvatarUrl"
+  >,
+) {
+  const confirmed = table.confirmed;
+  if (table.eventStatus === "PLANNING" || !confirmed) return null;
+  return {
+    startsAt: confirmed.startsAt,
+    endsAt: confirmed.endsAt,
+    durationMinutes:
+      table.games.find((game) => game.gameId === confirmed.gameId)?.durationMinutes ?? null,
+    demonstrator:
+      (table.groupType === "PUBLIC" || table.personalAccessOnly) && table.demonstratorUserId
+        ? { name: table.demonstratorName, avatarUrl: table.demonstratorAvatarUrl }
+        : null,
+  };
+}
+/** A private proposal has no single display zone until a venue is chosen. */
+export function eventRecordDisplayTimeZone(
+  event: Pick<EventRecord, "status" | "timeZone" | "locations">,
+  groupType: EventGroupType,
+): string | null {
+  if (
+    event.status === "PLANNING" &&
+    groupType !== "PUBLIC" &&
+    new Set(event.locations.map((location) => location.timeZone ?? event.timeZone)).size > 1
+  )
+    return null;
+  return event.timeZone;
+}
+export function publicBookingIsClosed(
+  event: Pick<EventRecord, "bookingClosesAt">,
+  groupType: EventGroupType,
+  now: number,
+): boolean {
+  if (groupType !== "PUBLIC") return false;
+  return (
+    !event.bookingClosesAt ||
+    !Number.isFinite(Date.parse(event.bookingClosesAt)) ||
+    now >= Date.parse(event.bookingClosesAt)
+  );
+}
+export function canManageEvent(
+  record: { canManage?: boolean; adminUserId: string; readOnly?: boolean } | undefined,
+  userId: string | null | undefined,
+) {
+  return Boolean(record && !record.readOnly && (record.canManage ?? record.adminUserId === userId));
+}
+export function eventRecordCapabilities(
+  event: EventRecord,
+  groupType: EventGroupType,
+  userId: string,
+  member: boolean,
+  registrations: readonly TableRegistration[],
+  now: number,
+  manager?: boolean,
+): PlannedEventCapabilities {
+  const admin = manager ?? event.adminUserId === userId;
+  const planning = event.status === "PLANNING";
+  const open = planning && !publicBookingIsClosed(event, groupType, now);
+  const accepted = registrations.some((row) => row.userId === userId && row.status === "ACCEPTED");
+  return {
+    canEdit: admin && planning,
+    canInvite: admin && planning,
+    canRegister: open && (groupType === null ? admin : member),
+    canVote: planning && accepted,
+    canConfirm: admin && planning,
+    canReplan: admin && event.status === "CONFIRMED",
+    canFinalize: admin && event.status === "CONFIRMED",
+  };
+}
+export function eventRecordDay(
+  event: Pick<EventRecord, "dates" | "confirmed" | "status">,
+  groupType: EventGroupType,
+): string | null {
+  if (groupType === "PUBLIC") return event.dates[0].day;
+  if (event.status === "PLANNING" || !event.confirmed) return null;
+  return event.dates.find((date) => date.id === event.confirmed?.dateId)?.day ?? null;
+}
+export function eventRecordPeriods(
+  event: EventRecord,
+  groupType: EventGroupType,
+  now: number,
+): Array<"past" | "future"> {
+  const day = eventRecordDay(event, groupType);
+  if (!day) return ["past", "future"];
+  const today = eventLocalDateTime(new Date(now).toISOString(), event.timeZone).slice(0, 10);
+  return day < today ? ["past"] : ["future"];
+}
+/** Use elapsed minutes, not wall-clock addition, across DST transitions. */
+export function plannedTableInterval(
+  event: EventRecord,
+  table: TableRecord,
+  groupType: EventGroupType,
+  dateId?: string,
+  gameId?: number,
+) {
+  const date = event.dates.find((row) => row.id === dateId) ?? event.dates[0];
+  const eventStart = eventLocalToIso(eventDateWall(event, date), event.timeZone);
+  const startsAt = groupType === "PUBLIC" && table.startsAt ? table.startsAt : eventStart;
+  if (groupType !== "PUBLIC") return { startsAt };
+  const games =
+    gameId === undefined ? table.games : table.games.filter((game) => game.gameId === gameId);
+  if (!games.length || games.some((game) => !game.durationMinutes))
+    throw new Error("TABLE_DURATION_REQUIRED");
+  const duration = Math.max(...games.map((game) => game.durationMinutes as number));
+  const endsAt = new Date(Date.parse(startsAt) + duration * 60_000).toISOString();
+  if (!event.endsAt) throw new Error("PUBLIC_EVENT_END_REQUIRED");
+  const eventEnd = event.endsAt;
+  if (
+    Date.parse(startsAt) < Date.parse(eventStart) ||
+    Date.parse(endsAt) > Date.parse(eventEnd) ||
+    Date.parse(eventEnd) <= Date.parse(eventStart)
+  )
+    throw new Error("TABLE_OUTSIDE_EVENT");
+  return { startsAt, endsAt };
+}
+export function recordIntervalsOverlap(
+  a: { startsAt: string; endsAt?: string },
+  b: { startsAt: string; endsAt?: string },
+) {
+  return (
+    !a.endsAt ||
+    !b.endsAt ||
+    (Date.parse(a.startsAt) < Date.parse(b.endsAt) && Date.parse(b.startsAt) < Date.parse(a.endsAt))
+  );
+}
+export function hasPublicTableConflict(
+  event: EventRecord,
+  tables: readonly TableRecord[],
+  registrations: readonly TableRegistration[],
+  target: TableRecord,
+  userId: string,
+) {
+  const interval = plannedTableInterval(event, target, "PUBLIC");
+  return tables.some(
+    (table) =>
+      table.id !== target.id &&
+      (table.demonstratorUserId === userId ||
+        registrations.some(
+          (row) =>
+            row.tableId === table.id &&
+            row.userId === userId &&
+            (row.status === "PENDING" || row.status === "ACCEPTED"),
+        )) &&
+      recordIntervalsOverlap(interval, plannedTableInterval(event, table, "PUBLIC")),
+  );
+}
+/** Exclusion cannot turn a previously inaccessible private Event into personal access. */
+export function banPreservesFrozenEvent(
+  event: Pick<EventRecord, "status" | "confirmed" | "visibility">,
+  groupType: EventGroupType,
+  ban: Pick<GroupBan, "createdAt" | "memberAccessThrough"> | null,
+) {
+  if (!ban || event.status === "PLANNING" || !event.confirmed) return false;
+  const through =
+    eventRecordVisibility(event, groupType) === "PUBLIC" ? ban.createdAt : ban.memberAccessThrough;
+  return (
+    through !== undefined &&
+    Number.isFinite(Date.parse(event.confirmed.at)) &&
+    Date.parse(event.confirmed.at) <= Date.parse(through)
+  );
+}
+/** Frozen personal access never grants Group membership or management. */
+export function isFrozenTableParticipant(
+  table: Pick<TableRecord, "confirmed" | "demonstratorUserId">,
+  userId: string,
+): boolean {
+  return Boolean(
+    table.confirmed &&
+      (table.confirmed.playerIds.includes(userId) || table.demonstratorUserId === userId),
+  );
+}

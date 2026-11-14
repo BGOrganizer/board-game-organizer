@@ -1,0 +1,96 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Event removal-only menus and separate Group-context ban confirmation
+# Manual owned disposable PRIVATE PLANNING Event; manager has no automatic seat.
+# Target is an ordinary accepted Group member beyond first Event roster page.
+# Event menus never expose Group bans; ban mode explicitly opens Group Members.
+# Real removal/ban. Separate fresh fixture for each mode. No provisioning/reset/mocks.
+tags: [manual, events, participants]
+---
+- runScript: ../helpers/event-participant-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.eventPeople.link}
+- extendedWaitUntil:
+    visible: ${output.eventPeople.event}
+    timeout: 120000
+- assertVisible: ${output.eventPeople.edit}
+- tapOn: ${output.eventPeople.tables}
+- assertNotVisible: ${output.eventPeople.edit}
+- scrollUntilVisible:
+    element: ${output.eventPeople.table}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.eventPeople.people}
+- assertNotVisible: ${output.eventPeople.edit}
+- scrollUntilVisible:
+    element: ${output.eventPeople.eventManage}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.eventPeople.eventManage}
+- assertVisible: ${output.eventPeople.remove}
+- assertNotVisible: ${output.eventPeople.ban}
+- tapOn: ${output.eventPeople.cancel}
+- runFlow:
+    when:
+      true: ${!output.eventPeople.removedOnly}
+    commands:
+      - openLink: ${output.eventPeople.groupLink}
+      - extendedWaitUntil:
+          visible: ${output.eventPeople.group}
+          timeout: 120000
+      - tapOn: ${output.eventPeople.members}
+      - scrollUntilVisible:
+          element: ${output.eventPeople.manage}
+          direction: DOWN
+          timeout: 120000
+- tapOn: ${output.eventPeople.manage}
+- tapOn: ${output.eventPeople.action}
+- extendedWaitUntil:
+    visible: ${output.eventPeople.title}
+    timeout: 30000
+- tapOn: ${output.eventPeople.cancel}
+- assertVisible: ${output.eventPeople.target}
+- tapOn: ${output.eventPeople.manage}
+- tapOn: ${output.eventPeople.action}
+- extendedWaitUntil:
+    visible: ${output.eventPeople.title}
+    timeout: 30000
+- tapOn:
+    text: ${output.eventPeople.action}
+    below:
+      text: ${output.eventPeople.title}
+- extendedWaitUntil:
+    notVisible: ${output.eventPeople.title}
+    timeout: 30000
+- runFlow:
+    when:
+      true: ${!output.eventPeople.removedOnly}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            text: ${output.eventPeople.revoke}
+            enabled: true
+          timeout: 120000
+      - openLink: ${output.eventPeople.link}
+      - extendedWaitUntil:
+          visible: ${output.eventPeople.event}
+          timeout: 120000
+      - tapOn: ${output.eventPeople.people}
+- extendedWaitUntil:
+    notVisible: ${output.eventPeople.target}
+    timeout: 120000
+- takeScreenshot: event-participant-action
+- runFlow:
+    when:
+      true: ${output.eventPeople.removedOnly}
+    commands:
+      - openLink: ${output.eventPeople.groupLink}
+      - extendedWaitUntil:
+          visible: ${output.eventPeople.group}
+          timeout: 120000
+      - tapOn: ${output.eventPeople.members}
+      - scrollUntilVisible:
+          element: ${output.eventPeople.target}
+          direction: DOWN
+          timeout: 120000
+      - assertVisible: ${output.eventPeople.target}

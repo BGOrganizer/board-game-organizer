@@ -1,0 +1,51 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Real Community network and public read-only details
+# Already authenticated owned Development/Preview account, correct locale, known current network.
+# Real fixture activities: post-relation friend/followed; forbidden private/pre-relation text is recent.
+# The public Event/Table fixture belongs to a Group the viewer has not joined. No writes or mocks.
+tags: [manual, community, profiles]
+---
+- runScript: ../helpers/community-inputs.js
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///community
+- extendedWaitUntil:
+    visible: ${output.community.visible}
+    timeout: 120000
+- assertNotVisible: ${output.community.privateText}
+- assertNotVisible: ${output.community.beforeText}
+- tapOn: ${output.community.market}
+- assertVisible: ${output.community.coming}
+- tapOn: ${output.community.activities}
+- tapOn: ${output.community.type}
+- tapOn: ${output.community.kind}
+- extendedWaitUntil:
+    visible: ${output.community.filtered}
+    timeout: 120000
+- assertNotVisible: ${output.community.privateText}
+- assertNotVisible: ${output.community.beforeText}
+- openLink: ${output.community.eventLink}
+- extendedWaitUntil:
+    visible: ${output.community.readOnly}
+    timeout: 120000
+- openLink: ${output.community.tableLink}
+- extendedWaitUntil:
+    visible: ${output.community.tableText}
+    timeout: 120000
+- assertNotVisible: ${output.community.register}
+- openLink: bgo-dev:///community
+- assertVisible: ${output.community.kind}
+- assertVisible: ${output.community.filtered}
+- takeScreenshot: community-activity-kind-and-public-read-only
+- tapOn: ${output.community.type}
+- tapOn: ${output.community.allTypes}
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///community
+- extendedWaitUntil:
+    visible: ${output.community.visible}
+    timeout: 120000
+- assertNotVisible: ${output.community.privateText}
+- assertNotVisible: ${output.community.beforeText}

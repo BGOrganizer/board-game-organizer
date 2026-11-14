@@ -1,0 +1,33 @@
+name: Setup Bun workspace
+description: Set up Node.js and Bun, cache downloads, and optionally install locked dependencies.
+inputs:
+  node-version:
+    description: Node.js runtime version
+    default: '26'
+  bun-version:
+    description: Bun package-manager version
+    default: '1.4.4'
+  install:
+    description: Install workspace dependencies
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      with:
+        bun-version: ${{ inputs.bun-version }}
+    - name: Cache dependency downloads
+      uses: actions/cache@v4
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ inputs.bun-version }}-${{ hashFiles('bun.lock') }}
+        restore-keys: ${{ runner.os }}-${{ runner.arch }}-bun-${{ inputs.bun-version }}-
+    - name: Install dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      run: bun install --frozen-lockfile

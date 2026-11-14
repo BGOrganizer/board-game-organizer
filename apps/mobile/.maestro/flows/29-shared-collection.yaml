@@ -1,0 +1,107 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Authorized shared collection chips and sticky empty search
+# MANUAL read-only current Preview. Run with both viewerSynced modes, EN/IT and themes.
+tags: [manual, profile, bgg]
+---
+- runScript: ../helpers/shared-collection-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.sharedCollection.link}
+- extendedWaitUntil:
+    visible: ${output.sharedCollection.subject}
+    timeout: 120000
+- scrollUntilVisible:
+    element: ${output.sharedCollection.tab}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.sharedCollection.tab}
+- assertNotVisible: ${output.sharedCollection.sync}
+- assertNotVisible: ${output.sharedCollection.logout}
+- scrollUntilVisible:
+    element:
+      id: profile-collection-filter
+    direction: DOWN
+    timeout: 120000
+- tapOn:
+    id: profile-collection-filter
+- inputText: ${output.sharedCollection.emptyQuery}
+- extendedWaitUntil:
+    visible: ${output.sharedCollection.empty}
+    timeout: 120000
+- assertVisible:
+    id: profile-collection-filter
+    focused: true
+- takeScreenshot: shared-collection-empty-keyboard
+- hideKeyboard
+- assertVisible:
+    id: profile-collection-filter
+    text: ${output.sharedCollection.emptyValue}
+- tapOn:
+    id: list-filter-wishlist
+- tapOn: ${output.sharedCollection.clear}
+- assertVisible:
+    id: list-filter-wishlist
+    selected: true
+- tapOn:
+    id: list-filter-wishlist
+- tapOn:
+    id: list-filter-games
+- tapOn:
+    id: profile-collection-filter
+- inputText: ${output.sharedCollection.expansionQuery}
+- hideKeyboard
+- scrollUntilVisible:
+    element: ${output.sharedCollection.expansion}
+    direction: DOWN
+    timeout: 120000
+- tapOn:
+    id: list-filter-games
+- tapOn:
+    id: profile-collection-filter
+- eraseText
+- inputText: ${output.sharedCollection.wishlistQuery}
+- hideKeyboard
+- tapOn:
+    id: list-filter-games
+- tapOn:
+    id: list-filter-expansions
+- tapOn:
+    id: list-filter-wishlist
+- scrollUntilVisible:
+    element: ${output.sharedCollection.wishlist}
+    direction: DOWN
+    timeout: 120000
+- tapOn:
+    id: list-filter-wishlist
+- tapOn:
+    id: list-filter-games
+- tapOn:
+    id: list-filter-expansions
+- runFlow:
+    when:
+      true: ${output.sharedCollection.viewerSynced}
+    commands:
+      - tapOn:
+          id: list-filter-common
+      - tapOn:
+          id: profile-collection-filter
+      - eraseText
+      - inputText: ${output.sharedCollection.commonQuery}
+      - hideKeyboard
+      - scrollUntilVisible:
+          element: ${output.sharedCollection.common}
+          direction: DOWN
+          timeout: 120000
+- runFlow:
+    when:
+      true: ${!output.sharedCollection.viewerSynced}
+    commands:
+      - assertVisible:
+          id: list-filter-common
+          enabled: false
+- openLink: ${output.sharedCollection.unsyncedLink}
+- extendedWaitUntil:
+    visible: ${output.sharedCollection.unsynced}
+    timeout: 120000
+- assertNotVisible: ${output.sharedCollection.tab}
+- takeScreenshot: shared-collection-unsynced-profile

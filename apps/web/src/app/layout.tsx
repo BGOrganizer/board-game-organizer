@@ -1,19 +1,32 @@
-import { QueryProvider } from "@board-game-organizer/query";
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { LinguiClientProvider } from "@/components/LinguiClientProvider";
-import { ThemeScript } from "@/components/ThemeScript";
+import { InputBehavior } from "@/components/common/providers/InputBehavior";
+import { LinguiClientProvider } from "@/components/common/providers/LinguiClientProvider";
+import { SessionQueryProvider } from "@/components/common/providers/SessionQueryProvider";
+import { ThemeScript } from "@/components/common/providers/ThemeScript";
 import { initServerI18n } from "@/lib/i18n";
 import "./globals.css";
 
 const clerkAppearance = {
   variables: {
-    colorPrimary: "#006fee",
-    colorDanger: "#f31260",
+    colorPrimary: "var(--accent)",
+    colorPrimaryForeground: "var(--accent-foreground)",
+    colorDanger: "var(--danger)",
+    colorSuccess: "var(--success)",
+    colorWarning: "var(--warning)",
+    colorBackground: "var(--overlay)",
+    colorForeground: "var(--overlay-foreground)",
+    colorInput: "var(--field-background)",
+    colorInputForeground: "var(--field-foreground)",
+    colorMuted: "var(--default)",
+    colorMutedForeground: "var(--muted)",
+    colorBorder: "var(--border)",
+    colorRing: "var(--focus)",
+    colorModalBackdrop: "var(--backdrop)",
     borderRadius: "0.5rem",
   },
   elements: {
-    card: "shadow-xl rounded-xl",
+    card: "shadow-overlay rounded-xl",
   },
 };
 
@@ -39,12 +52,14 @@ export default async function RootLayout({
         <ClerkProvider
           publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
           appearance={clerkAppearance}
+          signUpForceRedirectUrl="/mobile-number"
         >
-          <QueryProvider>
+          <SessionQueryProvider>
             <LinguiClientProvider initialLocale={locale} initialMessages={messages}>
+              <InputBehavior />
               {children}
             </LinguiClientProvider>
-          </QueryProvider>
+          </SessionQueryProvider>
         </ClerkProvider>
       </body>
     </html>

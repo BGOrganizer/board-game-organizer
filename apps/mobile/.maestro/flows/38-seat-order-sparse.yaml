@@ -1,0 +1,213 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Sparse physical seats, anchored locks and pending invitation consent
+tags: [manual, events, seats]
+---
+# Fresh owned Development MANUAL fixture: A0/unlocked, B1/locked, C2/unlocked.
+# Pending case uses a pending invitation for C; assisted-remove starts ASSISTED.
+# No token/API proxy: native checks visible positions/roles and fresh editor reloads.
+# Web seat-order.scenario.ts verifies exact server IDs/versions and HTTP409/503.
+# Locale/theme are configured by the device runner; repeat EN/IT, light/dark, large text.
+- runScript: ../helpers/seat-order-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.seats.link}
+- extendedWaitUntil:
+    visible: ${output.seats.participants}
+    timeout: 60000
+- tapOn: ${output.seats.participants}
+- runFlow:
+    when:
+      true: ${output.seats.mode === 'demote'}
+    commands:
+      - scrollUntilVisible:
+          element: ${output.seats.empty}
+          direction: DOWN
+          timeout: 60000
+- runFlow:
+    when:
+      true: ${output.seats.removing}
+    commands:
+      - scrollUntilVisible:
+          element: ${output.seats.remove}
+          direction: DOWN
+          timeout: 60000
+      - tapOn: ${output.seats.remove}
+      - tapOn: ${output.seats.confirm}
+      - extendedWaitUntil:
+          notVisible: ${output.seats.confirm}
+          timeout: 60000
+- tapOn: ${output.seats.reorder}
+- extendedWaitUntil:
+    visible:
+      id: seat-order-save
+      enabled: true
+    timeout: 60000
+- runFlow:
+    when:
+      true: ${output.seats.removing}
+    commands:
+      - evalScript: ${output.seats.assertions = output.seats.after}
+      - runFlow: ../helpers/seat-order-assertions.yaml
+- runFlow:
+    when:
+      true: ${!output.seats.removing}
+    commands:
+      - runFlow: ../helpers/seat-order-assertions.yaml
+      - assertVisible:
+          id: ${'seat-order-up-' + output.seats.b}
+          enabled: false
+      - assertVisible:
+          id: ${'seat-order-down-' + output.seats.b}
+          enabled: false
+      - runFlow:
+          when:
+            true: ${output.seats.mode !== 'scroll'}
+          commands:
+            - runFlow:
+                when:
+                  true: ${output.seats.mode === 'demote'}
+                commands:
+                  - scrollUntilVisible:
+                      element: ${output.seats.freeLast}
+                      direction: DOWN
+                  - scrollUntilVisible:
+                      element:
+                        id: ${'seat-order-down-' + output.seats.c}
+                      direction: UP
+                  - repeat:
+                      times: 2
+                      commands:
+                        - scrollUntilVisible:
+                            element:
+                              id: ${'seat-order-down-' + output.seats.c}
+                            direction: DOWN
+                            visibilityPercentage: 100
+                        - tapOn:
+                            id: ${'seat-order-down-' + output.seats.c}
+            - runFlow:
+                when:
+                  true: ${output.seats.mode !== 'demote'}
+                commands:
+                  - tapOn:
+                      id: ${'seat-order-up-' + output.seats.c}
+            - runFlow:
+                when:
+                  true: ${output.seats.mode === 'pending'}
+                commands:
+                  - scrollUntilVisible:
+                      element:
+                        id: ${'seat-order-lock-' + output.seats.c}
+                      direction: UP
+                  - tapOn:
+                      id: ${'seat-order-lock-' + output.seats.c}
+            - evalScript: ${output.seats.assertions = output.seats.draft}
+            - runFlow: ../helpers/seat-order-assertions.yaml
+            - runFlow:
+                when:
+                  true: ${output.seats.mode === 'save-offline'}
+                commands:
+                  - setAirplaneMode: true
+                  - tapOn:
+                      id: seat-order-save
+                  - extendedWaitUntil:
+                      visible: ${output.seats.failure}
+                      timeout: 120000
+                  - setAirplaneMode: false
+            - runFlow:
+                when:
+                  true: ${output.seats.mode === 'conflict'}
+                commands:
+                  # External owned second manager now edits ONLY the Event title.
+                  # Wait for the real version change; no server mutation is faked here.
+                  - extendedWaitUntil:
+                      visible: ${output.seats.stale}
+                      timeout: 180000
+                  - assertVisible:
+                      id: seat-order-save
+                      enabled: false
+            - runFlow:
+                when:
+                  true: ${output.seats.mode === 'save-offline' || output.seats.mode === 'conflict'}
+                commands:
+                  - runFlow: ../helpers/seat-order-assertions.yaml
+                  - tapOn: ${output.seats.review}
+                  - extendedWaitUntil:
+                      visible:
+                        id: seat-order-save
+                        enabled: true
+                      timeout: 60000
+                  - evalScript: ${output.seats.assertions = output.seats.before}
+                  - runFlow: ../helpers/seat-order-assertions.yaml
+            - runFlow:
+                when:
+                  true: ${output.seats.mode !== 'save-offline' && output.seats.mode !== 'conflict'}
+                commands:
+                  - tapOn:
+                      id: seat-order-save
+                  - extendedWaitUntil:
+                      visible: ${output.seats.reorder}
+                      timeout: 60000
+                  - tapOn: ${output.seats.reorder}
+                  - extendedWaitUntil:
+                      visible:
+                        id: seat-order-save
+                        enabled: true
+                      timeout: 60000
+                  - evalScript: ${output.seats.assertions = output.seats.after}
+                  - runFlow: ../helpers/seat-order-assertions.yaml
+- runFlow:
+    when:
+      true: ${output.seats.mode === 'pending'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: ${'seat-order-row-' + output.seats.c}
+          direction: UP
+      - assertVisible:
+          id: ${'seat-order-row-' + output.seats.c}
+          containsDescendants:
+            - text: ${'.*' + output.seats.pending.slice(1, -1) + '.*'}
+- runFlow:
+    when:
+      true: ${output.seats.mode !== 'save-offline' && output.seats.mode !== 'conflict'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: ${'seat-order-row-' + output.seats.last}
+          direction: DOWN
+          visibilityPercentage: 100
+          timeout: 60000
+      - scroll
+      - assertVisible:
+          id: ${'seat-order-row-' + output.seats.last}
+          above:
+            id: seat-order-save
+      - assertVisible:
+          id: ${'seat-order-row-' + output.seats.last}
+          above:
+            id: seat-order-discard
+      - takeScreenshot: ${output.seats.screenshot}
+- tapOn:
+    id: seat-order-discard
+- extendedWaitUntil:
+    visible: ${output.seats.reorder}
+    timeout: 60000
+- openLink: ${output.seats.link}
+- tapOn: ${output.seats.participants}
+- tapOn: ${output.seats.reorder}
+- extendedWaitUntil:
+    visible:
+      id: seat-order-save
+      enabled: true
+    timeout: 60000
+- runFlow: ../helpers/seat-order-assertions.yaml
+- runFlow:
+    when:
+      true: ${output.seats.mode === 'demote' || output.seats.mode === 'manual-remove' || output.seats.mode === 'manual-exit'}
+    commands:
+      - scrollUntilVisible:
+          element: ${output.seats.freeFirst}
+          direction: UP
+      - assertVisible: ${output.seats.freeFirst}
+- tapOn:
+    id: seat-order-discard

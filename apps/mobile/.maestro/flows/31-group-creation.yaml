@@ -1,0 +1,148 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Owned Group creation draft visibility and logo controls
+# MANUAL owned Preview only. Stages a logo asset; only invalid submissions are pressed.
+tags: [manual, groups, draft]
+---
+- runScript: ../helpers/group-creation-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///groups
+- extendedWaitUntil:
+    visible:
+      id: create-group-fab
+    timeout: 120000
+- tapOn:
+    id: create-group-fab
+- extendedWaitUntil:
+    visible:
+      id: group-private-radio
+    timeout: 120000
+- assertVisible:
+    id: group-public-radio
+- tapOn: ${output.groupCreate.visibilityHelp}
+- assertVisible: ${output.groupCreate.legend}
+- back
+- tapOn:
+    id: save-group-fab
+- assertVisible:
+    id: group-name-input
+    focused: true
+- inputText: abc
+- copyTextFrom:
+    id: group-name-input
+- evalScript: ${output.groupCreate.previousName = maestro.copiedText}
+- tapOn: ${output.groupCreate.generate}
+- copyTextFrom:
+    id: group-name-input
+- assertTrue: ${maestro.copiedText !== output.groupCreate.previousName && maestro.copiedText.trim().length >= 5 && maestro.copiedText.length <= 120}
+- tapOn:
+    id: group-name-input
+- eraseText: 120
+- inputText: Unsaved board club
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.add}
+    direction: DOWN
+- tapOn: ${output.groupCreate.add}
+- extendedWaitUntil:
+    visible:
+      id: list-search-input
+    timeout: 30000
+- tapOn:
+    id: list-search-input
+- inputText: ${output.groupCreate.query}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.groupCreate.select}
+    timeout: 30000
+- tapOn:
+    text: ${output.groupCreate.select}
+    index: 0
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.removeInvite}
+    direction: DOWN
+- assertVisible: ${output.groupCreate.removeInvite}
+- scrollUntilVisible:
+    element:
+      id: group-public-radio
+    direction: UP
+- takeScreenshot: group-creation-private-cards
+- tapOn:
+    id: group-public-radio
+- assertVisible:
+    id: save-group-fab
+    enabled: true
+- tapOn:
+    id: save-group-fab
+- assertVisible: ${output.groupCreate.logoRequired}
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.add}
+    direction: DOWN
+- assertVisible:
+    text: ${output.groupCreate.add}
+    enabled: false
+- assertNotVisible: ${output.groupCreate.removeInvite}
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.upload}
+    direction: UP
+- assertVisible: ${output.groupCreate.empty}
+- assertVisible: ${output.groupCreate.hint}
+- assertNotVisible: ${output.groupCreate.logoHelp}
+- tapOn: ${output.groupCreate.upload}
+- tapOn: ${output.groupCreate.library}
+- extendedWaitUntil:
+    visible: ${output.groupCreate.image}
+    timeout: 30000
+- tapOn: ${output.groupCreate.image}
+- extendedWaitUntil:
+    visible: ${output.groupCreate.change}
+    timeout: 120000
+- assertVisible: ${output.groupCreate.remove}
+- assertVisible:
+    id: save-group-fab
+    enabled: true
+- tapOn:
+    id: save-group-fab
+- assertVisible: ${output.groupCreate.locationRequired}
+- takeScreenshot: group-creation-public-logo
+- tapOn: ${output.groupCreate.change}
+- tapOn: ${output.groupCreate.library}
+- extendedWaitUntil:
+    visible: ${output.groupCreate.image}
+    timeout: 30000
+- back
+- extendedWaitUntil:
+    visible: ${output.groupCreate.change}
+    timeout: 30000
+- tapOn: ${output.groupCreate.remove}
+- assertVisible: ${output.groupCreate.empty}
+- assertVisible: ${output.groupCreate.upload}
+- assertVisible:
+    id: save-group-fab
+    enabled: true
+- tapOn:
+    id: save-group-fab
+- assertVisible: ${output.groupCreate.logoRequired}
+- scrollUntilVisible:
+    element:
+      id: group-private-radio
+    direction: UP
+- tapOn:
+    id: group-private-radio
+- assertVisible:
+    id: save-group-fab
+    enabled: true
+- scrollUntilVisible:
+    element:
+      text: ${output.groupCreate.add}
+    direction: DOWN
+- assertVisible:
+    text: ${output.groupCreate.add}
+    enabled: true
+- assertNotVisible: ${output.groupCreate.removeInvite}
+- takeScreenshot: group-creation-private-reset
+- back

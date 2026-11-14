@@ -1,0 +1,334 @@
+import {
+  notificationItemId,
+  type PlannedTableResponse,
+  type TableSeatResponse,
+} from "@board-game-organizer/schemas";
+import {
+  formatUsername,
+  RECORD_USER_ROLES,
+  tableUserRoles,
+  useEventCutoff,
+  useEventRecordActions,
+  useEventTableRoster,
+  useTableSeatOrder,
+} from "@board-game-organizer/shared";
+import { useRouter } from "expo-router";
+import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
+import { Skeleton } from "heroui-native/skeleton";
+import { Typography } from "heroui-native/text";
+import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX } from "lucide-react-native";
+import { type ReactNode, useRef, useState } from "react";
+import { type ScrollView, SectionList, View } from "react-native";
+import { AddUserRow } from "@/components/common/ui/AddUserRow";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
+import { UserListRow } from "@/components/common/ui/UserListRow";
+import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { useT } from "@/lib/i18n";
+import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
+import { EventJoinSheet } from "./EventJoinSheet";
+import { EventSeatListHeading } from "./EventSeatListHeading";
+import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
+import { EventTableInvitationActions } from "./EventTableInvitationActions";
+export function EventTableSeats({
+  table,
+  header,
+  onRemove,
+  hasJoinedEvent,
+  active = true,
+}: {
+  table: PlannedTableResponse;
+  header: ReactNode;
+  active?: boolean;
+  hasJoinedEvent?: boolean;
+  onRemove: (row: TableSeatResponse, own: boolean) => void;
+}) {
+  const t = useT(),
+    o = useCommunityApi(),
+    router = useRouter(),
+    [danger, muted, accentForeground] = useThemeColor(["danger", "muted", "accent-foreground"]),
+    a = useEventRecordActions(o, table.eventId);
+  const layout = useFloatingActionLayout(
+    Boolean(active && table.canManage && table.eventStatus === "PLANNING"),
+  );
+  const order = useTableSeatOrder(o, table);
+  const roster = useEventTableRoster(o, table),
+    closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
+  const scroll = useRef<ScrollView>(null);
+  const [choose, setChoose] = useState(false),
+    [joining, setJoining] = useState(false);
+  const canAdd =
+    ((!closed && table.canRegister) || table.canInvite) &&
+    (table.groupType !== "PRIVATE" || hasJoinedEvent !== undefined);
+  const join = () => {
+    setChoose(false);
+    setJoining(true);
+  };
+  if (order.editing)
+    return (
+      <View style={{ flex: 1, display: active ? "flex" : "none" }}>
+        <EventSeatOrderEditor
+          model={order}
+          header={header}
+          demonstratorUserId={table.demonstratorUserId}
+        />
+      </View>
+    );
+  return (
+    <ScrollTargetContext.Provider value={scroll}>
+      <View style={{ flex: 1 }}>
+        <SectionList
+          ref={(node) => {
+            scroll.current = node?.getScrollResponder() as ScrollView | null;
+          }}
+          sections={
+            active
+              ? [
+                  { key: "seats", title: t("Seats list"), data: roster.seatRows },
+                  { key: "waiting", title: t("Waiting list"), data: roster.waitingRows },
+                ]
+              : []
+          }
+          stickySectionHeadersEnabled={false}
+          keyExtractor={(row) => row.key}
+          contentContainerStyle={{
+            padding: 20,
+            paddingTop: 12,
+            gap: 8,
+            paddingBottom: layout.paddingBottom,
+          }}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={<View style={{ gap: 16, paddingBottom: 8 }}>{header}</View>}
+          renderSectionHeader={({ section }) => (
+            <EventSeatListHeading waiting={section.key === "waiting"} />
+          )}
+          renderSectionFooter={({ section }) =>
+            section.key === "waiting" &&
+            !section.data.length &&
+            !roster.isPending &&
+            !roster.isError &&
+            (!roster.queueOpen || !roster.hasNextPage) ? (
+              <EmptyList icon={<Clock3 size={28} color={muted} />}>
+                {t("No players waiting")}
+              </EmptyList>
+            ) : null
+          }
+          renderItem={({ item }) => {
+            if (item.kind === "pending") {
+              const label =
+                item.phase === "verifying"
+                  ? t("Checking saved changes")
+                  : item.action === "join"
+                    ? t("Joining table")
+                    : item.action === "accept"
+                      ? t("Accepting invitation")
+                      : t("Sending invitation");
+              return (
+                <GroupedList>
+                  <UserListRow
+                    name={formatUsername(item.username, item.name || t("You"))}
+                    avatarUrl={item.avatarUrl}
+                    secondary={label}
+                    badge={{ icon: item.action ? Clock3 : Mail, label, color: "warning" }}
+                  />
+                </GroupedList>
+              );
+            }
+            if (item.kind !== "player") {
+              const reserved = item.kind === "reserved",
+                label = reserved
+                  ? t("Reserved place")
+                  : item.queue
+                    ? t("Join waiting list")
+                    : t("Free place");
+              return (
+                <AddUserRow
+                  label={label}
+                  isDisabled={
+                    reserved ||
+                    item.key !== roster.rows.find((row) => row.kind === "empty")?.key ||
+                    !canAdd ||
+                    a.blocking
+                  }
+                  onPress={() => {
+                    if (table.canInvite || table.groupType === "PRIVATE") setChoose(true);
+                    else void join();
+                  }}
+                />
+              );
+            }
+            const row = item.user,
+              own = row.userId === o.userId,
+              name = formatUsername(
+                row.username,
+                own && (!row.name || row.name === o.userId) ? t("You") : (row.name ?? row.userId),
+              );
+            const pending = row.status === "PENDING";
+            const roles = tableUserRoles({
+              ...row,
+              demonstrator: table.demonstratorUserId === row.userId,
+            });
+            const primary = roles[0];
+            const status = primary
+              ? t(RECORD_USER_ROLES[primary].message)
+              : pending && row.kind === "SELF"
+                ? t("Participation requested")
+                : t("Loading…");
+            return (
+              <GroupedList>
+                <UserListRow
+                  titleAccessory={
+                    <NotificationItem
+                      itemId={
+                        own && pending
+                          ? notificationItemId(table.id, "invitation", undefined, "table")
+                          : undefined
+                      }
+                    />
+                  }
+                  name={name}
+                  avatarUrl={row.avatarUrl}
+                  secondary={status}
+                  badgeContent={<UserRoleBadge roles={roles} />}
+                  actions={
+                    <>
+                      {own && table.canRespond && pending && table.myRegistration ? (
+                        <EventTableInvitationActions
+                          eventId={table.eventId}
+                          registration={table.myRegistration}
+                        />
+                      ) : null}
+                      {(
+                        own
+                          ? !closed && table.canLeave && row.status === "ACCEPTED"
+                          : table.canInvite
+                      ) ? (
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="danger-soft"
+                          style={{ minWidth: 44, minHeight: 44 }}
+                          isDisabled={a.blocking}
+                          accessibilityLabel={
+                            own ? t("Leave table") : `${t("Remove player")}: ${name}`
+                          }
+                          onPress={() => onRemove(row, own)}
+                        >
+                          {own ? (
+                            <LogOut size={18} color={danger} />
+                          ) : (
+                            <UserRoundX size={18} color={danger} />
+                          )}
+                        </Button>
+                      ) : null}
+                    </>
+                  }
+                />
+              </GroupedList>
+            );
+          }}
+          onEndReached={() => {
+            if (
+              active &&
+              roster.hasNextPage &&
+              !roster.isFetchingNextPage &&
+              !roster.isFetchNextPageError
+            )
+              roster.more();
+          }}
+          ListFooterComponent={
+            active ? (
+              <View style={{ gap: 8 }}>
+                {!roster.rows.length && !roster.isPending && !roster.isError ? (
+                  <Typography className="text-foreground">{t("No players found")}</Typography>
+                ) : null}
+                {roster.isPending || roster.isFetchingNextPage ? (
+                  <Skeleton style={{ width: "100%", height: 64, borderRadius: 12 }} />
+                ) : null}
+                {roster.isError ? (
+                  <View>
+                    <Typography accessibilityRole="alert" className="text-danger">
+                      {t("Could not load players")}
+                    </Typography>
+                    <Button onPress={roster.refetch}>
+                      <Button.Label>{t("Try again")}</Button.Label>
+                    </Button>
+                  </View>
+                ) : null}
+                {roster.hasNextPage ? (
+                  <Button
+                    variant="outline"
+                    isDisabled={roster.isFetchingNextPage}
+                    onPress={roster.more}
+                  >
+                    <Button.Label>
+                      {roster.isFetchNextPageError ? t("Try again") : t("Load more")}
+                    </Button.Label>
+                  </Button>
+                ) : null}
+              </View>
+            ) : null
+          }
+        />
+        {active && table.canManage && table.eventStatus === "PLANNING" ? (
+          <FloatingActions label={t("Reorder seats")} onPress={() => void order.start()}>
+            <ArrowUpDown size={20} color={accentForeground} />
+          </FloatingActions>
+        ) : null}
+        {choose ? (
+          <ConfirmDialog
+            title={table.canInvite ? t("Choose a place action") : t("Join table")}
+            description={
+              table.canInvite
+                ? t("Join this table yourself or invite another player.")
+                : t(
+                    "Joining accepts the current event and table settings. Vote only where multiple options are available.",
+                  )
+            }
+            busy={a.blocking}
+            onCancel={() => setChoose(false)}
+            actions={[
+              ...(!closed && table.canRegister
+                ? [
+                    {
+                      label: t("Join table"),
+                      variant: "primary" as const,
+                      onPress: () => void join(),
+                    },
+                  ]
+                : []),
+              ...(table.canInvite
+                ? [
+                    {
+                      label: t("Invite players"),
+                      variant: "primary" as const,
+                      onPress: () => {
+                        setChoose(false);
+                        router.push({
+                          pathname: "/event/invite",
+                          params: { eventId: table.eventId, tableId: table.id },
+                        });
+                      },
+                    },
+                  ]
+                : []),
+            ]}
+          ></ConfirmDialog>
+        ) : null}
+        {joining ? (
+          <EventJoinSheet
+            eventId={table.eventId}
+            tableId={table.id}
+            onClose={() => setJoining(false)}
+          />
+        ) : null}
+      </View>
+    </ScrollTargetContext.Provider>
+  );
+}

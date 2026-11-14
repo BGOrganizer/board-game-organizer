@@ -1,0 +1,88 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Owned Group member actions and creator-only role changes
+# Manual owned Development/Preview Group. Signed-in creator; target starts as ordinary
+# accepted member. Ban/Remove are cancelled. Role changes are real; failure may leave
+# target promoted. No provisioning, mocks, Production, optional required steps or reset.
+tags: [manual, groups, moderators]
+---
+- runScript: ../helpers/group-role-inputs.js
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: ${output.groupRole.link}
+- extendedWaitUntil:
+    visible: ${output.groupRole.group}
+    timeout: 120000
+- tapOn: ${output.groupRole.members}
+- scrollUntilVisible:
+    element:
+      text: ${output.groupRole.manage}
+    direction: DOWN
+- tapOn: ${output.groupRole.manage}
+- assertVisible: ${output.groupRole.promote}
+- assertVisible: ${output.groupRole.remove}
+- tapOn: ${output.groupRole.ban}
+- extendedWaitUntil:
+    visible: ${output.groupRole.banTitle}
+    timeout: 30000
+- tapOn: ${output.groupRole.cancel}
+- tapOn: ${output.groupRole.manage}
+- tapOn: ${output.groupRole.remove}
+- extendedWaitUntil:
+    visible: ${output.groupRole.removeTitle}
+    timeout: 30000
+- tapOn: ${output.groupRole.cancel}
+- tapOn: ${output.groupRole.manage}
+- tapOn: ${output.groupRole.promote}
+- extendedWaitUntil:
+    visible: ${output.groupRole.promoteTitle}
+    timeout: 30000
+- tapOn: ${output.groupRole.cancel}
+- tapOn: ${output.groupRole.manage}
+- tapOn: ${output.groupRole.promote}
+- extendedWaitUntil:
+    visible: ${output.groupRole.promoteTitle}
+    timeout: 30000
+- tapOn:
+    text: ${output.groupRole.promote}
+    below:
+      text: ${output.groupRole.promoteTitle}
+- extendedWaitUntil:
+    notVisible: ${output.groupRole.promoteTitle}
+    timeout: 30000
+- tapOn: ${output.groupRole.manage}
+- assertVisible: ${output.groupRole.demote}
+- assertNotVisible: ${output.groupRole.promote}
+- tapOn: ${output.groupRole.demote}
+- extendedWaitUntil:
+    visible: ${output.groupRole.demoteTitle}
+    timeout: 30000
+- tapOn: ${output.groupRole.cancel}
+- tapOn: ${output.groupRole.manage}
+- tapOn: ${output.groupRole.demote}
+- extendedWaitUntil:
+    visible: ${output.groupRole.demoteTitle}
+    timeout: 30000
+- tapOn:
+    text: ${output.groupRole.demote}
+    below:
+      text: ${output.groupRole.demoteTitle}
+- extendedWaitUntil:
+    notVisible: ${output.groupRole.demoteTitle}
+    timeout: 30000
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: ${output.groupRole.link}
+- extendedWaitUntil:
+    visible: ${output.groupRole.group}
+    timeout: 120000
+- tapOn: ${output.groupRole.members}
+- scrollUntilVisible:
+    element:
+      text: ${output.groupRole.manage}
+    direction: DOWN
+- tapOn: ${output.groupRole.manage}
+- assertVisible: ${output.groupRole.promote}
+- assertNotVisible: ${output.groupRole.demote}
+- tapOn: ${output.groupRole.cancel}

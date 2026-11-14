@@ -1,0 +1,80 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Resource notification popover reads information while preserving pending invitations
+tags: [manual, notifications]
+---
+- assertTrue: ${typeof NOTIFICATION_ACK === 'string' && NOTIFICATION_ACK === 'owned-disposable-notifications'}
+- assertTrue: ${typeof NOTIFICATION_KIND === 'string' && /^(group|event|table)$/.test(NOTIFICATION_KIND)}
+- assertTrue: ${typeof NOTIFICATION_ID === 'string' && /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(NOTIFICATION_ID)}
+- assertTrue: ${NOTIFICATION_KIND !== 'table' || (typeof NOTIFICATION_EVENT_ID === 'string' && /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(NOTIFICATION_EVENT_ID))}
+- assertTrue: ${typeof NOTIFICATION_CASE === 'string' && /^(empty|read|mixed|pending|read-error)$/.test(NOTIFICATION_CASE)}
+- assertTrue: ${typeof NOTIFICATION_LOCALE === 'string' && /^(en|it)$/.test(NOTIFICATION_LOCALE)}
+- assertTrue: ${typeof NOTIFICATION_EXPECTED_TEXT === 'string' && NOTIFICATION_EXPECTED_TEXT.length > 0}
+- launchApp:
+    clearState: false
+- openLink: "${NOTIFICATION_KIND === 'group' ? 'bgo-dev:///group/' + NOTIFICATION_ID : NOTIFICATION_KIND === 'event' ? 'bgo-dev:///event/' + NOTIFICATION_ID : 'bgo-dev:///event/table?eventId=' + NOTIFICATION_EVENT_ID + '&tableId=' + NOTIFICATION_ID}"
+- tapOn: "${NOTIFICATION_LOCALE === 'it' ? 'Aggiornamenti' : 'New changes'}"
+- extendedWaitUntil:
+    visible: ${NOTIFICATION_EXPECTED_TEXT}
+    timeout: 60000
+- runFlow:
+    when:
+      true: ${NOTIFICATION_CASE !== 'empty'}
+    commands:
+      - assertTrue: ${typeof NOTIFICATION_EXPECTED_TITLE === 'string' && NOTIFICATION_EXPECTED_TITLE.length > 0}
+      - assertTrue: ${typeof NOTIFICATION_EXPECTED_DESCRIPTION === 'string' && NOTIFICATION_EXPECTED_DESCRIPTION.length > 0}
+      - assertVisible: ${NOTIFICATION_EXPECTED_TITLE}
+      - assertVisible: ${NOTIFICATION_EXPECTED_DESCRIPTION}
+      - back
+      - openLink: bgo-dev:///notifications
+      - extendedWaitUntil:
+          visible: ${NOTIFICATION_EXPECTED_TITLE + '. ' + NOTIFICATION_EXPECTED_DESCRIPTION}
+          timeout: 60000
+      - openLink: "${NOTIFICATION_KIND === 'group' ? 'bgo-dev:///group/' + NOTIFICATION_ID : NOTIFICATION_KIND === 'event' ? 'bgo-dev:///event/' + NOTIFICATION_ID : 'bgo-dev:///event/table?eventId=' + NOTIFICATION_EVENT_ID + '&tableId=' + NOTIFICATION_ID}"
+      - tapOn: "${NOTIFICATION_LOCALE === 'it' ? 'Aggiornamenti' : 'New changes'}"
+      - extendedWaitUntil:
+          visible: ${NOTIFICATION_EXPECTED_TEXT}
+          timeout: 60000
+- runFlow:
+    when:
+      true: ${NOTIFICATION_CASE === 'read' || NOTIFICATION_CASE === 'mixed'}
+    commands:
+      - tapOn:
+          id: notification-changes-read
+      - runFlow:
+          when:
+            true: ${NOTIFICATION_CASE === 'read'}
+          commands:
+            - extendedWaitUntil:
+                visible: "${NOTIFICATION_LOCALE === 'it' ? 'Nessuna nuova modifica' : 'No new changes'}"
+                timeout: 60000
+      - runFlow:
+          when:
+            true: ${NOTIFICATION_CASE === 'mixed'}
+          commands:
+            - assertTrue: ${typeof NOTIFICATION_PENDING_TEXT === 'string' && NOTIFICATION_PENDING_TEXT.length > 0}
+            - assertVisible: ${NOTIFICATION_PENDING_TEXT}
+            - assertVisible:
+                id: notification-changes-read
+                enabled: false
+- runFlow:
+    when:
+      true: ${NOTIFICATION_CASE === 'pending' || NOTIFICATION_CASE === 'empty'}
+    commands:
+      - assertVisible:
+          id: notification-changes-read
+          enabled: false
+- runFlow:
+    when:
+      true: ${NOTIFICATION_CASE === 'read-error'}
+    commands:
+      - setAirplaneMode: true
+      - tapOn:
+          id: notification-changes-read
+      - extendedWaitUntil:
+          visible: "${NOTIFICATION_LOCALE === 'it' ? 'Impossibile segnare gli aggiornamenti come letti. Riprova.' : 'Could not mark changes as read. Try again.'}"
+          timeout: 120000
+      - setAirplaneMode: false
+      - tapOn: "${NOTIFICATION_LOCALE === 'it' ? 'Riprova' : 'Try again'}"
+      - extendedWaitUntil:
+          visible: "${NOTIFICATION_LOCALE === 'it' ? 'Nessuna nuova modifica' : 'No new changes'}"
+          timeout: 60000

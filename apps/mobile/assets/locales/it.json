@@ -1,0 +1,10 @@
+{
+  "android": {
+    "app_name": "Board Game Organizer",
+    "app_name_development": "Board Game Organizer Sviluppo"
+  },
+  "ios": {
+    "NSCameraUsageDescription": "Scatta una foto per il logo della tua organizzazione.",
+    "NSPhotoLibraryUsageDescription": "Scegli il logo dell'organizzazione dalla libreria fotografica."
+  }
+}

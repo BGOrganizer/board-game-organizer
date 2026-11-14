@@ -1,127 +1,173 @@
 # Board Game Organizer
 
-![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)
-![Codecov](https://codecov.io/gh/BGOrganizer/board-game-organizer/branch/main/graph/badge.svg)
+<p align="center">
+  <img src="docs/assets/bgo-mascot-organizer.png" alt="Board Game Organizer mascot with cards, a die and a calendar" width="320" />
+</p>
 
-Multi-platform app to organize board game sessions, collections, groups, and player stats —
-web, API, and mobile, all in one TypeScript monorepo.
+[![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml "CI")
+[![Codecov](https://codecov.io/gh/BGOrganizer/board-game-organizer/branch/main/graph/badge.svg)](https://codecov.io/gh/BGOrganizer/board-game-organizer)
 
-## Stack
+Organize board-game nights across web and native mobile: find players, manage collections,
+plan events and tables, and record results.
 
-| Layer | Tech |
-|-------|------|
-| Monorepo | pnpm workspaces + Turborepo |
-| Web | Next.js 16 (App Router, React 19) · Tailwind CSS v4 · HeroUI |
-| API | Next.js 16 route handlers · Clerk auth · MongoDB (raw driver) · zod |
-| Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
-| Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) · `@board-game-organizer/schemas` (DB models + zod DTOs) |
-| i18n | **LinguiJS** (it + en catalogs, web + mobile) — see AGENTS.md |
-| Tooling | TypeScript · Biome (lint + format) · Vitest (+ coverage ≥ 50% per app) · commitlint · Maestro · Playwright |
+[Get started](#get-started) | [Commands](#commands) | [Project structure](#project-structure) | [Documentation](#documentation)
 
-## Features
+## What you can do
 
-**Implemented**
-- Clerk authentication on web and mobile (sign-in / sign-up, Google OAuth)
-- Profile screen (avatar, user info, stats) powered by the API (`GET /api/profiles`, deployed on
-  Vercel) with **logout**; specular web/mobile implementation
-- Light/dark theme follows the device (HeroUI + uniwind)
-- Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
-- App shells with Matches · Groups · Organizations · Contacts · Profile navigation (web + mobile)
-- **Contacts tab** (web + mobile): Following/Followers/Blocked lists, follow/unfollow,
-  address-book suggestions (mobile: permission-gated, matched registered users persisted
-  in `contactLinks`; 'Add contacts' CTA re-prompts when denied), prefix search (with block
-  policy + rate limit), presence green-dot (heartbeat), coherent follow state across
-  sections (TanStack Query cache invalidation), block/unblock with confirmation via a
-  kebab action menu (mobile bottom sheet / web dropdown)
-- **Invites** (Phase 3): shareable invite links with 7-day TTL (`POST /api/invites`,
-  `POST /api/invites/claim`); claiming makes both users MUTUAL followers/friends. UI: an
-  `InviteCard` (card + button, no email form) above the Contacts tabs. The link ALWAYS points
-  at the **API** that generated it (preview API → preview link, production → production link);
-  claim happens on the public page `/invite/<token>` HOSTED BY THE API (Clerk sign-in modal +
-  Bearer claim). Icons via lucide-react / lucide-react-native.
-- E2E tests with **Maestro** (mobile) and **Playwright** (web) in CI — test users are
-  provisioned via the Clerk API per run and deleted afterwards (never accumulate)
+- Create private or public Groups, manage membership and delegate moderation.
+- Plan standalone or Group Events, propose dates, verified venues and games, and collect votes.
+- Arrange seats and waiting lists manually or with assistance; prioritize player count or BGG Best.
+  Event confirmation remains an explicit manager action.
+- Record whole-event results and track GLOBAL/GROUP OpenSkill ratings.
+- Connect with friends, search users and discover permission-gated device contacts on mobile.
+- Link a BoardGameGeek account, sync owned games and browse a MongoDB-backed catalog with
+  durations, difficulty and player-count recommendations.
+- Receive in-app updates and optional push notifications, with English/Italian and light/dark UI.
 
-**Planned**
-- Collection management, session logging, player statistics, game catalog (BGG import)
-- Groups, match scheduling, venues, ELO rankings, marketplace
+Main navigation is **Tables / Events / Groups / Community / Contacts**:
 
-**Release 2 (deferred)** — see `plan.md`: friend requests UI + expired-invite
-cleanup job.
+- **Tables:** confirmed or completed tables where you are a confirmed player.
+- **Events:** Participation includes your registrations, invitations and demonstrations, plus Events you manage.
+  Available lists enrollable planning Events in Groups where you are an accepted member and are not already participating or managing.
+- **Contacts:** Connections, Requests, Contacts and Search. Device contacts and remote search have separate lists;
+  web shows registered contacts from the synchronized snapshot.
 
-## Prerequisites
+> [!NOTE]
+> The unified Groups / Events / Tables domain is implemented on this branch; production and
+> authenticated device/E2E acceptance remain incomplete. See the [domain contract](docs/groups-events-refactor.md)
+> and [verification checkpoint](docs/implementation-progress.md). Retired Match/Organization writers are disabled;
+> legacy database records are retained.
 
-- **Node.js ≥ 22** (CI uses 26)
-- **pnpm ≥ 11.6** (`corepack enable && corepack prepare pnpm@11.6.0 --activate`, or `npm i -g pnpm`)
-- **MongoDB** running (transactions require a replica set: `mongod --replSet rs0` + `rs.initiate()`)
-- Accounts/keys: [Clerk](https://clerk.com) (publishable + secret keys); Sentry DSN only for mobile
+## Get started
 
-## Setup & Run
+### Requirements
 
-```bash
-pnpm install          # install all workspace dependencies
+- **Node.js 26** and **Bun 1.4.4**, matching CI and `packageManager`.
+- **Docker with Compose** for the local MongoDB replica set and integration tests.
+- Clerk development keys, public MapTiler keys for each client and a server MapTiler key for address verification.
+- A BGG rankings CSV at `scripts/mongodb/data/boardgames_ranks.csv`; see [catalog setup](scripts/mongodb/README.md).
+- For mobile: an Android/iOS development build and the matching native toolchain. Expo Go and Expo web are unsupported.
 
-# 1. Create env files from the per-app examples
-cp apps/web/.env.example apps/web/.env.local
-cp apps/api/.env.example apps/api/.env.local
-cp apps/mobile/.env.example apps/mobile/.env
+### Install and configure
 
-pnpm dev              # run all apps
+From the repository root:
+
+```sh
+bun install --frozen-lockfile
 ```
 
-- Web: http://localhost:3000
-- API: http://localhost:4000
-- Mobile: `pnpm --filter mobile dev` (Expo dev client / emulator)
+Copy each template to the corresponding private file, then fill its placeholders:
 
-Per-app: `pnpm --filter web dev`, `pnpm --filter api dev`, `pnpm --filter mobile dev`.
+| App | Template | Local configuration |
+| --- | --- | --- |
+| API | `apps/api/.env.example` | `apps/api/.env.local` |
+| Web | `apps/web/.env.example` | `apps/web/.env.local` |
+| Mobile | `apps/mobile/.env.example` | `apps/mobile/.env` |
 
-## Quality
+Use the same Clerk development instance across the API and clients. Configure Clerk user webhooks
+for profile/contact discovery; existing users can be mirrored with `bun run --filter api backfill:users`.
+Sentry and push credentials are optional; the notification inbox works without push configuration.
+BGG linking and synchronization need the API's `BGG_TOKEN`.
 
-```bash
-pnpm lint         # biome check
-pnpm typecheck    # tsc --noEmit across apps
-pnpm format       # biome format --write .
-pnpm --filter <app> test             # vitest (unit)
-pnpm --filter <app> test:coverage    # vitest + coverage report
-pnpm --filter api test:integration   # integration tests (testcontainers / Docker)
-pnpm --filter web test:e2e           # Playwright E2E (needs CLERK_SECRET_KEY +
-                                   #   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY for the Clerk
-                                   #   testing token; PLAYWRIGHT_BASE_URL for the target)
-pnpm commitlint                      # conventional-commit check
-pnpm release                        # semantic-release (version bump + changelog, on main)
+For a physical device, set `EXPO_PUBLIC_API_URL` to your computer's reachable LAN address.
+Keep populated configuration files private; `NEXT_PUBLIC_*` and `EXPO_PUBLIC_*` values are public client configuration.
+
+### Start the database
+
+With the CSV in place and Docker running:
+
+```sh
+docker compose up -d --wait --wait-timeout 600
+bun run --filter api migrate
 ```
 
-## Git Workflow & CI/CD
+Compose initializes MongoDB 7 as replica set `rs0` and imports the CSV before reporting healthy.
+To update the catalog later, replace the CSV and recreate the MongoDB container; follow the
+[catalog update procedure](scripts/mongodb/README.md#update-the-local-catalog).
+The API template contains the local connection URI. `docker compose logs -f mongodb` shows import progress.
+Migrations create indexes and remove the legacy `relationships` collection; run them against your intended local database.
 
-- **`main` is protected** — no direct pushes; every change goes through a **pull request**
-  with at least 1 approval (branch protection: Settings → Branches → `main`).
-- **Branch pushes run `branch-ci.yml`** (fast subset: commitlint, Biome, typecheck, unit +
-  integration tests) — quick feedback while implementing; **the PR is opened only when the
-  whole feature is done** (on request) and runs the full `pr-ci.yml` below.
-- **PRs run `pr-ci.yml`**: commitlint → Biome → typecheck → unit tests with coverage → API
-  integration tests (testcontainers) → mobile APK build (internal) → api/web builds → Vercel
-  **preview** deploys → E2E **Maestro** (mobile) + **Playwright** (web).
-- If every gate passes, a **draft prerelease** (`v<version>-pr.<PR>`) is created/updated with
-  the PR **changelog** (from conventional commits), the internal APK and the preview links,
-  and a **Telegram notification** is sent (changelog + preview links + PR APK).
-- Merging to main runs `main-ci.yml`: **semantic-release** bumps the **semver** version from
-  the conventional commits (breaking → major, `feat` → minor, `fix` → patch), generates
-  **`CHANGELOG.md`**, syncs the version across api/web/mobile + the APK, creates the GitHub
-  release `v<version>` with the changelog, attaches the internal APK, deploys api/web to
-  **Vercel production** and posts the release to the **Telegram channel**.
-- The **development APK** is built only manually from main (`mobile-development.yml`) and
-  attached to the latest release.
+### Run the apps
 
-See `AGENTS.md` for the full spec, env vars, and the signed git/commit workflow.
+Run each command in its own terminal:
 
-## Board automation (pi-board-agent)
+| App | Command | Local endpoint |
+| --- | --- | --- |
+| API | `bun run --filter api dev` | <http://localhost:4000> |
+| Web | `bun run --filter web dev` | <http://localhost:3000> |
+| Mobile | `bun run --filter mobile dev` | Expo development-client server |
 
-Autonomous execution of the GitHub project board (story refine → sub-issue tasks →
-implementation in worktrees → PR per plan → CI fixes → Telegram): the config lives in
- (gitignored) and the runtime in a separate Docker container.
-See  → *Board automation* for the full config + the gh token permissions
-needed to initialize the project ().
+`bun run dev` starts all workspace development tasks through Turborepo.
+For a first local Android build use `bun run --filter mobile android`; on macOS with Xcode use
+`bun run --filter mobile ios`. Starting Metro alone does not build the native app.
+
+## Commands
+
+Run from the repository root. Bun manages dependencies and scripts; application tools retain Node.js.
+
+| Task | Command |
+| --- | --- |
+| Lint and formatting checks | `bun run lint` |
+| Type checking | `bun run typecheck` |
+| App unit tests | `bun run --filter web test` (or `api`, `mobile`) |
+| Shared logic tests | `bun run --filter @board-game-organizer/shared test` |
+| Schema tests | `bun run --filter @board-game-organizer/schemas test` |
+| Unit coverage | `bun run --filter web test:coverage` (also API, mobile, shared and schemas) |
+| MongoDB integration tests | `bun run --filter api test:integration` |
+| One web test file | `bun run --filter web test src/components/events/__tests__/useTableSeatOrder.test.tsx` |
+| Web E2E | `bun run --filter web test:e2e` |
+| Production web/API builds | `bun run build` |
+| Extract / compile translations | `bun run i18n:extract` / `bun run i18n:compile` |
+| Regenerate / verify artwork | `node scripts/branding/export.mjs` / `node scripts/branding/export.mjs --check` |
+
+There is no root `bun run test`; use the workspace scripts above, which retain Vitest rather than the separate `bun test` runner. `bun run build` runs the web/API build scripts; it does not produce a native binary.
+Integration tests start a Testcontainers replica set and need Docker. Web E2E requires running apps or an
+explicit `PLAYWRIGHT_BASE_URL`, the matching API/Clerk configuration and provisioned test users.
+Native UI acceptance uses the retained [Maestro flows](apps/mobile/.maestro); mobile Vitest covers pure logic.
+See [delivery details](docs/development.md#delivery) for CI policy and acceptance limits.
+
+## Project structure
+
+| Path | Responsibility |
+| --- | --- |
+| `apps/web` | Next.js 16, React 19, HeroUI 3 and Tailwind CSS 4 |
+| `apps/mobile` | Expo SDK 57, React Native 0.86, HeroUI Native and Uniwind |
+| `apps/api` | Next.js route handlers, Clerk, MongoDB and zod |
+| `packages/shared` / `schemas` | Domain logic, Query hooks, models and DTOs |
+| `packages/query` / `store` | TanStack Query server state / Zustand UI and unsaved drafts |
+| `packages/biome-config` / `typescript-config` | Shared tooling configuration |
+| `messages` | Shared Lingui English/Italian source and compiled catalogs |
+| `docs` | Domain specifications, setup details and verification evidence |
+| `.github` | CI/CD workflows, actions and supporting scripts |
+
+Web and mobile own their UI; pure behavior is shared. Maps use MapTiler and native MapLibre.
+Read [AGENTS.md](AGENTS.md) before changing code.
+
+## Client responsiveness defaults
+
+Clients retain cached data while refreshing and use bounded lists and optimistic mutation feedback.
+Native Query data persists in an account/API-scoped encrypted cache; restoration does not grant authentication
+or permission. Native cache retention, build requirements and implementation rules live in
+[the development reference](docs/development.md#native-cache-and-builds) and
+[responsiveness defaults](docs/development.md#client-responsiveness-defaults).
+
+## Documentation
+
+- [Groups, Events and Tables](docs/groups-events-refactor.md) | current behavior and permissions.
+- [Profiles and BGG collections](docs/profiles.md) and [Community](docs/community.md).
+- [Development reference](docs/development.md) | cache, responsiveness, BGG enrichment and delivery.
+- [Operations](docs/organizations-events-operations.md) | environment isolation, providers and deployment gates.
+- [Verification checkpoint](docs/implementation-progress.md) | completed checks and remaining acceptance work.
+- [Mascot and app artwork](docs/branding.md) | source assets and platform exports.
 
 ## License
 
-MIT
+Copyright (c) 2026 Alessandro Mancini and the respective contributors.
+
+Board Game Organizer is licensed under the **GNU Affero General Public License v3.0 only**
+(`AGPL-3.0-only`). You may use, modify and redistribute the covered software, including commercially,
+under the license terms. Distributing covered versions requires providing the corresponding source;
+modified versions used over a network must offer their corresponding source to the users interacting
+with them. See [LICENSE](LICENSE) for the full terms.
+
+Third-party dependencies and separately licensed materials retain their own licenses and attribution.

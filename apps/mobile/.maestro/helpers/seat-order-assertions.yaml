@@ -1,0 +1,52 @@
+appId: com.bgo.boardgameorganizer.dev
+---
+- scrollUntilVisible:
+    element:
+      id: ${'seat-order-row-' + output.seats.assertions[0].id}
+    direction: UP
+    visibilityPercentage: 100
+    timeout: 60000
+- evalScript: ${output.seats.index = 0}
+- repeat:
+    times: ${output.seats.assertions.length}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].id}
+          direction: DOWN
+          visibilityPercentage: 100
+          timeout: 60000
+      - assertVisible:
+          id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].id}
+      - assertNotVisible:
+          id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].id}
+          containsDescendants:
+            - text: "^(Position|Posizione):.*"
+      - assertNotVisible:
+          id: ${'seat-order-waiting-' + output.seats.assertions[output.seats.index].id}
+      - runFlow:
+          when:
+            true: ${output.seats.index > 0}
+          commands:
+            - assertVisible:
+                id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].id}
+                below:
+                  id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].previousId}
+      - runFlow:
+          when:
+            true: ${output.seats.assertions[output.seats.index].position !== null}
+          commands:
+            - assertVisible:
+                id: ${'seat-order-lock-' + output.seats.assertions[output.seats.index].id}
+                text: "${output.seats.assertions[output.seats.index].locked ? output.seats.unlock : output.seats.lock}"
+      - runFlow:
+          when:
+            true: ${output.seats.assertions[output.seats.index].position === null}
+          commands:
+            - assertNotVisible:
+                id: ${'seat-order-lock-' + output.seats.assertions[output.seats.index].id}
+            - assertVisible:
+                id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].id}
+                below:
+                  text: ${output.seats.waiting}
+      - evalScript: ${output.seats.index = output.seats.index + 1}

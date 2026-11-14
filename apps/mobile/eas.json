@@ -5,6 +5,7 @@
   },
   "build": {
     "development": {
+      "channel": "development",
       "developmentClient": true,
       "distribution": "internal",
       "android": {
@@ -14,8 +15,10 @@
         }
       },
       "env": {
+        "APP_VARIANT": "development",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
-      }
+      },
+      "bun": "1.4.4"
     },
     "internal": {
       "distribution": "internal",
@@ -24,10 +27,16 @@
       },
       "env": {
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
-      }
+      },
+      "bun": "1.4.4"
     },
     "production": {
-      "autoIncrement": true
+      "channel": "production",
+      "env": {
+        "APP_VARIANT": "production"
+      },
+      "autoIncrement": true,
+      "bun": "1.4.4"
     }
   },
   "submit": {

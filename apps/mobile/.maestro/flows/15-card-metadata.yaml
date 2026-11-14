@@ -1,0 +1,218 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Group Event and Table card metadata
+# Explicit existing PRIVATE fixture; actor already signed in, same fixture as web manual scenario.
+# Two Event dates/venues, two Table games. No setup, consent shortcuts, resets or mocked responses.
+tags: [manual, cards]
+---
+- runScript: ../helpers/card-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///groups
+- extendedWaitUntil:
+    visible:
+      id: "list-search-input"
+    timeout: 120000
+- tapOn:
+    id: "list-search-input"
+- eraseText: 120
+- inputText: ${output.cardGroupName}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.cardGroup}
+    timeout: 120000
+- assertVisible: ${output.cardMembers}
+- assertVisible: ${output.cardGroupEvents}
+- assertVisible: ${output.cardPrivate}
+- takeScreenshot: card-group-metadata
+- tapOn: ${output.cardGroup}
+- extendedWaitUntil:
+    visible: ${output.cardGroupTitle}
+    timeout: 120000
+- assertVisible: ${output.cardPrivate}
+- takeScreenshot: card-group-background-identity
+- assertVisible: ${output.cardOverview}
+- assertVisible: ${output.cardRankingTab}
+- tapOn: ${output.cardMembersTab}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardPerson}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardGroupRole}
+- takeScreenshot: card-group-member-identity-role
+- openLink: bgo-dev:///events
+- tapOn:
+    id: "list-search-input"
+- eraseText: 120
+- inputText: ${output.cardEventName}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.cardEvent}
+    timeout: 120000
+- assertVisible: ${output.cardGroupParent}
+- assertVisible: ${output.cardEventTableCount}
+- assertVisible: ${output.cardEventAccepted}
+- takeScreenshot: card-event-horizontal-metadata
+- tapOn:
+    text: ${output.cardEventState}
+    below:
+      text: ${output.cardGroupParent}
+- assertVisible: ${output.cardPlayers}
+- assertNotVisible: ${output.cardDate}
+- takeScreenshot: card-event-status-metadata
+- back
+- scrollUntilVisible:
+    element: ${output.cardEventDatesPopover}
+    direction: LEFT
+    timeout: 20000
+- tapOn: ${output.cardEventDatesPopover}
+- assertVisible: ${output.cardDate}
+- assertVisible: ${output.cardTime}
+- back
+- scrollUntilVisible:
+    element: ${output.cardEventLocationsPopover}
+    direction: LEFT
+    timeout: 20000
+- tapOn: ${output.cardEventLocationsPopover}
+- assertVisible: ${output.cardAddress}
+- assertNotVisible: ${output.cardZone}
+- back
+- tapOn: ${output.cardEvent}
+- extendedWaitUntil:
+    visible: ${output.cardEventTitle}
+    timeout: 120000
+- takeScreenshot: card-event-background-identity
+- tapOn: ${output.cardParticipantsTab}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardPerson}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardEventRole}
+- takeScreenshot: card-event-participant-avatar-role
+- tapOn: ${output.cardOverview}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardGroup}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardMembers}
+- takeScreenshot: card-event-parent-group-list-style
+- openLink: bgo-dev:///tables
+- tapOn:
+    id: "list-search-input"
+- eraseText: 120
+- inputText: ${output.cardTableName}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.cardTable}
+    timeout: 120000
+- assertVisible: ${output.cardEventParent}
+- assertVisible: ${output.cardGroupParent}
+- assertVisible: ${output.cardRatio}
+- takeScreenshot: card-table-horizontal-metadata
+- scrollUntilVisible:
+    element:
+      text: ${output.cardDatesPopover}
+    direction: LEFT
+    timeout: 20000
+- tapOn: ${output.cardDatesPopover}
+- assertVisible: ${output.cardDate}
+- assertVisible: ${output.cardTime}
+- takeScreenshot: card-table-dates-popover
+- back
+- scrollUntilVisible:
+    element:
+      text: ${output.cardLocationsPopover}
+    direction: LEFT
+    timeout: 20000
+- tapOn: ${output.cardLocationsPopover}
+- assertVisible: ${output.cardAddress}
+- assertNotVisible: ${output.cardZone}
+- takeScreenshot: card-table-locations-popover
+- back
+- scrollUntilVisible:
+    element:
+      text: ${output.cardGamesPopover}
+    direction: LEFT
+    timeout: 20000
+- tapOn: ${output.cardGamesPopover}
+- assertVisible: ${output.cardGamesTitle}
+- assertNotVisible: ${output.cardNoGames}
+- takeScreenshot: card-table-games-popover
+- back
+- tapOn: ${output.cardTable}
+- extendedWaitUntil:
+    visible: ${output.cardTableTitle}
+    timeout: 120000
+- scrollUntilVisible:
+    element:
+      text: ${output.cardEventState}
+      childOf:
+        id: "record-identity-controls"
+    direction: LEFT
+    timeout: 20000
+- takeScreenshot: card-table-background-identity
+- tapOn:
+    text: ${output.cardEventState}
+    childOf:
+      id: "record-identity-controls"
+- assertNotVisible: ${output.cardDatesPopover}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardUnconfirmed}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardUnconfirmed}
+- back
+- scrollUntilVisible:
+    element:
+      text: ${output.cardEvent}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardEventTableCount}
+- takeScreenshot: card-table-parent-event-list-style
+- assertVisible: ${output.cardOverview}
+- tapOn: ${output.cardParticipantsTab}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardPerson}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardTableStatus}
+- takeScreenshot: card-table-participant-identity-status
+- openLink: bgo-dev:///events
+- extendedWaitUntil:
+    visible: ${output.cardEvent}
+    timeout: 120000
+- tapOn: ${output.cardEvent}
+- tapOn: ${output.cardTables}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardTable}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.cardTable}
+- takeScreenshot: card-table-in-event
+# Same Table composition in both feeds. Inspect actual image height, icon frames and large text
+# in screenshots; syntax/VM assertions do not establish native geometry or touch acceptance.
+- assertVisible: ${output.cardEventParent}
+- assertVisible: ${output.cardGroupParent}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardDatesPopover}
+    direction: LEFT
+    timeout: 20000
+- assertVisible: ${output.cardDatesPopover}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardLocationsPopover}
+    direction: LEFT
+    timeout: 20000
+- assertVisible: ${output.cardLocationsPopover}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardGamesPopover}
+    direction: LEFT
+    timeout: 20000
+- assertVisible: ${output.cardGamesPopover}

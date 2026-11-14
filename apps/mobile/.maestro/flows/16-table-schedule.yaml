@@ -1,0 +1,51 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Included frozen Table schedule
+# Read-only manual real fixtures, already authenticated in the selected EN/IT locale.
+# PUBLIC included with known duration+guide; PRIVATE included with unknown duration;
+# EXCLUDED confirmed without snapshot; PLANNING without finalized choices. No resets or mocks.
+tags: [manual, tables]
+---
+- runScript: ../helpers/table-schedule-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.publicLink}
+- extendedWaitUntil:
+    visible: ${output.publicName}
+    timeout: 120000
+- extendedWaitUntil:
+    visible: ${output.duration}
+    timeout: 120000
+- assertVisible: ${output.settings}
+- assertVisible: ${output.publicDate}
+- assertVisible: ${output.publicTime}
+- assertVisible: ${output.guide}
+- assertVisible: ${output.guideLabel}
+- takeScreenshot: table-schedule-public-user-item
+- openLink: ${output.privateLink}
+- extendedWaitUntil:
+    visible: ${output.privateName}
+    timeout: 120000
+- extendedWaitUntil:
+    visible: ${output.unknownDuration}
+    timeout: 120000
+- assertVisible: ${output.privateDate}
+- assertVisible: ${output.privateTime}
+- assertNotVisible: ${output.guideLabel}
+- takeScreenshot: table-schedule-private-unknown-duration
+- openLink: ${output.excludedLink}
+- extendedWaitUntil:
+    visible: ${output.excludedName}
+    timeout: 120000
+- extendedWaitUntil:
+    visible: ${output.excluded}
+    timeout: 120000
+- assertNotVisible: ${output.durationAny}
+- assertNotVisible: ${output.guideLabel}
+- takeScreenshot: table-schedule-excluded
+- openLink: ${output.planningLink}
+- extendedWaitUntil:
+    visible: ${output.planningName}
+    timeout: 120000
+- assertNotVisible: ${output.durationAny}
+- assertNotVisible: ${output.guideLabel}
+- takeScreenshot: table-schedule-planning

@@ -1,0 +1,103 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Owned collection counters personal ratings filtering and source paging
+# Read-only current Preview build. Fixture contract: README manual-profile-collection.
+# No provider requests, provisioning, mocks, resets or notification acknowledgments.
+tags: [manual, profile, bgg]
+---
+- runScript: ../helpers/profile-collection-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///profile
+- extendedWaitUntil:
+    visible: ${output.collection.owner}
+    timeout: 120000
+- scrollUntilVisible:
+    element: ${output.collection.tab}
+    direction: DOWN
+    timeout: 120000
+- tapOn: ${output.collection.tab}
+- scrollUntilVisible:
+    element: ${output.collection.baseLabel}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.collection.base}
+- assertVisible: ${output.collection.totalLabel}
+- assertVisible: ${output.collection.total}
+- assertVisible: ${output.collection.wishlistLabel}
+- assertVisible: ${output.collection.wishlist}
+- scrollUntilVisible:
+    element:
+      id: profile-collection-filter
+    direction: DOWN
+    timeout: 120000
+- tapOn:
+    id: profile-collection-filter
+- inputText: ${output.collection.ratedQuery}
+- extendedWaitUntil:
+    visible: ${output.collection.rated}
+    timeout: 120000
+- assertVisible:
+    id: profile-collection-filter
+    focused: true
+- takeScreenshot: profile-collection-few-keyboard
+- hideKeyboard
+- scrollUntilVisible:
+    element: ${output.collection.rated}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.collection.rating}
+- scrollUntilVisible:
+    element:
+      id: profile-collection-filter
+    direction: UP
+    timeout: 120000
+- tapOn:
+    id: profile-collection-filter
+- eraseText
+- inputText: ${output.collection.unratedQuery}
+- hideKeyboard
+- scrollUntilVisible:
+    element: ${output.collection.unrated}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.collection.unavailable}
+- scrollUntilVisible:
+    element:
+      id: profile-collection-filter
+    direction: UP
+    timeout: 120000
+- tapOn:
+    id: profile-collection-filter
+- eraseText
+- inputText: ${output.collection.emptyQuery}
+- extendedWaitUntil:
+    visible: ${output.collection.empty}
+    timeout: 120000
+- assertVisible:
+    id: profile-collection-filter
+    focused: true
+- takeScreenshot: profile-collection-empty-keyboard
+- hideKeyboard
+- assertVisible:
+    id: profile-collection-filter
+    text: ${output.collection.emptyInputText}
+- tapOn:
+    id: list-filter-wishlist
+- assertVisible:
+    id: list-filter-wishlist
+    selected: true
+- tapOn: ${output.collection.clear}
+- assertVisible:
+    id: list-filter-wishlist
+    selected: true
+- tapOn:
+    id: list-filter-wishlist
+- assertVisible:
+    id: list-filter-wishlist
+    selected: false
+- scrollUntilVisible:
+    element: ${output.collection.later}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.collection.later}
+- takeScreenshot: profile-collection-paged-personal-ratings

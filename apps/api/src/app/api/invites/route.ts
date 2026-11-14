@@ -2,7 +2,7 @@ import { createInviteParamsSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
-import { InvitesRepository } from "@/app/lib/invites.repository";
+import { InvitesRepository } from "@/app/lib/invites/invites.repository";
 
 /**
  * POST /api/invites — create a shareable invite link. The link points at

@@ -31,8 +31,11 @@ runs:
       env:
         TELEGRAM_BOT_TOKEN: ${{ inputs.bot-token }}
         TELEGRAM_CHAT_ID: ${{ inputs.chat-id }}
+        NOTIFICATION_TITLE: ${{ inputs.title }}
+        CHANGELOG_FILE: ${{ inputs.changelog-file }}
+        LINKS_FILE: ${{ inputs.links-file }}
       run: |
         node scripts/release/telegram-notify.mjs \
-          --title "${{ inputs.title }}" \
-          --changelog "${{ inputs.changelog-file }}" \
-          --links-file "${{ inputs.links-file }}"
+          --title "$NOTIFICATION_TITLE" \
+          --changelog "$CHANGELOG_FILE" \
+          --links-file "$LINKS_FILE"

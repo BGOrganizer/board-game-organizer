@@ -1,0 +1,62 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Event and Table proposal category visibility
+tags: [manual, events, proposals]
+---
+# Owned complete account and private Event/Table. Repeat EN/IT and masks 0 through 7.
+# Mask bits: 1=date, 2=location, 4=game; names are exact fixture display selectors.
+- assertTrue: ${typeof PROPOSAL_BUILD_ACK === 'string' && PROPOSAL_BUILD_ACK === 'owned-preview-build'}
+- assertTrue: ${typeof PROPOSAL_MASK === 'string' && /^[0-7]$/.test(PROPOSAL_MASK)}
+- assertTrue: ${typeof PROPOSAL_LOCALE === 'string' && /^(en|it)$/.test(PROPOSAL_LOCALE)}
+- assertTrue: ${typeof PROPOSAL_EVENT_ID === 'string' && /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(PROPOSAL_EVENT_ID)}
+- assertTrue: ${typeof PROPOSAL_TABLE_ID === 'string' && /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(PROPOSAL_TABLE_ID)}
+- assertTrue: ${typeof PROPOSAL_EVENT_NAME === 'string' && PROPOSAL_EVENT_NAME.length > 0}
+- assertTrue: ${typeof PROPOSAL_TABLE_NAME === 'string' && PROPOSAL_TABLE_NAME.length > 0}
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///event?eventId=${PROPOSAL_EVENT_ID}
+- extendedWaitUntil:
+    visible: ${PROPOSAL_EVENT_NAME}
+    timeout: 60000
+- runFlow:
+    when:
+      true: ${(Number(PROPOSAL_MASK) & 1) !== 0}
+    commands:
+      - scrollUntilVisible:
+          element: "${PROPOSAL_LOCALE === 'it' ? 'Date/Orari Proposti' : 'Proposed dates/times'}"
+          direction: DOWN
+      - assertVisible: "${PROPOSAL_LOCALE === 'it' ? 'Date/Orari Proposti' : 'Proposed dates/times'}"
+- runFlow:
+    when:
+      true: ${(Number(PROPOSAL_MASK) & 1) === 0}
+    commands:
+      - assertNotVisible: "${PROPOSAL_LOCALE === 'it' ? 'Date/Orari Proposti' : 'Proposed dates/times'}"
+- runFlow:
+    when:
+      true: ${(Number(PROPOSAL_MASK) & 2) !== 0}
+    commands:
+      - scrollUntilVisible:
+          element: "${PROPOSAL_LOCALE === 'it' ? 'Luoghi Proposti' : 'Proposed locations'}"
+          direction: DOWN
+      - assertVisible: "${PROPOSAL_LOCALE === 'it' ? 'Luoghi Proposti' : 'Proposed locations'}"
+- runFlow:
+    when:
+      true: ${(Number(PROPOSAL_MASK) & 2) === 0}
+    commands:
+      - assertNotVisible: "${PROPOSAL_LOCALE === 'it' ? 'Luoghi Proposti' : 'Proposed locations'}"
+- openLink: bgo-dev:///event/table?eventId=${PROPOSAL_EVENT_ID}&tableId=${PROPOSAL_TABLE_ID}
+- extendedWaitUntil:
+    visible: ${PROPOSAL_TABLE_NAME}
+    timeout: 60000
+- runFlow:
+    when:
+      true: ${(Number(PROPOSAL_MASK) & 4) !== 0}
+    commands:
+      - scrollUntilVisible:
+          element: "${PROPOSAL_LOCALE === 'it' ? 'Giochi Proposti' : 'Proposed games'}"
+          direction: DOWN
+      - assertVisible: "${PROPOSAL_LOCALE === 'it' ? 'Giochi Proposti' : 'Proposed games'}"
+- runFlow:
+    when:
+      true: ${(Number(PROPOSAL_MASK) & 4) === 0}
+    commands:
+      - assertNotVisible: "${PROPOSAL_LOCALE === 'it' ? 'Giochi Proposti' : 'Proposed games'}"

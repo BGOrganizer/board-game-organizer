@@ -1,0 +1,69 @@
+import { fireEvent, screen } from "@testing-library/react";
+import { expect, it } from "vitest";
+import { groupRecord } from "@/test-fixtures/eventRecords";
+import { renderWithI18n } from "@/test-utils";
+import { GroupDetailsCard } from "../GroupDetailsCard";
+import { GroupIdentityCard } from "../GroupIdentityCard";
+
+it.each([
+  ["admin", "Admin"],
+  ["moderator", "Moderator"],
+  ["accepted", "Accepted member"],
+  ["invited", "Member with pending invitation"],
+  ["requested", "Member with pending request"],
+  ["none", "Private"],
+] as const)(
+  "shows the existing %s role in a background Card without granting capabilities",
+  (role, label) => {
+    const group = { ...groupRecord, role, canViewEvents: false, eventCount: null };
+    const { container } = renderWithI18n(<GroupIdentityCard group={group} />);
+    const heading = screen.getByRole("heading", { name: group.name });
+    expect(heading.closest(".card")?.querySelector(".absolute.inset-0")).not.toBeNull();
+    const indicator = screen.getByRole("button", { name: new RegExp(`^${label}`) });
+    expect(indicator).not.toBeNull();
+    expect(indicator.parentElement?.parentElement?.className).toContain("mt-auto");
+    expect(indicator.parentElement?.parentElement?.className).toContain("overflow-x-auto");
+    expect(indicator.parentElement?.className).toContain("justify-end");
+    expect(indicator.parentElement?.className).toContain("flex-nowrap");
+    expect(heading.parentElement?.className).toContain("bg-background/80");
+    expect(heading.className).not.toContain("text-shadow");
+    expect(container.textContent).not.toContain("Events");
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Accept invitation|Delete group/ })).toBeNull();
+  },
+);
+it("retains uploaded logos without cropping and preserves venue/moderation content outside the identity", async () => {
+  const group = {
+    ...groupRecord,
+    logo: "data:image/png;base64,uploaded",
+    type: "PUBLIC" as const,
+    canViewEvents: true,
+    eventCount: 2,
+    rejectionReason: "Venue needs review",
+    location: {
+      id: groupRecord.id,
+      name: "Venue",
+      address: "Via Roma 1",
+      latitude: 41,
+      longitude: 12,
+    },
+  };
+  renderWithI18n(
+    <>
+      <GroupIdentityCard group={group} />
+      <GroupDetailsCard group={group} identity={null} />
+    </>,
+  );
+  expect(screen.getAllByRole("heading", { name: group.name })).toHaveLength(1);
+  expect(document.querySelector('img[src="data:image/png;base64,uploaded"]')?.className).toContain(
+    "object-contain",
+  );
+  expect(screen.queryByText("2 Events")).toBeNull();
+  expect(screen.getByText("Venue")).not.toBeNull();
+  expect(screen.getByRole("alert").textContent).toContain("Venue needs review");
+  fireEvent.click(screen.getByRole("button", { name: "Public" }));
+  expect(await screen.findByText("2 Events")).not.toBeNull();
+  expect(screen.queryByText("Name, logo and group type. Group type cannot be changed.")).toBeNull();
+  expect(screen.getByText("Public groups accept membership requests.")).toBeTruthy();
+  expect(screen.getByText("2 Events").querySelector("svg.lucide-calendar-days")).not.toBeNull();
+});

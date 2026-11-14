@@ -1,3 +1,5 @@
+// Hermes may omit Intl.PluralRules. Install before evaluating any Lingui messages.
+import "intl-pluralrules";
 import { type I18n, setupI18n } from "@lingui/core";
 import { useLingui } from "@lingui/react";
 import * as Localization from "expo-localization";
