@@ -54,6 +54,7 @@ async function fetchNotifications(
   if (signal?.aborted) throw new Error("MUTATION_OWNER_CHANGED");
   const query = new URLSearchParams({ limit: String(limit) });
   if (cursor) query.set("cursor", cursor);
+  query.set("navigation", "history");
   if (options.locale) query.set("locale", options.locale);
   const response = await fetch(
     withProtectionBypass(

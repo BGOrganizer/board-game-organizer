@@ -27,8 +27,8 @@ it.each(["card", "detail"] as const)(
     const popover = screen.getByRole("dialog");
     expect(within(popover).getByText("Manual")).toBeTruthy();
     expect(within(popover).getByText("BGG Best")).toBeTruthy();
-    expect(popover.textContent).toContain("Managers arrange the seats");
-    expect(popover.textContent).toContain("allowing fewer players in Assisted planning");
+    expect(popover.textContent).toContain("Managers arrange seats and the waiting list");
+    expect(popover.textContent).not.toContain("may seat fewer players");
   },
 );
 it("describes historical defaults as Assisted and Players", () => {
@@ -36,15 +36,19 @@ it("describes historical defaults as Assisted and Players", () => {
   fireEvent.click(screen.getByRole("button", { name: "Settings" }));
   const popover = screen.getByRole("dialog");
   expect(within(popover).getByText("Assisted")).toBeTruthy();
-  expect(within(popover).getByText("Players")).toBeTruthy();
-  expect(popover.textContent).toContain("Maximize the number of players.");
+  expect(within(popover).getByText("More players")).toBeTruthy();
+  expect(popover.textContent).toContain(
+    "Prefers the solution that seats more people, respecting votes and constraints.",
+  );
 });
 it("keeps legacy Best settings truthful until the Event is edited", () => {
   renderWithI18n(
     <EventCard event={{ ...plannedEvent, playerPreference: "BEST", allowBestReduction: false }} />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Settings" }));
-  expect(screen.getByRole("dialog").textContent).toContain("Preserve seated players");
+  expect(screen.getByRole("dialog").textContent).toContain(
+    "Prefers the player count marked Best on BGG.",
+  );
 });
 it.each(["sharedResultsOnly", "personalAccessOnly"] as const)(
   "does not invent settings for the restricted %s projection",
@@ -56,8 +60,8 @@ it.each(["sharedResultsOnly", "personalAccessOnly"] as const)(
 
 it.each([
   ["PLANNING", "Planning", "warning"],
-  ["CONFIRMED", "Confirmed", "success"],
-  ["TERMINATED", "Terminated", "muted"],
+  ["CONFIRMED", "Confirmed", "muted"],
+  ["TERMINATED", "Terminated", "accent"],
 ] as const)(
   "puts the %s identity and compact state controls directly over background artwork",
   (status, label, color) => {
@@ -112,7 +116,7 @@ it.each([null, groupRecord.id])(
     expect(screen.queryByRole("link")).toBeNull();
   },
 );
-it("keeps accepted, pending and waiting Event participation independent in both detail and list", () => {
+it("uses one role control for cumulative facts in both detail and list", async () => {
   const event = {
     ...plannedEvent,
     canManage: true,
@@ -128,20 +132,18 @@ it("keeps accepted, pending and waiting Event participation independent in both 
       },
     ],
   };
-  const q = renderWithI18n(<EventDetailsCard event={event} />);
-  const labels = [
+  const view = renderWithI18n(<EventDetailsCard event={event} />);
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  for (const label of [
     "Moderator",
-    "Accepted participant",
     "Participant with pending invitation",
     "Participant on the waiting list",
     "Demonstrator",
-    "Planning",
-  ];
-  for (const label of labels)
-    expect(screen.getByRole("button", { name: new RegExp(`^${label}`) })).not.toBeNull();
-  q.rerender(<EventCard event={event} />);
-  for (const label of labels)
-    expect(screen.getByRole("button", { name: new RegExp(`^${label}`) })).not.toBeNull();
+  ])
+    expect(await screen.findByText(label)).not.toBeNull();
+  view.unmount();
+  renderWithI18n(<EventCard event={event} />);
+  expect(screen.getAllByRole("button", { name: "Roles and participation" })).toHaveLength(1);
 });
 it("retains the existing voting legend below the identity and tabs", () => {
   renderWithI18n(<EventVoteLegend />);
@@ -164,8 +166,8 @@ it.each([true, false])(
       screen.getByRole("button", { name: enabled ? "Rating enabled" : "Rating disabled" }),
     ).not.toBeNull();
     expect(
-      screen.getAllByRole("button", { name: /^Dates and times:|^Locations:|^Board games:/ }),
-    ).toHaveLength(3);
+      screen.queryAllByRole("button", { name: /^Dates and times:|^Locations:|^Board games:/ }),
+    ).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Planning" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Minimum players")).not.toBeNull();
@@ -187,16 +189,17 @@ it("retains accepted queue consent independently of the canonical waiting positi
       }}
     />,
   );
-  for (const label of ["Player on the waiting list", "Demonstrator", "Planning", "Rating enabled"])
-    expect(screen.getByRole("button", { name: label })).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  for (const label of ["Admin", "Player on the waiting list", "Demonstrator"])
+    expect(screen.getByText(label)).not.toBeNull();
+  expect(screen.queryByText("Confirmed player")).toBeNull();
 });
 it("retains excluded-table context in state help without claiming a frozen roster", () => {
   const view = renderWithI18n(
     <EventTableInfo table={{ ...plannedTable, eventStatus: "CONFIRMED", confirmed: undefined }} />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Confirmed" }));
-  expect(screen.getByText("Excluded from confirmation")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Table excluded" }));
+  expect(screen.getByText("The table was excluded from confirmation.")).not.toBeNull();
   view.rerender(
     <EventTableInfo
       table={{
@@ -206,7 +209,7 @@ it("retains excluded-table context in state help without claiming a frozen roste
       }}
     />,
   );
-  expect(screen.queryByText("Excluded from confirmation")).toBeNull();
+  expect(screen.queryByText("The table was excluded from confirmation.")).toBeNull();
   view.rerender(<EventTableInfo table={plannedTable} />);
-  expect(screen.queryByText("Excluded from confirmation")).toBeNull();
+  expect(screen.queryByText("The table was excluded from confirmation.")).toBeNull();
 });

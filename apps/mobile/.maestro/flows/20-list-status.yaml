@@ -1,35 +1,61 @@
 appId: com.bgo.boardgameorganizer.dev
-name: Real Table and Event lifecycle filters
-# Owned Development/Preview actor, selected EN/IT locale, small source-paged real fixtures.
-# Tables require confirmed/terminated frozen participation; Events require all three states matching STATUS_QUERY.
-# No saves, consent bypass, database reset or API mocks. Restart preserves authentication/cache.
-tags: [manual, tables, events]
+name: Scheduled, Available, Terminated and History with real source filtering
+# Owned Development fixtures only; EN/IT, both themes, enlarged text.
+# No saves, consent bypass, provisioning or successful-response mocks.
+# Offline cases require actual disconnected data/Wi-Fi; completion restores connectivity.
+tags: [manual, tables, events, history]
+onFlowComplete:
+  - setAirplaneMode: false
 ---
 - runScript: ../helpers/list-status-inputs.js
 - stopApp
 - launchApp:
     clearState: false
+- openLink: bgo-dev:///events
+- extendedWaitUntil:
+    visible: ${output.status.scheduled}
+    timeout: 120000
+- assertVisible: ${output.status.available}
+- assertVisible: ${output.status.terminated}
+- tapOn: ${output.status.scheduled}
+- runFlow:
+    file: ../helpers/check-list-status.yaml
+    env:
+      SECTION: scheduled
+      ROW_LABEL: ${output.status.scheduledCard}
+      OTHER_ROW_LABEL: ${output.status.terminatedCard}
+      EMPTY_TEXT: ${output.status.emptyEvents}
+      FAILURE_TEXT: ${output.status.failedEvents}
+- openLink: bgo-dev:///events?section=available
+- extendedWaitUntil:
+    visible: ${output.status.available}
+    timeout: 120000
+- tapOn: ${output.status.available}
+- runFlow:
+    file: ../helpers/check-list-status.yaml
+    env:
+      SECTION: available
+      ROW_LABEL: ${output.status.availableCard}
+      OTHER_ROW_LABEL: ${output.status.scheduledCard}
+      EMPTY_TEXT: ${output.status.emptyEvents}
+      FAILURE_TEXT: ${output.status.failedEvents}
+- openLink: bgo-dev:///events?section=terminated
+- extendedWaitUntil:
+    visible: ${output.status.terminated}
+    timeout: 120000
+- tapOn: ${output.status.terminated}
+- runFlow:
+    file: ../helpers/check-list-status.yaml
+    env:
+      SECTION: terminated
+      ROW_LABEL: ${output.status.terminatedCard}
+      OTHER_ROW_LABEL: ${output.status.availableCard}
+      EMPTY_TEXT: ${output.status.emptyEvents}
+      FAILURE_TEXT: ${output.status.failedEvents}
 - openLink: bgo-dev:///tables
 - extendedWaitUntil:
     visible: ${output.status.filter}
     timeout: 120000
-- runFlow:
-    file: ../helpers/check-table-status.yaml
-    env:
-      CONFIRMED_NAME: ${output.status.TABLE.CONFIRMED}
-      TERMINATED_NAME: ${output.status.TABLE.TERMINATED}
-      EMPTY_TEXT: ${output.status.emptyTables}
-- takeScreenshot: table-lifecycle-all-off
-- openLink: bgo-dev:///events
-- extendedWaitUntil:
-    visible: ${output.status.registered}
-    timeout: 120000
-- tapOn: ${output.status.registered}
-- runFlow:
-    file: ../helpers/check-list-status.yaml
-    env:
-      CONFIRMED_NAME: ${output.status.EVENT.CONFIRMED}
-      PLANNING_NAME: ${output.status.EVENT.PLANNING}
-      TERMINATED_NAME: ${output.status.EVENT.TERMINATED}
-      EMPTY_TEXT: ${output.status.emptyEvents}
-- takeScreenshot: event-lifecycle-all-off
+- assertVisible: ${output.status.history}
+- runFlow: ../helpers/check-table-status.yaml
+- takeScreenshot: event-sections-history

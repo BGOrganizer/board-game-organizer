@@ -6,7 +6,6 @@ import {
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CircleCheck, Flag } from "lucide-react-native";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
@@ -15,13 +14,12 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableCard } from "./EventTableCard";
-import { TableListHeading } from "./TableListHeading";
 export function TableList() {
   const t = useT(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets(),
-    f = useListSearch(["CONFIRMED", "TERMINATED"] as const, 0),
-    q = useRecordTables(o, null, { query: f.search, statuses: f.selected });
+    f = useListSearch(["TERMINATED"] as const, 0),
+    q = useRecordTables(o, null, { query: f.search, statuses: ["TERMINATED"] });
   return (
     <NotificationAttentionScope
       options={o}
@@ -51,12 +49,8 @@ export function TableList() {
               mode="filter"
               selected={f.selected}
               onToggle={f.toggle}
-              options={[
-                { key: "CONFIRMED", label: t("Confirmed tables"), icon: CircleCheck },
-                { key: "TERMINATED", label: t("Terminated tables"), icon: Flag },
-              ]}
+              options={[]}
             />
-            <TableListHeading />
           </View>
         }
         renderItem={({ item }) => <EventTableCard table={item} context="personal" />}

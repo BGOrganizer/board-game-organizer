@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { eventStateSchema } from "../models/eventRecord";
 
-export const eventListSections = ["mine", "available"] as const;
+export const eventListSections = ["mine", "available", "terminated"] as const;
 export type EventListSection = (typeof eventListSections)[number];
 export const tableListSections = ["mine", "waiting"] as const;
 export type TableListSection = (typeof tableListSections)[number];

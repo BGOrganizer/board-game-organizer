@@ -20,6 +20,7 @@ export function EventSchedulePopover({
           date: { startsAt: `${date.localStartsAt}Z`, timeZone: "UTC" },
         }))
       : schedule.locations?.map((location) => ({ id: location.id, location }));
+  if (kind === "locations" && event.status !== "PLANNING" && rows?.length === 0) return null;
   return (
     <ScheduleOptionsPopover
       name={event.name}

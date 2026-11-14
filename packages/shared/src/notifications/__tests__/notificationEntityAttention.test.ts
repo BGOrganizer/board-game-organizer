@@ -155,7 +155,14 @@ it("reading the last Event point clears its top tabs immediately while retaining
 });
 
 it("derives mixed notification ownership from unread canonical item IDs, never shared ancestry or old tableIds", () => {
-  const reference = { target: event, eventId, groupId, tableIds: [tableId] };
+  const reference = {
+    target: event,
+    eventId,
+    groupId,
+    tableIds: [tableId],
+    historyTableIds: [tableId],
+    lists: [{ kind: "event-list" as const, id: "mine" as const }],
+  };
   const note = {
     kind: "event_updated" as const,
     href: `/events/${eventId}`,

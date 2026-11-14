@@ -44,6 +44,13 @@ export function attentionReference(
     return {
       ...reference,
       containers,
+      ...(reference.historyTableIds
+        ? {
+            historyTableIds: reference.historyTableIds.filter((id) =>
+              containers.some((owner) => owner.kind === "table" && owner.id === id),
+            ),
+          }
+        : {}),
       ...(reference.lists
         ? {
             lists: reference.lists.filter((list) =>
@@ -103,9 +110,19 @@ export function subtractAttention(
 ): NotificationAttentionSummary {
   const next = { ...summary, sections: { ...summary.sections } };
   const containers = reference.containers ?? [reference.target];
-  if (containers.some((value) => value.kind === "table"))
+  // Legacy references lack navigation eligibility; leave those totals for the authoritative receipt.
+  if (
+    containers.some(
+      (value) => value.kind === "table" && reference.historyTableIds?.includes(value.id),
+    )
+  )
     next.tables = Math.max(0, next.tables - count);
-  if (containers.some((value) => value.kind === "event"))
+  if (
+    containers.some((value) => value.kind === "event") &&
+    reference.lists?.some(
+      (list) => list.kind === "event-list" && ["mine", "available", "terminated"].includes(list.id),
+    )
+  )
     next.events = Math.max(0, next.events - count);
   if (containers.some((value) => value.kind === "group"))
     next.groups = Math.max(0, next.groups - count);
@@ -176,6 +193,7 @@ export function readReference(row: NotificationAttentionCount): NotificationAtte
     ...(row.containers ? { containers: row.containers } : {}),
     ...(row.lists ? { lists: row.lists } : {}),
     ...(row.tableIds ? { tableIds: row.tableIds } : {}),
+    ...(row.historyTableIds ? { historyTableIds: row.historyTableIds } : {}),
     eventId: kind === "table" ? row.eventId : kind === "event" ? row.target.id : undefined,
     groupId:
       kind === "table" || kind === "event"

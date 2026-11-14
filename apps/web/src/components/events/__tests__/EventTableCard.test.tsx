@@ -1,3 +1,4 @@
+import type { TableCardSummary } from "@board-game-organizer/schemas";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { GroupCard } from "@/components/groups/GroupCard";
@@ -42,57 +43,76 @@ async function closePopover() {
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 }
-it("keeps approved games in their informational popover and badges the viewer's real state", async () => {
+function summary(overrides: Partial<TableCardSummary> = {}): TableCardSummary {
+  return {
+    tableId: plannedTable.id,
+    name: plannedTable.name,
+    confirmed: true,
+    ready: true,
+    blockers: [],
+    myParticipation: "CONFIRMED",
+    exclusionReasons: [],
+    winners: [],
+    ...overrides,
+  };
+}
+it("hides Planning game proposals and discloses only the frozen game and tied winner handles", async () => {
   const gamesDetail = [
     ...plannedTable.gamesDetail,
     { id: 2, name: "Second game", year: null, imageUrl: null },
-    { id: 3, name: "Third game", year: null, imageUrl: null },
   ];
   const q = renderWithI18n(
     <EventTableCard
       table={{ ...plannedTable, gamesDetail, myRegistration: seat("owner"), myPosition: "SEATED" }}
     />,
   );
-  expect(screen.queryByText("Chess")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Board games: First table" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  expect(await screen.findByText("Confirmed player")).not.toBeNull();
+  await closePopover();
+  const confirmed = { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" };
+  q.rerender(
+    <EventTableCard
+      table={{ ...plannedTable, eventStatus: "CONFIRMED", confirmed, gamesDetail }}
+    />,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
   expect(await screen.findByText("Chess")).not.toBeNull();
-  expect(screen.getByText("Second game")).not.toBeNull();
-  expect(screen.getByText("Third game")).not.toBeNull();
-  await closePopover();
-  expect(
-    screen
-      .getByRole("button", { name: "Confirmed player" })
-      .querySelector("svg.lucide-user-round-check"),
-  ).not.toBeNull();
-  q.rerender(<EventTableCard table={{ ...plannedTable, gamesDetail: gamesDetail.slice(0, 2) }} />);
-  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
-  expect(await screen.findByText("Second game")).not.toBeNull();
-  expect(screen.queryByText("Third game")).toBeNull();
+  expect(screen.queryByText("Second game")).toBeNull();
   await closePopover();
   q.rerender(
     <EventTableCard
       table={{
         ...plannedTable,
         eventStatus: "TERMINATED",
-        myRegistration: seat("owner"),
-        myPosition: "FROZEN",
-        winners: [
-          { userId: "owner", name: "Owner", avatarUrl: null },
-          { userId: "guest", name: "Guest", avatarUrl: null },
-        ],
+        confirmed,
+        cardSummary: summary({
+          winners: [
+            { userId: "owner", username: "owner" },
+            { userId: "guest", username: "guest" },
+          ],
+        }),
       }}
     />,
   );
-  expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
-  expect(await screen.findByText(/Owner, Guest/)).not.toBeNull();
+  expect(await screen.findByText("@owner")).not.toBeNull();
+  expect(screen.getByText("@guest")).not.toBeNull();
+  expect(screen.getByText("@owner").closest("li")).not.toBe(
+    screen.getByText("@guest").closest("li"),
+  );
+  expect(screen.queryByText("Minimum players")).toBeNull();
   await closePopover();
-  expect(screen.queryByText("Confirmed player")).toBeNull();
-  q.rerender(<EventTableCard table={{ ...plannedTable, gamesDetail: [] }} />);
+  q.rerender(
+    <EventTableCard
+      table={{ ...plannedTable, eventStatus: "TERMINATED", confirmed, gamesDetail: [] }}
+    />,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
   expect(await screen.findByText("No games found")).not.toBeNull();
 });
-it("keeps external cards navigation-only and preserves explicit versioned consent in detail controls", () => {
+
+it("keeps external cards navigation-only and preserves explicit versioned consent in detail controls", async () => {
   const registration = { ...seat("owner"), status: "PENDING" as const },
     q = renderWithI18n(
       <EventTableCard
@@ -109,14 +129,16 @@ it("keeps external cards navigation-only and preserves explicit versioned consen
   expect(m.respond.mutate).not.toHaveBeenCalled();
   expect(screen.queryByText("Reserved place")).toBeNull();
   expect(screen.queryByText("Invitation received")).toBeNull();
-  const badge = screen.getByRole("button", {
-    name: "Player with pending invitation · Reply required",
-  });
-  expect(badge.className).toContain("text-warning");
+  const badge = screen.getByRole("button", { name: "Roles and participation" });
+  expect(badge.className).toContain("text-muted");
   expect(badge.parentElement?.className).toContain("flex-nowrap");
   expect(badge.parentElement?.className).not.toContain("absolute");
   expect(screen.getByRole("link").contains(badge)).toBe(false);
-  expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
+  expect(badge.querySelector("svg.lucide-id-card")).not.toBeNull();
+  fireEvent.click(badge);
+  expect(await screen.findByText("Player with pending invitation")).not.toBeNull();
+  expect(m.respond.mutate).not.toHaveBeenCalled();
+  await closePopover();
   q.rerender(
     <EventTableInvitationActions eventId={plannedTable.eventId} registration={registration} />,
   );
@@ -152,55 +174,40 @@ it("keeps external cards navigation-only and preserves explicit versioned consen
     (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
   ).toBe(true);
 });
-it("shows frozen selected games/all joint winners, excluded tables and waiting positions truthfully", async () => {
+it("keeps excluded Tables danger and waiting consent distinct from a frozen seat", async () => {
   const q = renderWithI18n(
-    <EventTableCard
-      table={{
-        ...plannedTable,
-        eventStatus: "TERMINATED",
-        confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
-        myPosition: "FROZEN",
-        gamesDetail: [
-          ...plannedTable.gamesDetail,
-          { id: 2, name: "Other game", year: null, imageUrl: null },
-        ],
-        winners: [
-          { userId: "owner", name: "Owner", avatarUrl: null },
-          { userId: "guest", name: "Guest", avatarUrl: null },
-        ],
-      }}
-    />,
-  );
-  expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
-  expect(await screen.findByText("Chess")).not.toBeNull();
-  expect(screen.queryByText("Other game")).toBeNull();
-  await closePopover();
-  fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
-  expect(await screen.findByText(/Owner, Guest/)).not.toBeNull();
-  await closePopover();
-  q.rerender(
     <EventTableCard
       table={{
         ...plannedTable,
         eventStatus: "CONFIRMED",
         myPosition: "WAITING",
-        canRespond: true,
-        myRegistration: null,
+        myRegistration: seat("owner"),
+        cardSummary: summary({
+          confirmed: false,
+          myParticipation: "EXCLUDED",
+          exclusionReasons: ["TABLE_EXCLUDED"],
+        }),
       }}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Confirmed" }));
-  expect(await screen.findByText("Excluded from confirmation")).not.toBeNull();
+  const status = screen.getByRole("button", { name: "Table excluded" });
+  expect(status.className).toContain("button--ghost");
+  expect(status.querySelector("span")?.className).toContain("bg-danger");
+  fireEvent.click(status);
+  expect(await screen.findByText("The table was excluded from confirmation.")).not.toBeNull();
   await closePopover();
-  expect(screen.getByRole("button", { name: "Player on the waiting list" })).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  expect(await screen.findByText("Player on the waiting list")).not.toBeNull();
+  expect(screen.queryByText("Confirmed player")).toBeNull();
+  await closePopover();
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   q.rerender(
     <EventTableCard table={{ ...plannedTable, eventStatus: "TERMINATED", winners: [] }} />,
   );
-  expect(screen.queryByText("Terminated")).toBeNull();
-  expect(screen.queryByText("Confirmed")).toBeNull();
+  expect(screen.getByRole("button", { name: "Table excluded" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Terminated" })).toBeNull();
 });
+
 it("shows accepted seats/capacity and Group before Event, retaining other totals in status help", async () => {
   renderWithI18n(
     <EventTableCard

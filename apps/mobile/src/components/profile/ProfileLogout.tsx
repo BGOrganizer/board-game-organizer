@@ -10,6 +10,7 @@ import { View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useMobileCache } from "@/lib/cache/mobileCacheContext";
 import { useT } from "@/lib/i18n";
+import { ProfileVersion } from "./ProfileVersion";
 export function ProfileLogout() {
   const t = useT(),
     { signOut } = useAuth(),
@@ -45,6 +46,7 @@ export function ProfileLogout() {
         <LogOut size={18} color={dangerForeground} accessible={false} />
         <Button.Label>{t("Sign out of your account")}</Button.Label>
       </Button>
+      <ProfileVersion />
       {open ? (
         <ConfirmDialog
           title={t("Sign out of your account?")}

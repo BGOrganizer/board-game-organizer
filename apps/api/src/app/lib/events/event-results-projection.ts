@@ -45,6 +45,20 @@ export function sharedEventResults(
     canProposeLocations: false,
     myRegistrations: [],
     myDemonstrator: false,
+    ...(event.cardSummary
+      ? {
+          cardSummary: {
+            ready: event.cardSummary.ready,
+            tables: event.cardSummary.tables
+              .filter((summary) => finished.some((table) => table.id === summary.tableId))
+              .map((summary) => ({
+                ...summary,
+                myParticipation: "NONE" as const,
+                exclusionReasons: [],
+              })),
+          },
+        }
+      : {}),
     tableCount: finished.length,
     participantCount: new Set(finished.flatMap((table) => table.confirmed!.playerIds)).size,
   };
@@ -90,6 +104,15 @@ export function sharedTableResults(table: PlannedTableResponse): PlannedTableRes
     canInvite: false,
     myRegistration: null,
     myPosition: null,
+    ...(table.cardSummary
+      ? {
+          cardSummary: {
+            ...table.cardSummary,
+            myParticipation: "NONE" as const,
+            exclusionReasons: [],
+          },
+        }
+      : {}),
     acceptedCount: table.confirmed?.playerIds.length ?? 0,
     seatedCount: table.confirmed?.playerIds.length ?? 0,
     pendingRegistrationCount: 0,

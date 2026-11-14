@@ -50,6 +50,12 @@ visibility with a current-network/time selection; no offline mode is enabled.
   including wrapped text. Different tabs may have different counter-row heights. Player labels spell
   out Win percentage / Percentuale di vittorie; values retain their original percentage semantics.
   Tab, game and activity-filter selections belong to scoped local UI state.
+  The owner identity places Joined on / Iscritto dal below its unchanged avatar/name row, using the
+  authenticated Clerk account's creation date, never the MongoDB mirror timestamp. Missing Clerk
+  data loads independently; another user's profile never exposes account metadata. Both owner
+  Activities/Player footers display the running JavaScript semantic version below logout. PR/Preview
+  prereleases append the verified source's short SHA, including Production-flavored PR APKs; Main
+  releases omit it. OTA uses the current bundle revision rather than the installed APK's revision.
   Owner logout appears only below Activities/Player, remains reachable on profile failure and requires
   confirmation; native retains cache-safe signout. Another user's Collection omits its Powered by
   BGG footer. The owner's existing linked Profile attribution and other catalog/provider attribution
@@ -160,7 +166,11 @@ acceptance.
 Explicit real-fixture web run: `pnpm --filter web exec playwright test --config e2e/profile.config.ts`.
 Set PROFILE_LOCALE=en|it, PROFILE_THEME=light|dark, PROFILE_API_URL (local/Preview origin), E2E_EMAIL,
 PROFILE_OWNER_NAME, PROFILE_TARGET_ID/NAME, PROFILE_EMPTY_ID/NAME, PROFILE_BLOCKED_BY_ME_ID,
-PROFILE_BLOCKED_ME_ID, PROFILE_GAME_ID/NAME and PROFILE_PUBLIC_ACTIVITY_TEXT/PRIVATE_ACTIVITY_TEXT.
+PROFILE_BLOCKED_ME_ID, PROFILE_GAME_ID/NAME, PROFILE_PUBLIC_ACTIVITY_TEXT/PRIVATE_ACTIVITY_TEXT and
+PROFILE_APP_VERSION (the exact semantic-version/short-SHA label expected from the running bundle).
+Native flow17 also requires PROFILE_JOINED_AT_LABEL, the localized date from that owned Clerk account.
+Web compares its dateTime directly with the authenticated Clerk SDK's createdAt. Both clients verify
+the version below logout on Activities and Player, and absence of account metadata on another profile.
 The target has at least two surviving rated outcomes; the empty subject has no history/activity;
 block fixtures represent both directions. The public text must appear within the first authorized
 five rows; private text must belong to a source the viewer cannot access.

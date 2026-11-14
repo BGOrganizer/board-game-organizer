@@ -84,6 +84,8 @@ export async function publishMobileUpdate(
     ...env,
     NODE_ENV: "production",
     EXPO_NO_DOTENV: "1",
+    EXPO_PUBLIC_BUILD_SHA: source,
+    EXPO_PUBLIC_APP_PRERELEASE: production ? "false" : "true",
     SENTRY_DISABLE_AUTO_UPLOAD: "true",
   };
   if (!merged) {

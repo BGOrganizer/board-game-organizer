@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
 import { NotificationAttentionRepository } from "@/app/lib/notifications/notification-attention.repository";
+import { notificationNavigationReply } from "@/app/lib/notifications/notification-navigation-transport";
 import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
 
 export const OPTIONS = corsOptions;
@@ -12,12 +13,7 @@ export async function GET(request: Request) {
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   const params = new URL(request.url).searchParams;
   const parsed = notificationListQuerySchema.safeParse(Object.fromEntries(params));
-  if (
-    !parsed.success ||
-    ["limit", "cursor", "locale", "x-vercel-protection-bypass"].some(
-      (key) => params.getAll(key).length > 1,
-    )
-  ) {
+  if (!parsed.success || [...params.keys()].some((key) => params.getAll(key).length !== 1)) {
     return corsJson({ error: "Invalid query" }, { status: 400 }, request);
   }
 
@@ -35,22 +31,25 @@ export async function GET(request: Request) {
       result.notifications.filter((row) => !row.readAt).map((row) => row.id),
     );
     return corsJson(
-      {
-        ...result,
-        unreadCount: attention.snapshot.unreadCount,
-        attention: attention.snapshot.summary,
-        notifications: result.notifications.map((row) => ({
-          ...row,
-          attention: attention.references.get(row.id) ?? null,
-          attentionItems: attention.references.has(row.id)
-            ? attention.personalNotificationIds.has(row.id)
-              ? row.attentionItems?.filter((item) =>
-                  attention.references.get(row.id)?.itemIds?.includes(item.id),
-                )
-              : row.attentionItems
-            : undefined,
-        })),
-      },
+      notificationNavigationReply(
+        {
+          ...result,
+          unreadCount: attention.snapshot.unreadCount,
+          attention: attention.snapshot.summary,
+          notifications: result.notifications.map((row) => ({
+            ...row,
+            attention: attention.references.get(row.id) ?? null,
+            attentionItems: attention.references.has(row.id)
+              ? attention.personalNotificationIds.has(row.id)
+                ? row.attentionItems?.filter((item) =>
+                    attention.references.get(row.id)?.itemIds?.includes(item.id),
+                  )
+                : row.attentionItems
+              : undefined,
+          })),
+        },
+        parsed.data.navigation,
+      ),
       { headers: { "Cache-Control": "private, no-store" } },
       request,
     );

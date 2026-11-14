@@ -1,4 +1,5 @@
 export * from "./common/api";
+export * from "./common/appVersion";
 export * from "./common/bgo-name-dictionaries";
 export * from "./common/clientMutation";
 export * from "./common/hooks/listFilters";
@@ -19,6 +20,7 @@ export * from "./contacts/hooks/useContacts";
 export * from "./contacts/hooks/usePeoplePicker";
 export * from "./contacts/phoneCountries";
 export * from "./events/eventAgreement";
+export * from "./events/eventCardIndicators";
 export * from "./events/eventForm";
 export * from "./events/eventGameDuration";
 export * from "./events/eventJoinAvailability";

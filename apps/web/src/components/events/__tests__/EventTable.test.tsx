@@ -916,7 +916,8 @@ it("retains a queue entry beyond capacity and shows pending, accepted and waitin
   expect(await screen.findByText("@guest")).not.toBeNull();
   expect(screen.getByRole("button", { name: "Player on the waiting list" })).not.toBeNull();
   expect(screen.getByRole("button", { name: "Player with pending invitation" })).not.toBeNull();
-  expect(screen.getAllByRole("button", { name: "Confirmed player" })).toHaveLength(2);
+  expect(screen.getAllByRole("button", { name: "Confirmed player" })).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Roles and participation" })).not.toBeNull();
   expect(screen.getByRole("button", { name: "Join waiting list" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Seats list: Field help" }));
   expect(await screen.findByText(/Free places allow joining or invitations/)).not.toBeNull();
@@ -1118,8 +1119,9 @@ it("does not present an excluded table as confirmed or show all candidate games 
     canRegister: false,
   };
   mount();
-  fireEvent.click(await screen.findByRole("button", { name: "Confirmed" }));
-  expect(await screen.findByText("Excluded from confirmation")).not.toBeNull();
+  fireEvent.click(await screen.findByRole("button", { name: "Table excluded" }));
+  expect(await screen.findByText("The table was excluded from confirmation.")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Board games: First table" })).toBeNull();
 });
 it("retains immutable exact scores, ND, profiles and both rating scopes, including missing profiles and retries", async () => {
   table = {

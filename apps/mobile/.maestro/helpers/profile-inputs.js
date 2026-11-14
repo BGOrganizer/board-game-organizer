@@ -1,5 +1,8 @@
 var inputs = {
   PROFILE_LOCALE: typeof PROFILE_LOCALE === "undefined" ? "" : PROFILE_LOCALE,
+  PROFILE_JOINED_AT_LABEL:
+    typeof PROFILE_JOINED_AT_LABEL === "undefined" ? "" : PROFILE_JOINED_AT_LABEL,
+  PROFILE_APP_VERSION: typeof PROFILE_APP_VERSION === "undefined" ? "" : PROFILE_APP_VERSION,
   PROFILE_GAME_NAME: typeof PROFILE_GAME_NAME === "undefined" ? "" : PROFILE_GAME_NAME,
   PROFILE_OWNER_NAME: typeof PROFILE_OWNER_NAME === "undefined" ? "" : PROFILE_OWNER_NAME,
   PROFILE_TARGET_ID: typeof PROFILE_TARGET_ID === "undefined" ? "" : PROFILE_TARGET_ID,
@@ -35,6 +38,9 @@ if (required("PROFILE_TARGET_NAME").length < 4)
     "PROFILE_TARGET_NAME must support four-character authenticated contact discovery",
   );
 output.profile = {
+  joined: literal((it ? "Iscritto dal" : "Joined on") + ":"),
+  joinedDate: literal(required("PROFILE_JOINED_AT_LABEL")),
+  version: literal((it ? "Versione" : "Version") + ": " + required("PROFILE_APP_VERSION")),
   targetQuery: required("PROFILE_TARGET_NAME"),
   search: literal(it ? "Ricerca" : "Search"),
   actions: literal((it ? "Azioni" : "Actions") + ": " + required("PROFILE_TARGET_NAME")),

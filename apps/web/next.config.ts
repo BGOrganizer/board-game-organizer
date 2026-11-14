@@ -20,6 +20,11 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_SENTRY_ENVIRONMENT:
       process.env.VERCEL_ENV === "production" ? "production" : "development",
+    NEXT_PUBLIC_BUILD_SHA:
+      process.env.NEXT_PUBLIC_BUILD_SHA ??
+      process.env.VERCEL_GIT_COMMIT_SHA ??
+      process.env.GITHUB_SHA ??
+      "",
   },
 };
 

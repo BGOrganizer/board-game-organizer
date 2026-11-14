@@ -41,7 +41,13 @@ export function EventList({
     list = useEventRecords(o, {
       groupId,
       section: groupId ? undefined : section,
-      statuses: !groupId && section === "available" ? ["PLANNING"] : filters.selected,
+      statuses: groupId
+        ? filters.selected
+        : section === "available"
+          ? ["PLANNING"]
+          : section === "terminated"
+            ? ["TERMINATED"]
+            : ["CONFIRMED", "PLANNING"],
       query: filters.search,
     });
   // Warm the same source-filtered first page used by the creation picker; never scan all Groups.
@@ -80,7 +86,7 @@ export function EventList({
                 selected={filters.selected}
                 onToggle={filters.toggle}
                 options={
-                  !groupId && section === "available"
+                  !groupId
                     ? []
                     : [
                         { key: "CONFIRMED", label: t("Confirmed events"), icon: CalendarCheck2 },

@@ -11,11 +11,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
-import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileBggCard } from "./ProfileBggCard";
 import { ProfileCollection } from "./ProfileCollection";
+import { ProfileIdentity } from "./ProfileIdentity";
 import { ProfileLogout } from "./ProfileLogout";
 import { ProfilePlayer } from "./ProfilePlayer";
 import { ProfileRecentActivities } from "./ProfileRecentActivities";
@@ -66,10 +66,11 @@ export function Profile({ userId }: { userId?: string }) {
       ) : null}
       {data ? (
         <GroupedList>
-          <UserListRow
+          <ProfileIdentity
             name={data.name || data.username || t("Unknown")}
             avatarUrl={data.avatarUrl}
-            secondary={data.username ? `@${data.username}` : undefined}
+            username={data.username}
+            ownerId={own ? subject : undefined}
           />
         </GroupedList>
       ) : null}

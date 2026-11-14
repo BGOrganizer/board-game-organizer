@@ -31,6 +31,7 @@ const email = required("E2E_EMAIL"),
   gameId = Number(required("PROFILE_GAME_ID")),
   publicText = required("PROFILE_PUBLIC_ACTIVITY_TEXT"),
   privateText = required("PROFILE_PRIVATE_ACTIVITY_TEXT"),
+  appVersion = required("PROFILE_APP_VERSION"),
   blocks = [required("PROFILE_BLOCKED_BY_ME_ID"), required("PROFILE_BLOCKED_ME_ID")];
 if (
   targetName.length < 4 ||
@@ -96,6 +97,18 @@ for (const width of [390, 1280]) {
     await page.goto("/profile");
     const main = page.getByRole("main");
     await expect(main.getByText(ownerName, { exact: true })).toBeVisible();
+    const createdAt = await page.evaluate(() => {
+      const user = window.Clerk?.user;
+      if (!user?.createdAt) throw new Error("The authenticated Clerk creation date is required");
+      return user.createdAt.toISOString();
+    });
+    await expect(main.getByTestId("profile-joined-at").locator("time")).toHaveAttribute(
+      "datetime",
+      createdAt,
+    );
+    await expect(main.getByTestId("profile-joined-at")).toContainText(
+      it ? "Iscritto dal:" : "Joined on:",
+    );
     for (const tab of await main.getByRole("tab").all()) {
       await expect(tab).toHaveCSS("flex-direction", "row");
       await expect(tab).toHaveCSS("white-space", "nowrap");
@@ -108,6 +121,18 @@ for (const width of [390, 1280]) {
       account.body.active ? 1 : 0,
     );
     await expect(main.getByRole("button", { name: labels.logout, exact: true })).toBeVisible();
+    for (const tab of [labels.player, labels.activities]) {
+      await main.getByRole("tab", { name: tab, exact: true }).click();
+      await expect(main.getByTestId("profile-version")).toHaveText(
+        `${it ? "Versione" : "Version"}: ${appVersion}`,
+      );
+      const logout = await main
+        .getByRole("button", { name: labels.logout, exact: true })
+        .boundingBox();
+      const version = await main.getByTestId("profile-version").boundingBox();
+      if (!logout || !version) throw new Error("Profile footer geometry is unavailable");
+      expect(version.y).toBeGreaterThanOrEqual(logout.y + logout.height);
+    }
     await page.goto("/contacts");
     await main.getByRole("tab", { name: it ? "Ricerca" : "Search", exact: true }).click();
     await main
@@ -133,6 +158,8 @@ for (const width of [390, 1280]) {
       profile.body.collection ? 1 : 0,
     );
     await expect(main.getByRole("button", { name: labels.logout, exact: true })).toHaveCount(0);
+    await expect(main.getByTestId("profile-joined-at")).toHaveCount(0);
+    await expect(main.getByTestId("profile-version")).toHaveCount(0);
     await expect(main.getByText(publicText, { exact: true })).toBeVisible();
     await expect(main.getByText(privateText, { exact: true })).toHaveCount(0);
     expect(Object.keys(profile.body).sort()).toEqual([

@@ -64,17 +64,7 @@ it("keeps all own states cumulative, compact, informational and outside navigati
     />,
   );
   screen.getByRole("link").addEventListener("click", navigate);
-  for (const name of [
-    "Admin",
-    "Accepted participant",
-    "Participant with pending invitation · Reply required",
-    "Participant on the waiting list",
-    "Demonstrator",
-    "Planning",
-    "Private event",
-    "Dates and times: Friday games",
-    "Locations: Friday games",
-  ]) {
+  for (const name of ["Roles and participation", "Planning", "Private event", "Settings"]) {
     const button = screen.getByRole("button", { name });
     expect(button.closest("a")).toBeNull();
     expect(button.parentElement?.className).toContain("justify-end");
@@ -82,11 +72,22 @@ it("keeps all own states cumulative, compact, informational and outside navigati
     expect(button.querySelector("svg.size-4")).not.toBeNull();
     expect(button.className).toContain("min-h-11 min-w-11");
     fireEvent.click(button);
-    expect(await screen.findByRole("dialog")).not.toBeNull();
+    const dialog = await screen.findByRole("dialog");
+    if (name === "Roles and participation") {
+      for (const role of [
+        "Admin",
+        "Demonstrator",
+        "Participant on the waiting list",
+        "Participant with pending invitation",
+      ])
+        expect(within(dialog).getByText(role)).not.toBeNull();
+    }
     await close();
   }
   expect(
-    screen.getByRole("button", { name: "Admin" }).querySelector(".lucide-crown"),
+    screen
+      .getByRole("button", { name: "Roles and participation" })
+      .querySelector(".lucide-id-card"),
   ).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
@@ -95,15 +96,13 @@ it("keeps all own states cumulative, compact, informational and outside navigati
 });
 it.each(["moderator", undefined] as const)(
   "does not invent a known management role (%s)",
-  (managementRole) => {
+  async (managementRole) => {
     renderWithI18n(<EventCard event={{ ...plannedEvent, canManage: true, managementRole }} />);
-    if (managementRole)
-      expect(
-        screen.getByRole("button", { name: "Moderator" }).querySelector(".lucide-shield-check"),
-      ).not.toBeNull();
-    else expect(screen.queryByRole("button", { name: "Moderator" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Admin" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Management" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(Boolean(within(dialog).queryByText("Moderator"))).toBe(Boolean(managementRole));
+    expect(within(dialog).queryByText("Admin")).toBeNull();
+    expect(within(dialog).queryByText("Management")).toBeNull();
   },
 );
 it("never makes a historical author an accepted participant or current manager", () => {
@@ -137,28 +136,23 @@ it("suppresses stale private roles while retaining four ordinary information con
       }}
     />,
   );
-  expect(screen.getAllByRole("button")).toHaveLength(5);
-  for (const name of [
-    "Planning",
-    "Private event",
-    "Dates and times: Friday games",
-    "Locations: Friday games",
-    "Settings",
-  ])
+  expect(screen.getAllByRole("button")).toHaveLength(4);
+  for (const name of ["Planning", "Private event", "Roles and participation", "Settings"])
     expect(screen.getByRole("button", { name })).not.toBeNull();
 });
-it("does not relabel historical pending SELF requests as invitations or change their consent", () => {
+it("does not relabel historical pending SELF requests as invitations or change their consent", async () => {
   const registrations = [
-    seat("owner"),
+    { ...seat("owner"), position: "SEATED" as const },
     { ...seat("owner"), tableId: "second", kind: "SELF" as const, status: "PENDING" as const },
   ];
   renderWithI18n(<EventCard event={{ ...plannedEvent, myRegistrations: registrations }} />);
-  expect(screen.getByRole("button", { name: "Accepted participant" })).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  expect(await screen.findByText("Accepted participant")).not.toBeNull();
   expect(screen.queryByRole("button", { name: /Participant with pending invitation/ })).toBeNull();
   expect(registrations[1].status).toBe("PENDING");
   expect(registrations[1].kind).toBe("SELF");
 });
-it("retains an invitation at the public cutoff without offering a stale reply", () => {
+it("retains an invitation at the public cutoff without offering a stale reply", async () => {
   renderWithI18n(
     <EventCard
       event={{
@@ -169,10 +163,9 @@ it("retains an invitation at the public cutoff without offering a stale reply", 
       }}
     />,
   );
-  expect(
-    screen.getByRole("button", { name: "Participant with pending invitation" }),
-  ).not.toBeNull();
-  expect(screen.queryByRole("button", { name: /Reply required/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  expect(await screen.findByText("Participant with pending invitation")).not.toBeNull();
+  expect(screen.queryByText("Open details to accept or decline your invitation.")).toBeNull();
 });
 it("keeps Group identity loading instead of inventing a name", () => {
   renderWithI18n(<EventCard event={{ ...plannedEvent, groupId: "group", groupName: null }} />);
@@ -221,14 +214,19 @@ it.each(["PLANNING", "CONFIRMED", "TERMINATED"] as const)(
       ),
     ).not.toBeNull();
     expect(button.className).toContain(
-      planning ? "text-warning" : status === "CONFIRMED" ? "text-success" : "text-muted",
+      planning ? "text-warning" : status === "CONFIRMED" ? "text-muted" : "text-accent",
     );
     fireEvent.click(button);
     const state = await screen.findByRole("dialog");
-    expect(within(state).getByText("Players: 3")).not.toBeNull();
+    expect(within(state).queryByText("Players: 3")).toBeNull();
     expect(state.querySelector("time")).toBeNull();
     expect(within(state).queryByText("Via Roma 1")).toBeNull();
     await close();
+    if (planning) {
+      expect(screen.queryByRole("button", { name: "Dates and times: Friday games" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Locations: Friday games" })).toBeNull();
+      return;
+    }
     fireEvent.click(screen.getByRole("button", { name: "Dates and times: Friday games" }));
     const dates = await screen.findByRole("dialog");
     expect(within(dates).getByText("June 4, 2030")).not.toBeNull();
@@ -242,12 +240,13 @@ it.each(["PLANNING", "CONFIRMED", "TERMINATED"] as const)(
   },
 );
 it("shows empty schedule options explicitly without inventing facts", async () => {
-  renderWithI18n(<EventCard event={{ ...plannedEvent, dates: [], locations: [] }} />);
+  renderWithI18n(
+    <EventCard event={{ ...plannedEvent, status: "CONFIRMED", dates: [], locations: [] }} />,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Dates and times: Friday games" }));
   expect(await screen.findByText("No date selected")).not.toBeNull();
   await close();
-  fireEvent.click(screen.getByRole("button", { name: "Locations: Friday games" }));
-  expect(await screen.findByText("No location selected")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Locations: Friday games" })).toBeNull();
 });
 it("retains known draft information while hiding unverified roles and locking its controls", () => {
   renderWithI18n(

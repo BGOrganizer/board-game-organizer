@@ -140,7 +140,13 @@ export function useNotificationChanges(options: Options, scope: NotificationChan
       const signal = await optimisticMutationSignal(client, context.mutationKey, variables);
       const { owner: capturedOwner, ...input } = variables;
       const result = notificationChangesReceiptSchema.safeParse(
-        await communityRequest(capturedOwner, "notifications/changes", "PATCH", input, signal),
+        await communityRequest(
+          capturedOwner,
+          "notifications/changes?navigation=history",
+          "PATCH",
+          input,
+          signal,
+        ),
       );
       if (!result.success) throw new CommunityApiError(502, "MUTATION_OUTCOME_UNKNOWN");
       return result.data;

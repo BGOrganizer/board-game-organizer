@@ -33,7 +33,35 @@ describe("notification changes route controller", () => {
       tabCounts: { details: 0, members: 0, tables: 0, participants: 0 },
       nextCursor: null,
     });
-    mocks.read.mockResolvedValue({ updated: 0 });
+    mocks.read.mockResolvedValue({
+      updated: 0,
+      snapshot: {
+        asOf: through,
+        unreadCount: 0,
+        summary: {
+          tables: 0,
+          events: 0,
+          groups: 0,
+          contacts: 0,
+          sections: { connections: 0, requests: 0, search: 0 },
+        },
+        targets: [],
+      },
+      readReferences: [],
+      tabCounts: { details: 0, members: 0, tables: 0, participants: 0 },
+      effects: {
+        unread: 0,
+        summary: {
+          tables: 0,
+          events: 0,
+          groups: 0,
+          contacts: 0,
+          sections: { connections: 0, requests: 0, search: 0 },
+        },
+        targets: [],
+        tabCounts: { details: 0, members: 0, tables: 0, participants: 0 },
+      },
+    });
     mocks.transaction.mockImplementation(
       async (work: (session: object, db: object) => Promise<unknown>) => work({}, {}),
     );
@@ -99,6 +127,63 @@ describe("notification changes route controller", () => {
     const legacy = await GET(new Request(url));
     const { title: _title, description: _description, ...original } = row;
     expect((await legacy.json()).changes).toEqual([original]);
+  });
+  it("negotiates History transport only on PATCH and rejects duplicate/unknown capabilities", async () => {
+    const snapshot = {
+      asOf: through,
+      unreadCount: 0,
+      summary: {
+        tables: 0,
+        events: 0,
+        groups: 0,
+        contacts: 0,
+        sections: { connections: 0, requests: 0, search: 0 },
+      },
+      targets: [
+        {
+          target: { kind: "table", id: scope.id },
+          count: 0,
+          direct: 0,
+          events: 0,
+          sections: { connections: 0, requests: 0, search: 0 },
+          historyTableIds: [],
+          lists: [{ kind: "event-list", id: "terminated" }],
+        },
+      ],
+    };
+    mocks.read.mockResolvedValue({ updated: 0, snapshot });
+    for (const modern of [false, true]) {
+      const response = await PATCH(
+        new Request(
+          "http://localhost/api/notifications/changes" + (modern ? "?navigation=history" : ""),
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ scope, through, references: [] }),
+          },
+        ),
+      );
+      expect(response.status).toBe(200);
+      const row = (await response.json()).snapshot.targets[0];
+      expect(row.lists[0].id).toBe(modern ? "terminated" : "mine");
+      expect(Object.hasOwn(row, "historyTableIds")).toBe(modern);
+    }
+    const calls = mocks.read.mock.calls.length;
+    for (const query of ["navigation=unknown", "navigation=history&navigation=history"]) {
+      expect(
+        (
+          await PATCH(
+            new Request("http://localhost/api/notifications/changes?" + query, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ scope, through, references: [] }),
+            }),
+          )
+        ).status,
+      ).toBe(400);
+    }
+    expect(mocks.read).toHaveBeenCalledTimes(calls);
+    expect((await GET(new Request(url + "&navigation=history"))).status).toBe(400);
   });
   it("validates exact read selections and uses the shared transaction boundary", async () => {
     expect((await PATCH(request({ scope, through, references: [] }))).status).toBe(200);

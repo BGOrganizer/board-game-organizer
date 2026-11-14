@@ -59,6 +59,66 @@ function snapshot(): NotificationAttentionSnapshot {
   };
 }
 
+it("subtracts navigation dots only from their actual source lists, retaining unknown legacy totals", () => {
+  const summary = { ...emptyAttentionSummary(), events: 5, tables: 5 };
+  const reference = {
+    target: target("event", eventId),
+    containers: [target("event", eventId), target("table", tableId)],
+  };
+  expect(subtractAttention(summary, reference, 2)).toEqual(summary);
+  expect(
+    subtractAttention(
+      summary,
+      { ...reference, lists: [{ kind: "event-list", id: groupId }], historyTableIds: [] },
+      2,
+    ),
+  ).toEqual(summary);
+  for (const id of ["mine", "available", "terminated"] as const) {
+    expect(
+      subtractAttention(
+        summary,
+        { ...reference, lists: [{ kind: "event-list", id }], historyTableIds: [tableId] },
+        2,
+      ),
+    ).toMatchObject({ events: 3, tables: 3 });
+  }
+  expect(
+    subtractAttention(
+      summary,
+      { ...reference, lists: [{ kind: "group-list", id: "PRIVATE" }], historyTableIds: [eventId] },
+      2,
+    ),
+  ).toEqual(summary);
+  const row = {
+    ...snapshot().targets[0],
+    target: target("table", tableId),
+    historyTableIds: [tableId],
+    lists: [],
+  };
+  expect(readReference(row).historyTableIds).toEqual([tableId]);
+});
+
+it("prunes History ownership when its only Table item has already been read", () => {
+  const reference = {
+    target: target("event", eventId),
+    eventId,
+    containers: [target("event", eventId), target("table", tableId)],
+    historyTableIds: [tableId],
+    lists: [{ kind: "event-list" as const, id: "terminated" as const }],
+  };
+  const notice = {
+    kind: "event_settings_changed",
+    href: `/events/${eventId}`,
+    attention: reference,
+    attentionItems: [
+      { id: JSON.stringify(["event", eventId, "name"]), readAt: null },
+      { id: JSON.stringify(["table", tableId, "name"]), readAt: "2030-01-01T00:00:00.000Z" },
+    ],
+  } as Parameters<typeof attentionReference>[0];
+  expect(attentionReference(notice)?.historyTableIds).toEqual([]);
+  expect(attentionReference({ ...notice, attentionItems: [] })?.historyTableIds).toEqual([tableId]);
+});
+
 describe("notification attention entity ownership", () => {
   it("uses explicit server references first and never guesses parents or actor IDs", () => {
     expect(attentionReference({ kind: "table_invitation", href: "/wrong", attention: table })).toBe(
@@ -122,7 +182,7 @@ describe("notification attention entity ownership", () => {
     const original = snapshot(),
       next = projectAttentionSnapshot(original, table, 2)!;
     expect(next.unreadCount).toBe(10);
-    expect(next.summary).toEqual({ ...original.summary, tables: 2 });
+    expect(next.summary).toEqual(original.summary);
     expect(next.targets[0]).toMatchObject({ count: 6, direct: 0 });
     expect(next.targets[1]).toBe(original.targets[1]);
     expect(next.targets[2]).toBe(original.targets[2]);

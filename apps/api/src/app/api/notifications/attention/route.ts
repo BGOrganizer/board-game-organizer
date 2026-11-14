@@ -1,13 +1,15 @@
 import {
   notificationAttentionQuerySchema,
+  notificationNavigationQuerySchema,
   readNotificationAttentionSchema,
 } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { communityBody } from "@/app/lib/community/record-http";
-import { emptyRecordQuery, recordQuery } from "@/app/lib/community/record-query";
+import { recordQuery } from "@/app/lib/community/record-query";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
 import { NotificationAttentionRepository } from "@/app/lib/notifications/notification-attention.repository";
+import { notificationNavigationReply } from "@/app/lib/notifications/notification-navigation-transport";
 
 export const OPTIONS = corsOptions;
 function reply(request: Request, data: unknown, status = 200) {
@@ -26,7 +28,7 @@ export async function GET(request: Request) {
       userId,
       parsed.data.targets,
     );
-    return reply(request, result.snapshot);
+    return reply(request, notificationNavigationReply(result.snapshot, parsed.data.navigation));
   } catch {
     return reply(request, { error: "Internal server error" }, 500);
   }
@@ -35,12 +37,12 @@ export async function PATCH(request: Request) {
   const { userId } = await auth();
   if (!userId) return reply(request, { error: "Unauthorized" }, 401);
   try {
-    recordQuery(request, emptyRecordQuery);
+    const query = recordQuery(request, notificationNavigationQuerySchema);
     const input = await communityBody(request, readNotificationAttentionSchema);
     const result = await withTransaction((session, db) =>
       new NotificationAttentionRepository(db, session).read(userId, input),
     );
-    return reply(request, result);
+    return reply(request, notificationNavigationReply(result, query.navigation));
   } catch (error) {
     const status =
       error && typeof error === "object" && "status" in error && error.status === 400 ? 400 : 500;

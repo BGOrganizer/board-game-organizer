@@ -1,46 +1,80 @@
-var inputs = {
-  STATUS_LOCALE: typeof STATUS_LOCALE === "undefined" ? "" : STATUS_LOCALE,
-  STATUS_QUERY: typeof STATUS_QUERY === "undefined" ? "" : STATUS_QUERY,
-  STATUS_EVENT_CONFIRMED:
-    typeof STATUS_EVENT_CONFIRMED === "undefined" ? "" : STATUS_EVENT_CONFIRMED,
-  STATUS_EVENT_PLANNING: typeof STATUS_EVENT_PLANNING === "undefined" ? "" : STATUS_EVENT_PLANNING,
-  STATUS_EVENT_TERMINATED:
-    typeof STATUS_EVENT_TERMINATED === "undefined" ? "" : STATUS_EVENT_TERMINATED,
-  STATUS_TABLE_CONFIRMED:
-    typeof STATUS_TABLE_CONFIRMED === "undefined" ? "" : STATUS_TABLE_CONFIRMED,
-  STATUS_TABLE_PLANNING: typeof STATUS_TABLE_PLANNING === "undefined" ? "" : STATUS_TABLE_PLANNING,
-  STATUS_TABLE_TERMINATED:
-    typeof STATUS_TABLE_TERMINATED === "undefined" ? "" : STATUS_TABLE_TERMINATED,
-};
-function required(key) {
-  var value = String(inputs[key] || "").trim();
-  if (!value) throw new Error(key + " required for real lifecycle-filter acceptance");
-  return value;
-}
+// Real, existing Development fixtures only. No tokens, API calls or consent changes.
+var ack = typeof STATUS_ACK === "undefined" ? "" : STATUS_ACK;
+var locale = typeof STATUS_LOCALE === "undefined" ? "" : STATUS_LOCALE;
+var theme = typeof STATUS_THEME === "undefined" ? "" : STATUS_THEME;
+var query = typeof STATUS_QUERY === "undefined" ? "" : String(STATUS_QUERY).trim();
+var raw = typeof STATUS_INPUT === "undefined" ? "" : STATUS_INPUT;
+if (
+  ack !== "owned-development-list-fixtures" ||
+  !["en", "it"].includes(locale) ||
+  !["light", "dark"].includes(theme) ||
+  !query ||
+  query.length > 80 ||
+  !raw
+)
+  throw new Error(
+    "STATUS_ACK, configured EN/IT light/dark device, STATUS_QUERY (1–80) and STATUS_INPUT required; this flow toggles connectivity",
+  );
+var input = JSON.parse(raw);
+var uuid = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
+if (
+  !input ||
+  ![input.scheduled, input.available, input.terminated, input.history].every(
+    (row) =>
+      row &&
+      uuid.test(row.id) &&
+      typeof row.name === "string" &&
+      row.name.length <= 120 &&
+      row.name.toLowerCase().includes(query.toLowerCase()),
+  ) ||
+  new Set([input.scheduled.name, input.available.name, input.terminated.name, input.history.name])
+    .size !== 4 ||
+  !uuid.test(input.history.eventId) ||
+  !["public-outsider", "private-member", "public-group-private-member"].includes(
+    input.available.kind,
+  ) ||
+  !Array.isArray(input.history.winnerHandles) ||
+  !input.history.winnerHandles.length ||
+  !input.history.winnerHandles.every((handle) => /^@[^\s@]+$/.test(handle)) ||
+  new Set(input.history.winnerHandles).size !== input.history.winnerHandles.length ||
+  typeof input.emptyQuery !== "string" ||
+  !input.emptyQuery.trim() ||
+  input.emptyQuery.length > 80
+)
+  throw new Error(
+    "Unique real fixture IDs/names containing STATUS_QUERY, public/member availability, actual winner handles and an unmatched query required",
+  );
 function literal(value) {
-  return "^" + value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
+  return `^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`;
 }
-var locale = required("STATUS_LOCALE"),
-  query = required("STATUS_QUERY");
-if (locale !== "en" && locale !== "it") throw new Error("STATUS_LOCALE must be en or it");
-if (query.length > 120) throw new Error("STATUS_QUERY must be at most 120 characters");
 var it = locale === "it";
+var eventPrefix = it ? "Apri evento" : "Open event";
+var tablePrefix = it ? "Apri tavolo" : "Open table";
 output.status = {
   query: query,
+  emptyQuery: input.emptyQuery,
   filter: literal(it ? "Filtra" : "Filter"),
   clear: literal(it ? "Cancella filtro" : "Clear filter"),
-  registered: literal(it ? "Partecipazione" : "Participation"),
+  retry: literal(it ? "Riprova" : "Try again"),
+  scheduled: literal(it ? "Schedulati" : "Scheduled"),
+  available: literal(it ? "Disponibili" : "Available"),
+  terminated: literal(it ? "Terminati" : "Terminated events"),
+  history: literal(it ? "Storico" : "History"),
   emptyEvents: literal(it ? "Nessun evento trovato" : "No events found"),
   emptyTables: literal(it ? "Nessun tavolo trovato" : "No tables found"),
+  failedEvents: literal(it ? "Impossibile caricare gli eventi" : "Could not load events"),
+  failedTables: literal(it ? "Impossibile caricare i tavoli" : "Could not load tables"),
+  names: input,
+  scheduledCard: literal(`${eventPrefix}: ${input.scheduled.name}`),
+  availableCard: literal(`${eventPrefix}: ${input.available.name}`),
+  terminatedCard: literal(`${eventPrefix}: ${input.terminated.name}`),
+  historyCard: literal(`${tablePrefix}: ${input.history.name}`),
+  tableStatus: literal(it ? "Terminata" : "Terminated"),
+  dates: literal(`${it ? "Date e orari" : "Dates and times"}: ${input.history.name}`),
+  locations: literal(`${it ? "Luoghi" : "Locations"}: ${input.history.name}`),
+  games: literal(`${it ? "Giochi da tavolo" : "Board games"}: ${input.history.name}`),
+  minimum: literal(it ? "Giocatori minimi" : "Minimum players"),
+  maximum: literal(it ? "Giocatori massimi" : "Maximum players"),
+  waiting: literal(it ? "Lista d'attesa" : "Waiting list"),
+  winners: input.history.winnerHandles.map(literal),
 };
-for (const resource of ["EVENT", "TABLE"]) {
-  output.status[resource] = {};
-  for (const state of resource === "TABLE"
-    ? ["CONFIRMED", "TERMINATED"]
-    : ["CONFIRMED", "PLANNING", "TERMINATED"]) {
-    const name = required(`STATUS_${resource}_${state}`);
-    if (!name.toLowerCase().includes(query.toLowerCase()))
-      throw new Error("Every owned fixture name must contain STATUS_QUERY");
-    output.status[resource][state] = literal(name);
-  }
-}

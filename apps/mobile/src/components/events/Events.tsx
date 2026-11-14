@@ -1,6 +1,6 @@
 import type { EventListSection } from "@board-game-organizer/schemas";
 import { Tabs } from "heroui-native/tabs";
-import { CalendarCheck, CalendarSearch } from "lucide-react-native";
+import { CalendarCheck, CalendarSearch, Flag } from "lucide-react-native";
 import { type ReactNode, useState } from "react";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
@@ -32,18 +32,20 @@ export function Events({
       targets={[
         { kind: "event-list", id: "mine" },
         { kind: "event-list", id: "available" },
+        { kind: "event-list", id: "terminated" },
       ]}
     >
       <Tabs
         value={section}
         onValueChange={(value) => {
-          if (value === "mine" || value === "available") setSection(value);
+          if (value === "mine" || value === "available" || value === "terminated")
+            setSection(value);
         }}
         style={{ flex: 1 }}
       >
         <MainTabBar>
           <TabTrigger icon={CalendarCheck} value="mine" style={{ flexDirection: "row", gap: 6 }}>
-            <Tabs.Label numberOfLines={1}>{t("Participation")}</Tabs.Label>
+            <Tabs.Label numberOfLines={1}>{t("Scheduled")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
           </TabTrigger>
           <TabTrigger
@@ -53,6 +55,10 @@ export function Events({
           >
             <Tabs.Label numberOfLines={1}>{t("Available")}</Tabs.Label>
             <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
+          </TabTrigger>
+          <TabTrigger icon={Flag} value="terminated" style={{ flexDirection: "row", gap: 6 }}>
+            <Tabs.Label numberOfLines={1}>{t("Terminated events")}</Tabs.Label>
+            <NotificationTabBadge target={{ kind: "event-list", id: "terminated" }} />
           </TabTrigger>
         </MainTabBar>
         <View style={{ flex: 1 }}>

@@ -11,7 +11,11 @@ import type {
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { ProfileActivitiesRepository } from "../profile/profile-activities.repository";
-import { availableEventExpression, managedEventExpression } from "./event-list-eligibility";
+import {
+  availableEventExpression,
+  managedEventExpression,
+  terminatedEventExpression,
+} from "./event-list-eligibility";
 import { eventPeriodStages } from "./event-periods";
 
 export interface EventRecordPage {
@@ -20,7 +24,7 @@ export interface EventRecordPage {
   query?: string;
   periods?: readonly ("past" | "future")[];
   statuses?: readonly EventListStatus[];
-  section?: "mine" | "available" | "waiting";
+  section?: "mine" | "available" | "waiting" | "terminated";
 }
 export class EventRecordsRepository {
   private events;
@@ -655,7 +659,7 @@ export class EventRecordsRepository {
     return { tableCount: tables.length, participantCount: rows[0]?.count ?? 0 };
   }
   /** Shared Event visibility; downstream joins must preserve personalAccessOnly scope. */
-  visibleGroups(userId: string, now: string, eventPrefix = "") {
+  visibleGroups(userId: string, now: string, eventPrefix = "", discoverPublic = false) {
     return [
       {
         $lookup: {
@@ -868,7 +872,7 @@ export class EventRecordsRepository {
                       $and: [
                         { "parentGroup.type": "PUBLIC" },
                         { [`${eventPrefix}visibility`]: { $ne: "PRIVATE" } },
-                        { "publicRegistration.0": { $exists: true } },
+                        ...(discoverPublic ? [] : [{ "publicRegistration.0": { $exists: true } }]),
                         { "publicEventBlock.0": { $exists: false } },
                       ],
                     },
@@ -939,14 +943,22 @@ export class EventRecordsRepository {
       {
         $match: {
           status: {
-            $in: (page.statuses ?? ["PLANNING", "CONFIRMED", "TERMINATED"]).filter(
-              (status) => !available || status === "PLANNING",
+            $in: (page.statuses ?? ["PLANNING", "CONFIRMED", "TERMINATED"]).filter((status) =>
+              groupId
+                ? true
+                : page.section === "terminated"
+                  ? status === "TERMINATED"
+                  : available
+                    ? status === "PLANNING"
+                    : page.section === "mine"
+                      ? status !== "TERMINATED"
+                      : true,
             ),
           },
           ...(groupId ? { groupId } : {}),
         },
       },
-      ...this.visibleGroups(userId, now.toISOString()),
+      ...this.visibleGroups(userId, now.toISOString(), "", available),
       ...eventPeriodStages(page.periods, Date.now()),
     ];
     if (!groupId) {
@@ -959,14 +971,16 @@ export class EventRecordsRepository {
                 "personalFrozenTable.0": { $exists: false },
                 $expr: availableEventExpression(userId, now),
               }
-            : {
-                $or: [
-                  { "myRegistration.0": { $exists: true } },
-                  { "myDemonstration.0": { $exists: true } },
-                  { "personalFrozenTable.0": { $exists: true } },
-                  { $expr: managedEventExpression(userId) },
-                ],
-              },
+            : page.section === "terminated"
+              ? { $expr: terminatedEventExpression(userId) }
+              : {
+                  $or: [
+                    { "myRegistration.0": { $exists: true } },
+                    { "myDemonstration.0": { $exists: true } },
+                    { "personalFrozenTable.0": { $exists: true } },
+                    { $expr: managedEventExpression(userId) },
+                  ],
+                },
       });
     }
     if (page.query)
@@ -1019,7 +1033,7 @@ export class EventRecordsRepository {
         $match: {
           "event.status": {
             $in: (page.statuses ?? ["PLANNING", "CONFIRMED", "TERMINATED"]).filter(
-              (status) => page.section || status !== "PLANNING",
+              (status) => page.section || status === "TERMINATED",
             ),
           },
           $or: [{ "event.status": "PLANNING" }, { "confirmed.gameId": { $exists: true } }],
@@ -1045,7 +1059,14 @@ export class EventRecordsRepository {
                 $nor: [{ "event.status": { $ne: "PLANNING" }, "confirmed.playerIds": userId }],
               }
             : !page.section
-              ? { "confirmed.playerIds": userId }
+              ? {
+                  $or: [
+                    { "confirmed.playerIds": userId },
+                    { demonstratorUserId: userId },
+                    { "event.adminUserId": userId, "event.groupId": null },
+                    { "event.groupId": { $ne: null } },
+                  ],
+                }
               : {
                   $or: [
                     page.section === "mine"
@@ -1058,6 +1079,26 @@ export class EventRecordsRepository {
       },
       { $set: { originalTable: "$$ROOT", groupId: "$event.groupId" } },
       ...this.visibleGroups(userId, new Date().toISOString(), "event."),
+      ...(!page.section
+        ? [
+            {
+              $match: {
+                $or: [
+                  { "confirmed.playerIds": userId },
+                  { demonstratorUserId: userId },
+                  {
+                    $expr: {
+                      $and: [
+                        { $ne: ["$personalAccessOnly", true] },
+                        managedEventExpression(userId, "event."),
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ]
+        : []),
       ...eventPeriodStages(page.periods, Date.now(), "event."),
     ];
     if (page.query)

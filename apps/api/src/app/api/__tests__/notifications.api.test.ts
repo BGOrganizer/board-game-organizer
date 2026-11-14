@@ -55,6 +55,10 @@ import {
 import { POST as registerPush, DELETE as removePush } from "@/app/api/push-subscriptions/route";
 
 import { withTransaction } from "@/app/lib/db";
+import {
+  notificationAttentionReferenceSchema as installedReference,
+  notificationAttentionSnapshotSchema as installedSnapshot,
+} from "@/app/lib/notifications/__tests__/fixtures/installed-notification-attention";
 import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
 
 const attentionZero = {
@@ -168,6 +172,8 @@ describe("notification API", () => {
       "targets=no",
       "targets=[]&targets=[]",
       "foreign=1",
+      "navigation=unknown",
+      "navigation=history&navigation=history",
       `targets=${encodeURIComponent(JSON.stringify([target, target]))}`,
       `targets=${encodeURIComponent(JSON.stringify([{ kind: "group", id: "bad" }]))}`,
     ])
@@ -198,6 +204,74 @@ describe("notification API", () => {
     ).toBe(400);
     expect(mocks.attentionRead).not.toHaveBeenCalled();
     expect(mocks.attentionSnapshot).not.toHaveBeenCalled();
+  });
+  it("negotiates History metadata on both attention methods and inbox while preserving installed strict clients", async () => {
+    const target = { kind: "table", id: "11111111-1111-4111-8111-111111111111" };
+    const reference = {
+      target,
+      historyTableIds: [target.id],
+      lists: [{ kind: "event-list", id: "terminated" }],
+    };
+    const snapshot = {
+      ...attentionZero,
+      targets: [
+        { ...reference, count: 1, direct: 1, events: 0, sections: attentionZero.summary.sections },
+      ],
+    };
+    mocks.attentionSnapshot.mockResolvedValue({
+      snapshot,
+      references: new Map([[ID, reference]]),
+      personalNotificationIds: new Set(),
+    });
+    mocks.attentionRead.mockResolvedValue({ updated: 1, snapshot });
+    mocks.list.mockResolvedValue({ notifications: [{ id: ID, readAt: null }], nextCursor: null });
+    for (const modern of [false, true]) {
+      const suffix = modern ? "?navigation=history" : "";
+      const get = await attentionCounts(
+        new Request("http://x/api/notifications/attention" + suffix),
+      );
+      const patch = await readAttention(
+        jsonRequest("http://x/api/notifications/attention" + suffix, "PATCH", {
+          target,
+          through: attentionZero.asOf,
+        }),
+      );
+      const inbox = await listNotifications(new Request("http://x/api/notifications" + suffix));
+      expect([get.status, patch.status, inbox.status]).toEqual([200, 200, 200]);
+      const bodies = [await get.json(), (await patch.json()).snapshot];
+      for (const body of bodies) {
+        if (modern) expect(body.targets[0].historyTableIds).toEqual([target.id]);
+        else
+          expect(installedSnapshot.parse(body).targets[0].lists).toEqual([
+            { kind: "event-list", id: "mine" },
+          ]);
+      }
+      const attention = (await inbox.json()).notifications[0].attention;
+      if (modern) expect(attention).toEqual(reference);
+      else
+        expect(installedReference.parse(attention).lists).toEqual([
+          { kind: "event-list", id: "mine" },
+        ]);
+    }
+  });
+  it("rejects unknown and duplicate navigation flags before inbox/attention writes", async () => {
+    for (const query of ["navigation=unknown", "navigation=history&navigation=history"]) {
+      expect(
+        (await listNotifications(new Request("http://x/api/notifications?" + query))).status,
+      ).toBe(400);
+      expect(
+        (
+          await readAttention(
+            jsonRequest("http://x/api/notifications/attention?" + query, "PATCH", {
+              target: { kind: "contacts", id: "requests" },
+              through: attentionZero.asOf,
+            }),
+          )
+        ).status,
+      ).toBe(400);
+    }
+    expect(mocks.list).not.toHaveBeenCalled();
+    expect(mocks.attentionRead).not.toHaveBeenCalled();
   });
   it("reports attention storage failures as errors, not empty successful counts", async () => {
     mocks.attentionSnapshot.mockRejectedValue(new Error("Offline"));

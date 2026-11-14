@@ -1926,11 +1926,210 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       (await services().eventRecords.list(GUEST, { section: "mine", limit: 20 })).map(
         (row) => row.name,
       ),
-    ).toEqual(
-      expect.arrayContaining(["Eligible private", "Confirmed", "Terminated", "Standalone"]),
-    );
+    ).toEqual(expect.arrayContaining(["Eligible private", "Confirmed", "Standalone"]));
   });
-  it("source-pages main Tables by frozen player membership, excluding planning, queue and demonstrator-only duty", async () => {
+  it("partitions Scheduled, Available and Terminated and keeps History limited to played physical Tables", async () => {
+    const group = await privateGroup();
+    const initial = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    for (const user of [OWNER, GUEST])
+      await transaction((s) => s.plannedEventService.register(user, initial.id, tableId));
+    const frozen = await confirm(initial.id);
+    await transaction((s) =>
+      s.plannedEventService.finalize(OWNER, initial.id, {
+        version: frozen.version,
+        results: [
+          {
+            tableId,
+            lowerWins: false,
+            entries: [
+              { userId: OWNER, score: "4" },
+              { userId: GUEST, score: "4" },
+            ],
+            tieBreaks: [],
+          },
+        ],
+      }),
+    );
+    const base = await services().eventRecords.find(initial.id);
+    const original = await services().eventRecords.table(tableId);
+    const registration = await services().eventRecords.userRegistration(tableId, GUEST);
+    if (!base || !original?.confirmed || !registration) throw new Error("Missing finished fixture");
+    const fixtures: Array<{ eventId: string; tableId: string; kind: string }> = [];
+    const kinds = [
+      "player",
+      "demonstrator",
+      "queue",
+      "pending",
+      "manager",
+      "confirmed",
+      "planning",
+    ];
+    for (const [index, kind] of kinds.entries()) {
+      const eventId = randomUUID(),
+        id = randomUUID();
+      const createdAt = new Date(Date.now() + index).toISOString();
+      const status =
+        kind === "confirmed" ? "CONFIRMED" : kind === "planning" ? "PLANNING" : "TERMINATED";
+      fixtures.push({ eventId, tableId: id, kind });
+      const { confirmed: eventConfirmed, ...eventBase } = base;
+      await db.collection(COLLECTIONS.EVENTS).insertOne({
+        ...eventBase,
+        id: eventId,
+        name: `History fixture ${kind}`,
+        createdAt,
+        status,
+        ...(status === "PLANNING" ? {} : { confirmed: eventConfirmed }),
+      });
+      const { confirmed: originalConfirmed, results: originalResults, ...tableBase } = original;
+      await db.collection(COLLECTIONS.EVENT_TABLES).insertOne({
+        ...tableBase,
+        id,
+        eventId,
+        name: `History fixture ${kind}`,
+        createdAt,
+        ...(status === "PLANNING"
+          ? {}
+          : {
+              confirmed: {
+                ...originalConfirmed,
+                playerIds:
+                  kind === "player" || kind === "confirmed" ? [OWNER, GUEST] : [OWNER, OTHER],
+              },
+            }),
+        ...(status === "TERMINATED"
+          ? {
+              results:
+                kind === "player"
+                  ? originalResults
+                  : {
+                      ...originalResults,
+                      entries: [
+                        { userId: OWNER, score: "4", rank: 1 },
+                        { userId: OTHER, score: "3", rank: 2 },
+                      ],
+                    },
+            }
+          : {}),
+        ...(kind === "demonstrator" ? { demonstratorUserId: GUEST } : {}),
+      });
+      if (!["demonstrator", "manager"].includes(kind))
+        await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).insertOne({
+          ...registration,
+          id: randomUUID(),
+          eventId,
+          tableId: id,
+          status: kind === "pending" || kind === "planning" ? "PENDING" : "ACCEPTED",
+        });
+    }
+    const managerFixture = fixtures.find((row) => row.kind === "manager")!;
+    const excludedId = randomUUID();
+    const { confirmed: _confirmed, results: _results, ...unplayed } = original;
+    await db.collection(COLLECTIONS.EVENT_TABLES).insertOne({
+      ...unplayed,
+      id: excludedId,
+      eventId: managerFixture.eventId,
+      name: "History fixture excluded",
+      order: 1,
+    });
+    const list = async (section: "mine" | "available" | "terminated") =>
+      (
+        await services().plannedEventService.list(GUEST, {
+          limit: 20,
+          section,
+          query: "History fixture",
+        })
+      ).items;
+    const ids = (kinds: string[]) =>
+      fixtures
+        .filter((row) => kinds.includes(row.kind))
+        .map((row) => row.eventId)
+        .sort();
+    expect((await list("mine")).map((row) => row.id).sort()).toEqual(
+      ids(["confirmed", "planning"]),
+    );
+    expect((await list("terminated")).map((row) => row.id).sort()).toEqual(
+      ids(["player", "demonstrator"]),
+    );
+    expect(await list("available")).toEqual([]);
+    const history = async () => {
+      const rows: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await services().plannedEventService.personalTables(GUEST, {
+          limit: 1,
+          query: "History fixture",
+          cursor,
+        });
+        rows.push(...page.items.map((row) => row.id));
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return rows.sort();
+    };
+    expect(await history()).toEqual(
+      fixtures
+        .filter((row) => ["player", "demonstrator"].includes(row.kind))
+        .map((row) => row.tableId)
+        .sort(),
+    );
+    const noticeIds = await services().notifications.notifyMany(
+      fixtures.map((fixture) => ({
+        kind: "event_updated" as const,
+        recipientUserId: GUEST,
+        actorUserId: OWNER,
+        resourceName: fixture.kind,
+        resourceHref: `/events/${fixture.eventId}`,
+      })),
+    );
+    const routed = await new NotificationAttentionRepository(db).snapshot(
+      GUEST,
+      [],
+      noticeIds.map(String),
+    );
+    for (const [index, fixture] of fixtures.entries()) {
+      const ownLists = routed.references
+        .get(String(noticeIds[index]))
+        ?.lists?.filter(
+          (target) =>
+            target.kind === "event-list" && ["mine", "available", "terminated"].includes(target.id),
+        );
+      expect(ownLists).toEqual(
+        ["player", "demonstrator"].includes(fixture.kind)
+          ? [{ kind: "event-list", id: "terminated" }]
+          : ["confirmed", "planning"].includes(fixture.kind)
+            ? [{ kind: "event-list", id: "mine" }]
+            : [],
+      );
+    }
+    const member = await services().groupRecords.membership(group.id, GUEST);
+    if (!member) throw new Error("Missing current member");
+    await services().groupRecords.saveMembership({ ...member, role: "MODERATOR" });
+    expect((await list("terminated")).map((row) => row.id).sort()).toEqual(
+      ids(kinds.filter((kind) => !["planning", "confirmed"].includes(kind))),
+    );
+    expect(await history()).toEqual(
+      fixtures
+        .filter((row) => !["planning", "confirmed"].includes(row.kind))
+        .map((row) => row.tableId)
+        .sort(),
+    );
+    expect(await history()).not.toContain(excludedId);
+    await services().groupRecords.saveMembership({ ...member, role: "MEMBER" });
+    expect((await list("terminated")).map((row) => row.id).sort()).toEqual(
+      ids(["player", "demonstrator"]),
+    );
+    const playerEvent = (await list("terminated")).find((row) => row.id === fixtures[0].eventId)!;
+    expect(playerEvent.cardSummary?.tables[0].myParticipation).toBe("CONFIRMED");
+    expect(playerEvent.cardSummary?.tables[0].winners.map((row) => row.userId).sort()).toEqual(
+      [OWNER, GUEST].sort(),
+    );
+    expect(
+      playerEvent.cardSummary?.tables[0].winners.every((row) => typeof row.username === "string"),
+    ).toBe(true);
+  });
+
+  it("source-pages History by terminated frozen attendance, demonstration and current management", async () => {
     const group = await privateGroup();
     const event = await transaction((s) =>
       s.plannedEventService.create(OWNER, plannedInput(group.id)),
@@ -1938,7 +2137,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     const base = await services().eventRecords.find(event.id),
       table = await services().eventRecords.table(tableId);
     if (!base || !table) throw new Error("Missing planning fixture");
-    const states = ["PLANNING", "CONFIRMED", "CONFIRMED", "CONFIRMED", "TERMINATED"] as const;
+    const states = ["PLANNING", "CONFIRMED", "TERMINATED", "TERMINATED", "TERMINATED"] as const;
     const ids: string[] = [];
     for (const [i, status] of states.entries()) {
       const eventId = randomUUID(),
@@ -1978,7 +2177,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       limit: 1,
       cursor: `${first[0].createdAt}|${first[0].id}`,
     });
-    expect(page.map((row) => row.id)).toEqual([ids[3]]);
+    expect(page.map((row) => row.id)).toEqual([ids[3], ids[2]]);
     expect(
       await services().eventRecords.personalTables(GUEST, { limit: 1, statuses: ["PLANNING"] }),
     ).toEqual([]);
@@ -1988,18 +2187,22 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     const event = await transaction((s) =>
       s.plannedEventService.create(OWNER, plannedInput(group.id)),
     );
-    for (const tableNotice of [false, true])
-      await services().notifications.notify({
-        kind: "event_updated",
+    const noticeIds = await services().notifications.notifyMany(
+      [false, true].map((tableNotice) => ({
+        kind: "event_updated" as const,
         recipientUserId: GUEST,
         actorUserId: OWNER,
         resourceName: "Changed fixture",
         resourceHref: tableNotice ? `/events/${event.id}/tables/${tableId}` : `/events/${event.id}`,
-      });
+      })),
+    );
     const targets = [
       { kind: "table", id: tableId },
       { kind: "event-list", id: "available" },
       { kind: "event-list", id: "mine" },
+      { kind: "event-list", id: "terminated" },
+      { kind: "event-list", id: group.id },
+      { kind: "event", id: event.id },
     ] as const;
     const read = async () =>
       (await new NotificationAttentionRepository(db).snapshot(GUEST, targets)).snapshot;
@@ -2031,14 +2234,54 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         },
       },
     );
+    expect((await read()).summary.tables).toBe(0);
+    await db
+      .collection(COLLECTIONS.EVENTS)
+      .updateOne({ id: event.id }, { $set: { status: "TERMINATED" } });
     expect((await read()).summary.tables).toBeGreaterThan(0);
+    const includedRefs = await new NotificationAttentionRepository(db).snapshot(
+      GUEST,
+      [],
+      noticeIds.map(String),
+    );
+    expect(includedRefs.references.get(String(noticeIds[1]))?.historyTableIds).toEqual([tableId]);
+    await services().groupRecords.saveMembership({ ...membership, role: "MEMBER" });
     await db
       .collection(COLLECTIONS.EVENT_TABLES)
       .updateOne({ id: tableId }, { $set: { "confirmed.playerIds": [OWNER, OTHER] } });
+    await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).insertOne({
+      id: randomUUID(),
+      eventId: event.id,
+      tableId,
+      userId: GUEST,
+      kind: "SELF",
+      status: "ACCEPTED",
+      priorityAt: new Date().toISOString(),
+      sequence: 0,
+      version: 1,
+      gameVotes: {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     const dutyOnly = await read();
     expect(dutyOnly.summary.tables).toBe(0);
+    expect(dutyOnly.summary.events).toBe(0);
+    expect(count(dutyOnly, "mine")).toBe(0);
+    expect(count(dutyOnly, "terminated")).toBe(0);
+    expect(count(dutyOnly, group.id)).toBeGreaterThan(0);
+    expect(dutyOnly.targets.find((row) => row.target.kind === "event")?.count).toBeGreaterThan(0);
     expect(dutyOnly.targets.find((row) => row.target.kind === "table")?.count).toBeGreaterThan(0);
     expect(dutyOnly.unreadCount).toBe(planning.unreadCount);
+    const excludedRefs = await new NotificationAttentionRepository(db).snapshot(
+      GUEST,
+      [],
+      noticeIds.map(String),
+    );
+    expect(excludedRefs.references.get(String(noticeIds[1]))?.historyTableIds).toEqual([]);
+    expect(excludedRefs.references.get(String(noticeIds[1]))?.lists).toEqual([]);
+    expect(excludedRefs.references.get(String(noticeIds[0]))?.lists).toEqual([
+      { kind: "event-list", id: group.id },
+    ]);
   });
   it("persists a reduced Assisted allocation when switching to Manual and saves a free-seat promotion", async () => {
     const group = await privateGroup();
@@ -2719,6 +2962,11 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       bookingClosesAt: "2030-06-02T10:00:00.000Z",
     };
     const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    expect(
+      (await services().plannedEventService.list(OUTSIDER, { section: "available", limit: 1 }))
+        .items,
+    ).toMatchObject([{ id: event.id, readOnly: true, canRegister: true, role: "viewer" }]);
+    expect(await services().groupRecords.membership(groupId, OUTSIDER)).toBeNull();
     for (const user of [OUTSIDER, DEMO, GUEST]) {
       const choices = await participation(event.id, tableId);
       expect(
@@ -4013,7 +4261,9 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       expect(new Set(seen)).toEqual(
         new Set(
           sources
-            .filter((row) => row.status !== "PLANNING")
+            .filter((row) =>
+              index === 1 ? row.status === "TERMINATED" : row.status !== "PLANNING",
+            )
             .map((row) => (index === 1 ? row.tableId : row.eventId)),
         ),
       );
@@ -4025,7 +4275,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         index === 2 ? 2 : index === 1 ? 0 : 1,
       );
       expect((await read({ limit: 20, statuses: ["CONFIRMED"], query: ".*" })).items).toHaveLength(
-        1,
+        index === 1 ? 0 : 1,
       );
     }
     expect(
@@ -4146,9 +4396,15 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         (r) => r.id === demonstration.tableId,
       ),
     ).toBe(false);
-    for (const user of [OTHER, DEMO, OUTSIDER])
-      for (const section of ["mine", "available"] as const)
-        expect((await list(user, section)).some((r) => r.groupId === publicClub.id)).toBe(false);
+    for (const user of [OTHER, DEMO, OUTSIDER]) {
+      expect((await list(user, "mine")).some((r) => r.groupId === publicClub.id)).toBe(false);
+      expect(
+        (await list(user, "available"))
+          .filter((r) => r.groupId === publicClub.id)
+          .map((r) => r.id)
+          .sort(),
+      ).toEqual([demonstration.event.id, ownerDemo.event.id].sort());
+    }
     for (const user of [OTHER, DEMO, OUTSIDER]) {
       const membership = await services().groupRecords.membership(publicClub.id, user);
       expect(await services().plannedEventService.detail(user, ownerDemo.event.id)).toMatchObject({
@@ -5075,7 +5331,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     ).toHaveLength(0);
     await confirm(event.id);
     const personal = await services().plannedEventService.personalTables(OWNER, { limit: 1 });
-    expect(personal.items.map((row) => row.id)).toEqual([tableId]);
+    expect(personal.items).toEqual([]);
     expect(personal.nextCursor).toBeNull();
     const eventTables = await services().plannedEventService.tables(OWNER, event.id, { limit: 20 });
     expect(eventTables.items).toHaveLength(2);
@@ -5910,7 +6166,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     ).toBe(false);
     expect(
       (await services().eventRecords.personalTables(GUEST, { limit: 20 })).map((row) => row.id),
-    ).toEqual([tableId]);
+    ).toEqual([]);
     // Frozen personal participation still belongs in mine even without an active registration row.
     await db
       .collection(COLLECTIONS.TABLE_REGISTRATIONS)
@@ -6037,7 +6293,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         );
         expect(
           (await s.eventRecords.personalTables(GUEST, { limit: 20 })).map((row) => row.id),
-        ).toEqual(visible && role === "participant" ? [tableId] : []);
+        ).toEqual([]);
         const hierarchy = await db
           .collection(COLLECTIONS.EVENTS)
           .aggregate([
@@ -6053,7 +6309,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
           (await s.plannedEventService.personalTables(GUEST, { limit: 20 })).items.map(
             (row) => row.id,
           ),
-        ).toEqual(visible && role === "participant" ? [tableId] : []);
+        ).toEqual([]);
         if (!visible) {
           await expect(s.plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
             code: "GROUP_BANNED",

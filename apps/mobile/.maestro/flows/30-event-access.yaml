@@ -138,23 +138,7 @@ tags: [manual, events, privacy]
       - assertVisible: ${output.access.approvedGame}
       - takeScreenshot: event-table-approved-games
       - back
-      - openLink: bgo-dev:///tables
-      - extendedWaitUntil:
-          visible:
-            id: list-search-input
-          timeout: 120000
-      - tapOn:
-          id: list-search-input
-      - eraseText
-      - inputText: ${output.access.tableFilter}
-      - hideKeyboard
-      - extendedWaitUntil:
-          visible: ${output.access.gamesHelp}
-          timeout: 120000
-      - takeScreenshot: table-horizontal-card
-      - tapOn: ${output.access.gamesHelp}
-      - assertVisible: ${output.access.approvedGame}
-      - back
+      # Main Tables is now History; list-status covers final personal-list parity.
       - openLink: ${output.access.tableLink}
       - extendedWaitUntil:
           visible:

@@ -7034,3 +7034,96 @@ msgstr "Your reserved place will become available again."
 
 msgid "YYYY-MM-DDTHH:mm"
 msgstr "YYYY-MM-DDTHH:mm"
+
+msgid "Scheduled"
+msgstr "Scheduled"
+
+msgid "History"
+msgstr "History"
+
+msgid "You are excluded"
+msgstr "You are excluded"
+
+msgid "Table excluded"
+msgstr "Table excluded"
+
+msgid "You are not registered."
+msgstr "You are not registered."
+
+msgid "Not enough eligible players to reach the minimum."
+msgstr "Not enough eligible players to reach the minimum."
+
+msgid "Reserved invitations still need to be accepted."
+msgstr "Reserved invitations still need to be accepted."
+
+msgid "There is no agreement on a date and time."
+msgstr "There is no agreement on a date and time."
+
+msgid "There is no agreement on a location."
+msgstr "There is no agreement on a location."
+
+msgid "There is no agreement on a game."
+msgstr "There is no agreement on a game."
+
+msgid "No combination of date, location and game satisfies the same players."
+msgstr "No combination of date, location and game satisfies the same players."
+
+msgid "The table was excluded from confirmation."
+msgstr "The table was excluded from confirmation."
+
+msgid "The invitation was not accepted before confirmation."
+msgstr "The invitation was not accepted before confirmation."
+
+msgid "Your votes do not agree with the chosen date and time."
+msgstr "Your votes do not agree with the chosen date and time."
+
+msgid "Your votes do not agree with the chosen location."
+msgstr "Your votes do not agree with the chosen location."
+
+msgid "Your votes do not agree with the chosen game."
+msgstr "Your votes do not agree with the chosen game."
+
+msgid "You were not included in the final roster."
+msgstr "You were not included in the final roster."
+
+msgid "This table is ready for confirmation."
+msgstr "This table is ready for confirmation."
+
+msgid "No winners."
+msgstr "No winners."
+
+msgid "No tables are ready for confirmation."
+msgstr "No tables are ready for confirmation."
+
+msgid "Managers arrange seats and the waiting list. Confirmation requirements still apply."
+msgstr "Managers arrange seats and the waiting list. Confirmation requirements still apply."
+
+msgid "The app seeks compatible players, dates, locations and games. A manager must still confirm."
+msgstr "The app seeks compatible players, dates, locations and games. A manager must still confirm."
+
+msgid "Prefers the player count marked Best on BGG."
+msgstr "Prefers the player count marked Best on BGG."
+
+msgid "Prefers the solution that seats more people, respecting votes and constraints."
+msgstr "Prefers the solution that seats more people, respecting votes and constraints."
+
+msgid "Assisted planning may seat fewer players to improve the BGG recommendation."
+msgstr "Assisted planning may seat fewer players to improve the BGG recommendation."
+
+msgid "Ready for a manager to confirm."
+msgstr "Ready for a manager to confirm."
+
+msgid "Confirmation requirements are not yet met."
+msgstr "Confirmation requirements are not yet met."
+
+msgid "Tables where you are confirmed"
+msgstr "Tables where you are confirmed"
+
+msgid "You have an assigned role without a player seat."
+msgstr "You have an assigned role without a player seat."
+
+msgid "Joined on"
+msgstr "Joined on"
+
+msgid "Version"
+msgstr "Version"

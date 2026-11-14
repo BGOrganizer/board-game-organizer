@@ -105,6 +105,11 @@ runs:
         set -euo pipefail
         # ponytail: skip remote build cache until clean remote installs have been verified.
         flags=(--yes --force --local-config .vercel/deploy.json --token "$VERCEL_TOKEN")
+        if [ "$APP_PATH" = 'apps/web' ]; then
+          build_sha="$(git rev-parse HEAD)"
+          [[ "$build_sha" =~ ^[a-f0-9]{40}$ ]] || exit 1
+          flags+=(--build-env "NEXT_PUBLIC_BUILD_SHA=$build_sha")
+        fi
         if [ "$PRODUCTION" = 'true' ]; then
           test "$VERCEL_ENVIRONMENT" = 'production'
           flags+=(--prod)
@@ -125,6 +130,7 @@ runs:
           key="${BASH_REMATCH[1]}"
           value="${BASH_REMATCH[2]}"
           test "$key" != 'BGO_CI_DB_NAME'
+          test "$key" != 'NEXT_PUBLIC_BUILD_SHA'
           test "$value" != '[SENSITIVE]'
           if [ -n "$CI_DB_NAME" ]; then test "$key" != 'MONGODB_DB_NAME'; fi
           flags+=(--build-env "$key=$value" --env "$key=$value")

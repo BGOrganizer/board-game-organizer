@@ -32,32 +32,78 @@ function expression(name: string, tag: string, attribute: string) {
   return ts.transpileModule(`(${value})`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } })
     .outputText;
 }
-it.each([["events/Events", "available"]])(
-  "native %s switches only valid canonical sections",
-  (name, other) => {
-    const setSection = vi.fn();
-    const change = runInNewContext(expression(name, "Tabs", "onValueChange"), { setSection });
-    change("mine");
-    change(other);
-    change("foreign");
-    expect(setSection.mock.calls).toEqual([["mine"], [other]]);
+function callArgument(name: string, callee: string, index: number) {
+  const text = readFileSync(new URL(`../../components/${name}.tsx`, import.meta.url), "utf8");
+  const file = ts.createSourceFile(
+    "native.tsx",
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let value = "";
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && node.expression.getText(file) === callee)
+      value = node.arguments[index]?.getText(file) ?? "";
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  expect(value).not.toBe("");
+  return ts.transpileModule(`(${value})`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } })
+    .outputText;
+}
+it("native Events switches only its three canonical sections", () => {
+  const setSection = vi.fn();
+  const change = runInNewContext(expression("events/Events", "Tabs", "onValueChange"), {
+    setSection,
+  });
+  for (const value of ["mine", "available", "terminated", "foreign"]) change(value);
+  expect(setSection.mock.calls).toEqual([["mine"], ["available"], ["terminated"]]);
+});
+it.each([
+  ["mine", ["CONFIRMED", "PLANNING"]],
+  ["available", ["PLANNING"]],
+  ["terminated", ["TERMINATED"]],
+] as const)(
+  "native %s sends fixed source states without chips and preserves Group context",
+  (section, statuses) => {
+    const code = callArgument("events/EventList", "useEventRecords", 1);
+    const filters = { selected: ["PLANNING", "TERMINATED"], search: "z" };
+    expect(runInNewContext(code, { section, filters, groupId: undefined })).toEqual({
+      groupId: undefined,
+      section,
+      statuses: [...statuses],
+      query: "z",
+    });
+    expect(runInNewContext(code, { section, filters, groupId: "club" })).toEqual({
+      groupId: "club",
+      section: undefined,
+      statuses: filters.selected,
+      query: "z",
+    });
+    const options = expression("events/EventList", "ListSearch", "options");
+    const context = {
+      groupId: undefined,
+      t: (s: string) => s,
+      CalendarCheck2: "confirmed",
+      CalendarClock: "planning",
+      Flag: "terminated",
+    };
+    expect(runInNewContext(options, context)).toEqual([]);
+    expect(
+      runInNewContext(options, { ...context, groupId: "club" }).map(
+        (row: { key: string }) => row.key,
+      ),
+    ).toEqual(["CONFIRMED", "PLANNING", "TERMINATED"]);
   },
 );
-it.each(["mine", "available"])(
-  "native EventList keeps Group context unsplit and sends %s only for main Events",
+it.each(["mine", "available", "terminated", "foreign", undefined])(
+  "native Event entry validates initial section %s",
   (section) => {
-    const code = expression("events/Events", "EventList", "section");
-    expect(runInNewContext(code, { section })).toBe(section);
-    const text = readFileSync(
-      new URL("../../components/events/EventList.tsx", import.meta.url),
-      "utf8",
+    const code = expression("../app/(tabs)/events", "Events", "initialSection");
+    expect(runInNewContext(code, { section })).toBe(
+      section === "available" || section === "terminated" ? section : "mine",
     );
-    expect(text).toContain("useListSearch(eventListStatuses, 0)");
-    expect(text).toContain(
-      'statuses: !groupId && section === "available" ? ["PLANNING"] : filters.selected',
-    );
-    expect(text).toContain("section: groupId ? undefined : section");
-    expect(text).toContain('mode="filter"');
   },
 );
 it.each(["mine", "public"])(
@@ -72,7 +118,7 @@ it.each(["mine", "public"])(
     expect(text).toContain('useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4)');
   },
 );
-it("native Tables has one combined list, no section tabs or source section filter", () => {
+it("native History has one terminated source list, no section tabs or chips", () => {
   const wrapper = readFileSync(
     new URL("../../components/events/Tables.tsx", import.meta.url),
     "utf8",
@@ -83,7 +129,11 @@ it("native Tables has one combined list, no section tabs or source section filte
     new URL("../../components/events/TableList.tsx", import.meta.url),
     "utf8",
   );
-  expect(list).toContain("useRecordTables(o, null, { query: f.search, statuses: f.selected })");
+  expect(
+    runInNewContext(callArgument("events/TableList", "useRecordTables", 2), { f: { search: "z" } }),
+  ).toEqual({ query: "z", statuses: ["TERMINATED"] });
+  expect(runInNewContext(expression("events/TableList", "ListSearch", "options"))).toEqual([]);
+  expect(list).not.toContain("TableListHeading");
   expect(list).not.toContain("TableListSection");
 });
 it("main native strips share Groups geometry while detail tabs retain independent spacing", () => {
@@ -190,7 +240,7 @@ it("native Contact top tabs include unread displayed actors without changing sub
   expect(text).toContain('attentionRead.read({ kind: "contacts", id })');
 });
 
-it("native list bodies retain a single virtualized list, filters, chips, legend and explicit structural sizing", () => {
+it("native lists retain one virtualized owner, text filtering, paging and the renamed History navigation", () => {
   for (const name of ["EventList", "TableList"]) {
     const text = readFileSync(
       new URL(`../../components/events/${name}.tsx`, import.meta.url),
@@ -199,15 +249,17 @@ it("native list bodies retain a single virtualized list, filters, chips, legend 
     expect(text).toContain("<InputFlatList");
     expect(text).not.toContain("<ScrollView");
     expect(text).toContain('mode="filter"');
-    expect(text).toContain('key: "CONFIRMED"');
-    if (name === "TableList") expect(text).not.toContain('key: "PLANNING"');
-    else expect(text).toContain('key: "PLANNING"');
-    expect(text).toContain('key: "TERMINATED"');
     expect(text).not.toContain('key: "past"');
     expect(text).not.toContain('key: "future"');
     expect(text).toContain("fetchNextPage");
   }
-  expect(
-    readFileSync(new URL("../../components/events/TableList.tsx", import.meta.url), "utf8"),
-  ).toContain("<TableListHeading");
+  const layout = readFileSync(new URL("../../app/(tabs)/_layout.tsx", import.meta.url), "utf8");
+  expect(layout).toContain('title: t("History")');
+  expect(layout).toContain('title={t("History")}');
+  const events = readFileSync(
+    new URL("../../components/events/Events.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(events).toContain('t("Scheduled")');
+  expect(events).toContain('target={{ kind: "event-list", id: "terminated" }}');
 });

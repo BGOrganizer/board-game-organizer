@@ -16,13 +16,14 @@ it.each(["groups/GroupCard", "events/EventCard", "events/EventTableCard"])(
 );
 it("preserves invitation consent and reserved/waiting distinctions without inventing accepted players", () => {
   const s =
-    source("events/EventTableCardIndicators") + source("events/EventTableInvitationActions");
-  expect(s).toContain("myRegistration");
+    source("events/EventTableCardIndicators") +
+    source("events/EventTableInvitationActions") +
+    source("events/EventCardTableSummaries");
+  expect(s).toContain("tablePendingAction(table)");
   expect(s).toContain("Accept invitation");
   expect(s).toContain("Decline invitation");
   expect(s).toMatch(/version:\s*registration\.version/);
   expect(s).toContain("Waiting list");
-  expect(s).toContain("Pending");
   expect(s).toContain("winners.map");
   expect(s).not.toContain('kind:"approve"');
 });
@@ -30,11 +31,9 @@ it("keeps compact cumulative Table icons at bottom right beside full-height left
   const table = source("events/EventTableCard") + source("events/EventTableCardIndicators");
   expect(table).toContain("<CalendarDays");
   expect(table).not.toContain("<EventStatusBadge status={table.eventStatus}");
-  expect(table).toContain("tableParticipation(table.myRegistration, table.myPosition)");
-  expect(table).toContain("<ArtworkStatusPopover");
-  expect(table).toContain('t("Winners")');
+  expect(table).toContain("tableCardRoles(table, userId)");
+  expect(table).toContain("<EventRolePopover");
   expect(table).toContain("table.demonstratorUserId");
-  expect(table).toContain('kind="demonstrator"');
   expect(table).toContain("leadingActions=");
   expect(table).toContain('variant="planets"');
   expect(table).toContain("table.groupName");

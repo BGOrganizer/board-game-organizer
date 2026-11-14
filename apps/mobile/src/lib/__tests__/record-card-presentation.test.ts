@@ -11,6 +11,7 @@ import {
   plannedTable,
   seat,
 } from "../../../../web/src/test-fixtures/eventRecords";
+import { cardStateMessages } from "../eventCardMessages";
 
 type Element = { type: unknown; props: Record<string, any> };
 // Execute actual native JSX with host primitives replaced. This is not device touch/layout acceptance.
@@ -35,6 +36,11 @@ function component(file: string, name: string, modules: Record<string, unknown>)
         cover = component("common/ui/ListCardCoverContent", "ListCardCoverContent", modules);
         return { ListCardCoverContent: cover };
       }
+      if (!(id in modules) && id === "@/lib/eventCardMessages") return { cardStateMessages };
+      if (!(id in modules) && id === "./EventRolePopover") return { EventRolePopover: "Role" };
+      if (!(id in modules) && id === "./EventCardTableSummaries")
+        return { EventCardTableSummaries: "Summaries" };
+      if (!(id in modules) && id === "heroui-native/skeleton") return { Skeleton: "Skeleton" };
       if (!(id in modules) && id === "heroui-native/hooks")
         return { useThemeColor: (tokens: string | string[]) => tokens };
       if (!(id in modules) && id === "@lingui/react")
@@ -443,16 +449,46 @@ it("keeps native manager, demonstrator, pending and waiting indicators cumulativ
       myPosition: "WAITING",
     },
   });
-  expect(
-    tree.props.children
-      .filter((node: Element) => node?.type === "Role")
-      .map((node: Element) => node.props.kind),
-  ).toEqual(["demonstrator", "waiting"]);
-  expect(
-    tree.props.children
-      .filter((node: Element) => node?.type === "Role")
-      .map((node: Element) => node.props.label),
-  ).not.toContain("Player with pending invitation");
+  const role = tree.props.children.filter((node: Element) => node?.type === "Role");
+  expect(role).toHaveLength(1);
+  expect(role[0].props.roles).toEqual(["admin", "demonstrator", "waitingPlayer"]);
+  expect(role[0].props.roles).not.toContain("invitedPlayer");
+  const confirmed = {
+    ...plannedTable,
+    eventStatus: "CONFIRMED",
+    confirmed: { gameId: 1, startsAt: plannedEvent.createdAt, playerIds: [] },
+  };
+  const summary = {
+    tableId: plannedTable.id,
+    name: plannedTable.name,
+    confirmed: true,
+    ready: false,
+    blockers: [],
+    myParticipation: "NONE",
+    exclusionReasons: [],
+    winners: [],
+  };
+  for (const [participation, tone, variant] of [
+    ["CONFIRMED", "success", "ghost"],
+    ["EXCLUDED", "danger", "danger-soft"],
+    ["NONE", "muted", "ghost"],
+  ]) {
+    const state = render({
+      table: { ...confirmed, cardSummary: { ...summary, myParticipation: participation } },
+    }).props.children.find((node: Element) => node?.type === "Help");
+    expect(state.props).toMatchObject({ tone, triggerVariant: variant });
+  }
+  const excluded = render({ table: { ...confirmed, confirmed: undefined } }).props.children.find(
+    (node: Element) => node?.type === "Help",
+  );
+  expect(excluded.props).toMatchObject({ label: "Table excluded", triggerVariant: "danger" });
+  const ended = render({
+    table: { ...confirmed, eventStatus: "TERMINATED", cardSummary: summary },
+  }).props.children.find((node: Element) => node?.type === "Help");
+  expect(ended.props).toMatchObject({ label: "Terminated", tone: "accent" });
+  const finalChildren = ended.props.children.props.children;
+  expect(finalChildren.type).toBe("Summaries");
+  expect(finalChildren.props).toMatchObject({ mode: "results", showNames: false });
 });
 it("keeps native Event admin/moderation, accepted, pending and demonstration independent", () => {
   const render = component("events/EventCardIndicators", "EventCardIndicators", {
@@ -484,32 +520,64 @@ it("keeps native Event admin/moderation, accepted, pending and demonstration ind
     ],
   };
   const tree = render({ event });
-  expect(
-    tree.props.children
-      .filter((node: Element) => node?.type === "Role")
-      .map((node: Element) => node.props.kind),
-  ).toEqual(["admin", "accepted", "pending", "demonstrator"]);
-  for (const role of tree.props.children.filter((node: Element) => node?.type === "Role"))
-    expect(role.props.size).toBe("compact");
+  const role = tree.props.children.filter((node: Element) => node?.type === "Role");
+  expect(role).toHaveLength(1);
+  expect(role[0].props.roles).toEqual([
+    "admin",
+    "demonstrator",
+    "invitedParticipant",
+    "acceptedParticipant",
+  ]);
   expect(
     tree.props.children.find((node: Element) => node?.props?.label === "Planning").props,
-  ).toMatchObject({
-    size: "compact",
-    width: "content-fit",
-    label: "Planning",
-  });
+  ).toMatchObject({ size: "compact", width: "content-fit", label: "Planning" });
+  expect(tree.props.children.filter((node: Element) => node?.type === "Schedule")).toHaveLength(0);
   const moderator = render({ event: { ...event, managementRole: "moderator" } });
-  expect(moderator.props.children[0].props).toMatchObject({
-    kind: "manager",
-    label: "Moderator",
-  });
+  expect(moderator.props.children[0].props.roles).toContain("moderator");
   const readOnly = render({ event: { ...event, readOnly: true } });
-  expect(readOnly.props.children.filter((node: Element) => node?.type === "Role")).toHaveLength(0);
+  expect(readOnly.props.children[0].props.roles).toEqual([]);
   const saving = render({ event: { ...event, optimistic: { draftId: "draft", phase: "saving" } } });
-  expect(saving.props.children.filter((node: Element) => node?.type === "Role")).toHaveLength(0);
+  expect(saving.props.children[0].props).toMatchObject({ roles: [], pending: true });
   expect(saving.props.children.some((node: Element) => node?.props?.label === "Planning")).toBe(
     true,
   );
+  const summary = {
+    tableId: "table",
+    name: "Table",
+    confirmed: true,
+    ready: false,
+    blockers: [],
+    myParticipation: "NONE",
+    exclusionReasons: [],
+    winners: [],
+  };
+  for (const [participation, tone] of [
+    ["CONFIRMED", "success"],
+    ["EXCLUDED", "danger"],
+    ["NONE", "accent"],
+  ]) {
+    const final = render({
+      event: {
+        ...event,
+        status: "CONFIRMED",
+        myRegistrations: [],
+        cardSummary: { ready: false, tables: [{ ...summary, myParticipation: participation }] },
+      },
+    });
+    expect(
+      final.props.children.find(
+        (node: Element) =>
+          node?.type === "Status" && ["Confirmed", "You are excluded"].includes(node?.props?.label),
+      ).props.tone,
+    ).toBe(tone);
+  }
+  const terminated = render({
+    event: { ...event, status: "TERMINATED", cardSummary: { ready: false, tables: [summary] } },
+  });
+  expect(
+    terminated.props.children.find((node: Element) => node?.props?.label === "Terminated").props
+      .tone,
+  ).toBe("accent");
 });
 it.each(["admin", "moderator", "accepted", "invited", "requested", "none"] as const)(
   "retains native Group %s role and public/private status as separate compact controls",
@@ -975,3 +1043,170 @@ it("keeps seat lock actions on the avatar and edits only the local order", () =>
     [0, 1],
   ]);
 });
+
+it("keeps the native role identity neutral while listing independent roles and explicit invitation help", () => {
+  const render = component("events/EventRolePopover", "EventRolePopover", {
+    "@board-game-organizer/shared": shared,
+    "heroui-native/text": { Typography: "Typography" },
+    "lucide-react-native": { IdCard: "IdCard" },
+    "react-native": { View: "View" },
+    "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
+    "@/lib/i18n": { useT: () => (id: string) => id },
+  });
+  const roles = render({ roles: ["admin", "demonstrator"], action: "reply" });
+  expect(roles.props).toMatchObject({
+    icon: "IdCard",
+    tone: "muted",
+    size: "compact",
+    triggerClassName: "bg-default",
+  });
+  expect(roles.props.children.props.children[0].map((row: Element) => row.props.children)).toEqual([
+    "Admin",
+    "Demonstrator",
+  ]);
+  expect(roles.props.children.props.children[2].props.children).toBe(
+    "Open details to accept or decline your invitation.",
+  );
+  for (const pending of [true, false]) {
+    const empty = render({ roles: [], pending });
+    expect(empty.props.children.props.children[1].props.children).toBe(
+      pending ? "Loading…" : "You are not registered.",
+    );
+  }
+});
+it.each(["planning", "exclusions", "results"] as const)(
+  "virtualizes native card %s summaries, with one row per tied winner",
+  (mode) => {
+    const render = component("events/EventCardTableSummaries", "EventCardTableSummaries", {
+      "@board-game-organizer/shared": shared,
+      "heroui-native/text": { Typography: "Typography" },
+      "react-native": {
+        FlatList: "FlatList",
+        View: "View",
+        useWindowDimensions: () => ({ height: 640 }),
+      },
+      "@/lib/i18n": { useT: () => (id: string) => id },
+    });
+    const item = {
+      tableId: "table",
+      name: "Table",
+      ready: false,
+      blockers: ["MIN_PLAYERS"],
+      exclusionReasons: ["NOT_SELECTED"],
+      winners: [
+        { userId: "a", username: "alice" },
+        { userId: "b", username: "@bob" },
+        { userId: "c", username: null },
+      ],
+    };
+    const list = render({ tables: [item], mode });
+    expect(list.type).toBe("FlatList");
+    expect(list.props.initialNumToRender).toBe(8);
+    expect(list.props.keyExtractor(item)).toBe("table");
+    const row = list.props.renderItem({ item });
+    expect(row.props.children[0].props.children).toBe("Table");
+    if (mode === "results")
+      expect(row.props.children[1].map((winner: Element) => winner.props.children)).toEqual([
+        "@alice",
+        "@bob",
+        "Username unavailable",
+      ]);
+    if (mode === "planning") {
+      expect(row.props.children[1][0].props.children).toBe(
+        "Not enough eligible players to reach the minimum.",
+      );
+      expect(
+        list.props.renderItem({ item: { ...item, ready: true } }).props.children[1].props.children,
+      ).toBe("This table is ready for confirmation.");
+    }
+    if (mode === "exclusions")
+      expect(row.props.children[1][0].props.children).toBe(
+        "You were not included in the final roster.",
+      );
+    const unnamed = render({ tables: [], mode, showNames: false });
+    expect(
+      unnamed.props.renderItem({ item: { ...item, winners: [] } }).props.children[0],
+    ).toBeNull();
+    if (mode === "results")
+      expect(
+        unnamed.props.renderItem({ item: { ...item, winners: [] } }).props.children[1].props
+          .children,
+      ).toBe("No winners.");
+  },
+);
+it.each(["EventSchedulePopover", "EventTableSchedulePopover"] as const)(
+  "hides known-empty final native venues in %s while retaining actual venue projections",
+  (name) => {
+    const render = component(`events/${name}`, name, {
+      "@board-game-organizer/shared": shared,
+      "@/components/common/ui/ScheduleOptionsPopover": { ScheduleOptionsPopover: "Schedule" },
+    });
+    for (const status of ["CONFIRMED", "TERMINATED"] as const) {
+      const record =
+        name === "EventSchedulePopover"
+          ? {
+              event: {
+                ...plannedEvent,
+                status,
+                locations: [],
+                confirmed: {
+                  dateId: plannedEvent.dates[0].id,
+                  locationId: "missing",
+                  at: plannedEvent.createdAt,
+                },
+              },
+            }
+          : {
+              table: {
+                ...plannedTable,
+                eventStatus: status,
+                eventSchedule: {
+                  localStartsAt: null,
+                  location: null,
+                  dateCount: 1,
+                  locationCount: 0,
+                  locations: [],
+                },
+              },
+            };
+      expect(render({ ...record, kind: "locations" })).toBeNull();
+    }
+    const actual =
+      name === "EventSchedulePopover"
+        ? {
+            event: {
+              ...plannedEvent,
+              status: "CONFIRMED",
+              confirmed: {
+                dateId: plannedEvent.dates[0].id,
+                locationId: plannedEvent.locations[0].id,
+                at: plannedEvent.createdAt,
+              },
+            },
+          }
+        : {
+            table: {
+              ...plannedTable,
+              eventStatus: "CONFIRMED",
+              eventSchedule: shared.eventRecordSchedulePreview({
+                ...plannedEvent,
+                status: "CONFIRMED",
+                confirmed: {
+                  dateId: plannedEvent.dates[0].id,
+                  locationId: plannedEvent.locations[0].id,
+                  at: plannedEvent.createdAt,
+                },
+              }),
+            },
+          };
+    expect(render({ ...actual, kind: "locations" }).props.rows).toHaveLength(1);
+    if (name === "EventTableSchedulePopover") {
+      expect(
+        render({
+          table: { ...plannedTable, eventStatus: "CONFIRMED", eventSchedule: undefined },
+          kind: "locations",
+        }).props.rows,
+      ).toBeUndefined();
+    }
+  },
+);

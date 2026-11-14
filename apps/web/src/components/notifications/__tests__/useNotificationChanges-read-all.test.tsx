@@ -119,6 +119,7 @@ it("reads the captured resource from the initial 8 to sequential 50-row pages, e
   const fetcher = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
     const params = new URL(String(url)).searchParams;
     if (init?.method === "PATCH") {
+      expect(params.get("navigation")).toBe("history");
       const input = requestInput(init);
       writes.push(input);
       remaining = remaining.filter(

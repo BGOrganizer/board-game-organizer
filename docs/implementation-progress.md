@@ -5,6 +5,37 @@ Older designs and local-only authorizations below may be superseded. Read the cu
 [domain contract](groups-events-refactor.md), [root instructions](../AGENTS.md) and workflow source first.
 Historical test counts describe their recorded revision only; they do not prove the current head.
 
+## Event indicators, personal history and profile metadata — 2026-11-14
+
+- Event/Table list and detail indicators follow the [card contract](groups-events-refactor.md),
+  retaining the existing compact rounded faces, glyph sizes and accessible touch targets. One
+  neutral role control discloses simultaneous roles; planning, exclusions, confirmed participation
+  and tied winners use actual allocation/results. Group indicators remain unchanged. EN/IT copy
+  and accented Italian popovers are verified against the compiled catalogs.
+- Main Events expose Scheduled, Available and Terminated; Tables becomes History. Authorization,
+  registration and frozen participation determine eligibility before server paging. Text filters,
+  bounded progressive rendering and infinite loading remain available. Main notification navigation
+  follows these sections without acknowledging invitations or reading notices implicitly; previous
+  installed clients retain their strict response format until they accept the OTA.
+- Own profiles display the Clerk registration date below the avatar and version below logout in
+  both tabs, as specified in [Profiles](profiles.md). Prerelease version labels include the current
+  JavaScript build SHA, including OTA updates; stable Production labels retain the semantic version.
+- Completed local coverage before the notification compatibility negotiation: schemas **191/191**,
+  shared **748/748**, API **1,129/1,129**, mobile **979/979**, all without skips. Focused web coverage
+  passes **104/104** with 100% across all four metrics for the new deterministic/component gates;
+  notification client regressions pass **35/35**, negotiated API transport/routes **36/36** and
+  capability schemas **8/8**. Provisional creation logic retains 100% across all four metrics;
+  CI metadata/publication contracts pass **39/39**.
+  The broad web run exposed stale personal-list/notification fixtures; corrected focused tests and
+  exact-commit CI are required evidence rather than treating the initial run as green.
+- Real disposable MongoDB community integration passes **86/86** without skips. The independent
+  emulated repository run was interrupted by the execution environment; its owned database files
+  were removed and the local port verified closed. It is not counted as a passing integration run.
+- Controlled Chromium checks pass **8/8** across EN/IT, light/dark and narrow/wide viewports. These
+  component fixtures do not prove authenticated browser or native acceptance. Playwright/Maestro
+  journeys were updated; authenticated E2E and physical-device execution were unavailable here.
+  No native dependencies/configuration, application database or provider settings were changed.
+
 ## Anchored seats, opaque badges and floating-action clearance — 2026-11-14
 
 - A further queue-promotion refinement preserves leading holes: the first waiting player enters

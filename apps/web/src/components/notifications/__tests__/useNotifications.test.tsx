@@ -261,7 +261,7 @@ describe("useNotifications", () => {
     const { result } = renderHook(() => useNotifications(options, 1), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.notifications).toHaveLength(1));
     expect(fetch).toHaveBeenCalledWith(
-      "https://api.example.com/api/notifications?limit=1&x-vercel-protection-bypass=bypass",
+      "https://api.example.com/api/notifications?limit=1&navigation=history&x-vercel-protection-bypass=bypass",
       { headers: { Authorization: "Bearer fresh-token" }, signal: expect.any(AbortSignal) },
     );
     await act(() => result.current.list.fetchNextPage());
@@ -307,7 +307,7 @@ describe("useNotifications", () => {
       client.getQueryData(["notifications", options.apiUrl, options.userId, 3, "en"]),
     ).toMatchObject({ pages: [{ notifications: [{ title: "New friend request" }] }] });
     expect(vi.mocked(fetch).mock.calls.at(-1)).toEqual([
-      "https://api.example.com/api/notifications?limit=3&locale=it&x-vercel-protection-bypass=bypass",
+      "https://api.example.com/api/notifications?limit=3&navigation=history&locale=it&x-vercel-protection-bypass=bypass",
       { headers: { Authorization: "Bearer rotated" }, signal: expect.any(AbortSignal) },
     ]);
   });

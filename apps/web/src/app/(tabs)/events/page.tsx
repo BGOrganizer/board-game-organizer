@@ -5,5 +5,9 @@ export default async function Page({
   searchParams: Promise<{ section?: string }>;
 }) {
   const { section } = await searchParams;
-  return <Events initialSection={section === "available" ? "available" : "mine"} />;
+  return (
+    <Events
+      initialSection={section === "available" || section === "terminated" ? section : "mine"}
+    />
+  );
 }

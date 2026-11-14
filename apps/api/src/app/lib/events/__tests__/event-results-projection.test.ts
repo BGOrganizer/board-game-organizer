@@ -398,3 +398,118 @@ it("never fabricates missing historical detail fields, profiles or roster member
   expect(result.seatedCount).toBe(0);
   expect(sharedEventResults({ ...event(), confirmed: undefined }, []).dates).toEqual([]);
 });
+
+it("redacts sibling card summaries and restores only factual frozen personal attendance", () => {
+  const source = event(),
+    own = table();
+  const duty = {
+    ...table(),
+    id: "duty",
+    demonstratorUserId: "a",
+    confirmed: { ...table().confirmed!, playerIds: ["b", "c"] },
+  };
+  const privateSibling = {
+    ...table(),
+    id: "private-sibling",
+    name: "PRIVATE-SIBLING",
+    confirmed: undefined,
+  };
+  const summary = (row: typeof own) => ({
+    tableId: row.id,
+    name: row.name,
+    confirmed: Boolean(row.confirmed),
+    ready: Boolean(row.confirmed),
+    blockers: [] as const,
+    myParticipation: "NONE" as const,
+    exclusionReasons: [] as const,
+    winners: [{ userId: "a", username: "player-a" }],
+  });
+  source.cardSummary = {
+    ready: true,
+    tables: [own, duty, privateSibling].map((row) => ({
+      ...summary(row),
+      blockers: [],
+      exclusionReasons: [],
+    })),
+  };
+  const personal = personalEventProjection(source, [own, duty, privateSibling], [], "a");
+  expect(personal.cardSummary?.tables.map((row) => [row.tableId, row.myParticipation])).toEqual([
+    ["table", "CONFIRMED"],
+    ["duty", "NONE"],
+  ]);
+  expect(JSON.stringify(personal)).not.toContain("PRIVATE-SIBLING");
+  expect(sharedEventResults(source, [own]).cardSummary?.tables).toEqual([
+    { ...summary(own), blockers: [], exclusionReasons: [] },
+  ]);
+  expect(sharedEventResults(source, []).cardSummary?.tables).toEqual([]);
+  expect(personalEventProjection(source, [], [], "a").cardSummary?.tables).toEqual([]);
+});
+
+it("clears personal card markers for shared viewers without losing authoritative personal Table snapshots", () => {
+  const source = table();
+  source.cardSummary = {
+    tableId: source.id,
+    name: source.name,
+    confirmed: true,
+    ready: true,
+    blockers: [],
+    myParticipation: "EXCLUDED",
+    exclusionReasons: ["NOT_SELECTED"],
+    winners: [{ userId: "a", username: "player-a" }],
+  };
+  expect(sharedTableResults(source).cardSummary).toMatchObject({
+    myParticipation: "NONE",
+    exclusionReasons: [],
+  });
+  expect(personalTableProjection(source, null, "a").cardSummary).toMatchObject({
+    myParticipation: "CONFIRMED",
+    exclusionReasons: [],
+  });
+  const duty = { ...source, demonstratorUserId: "demo" };
+  expect(
+    personalTableProjection(duty, registration("ACCEPTED", "demo"), "demo").cardSummary,
+  ).toMatchObject({ myParticipation: "EXCLUDED", exclusionReasons: ["NOT_SELECTED"] });
+  expect(personalTableProjection(duty, null, "demo").cardSummary).toMatchObject({
+    myParticipation: "NONE",
+    exclusionReasons: [],
+  });
+});
+
+it("preserves exclusion precedence for a personal frozen demonstrator's own accepted/pending registration", () => {
+  const source = event(),
+    duty = { ...table(), demonstratorUserId: "demo" };
+  duty.cardSummary = {
+    tableId: duty.id,
+    name: duty.name,
+    confirmed: true,
+    ready: true,
+    blockers: [],
+    myParticipation: "NONE",
+    exclusionReasons: [],
+    winners: [],
+  };
+  source.cardSummary = { ready: true, tables: [duty.cardSummary] };
+  for (const status of ["ACCEPTED", "PENDING", "CANCELLED"] as const) {
+    const own = registration(status, "demo");
+    const expected =
+      status === "CANCELLED"
+        ? []
+        : status === "PENDING"
+          ? ["PENDING_INVITATION"]
+          : ["NOT_SELECTED"];
+    const rows = [
+      { ...own, userId: "foreign" },
+      { ...own, eventId: "foreign" },
+      { ...own, tableId: "foreign" },
+      own,
+    ];
+    const result = personalEventProjection(source, [duty], rows, "demo");
+    expect(result.cardSummary?.tables[0]).toMatchObject({
+      myParticipation: status === "CANCELLED" ? "NONE" : "EXCLUDED",
+      exclusionReasons: expected,
+    });
+    expect(personalTableProjection(duty, own, "demo").cardSummary?.exclusionReasons).toEqual(
+      expected,
+    );
+  }
+});

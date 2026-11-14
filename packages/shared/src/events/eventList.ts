@@ -6,6 +6,7 @@ import type {
   PlannedTableResponse,
   TableListSection,
 } from "@board-game-organizer/schemas";
+import { publicBookingIsClosed } from "./eventRecordPolicy";
 
 /** Excluded frozen-event Tables remain readable only in their Event's list. */
 export function isPersonalEventTableVisible(
@@ -14,39 +15,59 @@ export function isPersonalEventTableVisible(
   return table.eventStatus === "PLANNING" || Boolean(table.confirmed);
 }
 
-/** Participation includes current management authority without inventing a player seat. */
+/** Personal sections follow actual attendance and current authority, never an inferred seat. */
 export function personalEventSection(
   event: Pick<
     PlannedEventResponse,
-    "groupId" | "adminUserId" | "myRegistrations" | "role" | "myDemonstrator"
+    "groupId" | "adminUserId" | "myRegistrations" | "role" | "myDemonstrator" | "status"
   > &
-    Partial<Pick<PlannedEventResponse, "canManage">>,
+    Partial<
+      Pick<
+        PlannedEventResponse,
+        "canManage" | "canRegister" | "cardSummary" | "groupType" | "bookingClosesAt"
+      >
+    >,
   userId: string,
+  now = Date.now(),
 ): EventListSection | null {
+  const manages = event.canManage ?? (!event.groupId && event.adminUserId === userId);
+  const played = event.cardSummary
+    ? event.cardSummary.tables.some((table) => table.myParticipation === "CONFIRMED")
+    : event.myRegistrations.some((row) => row.userId === userId && row.position === "FROZEN");
+  const demonstrates = event.myDemonstrator || event.role === "demonstrator";
+  if (event.status === "TERMINATED") return manages || played || demonstrates ? "terminated" : null;
   if (
-    event.canManage ||
-    (!event.groupId && event.adminUserId === userId) ||
-    event.myDemonstrator ||
-    event.role === "demonstrator" ||
+    manages ||
+    played ||
+    demonstrates ||
     event.myRegistrations.some(
       (row) => row.userId === userId && (row.status === "PENDING" || row.status === "ACCEPTED"),
     )
   )
     return "mine";
-  return event.groupId || event.adminUserId === userId ? "available" : null;
+  return event.status === "PLANNING" &&
+    event.groupId &&
+    event.canRegister === true &&
+    !publicBookingIsClosed(event, event.groupType ?? null, now)
+    ? "available"
+    : null;
 }
 
-/** The combined personal list needs explicit participation, not a guessed seat/queue position. */
-export function isPersonalTableParticipant(
+/** History contains played Tables, including current managers and the actual demonstrator. */
+export function isPersonalHistoryTable(
   table: Pick<
     PlannedTableResponse,
     "eventStatus" | "confirmed" | "demonstratorUserId" | "myRegistration"
-  >,
+  > &
+    Partial<Pick<PlannedTableResponse, "canManage">>,
   userId: string,
 ) {
   return (
-    (table.eventStatus === "CONFIRMED" || table.eventStatus === "TERMINATED") &&
-    Boolean(table.confirmed?.playerIds.includes(userId))
+    table.eventStatus === "TERMINATED" &&
+    Boolean(table.confirmed) &&
+    (table.canManage === true ||
+      table.demonstratorUserId === userId ||
+      Boolean(table.confirmed?.playerIds.includes(userId)))
   );
 }
 

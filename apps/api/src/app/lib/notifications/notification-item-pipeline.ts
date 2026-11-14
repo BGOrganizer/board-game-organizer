@@ -29,6 +29,21 @@ export function itemOwnerIds(input: string, resource: "event" | "table" | "group
     },
   };
 }
+/** Main Event navigation is distinct from a Group's contextual Events list. */
+export function mainEventLists(input: string) {
+  return {
+    $filter: {
+      input,
+      as: "list",
+      cond: {
+        $and: [
+          { $eq: ["$$list.kind", "event-list"] },
+          { $in: ["$$list.id", ["mine", "available", "terminated"]] },
+        ],
+      },
+    },
+  };
+}
 /** Tab navigation contains actual owner rows; it does not make their parents entity owners. */
 export function ownerListTargets(events: string, groups: string) {
   return {
@@ -58,7 +73,7 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
       { $eq: [{ $size: { $ifNull: ["$_unscopedItems", "$_items"] } }, { $size: "$_items" }] },
     ],
   };
-  const lost = (before: string, after: string) => ({
+  const lost = (before: unknown, after: unknown) => ({
     $and: [{ $gt: [{ $size: before }, 0] }, { $eq: [{ $size: after }, 0] }],
   });
   const removed = (kind: string, before: string, after: string) => ({
@@ -136,8 +151,42 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
             },
           },
           unread: { $sum: { $cond: [complete, 1, 0] } },
-          tables: { $sum: { $cond: [lost("$_tableIds", "$_afterTables"), 1, 0] } },
-          events: { $sum: { $cond: [lost("$_ownerEvents", "$_afterEvents"), 1, 0] } },
+          tables: {
+            $sum: {
+              $cond: [
+                lost(
+                  {
+                    $setIntersection: [
+                      "$_tableIds",
+                      { $ifNull: [{ $arrayElemAt: ["$_event.personalTableIds", 0] }, []] },
+                    ],
+                  },
+                  {
+                    $setIntersection: [
+                      "$_afterTables",
+                      { $ifNull: [{ $arrayElemAt: ["$_event.personalTableIds", 0] }, []] },
+                    ],
+                  },
+                ),
+                1,
+                0,
+              ],
+            },
+          },
+          events: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    lost("$_ownerEvents", "$_afterEvents"),
+                    { $gt: [{ $size: mainEventLists("$_lists") }, 0] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
           groups: { $sum: { $cond: [lost("$_ownerGroups", "$_afterGroups"), 1, 0] } },
           eventId: { $first: "$_eventId" },
           groupId: { $first: "$_groupId" },

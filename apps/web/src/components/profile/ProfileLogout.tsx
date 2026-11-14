@@ -6,6 +6,7 @@ import { useLingui } from "@lingui/react/macro";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { ProfileVersion } from "./ProfileVersion";
 export function ProfileLogout() {
   const { t } = useLingui(),
     { signOut } = useClerk();
@@ -35,6 +36,7 @@ export function ProfileLogout() {
         <LogOut className="size-4" aria-hidden />
         {t`Sign out of your account`}
       </Button>
+      <ProfileVersion />
       {open ? (
         <ContactConfirmDialog
           title={t`Sign out of your account?`}

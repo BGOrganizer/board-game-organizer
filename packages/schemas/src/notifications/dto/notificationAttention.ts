@@ -8,7 +8,7 @@ export const notificationListTargetSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("event-list"),
-      id: z.union([z.enum(["mine", "available"]), z.uuid()]),
+      id: z.union([z.enum(["mine", "available", "terminated"]), z.uuid()]),
     })
     .strict(),
   z.object({ kind: z.literal("group-list"), id: z.enum(["PRIVATE", "PUBLIC", "search"]) }).strict(),
@@ -23,8 +23,11 @@ export const notificationAttentionTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("contacts"), id: z.enum(contactNotificationSections) }).strict(),
 ]);
 export type NotificationAttentionTarget = z.infer<typeof notificationAttentionTargetSchema>;
-export const notificationAttentionQuerySchema = z
-  .object({
+export const notificationNavigationQuerySchema = z
+  .object({ navigation: z.literal("history").optional() })
+  .strict();
+export const notificationAttentionQuerySchema = notificationNavigationQuerySchema
+  .extend({
     targets: z
       .string()
       .max(16_000)
@@ -78,6 +81,8 @@ export const notificationAttentionReferenceSchema = z
     groupId: z.uuid().optional(),
     section: z.enum(contactNotificationSections).optional(),
     tableIds: z.array(z.uuid()).max(20).optional(),
+    /** Current History owners, distinct from readable Table containers. */
+    historyTableIds: z.array(z.uuid()).max(20).optional(),
     /** Source-authorized entities owning the unread points, never their ancestry. */
     containers: z
       .array(

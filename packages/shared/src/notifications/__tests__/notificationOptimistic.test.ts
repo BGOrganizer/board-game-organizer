@@ -80,6 +80,7 @@ describe("notification operation projection", () => {
       target: { kind: "table" as const, id: "11111111-1111-4111-8111-111111111111" },
       eventId: "22222222-2222-4222-8222-222222222222",
       groupId: "33333333-3333-4333-8333-333333333333",
+      historyTableIds: ["11111111-1111-4111-8111-111111111111"],
     };
     for (const action of ["read", "delete"] as const) {
       const changed = optimisticNotificationData(

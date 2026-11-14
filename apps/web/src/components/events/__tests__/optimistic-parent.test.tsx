@@ -67,6 +67,7 @@ it("deletion cancels held/queued children and their provisional rows, without lo
           id: realId,
           groupType: "PRIVATE",
           groupName: "Other club",
+          canManage: true,
           tableCount: tables.length,
         };
         saved.push(row);
@@ -81,7 +82,7 @@ it("deletion cancels held/queued children and their provisional rows, without lo
     () => ({
       events: useEventRecordActions(options, ""),
       groups: useGroupRecordActions(options, groupRecord.id),
-      list: useEventRecords(options, { section: "available" }),
+      list: useEventRecords(options, { section: "mine" }),
     }),
     { wrapper },
   );
@@ -185,7 +186,7 @@ it.each([200, 403, 404, 503])(
     const hook = renderHook(
       () => ({
         events: useEventRecordActions(options, ""),
-        list: useEventRecords({ ...options, enabled: false }, { section: "available" }),
+        list: useEventRecords({ ...options, enabled: false }, { section: "mine" }),
       }),
       { wrapper },
     );
@@ -225,7 +226,7 @@ it.each([403, 404, 200])(
     const hook = renderHook(
       () => ({
         events: useEventRecordActions(options, ""),
-        list: useEventRecords({ ...options, enabled: false }, { section: "available" }),
+        list: useEventRecords({ ...options, enabled: false }, { section: "mine" }),
       }),
       { wrapper },
     );

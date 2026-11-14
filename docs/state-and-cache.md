@@ -12,7 +12,7 @@ request.
 
 Do not retain a token snapshot for later network calls.
 
-On an ordinary authenticated mobile launch, prioritize the first pages of Tables, Groups, Events
+On an ordinary authenticated mobile launch, prioritize the first pages of History, Groups, Scheduled Events
 and the profile with three warmup workers; only those four datasets gate early splash release.
 Keep the existing five-second **total** splash limit: unfinished requests continue without blocking
 navigation. After release, one background worker warms each social list, BGO suggestions, favorite

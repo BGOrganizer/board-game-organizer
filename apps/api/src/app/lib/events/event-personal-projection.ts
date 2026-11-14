@@ -1,11 +1,34 @@
 import type {
   PlannedEventResponse,
   PlannedTableResponse,
+  TableCardSummary,
   TableRecord,
   TableRegistration,
 } from "@board-game-organizer/schemas";
 import { isFrozenTableParticipant } from "@board-game-organizer/shared";
 import { sharedEventResults, sharedTableResults } from "./event-results-projection";
+
+function personalCardSummary(
+  summary: TableCardSummary,
+  table: Pick<TableRecord, "confirmed">,
+  registration: TableRegistration | null,
+  userId: string,
+): TableCardSummary {
+  const frozen = Boolean(table.confirmed?.playerIds.includes(userId));
+  const active = registration?.status === "ACCEPTED" || registration?.status === "PENDING";
+  return {
+    ...summary,
+    myParticipation: frozen ? "CONFIRMED" : active ? "EXCLUDED" : "NONE",
+    exclusionReasons:
+      frozen || !active
+        ? []
+        : summary.exclusionReasons.length
+          ? summary.exclusionReasons
+          : registration?.status === "PENDING"
+            ? ["PENDING_INVITATION"]
+            : ["NOT_SELECTED"],
+  };
+}
 
 /** A personal frozen snapshot is not a route back into the banned Group. */
 export function personalEventProjection(
@@ -51,6 +74,28 @@ export function personalEventProjection(
           : "WAITING",
       })),
     myDemonstrator: own.some((table) => table.demonstratorUserId === userId),
+    ...(event.cardSummary
+      ? {
+          cardSummary: {
+            ready: event.cardSummary.ready,
+            tables: event.cardSummary.tables
+              .filter((summary) => own.some((table) => table.id === summary.tableId))
+              .map((summary) =>
+                personalCardSummary(
+                  summary,
+                  own.find((table) => table.id === summary.tableId)!,
+                  registrations.find(
+                    (row) =>
+                      row.userId === userId &&
+                      row.eventId === event.id &&
+                      row.tableId === summary.tableId,
+                  ) ?? null,
+                  userId,
+                ),
+              ),
+          },
+        }
+      : {}),
     tableCount: own.length,
     participantCount: new Set(own.flatMap((table) => table.confirmed!.playerIds)).size,
   };
@@ -77,6 +122,11 @@ export function personalTableProjection(
     accessRevokedGroupId: table.groupId ?? undefined,
     myRegistration: own ? { ...own, gameVotes: {} } : null,
     myPosition: frozen ? "FROZEN" : own ? "WAITING" : null,
+    ...(table.cardSummary
+      ? {
+          cardSummary: personalCardSummary(table.cardSummary, table, own, userId),
+        }
+      : {}),
     demonstratorUserId: table.demonstratorUserId,
     demonstratorName: table.demonstratorName,
     demonstratorAvatarUrl: table.demonstratorAvatarUrl,

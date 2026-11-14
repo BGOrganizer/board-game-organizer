@@ -33,7 +33,7 @@ it("preserves guarded native Back routes while custom close/back actions use the
     expect(source(path)).toContain("<HeaderBackButton");
   expect(source("locations/LocationPicker")).toContain("usePreventRemove(Boolean(onClose)");
 });
-it("keeps the centered indicator outside card navigation and one Table legend per list", () => {
+it("keeps the centered indicator outside card navigation and the Table legend only in its parent Event list", () => {
   const card = source("common/ui/LinkedListCard");
   expect(card).toContain("StyleSheet.absoluteFill");
   expect(card).toContain("<ListCardCoverContent");
@@ -48,11 +48,9 @@ it("keeps the centered indicator outside card navigation and one Table legend pe
   expect(card).toContain('flexWrap: "wrap"');
   expect(card).toContain('alignItems: "center"');
   expect(source("events/EventTableCard")).not.toContain("<HelpPopover");
-  for (const path of ["events/TableList", "events/EventDetail"])
-    expect(source(path)).toContain("<TableListHeading");
+  expect(source("events/TableList")).not.toContain("<TableListHeading");
+  expect(source("events/EventDetail")).toContain("<TableListHeading");
   expect(source("events/TableListHeading")).toContain('t("Table list")');
   expect(source("events/TableListHeading")).toContain('t("Table legend")');
-  expect(source("events/EventCardIndicators")).toContain(
-    "eventParticipationFlags(event.myRegistrations)",
-  );
+  expect(source("events/EventCardIndicators")).toContain("eventCardRoles(event)");
 });

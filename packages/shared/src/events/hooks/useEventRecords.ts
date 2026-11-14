@@ -12,6 +12,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import { eventListStatuses } from "@board-game-organizer/schemas";
 import {
+  hashKey,
   infiniteQueryOptions,
   queryOptions,
   useInfiniteQuery,
@@ -23,11 +24,7 @@ import { mergeCreationIntents } from "../../common/clientMutation";
 import { useOptimisticCreations } from "../../common/hooks/useOptimisticCreations";
 import { optimisticBaseData } from "../../common/optimisticOperation";
 import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
-import {
-  isPersonalTableParticipant,
-  personalEventSection,
-  personalTableSection,
-} from "../eventList";
+import { isPersonalHistoryTable, personalEventSection, personalTableSection } from "../eventList";
 import {
   type ClientEventRecord,
   type CreateEventVariables,
@@ -36,6 +33,8 @@ import {
 } from "../eventOptimisticCreation";
 import { reconcilePersonalEventAccess } from "../eventPersonalAccessCache";
 import { revokeProposalReview } from "../eventProposalCache";
+import { useEventCutoff } from "./useEventCutoff";
+import { useRecordListWindow } from "./useRecordListWindow";
 
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
 type ListFilters = {
@@ -59,7 +58,12 @@ export const eventRecordKeys = {
         ),
         statuses: eventListStatuses.filter(
           (status) =>
-            (filters.groupId || filters.section !== "available" || status === "PLANNING") &&
+            (filters.groupId ||
+              (filters.section === "available"
+                ? status === "PLANNING"
+                : filters.section === "terminated"
+                  ? status === "TERMINATED"
+                  : status !== "TERMINATED")) &&
             (!filters.statuses || filters.statuses.includes(status)),
         ),
         query: filters.query?.trim() ?? "",
@@ -81,7 +85,7 @@ export const eventRecordKeys = {
           ? null
           : eventListStatuses.filter(
               (status) =>
-                (filters.section || status !== "PLANNING") &&
+                (filters.section || status === "TERMINATED") &&
                 (!filters.statuses || filters.statuses.includes(status)),
             ),
         query: filters.query?.trim() ?? "",
@@ -140,19 +144,35 @@ export function useEventRecords(
   o: CommunityApiOptions,
   filters: Parameters<typeof eventRecordsQuery>[1] = {},
 ) {
-  const q = useInfiniteQuery(eventRecordsQuery(o, filters));
+  const options = eventRecordsQuery(o, filters);
+  const q = useInfiniteQuery(options);
+  const window = useRecordListWindow({
+    scope: hashKey(options.queryKey),
+    pages: q.data?.pages,
+    hasNextPage: q.hasNextPage,
+    isFetching: q.isFetching,
+    fetchNextPage: () => q.fetchNextPage({ cancelRefetch: false }),
+  });
+  const nextCutoff = window.items.reduce<string | undefined>((next, row) => {
+    if (row.groupType !== "PUBLIC" || !row.bookingClosesAt) return next;
+    const at = Date.parse(row.bookingClosesAt);
+    return at > Date.now() && (!next || at < Date.parse(next)) ? row.bookingClosesAt : next;
+  }, undefined);
+  useEventCutoff(nextCutoff, !filters.groupId && filters.section === "available");
+  const eligibilityTime = Date.now();
   const records = useMemo(
     () =>
-      (q.data?.pages.flatMap((p) => p.items) ?? []).filter(
+      window.items.filter(
         (row) =>
           (!filters.statuses || filters.statuses.includes(row.status)) &&
           (filters.groupId ||
             filters.section !== "available" ||
             (row.status === "PLANNING" && Boolean(row.groupId) && row.canRegister)) &&
           (filters.groupId ||
-            personalEventSection(row, o.userId ?? "") === (filters.section ?? "mine")),
+            personalEventSection(row, o.userId ?? "", eligibilityTime) ===
+              (filters.section ?? "mine")),
       ),
-    [q.data, filters.groupId, filters.section, filters.statuses, o.userId],
+    [window.items, filters.groupId, filters.section, filters.statuses, o.userId, eligibilityTime],
   );
   const creations = useOptimisticCreations<CreateEventVariables, PlannedEventResponse>(
     eventRecordKeys.mutation(o, "", "create"),
@@ -168,7 +188,7 @@ export function useEventRecords(
         )
     : [];
   const items: ClientEventRecord[] = mergeCreationIntents(records, local);
-  return { ...q, isPending: q.isPending && !items.length, items };
+  return { ...q, ...window, isPending: q.isPending && !items.length, items };
 }
 export function useEventCreationDraft(o: CommunityApiOptions, draftId?: string) {
   return useOptimisticCreations<CreateEventVariables, PlannedEventResponse>(
@@ -254,20 +274,28 @@ export function useRecordTables(
   id: string | null,
   filters: Parameters<typeof recordTablesQuery>[2] = {},
 ) {
-  const q = useInfiniteQuery(recordTablesQuery(o, id, filters));
+  const options = recordTablesQuery(o, id, filters);
+  const q = useInfiniteQuery(options);
+  const window = useRecordListWindow({
+    scope: hashKey(options.queryKey),
+    pages: q.data?.pages,
+    hasNextPage: q.hasNextPage,
+    isFetching: q.isFetching,
+    fetchNextPage: () => q.fetchNextPage({ cancelRefetch: false }),
+  });
   const items = useMemo(
     () =>
-      (q.data?.pages.flatMap((p) => p.items) ?? []).filter(
+      window.items.filter(
         (row) =>
           id !== null ||
           ((!filters.statuses || filters.statuses.includes(row.eventStatus)) &&
             (filters.section
               ? personalTableSection(row, o.userId ?? "") === filters.section
-              : isPersonalTableParticipant(row, o.userId ?? ""))),
+              : isPersonalHistoryTable(row, o.userId ?? ""))),
       ),
-    [q.data, id, o.userId, filters.section, filters.statuses],
+    [window.items, id, o.userId, filters.section, filters.statuses],
   );
-  return { ...q, items };
+  return { ...q, ...window, items };
 }
 export function recordTableQuery(o: CommunityApiOptions, id: string, table: string) {
   return queryOptions({

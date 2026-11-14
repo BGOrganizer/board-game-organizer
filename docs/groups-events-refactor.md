@@ -132,31 +132,31 @@ exceptions supersede older membership-only activity/detail statements below.
   inline through the platform HeroUI Select, with searchable source-paged Group items and explicit
   No group; no separate Group search screen. Launching from a Group presets and locks that selection;
   existing Event Group identity remains immutable.
-- Main Events has Participation / Available top tabs (Italian: Partecipazione / Disponibili).
-  Participation includes accepted/pending own registrations at nonremoved Tables, demonstrator duty,
-  and Events the actor currently manages: standalone creator, Group creator, or accepted Group moderator.
-  Management does not create a player seat. Available contains only other PLANNING Group Events where
-  the actor is an accepted member (including the Group creator) and enrollment is open. Own participation
-  and managed Events do not appear twice. Standalone Events, confirmed/terminated Events, pending members,
-  nonmembers and exact/expired PUBLIC Group cutoffs do not qualify for Available. Current visibility,
-  exclusions and preserved frozen participation remain authoritative.
-- Main Tables is one source-paged list of CONFIRMED/TERMINATED Tables whose immutable confirmed roster
-  contains the actor. Planning registrations, pending invitations, queues, demonstrator duty and management
-  alone do not qualify. The Table remains readable through its Event under the existing guards. Legacy
-  mine/waiting API sections retain their existing position-based behavior and distinct caches.
-- Participation, combined Tables, owned Private/Public Group tabs and Group-context Events retain chips,
-  clear input and help but use Filter / Filtra, named placeholders and brief filtering help, with no
-  character minimum. Queries debounce 300 ms and filter escaped names inside that authorized scope
-  before response pagination. Group Search remains separate discovery with its four-character minimum.
-  Group-context Events remain one contextual list, not another copy of the main section tabs.
-  Main Tables offers Confirmed / Terminated chips; Participation and Group-context Events retain
-  Confirmed / Planning / Terminated chips, initially all enabled. Available has no status chips and
-  always requests PLANNING Events. All lists retain their name filter.
-  Enabled states are combined with OR and the escaped name query with AND before source pagination;
-  disabling every state returns an empty list. Table state comes from its parent Event, never the
-  registration or a guessed date. Legacy API period parameters remain supported independently.
-  Main Event/Group tab strips and Group detail contents use compact platform-owned spacing; Group
-  destinations share the same content inset without nesting virtualized lists in scrolling parents.
+- Main Events has Scheduled / Available / Terminated top tabs (Italian: Schedulati / Disponibili / Terminati).
+  Scheduled includes PLANNING/CONFIRMED Events with own accepted/pending registrations at nonremoved
+  Tables (including queues and invitations), actual demonstrator duty, frozen participation or current
+  management: standalone creator, Group creator, or accepted Group moderator. Management never grants a seat.
+  Available contains other enrollable PLANNING Group Events without own registration, duty or management.
+  PRIVATE Events require accepted Group membership; approved PUBLIC Events in PUBLIC Groups also allow
+  nonmembers, without joining the Group. Exact/expired public enrollment cutoffs, visibility, bans and
+  reciprocal blocks remain authoritative. Standalone Events are invitation-only and never discoverable.
+  Terminated contains TERMINATED Events with actual frozen player participation, demonstrator duty on an
+  included Table, or current management. Queue-only, excluded and unaccepted invitations do not qualify.
+  Losing management removes an Event unless actual player/demonstrator history independently qualifies.
+- Main Tables is displayed as History (Italian: Storico), retaining existing /tables links. It contains
+  only physically confirmed Tables in TERMINATED Events where the actor is a frozen player, demonstrator
+  or current authorized manager. Excluded Tables never enter History, even for managers; they remain in
+  their parent Event. Loss of management preserves only actual player/demonstrator history. Legacy explicit
+  mine/waiting API sections retain their existing behavior and distinct caches.
+- Main Events' three sections and History have no state-filter chips. Their Filter / Filtra inputs retain
+  clear actions, no character minimum and 300 ms debounce. Escaped name filtering and section eligibility
+  run before source pagination. Group-context Events remain one contextual list with Confirmed / Planning /
+  Terminated chips, initially all enabled; owned Private/Public Groups retain their existing filters.
+  Group Search remains separate discovery with its four-character minimum. Current lifecycle comes from
+  persisted Event state, never guessed from dates. Legacy API period parameters remain supported.
+  Retained Query pages remain authoritative while local presentation reveals bounded pages progressively.
+  Main Event/Group tab strips and Group detail contents retain compact platform-owned spacing and a single
+  virtualized scroll owner. Notification section ownership follows the same authorized source lists.
 - PLANNING / CONFIRMED / TERMINATED. There is no persisted server draft or event cancellation.
   The organizer plays only through explicit table registration, never an automatic seat.
 - PUBLIC Group Events have exactly one date/time and one verified location. Standalone and
@@ -234,8 +234,8 @@ exceptions supersede older membership-only activity/detail statements below.
   dialog inputs never scroll an underlying screen or sheet. Actual artwork/bitmap corners are rounded;
   uploaded logos retain their original proportions. Platform-owned `RecordIdentityCard` frames reuse the same
   role/state help as list cards. Table headers and lists expose the same participation, state, Rating,
-  date/location and game controls; administration/moderation are Event/Group concepts, not Table badges. Event headers keep independent accepted,
-  pending and authorized waiting-list facts; Group headers keep role, visibility and public review.
+  date/location and game controls; Table role disclosure includes current administration/moderation inherited from Event/Group authority. Event headers disclose independent accepted,
+  pending and authorized waiting-list facts within one neutral role control; Group headers keep role, visibility and public review.
   Stable-ID artwork, uploaded logos, reduced motion and semantic tokens remain; no dependency is added.
   Event Details retains voting-legend help and its precise overview read control. When opened from
   the main Events list (or an unmarked direct link), its separate Group section links the approved
@@ -322,24 +322,26 @@ exceptions supersede older membership-only activity/detail statements below.
   The bottom-right toolbar matches Table controls: 16px glyphs, 28px semantic frames and at least
   44px native/mobile-web touch targets and one horizontally scrollable row when needed. Current administrator or moderator
   management, accepted participation, pending participation and demonstrator duty are independent
-  indicators. Complete own registrations can show accepted and pending simultaneously; a priority
-  aggregate must not hide another Table's pending work. Accepted here means registration consent or
-  an immutable frozen cohort, including accepted queues; its explanation explicitly does not grant
-  or infer a seated place. Table cards/detail and Event participant statistics retain their separate
-  seated/frozen/queue rules. Declined/cancelled non-frozen records confer no accepted participation.
-  Current `managementRole` distinguishes administration/moderation without changing capabilities;
-  historical authorship never supplies current authority. Unknown management is not presented as a known role.
-  Read-only projections and optimistic drafts show no inferred personal roles. Lists and details
-  reuse these same independent consent/queue indicators; unknown positions never invent a seat.
-  Accepted Table queues retain their consent indicator separately from the waiting position.
-  Status always has its own colored popover
-  on saved Cards, retaining its explanation and participant count without extra requests,
-  votes, consent or notification acknowledgments. Query/MMKV scope/ownership remains unchanged.
-  Table cards in main and Event lists additionally expose one read-only games popover: existing
-  canonical approved choices in planning, the existing chosen-game projection after confirmation.
-  It reuses game rows with image/name/known year/BGG average/rank, never votes, pending proposals,
-  mutations or per-card detail requests. Absent metadata stays absent. Native renders a bounded
-  8/6/7 FlatList; web uses eight-row local presentation pages, neither fetching more server data.
+  indicators. One neutral IdCard role popover lists every applicable current role, accepted consent,
+  pending invitation, waiting position and demonstrator duty; Event roles may span different Tables.
+  Table seat/queue positions remain mutually exclusive. Current managementRole distinguishes admin and
+  moderator without granting capabilities or seats. Unknown cached roles/positions are never invented.
+  Planning status uses warning and authoritative readiness: minimum players, pending reservations and
+  date/location/game agreement categories, with a combined-constraints explanation when appropriate.
+  At least one valid Table can make an Event ready; excluded sibling Tables do not block that readiness.
+  Ready Events still require explicit manager confirmation. Confirmed personal participation is success;
+  Event summaries count confirmed own Tables and disclose other own exclusions. Actual exclusion takes
+  precedence over duty/management: a physically excluded Table is danger, an included Table excluding the
+  actor is danger-soft. Current management/duty without a player seat uses accent with an explanation;
+  genuine nonparticipants use muted. Terminated status retains Flag with accent and winner-only Table
+  content. Event results list included Tables and each tied winner on a separate row using real @username;
+  missing mirror identities are disclosed, never fabricated from display names.
+  Location/date controls and Table games appear only for confirmed/terminated included outcomes, retaining
+  their definitive choices after completion. Planning proposals remain in the detail voting sections.
+  Games reuse existing approved metadata, never pending proposals, mutations or per-card detail requests.
+  Summary data is projected by the authorized API for lists and details; restricted personal/shared-result
+  responses retain only their permitted Tables. Popovers retain bounded presentation and platform-owned
+  overflow. Opening any informational control never votes, grants consent or acknowledges notifications.
 - Group lists use the same horizontal frame: complete Landscape/logo at left, Group name/people
   at right, then localized member total/people · authorized Event total/calendar. `memberCount` already
   equals the sole administrator plus accepted memberships, including moderators exactly once; no
@@ -930,7 +932,7 @@ there are no repeated identical notifications or player reminders to change vote
   Tables without a frozen confirmation snapshot are excluded at source before cursors/limits and
   suppressed from old personal-list caches. Their records remain in the parent Event's paged list
   and detail; reopening planning restores ordinary planning visibility. Legacy API Past/Future
-  parameters use the chosen local day; unchosen dates appear in both, but current list chips use state.
+  parameters use the chosen local day; unchosen dates appear in both, while current main-list sections use state.
 - Search/role/state filters run before pagination. Lists, rosters, seats, game selection and group
   ranking selection do not download all records. Native uses virtualized lists and safe-area-aware
   controls. Cached usable fields remain visible while missing detail fields load.

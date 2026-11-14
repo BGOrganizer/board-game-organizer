@@ -121,6 +121,13 @@ describe("provisional Event creation", () => {
     expect(eventCreationMatches(row, {})).toBe(true);
     expect(eventCreationMatches(row, { section: "available" })).toBe(false);
     expect(eventCreationMatches(row, { section: "mine" })).toBe(true);
+    const grouped = { ...row, groupId };
+    expect(eventCreationMatches(grouped, { section: "mine" })).toBe(true);
+    expect(eventCreationMatches(grouped, { section: "available" })).toBe(false);
+    expect(grouped.canEdit).toBe(false);
+    const receipt = { ...grouped, id: cid, canManage: false };
+    expect(eventCreationMatches(receipt, { section: "mine" })).toBe(false);
+    expect(eventCreationMatches({ ...receipt, canManage: true }, { section: "mine" })).toBe(true);
     expect(eventCreationMatches({ ...row, groupId }, { groupId, section: "mine" })).toBe(true);
     expect(eventCreationMatches(row, { groupId })).toBe(false);
     expect(eventCreationMatches(row, { query: " FRIDAY " })).toBe(true);

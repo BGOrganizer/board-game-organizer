@@ -19,6 +19,24 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "src/app/lib/notifications/notification-navigation-transport.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/events/event-list-eligibility.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/events/event-card-summary.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/lib/notifications/notification-supersession.ts": {
           lines: 100,
           functions: 100,

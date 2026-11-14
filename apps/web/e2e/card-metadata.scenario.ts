@@ -10,11 +10,7 @@ function required(name: string) {
 const email = required("E2E_EMAIL"),
   groupName = required("CARD_GROUP_NAME"),
   eventName = required("CARD_EVENT_NAME"),
-  tableName = required("CARD_TABLE_NAME"),
-  venue = required("CARD_VENUE"),
-  address = required("CARD_VENUE_ADDRESS"),
-  day = required("CARD_EVENT_DAY"),
-  clock = required("CARD_EVENT_TIME");
+  tableName = required("CARD_TABLE_NAME");
 const people = JSON.parse(required("CARD_PEOPLE_INPUT")) as {
   username: string;
   groupRole: string;
@@ -155,20 +151,6 @@ for (const width of [390, 1280])
       const s = getComputedStyle(node);
       return { size: s.fontSize, family: s.fontFamily, weight: s.fontWeight };
     });
-    const body = await group
-      .getByText(it ? /^\d+ Membr[oi]$/ : /^\d+ Members?$/)
-      .evaluate((node) => {
-        const s = getComputedStyle(node);
-        return { size: s.fontSize, family: s.fontFamily };
-      });
-    const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(
-      new Date(`${day}T${clock}Z`),
-    );
-    const time = new Intl.DateTimeFormat(locale, {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-    }).format(new Date(`${day}T${clock}Z`));
     await group.getByRole("link").click();
     await inspectIdentity(groupName, groupLabels);
     await expect(
@@ -209,39 +191,35 @@ for (const width of [390, 1280])
       return { width: frame.width, height: frame.height };
     });
     expect(eventGeometry).toEqual({ width: 96, height: 96 });
-    const accepted = event.getByRole("button", {
-      name: it ? "Partecipante accettato" : "Accepted participant",
-      exact: true,
-    });
-    await expect(accepted).toBeVisible();
+    const rolesLabel = it ? "Ruoli e partecipazione" : "Roles and participation";
+    const roleButton = event.getByRole("button", { name: rolesLabel, exact: true });
+    await expect(roleButton).toBeVisible();
+    await roleButton.click();
+    await expect(
+      page
+        .getByRole("dialog")
+        .getByText(it ? "Partecipante accettato" : "Accepted participant", { exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     await event
       .getByRole("button", { name: it ? "In pianificazione" : "Planning", exact: true })
       .click();
-    const eventInfo = page.getByRole("dialog");
-    await expect(eventInfo.getByText(it ? /^Giocatori: \d+$/ : /^Players: \d+$/)).toBeVisible();
-    await expect(eventInfo.locator("time")).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
-    await event
-      .getByRole("button", {
-        name: `${it ? "Date e orari" : "Dates and times"}: ${eventName}`,
+    for (const label of [it ? "Date e orari" : "Dates and times", it ? "Luoghi" : "Locations"])
+      await expect(
+        event.getByRole("button", { name: `${label}: ${eventName}`, exact: true }),
+      ).toHaveCount(0);
+    await event.getByRole("link").click();
+    await inspectIdentity(eventName, eventLabels);
+    await page.getByRole("tab", { name: it ? "Tavoli" : "Tables", exact: true }).click();
+    const table = page
+      .getByRole("link", {
+        name: `${it ? "Apri tavolo" : "Open table"}: ${tableName}`,
         exact: true,
       })
-      .click();
-    await expect(eventInfo.getByText(date, { exact: true })).toHaveCSS("font-size", body.size);
-    await expect(eventInfo.getByText(date, { exact: true })).toHaveCSS("font-family", body.family);
-    await expect(eventInfo.getByText(time, { exact: true })).toBeVisible();
-    await expect(eventInfo.getByRole("listitem")).toHaveCount(2);
-    await page.keyboard.press("Escape");
-    await event
-      .getByRole("button", { name: `${it ? "Luoghi" : "Locations"}: ${eventName}`, exact: true })
-      .click();
-    await expect(eventInfo.getByText(address, { exact: true })).toBeVisible();
-    await expect(eventInfo.getByRole("listitem")).toHaveCount(2);
-    await page.keyboard.press("Escape");
-    await expect(eventInfo).toHaveCount(0);
-    const table = await open("/tables", tableName, "table");
+      .locator("..");
     const tableLabels = await labels(table);
-    const here = page.url();
     const inspectTable = async () => {
       await inspectFrame(table);
       await expect(table.getByText(tableName, { exact: true })).toHaveCSS("font-size", title.size);
@@ -263,54 +241,17 @@ for (const width of [390, 1280])
       await table
         .getByRole("button", { name: it ? "In pianificazione" : "Planning", exact: true })
         .click();
-      await expect(
-        page
-          .getByRole("dialog")
-          .getByText(it ? "Giocatori non confermati" : "Unconfirmed players", { exact: true }),
-      ).toBeVisible();
+      await expect(page.getByRole("dialog")).toBeVisible();
       await page.keyboard.press("Escape");
-      for (const kind of ["dates", "locations", "games"] as const) {
-        const label =
-          kind === "dates"
-            ? it
-              ? "Date e orari"
-              : "Dates and times"
-            : kind === "locations"
-              ? it
-                ? "Luoghi"
-                : "Locations"
-              : it
-                ? "Giochi da tavolo"
-                : "Board games";
-        const trigger = table.getByRole("button", { name: `${label}: ${tableName}`, exact: true });
-        const small = await trigger.evaluate((button) => {
-          const icon = button.querySelector("svg")!.getBoundingClientRect(),
-            frame = button.querySelector("span")!.getBoundingClientRect();
-          return { icon: icon.width, frame: frame.width };
-        });
-        expect(small.icon).toBe(16);
-        expect(small.frame).toBe(28);
-        await trigger.click();
-        const dialog = page.getByRole("dialog");
-        await expect(dialog).toBeVisible();
-        await expect(dialog.getByRole("listitem")).toHaveCount(2);
-        if (kind === "dates") {
-          await expect(dialog.getByText(date, { exact: true })).toBeVisible();
-          await expect(dialog.getByText(time, { exact: true })).toBeVisible();
-        }
-        if (kind === "locations") {
-          await expect(dialog.getByText(address, { exact: true })).toBeVisible();
-          await expect(dialog.getByText(/^[A-Za-z_]+\/[A-Za-z_]+$/)).toHaveCount(0);
-          await expect(dialog.getByText(venue, { exact: true })).toHaveCount(0);
-          await expect(dialog.locator("li svg.lucide-map-pin")).toHaveCount(2);
-        }
+      await expect(table.getByRole("button", { name: rolesLabel, exact: true })).toBeVisible();
+      for (const label of [
+        it ? "Date e orari" : "Dates and times",
+        it ? "Luoghi" : "Locations",
+        it ? "Giochi da tavolo" : "Board games",
+      ])
         await expect(
-          dialog.getByRole("button", { name: /^(Yes|No|If needed|Sì|Se necessario)$/ }),
+          table.getByRole("button", { name: `${label}: ${tableName}`, exact: true }),
         ).toHaveCount(0);
-        await page.keyboard.press("Escape");
-        await expect(dialog).toHaveCount(0);
-        await expect(page).toHaveURL(here);
-      }
     };
     await inspectTable();
     await table.getByRole("link").click();
@@ -395,6 +336,6 @@ for (const width of [390, 1280])
         name: `${it ? "Date e orari" : "Dates and times"}: ${tableName}`,
         exact: true,
       }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     expect(writes).toEqual([]);
   });

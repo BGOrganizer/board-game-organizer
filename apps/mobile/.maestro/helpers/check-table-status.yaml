@@ -1,38 +1,43 @@
 appId: com.bgo.boardgameorganizer.dev
 ---
-- assertNotVisible:
-    id: list-filter-PLANNING
+- runFlow:
+    file: check-list-status.yaml
+    env:
+      SECTION: history
+      ROW_LABEL: ${output.status.historyCard}
+      OTHER_ROW_LABEL: ${output.status.scheduledCard}
+      EMPTY_TEXT: ${output.status.emptyTables}
+      FAILURE_TEXT: ${output.status.failedTables}
+- scrollUntilVisible:
+    element: ${output.status.filter}
+    direction: UP
+    timeout: 60000
 - tapOn: ${output.status.filter}
 - eraseText: 120
-- inputText: ${output.status.query}
+- inputText: ${output.status.names.history.name}
 - hideKeyboard
-- scrollUntilVisible:
-    element: ${CONFIRMED_NAME}
-    direction: DOWN
-    timeout: 120000
-- scrollUntilVisible:
-    element:
-      id: list-filter-TERMINATED
-    direction: UP
-    timeout: 120000
-- tapOn:
-    id: list-filter-TERMINATED
 - extendedWaitUntil:
-    visible: ${CONFIRMED_NAME}
+    visible: ${output.status.historyCard}
     timeout: 120000
-- assertNotVisible: ${TERMINATED_NAME}
-- tapOn:
-    id: list-filter-CONFIRMED
-- tapOn:
-    id: list-filter-TERMINATED
-- extendedWaitUntil:
-    visible: ${TERMINATED_NAME}
-    timeout: 120000
-- assertNotVisible: ${CONFIRMED_NAME}
-- tapOn:
-    id: list-filter-TERMINATED
-- extendedWaitUntil:
-    visible: ${EMPTY_TEXT}
-    timeout: 120000
-- tapOn: ${output.status.clear}
-- assertVisible: ${EMPTY_TEXT}
+- assertVisible: ${output.status.dates}
+- assertVisible: ${output.status.locations}
+- assertVisible: ${output.status.games}
+- tapOn: ${output.status.tableStatus}
+- evalScript: ${output.status.winnerIndex = 0}
+- repeat:
+    times: ${output.status.winners.length}
+    commands:
+      - assertVisible: ${output.status.winners[output.status.winnerIndex]}
+      - runFlow:
+          when:
+            true: ${output.status.winnerIndex > 0}
+          commands:
+            - assertVisible:
+                text: ${output.status.winners[output.status.winnerIndex]}
+                below: ${output.status.winners[output.status.winnerIndex - 1]}
+      - evalScript: ${output.status.winnerIndex = output.status.winnerIndex + 1}
+- assertNotVisible: ${output.status.minimum}
+- assertNotVisible: ${output.status.maximum}
+- assertNotVisible: ${output.status.waiting}
+- takeScreenshot: history-winners-separate-lines
+- back

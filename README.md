@@ -24,11 +24,13 @@ plan events and tables, and record results.
   durations, difficulty and player-count recommendations.
 - Receive in-app updates and optional push notifications, with English/Italian and light/dark UI.
 
-Main navigation is **Tables / Events / Groups / Community / Contacts**:
+Main navigation is **History / Events / Groups / Community / Contacts**:
 
-- **Tables:** confirmed or completed tables where you are a confirmed player.
-- **Events:** Participation includes your registrations, invitations and demonstrations, plus Events you manage.
-  Available lists enrollable planning Events in Groups where you are an accepted member and are not already participating or managing.
+- **History:** completed, actually confirmed tables where you played, demonstrated, or currently have management authority.
+- **Events:** Scheduled contains your active registrations, invitations, demonstrations and managed Events.
+  Available contains other enrollable planning Events: private Events require Group membership; approved public Events do not.
+  Terminated contains completed Events where you played, demonstrated, or still have management authority.
+  These lists retain text filtering and infinite scrolling without state-filter chips.
 - **Contacts:** Connections, Requests, Contacts and Search. Device contacts and remote search have separate lists;
   web shows registered contacts from the synchronized snapshot.
 

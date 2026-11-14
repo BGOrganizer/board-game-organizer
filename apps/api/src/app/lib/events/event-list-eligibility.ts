@@ -1,9 +1,12 @@
 /** Current Group authority, never historical authorship of a grouped Event. */
-export function managedEventExpression(userId: string) {
+export function managedEventExpression(userId: string, eventPrefix = "") {
   return {
     $or: [
       {
-        $and: [{ $eq: [{ $ifNull: ["$groupId", null] }, null] }, { $eq: ["$adminUserId", userId] }],
+        $and: [
+          { $eq: [{ $ifNull: [`$${eventPrefix}groupId`, null] }, null] },
+          { $eq: [`$${eventPrefix}adminUserId`, userId] },
+        ],
       },
       { $eq: [{ $arrayElemAt: ["$parentGroup.adminUserId", 0] }, userId] },
       { $in: ["MODERATOR", "$groupMembership.role"] },
@@ -21,6 +24,12 @@ export function availableEventExpression(userId: string, now: Date) {
         $or: [
           { $eq: [{ $arrayElemAt: ["$parentGroup.adminUserId", 0] }, userId] },
           { $gt: [{ $size: "$groupMembership" }, 0] },
+          {
+            $and: [
+              { $eq: [{ $arrayElemAt: ["$parentGroup.type", 0] }, "PUBLIC"] },
+              { $ne: [{ $ifNull: ["$visibility", "PUBLIC"] }, "PRIVATE"] },
+            ],
+          },
         ],
       },
       {
@@ -33,6 +42,18 @@ export function availableEventExpression(userId: string, now: Date) {
             ],
           },
         ],
+      },
+    ],
+  };
+}
+
+/** Frozen attendance or current authority; a historical queue/invitation is not attendance. */
+export function terminatedEventExpression(userId: string) {
+  return {
+    $and: [
+      { $eq: ["$status", "TERMINATED"] },
+      {
+        $or: [managedEventExpression(userId), { $gt: [{ $size: "$personalFrozenTable" }, 0] }],
       },
     ],
   };

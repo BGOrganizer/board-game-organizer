@@ -5,11 +5,12 @@ import type {
   NotificationAttentionReference,
   NotificationAttentionSummary,
 } from "./notificationAttention";
+import { notificationNavigationQuerySchema } from "./notificationAttention";
 
 export const notificationIdSchema = z.string().regex(/^[a-f\d]{24}$/i);
 
-export const notificationListQuerySchema = z
-  .object({
+export const notificationListQuerySchema = notificationNavigationQuerySchema
+  .extend({
     limit: z.coerce.number().int().min(1).max(50).default(5),
     cursor: notificationIdSchema.optional(),
     locale: z.enum(["en", "it"]).optional(),

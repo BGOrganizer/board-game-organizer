@@ -49,15 +49,7 @@ it("shows admin, demonstrator, pending and queue icons together, with smaller fr
   expect(screen.getByText("2/4 participants")).not.toBeNull();
   expect(document.querySelector("img")?.parentElement?.className).not.toContain("bg-accent/10");
   expect(screen.queryByText("8/4 participants")).toBeNull();
-  const labels = [
-    "Demonstrator",
-    "Player on the waiting list",
-    "Planning",
-    "Rating enabled",
-    "Dates and times: First table",
-    "Locations: First table",
-    "Board games: First table",
-  ];
+  const labels = ["Roles and participation", "Planning", "Rating enabled"];
   const nav = vi.fn();
   screen.getByRole("link").addEventListener("click", nav);
   for (const label of labels) {
@@ -75,8 +67,11 @@ it("shows admin, demonstrator, pending and queue icons together, with smaller fr
     "Player with pending invitation",
   ])
     expect(screen.queryByRole("button", { name })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Demonstrator" }));
-  expect(await screen.findByRole("dialog")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  const roles = await screen.findByRole("dialog");
+  for (const label of ["Admin", "Demonstrator", "Player on the waiting list"])
+    expect(within(roles).getByText(label)).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Board games: First table" })).toBeNull();
   await close();
   expect(nav).not.toHaveBeenCalled();
   expect(fetcher).not.toHaveBeenCalled();
@@ -84,7 +79,7 @@ it("shows admin, demonstrator, pending and queue icons together, with smaller fr
 });
 it.each(["moderator", undefined] as const)(
   "never invents an administrator from management capability alone (%s)",
-  (managementRole) => {
+  async (managementRole) => {
     renderWithI18n(
       <EventTableCard
         table={{
@@ -100,7 +95,11 @@ it.each(["moderator", undefined] as const)(
     expect(screen.queryByRole("button", { name: "Management" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Administrator" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
-    expect(screen.getByLabelText("Loading…")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(managementRole ? "Moderator" : "You are not registered."),
+    ).not.toBeNull();
   },
 );
 it("ignores stale managementRole when authoritative capability denies management", () => {
@@ -219,10 +218,12 @@ it.each(["dates", "locations"] as const)(
         }}
       />,
     );
-    fireEvent.click(screen.getByRole("button"));
-    expect(
-      await screen.findByText(kind === "dates" ? "No date selected" : "No location selected"),
-    ).not.toBeNull();
+    if (kind === "locations") {
+      expect(screen.queryByRole("button")).toBeNull();
+    } else {
+      fireEvent.click(screen.getByRole("button"));
+      expect(await screen.findByText("No date selected")).not.toBeNull();
+    }
   },
 );
 it("explains enabled rating and missing demonstrator names without inventing results", async () => {

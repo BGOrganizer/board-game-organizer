@@ -2,7 +2,7 @@
 import type { EventListSection } from "@board-game-organizer/schemas";
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarCheck, CalendarSearch } from "lucide-react";
+import { CalendarCheck, CalendarSearch, Flag } from "lucide-react";
 import { useState } from "react";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
@@ -30,12 +30,13 @@ export function Events({
       targets={[
         { kind: "event-list", id: "mine" },
         { kind: "event-list", id: "available" },
+        { kind: "event-list", id: "terminated" },
       ]}
     >
       <Tabs selectedKey={section} onSelectionChange={(key) => setSection(String(key))}>
         <TabBar label={t`Events navigation`}>
           <TabTrigger icon={CalendarCheck} id="mine">
-            {t`Participation`}
+            {t`Scheduled`}
             <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
             <Tabs.Indicator />
           </TabTrigger>
@@ -44,12 +45,20 @@ export function Events({
             <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
             <Tabs.Indicator />
           </TabTrigger>
+          <TabTrigger icon={Flag} id="terminated">
+            {t`Terminated events`}
+            <NotificationTabBadge target={{ kind: "event-list", id: "terminated" }} />
+            <Tabs.Indicator />
+          </TabTrigger>
         </TabBar>
         <Tabs.Panel id="mine" className="pt-0">
           <EventList section="mine" canCreate={canCreate} />
         </Tabs.Panel>
         <Tabs.Panel id="available" className="pt-0">
           <EventList section="available" canCreate={canCreate} />
+        </Tabs.Panel>
+        <Tabs.Panel id="terminated" className="pt-0">
+          <EventList section="terminated" canCreate={canCreate} />
         </Tabs.Panel>
       </Tabs>
     </NotificationAttentionScope>

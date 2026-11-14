@@ -88,6 +88,8 @@ function fixture(production = false, fault) {
     assert.equal(options.env.EXPO_NO_DOTENV, "1");
     assert.equal(options.env.SENTRY_DISABLE_AUTO_UPLOAD, "true");
     assert.equal(options.env.NODE_ENV, "production");
+    assert.equal(options.env.EXPO_PUBLIC_BUILD_SHA, source);
+    assert.equal(options.env.EXPO_PUBLIC_APP_PRERELEASE, production ? "false" : "true");
     if (args.includes("export")) {
       if (fault === "export") throw new Error("export failed");
       if (env.GOOGLE_SERVICES_JSON_CONTENT) {

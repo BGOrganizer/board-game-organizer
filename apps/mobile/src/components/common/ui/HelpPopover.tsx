@@ -28,7 +28,7 @@ export function HelpPopover({
   width?: Extract<ComponentProps<typeof Popover.Content>, { presentation: "popover" }>["width"];
   indicator?: ReactNode;
   triggerClassName?: string;
-  triggerVariant?: "ghost" | "primary" | "danger-soft";
+  triggerVariant?: "ghost" | "primary" | "danger-soft" | "danger";
   contentStyle?: ViewStyle;
   align?: Extract<ComponentProps<typeof Popover.Content>, { presentation: "popover" }>["align"];
   onOpenChange?: ComponentProps<typeof Popover>["onOpenChange"];
@@ -46,8 +46,16 @@ export function HelpPopover({
       ? "accent-foreground"
       : triggerVariant === "danger-soft"
         ? "danger-soft-foreground"
-        : colors[tone],
+        : triggerVariant === "danger"
+          ? "danger-foreground"
+          : colors[tone],
   );
+  const compactSurface = {
+    ghost: triggerClassName,
+    primary: "bg-accent",
+    "danger-soft": "bg-danger-soft",
+    danger: "bg-danger",
+  }[triggerVariant];
   const symbol = (
     <>
       <Icon size={size === "compact" ? 16 : 20} color={color} accessible={false} />
@@ -60,7 +68,7 @@ export function HelpPopover({
         <Button
           isIconOnly
           size="sm"
-          variant={triggerVariant}
+          variant={size === "compact" ? "ghost" : triggerVariant}
           className={size === "compact" ? undefined : triggerClassName}
           accessibilityLabel={label}
           style={{
@@ -72,7 +80,7 @@ export function HelpPopover({
         >
           {size === "compact" ? (
             <View
-              className={triggerClassName}
+              className={compactSurface}
               style={{
                 position: "relative",
                 width: 28,

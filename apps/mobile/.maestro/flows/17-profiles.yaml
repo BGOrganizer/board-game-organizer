@@ -12,6 +12,28 @@ tags: [manual, profile]
     visible: ${output.profile.owner}
     timeout: 120000
 - assertVisible: ${output.profile.bgg}
+- assertVisible: ${output.profile.joined}
+- assertVisible: ${output.profile.joinedDate}
+- tapOn: ${output.profile.player}
+- scrollUntilVisible:
+    element:
+      id: profile-version
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.profile.version}
+- assertVisible: ${output.profile.logout}
+- takeScreenshot: profile-player-version
+- scrollUntilVisible:
+    element: ${output.profile.activity}
+    direction: UP
+    timeout: 120000
+- tapOn: ${output.profile.activity}
+- scrollUntilVisible:
+    element:
+      id: profile-version
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.profile.version}
 - scrollUntilVisible:
     element: ${output.profile.logout}
     direction: DOWN
@@ -38,6 +60,10 @@ tags: [manual, profile]
     visible: ${output.profile.target}
     timeout: 120000
 - assertNotVisible: ${output.profile.bgg}
+- assertNotVisible:
+    id: profile-joined-at
+- assertNotVisible:
+    id: profile-version
 # Collection may be public when synced; flow29 checks both published and unsynced subjects.
 - assertNotVisible: ${output.profile.logout}
 - tapOn: ${output.profile.player}

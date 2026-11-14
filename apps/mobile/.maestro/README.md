@@ -326,7 +326,10 @@ and [operational gates](../../../docs/organizations-events-operations.md), not t
 ## Additional isolated scenarios
 
 `17-profiles.yaml` covers real social View profile navigation, owner-only controls, ordinal GLOBAL
-rating, visible/private activity filtering, an empty subject and both block directions. `18-profile-bgg-logout.yaml`
+rating, visible/private activity filtering, an empty subject and both block directions. It additionally
+checks the owner's Clerk registration date beneath the avatar and the running version below logout
+in Activities and Player; supply PROFILE_JOINED_AT_LABEL and PROFILE_APP_VERSION as documented below.
+`18-profile-bgg-logout.yaml`
 uses a separately acknowledged owned UNLINKED Development/Preview account for real provider failure,
 publication, disconnect consent and confirmed cache-safe logout. Inputs and web counterpart are defined in
 [Profiles](../../../docs/profiles.md#acceptance). Run EN/IT, both themes and enlarged text; missing inputs fail.
@@ -334,17 +337,39 @@ No canonical journey or CI job is replaced/enabled by these files. Syntax/VM/dis
 real provider, authenticated or native-device acceptance.
 
 
-`20-list-status.yaml` and `apps/web/e2e/list-status.config.ts` cover combined lifecycle/name filters
-without mocks, saves or resets. Use owned Development/Preview fixtures: the actor has a Registered
-Event and personal Table in each of CONFIRMED, PLANNING, TERMINATED, with names containing the same
-`STATUS_QUERY` (1–120 characters). Supply `STATUS_LOCALE` (`en`/`it`); native additionally needs
-`STATUS_EVENT_CONFIRMED`, `STATUS_EVENT_PLANNING`, `STATUS_EVENT_TERMINATED`,
-`STATUS_TABLE_CONFIRMED`, `STATUS_TABLE_PLANNING`, `STATUS_TABLE_TERMINATED` (unique first-page names).
-Web requires `STATUS_API_URL` (local/Preview), `STATUS_THEME` (`light`/`dark`), `E2E_EMAIL` and existing
-Development Clerk test credentials. Run `bun run --filter web exec playwright test --config e2e/list-status.config.ts`.
-Every state fixture is mandatory; all-off must remain empty after clearing search. Repeat native
-EN/IT, light/dark and enlarged text. Profile flows 17/18 now enter Collection explicitly; 17 also
-checks that clearing the selected game removes its chart. Syntax/discovery is not runtime acceptance.
+`20-list-status.yaml` and `apps/web/e2e/list-status.config.ts` cover Scheduled / Available /
+Terminated Events and History. They retain name filtering, clearing, source isolation and observable
+failure/retry without lifecycle chips. History additionally opens final date/venue/game controls and
+checks that status help contains only winners, with tied winners on separate lines.
+
+Use already-owned Development/Preview fixtures; no provisioning, saves or consent changes occur.
+Both clients require `STATUS_ACK=owned-development-list-fixtures`, `STATUS_LOCALE=en|it`,
+`STATUS_THEME=light|dark`, `STATUS_QUERY` (1–80 characters) and `STATUS_INPUT` JSON:
+
+```json
+{"scheduled":{"id":"00000000-0000-4000-8000-000000000001","name":"acceptance scheduled"},"available":{"id":"00000000-0000-4000-8000-000000000002","name":"acceptance available","kind":"public-outsider"},"terminated":{"id":"00000000-0000-4000-8000-000000000003","name":"acceptance terminated"},"history":{"id":"00000000-0000-4000-8000-000000000004","eventId":"00000000-0000-4000-8000-000000000003","name":"acceptance table","winnerHandles":["@winner-one","@winner-two"]},"emptyQuery":"known-unmatched-list-query"}
+```
+
+Replace every ID/name/handle with real authorized fixtures. All four unique names must contain
+`STATUS_QUERY` and occur in the first matching source page; `emptyQuery` and its `-failure-*` /
+`-offline-*` suffixes must match nothing. The History fixture must have final venue/date/game metadata
+and actual winners. `available.kind` is `public-outsider` (PUBLIC Event, approved PUBLIC Group,
+actor not a member), `private-member` (PRIVATE Group) or `public-group-private-member` (PRIVATE Event
+of an approved PUBLIC Group). Repeat all three availability cases, Scheduled player/queue/pending
+invitation/current manager/demonstrator/excluded cases, and Terminated/History player/demonstrator/
+current manager cases; include a tied-winner fixture. Queue-only, excluded-only and former-manager
+history fixtures must not qualify. These are existing fixtures, not permission to create them.
+
+Web additionally requires `STATUS_API_URL`, `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and existing Development
+Clerk test credentials. Run `bun run --filter web exec playwright test --config e2e/list-status.config.ts`.
+It checks real authenticated source IDs, lifecycle and participation/management facts at 390/1280px.
+Only the failure GET is intercepted with HTTP503; successful/retried responses come from the real API.
+Native requires an already authenticated Android Development app in the selected locale/theme and
+actual loss of both Wi-Fi/data during its airplane-mode cases. Its completion hook restores
+connectivity; restore it manually if the runner itself is interrupted. Native assertions use visible
+rows, explicit errors and winner ordering; screenshots remain required for colors/layout.
+Repeat EN/IT, light/dark and enlarged text. YAML/VM/discovery checks are not authenticated/device
+acceptance. Profile flows 17/18 still enter Collection explicitly; 17 checks game clearing.
 
 `19-table-player-ux.yaml` and `apps/web/e2e/table-player-ux.config.ts` inspect real waiting states,
 usernames, localized Profile statistics and unsaved Table drafts; no save/enrollment or mocks.
@@ -376,41 +401,26 @@ Run web with `bun run --filter web exec playwright test --config e2e/table-sched
 Missing inputs fail. Native screenshot review must verify actual avatar/user-row rendering, metadata
 order below Settings, EN/IT, themes and enlarged text; syntax and VM checks do not prove these.
 
-`15-card-metadata.yaml` is a manual real-device card scenario, outside the unchanged canonical
-CI fixture set. Start already authenticated, with a PRIVATE Group, a Registered Event with two
-proposed dates/venues, and a personal Table with two games. Supply `CARD_LOCALE` (`en`/`it`),
-`CARD_GROUP_NAME`, `CARD_EVENT_NAME`, `CARD_TABLE_NAME`, `CARD_VENUE` (displayed venue substring),
-`CARD_VENUE_ADDRESS` (the exact formatted address shown by the client, without its IANA zone),
-`CARD_EVENT_DATE_LABEL` (localized long date) and `CARD_EVENT_TIME_LABEL` (localized clock).
-Both clients additionally require `CARD_PEOPLE_INPUT` JSON with `username`,
-`groupRole=admin|moderator|member`, `eventRole=admin|moderator|participant` and
-`tableStatus=participant|awaiting|waiting`. This named person must exist in the actual first visible
-Group/Event/Table roster windows; prepare eligible source-authorized fixtures, never invent a role or
-expose another person's private pending invitation. Missing inputs fail. Use matching API/client builds
-with complete authorized schedule/participant-role projections. The flow filters real first-page rows
-and requires the actor's accepted participation. Event cards show Group ·
-localized Table count with the prior schedule preview/counts inside status help. Table cards show
-accepted-seat / capacity and local date/location/game popovers; both Table feeds retain Group · Event.
-Group cards show accepted members plus the sole admin (moderators counted once) · authorized Events,
-with role, visibility and public-only review controls. Inspect complete left Landscape/Constellation/
-Planets artwork and logos, title/count ordering and single-row cumulative controls (horizontal scrolling
-when the full Card width is insufficient), 28px frames/16px glyphs and 44px targets. Admin is warning;
-moderator is accent. List artwork canvases match their Card surface. Location popovers pair MapPin
-icons with addresses only; Table status uses Unconfirmed players. The flow also opens all three detail
-identities and real list-style parent cards. Review fully vivid artwork without a whole-image scrim,
-with left title and right controls on the same row and a localized bottom contrast caption, not a
-nested surface Card. Inspect Details/Ranking labels, @handles, membership/Event roles, Event avatar
-overlays and Table consent/queue subtitles in both locales/themes and at enlarged font sizes. Parsing/VM checks are not native geometry evidence. No fixtures, votes or
-registrations are created; existing container/notification reads retain their ordinary behavior.
+`15-card-metadata.yaml` is a manual real-device card scenario outside the canonical CI fixture set.
+Start authenticated with an owned PRIVATE Group, a Scheduled PLANNING Event and one of its Tables.
+Supply `CARD_LOCALE` (`en`/`it`), `CARD_GROUP_NAME`, `CARD_EVENT_NAME`, `CARD_TABLE_NAME` and
+`CARD_PEOPLE_INPUT` JSON with `username`, `groupRole=admin|moderator|member`,
+`eventRole=admin|moderator|participant` and `tableStatus=participant|awaiting|waiting`.
+The named person must exist in the actual first visible Group/Event/Table roster windows. Missing
+inputs fail; never invent roles or expose another person's private invitation. The actor has accepted
+Event participation. Planning card controls expose one neutral Roles and participation popover and
+readiness status; proposed date/location/game icons are absent. Planning Tables are reached through the
+Event's Tables tab, never through History. Group indicators and user/avatar roles remain unchanged.
+Review list/detail parity, 44px targets, horizontal control overflow, EN/IT, themes and enlarged text.
+No fixtures, votes or registrations are created. Parsing/VM checks are not native geometry evidence.
+Final date/location/game controls and tied winners are covered by the History/list-status journey.
 
-Web parity has an explicit manual Playwright configuration, `apps/web/e2e/card-metadata.config.ts`.
-Run `bun run --filter web exec playwright test --config e2e/card-metadata.config.ts` against the isolated
-Preview, with the same named fixture, `E2E_EMAIL`, Development Clerk test credentials,
-`CARD_LOCALE`, `CARD_VENUE`, `CARD_VENUE_ADDRESS`, `CARD_EVENT_DAY` (`YYYY-MM-DD`) and `CARD_EVENT_TIME` (`HH:mm`).
-It uses real auth/reads, computed typography/full-height artwork and informational popovers at
-390/1280px, with no domain writes or mocked routes. The
-`.scenario.ts` extension keeps it out of default canonical suites; both real manual runs remain
-separate acceptance requirements, not claims inferred from isolated component previews.
+Web parity uses `apps/web/e2e/card-metadata.config.ts`, the same names and people fixture,
+`CARD_LOCALE`, `E2E_EMAIL` and Development Clerk test credentials. Run against an isolated Preview:
+`bun run --filter web exec playwright test --config e2e/card-metadata.config.ts`.
+It uses real auth/reads and informational popovers at 390/1280px without domain writes or mocked
+success responses. The `.scenario.ts` extension keeps it outside canonical suites; actual browser
+and device runs remain separate acceptance requirements.
 
 `14-query-cache.yaml` is a manual scenario outside the unchanged 13-report CI fixture set.
 Use a freshly built MMKV/Nitro APK, two isolated already-onboarded EN accounts and a device with
@@ -673,3 +683,7 @@ Partial runs and diagnostic continuations do not establish a full suite pass.
 Acceptance requires all 13 unique, non-skipped successful JUnit reports from one
 clean ordered run of the same source; PR acceptance additionally requires its
 exact-SHA CI run, cleanup and publication gates. A rewritten file is not a pass.
+
+The Event access `presentation` journey uses an included confirmed/terminated Table, so card game
+metadata is definitive. Active Tables are opened through their parent Event; History/list-status
+covers the completed personal list. Planning proposal controls remain in their detail voting sections.

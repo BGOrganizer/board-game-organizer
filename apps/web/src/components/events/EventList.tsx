@@ -12,6 +12,7 @@ import { CalendarCheck2, CalendarClock, Flag, Plus } from "lucide-react";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
+import { WindowedList } from "@/components/common/ui/WindowedList";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -31,7 +32,13 @@ export function EventList({
     list = useEventRecords(o, {
       groupId,
       section: groupId ? undefined : section,
-      statuses: !groupId && section === "available" ? ["PLANNING"] : filters.selected,
+      statuses: groupId
+        ? filters.selected
+        : section === "available"
+          ? ["PLANNING"]
+          : section === "terminated"
+            ? ["TERMINATED"]
+            : ["CONFIRMED", "PLANNING"],
       query: filters.search,
     }),
     end = useInfiniteScroll({
@@ -61,7 +68,7 @@ export function EventList({
           selected={filters.selected}
           onToggle={filters.toggle}
           options={
-            !groupId && section === "available"
+            !groupId
               ? []
               : [
                   { key: "CONFIRMED", label: t`Confirmed events`, icon: CalendarCheck2 },
@@ -70,15 +77,26 @@ export function EventList({
                 ]
           }
         />
-        {(communityAccessDenied(list.error) ? [] : list.items).map((event) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            context={groupId ? "group" : "personal"}
-            checking={list.isFetching}
-            onVerify={() => void list.refetch({ cancelRefetch: false })}
-          />
-        ))}
+        <WindowedList
+          key={`${groupId ?? section}:${filters.search}`}
+          items={communityAccessDenied(list.error) ? [] : list.items}
+          itemKey={(event) => event.id}
+          label={t`Events`}
+          estimatedRowHeight={260}
+          gap={12}
+          onEndReached={() => {
+            if (list.hasNextPage && !list.isFetching && !list.isFetchNextPageError)
+              void list.fetchNextPage();
+          }}
+          renderItem={(event) => (
+            <EventCard
+              event={event}
+              context={groupId ? "group" : "personal"}
+              checking={list.isFetching}
+              onVerify={() => void list.refetch({ cancelRefetch: false })}
+            />
+          )}
+        />
         {list.isPending ? (
           <Skeleton className="h-32 w-full rounded-xl" />
         ) : !list.isError && !list.items.length ? (

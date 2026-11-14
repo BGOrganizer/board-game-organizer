@@ -5,13 +5,12 @@ import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Gamepad2, LibraryBig, UsersRound } from "lucide-react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileBggCard } from "./ProfileBggCard";
 import { ProfileCollection } from "./ProfileCollection";
+import { ProfileIdentity } from "./ProfileIdentity";
 import { ProfileLogout } from "./ProfileLogout";
 import { ProfilePlayer } from "./ProfilePlayer";
 import { ProfileRecentActivities } from "./ProfileRecentActivities";
@@ -54,13 +53,12 @@ export function Profile({ userId }: { userId?: string }) {
       ) : null}
       {data ? (
         <GroupedList>
-          <GroupedRow>
-            <UserIdentity
-              name={data.name || data.username || t`Unknown`}
-              avatarUrl={data.avatarUrl}
-              secondary={data.username ? `@${data.username}` : undefined}
-            />
-          </GroupedRow>
+          <ProfileIdentity
+            name={data.name || data.username || t`Unknown`}
+            avatarUrl={data.avatarUrl}
+            username={data.username}
+            ownerId={own ? subject : undefined}
+          />
         </GroupedList>
       ) : null}
       {own ? <ProfileBggCard bgg={bgg} /> : null}

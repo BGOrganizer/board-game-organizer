@@ -42,6 +42,7 @@ import {
   banPreservesFrozenEvent,
   calculateEventAgreement,
   type EventAgreement,
+  type EventAgreementInput,
   eventAvailabilityVoteIsAllowed,
   eventDateWall,
   eventGameDuration,
@@ -63,7 +64,6 @@ import {
   hasPublicTableConflict,
   isFrozenTableParticipant,
   isGroupModerator,
-  isPersonalTableParticipant,
   normalizeMatchScore,
   personalTableSection,
   plannedTableInterval,
@@ -85,6 +85,7 @@ import type { NotificationsRepository } from "../notifications/notifications.rep
 import type { RatingsRepository } from "../ratings/ratings.repository";
 import { publicUserName } from "../users/public-user-name";
 import type { UsersRepository } from "../users/users.repository";
+import { eventCardSummary, tableCardSummary } from "./event-card-summary";
 import { personalEventProjection, personalTableProjection } from "./event-personal-projection";
 import type { EventRecordPage, EventRecordsRepository } from "./event-records.repository";
 import { sharedEventResults, sharedTableResults } from "./event-results-projection";
@@ -289,7 +290,7 @@ export class EventRecordsService {
       })),
     );
   }
-  private async agreement(
+  private async agreementInput(
     event: EventRecord,
     group: GroupRecord | null,
     tables?: TableRecord[],
@@ -307,7 +308,7 @@ export class EventRecordsService {
         return bounds ? [[game.id, bounds]] : [];
       }),
     );
-    return calculateEventAgreement({
+    return {
       planningMode: event.planningMode ?? "ASSISTED",
       playerPreference: event.playerPreference ?? "MORE_PLAYERS",
       allowBestReduction: event.allowBestReduction ?? false,
@@ -351,7 +352,17 @@ export class EventRecordsService {
           ),
         ]),
       ),
-    });
+    } satisfies EventAgreementInput;
+  }
+  private async agreement(
+    event: EventRecord,
+    group: GroupRecord | null,
+    tables?: TableRecord[],
+    knownRegistrations?: TableRegistration[],
+  ) {
+    return calculateEventAgreement(
+      await this.agreementInput(event, group, tables, knownRegistrations),
+    );
   }
   private async saveSituation(event: EventRecord, group: GroupRecord | null, actor: string) {
     const plan = await this.agreement(event, group);
@@ -393,18 +404,59 @@ export class EventRecordsService {
   ): Promise<PlannedEventResponse> {
     const tables = await this.events.allTables(event.id);
     const counts = await this.events.counts(event, tables);
-    const hasAccepted = own.some((row) => row.status === "ACCEPTED");
     const registrations =
-      detail || (hasAccepted && event.status === "PLANNING")
-        ? await this.events.allRegistrations(event.id)
-        : [];
-    const plan =
-      event.status === "PLANNING" && (detail || hasAccepted)
-        ? await this.agreement(event, group, tables, registrations)
+      event.status === "PLANNING" || detail ? await this.events.allRegistrations(event.id) : [];
+    const planningInput =
+      event.status === "PLANNING"
+        ? await this.agreementInput(event, group, tables, registrations)
         : undefined;
+    const plan = planningInput ? calculateEventAgreement(planningInput) : undefined;
+    const winnerIds = [
+      ...new Set(
+        tables.flatMap(
+          (table) =>
+            table.results?.entries
+              .filter((row) => row.rank === 1 && row.score !== null)
+              .map((row) => row.userId) ?? [],
+        ),
+      ),
+    ];
+    const winnerProfiles = winnerIds.length ? await this.users.findByIds(winnerIds) : [];
+    const myVotes =
+      detail ||
+      (event.status !== "PLANNING" &&
+        own.some(
+          (row) =>
+            row.status === "ACCEPTED" &&
+            !tables
+              .find((table) => table.id === row.tableId)
+              ?.confirmed?.playerIds.includes(userId),
+        ))
+        ? await this.events.voter(event.id, userId)
+        : undefined;
+    const summary = eventCardSummary(
+      plan?.agreed ?? Boolean(event.confirmed),
+      tables.map((table) =>
+        tableCardSummary(
+          event,
+          table,
+          readOnly ? "" : userId,
+          readOnly ? null : (own.find((row) => row.tableId === table.id) ?? null),
+          (table.results?.entries.filter((row) => row.rank === 1 && row.score !== null) ?? []).map(
+            (row) => ({
+              userId: row.userId,
+              username:
+                winnerProfiles.find((profile) => profile.clerkId === row.userId)?.username ?? null,
+            }),
+          ),
+          planningInput && plan ? { input: planningInput, agreement: plan } : undefined,
+          myVotes,
+        ),
+      ),
+    );
     const positioned = own.map((row) => {
       const table = tables.find((table) => table.id === row.tableId);
-      if (!table || row.status !== "ACCEPTED") return row;
+      if (!table) return row;
       const selected = plan?.agreed
         ? plan.includedTables.find((entry) => entry.tableId === table.id)?.participantIds
         : undefined;
@@ -430,7 +482,6 @@ export class EventRecordsService {
           undefined,
       };
     });
-    const myVotes = detail ? await this.events.voter(event.id, userId) : null;
     let voteCounts: PlannedEventResponse["voteCounts"];
     if (detail) {
       const voters = await this.events.allVotes(event.id);
@@ -474,6 +525,7 @@ export class EventRecordsService {
             : "member";
     return {
       ...visible,
+      cardSummary: summary,
       visibility: eventRecordVisibility(event, group?.type ?? null),
       locations: visible.locations.map((location) => ({
         ...location,
@@ -1101,7 +1153,13 @@ export class EventRecordsService {
     const rows = await this.events.list(userId, page, groupId);
     const items: PlannedEventResponse[] = [];
     for (const row of rows.slice(0, page.limit)) {
-      const { event, group, own, readOnly, personalOnly } = await this.context(userId, row.id);
+      const { event, group, own, readOnly, personalOnly } = await this.context(
+        userId,
+        row.id,
+        false,
+        false,
+        page.section === "available",
+      );
       const response = await this.response(event, group, userId, own, false, readOnly);
       items.push(
         personalOnly
@@ -1571,14 +1629,19 @@ export class EventRecordsService {
     includeProfiles = false,
     readOnly = false,
     redactEmails = false,
+    preparedPlanning?: EventAgreementInput,
   ): Promise<PlannedTableResponse> {
-    const registrations = (await this.events.allRegistrations(event.id)).filter(
-      (row) => row.tableId === table.id,
-    );
+    const allRegistrations = await this.events.allRegistrations(event.id);
+    const registrations = allRegistrations.filter((row) => row.tableId === table.id);
     const my = registrations.find((row) => row.userId === userId) ?? null;
+    const cardPlanningInput =
+      event.status === "PLANNING"
+        ? (preparedPlanning ??
+          (await this.agreementInput(event, group, undefined, allRegistrations)))
+        : undefined;
     const plan =
-      proposal === undefined && event.status === "PLANNING"
-        ? await this.agreement(event, group)
+      proposal === undefined && cardPlanningInput
+        ? calculateEventAgreement(cardPlanningInput)
         : proposal;
     const selected = plan?.agreed
       ? plan.includedTables.find((row) => row.tableId === table.id)?.participantIds
@@ -1647,10 +1710,30 @@ export class EventRecordsService {
       base.seated.map((row) => row.id),
       table.confirmed?.playerIds ?? [],
     );
+    const ownAvailability =
+      event.status !== "PLANNING" &&
+      table.confirmed &&
+      my?.status === "ACCEPTED" &&
+      !table.confirmed.playerIds.includes(userId) &&
+      !readOnly
+        ? await this.events.voter(event.id, userId)
+        : undefined;
     const canManage = !readOnly && (await this.manager(event, group, userId));
     const { resultDraft, seatOrderVersion: _seatOrderVersion, ...visibleTable } = table;
     return {
       ...visibleTable,
+      cardSummary: tableCardSummary(
+        event,
+        table,
+        readOnly ? "" : userId,
+        readOnly ? null : my,
+        winnerIds.map((id) => ({
+          userId: id,
+          username: winnerProfiles.find((profile) => profile.clerkId === id)?.username ?? null,
+        })),
+        cardPlanningInput && plan ? { input: cardPlanningInput, agreement: plan } : undefined,
+        ownAvailability,
+      ),
       canManage,
       managementRole: canManage
         ? (group?.adminUserId ?? event.adminUserId) === userId
@@ -1897,7 +1980,9 @@ export class EventRecordsService {
     );
     const after = page.cursor ? rows.filter((row) => row.order > Number(page.cursor)) : rows;
     const items: PlannedTableResponse[] = [];
-    const proposal = event.status === "PLANNING" ? await this.agreement(event, group) : null;
+    const preparedPlanning =
+      event.status === "PLANNING" ? await this.agreementInput(event, group) : undefined;
+    const proposal = preparedPlanning ? calculateEventAgreement(preparedPlanning) : null;
     for (const row of after.slice(0, page.limit)) {
       const response = await this.tableResponse(
         event,
@@ -1907,6 +1992,8 @@ export class EventRecordsService {
         proposal,
         false,
         readOnly,
+        false,
+        preparedPlanning,
       );
       items.push(
         personalOnly
@@ -1938,7 +2025,9 @@ export class EventRecordsService {
         if (
           page.section
             ? personalTableSection(table, userId) !== page.section
-            : !isPersonalTableParticipant(table, userId)
+            : table.eventStatus !== "TERMINATED" ||
+              !table.confirmed ||
+              !(isFrozenTableParticipant(table, userId) || table.canManage)
         )
           continue;
         items.push(table);

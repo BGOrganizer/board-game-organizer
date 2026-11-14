@@ -138,10 +138,12 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
       !input.gameName ||
       !table.myRegistration ||
       table.myRegistration.status !== "ACCEPTED" ||
-      event.sharedResultsOnly
+      event.sharedResultsOnly ||
+      table.eventStatus === "PLANNING" ||
+      !table.confirmed
     )
       throw new Error(
-        "Owned grouped Event with accepted own Table registration and exact Group/game names required",
+        "Owned grouped confirmed/terminated Table with accepted own registration and exact Group/game names required",
       );
     const group = await read<GroupRecordResponse>(page, `groups/${event.groupId}`);
     expect(group.name).toBe(input.groupName);
@@ -232,16 +234,7 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
     ).toHaveCount(0);
     await expect(page).toHaveURL((url) => url.pathname === `/${eventPath}`);
     await page.keyboard.press("Escape");
-    await page.goto("/tables");
-    await page.getByRole("searchbox").fill(input.tableName);
-    await card
-      .getByRole("button", {
-        name: `${it ? "Giochi da tavolo" : "Board games"}: ${input.tableName}`,
-        exact: true,
-      })
-      .click();
-    await expect(popover.getByText(input.gameName, { exact: true })).toBeVisible();
-    await page.keyboard.press("Escape");
+    // History-only list parity is exercised by list-status; active Tables remain in their Event.
     await open.click();
     await assertBackground(input.tableName);
     await expect(

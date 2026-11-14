@@ -14,7 +14,13 @@ vi.mock("@/lib/useCommunityApi", () => ({
     getToken: m.getToken,
   }),
 }));
-vi.mock("@clerk/nextjs", () => ({ useClerk: () => ({ signOut: m.signOut }) }));
+vi.mock("@clerk/nextjs", () => ({
+  useClerk: () => ({ signOut: m.signOut }),
+  useUser: () => ({
+    isLoaded: true,
+    user: { id: "owner", createdAt: new Date("2020-06-15T12:00:00.000Z") },
+  }),
+}));
 const view = {
   id: "owner",
   name: "Alessandro",

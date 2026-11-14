@@ -82,8 +82,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="tables"
         options={{
-          title: t("Tables"),
-          headerTitle: () => <HeaderTitle title={t("Tables")} icon={Dices} />,
+          title: t("History"),
+          headerTitle: () => <HeaderTitle title={t("History")} icon={Dices} />,
           tabBarIcon: ({ color }) => (
             <View style={{ position: "relative" }}>
               <Dices size={26} color={color} />

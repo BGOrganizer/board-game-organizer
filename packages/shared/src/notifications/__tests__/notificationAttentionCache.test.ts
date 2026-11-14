@@ -121,7 +121,8 @@ it("preserves paging and immutable read times, handles ISO precision equally and
     "existing-read",
   ]);
   expect(next.pages.map((page) => page.unreadCount)).toEqual([1, 1]);
-  expect(next.pages[0].attention?.tables).toBe(1);
+  // Older references cannot prove History eligibility; the authoritative receipt updates this total.
+  expect(next.pages[0].attention?.tables).toBe(2);
   expect(next.pages[1]).not.toHaveProperty("attention");
   const parent = projectAttentionRead(
     data,

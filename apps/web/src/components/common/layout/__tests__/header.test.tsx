@@ -77,11 +77,11 @@ describe("Header", () => {
   it("shows the brand and the main navigation for signed-in users", () => {
     renderWithI18n(<Header />);
     expect(screen.getByText("Board Game Organizer")).toBeTruthy();
-    const activeLink = screen.getByRole("link", { name: "Tables" });
+    const activeLink = screen.getByRole("link", { name: "History" });
     expect(activeLink.getAttribute("aria-current")).toBe("page");
     expect(activeLink.querySelector('a, [role="link"]')).toBeNull();
     for (const [label, icon] of [
-      ["Tables", "lucide-dices"],
+      ["History", "lucide-dices"],
       ["Groups", "lucide-users-round"],
       ["Events", "lucide-calendar-days"],
       ["Contacts", "lucide-contact-round"],

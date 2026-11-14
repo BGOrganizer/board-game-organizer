@@ -40,6 +40,8 @@ it.each(["en", "it"] as const)(
           groupId: groupRecord.id,
           groupName: groupRecord.name,
           seatedCount: 2,
+          eventStatus: "CONFIRMED",
+          confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T16:15:00Z" },
           eventSchedule: schedule,
         }}
       />,
@@ -62,7 +64,7 @@ it.each(["en", "it"] as const)(
       }),
     );
     const dialog = await screen.findByRole("dialog");
-    for (const date of schedule.dates) {
+    for (const date of schedule.dates.slice(0, 1)) {
       expect(
         within(dialog).getByText(
           new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(

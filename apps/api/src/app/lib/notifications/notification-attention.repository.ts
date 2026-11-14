@@ -13,10 +13,19 @@ import {
 } from "@board-game-organizer/shared";
 import { type ClientSession, type Db, type Document, ObjectId } from "mongodb";
 import { COLLECTIONS } from "../db";
-import { availableEventExpression, managedEventExpression } from "../events/event-list-eligibility";
+import {
+  availableEventExpression,
+  managedEventExpression,
+  terminatedEventExpression,
+} from "../events/event-list-eligibility";
 import { EventRecordsRepository } from "../events/event-records.repository";
 import { GroupRecordsRepository } from "../groups/group-records.repository";
-import { itemFacet, itemOwnerIds, ownerListTargets } from "./notification-item-pipeline";
+import {
+  itemFacet,
+  itemOwnerIds,
+  mainEventLists,
+  ownerListTargets,
+} from "./notification-item-pipeline";
 import { notificationSupersessionPipeline } from "./notification-supersession";
 import { NotificationsRepository } from "./notifications.repository";
 
@@ -110,7 +119,12 @@ export class NotificationAttentionRepository {
           foreignField: "id",
           pipeline: [
             { $match: { status: { $in: ["PLANNING", "CONFIRMED", "TERMINATED"] } } },
-            ...new EventRecordsRepository(this.db, this.session).visibleGroups(userId, now),
+            ...new EventRecordsRepository(this.db, this.session).visibleGroups(
+              userId,
+              now,
+              "",
+              true,
+            ),
             ...new EventRecordsRepository(this.db, this.session).participationStages(userId),
             {
               $match: {
@@ -119,6 +133,7 @@ export class NotificationAttentionRepository {
                   { adminUserId: userId },
                   { "myRegistration.0": { $exists: true } },
                   { "myDemonstration.0": { $exists: true } },
+                  { "personalFrozenTable.0": { $exists: true } },
                 ],
               },
             },
@@ -127,7 +142,11 @@ export class NotificationAttentionRepository {
                 from: COLLECTIONS.EVENT_TABLES,
                 localField: "id",
                 foreignField: "eventId",
-                let: { personalAccessOnly: "$personalAccessOnly", eventStatus: "$status" },
+                let: {
+                  personalAccessOnly: "$personalAccessOnly",
+                  eventStatus: "$status",
+                  managed: managedEventExpression(userId),
+                },
                 pipeline: [
                   {
                     $match: {
@@ -157,8 +176,15 @@ export class NotificationAttentionRepository {
                       id: 1,
                       personal: {
                         $and: [
-                          { $in: ["$$eventStatus", ["CONFIRMED", "TERMINATED"]] },
-                          { $in: [userId, { $ifNull: ["$confirmed.playerIds", []] }] },
+                          { $eq: ["$$eventStatus", "TERMINATED"] },
+                          { $ne: [{ $ifNull: ["$confirmed", null] }, null] },
+                          {
+                            $or: [
+                              { $in: [userId, { $ifNull: ["$confirmed.playerIds", []] }] },
+                              { $eq: ["$demonstratorUserId", userId] },
+                              { $and: [{ $ne: ["$$personalAccessOnly", true] }, "$$managed"] },
+                            ],
+                          },
                         ],
                       },
                     },
@@ -183,24 +209,42 @@ export class NotificationAttentionRepository {
                 lists: {
                   $concatArrays: [
                     {
-                      $cond: [
-                        {
-                          $or: [
-                            "$personalAccessOnly",
-                            managedEventExpression(userId),
-                            { $gt: [{ $size: "$myRegistration" }, 0] },
-                            { $gt: [{ $size: "$myDemonstration" }, 0] },
-                          ],
-                        },
-                        [{ kind: "event-list", id: "mine" }],
-                        {
-                          $cond: [
-                            availableEventExpression(userId, new Date(now)),
-                            [{ kind: "event-list", id: "available" }],
-                            [],
-                          ],
-                        },
-                      ],
+                      $switch: {
+                        branches: [
+                          {
+                            case: terminatedEventExpression(userId),
+                            then: [{ kind: "event-list", id: "terminated" }],
+                          },
+                          {
+                            case: {
+                              $and: [
+                                { $ne: ["$status", "TERMINATED"] },
+                                {
+                                  $or: [
+                                    "$personalAccessOnly",
+                                    managedEventExpression(userId),
+                                    { $gt: [{ $size: "$myRegistration" }, 0] },
+                                    { $gt: [{ $size: "$myDemonstration" }, 0] },
+                                  ],
+                                },
+                              ],
+                            },
+                            then: [{ kind: "event-list", id: "mine" }],
+                          },
+                          {
+                            case: {
+                              $and: [
+                                availableEventExpression(userId, new Date(now)),
+                                { $eq: [{ $size: "$myRegistration" }, 0] },
+                                { $eq: [{ $size: "$myDemonstration" }, 0] },
+                                { $eq: [{ $size: "$personalFrozenTable" }, 0] },
+                              ],
+                            },
+                            then: [{ kind: "event-list", id: "available" }],
+                          },
+                        ],
+                        default: [],
+                      },
                     },
                     {
                       $cond: [
@@ -208,6 +252,14 @@ export class NotificationAttentionRepository {
                           $and: [
                             { $ne: ["$personalAccessOnly", true] },
                             { $ne: [{ $ifNull: ["$groupId", null] }, null] },
+                            {
+                              $or: [
+                                {
+                                  $eq: [{ $arrayElemAt: ["$parentGroup.adminUserId", 0] }, userId],
+                                },
+                                { $gt: [{ $size: "$groupMembership" }, 0] },
+                              ],
+                            },
                           ],
                         },
                         [{ kind: "event-list", id: "$groupId" }],
@@ -713,7 +765,7 @@ export class NotificationAttentionRepository {
                 0,
               ],
             }),
-            events: sum({ $gt: [{ $size: "$_ownerEvents" }, 0] }),
+            events: sum({ $gt: [{ $size: mainEventLists("$_lists") }, 0] }),
             groups: sum({ $gt: [{ $size: "$_ownerGroups" }, 0] }),
             contacts: sum({ $eq: ["$_kind", "contact"] }),
             requests: sum({ $eq: ["$_section", "requests"] }),
@@ -738,6 +790,12 @@ export class NotificationAttentionRepository {
                 groupId: "$_groupId",
                 section: "$_section",
                 tableIds: "$_tableIds",
+                historyTableIds: {
+                  $setIntersection: [
+                    "$_tableIds",
+                    { $ifNull: [{ $arrayElemAt: ["$_event.personalTableIds", 0] }, []] },
+                  ],
+                },
                 itemIds: {
                   $setDifference: [{ $setUnion: ["$_items.id", "$_items.sectionId"] }, [null]],
                 },
@@ -923,7 +981,8 @@ export class NotificationAttentionRepository {
         ...(row.tableIds?.length ? { tableIds: row.tableIds } : {}),
         ...(row.itemIds?.length ? { itemIds: row.itemIds } : {}),
         containers: row.containers,
-        ...(row.lists?.length ? { lists: row.lists } : {}),
+        lists: row.lists ?? [],
+        historyTableIds: row.historyTableIds ?? [],
       });
     }
     return { snapshot, references, personalNotificationIds };

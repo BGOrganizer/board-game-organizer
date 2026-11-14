@@ -5,6 +5,7 @@ import {
   notificationAttentionReferenceSchema,
   notificationAttentionSnapshotSchema,
   notificationAttentionTargetSchema,
+  notificationNavigationQuerySchema,
   readNotificationAttentionSchema,
 } from "../dto/notificationAttention";
 
@@ -33,6 +34,7 @@ describe("notification attention boundaries", () => {
     const valid = [
       { kind: "event-list", id: "mine" },
       { kind: "event-list", id: "available" },
+      { kind: "event-list", id: "terminated" },
       { kind: "event-list", id },
       { kind: "group-list", id: "PRIVATE" },
       { kind: "group-list", id: "PUBLIC" },
@@ -188,4 +190,32 @@ describe("notification attention boundaries", () => {
     ).toBe(false);
     expect(notificationAttentionReceiptSchema.safeParse({ success: true }).success).toBe(false);
   });
+});
+
+it("accepts bounded History ownership metadata independently of readable containers", () => {
+  expect(
+    notificationAttentionReferenceSchema.parse({
+      target: { kind: "table", id },
+      historyTableIds: [id],
+      lists: [],
+    }).historyTableIds,
+  ).toEqual([id]);
+  expect(
+    notificationAttentionReferenceSchema.safeParse({
+      target: { kind: "table", id },
+      historyTableIds: ["foreign"],
+    }).success,
+  ).toBe(false);
+});
+
+it("negotiates only the fixed History navigation capability", () => {
+  expect(notificationNavigationQuerySchema.parse({})).toEqual({});
+  expect(notificationNavigationQuerySchema.parse({ navigation: "history" })).toEqual({
+    navigation: "history",
+  });
+  expect(notificationAttentionQuerySchema.parse({ navigation: "history" }).navigation).toBe(
+    "history",
+  );
+  for (const input of [{ navigation: "future" }, { navigation: true }, { other: "history" }])
+    expect(notificationNavigationQuerySchema.safeParse(input).success).toBe(false);
 });

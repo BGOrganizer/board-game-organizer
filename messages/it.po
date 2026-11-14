@@ -7033,3 +7033,96 @@ msgstr "Il tuo posto riservato tornerà disponibile."
 
 msgid "YYYY-MM-DDTHH:mm"
 msgstr "AAAA-MM-GGTHH:mm"
+
+msgid "Scheduled"
+msgstr "Schedulati"
+
+msgid "History"
+msgstr "Storico"
+
+msgid "You are excluded"
+msgstr "Sei escluso"
+
+msgid "Table excluded"
+msgstr "Tavolo escluso"
+
+msgid "You are not registered."
+msgstr "Non sei iscritto."
+
+msgid "Not enough eligible players to reach the minimum."
+msgstr "Giocatori idonei insufficienti per raggiungere il minimo."
+
+msgid "Reserved invitations still need to be accepted."
+msgstr "Alcuni inviti con posto riservato devono ancora essere accettati."
+
+msgid "There is no agreement on a date and time."
+msgstr "Manca l’accordo su data e ora."
+
+msgid "There is no agreement on a location."
+msgstr "Manca l’accordo sul luogo."
+
+msgid "There is no agreement on a game."
+msgstr "Manca l’accordo sul gioco."
+
+msgid "No combination of date, location and game satisfies the same players."
+msgstr "Nessuna combinazione di data, luogo e gioco è compatibile con gli stessi giocatori."
+
+msgid "The table was excluded from confirmation."
+msgstr "Il tavolo è stato escluso dalla conferma."
+
+msgid "The invitation was not accepted before confirmation."
+msgstr "L’invito non è stato accettato prima della conferma."
+
+msgid "Your votes do not agree with the chosen date and time."
+msgstr "I tuoi voti non sono compatibili con la data e l’ora scelte."
+
+msgid "Your votes do not agree with the chosen location."
+msgstr "I tuoi voti non sono compatibili con il luogo scelto."
+
+msgid "Your votes do not agree with the chosen game."
+msgstr "I tuoi voti non sono compatibili con il gioco scelto."
+
+msgid "You were not included in the final roster."
+msgstr "Non sei stato incluso tra i giocatori definitivi."
+
+msgid "This table is ready for confirmation."
+msgstr "Questo tavolo è pronto per la conferma."
+
+msgid "No winners."
+msgstr "Nessun vincitore."
+
+msgid "No tables are ready for confirmation."
+msgstr "Nessun tavolo è pronto per la conferma."
+
+msgid "Managers arrange seats and the waiting list. Confirmation requirements still apply."
+msgstr "Il responsabile gestisce posti e coda. Restano necessari i requisiti per la conferma."
+
+msgid "The app seeks compatible players, dates, locations and games. A manager must still confirm."
+msgstr "L’app cerca una combinazione compatibile di giocatori, date, luoghi e giochi. La conferma resta al responsabile."
+
+msgid "Prefers the player count marked Best on BGG."
+msgstr "Privilegia il numero di giocatori indicato come Best su BGG."
+
+msgid "Prefers the solution that seats more people, respecting votes and constraints."
+msgstr "Preferisce la soluzione che fa giocare più persone, rispettando voti e vincoli."
+
+msgid "Assisted planning may seat fewer players to improve the BGG recommendation."
+msgstr "La pianificazione assistita può coinvolgere meno giocatori per migliorare la corrispondenza alle indicazioni BGG."
+
+msgid "Ready for a manager to confirm."
+msgstr "Pronto per la conferma del responsabile."
+
+msgid "Confirmation requirements are not yet met."
+msgstr "I requisiti per la conferma non sono ancora soddisfatti."
+
+msgid "Tables where you are confirmed"
+msgstr "Tavoli in cui sei confermato"
+
+msgid "You have an assigned role without a player seat."
+msgstr "Hai un incarico senza partecipare come giocatore."
+
+msgid "Joined on"
+msgstr "Iscritto dal"
+
+msgid "Version"
+msgstr "Versione"

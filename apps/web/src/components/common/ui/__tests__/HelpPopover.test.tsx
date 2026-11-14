@@ -32,6 +32,7 @@ it("supports plain help without inventing a heading", async () => {
 it.each([
   ["primary", "text-accent-foreground"],
   ["danger-soft", "text-danger-soft-foreground"],
+  ["danger", "text-danger-foreground"],
 ] as const)(
   "preserves the %s action color while dimmed help stays keyboard/click accessible",
   async (triggerVariant, foreground) => {
@@ -55,5 +56,33 @@ it.each([
     expect(await screen.findByText("Not available yet")).toBeTruthy();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  },
+);
+
+it.each([
+  ["ghost", "bg-default"],
+  ["primary", "bg-accent"],
+  ["danger-soft", "bg-danger-soft"],
+  ["danger", "bg-danger"],
+] as const)(
+  "keeps the existing compact frame and touch target for %s",
+  (triggerVariant, surface) => {
+    renderWithI18n(
+      <HelpPopover
+        label="Compact status"
+        size="compact"
+        triggerVariant={triggerVariant}
+        triggerClassName="bg-default"
+      >
+        Status explanation
+      </HelpPopover>,
+    );
+    const button = screen.getByRole("button", { name: "Compact status" });
+    expect(button.className).toContain("button--ghost");
+    expect(button.className).toContain("min-h-11 min-w-11");
+    const frame = button.querySelector("span");
+    expect(frame?.className).toContain("size-7");
+    expect(frame?.className).toContain("rounded-lg");
+    expect(frame?.className).toContain(surface);
   },
 );

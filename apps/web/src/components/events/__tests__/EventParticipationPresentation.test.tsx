@@ -29,25 +29,24 @@ it.each([
   [waiting],
 ])("retains accepted consent without hiding simultaneous pending work (%s)", async (...rows) => {
   const reply = rows.some((row) => row.kind === "INVITATION" && row.status === "PENDING");
-  const label = "Accepted participant";
-  const description =
-    "You are accepted at one or more tables. Open table details for your seat or waiting-list position.";
   renderWithI18n(
     <EventCard event={{ ...plannedEvent, role: "invited", myRegistrations: [...rows] }} />,
   );
-  const button = screen.getByRole("button", { name: label });
-  expect(screen.getAllByRole("button")).toHaveLength(reply ? 8 : 7);
-  expect(screen.getByRole("button", { name: "Participant on the waiting list" })).not.toBeNull();
-  if (reply)
-    expect(
-      screen.getByRole("button", { name: "Participant with pending invitation · Reply required" }),
-    ).not.toBeNull();
+  const button = screen.getByRole("button", { name: "Roles and participation" });
+  expect(screen.getAllByRole("button", { name: "Roles and participation" })).toHaveLength(1);
   expect(screen.getByRole("link").contains(button)).toBe(false);
   fireEvent.click(button);
-  expect(await screen.findByText(description)).not.toBeNull();
+  expect(await screen.findByText("Participant on the waiting list")).not.toBeNull();
+  if (rows.some((row) => row.position === "SEATED"))
+    expect(screen.getByText("Accepted participant")).not.toBeNull();
+  else expect(screen.queryByText("Accepted participant")).toBeNull();
+  if (reply) {
+    expect(screen.getByText("Participant with pending invitation")).not.toBeNull();
+    expect(screen.getByText("Open details to accept or decline your invitation.")).not.toBeNull();
+  }
 });
 
-it("does not award organizer participation, infer queue positions, or keep a position absent from a receipt", () => {
+it("keeps role disclosure separate from organizer seats and unknown queue positions", async () => {
   const event: PlannedEventResponse = {
     ...plannedEvent,
     canManage: true,
@@ -55,21 +54,37 @@ it("does not award organizer participation, infer queue positions, or keep a pos
     myRegistrations: [],
   };
   const q = renderWithI18n(<EventCard event={event} />);
-  expect(screen.getByRole("button", { name: "Admin" })).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
+  const roles = () => screen.getByRole("button", { name: "Roles and participation" });
+  fireEvent.click(roles());
+  expect(await screen.findByText("Admin")).not.toBeNull();
+  expect(screen.queryByText("Accepted participant")).toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
   q.rerender(
-    <EventCard event={{ ...event, role: "member", canManage: false, managementRole: null }} />,
+    <EventCard
+      event={{
+        ...event,
+        role: "member",
+        canManage: false,
+        managementRole: null,
+        myRegistrations: [reg("ACCEPTED", "SELF")],
+      }}
+    />,
   );
-  expect(screen.queryByRole("button", { name: "Admin" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
-  q.rerender(<EventCard event={{ ...event, myRegistrations: [reg("ACCEPTED", "SELF")] }} />);
-  expect(screen.getByRole("button", { name: "Accepted participant" })).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
+  fireEvent.click(roles());
+  expect(await screen.findByText("You are not registered.")).not.toBeNull();
+  expect(screen.queryByText("Admin")).toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
   q.rerender(
-    <EventCard event={{ ...event, myRegistrations: [reg("ACCEPTED", "SELF", "FROZEN")] }} />,
+    <EventCard
+      event={{
+        ...event,
+        status: "CONFIRMED",
+        myRegistrations: [reg("ACCEPTED", "SELF", "FROZEN")],
+      }}
+    />,
   );
-  expect(screen.getByRole("button", { name: "Accepted participant" })).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
+  fireEvent.click(roles());
+  expect(await screen.findByText("Accepted participant")).not.toBeNull();
 });
 
 it.each(["group", "event", "table"] as const)(

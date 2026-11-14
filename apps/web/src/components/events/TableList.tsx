@@ -6,19 +6,18 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CircleCheck, Flag } from "lucide-react";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
+import { WindowedList } from "@/components/common/ui/WindowedList";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventTableCard } from "./EventTableCard";
-import { TableListHeading } from "./TableListHeading";
 export function TableList() {
   const { t } = useLingui(),
     o = useCommunityApi(),
-    f = useListSearch(["CONFIRMED", "TERMINATED"] as const, 0),
-    q = useRecordTables(o, null, { query: f.search, statuses: f.selected }),
+    f = useListSearch(["TERMINATED"] as const, 0),
+    q = useRecordTables(o, null, { query: f.search, statuses: ["TERMINATED"] }),
     end = useInfiniteScroll({
       hasNextPage: !!q.hasNextPage,
       isFetchingNextPage: q.isFetchingNextPage,
@@ -42,15 +41,20 @@ export function TableList() {
           mode="filter"
           selected={f.selected}
           onToggle={f.toggle}
-          options={[
-            { key: "CONFIRMED", label: t`Confirmed tables`, icon: CircleCheck },
-            { key: "TERMINATED", label: t`Terminated tables`, icon: Flag },
-          ]}
+          options={[]}
         />
-        <TableListHeading />
-        {(communityAccessDenied(q.error) ? [] : q.items).map((row) => (
-          <EventTableCard key={row.id} table={row} context="personal" />
-        ))}
+        <WindowedList
+          key={f.search}
+          items={communityAccessDenied(q.error) ? [] : q.items}
+          itemKey={(row) => row.id}
+          label={t`History`}
+          estimatedRowHeight={260}
+          gap={12}
+          onEndReached={() => {
+            if (q.hasNextPage && !q.isFetching && !q.isFetchNextPageError) void q.fetchNextPage();
+          }}
+          renderItem={(row) => <EventTableCard table={row} context="personal" />}
+        />
         {q.isPending ? (
           <Skeleton className="h-32 w-full rounded-xl" />
         ) : !q.isError && !q.items.length ? (

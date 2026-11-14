@@ -81,7 +81,8 @@ export function eventCreationMatches(
   if (
     !filters.groupId &&
     filters.section &&
-    personalEventSection(row, row.adminUserId) !== filters.section
+    (row.id.startsWith("optimistic:") ? "mine" : personalEventSection(row, row.adminUserId)) !==
+      filters.section
   )
     return false;
   if (filters.query && !row.name.toLowerCase().includes(filters.query.trim().toLowerCase()))

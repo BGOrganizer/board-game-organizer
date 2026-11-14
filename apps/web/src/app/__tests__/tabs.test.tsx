@@ -43,12 +43,14 @@ it("owns four client section entrypoints and public search", async () => {
   for (const value of ["groups:mine", "groups:public", "tables", "events:mine"])
     expect(screen.getByText(value)).not.toBeNull();
 });
-it.each(["available", "unknown"])(
+it.each(["available", "terminated", "unknown"])(
   "main Event navigation validates the presentation-only section %s",
   async (section) => {
     render(await Events({ searchParams: Promise.resolve({ section }) }));
     expect(
-      screen.getByText(`events:${section === "available" ? "available" : "mine"}`),
+      screen.getByText(
+        `events:${section === "available" || section === "terminated" ? section : "mine"}`,
+      ),
     ).toBeTruthy();
   },
 );

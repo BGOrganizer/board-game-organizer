@@ -25,7 +25,7 @@ export function HelpPopover({
   size?: "default" | "compact";
   className?: string;
   triggerClassName?: string;
-  triggerVariant?: "ghost" | "primary" | "danger-soft";
+  triggerVariant?: "ghost" | "primary" | "danger-soft" | "danger";
   indicator?: ReactNode;
   onOpenChange?: (open: boolean) => void;
   placement?: ComponentProps<typeof Popover.Content>["placement"];
@@ -42,13 +42,22 @@ export function HelpPopover({
     ghost: "button--ghost",
     primary: "button--primary",
     "danger-soft": "button--danger-soft",
+    danger: "button--danger",
   };
   const color =
     triggerVariant === "primary"
       ? "text-accent-foreground"
       : triggerVariant === "danger-soft"
         ? "text-danger-soft-foreground"
-        : colors[tone];
+        : triggerVariant === "danger"
+          ? "text-danger-foreground"
+          : colors[tone];
+  const compactSurface = {
+    ghost: triggerClassName,
+    primary: "bg-accent",
+    "danger-soft": "bg-danger-soft",
+    danger: "bg-danger",
+  }[triggerVariant];
   const symbol = (
     <>
       <Icon className={size === "compact" ? "size-4" : "size-5"} aria-hidden="true" />
@@ -59,11 +68,11 @@ export function HelpPopover({
     <Popover onOpenChange={onOpenChange}>
       <Popover.Trigger
         aria-label={label}
-        className={`button button--sm button--icon-only ${variants[triggerVariant]} relative inline-flex min-h-11 min-w-11 items-center justify-center ${color} ${size === "compact" ? "p-0" : triggerClassName}`}
+        className={`button button--sm button--icon-only ${variants[size === "compact" ? "ghost" : triggerVariant]} relative inline-flex min-h-11 min-w-11 items-center justify-center ${color} ${size === "compact" ? "p-0" : triggerClassName}`}
       >
         {size === "compact" ? (
           <span
-            className={`relative inline-flex size-7 items-center justify-center rounded-lg ${triggerClassName}`}
+            className={`relative inline-flex size-7 items-center justify-center rounded-lg ${compactSurface}`}
           >
             {symbol}
           </span>

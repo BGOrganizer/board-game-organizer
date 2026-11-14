@@ -16,6 +16,7 @@ export function EventTableSchedulePopover({
     kind === "dates"
       ? tableCardDates(table)?.map((date) => ({ id: date.id, date }))
       : tableCardLocations(table)?.map((location) => ({ id: location.id, location }));
+  if (kind === "locations" && table.eventStatus !== "PLANNING" && rows?.length === 0) return null;
   return (
     <ScheduleOptionsPopover
       name={table.name}

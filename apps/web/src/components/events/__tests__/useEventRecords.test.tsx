@@ -27,13 +27,16 @@ function setup() {
   );
   return { client, options, wrapper };
 }
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 it("hides excluded Tables from personal cache immediately but keeps the full Event table list", () => {
   const { client, options, wrapper } = setup();
   const included = {
     ...plannedTable,
     id: "included",
-    eventStatus: "CONFIRMED" as const,
+    eventStatus: "TERMINATED" as const,
     confirmed: { gameId: 1, playerIds: ["owner", "two"], startsAt: "2030-06-03T18:00:00Z" },
   };
   const rows: PlannedTableResponse[] = [
@@ -80,6 +83,49 @@ it("drops restored Available rows that are closed, standalone, managed or alread
   );
   expect(result.result.current.items.map((row) => row.id)).toEqual(["eligible"]);
 });
+
+it("expires successive public Available enrollments at their exact boundaries without list polling", () => {
+  vi.useFakeTimers();
+  const now = Date.parse("2030-01-01T12:00:00.000Z");
+  vi.setSystemTime(now);
+  const { client, options, wrapper } = setup();
+  const row = {
+    ...plannedEvent,
+    groupId: "group",
+    groupType: "PUBLIC" as const,
+    canManage: false,
+    canRegister: true,
+    myRegistrations: [],
+  };
+  client.setQueryData(eventRecordsQuery(options, { section: "available" }).queryKey, {
+    pages: [
+      {
+        items: [
+          { ...row, id: "first", bookingClosesAt: new Date(now + 1000).toISOString() },
+          { ...row, id: "second", bookingClosesAt: new Date(now + 2000).toISOString() },
+        ],
+        nextCursor: null,
+      },
+    ],
+    pageParams: [""],
+  });
+  const view = renderHook(
+    () => useEventRecords({ ...options, enabled: false }, { section: "available" }),
+    { wrapper },
+  );
+  expect(view.result.current.items.map((row) => row.id)).toEqual(["first", "second"]);
+  act(() => {
+    vi.advanceTimersByTime(1000);
+  });
+  expect(view.result.current.items.map((row) => row.id)).toEqual(["second"]);
+  act(() => {
+    vi.advanceTimersByTime(1000);
+  });
+  expect(view.result.current.items).toEqual([]);
+  expect(options.getToken).not.toHaveBeenCalled();
+  view.unmount();
+  client.clear();
+});
 it("canonicalizes equivalent first-page keys and scopes identities by API/user/resource", () => {
   const { options: o } = setup();
   expect(eventRecordsQuery(o).queryKey).toEqual(
@@ -97,7 +143,7 @@ it("canonicalizes equivalent first-page keys and scopes identities by API/user/r
   expect(eventRecordsQuery(o, { statuses: [] }).queryKey).not.toEqual(
     eventRecordsQuery(o).queryKey,
   );
-  expect(recordTablesQuery(o, null, { statuses: ["CONFIRMED"] }).queryKey).not.toEqual(
+  expect(recordTablesQuery(o, null, { statuses: ["CONFIRMED"] }).queryKey).toEqual(
     recordTablesQuery(o, null, { statuses: ["PLANNING"] }).queryKey,
   );
   expect(recordTablesQuery(o, eventId, { statuses: ["CONFIRMED"] }).queryKey).toEqual(

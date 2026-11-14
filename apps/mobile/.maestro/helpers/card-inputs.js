@@ -30,38 +30,6 @@ output.cardGroupParent =
   "^" + (italian ? "Gruppo: " : "Group: ") + escaped(output.cardGroupName) + "$";
 output.cardEventParent =
   "^" + (italian ? "Evento: " : "Event: ") + escaped(output.cardEventName) + "$";
-output.cardDate =
-  ".*" +
-  escaped(
-    required(
-      typeof CARD_EVENT_DATE_LABEL === "undefined" ? "" : CARD_EVENT_DATE_LABEL,
-      "CARD_EVENT_DATE_LABEL",
-    ),
-  ) +
-  ".*";
-output.cardTime =
-  ".*" +
-  escaped(
-    required(
-      typeof CARD_EVENT_TIME_LABEL === "undefined" ? "" : CARD_EVENT_TIME_LABEL,
-      "CARD_EVENT_TIME_LABEL",
-    ),
-  ) +
-  ".*";
-output.cardVenue =
-  ".*" +
-  escaped(required(typeof CARD_VENUE === "undefined" ? "" : CARD_VENUE, "CARD_VENUE")) +
-  ".*";
-output.cardAddress =
-  ".*" +
-  escaped(
-    required(
-      typeof CARD_VENUE_ADDRESS === "undefined" ? "" : CARD_VENUE_ADDRESS,
-      "CARD_VENUE_ADDRESS",
-    ),
-  ) +
-  ".*";
-output.cardZone = "^[A-Za-z_]+/[A-Za-z_]+$";
 output.cardPrivate = italian ? "^Privato$" : "^Private$";
 output.cardMembers = italian ? "^[0-9]+ Membr[oi]$" : "^[0-9]+ Members?$";
 output.cardGroupEvents = italian ? "^[0-9]+ Event[oi]$" : "^[0-9]+ Events?$";
@@ -127,3 +95,5 @@ output.cardMembersTab = italian ? "^Membri$" : "^Members$";
 output.cardParticipantsTab = italian ? "^Partecipanti$" : "^Participants$";
 output.cardRankingTab = "^Ranking$";
 output.cardUnconfirmed = italian ? "^Giocatori non confermati$" : "^Unconfirmed players$";
+
+output.cardRoles = italian ? "^Ruoli e partecipazione$" : "^Roles and participation$";

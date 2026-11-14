@@ -42,18 +42,36 @@ function attention(url: URL, unread = false) {
   });
 }
 
-it("keeps Registered and Available source pages separate, with Group context unsplit", async () => {
+it("keeps Scheduled, Available and Terminated source pages separate, with Group context unsplit", async () => {
   const mine = {
     ...plannedEvent,
     name: "My invitation",
+    canManage: false,
+    adminUserId: "other",
     myRegistrations: [{ ...seat("owner"), status: "PENDING" as const }],
   };
   const available = {
     ...plannedEvent,
     id: "available",
-    name: "Own administration",
+    name: "Public enrollment",
     groupId: "club",
+    groupType: "PUBLIC" as const,
+    visibility: "PUBLIC" as const,
+    adminUserId: "other",
+    role: "viewer" as const,
+    readOnly: true,
+    canManage: false,
+    canEdit: false,
+    canInvite: false,
+    bookingClosesAt: "2099-01-01T00:00:00Z",
     myRegistrations: [],
+  };
+  const terminated = {
+    ...plannedEvent,
+    id: "terminated",
+    name: "Past administration",
+    status: "TERMINATED" as const,
+    canManage: true,
   };
   const fetcher = vi.fn(async (url: string) => {
     const u = new URL(url);
@@ -63,7 +81,9 @@ it("keeps Registered and Available source pages separate, with Group context uns
         items: u.pathname.endsWith("/events")
           ? u.searchParams.get("section") === "available"
             ? [available]
-            : [mine]
+            : u.searchParams.get("section") === "terminated"
+              ? [terminated]
+              : [mine]
           : [],
         nextCursor: null,
       })
@@ -72,28 +92,53 @@ it("keeps Registered and Available source pages separate, with Group context uns
   vi.stubGlobal("fetch", fetcher);
   const ui = render(<Events canCreate={false} />);
   await screen.findByRole("link", { name: "Open event: My invitation" });
-  expect(screen.queryByRole("link", { name: "Open event: Own administration" })).toBeNull();
-  const registered = screen.getByRole("tab", { name: /Participation/ });
+  expect(screen.getAllByRole("tab")).toHaveLength(3);
+  const scheduled = screen.getByRole("tab", { name: /Scheduled/ });
   await waitFor(() =>
-    expect(within(registered).getByRole("img", { name: "Needs attention" })).toBeTruthy(),
+    expect(within(scheduled).getByRole("img", { name: "Needs attention" })).toBeTruthy(),
   );
   expect(
     within(screen.getByRole("tab", { name: "Available" })).queryByRole("img", {
       name: "Needs attention",
     }),
   ).toBeNull();
-  fireEvent.click(screen.getByRole("tab", { name: "Available" }));
-  await screen.findByRole("link", { name: "Open event: Own administration" });
-  expect(screen.queryByRole("link", { name: "Open event: My invitation" })).toBeNull();
+  for (const [tab, name, section, statuses] of [
+    ["Available", "Public enrollment", "available", "PLANNING"],
+    ["Terminated events", "Past administration", "terminated", "TERMINATED"],
+    ["Scheduled", "My invitation", "mine", "CONFIRMED,PLANNING"],
+  ]) {
+    fireEvent.click(screen.getByRole("tab", { name: new RegExp(tab) }));
+    await screen.findByRole("link", { name: `Open event: ${name}` });
+    expect(screen.queryByRole("button", { name: "Confirmed events", pressed: true })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Planning", pressed: true })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Terminated events", pressed: true })).toBeNull();
+    expect(
+      fetcher.mock.calls.some(([url]) => {
+        const u = new URL(url);
+        return (
+          u.searchParams.get("section") === section && u.searchParams.get("statuses") === statuses
+        );
+      }),
+    ).toBe(true);
+  }
   expect(
-    fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("section") === "available"),
+    fetcher.mock.calls.some(([url]) => {
+      const u = new URL(url);
+      return (
+        u.pathname.endsWith("/notifications/attention") &&
+        JSON.parse(u.searchParams.get("targets") ?? "[]").some(
+          (target: { kind: string; id: string }) =>
+            target.kind === "event-list" && target.id === "terminated",
+        )
+      );
+    }),
   ).toBe(true);
-  fireEvent.click(screen.getByRole("tab", { name: /Participation/ }));
-  await screen.findByRole("link", { name: "Open event: My invitation" });
   ui.unmount();
   render(<Events groupId="club" canCreate={false} />);
   await screen.findByRole("link", { name: "Open event: My invitation" });
   expect(screen.queryByRole("tablist", { name: "Events navigation" })).toBeNull();
+  for (const name of ["Confirmed events", "Planning", "Terminated events"])
+    expect(screen.getByRole("button", { name, pressed: true })).toBeTruthy();
   expect(
     fetcher.mock.calls.some(([url]) => {
       const p = new URL(url).searchParams;
@@ -102,237 +147,164 @@ it("keeps Registered and Available source pages separate, with Group context uns
   ).toBe(true);
 });
 
-it("shows confirmed players and past frozen participation, excluding planning, queue and duty alone", async () => {
-  const seated = {
+it("History shows terminated player, demonstrator and currently managed tables without chips or planning legend", async () => {
+  const base = {
     ...plannedTable,
-    id: "seated",
-    name: "Seated table",
-    eventStatus: "CONFIRMED",
+    eventStatus: "TERMINATED" as const,
     confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
-    myRegistration: seat("owner"),
-    myPosition: "SEATED",
+    canManage: false,
   };
-  const demo = {
-    ...plannedTable,
-    id: "demo",
-    name: "Demonstration table",
-    demonstratorUserId: "owner",
-  };
-  const invited = {
-    ...plannedTable,
-    id: "invited",
-    name: "Invited table",
-    myRegistration: { ...seat("owner"), status: "PENDING" },
-  };
-  const requested = {
-    ...invited,
-    id: "requested",
-    name: "Requested table",
-    myRegistration: { ...invited.myRegistration, kind: "SELF" },
-  };
-  const queued = {
-    ...seated,
-    eventStatus: "PLANNING",
-    id: "queue",
-    name: "Queued table",
-    myPosition: "WAITING",
-  };
-  const unknown = {
-    ...seated,
-    id: "unknown",
-    name: "Position not yet loaded",
-    myPosition: undefined,
-  };
-  const admin = { ...plannedTable, id: "admin", name: "Admin only table", myRegistration: null };
+  const rows = [
+    {
+      ...base,
+      id: "player",
+      name: "Played table",
+      myRegistration: seat("owner"),
+      myPosition: "FROZEN",
+    },
+    {
+      ...base,
+      id: "demo",
+      name: "Demonstrated table",
+      confirmed: { ...base.confirmed, playerIds: ["guest"] },
+      demonstratorUserId: "owner",
+    },
+    {
+      ...base,
+      id: "admin",
+      name: "Managed table",
+      confirmed: { ...base.confirmed, playerIds: ["guest"] },
+      canManage: true,
+    },
+  ];
   const fetcher = vi.fn(
     async (url: string) =>
-      attention(new URL(url)) ??
-      Response.json({
-        items: [seated, demo, invited, requested, queued, unknown, admin],
-        nextCursor: null,
-      }),
+      attention(new URL(url)) ?? Response.json({ items: rows, nextCursor: null }),
   );
   vi.stubGlobal("fetch", fetcher);
   render(<Tables />);
-  await screen.findByRole("link", { name: "Open table: Seated table" });
-  for (const name of ["Demonstration table", "Invited table", "Requested table", "Queued table"])
-    expect(screen.queryByRole("link", { name: `Open table: ${name}` })).toBeNull();
-  expect(screen.getByRole("link", { name: "Open table: Position not yet loaded" })).toBeTruthy();
-  expect(screen.queryByRole("link", { name: "Open table: Admin only table" })).toBeNull();
+  for (const name of ["Played table", "Demonstrated table", "Managed table"])
+    await screen.findByRole("link", { name: `Open table: ${name}` });
+  expect(screen.getByRole("list", { name: "History" })).toBeTruthy();
   expect(screen.queryByRole("tablist")).toBeNull();
-  expect(screen.getAllByRole("button", { name: "Table legend" })).toHaveLength(1);
-  const input = screen.getByRole("searchbox", { name: "Filter" });
-  expect(input.getAttribute("placeholder")).toBe("Filter tables");
-  fireEvent.change(input, { target: { value: "q" } });
-  await waitFor(() =>
-    expect(
-      fetcher.mock.calls.some(([url]) => {
-        const u = new URL(url);
-        return (
-          u.pathname.endsWith("/tables") &&
-          u.searchParams.get("query") === "q" &&
-          !u.searchParams.has("section")
-        );
-      }),
-    ).toBe(true),
-  );
-  expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Clear filter" }));
-  expect((input as HTMLInputElement).value).toBe("");
-});
-
-it("keeps combined-list errors observable and retries/paginates the same canonical source", async () => {
-  let fail = true;
-  const fetcher = vi.fn(async (url: string) => {
-    const u = new URL(url),
-      scope = attention(u);
-    if (scope) return scope;
-    if (fail) return Response.json({}, { status: 503 });
-    return Response.json({
-      items: [
-        {
-          ...plannedTable,
-          id: u.searchParams.has("cursor") ? "second" : "first",
-          name: u.searchParams.has("cursor") ? "Second waiting" : "First waiting",
-          eventStatus: "CONFIRMED",
-          confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
-          myRegistration: { ...seat("owner"), status: "PENDING" },
-        },
-      ],
-      nextCursor: u.searchParams.has("cursor") ? null : "next",
-    });
-  });
-  vi.stubGlobal("fetch", fetcher);
-  render(<Tables />);
-  await screen.findByText("Could not load tables");
-  expect(screen.queryByText("No tables found")).toBeNull();
-  fail = false;
-  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await screen.findByRole("link", { name: "Open table: First waiting" });
-  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-  await screen.findByRole("link", { name: "Open table: Second waiting" });
+  expect(screen.queryByRole("button", { name: "Table legend" })).toBeNull();
+  for (const name of ["Confirmed tables", "Terminated tables", "Planning"])
+    expect(screen.queryByRole("button", { name })).toBeNull();
   expect(
     fetcher.mock.calls.some(([url]) => {
       const u = new URL(url);
       return (
         u.pathname.endsWith("/tables") &&
-        !u.searchParams.has("section") &&
-        u.searchParams.get("cursor") === "next"
+        u.searchParams.get("statuses") === "TERMINATED" &&
+        !u.searchParams.has("section")
       );
     }),
   ).toBe(true);
 });
 
-it.each(["events", "tables"] as const)(
-  "combines %s lifecycle chips with debounced one-character search, paging and all-off",
-  async (resource) => {
-    const rows = (["CONFIRMED", "PLANNING", "TERMINATED"] as const).map((status, index) => {
-      const name = ["Alpha confirmed", "Beta planning", "Zeta terminated"][index];
-      return resource === "events"
-        ? {
-            ...plannedEvent,
-            id: status,
-            name,
-            status,
-            myRegistrations: [seat("owner")],
-          }
-        : {
-            ...plannedTable,
-            id: status,
-            name,
-            eventStatus: status,
-            myRegistration: seat("owner"),
-            ...(status === "PLANNING"
-              ? {}
-              : {
-                  confirmed: {
-                    gameId: 1,
-                    playerIds: ["owner", "guest"],
-                    startsAt: "2030-06-03T18:00:00Z",
-                  },
-                }),
-          };
-    });
-    const fetcher = vi.fn(async (url: string) => {
-      const u = new URL(url),
-        notification = attention(u);
-      if (notification) return notification;
-      if (!u.pathname.endsWith(`/${resource}`))
-        return Response.json({ items: [], nextCursor: null });
-      const statuses = u.searchParams.get("statuses")?.split(",") ?? [
-          "CONFIRMED",
-          "PLANNING",
-          "TERMINATED",
-        ],
-        query = (u.searchParams.get("query") ?? "").toLowerCase(),
-        selected = rows.filter(
-          (row) =>
-            statuses.includes("status" in row ? row.status : row.eventStatus) &&
-            row.name.toLowerCase().includes(query),
-        ),
-        offset = u.searchParams.has("cursor") ? 2 : 0;
-      return Response.json({
-        items: selected.slice(offset, offset + 2),
-        nextCursor: selected.length > offset + 2 ? "next" : null,
-      });
-    });
-    vi.stubGlobal("fetch", fetcher);
-    render(resource === "events" ? <Events canCreate={false} /> : <Tables />);
-    const link = (name: string) =>
-        `${resource === "events" ? "Open event" : "Open table"}: ${name}`,
-      confirmed = resource === "events" ? "Confirmed events" : "Confirmed tables",
-      terminated = resource === "events" ? "Terminated events" : "Terminated tables";
-    await screen.findByRole("link", { name: link("Alpha confirmed") });
-    for (const name of resource === "events"
-      ? [confirmed, "Planning", terminated]
-      : [confirmed, terminated])
-      expect(
-        screen.getByRole("button", { name, pressed: true }).querySelector("svg"),
-      ).not.toBeNull();
-    expect(screen.queryByRole("button", { name: "Past" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Future" })).toBeNull();
-    if (resource === "events") fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-    else expect(screen.queryByRole("button", { name: "Planning" })).toBeNull();
-    await screen.findByRole("link", { name: link("Zeta terminated") });
-    fireEvent.click(screen.getByRole("button", { name: confirmed, pressed: true }));
-    await waitFor(() =>
-      expect(screen.queryByRole("link", { name: link("Alpha confirmed") })).toBeNull(),
+it.each(["mine", "available", "terminated", "history"] as const)(
+  "%s keeps debounced text filtering, clearing and no minimum length",
+  async (section) => {
+    const fetcher = vi.fn(
+      async (url: string) =>
+        attention(new URL(url)) ?? Response.json({ items: [], nextCursor: null }),
     );
-    await screen.findByRole("link", { name: link("Zeta terminated") });
+    vi.stubGlobal("fetch", fetcher);
+    render(
+      section === "history" ? <Tables /> : <Events canCreate={false} initialSection={section} />,
+    );
+    await screen.findByText(section === "history" ? "No tables found" : "No events found");
     const input = screen.getByRole("searchbox", { name: "Filter" });
+    expect(input.getAttribute("placeholder")).toBe(
+      section === "history" ? "Filter tables" : "Filter events",
+    );
     fireEvent.change(input, { target: { value: "z" } });
     await waitFor(() =>
-      expect(screen.queryByRole("link", { name: link("Beta planning") })).toBeNull(),
-    );
-    await screen.findByRole("link", { name: link("Zeta terminated") });
-    await waitFor(() =>
       expect(
-        fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "z"),
+        fetcher.mock.calls.some(([url]) => {
+          const u = new URL(url);
+          return (
+            u.pathname.endsWith(section === "history" ? "/tables" : "/events") &&
+            u.searchParams.get("query") === "z" &&
+            (section === "history"
+              ? !u.searchParams.has("section")
+              : u.searchParams.get("section") === section)
+          );
+        }),
       ).toBe(true),
     );
-    fireEvent.click(screen.getByRole("button", { name: terminated, pressed: true }));
-    await screen.findByText(resource === "events" ? "No events found" : "No tables found");
-    if (resource === "events")
-      fireEvent.click(screen.getByRole("button", { name: "Planning", pressed: true }));
-    await waitFor(() =>
-      expect(
-        fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("statuses") === ""),
-      ).toBe(true),
-    );
+    expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Clear filter" }));
     expect((input as HTMLInputElement).value).toBe("");
-    fireEvent.click(screen.getByRole("button", { name: confirmed, pressed: false }));
-    await screen.findByRole("link", { name: link("Alpha confirmed") });
-    expect(screen.queryByRole("link", { name: link("Zeta terminated") })).toBeNull();
   },
 );
-it("keeps combined-list empty state without unnecessary navigation", async () => {
-  vi.stubGlobal(
-    "fetch",
-    async (url: string) =>
-      attention(new URL(url)) ?? Response.json({ items: [], nextCursor: null }),
-  );
-  render(<Tables />);
-  await screen.findByText("No tables found");
-  expect(screen.queryByRole("tablist")).toBeNull();
-});
+
+it.each(["mine", "available", "terminated", "history"] as const)(
+  "%s keeps failures observable and retries/paginates the same source",
+  async (section) => {
+    let fail = true;
+    const history = section === "history";
+    const fetcher = vi.fn(async (url: string) => {
+      const u = new URL(url),
+        scope = attention(u);
+      if (scope) return scope;
+      if (fail) return Response.json({}, { status: 503 });
+      const second = u.searchParams.has("cursor");
+      const item = history
+        ? {
+            ...plannedTable,
+            id: second ? "second" : "first",
+            name: second ? "Second table" : "First table",
+            eventStatus: "TERMINATED",
+            confirmed: {
+              gameId: 1,
+              playerIds: ["owner", "guest"],
+              startsAt: "2030-06-03T18:00:00Z",
+            },
+            myRegistration: seat("owner"),
+            myPosition: "FROZEN",
+          }
+        : {
+            ...plannedEvent,
+            id: second ? "second" : "first",
+            name: second ? "Second event" : "First event",
+            status: section === "terminated" ? "TERMINATED" : "PLANNING",
+            ...(section === "available"
+              ? {
+                  groupId: "club",
+                  groupType: "PRIVATE",
+                  adminUserId: "other",
+                  role: "member",
+                  canManage: false,
+                  canEdit: false,
+                  canInvite: false,
+                }
+              : { canManage: true }),
+          };
+      return Response.json({ items: [item], nextCursor: second ? null : "next" });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(history ? <Tables /> : <Events initialSection={section} canCreate={false} />);
+    await screen.findByText(history ? "Could not load tables" : "Could not load events");
+    expect(screen.queryByText(history ? "No tables found" : "No events found")).toBeNull();
+    fail = false;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await screen.findByRole("link", {
+      name: history ? "Open table: First table" : "Open event: First event",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await screen.findByRole("link", {
+      name: history ? "Open table: Second table" : "Open event: Second event",
+    });
+    expect(
+      fetcher.mock.calls.some(([url]) => {
+        const u = new URL(url);
+        return (
+          u.pathname.endsWith(history ? "/tables" : "/events") &&
+          u.searchParams.get("cursor") === "next" &&
+          (history ? !u.searchParams.has("section") : u.searchParams.get("section") === section)
+        );
+      }),
+    ).toBe(true);
+  },
+);

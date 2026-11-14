@@ -53,7 +53,7 @@ export function notificationAttentionQuery(
       const snapshot = notificationAttentionSnapshotSchema.parse(
         await communityRequest(
           options,
-          `notifications/attention?targets=${encodeURIComponent(JSON.stringify(sorted))}`,
+          `notifications/attention?targets=${encodeURIComponent(JSON.stringify(sorted))}&navigation=history`,
           "GET",
           undefined,
           signal,
@@ -123,7 +123,7 @@ export function useReadNotificationAttention(options: CommunityApiOptions) {
       const signal = await optimisticMutationSignal(client, context.mutationKey, variables);
       const response = await communityRequest(
         variables.owner,
-        "notifications/attention",
+        "notifications/attention?navigation=history",
         "PATCH",
         { target: variables.target, through: variables.snapshot.asOf },
         signal,

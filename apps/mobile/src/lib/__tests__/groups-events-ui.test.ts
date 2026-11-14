@@ -71,7 +71,7 @@ it("resets header confirmation on access loss, preserves manual captured-version
   expect(source("events", "EventGroupLink")).toContain("<GroupArtwork");
   expect(source("events", "EventGroupLink")).toContain('t("Group")');
   expect(identity).toContain("<EventCardIndicators event={event}");
-  expect(source("events", "EventCardIndicators")).toContain('"warning"');
+  expect(source("events", "EventCardIndicators")).toContain("tone={CARD_STATE_TONES[state]}");
   expect(detail).toContain('t("Start Date and Time")');
   expect(detail).toContain('t("Date and time")');
   expect(detail).toContain("<DateTimeInfo");
@@ -124,7 +124,7 @@ it("shares one horizontal Table card across feeds with only Back context varying
   expect(card).toContain("leadingActions=");
   expect(card).not.toContain("<IconLegend");
   expect(source("events", "TableListHeading")).toContain("<IconLegend");
-  expect(source("events", "TableList")).toContain("<TableListHeading");
+  expect(source("events", "TableList")).not.toContain("<TableListHeading");
   expect(source("events", "EventDetail")).toContain("<TableListHeading");
   expect(card).toContain('flexWrap: "wrap"');
   expect(indicators).toContain("<EventTableGamesPopover");

@@ -268,11 +268,38 @@ export interface PlannedEventCapabilities {
   canProposeDates?: boolean;
   canProposeLocations?: boolean;
 }
+/** Authorized card facts; optional on responses restored from older client caches. */
+export type EventPlanningBlocker =
+  | "MIN_PLAYERS"
+  | "PENDING_INVITATIONS"
+  | "DATE_AGREEMENT"
+  | "LOCATION_AGREEMENT"
+  | "GAME_AGREEMENT"
+  | "COMBINED_AGREEMENT";
+export type EventExclusionReason =
+  | "TABLE_EXCLUDED"
+  | "PENDING_INVITATION"
+  | "DATE_AGREEMENT"
+  | "LOCATION_AGREEMENT"
+  | "GAME_AGREEMENT"
+  | "NOT_SELECTED";
+export type TableCardSummary = {
+  tableId: string;
+  name: string;
+  confirmed: boolean;
+  ready: boolean;
+  blockers: EventPlanningBlocker[];
+  myParticipation: "CONFIRMED" | "EXCLUDED" | "NONE";
+  exclusionReasons: EventExclusionReason[];
+  winners: Array<{ userId: string; username: string | null }>;
+};
+export type EventCardSummary = { ready: boolean; tables: TableCardSummary[] };
 export type PlannedEventResponse = Omit<
   EventRecord,
   "lastNotifiedSituation" | "nextPriority" | "nextTableOrder"
 > &
   PlannedEventCapabilities & {
+    cardSummary?: EventCardSummary;
     groupName: string | null;
     groupType: "PRIVATE" | "PUBLIC" | null;
     role: "admin" | "participant" | "invited" | "member" | "demonstrator" | "viewer";
@@ -368,6 +395,7 @@ export type EventSchedulePreview = {
 export type PlannedTableResponse = Omit<TableRecord, "seatOrderVersion"> & {
   /** Anonymous occupied slots, including undisclosed pending reservations; absent in older caches. */
   occupiedSeatIndices?: number[];
+  cardSummary?: TableCardSummary;
   sharedResultsOnly?: boolean;
   personalAccessOnly?: boolean;
   /** Opaque scope for purging revoked caches; never a Group link or capability. */

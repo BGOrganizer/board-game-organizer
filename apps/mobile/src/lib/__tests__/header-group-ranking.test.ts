@@ -41,6 +41,7 @@ function nodes(value: any): Element[] {
 it.each([
   ["primary", "accent-foreground"],
   ["danger-soft", "danger-soft-foreground"],
+  ["danger", "danger-foreground"],
   ["ghost", "muted"],
 ] as const)(
   "keeps the interactive header help %s variant on its semantic foreground pair",

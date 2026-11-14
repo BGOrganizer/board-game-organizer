@@ -49,6 +49,7 @@ function row(
     direct,
     events: 0,
     sections: { connections: 0, requests: 0, search: 0 },
+    ...(target.kind === "table" ? { historyTableIds: [target.id] } : {}),
     ...(target.kind === "table" || target.kind === "event" ? { eventId, groupId } : {}),
   };
 }
@@ -192,6 +193,8 @@ it("projects Table reads to their own container and bell before HTTP, never Even
   await waitFor(() => expect(hook.result.current.inbox.busy).toBe(false));
   expect(hook.result.current.counts.get(table)?.count).toBe(1);
   expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
+  for (const [url] of fetcher.mock.calls)
+    expect(new URL(url).searchParams.get("navigation")).toBe("history");
   expect(
     JSON.parse(String(fetcher.mock.calls.find(([, init]) => init?.method === "PATCH")?.[1]?.body)),
   ).toEqual({ target: table, through: asOf });

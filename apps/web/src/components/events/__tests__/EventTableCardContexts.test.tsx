@@ -99,44 +99,44 @@ it("uses the same normal-flow horizontal artwork, identity and controls in both 
   ).not.toBeNull();
 });
 it.each(["personal", "event"] as const)(
-  "keeps own states independent, framed, and outside navigation in %s",
-  (context) => {
-    const base = { ...plannedTable, myRegistration: seat("owner"), myPosition: "SEATED" as const };
-    const q = renderWithI18n(<EventTableCard table={base} context={context} />);
-    const check = (label: string, icon: string, color: string) => {
-      const badge = screen.getByRole("button", { name: label });
-      expect(badge.parentElement?.className).toContain("flex-nowrap");
-      expect(badge.parentElement?.className).toContain("justify-end");
-      expect(badge.className).toContain(color);
-      expect(badge.querySelector(`svg.lucide-${icon}`)?.classList.contains("size-4")).toBe(true);
-      expect(badge.querySelector(".size-7.bg-default")).not.toBeNull();
-      expect(screen.getByRole("link").contains(badge)).toBe(false);
-    };
-    check("Confirmed player", "user-round-check", "text-success");
-    q.rerender(
+  "keeps one neutral role disclosure outside navigation in %s",
+  async (context) => {
+    const table = { ...plannedTable, myRegistration: seat("owner"), myPosition: "SEATED" as const };
+    const view = renderWithI18n(<EventTableCard table={table} context={context} />);
+    const trigger = screen.getByRole("button", { name: "Roles and participation" });
+    expect(trigger.parentElement?.className).toContain("justify-end");
+    expect(trigger.className).toContain("text-muted");
+    expect(trigger.querySelector("svg.lucide-id-card")).not.toBeNull();
+    expect(trigger.querySelector(".size-7.bg-default")).not.toBeNull();
+    expect(screen.getByRole("link").contains(trigger)).toBe(false);
+    fireEvent.click(trigger);
+    expect(await screen.findByText("Confirmed player")).not.toBeNull();
+    await closePopover();
+    view.rerender(
       <EventTableCard
-        context={context}
         table={{
-          ...base,
+          ...table,
           myRegistration: { ...seat("owner"), status: "PENDING", kind: "SELF" },
           myPosition: "WAITING",
         }}
+        context={context}
       />,
     );
-    expect(screen.queryByRole("button", { name: "Player with pending invitation" })).toBeNull();
-    check("Player on the waiting list", "list-ordered", "text-warning");
-    q.rerender(
+    fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+    expect(await screen.findByText("Player on the waiting list")).not.toBeNull();
+    expect(screen.queryByText("Player with pending invitation")).toBeNull();
+    await closePopover();
+    view.rerender(
       <EventTableCard
-        context={context}
         table={{
-          ...base,
+          ...table,
           myRegistration: { ...seat("owner"), status: "PENDING", kind: "INVITATION" },
         }}
+        context={context}
       />,
     );
-    check("Player with pending invitation", "mail", "text-warning");
-    q.rerender(<EventTableCard context={context} table={{ ...base, myPosition: "WAITING" }} />);
-    check("Player on the waiting list", "list-ordered", "text-warning");
+    fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+    expect(await screen.findByText("Player with pending invitation")).not.toBeNull();
   },
 );
 it.each([1, 2])(
@@ -150,13 +150,18 @@ it.each([1, 2])(
     renderWithI18n(
       <EventTableCard
         context="event"
-        table={{ ...plannedTable, gamesDetail: [...plannedTable.gamesDetail, ...extra] }}
+        table={{
+          ...plannedTable,
+          eventStatus: "CONFIRMED",
+          confirmed: { gameId: 1, playerIds: [], startsAt: "2030-06-03T18:00:00Z" },
+          gamesDetail: [...plannedTable.gamesDetail, ...extra],
+        }}
       />,
     );
     expect(screen.queryByText("Chess")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
     expect(await screen.findByText("Chess")).not.toBeNull();
-    for (const row of extra) expect(screen.getByText(row.name)).not.toBeNull();
+    for (const row of extra) expect(screen.queryByText(row.name)).toBeNull();
   },
 );
 it("retains selected game, joint winners and disabled Rating in their informational controls", async () => {
@@ -173,6 +178,19 @@ it("retains selected game, joint winners and disabled Rating in their informatio
         ],
         confirmed: { gameId: 2, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
         myPosition: "FROZEN",
+        cardSummary: {
+          tableId: plannedTable.id,
+          name: plannedTable.name,
+          confirmed: true,
+          ready: false,
+          blockers: [],
+          myParticipation: "CONFIRMED",
+          exclusionReasons: [],
+          winners: [
+            { userId: "owner", username: "owner" },
+            { userId: "guest", username: "guest" },
+          ],
+        },
         winners: [
           { userId: "owner", name: "Owner", avatarUrl: null },
           { userId: "guest", name: "Guest", avatarUrl: null },
@@ -180,13 +198,14 @@ it("retains selected game, joint winners and disabled Rating in their informatio
       }}
     />,
   );
-  expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Roles and participation" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
   expect(await screen.findByText("Selected game")).not.toBeNull();
   expect(screen.queryByText("Chess")).toBeNull();
   await closePopover();
   fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
-  expect(await screen.findByText(/Owner, Guest/)).not.toBeNull();
+  expect(await screen.findByText("@owner")).not.toBeNull();
+  expect(screen.getByText("@guest").parentElement).toBe(screen.getByText("@owner").parentElement);
   await closePopover();
   fireEvent.click(screen.getByRole("button", { name: "Rating disabled" }));
   expect(await screen.findByText("This table does not update player ratings.")).not.toBeNull();
@@ -208,15 +227,10 @@ it.each(["CONFIRMED", "TERMINATED"] as const)(
       />,
     );
     expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: eventStatus === "CONFIRMED" ? "Confirmed" : "Terminated",
-      }),
-    );
-    expect(await screen.findByText("Excluded from confirmation")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Table excluded" }));
+    expect(await screen.findByText("The table was excluded from confirmation.")).not.toBeNull();
     await closePopover();
-    fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
-    expect(await screen.findByText("No games found")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Board games: First table" })).toBeNull();
     expect(screen.queryByText("Chess")).toBeNull();
   },
 );

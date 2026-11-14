@@ -45,6 +45,7 @@ export default defineConfig({
           "groups/hooks/useGroupSocialActions.ts",
           "events/hooks/useEvents.ts",
           "events/hooks/useEventWindow.ts",
+          "events/hooks/useRecordListWindow.ts",
           "events/hooks/useEventTableContext.ts",
           "events/hooks/useEventTableParticipation.ts",
           "events/hooks/useEventTableMatch.ts",
@@ -91,6 +92,25 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/profile/{ProfileIdentity,ProfileVersion}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/{EventRolePopover,EventCardTableSummaries,EventSchedulePopover}.tsx":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
+        "../../packages/shared/src/events/hooks/useRecordListWindow.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/common/layout/floatingActionStyles.ts": {
           lines: 100,
           functions: 100,

@@ -62,7 +62,7 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navLinks: Array<Pick<NavLinkProps, "href" | "label" | "icon" | "section">> = [
-    { href: "/tables", label: t`Tables`, icon: Dices, section: "tables" as const },
+    { href: "/tables", label: t`History`, icon: Dices, section: "tables" as const },
     { href: "/events", label: t`Events`, icon: CalendarDays, section: "events" as const },
     { href: "/groups", label: t`Groups`, icon: UsersRound, section: "groups" as const },
     { href: "/community", label: t`Community`, icon: Network },
