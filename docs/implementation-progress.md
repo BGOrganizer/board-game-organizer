@@ -7,6 +7,13 @@ Historical test counts describe their recorded revision only; they do not prove 
 
 ## Anchored seats, opaque badges and floating-action clearance — 2026-11-14
 
+- The operator confirmed that the published OTA works on the installed APK. A subsequent editor
+  refinement removes the redundant seat-number prefix and direct-to-queue action on both clients;
+  Up/Down retain moves through empty places and into an empty queue. Local checks pass: **13 web**,
+  **93 mobile** and **11 sparse-draft tests**, the latter with 100% coverage across all four metrics;
+  root lint/typecheck and EN/IT compilation pass. Retained acceptance paths now verify row order,
+  status-only labels and arrow-only queue transitions. No authenticated E2E/device run is claimed
+  for this refinement.
 - Web and mobile implement physical seat indices and empty places under the
   [current allocation contract](groups-events-refactor.md#event-planning-settings-and-seat-order).
   Pending invitations can move and lock without granting consent. Manual departures leave holes;

@@ -4183,10 +4183,6 @@ msgid "Move down"
 msgstr "Move down"
 
 #: apps/web/src/components/events/EventSeatOrderEditor.tsx
-msgid "Move to waiting list"
-msgstr "Move to waiting list"
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/TableScoreEditor.tsx
 msgid "Move up"
 msgstr "Move up"
@@ -5023,7 +5019,6 @@ msgstr "Players prioritizes the largest number of participants. BGG Best priorit
 msgid "Players remain in this match until they leave or are removed."
 msgstr "Players remain in this match until they leave or are removed."
 
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/EventTableResults.tsx
 #: apps/web/src/components/ratings/ScoreIdentity.tsx
 msgid "Position"

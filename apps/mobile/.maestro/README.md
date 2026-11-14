@@ -643,7 +643,9 @@ Required on both clients: `SEAT_ORDER_ACK=owned-disposable-development-seats`,
 `pending`, `demote`, `manual-remove`, `manual-exit`, `assisted-remove`, `save-409`, `save-503`
 and `scroll` on web. A starts in place one, unlocked; B starts in place two, locked; C starts in
 place three, unlocked. Pending uses C as a pending invitation. The table starts in Manual except
-`assisted-remove`. Scroll needs more than twelve real rows and `last` must identify the actual
+`assisted-remove`. Demote requires four places and an empty queue: two Down presses move C through
+the free fourth place into the queue; `last` is C. Rows show player status without a position prefix
+or a direct-to-queue action. Scroll needs more than twelve real rows and `last` must identify the actual
 final row; other cases use their post-action final row as validated by the helper.
 
 Web additionally requires `SEAT_ORDER_API_URL`, `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and the normal

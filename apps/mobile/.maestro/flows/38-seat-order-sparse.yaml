@@ -68,11 +68,22 @@ tags: [manual, events, seats]
                   true: ${output.seats.mode === 'demote'}
                 commands:
                   - scrollUntilVisible:
+                      element: ${output.seats.freeLast}
+                      direction: DOWN
+                  - scrollUntilVisible:
                       element:
-                        id: ${'seat-order-waiting-' + output.seats.a}
+                        id: ${'seat-order-down-' + output.seats.c}
                       direction: UP
-                  - tapOn:
-                      id: ${'seat-order-waiting-' + output.seats.a}
+                  - repeat:
+                      times: 2
+                      commands:
+                        - scrollUntilVisible:
+                            element:
+                              id: ${'seat-order-down-' + output.seats.c}
+                            direction: DOWN
+                            visibilityPercentage: 100
+                        - tapOn:
+                            id: ${'seat-order-down-' + output.seats.c}
             - runFlow:
                 when:
                   true: ${output.seats.mode !== 'demote'}

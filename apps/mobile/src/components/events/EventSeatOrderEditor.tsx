@@ -12,7 +12,6 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
-  ListEnd,
   LockKeyhole,
   LockKeyholeOpen,
   RotateCcw,
@@ -130,12 +129,7 @@ export function EventSeatOrderEditor({
                     />
                   ) : undefined
                 }
-                secondary={[
-                  row.seatIndex !== null ? `${t("Position")}: ${row.seatIndex + 1}` : null,
-                  roles[0] ? t(RECORD_USER_ROLES[roles[0]].message) : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+                secondary={roles[0] ? t(RECORD_USER_ROLES[roles[0]].message) : undefined}
                 actions={
                   <>
                     <Button
@@ -161,19 +155,6 @@ export function EventSeatOrderEditor({
                     >
                       <ArrowDown size={18} color={foreground} />
                     </Button>
-                    {row.seatIndex !== null ? (
-                      <Button
-                        isIconOnly
-                        variant="ghost"
-                        accessibilityLabel={t("Move to waiting list")}
-                        testID={`seat-order-waiting-${row.id}`}
-                        isDisabled={model.busy || row.locked}
-                        onPress={() => model.sendToWaiting(index)}
-                        style={{ minWidth: 44, minHeight: 44 }}
-                      >
-                        <ListEnd size={18} color={foreground} />
-                      </Button>
-                    ) : null}
                   </>
                 }
               />

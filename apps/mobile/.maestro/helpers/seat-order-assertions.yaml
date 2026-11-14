@@ -18,14 +18,24 @@ appId: com.bgo.boardgameorganizer.dev
           timeout: 60000
       - assertVisible:
           id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].id}
+      - assertNotVisible:
+          id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].id}
+          containsDescendants:
+            - text: "^(Position|Posizione):.*"
+      - assertNotVisible:
+          id: ${'seat-order-waiting-' + output.seats.assertions[output.seats.index].id}
+      - runFlow:
+          when:
+            true: ${output.seats.index > 0}
+          commands:
+            - assertVisible:
+                id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].id}
+                below:
+                  id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].previousId}
       - runFlow:
           when:
             true: ${output.seats.assertions[output.seats.index].position !== null}
           commands:
-            - assertVisible:
-                id: ${'seat-order-row-' + output.seats.assertions[output.seats.index].id}
-                containsDescendants:
-                  - text: ${output.seats.assertions[output.seats.index].positionPattern}
             - assertVisible:
                 id: ${'seat-order-lock-' + output.seats.assertions[output.seats.index].id}
                 text: "${output.seats.assertions[output.seats.index].locked ? output.seats.unlock : output.seats.lock}"

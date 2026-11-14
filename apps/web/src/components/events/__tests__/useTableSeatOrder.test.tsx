@@ -361,6 +361,8 @@ it("keeps the two roster lists and updates avatar roles when crossing their boun
   });
   const seats = screen.getByRole("region", { name: "Seats list" });
   const waiting = screen.getByRole("region", { name: "Waiting list" });
+  expect(within(seats).queryByText(/^Position:/)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Move to waiting list" })).toBeNull();
   const lock = within(seats).getAllByRole("button", { name: "Lock player" })[0];
   expect(lock.parentElement?.style.top).not.toBe("");
   fireEvent.click(lock);
@@ -425,26 +427,27 @@ it("preserves a pending anchor, swaps across it and saves an explicit empty plac
     ["b", 1],
     ["a", 2],
   ]);
-  act(() => result.current.sendToWaiting(0));
+  act(() => result.current.move(2, 1));
+  act(() => result.current.move(2, 1));
   expect(result.current.rows.map((r) => [r.userId, r.seatIndex])).toEqual([
+    ["c", 0],
     ["b", 1],
-    ["a", 2],
-    ["c", null],
+    ["a", null],
   ]);
-  expect(result.current.places.seated[0]).toMatchObject({ kind: "empty", first: 0, last: 0 });
+  expect(result.current.places.seated.at(-1)).toMatchObject({ kind: "empty", first: 2, last: 3 });
   expect(result.current.seatedCount).toBe(2);
-  act(() => result.current.lock(0));
-  expect(result.current.rows[0]).toMatchObject({ status: "PENDING", locked: false, seatIndex: 1 });
-  act(() => result.current.lock(0));
+  act(() => result.current.lock(1));
+  expect(result.current.rows[1]).toMatchObject({ status: "PENDING", locked: false, seatIndex: 1 });
+  act(() => result.current.lock(1));
   await act(() => result.current.save());
   const input = JSON.parse(String(fetcher.mock.calls[1][1].body));
   expect(input.seatedCount).toBe(2);
   expect(input.registrations.map((r: { seatIndex: number | null }) => r.seatIndex)).toEqual([
+    0,
     1,
-    2,
     null,
   ]);
-  expect(result.current.rows[0]).toMatchObject({ status: "PENDING", locked: true, seatIndex: 1 });
+  expect(result.current.rows[1]).toMatchObject({ status: "PENDING", locked: true, seatIndex: 1 });
   expect(result.current.editing).toBe(false);
   f.client.clear();
 });

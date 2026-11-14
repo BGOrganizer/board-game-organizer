@@ -72,6 +72,17 @@ describe("sparse seat-order draft", () => {
       ["a", null],
     ]);
   });
+  it("uses only arrows to demote through an empty place and return without shifting an anchor", () => {
+    const rows = [row("a", 0), row("b", 1, true), row("c", 2)];
+    const lastPlace = moveSeatOrder(rows, 2, 1, 4) ?? [];
+    const queued = moveSeatOrder(lastPlace, 2, 1, 4) ?? [];
+    expect(positions(queued)).toEqual([
+      ["a", 0],
+      ["b", 1],
+      ["c", null],
+    ]);
+    expect(moveSeatOrder(queued, 2, -1, 4)).toEqual(rows);
+  });
   it("promotes the first waiting person into the first opening, not a compacted count", () => {
     expect(positions(moveSeatOrder([row("b", 1, true), row("q", null)], 1, -1, 4))).toEqual([
       ["q", 0],

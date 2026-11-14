@@ -880,15 +880,15 @@ it("uses actual HeroUI background compositions and keeps the existing API-owned 
 it("keeps seat lock actions on the avatar and edits only the local order", () => {
   const lock = vi.fn(),
     save = vi.fn();
-  const sendToWaiting = vi.fn();
+  const move = vi.fn();
   const model = {
     rows: [],
     places: { seated: [], waiting: [] },
     seatedCount: 1,
     lock,
     save,
-    sendToWaiting,
-    canMove: () => false,
+    move,
+    canMove: () => true,
     busy: false,
   };
   const render = component("events/EventSeatOrderEditor", "EventSeatOrderEditor", {
@@ -904,7 +904,6 @@ it("keeps seat lock actions on the avatar and edits only the local order", () =>
         "LockKeyhole",
         "LockKeyholeOpen",
         "RotateCcw",
-        "ListEnd",
         "UserRoundPlus",
       ].map((icon) => [icon, icon]),
     ),
@@ -934,6 +933,7 @@ it("keeps seat lock actions on the avatar and edits only the local order", () =>
   });
   expect(list.props.contentContainerStyle.paddingBottom).toBe(172);
   const item = list.props.renderItem({ item: entry(row) }).props.children;
+  expect(item.props.secondary).toBe("Confirmed player");
   expect(item.props.topBadgeContent.props.label).toBe("Lock player");
   expect(item.props.topBadgeContent.props.icon).toBe("LockKeyholeOpen");
   item.props.topBadgeContent.props.onPress();
@@ -964,9 +964,14 @@ it("keeps seat lock actions on the avatar and edits only the local order", () =>
   expect(JSON.stringify(empty)).toContain("Free place");
   expect(JSON.stringify(empty)).toContain("–4");
   const actions = item.props.actions.props.children;
-  const send = actions.find(
-    (action: Element) => action?.props?.accessibilityLabel === "Move to waiting list",
-  );
-  send.props.onPress();
-  expect(sendToWaiting).toHaveBeenCalledWith(0);
+  expect(actions.map((action: Element) => action.props.accessibilityLabel)).toEqual([
+    "Move up",
+    "Move down",
+  ]);
+  actions[0].props.onPress();
+  actions[1].props.onPress();
+  expect(move.mock.calls).toEqual([
+    [0, -1],
+    [0, 1],
+  ]);
 });

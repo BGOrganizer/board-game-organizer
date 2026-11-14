@@ -57,8 +57,7 @@ describe("translate (runtime)", () => {
     ["An update is available", "È disponibile un aggiornamento"],
     ["Update and restart", "Aggiorna e riavvia"],
     ["Later", "Più tardi"],
-    ["Move to waiting list", "Sposta in lista d’attesa"],
-  ])("retains native-only update and seat-action copy: %s", (english, italian) => {
+  ])("retains native-only update copy: %s", (english, italian) => {
     expect(translate(createAppI18n("en"), english)).toBe(english);
     expect(translate(createAppI18n("it"), english)).toBe(italian);
   });

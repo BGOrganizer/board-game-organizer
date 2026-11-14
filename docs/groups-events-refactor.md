@@ -538,8 +538,9 @@ The manager-only PLANNING Participants reorder action opens an owner-scoped, tra
 snapshot, capped at 1,000 reservations, rendered with web pagination/native virtualization. It does not persist a second
 server-data cache or a draft to MMKV. Controls move accepted players and pending invitations between
 physical seats and the queue, skipping locked places in either direction. Promotion fills the first
-opening. Every unlocked seated person can be sent to the queue, including an empty queue, leaving
-their former place free. Pending invitations retain their status and do not acquire consent or votes.
+opening. Up/Down arrows move people through unlocked places and across the seat/queue boundary,
+including into an empty queue; rows show their player status without a redundant position prefix
+or a direct-to-queue action. Pending invitations retain their status and do not acquire consent or votes.
 Accepted and pending seated users have local lock toggles; moving a locked user requires unlocking
 them first. A successful seat-order receipt reconciles existing owned roster caches before closing
 the editor, even if the subsequent refresh fails; a conflict retains the draft and requires a fresh review.

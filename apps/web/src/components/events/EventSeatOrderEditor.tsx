@@ -10,7 +10,6 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
-  ListEnd,
   LockKeyhole,
   LockKeyholeOpen,
   RotateCcw,
@@ -105,12 +104,7 @@ export function EventSeatOrderEditor({
                         />
                       ) : undefined
                     }
-                    secondary={[
-                      seated ? `${t`Position`}: ${Number(row.seatIndex) + 1}` : null,
-                      roles[0] ? i18n._(recordUserRoleMessages[roles[0]]) : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    secondary={roles[0] ? i18n._(recordUserRoleMessages[roles[0]]) : undefined}
                   />
                   <Button
                     isIconOnly
@@ -132,18 +126,6 @@ export function EventSeatOrderEditor({
                   >
                     <ArrowDown className="size-4" />
                   </Button>
-                  {seated ? (
-                    <Button
-                      isIconOnly
-                      variant="ghost"
-                      aria-label={t`Move to waiting list`}
-                      data-testid={`seat-order-waiting-${row.id}`}
-                      isDisabled={model.busy || row.locked}
-                      onPress={() => model.sendToWaiting(index)}
-                    >
-                      <ListEnd className="size-4" />
-                    </Button>
-                  ) : null}
                 </div>
               );
             }}

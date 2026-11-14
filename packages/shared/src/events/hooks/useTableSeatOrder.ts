@@ -7,12 +7,7 @@ import {
   communityAccessDenied,
   communityRequest,
 } from "../../community/communityApi";
-import {
-  moveSeatOrder,
-  normalizeSeatOrder,
-  seatOrderPlaces,
-  sendSeatToWaiting,
-} from "../tableSeatOrderDraft";
+import { moveSeatOrder, normalizeSeatOrder, seatOrderPlaces } from "../tableSeatOrderDraft";
 import { useEventRecordActions } from "./useEventRecordActions";
 
 type SeatRow = TableSeatOrderSnapshot["registrations"][number] & { seatIndex: number | null };
@@ -102,7 +97,6 @@ export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableRes
   const move = (index: number, delta: number) => {
     setRows((old) => moveSeatOrder(old, index, delta, capacity) ?? old);
   };
-  const sendToWaiting = (index: number) => setRows((old) => sendSeatToWaiting(old, index) ?? old);
   const lock = (index: number) =>
     setRows((old) =>
       old.map((row, i) =>
@@ -160,7 +154,6 @@ export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableRes
     seatedCount,
     start,
     move,
-    sendToWaiting,
     canMove,
     lock,
     reset,

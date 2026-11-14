@@ -90,7 +90,7 @@ const expected = { ...input.initial };
 if (removing) {
   delete expected[input.a];
   if (input.case === "assisted-remove") expected[input.c] = 0;
-} else if (input.case === "demote") expected[input.a] = null;
+} else if (input.case === "demote") expected[input.c] = null;
 else if (!["scroll", "save-409", "save-503"].includes(input.case)) {
   expected[input.a] = 2;
   expected[input.c] = 0;
@@ -99,7 +99,8 @@ if (
   (input.case !== "scroll" &&
     (Object.keys(input.initial).length !== 3 ||
       ![input.a, input.b, input.c].every((id) => id in input.initial))) ||
-  (removing && input.last === input.a)
+  (removing && input.last === input.a) ||
+  (input.case === "demote" && input.last !== input.c)
 )
   throw new Error(
     "A/B/C-only fresh fixture required except for the long-list scroll case; last must survive",
@@ -111,6 +112,7 @@ const it = locale === "it",
     save: it ? "Salva ordine dei posti" : "Save seat order",
     discard: it ? "Scarta ordine non salvato" : "Discard unsaved order",
     position: it ? "Posizione" : "Position",
+    seats: it ? "Lista posti" : "Seats list",
     waiting: it ? "Lista d'attesa" : "Waiting list",
     lock: it ? "Blocca giocatore" : "Lock player",
     unlock: it ? "Sblocca giocatore" : "Unlock player",
@@ -122,7 +124,7 @@ const it = locale === "it",
     leave: it ? "Abbandona tavolo" : "Leave table",
     remove: it ? "Rimuovi giocatore" : "Remove player",
     confirm: it ? "Conferma" : "Confirm",
-    freeFirst: it ? "Posto libero: 1" : "Free place: 1",
+    freeFirst: `${it ? "Posto libero" : "Free place"}: ${input.case === "demote" ? "3–4" : "1"}`,
   };
 test.use({ locale, colorScheme: theme as "light" | "dark", viewport: { width, height: 850 } });
 type Snapshot = Omit<TableSeatOrderSnapshot, "registrations"> & {
@@ -160,14 +162,30 @@ async function editor(page: Page) {
 }
 async function assertPlaces(page: Page, expected: Record<string, number | null>) {
   for (const [id, index] of Object.entries(expected)) {
-    if (index === null)
-      await expect(
-        page
-          .getByRole("region", { name: labels.waiting, exact: true })
-          .locator(`[data-seat-order-row="${id}"]`),
-      ).toHaveCount(1);
-    else await expect(row(page, id)).toContainText(`${labels.position}: ${index + 1}`);
+    await expect(
+      page
+        .getByRole("region", { name: index === null ? labels.waiting : labels.seats, exact: true })
+        .locator(`[data-seat-order-row="${id}"]`),
+    ).toHaveCount(1);
+    await expect(row(page, id)).not.toContainText(`${labels.position}:`);
+    await expect(page.getByTestId(`seat-order-waiting-${id}`)).toHaveCount(0);
   }
+  const ordered = Object.entries(expected).sort(([, a], [, b]) =>
+    a === null ? (b === null ? 0 : 1) : b === null ? -1 : a - b,
+  );
+  for (let index = 1; index < ordered.length; index++)
+    expect(
+      await row(page, ordered[index][0]).evaluate(
+        (element, previousId) => {
+          const previous = document.querySelector(`[data-seat-order-row="${previousId}"]`);
+          return Boolean(
+            previous &&
+              previous.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,
+          );
+        },
+        ordered[index - 1][0],
+      ),
+    ).toBe(true);
 }
 async function bottomClearance(page: Page) {
   const last = row(page, input.last);
@@ -220,10 +238,12 @@ test(`owned sparse seat order ${input.case}/${locale}/${theme}/${width}`, async 
   expect([Boolean(a.locked), Boolean(b.locked), Boolean(c.locked)]).toEqual([false, true, false]);
   expect(c.status).toBe(input.case === "pending" ? "PENDING" : "ACCEPTED");
   if (input.case === "pending") expect(c.kind).toBe("INVITATION");
-  if (input.case === "demote")
+  if (input.case === "demote") {
+    expect(before.capacity).toBe(4);
     expect(before.registrations.every((registration) => registration.seatIndex !== null)).toBe(
       true,
     );
+  }
   await page.goto(`/${path}`);
   await page.getByRole("tab", { name: labels.participants, exact: true }).click();
   if (removing) {
@@ -257,8 +277,9 @@ test(`owned sparse seat order ${input.case}/${locale}/${theme}/${width}`, async 
     }
     const draft = { ...input.initial };
     if (input.case === "demote") {
-      await page.getByTestId(`seat-order-waiting-${input.a}`).click();
-      draft[input.a] = null;
+      await page.getByTestId(`seat-order-down-${input.c}`).click();
+      await page.getByTestId(`seat-order-down-${input.c}`).click();
+      draft[input.c] = null;
     } else {
       await page.getByTestId(`seat-order-up-${input.c}`).click();
       draft[input.a] = 2;

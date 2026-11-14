@@ -70,7 +70,6 @@ function assertions(positions, pendingLocked) {
       id: id,
       position: seat,
       locked: id === p.b || (p.case === "pending" && id === p.c && pendingLocked),
-      positionPattern: `^${it ? "Posizione" : "Position"}: ${Number(seat) + 1}(?: · .*)?$`,
     }))
     .sort((a, b) =>
       a.position === null
@@ -80,11 +79,14 @@ function assertions(positions, pendingLocked) {
         : b.position === null
           ? -1
           : a.position - b.position,
+    )
+    .map((row, index, rows) =>
+      Object.assign({}, row, { previousId: index ? rows[index - 1].id : null }),
     );
 }
 var draft = Object.assign({}, p.initial),
   expected = Object.assign({}, p.initial);
-if (p.case === "demote") draft[p.a] = expected[p.a] = null;
+if (p.case === "demote") draft[p.c] = expected[p.c] = null;
 else if (removing) {
   delete expected[p.a];
   if (p.case === "assisted-remove") expected[p.c] = 0;
@@ -114,7 +116,8 @@ output.seats = {
   review: literal(it ? "Verifica l'elenco aggiornato" : "Review latest roster"),
   waiting: literal(it ? "Lista d'attesa" : "Waiting list"),
   empty: literal(it ? "Nessun utente in lista d'attesa" : "No players waiting"),
-  freeFirst: literal(it ? "Posto libero: 1" : "Free place: 1"),
+  freeFirst: literal(`${it ? "Posto libero" : "Free place"}: ${p.case === "demote" ? "3–4" : "1"}`),
+  freeLast: literal(it ? "Posto libero: 4" : "Free place: 4"),
   lock: literal(it ? "Blocca giocatore" : "Lock player"),
   unlock: literal(it ? "Sblocca giocatore" : "Unlock player"),
   pending: literal(it ? "Giocatore con invito pendente" : "Player with pending invitation"),
