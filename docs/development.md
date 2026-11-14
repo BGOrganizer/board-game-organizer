@@ -256,6 +256,9 @@ dialog on the main read-only lists. Download starts only after acceptance. Later
 dialog for the current JS session, including background/foreground transitions, until the next full
 app start. There is no daily cooldown or persisted dismissal. Editors, confirmation overlays,
 pending selections, keyboard, background state and in-flight mutations block prompt/restart.
+The navigation guard includes Expo Router 57's generated `__root` navigator and subscribes to
+container readiness and state changes. Accepting an update checks the live full stack again,
+including editors retained behind another route.
 If they appear during download, a new confirmation is required when safe again. Check failures
 are reported without blocking startup; download/restart failures offer retry or Later. An accepted
 download can also be applied by Expo on the next cold start. Development clients use their
@@ -289,6 +292,9 @@ validate server contracts.
 The first binary with this consent policy and fingerprint configuration must be installed manually.
 An older `ON_LOAD` binary can download/apply automatically and cannot acquire true consent via a
 JavaScript-only popup. Subsequent compatible JS/asset changes use the automated OTA lane.
+APKs with the previous guard that rejected `__root` also need one manual replacement: that guard
+can prevent the OTA check itself from starting, so it cannot fetch its own repair. This does not
+require changing the channel, runtime policy or restart safeguards.
 
 Keep `EXPO_TOKEN` server-side. Local EAS setup may read this single value from Infisical staging
 `/github` into the process environment; never put it in Expo `extra`, a public variable or Git.

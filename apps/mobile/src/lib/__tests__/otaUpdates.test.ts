@@ -196,6 +196,27 @@ it("keeps restart blocks until all mounted form scopes release, with idempotent 
   expect(useAppRestartGuard.getState().blocks).toBe(0);
 });
 
+it("recognizes the SDK 57 __root navigator without accepting unsafe child routes", () => {
+  const tabs = { name: "(tabs)", state: { routes: [{ name: "tables" }] } };
+  expect(isRestartSafeNavigation({ routes: [{ name: "__root", state: { routes: [tabs] } }] })).toBe(
+    true,
+  );
+  expect(isRestartSafeNavigation({ routes: [{ name: "__root" }] })).toBe(false);
+  expect(isRestartSafeNavigation({ routes: [{ name: "__root", state: { routes: [] } }] })).toBe(
+    false,
+  );
+  expect(
+    isRestartSafeNavigation({
+      routes: [{ name: "__root", state: { routes: [tabs, { name: "event/wizard" }] } }],
+    }),
+  ).toBe(false);
+  expect(
+    isRestartSafeNavigation({
+      routes: [{ name: "__root", state: { routes: [tabs] } }, { name: "+not-found" }],
+    }),
+  ).toBe(false);
+});
+
 it("only allows read-only main navigation and rejects editors anywhere in the stack", () => {
   expect(isRestartSafeNavigation(undefined)).toBe(false);
   expect(isRestartSafeNavigation({ routes: [] })).toBe(false);

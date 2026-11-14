@@ -12,8 +12,10 @@ Do not run the helpers directory or treat helpers as independent test reports.
 `download-error` or `no-update`. Prepare independent owned fixtures for each case and both EN/IT.
 Set the same build/channel/account guards described below and an `OTA_EXPECTED_TEXT` visible on
 the main list in the expected bundle. The no-update case requires a channel with no newer update;
-the other cases require a newer compatible update that is not already downloaded. Later must
-survive Home/foreground and reappear after killing the process. The error case temporarily enables
+the other cases require a newer compatible update that is not already downloaded.
+The first prompt must appear after the cold launch on the main list without visiting another
+screen first; this exercises SDK 57's generated `__root` state and navigation readiness.
+Later must survive Home/foreground and reappear after killing the process. The error case temporarily enables
 airplane mode after checking, then retries online; restore connectivity manually if the flow fails.
 Update/retry must show the changed text and preserve the account. This flow is opt-in and never
 publishes or changes Production.

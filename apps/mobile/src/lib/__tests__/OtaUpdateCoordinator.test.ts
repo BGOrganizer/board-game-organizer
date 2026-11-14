@@ -16,7 +16,15 @@ function harness() {
   let ports!: Parameters<typeof createUpdateController>[0];
   let controller!: ReturnType<typeof createUpdateController>;
   const state = {
-    navigation: { routes: [{ name: "(tabs)", state: { routes: [{ name: "events" }] } }] },
+    navigation: {
+      routes: [
+        {
+          name: "__root",
+          state: { routes: [{ name: "(tabs)", state: { routes: [{ name: "events" }] } }] },
+        },
+      ],
+    } as Parameters<typeof isRestartSafeNavigation>[0],
+    navigationReady: true,
     blocks: 0,
     pendingUser: null as object | null,
     pendingGame: null as object | null,
@@ -48,6 +56,18 @@ function harness() {
     reloadAsync: vi.fn(async () => {}),
   };
   const queryClient = { isMutating: () => state.mutations };
+  const navigationRef = {
+    isReady: () => state.navigationReady,
+    getRootState: () => state.navigation,
+    addListener: (name: string, listener: () => void) => {
+      const key = `navigation-${name}`;
+      listeners[key] = listener;
+      return () => {
+        delete listeners[key];
+        remove();
+      };
+    },
+  };
   const captureException = vi.fn();
   const selector = Object.assign((fn: (s: typeof state) => unknown) => fn(state), {
     getState: () => state,
@@ -59,7 +79,7 @@ function harness() {
       useIsMutating: () => state.mutations,
       useQueryClient: () => queryClient,
     },
-    "expo-router": { useRootNavigationState: () => state.navigation },
+    "expo-router": { useNavigationContainerRef: () => navigationRef },
     "expo-updates": updates,
     "react-native": native,
     "@/components/common/ui/ConfirmDialog": { ConfirmDialog: "Dialog" },
@@ -76,7 +96,7 @@ function harness() {
     react: {
       useState: (initial: unknown) => {
         const i = cursor++;
-        hooks[i] ??= { value: initial };
+        hooks[i] ??= { value: typeof initial === "function" ? initial() : initial };
         return [
           hooks[i].value,
           (value: unknown) => {
@@ -184,7 +204,36 @@ it("shows both localized HeroUI choices, defers until process restart and checks
   expect(h.render()).toBeNull();
   expect(h.updates.checkForUpdateAsync).toHaveBeenCalledOnce();
   h.unmount();
-  expect(h.remove).toHaveBeenCalledTimes(3);
+  expect(h.remove).toHaveBeenCalledTimes(5);
+});
+
+it("checks after the SDK root becomes ready and reacts to child navigation without losing live restart guards", async () => {
+  const h = harness();
+  const home = h.state.navigation;
+  h.state.navigationReady = false;
+  h.state.navigation = undefined;
+  expect(h.render()).toBeNull();
+  expect(h.updates.checkForUpdateAsync).not.toHaveBeenCalled();
+  h.state.navigation = {
+    routes: [{ name: "__root", state: { routes: [{ name: "event/wizard" }] } }],
+  };
+  h.state.navigationReady = true;
+  h.listeners["navigation-ready"]();
+  expect(h.render()).toBeNull();
+  expect(h.updates.checkForUpdateAsync).not.toHaveBeenCalled();
+  h.state.navigation = home;
+  h.listeners["navigation-state"]();
+  h.render();
+  await vi.waitFor(() => expect(h.render()?.props.title).toBe("An update is available"));
+  h.state.navigation = {
+    routes: [{ name: "__root", state: { routes: [{ name: "index" }, { name: "event/wizard" }] } }],
+  };
+  expect(h.ports().canRestart()).toBe(false);
+  h.listeners["navigation-state"]();
+  expect(h.render()).toBeNull();
+  h.unmount();
+  expect(h.listeners["navigation-state"]).toBeUndefined();
+  expect(h.listeners["navigation-ready"]).toBeUndefined();
 });
 
 it.each([
@@ -264,6 +313,7 @@ it("rechecks every restart safeguard and hides while forms, keyboard or startup 
   h.native.AppState.currentState = "active";
   h.listeners.app("active");
   h.state.navigation = { routes: [{ name: "event/wizard", state: { routes: [] } }] };
+  h.listeners["navigation-state"]();
   expect(h.render()).toBeNull();
   expect(h.ports().canRestart()).toBe(false);
   h.unmount();

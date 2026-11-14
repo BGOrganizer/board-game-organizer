@@ -103,6 +103,8 @@ type NavigationState = {
 export function isRestartSafeNavigation(state: NavigationState | undefined): boolean {
   if (!state || state.routes.length === 0) return false;
   return state.routes.every((route) => {
+    // SDK 57 wraps the app stack in Expo Router's generated __root screen.
+    if (route.name === "__root") return isRestartSafeNavigation(route.state);
     if (route.name === "index") return true;
     if (route.name !== "(tabs)" || !route.state) return false;
     const tab = route.state.routes[route.state.index ?? 0];

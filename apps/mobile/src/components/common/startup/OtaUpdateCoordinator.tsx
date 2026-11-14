@@ -1,7 +1,7 @@
 import { useAppStore } from "@board-game-organizer/store";
 import * as Sentry from "@sentry/react-native";
 import { useIsMutating, useQueryClient } from "@tanstack/react-query";
-import { useRootNavigationState } from "expo-router";
+import { useNavigationContainerRef } from "expo-router";
 import * as Updates from "expo-updates";
 import { useEffect, useRef, useState } from "react";
 import { AppState, Keyboard } from "react-native";
@@ -17,7 +17,10 @@ import {
 export function OtaUpdateCoordinator({ startupSettled }: { startupSettled: boolean }) {
   const t = useT();
   const queryClient = useQueryClient();
-  const navigation = useRootNavigationState();
+  const navigationRef = useNavigationContainerRef();
+  const [navigation, setNavigation] = useState(() =>
+    navigationRef.isReady() ? navigationRef.getRootState() : undefined,
+  );
   const mutations = useIsMutating();
   const blocks = useAppRestartGuard((state) => state.blocks);
   const pendingSelection = useAppStore((state) =>
@@ -39,8 +42,8 @@ export function OtaUpdateCoordinator({ startupSettled }: { startupSettled: boole
     !blocks &&
     !pendingSelection &&
     isRestartSafeNavigation(navigation);
-  const latest = useRef({ startupSettled, navigation });
-  latest.current = { startupSettled, navigation };
+  const latest = useRef(startupSettled);
+  latest.current = startupSettled;
   const controller = useRef<ReturnType<typeof createUpdateController> | null>(null);
 
   useEffect(() => {
@@ -58,7 +61,7 @@ export function OtaUpdateCoordinator({ startupSettled }: { startupSettled: boole
         const selections = useAppStore.getState();
         return Boolean(
           enabled &&
-            latest.current.startupSettled &&
+            latest.current &&
             AppState.currentState === "active" &&
             !Keyboard.isVisible() &&
             !queryClient.isMutating() &&
@@ -66,13 +69,19 @@ export function OtaUpdateCoordinator({ startupSettled }: { startupSettled: boole
             !selections.pendingUser &&
             !selections.pendingGame &&
             !selections.pendingLocation &&
-            isRestartSafeNavigation(latest.current.navigation),
+            navigationRef.isReady() &&
+            isRestartSafeNavigation(navigationRef.getRootState()),
         );
       },
       change: setPhase,
       report: (error) => Sentry.captureException(error, { tags: { operation: "updates.manual" } }),
     });
     controller.current = current;
+    const syncNavigation = () =>
+      setNavigation(navigationRef.isReady() ? navigationRef.getRootState() : undefined);
+    const stopNavigation = navigationRef.addListener("state", syncNavigation);
+    const stopReady = navigationRef.addListener("ready", syncNavigation);
+    syncNavigation();
     const app = AppState.addEventListener("change", (state) => {
       if (state !== "active") current.background();
       setActive(state === "active");
@@ -84,8 +93,10 @@ export function OtaUpdateCoordinator({ startupSettled }: { startupSettled: boole
       app.remove();
       show.remove();
       hide.remove();
+      stopNavigation();
+      stopReady();
     };
-  }, [enabled, queryClient]);
+  }, [enabled, navigationRef, queryClient]);
 
   useEffect(() => {
     if (safe) void controller.current?.check();
