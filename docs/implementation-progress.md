@@ -33,7 +33,10 @@ Historical test counts describe their recorded revision only; they do not prove 
   that branch now follows canonical Event eligibility. History counters are tested separately from
   active Table container attention, including a real termination transition. Six legacy Web
   assertions were updated to the agreed single-role popover and confirmed-only game controls;
-  all **12** focused cases pass. Fresh exact-commit CI remains the delivery gate.
+  all **12** focused cases pass. The next CI passes all **183 integration** and **1,336 Web**
+  cases, but the retained 100% common-UI branch gate identifies compact skeleton and role-tone
+  cases no longer exercised indirectly by Event cards. Direct cases cover both without product
+  changes or relaxed thresholds. Fresh exact-commit CI remains the delivery gate.
 - Real disposable MongoDB community integration passes **86/86** without skips. The independent
   emulated repository run was interrupted by the execution environment; its owned database files
   were removed and the local port verified closed. It is not counted as a passing integration run.

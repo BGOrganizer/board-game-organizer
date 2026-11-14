@@ -94,6 +94,27 @@ it("uses a partial skeleton for unknown participation, not a fictitious confirme
   expect(screen.queryByRole("button")).toBeNull();
 });
 
+it("keeps the compact loading face at the existing card dimensions", () => {
+  renderWithI18n(<ArtworkStatusPopover kind={undefined} size="compact" />);
+  const skeleton = screen.getByLabelText("Loading…");
+  expect(skeleton.className).toContain("size-7");
+  expect(skeleton.className).toContain("rounded-lg");
+  expect(screen.queryByRole("button")).toBeNull();
+});
+
+it.each(["manager", "demonstrator"] as const)(
+  "retains the compact %s accent face and accessible touch target",
+  (kind) => {
+    renderWithI18n(<ArtworkStatusPopover kind={kind} size="compact" />);
+    const trigger = screen.getByRole("button", {
+      name: kind === "manager" ? "Management" : "Demonstrator",
+    });
+    expect(trigger.className).toContain("text-accent-soft-foreground");
+    expect(trigger.className).toContain("min-h-11");
+    expect(trigger.querySelector("span.size-7.rounded-lg svg.size-4")).not.toBeNull();
+  },
+);
+
 it("supports domain-specific accessible labels while retaining the common request explanation", async () => {
   renderWithI18n(<ArtworkStatusPopover kind="request" label="Membership requested" />);
   fireEvent.click(screen.getByRole("button", { name: "Membership requested" }));
