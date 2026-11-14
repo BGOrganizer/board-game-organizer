@@ -1,4 +1,7 @@
 import { classifyPlayerCount, type PlayerPoll } from "@board-game-organizer/schemas";
+import { allocateReservedPlaces, reservationPriority as priority } from "./eventSeatAllocation";
+
+export { allocateReservedPlaces, reservedSeatIndex } from "./eventSeatAllocation";
 export type AgreementVote = "UNKNOWN" | "YES" | "NO" | "IF_NEEDED";
 export type AgreementVotes = Readonly<Record<string, Readonly<Record<string, AgreementVote>>>>;
 export interface AgreementRegistration {
@@ -9,12 +12,14 @@ export interface AgreementRegistration {
   priorityAt: string;
   sequence: number;
   locked?: boolean;
+  seatIndex?: number | null;
 }
 export interface AgreementTable {
   id: string;
   minPlayers: number;
   maxPlayers: number;
   seatedCapacity?: number;
+  preserveSeatAllocation?: boolean;
   gameIds: readonly number[];
   gamePlayerBounds?: Readonly<Record<number, { minPlayers: number; maxPlayers: number }>>;
   /** Legacy hint; implicit compatibility depends on the actual singleton game count. */
@@ -64,23 +69,6 @@ export type EventAgreement = {
     }
 );
 
-function priority(a: AgreementRegistration, b: AgreementRegistration): number {
-  return (
-    Date.parse(a.priorityAt) - Date.parse(b.priorityAt) ||
-    a.sequence - b.sequence ||
-    a.id.localeCompare(b.id)
-  );
-}
-
-/** Pending invitations reserve capacity and queue priority, but never become voters. */
-export function allocateReservedPlaces(
-  registrations: readonly AgreementRegistration[],
-  capacity: number,
-) {
-  const ordered = [...registrations].sort(priority);
-  return { seated: ordered.slice(0, capacity), waiting: ordered.slice(capacity) };
-}
-
 const positive = (vote: AgreementVote | undefined) => vote === "YES" || vote === "IF_NEEDED";
 interface Candidate {
   dateIndex: number;
@@ -109,17 +97,20 @@ export function planningSeatCapacity(
 }
 
 function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
+  const manual = input.planningMode === "MANUAL" || Boolean(table.preserveSeatAllocation);
   const rows = input.registrations.filter((row) => row.tableId === table.id);
   const seatCapacity = planningSeatCapacity(table, input.planningMode);
-  const { seated, waiting } = allocateReservedPlaces(rows, seatCapacity);
+  const { seated, waiting } = allocateReservedPlaces(rows, seatCapacity, manual);
   const pending = seated.filter((row) => row.status === "PENDING");
   const accepted = seated.filter((row) => row.status === "ACCEPTED");
   const queued = waiting.filter((row) => row.status === "ACCEPTED");
   const capacity = seatCapacity - pending.length;
-  const reservedFloor = seated.reduce(
-    (floor, row, index) => (row.locked || row.status === "PENDING" ? index + 1 : floor),
-    0,
-  );
+  const reservedFloor = seated.some((row) => row.seatIndex !== undefined)
+    ? seated.filter((row) => row.locked || row.status === "PENDING").length
+    : seated.reduce(
+        (floor, row, index) => (row.locked || row.status === "PENDING" ? index + 1 : floor),
+        0,
+      );
   const state: TableAgreementState = {
     tableId: table.id,
     phase: "BLOCKED",
@@ -154,7 +145,7 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
       for (const [gameIndex, gameId] of table.gameIds.entries()) {
         // Game disagreement never authorizes removing an accepted seated player.
         if (base.some((row) => !positive(gameVote(row, gameId)))) continue;
-        if (input.planningMode === "MANUAL" && base.length !== accepted.length) continue;
+        if (manual && base.length !== accepted.length) continue;
         const people = base;
         const bounds = table.gamePlayerBounds?.[gameId];
         const minimum = Math.max(
@@ -167,11 +158,7 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
           (bounds &&
             (minimum > bounds.maxPlayers ||
               (people.length > bounds.maxPlayers &&
-                !(
-                  input.planningMode !== "MANUAL" &&
-                  input.playerPreference === "BEST" &&
-                  input.allowBestReduction
-                ))))
+                !(!manual && input.playerPreference === "BEST" && input.allowBestReduction))))
         )
           continue;
         const eligibleWaiting = queued.filter(
@@ -208,11 +195,7 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
         (table.gamePlayerBounds?.[option.gameId]?.maxPlayers ?? table.maxPlayers)
           ? [option]
           : [];
-      if (
-        input.planningMode !== "MANUAL" &&
-        input.playerPreference === "BEST" &&
-        input.allowBestReduction
-      ) {
+      if (!manual && input.playerPreference === "BEST" && input.allowBestReduction) {
         for (
           let count = Math.max(
             table.minPlayers,
@@ -258,7 +241,7 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
     state.reason = "GAME_DISAGREEMENT";
     return result;
   }
-  if (input.planningMode === "MANUAL") return result;
+  if (manual) return result;
   const prefix = Math.min(...options.map((option) => option.firstPrefix));
   if (!Number.isFinite(prefix)) return result;
   state.phase = "WAITING";
@@ -331,9 +314,11 @@ export function projectReservedPlaces(
   registrations: readonly AgreementRegistration[],
   maxPlayers: number,
   participantIds?: readonly string[],
+  preserveAllocation = true,
 ) {
-  const base = allocateReservedPlaces(registrations, maxPlayers);
-  if (!participantIds) return base;
+  const base = allocateReservedPlaces(registrations, maxPlayers, preserveAllocation);
+  const explicit = registrations.some((row) => row.seatIndex !== undefined);
+  if (!participantIds || (explicit && preserveAllocation)) return base;
   const participants = new Set(participantIds);
   const pending = new Set(
     base.seated.filter((row) => row.status === "PENDING").map((row) => row.id),
@@ -344,22 +329,37 @@ export function projectReservedPlaces(
   );
   const anchors = new Map(
     base.seated.flatMap((row, index) =>
-      row.locked || row.status === "PENDING" ? [[index, row] as const] : [],
+      row.locked || row.status === "PENDING" ? [[row.seatIndex ?? index, row] as const] : [],
     ),
   );
   const selectedIds = new Set(seated.map((row) => row.id));
-  if ([...anchors].some(([index, row]) => index >= seated.length || !selectedIds.has(row.id)))
+  if (
+    [...anchors].some(
+      ([index, row]) =>
+        index >= (explicit ? maxPlayers : seated.length) || !selectedIds.has(row.id),
+    )
+  )
     return base;
   const anchoredIds = new Set([...anchors.values()].map((row) => row.id));
   const free = seated.filter((row) => !anchoredIds.has(row.id));
   let freeIndex = 0;
-  const fixed = Array.from(
-    { length: seated.length },
-    (_, index) => anchors.get(index) ?? free[freeIndex++],
-  );
+  const fixed = explicit
+    ? [...anchors.values(), ...free]
+        .map((row) => {
+          if (anchoredIds.has(row.id)) return row;
+          while (anchors.has(freeIndex)) freeIndex++;
+          return { ...row, seatIndex: freeIndex++ };
+        })
+        .sort((a, b) => a.seatIndex! - b.seatIndex!)
+    : Array.from({ length: seated.length }, (_, index) => anchors.get(index) ?? free[freeIndex++]);
   seated.splice(0, seated.length, ...fixed);
   const ids = new Set(seated.map((row) => row.id));
-  return { seated, waiting: all.filter((row) => !ids.has(row.id)) };
+  return {
+    seated,
+    waiting: all
+      .filter((row) => !ids.has(row.id))
+      .map((row) => (explicit ? { ...row, seatIndex: null } : row)),
+  };
 }
 
 export function calculateEventAgreement(

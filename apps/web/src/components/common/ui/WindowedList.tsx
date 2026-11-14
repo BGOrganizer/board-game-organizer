@@ -1,9 +1,20 @@
 "use client";
 
 import { memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { windowedListLayout } from "@/lib/windowed-list";
+import { windowedListLayout, windowedListViewport } from "@/lib/windowed-list";
 
-/** Document scrolling with measured rows: RAC's Virtualizer requires its own scroll viewport. */
+function scrollOwner(node: HTMLElement) {
+  for (
+    let parent = node.parentElement;
+    parent && parent !== document.body;
+    parent = parent.parentElement
+  ) {
+    if (/^(auto|scroll|overlay)$/.test(getComputedStyle(parent).overflowY)) return parent;
+  }
+  return null;
+}
+
+/** Measured rows follow the surrounding page's actual scrolling viewport. */
 export function WindowedList<T>({
   items,
   itemKey,
@@ -42,12 +53,20 @@ export function WindowedList<T>({
     const node = root.current;
     if (!node) return;
     const box = node.getBoundingClientRect();
+    const owner = scrollOwner(node);
+    const visible = owner
+      ? windowedListViewport(
+          window.innerHeight,
+          owner.getBoundingClientRect().top + owner.clientTop,
+          owner.clientHeight,
+        )
+      : windowedListViewport(window.innerHeight);
+    const top = visible.top - box.top;
     setViewport((old) =>
-      old.top === -box.top && old.height === window.innerHeight
-        ? old
-        : { top: -box.top, height: window.innerHeight },
+      old.top === top && old.height === visible.height ? old : { top, height: visible.height },
     );
-    if (active.current && box.bottom <= window.innerHeight + 300) callbacks.current.onEndReached();
+    if (active.current && visible.height > 0 && box.bottom <= visible.top + visible.height + 300)
+      callbacks.current.onEndReached();
   }, []);
   const schedule = useCallback(() => {
     if (frame.current === null) frame.current = requestAnimationFrame(update);
@@ -62,8 +81,9 @@ export function WindowedList<T>({
       if (["ArrowDown", "PageDown", "End", " "].includes(event.key)) begin();
     };
     const observer = new ResizeObserver(schedule);
-    if (root.current) observer.observe(root.current);
-    window.addEventListener("scroll", schedule, { passive: true });
+    for (let node: HTMLElement | null = root.current; node; node = node.parentElement)
+      observer.observe(node);
+    window.addEventListener("scroll", schedule, { passive: true, capture: true });
     window.addEventListener("resize", schedule);
     window.addEventListener("wheel", begin, { passive: true });
     window.addEventListener("touchstart", begin, { passive: true });
@@ -72,7 +92,7 @@ export function WindowedList<T>({
     return () => {
       observer.disconnect();
       if (frame.current !== null) cancelAnimationFrame(frame.current);
-      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
       window.removeEventListener("wheel", begin);
       window.removeEventListener("touchstart", begin);
@@ -81,13 +101,15 @@ export function WindowedList<T>({
   }, [schedule]);
   const measure = useCallback(
     (key: string, rawHeight: number) => {
+      const node = root.current;
+      if (!node) return;
       const height = Math.round(rawHeight * 100) / 100;
       if (height <= 0 || measured.current.get(key) === height) return;
       const oldHeight = measured.current.get(key) ?? estimatedRowHeight;
       measured.current.set(key, height);
       const index = geometry.current.keys.indexOf(key);
       if (active.current && index >= 0 && geometry.current.offsets[index] < geometry.current.top)
-        window.scrollBy(0, height - oldHeight);
+        (scrollOwner(node) ?? window).scrollBy(0, height - oldHeight);
       setRevision((value) => value + 1);
     },
     [estimatedRowHeight],

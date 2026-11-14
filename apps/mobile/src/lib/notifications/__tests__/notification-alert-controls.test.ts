@@ -13,7 +13,15 @@ function nodes(value: any): Element[] {
 }
 function harness(overrides: Record<string, unknown> = {}) {
   const model = {
-    changes: [{ notificationId: "a", messageCode: "information", requiresResponse: false }],
+    changes: [
+      {
+        notificationId: "a",
+        messageCode: "information",
+        title: "Source notification",
+        description: "Original actor: Café",
+        requiresResponse: false,
+      },
+    ],
     tabCounts: { details: 0, members: 0, tables: 0, participants: 0 },
     isPending: false,
     isError: false,
@@ -258,20 +266,30 @@ it("formats row categories/current labels and invitation hints without making ro
   for (const row of [
     {
       messageCode: "date",
-      currentLabel: "Friday",
+      title: "Date updated",
+      description: "alex: Café and games",
       requiresResponse: false,
-      expected: "Date updated: Friday",
     },
-    { messageCode: "invitation", requiresResponse: false, expected: "Invitation updated" },
+    {
+      messageCode: "event_confirmed",
+      title: "Evento confermato",
+      description: "alex: Café e società",
+      requiresResponse: false,
+    },
     {
       messageCode: "invitation",
+      title: "Invito a un tavolo",
+      description: "alex: Serata del giovedì",
       requiresResponse: true,
-      expected: "Invitation awaiting a response",
     },
-    { messageCode: "unknown", requiresResponse: false, expected: "Information updated" },
   ]) {
     const element = list.props.renderItem({ item: row });
-    expect(element.type(element.props).props.children).toBe(row.expected);
+    const content = element.type(element.props);
+    expect(
+      nodes(content)
+        .filter((node) => node.type === "Typography")
+        .map((node) => node.props.children),
+    ).toEqual([row.title, row.description]);
   }
   expect(h.model.markAllAsRead).not.toHaveBeenCalled();
 });

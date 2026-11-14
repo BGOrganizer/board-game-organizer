@@ -623,6 +623,14 @@ msgid "organization.feedback.reject_event_proposal.error"
 msgstr "Impossibile rifiutare la proposta"
 
 #. js-lingui-explicit-id
+msgid "organization.feedback.reorder_table_seats.success"
+msgstr "Ordine dei posti salvato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reorder_table_seats.error"
+msgstr "Impossibile salvare l'ordine dei posti"
+
+#. js-lingui-explicit-id
 #: apps/mobile/src/components/groups/GroupCard.tsx
 #: apps/mobile/src/components/groups/GroupCardIndicators.tsx
 #: apps/web/src/components/groups/GroupCard.tsx
@@ -741,7 +749,7 @@ msgstr "Membro accettato"
 msgid "Accepted participant"
 msgstr "Partecipante accettato"
 
-#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventSeatListHeading.tsx
 msgid "Accepted player"
 msgstr "Giocatore accettato"
 
@@ -753,7 +761,7 @@ msgstr "Giocatori accettati"
 msgid "Accepted players, including the waiting list."
 msgstr "Giocatori accettati, inclusa la lista d'attesa."
 
-#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventSeatListHeading.tsx
 msgid "Accepted waiting players may vote. Pending invitations do not vote or count toward agreement."
 msgstr "I giocatori accettati in attesa possono votare. Gli inviti in sospeso non votano e non contano per l'accordo."
 
@@ -943,7 +951,12 @@ msgstr "Consenti proposte di giochi"
 msgid "Allow location proposals"
 msgstr "Consenti proposte di luoghi"
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Allow reduction for Best"
+msgstr "Consenti riduzione per Best"
+
+#: apps/web/src/components/events/EventInformationFields.tsx
 msgid "An approved group and its administrator are required."
 msgstr "Sono necessari un gruppo approvato e il suo amministratore."
 
@@ -957,6 +970,10 @@ msgstr "Un evento può avere al massimo 20 tavoli."
 #: apps/web/src/components/events/EventDeleteAction.tsx
 msgid "An event must keep at least one table. Delete the event instead."
 msgstr "Un evento deve mantenere almeno un tavolo. Elimina invece l’evento."
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "An update is available"
+msgstr "È disponibile un aggiornamento"
 
 #: apps/web/src/components/events/EventDeleteAction.tsx
 msgid "Another event action is in progress."
@@ -1012,6 +1029,16 @@ msgstr "Organizzazione approvata"
 #: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
 msgid "Are you sure?"
 msgstr "Confermi?"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Assistance recalculates the allocation when planning changes. Switching to Assisted can change the allocation; confirmation always requires a manager."
+msgstr "L'assistenza ricalcola i posti quando cambia la pianificazione. Passare ad Assistita può modificare i posti; la conferma richiede sempre un gestore."
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Assisted"
+msgstr "Assistita"
 
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
@@ -1133,6 +1160,16 @@ msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi d
 #~ msgid "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain. Removed members cannot rejoin until their exclusion is revoked."
 #~ msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi dei dimostratori. Le partecipazioni già congelate e i risultati restano invariati. I membri rimossi non possono rientrare finché non viene revocata l'esclusione."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "BGG Best"
+msgstr "BGG Best"
+
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "BGG Best allows reducing the seated group in Assisted planning."
+msgstr "BGG Best consente di ridurre i giocatori nella modalità Assistita."
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "BGG user not found"
 msgstr "Utente BGG non trovato"
@@ -1158,6 +1195,7 @@ msgstr "Blocca contatto"
 msgid "Block user globally"
 msgstr "Blocca utente globale"
 
+#: apps/web/src/components/common/ui/UserRelationshipBadge.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Blocked"
 msgstr "Bloccati"
@@ -1303,9 +1341,17 @@ msgstr "Centra la mappa sulla mia posizione"
 msgid "Change BGG username"
 msgstr "Cambia username BGG"
 
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Change group"
+msgstr "Cambia gruppo"
+
 #: apps/web/src/components/groups/GroupLogoPicker.tsx
 msgid "Change logo"
 msgstr "Cambia logo"
+
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "Changes"
+msgstr "Modifiche"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "Changes applied"
@@ -1419,7 +1465,7 @@ msgstr "Scegli un nome, inizio e fine nello stesso giorno e un indirizzo verific
 msgid "Choose a place action"
 msgstr "Scegli un'azione per il posto"
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
 msgid "Choose a recognizable event name between 5 and 120 characters."
 msgstr "Scegli un nome riconoscibile per l’evento, tra 5 e 120 caratteri."
 
@@ -1565,7 +1611,7 @@ msgstr "Scegli luogo"
 msgid "Choose one date and time. Remove the selected option before choosing another."
 msgstr "Scegli una data e un orario. Rimuovi l'opzione selezionata prima di sceglierne un'altra."
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Choose one of your groups, or create a standalone event without a group."
 msgstr "Scegli uno dei tuoi gruppi oppure crea un evento indipendente senza gruppo."
@@ -1573,6 +1619,10 @@ msgstr "Scegli uno dei tuoi gruppi oppure crea un evento indipendente senza grup
 #: apps/mobile/src/app/match/[matchId].tsx
 #~ msgid "Choose preference"
 #~ msgstr "Scegli la preferenza"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose the day of the event. Start and end times are on this same day."
+msgstr "Scegli il giorno dell’evento. Gli orari di inizio e fine sono nello stesso giorno."
 
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Choose the event address"
@@ -1785,6 +1835,7 @@ msgstr "Giocatori confermati."
 msgid "Confirmed tables"
 msgstr "Confermati"
 
+#: apps/web/src/components/common/ui/UserRelationshipBadge.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Connections"
 msgstr "Connessioni"
@@ -1973,6 +2024,10 @@ msgstr "Impossibile caricare il collegamento a BoardGameGeek. Riprova"
 msgid "Could not load bookings. Retry"
 msgstr "Impossibile caricare le prenotazioni. Riprova"
 
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "Could not load changes. Try again."
+msgstr "Impossibile caricare gli aggiornamenti. Riprova."
+
 #: apps/web/src/components/profile/ProfileCollection.tsx
 msgid "Could not load collection"
 msgstr "Impossibile caricare la collezione"
@@ -2024,7 +2079,7 @@ msgid "Could not load game details"
 msgstr "Impossibile caricare i dettagli del gioco"
 
 #: apps/web/src/components/events/EventGroupLink.tsx
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
 #: apps/web/src/components/groups/GroupPeoplePicker.tsx
 msgid "Could not load group"
 msgstr "Impossibile caricare il gruppo"
@@ -2193,6 +2248,10 @@ msgstr "Impossibile caricare gli utenti"
 msgid "Could not load users. Retry"
 msgstr "Impossibile caricare gli utenti. Riprova"
 
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "Could not mark changes as read. Try again."
+msgstr "Impossibile segnare gli aggiornamenti come letti. Riprova."
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not mark notification as read"
 msgstr "Impossibile segnare la notifica come letta"
@@ -2272,6 +2331,10 @@ msgstr "Impossibile salvare il numero di cellulare"
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Could not save organization"
 msgstr "Impossibile salvare l'organizzazione"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Could not save seat order"
+msgstr "Impossibile salvare l'ordine dei posti"
 
 #: apps/web/src/components/events/EventResults.tsx
 msgid "Could not save table result"
@@ -2423,10 +2486,13 @@ msgstr "data"
 msgid "Date"
 msgstr "Data"
 
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Date and start/end time"
+msgstr "Data e orari di inizio/fine"
+
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventProposalSection.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Date and time"
 msgstr "Data e orario"
 
@@ -2434,9 +2500,15 @@ msgstr "Data e orario"
 msgid "Date and time help"
 msgstr "Guida alla data e agli orari"
 
+msgid "Date options changed"
+msgstr "Date proposte modificate"
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Date selection"
 msgstr "Selezione date"
+
+msgid "Date updated"
+msgstr "Data aggiornata"
 
 #: apps/web/src/components/matches/Matches.tsx
 msgid "dates"
@@ -2446,12 +2518,17 @@ msgstr "date"
 msgid "Dates"
 msgstr "Date"
 
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Dates / Locations"
+msgstr "Date / Luoghi"
+
 #: apps/web/src/components/events/EventDetail.tsx
 #~ msgid "Dates and start times are displayed in the event's time zone."
 #~ msgstr "Date e orari di inizio sono visualizzati nel fuso orario dell’evento."
 
 #: apps/web/src/components/common/ui/ScheduleOptionsPopover.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Dates and times"
 msgstr "Date e orari"
 
@@ -2603,6 +2680,10 @@ msgstr "Contatti del dispositivo"
 msgid "Did not participate"
 msgstr "Non ha partecipato"
 
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Discard unsaved order"
+msgstr "Scarta ordine non salvato"
+
 #: apps/web/src/components/profile/ProfileBggCard.tsx
 msgid "Disconnect"
 msgstr "Scollega"
@@ -2618,6 +2699,10 @@ msgstr "Scollegare BoardGameGeek?"
 #: apps/web/src/components/common/providers/LinguiClientProvider.tsx
 msgid "Dismiss notification"
 msgstr "Chiudi notifica"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Downloading the update…"
+msgstr "Download dell’aggiornamento in corso…"
 
 #: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventOverview.tsx
@@ -2710,14 +2795,12 @@ msgid "Enable ratings"
 msgstr "Abilita ranking"
 
 #: apps/web/src/components/events/EventDetail.tsx
-#: apps/web/src/components/events/EventScheduleFields.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "End Date and Time"
 msgstr "Data e ora di fine"
 
 #: apps/web/src/components/common/ui/DateTimeInfo.tsx
 #: apps/web/src/components/events/EventDetail.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "End time"
 msgstr "Ora di fine"
 
@@ -2777,7 +2860,7 @@ msgstr "Inserisci una durata valida del gioco in minuti."
 msgid "Enter a valid score"
 msgstr "Inserisci un punteggio valido"
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
 msgid "Enter an event name between 5 and 120 characters."
 msgstr "Inserisci un nome per l’evento tra 5 e 120 caratteri."
 
@@ -2816,7 +2899,7 @@ msgstr "Evento"
 msgid "Event cannot be edited"
 msgstr "L'evento non può essere modificato"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Event date"
 msgstr "Data evento"
 
@@ -2868,7 +2951,7 @@ msgstr "Luogo evento"
 msgid "Event location help"
 msgstr "Aiuto luogo dell'evento"
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
 msgid "Event name"
 msgstr "Nome dell'evento"
 
@@ -2880,6 +2963,18 @@ msgstr "Aiuto nome dell'evento"
 #: apps/web/src/components/events/EventOverview.tsx
 msgid "Event participant count help"
 msgstr "Aiuto numero partecipanti"
+
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "Event planning has reopened. Check dates, locations and votes."
+msgstr "La pianificazione dell’evento è stata riaperta. Controlla date, luoghi e voti."
+
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "Event planning is ready for confirmation."
+msgstr "La pianificazione dell’evento è pronta per la conferma."
+
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "Event planning needs review. Check participant availability and votes."
+msgstr "La pianificazione dell’evento è da verificare. Controlla disponibilità e voti dei partecipanti."
 
 #: apps/web/src/components/events/EventDetail.tsx
 msgid "Event sections"
@@ -2901,6 +2996,17 @@ msgstr "Aiuto numero tavoli"
 #: apps/web/src/components/events/EventOverview.tsx
 msgid "Event tables, excluding cancelled tables."
 msgstr "Tavoli dell'evento, esclusi quelli annullati."
+
+msgid "Event updated"
+msgstr "Evento aggiornato"
+
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
+msgid "Event visibility"
+msgstr "Visibilità dell’evento"
+
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
+msgid "Event visibility cannot be changed after creation."
+msgstr "La visibilità dell’evento non può essere modificata dopo la creazione."
 
 #: apps/web/src/components/common/layout/Header.tsx
 #: apps/web/src/components/groups/GroupDetail.tsx
@@ -2965,8 +3071,11 @@ msgstr "Location preferite"
 
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
+#: apps/web/src/components/events/EventPlanningSettings.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
-#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventSeatListHeading.tsx
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 #: apps/web/src/components/groups/GroupVisibilityPicker.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
@@ -3033,11 +3142,13 @@ msgstr "Segui"
 msgid "Followed users"
 msgstr "Seguiti"
 
+#: apps/web/src/components/common/ui/UserRelationshipBadge.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Followers"
 msgstr "Follower"
 
+#: apps/web/src/components/common/ui/UserRelationshipBadge.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Following"
@@ -3047,11 +3158,12 @@ msgstr "Following"
 msgid "Former group member"
 msgstr "Uscito dal gruppo"
 
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/EventTableSeats.tsx
 msgid "Free place"
 msgstr "Posto libero"
 
-#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventSeatListHeading.tsx
 msgid "Free places allow joining or invitations. Places are not assigned physical seats."
 msgstr "I posti liberi consentono di iscriversi o invitare altri giocatori. I posti non corrispondono a sedute fisiche assegnate."
 
@@ -3059,7 +3171,7 @@ msgstr "I posti liberi consentono di iscriversi o invitare altri giocatori. I po
 msgid "Free places allow joining or invitations. When capacity is reserved, an extra place lets new players join the queue. Places are not assigned physical seats."
 msgstr "I posti liberi permettono di unirsi o invitare. Quando tutti i posti sono riservati, un posto aggiuntivo permette ai nuovi giocatori di mettersi in coda. I posti non corrispondono a sedute fisiche assegnate."
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
 msgid "Friday game night"
 msgstr "Serata giochi del venerdì"
 
@@ -3087,11 +3199,13 @@ msgstr "Richiesta di amicizia inviata"
 #~ msgid "Friend requests"
 #~ msgstr "Richieste di amicizia"
 
+#: apps/web/src/components/common/ui/UserRelationshipBadge.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Friends"
 msgstr "Amici"
 
+#: apps/web/src/components/common/ui/UserRelationshipBadge.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Friendship accepted."
 msgstr "Amicizia confermata."
@@ -3125,6 +3239,9 @@ msgstr "Selezione giochi"
 msgid "Game unavailable"
 msgstr "Gioco non disponibile"
 
+msgid "Game updated"
+msgstr "Gioco aggiornato"
+
 #: apps/web/src/components/matches/Matches.tsx
 msgid "games"
 msgstr "giochi"
@@ -3134,6 +3251,9 @@ msgstr "giochi"
 #: apps/web/src/components/profile/ProfileCollection.tsx
 msgid "Games"
 msgstr "Giochi"
+
+msgid "Games changed"
+msgstr "Giochi modificati"
 
 #: apps/web/src/components/profile/ProfileCollection.tsx
 msgid "Games including expansions"
@@ -3196,7 +3316,7 @@ msgstr "Concedere i permessi di gestione del gruppo e degli eventi? Solo il crea
 #: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventGroupLink.tsx
 #: apps/web/src/components/events/EventGroupSelect.tsx
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
 #: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Group"
@@ -3233,6 +3353,9 @@ msgstr "L'esclusione dal gruppo è distinta dal blocco globale. L'appartenenza e
 #: apps/web/src/components/common/ui/GroupBanDialog.tsx
 msgid "Group exclusion is separate from global blocking. Membership and planning participation are removed; confirmed participation and personal table access are preserved. Reopening planning removes excluded users. Expiry or revocation never restores cancelled participation. Historical results remain unchanged."
 msgstr "L'esclusione dal gruppo è distinta dal blocco globale. L'appartenenza e la partecipazione agli eventi in pianificazione vengono rimosse; la partecipazione confermata e l'accesso personale ai tavoli vengono mantenuti. Riaprendo la pianificazione, gli utenti esclusi vengono rimossi. La scadenza o la revoca non ripristinano mai le partecipazioni annullate. I risultati storici restano invariati."
+
+msgid "Group information updated"
+msgstr "Informazioni del gruppo aggiornate"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Group invitation accepted"
@@ -3352,6 +3475,14 @@ msgstr "Ore prima dell'inizio dell'evento. Valore predefinito: 24 ore. Prenotazi
 msgid "Icon legend"
 msgstr "Legenda delle icone"
 
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Ideal count"
+msgstr "Numero ideale"
+
+msgid "Ideal count (BGG Best)"
+msgstr "Numero ideale (BGG Best)"
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "If I have to"
 msgstr "Se proprio devo"
@@ -3388,6 +3519,9 @@ msgstr "Aumenta il numero massimo di giocatori"
 msgid "Increase min players"
 msgstr "Aumenta il numero minimo di giocatori"
 
+msgid "Information updated"
+msgstr "Informazioni aggiornate"
+
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Invalid date or time"
 msgstr "Data o ora non valida"
@@ -3395,7 +3529,10 @@ msgstr "Data o ora non valida"
 msgid "Invalid event time zone. Reload the event and try again."
 msgstr "Fuso orario dell'evento non valido. Ricarica l'evento e riprova."
 
-#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Invitation awaiting a response"
+msgstr "Invito in attesa di risposta"
+
+#: apps/web/src/components/events/EventSeatListHeading.tsx
 msgid "Invitation pending"
 msgstr "Invito in attesa"
 
@@ -3410,6 +3547,9 @@ msgstr "Invito ricevuto"
 msgid "Invitation unavailable"
 msgstr "Invito non disponibile"
 
+msgid "Invitation updated"
+msgstr "Invito aggiornato"
+
 #: apps/web/src/components/groups/Groups.tsx
 msgid "Invitations"
 msgstr "Inviti"
@@ -3421,6 +3561,10 @@ msgstr "Gli inviti sono disponibili solo per i gruppi privati."
 #: apps/web/src/components/events/EventInvitationPicker.tsx
 msgid "Invitations are unavailable. Refresh the event."
 msgstr "Inviti non disponibili. Aggiorna l'evento."
+
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "Invitations remain unread until you respond."
+msgstr "Gli inviti restano non letti fino alla tua risposta."
 
 #: apps/web/src/components/groups/GroupMembers.tsx
 #: apps/web/src/components/groups/GroupPeoplePicker.tsx
@@ -3571,6 +3715,10 @@ msgstr "Variazione dell'ultima partita classificata"
 msgid "Last successful sync"
 msgstr "Ultima sincronizzazione riuscita"
 
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Later"
+msgstr "Più tardi"
+
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Leaderboards"
@@ -3678,6 +3826,8 @@ msgstr "Caricamento profilo"
 #: apps/web/src/components/events/EventTableCardIndicators.tsx
 #: apps/web/src/components/events/EventTableScheduleCard.tsx
 #: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
 msgid "Loading…"
 msgstr "Caricamento…"
 
@@ -3706,6 +3856,9 @@ msgstr "Mappa del luogo"
 msgid "Location name"
 msgstr "Nome del luogo"
 
+msgid "Location options changed"
+msgstr "Luoghi proposti modificati"
+
 #: apps/web/src/components/locations/SearchLocationPage.tsx
 msgid "Location permission denied"
 msgstr "Accesso alla posizione negato"
@@ -3722,6 +3875,9 @@ msgstr "Scelta del luogo"
 msgid "Location unavailable"
 msgstr "Posizione non disponibile"
 
+msgid "Location updated"
+msgstr "Luogo aggiornato"
+
 #: apps/web/src/components/matches/Matches.tsx
 msgid "locations"
 msgstr "location"
@@ -3735,6 +3891,18 @@ msgstr "Luoghi"
 #: apps/web/src/components/events/EventCardSchedule.tsx
 msgid "Locations to agree"
 msgstr "Luoghi da concordare"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Lock player"
+msgstr "Blocca giocatore"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Locked places stay fixed. Move unlocked players or pending invitations between seats and the waiting list. Manual mode preserves empty places; Assisted may rearrange unlocked players."
+msgstr "I posti bloccati restano fissi. Sposta i giocatori non bloccati o gli invitati in attesa tra i posti e la lista d’attesa. La modalità Manuale mantiene i posti vuoti; Assistita può riordinare i giocatori non bloccati."
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Locked players are protected from assistance. Unlock a player before moving them. Pending invitations keep their reserved places."
+msgstr "I giocatori bloccati sono protetti dall'assistenza. Sblocca un giocatore prima di spostarlo. Gli inviti in attesa mantengono i posti riservati."
 
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Logout"
@@ -3765,9 +3933,30 @@ msgstr "Gestisci partecipante"
 msgid "Management"
 msgstr "Gestione"
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Managers arrange the seats; confirmation is always manual."
+msgstr "I gestori organizzano i posti; la conferma è sempre manuale."
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Manual"
+msgstr "Manuale"
+
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Manual duration in minutes"
 msgstr "Durata manuale in minuti"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Manual planning keeps the current seats. Every seated player must agree before a manager can confirm."
+msgstr "La pianificazione manuale mantiene i posti attuali. Tutti i giocatori seduti devono essere d'accordo prima della conferma di un gestore."
+
+msgid "Manual: managers arrange the seats. Assisted: the app seeks agreement and arranges players automatically. Both apply to every table, protect locked seats and pending invitations, compact the queue after departures, and require manual confirmation."
+msgstr "Manuale: i gestori organizzano i posti. Assistita: l’app cerca la concordia e organizza i giocatori automaticamente. Entrambe valgono per tutti i tavoli, proteggono posti bloccati e inviti pendenti, compattano la coda dopo le uscite e richiedono una conferma manuale."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Manual: managers assign places and preserve empty seats. Assisted: the app seeks agreement and may rearrange unlocked players. Locked places stay fixed in both modes, including after departures. Pending invitations keep their consent status. Confirmation is always manual."
+msgstr "Manuale: gli amministratori assegnano i posti e mantengono quelli vuoti. Assistita: l’app cerca un accordo e può riordinare i giocatori non bloccati. I posti bloccati restano fissi in entrambe le modalità, anche dopo le uscite. Gli inviti in attesa restano da confermare. La conferma è sempre manuale."
 
 msgid "Map by MapTiler"
 msgstr "Mappa di MapTiler"
@@ -3781,10 +3970,16 @@ msgstr "Mappa non disponibile"
 msgid "Mark all as read"
 msgstr "Segna tutte come lette"
 
-#: apps/web/src/components/notifications/NotificationItem.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "Mark all changes as read"
+msgstr "Segna tutte le modifiche come lette"
+
 #: apps/web/src/components/notifications/NotificationsPage.tsx
 msgid "Mark as read"
 msgstr "Segna come letta"
+
+msgid "Mark displayed changes as read"
+msgstr "Segna come letti gli aggiornamenti visualizzati"
 
 #: apps/web/src/components/community/Community.tsx
 #: apps/web/src/components/community/CommunityMarketplace.tsx
@@ -3855,6 +4050,14 @@ msgstr "Massimo"
 msgid "Max must be at least min"
 msgstr "Il massimo deve essere almeno uguale al minimo"
 
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Maximize participation before preferring BGG player-count recommendations."
+msgstr "Massimizza la partecipazione prima di preferire i numeri di giocatori consigliati da BGG."
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Maximize the number of players."
+msgstr "Massimizza il numero di giocatori."
+
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 #: apps/web/src/components/events/EventTableCardIndicators.tsx
@@ -3913,6 +4116,9 @@ msgstr "Appartenenza in attesa. Eventi, classifiche e azioni sociali del gruppo 
 msgid "Membership requested"
 msgstr "Adesione richiesta"
 
+msgid "Membership updated"
+msgstr "Adesione al gruppo aggiornata"
+
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Min"
 msgstr "Minimo"
@@ -3940,6 +4146,10 @@ msgstr "Destinazione della selezione mancante"
 msgid "Mobile number"
 msgstr "Numero di cellulare"
 
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Mode"
+msgstr "Modalità"
+
 #: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
@@ -3951,6 +4161,9 @@ msgstr "Moderatore"
 msgid "Moderator access required"
 msgstr "Accesso riservato ai moderatori"
 
+msgid "More changes"
+msgstr "Altri aggiornamenti"
+
 #: apps/web/src/components/groups/Groups.tsx
 msgid "More group actions"
 msgstr "Altre azioni gruppo"
@@ -3959,10 +4172,21 @@ msgstr "Altre azioni gruppo"
 msgid "More match actions"
 msgstr "Altre azioni partita"
 
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "More players"
+msgstr "Più giocatori"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/TableScoreEditor.tsx
 msgid "Move down"
 msgstr "Sposta giù"
 
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Move to waiting list"
+msgstr "Sposta in lista d’attesa"
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/TableScoreEditor.tsx
 msgid "Move up"
 msgstr "Sposta su"
@@ -4000,6 +4224,10 @@ msgstr "Da verificare"
 
 msgid "Network"
 msgstr "Rete"
+
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "New changes"
+msgstr "Aggiornamenti"
 
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
@@ -4204,6 +4432,10 @@ msgstr "Nessuna partita — crea la prima!"
 msgid "No members found"
 msgstr "Nessun membro trovato"
 
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "No new changes"
+msgstr "Nessuna nuova modifica"
+
 #: apps/web/src/components/notifications/NotificationBell.tsx
 #: apps/web/src/components/notifications/NotificationsPage.tsx
 msgid "No notifications yet"
@@ -4368,10 +4600,12 @@ msgstr "Numero giocatori"
 msgid "Number of tables"
 msgstr "Numero tavoli"
 
+#: apps/web/src/components/common/ui/UserAvatar.tsx
 #: apps/web/src/components/contacts/ContactLegend.tsx
 msgid "Offline"
 msgstr "Offline"
 
+#: apps/web/src/components/common/ui/UserAvatar.tsx
 #: apps/web/src/components/contacts/ContactLegend.tsx
 msgid "Online"
 msgstr "Online"
@@ -4400,9 +4634,17 @@ msgstr "Solo i membri confermati dell’organizzazione possono vedere i giocator
 msgid "Only seated participants may submit proposals. Managers review each proposal before it becomes an option."
 msgstr "Solo i partecipanti con un posto al tavolo possono inviare proposte. I gestori valutano ogni proposta prima che diventi un’opzione."
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Only seated participants may submit proposals. Proposals are reviewed before they become options."
+msgstr "Solo i partecipanti con un posto al tavolo possono inviare proposte. Le proposte vengono valutate prima di diventare opzioni."
+
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Only seated players may propose games for this table. Managers review each proposal."
 msgstr "Solo i giocatori con un posto a questo tavolo possono proporre giochi. I gestori valutano ogni proposta."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Only seated players may propose games for this table. Proposals are reviewed before they become options."
+msgstr "Solo i giocatori con un posto a questo tavolo possono proporre giochi. Le proposte vengono valutate prima di diventare opzioni."
 
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Only the admin can invite players to a private match."
@@ -4412,7 +4654,7 @@ msgstr "Solo l'admin può invitare giocatori a un match privato."
 msgid "Only the finalized event, tables and results will be visible. Group details stay hidden. This choice cannot be changed after finalization."
 msgstr "Saranno visibili solo l’evento concluso, i tavoli e i risultati. I dettagli del gruppo restano nascosti. Questa scelta non può essere modificata dopo la finalizzazione."
 
-#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventSeatListHeading.tsx
 msgid "Only the organizer and recipient can see pending invitation identities."
 msgstr "Solo l'organizzatore e il destinatario possono vedere le identità degli inviti in attesa."
 
@@ -4605,6 +4847,10 @@ msgstr "I partecipanti con un posto confermato in almeno un tavolo attivo vengon
 msgid "Participants' collections"
 msgstr "Collezioni dei partecipanti"
 
+#: apps/web/src/components/events/Events.tsx
+msgid "Participation"
+msgstr "Partecipazione"
+
 #: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "Participation is limited to authorized group members or invited users."
 msgstr "La partecipazione è riservata ai membri autorizzati del gruppo o agli utenti invitati."
@@ -4613,6 +4859,9 @@ msgstr "La partecipazione è riservata ai membri autorizzati del gruppo o agli u
 #: apps/web/src/components/events/EventTableSeats.tsx
 msgid "Participation requested"
 msgstr "Partecipazione richiesta"
+
+msgid "Participation updated"
+msgstr "Partecipazione aggiornata"
 
 #: apps/web/src/components/events/Events.tsx
 #: apps/web/src/components/events/Tables.tsx
@@ -4631,7 +4880,7 @@ msgstr "In attesa"
 msgid "Pending invitations"
 msgstr "Inviti in attesa"
 
-#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventSeatListHeading.tsx
 msgid "Pending invitations reserve a place but do not vote or count toward agreement."
 msgstr "Gli inviti in sospeso riservano un posto, ma non votano e non contano per l'accordo."
 
@@ -4658,14 +4907,17 @@ msgstr "Giocatori in sospeso, inclusi i posti riservati in lista d'attesa."
 msgid "Pending tables"
 msgstr "In attesa"
 
+#: apps/web/src/components/common/ui/UserRelationshipBadge.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "People who follow you."
 msgstr "Persone che ti seguono."
 
+#: apps/web/src/components/common/ui/UserRelationshipBadge.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "People you follow."
 msgstr "Persone che segui."
 
+#: apps/web/src/components/common/ui/UserRelationshipBadge.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "People you have blocked."
 msgstr "Persone che hai bloccato."
@@ -4717,9 +4969,12 @@ msgstr "Piano:"
 #: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/components/events/EventList.tsx
 #: apps/web/src/components/events/EventTableCardIndicators.tsx
-#: apps/web/src/components/events/TableList.tsx
 msgid "Planning"
 msgstr "In pianificazione"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Planning mode"
+msgstr "Modalità di pianificazione"
 
 #: apps/web/src/components/profile/Profile.tsx
 #~ msgid "Played"
@@ -4729,6 +4984,10 @@ msgstr "In pianificazione"
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Player"
 msgstr "Giocatore"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Player count"
+msgstr "Numero di giocatori"
 
 #: apps/web/src/components/events/EventTableCardIndicators.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
@@ -4750,15 +5009,23 @@ msgstr "Giocatore con invito pendente"
 
 #: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventPlanningSettings.tsx
 #: apps/web/src/components/events/EventResultTableCard.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Players"
 msgstr "Giocatori"
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically."
+msgstr "Giocatori privilegia il maggior numero di partecipanti. BGG Best privilegia il numero di giocatori preferito dalla community BGG e consente di ridurre i giocatori seduti in modalità Assistita. La modalità Manuale non rimuove mai giocatori automaticamente."
 
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Players remain in this match until they leave or are removed."
 msgstr "I giocatori restano in questa partita finché non escono o vengono rimossi."
 
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/EventTableResults.tsx
+#: apps/web/src/components/ratings/ScoreIdentity.tsx
 msgid "Position"
 msgstr "Posizione"
 
@@ -4778,6 +5045,25 @@ msgstr "Powered by BGG — apri BoardGameGeek"
 msgid "Powered by BoardGameGeek"
 msgstr "Con il supporto di BoardGameGeek"
 
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Prefer BGG Best player counts. Allow reduction for Best explicitly permits assistance to reduce the seated group; locked players remain protected."
+msgstr "Preferisce i numeri di giocatori Best di BGG. Consenti riduzione per Best autorizza esplicitamente l'assistenza a ridurre il gruppo seduto; i giocatori bloccati restano protetti."
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Prefer BGG's ideal player count, allowing fewer players in Assisted planning."
+msgstr "Privilegia il numero ideale BGG, consentendo meno giocatori in modalità Assistita."
+
+msgid "Prefer the player count rated Best by the BGG community. Selecting BGG Best allows Assisted planning to reduce the seated group to reach that count. Locked seats and pending invitations remain protected; Manual planning never removes players automatically."
+msgstr "Privilegia il numero di giocatori valutato Best dalla community BGG. Scegliendo BGG Best, la modalità Assistita può ridurre i giocatori seduti per raggiungere quel numero. I posti bloccati e gli inviti pendenti restano protetti; la modalità Manuale non rimuove mai giocatori automaticamente."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "Preference"
+msgstr "Preferenza"
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Preserve seated players"
+msgstr "Mantieni i giocatori seduti"
+
 #: apps/web/src/components/events/EventProposalSection.tsx
 msgid "Previous"
 msgstr "Indietro"
@@ -4791,6 +5077,7 @@ msgid "Previous step"
 msgstr "Passaggio precedente"
 
 #: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 #: apps/web/src/components/groups/GroupDetailsCard.tsx
 #: apps/web/src/components/groups/GroupVisibilityPicker.tsx
@@ -4801,7 +5088,7 @@ msgstr "Privato"
 msgid "Private event"
 msgstr "Evento privato"
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
 msgid "Private events are visible only to accepted group members. Public-group scheduling rules still apply."
 msgstr "Gli eventi privati sono visibili solo ai membri accettati del gruppo. Restano valide le regole di pianificazione dei gruppi pubblici."
 
@@ -4848,6 +5135,9 @@ msgstr "Profilo non disponibile"
 msgid "Proposal details"
 msgstr "Dettagli proposta"
 
+msgid "Proposal updated"
+msgstr "Proposta aggiornata"
+
 #: apps/web/src/components/events/EventProposalEditor.tsx
 msgid "Proposals require an enabled category and your own seated participation in a private planning event."
 msgstr "Le proposte richiedono una categoria abilitata e un tuo posto a un tavolo di un evento privato in pianificazione."
@@ -4866,8 +5156,16 @@ msgid "Propose dates and times for members to vote on. Times are local to the ch
 msgstr "Proponi date e orari da sottoporre al voto dei membri. Gli orari sono locali al luogo scelto."
 
 #: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Propose dates and times for participants to vote on. Times are local to the chosen location."
+msgstr "Proponi date e orari da far votare ai partecipanti. Gli orari sono locali al luogo scelto."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Propose verified addresses for members to vote on. Each location determines its local time zone."
 msgstr "Proponi indirizzi verificati da sottoporre al voto dei membri. Ogni luogo determina il proprio fuso orario."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Propose verified addresses for participants to vote on. Each location determines its local time zone."
+msgstr "Proponi indirizzi verificati da far votare ai partecipanti. Ogni luogo determina il proprio fuso orario."
 
 #: apps/web/src/components/events/EventProposalReviewDialog.tsx
 msgid "Proposed by"
@@ -4899,6 +5197,7 @@ msgid "Provisional rating"
 msgstr "Ranking provvisorio"
 
 #: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 #: apps/web/src/components/groups/GroupDetailsCard.tsx
 #: apps/web/src/components/groups/GroupVisibilityPicker.tsx
@@ -4906,7 +5205,6 @@ msgid "Public"
 msgstr "Pubblico"
 
 #: apps/web/src/components/events/EventCardIndicators.tsx
-#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Public event"
 msgstr "Evento pubblico"
 
@@ -4917,6 +5215,14 @@ msgstr "Evento pubblico. Non è necessario iscriversi al gruppo per partecipare.
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Public events have a fixed day and venue. Cutoff and duration constraints apply to players and demonstrators."
 msgstr "Gli eventi pubblici hanno giorno e luogo fissi. Il termine delle iscrizioni e i vincoli di durata si applicano a giocatori e dimostratori."
+
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
+msgid "Public events require an approved public group."
+msgstr "Gli eventi pubblici richiedono un gruppo pubblico approvato."
+
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
+msgid "Public events require an approved public group. Private events remain private when you change groups."
+msgstr "Gli eventi pubblici richiedono un gruppo pubblico approvato. Gli eventi privati rimangono privati quando cambi gruppo."
 
 #: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Public group"
@@ -4933,6 +5239,10 @@ msgstr "Pubblici"
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 msgid "Public groups accept membership requests."
 msgstr "I gruppi pubblici accettano richieste di adesione."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Public groups allow one date and one location and do not allow participant proposals. Keep the first options and disable proposals?"
+msgstr "I gruppi pubblici consentono una sola data e un solo luogo e non consentono proposte dei partecipanti. Mantenere le prime opzioni e disattivare le proposte?"
 
 #: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Public groups require a logo, verified venue and approval. Group type cannot be changed."
@@ -4989,7 +5299,6 @@ msgstr "Ranking attivo"
 msgid "Rated tables update player ratings after final results. At least two players must have a score."
 msgstr "I tavoli con ranking attivo aggiornano le valutazioni dopo i risultati finali. Almeno due giocatori devono avere un punteggio."
 
-#: apps/web/src/components/events/EventTableRatingBadge.tsx
 #: apps/web/src/components/events/EventTableRatingInfo.tsx
 msgid "Rating"
 msgstr "Rating"
@@ -5010,12 +5319,10 @@ msgstr "Variazione ranking"
 msgid "Rating decreased"
 msgstr "Rating diminuito"
 
-#: apps/web/src/components/events/EventTableRatingBadge.tsx
 #: apps/web/src/components/events/EventTableRatingInfo.tsx
 msgid "Rating disabled"
 msgstr "Classifica disattivata"
 
-#: apps/web/src/components/events/EventTableRatingBadge.tsx
 #: apps/web/src/components/events/EventTableRatingInfo.tsx
 msgid "Rating enabled"
 msgstr "Classifica attiva"
@@ -5237,6 +5544,11 @@ msgstr "Riapri pianificazione"
 msgid "Reopen planning? Pending invitees will regain access and accepted players will be notified."
 msgstr "Riaprire la pianificazione? Gli invitati in attesa riavranno accesso e i giocatori che hanno accettato riceveranno una notifica."
 
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Reorder seats"
+msgstr "Riordina posti"
+
 #: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
 msgid "Reply required"
 msgstr "Risposta richiesta"
@@ -5328,6 +5640,10 @@ msgstr "Rispondi alla richiesta di partecipazione"
 msgid "Respond to table invitation"
 msgstr "Rispondi all’invito al tavolo"
 
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Restarting the app…"
+msgstr "Riavvio dell’app in corso…"
+
 #: apps/web/src/components/events/EventTable.tsx
 #: apps/web/src/components/events/EventTableResults.tsx
 msgid "Results"
@@ -5361,6 +5677,10 @@ msgstr "Revisione completata"
 msgid "Review event"
 msgstr "Riepilogo dell'evento"
 
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Review latest roster"
+msgstr "Verifica l'elenco aggiornato"
+
 #: apps/web/src/components/organizations/OrganizationModeration.tsx
 #: apps/web/src/components/organizations/OrganizationReview.tsx
 msgid "Review organization"
@@ -5378,6 +5698,9 @@ msgstr "Rivedi le impostazioni del tavolo"
 #: apps/web/src/components/events/EventProposalSection.tsx
 msgid "Review unsent proposal"
 msgstr "Rivedi proposta non inviata"
+
+msgid "Review updated"
+msgstr "Revisione aggiornata"
 
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Revoke exclusion"
@@ -5422,6 +5745,10 @@ msgstr "Salvare il risultato?"
 #: apps/web/src/components/events/EventFinalizeAction.tsx
 msgid "Save results for every included table before finalizing. Excluded tables do not require results."
 msgstr "Salva i risultati di tutti i tavoli inclusi prima di finalizzare. I tavoli esclusi non richiedono risultati."
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Save seat order"
+msgstr "Salva ordine dei posti"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
 msgid "Save table"
@@ -5570,6 +5897,9 @@ msgstr "Cerca utenti"
 msgid "Search users by name or email"
 msgstr "Cerca utenti per nome o email"
 
+msgid "Seat order saved"
+msgstr "Ordine dei posti salvato"
+
 #: apps/web/src/components/events/EventTableSummaryCard.tsx
 msgid "Seated accepted players / minimum required"
 msgstr "Giocatori accettati con posto / minimo richiesto"
@@ -5582,6 +5912,8 @@ msgstr "I giocatori con un posto concordano su data e luogo, ma non sul gioco. M
 msgid "Seats"
 msgstr "Posti"
 
+#: apps/web/src/components/events/EventSeatListHeading.tsx
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/EventTableSeats.tsx
 msgid "Seats list"
 msgstr "Lista posti"
@@ -5683,7 +6015,9 @@ msgstr "Imposta una capienza superiore al numero minimo di giocatori."
 msgid "Set the table capacity at or above the minimum number of players."
 msgstr "Imposta la capienza del tavolo uguale o superiore al numero minimo di giocatori."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/components/events/EventTableInfo.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Settings"
 msgstr "Impostazioni"
 
@@ -5755,17 +6089,24 @@ msgstr "Le opzioni uniche si accettano con l'iscrizione. Solo le categorie con p
 msgid "Someone"
 msgstr "Qualcuno"
 
+#: apps/web/src/app/global-error.tsx
+msgid "Something went wrong"
+msgstr "Si è verificato un errore"
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 #~ msgid "Standings"
 #~ msgstr "Classifica"
 
-#: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Start / end time"
+msgstr "Orari di inizio / fine"
+
+#: apps/web/src/components/events/EventDetail.tsx
 msgid "Start Date and Time"
 msgstr "Data e ora di inizio"
 
 #: apps/web/src/components/common/ui/DateTimeInfo.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Start time"
 msgstr "Ora di inizio"
 
@@ -5831,6 +6172,7 @@ msgid "Syncing BoardGameGeek collection"
 msgstr "Sincronizzazione della collezione BoardGameGeek in corso"
 
 #: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventWizard.tsx
 msgid "Table"
 msgstr "Tavolo"
 
@@ -5885,6 +6227,9 @@ msgstr "Posti tavolo"
 msgid "Table sections"
 msgstr "Sezioni del tavolo"
 
+msgid "Table settings updated"
+msgstr "Impostazioni del tavolo aggiornate"
+
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Table start"
 msgstr "Inizio tavolo"
@@ -5897,6 +6242,9 @@ msgstr "L'inizio del tavolo deve essere successivo all'inizio dell'evento e prec
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Tables"
 msgstr "Tavoli"
+
+msgid "Tables changed"
+msgstr "Tavoli modificati"
 
 #: apps/web/src/components/events/EventResults.tsx
 msgid "Tables list"
@@ -5921,6 +6269,14 @@ msgstr "Terminati"
 #: apps/web/src/components/events/TableList.tsx
 msgid "Terminated tables"
 msgstr "Terminati"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "The app could not restart. Try again or choose Later."
+msgstr "Impossibile riavviare l’app. Riprova o scegli Più tardi."
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "The app seeks agreement while protecting seated players; confirmation is always manual."
+msgstr "L'app cerca la concordia proteggendo i giocatori seduti; la conferma è sempre manuale."
 
 #: apps/web/src/components/matches/MatchListLegend.tsx
 msgid "The calendar identifies a table belonging to an event."
@@ -5954,9 +6310,17 @@ msgstr "La data e gli orari di inizio e fine sono mostrati nel fuso orario dell'
 msgid "The event day and this table's start and end times are fixed. There is no voting."
 msgstr "Il giorno dell’evento e gli orari di inizio e fine del tavolo sono fissi. Non si vota."
 
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "The event has been cancelled."
+msgstr "L’evento è stato annullato."
+
 #: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "The event has been confirmed."
 msgstr "L’evento è confermato."
+
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+msgid "The event has ended. Results are available."
+msgstr "L’evento è terminato. I risultati sono disponibili."
 
 #: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "The event has finished. Results are immutable."
@@ -6014,6 +6378,14 @@ msgstr "Il nome e il logo identificano l'organizzazione. Il badge indica lo stat
 msgid "The organization's verified venue and full address."
 msgstr "La sede e l'indirizzo completo verificati dell'organizzazione."
 
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "The organizer has no automatic playing seat."
+msgstr "L’organizzatore non occupa automaticamente un posto al tavolo."
+
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "The roster changed. Review a fresh snapshot before saving."
+msgstr "L'elenco dei giocatori è cambiato. Verifica l'elenco aggiornato prima di salvare."
+
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "The sent friend request will be removed."
 msgstr "La richiesta di amicizia inviata verrà rimossa."
@@ -6030,6 +6402,14 @@ msgstr "Il tavolo è terminato. I risultati sono immutabili."
 msgid "The table is being planned. Dates, locations and games are still proposals."
 msgstr "Il tavolo è in pianificazione. Date, luoghi e giochi sono ancora proposte."
 
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "The update could not be downloaded. Try again or choose Later."
+msgstr "Impossibile scaricare l’aggiornamento. Riprova o scegli Più tardi."
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "The update is downloaded. Restart when you are ready."
+msgstr "L’aggiornamento è stato scaricato. Riavvia quando vuoi."
+
 #: apps/web/src/components/events/EventOverview.tsx
 msgid "The verified venue and address where the event takes place."
 msgstr "Il luogo e l'indirizzo verificati in cui si svolge l'evento."
@@ -6041,6 +6421,10 @@ msgstr "Questi punteggi sono provvisori. Nulla viene salvato finché non finaliz
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 msgid "These changes were rejected."
 msgstr "Queste modifiche sono state rifiutate."
+
+#: apps/web/src/components/events/EventPlanningSettings.tsx
+msgid "These settings apply to every table. Confirmation is always manual. Pending invitations keep their reserved positions. Locked players keep their exact seats; departures and removals compact everyone and promote the queue."
+msgstr "Queste opzioni si applicano a tutti i tavoli. La conferma è sempre manuale. Gli inviti in attesa mantengono le posizioni riservate. I giocatori bloccati mantengono il posto esatto; uscite e rimozioni compattano tutti e promuovono la coda."
 
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "They can accept or decline your request."
@@ -6058,7 +6442,7 @@ msgstr "Questo contatto non sarà più bloccato."
 msgid "This deletes the match and all invitations. This action cannot be undone."
 msgstr "Questa operazione elimina la partita e tutti gli inviti. Non può essere annullata."
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "This event belongs to this group. The group cannot be changed."
 msgstr "L’evento appartiene a questo gruppo. Il gruppo non può essere modificato."
@@ -6198,18 +6582,19 @@ msgstr "Oggi"
 msgid "Toggle menu"
 msgstr "Attiva/disattiva menu"
 
+#: apps/web/src/app/global-error.tsx
 #: apps/web/src/components/community/CommunityActivities.tsx
 #: apps/web/src/components/contacts/PeoplePicker.tsx
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventGroupLink.tsx
 #: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/events/EventInformationFields.tsx
 #: apps/web/src/components/events/EventJoinSheet.tsx
 #: apps/web/src/components/events/EventList.tsx
 #: apps/web/src/components/events/EventParticipants.tsx
 #: apps/web/src/components/events/EventProposalEditor.tsx
 #: apps/web/src/components/events/EventProposalSection.tsx
 #: apps/web/src/components/events/EventResults.tsx
-#: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/events/EventTable.tsx
 #: apps/web/src/components/events/EventTableOverview.tsx
 #: apps/web/src/components/events/EventTableResults.tsx
@@ -6226,6 +6611,7 @@ msgstr "Attiva/disattiva menu"
 #: apps/web/src/components/groups/GroupReview.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
 #: apps/web/src/components/notifications/NotificationAttentionScope.tsx
+#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
 #: apps/web/src/components/notifications/NotificationsPage.tsx
 #: apps/web/src/components/profile/Profile.tsx
 #: apps/web/src/components/profile/ProfileActivities.tsx
@@ -6284,6 +6670,10 @@ msgstr "Non indicato"
 msgid "Unloaded tables are retained. Only explicit removals delete tables."
 msgstr "I tavoli non caricati vengono conservati. Saranno eliminati soltanto quelli rimossi esplicitamente."
 
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
+msgid "Unlock player"
+msgstr "Sblocca giocatore"
+
 #: apps/web/src/components/games/GameCatalogMetadata.tsx
 msgid "Unranked"
 msgstr "Non classificato"
@@ -6296,6 +6686,14 @@ msgstr "Ranking disattivo"
 #: apps/web/src/components/common/ui/NotificationUnreadDot.tsx
 msgid "Unread updates"
 msgstr "Novità non lette"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Update and restart"
+msgstr "Aggiorna e riavvia"
+
+#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
+msgid "Update now, or choose Later to be reminded the next time you start the app."
+msgstr "Aggiorna ora o scegli Più tardi per visualizzare l’avviso al prossimo avvio dell’app."
 
 #: apps/web/src/components/community/CommunityActivities.tsx
 msgid "Updates from friends and people you follow, since your connection began."
@@ -6342,7 +6740,9 @@ msgid "User unfollowed"
 msgstr "Utente non più seguito"
 
 #: apps/web/src/components/events/EventParticipants.tsx
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/EventTableResults.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
 #: apps/web/src/components/groups/GroupMemberActions.tsx
 #: apps/web/src/components/groups/GroupMembers.tsx
 #: apps/web/src/components/ratings/ScoreIdentity.tsx
@@ -6444,6 +6844,8 @@ msgid "Waiting"
 msgstr "In attesa"
 
 #: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+#: apps/web/src/components/events/EventSeatListHeading.tsx
+#: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/EventTableCardIndicators.tsx
 #: apps/web/src/components/events/EventTableSeats.tsx
 #: apps/web/src/components/events/TableListHeading.tsx
@@ -6454,7 +6856,7 @@ msgstr "Lista d'attesa"
 msgid "Welcome to Board Game Organizer"
 msgstr "Benvenuto in Board Game Organizer"
 
-#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventSeatListHeading.tsx
 msgid "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves."
 msgstr "Quando tutti i posti sono riservati, i nuovi giocatori entrano nella lista d'attesa. La priorità viene mantenuta e un posto può liberarsi quando un altro giocatore lascia il tavolo."
 
@@ -6488,6 +6890,10 @@ msgstr "Perché questo posto è riservato?"
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Win %"
 msgstr "% di vittorie"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Win percentage"
+msgstr "Percentuale di vittorie"
 
 #: apps/web/src/components/events/EventTableCard.tsx
 msgid "Winner"
@@ -6632,353 +7038,3 @@ msgstr "Il tuo posto riservato tornerà disponibile."
 
 msgid "YYYY-MM-DDTHH:mm"
 msgstr "AAAA-MM-GGTHH:mm"
-
-msgid "Win percentage"
-msgstr "Percentuale di vittorie"
-
-msgid "Date updated"
-msgstr "Data aggiornata"
-
-msgid "Date options changed"
-msgstr "Date proposte modificate"
-
-msgid "Location updated"
-msgstr "Luogo aggiornato"
-
-msgid "Location options changed"
-msgstr "Luoghi proposti modificati"
-
-msgid "Game updated"
-msgstr "Gioco aggiornato"
-
-msgid "Games changed"
-msgstr "Giochi modificati"
-
-msgid "Table settings updated"
-msgstr "Impostazioni del tavolo aggiornate"
-
-msgid "Tables changed"
-msgstr "Tavoli modificati"
-
-msgid "Group information updated"
-msgstr "Informazioni del gruppo aggiornate"
-
-msgid "Membership updated"
-msgstr "Adesione al gruppo aggiornata"
-
-msgid "Participation updated"
-msgstr "Partecipazione aggiornata"
-
-msgid "Event updated"
-msgstr "Evento aggiornato"
-
-msgid "Invitation awaiting a response"
-msgstr "Invito in attesa di risposta"
-
-msgid "Invitation updated"
-msgstr "Invito aggiornato"
-
-msgid "Proposal updated"
-msgstr "Proposta aggiornata"
-
-msgid "Review updated"
-msgstr "Revisione aggiornata"
-
-msgid "Information updated"
-msgstr "Informazioni aggiornate"
-
-msgid "New changes"
-msgstr "Aggiornamenti"
-
-msgid "Changes"
-msgstr "Modifiche"
-
-msgid "Invitations remain unread until you respond."
-msgstr "Gli inviti restano non letti fino alla tua risposta."
-
-msgid "Could not mark changes as read. Try again."
-msgstr "Impossibile segnare gli aggiornamenti come letti. Riprova."
-
-msgid "Could not load changes. Try again."
-msgstr "Impossibile caricare gli aggiornamenti. Riprova."
-
-msgid "More changes"
-msgstr "Altri aggiornamenti"
-
-msgid "Mark displayed changes as read"
-msgstr "Segna come letti gli aggiornamenti visualizzati"
-
-#: apps/web/src/components/events/EventInformationFields.tsx
-msgid "Change group"
-msgstr "Cambia gruppo"
-
-#: apps/web/src/components/events/EventScheduleFields.tsx
-msgid "Choose the day of the event. Start and end times are on this same day."
-msgstr "Scegli il giorno dell’evento. Gli orari di inizio e fine sono nello stesso giorno."
-
-#: apps/web/src/components/events/EventWizardSummary.tsx
-msgid "Date and start/end time"
-msgstr "Data e orari di inizio/fine"
-
-#: apps/web/src/components/events/EventWizard.tsx
-msgid "Dates / Locations"
-msgstr "Date / Luoghi"
-
-#: apps/web/src/components/events/EventVisibilityPicker.tsx
-msgid "Event visibility"
-msgstr "Visibilità dell’evento"
-
-#: apps/web/src/components/events/EventVisibilityPicker.tsx
-msgid "Event visibility cannot be changed after creation."
-msgstr "La visibilità dell’evento non può essere modificata dopo la creazione."
-
-#: apps/web/src/components/events/EventScheduleFields.tsx
-msgid "Only seated participants may submit proposals. Proposals are reviewed before they become options."
-msgstr "Solo i partecipanti con un posto al tavolo possono inviare proposte. Le proposte vengono valutate prima di diventare opzioni."
-
-#: apps/web/src/components/events/EventDraftTableEditor.tsx
-msgid "Only seated players may propose games for this table. Proposals are reviewed before they become options."
-msgstr "Solo i giocatori con un posto a questo tavolo possono proporre giochi. Le proposte vengono valutate prima di diventare opzioni."
-
-#: apps/web/src/components/events/EventVisibilityPicker.tsx
-msgid "Public events require an approved public group."
-msgstr "Gli eventi pubblici richiedono un gruppo pubblico approvato."
-
-#: apps/web/src/components/events/EventVisibilityPicker.tsx
-msgid "Public events require an approved public group. Private events remain private when you change groups."
-msgstr "Gli eventi pubblici richiedono un gruppo pubblico approvato. Gli eventi privati rimangono privati quando cambi gruppo."
-
-#: apps/web/src/components/events/EventInformationFields.tsx
-msgid "Public groups allow one date and one location and do not allow participant proposals. Keep the first options and disable proposals?"
-msgstr "I gruppi pubblici consentono una sola data e un solo luogo e non consentono proposte dei partecipanti. Mantenere le prime opzioni e disattivare le proposte?"
-
-#: apps/web/src/components/events/EventScheduleFields.tsx
-msgid "Start / end time"
-msgstr "Orari di inizio / fine"
-
-#: apps/web/src/components/events/EventWizard.tsx
-msgid "The organizer has no automatic playing seat."
-msgstr "L’organizzatore non occupa automaticamente un posto al tavolo."
-
-#: apps/web/src/components/events/EventScheduleFields.tsx
-msgid "Propose dates and times for participants to vote on. Times are local to the chosen location."
-msgstr "Proponi date e orari da far votare ai partecipanti. Gli orari sono locali al luogo scelto."
-
-#: apps/web/src/components/events/EventScheduleFields.tsx
-msgid "Propose verified addresses for participants to vote on. Each location determines its local time zone."
-msgstr "Proponi indirizzi verificati da far votare ai partecipanti. Ogni luogo determina il proprio fuso orario."
-
-#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
-msgid "Event planning is ready for confirmation."
-msgstr "La pianificazione dell?evento ? pronta per la conferma."
-
-#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
-msgid "Event planning needs review. Check participant availability and votes."
-msgstr "La pianificazione dell?evento ? da verificare. Controlla disponibilit? e voti dei partecipanti."
-
-#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
-msgid "Event planning has reopened. Check dates, locations and votes."
-msgstr "La pianificazione dell?evento ? stata riaperta. Controlla date, luoghi e voti."
-
-#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
-msgid "The event has ended. Results are available."
-msgstr "L?evento ? terminato. I risultati sono disponibili."
-
-#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
-msgid "The event has been cancelled."
-msgstr "L?evento ? stato annullato."
-
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
-msgid "Allow reduction for Best"
-msgstr "Consenti riduzione per Best"
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-msgid "Assistance recalculates the allocation when planning changes. Switching to Assisted can change the allocation; confirmation always requires a manager."
-msgstr "L'assistenza ricalcola i posti quando cambia la pianificazione. Passare ad Assistita può modificare i posti; la conferma richiede sempre un gestore."
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
-msgid "Assisted"
-msgstr "Assistita"
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
-msgid "Could not save seat order"
-msgstr "Impossibile salvare l'ordine dei posti"
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
-msgid "Discard unsaved order"
-msgstr "Scarta ordine non salvato"
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
-msgid "Ideal count"
-msgstr "Numero ideale"
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
-msgid "Lock player"
-msgstr "Blocca giocatore"
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
-msgid "Locked players are protected from assistance. Unlock a player before moving them. Pending invitations keep their reserved places."
-msgstr "I giocatori bloccati sono protetti dall'assistenza. Sblocca un giocatore prima di spostarlo. Gli inviti in attesa mantengono i posti riservati."
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
-msgid "Manual"
-msgstr "Manuale"
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-msgid "Manual planning keeps the current seats. Every seated player must agree before a manager can confirm."
-msgstr "La pianificazione manuale mantiene i posti attuali. Tutti i giocatori seduti devono essere d'accordo prima della conferma di un gestore."
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-msgid "Maximize participation before preferring BGG player-count recommendations."
-msgstr "Massimizza la partecipazione prima di preferire i numeri di giocatori consigliati da BGG."
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
-msgid "More players"
-msgstr "Più giocatori"
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-msgid "Planning mode"
-msgstr "Modalità di pianificazione"
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-msgid "Player count"
-msgstr "Numero di giocatori"
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-msgid "Prefer BGG Best player counts. Allow reduction for Best explicitly permits assistance to reduce the seated group; locked players remain protected."
-msgstr "Preferisce i numeri di giocatori Best di BGG. Consenti riduzione per Best autorizza esplicitamente l'assistenza a ridurre il gruppo seduto; i giocatori bloccati restano protetti."
-
-#: apps/web/src/components/events/EventWizardSummary.tsx
-msgid "Preserve seated players"
-msgstr "Mantieni i giocatori seduti"
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
-#: apps/web/src/components/events/EventTableSeats.tsx
-msgid "Reorder seats"
-msgstr "Riordina posti"
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
-msgid "Review latest roster"
-msgstr "Verifica l'elenco aggiornato"
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
-msgid "Save seat order"
-msgstr "Salva ordine dei posti"
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
-msgid "The roster changed. Review a fresh snapshot before saving."
-msgstr "L'elenco dei giocatori è cambiato. Verifica l'elenco aggiornato prima di salvare."
-
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-msgid "These settings apply to every table. Confirmation is always manual. Pending invitations keep their reserved positions. Locked players keep their exact seats; departures and removals compact everyone and promote the queue."
-msgstr "Queste opzioni si applicano a tutti i tavoli. La conferma è sempre manuale. Gli inviti in attesa mantengono le posizioni riservate. I giocatori bloccati mantengono il posto esatto; uscite e rimozioni compattano tutti e promuovono la coda."
-
-#: apps/web/src/components/events/EventSeatOrderEditor.tsx
-msgid "Unlock player"
-msgstr "Sblocca giocatore"
-
-msgid "Seat order saved"
-msgstr "Ordine dei posti salvato"
-
-#. js-lingui-explicit-id
-msgid "organization.feedback.reorder_table_seats.success"
-msgstr "Ordine dei posti salvato"
-
-#. js-lingui-explicit-id
-msgid "organization.feedback.reorder_table_seats.error"
-msgstr "Impossibile salvare l'ordine dei posti"
-
-msgid "Ideal count (BGG Best)"
-msgstr "Numero ideale (BGG Best)"
-
-msgid "BGG Best"
-msgstr "BGG Best"
-
-msgid "BGG Best allows reducing the seated group in Assisted planning."
-msgstr "BGG Best consente di ridurre i giocatori nella modalità Assistita."
-
-msgid "Managers arrange the seats; confirmation is always manual."
-msgstr "I gestori organizzano i posti; la conferma è sempre manuale."
-
-msgid "Maximize the number of players."
-msgstr "Massimizza il numero di giocatori."
-
-msgid "Prefer BGG's ideal player count, allowing fewer players in Assisted planning."
-msgstr "Privilegia il numero ideale BGG, consentendo meno giocatori in modalità Assistita."
-
-msgid "Prefer the player count rated Best by the BGG community. Selecting BGG Best allows Assisted planning to reduce the seated group to reach that count. Locked seats and pending invitations remain protected; Manual planning never removes players automatically."
-msgstr "Privilegia il numero di giocatori valutato Best dalla community BGG. Scegliendo BGG Best, la modalità Assistita può ridurre i giocatori seduti per raggiungere quel numero. I posti bloccati e gli inviti pendenti restano protetti; la modalità Manuale non rimuove mai giocatori automaticamente."
-
-msgid "The app seeks agreement while protecting seated players; confirmation is always manual."
-msgstr "L'app cerca la concordia proteggendo i giocatori seduti; la conferma è sempre manuale."
-
-msgid "Mode"
-msgstr "Modalità"
-
-msgid "Preference"
-msgstr "Preferenza"
-
-msgid "Manual: managers arrange the seats. Assisted: the app seeks agreement and arranges players automatically. Both apply to every table, protect locked seats and pending invitations, compact the queue after departures, and require manual confirmation."
-msgstr "Manuale: i gestori organizzano i posti. Assistita: l’app cerca la concordia e organizza i giocatori automaticamente. Entrambe valgono per tutti i tavoli, proteggono posti bloccati e inviti pendenti, compattano la coda dopo le uscite e richiedono una conferma manuale."
-
-msgid "Players prioritizes the largest number of participants. BGG Best prioritizes the player count preferred by the BGG community and allows fewer seated players in Assisted mode. Manual mode never removes players automatically."
-msgstr "Giocatori privilegia il maggior numero di partecipanti. BGG Best privilegia il numero di giocatori preferito dalla community BGG e consente di ridurre i giocatori seduti in modalità Assistita. La modalità Manuale non rimuove mai giocatori automaticamente."
-
-msgid "Participation"
-msgstr "Partecipazione"
-
-#: apps/web/src/app/global-error.tsx
-msgid "Something went wrong"
-msgstr "Si è verificato un errore"
-
-#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
-msgid "An update is available"
-msgstr "È disponibile un aggiornamento"
-
-#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
-msgid "Update and restart"
-msgstr "Aggiorna e riavvia"
-
-#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
-msgid "Later"
-msgstr "Più tardi"
-
-#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
-msgid "Downloading the update…"
-msgstr "Download dell’aggiornamento in corso…"
-
-#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
-msgid "Restarting the app…"
-msgstr "Riavvio dell’app in corso…"
-
-#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
-msgid "The update could not be downloaded. Try again or choose Later."
-msgstr "Impossibile scaricare l’aggiornamento. Riprova o scegli Più tardi."
-
-#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
-msgid "The app could not restart. Try again or choose Later."
-msgstr "Impossibile riavviare l’app. Riprova o scegli Più tardi."
-
-#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
-msgid "The update is downloaded. Restart when you are ready."
-msgstr "L’aggiornamento è stato scaricato. Riavvia quando vuoi."
-
-#: apps/mobile/src/components/common/startup/OtaUpdateCoordinator.tsx
-msgid "Update now, or choose Later to be reminded the next time you start the app."
-msgstr "Aggiorna ora o scegli Più tardi per visualizzare l’avviso al prossimo avvio dell’app."
-
-#: apps/mobile/src/components/notifications/NotificationChangesPopover.tsx
-#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
-msgid "Mark all changes as read"
-msgstr "Segna tutte le modifiche come lette"
-
-#: apps/mobile/src/components/notifications/NotificationChangesPopover.tsx
-#: apps/web/src/components/notifications/NotificationChangesPopover.tsx
-msgid "No new changes"
-msgstr "Nessuna nuova modifica"

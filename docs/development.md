@@ -352,7 +352,8 @@ Web uses Lingui macros through `apps/web/babel.config.js`. Mobile uses `useT()` 
 from `apps/mobile/src/lib/i18n.ts`.
 
 Strings used only by mobile runtime helpers are invisible to Lingui extraction. Add them manually to
-both PO files, then compile.
+both PO files, then compile. Preserve these manually maintained entries when extraction marks them
+obsolete; absence from the default extractor does not mean a `useT()` message is unused.
 
 For dynamic web messages, use a descriptor with stable ID and values rather than a runtime template
 literal that produces a hashed fallback.

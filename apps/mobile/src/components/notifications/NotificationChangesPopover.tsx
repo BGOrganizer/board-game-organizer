@@ -15,44 +15,12 @@ import { useT } from "@/lib/i18n";
 
 type Model = ReturnType<typeof useNotificationChanges>;
 const key = (row: NotificationChangeRow) => `${row.notificationId}:${row.itemId ?? "generic"}`;
-const messages = {
-  event_agreement_ready: "Event planning is ready for confirmation.",
-  event_agreement_blocked: "Event planning needs review. Check participant availability and votes.",
-  event_confirmed: "The event has been confirmed.",
-  event_replanning: "Event planning has reopened. Check dates, locations and votes.",
-  event_terminated: "The event has ended. Results are available.",
-  event_cancelled: "The event has been cancelled.",
-  date: "Date updated",
-  dates: "Date options changed",
-  location: "Location updated",
-  locations: "Location options changed",
-  game: "Game updated",
-  games: "Games changed",
-  table_settings: "Table settings updated",
-  tables: "Tables changed",
-  group_info: "Group information updated",
-  member_update: "Membership updated",
-  participation: "Participation updated",
-  event_state: "Event updated",
-  invitation: "Invitation awaiting a response",
-  proposal: "Proposal updated",
-  review: "Review updated",
-  information: "Information updated",
-} as const;
-function changeText(row: NotificationChangeRow, t: ReturnType<typeof useT>) {
-  const message =
-    row.messageCode === "invitation" && !row.requiresResponse
-      ? t("Invitation updated")
-      : t(messages[row.messageCode] ?? messages.information);
-  return row.currentLabel ? `${message}: ${row.currentLabel}` : message;
-}
-
 const ChangeRow = memo(function ChangeRow({ row }: { row: NotificationChangeRow }) {
-  const t = useT();
   return (
-    <Typography className="text-foreground" style={{ paddingVertical: 6 }}>
-      {changeText(row, t)}
-    </Typography>
+    <View style={{ paddingVertical: 6, gap: 4 }}>
+      <Typography className="font-semibold text-foreground">{row.title}</Typography>
+      <Typography className="text-foreground">{row.description}</Typography>
+    </View>
   );
 });
 

@@ -28,3 +28,7 @@ it.each([
     expect(native.getState).toHaveBeenCalledOnce();
   },
 );
+it("uses ordinary content spacing when the owning screen has no floating action", () => {
+  native.getState.mockReturnValue({ type: "stack" });
+  expect(useFloatingActionLayout(false)).toEqual({ bottom: 134, paddingBottom: 54 });
+});

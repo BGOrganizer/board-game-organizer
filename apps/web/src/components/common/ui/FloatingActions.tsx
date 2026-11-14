@@ -2,6 +2,7 @@
 import { Button } from "@heroui/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { floatingActionPositionStyle } from "@/components/common/layout/floatingActionStyles";
 
 type FloatingActionsProps = {
   label: string;
@@ -19,7 +20,7 @@ export function FloatingActions({
   left = false,
   variant = "primary",
 }: FloatingActionsProps) {
-  const className = `button button--${variant} button--icon-only fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-40 size-14 rounded-full shadow-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-background ${left ? "left-4 sm:left-6" : "right-4 sm:right-6"}`;
+  const className = `button button--${variant} button--icon-only fixed z-40 size-14 rounded-full shadow-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-background ${left ? "left-4 sm:left-6" : "right-4 sm:right-6"}`;
   if (onPress)
     return (
       <Button
@@ -29,6 +30,7 @@ export function FloatingActions({
         isDisabled={isDisabled}
         onPress={onPress}
         className={className}
+        style={floatingActionPositionStyle}
       >
         {children}
       </Button>
@@ -42,6 +44,7 @@ export function FloatingActions({
         if (isDisabled) event.preventDefault();
       }}
       className={className}
+      style={floatingActionPositionStyle}
     >
       {children}
     </Link>

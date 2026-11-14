@@ -32,6 +32,8 @@ const reference = {
 const row: NotificationChangeRow = {
   ...reference,
   messageCode: "information",
+  title: "Source notification",
+  description: "Original notification description",
   requiresResponse: false,
   readReference: reference,
 };

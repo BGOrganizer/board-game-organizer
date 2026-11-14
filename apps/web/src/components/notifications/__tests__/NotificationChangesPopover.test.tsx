@@ -30,7 +30,14 @@ function row(
   id = "111111111111111111111111",
 ): NotificationChangeRow {
   const ref = { notificationId: id, effectiveAt: at };
-  return { ...ref, messageCode, requiresResponse, readReference: ref };
+  return {
+    ...ref,
+    messageCode,
+    title: messageCode === "date" ? "Date updated" : "Table invitation",
+    description: "Original actor: Café e società",
+    requiresResponse,
+    readReference: ref,
+  };
 }
 function model(overrides: Partial<Model> = {}): Model {
   return {
@@ -129,7 +136,7 @@ describe("resource-wide notification popover", () => {
     expect(dot.parentElement?.className).toContain("top-0");
     const dialog = await open();
     expect(within(dialog).getByText("Date updated")).toBeTruthy();
-    expect(within(dialog).getByText("Invitation awaiting a response")).toBeTruthy();
+    expect(within(dialog).getByText("Table invitation")).toBeTruthy();
     expect(within(dialog).getByText("Invitations remain unread until you respond.")).toBeTruthy();
     const read = within(dialog).getByRole("button", { name: "Mark all changes as read" });
     expect(read.className).toContain("button--danger-soft");
@@ -196,63 +203,41 @@ describe("resource-wide notification popover", () => {
     expect(fetching.fetchNextPage).not.toHaveBeenCalled();
     expect(screen.getByText("Date updated")).toBeTruthy();
   });
-  it("formats every known category, current label and a resolved invitation truthfully", async () => {
-    const codes: NotificationChangeRow["messageCode"][] = [
-      "date",
-      "dates",
-      "location",
-      "locations",
-      "game",
-      "games",
-      "table_settings",
-      "tables",
-      "group_info",
-      "member_update",
-      "participation",
-      "event_state",
-      "invitation",
-      "proposal",
-      "review",
-      "information",
-      "event_agreement_ready",
-      "event_agreement_blocked",
-      "event_confirmed",
-      "event_replanning",
-      "event_terminated",
-      "event_cancelled",
-    ];
-    const m = model({
-      changes: codes.map((code, i) => ({
-        ...row(code, false, (i + 1).toString(16).padStart(24, "0")),
-        ...(code === "group_info" ? { currentLabel: "Current club" } : {}),
-      })),
-    });
-    renderWithI18n(<NotificationChangesPopover model={m} />);
-    await open();
-    expect(screen.getByText("Group information updated: Current club")).toBeTruthy();
-    expect(screen.getByText("Invitation updated")).toBeTruthy();
-    expect(screen.queryByText("Invitation awaiting a response")).toBeNull();
-    expect(
-      screen.getByText("Event planning needs review. Check participant availability and votes."),
-    ).toBeTruthy();
-    expect(screen.getAllByRole("option")).toHaveLength(codes.length);
-  });
-  it("uses a truthful fallback for an unsupported category", async () => {
-    renderWithI18n(
-      <NotificationChangesPopover
-        model={model({
-          changes: [
-            {
-              ...row("information"),
-              messageCode: "unsupported" as NotificationChangeRow["messageCode"],
-              currentLabel: "Current item",
-            },
-          ],
-        })}
-      />,
-    );
-    await open();
-    expect(screen.getByText("Information updated: Current item")).toBeTruthy();
-    expect(screen.queryByText("unsupported")).toBeNull();
-  });
+  it.each([
+    {
+      title: "Event confirmed",
+      description: "alex: Café and games",
+      code: "event_confirmed" as const,
+    },
+    {
+      title: "Evento confermato",
+      description: "alex: Café e società",
+      code: "event_confirmed" as const,
+    },
+    {
+      title: "Invito a un tavolo",
+      description: "alex: Serata del giovedì",
+      code: "invitation" as const,
+    },
+  ])(
+    "shows the exact inbox title and description: $title",
+    async ({ title, description, code }) => {
+      renderWithI18n(
+        <NotificationChangesPopover
+          model={model({
+            changes: [
+              { ...row(code), title, description, currentLabel: "Ignored synthetic label" },
+            ],
+          })}
+        />,
+      );
+      const dialog = await open();
+      expect(within(dialog).getByText(title, { exact: true })).toBeTruthy();
+      expect(within(dialog).getByText(description, { exact: true })).toBeTruthy();
+      expect(within(dialog).queryByText("Ignored synthetic label")).toBeNull();
+      expect(within(dialog).queryByText("The event has been confirmed.")).toBeNull();
+      expect(within(dialog).queryByText("Invitation updated")).toBeNull();
+      expect(within(dialog).getByRole("option").textContent).toBe(`${title}${description}`);
+    },
+  );
 });

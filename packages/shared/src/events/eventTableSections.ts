@@ -11,7 +11,10 @@ export function eventTableSections<T extends EventTablePlace | PendingTablePlace
   for (const row of rows) {
     const queued =
       queueOpen &&
-      (row.kind === "player" ? row.user.position === "WAITING" : row.kind === "empty" && row.queue);
+      (row.kind === "player"
+        ? row.user.position === "WAITING"
+        : (row.kind === "empty" || (row.kind === "reserved" && row.seatIndex === null)) &&
+          row.queue);
     (queued ? waiting : seats).push(row);
   }
   return { seats, waiting };

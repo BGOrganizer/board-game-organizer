@@ -54,6 +54,15 @@ describe("createAppI18n", () => {
 
 describe("translate (runtime)", () => {
   it.each([
+    ["An update is available", "È disponibile un aggiornamento"],
+    ["Update and restart", "Aggiorna e riavvia"],
+    ["Later", "Più tardi"],
+    ["Move to waiting list", "Sposta in lista d’attesa"],
+  ])("retains native-only update and seat-action copy: %s", (english, italian) => {
+    expect(translate(createAppI18n("en"), english)).toBe(english);
+    expect(translate(createAppI18n("it"), english)).toBe(italian);
+  });
+  it.each([
     ["Dates / Locations", "Date / Luoghi"],
     ["Event visibility", "Visibilità dell’evento"],
     [

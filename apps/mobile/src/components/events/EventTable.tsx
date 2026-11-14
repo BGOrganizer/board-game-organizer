@@ -7,6 +7,7 @@ import {
   useNotificationChanges,
   useRecordTable,
 } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -36,6 +37,7 @@ export function EventTable({
   tableId: string;
   context?: "personal" | "event";
 }) {
+  const { i18n } = useLingui();
   const t = useT(),
     o = useCommunityApi(),
     q = useRecordTable(o, eventId, tableId),
@@ -63,6 +65,7 @@ export function EventTable({
   const changes = useNotificationChanges(
     {
       ...o,
+      locale: i18n.locale.startsWith("it") ? "it" : "en",
       enabled: o.enabled !== false && Boolean(table) && !readOnly && !table?.sharedResultsOnly,
     },
     {

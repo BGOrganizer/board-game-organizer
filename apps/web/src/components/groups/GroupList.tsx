@@ -41,7 +41,7 @@ export function GroupList({
         .filter((row) => !row.optimistic)
         .map((row) => ({ kind: "group", id: row.id }))}
     >
-      <ListPage>
+      <ListPage hasFloatingActions={scope === "mine"}>
         <ListSearch
           query={filters.query}
           onQueryChange={filters.setQuery}

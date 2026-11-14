@@ -5,12 +5,16 @@ tags: [manual, details, paging]
 # Owned complete account. Repeat Group/Event/Table, EN/IT and every authorized tab.
 # List cases require a row beyond the first page; static tabs use a final detail field.
 # No records are created or changed.
+# FAB cases set DETAIL_SCROLL_FAB_ACTION; the local seat editor additionally sets
+# DETAIL_SCROLL_EDIT_ACTION and DETAIL_SCROLL_DISCARD_ACTION. Screenshots require
+# checking that the last complete row is above both FABs; visibility alone is not geometry.
 - assertTrue: ${typeof DETAIL_SCROLL_ACK === 'string' && DETAIL_SCROLL_ACK === 'owned-preview-build'}
 - assertTrue: ${typeof DETAIL_SCROLL_KIND === 'string' && /^(group|event|table)$/.test(DETAIL_SCROLL_KIND)}
 - assertTrue: ${typeof DETAIL_SCROLL_ID === 'string' && /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(DETAIL_SCROLL_ID)}
 - assertTrue: ${DETAIL_SCROLL_KIND !== 'table' || typeof DETAIL_SCROLL_EVENT_ID === 'string' && /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(DETAIL_SCROLL_EVENT_ID)}
 - assertTrue: ${typeof DETAIL_SCROLL_TAB === 'string' && DETAIL_SCROLL_TAB.length > 0}
 - assertTrue: ${typeof DETAIL_SCROLL_LAST_ROW === 'string' && DETAIL_SCROLL_LAST_ROW.length > 0}
+- assertTrue: ${typeof DETAIL_SCROLL_EDIT_ACTION !== 'string' || DETAIL_SCROLL_EDIT_ACTION.length > 0 && typeof DETAIL_SCROLL_DISCARD_ACTION === 'string' && DETAIL_SCROLL_DISCARD_ACTION.length > 0}
 - launchApp:
     clearState: false
 - openLink: "${DETAIL_SCROLL_KIND === 'table' ? 'bgo-dev:///event/table?eventId=' + DETAIL_SCROLL_EVENT_ID + '&tableId=' + DETAIL_SCROLL_ID : 'bgo-dev:///' + DETAIL_SCROLL_KIND + '/' + DETAIL_SCROLL_ID}"
@@ -23,12 +27,30 @@ tags: [manual, details, paging]
     visible:
       id: record-identity-card
     timeout: 60000
+- runFlow:
+    when:
+      true: ${typeof DETAIL_SCROLL_EDIT_ACTION === 'string'}
+    commands:
+      - tapOn: ${DETAIL_SCROLL_EDIT_ACTION}
 - scrollUntilVisible:
     element: ${DETAIL_SCROLL_LAST_ROW}
     direction: DOWN
 - assertVisible: ${DETAIL_SCROLL_LAST_ROW}
 - assertNotVisible:
     id: record-identity-card
+- runFlow:
+    when:
+      true: ${typeof DETAIL_SCROLL_FAB_ACTION === 'string' && DETAIL_SCROLL_FAB_ACTION.length > 0}
+    commands:
+      - assertVisible: ${DETAIL_SCROLL_FAB_ACTION}
+      - takeScreenshot: detail-last-row-clear-of-floating-actions
+- runFlow:
+    when:
+      true: ${typeof DETAIL_SCROLL_EDIT_ACTION === 'string'}
+    commands:
+      - assertVisible: ${DETAIL_SCROLL_DISCARD_ACTION}
+      - takeScreenshot: seat-editor-last-row-clear-of-both-floating-actions
+      - tapOn: ${DETAIL_SCROLL_DISCARD_ACTION}
 - scrollUntilVisible:
     element:
       id: record-identity-card

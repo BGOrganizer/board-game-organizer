@@ -34,15 +34,24 @@ import { readNotificationChangesSnapshot } from "../notificationChangesReadAll";
 
 export const notificationChangesRoot = (options: Pick<CommunityApiOptions, "apiUrl" | "userId">) =>
   ["notification-changes", options.apiUrl, options.userId] as const;
+type Options = CommunityApiOptions & { locale?: "en" | "it" };
 export function notificationChangesQuery(
-  options: CommunityApiOptions,
+  options: Options,
   scope: NotificationChangesScope,
   limit = 8,
 ) {
   return infiniteQueryOptions({
-    queryKey: [...notificationChangesRoot(options), scope.kind, scope.id, scope.tab, limit],
+    queryKey: [
+      ...notificationChangesRoot(options),
+      scope.kind,
+      scope.id,
+      scope.tab,
+      options.locale ?? "en",
+      limit,
+    ],
     queryFn: async ({ pageParam, signal }) => {
       const params = new URLSearchParams({ ...scope, limit: String(limit) });
+      params.set("locale", options.locale ?? "en");
       if (pageParam) params.set("cursor", pageParam);
       return notificationChangesPageSchema.parse(
         await communityRequest(
@@ -60,10 +69,7 @@ export function notificationChangesQuery(
   });
 }
 
-export function useNotificationChanges(
-  options: CommunityApiOptions,
-  scope: NotificationChangesScope,
-) {
+export function useNotificationChanges(options: Options, scope: NotificationChangesScope) {
   const client = useQueryClient();
   const root = ["notifications", options.apiUrl, options.userId] as const;
   const busy = useOptimisticBusy(root);
@@ -74,6 +80,7 @@ export function useNotificationChanges(
   const identity = JSON.stringify([
     options.apiUrl,
     options.userId,
+    options.locale ?? "en",
     scope.kind,
     scope.id,
     scope.tab,
@@ -82,6 +89,7 @@ export function useNotificationChanges(
   const scopeIdentity = JSON.stringify([
     options.apiUrl,
     options.userId,
+    options.locale ?? "en",
     scope.kind,
     scope.id,
     scope.tab,
@@ -123,7 +131,7 @@ export function useNotificationChanges(
       if (fetching.current === captured) fetching.current = null;
     }
   };
-  type Variables = ReadNotificationChangesInput & { owner: CommunityApiOptions };
+  type Variables = ReadNotificationChangesInput & { owner: Options };
   const mutation = useMutation({
     mutationKey: [...root, "changes-read"],
     retry: false,
@@ -205,6 +213,7 @@ export function useNotificationChanges(
         first,
         async (cursor) => {
           const params = new URLSearchParams({ ...capturedScope, limit: "50", cursor });
+          params.set("locale", capturedOptions.locale ?? "en");
           return notificationChangesPageSchema.parse(
             await communityRequest(
               capturedOptions,
@@ -238,6 +247,7 @@ export function useNotificationChanges(
   const ownsReadError =
     readOwner?.apiUrl === options.apiUrl &&
     readOwner.userId === options.userId &&
+    (readOwner.locale ?? "en") === (options.locale ?? "en") &&
     readScope?.kind === scope.kind &&
     readScope.id === scope.id &&
     readScope.tab === scope.tab;

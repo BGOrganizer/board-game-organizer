@@ -51,7 +51,7 @@ export function EventList({
         .filter((row) => !row.optimistic)
         .map((row) => ({ kind: "event", id: row.id }))}
     >
-      <ListPage>
+      <ListPage hasFloatingActions={canCreate}>
         <ListSearch
           query={filters.query}
           onQueryChange={filters.setQuery}

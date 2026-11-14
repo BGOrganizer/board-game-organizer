@@ -7,6 +7,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       include: [
+        "src/events/tableSeatOrderDraft.ts",
         "src/notifications/notificationChanges.ts",
         "src/notifications/notificationChangesReadAll.ts",
         "src/notifications/notificationChangeProjection.ts",
@@ -28,6 +29,7 @@ export default defineConfig({
         "src/notifications/notificationItemRead.ts",
         "src/notifications/notificationDestination.ts",
         "src/events/eventAgreement.ts",
+        "src/events/eventSeatAllocation.ts",
         "src/events/eventTableCard.ts",
         "src/events/eventParticipation.ts",
         "src/events/eventJoinAvailability.ts",
@@ -87,6 +89,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/events/tableSeatOrderDraft.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/notifications/notificationChangesReadAll.ts": {
           lines: 100,
           functions: 100,
@@ -241,6 +249,12 @@ export default defineConfig({
           statements: 100,
         },
         "src/events/eventAgreement.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/events/eventSeatAllocation.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

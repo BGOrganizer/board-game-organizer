@@ -52,6 +52,50 @@ function pending(input: EventAgreementInput, userId: string): EventAgreementInpu
   };
 }
 
+it("counts people instead of the last locked slot and preserves sparse Manual allocations", () => {
+  const input = fixture(["a", "b", "c"], 4);
+  input.planningMode = "MANUAL";
+  input.registrations = input.registrations.map((row, index) => ({
+    ...row,
+    seatIndex: [0, null, 3][index],
+    locked: index === 2,
+  }));
+  const plan = calculateEventAgreement(input);
+  expect(plan.agreed && plan.participantIds).toEqual(["a", "c"]);
+  expect(
+    projectReservedPlaces(input.registrations, 4, ["a", "c"]).seated.map((row) => row.seatIndex),
+  ).toEqual([0, 3]);
+  input.planningMode = "ASSISTED";
+  input.tables[0].preserveSeatAllocation = true;
+  const override = calculateEventAgreement(input);
+  expect(override.agreed && override.participantIds).toEqual(["a", "c"]);
+  input.tables[0].preserveSeatAllocation = false;
+  const later = calculateEventAgreement(input);
+  expect(later.agreed && later.participantIds).toEqual(["a", "b", "c"]);
+});
+
+it("projects sparse Assisted choices around locked and pending anchors, queuing displaced users", () => {
+  const input = fixture(["a", "b", "c", "d"], 4);
+  const rows = input.registrations.map((row, index) => ({
+    ...row,
+    seatIndex: [2, 0, null, 1][index],
+    locked: index === 1,
+    status: index === 3 ? ("PENDING" as const) : ("ACCEPTED" as const),
+  }));
+  const projected = projectReservedPlaces(rows, 4, ["b", "c"], false);
+  expect(projected.seated.map((row) => [row.id, row.seatIndex])).toEqual([
+    ["b", 0],
+    ["c", 1],
+    ["d", 3],
+  ]);
+  expect(projected.waiting.map((row) => [row.id, row.seatIndex])).toEqual([["a", null]]);
+  const full = projectReservedPlaces(rows, 4, ["a", "b", "c"], false);
+  expect(full.seated.map((row) => row.seatIndex)).toEqual([0, 1, 2, 3]);
+  expect(projectReservedPlaces(rows, 4, ["a", "c"], false).seated.some((row) => row.locked)).toBe(
+    true,
+  );
+});
+
 describe("verified per-game player bounds", () => {
   it.each([
     { minPlayers: 3, maxPlayers: 6 },

@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { windowedListLayout } from "../windowed-list";
+import { windowedListLayout, windowedListViewport } from "../windowed-list";
+
+it.each([
+  [600, undefined, undefined, { top: 0, height: 600 }],
+  [600, 50, 400, { top: 50, height: 400 }],
+  [600, -50, 400, { top: 0, height: 350 }],
+  [600, 450, 400, { top: 450, height: 150 }],
+  [600, 700, 400, { top: 600, height: 0 }],
+  [600, -500, 400, { top: 0, height: 0 }],
+  [600, 50, 0, { top: 50, height: 0 }],
+])("clips the actual scroll viewport to the browser: %s/%s/%s", (height, top, size, expected) => {
+  expect(windowedListViewport(height, top, size)).toEqual(expected);
+});
 
 describe("document list geometry", () => {
   it("has no phantom gap or rows for an empty result", () => {

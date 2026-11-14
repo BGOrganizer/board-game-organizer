@@ -76,6 +76,8 @@ export const tableRecordSchema = z
     maxPlayers: z.number().int().min(2),
     /** Persisted Manual allocation boundary, not a Table planning-setting override. */
     seatedCapacity: z.number().int().nonnegative().optional(),
+    /** Server-owned revision of an explicit manager allocation; never a public setting. */
+    seatOrderVersion: z.number().int().positive().optional(),
     games: z.array(tableGameOptionSchema).min(1),
     rankingEnabled: z.boolean(),
     allowParticipantGames: z.boolean().optional(),
@@ -109,6 +111,8 @@ export const tableRegistrationSchema = z
     priorityAt: z.iso.datetime({ offset: true }),
     sequence: z.number().int().nonnegative(),
     locked: z.boolean().optional(),
+    /** Undefined is legacy priority allocation; null is queued; numbers are exact zero-based slots. */
+    seatIndex: z.number().int().nonnegative().nullable().optional(),
     version: z.number().int().positive(),
     gameVotes: z.record(z.string(), eventVoteSchema),
     createdAt: z.iso.datetime({ offset: true }),

@@ -23,6 +23,12 @@ export async function GET(request: Request) {
     const parsed = notificationChangesQuerySchema.safeParse(Object.fromEntries(params));
     if (!parsed.success) return reply(request, { error: "Invalid query" }, 400);
     const result = await new NotificationChangesRepository(await getDb()).list(userId, parsed.data);
+    // Installed clients without locale validate the original strict row contract.
+    if (!parsed.data.locale)
+      return reply(request, {
+        ...result,
+        changes: result.changes.map(({ title: _title, description: _description, ...row }) => row),
+      });
     return reply(request, result);
   } catch {
     return reply(request, { error: "Internal server error" }, 500);

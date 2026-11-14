@@ -49,6 +49,8 @@ export type NotificationChangeReference = z.infer<typeof notificationChangeRefer
 export const notificationChangeRowSchema = notificationChangeReferenceSchema
   .extend({
     messageCode: z.enum(notificationChangeMessageCodes),
+    title: z.string(),
+    description: z.string(),
     currentLabel: z.string().max(512).optional(),
     requiresResponse: z.boolean(),
     readReference: notificationChangeReferenceSchema,
@@ -66,6 +68,7 @@ export const notificationChangesCursorSchema = z
 export const notificationChangesQuerySchema = notificationChangesScopeSchema
   .extend({
     limit: z.coerce.number().int().min(1).max(50).default(8),
+    locale: z.enum(["en", "it"]).optional(),
     cursor: z
       .string()
       .max(5000)

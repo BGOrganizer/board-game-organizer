@@ -31,7 +31,7 @@ export function GroupList({
   const t = useT(),
     router = useRouter(),
     options = useCommunityApi(),
-    layout = useFloatingActionLayout(),
+    layout = useFloatingActionLayout(scope === "mine"),
     muted = useThemeColor("muted"),
     accentForeground = useThemeColor("accent-foreground");
   const filters = useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4),

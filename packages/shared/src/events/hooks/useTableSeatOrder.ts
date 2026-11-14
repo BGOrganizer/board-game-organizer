@@ -7,7 +7,15 @@ import {
   communityAccessDenied,
   communityRequest,
 } from "../../community/communityApi";
+import {
+  moveSeatOrder,
+  normalizeSeatOrder,
+  seatOrderPlaces,
+  sendSeatToWaiting,
+} from "../tableSeatOrderDraft";
 import { useEventRecordActions } from "./useEventRecordActions";
+
+type SeatRow = TableSeatOrderSnapshot["registrations"][number] & { seatIndex: number | null };
 export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableResponse) {
   const action = useEventRecordActions(o, table.eventId);
   const ownerKey = JSON.stringify([
@@ -19,11 +27,11 @@ export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableRes
   ]);
   const snapshotOwner = useRef(ownerKey);
   const [snapshot, setSnapshot] = useState<TableSeatOrderSnapshot | null>(null),
-    [rows, setRows] = useState<TableSeatOrderSnapshot["registrations"]>([]),
+    [rows, setRows] = useState<SeatRow[]>([]),
     [loading, setLoading] = useState(false),
     [error, setError] = useState(false),
     [editing, setEditing] = useState(false);
-  const [seatedCount, setSeatedCount] = useState(0);
+  const seatedCount = rows.filter((row) => row.seatIndex !== null).length;
   const [needsReview, setNeedsReview] = useState(false);
   const epoch = useRef(0);
   const requestController = useRef<AbortController | null>(null);
@@ -43,9 +51,7 @@ export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableRes
   }, [ownerKey]);
   const stale =
     needsReview ||
-    Boolean(
-      snapshot && table.eventVersion !== undefined && snapshot.version !== table.eventVersion,
-    );
+    Boolean(snapshot && table.eventVersion !== undefined && table.eventVersion > snapshot.version);
   const revoke = () => {
     requestController.current?.abort();
     epoch.current++;
@@ -55,7 +61,6 @@ export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableRes
     setLoading(false);
     setError(false);
     setNeedsReview(false);
-    setSeatedCount(0);
   };
   const start = async () => {
     if (!table.canManage || table.eventStatus !== "PLANNING") return;
@@ -77,8 +82,7 @@ export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableRes
       );
       if (current !== epoch.current) return;
       setSnapshot(value);
-      setRows(value.registrations);
-      setSeatedCount(value.seatedCount);
+      setRows(normalizeSeatOrder(value.registrations, value.seatedCount));
       setNeedsReview(false);
     } catch (error) {
       if (current !== epoch.current) return;
@@ -92,44 +96,23 @@ export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableRes
       if (current === epoch.current) setLoading(false);
     }
   };
-  const canMove = (index: number, delta: number) => {
-    if (index === seatedCount && delta === -1 && seatedCount < (snapshot?.capacity ?? 0))
-      return rows[index]?.status === "ACCEPTED" && !rows[index].locked;
-    const other = index + delta;
-    return (
-      other >= 0 &&
-      other < rows.length &&
-      rows[index].status === "ACCEPTED" &&
-      !rows[index].locked &&
-      rows[other].status === "ACCEPTED" &&
-      !rows[other].locked
-    );
-  };
+  const capacity = snapshot?.capacity ?? table.maxPlayers;
+  const canMove = (index: number, delta: number) =>
+    Boolean(moveSeatOrder(rows, index, delta, capacity));
   const move = (index: number, delta: number) => {
-    if (!canMove(index, delta)) return;
-    if (index === seatedCount && delta === -1 && seatedCount < (snapshot?.capacity ?? 0)) {
-      setSeatedCount((value) => value + 1);
-      return;
-    }
-    setRows((old) => {
-      const next = [...old];
-      [next[index], next[index + delta]] = [next[index + delta], next[index]];
-      return next;
-    });
+    setRows((old) => moveSeatOrder(old, index, delta, capacity) ?? old);
   };
+  const sendToWaiting = (index: number) => setRows((old) => sendSeatToWaiting(old, index) ?? old);
   const lock = (index: number) =>
     setRows((old) =>
       old.map((row, i) =>
-        i === index && row.status === "ACCEPTED" && index < seatedCount
-          ? { ...row, locked: !row.locked }
-          : row,
+        i === index && row.seatIndex !== null ? { ...row, locked: !row.locked } : row,
       ),
     );
   const reset = () => {
     requestController.current?.abort();
     epoch.current++;
-    setRows(snapshot?.registrations ?? []);
-    setSeatedCount(snapshot?.seatedCount ?? 0);
+    setRows(normalizeSeatOrder(snapshot?.registrations ?? [], snapshot?.seatedCount ?? 0));
     setEditing(false);
     setError(false);
     setNeedsReview(false);
@@ -148,13 +131,13 @@ export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableRes
             id: row.id,
             version: row.version,
             locked: Boolean(row.locked),
+            seatIndex: row.seatIndex,
           })),
         },
       });
       if (current !== epoch.current) return;
       setSnapshot(value);
-      setRows(value.registrations);
-      setSeatedCount(value.seatedCount);
+      setRows(normalizeSeatOrder(value.registrations, value.seatedCount));
       setEditing(false);
     } catch (error) {
       if (current !== epoch.current) return;
@@ -172,10 +155,12 @@ export function useTableSeatOrder(o: CommunityApiOptions, table: PlannedTableRes
     error,
     stale,
     rows: snapshotOwner.current === ownerKey ? rows : [],
-    capacity: snapshot?.capacity ?? table.maxPlayers,
+    capacity,
+    places: seatOrderPlaces(snapshotOwner.current === ownerKey ? rows : [], capacity),
     seatedCount,
     start,
     move,
+    sendToWaiting,
     canMove,
     lock,
     reset,

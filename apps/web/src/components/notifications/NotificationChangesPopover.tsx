@@ -3,7 +3,6 @@ import type { NotificationChangeRow } from "@board-game-organizer/schemas";
 import type { useNotificationChanges } from "@board-game-organizer/shared";
 import { Button, ListBox, Skeleton } from "@heroui/react";
 import { Collection, ListBoxLoadMoreItem, ListLayout, Virtualizer } from "@heroui/react/rac";
-import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Bell, CheckCheck, RotateCcw } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -11,34 +10,9 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 
 type Model = ReturnType<typeof useNotificationChanges>;
-const messages = {
-  event_agreement_ready: msg`Event planning is ready for confirmation.`,
-  event_agreement_blocked: msg`Event planning needs review. Check participant availability and votes.`,
-  event_confirmed: msg`The event has been confirmed.`,
-  event_replanning: msg`Event planning has reopened. Check dates, locations and votes.`,
-  event_terminated: msg`The event has ended. Results are available.`,
-  event_cancelled: msg`The event has been cancelled.`,
-  date: msg`Date updated`,
-  dates: msg`Date options changed`,
-  location: msg`Location updated`,
-  locations: msg`Location options changed`,
-  game: msg`Game updated`,
-  games: msg`Games changed`,
-  table_settings: msg`Table settings updated`,
-  tables: msg`Tables changed`,
-  group_info: msg`Group information updated`,
-  member_update: msg`Membership updated`,
-  participation: msg`Participation updated`,
-  event_state: msg`Event updated`,
-  invitation: msg`Invitation awaiting a response`,
-  proposal: msg`Proposal updated`,
-  review: msg`Review updated`,
-  information: msg`Information updated`,
-};
-
 /** The body grows naturally; the overlay's actual placement determines its scroll limit. */
 export function NotificationChangesPopover({ model }: { model: Model }) {
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const body = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLDivElement>(null);
@@ -70,13 +44,7 @@ export function NotificationChangesPopover({ model }: { model: Model }) {
   const canRead = model.changes.some((row) => !row.requiresResponse) || model.hasNextPage;
   const unread =
     model.changes.length > 0 || Object.values(model.tabCounts).some((count) => count > 0);
-  const label = (row: NotificationChangeRow) => {
-    const message =
-      row.messageCode === "invitation" && !row.requiresResponse
-        ? t`Invitation updated`
-        : i18n._(messages[row.messageCode] ?? messages.information);
-    return row.currentLabel ? `${message}: ${row.currentLabel}` : message;
-  };
+  const label = (row: NotificationChangeRow) => `${row.title}. ${row.description}`;
   const more = () => {
     if (
       open &&
@@ -163,7 +131,10 @@ export function NotificationChangesPopover({ model }: { model: Model }) {
                       textValue={label(row)}
                       className="whitespace-normal px-0 py-1.5 text-sm text-foreground [overflow-wrap:anywhere]"
                     >
-                      {label(row)}
+                      <div className="space-y-1">
+                        <p className="font-semibold">{row.title}</p>
+                        <p>{row.description}</p>
+                      </div>
                     </ListBox.Item>
                   )}
                 </Collection>

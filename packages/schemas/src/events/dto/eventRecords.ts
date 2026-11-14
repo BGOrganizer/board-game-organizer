@@ -365,7 +365,9 @@ export type EventSchedulePreview = {
   locations?: EventRecord["locations"];
   timeZone?: string;
 };
-export type PlannedTableResponse = TableRecord & {
+export type PlannedTableResponse = Omit<TableRecord, "seatOrderVersion"> & {
+  /** Anonymous occupied slots, including undisclosed pending reservations; absent in older caches. */
+  occupiedSeatIndices?: number[];
   sharedResultsOnly?: boolean;
   personalAccessOnly?: boolean;
   /** Opaque scope for purging revoked caches; never a Group link or capability. */
@@ -432,7 +434,12 @@ export const tableSeatOrderSchema = z
     registrations: z
       .array(
         z
-          .object({ id: z.uuid(), version: z.number().int().positive(), locked: z.boolean() })
+          .object({
+            id: z.uuid(),
+            version: z.number().int().positive(),
+            locked: z.boolean(),
+            seatIndex: z.number().int().nonnegative().nullable().optional(),
+          })
           .strict(),
       )
       .max(1000),

@@ -10,6 +10,7 @@ import {
   joinTableSchema,
   plannedTableInputSchema,
   tableRegistrationReceiptSchema,
+  tableSeatOrderSchema,
 } from "../dto/eventRecords";
 import {
   eventRecordSchema,
@@ -19,6 +20,28 @@ import {
 
 const id = "11111111-1111-4111-8111-111111111111",
   other = "22222222-2222-4222-8222-222222222222";
+it("accepts sparse/queued seat order indices and legacy omissions, rejecting malformed positions", () => {
+  const base = {
+    version: 1,
+    allocationKey: "a".repeat(64),
+    registrations: [
+      { id, version: 1, locked: true, seatIndex: 3 },
+      { id: other, version: 1, locked: false, seatIndex: null },
+    ],
+  };
+  expect(tableSeatOrderSchema.safeParse(base).success).toBe(true);
+  expect(
+    tableSeatOrderSchema.safeParse({ ...base, registrations: [{ id, version: 1, locked: false }] })
+      .success,
+  ).toBe(true);
+  for (const seatIndex of [-1, 1.5, "3", true])
+    expect(
+      tableSeatOrderSchema.safeParse({
+        ...base,
+        registrations: [{ ...base.registrations[0], seatIndex }],
+      }).success,
+    ).toBe(false);
+});
 const location = {
   id,
   name: "Verified venue",

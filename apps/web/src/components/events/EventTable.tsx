@@ -14,6 +14,7 @@ import { ClipboardPenLine, Info, Trophy, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { floatingActionContentStyle } from "@/components/common/layout/floatingActionStyles";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
@@ -34,7 +35,7 @@ export function EventTable({
   tableId: string;
   context?: "personal" | "event";
 }) {
-  const { t } = useLingui(),
+  const { t, i18n } = useLingui(),
     o = useCommunityApi(),
     q = useRecordTable(o, eventId, tableId),
     event = useEventRecord(o, eventId);
@@ -56,6 +57,7 @@ export function EventTable({
   const changes = useNotificationChanges(
     {
       ...o,
+      locale: i18n.locale.startsWith("it") ? "it" : "en",
       enabled: o.enabled !== false && Boolean(table) && !readOnly && !table?.sharedResultsOnly,
     },
     {
@@ -112,7 +114,14 @@ export function EventTable({
             ]
       }
     >
-      <div className="mx-auto w-full max-w-4xl pb-24">
+      <div
+        className="mx-auto w-full max-w-4xl"
+        style={
+          selected === "participants" && table.canManage && table.eventStatus === "PLANNING"
+            ? floatingActionContentStyle
+            : undefined
+        }
+      >
         {header}
         <EventTableInfo
           table={table}

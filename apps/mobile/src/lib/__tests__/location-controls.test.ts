@@ -88,7 +88,7 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
     new URL("../../components/common/ui/ScreenScrollView.tsx", import.meta.url),
     "utf8",
   );
-  expect(scroll).toContain("useFloatingActionLayout()");
+  expect(scroll).toContain("useFloatingActionLayout(hasFloatingActions)");
   expect(scroll).toMatch(/style=\{\[\{ flex: 1 \}, style\]\}/);
   expect(scroll).toContain("paddingBottom: layout.paddingBottom");
   const fab = readFileSync(

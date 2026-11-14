@@ -46,6 +46,8 @@ function row(n: number, pending = false): NotificationChangeRow {
   return {
     ...reference,
     messageCode: "information",
+    title: "Source notification",
+    description: "Original notification description",
     requiresResponse: pending,
     readReference: reference,
   };
@@ -243,15 +245,17 @@ it.each(["page", "write", "snapshot"] as const)(
   },
 );
 
-it.each(["user", "api", "unmount"] as const)(
+it.each(["user", "api", "locale", "unmount"] as const)(
   "aborts a pending snapshot GET on %s change and ignores a late page for the new owner",
   async (change) => {
     const { client, wrapper } = setup();
-    const oldOptions = { ...options, enabled: false };
+    const oldOptions = { ...options, locale: "en" as "en" | "it", enabled: false };
     const newOptions =
       change === "api"
         ? { ...oldOptions, apiUrl: "https://other.example.test" }
-        : { ...oldOptions, userId: "new-owner" };
+        : change === "locale"
+          ? { ...oldOptions, locale: "it" as const }
+          : { ...oldOptions, userId: "new-owner" };
     const oldKey = notificationChangesQuery(oldOptions, scope).queryKey;
     const newKey = notificationChangesQuery(newOptions, scope).queryKey;
     const oldData = { pages: [page([row(99, true)], cursor(99))], pageParams: [undefined] };
@@ -285,6 +289,7 @@ it.each(["user", "api", "unmount"] as const)(
     });
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher.mock.calls[0][1]?.method).toBe("GET");
+    expect(new URL(String(fetcher.mock.calls[0][0])).searchParams.get("locale")).toBe("en");
     expect(client.getQueryData(newKey)).toBe(newData);
     if (change !== "unmount") {
       expect(hook.result.current.changes.map((entry) => entry.notificationId)).toEqual([id(1)]);

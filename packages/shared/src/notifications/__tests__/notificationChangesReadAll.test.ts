@@ -13,6 +13,8 @@ function page(ids: string[], nextCursor: string | null = null): NotificationChan
       return {
         ...reference,
         messageCode: "information",
+        title: "Source notification",
+        description: "Original notification description",
         requiresResponse: notificationId === "invitation",
         readReference: reference,
       } as NotificationChangeRow;

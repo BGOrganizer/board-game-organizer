@@ -39,6 +39,8 @@ function component(file: string, name: string, modules: Record<string, unknown>)
         return { useThemeColor: (tokens: string | string[]) => tokens };
       if (!(id in modules) && id === "@lingui/react")
         return { useLingui: () => ({ i18n: { _: (id: string) => id } }) };
+      if (!(id in modules) && id === "@/lib/useFloatingActionLayout")
+        return { useFloatingActionLayout: () => ({ bottom: 100, paddingBottom: 172 }) };
       if (!(id in modules) && id === "@/components/common/ui/IconBadge")
         return { IconBadge: "IconBadge" };
       if (!(id in modules) && id === "@/components/common/ui/UserRoleBadge")
@@ -619,6 +621,9 @@ it.each([
       "@/components/common/ui/UserListRow": { UserListRow: "UserListRow" },
       "@/lib/i18n": { useT: () => (id: string) => id },
       "@/lib/useCommunityApi": { useCommunityApi: () => ({ userId: "viewer" }) },
+      "@/lib/useFloatingActionLayout": {
+        useFloatingActionLayout: (visible: boolean) => ({ paddingBottom: visible ? 172 : 20 }),
+      },
     });
     const list = render({ event: plannedEvent, actions: {} }).props.children[0];
     const row = list.props.renderItem({
@@ -875,16 +880,33 @@ it("uses actual HeroUI background compositions and keeps the existing API-owned 
 it("keeps seat lock actions on the avatar and edits only the local order", () => {
   const lock = vi.fn(),
     save = vi.fn();
-  const model = { rows: [], seatedCount: 1, lock, save, canMove: () => false, busy: false };
+  const sendToWaiting = vi.fn();
+  const model = {
+    rows: [],
+    places: { seated: [], waiting: [] },
+    seatedCount: 1,
+    lock,
+    save,
+    sendToWaiting,
+    canMove: () => false,
+    busy: false,
+  };
   const render = component("events/EventSeatOrderEditor", "EventSeatOrderEditor", {
     "@board-game-organizer/shared": shared,
     "heroui-native/button": { Button: "Button" },
     "heroui-native/skeleton": { Skeleton: "Skeleton" },
     "heroui-native/text": { Typography: "Typography" },
     "lucide-react-native": Object.fromEntries(
-      ["ArrowDown", "ArrowUp", "Check", "LockKeyhole", "LockKeyholeOpen", "RotateCcw"].map(
-        (icon) => [icon, icon],
-      ),
+      [
+        "ArrowDown",
+        "ArrowUp",
+        "Check",
+        "LockKeyhole",
+        "LockKeyholeOpen",
+        "RotateCcw",
+        "ListEnd",
+        "UserRoundPlus",
+      ].map((icon) => [icon, icon]),
     ),
     "react-native": { SectionList: "SectionList", View: "View" },
     "react-native-safe-area-context": { useSafeAreaInsets: () => ({ bottom: 0 }) },
@@ -901,17 +923,24 @@ it("keeps seat lock actions on the avatar and edits only the local order", () =>
     userId: "person",
     name: "Player",
     status: "ACCEPTED",
+    seatIndex: 0,
     locked: false,
   };
-  const item = list.props.renderItem({ item: row, index: 0, section: { key: "seats" } }).props
-    .children;
+  const entry = (value: typeof row | (Omit<typeof row, "seatIndex"> & { seatIndex: null })) => ({
+    kind: "player",
+    key: value.id,
+    row: value,
+    index: 0,
+  });
+  expect(list.props.contentContainerStyle.paddingBottom).toBe(172);
+  const item = list.props.renderItem({ item: entry(row) }).props.children;
   expect(item.props.topBadgeContent.props.label).toBe("Lock player");
   expect(item.props.topBadgeContent.props.icon).toBe("LockKeyholeOpen");
   item.props.topBadgeContent.props.onPress();
   expect(lock).toHaveBeenCalledWith(0);
   expect(save).not.toHaveBeenCalled();
   const locked = list.props.renderItem({
-    item: { ...row, locked: true },
+    item: entry({ ...row, locked: true }),
     index: 0,
     section: { key: "seats" },
   }).props.children;
@@ -921,12 +950,23 @@ it("keeps seat lock actions on the avatar and edits only the local order", () =>
     color: "danger",
   });
   const pending = list.props.renderItem({
-    item: { ...row, status: "PENDING" },
+    item: entry({ ...row, status: "PENDING" }),
     index: 0,
     section: { key: "seats" },
   }).props.children;
-  expect(pending.props.topBadgeContent).toBeUndefined();
-  const waiting = list.props.renderItem({ item: row, index: 0, section: { key: "waiting" } }).props
+  expect(pending.props.topBadgeContent.props.label).toBe("Lock player");
+  const waiting = list.props.renderItem({ item: entry({ ...row, seatIndex: null }) }).props
     .children;
   expect(waiting.props.topBadgeContent).toBeUndefined();
+  const empty = list.props.renderItem({
+    item: { kind: "empty", key: "empty:1", first: 1, last: 3 },
+  });
+  expect(JSON.stringify(empty)).toContain("Free place");
+  expect(JSON.stringify(empty)).toContain("–4");
+  const actions = item.props.actions.props.children;
+  const send = actions.find(
+    (action: Element) => action?.props?.accessibilityLabel === "Move to waiting list",
+  );
+  send.props.onPress();
+  expect(sendToWaiting).toHaveBeenCalledWith(0);
 });

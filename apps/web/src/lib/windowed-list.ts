@@ -1,3 +1,13 @@
+export function windowedListViewport(
+  windowHeight: number,
+  ownerTop = 0,
+  ownerHeight = windowHeight,
+) {
+  const top = Math.min(windowHeight, Math.max(0, ownerTop));
+  const bottom = Math.min(windowHeight, ownerTop + ownerHeight);
+  return { top, height: Math.max(0, bottom - top) };
+}
+
 export function windowedListLayout(
   keys: readonly string[],
   measured: ReadonlyMap<string, number>,

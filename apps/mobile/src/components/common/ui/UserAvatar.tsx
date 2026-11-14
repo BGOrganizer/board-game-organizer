@@ -43,12 +43,13 @@ export function UserAvatar({
     <View
       style={{
         position: "relative",
+        isolation: "isolate",
         marginRight: bottom || topBadgeContent ? 12 : 0,
         marginTop: dual ? 8 : topBadgeContent ? 12 : 0,
         marginBottom: dual ? 8 : bottom ? 12 : 0,
       }}
     >
-      <Avatar size="md" alt={name}>
+      <Avatar size="md" alt={name} style={{ zIndex: 0 }}>
         {avatarUrl ? <Avatar.Image source={{ uri: avatarUrl }} /> : null}
         <Avatar.Fallback>{name.replace(/^@/, "").charAt(0) || "?"}</Avatar.Fallback>
       </Avatar>
@@ -67,14 +68,17 @@ export function UserAvatar({
             backgroundColor: online ? success : muted,
             borderWidth: 2,
             borderColor: surface,
+            zIndex: 1,
           }}
         />
       ) : null}
       {bottom ? (
-        <View style={{ position: "absolute", right: -20, bottom: -20 }}>{bottom}</View>
+        <View style={{ position: "absolute", right: -20, bottom: -20, zIndex: 2 }}>{bottom}</View>
       ) : null}
       {topBadgeContent ? (
-        <View style={{ position: "absolute", right: -20, top: -20 }}>{topBadgeContent}</View>
+        <View style={{ position: "absolute", right: -20, top: -20, zIndex: 2 }}>
+          {topBadgeContent}
+        </View>
       ) : null}
     </View>
   );

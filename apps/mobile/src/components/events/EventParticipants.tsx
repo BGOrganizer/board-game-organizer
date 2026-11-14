@@ -14,7 +14,6 @@ import { Typography } from "heroui-native/text";
 import { UserRoundMinus } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { FlatList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { MemberActions } from "@/components/common/ui/MemberActions";
@@ -22,17 +21,20 @@ import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 
 export function EventParticipants({
   event,
   actions,
   disabled = false,
   header,
+  hasFloatingActions = false,
 }: {
   event: PlannedEventResponse;
   actions: ReturnType<typeof useEventRecordActions>;
   disabled?: boolean;
   header?: ReactNode;
+  hasFloatingActions?: boolean;
 }) {
   const t = useT(),
     o = useCommunityApi(),
@@ -41,7 +43,7 @@ export function EventParticipants({
       event.id,
       event.canManage ? { mode: "review", groupId: event.groupId } : { mode: "member" },
     ),
-    insets = useSafeAreaInsets();
+    layout = useFloatingActionLayout(hasFloatingActions);
   const m = useEventParticipantManagement(o, event, q.items, actions, disabled);
   const [foreground, danger] = useThemeColor(["foreground", "danger-foreground"]);
   const stale = t("Event details changed. Close and reopen this action.");
@@ -54,7 +56,7 @@ export function EventParticipants({
           padding: 20,
           paddingTop: header ? 12 : 20,
           gap: 8,
-          paddingBottom: insets.bottom + 112,
+          paddingBottom: layout.paddingBottom,
         }}
         data={q.items}
         keyExtractor={(person) => person.userId}

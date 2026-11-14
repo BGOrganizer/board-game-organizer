@@ -7,6 +7,7 @@ import {
   useGroupRecordActions,
   useNotificationChanges,
 } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -50,6 +51,7 @@ export function GroupDetail({
   groupId: string;
   initialTab?: "info" | "members" | "events";
 }) {
+  const { i18n } = useLingui();
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -67,7 +69,11 @@ export function GroupDetail({
       ? "info"
       : tab;
   const changes = useNotificationChanges(
-    { ...o, enabled: o.enabled !== false && Boolean(group) },
+    {
+      ...o,
+      locale: i18n.locale.startsWith("it") ? "it" : "en",
+      enabled: o.enabled !== false && Boolean(group),
+    },
     {
       kind: "group",
       id: groupId,
@@ -246,7 +252,10 @@ export function GroupDetail({
             ) : tab === "rankings" && group.canViewRankings ? (
               <GroupLeaderboard groupId={group.id} header={detailHeader} />
             ) : (
-              <ScreenScrollView contentContainerStyle={{ paddingTop: 0 }}>
+              <ScreenScrollView
+                hasFloatingActions={group.canEdit && tab === "info"}
+                contentContainerStyle={{ paddingTop: 0 }}
+              >
                 {detailHeader}
                 <GroupDetailsCard group={group} identity={null} />
                 {bodyActions.length ? (

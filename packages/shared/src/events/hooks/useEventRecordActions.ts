@@ -69,6 +69,7 @@ import { optimisticEventVote } from "../eventOptimisticVote";
 import { projectEventParticipantRemoval } from "../eventParticipantCache";
 import { revokeProposalReview } from "../eventProposalCache";
 import { acknowledgeTableRegistration } from "../eventRegistrationCache";
+import { normalizeSeatOrder } from "../tableSeatOrderDraft";
 import { eventRecordKeys, eventRecordQuery, eventRecordsQuery } from "./useEventRecords";
 
 type Row =
@@ -1062,12 +1063,33 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     onSuccess: (value, variables, context) => {
       if (!context?.operation.active) return;
       const owner = context.owner;
+      let superseded = false;
+      // Assisted projections can change places without changing registration versions.
+      for (const [key] of client.getQueriesData({
+        queryKey: eventRecordKeys.root(owner),
+        predicate: (query) => affected(query.queryKey, context.eventId),
+      }))
+        mapCommunityCache<Row>(optimisticBaseData(client, key), (row) => {
+          if (
+            ("dates" in row && row.id === context.eventId && row.version > value.version) ||
+            ("games" in row &&
+              row.eventId === context.eventId &&
+              (row.eventVersion ?? 0) > value.version)
+          )
+            superseded = true;
+          return row;
+        });
+      if (superseded) {
+        complete(context);
+        return;
+      }
+      const registrations = normalizeSeatOrder(value.registrations, value.seatedCount);
       const positions = new Map(
-        value.registrations.map((row, index) => [
+        registrations.map((row) => [
           row.id,
           {
             ...row,
-            position: index < value.seatedCount ? ("SEATED" as const) : ("WAITING" as const),
+            position: row.seatIndex === null ? ("WAITING" as const) : ("SEATED" as const),
           },
         ]),
       );
@@ -1088,19 +1110,22 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
                 row.eventId === context.eventId
               ) {
                 if ((row.eventVersion ?? 0) > value.version) return row;
-                const own = value.registrations.find((person) => person.userId === owner.userId);
+                const own = registrations.find((person) => person.userId === owner.userId);
                 if (own && row.myRegistration && row.myRegistration.version > own.version)
                   return row;
                 const ownPosition = own ? (positions.get(own.id)?.position ?? null) : null;
                 return {
                   ...row,
                   eventVersion: value.version,
-                  seatedCount: value.registrations
-                    .slice(0, value.seatedCount)
-                    .filter((person) => person.status === "ACCEPTED").length,
-                  pendingCount: value.registrations
-                    .slice(0, value.seatedCount)
-                    .filter((person) => person.status === "PENDING").length,
+                  occupiedSeatIndices: registrations.flatMap((person) =>
+                    person.seatIndex === null ? [] : [person.seatIndex],
+                  ),
+                  seatedCount: [...positions.values()].filter(
+                    (person) => person.position === "SEATED" && person.status === "ACCEPTED",
+                  ).length,
+                  pendingCount: [...positions.values()].filter(
+                    (person) => person.position === "SEATED" && person.status === "PENDING",
+                  ).length,
                   waitingCount: value.registrations.length - value.seatedCount,
                   myRegistration: own ? { ...row.myRegistration, ...own } : null,
                   myPosition: ownPosition,

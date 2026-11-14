@@ -31,7 +31,7 @@ export function EventPlanningSettings({
       name: t("Planning mode"),
       label: t("Mode"),
       help: t(
-        "Manual: managers arrange the seats. Assisted: the app seeks agreement and arranges players automatically. Both apply to every table, protect locked seats and pending invitations, compact the queue after departures, and require manual confirmation.",
+        "Manual: managers assign places and preserve empty seats. Assisted: the app seeks agreement and may rearrange unlocked players. Locked places stay fixed in both modes, including after departures. Pending invitations keep their consent status. Confirmation is always manual.",
       ),
       change: chooseMode,
       options: [

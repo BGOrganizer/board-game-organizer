@@ -12,19 +12,21 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  ListEnd,
   LockKeyhole,
   LockKeyholeOpen,
   RotateCcw,
+  UserRoundPlus,
 } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { SectionList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 export function EventSeatOrderEditor({
   model,
@@ -36,8 +38,12 @@ export function EventSeatOrderEditor({
   demonstratorUserId?: string | null;
 }) {
   const t = useT();
-  const insets = useSafeAreaInsets();
-  const [foreground, successForeground] = useThemeColor(["foreground", "success-foreground"]);
+  const layout = useFloatingActionLayout();
+  const [foreground, successForeground, muted] = useThemeColor([
+    "foreground",
+    "success-foreground",
+    "muted",
+  ]);
   return (
     <View style={{ flex: 1, minHeight: 300 }}>
       {model.loading ? <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} /> : null}
@@ -54,9 +60,10 @@ export function EventSeatOrderEditor({
         </View>
       ) : null}
       <SectionList
+        testID="seat-order-list"
         sections={[
-          { key: "seats", data: model.rows.slice(0, model.seatedCount) },
-          { key: "waiting", data: model.rows.slice(model.seatedCount) },
+          { key: "seats", data: model.places.seated },
+          { key: "waiting", data: model.places.waiting },
         ]}
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
@@ -64,7 +71,7 @@ export function EventSeatOrderEditor({
             {header}
             <Typography className="text-sm text-muted">
               {t(
-                "Locked players are protected from assistance. Unlock a player before moving them. Pending invitations keep their reserved places.",
+                "Locked places stay fixed. Move unlocked players or pending invitations between seats and the waiting list. Manual mode preserves empty places; Assisted may rearrange unlocked players.",
               )}
             </Typography>
           </View>
@@ -72,27 +79,49 @@ export function EventSeatOrderEditor({
         renderSectionHeader={({ section }) => (
           <EventSeatListHeading waiting={section.key === "waiting"} />
         )}
-        keyExtractor={(row) => row.id}
+        keyExtractor={(place) => place.key}
         initialNumToRender={12}
         maxToRenderPerBatch={8}
         windowSize={7}
-        contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: insets.bottom + 100 }}
-        renderItem={({ item: row, index: sectionIndex, section }) => {
-          const index = sectionIndex + (section.key === "waiting" ? model.seatedCount : 0);
+        contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: layout.paddingBottom }}
+        renderItem={({ item }) => {
+          if (item.kind === "empty")
+            return (
+              <GroupedList>
+                <View
+                  style={{
+                    minHeight: 64,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: 16,
+                  }}
+                >
+                  <UserRoundPlus size={20} color={muted} accessible={false} />
+                  <Typography className="text-muted">
+                    {t("Free place")}: {item.first + 1}
+                    {item.last > item.first ? `–${item.last + 1}` : ""}
+                  </Typography>
+                </View>
+              </GroupedList>
+            );
+          const { row, index } = item;
           const roles = tableUserRoles({
             ...row,
             demonstrator: row.userId === demonstratorUserId,
-            position: index < model.seatedCount ? "SEATED" : "WAITING",
+            position: row.seatIndex !== null ? "SEATED" : "WAITING",
           });
           return (
             <GroupedList>
               <UserListRow
+                testID={`seat-order-row-${row.id}`}
                 name={formatUsername(row.username, row.name ?? t("Username unavailable"))}
                 avatarUrl={row.avatarUrl}
                 badgeContent={<UserRoleBadge roles={roles} />}
                 topBadgeContent={
-                  row.status === "ACCEPTED" && index < model.seatedCount ? (
+                  row.seatIndex !== null ? (
                     <IconBadge
+                      testID={`seat-order-lock-${row.id}`}
                       icon={row.locked ? LockKeyhole : LockKeyholeOpen}
                       label={row.locked ? t("Unlock player") : t("Lock player")}
                       color={row.locked ? "danger" : "default"}
@@ -101,36 +130,51 @@ export function EventSeatOrderEditor({
                     />
                   ) : undefined
                 }
-                secondary={roles[0] ? t(RECORD_USER_ROLES[roles[0]].message) : undefined}
+                secondary={[
+                  row.seatIndex !== null ? `${t("Position")}: ${row.seatIndex + 1}` : null,
+                  roles[0] ? t(RECORD_USER_ROLES[roles[0]].message) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
                 actions={
-                  row.status === "ACCEPTED" ? (
-                    <>
-                      {index > 0 ? (
-                        <Button
-                          isIconOnly
-                          variant="ghost"
-                          accessibilityLabel={t("Move up")}
-                          isDisabled={model.busy || !model.canMove(index, -1)}
-                          onPress={() => model.move(index, -1)}
-                          style={{ minWidth: 44, minHeight: 44 }}
-                        >
-                          <ArrowUp size={18} color={foreground} />
-                        </Button>
-                      ) : null}
-                      {index < model.rows.length - 1 ? (
-                        <Button
-                          isIconOnly
-                          variant="ghost"
-                          accessibilityLabel={t("Move down")}
-                          isDisabled={model.busy || !model.canMove(index, 1)}
-                          onPress={() => model.move(index, 1)}
-                          style={{ minWidth: 44, minHeight: 44 }}
-                        >
-                          <ArrowDown size={18} color={foreground} />
-                        </Button>
-                      ) : null}
-                    </>
-                  ) : null
+                  <>
+                    <Button
+                      isIconOnly
+                      variant="ghost"
+                      accessibilityLabel={t("Move up")}
+                      testID={`seat-order-up-${row.id}`}
+                      isDisabled={model.busy || !model.canMove(index, -1)}
+                      onPress={() => model.move(index, -1)}
+                      style={{ minWidth: 44, minHeight: 44 }}
+                    >
+                      <ArrowUp size={18} color={foreground} />
+                    </Button>
+
+                    <Button
+                      isIconOnly
+                      variant="ghost"
+                      accessibilityLabel={t("Move down")}
+                      testID={`seat-order-down-${row.id}`}
+                      isDisabled={model.busy || !model.canMove(index, 1)}
+                      onPress={() => model.move(index, 1)}
+                      style={{ minWidth: 44, minHeight: 44 }}
+                    >
+                      <ArrowDown size={18} color={foreground} />
+                    </Button>
+                    {row.seatIndex !== null ? (
+                      <Button
+                        isIconOnly
+                        variant="ghost"
+                        accessibilityLabel={t("Move to waiting list")}
+                        testID={`seat-order-waiting-${row.id}`}
+                        isDisabled={model.busy || row.locked}
+                        onPress={() => model.sendToWaiting(index)}
+                        style={{ minWidth: 44, minHeight: 44 }}
+                      >
+                        <ListEnd size={18} color={foreground} />
+                      </Button>
+                    ) : null}
+                  </>
                 }
               />
             </GroupedList>
@@ -138,6 +182,7 @@ export function EventSeatOrderEditor({
         }}
       />
       <FloatingActions
+        testID="seat-order-discard"
         left
         label={t("Discard unsaved order")}
         variant="secondary"
@@ -151,6 +196,7 @@ export function EventSeatOrderEditor({
         style={{ position: "absolute", left: 0, right: 0, bottom: 0, top: 0 }}
       >
         <FloatingActions
+          testID="seat-order-save"
           className="bg-success"
           label={t("Save seat order")}
           variant="primary"

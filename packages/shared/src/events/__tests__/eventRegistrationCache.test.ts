@@ -116,6 +116,26 @@ describe("acknowledged Table participation", () => {
     );
     expect(seated.myPosition).toBe("SEATED");
   });
+  it("uses authoritative sparse receipt indices without granting consent or changing frozen positions", () => {
+    const planning = { ...table, eventStatus: "PLANNING" as const };
+    expect(
+      acknowledgeTableRegistration(planning, { ...registration, seatIndex: 3 }, "owner").myPosition,
+    ).toBe("SEATED");
+    expect(
+      acknowledgeTableRegistration(
+        planning,
+        { ...registration, seatIndex: null, status: "PENDING" },
+        "owner",
+      ),
+    ).toMatchObject({ myPosition: "WAITING", myRegistration: { status: "PENDING" } });
+    expect(
+      acknowledgeTableRegistration(
+        { ...table, eventStatus: "CONFIRMED", myPosition: "FROZEN" },
+        { ...registration, seatIndex: null },
+        "owner",
+      ).myPosition,
+    ).toBe("FROZEN");
+  });
   it("ignores foreign actors, resources and older acknowledgements", () => {
     expect(acknowledgeTableRegistration(table, registration, undefined)).toBe(table);
     expect(

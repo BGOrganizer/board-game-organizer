@@ -6,13 +6,22 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowDown, ArrowUp, Check, LockKeyhole, LockKeyholeOpen, RotateCcw } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ListEnd,
+  LockKeyhole,
+  LockKeyholeOpen,
+  RotateCcw,
+  UserRoundPlus,
+} from "lucide-react";
 import type { ReactNode } from "react";
-import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { floatingActionPositionStyle } from "@/components/common/layout/floatingActionStyles";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
+import { WindowedList } from "@/components/common/ui/WindowedList";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 export function EventSeatOrderEditor({
@@ -26,7 +35,7 @@ export function EventSeatOrderEditor({
 }) {
   const { t, i18n } = useLingui();
   return (
-    <section className="space-y-3 pb-20" aria-label={t`Reorder seats`}>
+    <section className="space-y-3" aria-label={t`Reorder seats`} data-testid="seat-order-list">
       {header}
       {model.loading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
       {model.error || model.stale ? (
@@ -44,7 +53,7 @@ export function EventSeatOrderEditor({
           >{t`Review latest roster`}</Button>
         </div>
       ) : null}
-      <p className="text-sm text-muted">{t`Locked players are protected from assistance. Unlock a player before moving them. Pending invitations keep their reserved places.`}</p>
+      <p className="text-sm text-muted">{t`Locked places stay fixed. Move unlocked players or pending invitations between seats and the waiting list. Manual mode preserves empty places; Assisted may rearrange unlocked players.`}</p>
       {[false, true].map((waiting) => (
         <section
           key={String(waiting)}
@@ -52,22 +61,41 @@ export function EventSeatOrderEditor({
           aria-label={waiting ? t`Waiting list` : t`Seats list`}
         >
           <EventSeatListHeading waiting={waiting} />
-          <GroupedList>
-            {model.rows.map((row, index) => {
-              if (index >= model.seatedCount !== waiting) return null;
+          <WindowedList
+            items={waiting ? model.places.waiting : model.places.seated}
+            itemKey={(item) => item.key}
+            label={waiting ? t`Waiting list` : t`Seats list`}
+            estimatedRowHeight={80}
+            onEndReached={() => {}}
+            renderItem={(item) => {
+              if (item.kind === "empty")
+                return (
+                  <div className="relative flex min-w-0 items-center gap-2 rounded-xl bg-surface p-3 pl-4">
+                    <UserRoundPlus className="size-5 text-muted" aria-hidden />
+                    <span className="text-muted">
+                      {t`Free place`}: {item.first + 1}
+                      {item.last > item.first ? `–${item.last + 1}` : ""}
+                    </span>
+                  </div>
+                );
+              const { row, index } = item;
+              const seated = row.seatIndex !== null;
               const roles = tableUserRoles({
                 ...row,
                 demonstrator: row.userId === demonstratorUserId,
-                position: index < model.seatedCount ? "SEATED" : "WAITING",
+                position: seated ? "SEATED" : "WAITING",
               });
               return (
-                <GroupedRow key={row.id}>
+                <div
+                  data-seat-order-row={row.id}
+                  className="relative flex min-w-0 items-center gap-2 rounded-xl bg-surface p-3 pl-4"
+                >
                   <UserIdentity
                     name={formatUsername(row.username, row.name ?? t`Username unavailable`)}
                     avatarUrl={row.avatarUrl}
                     badge={<UserRoleBadge roles={roles} />}
                     topBadge={
-                      row.status === "ACCEPTED" && index < model.seatedCount ? (
+                      seated ? (
                         <IconBadge
                           icon={row.locked ? LockKeyhole : LockKeyholeOpen}
                           label={row.locked ? t`Unlock player` : t`Lock player`}
@@ -77,47 +105,58 @@ export function EventSeatOrderEditor({
                         />
                       ) : undefined
                     }
-                    secondary={roles[0] ? i18n._(recordUserRoleMessages[roles[0]]) : undefined}
+                    secondary={[
+                      seated ? `${t`Position`}: ${Number(row.seatIndex) + 1}` : null,
+                      roles[0] ? i18n._(recordUserRoleMessages[roles[0]]) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   />
-
-                  {row.status === "ACCEPTED" ? (
-                    <>
-                      {index > 0 ? (
-                        <Button
-                          isIconOnly
-                          variant="ghost"
-                          aria-label={t`Move up`}
-                          isDisabled={model.busy || !model.canMove(index, -1)}
-                          onPress={() => model.move(index, -1)}
-                        >
-                          <ArrowUp className="size-4" />
-                        </Button>
-                      ) : null}
-                      {index < model.rows.length - 1 ? (
-                        <Button
-                          isIconOnly
-                          variant="ghost"
-                          aria-label={t`Move down`}
-                          isDisabled={model.busy || !model.canMove(index, 1)}
-                          onPress={() => model.move(index, 1)}
-                        >
-                          <ArrowDown className="size-4" />
-                        </Button>
-                      ) : null}
-                    </>
+                  <Button
+                    isIconOnly
+                    variant="ghost"
+                    aria-label={t`Move up`}
+                    data-testid={`seat-order-up-${row.id}`}
+                    isDisabled={model.busy || !model.canMove(index, -1)}
+                    onPress={() => model.move(index, -1)}
+                  >
+                    <ArrowUp className="size-4" />
+                  </Button>
+                  <Button
+                    isIconOnly
+                    variant="ghost"
+                    aria-label={t`Move down`}
+                    data-testid={`seat-order-down-${row.id}`}
+                    isDisabled={model.busy || !model.canMove(index, 1)}
+                    onPress={() => model.move(index, 1)}
+                  >
+                    <ArrowDown className="size-4" />
+                  </Button>
+                  {seated ? (
+                    <Button
+                      isIconOnly
+                      variant="ghost"
+                      aria-label={t`Move to waiting list`}
+                      data-testid={`seat-order-waiting-${row.id}`}
+                      isDisabled={model.busy || row.locked}
+                      onPress={() => model.sendToWaiting(index)}
+                    >
+                      <ListEnd className="size-4" />
+                    </Button>
                   ) : null}
-                </GroupedRow>
+                </div>
               );
-            })}
-          </GroupedList>
+            }}
+          />
         </section>
       ))}
-
       <Button
         isIconOnly
         variant="secondary"
-        className="fixed bottom-6 left-6 z-40 size-14 rounded-full"
+        className="fixed left-6 z-40 size-14 rounded-full"
+        style={floatingActionPositionStyle}
         aria-label={t`Discard unsaved order`}
+        data-testid="seat-order-discard"
         isDisabled={model.busy}
         onPress={model.reset}
       >
@@ -126,8 +165,10 @@ export function EventSeatOrderEditor({
       <Button
         isIconOnly
         variant="primary"
-        className="fixed right-6 bottom-6 z-40 size-14 rounded-full bg-success text-success-foreground"
+        className="fixed right-6 z-40 size-14 rounded-full bg-success text-success-foreground"
+        style={floatingActionPositionStyle}
         aria-label={t`Save seat order`}
+        data-testid="seat-order-save"
         isDisabled={model.loading || model.busy || model.stale || !model.rows.length}
         onPress={() => void model.save()}
       >

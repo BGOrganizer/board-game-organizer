@@ -1,11 +1,15 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { groupRecord } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { GroupModeration } from "../GroupModeration";
 
+vi.mock("@/components/notifications/NotificationAttentionScope", () => ({
+  NotificationAttentionScope: ({ children }: { children: ReactNode }) => children,
+}));
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",

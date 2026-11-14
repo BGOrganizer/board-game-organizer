@@ -20,7 +20,6 @@ import { Typography } from "heroui-native/text";
 import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX } from "lucide-react-native";
 import { type ReactNode, useRef, useState } from "react";
 import { type ScrollView, SectionList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -32,6 +31,7 @@ import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventJoinSheet } from "./EventJoinSheet";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
@@ -52,9 +52,11 @@ export function EventTableSeats({
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
-    insets = useSafeAreaInsets(),
     [danger, muted, accentForeground] = useThemeColor(["danger", "muted", "accent-foreground"]),
     a = useEventRecordActions(o, table.eventId);
+  const layout = useFloatingActionLayout(
+    Boolean(active && table.canManage && table.eventStatus === "PLANNING"),
+  );
   const order = useTableSeatOrder(o, table);
   const roster = useEventTableRoster(o, table),
     closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
@@ -99,7 +101,7 @@ export function EventTableSeats({
             padding: 20,
             paddingTop: 12,
             gap: 8,
-            paddingBottom: insets.bottom + 32,
+            paddingBottom: layout.paddingBottom,
           }}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={<View style={{ gap: 16, paddingBottom: 8 }}>{header}</View>}

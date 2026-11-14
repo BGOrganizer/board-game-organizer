@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { floatingActionContentStyle } from "@/components/common/layout/floatingActionStyles";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
@@ -48,7 +49,7 @@ export function GroupDetail({
   groupId: string;
   initialTab?: "info" | "members" | "events";
 }) {
-  const { t } = useLingui(),
+  const { t, i18n } = useLingui(),
     o = useCommunityApi(),
     router = useRouter(),
     q = useGroupRecord(o, groupId),
@@ -62,7 +63,11 @@ export function GroupDetail({
       ? "info"
       : tab;
   const changes = useNotificationChanges(
-    { ...o, enabled: o.enabled !== false && Boolean(group) },
+    {
+      ...o,
+      locale: i18n.locale.startsWith("it") ? "it" : "en",
+      enabled: o.enabled !== false && Boolean(group),
+    },
     {
       kind: "group",
       id: groupId,
@@ -117,7 +122,10 @@ export function GroupDetail({
         { kind: "item", id: notificationItemId(group.id, "overview", undefined, "group") },
       ]}
     >
-      <div className="space-y-5 pb-24">
+      <div
+        className="space-y-5"
+        style={group.canEdit && tab === "info" ? floatingActionContentStyle : undefined}
+      >
         {canDelete || group.myMembership?.status === "ACCEPTED" ? (
           <HeaderActions>
             <Button

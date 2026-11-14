@@ -15,7 +15,7 @@ it("separates the Mode and Preference explanations above their choices", async (
   ).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Mode: Field help" }));
   expect(screen.getByRole("dialog").textContent).toContain(
-    "Manual: managers arrange the seats. Assisted:",
+    "Manual: managers assign places and preserve empty seats. Assisted:",
   );
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -47,6 +47,7 @@ it("shows roster conflicts without silently clearing the draft and disables savi
       model={
         {
           rows: [],
+          places: { seated: [], waiting: [] },
           capacity: 2,
           loading: false,
           error: false,

@@ -35,3 +35,9 @@ it("does not expose a waiting section before canonical capacity is exhausted", (
   expect(eventTableSections(rows, false)).toEqual({ seats: rows, waiting: [] });
   expect(eventTableSections([], true)).toEqual({ seats: [], waiting: [] });
 });
+
+it("keeps sparse physical vacancies before real anonymous queued reservations", () => {
+  const free: EventTablePlace = { key: "free:0", kind: "empty", queue: false, seatIndex: 0 };
+  const queued: EventTablePlace = { key: "queued", kind: "reserved", queue: true, seatIndex: null };
+  expect(eventTableSections([queued, free], true)).toEqual({ seats: [free], waiting: [queued] });
+});

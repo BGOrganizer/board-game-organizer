@@ -12,6 +12,44 @@ const page = {
 const scope = { kind: "table" as const, id, tab: "participants" as const };
 afterEach(() => vi.unstubAllGlobals());
 describe("notificationChangesQuery transport", () => {
+  it.each(["en", "it"] as const)(
+    "requests and validates canonical %s inbox copy",
+    async (locale) => {
+      const reference = {
+        notificationId: "111111111111111111111111",
+        effectiveAt: page.asOf,
+      };
+      const change = {
+        ...reference,
+        messageCode: "event_confirmed",
+        title: locale === "it" ? "Evento confermato" : "Event confirmed",
+        description: "alessandro: Café e società",
+        requiresResponse: false,
+        readReference: reference,
+      };
+      const fetcher = vi.fn(async () => Response.json({ ...page, changes: [change] }));
+      vi.stubGlobal("fetch", fetcher);
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      try {
+        const result = await client.fetchInfiniteQuery(
+          notificationChangesQuery(
+            {
+              apiUrl: "https://api.invalid",
+              userId: "user_a",
+              getToken: async () => "fresh",
+              locale,
+            },
+            scope,
+          ),
+        );
+        expect(result.pages[0].changes).toEqual([change]);
+        const url = (fetcher.mock.calls[0] as unknown as [string])[0];
+        expect(new URL(url).searchParams.get("locale")).toBe(locale);
+      } finally {
+        client.clear();
+      }
+    },
+  );
   it("scopes by stable owner, uses fresh tokens and passes cancellation without adding an Alert polling loop", async () => {
     const getToken = vi.fn().mockResolvedValueOnce("first").mockResolvedValueOnce("second");
     const fetcher = vi.fn(async () => new Response(JSON.stringify(page), { status: 200 }));
@@ -27,9 +65,13 @@ describe("notificationChangesQuery transport", () => {
         "table",
         id,
         "participants",
+        "en",
         8,
       ]);
       expect(factory).not.toHaveProperty("refetchInterval");
+      expect(notificationChangesQuery({ ...options, locale: "it" }, scope).queryKey).not.toEqual(
+        factory.queryKey,
+      );
       expect(notificationChangesRoot({ ...options, userId: "user_b" })).not.toEqual(
         notificationChangesRoot(options),
       );
@@ -37,6 +79,11 @@ describe("notificationChangesQuery transport", () => {
       await client.invalidateQueries({ queryKey: factory.queryKey });
       await client.fetchInfiniteQuery(factory);
       expect(getToken).toHaveBeenCalledTimes(2);
+      expect(
+        new URL(String((fetcher.mock.calls[0] as unknown as [string])[0])).searchParams.get(
+          "locale",
+        ),
+      ).toBe("en");
       expect(
         fetcher.mock.calls.map((call) => (call as unknown as [string, RequestInit])[1].headers),
       ).toEqual([

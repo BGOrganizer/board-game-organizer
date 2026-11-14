@@ -16,10 +16,23 @@ it("supports a static information badge without creating a button", () => {
 it("keeps an action disabled, then invokes only its handler", () => {
   const press = vi.fn();
   const { rerender } = renderWithI18n(
-    <IconBadge icon={Crown} label="Lock player" color="danger" onPress={press} isDisabled />,
+    <IconBadge
+      icon={Crown}
+      label="Lock player"
+      color="danger"
+      multiple
+      onPress={press}
+      isDisabled
+    />,
   );
   const button = screen.getByRole("button", { name: "Lock player" });
   expect(button.getAttribute("disabled")).not.toBeNull();
+  expect(button.style.opacity).toBe("1");
+  expect(button.classList.contains("bg-transparent")).toBe(true);
+  expect(button.querySelector('[data-slot="chip"]')?.classList.contains("chip--secondary")).toBe(
+    true,
+  );
+  expect(button.querySelector(".lucide-crown")?.classList.contains("opacity-50")).toBe(true);
   fireEvent.click(button);
   expect(press).not.toHaveBeenCalled();
   rerender(<IconBadge icon={Crown} label="Lock player" onPress={press} />);
@@ -35,7 +48,11 @@ it("uses a 22px Chip, a 13px glyph and an absolute same-color plus inside a 44px
   );
   const button = screen.getByRole("button", { name: "Admin and player" });
   expect(button.className).toContain("size-11");
+  expect(button.classList.contains("bg-transparent")).toBe(true);
   expect(button.querySelector(".size-\\[22px\\]")).toBeTruthy();
+  expect(button.querySelector('[data-slot="chip"]')?.classList.contains("chip--secondary")).toBe(
+    true,
+  );
   expect(button.querySelector(".lucide-crown")?.classList.contains("size-[13px]")).toBe(true);
   const plus = button.querySelector(".lucide-plus");
   expect(plus?.classList.contains("absolute")).toBe(true);
@@ -44,6 +61,7 @@ it("uses a 22px Chip, a 13px glyph and an absolute same-color plus inside a 44px
   expect(plus?.classList.contains("size-2")).toBe(true);
   expect(plus?.getAttribute("class")).not.toMatch(/-top|-right/);
   expect(plus?.getAttribute("class")).not.toContain("text-");
+  expect(plus?.classList.contains("bg-default")).toBe(true);
   fireEvent.click(button);
   const dialog = await screen.findByRole("dialog", { name: "Roles" });
   expect(within(dialog).getByText("Both facts remain independent.")).toBeTruthy();
@@ -63,6 +81,8 @@ it.each(["sm", "md", "lg"] as const)(
     );
     const wrapper = container.firstElementChild as HTMLElement;
     const pixels = { sm: 32, md: 40, lg: 48 }[size];
+    expect(wrapper.classList.contains("isolate")).toBe(true);
+    expect(wrapper.children[0].classList.contains("z-0")).toBe(true);
     const bottom = wrapper.children[2] as HTMLElement;
     const top = wrapper.children[3] as HTMLElement;
     expect(Number.parseFloat(top.style.top)).toBe(-(44 - pixels / 2));
@@ -71,6 +91,8 @@ it.each(["sm", "md", "lg"] as const)(
       88,
     );
     expect(wrapper.style.marginTop).toBe(`${(64 - pixels) / 2}px`);
+    expect(bottom.classList.contains("z-20")).toBe(true);
+    expect(top.classList.contains("z-20")).toBe(true);
     expect(wrapper.children[1].className).toContain("-left-px");
   },
 );

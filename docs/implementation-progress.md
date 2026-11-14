@@ -5,6 +5,44 @@ Older designs and local-only authorizations below may be superseded. Read the cu
 [domain contract](groups-events-refactor.md), [root instructions](../AGENTS.md) and workflow source first.
 Historical test counts describe their recorded revision only; they do not prove the current head.
 
+## Anchored seats, opaque badges and floating-action clearance — 2026-11-14
+
+- Web and mobile implement physical seat indices and empty places under the
+  [current allocation contract](groups-events-refactor.md#event-planning-settings-and-seat-order).
+  Pending invitations can move and lock without granting consent. Manual departures leave holes;
+  Assisted can redistribute unlocked players while every lock stays at its physical index.
+  Explicit manager assignments survive their save and immediate reads. Stale receipts cannot
+  overwrite a newer Event/Table allocation, and a fresh editor snapshot can be newer than its
+  parent cache without blocking a valid save. Legacy receipts acquire consistent physical indices
+  before updating either roster rows or the current user's registration.
+- Avatar badges retain the 22px/13px geometry, use an opaque neutral HeroUI surface and render
+  above avatar artwork in every mode. Resource popovers reuse the inbox's localized title/body;
+  old installed clients retain their original strict notification response contract. Five damaged
+  Italian translations were repaired, and mobile-only runtime translations remain active.
+- All floating-action screens reserve content clearance from the actual button position and safe
+  area. Web windowing follows the surrounding scroll owner, including the application's scrolling
+  main element, while retaining bounded rows and progressive paging.
+- Completed local unit coverage: mobile **930/930**, shared **730/730**, schemas **190/190**,
+  API **1,112/1,112**. Final root lint/typecheck and EN/IT catalog compilation pass;
+  shared/schema coverage remains 100% across all four metrics. The new sparse seat-draft logic
+  independently measures 100% line, function, branch and statement coverage.
+- The broad local web run exposed a legacy-receipt reconciliation bug and an unrelated moderation
+  fixture answering notification requests with Group pages. Both were corrected; the final
+  **43/43 focused web regressions** and all four root typecheck tasks pass. These scoped results
+  do not establish a complete local web coverage pass; exact-commit CI governs full web coverage.
+- Both modified real-replica-set integration files pass: **85 community cases** using a disposable
+  official MongoDB 7 under QEMU, and **88 repository cases** through the standard Testcontainers
+  configuration in the native Raspberry OpenSandbox runner. JUnit reports contain no failures,
+  errors or skips. The emulated duplicate repository attempt was stopped, not counted as a pass.
+  Owned fixture directories/port, MongoDB/Ryuk containers and the runner sandbox were cleaned up;
+  no application database or provider configuration was changed.
+- Controlled Chromium checks passed **32 badge combinations** across theme/viewport/mode variants
+  and **12 list/FAB layouts**, including nested scroll owners, large safe areas and bounded paging.
+  These checks use a controlled model, not authenticated product fixtures. Retained Playwright and
+  Maestro acceptance paths were extended; authenticated browser and installed-device acceptance
+  have not been executed for this batch. Native frame timing and actual OTA consent remain device
+  acceptance tasks; unit/source/browser geometry checks do not establish those outcomes.
+
 ## Avatar badges, resource notifications and detail scrolling — 2026-11-13
 
 - Web and mobile use the shared per-platform avatar badge controls described in the

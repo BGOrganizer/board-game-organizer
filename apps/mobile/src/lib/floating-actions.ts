@@ -1,7 +1,15 @@
 export const FLOATING_ACTION_SIZE = 56;
 
-export function screenFloatingActionLayout(bottomInset: number, navigatorType: string) {
-  return floatingActionLayout(bottomInset, navigatorType === "tab" ? 16 : 100);
+export function screenFloatingActionLayout(
+  bottomInset: number,
+  navigatorType: string,
+  hasFloatingActions = true,
+) {
+  const layout = floatingActionLayout(bottomInset, navigatorType === "tab" ? 16 : 100);
+  return {
+    ...layout,
+    paddingBottom: hasFloatingActions ? layout.paddingBottom : bottomInset + 20,
+  };
 }
 
 export function floatingActionLayout(bottomInset: number, extraBottom: number) {

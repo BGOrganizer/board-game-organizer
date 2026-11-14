@@ -46,8 +46,9 @@ for (const url of [api, new URL(required("PLAYWRIGHT_BASE_URL"))])
   if (!["localhost", "127.0.0.1"].includes(url.hostname) && !url.hostname.endsWith(".vercel.app"))
     throw new Error("Local/Preview acceptance only, never Production");
 const it = input.locale === "it";
+test.use({ locale: input.locale });
 const labels = {
-  open: it ? "Nuove modifiche" : "New changes",
+  open: it ? "Aggiornamenti" : "New changes",
   read: it ? "Segna tutte le modifiche come lette" : "Mark all changes as read",
   retry: it ? "Riprova" : "Try again",
   empty: it ? "Nessuna nuova modifica" : "No new changes",
@@ -69,7 +70,7 @@ async function read<T>(page: Page, path: string): Promise<T> {
     ),
   );
 }
-const changesPath = `notifications/changes?${new URLSearchParams({ kind: input.kind, id: input.id, tab: "all", limit: "50" })}`;
+const changesPath = `notifications/changes?${new URLSearchParams({ kind: input.kind, id: input.id, tab: "all", limit: "50", locale: input.locale })}`;
 
 test("resource popover preserves history, pending decisions and unrelated attention", async ({
   page,
@@ -81,13 +82,22 @@ test("resource popover preserves history, pending decisions and unrelated attent
   await completeMobileNumberIfNeeded(page);
   const before = await read<NotificationChangesPage>(page, changesPath);
   expect(before.nextCursor, "Prepared acceptance resource must fit in50 source rows").toBeNull();
-  const inboxBefore = await read<NotificationListResponse>(page, "notifications?limit=50");
+  const inboxBefore = await read<NotificationListResponse>(
+    page,
+    `notifications?limit=50&locale=${input.locale}`,
+  );
   for (const id of input.historicalIds)
     expect(inboxBefore.notifications.some((row) => row.id === id)).toBe(true);
   for (const id of input.protectedIds) {
     const row = inboxBefore.notifications.find((row) => row.id === id);
     expect(row, "Protected fixtures must be within the owned recent inbox page").toBeTruthy();
     expect(row?.readAt).toBeNull();
+  }
+  for (const change of before.changes) {
+    const inbox = inboxBefore.notifications.find((row) => row.id === change.notificationId);
+    expect(inbox, "Prepared source rows must be within the recent owned inbox page").toBeTruthy();
+    expect(change.title).toBe(inbox?.title);
+    expect(change.description).toBe(inbox?.description);
   }
   if (input.mode === "empty") expect(before.changes).toHaveLength(0);
   else expect(before.changes.length).toBeGreaterThan(0);
@@ -117,6 +127,13 @@ test("resource popover preserves history, pending decisions and unrelated attent
     await popover.getByRole("button", { name: labels.retry, exact: true }).click();
   }
   await expect(popover.getByText(input.expectedText, { exact: true })).toHaveCount(1);
+  if (before.changes[0]) {
+    await expect(popover.getByText(before.changes[0].title, { exact: true }).first()).toBeVisible();
+    await expect(
+      popover.getByText(before.changes[0].description, { exact: true }).first(),
+    ).toBeVisible();
+  }
+
   const bounds = await popover.boundingBox();
   expect(bounds).not.toBeNull();
   expect(bounds?.y).toBeGreaterThanOrEqual(0);
@@ -157,7 +174,10 @@ test("resource popover preserves history, pending decisions and unrelated attent
         ).length,
     )
     .toBe(0);
-  const inboxAfter = await read<NotificationListResponse>(page, "notifications?limit=50");
+  const inboxAfter = await read<NotificationListResponse>(
+    page,
+    `notifications?limit=50&locale=${input.locale}`,
+  );
   for (const id of input.historicalIds)
     expect(inboxAfter.notifications.some((row) => row.id === id)).toBe(true);
   for (const id of input.protectedIds)

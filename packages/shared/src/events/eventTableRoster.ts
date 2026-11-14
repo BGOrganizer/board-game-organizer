@@ -3,7 +3,7 @@ import type { UserProfile } from "../common/types";
 import { canManageEvent } from "./eventRecordPolicy";
 export type EventTablePlace =
   | { key: string; kind: "player"; user: TableSeatResponse }
-  | { key: string; kind: "reserved" | "empty"; queue: boolean };
+  | { key: string; kind: "reserved" | "empty"; queue: boolean; seatIndex?: number | null };
 /** Display anonymous places, never assign a server seat or disclose another user's pending identity. */
 export function eventTableRoster(
   table: PlannedTableResponse,
@@ -45,6 +45,50 @@ export function eventTableRoster(
       a.sequence - b.sequence ||
       a.id.localeCompare(b.id),
   );
+  if (table.eventStatus === "PLANNING" && table.occupiedSeatIndices) {
+    const occupiedSlots = new Set(table.occupiedSeatIndices);
+    const seated = new Map(
+      people.flatMap((row) =>
+        row.position !== "WAITING" && typeof row.seatIndex === "number"
+          ? [[row.seatIndex, row] as const]
+          : [],
+      ),
+    );
+    const waiting = people.filter((row) => row.position === "WAITING");
+    const queued = Math.max(waiting.length, table.waitingCount);
+    const full = occupiedSlots.size >= table.maxPlayers;
+    const total = table.maxPlayers + queued + Number(full);
+    const rows: EventTablePlace[] = [];
+    for (let index = 0; index < Math.min(limit, total); index++) {
+      const queue = index >= table.maxPlayers;
+      const user = queue ? waiting[index - table.maxPlayers] : seated.get(index);
+      if (user) {
+        const profile =
+          selfProfile?.id === userId && user.userId === userId ? selfProfile : undefined;
+        rows.push({
+          key: user.id,
+          kind: "player",
+          user: profile
+            ? {
+                ...user,
+                name: (user.name && user.name !== userId ? user.name : profile.name) || null,
+                username: user.username ?? profile.username ?? null,
+                avatarUrl: user.avatarUrl ?? profile.avatarUrl,
+              }
+            : user,
+        });
+      } else {
+        const reserved = queue ? index < table.maxPlayers + queued : occupiedSlots.has(index);
+        rows.push({
+          key: `${reserved ? "reserved" : "empty"}:${index}`,
+          kind: reserved ? "reserved" : "empty",
+          queue,
+          seatIndex: queue ? null : index,
+        });
+      }
+    }
+    return { rows, total, queueOpen: full || queued > 0 };
+  }
   const occupied = Math.max(
     people.length,
     table.seatedCount + table.pendingCount + table.waitingCount,

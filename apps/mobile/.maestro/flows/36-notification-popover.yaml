@@ -12,10 +12,28 @@ tags: [manual, notifications]
 - launchApp:
     clearState: false
 - openLink: "${NOTIFICATION_KIND === 'group' ? 'bgo-dev:///group/' + NOTIFICATION_ID : NOTIFICATION_KIND === 'event' ? 'bgo-dev:///event/' + NOTIFICATION_ID : 'bgo-dev:///event/table?eventId=' + NOTIFICATION_EVENT_ID + '&tableId=' + NOTIFICATION_ID}"
-- tapOn: "${NOTIFICATION_LOCALE === 'it' ? 'Nuove modifiche' : 'New changes'}"
+- tapOn: "${NOTIFICATION_LOCALE === 'it' ? 'Aggiornamenti' : 'New changes'}"
 - extendedWaitUntil:
     visible: ${NOTIFICATION_EXPECTED_TEXT}
     timeout: 60000
+- runFlow:
+    when:
+      true: ${NOTIFICATION_CASE !== 'empty'}
+    commands:
+      - assertTrue: ${typeof NOTIFICATION_EXPECTED_TITLE === 'string' && NOTIFICATION_EXPECTED_TITLE.length > 0}
+      - assertTrue: ${typeof NOTIFICATION_EXPECTED_DESCRIPTION === 'string' && NOTIFICATION_EXPECTED_DESCRIPTION.length > 0}
+      - assertVisible: ${NOTIFICATION_EXPECTED_TITLE}
+      - assertVisible: ${NOTIFICATION_EXPECTED_DESCRIPTION}
+      - back
+      - openLink: bgo-dev:///notifications
+      - extendedWaitUntil:
+          visible: ${NOTIFICATION_EXPECTED_TITLE + '. ' + NOTIFICATION_EXPECTED_DESCRIPTION}
+          timeout: 60000
+      - openLink: "${NOTIFICATION_KIND === 'group' ? 'bgo-dev:///group/' + NOTIFICATION_ID : NOTIFICATION_KIND === 'event' ? 'bgo-dev:///event/' + NOTIFICATION_ID : 'bgo-dev:///event/table?eventId=' + NOTIFICATION_EVENT_ID + '&tableId=' + NOTIFICATION_ID}"
+      - tapOn: "${NOTIFICATION_LOCALE === 'it' ? 'Aggiornamenti' : 'New changes'}"
+      - extendedWaitUntil:
+          visible: ${NOTIFICATION_EXPECTED_TEXT}
+          timeout: 60000
 - runFlow:
     when:
       true: ${NOTIFICATION_CASE === 'read' || NOTIFICATION_CASE === 'mixed'}

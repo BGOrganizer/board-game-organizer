@@ -4,8 +4,13 @@ import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { InputScrollView } from "./InputScrollView";
 import { ScrollTargetContext } from "./ScrollTargetContext";
 
-export function ScreenScrollView({ style, contentContainerStyle, ...props }: ScrollViewProps) {
-  const layout = useFloatingActionLayout();
+export function ScreenScrollView({
+  style,
+  contentContainerStyle,
+  hasFloatingActions = false,
+  ...props
+}: ScrollViewProps & { hasFloatingActions?: boolean }) {
+  const layout = useFloatingActionLayout(hasFloatingActions);
   const ref = useRef<ScrollView>(null);
   return (
     <ScrollTargetContext.Provider value={ref}>

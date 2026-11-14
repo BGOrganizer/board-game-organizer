@@ -135,6 +135,48 @@ describe("source-paged entity notification attention", () => {
     expect(displayed).toHaveLength(1);
     return { scope, through: page.asOf, references: displayed.map((row) => row.readReference) };
   }
+  it("resource changes use the exact locale-specific inbox copy without changing points or leaking to other recipients", async () => {
+    await seedAttentionResources();
+    const itemId = notificationItemId(tableId, "game", 1);
+    const inserted = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}/tables/${tableId}`, {
+        copy: { actorName: "alessandro", resourceName: "Café e società" },
+        attentionItems: [{ id: itemId, revision: 7 }],
+      }),
+    );
+    const changes = new NotificationChangesRepository(db);
+    const notifications = new NotificationsRepository(db);
+    const scope = { kind: "table" as const, id: tableId, tab: "all" as const, limit: 8 };
+    for (const locale of ["en", "it"] as const) {
+      const page = await changes.list(ACTOR, { ...scope, locale });
+      const inbox = await notifications.list(ACTOR, 8, undefined, locale);
+      const original = inbox.notifications.find(
+        (row) => row.id === inserted.insertedId.toHexString(),
+      );
+      expect(page.changes).toHaveLength(1);
+      expect(page.changes[0]).toMatchObject({
+        title: locale === "it" ? "Evento aggiornato" : "Event updated",
+        description: "alessandro: Café e società",
+        itemId,
+        revision: 7,
+        requiresResponse: false,
+      });
+      expect(page.changes[0].title).toBe(original?.title);
+      expect(page.changes[0].description).toBe(original?.description);
+      expect(page.changes[0].readReference).toEqual({
+        notificationId: inserted.insertedId.toHexString(),
+        itemId,
+        revision: 7,
+        effectiveAt: "2020-01-01T00:00:00.000Z",
+      });
+      expect(page.changes[0]).not.toHaveProperty("copy");
+      expect((await changes.list(FOURTH, { ...scope, locale })).changes).toEqual([]);
+    }
+    expect(
+      (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: inserted.insertedId }))
+        ?.readAt,
+    ).toBeUndefined();
+  });
   it("semantic supersession keeps independent points and recipients while latest-read points never resurrect", async () => {
     await seedAttentionResources();
     const date = notificationItemId(eventId, "date", groupId);

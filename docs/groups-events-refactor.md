@@ -510,10 +510,12 @@ stored settings are not rewritten until the Event is saved. Settings are editabl
 only while PLANNING and apply to every Table. Manual keeps the current visible allocation when selected:
 the server first captures one common proposal, then persists its priority order and seat/queue
 boundary transactionally. This allocation boundary is server-owned, not a Table setting override.
-Explicit reorder promotions persist it; explicit new registrations open free capacity in priority order.
+Explicit reorder assignments persist physical seat indices, including empty places. New registrations
+fill a free place without shifting existing assignments.
 Switching back to Assisted warns through a confirmation dialog before changing the draft. Manual never substitutes waiting players
 for agreement and requires every accepted seated player at an included Table to agree. Departures and
-removals still compact all remaining reservations and promote the first waiting person in either mode.
+removals leave the vacated place empty in Manual. Assisted may fill and compact unlocked places;
+locked players retain their exact physical indices in both modes, including after departures/removals.
 
 Assisted uses the common Event date/location and recalculates from current consent, options and roster.
 Game disagreement cannot discard an accepted seated player merely because a consenting subset reaches
@@ -534,15 +536,25 @@ excluded-Table and frozen-roster guards still apply.
 
 The manager-only PLANNING Participants reorder action opens an owner-scoped, transient complete roster
 snapshot, capped at 1,000 reservations, rendered with web pagination/native virtualization. It does not persist a second
-server-data cache or a draft to MMKV. Adjacent controls reorder accepted seats and queue, including the
-last-seat/first-queue boundary; a free-place promotion fills the first opening. Pending reservations are
-fixed. Accepted seated users have local lock toggles; moving a locked user requires unlocking them first. A successful seat-order receipt reconciles existing owned roster caches before closing the editor, even if the subsequent refresh fails; a conflict retains the draft and requires a successful fresh review.
-Locks anchor the exact ordinal seat, including during automatic queue replacement and Best reduction. Reductions cannot end before the last locked slot. Pending reservations keep both their ordinal and their seated/waiting side of the boundary. Capacity shrink checks raw priority slots as well as the visible projection and cannot discard a locked user. Explicit exits/removals compact locks with their users,
-without numeric gaps. Only the first free-place row offers join/invite actions on both clients.
+server-data cache or a draft to MMKV. Controls move accepted players and pending invitations between
+physical seats and the queue, skipping locked places in either direction. Promotion fills the first
+opening. Every unlocked seated person can be sent to the queue, including an empty queue, leaving
+their former place free. Pending invitations retain their status and do not acquire consent or votes.
+Accepted and pending seated users have local lock toggles; moving a locked user requires unlocking
+them first. A successful seat-order receipt reconciles existing owned roster caches before closing
+the editor, even if the subsequent refresh fails; a conflict retains the draft and requires a fresh review.
+Locks anchor the exact physical seat during reorder, departures/removals, assistance and Best reduction.
+Manual never compacts empty places. Assisted may compact only unlocked players, retaining intermediate
+empty places required by an anchor. An explicit manager order survives its save and immediate reads;
+a later allocation-changing mutation may recalculate Assisted, and the manager can override it again.
+Physical indices and the number of actual occupants are separate: a player in place four does not
+imply four occupants. Capacity shrink cannot discard a locked user or place an anchor outside capacity.
+Only the first free-place row offers join/invite actions on both clients. Ordinary roster projections
+preserve holes and anonymous pending occupancy without disclosing unauthorized invitation identities.
 
 Save atomically validates current manager, Event version, a captured allocation fingerprint (including
 changes caused by newly recovered catalog facts), complete reservation identities/versions,
-pending slots, lock constraints and capacity before writing. Concurrent roster changes reject the entire
+physical assignments, lock constraints and capacity before writing. Concurrent roster changes reject the entire
 request. The editor retains a failed draft and requires an explicit fresh review; reset discards only the
 unsaved session. Successful save becomes the next edit baseline. Mutations use the existing fresh-token,
 scoped intent/journal feedback and selective reconciliation. No invitation acceptance is inferred.
@@ -556,7 +568,7 @@ Manual acceptance on both web and an installed native development build:
 1. Create with defaults, inspect each help popover, choose Manual/BGG Best, review summary,
    save and reopen. Confirm no Table-level settings exist and confirmed Events cannot edit them.
 2. With two seated accepted users, a pending reservation and accepted queue, enter reorder. Verify normal
-   leave/remove/invite controls disappear; test each boundary, pending immobility, lock/unlock, save,
+   leave/remove/invite controls disappear; test each boundary, pending moves and locks, holes, save,
    reopen, reset and a failed save. Verify only the first free row is actionable.
 3. Change the roster from another manager/session while an editor is open. Saving must fail without
    overwriting either session; explicitly review the new snapshot before retrying.

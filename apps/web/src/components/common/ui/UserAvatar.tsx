@@ -25,14 +25,14 @@ export function UserAvatar({
   const offset = dual ? -(44 - pixels / 2) : -20;
   return (
     <span
-      className="relative inline-flex shrink-0"
+      className="relative isolate inline-flex shrink-0"
       style={{
         marginRight: badge || topBadge ? 12 : 0,
         marginTop: dual ? (64 - pixels) / 2 : topBadge ? 12 : 0,
         marginBottom: dual ? (64 - pixels) / 2 : badge ? 12 : 0,
       }}
     >
-      <Avatar size={size}>
+      <Avatar size={size} className="z-0">
         <Avatar.Image src={avatarUrl ?? undefined} alt="" />
         <Avatar.Fallback>{name.replace(/^@/, "").slice(0, 2)}</Avatar.Fallback>
       </Avatar>
@@ -41,16 +41,16 @@ export function UserAvatar({
           role="img"
           aria-label={online ? t`Online` : t`Offline`}
           title={online ? t`Online` : t`Offline`}
-          className={`absolute -top-px size-2.5 rounded-full border-2 border-surface ${online ? "bg-success" : "bg-muted"} ${topBadge ? "-left-px" : "-right-px"}`}
+          className={`absolute -top-px z-10 size-2.5 rounded-full border-2 border-surface ${online ? "bg-success" : "bg-muted"} ${topBadge ? "-left-px" : "-right-px"}`}
         />
       ) : null}
       {badge ? (
-        <span className="absolute" style={{ right: -20, bottom: offset }}>
+        <span className="absolute z-20" style={{ right: -20, bottom: offset }}>
           {badge}
         </span>
       ) : null}
       {topBadge ? (
-        <span className="absolute" style={{ right: -20, top: offset }}>
+        <span className="absolute z-20" style={{ right: -20, top: offset }}>
           {topBadge}
         </span>
       ) : null}

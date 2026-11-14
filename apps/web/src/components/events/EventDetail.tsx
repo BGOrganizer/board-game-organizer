@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { floatingActionContentStyle } from "@/components/common/layout/floatingActionStyles";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
@@ -57,7 +58,7 @@ import { EventVoteCounts } from "./EventVoteCounts";
 import { EventVoteLegend } from "./EventVoteLegend";
 import { TableListHeading } from "./TableListHeading";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
-  const { t } = useLingui(),
+  const { t, i18n } = useLingui(),
     o = useCommunityApi(),
     q = useEventRecord(o, eventId),
     a = useEventRecordActions(o, eventId),
@@ -74,6 +75,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const changes = useNotificationChanges(
     {
       ...o,
+      locale: i18n.locale.startsWith("it") ? "it" : "en",
       enabled:
         o.enabled !== false &&
         Boolean(event) &&
@@ -105,6 +107,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     );
   const voteDates = event.groupType !== "PUBLIC" && eventOptionsRequireVote(event.dates);
   const voteLocations = event.groupType !== "PUBLIC" && eventOptionsRequireVote(event.locations);
+  const hasFloatingActions =
+    (canManageEvent(event, o.userId) && event.status === "CONFIRMED" && event.canReplan) ||
+    (tab === "details" && event.status === "PLANNING" && event.canEdit);
   const transition = (action: "confirm" | "replan") => {
     if (
       a.busy ||
@@ -137,7 +142,10 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             ]
       }
     >
-      <div className="mx-auto max-w-4xl space-y-3 pb-24">
+      <div
+        className="mx-auto max-w-4xl space-y-3"
+        style={hasFloatingActions ? floatingActionContentStyle : undefined}
+      >
         <Link
           href={fromGroup === event.groupId ? `/groups/${event.groupId}` : "/events"}
           className="inline-flex items-center gap-2 text-link"

@@ -45,7 +45,14 @@ describe("notification changes route controller", () => {
     expect(OPTIONS).toBeTypeOf("function");
   });
   it("rejects duplicate, unknown, unbounded or malformed queries", async () => {
-    for (const suffix of ["&tab=details", "&limit=51", "&cursor=broken", "&arbitrary=true"])
+    for (const suffix of [
+      "&tab=details",
+      "&limit=51",
+      "&cursor=broken",
+      "&arbitrary=true",
+      "&locale=fr",
+      "&locale=en&locale=it",
+    ])
       expect((await GET(new Request(url + suffix))).status).toBe(400);
     expect(mocks.list).not.toHaveBeenCalled();
   });
@@ -66,6 +73,32 @@ describe("notification changes route controller", () => {
     expect(mocks.list).toHaveBeenCalledWith("recipient", { ...all, limit: 8 });
     expect((await PATCH(request({ scope: all, through, references: [] }))).status).toBe(200);
     expect(mocks.read).toHaveBeenCalledWith("recipient", { scope: all, through, references: [] });
+  });
+  it.each(["en", "it"])("returns source copy only to locale-aware %s clients", async (locale) => {
+    const reference = {
+      notificationId: "111111111111111111111111",
+      effectiveAt: through,
+    };
+    const row = {
+      ...reference,
+      messageCode: "information",
+      title: locale === "it" ? "Evento confermato" : "Event confirmed",
+      description: "alex: Café e società",
+      requiresResponse: false,
+      readReference: reference,
+    };
+    mocks.list.mockResolvedValue({
+      asOf: through,
+      changes: [row],
+      tabCounts: { details: 1, members: 0, tables: 0, participants: 0 },
+      nextCursor: null,
+    });
+    const localized = await GET(new Request(`${url}&locale=${locale}`));
+    expect(mocks.list).toHaveBeenLastCalledWith("recipient", { ...scope, locale, limit: 8 });
+    expect((await localized.json()).changes).toEqual([row]);
+    const legacy = await GET(new Request(url));
+    const { title: _title, description: _description, ...original } = row;
+    expect((await legacy.json()).changes).toEqual([original]);
   });
   it("validates exact read selections and uses the shared transaction boundary", async () => {
     expect((await PATCH(request({ scope, through, references: [] }))).status).toBe(200);

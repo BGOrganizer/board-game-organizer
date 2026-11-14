@@ -10,6 +10,7 @@ type Props = {
   label: string;
   color?: "default" | "accent" | "success" | "warning" | "danger";
   multiple?: boolean;
+  testID?: string;
 } & (
   | { onPress: () => void; isDisabled?: boolean; title?: never; children?: never }
   | { title: string; children: ReactNode; onPress?: never; isDisabled?: never }
@@ -21,19 +22,22 @@ export function IconBadge({
   label,
   color = "default",
   multiple,
+  testID,
   onPress,
   isDisabled,
   title,
   children,
 }: Props) {
-  const foreground = useThemeColor(
+  const [foreground, background] = useThemeColor([
     color === "default" ? "default-foreground" : `${color}-soft-foreground`,
-  );
+    "default",
+  ]);
   const interactive = Boolean(onPress || title);
   const chip = (
     <Chip
       color={color}
-      variant="soft"
+      variant="secondary"
+      testID={testID}
       accessible={interactive}
       accessibilityRole={interactive ? "button" : undefined}
       accessibilityLabel={interactive ? label : undefined}
@@ -59,15 +63,23 @@ export function IconBadge({
         overflow: "hidden",
         alignItems: "center",
         justifyContent: "center",
+        backgroundColor: background,
       }}
     >
-      <Icon size={13} color={foreground} accessible={false} />
+      <Icon size={13} color={foreground} opacity={isDisabled ? 0.5 : 1} accessible={false} />
       {multiple ? (
         <View
-          className="bg-background"
-          style={{ position: "absolute", right: 2, top: 2, width: 8, height: 8, borderRadius: 4 }}
+          style={{
+            position: "absolute",
+            right: 2,
+            top: 2,
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: background,
+          }}
         >
-          <Plus size={8} color={foreground} accessible={false} />
+          <Plus size={8} color={foreground} opacity={isDisabled ? 0.5 : 1} accessible={false} />
         </View>
       ) : null}
     </Chip>

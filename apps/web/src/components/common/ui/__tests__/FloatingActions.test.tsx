@@ -14,7 +14,7 @@ it.each([false, true])(
     const link = screen.getByRole("link", { name: "Edit event" });
     expect(link.classList.contains("fixed")).toBe(true);
     expect(link.classList.contains("right-4")).toBe(true);
-    expect(link.className).toContain("bottom-");
+    expect(link.style.bottom).toBe("max(1.5rem, env(safe-area-inset-bottom))");
     expect(link.className).toContain("focus-visible:ring-2");
     expect(fireEvent.click(link)).toBe(!isDisabled);
     expect(link.getAttribute("aria-disabled")).toBe(isDisabled ? "true" : null);
@@ -48,6 +48,7 @@ it.each([false, true])(
     expect(button.className).toContain("fixed");
     expect(button.className).toContain("right-4");
     expect(button.className).toContain("button--secondary");
+    expect(button.style.bottom).toBe("max(1.5rem, env(safe-area-inset-bottom))");
     expect(screen.queryByRole("link")).toBeNull();
     fireEvent.click(button);
     expect(press).toHaveBeenCalledTimes(isDisabled ? 0 : 1);

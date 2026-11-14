@@ -88,6 +88,8 @@ it("provides static, action and popover modes with the same 22px visual and 13px
   expect(info.props.accessibilityRole).toBe("image");
   const chip = info.props.children;
   expect(chip.props.style).toMatchObject({ width: 22, height: 22, borderRadius: 11 });
+  expect(chip.props.variant).toBe("secondary");
+  expect(chip.props.style.backgroundColor).toBe("default");
   expect(chip.props.children[0].props).toMatchObject({ size: 13, color: "default-foreground" });
   expect(chip.props.children[1]).toBeNull();
   const press = vi.fn(),
@@ -99,6 +101,7 @@ it("provides static, action and popover modes with the same 22px visual and 13px
     onPress: press,
     isDisabled: true,
     multiple: true,
+    testID: "seat-order-lock-owned",
   });
   expect(info.props.pointerEvents).toBe("none");
   expect(chip.props.disabled).toBe(true);
@@ -108,17 +111,23 @@ it("provides static, action and popover modes with the same 22px visual and 13px
   expect(action.props.style).toMatchObject({ width: 44, height: 44 });
   const actionChip = action.props.children;
   expect(actionChip.type).toBe("Chip");
+  expect(actionChip.props.testID).toBe("seat-order-lock-owned");
   expect(actionChip.props.disabled).toBe(true);
   expect(actionChip.props.accessibilityRole).toBe("button");
   expect(actionChip.props.accessibilityState).toEqual({ disabled: true });
   expect(actionChip.props.hitSlop).toBe(11);
   expect(actionChip.props.style.width + actionChip.props.hitSlop * 2).toBe(44);
+  expect(actionChip.props.variant).toBe("secondary");
+  expect(actionChip.props.style.backgroundColor).toBe(chip.props.style.backgroundColor);
+  expect(actionChip.props.style.opacity).toBeUndefined();
   actionChip.props.onPress({ stopPropagation });
   expect(stopPropagation).toHaveBeenCalledOnce();
   expect(press).toHaveBeenCalledOnce();
   const [icon, plus] = actionChip.props.children;
   expect(icon.props.color).toBe("danger-soft-foreground");
   expect(plus.props.children.props.color).toBe(icon.props.color);
+  expect(icon.props.opacity).toBe(0.5);
+  expect(plus.props.style.backgroundColor).toBe(chip.props.style.backgroundColor);
   expect(plus.props.style).toMatchObject({
     position: "absolute",
     top: 2,
@@ -139,6 +148,7 @@ it("provides static, action and popover modes with the same 22px visual and 13px
   expect(trigger.props.children.type).toBe("Chip");
   expect(trigger.props.children.props.disabled).toBeFalsy();
   expect(trigger.props.children.props.accessibilityState).toEqual({ disabled: false });
+  expect(trigger.props.children.props.style.backgroundColor).toBe("default");
   trigger.props.children.props.onPress({ stopPropagation });
   expect(portal.props.children[1].props.children[0].props.children).toBe("Roles");
   expect(portal.props.children[1].props.children[1]).toBe("Explanation");
@@ -181,10 +191,12 @@ it("keeps online status and separates role/lock targets by 44px using only dual-
     topBadgeContent: "Lock",
   });
   expect(dual.props.style).toMatchObject({ marginTop: 8, marginBottom: 8, marginRight: 12 });
+  expect(dual.props.style.isolation).toBe("isolate");
+  expect(dual.props.children[0].props.style.zIndex).toBe(0);
   const [, online, bottom, top] = dual.props.children;
   expect(online.props.style).toMatchObject({ left: -1, backgroundColor: "success" });
-  expect(bottom.props.style).toMatchObject({ bottom: -20, right: -20 });
-  expect(top.props.style).toMatchObject({ top: -20, right: -20 });
+  expect(bottom.props.style).toMatchObject({ bottom: -20, right: -20, zIndex: 2 });
+  expect(top.props.style).toMatchObject({ top: -20, right: -20, zIndex: 2 });
   expect(48 - top.props.style.top - bottom.props.style.bottom).toBe(88);
   const topOnly = render({ name: "Alex", topBadgeContent: "Lock" });
   expect(topOnly.props.style.marginRight).toBe(12);

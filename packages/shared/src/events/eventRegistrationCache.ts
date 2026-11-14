@@ -36,7 +36,14 @@ export function acknowledgeTableRegistration(
   return {
     ...table,
     myRegistration: { ...before, ...registration },
-    ...(registration.position !== undefined ? { myPosition: registration.position } : {}),
+    ...(registration.position !== undefined
+      ? { myPosition: registration.position }
+      : table.eventStatus === "PLANNING" && registration.seatIndex !== undefined
+        ? {
+            myPosition:
+              registration.seatIndex === null ? ("WAITING" as const) : ("SEATED" as const),
+          }
+        : {}),
     canRegister: false,
     canRespond: registration.status === "PENDING" ? table.canRespond : false,
     ...(registration.status === "CANCELLED" || registration.status === "DECLINED"

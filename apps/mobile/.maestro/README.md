@@ -610,6 +610,8 @@ provision users or fixtures and do not run in the canonical CI suites.
 - Notices: set `NOTIFICATION_ACK=owned-disposable-notifications`, `NOTIFICATION_KIND`,
   `NOTIFICATION_ID`, `NOTIFICATION_EVENT_ID` for tables, `NOTIFICATION_LOCALE`,
   `NOTIFICATION_EXPECTED_TEXT` and `NOTIFICATION_CASE=empty|read|mixed|pending|read-error`.
+  Nonempty fixtures also require `NOTIFICATION_EXPECTED_TITLE` and
+  `NOTIFICATION_EXPECTED_DESCRIPTION`, exactly matching the inbox in the selected locale.
   Mixed fixtures also need `NOTIFICATION_PENDING_TEXT`. Read cases really acknowledge notices;
   use a fresh disposable fixture per case. The read-error case toggles airplane mode: restore
   connectivity if interrupted. Web uses `NOTIFICATION_POPOVER_ACK=owned-disposable-notifications`,
@@ -621,9 +623,44 @@ provision users or fixtures and do not run in the canonical CI suites.
   `kind`, `id`, optional `eventId`, `tab`, `lastRow` and `mode=list|static`. Choose a last row
   beyond the first source page. Check that the detail card leaves the viewport and later pages
   load without a second vertical scroller, including empty/error and tab reentry paths.
+  For FAB views also set `DETAIL_SCROLL_FAB_ACTION`; local seat-order checks additionally use
+  `DETAIL_SCROLL_EDIT_ACTION` and `DETAIL_SCROLL_DISCARD_ACTION`. Compare the final complete row
+  with both fixed actions in the captured screenshots, including safe-area and large-text cases.
 
 Browser geometry checks with a controlled component model, YAML parsing and source/unit tests do
 not establish authenticated product acceptance or native frame timing.
+
+## Sparse places and seat-order acceptance
+
+`38-seat-order-sparse.yaml` and `apps/web/e2e/seat-order.config.ts` are opt-in for owned disposable
+Development fixtures. Saves, exits and removals are real writes; prepare fresh fixtures per case.
+These flows never provision accounts, reset data or change providers. No JWT is passed to Maestro.
+
+Required on both clients: `SEAT_ORDER_ACK=owned-disposable-development-seats`,
+`SEAT_ORDER_LOCALE=en|it`, `SEAT_ORDER_THEME=light|dark` and `SEAT_ORDER_INPUT` JSON with
+`case`, `eventId`, `tableId`, current `version`, registration UUIDs `a`, `b`, `c`, `last` and
+`initial` (registration UUID to zero-based place or `null` for waiting). Cases cover `swap`,
+`pending`, `demote`, `manual-remove`, `manual-exit`, `assisted-remove`, `save-409`, `save-503`
+and `scroll` on web. A starts in place one, unlocked; B starts in place two, locked; C starts in
+place three, unlocked. Pending uses C as a pending invitation. The table starts in Manual except
+`assisted-remove`. Scroll needs more than twelve real rows and `last` must identify the actual
+final row; other cases use their post-action final row as validated by the helper.
+
+Web additionally requires `SEAT_ORDER_API_URL`, `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and the normal
+Development Clerk test inputs; `SEAT_ORDER_WIDTH=390|1280` selects the viewport. The scenario
+reads authenticated snapshots without logging tokens, checks persisted indices, versions,
+invitation consent and locks, and compares the last row with both fixed action buttons. Its
+409/503 cases intercept only the owned PATCH and confirm the real server allocation is unchanged.
+
+Native removal needs the exact username-first `targetName`. Manual exit uses the signed-in
+manager's explicitly accepted registration. Native failure cases use real `save-offline` or
+`conflict`: conflict additionally requires
+`SEAT_ORDER_CONCURRENT_ACK=owned-manager-will-edit-event-title`, with a second owned manager
+changing only the Event title after the draft opens. Restore connectivity if an offline journey
+is interrupted. Native checks UI placement/status and screenshots, not authenticated API readback.
+Review screenshots for the complete final row above both FABs, opaque 22px badges with 13px icons,
+and fixed lock positions. Repeat EN/IT, light/dark, large text and safe-area sizes. Source checks
+and syntax validation do not prove device acceptance.
 
 ## Evidence
 

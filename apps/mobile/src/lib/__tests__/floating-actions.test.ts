@@ -36,4 +36,11 @@ describe("floating action clearance", () => {
     expect(layout.paddingBottom).toBe(bottom + FLOATING_ACTION_SIZE + 16);
     expect(layout.paddingBottom - layout.bottom - FLOATING_ACTION_SIZE).toBe(16);
   });
+  it.each([0, 34, 120])("reserves only ordinary safe-area spacing without a FAB: %i", (inset) => {
+    for (const navigator of ["tab", "stack"])
+      expect(screenFloatingActionLayout(inset, navigator, false)).toEqual({
+        bottom: screenFloatingActionLayout(inset, navigator).bottom,
+        paddingBottom: inset + 20,
+      });
+  });
 });

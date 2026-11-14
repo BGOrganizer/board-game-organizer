@@ -29,13 +29,15 @@ export function IconBadge({
   const symbol = (
     <Chip
       color={color}
-      variant="soft"
+      variant="secondary"
       className="relative size-[22px] min-h-0 min-w-0 overflow-hidden rounded-full p-0"
       aria-hidden="true"
     >
-      <Icon className="size-[13px] shrink-0" />
+      <Icon className={`size-[13px] shrink-0 ${isDisabled ? "opacity-50" : ""}`} />
       {multiple ? (
-        <Plus className="absolute top-0.5 right-0.5 size-2 rounded-full bg-background" />
+        <Plus
+          className={`absolute top-0.5 right-0.5 size-2 rounded-full bg-default ${isDisabled ? "opacity-50" : ""}`}
+        />
       ) : null}
     </Chip>
   );
@@ -47,7 +49,8 @@ export function IconBadge({
         aria-label={label}
         onPress={onPress}
         isDisabled={isDisabled}
-        className="size-11 min-h-11 min-w-11 p-0"
+        className="size-11 min-h-11 min-w-11 bg-transparent p-0"
+        style={{ opacity: 1 }}
       >
         {symbol}
       </Button>
@@ -57,7 +60,7 @@ export function IconBadge({
       <Popover>
         <Popover.Trigger
           aria-label={label}
-          className="button button--ghost relative inline-flex size-11 min-h-11 min-w-11 items-center justify-center p-0"
+          className="button button--ghost relative inline-flex size-11 min-h-11 min-w-11 items-center justify-center bg-transparent p-0"
         >
           {symbol}
         </Popover.Trigger>

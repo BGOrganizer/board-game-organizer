@@ -18,6 +18,7 @@ export function UserListRow({
   onPress,
   accessibilityLabel,
   isDisabled,
+  testID,
 }: {
   name: string;
   avatarUrl?: string | null;
@@ -32,10 +33,11 @@ export function UserListRow({
   onPress?: () => void;
   accessibilityLabel?: string;
   isDisabled?: boolean;
+  testID?: string;
 }) {
   const Identity = onPress ? Pressable : View;
   return (
-    <GroupedRow>
+    <GroupedRow testID={testID}>
       <Identity
         onPress={onPress}
         disabled={isDisabled}

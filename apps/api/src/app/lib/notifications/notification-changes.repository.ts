@@ -19,6 +19,7 @@ import {
 import { type ClientSession, type Db, type Document, ObjectId } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { NotificationAttentionRepository } from "./notification-attention.repository";
+import { localizedNotificationText } from "./notification-copy";
 import { notificationRequiresResponse } from "./notification-response-protection";
 
 type SourceRow = Notification & {
@@ -134,6 +135,7 @@ export class NotificationChangesRepository {
   private async row(
     note: SourceRow,
     scope: NotificationChangesScope,
+    locale?: "en" | "it",
   ): Promise<NotificationChangeRow> {
     const reference: NotificationChangeReference = {
       notificationId: note._id.toHexString(),
@@ -143,6 +145,7 @@ export class NotificationChangesRepository {
     };
     return {
       ...reference,
+      ...localizedNotificationText(note, locale),
       messageCode: notificationChangeMessage(scope, note.kind, reference.itemId),
       requiresResponse: await notificationRequiresResponse(this.db, note, this.session),
       readReference: reference,
@@ -189,7 +192,18 @@ export class NotificationChangesRepository {
                 ...after,
                 { $sort: { _effectiveAt: -1, _id: -1, _itemId: 1 } },
                 { $limit: query.limit + 1 },
-                { $project: { recipientUserId: 1, kind: 1, href: 1, _item: 1, _effectiveAt: 1 } },
+                {
+                  $project: {
+                    recipientUserId: 1,
+                    kind: 1,
+                    href: 1,
+                    title: 1,
+                    description: 1,
+                    copy: 1,
+                    _item: 1,
+                    _effectiveAt: 1,
+                  },
+                },
               ],
             },
           },
@@ -199,7 +213,7 @@ export class NotificationChangesRepository {
       .toArray();
     const rows = (result?.rows ?? []).slice(0, query.limit);
     const changes: NotificationChangeRow[] = [];
-    for (const note of rows) changes.push(await this.row(note, query));
+    for (const note of rows) changes.push(await this.row(note, query, query.locale));
     const last = changes.at(-1);
     return {
       asOf,

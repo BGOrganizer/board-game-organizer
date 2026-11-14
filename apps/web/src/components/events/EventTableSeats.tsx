@@ -17,6 +17,7 @@ import { useLingui } from "@lingui/react/macro";
 import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundPlus, UserRoundX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
+import { floatingActionPositionStyle } from "@/components/common/layout/floatingActionStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -84,7 +85,8 @@ export function EventTableSeats({
         <Button
           isIconOnly
           variant="primary"
-          className="fixed right-6 bottom-6 z-40 size-14 rounded-full"
+          className="fixed right-6 z-40 size-14 rounded-full"
+          style={floatingActionPositionStyle}
           aria-label={t`Reorder seats`}
           onPress={() => void order.start()}
         >

@@ -35,7 +35,7 @@ export function EventList({
   const t = useT(),
     router = useRouter(),
     o = useCommunityApi(),
-    layout = useFloatingActionLayout(),
+    layout = useFloatingActionLayout(canCreate),
     accent = useThemeColor("accent-foreground"),
     filters = useListSearch(eventListStatuses, 0),
     list = useEventRecords(o, {

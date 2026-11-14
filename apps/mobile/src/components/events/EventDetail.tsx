@@ -12,6 +12,7 @@ import {
   useNotificationChanges,
   useRecordTables,
 } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -29,7 +30,6 @@ import {
 } from "lucide-react-native";
 import { useRef, useState } from "react";
 import { FlatList, type ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
@@ -50,6 +50,7 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailsCard } from "./EventDetailsCard";
 import { EventFinalizeAction } from "./EventFinalizeAction";
@@ -62,10 +63,10 @@ import { EventVoteCounts } from "./EventVoteCounts";
 import { EventVoteLegend } from "./EventVoteLegend";
 import { TableListHeading } from "./TableListHeading";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
+  const { i18n } = useLingui();
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
-    insets = useSafeAreaInsets(),
     q = useEventRecord(o, eventId),
     a = useEventRecordActions(o, eventId),
     tables = useRecordTables(o, eventId),
@@ -78,9 +79,16 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     (event?.sharedResultsOnly || event?.personalAccessOnly) && requestedTab === "participants"
       ? "details"
       : requestedTab;
+  const hasFloatingActions = Boolean(
+    event &&
+      ((canManageEvent(event, o.userId) && event.status === "CONFIRMED" && event.canReplan) ||
+        (tab === "details" && event.status === "PLANNING" && event.canEdit)),
+  );
+  const layout = useFloatingActionLayout(hasFloatingActions);
   const changes = useNotificationChanges(
     {
       ...o,
+      locale: i18n.locale.startsWith("it") ? "it" : "en",
       enabled:
         o.enabled !== false &&
         Boolean(event) &&
@@ -437,7 +445,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           {screenHeader}
           {tab === "participants" ? (
             event.readOnly ? (
-              <ScreenScrollView>
+              <ScreenScrollView hasFloatingActions={hasFloatingActions}>
                 {detailHeader}
                 <Typography className="text-muted">
                   {t("Public event. Group membership is not required to participate.")}
@@ -449,6 +457,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 actions={a}
                 disabled={q.isPlaceholderData}
                 header={detailHeader}
+                hasFloatingActions={hasFloatingActions}
               />
             )
           ) : (
@@ -463,7 +472,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 padding: 20,
                 paddingTop: 12,
                 gap: 12,
-                paddingBottom: insets.bottom + 112,
+                paddingBottom: layout.paddingBottom,
               }}
               ListHeaderComponent={
                 <View style={{ gap: 12 }}>

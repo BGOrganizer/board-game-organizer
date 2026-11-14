@@ -56,6 +56,81 @@ function seat(
     avatarUrl: "https://example.test/avatar",
   };
 }
+
+it("retains real holes, anonymous reservations and a queue even with free physical seats", () => {
+  const a = { ...seat("a"), seatIndex: 3 };
+  const queued = { ...seat("queued", "ACCEPTED", "WAITING"), seatIndex: null };
+  const value = eventTableRoster(
+    { ...table, seatedCount: 1, pendingCount: 1, occupiedSeatIndices: [1, 3], waitingCount: 2 },
+    [a, queued],
+    [],
+    "viewer",
+    20,
+  );
+  expect(value.rows.map((row) => row.kind)).toEqual([
+    "empty",
+    "reserved",
+    "empty",
+    "player",
+    "player",
+    "reserved",
+  ]);
+  expect(value.rows[0]).toMatchObject({ seatIndex: 0, queue: false });
+  expect(value.rows[1]).toMatchObject({ seatIndex: 1, queue: false });
+  expect(value.rows[5]).toMatchObject({ seatIndex: null, queue: true });
+  expect(value.queueOpen).toBe(true);
+  expect(JSON.stringify(value)).not.toContain("private-pending-id");
+  expect(
+    eventTableRoster(
+      { ...table, maxPlayers: 1000000000, occupiedSeatIndices: [999999999] },
+      [{ ...a, seatIndex: 999999999 }],
+      [],
+      "viewer",
+      3,
+    ).rows,
+  ).toHaveLength(3);
+});
+
+it("keeps sparse queue actions and restores only the owned user's missing display fields", () => {
+  const owner = { ...seat("owner"), seatIndex: 1, name: null, username: null, avatarUrl: null };
+  const profile = { id: "owner", name: "Owned", username: "owned", avatarUrl: "owned-avatar" };
+  const sparse = {
+    ...table,
+    occupiedSeatIndices: [0, 1, 2, 3],
+    myRegistration: owner,
+    myPosition: "SEATED" as const,
+  };
+  const result = eventTableRoster(sparse, [], [], "owner", 20, profile);
+  expect(result.rows[1]).toMatchObject({
+    user: { name: "Owned", username: "owned", avatarUrl: "owned-avatar" },
+  });
+  expect(result.rows.at(-1)).toMatchObject({ kind: "empty", queue: true, seatIndex: null });
+  expect(
+    eventTableRoster(
+      {
+        ...sparse,
+        myRegistration: {
+          ...owner,
+          name: "Canonical",
+          username: "canonical",
+          avatarUrl: "canonical",
+        },
+      },
+      [],
+      [],
+      "owner",
+      20,
+      profile,
+    ).rows[1],
+  ).toMatchObject({ user: { name: "Canonical", username: "canonical", avatarUrl: "canonical" } });
+  expect(
+    eventTableRoster(sparse, [], [], "owner", 20, { ...profile, id: "foreign" }).rows[1],
+  ).toMatchObject({ user: { name: null, username: null, avatarUrl: null } });
+  expect(
+    eventTableRoster(sparse, [], [], "owner", 20, { id: "owner", name: null, avatarUrl: null })
+      .rows[1],
+  ).toMatchObject({ user: { name: null, username: null, avatarUrl: null } });
+});
 it.each(["mario", null, undefined])(
   "fills only a missing self handle from the owned cached profile: %s",
   (username) => {

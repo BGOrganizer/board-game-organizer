@@ -18,6 +18,8 @@ describe("notificationChanges DTOs", () => {
       "none",
     );
     expect(notificationChangesQuerySchema.parse({ ...scope, tab: "all" }).tab).toBe("all");
+    for (const locale of ["en", "it"])
+      expect(notificationChangesQuerySchema.parse({ ...scope, locale }).locale).toBe(locale);
     const cursor = { ...reference, itemId: "", asOf: reference.effectiveAt };
     expect(
       notificationChangesQuerySchema.parse({ ...scope, cursor: JSON.stringify(cursor) }).cursor,
@@ -30,6 +32,7 @@ describe("notificationChanges DTOs", () => {
       { id: "bad" },
       { tab: "unknown" },
       { extra: true },
+      { locale: "fr" },
     ])
       expect(notificationChangesQuerySchema.safeParse({ ...scope, ...invalid }).success).toBe(
         false,
@@ -44,12 +47,21 @@ describe("notificationChanges DTOs", () => {
         {
           ...reference,
           messageCode: "invitation",
+          title: "Table invitation",
+          description: "Actor: Café",
           requiresResponse: true,
           readReference: reference,
         },
       ],
     };
     expect(notificationChangesPageSchema.parse(result)).toEqual(result);
+    for (const invalid of [{ title: undefined }, { description: undefined }, { title: 3 }])
+      expect(
+        notificationChangesPageSchema.safeParse({
+          ...result,
+          changes: [{ ...result.changes[0], ...invalid }],
+        }).success,
+      ).toBe(false);
     expect(
       notificationChangesPageSchema.safeParse({ ...result, tabCounts: { participants: 1 } })
         .success,
