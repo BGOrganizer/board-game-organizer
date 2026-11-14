@@ -59,9 +59,12 @@ export function moveSeatOrder<T extends PositionedRow>(
       return next;
     }
     if (delta === 1) return null;
-    let target = 0;
-    while (target < capacity && occupied.has(target)) target++;
+    let target = Math.max(-1, ...occupied.keys()) + 1;
     if (target >= capacity) {
+      target = capacity - 1;
+      while (target >= 0 && occupied.has(target)) target--;
+    }
+    if (target < 0) {
       const last = [...rows].reverse().find((entry) => entry.seatIndex != null && !entry.locked);
       if (!last) return null;
       target = last.seatIndex as number;

@@ -129,6 +129,54 @@ it("fills a free seat from the first waiting player without moving a pending res
   f.client.clear();
 });
 
+it("promotes a queued player behind a second-place occupant and preserves the earlier hole on save", async () => {
+  const original = snapshot();
+  const state = {
+    ...original,
+    capacity: 4,
+    seatedCount: 1,
+    registrations: original.registrations.slice(0, 2).map((row, index) => ({
+      ...row,
+      seatIndex: index === 0 ? 1 : null,
+    })),
+  };
+  const fetcher = vi.fn(async (_url: string, init: RequestInit) =>
+    Response.json(
+      init.method === "PATCH"
+        ? {
+            ...state,
+            version: 2,
+            seatedCount: 2,
+            registrations: JSON.parse(String(init.body)).registrations.map(
+              (row: { id: string; seatIndex: number | null }) => ({
+                ...state.registrations.find((person) => person.id === row.id),
+                ...row,
+              }),
+            ),
+          }
+        : state,
+    ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const f = setup();
+  const { result } = renderHook(
+    () => useTableSeatOrder(f.o, { ...plannedTable, canManage: true, eventVersion: 1 }),
+    { wrapper: f.wrapper },
+  );
+  await act(() => result.current.start());
+  act(() => result.current.move(1, -1));
+  expect(result.current.rows.map((row) => row.seatIndex)).toEqual([1, 2]);
+  expect(result.current.places.seated[0]).toMatchObject({ kind: "empty", first: 0, last: 0 });
+  await act(() => result.current.save());
+  expect(
+    JSON.parse(String(fetcher.mock.calls[1][1].body)).registrations.map(
+      (row: { seatIndex: number | null }) => row.seatIndex,
+    ),
+  ).toEqual([1, 2]);
+  expect(result.current.rows.map((row) => row.seatIndex)).toEqual([1, 2]);
+  f.client.clear();
+});
+
 it("aborts the transient roster read and rejects late data when management access is lost", async () => {
   let finish = (_value: Response) => {};
   const fetcher = vi.fn(

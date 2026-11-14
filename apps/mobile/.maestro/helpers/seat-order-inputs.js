@@ -15,6 +15,7 @@ var modes = [
   "swap",
   "pending",
   "demote",
+  "promote",
   "manual-remove",
   "manual-exit",
   "assisted-remove",
@@ -87,6 +88,7 @@ function assertions(positions, pendingLocked) {
 var draft = Object.assign({}, p.initial),
   expected = Object.assign({}, p.initial);
 if (p.case === "demote") draft[p.c] = expected[p.c] = null;
+else if (p.case === "promote") draft[p.a] = expected[p.a] = 3;
 else if (removing) {
   delete expected[p.a];
   if (p.case === "assisted-remove") expected[p.c] = 0;

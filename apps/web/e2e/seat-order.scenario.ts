@@ -21,6 +21,7 @@ const cases = [
   "swap",
   "pending",
   "demote",
+  "promote",
   "manual-remove",
   "manual-exit",
   "assisted-remove",
@@ -91,6 +92,7 @@ if (removing) {
   delete expected[input.a];
   if (input.case === "assisted-remove") expected[input.c] = 0;
 } else if (input.case === "demote") expected[input.c] = null;
+else if (input.case === "promote") expected[input.a] = 3;
 else if (!["scroll", "save-409", "save-503"].includes(input.case)) {
   expected[input.a] = 2;
   expected[input.c] = 0;
@@ -100,7 +102,8 @@ if (
     (Object.keys(input.initial).length !== 3 ||
       ![input.a, input.b, input.c].every((id) => id in input.initial))) ||
   (removing && input.last === input.a) ||
-  (input.case === "demote" && input.last !== input.c)
+  (input.case === "demote" && input.last !== input.c) ||
+  (input.case === "promote" && input.last !== input.a)
 )
   throw new Error(
     "A/B/C-only fresh fixture required except for the long-list scroll case; last must survive",
@@ -238,7 +241,7 @@ test(`owned sparse seat order ${input.case}/${locale}/${theme}/${width}`, async 
   expect([Boolean(a.locked), Boolean(b.locked), Boolean(c.locked)]).toEqual([false, true, false]);
   expect(c.status).toBe(input.case === "pending" ? "PENDING" : "ACCEPTED");
   if (input.case === "pending") expect(c.kind).toBe("INVITATION");
-  if (input.case === "demote") {
+  if (input.case === "demote" || input.case === "promote") {
     expect(before.capacity).toBe(4);
     expect(before.registrations.every((registration) => registration.seatIndex !== null)).toBe(
       true,
@@ -280,6 +283,13 @@ test(`owned sparse seat order ${input.case}/${locale}/${theme}/${width}`, async 
       await page.getByTestId(`seat-order-down-${input.c}`).click();
       await page.getByTestId(`seat-order-down-${input.c}`).click();
       draft[input.c] = null;
+    } else if (input.case === "promote") {
+      for (let step = 0; step < 3; step++)
+        await page.getByTestId(`seat-order-down-${input.a}`).click();
+      await page.getByTestId(`seat-order-down-${input.c}`).click();
+      await assertPlaces(page, { [input.b]: 1, [input.c]: 2, [input.a]: null });
+      await page.getByTestId(`seat-order-up-${input.a}`).click();
+      draft[input.a] = 3;
     } else {
       await page.getByTestId(`seat-order-up-${input.c}`).click();
       draft[input.a] = 2;
@@ -388,7 +398,7 @@ test(`owned sparse seat order ${input.case}/${locale}/${theme}/${width}`, async 
   await page.getByRole("tab", { name: labels.participants, exact: true }).click();
   await editor(page);
   await assertPlaces(page, expected);
-  if (["demote", "manual-remove", "manual-exit"].includes(input.case))
+  if (["demote", "promote", "manual-remove", "manual-exit"].includes(input.case))
     await expect(page.getByText(labels.freeFirst, { exact: true })).toBeVisible();
   await bottomClearance(page);
   await page.getByRole("button", { name: labels.discard, exact: true }).click();

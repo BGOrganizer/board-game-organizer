@@ -83,16 +83,37 @@ describe("sparse seat-order draft", () => {
     ]);
     expect(moveSeatOrder(queued, 2, -1, 4)).toEqual(rows);
   });
-  it("promotes the first waiting person into the first opening, not a compacted count", () => {
+  it("promotes after the last occupied place without overtaking earlier holes", () => {
     expect(positions(moveSeatOrder([row("b", 1, true), row("q", null)], 1, -1, 4))).toEqual([
-      ["q", 0],
       ["b", 1],
+      ["q", 2],
     ]);
     expect(positions(moveSeatOrder([row("q", null)], 0, -1, 4))).toEqual([["q", 0]]);
     expect(positions(moveSeatOrder([row("a", 0), row("b", 1), row("q", null)], 2, -1, 4))).toEqual([
       ["a", 0],
       ["b", 1],
       ["q", 2],
+    ]);
+  });
+  it("keeps an unlocked second-place player ahead of a promoted waiting player", () => {
+    expect(positions(moveSeatOrder([row("b", 1), row("q", null)], 1, -1, 3))).toEqual([
+      ["b", 1],
+      ["q", 2],
+    ]);
+  });
+  it("fills the last internal opening when no trailing place is free, preserving anchors", () => {
+    expect(
+      positions(moveSeatOrder([row("b", 1), row("d", 3, true), row("q", null)], 2, -1, 4)),
+    ).toEqual([
+      ["b", 1],
+      ["q", 2],
+      ["d", 3],
+    ]);
+    expect(
+      positions(moveSeatOrder([row("last", 999999, true), row("q", null)], 1, -1, 1000000)),
+    ).toEqual([
+      ["q", 999998],
+      ["last", 999999],
     ]);
   });
   it("a full table swaps the first waiting person with its last unlocked seated person", () => {
@@ -140,6 +161,21 @@ describe("sparse seat-order draft", () => {
     expect(sendSeatToWaiting(rows, 0)?.find((r) => r.id === "pending")).toMatchObject({
       status: "PENDING",
       seatIndex: null,
+    });
+    expect(
+      moveSeatOrder(
+        [
+          { ...row("accepted", 1), status: "ACCEPTED", kind: "SELF" },
+          { ...row("pending", null), status: "PENDING", kind: "INVITATION" },
+        ],
+        1,
+        -1,
+        4,
+      )?.find((r) => r.id === "pending"),
+    ).toMatchObject({
+      status: "PENDING",
+      kind: "INVITATION",
+      seatIndex: 2,
     });
   });
   it("renders bounded empty ranges, including a physically large table and an empty roster", () => {

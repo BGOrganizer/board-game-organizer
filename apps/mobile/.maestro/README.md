@@ -640,11 +640,13 @@ Required on both clients: `SEAT_ORDER_ACK=owned-disposable-development-seats`,
 `SEAT_ORDER_LOCALE=en|it`, `SEAT_ORDER_THEME=light|dark` and `SEAT_ORDER_INPUT` JSON with
 `case`, `eventId`, `tableId`, current `version`, registration UUIDs `a`, `b`, `c`, `last` and
 `initial` (registration UUID to zero-based place or `null` for waiting). Cases cover `swap`,
-`pending`, `demote`, `manual-remove`, `manual-exit`, `assisted-remove`, `save-409`, `save-503`
+`pending`, `demote`, `promote`, `manual-remove`, `manual-exit`, `assisted-remove`, `save-409`, `save-503`
 and `scroll` on web. A starts in place one, unlocked; B starts in place two, locked; C starts in
 place three, unlocked. Pending uses C as a pending invitation. The table starts in Manual except
 `assisted-remove`. Demote requires four places and an empty queue: two Down presses move C through
-the free fourth place into the queue; `last` is C. Rows show player status without a position prefix
+the free fourth place into the queue; `last` is C. Promote also requires four places: arrows queue A
+and restore C to place three, then promote A into place four while place one stays free; `last` is A.
+Rows show player status without a position prefix
 or a direct-to-queue action. Scroll needs more than twelve real rows and `last` must identify the actual
 final row; other cases use their post-action final row as validated by the helper.
 

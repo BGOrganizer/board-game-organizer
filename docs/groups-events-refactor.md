@@ -537,8 +537,10 @@ excluded-Table and frozen-roster guards still apply.
 The manager-only PLANNING Participants reorder action opens an owner-scoped, transient complete roster
 snapshot, capped at 1,000 reservations, rendered with web pagination/native virtualization. It does not persist a second
 server-data cache or a draft to MMKV. Controls move accepted players and pending invitations between
-physical seats and the queue, skipping locked places in either direction. Promotion fills the first
-opening. Up/Down arrows move people through unlocked places and across the seat/queue boundary,
+physical seats and the queue, skipping locked places in either direction. Promotion appends after
+the last occupied place when capacity permits, preserving earlier holes. If only internal holes
+remain, it uses the last free place; a full table still swaps with the last unlocked seated player.
+Up/Down arrows move people through unlocked places and across the seat/queue boundary,
 including into an empty queue; rows show their player status without a redundant position prefix
 or a direct-to-queue action. Pending invitations retain their status and do not acquire consent or votes.
 Accepted and pending seated users have local lock toggles; moving a locked user requires unlocking

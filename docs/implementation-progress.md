@@ -7,6 +7,12 @@ Historical test counts describe their recorded revision only; they do not prove 
 
 ## Anchored seats, opaque badges and floating-action clearance — 2026-11-14
 
+- A further queue-promotion refinement preserves leading holes: the first waiting player enters
+  after the last occupied place when possible, otherwise the last internal hole. Full tables keep
+  the existing last-unlocked swap. The reported second-place/empty-first-place case was reproduced
+  before the fix; shared draft tests cover anchors, pending consent and large sparse capacities,
+  while the real-hook regression verifies that the chosen place survives Save. Retained web/native
+  `promote` journeys exercise the same behavior through arrows and a fresh editor reload.
 - The operator confirmed that the published OTA works on the installed APK. A subsequent editor
   refinement removes the redundant seat-number prefix and direct-to-queue action on both clients;
   Up/Down retain moves through empty places and into an empty queue. Local checks pass: **13 web**,

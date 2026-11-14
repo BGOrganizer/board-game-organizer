@@ -17,7 +17,7 @@ tags: [manual, events, seats]
 - tapOn: ${output.seats.participants}
 - runFlow:
     when:
-      true: ${output.seats.mode === 'demote'}
+      true: ${output.seats.mode === 'demote' || output.seats.mode === 'promote'}
     commands:
       - scrollUntilVisible:
           element: ${output.seats.empty}
@@ -86,7 +86,41 @@ tags: [manual, events, seats]
                             id: ${'seat-order-down-' + output.seats.c}
             - runFlow:
                 when:
-                  true: ${output.seats.mode !== 'demote'}
+                  true: ${output.seats.mode === 'promote'}
+                commands:
+                  - scrollUntilVisible:
+                      element: ${output.seats.freeLast}
+                      direction: DOWN
+                  - scrollUntilVisible:
+                      element:
+                        id: ${'seat-order-down-' + output.seats.a}
+                      direction: UP
+                  - repeat:
+                      times: 3
+                      commands:
+                        - scrollUntilVisible:
+                            element:
+                              id: ${'seat-order-down-' + output.seats.a}
+                            direction: DOWN
+                            visibilityPercentage: 100
+                        - tapOn:
+                            id: ${'seat-order-down-' + output.seats.a}
+                  - scrollUntilVisible:
+                      element:
+                        id: ${'seat-order-down-' + output.seats.c}
+                      direction: UP
+                  - tapOn:
+                      id: ${'seat-order-down-' + output.seats.c}
+                  - scrollUntilVisible:
+                      element:
+                        id: ${'seat-order-up-' + output.seats.a}
+                      direction: DOWN
+                      visibilityPercentage: 100
+                  - tapOn:
+                      id: ${'seat-order-up-' + output.seats.a}
+            - runFlow:
+                when:
+                  true: ${output.seats.mode !== 'demote' && output.seats.mode !== 'promote'}
                 commands:
                   - tapOn:
                       id: ${'seat-order-up-' + output.seats.c}
@@ -203,7 +237,7 @@ tags: [manual, events, seats]
 - runFlow: ../helpers/seat-order-assertions.yaml
 - runFlow:
     when:
-      true: ${output.seats.mode === 'demote' || output.seats.mode === 'manual-remove' || output.seats.mode === 'manual-exit'}
+      true: ${output.seats.mode === 'demote' || output.seats.mode === 'promote' || output.seats.mode === 'manual-remove' || output.seats.mode === 'manual-exit'}
     commands:
       - scrollUntilVisible:
           element: ${output.seats.freeFirst}
