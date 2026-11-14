@@ -18,6 +18,8 @@ it.each(["personal", "event"] as const)(
         context={context}
         table={{
           ...plannedTable,
+          eventStatus: "CONFIRMED",
+          confirmed: { gameId: 1, playerIds: ["owner"], startsAt: "2030-01-01T18:00:00Z" },
           gamesDetail: [
             {
               ...plannedTable.gamesDetail[0],

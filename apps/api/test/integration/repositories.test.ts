@@ -890,7 +890,11 @@ describe("source-paged entity notification attention", () => {
       references: page.changes.map((row) => row.readReference),
     });
     expect(receipt.snapshot.unreadCount).toBe(1);
-    expect(receipt.snapshot.summary.tables).toBe(1);
+    expect(receipt.snapshot.summary.tables).toBe(0);
+    expect(
+      (await new NotificationAttentionRepository(db).snapshot(ACTOR, [targets[0]])).snapshot
+        .targets[0].count,
+    ).toBe(1);
     expect(receipt.readReferences).toHaveLength(2);
     expect(
       (await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ _id: inserted.insertedId }))
@@ -1274,7 +1278,7 @@ describe("source-paged entity notification attention", () => {
     ]);
     const repository = new NotificationAttentionRepository(db);
     const first = (await repository.snapshot(ACTOR, [...targets, date, game])).snapshot;
-    expect(first.summary).toMatchObject({ tables: 1, events: 1, groups: 0 });
+    expect(first.summary).toMatchObject({ tables: 0, events: 1, groups: 0 });
     const effect = first.targets.find((row) => row.target.id === date.id)?.readEffect;
     expect(effect).toMatchObject({ unread: 0, summary: { tables: 0, events: 1, groups: 0 } });
     expect(effect?.targets.some((row) => row.target.kind === "event")).toBe(true);
@@ -1284,11 +1288,11 @@ describe("source-paged entity notification attention", () => {
     await repository.read(ACTOR, { target: date, through: first.asOf });
     const partial = (await repository.snapshot(ACTOR, [...targets, game])).snapshot;
     expect(partial.unreadCount).toBe(1);
-    expect(partial.summary).toMatchObject({ tables: 1, events: 0, groups: 0 });
+    expect(partial.summary).toMatchObject({ tables: 0, events: 0, groups: 0 });
     expect(partial.targets.slice(0, 3).map((row) => row.count)).toEqual([1, 0, 0]);
     expect(partial.targets.find((row) => row.target.id === game.id)?.readEffect).toMatchObject({
       unread: 1,
-      summary: { tables: 1, events: 0, groups: 0 },
+      summary: { tables: 0, events: 0, groups: 0 },
     });
     await repository.read(ACTOR, { target: game, through: partial.asOf });
     expect((await repository.snapshot(ACTOR, targets)).snapshot.unreadCount).toBe(0);
@@ -1608,7 +1612,7 @@ describe("source-paged entity notification attention", () => {
     );
     expect(result.snapshot.unreadCount).toBe(140);
     expect(result.snapshot.summary).toEqual({
-      tables: 131,
+      tables: 0,
       events: 1,
       groups: 3,
       contacts: 4,
@@ -1623,6 +1627,18 @@ describe("source-paged entity notification attention", () => {
     expect(result.snapshot.targets[1]).toMatchObject({ eventId, groupId });
     for (const reference of result.references.values())
       if (reference.target.kind === "table") expect(reference).toMatchObject({ eventId, groupId });
+    await db
+      .collection(COLLECTIONS.EVENTS)
+      .updateOne({ id: eventId }, { $set: { status: "TERMINATED" } });
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_terminated", `/events/${eventId}`, {
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+      }),
+    );
+    const history = (await new NotificationAttentionRepository(db).snapshot(ACTOR, targets))
+      .snapshot;
+    expect(history.summary).toMatchObject({ tables: 131, events: 1 });
+    expect(history.unreadCount).toBe(140);
     expect(
       (await new NotificationAttentionRepository(db).snapshot(FOURTH, targets)).snapshot.summary,
     ).toEqual({

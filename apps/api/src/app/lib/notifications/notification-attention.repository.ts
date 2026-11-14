@@ -225,6 +225,7 @@ export class NotificationAttentionRepository {
                                     managedEventExpression(userId),
                                     { $gt: [{ $size: "$myRegistration" }, 0] },
                                     { $gt: [{ $size: "$myDemonstration" }, 0] },
+                                    { $gt: [{ $size: "$personalFrozenTable" }, 0] },
                                   ],
                                 },
                               ],

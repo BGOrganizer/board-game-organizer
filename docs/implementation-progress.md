@@ -28,6 +28,12 @@ Historical test counts describe their recorded revision only; they do not prove 
   CI metadata/publication contracts pass **39/39**.
   The broad web run exposed stale personal-list/notification fixtures; corrected focused tests and
   exact-commit CI are required evidence rather than treating the initial run as green.
+- The first PR CI passed builds, lint/typecheck and API/shared/schema/mobile unit coverage.
+  Repository integration exposed a missing frozen-roster branch in Scheduled notification routing;
+  that branch now follows canonical Event eligibility. History counters are tested separately from
+  active Table container attention, including a real termination transition. Six legacy Web
+  assertions were updated to the agreed single-role popover and confirmed-only game controls;
+  all **12** focused cases pass. Fresh exact-commit CI remains the delivery gate.
 - Real disposable MongoDB community integration passes **86/86** without skips. The independent
   emulated repository run was interrupted by the execution environment; its owned database files
   were removed and the local port verified closed. It is not counted as a passing integration run.

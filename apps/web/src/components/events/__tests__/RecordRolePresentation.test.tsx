@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { GroupArtwork } from "@/components/groups/GroupArtwork";
 import { groupRecord, plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
@@ -9,7 +9,7 @@ import { EventTableCard } from "../EventTableCard";
 import { EventTableInfo } from "../EventTableInfo";
 
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
-it("keeps Event management, accepted waiting participation and demonstrator duty independent on list and detail cards", () => {
+it("keeps Event management, accepted waiting participation and demonstrator duty independent on list and detail cards", async () => {
   const event = {
     ...plannedEvent,
     role: "participant" as const,
@@ -19,12 +19,17 @@ it("keeps Event management, accepted waiting participation and demonstrator duty
     myRegistrations: [{ ...seat("owner"), position: "WAITING" as const }],
   };
   const view = renderWithI18n(<EventCard event={event} />);
-  for (const label of ["Moderator", "Accepted participant", "Demonstrator"])
-    expect(screen.getByRole("button", { name: label })).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  let dialog = await screen.findByRole("dialog");
+  for (const label of ["Moderator", "Participant on the waiting list", "Demonstrator"])
+    expect(within(dialog).getByText(label)).not.toBeNull();
+  expect(within(dialog).queryByText("Accepted participant")).toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
   view.rerender(<EventDetailsCard event={event} />);
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  dialog = await screen.findByRole("dialog");
   for (const label of ["Moderator", "Participant on the waiting list", "Demonstrator"])
-    expect(screen.getByRole("button", { name: label })).not.toBeNull();
+    expect(within(dialog).getByText(label)).not.toBeNull();
 });
 it("does not fabricate participation or management when an Event is view-only", () => {
   const event = {
@@ -36,7 +41,8 @@ it("does not fabricate participation or management when an Event is view-only", 
   };
   const view = renderWithI18n(<EventCard event={event} />);
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
-  expect(screen.getAllByRole("button")).toHaveLength(5);
+  expect(screen.getAllByRole("button", { name: "Roles and participation" })).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "Event date and time" })).toBeNull();
   view.rerender(<EventDetailsCard event={event} />);
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Management" })).toBeNull();
@@ -57,7 +63,7 @@ it("never publishes an inferred viewing role on an unresolved optimistic Event d
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
   expect(screen.getByRole("link").getAttribute("aria-disabled")).toBe("true");
 });
-it("distinguishes a plain Table viewer from a participating or assigned demonstrator", () => {
+it("distinguishes a plain Table viewer from a participating or assigned demonstrator", async () => {
   const view = renderWithI18n(
     <EventTableCard
       table={{
@@ -81,7 +87,8 @@ it("distinguishes a plain Table viewer from a participating or assigned demonstr
       }}
     />,
   );
-  expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  expect(within(await screen.findByRole("dialog")).getByText("Confirmed player")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
   view.rerender(
     <EventTableInfo
@@ -94,7 +101,8 @@ it("distinguishes a plain Table viewer from a participating or assigned demonstr
     />,
   );
   expect(screen.queryByRole("button", { name: "Viewer" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Demonstrator" })).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  expect(within(await screen.findByRole("dialog")).getByText("Demonstrator")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirmed player" })).toBeNull();
 });
 it.each(["invited", "requested"] as const)(
@@ -114,7 +122,7 @@ it("does not make an informational role button an action on the entity", async (
   renderWithI18n(
     <EventDetailsCard event={{ ...plannedEvent, canManage: true, managementRole: "admin" }} />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Admin" }));
-  expect(await screen.findByText("You administer this item.")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  expect(within(await screen.findByRole("dialog")).getByText("Admin")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull();
 });
