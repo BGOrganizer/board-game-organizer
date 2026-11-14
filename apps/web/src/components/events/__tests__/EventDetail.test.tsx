@@ -1,11 +1,14 @@
 import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-organizer/schemas";
 import { eventRecordKeys } from "@board-game-organizer/shared";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { eventId, groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
+import { messages as italian } from "../../../../../../messages/it.js";
 import { EventDetail } from "../EventDetail";
 
 const mocks = vi.hoisted(() => ({
@@ -51,10 +54,17 @@ function mount(
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
+  locale: "en" | "it" = "en",
 ) {
   renderWithI18n(
     <QueryClientProvider client={client}>
-      <EventDetail eventId={eventId} />
+      {locale === "it" ? (
+        <I18nProvider i18n={setupI18n({ locale, messages: { it: italian } })}>
+          <EventDetail eventId={eventId} />
+        </I18nProvider>
+      ) : (
+        <EventDetail eventId={eventId} />
+      )}
     </QueryClientProvider>,
   );
   return client;
@@ -127,6 +137,20 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   document.getElementById("page-header-actions")?.remove();
+});
+it("requests Event notification copy in Italian", async () => {
+  const client = mount(undefined, "it");
+  await screen.findByRole("heading", { name: event.name });
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([url]) =>
+          url.includes("/notifications/changes") &&
+          new URL(url).searchParams.get("locale") === "it",
+      ),
+    ).toBe(true),
+  );
+  client.clear();
 });
 it("renders a public observer without administration, voting or implicit enrollment even when an old administrator identity remains", async () => {
   event = {

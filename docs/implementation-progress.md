@@ -30,6 +30,10 @@ Historical test counts describe their recorded revision only; they do not prove 
   fixture answering notification requests with Group pages. Both were corrected; the final
   **43/43 focused web regressions** and all four root typecheck tasks pass. These scoped results
   do not establish a complete local web coverage pass; exact-commit CI governs full web coverage.
+- The first exact-commit CI passed **1,249 web tests** but blocked on the unchanged 100% thresholds
+  for newly introduced branches. Follow-up cases exercise Italian Event/Table notification queries
+  and FAB clearance across participant-tab selection, management permissions and Planning/Confirmed
+  states. Coverage thresholds and product behavior were preserved.
 - Both modified real-replica-set integration files pass: **85 community cases** using a disposable
   official MongoDB 7 under QEMU, and **88 repository cases** through the standard Testcontainers
   configuration in the native Raspberry OpenSandbox runner. JUnit reports contain no failures,

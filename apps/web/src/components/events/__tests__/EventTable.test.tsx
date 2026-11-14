@@ -4,6 +4,8 @@ import {
   type TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import { eventRecordKeys, eventVoteCounts } from "@board-game-organizer/shared";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -16,6 +18,7 @@ import {
   tableId,
 } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
+import { messages as italian } from "../../../../../../messages/it.js";
 import { EventTable } from "../EventTable";
 
 const m = vi.hoisted(() => ({
@@ -248,14 +251,59 @@ function mount(
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
+  locale: "en" | "it" = "en",
 ) {
   renderWithI18n(
     <QueryClientProvider client={client}>
-      <EventTable eventId={eventId} tableId={tableId} />
+      {locale === "it" ? (
+        <I18nProvider i18n={setupI18n({ locale, messages: { it: italian } })}>
+          <EventTable eventId={eventId} tableId={tableId} />
+        </I18nProvider>
+      ) : (
+        <EventTable eventId={eventId} tableId={tableId} />
+      )}
     </QueryClientProvider>,
   );
   return client;
 }
+it.each([
+  [true, "PLANNING"],
+  [false, "PLANNING"],
+  [true, "CONFIRMED"],
+] as const)(
+  "reserves page clearance only for an active seat manager FAB (%s, %s)",
+  async (canManage, eventStatus) => {
+    table = { ...table, canManage, eventStatus };
+    const client = mount();
+    const page = (await screen.findByRole("heading", { name: table.name })).closest<HTMLElement>(
+      ".mx-auto.w-full.max-w-4xl",
+    );
+    expect(page?.style.paddingBottom).toBe("");
+    await openParticipants();
+    const visible = canManage && eventStatus === "PLANNING";
+    expect(page?.style.paddingBottom).toBe(
+      visible ? "calc(4.5rem + max(1.5rem, env(safe-area-inset-bottom)))" : "",
+    );
+    expect(Boolean(screen.queryByRole("button", { name: "Reorder seats" }))).toBe(visible);
+    fireEvent.click(screen.getByRole("tab", { name: /^Details/ }));
+    expect(page?.style.paddingBottom).toBe("");
+    client.clear();
+  },
+);
+it("requests Table notification copy in Italian", async () => {
+  const client = mount(undefined, "it");
+  await screen.findByRole("heading", { name: table.name });
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([url]) =>
+          url.includes("/notifications/changes") &&
+          new URL(url).searchParams.get("locale") === "it",
+      ),
+    ).toBe(true),
+  );
+  client.clear();
+});
 it("separates Participants while retaining one roster reader and the same initial data requests across tab switches", async () => {
   const client = mount();
   await screen.findByRole("heading", { name: table.name });
