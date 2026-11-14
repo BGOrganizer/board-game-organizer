@@ -21,12 +21,21 @@ Update/retry must show the changed text and preserve the account. This flow is o
 publishes or changes Production.
 
 `32-ota-startup.yaml` is opt-in and does not publish updates. Use a fresh standalone Development
-APK, an owned complete account and an already downloaded compatible update on `development-pr-N`.
+APK, an owned complete account and an already downloaded compatible update on `development`.
 Verify the installed native channel/runtime against the approved update before running. Set
 `OTA_BUILD_ACK=owned-preview-build`, `OTA_CHANNEL`, `OTA_EXPECTED_TEXT` (unique updated profile
 copy) and `OTA_ACCOUNT_NAME` (the owned profile identity). The flow opens Profile across two cold
 launches without clearing state and checks updated copy and retained account. Prepare matching
 EN/IT fixtures; this is Android Development only, never Production.
+
+For cross-PR delivery, install the new shared-channel APK from an owned PR A, then close A and let
+an owned PR B pass its normal CI/publication gates with an unchanged native runtime and a different
+Preview API URL. Keep A's installed APK. Run `34-ota-consent.yaml` with `OTA_CASE=update` and B's
+unique main-list copy, then `32-ota-startup.yaml` with B's profile copy. Confirm from the owned
+Preview deployment logs that subsequent application requests reach B's API, and that the account
+remains correct. Repeat with Later before accepting, an unavailable/offline update, and a native
+runtime mismatch (no update offered). Do not publish synthetic updates or mutate Production to
+prepare this scenario. These retained paths require real device execution for acceptance.
 
 Separately verify no check/download/restart in editors, confirmation overlays, with keyboard,
 pending selections, mutations or in background; if these appear during an accepted download,

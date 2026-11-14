@@ -9,7 +9,7 @@ inputs:
     description: Android application variant (development or production), independent of EAS profile
     required: true
   update-channel:
-    description: OTA destination (ci-pr-N, development-pr-N, or production)
+    description: OTA destination (ci-pr-N, development, or production)
     required: true
   install-dependencies:
     description: Install the workspace; disable only when the caller already installed this checkout
@@ -69,7 +69,7 @@ runs:
         EXPO_UPDATE_CHANNEL: ${{ inputs.update-channel }}
       run: |
         case "$APP_VARIANT" in
-          development) [[ "$EXPO_UPDATE_CHANNEL" =~ ^(development|(ci|development)-pr-[1-9][0-9]*)$ ]] ;;
+          development) [[ "$EXPO_UPDATE_CHANNEL" =~ ^(development|ci-pr-[1-9][0-9]*)$ ]] ;;
           production) [[ "$EXPO_UPDATE_CHANNEL" == production ]] ;;
           *) false ;;
         esac || { echo "::error::Invalid app variant or OTA channel"; exit 1; }

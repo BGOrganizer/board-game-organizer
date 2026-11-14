@@ -31,7 +31,7 @@ function fixture(production = false, fault) {
     OTA_ARTIFACT_DIR: folder,
     OTA_SOURCE_SHA: source,
     APP_VARIANT: production ? "production" : "development",
-    EXPO_UPDATE_CHANNEL: production ? "production" : "development-pr-22",
+    EXPO_UPDATE_CHANNEL: production ? "production" : "development",
     MOBILE_BUILD_PROFILE: "internal",
     EXPO_TOKEN: "private-expo",
     PR_NUMBER: "22",
@@ -256,10 +256,15 @@ test("environment drift, a CI channel and cross-environment keys cannot publish"
   try {
     for (const change of [
       { EXPO_UPDATE_CHANNEL: "ci-pr-22" },
+      { EXPO_UPDATE_CHANNEL: "development-pr-22" },
       { APP_VARIANT: "production" },
       { EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_live_fixture" },
       { EXPO_PUBLIC_MAPTILER_API_KEY: "changed-on-EAS" },
       { EXPO_PUBLIC_API_URL: "https://api.board-game-organizer.com" },
+      {
+        EXPO_PUBLIC_API_URL:
+          "https://api-development-pr-23-board-game-organizers-projects.vercel.app",
+      },
     ])
       await assert.rejects(
         publishMobileUpdate({ ...f.env, ...change }, { root, run: f.run, merged: true }),
@@ -267,5 +272,23 @@ test("environment drift, a CI channel and cross-environment keys cannot publish"
     assert(!f.calls.some((call) => call.tool === "eas"));
   } finally {
     rmSync(f.folder, { recursive: true, force: true });
+  }
+});
+
+test("successive PRs publish their own verified API endpoint on the same Development channel", async () => {
+  for (const number of ["22", "23"]) {
+    const f = fixture();
+    try {
+      f.env.PR_NUMBER = number;
+      f.env.EXPO_PUBLIC_API_URL = `https://api-development-pr-${number}-board-game-organizers-projects.vercel.app`;
+      writeFileSync(join(f.folder, "api-url.txt"), f.env.EXPO_PUBLIC_API_URL);
+      writeFileSync(join(f.folder, "build-inputs.sha256"), mobileBuildInputs(f.env));
+      await publishMobileUpdate(f.env, { root, run: f.run, merged: true, current() {} });
+      const update = f.calls.at(-1);
+      assert.equal(update.args[update.args.indexOf("--channel") + 1], "development");
+      assert.equal(update.options.env.EXPO_PUBLIC_API_URL, f.env.EXPO_PUBLIC_API_URL);
+    } finally {
+      rmSync(f.folder, { recursive: true, force: true });
+    }
   }
 });

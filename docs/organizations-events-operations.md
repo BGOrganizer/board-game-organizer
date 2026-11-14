@@ -268,8 +268,8 @@ unrelated lockfile changes do not. Compare each reusable artifact's own source c
 head, and verify its checksum/size and matching API/environment inputs before reuse.
 
 OTA-enabled APKs also bind a validated channel to the binary: isolated `ci-pr-N`, distributed
-`development-pr-N`, or `production`. The channel participates in the configuration digest and is
-recorded in `update-channel.txt`. Keep `internal.channel` absent in EAS configuration so it cannot
+`development` shared by all PRs, or `production`. The channel participates in the configuration
+digest and is recorded in `update-channel.txt`. Keep `internal.channel` absent in EAS configuration so it cannot
 override the app's dynamic native header. Expo runtime compatibility uses its own fingerprint,
 not this provenance digest. Development publication and pinned Main release publication now export
 and publish Android Hermes updates after their quality/deployment/smoke checks. The shared publisher
@@ -279,14 +279,24 @@ check follows export. OTA errors remain blocking; the EAS build-registration quo
 not apply. EAS environment configuration must remain unchanged during the publication step: the
 public CLI rereads it after the local preflight. See [OTA configuration](development.md#mobile-ota-updates).
 
+Development publication is serialized across PRs without one PR cancelling another's active publisher. The last
+published compatible update on `development` is offered regardless of which PR built the installed
+APK; PR releases keep their own tags/assets. Current-PR/source checks still run before publication.
+Only `extra.apiUrl` in the Development variant on that channel is omitted from the native
+fingerprint, so an accepted OTA can supply another PR's Preview endpoint without a new binary.
+The exact URL remains in the APK provenance digest and must match the verified publication APK.
+Production and isolated CI fingerprints keep the API URL; all other native inputs remain covered.
+Migrating an installed `development-pr-N` APK requires one manual install of the shared-channel base.
+
 CI web uses the immutable isolated API URL; E2E APKs use the verified per-PR alias. Published
-Development web and APK use a stable `api-development-pr-N` Preview alias, distinct from the CI
-`api-pr-N` alias. The deploy job only computes its URL; the publication job assigns it after smoke,
+Development web and APK use a stable-within-PR `api-development-pr-N` Preview alias, distinct from
+the CI `api-pr-N` alias. The deploy job only computes its URL; the publication job assigns it after smoke,
 non-CI database attestation and current-PR checks, then verifies the exact ready deployment target.
 Immutable deployment URLs remain the source of deployment attestation. Development producers and
 publisher use the same pinned merge SHA; `source-head.txt` records the actual checkout, while the
 PR-head guard independently rejects stale/closed/untrusted PRs. Never redirect E2E
 at Development or Production. Preview protection bypass remains a secret query parameter.
+There is no cross-PR API alias: each published OTA manifest carries that PR's verified API URL.
 
 ## Main delivery and manual environment selection
 

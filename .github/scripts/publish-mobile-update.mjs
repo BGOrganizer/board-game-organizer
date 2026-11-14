@@ -50,8 +50,7 @@ export async function publishMobileUpdate(
     (production
       ? channel !== "production" ||
         env.EXPO_PUBLIC_API_URL !== "https://api.board-game-organizer.com"
-      : channel !== `development-pr-${env.PR_NUMBER}` ||
-        env.EXPO_PUBLIC_API_URL !== developmentApiUrl(env.PR_NUMBER))
+      : channel !== "development" || env.EXPO_PUBLIC_API_URL !== developmentApiUrl(env.PR_NUMBER))
   )
     throw new Error("Verified OTA publication target required");
   requireClerkTarget(

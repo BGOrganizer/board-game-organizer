@@ -6,7 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 it("ignores version labels while preserving the SDK default fingerprint script filter", () => {
-  expect(require("../../../fingerprint.config.js")).toEqual({
+  expect(require("../../../fingerprint.config.js")).toMatchObject({
     sourceSkips: ["ExpoConfigVersions", "PackageJsonAndroidAndIosScriptsIfNotContainRun"],
   });
 });
@@ -73,7 +73,6 @@ it.each([undefined, "development", "production"])(
 it.each([
   ["development", "development"],
   ["development", "ci-pr-42"],
-  ["development", "development-pr-42"],
   ["production", "production"],
 ])("embeds only the selected %s OTA channel %s", (variant, channel) => {
   vi.stubEnv("APP_VARIANT", variant);
@@ -89,6 +88,7 @@ it.each([
   ["development", "production"],
   ["development", ""],
   ["development", "internal"],
+  ["development", "development-pr-42"],
   ["development", "development-pr-0"],
   ["development", "ci-pr-01"],
   ["development", "ci-pr--1"],

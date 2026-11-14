@@ -111,6 +111,31 @@ test("Development producers consume a stable non-CI URL, assigning it only after
   );
 });
 
+test("all PRs share a serialized Development OTA lane while CI and Production remain isolated", () => {
+  const publication = pr.jobs["draft-release"];
+  assert.deepEqual(publication.concurrency, {
+    group: "development-publication",
+    "cancel-in-progress": false,
+  });
+  const build = pr.jobs["build-mobile-development"].steps.find(
+    (step) => step.uses === "./.github/actions/mobile-build",
+  );
+  const ota = publication.steps.find((step) => step.uses === "./.github/actions/mobile-update");
+  assert.equal(build.with["update-channel"], "development");
+  assert.equal(ota.with["update-channel"], "development");
+  const isolated = pr.jobs["build-mobile-internal"].steps.find(
+    (step) => step.uses === "./.github/actions/mobile-build",
+  );
+  assert.equal(
+    isolated.with["update-channel"],
+    `ci-pr-${expression("github.event.pull_request.number")}`,
+  );
+  const production = main.jobs["publish-release"].steps.find(
+    (step) => step.uses === "./.github/actions/mobile-update",
+  );
+  assert.equal(production.with["update-channel"], "production");
+});
+
 test("Development checkout and APK provenance identify the actual merge SHA separately from the PR head guard", () => {
   for (const name of [
     "deploy-development-api",

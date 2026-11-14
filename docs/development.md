@@ -266,10 +266,10 @@ Extensions preview flow instead of this standalone release behavior.
 
 `runtimeVersion` uses Expo's `fingerprint` policy to reject native-incompatible updates. This is
 separate from CI's provenance digest. `EXPO_UPDATE_CHANNEL` defaults to `APP_VARIANT`; optional
-explicit values are `development`, `ci-pr-N`, `development-pr-N` for Development, or only
-`production` for Production. CI selects `ci-pr-N` for isolated test APKs, `development-pr-N` for
-distributed PR APKs and `production` on Main. The shared `internal` EAS profile deliberately has
-no `channel`: its native header comes from the validated app config. The named `development`
+explicit values are `development` or `ci-pr-N` for Development, or only
+`production` for Production. CI selects `ci-pr-N` for isolated test APKs, the shared `development`
+channel for every distributed PR APK and `production` on Main. The shared `internal` EAS profile
+deliberately has no `channel`: its native header comes from the validated app config. The named `development`
 and `production` profiles fix their matching channels. APK artifacts record `update-channel.txt`,
 and the configuration digest includes the channel before reuse.
 
@@ -279,15 +279,26 @@ See [operational gates](organizations-events-operations.md) for artifact/runtime
 For an explicitly authorized manual publication, use the EAS CLI's `update --channel <channel>
 --environment <environment> --platform android --message <message>` from `apps/mobile`.
 SDK 57 requires the EAS environment flag. Supply the same `APP_VARIANT`, `EXPO_UPDATE_CHANNEL`,
-API URL, public keys, Sentry DSN, bypass and Firebase configuration as the target binary; do not
-dump them into logs. EAS environment values must agree with the intended Infisical configuration.
-`fingerprint.config.js` excludes only Expo version/build-number labels and retains the SDK default
-script filter. Native dependencies, permissions, Firebase, channel, other app configuration and
-`eas.json` still participate: changing these requires a new APK. Development uses a stable API
-alias per PR, bound only after delivery gates, so a new verified API deployment does not itself
-invalidate the runtime. CI compares the export runtime with the verified APK before uploading.
+API URL, public keys, Sentry DSN, bypass and Firebase configuration as the verified publication APK;
+do not dump them into logs. EAS environment values must agree with the intended Infisical configuration.
+`fingerprint.config.js` excludes Expo version/build-number labels and retains the SDK default
+script filter. Its SDK `fileHookTransform` also excludes only `extra.apiUrl` when both variant and
+channel are `development`: that JavaScript endpoint comes from the active OTA manifest. The Preview
+API URL remains separate per PR; it does not require a global Development domain or a Vercel plan
+change. A compatible update from another PR brings its own verified API URL when accepted and
+restarted. Production and isolated CI still include their API URL in the fingerprint.
+Native dependencies, permissions, Firebase, channel, other app configuration and `eas.json` still
+participate: changing these requires a new APK. The per-PR Development alias is bound only after
+delivery gates. CI compares the export runtime with the verified APK before uploading.
 JavaScript changes must also remain compatible with that API; a native fingerprint does not
 validate server contracts.
+
+All PR publications share the `development` channel and a serialized publication job. Its most
+recent compatible publication is offered to installed Development builds, including builds from
+closed PRs. Concurrent PRs share this testing lane; publishing one changes the offered bundle and
+API together. PR prereleases remain separate. A new APK must be installed once to move from the old
+`development-pr-N` native header and fingerprint to this shared lane. Native-incompatible changes
+still require a new APK; a shared channel never overrides runtime matching.
 
 The first binary with this consent policy and fingerprint configuration must be installed manually.
 An older `ON_LOAD` binary can download/apply automatically and cannot acquire true consent via a

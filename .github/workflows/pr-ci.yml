@@ -1037,7 +1037,7 @@ jobs:
         with:
           profile: internal
           app-environment: development
-          update-channel: development-pr-${{ github.event.pull_request.number }}
+          update-channel: development
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ needs.deploy-development-api.outputs.branch-url }}
@@ -1062,6 +1062,10 @@ jobs:
 
   draft-release:
     name: Publish PR preview and notify
+    # All PRs share the Development OTA lane; keep each verified publication together.
+    concurrency:
+      group: development-publication
+      cancel-in-progress: false
     # Common quality + Development only. Internal/E2E cannot block publication.
     if: success() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
     environment: development
@@ -1129,7 +1133,7 @@ jobs:
         working-directory: apps/mobile
         env:
           APP_VARIANT: development
-          EXPO_UPDATE_CHANNEL: development-pr-${{ github.event.pull_request.number }}
+          EXPO_UPDATE_CHANNEL: development
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APK_PATH: ${{ steps.meta.outputs.apk-path }}
         run: |
@@ -1159,7 +1163,7 @@ jobs:
         with:
           source-sha: ${{ github.sha }}
           app-environment: development
-          update-channel: development-pr-${{ github.event.pull_request.number }}
+          update-channel: development
           expo-token: ${{ secrets.EXPO_TOKEN }}
           api-url: ${{ needs.deploy-development-api.outputs.branch-url }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}

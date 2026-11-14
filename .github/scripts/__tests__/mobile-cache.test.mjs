@@ -48,7 +48,9 @@ test("build and upload callers explicitly separate app identity from the shared 
             step.with["update-channel"],
             variant === "production"
               ? "production"
-              : `${jobId === "build-mobile-internal" ? "ci" : "development"}-pr-${prNumber}`,
+              : jobId === "build-mobile-internal"
+                ? `ci-pr-${prNumber}`
+                : "development",
           );
           callers++;
         }
@@ -56,7 +58,7 @@ test("build and upload callers explicitly separate app identity from the shared 
           assert.equal(step.env.APP_VARIANT, variant);
           assert.equal(
             step.env.EXPO_UPDATE_CHANNEL,
-            variant === "production" ? "production" : `development-pr-${prNumber}`,
+            variant === "production" ? "production" : "development",
           );
         }
         assert.doesNotMatch(step.run ?? "", /\beas update(?:\s|$)/);
@@ -73,7 +75,7 @@ test("app variant and OTA channel fail closed before build setup and export only
   for (const [variant, channel, valid] of [
     ["development", "development", true],
     ["development", "ci-pr-22", true],
-    ["development", "development-pr-22", true],
+    ["development", "development-pr-22", false],
     ["production", "production", true],
     ["development", "production", false],
     ["production", "development-pr-22", false],

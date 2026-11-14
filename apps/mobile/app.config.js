@@ -13,7 +13,7 @@ const development = variant === "development";
 const updateChannel = process.env.EXPO_UPDATE_CHANNEL ?? variant;
 if (
   development
-    ? !/^(development|(ci|development)-pr-[1-9][0-9]*)$/.test(updateChannel)
+    ? !/^(development|ci-pr-[1-9][0-9]*)$/.test(updateChannel)
     : updateChannel !== "production"
 )
   throw new Error("EXPO_UPDATE_CHANNEL must match APP_VARIANT and a supported channel");

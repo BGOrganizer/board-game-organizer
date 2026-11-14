@@ -8,13 +8,13 @@ inputs:
     description: development or production
     required: true
   update-channel:
-    description: development-pr-N or production
+    description: development or production
     required: true
   expo-token:
     description: Scoped EXPO_TOKEN
     required: true
   api-url:
-    description: Same stable API URL as the APK
+    description: Same verified API URL as this publication's APK
     required: true
   clerk-publishable-key:
     description: Same Clerk public key as the APK
