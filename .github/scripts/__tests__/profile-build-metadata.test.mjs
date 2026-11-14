@@ -11,7 +11,10 @@ test("APK labels use the verified checkout and distinguish PR production APKs fr
     "${{ github.ref != 'refs/heads/main' && 'true' || 'false' }}",
   );
   assert.match(build.run, /export EXPO_PUBLIC_BUILD_SHA="\$\(git rev-parse HEAD\)"/);
-  assert(build.run.indexOf("export EXPO_PUBLIC_BUILD_SHA") < build.run.indexOf("eas build"));
+  assert(
+    build.run.indexOf("export EXPO_PUBLIC_BUILD_SHA") <
+      build.run.indexOf("node ../../.github/scripts/mobile-build-environment.mjs"),
+  );
 });
 
 test("profile build metadata is JavaScript-only, without changing the native Expo configuration", () => {

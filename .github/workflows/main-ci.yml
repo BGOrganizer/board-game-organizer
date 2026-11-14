@@ -150,17 +150,10 @@ jobs:
 
       - name: 🔒 Release only latest validated main commit
         id: current
-        run: |
-          git fetch origin main
-          if [ "$(git rev-parse origin/main)" = "$GITHUB_SHA" ]; then
-            echo 'ok=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'ok=false' >> "$GITHUB_OUTPUT"
-            echo 'Newer main commit exists; this run was verified but will not release.'
-          fi
+        run: node .github/scripts/main-release-preparation.mjs
 
       - name: 🔑 Configure push credentials (release PAT bypasses branch protection)
-        if: steps.current.outputs.ok == 'true'
+        if: steps.current.outputs.mode == 'prepare'
         # actions/checkout sets an Authorization extraheader that OVERRIDES the
         # credentials embedded in the URL — the push would authenticate as the
         # workflow bot (no bypass). Remove it and set the remote URL with the
@@ -174,7 +167,7 @@ jobs:
           git config --global user.email "bot@bgo.dev"
 
       - name: 🚀 Run semantic-release (SKIP_PUBLISH — release created after the gates)
-        if: steps.current.outputs.ok == 'true'
+        if: steps.current.outputs.mode == 'prepare'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SKIP_PUBLISH: "true"
@@ -182,21 +175,7 @@ jobs:
 
       - name: 🔎 Resolve release info
         id: meta
-        run: |
-          VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
-          SHA=$(git rev-parse HEAD)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          if [ "${{ steps.current.outputs.ok }}" = true ] && [ "$SHA" != "$GITHUB_SHA" ]; then
-            test "$(git log -1 --format=%s)" != ''
-            git log -1 --format=%s | grep -q '^chore(release):'
-            test "$(git rev-parse "v$VERSION^{}")" = "$SHA"
-            test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$SHA"
-            echo 'published=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'published=false' >> "$GITHUB_OUTPUT"
-          fi
-          echo "verified merge: $GITHUB_SHA; release SHA: $SHA; version: $VERSION"
+        run: node .github/scripts/main-release-preparation.mjs
     permissions:
       contents: write
 
@@ -342,6 +321,9 @@ jobs:
       - deploy-production
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: production-publication-${{ needs.release.outputs.sha }}
+      cancel-in-progress: false
     outputs:
       release_url: ${{ steps.publish.outputs.release_url }}
       eas_build_url: ${{ steps.eas.outputs.url }}
@@ -385,7 +367,17 @@ jobs:
           bun add --global eas-cli@27.7.2
           node ../../.github/scripts/eas-upload.mjs "$APK"
 
+      - name: 📦 Stage release notes and verified APK before OTA
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
+          EAS_BUILD_URL: ${{ steps.eas.outputs.url }}
+        run: node .github/scripts/main-release-publication.mjs stage
+
       - name: 📡 Publish verified Production OTA
+        if: steps.prepare.outputs.already_published != 'true'
         uses: ./.github/actions/mobile-update
         with:
           source-sha: ${{ needs.release.outputs.sha }}
@@ -398,83 +390,14 @@ jobs:
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
-      - name: 📦 Stage release notes from the pinned bump commit
-        id: prepare
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.release.outputs.version }}
-          RELEASE_SHA: ${{ needs.release.outputs.sha }}
-        run: |
-          set -euo pipefail
-          git fetch --no-tags origin main
-          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
-          # Keep the release private until its verified APK and links are attached.
-          NOTES=$(git log -1 --pretty=%B | tail -n +3)
-          PAYLOAD=$(jq -n --arg tag "v$VERSION" --arg name "v$VERSION" --arg body "$NOTES" --arg sha "$RELEASE_SHA" \
-            '{tag_name:$tag, name:$name, body:$body, target_commitish:$sha, draft:true, prerelease:false}')
-          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" -H 'Content-Type: application/json' \
-            "https://api.github.com/repos/${{ github.repository }}/releases" \
-            -d "$PAYLOAD" > /tmp/release.json
-          jq -e '.id | numbers | select(. > 0)' /tmp/release.json > /dev/null
-          jq -e '.html_url | strings | select(startswith("https://github.com/"))' /tmp/release.json > /dev/null
-          jq -e --arg tag "v$VERSION" '.draft == true and .tag_name == $tag' /tmp/release.json > /dev/null
-
-      - name: 📎 Attach APK with clean name
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.release.outputs.version }}
-        run: |
-          set -euo pipefail
-          CLEAN_NAME="board-game-organizer-${VERSION}-internal.apk"
-          cp "$(find apk -name '*.apk' | head -1)" "/tmp/$CLEAN_NAME"
-          REL_ID=$(jq -r .id /tmp/release.json)
-          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @"/tmp/$CLEAN_NAME" \
-            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL_ID/assets?name=$CLEAN_NAME" > /tmp/apk-upload.json
-          DIGEST="sha256:$(sha256sum "/tmp/$CLEAN_NAME" | cut -d' ' -f1)"
-          SIZE=$(stat -c %s "/tmp/$CLEAN_NAME")
-          jq -e --arg name "$CLEAN_NAME" --arg digest "$DIGEST" --argjson size "$SIZE" \
-            '(.id | type) == "number" and .id > 0 and .name == $name and .size == $size and .digest == $digest' /tmp/apk-upload.json > /dev/null
-
-      - name: 🔗 Append production links to the release body
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EAS_BUILD_URL: ${{ steps.eas.outputs.url }}
-        run: |
-          set -euo pipefail
-          REL_ID=$(jq -r .id /tmp/release.json)
-          BODY=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" | jq -r .body)
-          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://board-game-organizer.com\n- **API:** https://api.board-game-organizer.com\n- **APK:** allegato alla release' "$BODY")
-          if [ -n "$EAS_BUILD_URL" ]; then
-            NEW_BODY=$(printf '%s\n- **Build EAS:** %s' "$NEW_BODY" "$EAS_BUILD_URL")
-          fi
-          PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{body:$body}')
-          curl -fsS -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" -H 'Content-Type: application/json' \
-            "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" -d "$PAYLOAD" | \
-            jq -r '"Release body aggiornato: " + .tag_name'
-
       - name: 🚀 Publish verified production release
         id: publish
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.release.outputs.version }}
           RELEASE_SHA: ${{ needs.release.outputs.sha }}
-        run: |
-          set -euo pipefail
-          git fetch --no-tags origin main
-          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
-          test "$(git rev-parse "v$VERSION^{}")" = "$RELEASE_SHA"
-          REL_ID=$(jq -er '.id | numbers | select(. > 0)' /tmp/release.json)
-          curl -fsS -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'Content-Type: application/json' \
-            "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" \
-            -d '{"draft":false}' > /tmp/published-release.json
-          jq -e --arg tag "v$VERSION" '.draft == false and .tag_name == $tag and (.html_url | startswith("https://github.com/"))' /tmp/published-release.json > /dev/null
-          echo "release_url=$(jq -r .html_url /tmp/published-release.json)" >> "$GITHUB_OUTPUT"
+          EAS_BUILD_URL: ${{ steps.eas.outputs.url }}
+        run: node .github/scripts/main-release-publication.mjs publish
 
       - name: 🗑️ Delete the merged PR draft release
         env:

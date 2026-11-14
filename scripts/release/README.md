@@ -5,6 +5,16 @@ repository root using the project's Node.js version. They do not all perform a r
 version synchronization writes local files, PR notes print Markdown, and Telegram delivery
 sends an external message.
 
+Main's configured release notes and commit levels can be verified without publishing:
+
+```sh
+node --test .github/scripts/__tests__/semantic-release.test.mjs
+```
+
+This calls the installed generator/analyzer with fixtures, rather than running the release CLI.
+For pinned preparation, retries and private staging, follow the
+[Main delivery contract](../../docs/organizations-events-operations.md#main-delivery-and-manual-environment-selection).
+
 ## Synchronize product versions
 
 [bump-versions.mjs](bump-versions.mjs) is used by semantic-release during preparation:

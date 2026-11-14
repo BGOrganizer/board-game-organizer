@@ -271,7 +271,10 @@ explicit values are `development` or `ci-pr-N` for Development, or only
 channel for every distributed PR APK and `production` on Main. The shared `internal` EAS profile
 deliberately has no `channel`: its native header comes from the validated app config. The named `development`
 and `production` profiles fix their matching channels. APK artifacts record `update-channel.txt`,
-and the configuration digest includes the channel before reuse.
+and the configuration digest includes the channel before reuse. Production APK builds and OTA
+exports select the documented `internal.environment=production` setting in the same temporary
+EAS configuration, restoring the original bytes afterward. Development uses the tracked file
+unchanged; Production never implicitly loads Preview variables through the shared profile.
 
 PR Development and Main Production publication automatically publish an Android OTA after their
 quality, deployment, smoke and current-source gates. Isolated `ci-pr-N` builds do not publish OTA.

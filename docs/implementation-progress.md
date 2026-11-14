@@ -5,6 +5,29 @@ Older designs and local-only authorizations below may be superseded. Read the cu
 [domain contract](groups-events-refactor.md), [root instructions](../AGENTS.md) and workflow source first.
 Historical test counts describe their recorded revision only; they do not prove the current head.
 
+## Main delivery preflight corrections — 2026-11-14
+
+- The operator authorized corrections on the existing feature PR and migration of Main's retired
+  required-check names, preserving review and other protections; merging the PR remains excluded.
+- A real configured release-notes invocation reproduced the incompatible preset/writer failure.
+  An explicit compatible release preset fixes generation while Commitlint retains its own version;
+  regression checks execute both installed plugins without publication. Frozen installation passes.
+- Production APK and OTA share a scoped EAS environment selection and restore the original config.
+  Development does not read/write that fingerprint input. The helper measures 100% Node coverage
+  for lines, branches and functions; its source now participates in APK cache invalidation.
+- Exact version-only release resumption and managed private staging are covered by the operational
+  [Main delivery contract](organizations-events-operations.md#main-delivery-and-manual-environment-selection).
+  Actual Production build/deployment/publication is not exercised by these local/mock checks.
+- Completed local verification: **252/252 CI-contract tests**, zero failures/skips, including the
+  real notes generator, actual version/changelog plugins, temporary Git remotes and mocked GitHub
+  recovery/publication. Root lint/typecheck, actionlint and frozen installation pass. Both release
+  helpers measure 100% Node lines/functions; measured branches are 97.78% preparation and 88.79%
+  publication, without lowering thresholds. These source checks are not a Production run.
+- The operator explicitly authorized required-check migration before merging this feature PR.
+  The replacement must use its successful current-head GitHub Actions `PR ready` check, preserve
+  all review/other protection settings and retain rollback evidence. Trusted default-branch
+  controllers remain inactive until their code is merged; no controller activation is claimed.
+
 ## Event indicators, personal history and profile metadata — 2026-11-14
 
 - Event/Table list and detail indicators follow the [card contract](groups-events-refactor.md),

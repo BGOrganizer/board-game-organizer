@@ -59,8 +59,8 @@ test("only trusted Development publication and pinned Production release publish
       position(dev, "📦 Publish/update public PR prerelease"),
   );
   assert(
-    position(prod, "📡 Publish verified Production OTA") <
-      position(prod, "📦 Stage release notes from the pinned bump commit"),
+    position(prod, "📦 Stage release notes and verified APK before OTA") <
+      position(prod, "📡 Publish verified Production OTA"),
   );
 });
 

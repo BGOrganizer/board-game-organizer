@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { requireCurrentPr } from "./ci-current-pr.mjs";
 import { requireClerkTarget } from "./clerk-target.mjs";
 import { developmentApiUrl } from "./development-api-alias.mjs";
+import { withProductionBuildEnvironment } from "./mobile-build-environment.mjs";
 import { mobileBuildInputs } from "./mobile-build-inputs.mjs";
 
 function command(executable, args, options = {}) {
@@ -35,7 +36,15 @@ function bytecodeVersion(value) {
   return buffer.readUInt32LE(8);
 }
 
-export async function publishMobileUpdate(
+export async function publishMobileUpdate(env, options = {}) {
+  return withProductionBuildEnvironment(
+    join(options.root ?? process.cwd(), "apps/mobile"),
+    env,
+    () => publishPreparedMobileUpdate(env, options),
+  );
+}
+
+async function publishPreparedMobileUpdate(
   env,
   { root = process.cwd(), run = command, merged = false, current } = {},
 ) {

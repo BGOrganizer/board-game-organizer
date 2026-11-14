@@ -7,6 +7,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,6 +28,11 @@ function hbc(version = 98) {
 }
 function fixture(production = false, fault) {
   const folder = mkdtempSync(join(tmpdir(), "bgo-ota-test-"));
+  const project = join(folder, "apps/mobile");
+  mkdirSync(project, { recursive: true });
+  writeFileSync(join(project, "package.json"), '{"name":"mobile-ota-fixture"}\n');
+  writeFileSync(join(project, "eas.json"), readFileSync(join(root, "apps/mobile/eas.json")));
+  symlinkSync(join(root, "node_modules"), join(folder, "node_modules"), "dir");
   const env = {
     OTA_ARTIFACT_DIR: folder,
     OTA_SOURCE_SHA: source,
@@ -58,6 +64,8 @@ function fixture(production = false, fault) {
   let firebaseFile;
   const run = async (tool, args, options = {}) => {
     calls.push({ tool, args, options });
+    const profile = JSON.parse(readFileSync(join(project, "eas.json"), "utf8")).build.internal;
+    assert.equal(profile.environment, production ? "production" : undefined);
     if (tool === "git")
       return fault === "checkout" || (fault === "stale-main" && args[1] === "origin/main")
         ? "c".repeat(40)
@@ -115,7 +123,7 @@ function fixture(production = false, fault) {
       return JSON.stringify({ runtimeVersion: fault === "runtime" ? "c".repeat(40) : runtime });
     throw new Error("Unexpected test command");
   };
-  return { folder, env, calls, run, firebaseFile: () => firebaseFile };
+  return { folder, root: folder, env, calls, run, firebaseFile: () => firebaseFile };
 }
 
 for (const production of [false, true])
@@ -123,7 +131,7 @@ for (const production of [false, true])
     const f = fixture(production);
     try {
       await publishMobileUpdate(f.env, {
-        root,
+        root: f.root,
         run: f.run,
         merged: true,
         current: () => f.calls.push({ tool: "current" }),
@@ -148,7 +156,7 @@ for (const production of [false, true])
 test("outer command selects the pinned CLI and delegates to the merged EAS environment without publishing", async () => {
   const f = fixture();
   try {
-    await publishMobileUpdate(f.env, { root, run: f.run });
+    await publishMobileUpdate(f.env, { root: f.root, run: f.run });
     assert.deepEqual(f.calls.at(-1).args.slice(0, 2), ["env:exec", "preview"]);
     assert(f.calls.at(-1).args[2].endsWith("--merged"));
     assert(!f.calls.some((call) => call.args?.[0] === "update"));
@@ -157,10 +165,47 @@ test("outer command selects the pinned CLI and delegates to the merged EAS envir
   }
 });
 
+test("Production environment delegation and merged export share one deterministic build configuration", async () => {
+  const f = fixture(true);
+  const configPath = join(f.root, "apps/mobile/eas.json");
+  const original = readFileSync(configPath);
+  let delegated;
+  try {
+    await publishMobileUpdate(f.env, {
+      root: f.root,
+      run: async (tool, args, options) => {
+        const result = await f.run(tool, args, options);
+        if (tool === "eas" && args[0] === "env:exec") {
+          assert.equal(args[1], "production");
+          delegated = readFileSync(configPath);
+          await publishMobileUpdate(options.env, {
+            root: f.root,
+            merged: true,
+            run: async (...args) => {
+              assert.deepEqual(readFileSync(configPath), delegated);
+              return f.run(...args);
+            },
+          });
+          assert.deepEqual(readFileSync(configPath), delegated);
+        }
+        return result;
+      },
+    });
+    assert(f.calls.some((call) => call.args?.[0] === "update"));
+    assert.deepEqual(readFileSync(configPath), original);
+    assert.notDeepEqual(delegated, original);
+  } finally {
+    rmSync(f.folder, { recursive: true, force: true });
+  }
+});
+
 test("a moving EAS CLI version cannot enter the publication environment", async () => {
   const f = fixture(false, "cli");
   try {
-    await assert.rejects(publishMobileUpdate(f.env, { root, run: f.run }), /Pinned EAS CLI/);
+    await assert.rejects(
+      publishMobileUpdate(f.env, { root: f.root, run: f.run }),
+      /Pinned EAS CLI/,
+    );
     assert(!f.calls.some((call) => call.args?.[0] === "env:exec"));
   } finally {
     rmSync(f.folder, { recursive: true, force: true });
@@ -171,7 +216,7 @@ test("Production rereads current main after export, and superseded releases neve
   for (const fault of [undefined, "stale-main"]) {
     const f = fixture(true, fault);
     try {
-      const operation = publishMobileUpdate(f.env, { root, run: f.run, merged: true });
+      const operation = publishMobileUpdate(f.env, { root: f.root, run: f.run, merged: true });
       if (fault) await assert.rejects(operation, /superseded/);
       else await operation;
       const fetchIndex = f.calls.findIndex(
@@ -196,7 +241,7 @@ test("APKs without optional Firebase configuration still publish without fabrica
   try {
     f.env.GOOGLE_SERVICES_JSON_CONTENT = "";
     writeFileSync(join(f.folder, "build-inputs.sha256"), mobileBuildInputs(f.env));
-    await publishMobileUpdate(f.env, { root, run: f.run, merged: true, current() {} });
+    await publishMobileUpdate(f.env, { root: f.root, run: f.run, merged: true, current() {} });
     assert.equal(f.firebaseFile(), undefined);
   } finally {
     rmSync(f.folder, { recursive: true, force: true });
@@ -219,7 +264,7 @@ for (const fault of [
     try {
       await assert.rejects(
         publishMobileUpdate(f.env, {
-          root,
+          root: f.root,
           run: f.run,
           merged: true,
           current: () => {
@@ -246,7 +291,7 @@ for (const file of [
     const f = fixture();
     try {
       writeFileSync(join(f.folder, file), "tampered");
-      await assert.rejects(publishMobileUpdate(f.env, { root, run: f.run, merged: true }));
+      await assert.rejects(publishMobileUpdate(f.env, { root: f.root, run: f.run, merged: true }));
       assert(!f.calls.some((call) => call.tool === "eas" || call.tool === process.execPath));
     } finally {
       rmSync(f.folder, { recursive: true, force: true });
@@ -269,7 +314,7 @@ test("environment drift, a CI channel and cross-environment keys cannot publish"
       },
     ])
       await assert.rejects(
-        publishMobileUpdate({ ...f.env, ...change }, { root, run: f.run, merged: true }),
+        publishMobileUpdate({ ...f.env, ...change }, { root: f.root, run: f.run, merged: true }),
       );
     assert(!f.calls.some((call) => call.tool === "eas"));
   } finally {
@@ -285,7 +330,7 @@ test("successive PRs publish their own verified API endpoint on the same Develop
       f.env.EXPO_PUBLIC_API_URL = `https://api-development-pr-${number}-board-game-organizers-projects.vercel.app`;
       writeFileSync(join(f.folder, "api-url.txt"), f.env.EXPO_PUBLIC_API_URL);
       writeFileSync(join(f.folder, "build-inputs.sha256"), mobileBuildInputs(f.env));
-      await publishMobileUpdate(f.env, { root, run: f.run, merged: true, current() {} });
+      await publishMobileUpdate(f.env, { root: f.root, run: f.run, merged: true, current() {} });
       const update = f.calls.at(-1);
       assert.equal(update.args[update.args.indexOf("--channel") + 1], "development");
       assert.equal(update.options.env.EXPO_PUBLIC_API_URL, f.env.EXPO_PUBLIC_API_URL);

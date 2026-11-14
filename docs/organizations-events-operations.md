@@ -306,25 +306,43 @@ checks, five unit coverage suites, replica-set API integration coverage and API/
 builds run in parallel on every merge. Codecov signing verification and both unit/integration uploads
 are blocking. Only the latest verified merge prepares the version/changelog/tag. APK, production
 API/web deployment, read-only smoke, private release staging, verified APK upload and final release
-publication use the pinned release SHA. Telegram follows successful publication/deploys and a
-current-main check. The existing narrow exhausted-EAS-quota exception remains. No app-store
+publication use the pinned release SHA. Verified APK assets and links are staged privately before
+Production OTA; the GitHub release becomes public only after OTA succeeds. Telegram follows
+successful publication/deploys and a current-main check. The existing narrow exhausted-EAS-quota exception remains. No app-store
 submission, provisioning, secret synchronization or database migration is introduced.
+
+The release-note preset is an explicit root development dependency, compatible with the installed
+semantic-release writer independently of Commitlint's own preset. CI executes the actual configured
+notes generator and commit analyzer; a passing PR-note renderer alone does not validate Main notes.
+The PR title must also be Conventional Commit syntax when choosing squash, because the single
+squash commit determines the release level. A normal merge retains the original analyzed commits.
 
 The removed `mobile-e2e.yml` is not a remaining manual GitHub gate. Maestro/Playwright suites and
 retained disabled PR hooks still exist for explicitly owned local acceptance. Losing automatic E2E
 means that green coverage, builds and smoke **do not attest** native startup, keyboard, permissions,
-authenticated UI or full user journeys. A failed prepared release can leave a tag/draft; apply the
-existing explicit orphan/version recovery procedure, never silently delete tags or call it published.
+authenticated UI or full user journeys. A failed prepared release can leave a tag/draft; resume
+only the verified state described below. Other orphans require explicit recovery, never silent
+tag deletion or a claim of successful publication.
 
-Main verification has no workflow-wide concurrency group: every merge is checked. Only release
-preparation is serialized, so a newer merge may supersede a pending release, never its verification.
-Release commits use `[skip ci]` to avoid recursion. If preparation leaves an orphan tag without a
-published release, coordinate tag removal and version-state restoration under explicit release-recovery
-scope before retrying; semantic-release treats existing tags as published history. Do not perform
-that recovery as an incidental documentation change.
+Main verification has no workflow-wide concurrency group: every merge is checked. Release
+preparation is serialized; publication is serialized per release SHA. A newer merge supersedes an
+older delivery without skipping its verification. Release commits use `[skip ci]` to avoid recursion.
+A rerun can resume only the current direct release-bump child of its original validated merge:
+all three manifests may change only version, Expo config only its version, and the changelog must
+prepend exactly the commit's release notes. The stable version must increase and its remote tag
+must resolve to that child. Other files, unrelated/stale commits, missing/moved tags or inconsistent
+versions fail closed or skip superseded delivery; they never trigger automatic tag deletion.
 
-Preview/test Clerk uses `CLERK_SECRET_KEY`; Production uses `CLERK_SECRET_KEY_PRODUCTION` and
-production publishable keys. Never mix instances: their tokens are not interchangeable.
+Private staging reuses only the managed release for that exact version/SHA, validates APK digest
+and size, and repairs only its own draft attachment. Matching already-public releases are verified
+without republishing OTA. Interrupted staging/publication can be retried without duplicate GitHub
+releases or another version bump. Expo and GitHub are separate services: an interruption after OTA
+but before GitHub publication can repeat the compatible OTA on retry. Unrecognized historical
+orphans still require explicit release-recovery scope; semantic-release treats existing tags as
+published history. Never remove tags or restore versions as an incidental documentation change.
+
+Preview/test and Production both use environment-scoped `CLERK_SECRET_KEY` and matching
+publishable keys. Never mix instances: their tokens are not interchangeable.
 
 The standalone manual mobile-build and BGG import workflows have been removed. Mobile delivery
 uses the PR/main pipelines. Remote catalog imports remain available through

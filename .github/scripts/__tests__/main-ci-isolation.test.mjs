@@ -163,7 +163,7 @@ test("every main merge runs all non-E2E gates once in parallel before preparing 
   );
   assert.match(
     step("release", "🔒 Release only latest validated main commit").run,
-    /git rev-parse origin\/main.*GITHUB_SHA/,
+    /node \.github\/scripts\/main-release-preparation\.mjs/,
   );
   for (const id of ["build-apk", "deploy-production", "publish-release"])
     assert.equal(jobs[id].steps[0].with.ref, "${{ needs.release.outputs.sha }}");
@@ -234,15 +234,20 @@ test("main publishes and notifies only after production deploy/smoke with the ex
     publish = steps.find((s) => s.id === "publish");
   assert(steps.indexOf(publish) > steps.indexOf(upload));
   const prepare = steps.find((s) => s.id === "prepare");
-  const attach = step("publish-release", "📎 Attach APK with clean name");
-  const body = step("publish-release", "🔗 Append production links to the release body");
-  assert(steps.indexOf(prepare) < steps.indexOf(attach));
-  assert(steps.indexOf(attach) < steps.indexOf(body));
-  assert(steps.indexOf(body) < steps.indexOf(publish));
-  assert.match(prepare.run, /draft:true/);
-  assert.match(attach.run, /\.digest == \$digest/);
-  assert.match(publish.run, /'\{"draft":false\}'/);
-  assert.match(publish.run, /RELEASE_SHA/);
+  const ota = steps.find((s) => s.uses === "./.github/actions/mobile-update");
+  assert(steps.indexOf(upload) < steps.indexOf(prepare));
+  assert(steps.indexOf(prepare) < steps.indexOf(ota));
+  assert(steps.indexOf(ota) < steps.indexOf(publish));
+  assert.match(prepare.run, /main-release-publication\.mjs stage/);
+  assert.match(publish.run, /main-release-publication\.mjs publish/);
+  assert.equal(ota.if, "steps.prepare.outputs.already_published != 'true'");
+  assert.equal(
+    jobs["publish-release"].concurrency.group,
+    "production-publication-${{ needs.release.outputs.sha }}",
+  );
+  assert.equal(jobs["publish-release"].concurrency["cancel-in-progress"], false);
+  assert.equal(prepare.env.RELEASE_SHA, "${{ needs.release.outputs.sha }}");
+  assert.equal(publish.env.RELEASE_SHA, prepare.env.RELEASE_SHA);
   assert.equal(upload.env.EXPO_TOKEN, "${{ secrets.EXPO_TOKEN }}");
   assert.match(upload.run, /node .*eas-upload\.mjs "\$APK"/);
   assert.equal(jobs["publish-release"].outputs.eas_build_url, "${{ steps.eas.outputs.url }}");
@@ -253,9 +258,7 @@ test("main publishes and notifies only after production deploy/smoke with the ex
     step("notify-telegram", "🔒 Notify only the current production release").run,
     /RELEASE_SHA/,
   );
-  const links = step("publish-release", "🔗 Append production links to the release body");
-  assert.equal(links.env.EAS_BUILD_URL, "${{ steps.eas.outputs.url }}");
-  assert.match(links.run, /Build EAS:.*EAS_BUILD_URL/);
+  assert.equal(prepare.env.EAS_BUILD_URL, "${{ steps.eas.outputs.url }}");
   assert.match(
     step("notify-telegram", "🔗 Compose Telegram links").run,
     /if \[ -n "\$EAS_BUILD_URL" \]/,

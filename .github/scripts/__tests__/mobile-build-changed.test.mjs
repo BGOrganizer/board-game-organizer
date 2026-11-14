@@ -69,6 +69,7 @@ test("only mobile runtime and linked packages rebuild APK", () => {
     "packages/schemas/src/matches/dto/matches.ts",
     "messages/it.js",
     ".github/actions/mobile-build/action.yml",
+    ".github/scripts/mobile-build-environment.mjs",
     "patches/heroui-native@1.0.9.patch",
   ]) {
     assert.equal(sourceAffectsMobile(path), true, path);
