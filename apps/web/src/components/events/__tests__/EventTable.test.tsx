@@ -1166,7 +1166,8 @@ it("retains immutable exact scores, ND, profiles and both rating scopes, includi
   await screen.findByText("Could not load complete table details");
   fireEvent.click(screen.getByRole("tab", { name: "Results" }));
   expect(screen.getByText("ND")).toBeTruthy();
-  expect(screen.getByText("Position: ND")).toBeTruthy();
+  expect(screen.queryByText("Position: ND")).toBeNull();
+  expect(screen.getByRole("button", { name: "Position: ND" })).toBeTruthy();
   expect(screen.getByText("1.50")).not.toBeNull();
   fireEvent.click(
     screen.getAllByRole("button", { name: "Global ranking: Username unavailable" })[0],

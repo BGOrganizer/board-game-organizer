@@ -73,7 +73,7 @@ it.each([null, "group"])(
     expect(screen.queryByText("Winner full name")).toBeNull();
     expect(screen.getAllByRole("button", { name: "Position: #1" })).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Position: ND" })).toBeTruthy();
-    expect(screen.getByText("Position: ND")).toBeTruthy();
+    expect(screen.queryByText("Position: ND")).toBeNull();
     expect(screen.getAllByText("1.50")).toHaveLength(2);
     expect(document.querySelectorAll('[title="ND"]')).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Global ranking: @winner" }));

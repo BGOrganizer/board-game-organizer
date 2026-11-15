@@ -204,8 +204,10 @@ it("retains selected game, joint winners and disabled Rating in their informatio
   expect(screen.queryByText("Chess")).toBeNull();
   await closePopover();
   fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
-  expect(await screen.findByText("@owner")).not.toBeNull();
-  expect(screen.getByText("@guest").parentElement).toBe(screen.getByText("@owner").parentElement);
+  const winners = await screen.findByText("@owner, @guest");
+  expect(winners.querySelector("svg.lucide-trophy")?.getAttribute("class")).toContain(
+    "text-warning-soft-foreground",
+  );
   await closePopover();
   fireEvent.click(screen.getByRole("button", { name: "Rating disabled" }));
   expect(await screen.findByText("This table does not update player ratings.")).not.toBeNull();

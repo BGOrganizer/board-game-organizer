@@ -96,10 +96,9 @@ it("hides Planning game proposals and discloses only the frozen game and tied wi
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
-  expect(await screen.findByText("@owner")).not.toBeNull();
-  expect(screen.getByText("@guest")).not.toBeNull();
-  expect(screen.getByText("@owner").closest("li")).not.toBe(
-    screen.getByText("@guest").closest("li"),
+  const winners = await screen.findByText("@owner, @guest");
+  expect(winners.querySelector("svg.lucide-trophy")?.getAttribute("class")).toContain(
+    "text-warning-soft-foreground",
   );
   expect(screen.queryByText("Minimum players")).toBeNull();
   await closePopover();
