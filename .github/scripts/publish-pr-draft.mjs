@@ -154,7 +154,9 @@ export async function publishDevelopmentDraft(
     );
   if (!Number.isSafeInteger(asset.id) || asset.size !== size || asset.digest !== `sha256:${digest}`)
     throw new Error("Uploaded APK checksum/size receipt mismatch");
-  const apkUrl = https(asset.browser_download_url, "github.com");
+  https(asset.browser_download_url, "github.com");
+  // Draft upload receipts can retain an untagged URL after the release becomes public.
+  const apkUrl = `https://github.com/${input.repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`;
   await publishTag(tag, input.headSha, current, Boolean(managed));
   await current();
   const body = [

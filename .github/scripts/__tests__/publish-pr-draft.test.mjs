@@ -146,7 +146,32 @@ test("Development release uploads verified revision first, links only Developmen
   assert.equal(fake.writes.filter((r) => r.method === "DELETE").length, 1);
   assert(fake.writes[deletion].url.endsWith("/9"));
   assert.equal(result.release_id, 10);
-  assert.match(result.apk_url, /^https:\/\/github.com\//);
+  assert.equal(
+    result.apk_url,
+    `https://github.com/${repository}/releases/download/v1.3.2-pr.22/bgo-development-${sha.slice(0, 12)}-100-2.apk`,
+  );
+});
+test("first publication uses the final tag and verified APK name instead of the temporary draft URL", async () => {
+  const temporaryUrl = `https://github.com/${repository}/releases/download/untagged-deadbeef/temporary.apk`;
+  const releaseUrl = `https://github.com/${repository}/releases/tag/development-pr-22`;
+  const apkUrl = `https://github.com/${repository}/releases/download/development-pr-22/bgo-development-${sha.slice(0, 12)}-100-2.apk`;
+  const fake = github({
+    absent: true,
+    release: { html_url: releaseUrl },
+    asset: { browser_download_url: temporaryUrl },
+  });
+  const result = await publishDevelopmentDraft(input, (url, init) => {
+    if (init?.method === "HEAD") assert([releaseUrl, apkUrl].includes(url));
+    return fake.request(url, init);
+  });
+  const body = fake.writes.find((r) => r.method === "PATCH").body.body;
+  assert.equal(result.apk_url, apkUrl);
+  assert(body.includes(apkUrl));
+  assert(!body.includes(temporaryUrl));
+  assert.deepEqual(
+    fake.calls.filter((r) => r.method === "HEAD").map((r) => r.url),
+    [releaseUrl, apkUrl],
+  );
 });
 test("creates a missing draft and includes a valid optional EAS URL", async () => {
   const fake = github({ absent: true });
@@ -276,7 +301,10 @@ test("one public preview page survives new APK uploads and app version changes",
       browser_download_url: `https://github.com/${repository}/releases/download/development-pr-22/new.apk`,
     },
   });
-  const updated = await publishDevelopmentDraft({ ...input, version: "2.0.0" }, second.request);
+  const updated = await publishDevelopmentDraft(
+    { ...input, version: "2.0.0", apkName: "bgo-2.0.0-development.apk" },
+    second.request,
+  );
   assert.equal(initial.release_id, updated.release_id);
   assert.equal(initial.release_url, updated.release_url);
   assert.notEqual(initial.apk_url, updated.apk_url);
