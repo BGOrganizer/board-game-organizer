@@ -40,7 +40,7 @@ it("keeps leave/removal destructive, confirmed and target-pending-disabled; view
   ])
     expect(table).toContain(token);
   expect(table).toMatch(/version:\s*confirm\.version/);
-  expect(source("events/EventInvitationPicker")).toContain("event.canInvite");
+  expect(source("events/EventInvitationPicker")).toMatch(/event\??\.canInvite/);
 });
 it("uses grouped games, virtualized user places, avatar badges and one explicit preference chooser", () => {
   const table = source("events/EventTableOverview"),

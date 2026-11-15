@@ -192,11 +192,9 @@ it.each([false, true])("keeps a network failure observable with cached details=%
   renderWithI18n(<InviteLanding token={token} />);
   expect(screen.getByRole("alert").textContent).toContain("Could not load this invitation.");
   if (cached)
-    expect(
-      screen
-        .getByRole("button", { name: "Accept invitation" })
-        .hasAttribute("disabled"),
-    ).toBe(true);
+    expect(screen.getByRole("button", { name: "Accept invitation" }).hasAttribute("disabled")).toBe(
+      true,
+    );
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(state.review.refetch).toHaveBeenCalledOnce();
 });
@@ -206,11 +204,9 @@ it.each(["isFetching", "isPlaceholderData"] as const)(
     Object.assign(state.review, { data: tableReview(), [field]: true });
     renderWithI18n(<InviteLanding token={token} />);
     expect(screen.queryByRole("status", { name: "Loading invitation…" })).toBeNull();
-    expect(
-      screen
-        .getByRole("button", { name: "Accept invitation" })
-        .hasAttribute("disabled"),
-    ).toBe(true);
+    expect(screen.getByRole("button", { name: "Accept invitation" }).hasAttribute("disabled")).toBe(
+      true,
+    );
   },
 );
 it.each([undefined, "SEATED", "WAITING"] as const)(

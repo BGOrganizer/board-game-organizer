@@ -7148,11 +7148,11 @@ msgstr "Accedi per accettare questo invito e connetterti con chi ti ha invitato.
 
 #. js-lingui-explicit-id
 msgid "invite.signIn"
-msgstr "Accedi per accettare l’invito"
+msgstr "Accedi per accettare"
 
 #. js-lingui-explicit-id
 msgid "invite.claimHint"
-msgstr "Accettando questo invito ti connetti con chi ti ha invitato."
+msgstr "Accettando questo invito ti connetterai con chi ti ha invitato."
 
 #. js-lingui-explicit-id
 msgid "invite.claim"
@@ -7164,7 +7164,7 @@ msgstr "Accettazione…"
 
 #. js-lingui-explicit-id
 msgid "invite.friendSuccess"
-msgstr "Invito accettato: ora sei amico di chi ti ha invitato!"
+msgstr "Invito accettato — ora siete amici!"
 
 #. js-lingui-explicit-id
 msgid "invite.claimFailure"
@@ -7208,7 +7208,7 @@ msgstr "La partecipazione accetta le opzioni singole. Nelle sezioni con più opz
 
 #. js-lingui-explicit-id
 msgid "invite.validation"
-msgstr "Rispondi a tutte le opzioni e scegli almeno un Sì o Se necessario in ogni sezione."
+msgstr "Rispondi a ogni opzione e scegli almeno un Sì o Se necessario in ciascuna sezione."
 
 #. js-lingui-explicit-id
 msgid "invite.accept"
@@ -7280,7 +7280,7 @@ msgstr "No"
 
 #. js-lingui-explicit-id
 msgid "invite.unknown"
-msgstr "Sconosciuto"
+msgstr "Non indicato"
 
 #. js-lingui-explicit-id
 msgid "invite.successTitle"
