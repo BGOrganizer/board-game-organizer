@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { developmentInviteAppLink } from "@board-game-organizer/shared";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as claimPOST } from "@/app/api/invites/claim/route";
 import { POST } from "@/app/api/invites/route";
 
@@ -310,4 +311,23 @@ it.each([null, "https://avatar.example.test/image.png"])(
 it("supports legacy claim CORS preflight", async () => {
   const { OPTIONS } = await import("../claim/route");
   expect((await OPTIONS()).status).toBe(204);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+it("keeps friend links canonical while advertising verified Preview app routing", async () => {
+  vi.stubEnv("VERCEL_ENV", "preview");
+  const origin = "https://api-development-pr-25-board-game-organizers-projects.vercel.app";
+  const canonicalToken = "abcdefghijklmnopqrstuv";
+  const { appLinkAssociation } = await import("@/app/lib/invites/app-link-association");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(appLinkAssociation(true))));
+  authMock.mockResolvedValueOnce({ userId: "user_1" });
+  repoMock.create.mockResolvedValueOnce(fakeInvite({ token: canonicalToken }));
+  getDbMock.mockResolvedValueOnce({ collection: vi.fn() });
+  const response = await POST(new Request(`${origin}/api/invites`, { method: "POST", body: "{}" }));
+  const link = `${origin}/invite/${canonicalToken}`;
+  expect(response.status).toBe(201);
+  expect(await response.json()).toMatchObject({ link, appLink: developmentInviteAppLink(link) });
 });

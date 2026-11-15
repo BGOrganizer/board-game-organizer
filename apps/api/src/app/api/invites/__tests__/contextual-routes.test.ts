@@ -1,4 +1,5 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { developmentInviteAppLink } from "@board-game-organizer/shared";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CommunityError } from "@/app/lib/community.error";
 import { GET, OPTIONS } from "../[token]/route";
 import { POST as claim } from "../claim/route";
@@ -6,6 +7,7 @@ import { POST as create } from "../route";
 
 const state = vi.hoisted(() => ({
   userId: "user_viewer" as string | null,
+  transaction: vi.fn(),
   create: vi.fn(),
   review: vi.fn(),
   claim: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock("@/app/lib/community/record-http", async () => {
       status = 200,
     ) => {
       if (!state.userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
+      state.transaction();
       try {
         return corsJson(await operation(state.userId, { invites: state }), { status }, request);
       } catch (error) {
@@ -41,6 +44,7 @@ const tableId = "11111111-1111-4111-8111-111111111111",
   token = "test-contextual-token";
 beforeEach(() => {
   state.userId = "user_viewer";
+  state.transaction.mockReset();
   state.create.mockReset().mockResolvedValue({ token, expiresAt: new Date("2030-01-01Z") });
   state.review.mockReset().mockResolvedValue({ kind: "TABLE", table: { id: tableId } });
   state.claim.mockReset().mockResolvedValue({ success: true, inviter: null, table: { tableId } });
@@ -116,4 +120,37 @@ it("handles the protected review route's browser preflight", () => {
     }),
   );
   expect(response.status).toBe(204);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+it("waits for optional public readiness before entering the table transaction", async () => {
+  vi.stubEnv("VERCEL_ENV", "preview");
+  const canonicalToken = "abcdefghijklmnopqrstuv";
+  const origin = "https://api-development-pr-25-board-game-organizers-projects.vercel.app";
+  const { appLinkAssociation } = await import("@/app/lib/invites/app-link-association");
+  let complete!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          complete = resolve;
+        }),
+    ),
+  );
+  state.create.mockResolvedValue({ token: canonicalToken, expiresAt: new Date("2030-01-01Z") });
+  const pending = create(
+    new Request(`${origin}/api/invites`, { method: "POST", body: JSON.stringify({ tableId }) }),
+  );
+  await vi.waitFor(() => expect(complete).toBeDefined());
+  expect(state.transaction).not.toHaveBeenCalled();
+  complete(Response.json(appLinkAssociation(true)));
+  const response = await pending;
+  expect(response.status).toBe(201);
+  const link = `${origin}/invite/${canonicalToken}`;
+  expect(await response.json()).toMatchObject({ link, appLink: developmentInviteAppLink(link) });
+  expect(state.transaction).toHaveBeenCalledOnce();
 });

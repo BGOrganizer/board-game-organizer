@@ -6,11 +6,13 @@ import {
   beginOptimisticOperation,
   optimisticMutationSignal,
 } from "../../common/optimisticOperation";
+import { developmentInviteAppLink } from "../inviteLinks";
 
 /** A shareable invite returned by the API. */
 export interface InviteRow {
   token: string;
   link: string;
+  appLink?: string;
   email: string | null;
   expiresAt: string;
 }
@@ -77,7 +79,10 @@ export async function claimInvite(
   inviteLinkOrToken: string,
   protectionBypass?: string | null,
 ): Promise<ClaimResult> {
-  const token = inviteLinkOrToken.trim().replace(/^.*\/invite\//, "");
+  const input = inviteLinkOrToken.trim();
+  const token = input.includes("/invite/")
+    ? input.replace(/^.*\/invite\//, "").split(/[?#]/, 1)[0]
+    : input;
   return fetch(withProtectionBypass(`${apiUrl}/api/invites/claim`, protectionBypass), {
     method: "POST",
     headers: apiHeaders(sessionToken),
@@ -112,7 +117,10 @@ export function useInvites({
       if (signal.aborted) throw new Error("MUTATION_OWNER_CHANGED");
       const created = await createInvite(apiUrl, sessionToken, protectionBypass, tableId, signal);
       if (signal.aborted) throw new Error("MUTATION_OWNER_CHANGED");
-      return created;
+      // Only use the server-approved stable route matching this exact canonical invite.
+      return created.appLink && created.appLink === developmentInviteAppLink(created.link)
+        ? { ...created, link: created.appLink }
+        : created;
     },
     onMutate: async () => {
       if (!userId) throw new Error("No session owner");

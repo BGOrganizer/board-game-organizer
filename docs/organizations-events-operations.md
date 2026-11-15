@@ -388,18 +388,29 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 
 ### Invitation links and native routing
 
-Production Android builds register only `https://api.board-game-organizer.com/invite/` with
-verified App Links. The API exposes `/.well-known/assetlinks.json` with the existing lane's public
-APK signing-certificate SHA-256 and package identity. Key rotation or Google Play App Signing
-requires updating that public fingerprint from the actual distributed signing certificate.
-The domain association must return HTTP 200 JSON without authentication or redirects.
-A fresh Production APK is required to install this native intent filter; OTA cannot add it.
+Android invitation App Links use the stable public `api.board-game-organizer.com` domain with
+separate native path filters: Production `/invite/`, Development `/development/invite/`.
+The Production `/.well-known/assetlinks.json` contains both existing public APK signing-certificate
+SHA-256 identities; Preview associations contain Development only. Key rotation or Google Play App
+Signing requires updating the fingerprint from the actual distributed signing certificate.
+The domain association must return HTTP 200 JSON without authentication or redirects. Installing
+these native filters requires a fresh APK; OTA cannot add them. Install after the public association
+is deployed so Android can verify it.
 
-Development Preview hosts change across PRs, so they are not embedded into Android intent filters:
-this keeps Development native runtimes compatible across Preview endpoint changes. The web invitation
-page offers **Open in app**, using the existing Android `bgo-dev` / `bgo` scheme and existing iOS
-`bgo` scheme. It preserves web acceptance for browsers/devices without the app. Browsers or OS
-preferences may retain an HTTPS link on the web; the explicit app action remains available.
-iOS currently uses this action; universal links require Apple team/domain association configuration.
-Native authentication/profile completion retain only the validated invitation token; all reviews and
-claims continue using the installed app's configured API and session, without a link-provided override.
+Development APIs keep their changing per-PR endpoints. Canonical invite links still point at the
+API that created them. Only an owned non-CI Development alias on a Preview server may additionally advertise a stable
+`appLink`, after a credential-free, bounded and cached GET of the public association verifies the
+Development package/fingerprint. Local, CI, immutable and Production origins make no such probe.
+Until that public deployment is ready, generation returns the original working Preview link.
+Existing Preview links retain their explicit app action; newly generated links can use automatic
+native routing once the association and fresh APK are installed.
+
+The public Development route redirects browsers only to an exact `/invite/<same token>` on an
+owned `api-development-pr-N-board-game-organizers-projects.vercel.app` HTTPS origin, without
+credentials, ports, query strings or fragments. No token is claimed by that route. Native URL
+rewriting discards all incoming parameters and uses the installed app's configured API/session;
+it never forwards Development authentication to Production or switches API from the link.
+The web invitation page retains **Open in app** via Android `bgo-dev` / `bgo` and iOS `bgo` when a
+browser or OS preference retains the HTTPS link. Preview browser pages retain their existing
+Vercel protection. iOS universal links require Apple team/domain association configuration.
+Native authentication/profile completion retain only the validated invitation token.

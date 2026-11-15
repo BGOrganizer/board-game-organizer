@@ -414,9 +414,14 @@ exceptions retain their explicit authorization boundaries throughout this contra
   Existing accounts and new sign-ups return to the invitation review. Production Android App Links open
   `/invite/[token]` on the stable Production API domain in the installed Production app; the API-hosted
   web page also offers Open in app through `bgo` / `bgo-dev`, retaining a browser fallback.
-  Changing Preview hosts use the explicit app action, preserving Development OTA runtime compatibility
-  across PRs instead of embedding a different native link host for each PR. iOS uses the explicit
-  app action; universal-link entitlements require a configured Apple team and domain association.
+  New Development share links can use `/development/invite/[token]` on the same stable public
+  domain with a separate native filter, preserving changing Preview API endpoints and cross-PR OTA
+  compatibility. Canonical links remain on their creating API; an optional stable link is advertised
+  only after public association readiness is verified without credentials. Its browser fallback is
+  restricted to the same token on the exact owned non-CI Development alias. Before public deployment,
+  generation keeps the original Preview link; existing Preview links retain the explicit app action.
+  A fresh APK and public association deployment are required for automatic routing. iOS uses the
+  explicit app action; universal-link entitlements require Apple team/domain association configuration.
   Native sign-in and required profile completion preserve only the validated invitation token,
   never an arbitrary return URL or API override. The native review uses the same restricted data,
   explicit consent and preference validation as web, then opens the complete Table from the receipt. Authentication or

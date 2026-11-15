@@ -81,6 +81,7 @@ export * from "./groups/hooks/useGroupSocialActions";
 export * from "./invites/hooks/useInviteClaim";
 export * from "./invites/hooks/useInvites";
 export { useTableInviteForm } from "./invites/hooks/useTableInviteForm";
+export * from "./invites/inviteLinks";
 export * from "./invites/invitePolicy";
 export * from "./locations/hooks/useCurrentLocationAddress";
 export * from "./locations/hooks/useFavoriteLocations";

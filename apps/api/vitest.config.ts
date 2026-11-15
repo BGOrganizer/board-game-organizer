@@ -22,6 +22,18 @@ export default defineConfig({
       exclude: [...coverageConfigDefaults.exclude, "src/app/invite/**"],
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "src/app/lib/invites/invite-app-link.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/development/invite/**/route.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/lib/invites/app-link-association.ts": {
           lines: 100,
           functions: 100,

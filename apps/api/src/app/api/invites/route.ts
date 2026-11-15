@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { runRecordOperation } from "@/app/lib/community/record-http";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import { inviteAppLinkReady, inviteLinkFields } from "@/app/lib/invites/invite-app-link";
 import { InvitesRepository } from "@/app/lib/invites/invites.repository";
 
 /**
@@ -23,6 +24,9 @@ export async function POST(request: Request) {
   const parsed = createInviteParamsSchema.safeParse(body ?? {});
   if (!parsed.success) return corsJson({ error: "Invalid body" }, { status: 400 }, request);
 
+  const origin = new URL(request.url).origin;
+  const appLinkReady = await inviteAppLinkReady(origin);
+
   if (parsed.data.tableId) {
     const tableId = parsed.data.tableId;
     return runRecordOperation(
@@ -31,7 +35,7 @@ export async function POST(request: Request) {
         const invite = await invites.create(actor, tableId);
         return {
           token: invite.token,
-          link: `${new URL(request.url).origin}/invite/${invite.token}`,
+          ...inviteLinkFields(origin, invite.token, appLinkReady),
           email: null,
           expiresAt: invite.expiresAt.toISOString(),
         };
@@ -44,12 +48,11 @@ export async function POST(request: Request) {
   const invite = await new InvitesRepository(db).create(userId, parsed.data.email);
   // The link points at THIS API (the origin that received the request):
   // preview API → preview invite page, production API → production page.
-  const origin = new URL(request.url).origin;
-  const link = `${origin}/invite/${invite.token}`;
+  const linkFields = inviteLinkFields(origin, invite.token, appLinkReady);
   return corsJson(
     {
       token: invite.token,
-      link,
+      ...linkFields,
       email: invite.email ?? null,
       expiresAt: invite.expiresAt.toISOString(),
     },

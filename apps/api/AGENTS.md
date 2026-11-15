@@ -65,6 +65,11 @@ intended replica set within an authorized migration scope.
 
 Invite tokens are 128-bit base64url values with seven-day expiry. Creation links always use `new
 URL(request.url).origin`; preview APIs create preview links and production creates production links.
+A trusted non-CI Development alias on a Preview server may also return an optional `appLink` on the stable public
+Production domain after a credential-free public association check confirms deployment readiness.
+The canonical `link` stays on the receiving API. The public `/development/invite/[token]` route
+only redirects to an exact matching token on an owned Development alias; it reads no database and
+receives no authentication or bypass credentials. Native clients retain their own configured API.
 Claim UI is hosted by the API at `/invite/[token]`, uses Clerk modal sign-in, and claims with a
 Bearer token. Successful claim connects both users.
 

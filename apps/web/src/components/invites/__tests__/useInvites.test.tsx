@@ -2,6 +2,7 @@ import {
   claimInvite,
   clearSessionQueryCache,
   createInvite,
+  developmentInviteAppLink,
   useInvites,
 } from "@board-game-organizer/shared";
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -248,4 +249,41 @@ it("preserves legacy full-link/bare-token claim requests and HTTP failure", asyn
 it("preserves createInvite HTTP rejection without an abort signal", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 403 })));
   await expect(createInvite("api", "token")).rejects.toThrow("HTTP 403");
+});
+
+it.each(["valid", "untrusted", "mismatch"])(
+  "uses only an exact server-approved stable share link (%s)",
+  async (mode) => {
+    const token = "abcdefghijklmnopqrstuv";
+    const link = `https://api-development-pr-25-board-game-organizers-projects.vercel.app/invite/${token}`;
+    const appLink =
+      mode === "valid"
+        ? developmentInviteAppLink(link)
+        : mode === "untrusted"
+          ? "https://evil.test/invite/" + token
+          : developmentInviteAppLink(link.replace(token, "zyxwvutsrqponmlkjihgfe"));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ token, link, appLink, email: null, expiresAt: "2030-01-08" }),
+        ),
+    );
+    const { result } = renderHook(
+      () => useInvites({ apiUrl: "https://api.test", token: "session", userId: "owner" }),
+      { wrapper },
+    );
+    const row = await result.current.mutateAsync();
+    expect(row.link).toBe(mode === "valid" ? appLink : link);
+  },
+);
+it("extracts only the invite token from a stable app URL and keeps the configured authenticated API", async () => {
+  const token = "abcdefghijklmnopqrstuv";
+  const link = `https://api-development-pr-25-board-game-organizers-projects.vercel.app/invite/${token}`;
+  const fetcher = vi.fn().mockResolvedValue(Response.json({ success: true, inviter: null }));
+  vi.stubGlobal("fetch", fetcher);
+  await claimInvite("https://configured-api.test", "session", developmentInviteAppLink(link)!);
+  expect(fetcher.mock.calls[0][0]).toBe("https://configured-api.test/api/invites/claim");
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ token });
 });
