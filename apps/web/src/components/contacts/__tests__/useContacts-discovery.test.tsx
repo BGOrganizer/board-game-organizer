@@ -29,7 +29,7 @@ function setup(isFriend = true) {
   for (const base of [api, "https://foreign.test"])
     for (const owner of [actor, "foreign-owner"]) {
       for (const view of ["following", "followers", "friends", "pending", "sent", "blocked"])
-        client.setQueryData(["contacts", view, base, owner], {
+        client.setQueryData(["contacts", view, base, owner, "pages-v1"], {
           pages: [
             {
               rows:
@@ -41,7 +41,7 @@ function setup(isFriend = true) {
           ],
           pageParams: [""],
         });
-      client.setQueryData(["contacts", "suggestions", base, owner, "device"], {
+      client.setQueryData(["contacts", "suggestions", base, owner, "device", "pages-v1"], {
         pages: [{ users: [], hasContacts: true, nextCursor: null }],
         pageParams: [""],
       });

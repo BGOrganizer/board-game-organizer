@@ -1,5 +1,5 @@
 import { useContacts } from "@board-game-organizer/shared";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { dehydrate, hydrate, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
@@ -93,12 +93,12 @@ it("reloads cancelled first pages after a mutation without refetching loaded or 
     [foreignApi, "viewer"],
   ]) {
     for (const view of ["followers", "friends", "pending", "sent", "blocked"]) {
-      client.setQueryData(["contacts", view, api, user], {
+      client.setQueryData(["contacts", view, api, user, "pages-v1"], {
         pages: [{ rows: [], nextCursor: null }],
         pageParams: [""],
       });
     }
-    client.setQueryData(["contacts", "suggestions", api, user, "device"], {
+    client.setQueryData(["contacts", "suggestions", api, user, "device", "pages-v1"], {
       pages: [{ users: [], hasContacts: false, nextCursor: null }],
       pageParams: [""],
     });
@@ -166,5 +166,112 @@ it("reloads cancelled first pages after a mutation without refetching loaded or 
   } finally {
     unmount();
     client.clear();
+  }
+});
+
+it.each(["friends", "suggestions"])(
+  "opens real infinite observers after restoring flat %s without treating it as pages or hiding read errors",
+  async (view) => {
+    const apiUrl = "https://api.example.test";
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const oldFriendsKey = ["contacts", "friends", apiUrl, "viewer"];
+    const oldSuggestionsKey = ["contacts", "suggestions", apiUrl, "viewer", "device"];
+    if (view === "friends") client.setQueryData(oldFriendsKey, []);
+    else client.setQueryData(oldSuggestionsKey, { users: [], hasContacts: true });
+    const restored = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    hydrate(restored, dehydrate(client));
+    client.clear();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("unavailable", { status: 503 })),
+    );
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={restored}>{children}</QueryClientProvider>
+    );
+    const { result, unmount } = renderHook(
+      () => useContacts(apiUrl, "token", undefined, undefined, "viewer"),
+      { wrapper },
+    );
+    try {
+      await waitFor(() => expect(result.current.friends.isError).toBe(true));
+      await waitFor(() => expect(result.current.suggestions.isError).toBe(true));
+      expect(result.current.friends.data).toBeUndefined();
+      expect(result.current.suggestions.data).toBeUndefined();
+      expect(result.current.friends.error?.message).toBe("HTTP 503");
+      expect(restored.getQueryData(oldFriendsKey)).toEqual(view === "friends" ? [] : undefined);
+      expect(restored.getQueryData(oldSuggestionsKey)).toEqual(
+        view === "suggestions" ? { users: [], hasContacts: true } : undefined,
+      );
+    } finally {
+      unmount();
+      restored.clear();
+    }
+  },
+);
+
+it("keeps empty inviter pages valid when a newly mirrored invitee becomes a friend, including a cold restore", async () => {
+  const apiUrl = "https://api.example.test";
+  let joined = false;
+  const target = {
+    id: "invitee",
+    name: "Invitee",
+    email: null,
+    avatarUrl: null,
+    presence: { online: false, lastActiveAt: "" },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      return Response.json(
+        url.pathname.endsWith("/suggestions")
+          ? { users: joined ? [target] : [], hasContacts: true, nextCursor: null }
+          : {
+              rows:
+                joined && url.searchParams.get("type") === "friends"
+                  ? [{ fromUserId: "inviter", toUserId: target.id, profile: target }]
+                  : [],
+              nextCursor: null,
+            },
+      );
+    }),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const render = (current: QueryClient) =>
+    renderHook(() => useContacts(apiUrl, "token", undefined, undefined, "inviter"), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={current}>{children}</QueryClientProvider>
+      ),
+    });
+  const initial = render(client);
+  await waitFor(() => expect(initial.result.current.friends.data).toEqual([]));
+  await waitFor(() => expect(initial.result.current.suggestions.data?.users).toEqual([]));
+  joined = true; // Another client claims the invitation after the Clerk mirror exists.
+  await act(async () => {
+    await client.invalidateQueries({
+      queryKey: ["contacts"],
+      predicate: ({ queryKey }) => queryKey[2] === apiUrl && queryKey[3] === "inviter",
+    });
+  });
+  await waitFor(() =>
+    expect(initial.result.current.friends.data?.[0]?.profile?.id).toBe("invitee"),
+  );
+  await waitFor(() =>
+    expect(initial.result.current.suggestions.data?.users[0]?.id).toBe("invitee"),
+  );
+  const saved = dehydrate(client);
+  initial.unmount();
+  client.clear();
+  const restored = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  hydrate(restored, saved);
+  const next = render(restored);
+  try {
+    expect(next.result.current.friends.data?.[0]?.profile?.id).toBe("invitee");
+    expect(next.result.current.suggestions.data?.users[0]?.id).toBe("invitee");
+    expect(next.result.current.friends.hasNextPage).toBe(false);
+    expect(next.result.current.suggestions.hasNextPage).toBe(false);
+  } finally {
+    next.unmount();
+    restored.clear();
   }
 });

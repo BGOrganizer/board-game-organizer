@@ -121,7 +121,9 @@ it("progressively warms scoped first pages, linked events and authorized groups,
   expect(client.getQueryData(notificationListKey(options, 20))).toBeDefined();
   expect(client.getQueryData(notificationListKey(options, 3))).toBeDefined();
   for (const type of startupRelationshipTypes)
-    expect(client.getQueryData(["contacts", type, options.apiUrl, options.userId])).toBeDefined();
+    expect(
+      client.getQueryData(["contacts", type, options.apiUrl, options.userId, "pages-v1"]),
+    ).toBeDefined();
   expect(
     client.getQueryData(
       bggPickerQuery({
@@ -157,10 +159,17 @@ it("progressively warms scoped first pages, linked events and authorized groups,
   );
   expect(new Set(headers).size).toBe(22);
   expect(
-    client.getQueryData(["contacts", "suggestions", options.apiUrl, options.userId, "device"]),
+    client.getQueryData([
+      "contacts",
+      "suggestions",
+      options.apiUrl,
+      options.userId,
+      "device",
+      "pages-v1",
+    ]),
   ).toBeDefined();
   expect(
-    client.getQueryData(["contacts", "suggestions", options.apiUrl, "other", "device"]),
+    client.getQueryData(["contacts", "suggestions", options.apiUrl, "other", "device", "pages-v1"]),
   ).toBeUndefined();
   expect(
     client

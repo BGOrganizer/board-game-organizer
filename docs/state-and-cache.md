@@ -12,6 +12,10 @@ request.
 
 Do not retain a token snapshot for later network calls.
 
+Paginated contact lists and suggestions use their shared canonical keys across screens, warmup
+and mutations. Their cache identity is distinct from retired flat snapshots so an infinite-query
+observer never consumes an incompatible restored value.
+
 On an ordinary authenticated mobile launch, prioritize the first pages of History, Groups, Scheduled Events
 and the profile with three warmup workers; only those four datasets gate early splash release.
 Keep the existing five-second **total** splash limit: unfinished requests continue without blocking

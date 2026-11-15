@@ -16,6 +16,16 @@ appId: com.bgo.boardgameorganizer.dev
     timeout: 30000
 - assertVisible: "Friends"
 - assertVisible: "^@[^ ]+$"
+# Reopen the persisted account after another client changed the social graph.
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///contacts?tab=connections
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- assertVisible: "Friends"
+- assertVisible: "^@[^ ]+$"
 - runFlow:
     file: contact-action.yaml
     env:

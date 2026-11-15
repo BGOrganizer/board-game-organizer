@@ -3,6 +3,7 @@ import {
   eventRecordKeys,
   groupRecordKeys,
   notificationListKey,
+  relationshipListKey,
   startupRelationshipTypes,
 } from "@board-game-organizer/shared";
 import type { QueryClient } from "@tanstack/react-query";
@@ -66,7 +67,7 @@ export function isStartupDestinationSettled(
   if (pathname === "/events") return settled(client, eventRecordKeys.list(o));
   if (pathname === "/contacts")
     return startupRelationshipTypes.every((type) =>
-      settled(client, ["contacts", type, apiUrl, userId]),
+      settled(client, relationshipListKey(apiUrl, userId, type)),
     );
   if (pathname === "/profile") return settled(client, ["profile", apiUrl, userId]);
   if (pathname === "/notifications")
