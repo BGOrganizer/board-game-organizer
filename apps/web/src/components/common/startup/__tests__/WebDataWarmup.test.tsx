@@ -102,7 +102,7 @@ it("warms priority first pages then other read families and two bounded event de
   ])
     expect(client.getQueryData(key)).toBeDefined();
   for (const type of ["friends", "pending", "following", "followers", "sent", "blocked"])
-    expect(client.getQueryData(["contacts", type, o.apiUrl, o.userId])).toBeDefined();
+    expect(client.getQueryData(["contacts", type, o.apiUrl, o.userId, "pages-v1"])).toBeDefined();
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(19));
   expect(client.getQueryData(eventRecordQuery(o, "three").queryKey)).toBeUndefined();
   expect(fetch.mock.calls.every(([url]) => !String(url).includes("cursor="))).toBe(true);

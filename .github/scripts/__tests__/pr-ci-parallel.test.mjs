@@ -212,7 +212,7 @@ test("PR publishes the verified development APK to EAS and keeps GitHub and Tele
   const steps = jobs["draft-release"].steps;
   const upload = steps.find((item) => item.id === "eas");
   const publish = steps.find((item) => item.uses === "./.github/actions/publish-draft-release");
-  const notify = step("draft-release", "🔗 Compose Telegram links");
+  const notify = step("draft-release", "📤 Send Telegram notification");
   assert.ok(
     steps.indexOf(upload) >
       steps.indexOf(step("draft-release", "🔒 Verify APK development API URL")),
@@ -223,9 +223,11 @@ test("PR publishes the verified development APK to EAS and keeps GitHub and Tele
   assert.match(upload.run, /node .*eas-upload\.mjs "\$GITHUB_WORKSPACE\/\$APK_PATH"/);
   assert.equal(publish.with["eas-build-url"], `\${{ steps.eas.outputs.url }}`);
   assert.equal(publish.with["apk-path"], `\${{ steps.meta.outputs.apk-path }}`);
-  assert.match(notify.run, /steps\.draft\.outputs\.release_url/);
-  assert.equal(notify.env.EAS_BUILD_URL, `\${{ steps.eas.outputs.url }}`);
-  assert.match(notify.run, /if \[ -n "\$EAS_BUILD_URL" \]/);
+  assert.equal(notify.with["release-url"], `\${{ steps.draft.outputs.release_url }}`);
+  assert.equal(notify.with["apk-url"], `\${{ steps.draft.outputs.apk_url }}`);
+  assert.equal(notify.with["pr-number"], `\${{ github.event.pull_request.number }}`);
+  assert.equal(notify.with["api-url"], undefined);
+  assert.equal(publish.with["source-sha"], `\${{ github.sha }}`);
   const action = parse(readFileSync(".github/actions/publish-draft-release/action.yml", "utf8"));
   assert.equal(action.inputs["eas-build-url"].required, false);
   assert.equal(action.inputs["eas-build-url"].default, "");

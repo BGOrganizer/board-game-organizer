@@ -259,9 +259,13 @@ test("main publishes and notifies only after production deploy/smoke with the ex
     /RELEASE_SHA/,
   );
   assert.equal(prepare.env.EAS_BUILD_URL, "${{ steps.eas.outputs.url }}");
+  const notification = step("notify-telegram", "📤 Send Telegram notification").with;
+  assert.equal(notification["apk-url"], `\${{ needs.publish-release.outputs.apk_url }}`);
+  assert.equal(notification["pr-number"], `\${{ needs.publish-release.outputs.pr_number }}`);
+  assert.equal(jobs["publish-release"].permissions["pull-requests"], "read");
   assert.match(
-    step("notify-telegram", "🔗 Compose Telegram links").run,
-    /if \[ -n "\$EAS_BUILD_URL" \]/,
+    step("notify-telegram", "📖 Read pinned release changelog").run,
+    /git log -1 --format=%b/,
   );
   assert.equal(step("publish-release", "📥 Download internal APK").with.name, "apk-internal-main");
 });

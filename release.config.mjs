@@ -15,25 +15,24 @@
  * GitHub release is created by the publish-release job ONLY after the APK
  * build, production deploys and read-only smoke checks pass.
  *
- * Note: the changelog mirrors the PR-draft style (pr-ci's
- * scripts/release/pr-changelog.mjs groups by the same types with the same
- * emoji). The commit-analyzer parser accepts broader scope characters (`+`,
+ * PR notes reuse the same installed notes generator and options. The
+ * commit-analyzer parser accepts broader scope characters (`+`,
  * dots, hyphens) so scopes like `feat(release+mobile)` still trigger a
  * release.
  */
 
 const TYPES = [
-  { type: "feat", section: "✨ Nuove funzionalità", release: "minor" },
-  { type: "fix", section: "🐛 Bug fix", release: "patch" },
+  { type: "feat", section: "✨ Features", release: "minor" },
+  { type: "fix", section: "🐛 Bug Fixes", release: "patch" },
   { type: "perf", section: "⚡ Performance", release: "patch" },
   { type: "refactor", section: "♻️ Refactoring", release: false },
-  { type: "style", section: "🎨 Stile", release: false },
-  { type: "docs", section: "📚 Documentazione", release: false },
-  { type: "test", section: "🧪 Test", release: false },
+  { type: "style", section: "🎨 Style", release: false },
+  { type: "docs", section: "📚 Documentation", release: false },
+  { type: "test", section: "🧪 Tests", release: false },
   { type: "ci", section: "🔧 CI/CD", release: false },
   { type: "build", section: "📦 Build", release: false },
-  { type: "chore", section: "🧹 Manutenzione", release: false },
-  { type: "revert", section: "⏪ Revert", release: false },
+  { type: "chore", section: "🧹 Chores", release: false },
+  { type: "revert", section: "⏪ Reverts", release: false },
 ];
 
 // Default conventionalcommits parser rejects `+` (and some other chars) in
@@ -54,7 +53,7 @@ const ANALYZER_CONFIG = {
   parserOpts: PARSER.parserOpts,
 };
 
-const NOTES_CONFIG = {
+export const NOTES_CONFIG = {
   preset: "conventionalcommits",
   presetConfig: {
     types: TYPES.map(({ type, section }) => ({ type, section })),

@@ -62,7 +62,7 @@ afterEach(() => {
 
 it("reconciles an acknowledged empty snapshot even when background suggestions cannot be refreshed", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const key = ["contacts", "suggestions", apiUrl, token, "device"];
+  const key = ["contacts", "suggestions", apiUrl, token, "device", "pages-v1"];
   client.setQueryData(key, {
     pages: [{ users: [], hasContacts: true, nextCursor: null }],
     pageParams: [""],
@@ -100,7 +100,7 @@ it("reconciles an acknowledged empty snapshot even when background suggestions c
 
 it("optimistically marks contact sync and rolls it back on failure", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(["contacts", "suggestions", apiUrl, token, "device"], {
+  client.setQueryData(["contacts", "suggestions", apiUrl, token, "device", "pages-v1"], {
     pages: [{ users: [], hasContacts: false, nextCursor: null }],
     pageParams: [""],
   });
@@ -177,12 +177,12 @@ it("rolls all contact caches back when an optimistic mutation fails", async () =
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   for (const view of ["following", "followers", "friends", "pending", "sent", "blocked"]) {
-    client.setQueryData(["contacts", view, apiUrl, token], {
+    client.setQueryData(["contacts", view, apiUrl, token, "pages-v1"], {
       pages: [{ rows: [], nextCursor: null }],
       pageParams: [""],
     });
   }
-  client.setQueryData(["contacts", "suggestions", apiUrl, token, "device"], {
+  client.setQueryData(["contacts", "suggestions", apiUrl, token, "device", "pages-v1"], {
     pages: [{ users: [target], hasContacts: true, nextCursor: null }],
     pageParams: [""],
   });
@@ -224,6 +224,7 @@ it("rolls all contact caches back when an optimistic mutation fails", async () =
       apiUrl,
       token,
       "device",
+      "pages-v1",
     ])?.pages[0].users,
   ).toEqual([target]);
 });

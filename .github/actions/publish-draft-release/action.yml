@@ -22,6 +22,9 @@ inputs:
   head-sha:
     description: Verified PR head SHA
     required: true
+  source-sha:
+    description: Verified merge SHA used to build the Development APK
+    required: true
   apk-path:
     description: Path of the verified Development APK
     required: true
@@ -61,6 +64,7 @@ runs:
         PR_TITLE: ${{ inputs.pr-title }}
         PR_BASE_SHA: ${{ inputs.base-sha }}
         PR_HEAD_SHA: ${{ inputs.head-sha }}
+        APK_SOURCE_SHA: ${{ inputs.source-sha }}
         APK_PATH: ${{ inputs.apk-path }}
         APK_NAME: ${{ inputs.apk-name }}
         EAS_BUILD_URL: ${{ inputs.eas-build-url }}

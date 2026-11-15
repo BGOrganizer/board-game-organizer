@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import {
+  findTriggerPullRequest,
   publishProductionRelease as publish,
   runProductionRelease,
   stageProductionRelease as stage,
@@ -16,8 +17,7 @@ const sha = "a".repeat(40),
   tag = "v1.4.0";
 const bytes = Buffer.from("owned-verified-production-apk"),
   digest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-const owner = `<!-- bgo:production=${sha};version=1.4.0 -->`,
-  apkName = "board-game-organizer-1.4.0-internal.apk";
+const apkName = "board-game-organizer-1.4.0-internal.apk";
 const url = `https://github.com/${repository}/releases/tag/${tag}`;
 function fixture() {
   const artifactDir = mkdtempSync(join(tmpdir(), "bgo-production-publish-"));
@@ -82,6 +82,8 @@ function server(options = {}) {
         body: init.body instanceof Blob ? "apk" : init.body && JSON.parse(init.body),
       });
     if (s.fail === `${method} ${path}`) return new Response(null, { status: 500 });
+    if (path.includes("/commits/") && path.endsWith("/pulls"))
+      return Response.json(options.triggerPulls ?? []);
     if (path.endsWith("/git/ref/heads/main")) {
       s.mainReads++;
       return Response.json({
@@ -150,7 +152,7 @@ test("stages notes, links and checksummed APK privately; publish and retries reu
     assert.equal(prepared.already_published, false);
     assert.equal(github.state.release.draft, true);
     assert.match(github.state.release.body, /Verified notes/);
-    assert.match(github.state.release.body, /Build EAS/);
+    assert.match(github.state.release.body, /EAS.*Build details/);
     assert.deepEqual(
       github.writes.map((row) => row.method),
       ["POST", "POST"],
@@ -158,11 +160,17 @@ test("stages notes, links and checksummed APK privately; publish and retries reu
     const before = github.writes.length;
     assert.deepEqual(await stage(f.input, github.request), prepared);
     assert.equal(github.writes.length, before);
-    assert.deepEqual(await publish(f.input, prepared, github.request), { release_url: url });
+    assert.deepEqual(await publish(f.input, prepared, github.request), {
+      release_url: url,
+      apk_url: `https://github.com/${repository}/releases/download/${tag}/${apkName}`,
+    });
     assert.equal(github.state.release.draft, false);
     const publishedWrites = github.writes.length;
     assert.equal((await stage(f.input, github.request)).already_published, true);
-    assert.deepEqual(await publish(f.input, prepared, github.request), { release_url: url });
+    assert.deepEqual(await publish(f.input, prepared, github.request), {
+      release_url: url,
+      apk_url: `https://github.com/${repository}/releases/download/${tag}/${apkName}`,
+    });
     assert.equal(github.writes.length, publishedWrites);
   } finally {
     f.cleanup();
@@ -366,6 +374,114 @@ test("private staging accepts GitHub's untagged draft URL and verifies the canon
     assert.equal(github.state.release.draft, true);
     assert.match(github.state.release.html_url, /untagged-/);
     assert.equal((await publish(f.input, prepared, github.request)).release_url, url);
+  } finally {
+    f.cleanup();
+  }
+});
+
+test("Production links only the PR whose actual merge SHA triggered the release, including pagination", async () => {
+  const valid = {
+    number: 24,
+    merge_commit_sha: sha,
+    merged_at: "2026-11-15T12:00:00Z",
+    state: "closed",
+    base: { ref: "main", repo: { full_name: repository } },
+  };
+  const context = { repository, sha, token: "unit-private-token" };
+  const calls = [];
+  const number = await findTriggerPullRequest(context, async (address, options) => {
+    calls.push(address);
+    assert.equal(options.method, "GET");
+    assert.equal(options.headers.Authorization, "Bearer unit-private-token");
+    assert.equal(options.redirect, "error");
+    assert(options.signal);
+    return Response.json(
+      address.endsWith("page=1")
+        ? Array.from({ length: 100 }, (_, i) => ({
+            ...valid,
+            number: i + 100,
+            merge_commit_sha: "b".repeat(40),
+          }))
+        : [valid],
+    );
+  });
+  assert.equal(number, 24);
+  assert.equal(calls.length, 2);
+  for (const extra of [
+    { merge_commit_sha: "b".repeat(40) },
+    { merged_at: null },
+    { state: "open" },
+    { base: { ref: "other", repo: { full_name: repository } } },
+    { base: { ref: "main", repo: { full_name: "other/repo" } } },
+  ])
+    assert.equal(
+      await findTriggerPullRequest(context, async () => Response.json([{ ...valid, ...extra }])),
+      undefined,
+    );
+  assert.equal(await findTriggerPullRequest(context, async () => Response.json([])), undefined);
+  await assert.rejects(
+    findTriggerPullRequest(context, async () => Response.json([valid, { ...valid, number: 25 }])),
+    /Ambiguous/,
+  );
+  await assert.rejects(
+    findTriggerPullRequest(context, async () => Response.json([{ ...valid, number: 0 }])),
+    /number/,
+  );
+  await assert.rejects(
+    findTriggerPullRequest(context, async () => Response.json({})),
+    /response/,
+  );
+  await assert.rejects(
+    findTriggerPullRequest(context, async () => new Response(null, { status: 403 })),
+    /lookup/,
+  );
+  for (const extra of [{ repository: "bad" }, { sha: "bad" }, { token: "" }])
+    await assert.rejects(
+      findTriggerPullRequest({ ...context, ...extra }, async () =>
+        assert.fail("Unexpected request"),
+      ),
+    );
+});
+
+test("Production CLI preserves the triggering PR in its staged receipt and notification outputs", async () => {
+  const f = fixture();
+  const triggerSha = "c".repeat(40);
+  const github = server({
+    triggerPulls: [
+      {
+        number: 24,
+        merge_commit_sha: triggerSha,
+        merged_at: "2026-11-15T12:00:00Z",
+        state: "closed",
+        base: { ref: "main", repo: { full_name: repository } },
+      },
+    ],
+  });
+  try {
+    const env = {
+      GITHUB_REPOSITORY: repository,
+      GH_TOKEN: f.input.token,
+      RELEASE_SHA: sha,
+      VERSION: f.input.version,
+      ARTIFACT_DIR: f.input.artifactDir,
+      GITHUB_SHA: triggerSha,
+      GITHUB_RUN_ID: "123",
+      RELEASE_STATE_FILE: join(f.input.artifactDir, "state.json"),
+      GITHUB_OUTPUT: join(f.input.artifactDir, "output.txt"),
+    };
+    const options = {
+      request: github.request,
+      execute: (_command, args) => (args[0] === "rev-parse" ? sha : f.input.notes),
+    };
+    await runProductionRelease("stage", env, options);
+    const receipt = JSON.parse(readFileSync(env.RELEASE_STATE_FILE, "utf8"));
+    assert.equal(receipt.pr_number, "24");
+    assert(github.state.release.body.includes(`https://github.com/${repository}/pull/24`));
+    const published = await runProductionRelease("publish", env, options);
+    assert.equal(published.pr_number, "24");
+    assert.equal(github.calls.filter((row) => row.address.includes("/commits/")).length, 1);
+    assert.match(readFileSync(env.GITHUB_OUTPUT, "utf8"), /apk_url=https:\/\/github.com/);
+    assert.match(readFileSync(env.GITHUB_OUTPUT, "utf8"), /pr_number=24/);
   } finally {
     f.cleanup();
   }

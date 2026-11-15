@@ -3,6 +3,7 @@ import {
   clearSessionQueryCache,
   eventRecordKeys,
   notificationListKey,
+  relationshipListKey,
   useNotifications,
   useRecordTable,
 } from "@board-game-organizer/shared";
@@ -355,7 +356,7 @@ describe("useNotifications", () => {
 
   it("marks cached social data stale when a new notification arrives without polling it", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const friendsKey = ["contacts", "friends", options.apiUrl, options.userId];
+    const friendsKey = relationshipListKey(options.apiUrl, options.userId, "friends");
     client.setQueryData(friendsKey, {
       pages: [{ rows: [], nextCursor: null }],
       pageParams: [""],

@@ -22,6 +22,7 @@ const input = {
   repository,
   number: 22,
   headSha: sha,
+  sourceSha: "c".repeat(40),
   token: "private-unit-token",
   title: 'PR "$(do-not-execute)" | &',
   version: "1.3.2",
@@ -135,10 +136,11 @@ test("Development release uploads verified revision first, links only Developmen
   const deletion = fake.writes.findIndex((r) => r.method === "DELETE");
   assert(upload >= 0 && patch > upload && deletion > patch);
   const body = fake.writes[patch].body.body;
-  assert.match(body, /Development preview disponibile/);
-  assert.match(body, /non certifica/);
+  assert.match(body, /Board Game Organizer v1\.3\.2 — Development · PR #22/);
+  assert.match(body, /independent of Internal\/E2E verification/);
   assert(body.includes(input.title));
-  assert(body.includes(input.headSha));
+  assert(body.includes(input.sourceSha));
+  assert(!body.includes(input.headSha));
   assert(body.includes(input.webUrl));
   assert(body.includes(input.apiUrl));
   assert(!body.includes("PR CI/CD completato"));

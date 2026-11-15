@@ -22,7 +22,9 @@ credential scope; scripts implement routing, provenance, publication and recover
 
 - Deployment actions prepare their own minimal tooling; callers do not install unused app dependencies.
 - EAS publication jobs install the locked workspace dependencies: even uploading an existing APK resolves Expo config plugins.
-- Each PR has one public Development prerelease, never marked Latest. Telegram links to its stable page; uploads retain revision/checksum verification and EAS remains optional only for its known quota exception.
+- Each PR has one public Development prerelease, never marked Latest. Telegram links directly to
+  its verified APK and Web app, and to the PR and full GitHub release. API links stay in the release.
+  Uploads retain revision/checksum verification and EAS remains optional only for its known quota exception.
 - Native builds install dependencies unless the same checkout was already installed for APK inspection.
 - Notification-only jobs set up tooling without installing the application workspace.
 - APK discovery reads candidate IDs/revisions together, then verifies each candidate's relevant diff,
@@ -55,6 +57,8 @@ They do not dispatch workflows, create/delete provider users or publish builds.
 Validate workflow expressions with `actionlint`; check changed Bash scripts with `bash -n`.
 Run Biome on changed JavaScript. Keep workflow contract tests aligned with script behavior,
 including negative paths, without weakening required checks or mocking E2E acceptance.
+Both CI lanes enforce 100% line, function and branch coverage for the shared release/Telegram
+formatters through Node's test coverage flags on the same contract suite.
 
 Verify live GitHub required-check settings against the current workflow contexts and app identity.
 A local YAML edit does not migrate branch protection or activate default-branch controllers;

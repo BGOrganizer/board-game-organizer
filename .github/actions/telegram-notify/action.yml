@@ -1,8 +1,8 @@
 name: Send Telegram release notification
 description: >-
   Sends the release/PR notification to the configured Telegram channel using
-  scripts/release/telegram-notify.mjs (HTML parse mode, truncated to the
-  channel limits).
+  scripts/release/telegram-notify.mjs with shared English release metadata,
+  linked commits and a bounded changelog excerpt.
 
 inputs:
   bot-token:
@@ -11,17 +11,28 @@ inputs:
   chat-id:
     description: Telegram channel id (TELEGRAM_CHAT_ID secret)
     required: true
-  title:
-    description: First line of the message (e.g. "🚀 Board Game Organizer v1.1.0")
+  app-environment:
+    description: Development or Production publication target
+    required: true
+  version:
+    description: Published application version
+    required: true
+  pr-number:
+    description: PR being previewed, or the merged PR that triggered Production
+    required: false
+    default: ''
+  release-url:
+    description: Verified GitHub release with the complete changelog
+    required: true
+  apk-url:
+    description: Direct download URL of the verified APK
+    required: true
+  web-url:
+    description: Published web application URL
     required: true
   changelog-file:
-    description: Path to a markdown changelog file (optional)
-    required: false
-    default: ""
-  links-file:
-    description: Path to an HTML file with the links block (optional)
-    required: false
-    default: ""
+    description: Path to the Conventional Commit changelog, excluding release metadata
+    required: true
 
 runs:
   using: composite
@@ -31,11 +42,13 @@ runs:
       env:
         TELEGRAM_BOT_TOKEN: ${{ inputs.bot-token }}
         TELEGRAM_CHAT_ID: ${{ inputs.chat-id }}
-        NOTIFICATION_TITLE: ${{ inputs.title }}
+        APP_ENVIRONMENT: ${{ inputs.app-environment }}
+        APP_VERSION: ${{ inputs.version }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        RELEASE_URL: ${{ inputs.release-url }}
+        APK_URL: ${{ inputs.apk-url }}
+        WEB_URL: ${{ inputs.web-url }}
         CHANGELOG_FILE: ${{ inputs.changelog-file }}
-        LINKS_FILE: ${{ inputs.links-file }}
       run: |
         node scripts/release/telegram-notify.mjs \
-          --title "$NOTIFICATION_TITLE" \
-          --changelog "$CHANGELOG_FILE" \
-          --links-file "$LINKS_FILE"
+          --changelog "$CHANGELOG_FILE"

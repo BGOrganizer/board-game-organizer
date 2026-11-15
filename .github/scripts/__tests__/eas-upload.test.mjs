@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
@@ -146,37 +144,18 @@ test("generic GraphQL, auth, other quotas, wrong exit, launch/signal errors and 
   }
 });
 
-test("PR and main notifications omit unavailable EAS links but retain actual GitHub/Web/API links", () => {
-  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+test("PR and Main notifications use verified direct downloads without exposing API or EAS links", () => {
   for (const [index, workflow] of workflows.entries()) {
     const job = workflow.jobs[index === 0 ? "draft-release" : "notify-telegram"];
-    const step = job.steps.find((s) => s.name === "🔗 Compose Telegram links");
-    for (const url of ["", "https://expo.dev/accounts/fixture/builds/fixture"]) {
-      const folder = mkdtempSync(join(tmpdir(), "bgo-eas-links-"));
-      const target = join(folder, "links.html").replaceAll("\\", "/");
-      try {
-        const code = step.run
-          .replaceAll("/tmp/telegram-links.html", `"${target}"`)
-          .replace(/\$\{\{[^}]+}}/g, "https://fixture.example.invalid");
-        const result = spawnSync(bash, ["-e", "-c", code], {
-          encoding: "utf8",
-          env: {
-            ...process.env,
-            EAS_BUILD_URL: url,
-            RELEASE_URL: "https://github.com/fixture/releases/fixture",
-          },
-        });
-        assert.equal(result.status, 0, result.stderr);
-        const html = readFileSync(target, "utf8");
-        assert.match(html, /APK .*GitHub/);
-        assert.match(html, /Web/);
-        assert.match(html, /API/);
-        assert.equal(html.includes("Build (EAS"), Boolean(url));
-        assert.doesNotMatch(html, /href=""/);
-      } finally {
-        rmSync(folder, { recursive: true, force: true });
-      }
-    }
+    const step = job.steps.find((entry) => entry.uses === "./.github/actions/telegram-notify");
+    assert.equal(step.with["app-environment"], index === 0 ? "development" : "production");
+    assert.match(step.with["apk-url"], /outputs\.apk_url/);
+    assert.match(step.with["release-url"], /outputs\.release_url/);
+    assert(step.with["web-url"]);
+    assert(step.with["pr-number"]);
+    assert.equal(step.with["api-url"], undefined);
+    assert.equal(step.with["eas-build-url"], undefined);
+    assert.equal(step.with["links-file"], undefined);
   }
 });
 
@@ -211,6 +190,6 @@ test("optional EAS registration cannot disable the mandatory PR/Main publication
   const body = release.runs.steps[0].run;
   assert.match(body, /publish-pr-draft\.mjs/);
   const publisher = readFileSync(".github/scripts/publish-pr-draft.mjs", "utf8");
-  assert.match(publisher, /eas \? \[/);
+  assert.match(readFileSync("scripts/release/release-format.mjs", "utf8"), /input\.easUrl/);
   assert.match(publisher, /openAsBlob\(input\.apkPath\)/);
 });

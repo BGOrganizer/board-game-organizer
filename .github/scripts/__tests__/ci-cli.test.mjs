@@ -40,6 +40,7 @@ async function cli(
     RUN_ID: "100",
     PR_NUMBER: "22",
     PR_HEAD_SHA: sha,
+    APK_SOURCE_SHA: "c".repeat(40),
     PR_BASE_SHA: base,
     PR_TITLE: "CLI test",
     APP_VERSION: "1.3.2",

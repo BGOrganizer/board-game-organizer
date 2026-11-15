@@ -2,8 +2,10 @@ import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { infiniteQueryOptions, type QueryClient } from "@tanstack/react-query";
 import type { CommunityApiOptions } from "../community/communityApi";
 import {
+  contactSuggestionsKey,
   fetchRelationshipPageWithToken,
   fetchSuggestionPageWithToken,
+  relationshipListKey,
 } from "../contacts/hooks/useContacts";
 import {
   eventRecordQuery,
@@ -74,7 +76,7 @@ export async function warmStartupBackground(
         (type) => () =>
           client.prefetchInfiniteQuery(
             infiniteQueryOptions({
-              queryKey: ["contacts", type, apiUrl, userId],
+              queryKey: relationshipListKey(apiUrl, userId, type),
               queryFn: ({ pageParam, signal }) =>
                 fetchRelationshipPageWithToken(
                   apiUrl,
@@ -94,7 +96,7 @@ export async function warmStartupBackground(
       () =>
         client.prefetchInfiniteQuery(
           infiniteQueryOptions({
-            queryKey: ["contacts", "suggestions", apiUrl, userId, "device"],
+            queryKey: contactSuggestionsKey(apiUrl, userId),
             queryFn: ({ pageParam, signal }) =>
               fetchSuggestionPageWithToken(
                 apiUrl,

@@ -32,10 +32,13 @@ function seed(client: QueryClient) {
   ])
     client.setQueryData(key, { pages: [{ items: [], nextCursor: null }], pageParams: [""] });
   for (const type of startupRelationshipTypes)
-    client.setQueryData(["contacts", type, apiUrl, userId], []);
-  client.setQueryData(["contacts", "suggestions", apiUrl, userId, "device"], {
-    users: [],
-    hasContacts: false,
+    client.setQueryData(["contacts", type, apiUrl, userId, "pages-v1"], {
+      pages: [{ rows: [], nextCursor: null }],
+      pageParams: [""],
+    });
+  client.setQueryData(["contacts", "suggestions", apiUrl, userId, "device", "pages-v1"], {
+    pages: [{ users: [], hasContacts: false, nextCursor: null }],
+    pageParams: [""],
   });
 }
 it("normalizes only owned bgo deep links and never treats development-client links as app destinations", () => {

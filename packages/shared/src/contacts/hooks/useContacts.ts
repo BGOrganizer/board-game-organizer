@@ -60,6 +60,19 @@ export type RelationshipListType =
   | "sent"
   | "blocked";
 
+// Flat contact snapshots must never share cache identity with InfiniteQuery data.
+export function relationshipListKey(
+  apiUrl: string,
+  userId: string | null | undefined,
+  type: RelationshipListType,
+) {
+  return ["contacts", type, apiUrl, userId, "pages-v1"] as const;
+}
+
+export function contactSuggestionsKey(apiUrl: string, userId: string | null | undefined) {
+  return ["contacts", "suggestions", apiUrl, userId, "device", "pages-v1"] as const;
+}
+
 export interface ContactsApiOptions {
   apiUrl: string;
   token: string | null | undefined;
@@ -335,7 +348,7 @@ export function useRelationshipList(
   enabled = true,
 ) {
   const query = useInfiniteQuery({
-    queryKey: ["contacts", type, apiUrl, currentUserId ?? token],
+    queryKey: relationshipListKey(apiUrl, currentUserId ?? token, type),
     queryFn: ({ pageParam }) =>
       fetchRelationshipPageWithToken(apiUrl, token, getToken, type, pageParam, protectionBypass),
     initialPageParam: "",
@@ -345,9 +358,7 @@ export function useRelationshipList(
   });
   return {
     ...query,
-    data: Array.isArray(query.data)
-      ? (query.data as RelationshipRow[])
-      : query.data?.pages.flatMap((page) => page.rows),
+    data: query.data?.pages.flatMap((page) => page.rows),
   };
 }
 
@@ -443,7 +454,7 @@ export function useContacts(
   );
 
   const suggestionsQuery = useInfiniteQuery({
-    queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token, "device"],
+    queryKey: contactSuggestionsKey(apiUrl, currentUserId ?? token),
     queryFn: ({ pageParam, signal }) =>
       fetchSuggestionPageWithToken(apiUrl, token, getToken, pageParam, protectionBypass, signal),
     initialPageParam: "",
@@ -454,15 +465,12 @@ export function useContacts(
   const suggestions = useMemo(
     () => ({
       ...suggestionsQuery,
-      data:
-        suggestionsQuery.data && "pages" in suggestionsQuery.data
-          ? {
-              users: suggestionsQuery.data.pages.flatMap((page) => page.users),
-              hasContacts: suggestionsQuery.data.pages[0]?.hasContacts ?? false,
-            }
-          : (suggestionsQuery.data as unknown as
-              | { users: ContactUser[]; hasContacts: boolean }
-              | undefined),
+      data: suggestionsQuery.data
+        ? {
+            users: suggestionsQuery.data.pages.flatMap((page) => page.users),
+            hasContacts: suggestionsQuery.data.pages[0]?.hasContacts ?? false,
+          }
+        : undefined,
     }),
     [suggestionsQuery],
   );
@@ -728,7 +736,7 @@ export function useContacts(
       const operation = await beginOptimisticOperation(
         queryClient,
         ["contacts-sync", apiUrl, currentUserId ?? token],
-        { queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token, "device"] },
+        { queryKey: contactSuggestionsKey(apiUrl, currentUserId ?? token) },
         (data) => contactSnapshotPresence(data, true),
       );
       return operation;
@@ -745,7 +753,7 @@ export function useContacts(
     },
     onSettled: () => {
       void queryClient.invalidateQueries({
-        queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token, "device"],
+        queryKey: contactSuggestionsKey(apiUrl, currentUserId ?? token),
       });
     },
   });

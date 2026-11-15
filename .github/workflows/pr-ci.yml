@@ -95,7 +95,7 @@ jobs:
         run: bun run lint
 
       - name: 🔒 Check CI isolation and MapTiler build configuration
-        run: node --test .github/scripts/__tests__/*.test.mjs
+        run: node --test --experimental-test-coverage --test-coverage-include='scripts/release/*format.mjs' --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100 .github/scripts/__tests__/*.test.mjs
 
   typecheck:
     name: Typecheck
@@ -1182,24 +1182,12 @@ jobs:
           pr-title: ${{ github.event.pull_request.title }}
           base-sha: ${{ github.event.pull_request.base.sha }}
           head-sha: ${{ github.event.pull_request.head.sha }}
+          source-sha: ${{ github.sha }}
           apk-path: ${{ steps.meta.outputs.apk-path }}
           apk-name: ${{ steps.meta.outputs.apk-name }}
           eas-build-url: ${{ steps.eas.outputs.url }}
           web-preview-url: ${{ needs.deploy-development-web.outputs.url }}
           api-preview-url: ${{ needs.deploy-development-api.outputs.branch-url }}
-
-      - name: 🔗 Compose Telegram links
-        env:
-          EAS_BUILD_URL: ${{ steps.eas.outputs.url }}
-        run: |
-          cat > /tmp/telegram-links.html <<EOF
-          📱 <a href="${{ steps.draft.outputs.release_url }}">APK (PR, GitHub)</a>
-          🌐 <a href="${{ needs.deploy-development-web.outputs.url }}">Web (development preview)</a>
-          🔌 <a href="${{ needs.deploy-development-api.outputs.branch-url }}">API (development preview)</a>
-          EOF
-          if [ -n "$EAS_BUILD_URL" ]; then
-            printf '☁️ <a href="%s">Build (EAS preview)</a>\n' "$EAS_BUILD_URL" >> /tmp/telegram-links.html
-          fi
 
       - name: 🔒 Verify current head before Telegram
         env:
@@ -1213,9 +1201,13 @@ jobs:
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          title: 🚀 Development disponibile — PR #${{ github.event.pull_request.number }} · ${{ github.event.pull_request.head.sha }}
+          app-environment: development
+          version: ${{ steps.meta.outputs.version }}
+          pr-number: ${{ github.event.pull_request.number }}
+          release-url: ${{ steps.draft.outputs.release_url }}
+          apk-url: ${{ steps.draft.outputs.apk_url }}
+          web-url: ${{ needs.deploy-development-web.outputs.url }}
           changelog-file: /tmp/pr-changelog.md
-          links-file: /tmp/telegram-links.html
 
   ready:
     name: ${{ github.event_name == 'pull_request' && 'PR ready' || 'Branch checks' }}
