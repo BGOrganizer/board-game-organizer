@@ -4,7 +4,8 @@ appId: com.bgo.boardgameorganizer.dev
 - runFlow: logout.yaml
 - runFlow: sign-in.yaml
 - extendedWaitUntil:
-    visible: "Matches"
+    visible:
+      id: "profile-button"
     timeout: 120000
 - openLink: bgo-dev:///profile
 - extendedWaitUntil:
@@ -16,4 +17,5 @@ appId: com.bgo.boardgameorganizer.dev
     visible:
       id: "profile-button"
     timeout: 120000
-- assertVisible: "Matches"
+- assertVisible:
+    id: "profile-button"

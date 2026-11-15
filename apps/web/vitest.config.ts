@@ -36,6 +36,7 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       allowExternal: true,
       include: [
+        fileURLToPath(new URL("../api/src/app/invite/*/{claim,page}.tsx", import.meta.url)),
         ...[
           "common/hooks/useListSearch.ts",
           "games/hooks/useBggCollectionFilters.ts",
@@ -92,6 +93,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../api/src/app/invite/*/{claim,page}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/profile/{ProfileIdentity,ProfileVersion}.tsx": {
           lines: 100,
           functions: 100,

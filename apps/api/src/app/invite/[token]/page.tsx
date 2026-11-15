@@ -13,7 +13,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
     <ClerkProvider publishableKey={publishableKey}>
-      <ClaimInvite token={token} />
+      <ClaimInvite key={token} token={token} />
     </ClerkProvider>
   );
 }

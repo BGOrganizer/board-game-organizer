@@ -1,0 +1,76 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Native connections reflect a real browser invitation claim
+tags: [manual, contacts, invites]
+---
+# Owned Development actors only; both have completed profile setup and no other connections.
+# First run the API-hosted browser case with this APK's exact API, then provide its actual
+# claimed|pending result. Pending includes cancelled/failed/expired browser claims.
+# This flow does not register accounts, simulate claims, or infer browser signup acceptance.
+- runScript: ../helpers/invite-claim-inputs.js
+- runFlow:
+    file: ../helpers/switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
+- openLink: bgo-dev:///contacts?tab=connections
+- runFlow:
+    when:
+      true: ${output.inviteClaim.claimed}
+    commands:
+      - extendedWaitUntil:
+          visible: ${output.inviteClaim.invitee}
+          timeout: 60000
+      - assertVisible: ${output.inviteClaim.inviteeUsername}
+      - assertVisible: ${output.inviteClaim.friends}
+- runFlow:
+    when:
+      true: ${!output.inviteClaim.claimed}
+    commands:
+      - extendedWaitUntil:
+          visible: ${output.inviteClaim.empty}
+          timeout: 60000
+      - assertNotVisible: ${output.inviteClaim.invitee}
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///contacts?tab=connections
+- runFlow:
+    when:
+      true: ${output.inviteClaim.claimed}
+    commands:
+      - extendedWaitUntil:
+          visible: ${output.inviteClaim.invitee}
+          timeout: 60000
+      - assertVisible: ${output.inviteClaim.inviteeUsername}
+      - assertVisible: ${output.inviteClaim.friends}
+- runFlow:
+    when:
+      true: ${!output.inviteClaim.claimed}
+    commands:
+      - extendedWaitUntil:
+          visible: ${output.inviteClaim.empty}
+          timeout: 60000
+      - assertNotVisible: ${output.inviteClaim.invitee}
+- runFlow:
+    file: ../helpers/switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL_2}
+      AUTH_PASSWORD: ${PASSWORD_2}
+- openLink: bgo-dev:///contacts?tab=connections
+- runFlow:
+    when:
+      true: ${output.inviteClaim.claimed}
+    commands:
+      - extendedWaitUntil:
+          visible: ${output.inviteClaim.inviter}
+          timeout: 60000
+      - assertVisible: ${output.inviteClaim.inviterUsername}
+      - assertVisible: ${output.inviteClaim.friends}
+- runFlow:
+    when:
+      true: ${!output.inviteClaim.claimed}
+    commands:
+      - extendedWaitUntil:
+          visible: ${output.inviteClaim.empty}
+          timeout: 60000
+      - assertNotVisible: ${output.inviteClaim.inviter}
