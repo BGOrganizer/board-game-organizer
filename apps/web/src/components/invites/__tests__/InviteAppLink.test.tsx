@@ -9,6 +9,7 @@ it.each([
   [true, "Android", "bgo"],
   [false, "Android", "bgo-dev"],
   [false, "iPhone", "bgo"],
+  [false, "Macintosh", "bgo"],
 ])(
   "links to the installed app variant for production=%s on %s",
   (production, userAgent, scheme) => {

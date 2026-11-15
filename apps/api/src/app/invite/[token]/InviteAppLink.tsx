@@ -11,7 +11,9 @@ export function InviteAppLink({ token, production }: { token: string; production
   const { i18n } = useLingui();
   const [scheme, setScheme] = useState(production ? "bgo" : "bgo-dev");
   useEffect(() => {
-    setScheme(production || /iPad|iPhone|iPod/.test(navigator.userAgent) ? "bgo" : "bgo-dev");
+    setScheme(
+      production || /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) ? "bgo" : "bgo-dev",
+    );
   }, [production]);
   if (!/^[A-Za-z0-9_-]{22}$/.test(token)) return null;
   return (
