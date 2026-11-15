@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { coverageConfigDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -17,6 +17,9 @@ export default defineConfig({
     exclude: ["test/integration/**", "node_modules/**", "dist/**", ".next/**"],
     coverage: {
       provider: "v8",
+      // API-hosted invitation UI is exercised and 100%-gated by the web jsdom suite.
+      // An unexecuted Node report otherwise invents misses for erased types/imports.
+      exclude: [...coverageConfigDefaults.exclude, "src/app/invite/**"],
       reporter: ["lcov", "html", "text"],
       thresholds: {
         "src/app/lib/invites/app-link-association.ts": {
