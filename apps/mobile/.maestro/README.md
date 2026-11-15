@@ -707,9 +707,22 @@ native generation or source tests cannot establish those outcomes.
 validation, offline retry, expired/revoked links and the existing-account sign-in/profile continuation.
 Use a fresh owned Development token per mode, with `NATIVE_TABLE_INVITE_ACK=owned-preview-native-invite`
 and `NATIVE_TABLE_INVITE_INPUT` containing `token`, `locale` (`en`/`it`), `mode`, `tableName` and
-`positiveLabels` (every multiple-option row's exact positive vote accessibility label). Supported modes:
+`optionLabels` (the exact title of every multiple-option row; the flow opens its vote dialog). Supported modes:
 `success`, `waiting` (pre-filled table), `incomplete`, `expired`, `revoked`, `offline`, `auth` and
 `onboarding`. Auth uses the provisioned `EMAIL`/`PASSWORD`; onboarding starts with a signed-in recipient
 whose required mobile-number field is missing. Verify the installed API and expected authority first;
 never substitute Production tokens. Check final friendship, Group membership and seat/queue via actual
 API reads. Web's app handoff link does not itself grant any of those consents.
+
+Native invite review groups date, location and game choices under section headings. Each multiple-option
+row opens the existing vote dialog; final acceptance remains disabled until all required categories
+are valid. The stable Development App Link is activated only after the public Production router and
+association file are deployed. Install its fresh Development APK after that deployment to verify OS
+handoff; previous Preview links continue through their browser app action. Native tests must verify
+that a stable Development URL opens the Development package when both variants are installed, while
+ordinary Production `/invite/` links open Production, preserving the app's own API and account.
+
+For real OS App Links acceptance, pass `openWithAppLink: true`, its `prNumber`, and the actual
+`shareLink` returned by the owned Development API after public readiness. Set `coldOpen: true` to
+stop the app before opening; repeat warm as well. The flow disables Maestro's `autoVerify` and
+browser forcing, so it does not manufacture domain approval or hide a browser fallback.

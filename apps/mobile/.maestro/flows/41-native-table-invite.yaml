@@ -9,7 +9,15 @@ tags: [manual, events, invites]
 - runScript: ../helpers/native-table-invite-inputs.js
 - launchApp:
     clearState: false
-- openLink: ${output.nativeTableInvite.link}
+- runFlow:
+    when:
+      true: ${output.nativeTableInvite.cold}
+    commands:
+      - stopApp
+- openLink:
+    link: ${output.nativeTableInvite.link}
+    autoVerify: false
+    browser: false
 - runFlow:
     when:
       true: ${output.nativeTableInvite.mode === 'auth'}
@@ -66,20 +74,28 @@ tags: [manual, events, invites]
           when:
             true: ${output.nativeTableInvite.mode === 'incomplete'}
           commands:
-            - tapOn:
+            - assertVisible:
                 id: table-link-consent-submit
-            - assertVisible: ${output.nativeTableInvite.validation}
+                enabled: false
             - assertNotVisible:
                 id: table-overview-tab
-      - repeat:
-          times: ${output.nativeTableInvite.votes.length}
+      - runFlow:
+          when:
+            true: ${output.nativeTableInvite.votes.length > 0}
           commands:
-            - scrollUntilVisible:
-                element:
-                  text: ${output.nativeTableInvite.votes[output.nativeTableInvite.index]}
-                direction: DOWN
-            - tapOn: ${output.nativeTableInvite.votes[output.nativeTableInvite.index]}
-            - evalScript: ${output.nativeTableInvite.index = output.nativeTableInvite.index + 1}
+            - repeat:
+                times: ${output.nativeTableInvite.votes.length}
+                commands:
+                  - scrollUntilVisible:
+                      element:
+                        text: ${output.nativeTableInvite.votes[output.nativeTableInvite.index]}
+                      direction: DOWN
+                  - tapOn: ${output.nativeTableInvite.votes[output.nativeTableInvite.index]}
+                  - extendedWaitUntil:
+                      visible: "^Choose your vote$|^Scegli il tuo voto$"
+                      timeout: 30000
+                  - tapOn: ${output.nativeTableInvite.yes}
+                  - evalScript: ${output.nativeTableInvite.index = output.nativeTableInvite.index + 1}
       - runFlow:
           when:
             true: ${output.nativeTableInvite.mode === 'offline'}
@@ -93,6 +109,9 @@ tags: [manual, events, invites]
             - assertNotVisible:
                 id: table-overview-tab
             - setAirplaneMode: false
+      - assertVisible:
+          id: table-link-consent-submit
+          enabled: true
       - tapOn:
           id: table-link-consent-submit
       - extendedWaitUntil:

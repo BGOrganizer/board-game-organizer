@@ -9,13 +9,15 @@ import {
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
+import { CalendarDays, Dices, type LucideIcon, UsersRound } from "lucide-react-native";
 import { useMemo } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { InputFlatList } from "@/components/common/ui/InputFlatList";
+import { InputSectionList } from "@/components/common/ui/InputSectionList";
 import { EventVoteButtons } from "@/components/events/EventVoteButtons";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
@@ -48,11 +50,11 @@ export function TableInviteReview({
   const insets = useSafeAreaInsets();
   const form = useTableInviteForm(review, disabled, onClaim);
   const { event, table } = review;
-  const rows = useMemo<Row[]>(
+  const sections = useMemo<{ title: string; data: Row[] }[]>(
     () => [
-      ...event.dates.map((value) => ({ kind: "date" as const, value })),
-      ...event.locations.map((value) => ({ kind: "location" as const, value })),
-      ...table.games.map((value) => ({ kind: "game" as const, value })),
+      { title: "Dates", data: event.dates.map((value) => ({ kind: "date", value })) },
+      { title: "Locations", data: event.locations.map((value) => ({ kind: "location", value })) },
+      { title: "Games", data: table.games.map((value) => ({ kind: "game", value })) },
     ],
     [event.dates, event.locations, table.games],
   );
@@ -75,7 +77,6 @@ export function TableInviteReview({
       row.kind === "game" ? form.setGames : row.kind === "date" ? form.setDates : form.setLocations;
     return (
       <EventVoteButtons
-        inline
         label={label}
         value={votes[id]}
         busy={disabled}
@@ -85,18 +86,23 @@ export function TableInviteReview({
   };
   return (
     <View className="bg-background" style={{ flex: 1 }}>
-      <InputFlatList
-        data={rows}
+      <InputSectionList
+        sections={sections}
+        stickySectionHeadersEnabled={false}
+        renderSectionHeader={({ section }) => (
+          <Typography style={{ fontSize: 16, fontWeight: "600", paddingTop: 16, paddingBottom: 8 }}>
+            {t(section.title)}
+          </Typography>
+        )}
         keyExtractor={(row) =>
           `${row.kind}:${row.kind === "game" ? row.value.gameId : row.value.id}`
         }
         contentContainerStyle={{ padding: 20, gap: 12 }}
         ListHeaderComponent={
           <View style={{ gap: 12, paddingBottom: 12 }}>
-            <Typography style={{ fontSize: 22, fontWeight: "700" }}>{table.name}</Typography>
-            <Typography>
-              {review.group.name} · {event.name}
-            </Typography>
+            <InvitationIdentity name={table.name} icon={Dices} heading />
+            <InvitationIdentity name={event.name} icon={CalendarDays} />
+            <InvitationIdentity name={review.group.name} icon={UsersRound} />
             <Typography>
               {i18n._({
                 id: "invite.tableConsent",
@@ -188,11 +194,6 @@ export function TableInviteReview({
       />
       <View style={{ padding: 20, paddingBottom: Math.max(insets.bottom, 20), gap: 12 }}>
         <View style={{ gap: 12 }}>
-          {form.attempted && !form.complete ? (
-            <Typography accessibilityRole="alert" className="text-danger">
-              {t("Answer every option and choose at least one Yes or If needed in each section.")}
-            </Typography>
-          ) : null}
           {!form.settingsReady ? (
             <Typography accessibilityRole="alert" className="text-danger">
               {t("The table settings are incomplete. Ask the inviter to update them.")}
@@ -215,12 +216,34 @@ export function TableInviteReview({
         </View>
         <Button
           testID="table-link-consent-submit"
-          isDisabled={disabled || !form.settingsReady}
+          isDisabled={disabled || !form.settingsReady || !form.complete}
           onPress={() => void form.submit()}
         >
           <Button.Label>{t(pending ? "Accepting invitation…" : "Accept invitation")}</Button.Label>
         </Button>
       </View>
+    </View>
+  );
+}
+
+function InvitationIdentity({
+  name,
+  icon: Icon,
+  heading = false,
+}: {
+  name: string;
+  icon: LucideIcon;
+  heading?: boolean;
+}) {
+  const foreground = useThemeColor("foreground");
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <Icon size={20} color={foreground} accessible={false} />
+      <Typography
+        style={{ flex: 1, fontSize: heading ? 22 : 16, fontWeight: heading ? "700" : "400" }}
+      >
+        {name}
+      </Typography>
     </View>
   );
 }

@@ -101,8 +101,10 @@ it("requires a final explicit acceptance and discloses friendship, private membe
 it("never invents votes: every multiple-choice option needs an explicit answer and each category needs a positive choice", async () => {
   const { onClaim } = mount(multiple());
   const accept = screen.getByRole("button", { name: "Accept invitation" });
+  expect(accept.hasAttribute("disabled")).toBe(true);
+  expect(accept.hasAttribute("disabled")).toBe(true);
   fireEvent.click(accept);
-  expect(screen.getByRole("alert").textContent).toContain("Answer every option");
+  expect(onClaim).not.toHaveBeenCalled();
   for (const title of ["Dates", "Locations", "Games"]) {
     const section = screen.getByRole("heading", { name: title }).closest("section");
     if (!section) throw new Error("Missing review section");
@@ -112,6 +114,7 @@ it("never invents votes: every multiple-choice option needs an explicit answer a
       fireEvent.click(within(option).getByRole("button", { name: /: No$/ }));
     }
   }
+  expect(accept.hasAttribute("disabled")).toBe(true);
   fireEvent.click(accept);
   expect(onClaim).not.toHaveBeenCalled();
   for (const title of ["Dates", "Locations", "Games"]) {
@@ -121,6 +124,7 @@ it("never invents votes: every multiple-choice option needs an explicit answer a
       within(within(section).getAllByRole("group")[0]).getByRole("button", { name: /: Yes$/ }),
     );
   }
+  expect(accept.hasAttribute("disabled")).toBe(false);
   fireEvent.click(accept);
   await waitFor(() => expect(onClaim).toHaveBeenCalledOnce());
   expect(onClaim).toHaveBeenCalledWith({
@@ -252,5 +256,13 @@ it("guards direct form submission while disabled or missing canonical settings",
   await act(async () => result.current.submit());
   rerender({ disabled: false });
   await act(async () => result.current.submit());
+  expect(onClaim).not.toHaveBeenCalled();
+});
+
+it("rejects incomplete preferences even when submission is called directly", async () => {
+  const onClaim = vi.fn();
+  const { result } = renderHook(() => useTableInviteForm(multiple(), false, onClaim));
+  await act(async () => result.current.submit());
+  expect(result.current.complete).toBe(false);
   expect(onClaim).not.toHaveBeenCalled();
 });

@@ -10,6 +10,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react";
+import { CalendarDays, Dices, UsersRound } from "lucide-react";
 import { useMemo } from "react";
 import { InviteShell } from "./InviteShell";
 import { InviteVotes } from "./InviteVotes";
@@ -40,7 +41,6 @@ export function TableInviteClaim({
     setDates,
     setLocations,
     setGames,
-    attempted,
     alreadyAccepted,
     complete,
     settingsReady,
@@ -57,11 +57,17 @@ export function TableInviteClaim({
   );
   return (
     <InviteShell title={i18n._(messages.tableTitle)}>
-      <div>
-        <strong>{review.group.name}</strong>
-        <p>
-          {event.name} · {table.name}
-        </p>
+      <div style={{ display: "grid", gap: 8 }}>
+        {[
+          { id: "table", name: table.name, Icon: Dices },
+          { id: "event", name: event.name, Icon: CalendarDays },
+          { id: "group", name: review.group.name, Icon: UsersRound },
+        ].map(({ id, name, Icon }) => (
+          <div key={id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Icon size={20} aria-hidden="true" />
+            <span>{name}</span>
+          </div>
+        ))}
       </div>
       <p>
         {i18n._({
@@ -137,11 +143,6 @@ export function TableInviteClaim({
         disabled={busy || disabled}
         onChange={(id, vote) => setGames((old) => ({ ...old, [id]: vote }))}
       />
-      {attempted && !complete ? (
-        <p role="alert" style={{ color: "var(--danger)" }}>
-          {i18n._(messages.validation)}
-        </p>
-      ) : null}
       {!settingsReady ? (
         <p role="alert" style={{ color: "var(--danger)" }}>
           {i18n._(messages.settingsUnavailable)}
@@ -157,7 +158,7 @@ export function TableInviteClaim({
       ) : null}
       <Button
         variant="primary"
-        isDisabled={busy || disabled || !settingsReady}
+        isDisabled={busy || disabled || !settingsReady || !complete}
         onPress={() => void submit()}
       >
         {i18n._(busy ? messages.accepting : messages.accept)}

@@ -1,4 +1,4 @@
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import { developmentInviteAppLink, withProtectionBypass } from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 
@@ -111,13 +111,15 @@ for (const [path, description] of [
     );
     await page.getByRole("button", { name: "Generate invite", exact: true }).click();
     expect((await created).status()).toBe(201);
-    const link = (await (await created).json()) as { link: string };
+    const link = (await (await created).json()) as { link: string; appLink?: string };
+    const sharedLink = link.appLink ?? link.link;
+    if (link.appLink) expect(link.appLink).toBe(developmentInviteAppLink(link.link));
     expect(new URL(link.link).origin).toBe(api);
-    await expect(page.getByText(link.link, { exact: true })).toBeVisible();
+    await expect(page.getByText(sharedLink, { exact: true })).toBeVisible();
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.getByRole("button", { name: "Copy", exact: true }).click();
     await expect(page.getByRole("button", { name: "Copied!", exact: true })).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link.link);
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(sharedLink);
   });
 }
 test("forbidden contextual source never offers link generation", async ({ page }) => {
@@ -141,8 +143,9 @@ for (const [link, position] of [
     expect(writes).toHaveLength(0);
     await expect(page.getByText(/Accepting makes you friends with/)).toBeVisible();
     if (await page.getByRole("button", { name: /: Yes$/ }).count()) {
-      await page.getByRole("button", { name: "Accept invitation", exact: true }).click();
-      await expect(page.getByRole("alert")).toContainText("Answer every option");
+      await expect(
+        page.getByRole("button", { name: "Accept invitation", exact: true }),
+      ).toBeDisabled();
       expect(writes).toHaveLength(0);
     }
     await positiveChoices(page);

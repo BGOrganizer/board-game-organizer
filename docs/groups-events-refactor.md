@@ -424,7 +424,10 @@ exceptions retain their explicit authorization boundaries throughout this contra
   explicit app action; universal-link entitlements require Apple team/domain association configuration.
   Native sign-in and required profile completion preserve only the validated invitation token,
   never an arbitrary return URL or API override. The native review uses the same restricted data,
-  explicit consent and preference validation as web, then opens the complete Table from the receipt. Authentication or
+  explicit consent and preference validation as web, then opens the complete Table from the receipt.
+  Native choices are grouped by date, location and game, with the existing single-button vote dialog.
+  Table/Event/Group identities retain their icons; both clients disable final acceptance until the
+  required categories are valid. Authentication or
   opening the link alone never accepts a contextual invitation. One explicit final acceptance covers
   friendship with the inviter, accepted Group membership and accepted Table participation; required
   multi-option preferences follow the ordinary Table consent rules. The authenticated token review

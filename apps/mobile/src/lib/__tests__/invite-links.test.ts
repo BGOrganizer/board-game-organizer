@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import { expect, it } from "vitest";
+import { redirectSystemPath } from "../../app/+native-intent";
 import { inviteDestination, inviteTokenParam } from "../inviteLinks";
 
 const token = "abcdefghijklmnopqrstuv";
@@ -34,7 +35,7 @@ const fixture = {
   locale: "en",
   mode: "success",
   tableName: "Owned table",
-  positiveLabels: ["Owned game: Yes"],
+  optionLabels: ["Owned game"],
 };
 function inputs(value: unknown = fixture, ack: string | undefined = "owned-preview-native-invite") {
   const output: Record<string, any> = {};
@@ -59,7 +60,7 @@ it.each([
     const result = inputs({ ...fixture, mode, locale });
     expect(result.link).toBe(`bgo-dev:///invite/${token}`);
     expect(result.unavailable).toBe(["expired", "revoked"].includes(mode));
-    expect(result.votes).toEqual(fixture.positiveLabels);
+    expect(result.votes).toEqual(["^Owned game: .*$"]);
   }
 });
 it("rejects missing acknowledgments and invalid native fixtures", () => {
@@ -70,10 +71,41 @@ it("rejects missing acknowledgments and invalid native fixtures", () => {
     { ...fixture, mode: "production" },
     { ...fixture, tableName: "" },
     { ...fixture, tableName: null },
-    { ...fixture, positiveLabels: null },
-    { ...fixture, positiveLabels: [null] },
-    { ...fixture, positiveLabels: [""] },
+    { ...fixture, optionLabels: null },
+    { ...fixture, optionLabels: [null] },
+    { ...fixture, optionLabels: [""] },
   ])
     expect(() => inputs(value)).toThrow();
   expect(() => runInNewContext(helper, {})).toThrow();
+});
+
+it("routes stable Development app links while preserving normal and authentication URLs", () => {
+  expect(
+    redirectSystemPath({
+      path: `https://api.board-game-organizer.com/development/invite/${token}?web=ignored`,
+      initial: true,
+    }),
+  ).toBe(`/invite/${token}`);
+  for (const path of [
+    "clerk://com.bgo.boardgameorganizer.dev.callback",
+    "bgo-dev:///profile",
+    "/groups",
+    `https://evil.test/development/invite/${token}`,
+  ])
+    expect(redirectSystemPath({ path, initial: false })).toBe(path);
+});
+
+it("requires the actual stable share link for OS association acceptance and keeps cold opens explicit", () => {
+  const web = `https://api-development-pr-25-board-game-organizers-projects.vercel.app/invite/${token}`;
+  const shareLink = `https://api.board-game-organizer.com/development/invite/${token}?web=${encodeURIComponent(web)}`;
+  expect(
+    inputs({ ...fixture, openWithAppLink: true, prNumber: 25, shareLink, coldOpen: true }),
+  ).toMatchObject({ link: shareLink, cold: true });
+  for (const invalid of [
+    { prNumber: 0, shareLink },
+    { prNumber: 25, shareLink: "https://evil.test" },
+    { prNumber: 25, shareLink: undefined },
+    { prNumber: 25.1, shareLink },
+  ])
+    expect(() => inputs({ ...fixture, openWithAppLink: true, ...invalid })).toThrow();
 });

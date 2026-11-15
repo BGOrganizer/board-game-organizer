@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import { getMobileNumber } from "@board-game-organizer/schemas";
-import { CommunityApiError, communityAccessDenied } from "@board-game-organizer/shared";
+import {
+  CommunityApiError,
+  communityAccessDenied,
+  developmentInviteNativePath,
+} from "@board-game-organizer/shared";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
 import { inviteDestination, inviteTokenParam } from "../inviteLinks";
@@ -56,6 +60,7 @@ function setup() {
   });
   const shared = {
     CommunityApiError,
+    developmentInviteNativePath,
     communityAccessDenied,
     useInviteClaim: vi.fn(() => ({ review: state.review, claim: state.claim })),
     useTableInviteForm: vi.fn(() => state.form),
@@ -112,7 +117,12 @@ function setup() {
         ItemIndicator: "ItemIndicator",
       }),
     },
-    "lucide-react-native": { Globe: "Globe" },
+    "lucide-react-native": {
+      Globe: "Globe",
+      Dices: "Dices",
+      CalendarDays: "CalendarDays",
+      UsersRound: "UsersRound",
+    },
     "@/lib/i18n": { useT: () => (text: string) => text },
     "@/lib/inviteLinks": { inviteDestination, inviteTokenParam },
     "@/lib/useCommunityApi": { useCommunityApi: () => state.options },
@@ -131,6 +141,7 @@ function setup() {
     ["common/ui/DateTimeInfo", "DateTimeInfo"],
     ["common/ui/GroupedRow", "GroupedRow"],
     ["common/ui/InputFlatList", "InputFlatList"],
+    ["common/ui/InputSectionList", "InputSectionList"],
     ["events/EventVoteButtons", "EventVoteButtons"],
     ["games/GameListRow", "GameListRow"],
     ["locations/LocationListRow", "LocationListRow"],
@@ -316,9 +327,20 @@ it("renders native settings as read-only for singleton choices and accepted part
   const s = setup();
   const value = review();
   const tree = nodes(s.review(value));
-  const list = tree.find((n) => n.type === "InputFlatList")!;
-  expect(list.props.data).toHaveLength(3);
-  for (const item of list.props.data) {
+  const list = tree.find((n) => n.type === "InputSectionList")!;
+  expect(list.props.sections.map((section: any) => section.title)).toEqual([
+    "Dates",
+    "Locations",
+    "Games",
+  ]);
+  for (const section of list.props.sections)
+    expect(list.props.renderSectionHeader({ section }).props.children).toBe(section.title);
+  const identities = nodes(list.props.ListHeaderComponent).filter(
+    (n) => n.type?.name === "InvitationIdentity",
+  );
+  expect(identities.map((n) => n.props.icon)).toEqual(["Dices", "CalendarDays", "UsersRound"]);
+  expect(identities.map((n) => n.props.name)).toEqual(["Table", "Event", "Private group"]);
+  for (const item of list.props.sections.flatMap((section: any) => section.data)) {
     expect(nodes(list.props.renderItem({ item })).some((n) => n.type === "EventVoteButtons")).toBe(
       false,
     );
@@ -327,10 +349,9 @@ it("renders native settings as read-only for singleton choices and accepted part
   button.props.onPress();
   expect(s.state.form.submit).toHaveBeenCalledOnce();
   s.state.form.settingsReady = false;
-  s.state.form.attempted = true;
   s.state.form.complete = false;
   const failed = nodes(s.review(value, { failed: true, pending: true }));
-  expect(failed.filter((n) => n.props.accessibilityRole === "alert")).toHaveLength(3);
+  expect(failed.filter((n) => n.props.accessibilityRole === "alert")).toHaveLength(2);
   expect(failed.find((n) => n.props.testID === "table-link-consent-submit")!.props.isDisabled).toBe(
     true,
   );
@@ -344,23 +365,24 @@ it("renders native multiple-option votes, preserves existing availability, and d
   value.event.locations.push({ id: "location-2", name: "Second" });
   value.table.games.push({ gameId: 2 });
   const tree = nodes(s.review(value, { disabled: true, readFailed: true }));
-  const list = tree.find((n) => n.type === "InputFlatList")!;
-  for (const item of list.props.data) {
+  const list = tree.find((n) => n.type === "InputSectionList")!;
+  for (const item of list.props.sections.flatMap((section: any) => section.data)) {
     expect(list.props.keyExtractor(item)).toContain(item.kind);
     const row = nodes(list.props.renderItem({ item }));
     const action =
       row.find((n) => n.type === "EventVoteButtons") ??
       nodes(row[0].props.actions).find((n) => n.type === "EventVoteButtons");
     expect(action!.props.busy).toBe(true);
+    expect(action!.props.inline).toBeUndefined();
     action!.props.onChange("YES");
   }
   for (const setter of [s.state.form.setDates, s.state.form.setLocations, s.state.form.setGames])
     expect(setter.mock.calls[0][0]({ untouched: "NO" })).toMatchObject({ untouched: "NO" });
   value.requiresAvailability = false;
   s.state.form.alreadyAccepted = true;
-  const list2 = nodes(s.review(value)).find((n) => n.type === "InputFlatList")!;
+  const list2 = nodes(s.review(value)).find((n) => n.type === "InputSectionList")!;
   expect(
-    nodes(list2.props.renderItem({ item: list2.props.data[0] })).some(
+    nodes(list2.props.renderItem({ item: list2.props.sections[0].data[0] })).some(
       (n) => n.type === "EventVoteButtons",
     ),
   ).toBe(false);
@@ -381,4 +403,32 @@ it("keeps the exact invite token after completing the required native mobile-num
     unsafeMetadata: { retained: "value", mobileNumber: "+393331234567" },
   });
   await vi.waitFor(() => expect(s.state.replace).toHaveBeenCalledWith(`/invite/${token}`));
+});
+
+it("keeps native acceptance disabled until every required category is valid", () => {
+  const s = setup();
+  s.state.form.complete = false;
+  const button = () =>
+    nodes(s.review(review())).find((n) => n.props.testID === "table-link-consent-submit")!;
+  expect(button().props.isDisabled).toBe(true);
+  s.state.form.complete = true;
+  expect(button().props.isDisabled).toBe(false);
+});
+
+it("rewrites the stable Development App Link without changing authentication or other routes", () => {
+  const s = setup();
+  const redirect = s.load("../../app/+native-intent.tsx").redirectSystemPath;
+  expect(
+    redirect({
+      path: `https://api.board-game-organizer.com/development/invite/${token}?web=ignored`,
+      initial: true,
+    }),
+  ).toBe(`/invite/${token}`);
+  for (const path of [
+    "clerk://com.bgo.boardgameorganizer.dev.callback",
+    "bgo-dev:///profile",
+    "/groups",
+    `https://evil.test/development/invite/${token}`,
+  ])
+    expect(redirect({ path, initial: false })).toBe(path);
 });

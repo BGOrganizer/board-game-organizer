@@ -41,7 +41,6 @@ export function useTableInviteForm(
   const [gameVotes, setGames] = useState<Choices>(() =>
     eventVotingChoices(gameOptions, explicitVotes(review.ownRegistration?.gameVotes)),
   );
-  const [attempted, setAttempted] = useState(false);
   const inFlight = useRef(false);
   const alreadyAccepted = review.ownRegistration?.status === "ACCEPTED";
   const complete =
@@ -54,11 +53,7 @@ export function useTableInviteForm(
     alreadyAccepted ||
     (event.dates.length > 0 && event.locations.length > 0 && table.games.length > 0);
   const submit = async () => {
-    if (disabled || !settingsReady || inFlight.current) return;
-    if (!complete) {
-      setAttempted(true);
-      return;
-    }
+    if (disabled || !settingsReady || !complete || inFlight.current) return;
     inFlight.current = true;
     try {
       await onClaim({
@@ -94,7 +89,6 @@ export function useTableInviteForm(
     setDates,
     setLocations,
     setGames,
-    attempted,
     alreadyAccepted,
     complete,
     settingsReady,

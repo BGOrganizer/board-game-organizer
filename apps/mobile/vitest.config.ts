@@ -27,6 +27,7 @@ export default defineConfig({
       // covered by retained Maestro flows under the current CI acceptance policy;
       // unit coverage here targets pure logic, not native frame/touch evidence.
       include: [
+        "src/app/+native-intent.tsx",
         "app.config.js",
         "fingerprint.config.js",
         "src/lib/**",
@@ -34,6 +35,12 @@ export default defineConfig({
         "src/store/**",
       ],
       thresholds: {
+        "src/app/+native-intent.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "{fingerprint.config.js,src/lib/otaUpdates.ts,src/lib/appRestartGuard.ts}": {
           lines: 100,
           functions: 100,

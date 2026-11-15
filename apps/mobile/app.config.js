@@ -80,20 +80,20 @@ module.exports = {
         backgroundColor: nativeColors.lightBackground,
       },
       package: androidPackage,
-      ...(!development
-        ? {
-            intentFilters: [
-              {
-                action: "VIEW",
-                autoVerify: true,
-                data: [
-                  { scheme: "https", host: "api.board-game-organizer.com", pathPrefix: "/invite/" },
-                ],
-                category: ["BROWSABLE", "DEFAULT"],
-              },
-            ],
-          }
-        : {}),
+      intentFilters: [
+        {
+          action: "VIEW",
+          autoVerify: true,
+          data: [
+            {
+              scheme: "https",
+              host: "api.board-game-organizer.com",
+              pathPrefix: development ? "/development/invite/" : "/invite/",
+            },
+          ],
+          category: ["BROWSABLE", "DEFAULT"],
+        },
+      ],
     },
     web: {
       bundler: "metro",

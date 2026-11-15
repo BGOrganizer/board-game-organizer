@@ -1,5 +1,6 @@
 import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import {
+  developmentInviteNativePath,
   eventRecordKeys,
   groupRecordKeys,
   notificationListKey,
@@ -11,6 +12,20 @@ import type { QueryClient } from "@tanstack/react-query";
 export { startupRelationshipTypes } from "@board-game-organizer/shared";
 export const STARTUP_SPLASH_LIMIT_MS = 5000;
 export function startupLinkPath(url: string | null | undefined): string | null {
+  const developmentInvite = developmentInviteNativePath(url ?? "");
+  if (developmentInvite) return developmentInvite;
+  try {
+    const link = new URL(url ?? "");
+    if (
+      link.origin === "https://api.board-game-organizer.com" &&
+      !link.username &&
+      !link.password &&
+      /^\/invite\/[A-Za-z0-9_-]{22}$/.test(link.pathname)
+    )
+      return link.pathname;
+  } catch {
+    /* Custom app links below do not require a URL hostname. */
+  }
   const match = /^(?:bgo|bgo-dev):(.*)$/.exec(url ?? "");
   if (!match) return null;
   return `/${match[1].replace(/^\/+/, "").split("?")[0]}`;
