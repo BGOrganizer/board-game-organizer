@@ -1,28 +1,11 @@
 import { RECORD_USER_ROLES, type RecordUserRole } from "@board-game-organizer/shared";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import {
-  Clock3,
-  Crown,
-  ListOrdered,
-  Mail,
-  Presentation,
-  ShieldCheck,
-  UserRoundCheck,
-} from "lucide-react-native";
+
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import { useT } from "@/lib/i18n";
+import { recordUserRoleIcons } from "@/lib/recordUserRoleIcons";
 import { IconBadge } from "./IconBadge";
-
-const icons = {
-  admin: Crown,
-  moderator: ShieldCheck,
-  demonstrator: Presentation,
-  invitation: Mail,
-  request: Clock3,
-  waiting: ListOrdered,
-  accepted: UserRoundCheck,
-};
 
 export function UserRoleBadge({ roles }: { roles: readonly RecordUserRole[] }) {
   const t = useT();
@@ -41,7 +24,7 @@ export function UserRoleBadge({ roles }: { roles: readonly RecordUserRole[] }) {
     <IconBadge
       label={labels.join(" · ")}
       title={t("Roles and participation")}
-      icon={icons[primary.icon]}
+      icon={recordUserRoleIcons[primary.icon]}
       color={primary.tone}
       multiple={roles.length > 1}
     >
@@ -51,7 +34,7 @@ export function UserRoleBadge({ roles }: { roles: readonly RecordUserRole[] }) {
       >
         {roles.map((role, index) => {
           const item = RECORD_USER_ROLES[role],
-            Icon = icons[item.icon];
+            Icon = recordUserRoleIcons[item.icon];
           return (
             <View key={role} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Icon size={16} color={colors[item.tone]} accessible={false} />

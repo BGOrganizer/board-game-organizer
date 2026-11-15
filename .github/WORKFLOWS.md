@@ -56,5 +56,6 @@ Validate workflow expressions with `actionlint`; check changed Bash scripts with
 Run Biome on changed JavaScript. Keep workflow contract tests aligned with script behavior,
 including negative paths, without weakening required checks or mocking E2E acceptance.
 
-GitHub required-check settings still need coordinated alignment with the short job labels;
-a local YAML edit does not migrate branch protection or activate default-branch controllers.
+Verify live GitHub required-check settings against the current workflow contexts and app identity.
+A local YAML edit does not migrate branch protection or activate default-branch controllers;
+settings changes require explicit scope and preservation of reviews and unrelated protections.

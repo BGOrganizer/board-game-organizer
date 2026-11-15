@@ -1,10 +1,25 @@
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
+import { formatUsername } from "@board-game-organizer/shared";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
 
 // Actual native handler/prop expressions; not rendered/device acceptance.
+it.each([
+  ["player", "@player"],
+  [" @player ", "@player"],
+  ["", ""],
+  [null, ""],
+  [undefined, ""],
+])(
+  "native registered contact rows show the actual handle below the name (%s)",
+  (username, expected) => {
+    const code = expression("../app/(tabs)/contacts", "UserListRow", "secondary");
+    expect(runInNewContext(code, { user: { username }, formatUsername })).toBe(expected);
+  },
+);
+
 function expression(name: string, tag: string, attribute: string) {
   const text = readFileSync(new URL(`../../components/${name}.tsx`, import.meta.url), "utf8");
   const file = ts.createSourceFile(

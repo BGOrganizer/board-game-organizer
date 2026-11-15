@@ -168,6 +168,7 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
                                 year={game?.year}
                                 average={game?.average}
                                 rank={game?.rank}
+                                suggestedPlayers={game?.suggestedPlayers}
                                 durationMinutes={durationMinutes}
                                 name={game?.name ?? t`Unknown`}
                                 imageUrl={game?.imageUrl}
@@ -260,6 +261,7 @@ function FixedSettings({
           year={game?.year}
           average={game?.average}
           rank={game?.rank}
+          suggestedPlayers={game?.suggestedPlayers}
           durationMinutes={table?.games[0]?.durationMinutes}
         />
       ) : null}

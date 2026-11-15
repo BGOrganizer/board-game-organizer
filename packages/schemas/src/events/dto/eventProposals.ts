@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { clientRequestIdSchema } from "../../common/dto/common";
 import type { CommunityPageResponse } from "../../community/dto/communityResponses";
+import type { BggSearchItem } from "../../games/dto/boardGames";
 import { type EventProposal, eventProposalPayloadSchema } from "../models/eventProposal";
 import type { PlannedEventResponse } from "./eventRecords";
 export const submitEventProposalSchema = z
@@ -35,7 +36,8 @@ export type EventProposalResponse = Omit<EventProposal, "requestHash" | "payload
     version: number;
     status: EventProposal["status"];
   }[];
-  game?: { id: number; name: string; imageUrl: string | null };
+  game?: Pick<BggSearchItem, "id" | "name" | "imageUrl"> &
+    Partial<Pick<BggSearchItem, "year" | "average" | "rank" | "suggestedPlayers">>;
   gameSuggestions?: {
     id: string;
     userId: string;

@@ -51,7 +51,11 @@ describe("GET /api/users/suggestions", () => {
         find: (filter: Record<string, unknown>) => ({
           toArray: async () => {
             if (name === "users")
-              return ["friend", "blocked", "user_1"].map((clerkId) => ({ clerkId, name: clerkId }));
+              return ["friend", "blocked", "user_1"].map((clerkId) => ({
+                clerkId,
+                name: clerkId,
+                username: `${clerkId}-player`,
+              }));
             if (name === "blocks") return filter.fromUserId ? [{ toUserId: "blocked" }] : [];
             if (name === "follows")
               return filter.fromUserId === "user_1"
@@ -77,6 +81,7 @@ describe("GET /api/users/suggestions", () => {
     expect(result.users).toEqual([
       expect.objectContaining({
         id: "friend",
+        username: "friend-player",
         isFollowing: true,
         isFollower: true,
         isFriend: true,
@@ -127,6 +132,7 @@ describe("GET /api/users/suggestions", () => {
     const first = await GET(new Request("http://localhost/api/users/suggestions?limit=2"));
     const body = await first.json();
     expect(body.users.map((user: { id: string }) => user.id)).toEqual(["user_a", "user_b"]);
+    expect(body.users.every((user: { username: unknown }) => user.username === null)).toBe(true);
     expect(body.nextCursor).toBe("user_b");
     expect(body.hasContacts).toBe(true);
     const second = await GET(

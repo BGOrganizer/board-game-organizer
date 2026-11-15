@@ -195,11 +195,11 @@ for (const width of [390, 1280])
     const roleButton = event.getByRole("button", { name: rolesLabel, exact: true });
     await expect(roleButton).toBeVisible();
     await roleButton.click();
-    await expect(
-      page
-        .getByRole("dialog")
-        .getByText(it ? "Partecipante accettato" : "Accepted participant", { exact: true }),
-    ).toBeVisible();
+    const acceptedRole = page
+      .getByRole("dialog")
+      .getByText(it ? "Partecipante accettato" : "Accepted participant", { exact: true });
+    await expect(acceptedRole).toBeVisible();
+    await expect(acceptedRole.locator("..").locator(".lucide-user-round-check")).toBeVisible();
     await page.keyboard.press("Escape");
     await event
       .getByRole("button", { name: it ? "In pianificazione" : "Planning", exact: true })

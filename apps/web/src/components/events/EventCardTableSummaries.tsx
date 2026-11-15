@@ -3,7 +3,7 @@
 import type { TableCardSummary } from "@board-game-organizer/schemas";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trophy } from "lucide-react";
 import { useState } from "react";
 import { cardExclusionMessages, cardPlanningMessages } from "@/lib/eventCardMessages";
 
@@ -26,7 +26,7 @@ export function EventCardTableSummaries({
       <ul className="max-h-[50vh] space-y-3 overflow-y-auto overscroll-contain">
         {tables.slice(page * 8, (page + 1) * 8).map((table) => (
           <li key={table.tableId}>
-            {showNames ? <p className="font-semibold">{table.name}</p> : null}
+            {showNames && mode !== "results" ? <p className="font-semibold">{table.name}</p> : null}
             {mode === "planning" ? (
               table.ready ? (
                 <p>{t`This table is ready for confirmation.`}</p>
@@ -43,18 +43,31 @@ export function EventCardTableSummaries({
                   <li key={code}>{i18n._(cardExclusionMessages[code])}</li>
                 ))}
               </ul>
-            ) : table.winners.length ? (
-              <ul className="space-y-1">
-                {table.winners.map((winner) => (
-                  <li key={winner.userId}>
-                    {winner.username
-                      ? `@${winner.username.replace(/^@/, "")}`
-                      : t`Username unavailable`}
-                  </li>
-                ))}
-              </ul>
             ) : (
-              <p>{t`No winners.`}</p>
+              <p className="break-words">
+                {showNames ? (
+                  <>
+                    <span className="font-semibold">{table.name}</span>{" "}
+                  </>
+                ) : null}
+                {table.winners.length ? (
+                  <>
+                    <Trophy
+                      aria-hidden
+                      className="mr-1 inline size-4 align-text-bottom text-warning-soft-foreground"
+                    />
+                    {table.winners
+                      .map((winner) =>
+                        winner.username
+                          ? `@${winner.username.replace(/^@/, "")}`
+                          : t`Username unavailable`,
+                      )
+                      .join(", ")}
+                  </>
+                ) : (
+                  t`No winners.`
+                )}
+              </p>
             )}
           </li>
         ))}

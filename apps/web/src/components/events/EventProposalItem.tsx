@@ -21,6 +21,10 @@ export function EventProposalItem({
         <GameListRow
           name={row.game?.name ?? row.label}
           imageUrl={row.game?.imageUrl}
+          year={row.game?.year}
+          average={row.game?.average}
+          rank={row.game?.rank}
+          suggestedPlayers={row.game?.suggestedPlayers}
           actions={actions}
         >
           {children}

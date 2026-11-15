@@ -1,14 +1,14 @@
 # Unified Groups, Events and Tables
 
-This is the approved contract implemented on `feat/social-api-refactor` (existing PR #22).
-It describes the current source, not a deployed or E2E-accepted release. Verification and remaining
-runtime limitations are recorded in [implementation progress](implementation-progress.md).
-Retired contracts are available in Git history; they are not current implementation instructions.
+This contract describes implemented Groups, Events and Tables behavior across web, native mobile
+and their shared API. Deployment and runtime acceptance require separate
+[verification evidence](implementation-progress.md); source documentation alone establishes neither.
+Retired contracts are available in Git history, not current implementation instructions.
 The [Community extension](community.md) and approved Event-access extension below separate Event
 visibility from immutable Group type. PUBLIC Events permit explicit voluntary enrollment without
 Group membership; approved private final-result sharing grants only Event/Table/result reads, never
 Group information. Private activities otherwise remain excluded from both feeds. These explicit
-exceptions supersede older membership-only activity/detail statements below.
+exceptions retain their explicit authorization boundaries throughout this contract.
 
 ## Delivery and database scope
 
@@ -25,7 +25,8 @@ exceptions supersede older membership-only activity/detail statements below.
 - Older immutable deployments are not revoked by these source changes. Do not describe this as a
   deployed isolation/migration operation. Environment separation still follows
   [operational gates](organizations-events-operations.md#infisical-and-deployment-isolation).
-- E2E suites/jobs are retained unchanged by explicit operator instruction. Unit, source-contract,
+- Preserve required web/native acceptance paths. Workflow files and
+  [operational gates](organizations-events-operations.md) govern CI enablement. Unit, source-contract,
   build and isolated-Mongo results are not Playwright/Maestro or production acceptance.
 
 ## Groups
@@ -128,7 +129,7 @@ exceptions supersede older membership-only activity/detail statements below.
   Standalone invitations are friend-only. PRIVATE Event participation requires accepted Group
   membership; approved PUBLIC Events also permit explicit outsider SELF enrollment.
   Successful grouped creation returns to that Group's Events tab; standalone creation returns to
-  main Events' Participation tab and edits retain their Event detail destination. Creation selects an optional Group
+  main Events' Scheduled tab and edits retain their Event detail destination. Creation selects an optional Group
   inline through the platform HeroUI Select, with searchable source-paged Group items and explicit
   No group; no separate Group search screen. Launching from a Group presets and locks that selection;
   existing Event Group identity remains immutable.
@@ -323,7 +324,8 @@ exceptions supersede older membership-only activity/detail statements below.
   44px native/mobile-web touch targets and one horizontally scrollable row when needed. Current administrator or moderator
   management, accepted participation, pending participation and demonstrator duty are independent
   indicators. One neutral IdCard role popover lists every applicable current role, accepted consent,
-  pending invitation, waiting position and demonstrator duty; Event roles may span different Tables.
+  pending invitation, waiting position and demonstrator duty, with the corresponding role icon before
+  each description; Event roles may span different Tables. The neutral trigger keeps its existing geometry.
   Table seat/queue positions remain mutually exclusive. Current managementRole distinguishes admin and
   moderator without granting capabilities or seats. Unknown cached roles/positions are never invented.
   Planning status uses warning and authoritative readiness: minimum players, pending reservations and
@@ -334,8 +336,11 @@ exceptions supersede older membership-only activity/detail statements below.
   precedence over duty/management: a physically excluded Table is danger, an included Table excluding the
   actor is danger-soft. Current management/duty without a player seat uses accent with an explanation;
   genuine nonparticipants use muted. Terminated status retains Flag with accent and winner-only Table
-  content. Event results list included Tables and each tied winner on a separate row using real @username;
-  missing mirror identities are disclosed, never fabricated from display names.
+  content. Each included Table in a terminated Event's status popover shows its name and winners on
+  the same row, with a warning-colored Trophy and comma-separated real @usernames. A terminated Table's
+  status popover uses the same Trophy and comma-separated winners, without placement rows. Missing
+  mirror identities are disclosed, never fabricated from display names. The Results tab keeps its
+  position badge, ordering and scores without repeating the position below the username.
   Location/date controls and Table games appear only for confirmed/terminated included outcomes, retaining
   their definitive choices after completion. Planning proposals remain in the detail voting sections.
   Games reuse existing approved metadata, never pending proposals, mutations or per-card detail requests.
@@ -729,8 +734,8 @@ only known canonical proposal bases enter central encrypted native MMKV. Verifie
 clears manager-only pages, observers and review writers even when ordinary membership remains; own
 proposals and unrelated/foreign caches survive. Restore alone never enables a review action. Source
 failures remain observable, stale confirmations remain cancelable, and no proposal UI reads Group-member
-attention. Authenticated web/native runtime acceptance remains incomplete; see
-[the implementation checkpoint](implementation-progress.md).
+attention. Assess authenticated web/native runtime acceptance with the
+[verification requirements](implementation-progress.md), separately from source/unit checks.
 
 ## Location time zones
 
@@ -1029,6 +1034,8 @@ Contacts navigation is Connections / Requests / Contacts / Search. Contacts owns
 including existing social connections, local unregistered rows, permission/synchronization feedback and paging.
 Web shows the authenticated synced registered contacts available to that client; it does not request a browser
 address book. Search owns only its query and remote results, initially empty and cleared below four characters.
-The new Contacts tab derives attention from its loaded actor rows without inventing a server read subsection.
+Registered-user rows show the real @username below the display name in every Contacts section.
+Unregistered address-book rows have no invented handle. Contacts derives attention from its loaded actor
+rows without inventing a server read subsection.
 Event/Group/Table change alerts wrap to the available width and grow with their loaded content; explicit
 More changes paging and protected invitation reads remain unchanged.

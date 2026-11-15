@@ -218,6 +218,7 @@ const CollectionRow = memo(function CollectionRow({
       year={item.year}
       average={item.average}
       rank={item.rank}
+      suggestedPlayers={item.suggestedPlayers}
       actions={
         <Chip
           size="sm"

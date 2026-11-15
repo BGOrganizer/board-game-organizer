@@ -62,6 +62,7 @@ export default defineConfig({
         "src/events/eventRecordForm.ts",
         "src/events/eventRecordVisibility.ts",
         "src/games/gamePlayerBounds.ts",
+        "src/games/gameBestPlayers.ts",
         "src/games/gamePickerWindow.ts",
         "src/games/hooks/useGameListWindow.ts",
         "src/events/eventGameDuration.ts",
@@ -91,6 +92,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/games/gameBestPlayers.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/common/appVersion.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/events/tableSeatOrderDraft.ts": {
           lines: 100,

@@ -13,6 +13,7 @@ export function GameListRow({
   average,
   rank,
   durationMinutes,
+  suggestedPlayers,
   titleAccessory,
   onPress,
   actions,
@@ -78,6 +79,7 @@ export function GameListRow({
               average={average}
               rank={rank}
               durationMinutes={durationMinutes}
+              suggestedPlayers={suggestedPlayers}
             />
             {metadata}
           </View>

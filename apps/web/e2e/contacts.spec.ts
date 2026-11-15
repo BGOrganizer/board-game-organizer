@@ -108,12 +108,13 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
     { phone: E2E_PHONE_2, token, url: syncUrl.toString() },
   );
   await page.reload();
-  await page.getByRole("tab", { name: "Search" }).click();
+  await page.getByRole("tab", { name: "Contacts", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Device Contacts" })).toBeVisible({
     timeout: 90_000,
   });
   const deviceContacts = page.locator("#device-contacts-title").locator("..");
   await expect(deviceContacts.getByText("E2E Target")).toBeVisible({ timeout: 90_000 });
+  await expect(deviceContacts.getByText(/^@\S+$/)).toBeVisible();
 
   await findTarget(page);
   await sendFriendRequest(page);
@@ -125,6 +126,7 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await page.keyboard.press("Escape");
   await expect(requestLegend).toBeHidden();
   const sent = page.getByRole("listitem").filter({ hasText: "E2E Target" });
+  await expect(sent.getByText(/^@\S+$/)).toBeVisible();
   await expect(sent.getByRole("img", { name: "Sent" })).toBeVisible({ timeout: 30_000 });
 
   // Outgoing requests can be cancelled from the contextual menu and sent again.
@@ -226,6 +228,12 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await page.keyboard.press("Escape");
   await expect(connectionLegend).toBeHidden();
   await expect(page.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
+  await expect(
+    page
+      .getByRole("listitem")
+      .filter({ hasText: "E2E Target" })
+      .getByText(/^@\S+$/),
+  ).toBeVisible();
   await expect(page.getByRole("img", { name: "Friends" })).toBeVisible();
   await targetContext.close();
 

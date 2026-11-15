@@ -178,7 +178,7 @@ it.each([1, 2, null])(
       </Wrapper>,
     );
     const label = `Position: ${rank === null ? "ND" : `#${rank}`}`;
-    expect(screen.getByText(label)).toBeTruthy();
+    expect(screen.queryByText(label)).toBeNull();
     const badge = screen.getByRole("button", { name: label });
     expect(
       badge.querySelector(rank === 1 ? ".lucide-trophy" : ".lucide-list-ordered"),

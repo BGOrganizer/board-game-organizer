@@ -33,6 +33,8 @@ if (
   throw new Error(
     "Valid snapshot counts, personal rating and source offset beyond first page required",
   );
+if (typeof p.bestPlayers !== "string" || !/^\d+\+?(?:-\d+\+?)?$/.test(p.bestPlayers))
+  throw new Error("Rated game fixture must include its verified BGG Best players summary");
 var it = COLLECTION_LOCALE === "it";
 function exact(text) {
   return "^" + text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
@@ -54,6 +56,7 @@ output.collection = {
   ratedQuery: p.ratedGame,
   rated: exact(p.ratedGame),
   rating: exact(personal + ": " + rating),
+  bestPlayers: exact((it ? "Giocatori ideali BGG" : "Best BGG players") + ": " + p.bestPlayers),
   unratedQuery: p.unratedGame,
   unrated: exact(p.unratedGame),
   unavailable: exact(personal + ": N/A"),

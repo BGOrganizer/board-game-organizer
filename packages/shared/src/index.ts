@@ -60,6 +60,7 @@ export * from "./events/hooks/useTableLeaderboard";
 export * from "./events/hooks/useTableSeatOrder";
 export * from "./events/tablePlayerRating";
 export * from "./events/tableScoreForm";
+export * from "./games/gameBestPlayers";
 export * from "./games/gamePickerWindow";
 export * from "./games/gamePlayerBounds";
 export * from "./games/hooks/useBggAccount";

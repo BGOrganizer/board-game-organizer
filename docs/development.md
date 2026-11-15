@@ -40,15 +40,16 @@ reserved for the game picker. Existing ownership, privacy and authorization rule
   AES-256 MMKV with random device-only SecureStore keys. Restore waits for Clerk identity; it is not
   offline authentication. Snapshots retain up to 24 hours, 200 queries and an 8 MiB conservative
   serialized budget; older entries are evicted. Native infinite refreshes restart at page one.
-  Combined personal Tables remains first in the existing three-worker priority warmup; four first
-  datasets gate splash, never beyond five total seconds. Cached content stays visible during refresh.
+  History is first in the three-worker priority warmup described in the
+  [state/cache contract](state-and-cache.md); four first datasets gate splash, never beyond five total
+  seconds. Cached content stays visible during refresh.
   Logout/account or session changes purge owned disk/key and cancel RAM work. No optimistic intents,
   raw address-book scans, credentials or offline write replay persist. Storage failures retain usable
   RAM/network behavior and show a nonblocking localized warning.
 
 Native MapLibre and MMKV/Nitro require a native build, not Expo Go or a JavaScript-only update.
 Use the mobile package's `android` or `ios` script for local builds with the appropriate native toolchain.
-Native performance and runtime acceptance are tracked in the [implementation checkpoint](implementation-progress.md).
+Assess native performance and runtime acceptance with the [verification requirements](implementation-progress.md).
 
 ## BoardGameGeek catalog
 
@@ -86,8 +87,11 @@ BGG player-count recommendations retain the complete `suggested_numplayers` poll
 `suggestedPlayers` (Best/Recommended/Not Recommended counts per exact or open-ended count,
 per-row samples, provider total and fetched timestamp). Classification uses a strict unique
 plurality; ties, absent rows and zero samples are unknown. These are community preferences,
-not replacements for hard min/max players. Omitted/invalid polls preserve previous verified data
-and do not acquire a new success timestamp. The existing quota, retry and HTTP 202/429 backoff apply.
+not replacements for hard min/max players. Game items display a player icon and at most the first
+two ascending distinct Best counts beside the BGG rank (for example `6`, `4-5` or `6+`). Unknown
+recommendations remain absent; do not infer Best from a range or player limit. Omitted/invalid polls
+preserve previous verified data and do not acquire a new success timestamp. The existing quota,
+retry and HTTP 202/429 backoff apply.
 
 After a complete successful remote CSV import, the import CLI follows with bounded
 enrichment of the first 200 base games with positive integer general rank, sorted by rank then ID.
@@ -130,7 +134,7 @@ GitHub emits these events; the main workflow does not call the controllers with 
 The workflow-run controllers use trusted default-branch code. Keeping recovery outside the
 source run allows it to execute after that run is cancelled; putting it solely in the cancelled
 run would lose that independence. Scheduled orphan cleanup also needs to run when no PR runs.
-See [controller activation](organizations-events-operations.md#activate-trusted-controllers-before-relying-on-lane-independence)
+See [controller activation](organizations-events-operations.md#trusted-controllers-and-activation)
 before treating branch edits as live protection.
 
 ## Bun installation and runtime
@@ -140,8 +144,8 @@ When switching package managers in an existing checkout, move the old root and w
 does not remove every stale nested package left by a different linker; a fresh checkout
 also avoids this problem. Keep the backup until installation and checks have passed.
 
-Use Bun 1.4.4 for dependency installation and script orchestration; retain Node.js 26 for Next.js,
-Vitest, Expo and CLI shebangs. `bun.lock` is the only package-manager lockfile, workspace globs,
+Use the Bun version declared in the root `packageManager` for installation and script orchestration;
+retain Node.js 26 for Next.js, Vitest, Expo and CLI shebangs. `bun.lock` is the only package-manager lockfile, workspace globs,
 version overrides and native patches live in the root `package.json`, and `bunfig.toml` explicitly
 keeps hoisted installs. The exact Bun version is shared by CI and every EAS profile; local EAS
 builds use the runner's installed Bun. Vercel receives exact-version frozen install and build commands without
@@ -176,7 +180,8 @@ are migrated for Vitest 5.
 After any dependency update, run lint, typecheck, unit tests, builds, and relevant integration
 tests.
 
-Native dependency changes also require a fresh APK and Maestro coverage in CI.
+Native dependency changes also require a fresh APK and applicable Maestro acceptance. CI enablement
+follows the workflow files and [operational gates](organizations-events-operations.md).
 
 ## Environment configuration
 
@@ -303,12 +308,10 @@ API together. PR prereleases remain separate. A new APK must be installed once t
 `development-pr-N` native header and fingerprint to this shared lane. Native-incompatible changes
 still require a new APK; a shared channel never overrides runtime matching.
 
-The first binary with this consent policy and fingerprint configuration must be installed manually.
-An older `ON_LOAD` binary can download/apply automatically and cannot acquire true consent via a
-JavaScript-only popup. Subsequent compatible JS/asset changes use the automated OTA lane.
-APKs with the previous guard that rejected `__root` also need one manual replacement: that guard
-can prevent the OTA check itself from starting, so it cannot fetch its own repair. This does not
-require changing the channel, runtime policy or restart safeguards.
+Install a compatible base binary manually when the installed version lacks this consent policy,
+uses another channel/runtime or cannot start its OTA check. An older `ON_LOAD` binary can apply an
+update automatically and cannot acquire true download consent through a JavaScript-only popup.
+Subsequent compatible JavaScript/asset changes use the automated OTA lane.
 
 Keep `EXPO_TOKEN` server-side. Local EAS setup may read this single value from Infisical staging
 `/github` into the process environment; never put it in Expo `extra`, a public variable or Git.

@@ -74,6 +74,17 @@ function load(file: string, name = file) {
     {
       exports: output,
       require: (id: string) => {
+        if (id === "@/lib/recordUserRoleIcons") {
+          const icons = {};
+          runInNewContext(
+            ts.transpileModule(
+              readFileSync(new URL("../recordUserRoleIcons.ts", import.meta.url), "utf8"),
+              { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+            ).outputText,
+            { exports: icons, require: () => modules["lucide-react-native"] },
+          );
+          return icons;
+        }
         if (!(id in modules)) throw new Error(`Unexpected dependency ${id}`);
         return modules[id];
       },

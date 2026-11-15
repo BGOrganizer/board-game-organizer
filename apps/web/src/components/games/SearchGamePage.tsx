@@ -219,6 +219,7 @@ export function SearchGamePage({
                     year={item.year}
                     average={item.average}
                     rank={item.rank}
+                    suggestedPlayers={item.suggestedPlayers}
                     actions={
                       <span
                         aria-hidden

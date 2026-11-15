@@ -1,27 +1,10 @@
 "use client";
 import { RECORD_USER_ROLES, type RecordUserRole } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
-import {
-  Clock3,
-  Crown,
-  ListOrdered,
-  Mail,
-  Presentation,
-  ShieldCheck,
-  UserRoundCheck,
-} from "lucide-react";
+import { recordUserRoleIcons } from "@/lib/recordUserRoleIcons";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { IconBadge } from "./IconBadge";
 
-const icons = {
-  admin: Crown,
-  moderator: ShieldCheck,
-  demonstrator: Presentation,
-  invitation: Mail,
-  request: Clock3,
-  waiting: ListOrdered,
-  accepted: UserRoundCheck,
-};
 const colors = {
   warning: "text-warning-soft-foreground",
   accent: "text-accent-soft-foreground",
@@ -39,14 +22,14 @@ export function UserRoleBadge({ roles }: { roles: readonly RecordUserRole[] }) {
     <IconBadge
       label={labels.join(" · ")}
       title={t`Roles and participation`}
-      icon={icons[primary.icon]}
+      icon={recordUserRoleIcons[primary.icon]}
       color={primary.tone}
       multiple={roles.length > 1}
     >
       <ul className="max-h-[50vh] space-y-2 overflow-y-auto overscroll-contain">
         {roles.map((role, index) => {
           const item = RECORD_USER_ROLES[role],
-            Icon = icons[item.icon];
+            Icon = recordUserRoleIcons[item.icon];
           return (
             <li key={role} className="flex items-center gap-2">
               <Icon aria-hidden className={`size-4 shrink-0 ${colors[item.tone]}`} />

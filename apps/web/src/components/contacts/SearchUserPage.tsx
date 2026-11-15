@@ -2,6 +2,7 @@
 
 import {
   type ContactUser,
+  formatUsername,
   hasContactRelationship,
   useRelationshipList,
   withProtectionBypass,
@@ -185,7 +186,7 @@ export function SearchUserPage({
             />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{u.name}</p>
-              <p className="truncate text-xs text-muted">{u.username}</p>
+              <p className="truncate text-xs text-muted">{formatUsername(u.username, "")}</p>
             </div>
             <Button
               isIconOnly

@@ -31,6 +31,31 @@ function component(file: string, name: string, modules: Record<string, unknown>)
   runInNewContext(code, {
     exports: output,
     require: (id: string) => {
+      if (id === "@/lib/recordUserRoleIcons") {
+        const icons: Record<string, unknown> = {};
+        runInNewContext(
+          ts.transpileModule(
+            readFileSync(new URL("../recordUserRoleIcons.ts", import.meta.url), "utf8"),
+            { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+          ).outputText,
+          {
+            exports: icons,
+            require: () =>
+              Object.fromEntries(
+                [
+                  "Crown",
+                  "ShieldCheck",
+                  "Presentation",
+                  "Mail",
+                  "Clock3",
+                  "ListOrdered",
+                  "UserRoundCheck",
+                ].map((icon) => [icon, icon]),
+              ),
+          },
+        );
+        return icons;
+      }
       if (id === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (id === "./ListCardCoverContent") {
         cover = component("common/ui/ListCardCoverContent", "ListCardCoverContent", modules);
@@ -918,7 +943,10 @@ it("requires a scroll in the current Results owner scope and rejects detached na
     const item = history.props.renderItem({
       item: { userId: "owner", name: "Player", rank, score: "10", profileLoaded: true },
     }).props.children;
-    expect(item.props.secondary).toBe(`Position: ${rank == null ? "ND" : `#${rank}`}`);
+    expect(item.props.secondary).toBeUndefined();
+    expect(item.props.badgeContent.props.label).toBe(
+      `Position: ${rank == null ? "ND" : `#${rank}`}`,
+    );
     expect(item.props.badgeContent.props.icon).toBe(rank === 1 ? "Trophy" : "ListOrdered");
     expect(item.props.badgeContent.props.title).toBe("Position");
   }
@@ -1053,16 +1081,37 @@ it("keeps the native role identity neutral while listing independent roles and e
     "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
     "@/lib/i18n": { useT: () => (id: string) => id },
   });
-  const roles = render({ roles: ["admin", "demonstrator"], action: "reply" });
+  const roles = render({
+    roles: [
+      "admin",
+      "moderator",
+      "demonstrator",
+      "invitedPlayer",
+      "waitingPlayer",
+      "confirmedPlayer",
+      "requestedMember",
+    ],
+    action: "reply",
+  });
   expect(roles.props).toMatchObject({
     icon: "IdCard",
     tone: "muted",
     size: "compact",
     triggerClassName: "bg-default",
   });
-  expect(roles.props.children.props.children[0].map((row: Element) => row.props.children)).toEqual([
-    "Admin",
-    "Demonstrator",
+  expect(
+    roles.props.children.props.children[0].map((row: Element) => [
+      row.props.children[0].type,
+      row.props.children[1].props.children,
+    ]),
+  ).toEqual([
+    ["Crown", "Admin"],
+    ["ShieldCheck", "Moderator"],
+    ["Presentation", "Demonstrator"],
+    ["Mail", "Player with pending invitation"],
+    ["ListOrdered", "Player on the waiting list"],
+    ["UserRoundCheck", "Confirmed player"],
+    ["Clock3", "Member with pending request"],
   ]);
   expect(roles.props.children.props.children[2].props.children).toBe(
     "Open details to accept or decline your invitation.",
@@ -1075,11 +1124,12 @@ it("keeps the native role identity neutral while listing independent roles and e
   }
 });
 it.each(["planning", "exclusions", "results"] as const)(
-  "virtualizes native card %s summaries, with one row per tied winner",
+  "virtualizes native card %s summaries, with comma-separated winners beside the Table name",
   (mode) => {
     const render = component("events/EventCardTableSummaries", "EventCardTableSummaries", {
       "@board-game-organizer/shared": shared,
       "heroui-native/text": { Typography: "Typography" },
+      "lucide-react-native": { Trophy: "Trophy" },
       "react-native": {
         FlatList: "FlatList",
         View: "View",
@@ -1104,13 +1154,19 @@ it.each(["planning", "exclusions", "results"] as const)(
     expect(list.props.initialNumToRender).toBe(8);
     expect(list.props.keyExtractor(item)).toBe("table");
     const row = list.props.renderItem({ item });
-    expect(row.props.children[0].props.children).toBe("Table");
-    if (mode === "results")
-      expect(row.props.children[1].map((winner: Element) => winner.props.children)).toEqual([
-        "@alice",
-        "@bob",
-        "Username unavailable",
-      ]);
+    if (mode === "results") {
+      expect(row.props.children[0]).toBeNull();
+      const result = row.props.children[1];
+      expect(result.props.style.flexDirection).toBe("row");
+      expect(result.props.children[0].props.children).toBe("Table");
+      const winners = result.props.children[1].props.children;
+      expect(winners[0].props).toMatchObject({
+        size: 16,
+        color: "warning-soft-foreground",
+        accessible: false,
+      });
+      expect(winners[1].props.children).toBe("@alice, @bob, Username unavailable");
+    } else expect(row.props.children[0].props.children).toBe("Table");
     if (mode === "planning") {
       expect(row.props.children[1][0].props.children).toBe(
         "Not enough eligible players to reach the minimum.",
@@ -1130,7 +1186,7 @@ it.each(["planning", "exclusions", "results"] as const)(
     if (mode === "results")
       expect(
         unnamed.props.renderItem({ item: { ...item, winners: [] } }).props.children[1].props
-          .children,
+          .children[1].props.children[1].props.children,
       ).toBe("No winners.");
   },
 );

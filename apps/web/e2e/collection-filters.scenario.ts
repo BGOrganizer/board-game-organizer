@@ -3,7 +3,7 @@ import type {
   BggCollectionResponse,
   ProfileView,
 } from "@board-game-organizer/schemas";
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import { gameBestPlayers, withProtectionBypass } from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
@@ -166,7 +166,30 @@ for (const width of [390, 1280])
     await button(l.expansions).click();
     await button(l.games).click();
     await input.fill(p.expansionName);
-    await expect(panel.getByRole("option", { name: p.expansionName, exact: true })).toBeVisible();
+    const expansionRow = panel.getByRole("option", { name: p.expansionName, exact: true });
+    await expect(expansionRow).toBeVisible();
+    const expansion = (
+      await read<BggCollectionResponse>(
+        page,
+        `${root}&query=${encodeURIComponent(p.expansionName)}&types=expansions&limit=1`,
+      )
+    ).items[0];
+    if (!expansion) throw new Error("Expansion metadata fixture required");
+    if (expansion.imageUrl) {
+      const cover = expansionRow.locator("img");
+      await expect(cover).toHaveAttribute("src", expansion.imageUrl);
+      await expect(cover).toBeVisible();
+    }
+    const bestPlayers = gameBestPlayers(expansion.suggestedPlayers);
+    const bestLabel = locale === "it" ? "Giocatori ideali BGG" : "Best BGG players";
+    if (bestPlayers)
+      await expect(
+        expansionRow.getByRole("img", { name: `${bestLabel}: ${bestPlayers}`, exact: true }),
+      ).toBeVisible();
+    else
+      await expect(
+        expansionRow.getByRole("img", { name: new RegExp(`^${bestLabel}:`) }),
+      ).toHaveCount(0);
     await button(l.games).click();
     await input.fill(p.wishlistName);
     await button(l.wishlist).click();

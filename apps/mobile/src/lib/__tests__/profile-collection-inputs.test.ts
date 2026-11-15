@@ -14,6 +14,7 @@ const fixture = {
   wishlist: 5,
   ratedGame: "Rated [game]",
   rating: 8.5,
+  bestPlayers: "4-5",
   unratedGame: "Unrated",
   laterGame: "Later",
   laterOffset: 25,
@@ -43,6 +44,11 @@ describe("read-only real collection fixture inputs", () => {
         locale === "it" ? "Voto personale BGG: 8,5" : "Personal BGG rating: 8.5",
       ),
     ).toBe(true);
+    expect(
+      new RegExp(result.bestPlayers).test(
+        locale === "it" ? "Giocatori ideali BGG: 4-5" : "Best BGG players: 4-5",
+      ),
+    ).toBe(true);
     expect(result.unavailable).toContain("N/A");
     expect(result.later).toBe("^Later$");
   });
@@ -56,6 +62,9 @@ describe("read-only real collection fixture inputs", () => {
   });
   it.each([
     { owner: "" },
+    { bestPlayers: undefined },
+    { bestPlayers: "" },
+    { bestPlayers: "4-5-6" },
     { ratedGame: "Unrated" },
     { rating: 0 },
     { rating: 11 },

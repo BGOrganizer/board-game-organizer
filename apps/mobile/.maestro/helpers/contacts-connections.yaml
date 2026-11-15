@@ -15,6 +15,7 @@ appId: com.bgo.boardgameorganizer.dev
     visible: "E2E Target"
     timeout: 30000
 - assertVisible: "Friends"
+- assertVisible: "^@[^ ]+$"
 - runFlow:
     file: contact-action.yaml
     env:
@@ -42,6 +43,7 @@ appId: com.bgo.boardgameorganizer.dev
     visible: "Following"
     timeout: 30000
 - assertVisible: "E2E Target"
+- assertVisible: "^@[^ ]+$"
 - tapOn: "Search"
 - tapOn: "^Actions: E2E Target$"
 - extendedWaitUntil:

@@ -1,6 +1,8 @@
 import type { TableCardSummary } from "@board-game-organizer/schemas";
 import { CARD_EXCLUSION_MESSAGES, CARD_PLANNING_MESSAGES } from "@board-game-organizer/shared";
+import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
+import { Trophy } from "lucide-react-native";
 import { FlatList, useWindowDimensions, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
@@ -14,6 +16,7 @@ export function EventCardTableSummaries({
   showNames?: boolean;
 }) {
   const t = useT();
+  const warning = useThemeColor("warning-soft-foreground");
   const { height } = useWindowDimensions();
   return (
     <FlatList
@@ -26,7 +29,7 @@ export function EventCardTableSummaries({
       windowSize={7}
       renderItem={({ item: table }) => (
         <View style={{ gap: 4 }}>
-          {showNames ? (
+          {showNames && mode !== "results" ? (
             <Typography className="font-semibold text-foreground">{table.name}</Typography>
           ) : null}
           {mode === "planning" ? (
@@ -47,16 +50,30 @@ export function EventCardTableSummaries({
                 {t(CARD_EXCLUSION_MESSAGES[code])}
               </Typography>
             ))
-          ) : table.winners.length ? (
-            table.winners.map((winner) => (
-              <Typography key={winner.userId} className="text-foreground">
-                {winner.username
-                  ? `@${winner.username.replace(/^@/, "")}`
-                  : t("Username unavailable")}
-              </Typography>
-            ))
           ) : (
-            <Typography className="text-foreground">{t("No winners.")}</Typography>
+            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+              {showNames ? (
+                <Typography className="font-semibold text-foreground" style={{ flexShrink: 1 }}>
+                  {table.name}
+                </Typography>
+              ) : null}
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                {table.winners.length ? (
+                  <Trophy size={16} color={warning} accessible={false} />
+                ) : null}
+                <Typography className="text-foreground" style={{ flex: 1 }}>
+                  {table.winners.length
+                    ? table.winners
+                        .map((winner) =>
+                          winner.username
+                            ? `@${winner.username.replace(/^@/, "")}`
+                            : t("Username unavailable"),
+                        )
+                        .join(", ")
+                    : t("No winners.")}
+                </Typography>
+              </View>
+            </View>
           )}
         </View>
       )}

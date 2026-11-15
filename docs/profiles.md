@@ -1,6 +1,8 @@
 # Profiles, statistics and activities
 
-Implemented locally on web and native mobile; authenticated/device acceptance remains incomplete.
+Profiles share implemented identity, statistics, activities and collection behavior across web and
+native mobile. [Verification requirements](implementation-progress.md) distinguish source checks
+from authenticated browser/device acceptance.
 The [unified domain](groups-events-refactor.md) remains authoritative for source access, consent,
 physical results, deletion and OpenSkill. [Community](community.md) reuses these activities and source
 visibility with a current-network/time selection; no offline mode is enabled.
@@ -27,7 +29,11 @@ visibility with a current-network/time selection; no offline mode is enabled.
   the filter. New synchronization imports only explicitly owned games (`own=1`); wishlist flags on
   those owned games can overlap either total. Existing snapshots retain their published contents until resynchronized. Rows reuse the game-selection
   identity/cover/catalog layout, replacing selection with the owner's personal BGG rating or `N/A`,
-  never the public BGG average or GLOBAL OpenSkill. Games and Expansions chips initially include
+  never the public BGG average or GLOBAL OpenSkill. Collection covers prefer verified canonical catalog
+  artwork, falling back to a valid snapshot image; missing/invalid artwork retains the semantic game
+  icon. Visible-page hydration remains batched, without per-row fetches. Game rows show available BGG
+  rank and Best player counts under the [catalog rules](development.md#boardgamegeek-catalog).
+  Games and Expansions chips initially include
   both types (OR). Wishlist independently shows wished games AND expansions regardless of either type
   toggle; it preserves those toggles for when Wishlist is turned off. Name and In common still restrict
   the selected results before source paging. All-off types without Wishlist is empty, never all games.
@@ -146,24 +152,22 @@ obsolete pages. Restore never grants authorization or enables account controls.
 Mutation errors are reset for a subsequent explicit
 action. Existing linked Powered by BGG artwork uses a HeroUI light surface scope.
 
-Run the normal API migration against the intended replica set **before enabling these writers**:
-new profileActivities receipt/paging/source indexes and a per-player Table-outcome index are required.
-No application database migration, deletion/reset, provider provisioning or real BGG operation was
-performed. Integration validation migrated and mutated only ephemeral Testcontainers databases.
-Existing deployment isolation and operational gates apply.
+The API migration maintains profile-activity receipt/paging/source indexes and a per-player
+Table-outcome index. Migration requires explicit scope and the intended replica-set target;
+ordinary validation uses only ephemeral Testcontainers databases. Deployment isolation and
+[operational gates](organizations-events-operations.md) apply; documentation authorizes no database
+reset, provider provisioning or real BGG operation.
 
 ## Acceptance
 
 Unit checks cover API privacy, strict queries/Preview bypass, ND/roster rules, receipt deduplication,
 ordinal history, milestones, selective cache behavior, localization and owner/other UI paths.
-`test/integration/profile.test.ts` requires a real isolated MongoDB replica-set container. The current
-six profile/network cases pass with zero skips, including kind-filtered source paging, privacy,
-deduplication, partial stored outcomes and concurrent unrated milestone crossings. The preceding
-moderator checkpoint passed all 123 API integrations in four files; the current full rerun exceeded its
-local deadline and is not a new full-suite pass. This is not authenticated UI/provider or native-device
-acceptance.
+`test/integration/profile.test.ts` requires a real isolated MongoDB replica-set container, including
+kind-filtered source paging, privacy, deduplication, partial stored outcomes and concurrent unrated
+milestone crossings. Report the actual executed revision/results; these checks do not establish
+authenticated UI/provider or native-device acceptance.
 
-Explicit real-fixture web run: `pnpm --filter web exec playwright test --config e2e/profile.config.ts`.
+Explicit real-fixture web run: `bun run --filter web test:e2e --config e2e/profile.config.ts`.
 Set PROFILE_LOCALE=en|it, PROFILE_THEME=light|dark, PROFILE_API_URL (local/Preview origin), E2E_EMAIL,
 PROFILE_OWNER_NAME, PROFILE_TARGET_ID/NAME, PROFILE_EMPTY_ID/NAME, PROFILE_BLOCKED_BY_ME_ID,
 PROFILE_BLOCKED_ME_ID, PROFILE_GAME_ID/NAME, PROFILE_PUBLIC_ACTIVITY_TEXT/PRIVATE_ACTIVITY_TEXT and

@@ -77,7 +77,7 @@ it("renders cached first-page friends, excludes invited users, and loads the nex
   vi.stubGlobal("fetch", fetchMock);
   const onSelect = renderPicker();
   expect(await screen.findByText("E2E Target")).toBeTruthy();
-  expect(screen.getByText("user_friend-handle")).toBeTruthy();
+  expect(screen.getByText("@user_friend-handle")).toBeTruthy();
   expect(screen.queryByText("user_friend@example.com")).toBeNull();
   expect(screen.queryByText("Already invited")).toBeNull();
   expect(fetchMock).toHaveBeenCalledTimes(1);

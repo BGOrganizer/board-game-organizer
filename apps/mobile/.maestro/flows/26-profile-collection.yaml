@@ -46,6 +46,8 @@ tags: [manual, profile, bgg]
     direction: DOWN
     timeout: 120000
 - assertVisible: ${output.collection.rating}
+- assertVisible: ${output.collection.bestPlayers}
+- takeScreenshot: profile-collection-cover-best-players
 - scrollUntilVisible:
     element:
       id: profile-collection-filter

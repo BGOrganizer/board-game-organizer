@@ -24,7 +24,7 @@ it("preserves invitation consent and reserved/waiting distinctions without inven
   expect(s).toContain("Decline invitation");
   expect(s).toMatch(/version:\s*registration\.version/);
   expect(s).toContain("Waiting list");
-  expect(s).toContain("winners.map");
+  expect(s).toMatch(/winners\s*\.map/);
   expect(s).not.toContain('kind:"approve"');
 });
 it("keeps compact cumulative Table icons at bottom right beside full-height left artwork", () => {

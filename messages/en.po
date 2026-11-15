@@ -7127,3 +7127,6 @@ msgstr "Joined on"
 
 msgid "Version"
 msgstr "Version"
+
+msgid "Best BGG players"
+msgstr "Best BGG players"

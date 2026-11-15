@@ -1,7 +1,9 @@
+import type { PlayerPoll } from "@board-game-organizer/schemas";
+import { gameBestPlayers } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import { Clock, ListOrdered, Star } from "lucide-react-native";
+import { Clock, ListOrdered, Star, UsersRound } from "lucide-react-native";
 import { View } from "react-native";
 import { useT } from "@/lib/i18n";
 
@@ -10,13 +12,22 @@ type Props = {
   average?: number | null;
   rank?: number | null;
   durationMinutes?: number;
+  suggestedPlayers?: PlayerPoll;
 };
 
-export function GameCatalogMetadata({ year, average, rank, durationMinutes }: Props) {
+export function GameCatalogMetadata({
+  year,
+  average,
+  rank,
+  durationMinutes,
+  suggestedPlayers,
+}: Props) {
   const t = useT();
   const { i18n } = useLingui();
   const [warning, muted] = useThemeColor(["warning", "muted"]);
-  if (!year && average == null && rank == null && durationMinutes == null) return null;
+  const bestPlayers = gameBestPlayers(suggestedPlayers);
+  if (!year && average == null && rank == null && durationMinutes == null && !bestPlayers)
+    return null;
   const rating = average?.toLocaleString(i18n.locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -55,6 +66,17 @@ export function GameCatalogMetadata({ year, average, rank, durationMinutes }: Pr
           <Typography className="text-xs text-muted">{position}</Typography>
         </View>
       )}
+      {bestPlayers ? (
+        <View
+          accessible
+          accessibilityRole="text"
+          accessibilityLabel={`${t("Best BGG players")}: ${bestPlayers}`}
+          style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
+        >
+          <UsersRound size={12} color={muted} accessible={false} />
+          <Typography className="text-xs text-muted">{bestPlayers}</Typography>
+        </View>
+      ) : null}
     </View>
   );
 }

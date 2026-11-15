@@ -280,6 +280,7 @@ const GamePickerRow = memo(function GamePickerRow({
       year={item.year}
       average={item.average}
       rank={item.rank}
+      suggestedPlayers={item.suggestedPlayers}
       actions={
         <Button
           isIconOnly

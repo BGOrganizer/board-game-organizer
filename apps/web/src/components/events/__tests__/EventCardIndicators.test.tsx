@@ -95,6 +95,12 @@ it("keeps the role trigger neutral and discloses all roles plus pending decision
   const trigger = screen.getByRole("button", { name: "Roles and participation" });
   expect(trigger.querySelector("svg.lucide-id-card")).not.toBeNull();
   expect(trigger.parentElement?.dataset.tone).toBe("muted");
+  for (const [label, icon] of [
+    ["Admin", "crown"],
+    ["Demonstrator", "presentation"],
+    ["Player on the waiting list", "list-ordered"],
+  ])
+    expect(screen.getByText(label).parentElement?.querySelector(`.lucide-${icon}`)).not.toBeNull();
   for (const label of [
     "Admin",
     "Demonstrator",
@@ -102,6 +108,19 @@ it("keeps the role trigger neutral and discloses all roles plus pending decision
     "Open details to accept or decline your invitation.",
   ])
     expect(screen.getByText(label)).not.toBeNull();
+});
+it.each([
+  ["admin", "Admin", "crown", "warning"],
+  ["moderator", "Moderator", "shield-check", "accent"],
+  ["demonstrator", "Demonstrator", "presentation", "accent"],
+  ["invitedPlayer", "Player with pending invitation", "mail", "warning"],
+  ["waitingPlayer", "Player on the waiting list", "list-ordered", "warning"],
+  ["confirmedPlayer", "Confirmed player", "user-round-check", "success"],
+  ["requestedMember", "Member with pending request", "clock-3", "warning"],
+] as const)("shows the established %s role glyph and semantic tone", (role, label, icon, tone) => {
+  renderWithI18n(<EventRolePopover roles={[role]} />);
+  const glyph = screen.getByText(label).parentElement?.querySelector(`.lucide-${icon}`);
+  expect(glyph?.classList.contains(`text-${tone}-soft-foreground`)).toBe(true);
 });
 it.each([false, true])(
   "distinguishes an unregistered viewer from pending draft roles (%s)",
@@ -387,26 +406,38 @@ it.each([true, false])("keeps only winners in a terminated Table status, loaded=
   expect(loaded ? screen.getByText("@winner") : screen.getByLabelText("Loading…")).not.toBeNull();
   expect(screen.queryByText("Minimum players")).toBeNull();
 });
-it("shows each tied winner on its own row and never invents missing handles", () => {
-  renderWithI18n(
-    <EventCardTableSummaries
-      mode="results"
-      showNames={false}
-      tables={[
-        tableSummary({
-          winners: [
-            { userId: "a", username: "@alice" },
-            { userId: "b", username: "bob" },
-            { userId: "c", username: null },
-          ],
-        }),
-      ]}
-    />,
-  );
-  expect(screen.getByText("@alice").tagName).toBe("LI");
-  expect(screen.getByText("@bob").previousElementSibling?.textContent).toBe("@alice");
-  expect(screen.getByText("Username unavailable")).not.toBeNull();
-});
+it.each([true, false])(
+  "keeps tied winners comma-separated beside a warning trophy and optional Table name (%s)",
+  (showNames) => {
+    renderWithI18n(
+      <EventCardTableSummaries
+        mode="results"
+        showNames={showNames}
+        tables={[
+          tableSummary({
+            winners: [
+              { userId: "a", username: "@alice" },
+              { userId: "b", username: "bob" },
+              { userId: "c", username: null },
+            ],
+          }),
+        ]}
+      />,
+    );
+    const winners = screen.getByText(
+      (_, element) =>
+        element?.tagName === "P" &&
+        element.textContent?.includes("@alice, @bob, Username unavailable") === true,
+    );
+    expect(
+      winners.querySelector(".lucide-trophy")?.classList.contains("text-warning-soft-foreground"),
+    ).toBe(true);
+    expect(winners.querySelector(".font-semibold")?.textContent).toBe(
+      showNames ? tableSummary().name : undefined,
+    );
+    expect(winners.textContent).not.toContain("@undefined");
+  },
+);
 it.each(["planning", "results"] as const)("has an explicit empty %s state", (mode) => {
   renderWithI18n(<EventCardTableSummaries mode={mode} tables={[]} />);
   expect(

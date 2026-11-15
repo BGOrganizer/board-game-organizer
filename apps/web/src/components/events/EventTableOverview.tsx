@@ -157,6 +157,7 @@ export function EventTableOverview({
                 }
                 average={game.average}
                 rank={game.rank}
+                suggestedPlayers={game.suggestedPlayers}
                 durationMinutes={game.durationMinutes}
                 metadata={
                   votableGames ? (

@@ -66,6 +66,7 @@ appId: com.bgo.boardgameorganizer.dev
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
+- assertVisible: "^@[^ ]+$"
 - scrollUntilVisible:
     element: "ZZ Page 43"
     direction: DOWN

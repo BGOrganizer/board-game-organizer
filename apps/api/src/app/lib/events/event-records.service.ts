@@ -646,7 +646,19 @@ export class EventRecordsService {
       ...visible,
       authorName: user?.username || publicUserName(user),
       authorUsername: user?.username ?? null,
-      ...(game ? { game: { id: game.id, name: game.name, imageUrl: game.image ?? null } } : {}),
+      ...(game
+        ? {
+            game: {
+              id: game.id,
+              name: game.name,
+              imageUrl: game.image ?? null,
+              year: game.yearPublished ?? null,
+              average: game.average ?? null,
+              rank: game.rank ?? null,
+              ...(game.suggestedPlayers ? { suggestedPlayers: game.suggestedPlayers } : {}),
+            },
+          }
+        : {}),
     };
   }
   private proposalGroupRevision(rows: EventProposal[]) {

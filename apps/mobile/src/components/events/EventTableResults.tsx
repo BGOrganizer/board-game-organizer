@@ -139,11 +139,6 @@ export function EventTableResults({
             <UserListRow
               name={name}
               avatarUrl={item.avatarUrl}
-              secondary={
-                terminated
-                  ? `${t("Position")}: ${item.rank === null || item.rank === undefined ? t("ND") : `#${item.rank}`}`
-                  : undefined
-              }
               badgeContent={
                 terminated ? (
                   <IconBadge

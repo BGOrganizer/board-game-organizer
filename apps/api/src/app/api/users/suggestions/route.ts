@@ -117,6 +117,7 @@ export async function GET(request: Request) {
     .map((u) => ({
       id: u.clerkId,
       name: u.name,
+      username: u.username ?? null,
       email: u.email,
       avatarUrl: u.avatarUrl ?? null,
       presence: u.presence,

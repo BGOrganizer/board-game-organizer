@@ -3,7 +3,7 @@
 The [unified domain](groups-events-refactor.md) governs current behavior. These procedures cover
 provider/environment isolation, moderation, diagnostics and delivery. Legacy Inngest writers are
 unregistered; confirmation is manual. This guide does not authorize provider operations or database resets.
-See the [checkpoint](implementation-progress.md) for the limits of recorded verification.
+Use the [verification requirements](implementation-progress.md) to assess source, CI and runtime evidence.
 
 ## Database and moderation
 
@@ -30,8 +30,8 @@ and uses that provider's coordinates/timezone. Ambiguous/missing addresses and n
 remain rejected. Favorites retain owner-scoped selection/canonical key resolution; no reset/migration
 of existing data is required. Logs omit tokens, URLs/query values, identity, names,
 addresses, coordinates, images and arbitrary exception messages. Inspect the API Preview baked into
-the tested APK, not a different deployment; this instrumentation does not prove the location failure
-is fixed. Remove temporary diagnostics after investigation.
+the tested APK, not a different deployment; instrumentation alone does not establish a successful
+runtime fix. Remove temporary diagnostics after investigation.
 
 ### Table invitation conflicts
 
@@ -86,7 +86,7 @@ Webhook routing stays non-CI. Development API deployments receive no CI override
 runtime attestation must pass before seeding; cleanup uses the successful deployment's recorded
 DB name, including partial reruns. Web public-key validation runs inside the actual Vercel build.
 
-GitHub `development` and `production` each contain the same 12 Secret names:
+GitHub jobs select `development` or `production` for their environment-scoped secrets:
 
 - Vercel: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_API_PROJECT_ID`, `VERCEL_WEB_PROJECT_ID`,
   `VERCEL_PROTECTION_BYPASS`.
@@ -111,22 +111,20 @@ contract tests enforce this. GitHub environment selection does not select an Inf
 the deployed API reads the Vercel value supplied by its existing sync. MongoDB credentials,
 webhook secrets and other server-only configuration stay in Infisical/Vercel, not GitHub.
 
-All 12 repository duplicates were removed at the operator's explicit request, including the seven
-still consumed by older default-branch workflows without an environment. Until the operator merges
-these workflow changes, those older jobs no longer receive their credentials; a feature-branch edit
-does not complete that rollout. The legacy repository `CLERK_SECRET_KEY_PRODUCTION` was also
-removed at the operator's request; no repository Secrets remain.
-Each environment has four Variables with identical names: `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`,
+Credential consumers must select their GitHub environment; never rely on repository-scoped credential
+duplicates or a `CLERK_SECRET_KEY_PRODUCTION` fallback. Inspect the active workflow definition and
+live configuration when diagnosing access; branch source alone does not attest remote settings.
+Environment-scoped public Variables use `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`,
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_WEB_ORIGIN`.
 Development Clerk keys use the test instance and Production keys use the live instance; no
 `_PRODUCTION`-suffixed variable or cross-environment fallback remains. Production URLs use the
 canonical custom domains. Development URL variables record the last published Development preview;
 they are reference defaults, not moving aliases. PR builds/deploys retain their own verified
-run-specific URLs instead of falling back to these defaults. `EXPO_PUBLIC_WEB_ORIGIN` is currently
-configuration only and has no runtime consumer. Only `EXPO_PUBLIC_MAPTILER_API_KEY` and
-`EXPO_PUBLIC_SENTRY_DSN` remain repository-scoped, shared by explicit operator choice.
+run-specific URLs instead of falling back to these defaults. `EXPO_PUBLIC_WEB_ORIGIN` is
+configuration only and has no runtime consumer. Public `EXPO_PUBLIC_MAPTILER_API_KEY` and
+`EXPO_PUBLIC_SENTRY_DSN` may be shared at repository scope; they are not server credentials.
 
-## Unified branch/PR CI rollout
+## Unified branch/PR CI
 
 `pr-ci.yml` owns non-main push and main-targeting PR events. A push without an open PR runs
 quality-only checks; with an open PR it routes without duplicating the PR pipeline. Push routing
@@ -153,16 +151,14 @@ PR changes alone do not establish live default-branch activation.
 
 ### Workflow names and required checks
 
-The short workflow names are `CI`, `Release`, `CI cleanup`, `CI watchdog` and `Test users`.
-Controller subscriptions and APK reuse accept both old and new source labels during rollout;
-the watchdog also recognizes old and new shared-quality job names. The final aggregate check
-keeps its existing `PR ready` / `Branch checks` labels.
+Workflow names and script ownership are indexed in [GitHub automation](../.github/WORKFLOWS.md).
+The aggregate checks are `PR ready` for PR execution and `Branch checks` for quality-only pushes.
+Controller subscriptions and artifact lookup preserve compatible historical workflow/job labels.
 
-Renaming workflow/job display names requires a coordinated default-branch rollout and review of
-GitHub branch-protection required checks. The current remote configuration still lists historical
-individual job labels, including retired labels; editing YAML does not migrate these settings.
-Do not claim that new check labels satisfy those historical requirements. Changing required checks
-is a separate repository-settings operation, not performed by this local workflow refactor.
+Required-check settings must match the actual current-head GitHub Actions check context and app.
+Inspect live branch protection rather than treating documentation or a YAML rename as proof of those
+settings. Changing required checks is a separately authorized repository operation that preserves
+reviews, unrelated protections and rollback evidence; use the procedure below.
 
 ### CI script ownership and cleanup safety
 
@@ -193,44 +189,29 @@ After uploading and verifying the new asset, the publisher verifies anonymous ac
 page and APK before retiring captured previous APKs. EAS upload remains attempted first; its link
 is omitted only for the existing recognized monthly-quota exception. Publication does not certify E2E acceptance.
 
-### Activate trusted controllers before relying on lane independence
+### Trusted controllers and activation
 
 `pr-ci-fail-fast.yml` and `pr-ci-cleanup.yml` execute trusted **default-branch** definitions, not
-PR versions. A feature-branch push neither activates absent controllers nor replaces an old
-cancel-on-any-failure watchdog. Inspect the actual default branch: absent controllers provide no
-cancellation recovery; an older watchdog can still cancel the opposite lane. Do not claim active
-controller coverage or verified runtime independence before the coordinated rollout.
+PR versions. Inspect their actual deployed definitions before relying on cancellation recovery or
+lane independence. A feature-branch push neither activates an absent controller nor updates an
+older watchdog. Source-contract tests do not establish live controller behavior.
 
-Land the compatible watchdog/script and their regression tests through the normal protected-main
-review/merge process before activating the full pipeline. The watchdog recognizes both existing
-unit-job names and new context/coverage names and cancels only shared routing/quality/API-web build
-failures. Keep its existing workflow-name subscription. Do not disable the watchdog or bypass
-branch protection as a shortcut. The separate trusted cancellation/failure cleanup remains enabled,
-uses exact run/attempt evidence and never targets Development resources. No cleanup-script,
-secret/provider configuration or production workflow change is required for this restructuring.
+Controller changes use the protected-main review/merge process within explicit operator scope;
+never push directly to `main`, disable the watchdog or bypass branch protection. The watchdog
+recognizes compatible workflow/job names and cancels only shared routing/quality/API-web build
+failures. Trusted cancellation/failure cleanup uses exact run/attempt evidence and never targets
+Development resources. Observe actual trusted runs after a controller change and coordinate
+rollback with its pipeline and required checks.
 
-The independently applicable trusted-controller bundle is:
-
-```text
-.github/workflows/pr-ci-fail-fast.yml
-.github/workflows/pr-ci-cleanup.yml
-.github/scripts/ci-fail-fast.mjs
-.github/scripts/__tests__/ci-fail-fast.test.mjs
-.github/scripts/cleanup-pr-e2e.sh
-.github/scripts/cleanup-e2e-clerk-users.sh
-```
-
-Use these files from the verified implementation revision on a new branch based on current `main`,
-not a cherry-pick that implicitly imports the whole feature branch. Run the standalone watchdog
-check (`node --test .github/scripts/__tests__/ci-fail-fast.test.mjs`), shell syntax and workflow validation.
-Opening that maintenance PR or merging it still requires the operator's explicit scope; do not
-push directly to `main`. Observe actual trusted runs after activation before migrating settings.
+The workflow/controller scripts and regression commands are indexed in
+[GitHub automation](../.github/WORKFLOWS.md). Validate source, shell syntax and workflows before
+delivery; no branch edit alone attests active controller coverage or provider cleanup.
 
 ### Migrate required checks without an unguarded merge window
 
 1. Snapshot `main`'s current `required_status_checks` response. Preserve its `strict` value, app
    association and all other branch-protection settings. Do not disable enforcement temporarily.
-2. After the trusted controller is active, observe a real `pull_request` run of `pr-ci.yml` for
+2. Observe a real `pull_request` run of `pr-ci.yml` for
    the current PR head. Verify its run/head/attempt identity and the **successful `PR ready` job**
    and GitHub Actions check-run. A similarly named push job, an old head, a skip or a fabricated
    status is insufficient. If Internal/cleanup failed, fix and rerun instead of migrating early.
@@ -271,7 +252,7 @@ OTA-enabled APKs also bind a validated channel to the binary: isolated `ci-pr-N`
 `development` shared by all PRs, or `production`. The channel participates in the configuration
 digest and is recorded in `update-channel.txt`. Keep `internal.channel` absent in EAS configuration so it cannot
 override the app's dynamic native header. Expo runtime compatibility uses its own fingerprint,
-not this provenance digest. Development publication and pinned Main release publication now export
+not this provenance digest. Development publication and pinned Main release publication export
 and publish Android Hermes updates after their quality/deployment/smoke checks. The shared publisher
 verifies the APK checksum, exact source, embedded project/channel and configuration digest, then
 compares the SDK runtime and Hermes bytecode versions before uploading. A fresh PR/current-main
@@ -381,7 +362,7 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 - BGO is non-commercial. MapTiler Free is compatible within its quotas and terms; no commercial subscription is a prerequisite. Preserve required attribution and comply with geocoding storage terms.
 - `expo-image-picker` changes native permissions. A JavaScript export is insufficient: create a fresh native build and exercise camera/library denial, retry, Settings-return refresh, replacement and cancelled picking in Maestro.
 - Run the current Group/Event/Table acceptance flows on both clients; verify failure/empty/privacy/cutoff paths, not only successful forms. Never silently skip missing authenticated E2E configuration.
-- [The managed HeroUI Native 1.0.9 patch](../patches/heroui-native@1.0.9.patch) gives the default animated popover wrapper absolute-fill bounds in both source and distributed modules. Run `38166070753` showed visible help omitted from the accessibility tree and zero-height containers skipped by Maestro. The patch retains mounting, positioning, touch pass-through and animations; its native acceptance remains subject to the full Maestro gate.
+- [The managed HeroUI Native patch](../patches/heroui-native@1.0.9.patch) gives the default animated popover wrapper absolute-fill bounds in both source and distributed modules so visible help remains measurable and accessible. Preserve mounting, positioning, touch pass-through and animations; source checks do not replace native acceptance.
 - By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; Main E2E gates and the manual mobile-E2E workflow are removed by explicit operator request. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. Cleanup still waits for fixture mirroring and CI API consumers when tests are skipped. A green gate does not establish web/native E2E acceptance.
 - When re-enabled, PR Maestro attempts all 13 ordered flows after an earlier flow failure when native preparation succeeded and the run is not cancelled. Each failed step remains failed; final report verification still runs and rejects failed, skipped or missing reports. Shared-session failures may cascade into later flows, so inspect their actual traces before treating each failure as an independent defect.
 - Maestro uses the rendering-enabled Android 34 `google_apis;x86_64` image for Expo Location's Google Play Services provider, selected explicitly even if a cached AOSP or ATD image is present. [ATD images disable hardware rendering](https://developer.android.com/studio/test/managed-devices#use-atds) and remove GUI services; a headless emulator window must not imply a non-rendering Android guest. Keep actual screenshots/video and animated portal assertions; do not substitute longer waits or disable animations to hide missing UI.

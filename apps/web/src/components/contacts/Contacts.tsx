@@ -3,6 +3,7 @@
 import {
   type ContactUser,
   contactConnections,
+  formatUsername,
   hasContactRelationship,
   reportPresence,
   resolveApiUrl,
@@ -79,6 +80,7 @@ function ContactCard({
   };
 }) {
   const attention = useNotificationAttentionContext();
+  const handle = formatUsername(username, "");
   return (
     <GroupedRow className="relative flex-col sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -109,7 +111,7 @@ function ContactCard({
               active={Boolean(attention?.get({ kind: "contact", id: userId })?.count)}
             />
           </div>
-          {username ? <p className="truncate text-sm text-muted">{username}</p> : null}
+          {handle ? <p className="truncate text-sm text-muted">{handle}</p> : null}
         </div>
       </div>
       {menu ? (

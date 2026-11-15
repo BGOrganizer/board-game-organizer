@@ -33,6 +33,7 @@ function fakeUser(overrides: Record<string, unknown> = {}) {
   return {
     clerkId: "user_1",
     name: "Alice",
+    username: "alice-player",
     email: "alice@bgo.it",
     avatarUrl: "https://img/a.png",
     preferredLanguage: "en",
@@ -106,6 +107,7 @@ describe("GET /api/users/search", () => {
     const body = await res.json();
     expect(body.users).toHaveLength(2);
     expect(body.users[0].id).toBe("user_1");
+    expect(body.users[0].username).toBe("alice-player");
     // Coherent relationship state: no follows/friends in this fixture.
     expect(body.users[0].isFollowing).toBe(false);
     expect(body.users[0].isFollower).toBe(false);

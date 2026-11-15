@@ -275,6 +275,7 @@ describe("Contacts tabs", () => {
     const device = screen.getByRole("heading", { name: "Device Contacts" }).closest("section");
     expect(device).not.toBeNull();
     expect(within(device as HTMLElement).getByText("Target User")).toBeTruthy();
+    expect(within(device as HTMLElement).getByText("@target-player")).toBeTruthy();
     expect(
       within(device as HTMLElement).getByRole("button", { name: "Actions: Target User" }),
     ).toBeTruthy();
@@ -284,7 +285,7 @@ describe("Contacts tabs", () => {
     mocks.friends = true;
     renderWithI18n(<Contacts />);
     expect(screen.getAllByText("Target User")).toHaveLength(1);
-    expect(screen.getByText("target-player")).toBeTruthy();
+    expect(screen.getByText("@target-player")).toBeTruthy();
     expect(screen.queryByText("target@example.com")).toBeNull();
     expect(screen.getByRole("button", { name: "Friends" })).toBeTruthy();
     expect(screen.getAllByRole("list")).toHaveLength(1);
@@ -365,6 +366,8 @@ describe("Contacts tabs", () => {
     renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
     const [received, sent] = screen.getAllByRole("listitem");
+    expect(within(received).getByText("@target-player")).toBeTruthy();
+    expect(within(sent).getByText("@target-player")).toBeTruthy();
     expect(screen.getAllByRole("list")).toHaveLength(1);
     expect(screen.queryByRole("heading", { name: /Request details/i })).toBeNull();
     expect(

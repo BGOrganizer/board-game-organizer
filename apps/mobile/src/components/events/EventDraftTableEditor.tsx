@@ -283,6 +283,7 @@ export function EventDraftTableEditor({
               year={game.year}
               average={game.average}
               rank={game.rank}
+              suggestedPlayers={game.suggestedPlayers}
               durationMinutes={eventGameDuration(game)}
               actions={
                 <Button

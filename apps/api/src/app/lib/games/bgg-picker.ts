@@ -193,7 +193,7 @@ export async function bggPickerPage(
         id: row._id,
         name: row.name,
         year: row.year,
-        imageUrl: gameThumbnail(row.imageUrl ?? game?.image ?? null),
+        imageUrl: gameThumbnail(game?.image ?? null) ?? gameThumbnail(row.imageUrl),
         average: game?.average ?? null,
         rank: game?.rank ?? null,
         bayesAverage: game?.bayesAverage ?? null,

@@ -12,7 +12,7 @@ import type { ClientSession, Db, Filter } from "mongodb";
 import { z } from "zod";
 import { CommunityError } from "@/app/lib/community.error";
 import { COLLECTIONS } from "@/app/lib/db";
-import { hydrateGames } from "./bgg";
+import { gameThumbnail, hydrateGames } from "./bgg";
 import { parseBggCollection } from "./bgg-collection";
 
 const collectionCursor = z
@@ -357,7 +357,7 @@ export class BggAccountRepository {
           id: row.gameId,
           name: row.name,
           year: row.year,
-          imageUrl: row.imageUrl,
+          imageUrl: gameThumbnail(stats?.image ?? null) ?? gameThumbnail(row.imageUrl),
           source: "collection",
           userRating: row.userRating ?? legacy?.userRating ?? null,
           wishlist: row.wishlist ?? legacy?.wishlist ?? false,

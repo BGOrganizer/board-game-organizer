@@ -79,11 +79,6 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
               <UserIdentity
                 name={name}
                 avatarUrl={row.avatarUrl}
-                secondary={
-                  terminated
-                    ? `${t`Position`}: ${row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}`
-                    : undefined
-                }
                 badge={
                   terminated ? (
                     <IconBadge

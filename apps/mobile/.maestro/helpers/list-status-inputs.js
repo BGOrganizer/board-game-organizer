@@ -76,5 +76,5 @@ output.status = {
   minimum: literal(it ? "Giocatori minimi" : "Minimum players"),
   maximum: literal(it ? "Giocatori massimi" : "Maximum players"),
   waiting: literal(it ? "Lista d'attesa" : "Waiting list"),
-  winners: input.history.winnerHandles.map(literal),
+  winners: literal(input.history.winnerHandles.join(", ")),
 };

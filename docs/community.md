@@ -87,7 +87,7 @@ time and localized local-calendar day headings. Native uses one
 SectionList and safe areas; web uses source-paged progressive loading with browser content visibility
 for off-screen sections. Loading, initial/next-page failures and true empty results remain distinct.
 
-Profile activity pages now include the same safe author projection as Community (ID, public name,
+Profile activity pages include the same safe author projection as Community (ID, public name,
 username and avatar URL only). Older cached Profile rows use the already-owned Profile query identity
 while revalidating; identity is never inferred from the current viewer or duplicated into local state.
 
@@ -100,18 +100,17 @@ Known block/unfollow/unfriend intents cancel conflicting reads and optimisticall
 network authors (and blocked social targets), never fabricate historical activities. The canonical
 journal restores only a failed intent's changes and reconciles from the server. Existing Profile
 invalidations also cover Community; inactive queries become stale without a background fan-out.
-Group/source access-loss reconciliation covers network pages too. New `public-v1` feed keys and
+Group/source access-loss reconciliation covers network pages too. The `public-v1` feed keys and
 selective native snapshot retirement prevent pre-policy PRIVATE activity caches from being restored
 or reused, while retaining unrelated cache data.
 
 ## Validation and operations
 
-The normal migration includes only necessary activity timestamp/source/join lookup indexes. Apply it
-to the intended replica set separately before deployment; this task does not authorize an application
-migration/reset, Clerk changes, provisioning, publication or CI policy changes. Real MongoDB tests use
-only disposable Testcontainers databases. See [operational gates](organizations-events-operations.md).
+The migration maintains activity timestamp/source/join lookup indexes. Run it only with explicit
+scope against the intended replica set; documentation authorizes no migration/reset, Clerk changes,
+provisioning, publication or CI policy changes. Real MongoDB tests use only disposable Testcontainers
+databases. See [operational gates](organizations-events-operations.md).
 
-Implementation acceptance is incomplete until the real-fixture Playwright and Maestro scenarios run
-against an authenticated Development/Preview build. Unit coverage, compilation, syntax/discovery and
-isolated browser layout checks are not authenticated/native acceptance. See the implementation
-checkpoint for the exact checks executed.
+Real-fixture Playwright and Maestro scenarios establish authenticated Development/Preview behavior.
+Unit coverage, compilation, syntax/discovery and isolated browser layouts do not establish that
+acceptance. Record actual executed evidence using the [verification requirements](implementation-progress.md).

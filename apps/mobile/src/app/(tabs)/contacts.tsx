@@ -1,6 +1,7 @@
 import {
   type ContactUser,
   contactConnections,
+  formatUsername,
   hasContactRelationship,
   reportPresence,
   resolveApiUrl,
@@ -600,7 +601,7 @@ export default function ContactsScreen() {
       titleAccessory={<ContactAttentionBadge userId={user.id} />}
       name={user.name}
       avatarUrl={user.avatarUrl}
-      secondary={user.username}
+      secondary={formatUsername(user.username, "")}
       online={user.presence.online}
       badge={badge}
       badgeContent={

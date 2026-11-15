@@ -26,7 +26,7 @@ Before implementation:
 - No skill may add npm/yarn, ESLint, Prettier, Expo web, another UI system, duplicated server state,
   speculative abstractions, or unrequested packages/configuration. Generic routers may reference
   removed/uninstalled siblings: use the selected set or official docs, not an automatic reinstall.
-- Installed for future use does not mean implemented, enabled, or authorized. Report the skill names
+- An installed guide does not mean its feature is implemented, enabled, or authorized. Report the skill names
   actually used, not every available guide. Skill installation does not prove runtime acceptance.
 
 ## Project-wide programming baseline
@@ -152,8 +152,8 @@ paid services or provider provisioning outside the requested task.
 
 ## Inventory and sources
 
-`skills-lock.json` records exact source integrity. The tables above cover every locked skill;
-this source index identifies where each family comes from. The installation is project-scoped,
+`skills-lock.json` records exact source integrity. The tables above select guides by task;
+this source index identifies their source families. The installation is project-scoped,
 not a global agent installation.
 
 | Source repository | Guides |
@@ -171,20 +171,16 @@ not a global agent installation.
 | `currents-dev/playwright-best-practices-skill` | `playwright-best-practices` |
 | `getsentry/sentry-agent-skills` | `sentry-react-native-sdk` |
 | `uni-stack/uniwind` | `uniwind` |
-| `axross/skills` | `tanstack-query-development` (canonical copy missing at this inventory) |
-| `vercel-labs/agent-skills` | `vercel-composition-patterns`, `vercel-react-best-practices`, `vercel-react-native-skills`, `web-design-guidelines` (canonical copies missing at this inventory) |
-| `mkgp-dev/codex-skills` | `zustand-state-management` (canonical copy missing at this inventory) |
+| `axross/skills` | `tanstack-query-development` |
+| `vercel-labs/agent-skills` | `vercel-composition-patterns`, `vercel-react-best-practices`, `vercel-react-native-skills`, `web-design-guidelines` |
+| `mkgp-dev/codex-skills` | `zustand-state-management` |
 
-Desktop inventory after the Clerk/Infisical repair: **44 locked guides, 38 present under `.agents/skills`,
-6 missing canonical copies**. A missing canonical copy is not evidence that no global copy exists;
-verify discovery and source before use. These six remain documented for their intended scope,
-but are not presented as locally ready. Do not reinstall or upgrade them implicitly.
+Treat `skills-lock.json`, actual `SKILL.md` files and agent discovery as the inventory, rather than
+copied guide counts. A lock entry or missing project copy does not establish whether another copy
+is available globally. Verify the intended source before use; do not reinstall or upgrade implicitly.
 
 The version 2 lock records portable content hashes and a commit revision for every source.
-Clerk's eleven skills use their current `skills/<name>/SKILL.md` paths; Infisical uses the
-upstream `infisical-setup` name. Historical revisions for the other installed guides were
-checked against their complete local contents, retaining their instructions rather than
-upgrading them during this repair.
+Clerk guides use `skills/<name>/SKILL.md`; Infisical uses the upstream `infisical-setup` name.
 For a new checkout, restore the locked set with:
 
 ```bash

@@ -1,18 +1,30 @@
 "use client";
 
+import type { PlayerPoll } from "@board-game-organizer/schemas";
+import { gameBestPlayers } from "@board-game-organizer/shared";
+
 import { Plural, useLingui } from "@lingui/react/macro";
-import { Clock, ListOrdered, Star } from "lucide-react";
+import { Clock, ListOrdered, Star, UsersRound } from "lucide-react";
 
 type Props = {
   year?: number | null;
   average?: number | null;
   rank?: number | null;
   durationMinutes?: number;
+  suggestedPlayers?: PlayerPoll;
 };
 
-export function GameCatalogMetadata({ year, average, rank, durationMinutes }: Props) {
+export function GameCatalogMetadata({
+  year,
+  average,
+  rank,
+  durationMinutes,
+  suggestedPlayers,
+}: Props) {
   const { t, i18n } = useLingui();
-  if (!year && average == null && rank == null && durationMinutes == null) return null;
+  const bestPlayers = gameBestPlayers(suggestedPlayers);
+  if (!year && average == null && rank == null && durationMinutes == null && !bestPlayers)
+    return null;
   const rating = average?.toLocaleString(i18n.locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -52,6 +64,16 @@ export function GameCatalogMetadata({ year, average, rank, durationMinutes }: Pr
           {position}
         </span>
       )}
+      {bestPlayers ? (
+        <span
+          className="inline-flex items-center gap-1"
+          role="img"
+          aria-label={`${t`Best BGG players`}: ${bestPlayers}`}
+        >
+          <UsersRound className="h-3 w-3" aria-hidden="true" />
+          {bestPlayers}
+        </span>
+      ) : null}
     </p>
   );
 }

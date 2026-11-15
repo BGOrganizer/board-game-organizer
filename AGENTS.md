@@ -40,10 +40,11 @@ Core rules:
 - Honor explicit operator overrides and harness delegation rules. This standing authorization for
   complex tasks does not authorize a workflow engine run without the operator's explicit opt-in.
 
-## 2. Current scope and required references
+## 2. Product and required references
 
 This Bun/Turborepo TypeScript monorepo has web and native mobile clients backed by one API.
-The active domain is **Groups / Events / Tables**, not operational Matches/Organizations.
+Board Game Organizer supports **Groups / Events / Tables**, social contacts, game collections,
+profiles, notifications and game results.
 The [unified contract](docs/groups-events-refactor.md) governs roles, consent, planning modes,
 votes, explicit manager confirmation, immutable results and list eligibility.
 Legacy writers stay retired; historical database records remain intact and excluded from unified readers.
@@ -64,7 +65,7 @@ Read the relevant guide before changing its area, including when shared changes 
 | Skills for the affected task | [Agent skills](docs/agent-skills.md) |
 | Provider isolation, CI, cleanup and releases | [Operational gates](docs/organizations-events-operations.md) |
 | Artwork and exports | [Branding](docs/branding.md) |
-| Runtime acceptance and verification limits | [Implementation checkpoint](docs/implementation-progress.md) |
+| Runtime acceptance and verification limits | [Verification requirements](docs/implementation-progress.md) |
 
 Subdirectory instructions specialize the root rules without duplicating them. Explicit operator scope
 and repository invariants override generic skill examples. Historical notes never grant permission
@@ -223,8 +224,8 @@ builds and applicable UI acceptance. Use the [command table](#3-workspace-and-co
 do not run unrelated checks merely to duplicate evidence.
 
 E2E coverage requirements and CI enablement are separate. Retain/update required Playwright and Maestro
-paths and report what was actually executed. PR E2E is explicitly disabled by current policy; main/manual
-E2E gates have been removed. Green unit/build/source checks do not prove authenticated browser/native
+paths and report what was actually executed. Read workflow files and the operational gates for CI
+enablement and release checks. Green unit/build/source checks do not prove authenticated browser/native
 acceptance. Never silently skip missing authenticated test configuration or fabricate reports. Inspect
 JUnit skip counts when expected journeys complete suspiciously quickly.
 

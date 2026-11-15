@@ -532,7 +532,7 @@ no sync, provider write, provisioning, reset or notification acknowledgment occu
 `COLLECTION_INPUT` to JSON:
 
 ```json
-{"owner":"owned-username","withoutExpansions":40,"withExpansions":45,"wishlist":7,"ratedGame":"Exact rated title","rating":8.5,"unratedGame":"Exact unrated title","laterGame":"Exact later-page title","laterOffset":30,"emptyQuery":"known-unmatched-filter"}
+{"owner":"owned-username","withoutExpansions":40,"withExpansions":45,"wishlist":7,"ratedGame":"Exact rated title","rating":8.5,"bestPlayers":"4-5","unratedGame":"Exact unrated title","laterGame":"Exact later-page title","laterOffset":30,"emptyQuery":"known-unmatched-filter"}
 ```
 
 Values must match the full published snapshot, not owned-only or filtered counts. Use distinct

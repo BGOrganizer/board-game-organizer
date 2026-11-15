@@ -30,6 +30,7 @@ appId: com.bgo.boardgameorganizer.dev
     visible: "E2E Target"
     timeout: 30000
 - assertVisible: "Sent"
+- assertVisible: "^@[^ ]+$"
 - runFlow:
     file: contact-action.yaml
     env:
@@ -89,6 +90,7 @@ appId: com.bgo.boardgameorganizer.dev
     visible: "E2E Test"
     timeout: 60000
 - assertVisible: "Received"
+- assertVisible: "^@[^ ]+$"
 - runFlow:
     file: contact-action.yaml
     env:

@@ -13,6 +13,7 @@ export function GameListRow({
   average,
   rank,
   durationMinutes,
+  suggestedPlayers,
   titleAccessory,
   actions,
   metadata,
@@ -58,6 +59,7 @@ export function GameListRow({
             average={average}
             rank={rank}
             durationMinutes={durationMinutes}
+            suggestedPlayers={suggestedPlayers}
           />
           {metadata}
         </div>

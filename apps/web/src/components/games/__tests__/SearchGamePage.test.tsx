@@ -6,6 +6,29 @@ import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { renderWithI18n } from "@/test-utils";
 
 afterEach(() => vi.unstubAllGlobals());
+const suggestedPlayers = {
+  totalVotes: 10,
+  fetchedAt: "2026-11-14T00:00:00.000Z",
+  rows: [6, 5, 4].map((players) => ({
+    players,
+    orMore: false,
+    best: 8,
+    recommended: 2,
+    notRecommended: 0,
+    sampleCount: 10,
+  })),
+};
+it("shows only the first two BGG Best player counts beside rank, or hides unknown recommendations", () => {
+  const { rerender } = renderWithI18n(
+    <GameCatalogMetadata rank={42} suggestedPlayers={suggestedPlayers} />,
+  );
+  const rank = screen.getByRole("img", { name: "Rank: 42" });
+  const best = screen.getByRole("img", { name: "Best BGG players: 4-5" });
+  expect(rank.nextElementSibling).toBe(best);
+  expect(best.querySelector(".lucide-users-round")).not.toBeNull();
+  rerender(<GameCatalogMetadata suggestedPlayers={{ ...suggestedPlayers, totalVotes: 0 }} />);
+  expect(screen.queryByRole("img")).toBeNull();
+});
 
 it("shows unranked games and zero arithmetic average without a Bayesian fallback", () => {
   renderWithI18n(<GameCatalogMetadata average={0} rank={0} />);
@@ -30,6 +53,7 @@ it("hides selected games and uses an icon-only selection action", async () => {
             rank: 42,
             imageUrl: "https://cf.geekdo-images.com/a/thumb.jpg",
             source: "search",
+            suggestedPlayers,
             minPlayMinutes: 60,
             maxPlayMinutes: 90,
           },
@@ -77,6 +101,7 @@ it("hides selected games and uses an icon-only selection action", async () => {
     screen.getByRole("img", { name: "Average: 7.83" }).querySelector("svg")?.getAttribute("class"),
   ).toContain("fill-warning");
   expect(screen.getByRole("img", { name: "Rank: 42" })).toBeTruthy();
+  expect(screen.getByRole("img", { name: "Best BGG players: 4-5" })).toBeTruthy();
   expect(document.querySelector("img")?.getAttribute("src")).toBe(
     "https://cf.geekdo-images.com/a/thumb.jpg",
   );
@@ -90,6 +115,7 @@ it("hides selected games and uses an icon-only selection action", async () => {
     average: 7.83,
     rank: 42,
     source: "search",
+    suggestedPlayers,
     minPlayMinutes: 60,
     maxPlayMinutes: 90,
   });

@@ -7126,3 +7126,6 @@ msgstr "Iscritto dal"
 
 msgid "Version"
 msgstr "Versione"
+
+msgid "Best BGG players"
+msgstr "Giocatori ideali BGG"

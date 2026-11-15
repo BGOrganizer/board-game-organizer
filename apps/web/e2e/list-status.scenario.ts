@@ -234,6 +234,36 @@ for (const width of [390, 1280])
       const link = main.locator(`a[href="${href}"]`);
       await expect(link).toBeVisible();
       await expect(main.locator("[aria-pressed]")).toHaveCount(0);
+      if (current.section === "terminated") {
+        const card = main.getByRole("listitem").filter({ has: link });
+        await card
+          .getByRole("button", { name: it ? "Terminata" : "Terminated", exact: true })
+          .click();
+        const popup = page.getByRole("dialog", {
+          name: it ? "Terminata" : "Terminated",
+          exact: true,
+        });
+        const summary = rows.items.find((row) => row.id === current.fixture.id)?.cardSummary;
+        if (!summary) throw new Error("Actual terminated Event summary required");
+        for (const table of summary.tables.filter((table) => table.confirmed).slice(0, 8)) {
+          const line = popup.getByText(table.name, { exact: true }).locator("..");
+          const winners = table.winners
+            .map((winner) =>
+              winner.username
+                ? `@${winner.username.replace(/^@/, "")}`
+                : it
+                  ? "Nome utente non disponibile"
+                  : "Username unavailable",
+            )
+            .join(", ");
+          await expect(line).toHaveText(
+            `${table.name} ${winners || (it ? "Nessun vincitore." : "No winners.")}`,
+          );
+          if (table.winners.length)
+            await expect(line.locator(".lucide-trophy.text-warning-soft-foreground")).toBeVisible();
+        }
+        await page.keyboard.press("Escape");
+      }
       if (current.section === "history") {
         await filter.fill(current.fixture.name);
         const card = main.getByRole("listitem").filter({ has: link });
@@ -251,22 +281,13 @@ for (const width of [390, 1280])
           exact: true,
         });
         await expect(popup).toBeVisible();
-        for (const handle of input.history.winnerHandles)
-          await expect(popup.getByText(handle, { exact: true })).toBeVisible();
+        const winners = popup.getByText(input.history.winnerHandles.join(", "), { exact: true });
+        await expect(winners).toBeVisible();
+        await expect(winners.locator(".lucide-trophy.text-warning-soft-foreground")).toBeVisible();
         for (const text of it
           ? ["Giocatori minimi", "Giocatori massimi", "Lista d'attesa"]
           : ["Minimum players", "Maximum players", "Waiting list"])
           await expect(popup.getByText(text, { exact: true })).toHaveCount(0);
-        if (input.history.winnerHandles.length > 1) {
-          const tops = await Promise.all(
-            input.history.winnerHandles.map((handle) =>
-              popup
-                .getByText(handle, { exact: true })
-                .evaluate((node) => node.getBoundingClientRect().top),
-            ),
-          );
-          expect(new Set(tops).size).toBe(tops.length);
-        }
         await page.keyboard.press("Escape");
       }
       const emptyText = it

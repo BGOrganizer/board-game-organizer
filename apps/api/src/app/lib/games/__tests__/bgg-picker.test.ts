@@ -246,6 +246,7 @@ it("preserves missing catalog duration/player bounds and image fallbacks without
     minPlayMinutes: null,
     maxPlayMinutes: null,
   });
+  f.state.catalog = [];
   f.state.rows = [{ ...row(1), imageUrl: "https://cf.geekdo-images.com/collection.png" }];
   expect((await f.read({ collection: "1" })).items[0].imageUrl).toBe(
     "https://cf.geekdo-images.com/collection.png",
@@ -355,4 +356,11 @@ it("never reads selected collections when current management or proposal eligibi
   expect(f.aggregate).not.toHaveBeenCalled();
   expect(mocks.search).not.toHaveBeenCalled();
   for (const session of f.sessions) expect(session.endSession).toHaveBeenCalledOnce();
+});
+
+it("uses the same canonical cover as catalog search when snapshot artwork is stale", async () => {
+  const f = setup();
+  f.state.rows[0].imageUrl = "https://cf.geekdo-images.com/stale.png";
+  const result = await f.read({ collection: "1" });
+  expect(result.items[0].imageUrl).toBe("https://cf.geekdo-images.com/cover.png");
 });

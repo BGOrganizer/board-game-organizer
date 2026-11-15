@@ -40,6 +40,7 @@ export function EventTableGamesPopover({
             year={item.year}
             average={item.average}
             rank={item.rank}
+            suggestedPlayers={item.suggestedPlayers}
             durationMinutes={item.durationMinutes}
           />
         )}

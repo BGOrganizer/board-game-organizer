@@ -1,9 +1,14 @@
 "use client";
 
-import type { PendingAction, RecordUserRole } from "@board-game-organizer/shared";
+import {
+  type PendingAction,
+  RECORD_USER_ROLES,
+  type RecordUserRole,
+} from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
 import { IdCard } from "lucide-react";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { recordUserRoleIcons } from "@/lib/recordUserRoleIcons";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 
 /** One neutral identity control; an invitation remains a separate explicit decision in details. */
@@ -17,6 +22,11 @@ export function EventRolePopover({
   pending?: boolean;
 }) {
   const { t, i18n } = useLingui();
+  const colors = {
+    warning: "text-warning-soft-foreground",
+    accent: "text-accent-soft-foreground",
+    success: "text-success-soft-foreground",
+  };
   return (
     <HelpPopover
       label={t`Roles and participation`}
@@ -27,9 +37,16 @@ export function EventRolePopover({
       triggerClassName="bg-default"
     >
       <ul className="space-y-2">
-        {roles.map((role) => (
-          <li key={role}>{i18n._(recordUserRoleMessages[role])}</li>
-        ))}
+        {roles.map((role) => {
+          const item = RECORD_USER_ROLES[role],
+            Icon = recordUserRoleIcons[item.icon];
+          return (
+            <li key={role} className="flex items-center gap-2">
+              <Icon aria-hidden className={`size-4 shrink-0 ${colors[item.tone]}`} />
+              <span>{i18n._(recordUserRoleMessages[role])}</span>
+            </li>
+          );
+        })}
       </ul>
       {!roles.length ? <p>{pending ? t`Loading…` : t`You are not registered.`}</p> : null}
       {action ? (

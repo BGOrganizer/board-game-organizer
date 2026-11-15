@@ -96,6 +96,43 @@ describe("authorized collection pages", () => {
       maxPlayMinutes: null,
     });
   });
+  it.each([
+    [
+      "https://cf.geekdo-images.com/catalog.jpg",
+      "https://cf.geekdo-images.com/snapshot.jpg",
+      "https://cf.geekdo-images.com/catalog.jpg",
+    ],
+    [
+      undefined,
+      "https://cf.geekdo-images.com/snapshot.jpg",
+      "https://cf.geekdo-images.com/snapshot.jpg",
+    ],
+    [
+      "https://cf.geekdo-static.com/covers/1.jpg",
+      "https://cf.geekdo-images.com/snapshot.jpg",
+      "https://cf.geekdo-images.com/snapshot.jpg",
+    ],
+    [undefined, "https://cf.geekdo-static.com/covers/1.jpg", null],
+  ])(
+    "prefers canonical covers and safely falls back to snapshot artwork",
+    async (image, imageUrl, expected) => {
+      const h = fixture([{ ...row(1), imageUrl }], "snapshot", false, [
+        { id: 1, name: "Game 1", ...(image ? { image } : {}) },
+      ]);
+      expect((await h.repository.page("owner", input)).items[0].imageUrl).toBe(expected);
+    },
+  );
+  it("keeps a verified snapshot cover when the game is absent from the catalog", async () => {
+    const h = fixture(
+      [{ ...row(1), imageUrl: "https://cf.geekdo-images.com/snapshot.jpg" }],
+      "snapshot",
+      false,
+      [],
+    );
+    expect((await h.repository.page("owner", input)).items[0].imageUrl).toBe(
+      "https://cf.geekdo-images.com/snapshot.jpg",
+    );
+  });
   it("hydrates only the visible page in one quota-controlled batch and returns the recovered duration", async () => {
     vi.stubEnv("BGG_TOKEN", "test-token");
     const h = fixture([row(1), row(2), row(3)]);
@@ -103,7 +140,7 @@ describe("authorized collection pages", () => {
       ok: true,
       status: 200,
       text: async () =>
-        '<items><item id="1"><playingtime value="45"/></item><item id="2"><minplaytime value="60"/><maxplaytime value="90"/></item></items>',
+        '<items><item id="1"><image>https://cf.geekdo-images.com/recovered.jpg</image><playingtime value="45"/></item><item id="2"><minplaytime value="60"/><maxplaytime value="90"/></item></items>',
     });
     vi.stubGlobal("fetch", fetch);
     const page = await h.repository.page("owner", input);
@@ -113,7 +150,12 @@ describe("authorized collection pages", () => {
       expect.objectContaining({ headers: { Authorization: "Bearer test-token" } }),
     );
     expect(page.items).toMatchObject([
-      { id: 1, minPlayMinutes: 45, maxPlayMinutes: 45 },
+      {
+        id: 1,
+        minPlayMinutes: 45,
+        maxPlayMinutes: 45,
+        imageUrl: "https://cf.geekdo-images.com/recovered.jpg",
+      },
       { id: 2, minPlayMinutes: 60, maxPlayMinutes: 90 },
     ]);
     expect(h.catalogFind).toHaveBeenCalledWith({ id: { $in: [1, 2] } });

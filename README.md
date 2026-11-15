@@ -35,9 +35,9 @@ Main navigation is **History / Events / Groups / Community / Contacts**:
   web shows registered contacts from the synchronized snapshot.
 
 > [!NOTE]
-> The unified Groups / Events / Tables domain is implemented on this branch; production and
-> authenticated device/E2E acceptance remain incomplete. See the [domain contract](docs/groups-events-refactor.md)
-> and [verification checkpoint](docs/implementation-progress.md). Retired Match/Organization writers are disabled;
+> The [Groups / Events / Tables contract](docs/groups-events-refactor.md) defines domain behavior.
+> Assess release readiness using current CI and runtime evidence, following the
+> [verification requirements](docs/implementation-progress.md). Retired Match/Organization writers are disabled;
 > legacy database records are retained.
 
 ## Get started
@@ -159,7 +159,7 @@ or permission. Native cache retention, build requirements and implementation rul
 - [Profiles and BGG collections](docs/profiles.md) and [Community](docs/community.md).
 - [Development reference](docs/development.md) | cache, responsiveness, BGG enrichment and delivery.
 - [Operations](docs/organizations-events-operations.md) | environment isolation, providers and deployment gates.
-- [Verification checkpoint](docs/implementation-progress.md) | completed checks and remaining acceptance work.
+- [Verification requirements](docs/implementation-progress.md) | required checks and evidence limits.
 - [Mascot and app artwork](docs/branding.md) | source assets and platform exports.
 
 ## License
