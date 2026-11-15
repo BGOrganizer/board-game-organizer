@@ -263,6 +263,8 @@ public CLI rereads it after the local preflight. See [OTA configuration](develop
 Development publication is serialized across PRs without one PR cancelling another's active publisher. The last
 published compatible update on `development` is offered regardless of which PR built the installed
 APK; PR releases keep their own tags/assets. Current-PR/source checks still run before publication.
+Public APK links use the final release tag and verified filename; temporary draft upload URLs are
+not reused after publication. Anonymous page/download checks precede removal of earlier owned APKs.
 Only `extra.apiUrl` in the Development variant on that channel is omitted from the native
 fingerprint, so an accepted OTA can supply another PR's Preview endpoint without a new binary.
 The exact URL remains in the APK provenance digest and must match the verified publication APK.
@@ -308,6 +310,9 @@ tag deletion or a claim of successful publication.
 Main verification has no workflow-wide concurrency group: every merge is checked. Release
 preparation is serialized; publication is serialized per release SHA. A newer merge supersedes an
 older delivery without skipping its verification. Release commits use `[skip ci]` to avoid recursion.
+Release preparation verifies the existing `RELEASE_PAT` has repository-admin permission and uses
+it both for the Git remote and semantic-release's `GITHUB_TOKEN`. Authentication retries must retain
+that release identity; the privileged token stays scoped to the validated preparation steps.
 A rerun can resume only the current direct release-bump child of its original validated merge:
 all three manifests may change only version, Expo config only its version, and the changelog must
 prepend exactly the commit's release notes. The stable version must increase and its remote tag
