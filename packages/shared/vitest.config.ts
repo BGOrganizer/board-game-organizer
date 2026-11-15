@@ -7,6 +7,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       include: [
+        "src/invites/invitePolicy.ts",
         "src/common/appVersion.ts",
         "src/events/tableSeatOrderDraft.ts",
         "src/notifications/notificationChanges.ts",
@@ -92,6 +93,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/invites/invitePolicy.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/games/gameBestPlayers.ts": {
           lines: 100,
           functions: 100,

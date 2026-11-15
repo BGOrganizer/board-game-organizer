@@ -8,6 +8,7 @@ import { GroupAssetsService } from "../groups/group-assets.service";
 import { GroupLeaderboardRepository } from "../groups/group-leaderboard.repository";
 import { GroupRecordsRepository } from "../groups/group-records.repository";
 import { GroupRecordsService } from "../groups/group-records.service";
+import { TableInvitesService } from "../invites/table-invites.service";
 import { FavoriteLocationsRepository } from "../locations/favorite-locations.repository";
 import { NotificationsRepository } from "../notifications/notifications.repository";
 import { RatingsRepository } from "../ratings/ratings.repository";
@@ -42,6 +43,7 @@ export function recordServices(db: Db, session?: ClientSession, notificationIds?
   return {
     groups,
     events,
+    invites: new TableInvitesService(db, session, groups, events, notifications),
     assets: new GroupAssetsService(groupAssets, groupRecords, users),
     ratings,
     favorites: new FavoriteLocationsRepository(db, session),

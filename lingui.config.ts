@@ -18,7 +18,12 @@ const config: LinguiConfig = {
   catalogs: [
     {
       path: "messages/{locale}",
-      include: ["apps/web/src", "apps/mobile/src", "packages/schemas/src"],
+      include: [
+        "apps/web/src",
+        "apps/mobile/src",
+        "apps/api/src/app/invite",
+        "packages/schemas/src",
+      ],
     },
   ],
   format: formatter({ lineNumbers: false }),

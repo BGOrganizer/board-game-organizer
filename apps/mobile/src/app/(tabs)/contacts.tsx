@@ -194,7 +194,13 @@ export default function ContactsScreen() {
   }, [token, getToken]);
 
   const contacts = useContacts(apiUrl(), token, getToken, undefined, userId, mutationFeedback);
-  const invite = useInvites({ apiUrl: apiUrl(), token, getToken, feedback: mutationFeedback });
+  const invite = useInvites({
+    apiUrl: apiUrl(),
+    userId,
+    token,
+    getToken,
+    feedback: mutationFeedback,
+  });
   const openUserActions = (
     user: ContactUser,
     friendRequest?: FriendRequestContext,

@@ -18,7 +18,7 @@ import { useMutationFeedback } from "@/lib/useMutationFeedback";
  * API (preview or production) that created it.
  */
 export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | null }) {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const t = useT();
   const accentForeground = useThemeColor("accent-foreground");
   const mutationFeedback = useMutationFeedback();
@@ -26,6 +26,7 @@ export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | 
 
   const create = useInvites({
     apiUrl,
+    userId,
     token,
     getToken,
     // The API builds the link from the origin that received the request, so

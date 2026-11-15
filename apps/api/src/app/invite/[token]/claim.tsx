@@ -1,46 +1,58 @@
 "use client";
 
-import { claimInvite } from "@board-game-organizer/shared";
+import type { ClaimResult } from "@board-game-organizer/shared";
 import { SignInButton, useAuth } from "@clerk/nextjs";
+import { Button, Skeleton } from "@heroui/react";
+import { useLingui } from "@lingui/react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { InviteShell } from "./InviteShell";
+import { inviteMessages as messages } from "./inviteMessages";
 
 const pendingClaimLifetime = 30 * 60 * 1000;
 
 /** Client claim flow for /invite/<token> on the API domain. */
-export default function ClaimInvite({ token }: { token: string }) {
-  const { isLoaded, isSignedIn, getToken } = useAuth();
+export default function ClaimInvite({
+  token,
+  onClaim,
+}: {
+  token: string;
+  onClaim: () => Promise<ClaimResult>;
+}) {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { i18n } = useLingui();
   const resumeClaim = useSearchParams().get("claim") === "1";
-  const [result, setResult] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState(false);
+  const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const pendingClaimKey = `bgo:invite-claim:${token}`;
   const callbackUrl = `/invite/${encodeURIComponent(token)}?claim=1`;
 
-  const onClaim = useCallback(async () => {
+  const completeClaim = useCallback(async () => {
     if (inFlight.current || result) return;
     inFlight.current = true;
     setBusy(true);
-    setError(null);
+    setError(false);
     try {
       window.sessionStorage.removeItem(pendingClaimKey);
     } catch {
       // Explicit claims also work when browser storage is disabled.
     }
     try {
-      const sessionToken = await getToken();
-      if (!sessionToken) throw new Error("No session token");
-      const res = await claimInvite(window.location.origin, sessionToken, token);
-      if (!res.success) throw new Error("Claim failed.");
-      setResult("Invite claimed — you are now friends with the inviter!");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not claim.");
+      const res = await onClaim();
+      if (!res.success) {
+        setError(true);
+        return;
+      }
+      setResult(true);
+    } catch {
+      setError(true);
     } finally {
       inFlight.current = false;
       setBusy(false);
     }
-  }, [token, getToken, result, pendingClaimKey]);
+  }, [onClaim, result, pendingClaimKey]);
 
   const rememberClaim = () => {
     try {
@@ -59,71 +71,60 @@ export default function ClaimInvite({ token }: { token: string }) {
       window.sessionStorage.removeItem(pendingClaimKey);
       const startedAt = Number(stored);
       const now = Date.now();
-      if (startedAt <= now && startedAt >= now - pendingClaimLifetime) void onClaim();
+      if (startedAt <= now && startedAt >= now - pendingClaimLifetime) void completeClaim();
     } catch {
       // Invalid/unavailable local intent never grants consent; the user can claim explicitly.
     }
-  }, [isLoaded, isSignedIn, onClaim, pendingClaimKey, resumeClaim]);
+  }, [isLoaded, isSignedIn, completeClaim, pendingClaimKey, resumeClaim]);
 
   if (!isLoaded) {
-    return <Msg title="You have been invited" body="Loading your session…" />;
+    return (
+      <InviteShell title={i18n._(messages.title)}>
+        <div role="status" aria-label={i18n._(messages.sessionLoading)}>
+          <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
+        </div>
+      </InviteShell>
+    );
   }
 
   if (!isSignedIn) {
     return (
-      <Msg title="You have been invited">
-        <p>Sign in to claim this invite and connect with the inviter.</p>
+      <InviteShell title={i18n._(messages.title)}>
+        <p>{i18n._(messages.signInHint)}</p>
         <SignInButton
           mode="modal"
           forceRedirectUrl={callbackUrl}
           signUpForceRedirectUrl={callbackUrl}
         >
-          <button type="button" className="btn" onClick={rememberClaim}>
-            Sign in to claim
-          </button>
+          <Button type="button" variant="primary" onClick={rememberClaim}>
+            {i18n._(messages.signIn)}
+          </Button>
         </SignInButton>
-      </Msg>
+      </InviteShell>
     );
   }
 
   return (
-    <Msg title="You have been invited">
-      <p>Claiming this invite connects you with the inviter.</p>
-      <button type="button" className="btn" onClick={onClaim} disabled={busy || Boolean(result)}>
-        {busy ? "Claiming…" : "Claim invite"}
-      </button>
+    <InviteShell title={i18n._(messages.title)}>
+      <p>{i18n._(messages.claimHint)}</p>
+      <Button
+        type="button"
+        variant="primary"
+        onPress={() => void completeClaim()}
+        isDisabled={busy || result}
+      >
+        {i18n._(busy ? messages.claiming : messages.claim)}
+      </Button>
       {result && (
-        <p role="status" style={{ color: "#16a34a" }}>
-          {result}
+        <p role="status" style={{ color: "var(--success)" }}>
+          {i18n._(messages.friendSuccess)}
         </p>
       )}
       {error && (
-        <p role="alert" style={{ color: "#dc2626" }}>
-          {error}
+        <p role="alert" style={{ color: "var(--danger)" }}>
+          {i18n._(messages.claimFailure)}
         </p>
       )}
-    </Msg>
-  );
-}
-
-function Msg({
-  title,
-  body,
-  children,
-}: {
-  title: string;
-  body?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <main
-      style={{ fontFamily: "system-ui, sans-serif", padding: 32, maxWidth: 480, margin: "0 auto" }}
-    >
-      <h1>{title}</h1>
-      {body ? <p>{body}</p> : null}
-      {children}
-      <p style={{ marginTop: 32, fontSize: 13, color: "#666" }}>Board Game Organizer</p>
-      <style>{`.btn{display:inline-block;margin-top:16px;padding:10px 18px;border-radius:8px;border:0;background:#006fee;color:#fff;font-size:14px;cursor:pointer}.btn:disabled{opacity:.6}`}</style>
-    </main>
+    </InviteShell>
   );
 }

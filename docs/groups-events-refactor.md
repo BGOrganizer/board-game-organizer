@@ -407,6 +407,21 @@ exceptions retain their explicit authorization boundaries throughout this contra
   (current Event version, game votes and PRIVATE availability). Consent and choices commit in one
   transaction; invalid/stale choices or a storage failure leave the invitation pending. Cancellation
   writes nothing, failure preserves the draft, and decline remains a direct versioned action.
+- A current administrator/moderator of a PRIVATE Group can also generate a single-use Table link
+  while its PRIVATE Event is PLANNING. The first row of Invite players generates and shares/copies
+  it with the Contacts interaction on both clients, even when the table is full or the candidate
+  list is empty. Links expire after seven days and reserve no seat before acceptance.
+  Existing accounts and new sign-ups return to the API-hosted invitation review. Authentication or
+  opening the link alone never accepts a contextual invitation. One explicit final acceptance covers
+  friendship with the inviter, accepted Group membership and accepted Table participation; required
+  multi-option preferences follow the ordinary Table consent rules. The authenticated token review
+  discloses only inviter identity, Group name, current settings and the recipient's own choices.
+  The transaction rechecks sender authority, Planning state, blocks, exclusions and versions, then
+  creates all effects and consumes the token together. Existing friendship epochs, accepted roles
+  and registrations remain intact; full Tables put the recipient in the accepted waiting list.
+  A same-recipient retry returns the stored receipt without repeating effects. Another recipient,
+  an expired pending link or lost authority cannot claim it. Ordinary friend links keep their
+  explicit-click sign-up return intent and friendship-only behavior.
 - Each invitation has its own accept/decline response. Creation/request time, then server sequence
   and stable ID determine priority, not acceptance time. Pending invitations reserve seat/queue
   priority but **cannot vote, count toward minimums, agreement or the frozen roster**. Voting never

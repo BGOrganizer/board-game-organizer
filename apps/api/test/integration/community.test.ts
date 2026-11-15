@@ -22,6 +22,7 @@ import { type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { recordServices } from "../../src/app/lib/community/record-services";
 import { RelationshipRepository } from "../../src/app/lib/contacts/relationship.repository";
+import { RelationshipService } from "../../src/app/lib/contacts/relationship.service";
 import { COLLECTIONS } from "../../src/app/lib/db";
 import { deadlineServiceConfigured } from "../../src/app/lib/events/event-deadlines";
 import {
@@ -109,6 +110,7 @@ function services(session?: ClientSession) {
     assets: groupAssetService,
     events: plannedEventService,
     groups: unifiedGroupService,
+    invites: tableInviteService,
   } = recordServices(db, session);
   const matchService = new MatchService(
     matches,
@@ -141,6 +143,7 @@ function services(session?: ClientSession) {
     plannedEventService,
     unifiedGroupService,
     groupAssetService,
+    tableInviteService,
   };
 }
 async function participation(eventId: string, tableId: string): Promise<JoinTableInput> {
@@ -1850,6 +1853,326 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     }
     return group;
   }
+  it("atomically claims a contextual Table invite with friendship, Group consent and an accepted seat", async () => {
+    const group = await privateGroup();
+    const event = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    const invite = await transaction((s) => s.tableInviteService.create(OWNER, tableId));
+    expect(await services().eventRecords.userRegistration(tableId, OUTSIDER)).toBeNull();
+    await expect(services().plannedEventService.detail(OUTSIDER, event.id)).rejects.toMatchObject({
+      status: 403,
+    });
+    const review = await transaction((s) => s.tableInviteService.review(OUTSIDER, invite.token));
+    expect(review).toMatchObject({
+      kind: "TABLE",
+      group: { id: group.id },
+      table: { id: tableId },
+      requiresAvailability: true,
+    });
+    expect(JSON.stringify(review)).not.toContain("@example.test");
+    expect(review).not.toHaveProperty("members");
+    expect(await services().groupRecords.membership(group.id, OUTSIDER)).toBeNull();
+    const input = {
+      token: invite.token,
+      consent: true as const,
+      participation: await participation(event.id, tableId),
+    };
+    const claimed = await transaction((s) => s.tableInviteService.claim(OUTSIDER, input));
+    expect(claimed).toEqual({
+      success: true,
+      inviter: null,
+      table: { groupId: group.id, eventId: event.id, tableId, position: "SEATED" },
+    });
+    expect(await services().relationships.isFriend(OWNER, OUTSIDER)).toBe(true);
+    const membership = await services().groupRecords.membership(group.id, OUTSIDER);
+    const registration = await services().eventRecords.userRegistration(tableId, OUTSIDER);
+    expect(membership).toMatchObject({ status: "ACCEPTED", role: "MEMBER" });
+    expect(registration).toMatchObject({ status: "ACCEPTED", kind: "SELF", seatIndex: 0 });
+    const persisted = await db.collection(COLLECTIONS.INVITES).findOne({ token: invite.token });
+    expect(persisted).toMatchObject({
+      status: "claimed",
+      claimedByUserId: OUTSIDER,
+      tableReceipt: claimed.table,
+    });
+    const epochs = await db
+      .collection(COLLECTIONS.FRIEND_REQUESTS)
+      .find({
+        $or: [
+          { fromUserId: OWNER, toUserId: OUTSIDER },
+          { fromUserId: OUTSIDER, toUserId: OWNER },
+        ],
+      })
+      .toArray();
+    const activityCount = await db.collection(COLLECTIONS.PROFILE_ACTIVITIES).countDocuments();
+    const notificationCount = await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments();
+    expect(await transaction((s) => s.tableInviteService.claim(OUTSIDER, input))).toEqual(claimed);
+    expect(await services().groupRecords.membership(group.id, OUTSIDER)).toEqual(membership);
+    expect(await services().eventRecords.userRegistration(tableId, OUTSIDER)).toEqual(registration);
+    expect(
+      await db
+        .collection(COLLECTIONS.FRIEND_REQUESTS)
+        .find({
+          $or: [
+            { fromUserId: OWNER, toUserId: OUTSIDER },
+            { fromUserId: OUTSIDER, toUserId: OWNER },
+          ],
+        })
+        .toArray(),
+    ).toEqual(epochs);
+    expect(await db.collection(COLLECTIONS.PROFILE_ACTIVITIES).countDocuments()).toBe(
+      activityCount,
+    );
+    expect(await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments()).toBe(notificationCount);
+    // The receipt is historical: retrying after leaving cannot restore current consent.
+    await transaction((s) =>
+      s.plannedEventService.registrationAction(OUTSIDER, registration!.id, {
+        action: "cancel",
+        version: registration!.version,
+      }),
+    );
+    expect(await transaction((s) => s.tableInviteService.claim(OUTSIDER, input))).toEqual(claimed);
+    expect(await services().eventRecords.userRegistration(tableId, OUTSIDER)).toMatchObject({
+      status: "CANCELLED",
+    });
+  });
+  it("queues contextual invitees behind pending reserved seats without replacing those reservations", async () => {
+    const group = await privateGroup();
+    const event = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    for (const userId of [GUEST, OTHER])
+      await transaction((s) => s.plannedEventService.register(OWNER, event.id, tableId, userId));
+    const invite = await transaction((s) => s.tableInviteService.create(OWNER, tableId));
+    const input = {
+      token: invite.token,
+      consent: true as const,
+      participation: await participation(event.id, tableId),
+    };
+    expect(await transaction((s) => s.tableInviteService.claim(OUTSIDER, input))).toMatchObject({
+      table: { position: "WAITING" },
+    });
+    expect(await services().eventRecords.userRegistration(tableId, OUTSIDER)).toMatchObject({
+      status: "ACCEPTED",
+      seatIndex: null,
+    });
+    for (const [index, userId] of [GUEST, OTHER].entries())
+      expect(await services().eventRecords.userRegistration(tableId, userId)).toMatchObject({
+        status: "PENDING",
+        seatIndex: index,
+      });
+  });
+  it("rolls back friendship, membership and token consumption when canonical Table voting rejects a claim", async () => {
+    const group = await privateGroup();
+    const input = plannedInput(group.id);
+    input.dates.push({ id: randomUUID(), day: "2030-06-04" });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    const invite = await transaction((s) => s.tableInviteService.create(OWNER, tableId));
+    const invalid = {
+      token: invite.token,
+      consent: true as const,
+      participation: {
+        version: event.version,
+        gameVotes: {},
+        availability: { version: event.version, dateVotes: {}, locationVotes: {} },
+      },
+    };
+    await expect(
+      transaction((s) => s.tableInviteService.claim(OUTSIDER, invalid)),
+    ).rejects.toMatchObject({ code: "INVALID_JOIN_AVAILABILITY" });
+    expect(await services().relationships.isFriend(OWNER, OUTSIDER)).toBe(false);
+    expect(await services().groupRecords.membership(group.id, OUTSIDER)).toBeNull();
+    expect(await services().eventRecords.userRegistration(tableId, OUTSIDER)).toBeNull();
+    expect(await db.collection(COLLECTIONS.INVITES).findOne({ token: invite.token })).toMatchObject(
+      { status: "pending" },
+    );
+    expect(
+      await db.collection(COLLECTIONS.PROFILE_ACTIVITIES).countDocuments({
+        kind: "friendship",
+        $or: [
+          { userId: OWNER, otherUserId: OUTSIDER },
+          { userId: OUTSIDER, otherUserId: OWNER },
+        ],
+      }),
+    ).toBe(0);
+    await expect(
+      transaction((s) =>
+        s.tableInviteService.claim(OUTSIDER, {
+          ...invalid,
+          participation: { ...invalid.participation, version: event.version + 1 },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "EVENT_CHANGED" });
+    expect(await db.collection(COLLECTIONS.INVITES).findOne({ token: invite.token })).toMatchObject(
+      { status: "pending" },
+    );
+  });
+  it("allows exactly one concurrent contextual claimant and leaves the losing account unchanged", async () => {
+    const group = await privateGroup();
+    const event = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    const invite = await transaction((s) => s.tableInviteService.create(OWNER, tableId));
+    const input = {
+      token: invite.token,
+      consent: true as const,
+      participation: await participation(event.id, tableId),
+    };
+    const users = [OUTSIDER, DEMO];
+    const results = await Promise.allSettled(
+      users.map((userId) => transaction((s) => s.tableInviteService.claim(userId, input))),
+    );
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const loser = users[results.findIndex((result) => result.status === "rejected")];
+    expect(results.find((result) => result.status === "rejected")).toMatchObject({
+      reason: { code: "INVITE_ALREADY_CLAIMED" },
+    });
+    expect(await services().relationships.isFriend(OWNER, loser)).toBe(false);
+    expect(await services().groupRecords.membership(group.id, loser)).toBeNull();
+    expect(await services().eventRecords.userRegistration(tableId, loser)).toBeNull();
+  });
+  it("serializes same-pair claims across different Groups even when reciprocal follow upserts are no-ops", async () => {
+    const group = await privateGroup();
+    const secondGroup = await transaction((s) =>
+      s.unifiedGroupService.save(OWNER, {
+        type: "PRIVATE",
+        name: "Second private club",
+        invitedUserIds: [],
+      }),
+    );
+    const secondInput = plannedInput(secondGroup.id);
+    const secondTableId = randomUUID();
+    secondInput.tables[0].id = secondTableId;
+    const firstEvent = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    const secondEvent = await transaction((s) => s.plannedEventService.create(OWNER, secondInput));
+    await transaction(async (s) => {
+      await s.relationships.follow(OWNER, OUTSIDER);
+      await s.relationships.follow(OUTSIDER, OWNER);
+    });
+    const invites = [];
+    for (const id of [tableId, secondTableId])
+      invites.push(await transaction((s) => s.tableInviteService.create(OWNER, id)));
+    const choices = [
+      await participation(firstEvent.id, tableId),
+      await participation(secondEvent.id, secondTableId),
+    ];
+    const results = await Promise.all(
+      invites.map((invite, index) =>
+        transaction((s) =>
+          s.tableInviteService.claim(OUTSIDER, {
+            token: invite.token,
+            consent: true,
+            participation: choices[index],
+          }),
+        ),
+      ),
+    );
+    expect(results).toHaveLength(2);
+    expect(
+      await db.collection(COLLECTIONS.FRIEND_REQUESTS).countDocuments({
+        status: "accepted",
+        $or: [
+          { fromUserId: OWNER, toUserId: OUTSIDER },
+          { fromUserId: OUTSIDER, toUserId: OWNER },
+        ],
+      }),
+    ).toBe(2);
+    expect(
+      await db.collection(COLLECTIONS.PROFILE_ACTIVITIES).countDocuments({
+        kind: "friendship",
+        $or: [
+          { userId: OWNER, otherUserId: OUTSIDER },
+          { userId: OUTSIDER, otherUserId: OWNER },
+        ],
+      }),
+    ).toBe(2);
+    for (const id of [group.id, secondGroup.id])
+      expect(await services().groupRecords.membership(id, OUTSIDER)).toMatchObject({
+        status: "ACCEPTED",
+      });
+    for (const id of [tableId, secondTableId])
+      expect(await services().eventRecords.userRegistration(id, OUTSIDER)).toMatchObject({
+        status: "ACCEPTED",
+      });
+  });
+  it.each([OWNER, OUTSIDER])(
+    "serializes a concurrent contextual claim and reciprocal block from %s",
+    async (blocker) => {
+      const group = await privateGroup();
+      const event = await transaction((s) =>
+        s.plannedEventService.create(OWNER, plannedInput(group.id)),
+      );
+      const invite = await transaction((s) => s.tableInviteService.create(OWNER, tableId));
+      const input = {
+        token: invite.token,
+        consent: true as const,
+        participation: await participation(event.id, tableId),
+      };
+      const target = blocker === OWNER ? OUTSIDER : OWNER;
+      const [claim, block] = await Promise.allSettled([
+        transaction((s) => s.tableInviteService.claim(OUTSIDER, input)),
+        transaction((s) => new RelationshipService(s.relationships).block(blocker, target)),
+      ]);
+      expect(block.status).toBe("fulfilled");
+      expect(await services().relationships.isBlocked(OWNER, OUTSIDER)).toBe(true);
+      expect(await services().relationships.isFriend(OWNER, OUTSIDER)).toBe(false);
+      if (claim.status === "rejected") {
+        expect(claim.reason).toMatchObject({ code: "BLOCKED_PARTICIPANT" });
+        expect(await services().groupRecords.membership(group.id, OUTSIDER)).toBeNull();
+        expect(await services().eventRecords.userRegistration(tableId, OUTSIDER)).toBeNull();
+        expect(
+          await db.collection(COLLECTIONS.INVITES).findOne({ token: invite.token }),
+        ).toMatchObject({ status: "pending" });
+      } else {
+        // The block committed after a valid acceptance; the token remains single-use.
+        expect(
+          await db.collection(COLLECTIONS.INVITES).findOne({ token: invite.token }),
+        ).toMatchObject({ status: "claimed" });
+        expect(await services().eventRecords.userRegistration(tableId, OUTSIDER)).toMatchObject({
+          status: "ACCEPTED",
+        });
+      }
+    },
+  );
+  it("invalidates contextual links after the sender loses Group moderation without creating social or registration effects", async () => {
+    const group = await privateGroup();
+    const membership = await services().groupRecords.membership(group.id, GUEST);
+    const promoted = await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+        action: "promote",
+        version: membership!.version,
+      }),
+    );
+    const event = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    const invite = await transaction((s) => s.tableInviteService.create(GUEST, tableId));
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+        action: "demote",
+        version: promoted.version,
+      }),
+    );
+    await expect(
+      transaction((s) => s.tableInviteService.review(OUTSIDER, invite.token)),
+    ).rejects.toMatchObject({ code: "GROUP_ADMIN_REQUIRED" });
+    const input = {
+      token: invite.token,
+      consent: true as const,
+      participation: await participation(event.id, tableId),
+    };
+    await expect(
+      transaction((s) => s.tableInviteService.claim(OUTSIDER, input)),
+    ).rejects.toMatchObject({ code: "GROUP_ADMIN_REQUIRED" });
+    expect(await services().relationships.isFriend(GUEST, OUTSIDER)).toBe(false);
+    expect(await services().groupRecords.membership(group.id, OUTSIDER)).toBeNull();
+    expect(await services().eventRecords.userRegistration(tableId, OUTSIDER)).toBeNull();
+    expect(await db.collection(COLLECTIONS.INVITES).findOne({ token: invite.token })).toMatchObject(
+      { status: "pending" },
+    );
+  });
   it("source-pages Available only for unregistered accepted Group members and a strictly open planning cutoff", async () => {
     const group = await privateGroup();
     const event = await transaction((s) =>

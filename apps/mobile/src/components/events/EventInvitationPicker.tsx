@@ -1,4 +1,5 @@
 import {
+  canGenerateTableInviteLink,
   communityAccessDenied,
   useEventRecord,
   useEventRecordActions,
@@ -8,6 +9,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { View } from "react-native";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
+import { TableInviteLinkRow } from "@/components/invites/TableInviteLinkRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 export function EventInvitationPicker({ eventId, tableId }: { eventId: string; tableId: string }) {
@@ -35,7 +37,7 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
     });
     router.back();
   };
-  if (!event || !event.canInvite)
+  if (!event?.canInvite)
     return (
       <View style={{ padding: 20 }}>
         {q.isPending ? (
@@ -56,7 +58,15 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
         invitationTable={{ eventId, tableId }}
         disabled={a.blocking}
         onSelect={pick}
-      />
+      >
+        {!q.isPlaceholderData && canGenerateTableInviteLink(event) ? (
+          <TableInviteLinkRow
+            key={JSON.stringify([o.apiUrl, o.userId, tableId])}
+            tableId={tableId}
+            disabled={a.blocking}
+          />
+        ) : null}
+      </PeoplePicker>
     </View>
   );
 }

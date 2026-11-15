@@ -8,6 +8,7 @@ import type {
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 import { ProfileActivitiesRepository } from "../profile/profile-activities.repository";
+import { UsersRepository } from "../users/users.repository";
 
 export interface RelationshipEdge {
   fromUserId: string;
@@ -27,6 +28,12 @@ export class RelationshipRepository {
 
   private get opts() {
     return this.session ? { session: this.session } : {};
+  }
+
+  private async lockPair(a: string, b: string) {
+    const users = new UsersRepository(this.db, this.session);
+    // Existing user locks serialize cross-Group friendship/consent changes in one session.
+    for (const userId of [...new Set([a, b])].sort()) await users.lock(userId);
   }
 
   async userExists(userId: string): Promise<boolean> {
@@ -69,7 +76,8 @@ export class RelationshipRepository {
       .findOne({ fromUserId, toUserId }, this.opts);
   }
 
-  setFriendRequest(fromUserId: string, toUserId: string, status: FriendRequestStatus) {
+  async setFriendRequest(fromUserId: string, toUserId: string, status: FriendRequestStatus) {
+    await this.lockPair(fromUserId, toUserId);
     const now = new Date();
     return this.db.collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS).findOneAndUpdate(
       { fromUserId, toUserId },
@@ -107,6 +115,7 @@ export class RelationshipRepository {
   }
 
   async becomeFriends(a: string, b: string) {
+    await this.lockPair(a, b);
     const existing = await this.isFriend(a, b);
     // Preserve the accepted epoch on idempotent claims; Community cutoffs must not move.
     let source: string | undefined;
@@ -136,7 +145,8 @@ export class RelationshipRepository {
     }
   }
 
-  unfriend(a: string, b: string) {
+  async unfriend(a: string, b: string) {
+    await this.lockPair(a, b);
     return this.db.collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS).deleteMany(
       {
         status: "accepted",
@@ -171,7 +181,8 @@ export class RelationshipRepository {
       .findOne({ fromUserId, toUserId }, this.opts);
   }
 
-  block(fromUserId: string, toUserId: string) {
+  async block(fromUserId: string, toUserId: string) {
+    await this.lockPair(fromUserId, toUserId);
     const createdAt = new Date();
     return this.db
       .collection<Block>(COLLECTIONS.BLOCKS)

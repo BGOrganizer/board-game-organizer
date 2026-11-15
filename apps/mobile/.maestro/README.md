@@ -687,3 +687,18 @@ exact-SHA CI run, cleanup and publication gates. A rewritten file is not a pass.
 The Event access `presentation` journey uses an included confirmed/terminated Table, so card game
 metadata is definitive. Active Tables are opened through their parent Event; History/list-status
 covers the completed personal list. Planning proposal controls remain in their detail voting sections.
+
+## Manual Table invite link generation
+
+`40-table-invite-link.yaml` requires an existing owned Preview fixture and an authenticated
+Development APK whose API/account you have verified. Set
+`TABLE_INVITE_NATIVE_ACK=owned-preview-table-invite` and `TABLE_INVITE_NATIVE_INPUT` JSON with
+`eventId`, `tableId`, `locale=en|it` and `mode=success|create-offline|forbidden`.
+The success/offline fixture is a Group manager with a PRIVATE Group/Event and a PLANNING Table.
+Repeat with empty/full player lists, a full Table, EN/IT, both themes and large text. Forbidden
+fixtures use a PUBLIC Group/Event, non-manager or non-PLANNING Table. This opt-in flow generates
+real invite tokens; it does not provision resources, claim links or send them to anyone.
+The offline case retries after restoring connectivity; restore it manually if a failed run stops
+early. Verify the Android Share sheet's copy action manually, as for Contacts. Browser consent,
+friendship/membership and accepted-or-queued registration need their separate browser/API paths;
+native generation or source tests cannot establish those outcomes.

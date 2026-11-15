@@ -1,5 +1,6 @@
 "use client";
 import {
+  canGenerateTableInviteLink,
   communityAccessDenied,
   useEventRecord,
   useEventRecordActions,
@@ -9,6 +10,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { TableInviteLinkRow } from "./TableInviteLinkRow";
 export function EventInvitationPicker({ eventId, tableId }: { eventId: string; tableId: string }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -52,7 +54,11 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
         invitationTable={{ eventId, tableId }}
         disabled={a.blocking}
         onSelect={pick}
-      />
+      >
+        {!q.isPlaceholderData && canGenerateTableInviteLink(event) ? (
+          <TableInviteLinkRow tableId={tableId} disabled={a.blocking} />
+        ) : null}
+      </PeoplePicker>
     </div>
   );
 }

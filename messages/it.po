@@ -7129,3 +7129,187 @@ msgstr "Versione"
 
 msgid "Best BGG players"
 msgstr "Giocatori ideali BGG"
+
+#. js-lingui-explicit-id
+msgid "invite.title"
+msgstr "Sei stato invitato"
+
+#. js-lingui-explicit-id
+msgid "invite.sessionLoading"
+msgstr "Caricamento della sessione…"
+
+#. js-lingui-explicit-id
+msgid "invite.loading"
+msgstr "Caricamento dell’invito…"
+
+#. js-lingui-explicit-id
+msgid "invite.signInHint"
+msgstr "Accedi per accettare questo invito e connetterti con chi ti ha invitato."
+
+#. js-lingui-explicit-id
+msgid "invite.signIn"
+msgstr "Accedi per accettare l’invito"
+
+#. js-lingui-explicit-id
+msgid "invite.claimHint"
+msgstr "Accettando questo invito ti connetti con chi ti ha invitato."
+
+#. js-lingui-explicit-id
+msgid "invite.claim"
+msgstr "Accetta invito"
+
+#. js-lingui-explicit-id
+msgid "invite.claiming"
+msgstr "Accettazione…"
+
+#. js-lingui-explicit-id
+msgid "invite.friendSuccess"
+msgstr "Invito accettato: ora sei amico di chi ti ha invitato!"
+
+#. js-lingui-explicit-id
+msgid "invite.claimFailure"
+msgstr "Impossibile accettare questo invito. Riprova."
+
+#. js-lingui-explicit-id
+msgid "invite.unavailable"
+msgstr "Invito non disponibile"
+
+#. js-lingui-explicit-id
+msgid "invite.readFailure"
+msgstr "Impossibile caricare questo invito."
+
+#. js-lingui-explicit-id
+msgid "invite.retry"
+msgstr "Riprova"
+
+#. js-lingui-explicit-id
+msgid "invite.tableTitle"
+msgstr "Rivedi l’invito al tavolo"
+
+#. js-lingui-explicit-id
+msgid "invite.tableConsent"
+msgstr "Accettando diventi amico di {inviter}, ti iscrivi al gruppo privato {group} e confermi la tua partecipazione a {table}."
+
+#. js-lingui-explicit-id
+msgid "invite.queueHint"
+msgstr "Se il tavolo è pieno, entrerai nella lista d’attesa."
+
+#. js-lingui-explicit-id
+msgid "invite.currentParticipation"
+msgstr "Partecipi già a questo tavolo. Il tuo posto e le tue preferenze saranno mantenuti."
+
+#. js-lingui-explicit-id
+msgid "invite.availabilityKept"
+msgstr "La tua disponibilità già espressa per l’evento sarà mantenuta."
+
+#. js-lingui-explicit-id
+msgid "invite.voteHint"
+msgstr "La partecipazione accetta le opzioni singole. Nelle sezioni con più opzioni, rispondi a tutte e scegli almeno un Sì o Se necessario."
+
+#. js-lingui-explicit-id
+msgid "invite.validation"
+msgstr "Rispondi a tutte le opzioni e scegli almeno un Sì o Se necessario in ogni sezione."
+
+#. js-lingui-explicit-id
+msgid "invite.accept"
+msgstr "Accetta invito"
+
+#. js-lingui-explicit-id
+msgid "invite.accepting"
+msgstr "Accettazione dell’invito…"
+
+#. js-lingui-explicit-id
+msgid "invite.acceptFailure"
+msgstr "Impossibile accettare questo invito. Aggiorna i dettagli e riprova."
+
+#. js-lingui-explicit-id
+msgid "invite.expiry"
+msgstr "Invito monouso. Scade il {date}."
+
+#. js-lingui-explicit-id
+msgid "invite.players"
+msgstr "Giocatori: {minimum}–{maximum}"
+
+#. js-lingui-explicit-id
+msgid "invite.rated"
+msgstr "Tavolo con valutazione"
+
+#. js-lingui-explicit-id
+msgid "invite.unrated"
+msgstr "Tavolo senza valutazione"
+
+#. js-lingui-explicit-id
+msgid "invite.manual"
+msgstr "Pianificazione manuale"
+
+#. js-lingui-explicit-id
+msgid "invite.assisted"
+msgstr "Pianificazione assistita"
+
+#. js-lingui-explicit-id
+msgid "invite.morePlayers"
+msgstr "Massimizza i giocatori"
+
+#. js-lingui-explicit-id
+msgid "invite.bestPlayers"
+msgstr "Numero di giocatori ideale BGG"
+
+#. js-lingui-explicit-id
+msgid "invite.dates"
+msgstr "Date"
+
+#. js-lingui-explicit-id
+msgid "invite.locations"
+msgstr "Luoghi"
+
+#. js-lingui-explicit-id
+msgid "invite.games"
+msgstr "Giochi"
+
+#. js-lingui-explicit-id
+msgid "invite.yes"
+msgstr "Sì"
+
+#. js-lingui-explicit-id
+msgid "invite.ifNeeded"
+msgstr "Se necessario"
+
+#. js-lingui-explicit-id
+msgid "invite.no"
+msgstr "No"
+
+#. js-lingui-explicit-id
+msgid "invite.unknown"
+msgstr "Sconosciuto"
+
+#. js-lingui-explicit-id
+msgid "invite.successTitle"
+msgstr "Invito accettato"
+
+#. js-lingui-explicit-id
+msgid "invite.tableSuccess"
+msgstr "Ora sei connesso con chi ti ha invitato e sei iscritto al gruppo."
+
+#. js-lingui-explicit-id
+msgid "invite.seated"
+msgstr "Hai un posto al tavolo."
+
+#. js-lingui-explicit-id
+msgid "invite.waiting"
+msgstr "Sei entrato nella lista d’attesa."
+
+#. js-lingui-explicit-id
+msgid "invite.settingsUnavailable"
+msgstr "Le impostazioni del tavolo sono incomplete. Chiedi a chi ti ha invitato di aggiornarle."
+
+msgid "Generate invite"
+msgstr "Genera invito"
+
+msgid "Share invite link"
+msgstr "Condividi il link di invito"
+
+msgid "Invite link"
+msgstr "Link di invito"
+
+msgid "Could not share the invite. Try again."
+msgstr "Impossibile condividere l’invito. Riprova."

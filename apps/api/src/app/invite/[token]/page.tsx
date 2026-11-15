@@ -1,5 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
-import ClaimInvite from "./claim";
+import { InviteLanding } from "./InviteLanding";
+import { InviteProviders } from "./InviteProviders";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
     <ClerkProvider publishableKey={publishableKey}>
-      <ClaimInvite key={token} token={token} />
+      <InviteProviders>
+        <InviteLanding key={token} token={token} />
+      </InviteProviders>
     </ClerkProvider>
   );
 }

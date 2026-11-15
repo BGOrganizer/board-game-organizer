@@ -50,6 +50,38 @@ describe("InvitesRepository", () => {
     expect(invite.email).toBe("friend@example.com");
   });
 
+  it("stores contextual Table scope without allocating any registration", async () => {
+    const tableId = "33333333-3333-4333-8333-333333333333";
+    const invite = await repo().create("inviter_1", undefined, tableId);
+    expect(invite.tableId).toBe(tableId);
+    expect(invite.email).toBeUndefined();
+    expect(invite.tableReceipt).toBeUndefined();
+  });
+
+  it("stores the immutable Table receipt with token consumption in the same session", async () => {
+    const tableReceipt = {
+      groupId: "11111111-1111-4111-8111-111111111111",
+      eventId: "22222222-2222-4222-8222-222222222222",
+      tableId: "33333333-3333-4333-8333-333333333333",
+      position: "WAITING" as const,
+    };
+    const session = {};
+    const result = { token: "receipt-token", status: "claimed", tableReceipt };
+    colMock.findOneAndUpdate.mockResolvedValueOnce(result);
+    expect(
+      await new InvitesRepository(dbMock as never, session as never).claim(
+        "receipt-token",
+        "claimer",
+        tableReceipt,
+      ),
+    ).toEqual(result);
+    expect(colMock.findOneAndUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ token: "receipt-token", status: "pending" }),
+      { $set: expect.objectContaining({ tableReceipt, claimedByUserId: "claimer" }) },
+      { returnDocument: "after", session },
+    );
+  });
+
   it("claim transitions pending → claimed with claimant", async () => {
     const fakeInvite = {
       token: "tok",
@@ -62,10 +94,30 @@ describe("InvitesRepository", () => {
     const result = await repo().claim("tok", "claimer");
     expect(result).toEqual(fakeInvite);
     // Only pending, non-expired invites are claimable.
-    expect(colMock.findOneAndUpdate.mock.calls[0][0]).toMatchObject({
+    expect(colMock.findOneAndUpdate.mock.lastCall?.[0]).toMatchObject({
       token: "tok",
       status: "pending",
       expiresAt: { $gt: expect.any(Date) },
     });
   });
+});
+
+it("looks up only the exact token", async () => {
+  expect(await repo().findByToken("one-owned-token")).toBeNull();
+  expect(colMock.findOne).toHaveBeenLastCalledWith({ token: "one-owned-token" }, {});
+});
+it("bounds an inviter's newest links before returning them", async () => {
+  expect(await repo().listByInviter("inviter_1")).toEqual([]);
+  expect(colMock.find).toHaveBeenLastCalledWith(
+    { inviterUserId: "inviter_1" },
+    { projection: { _id: 0 } },
+  );
+});
+it("expires only stale pending links", async () => {
+  expect(await repo().expireStale()).toBe(0);
+  expect(colMock.updateMany).toHaveBeenLastCalledWith(
+    { status: "pending", expiresAt: { $lte: expect.any(Date) } },
+    { $set: { status: "expired" } },
+    {},
+  );
 });

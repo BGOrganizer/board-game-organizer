@@ -1,5 +1,6 @@
 import { createInviteParamsSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
+import { runRecordOperation } from "@/app/lib/community/record-http";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
 import { InvitesRepository } from "@/app/lib/invites/invites.repository";
@@ -21,6 +22,23 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = createInviteParamsSchema.safeParse(body ?? {});
   if (!parsed.success) return corsJson({ error: "Invalid body" }, { status: 400 }, request);
+
+  if (parsed.data.tableId) {
+    const tableId = parsed.data.tableId;
+    return runRecordOperation(
+      request,
+      async (actor, { invites }) => {
+        const invite = await invites.create(actor, tableId);
+        return {
+          token: invite.token,
+          link: `${new URL(request.url).origin}/invite/${invite.token}`,
+          email: null,
+          expiresAt: invite.expiresAt.toISOString(),
+        };
+      },
+      201,
+    );
+  }
 
   const db = await getDb();
   const invite = await new InvitesRepository(db).create(userId, parsed.data.email);

@@ -1,4 +1,5 @@
 import type { ObjectId } from "mongodb";
+import type { TableInviteClaimReceipt } from "../dto/invites";
 
 /** Lifecycle of an invite. */
 export type InviteStatus = "pending" | "claimed" | "expired" | "revoked";
@@ -9,9 +10,8 @@ export const INVITE_TTL_DAYS = 7;
 /**
  * DB model: `invites` collection.
  *
- * An invite is a shareable link (`https://…/invite/<token>`) that lets a new
- * or existing user connect with the inviter. If the invite carries an email,
- * claiming it is auto-accepted when the authenticated user's email matches.
+ * A shareable, single-use link for a new or existing user. Accepted claims create
+ * mutual friendship; contextual links also accept their disclosed Group/Table participation.
  */
 export interface Invite {
   _id: ObjectId;
@@ -19,7 +19,9 @@ export interface Invite {
   token: string;
   /** The inviter (Clerk user ID). */
   inviterUserId: string;
-  /** Optional target email — enables auto-claim on email match. */
+  /** Absent for the existing friendship-only link. */
+  tableId?: string;
+  /** Retained legacy metadata; an authenticated recipient still explicitly accepts the link. */
   email?: string;
   status: InviteStatus;
   /** Token expiry: `createdAt + INVITE_TTL_DAYS`. */
@@ -28,6 +30,8 @@ export interface Invite {
   claimedAt?: Date;
   /** The user who claimed the invite (Clerk user ID). */
   claimedByUserId?: string;
+  /** Immutable acknowledgment for retrying the same contextual acceptance without replaying effects. */
+  tableReceipt?: TableInviteClaimReceipt;
 }
 
 /** MongoDB indexes for the `invites` collection. */

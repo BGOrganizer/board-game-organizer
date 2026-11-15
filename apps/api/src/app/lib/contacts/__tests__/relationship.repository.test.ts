@@ -176,6 +176,29 @@ describe("RelationshipRepository", () => {
     await expect(repo.isFriend("a", "b")).resolves.toBe(false);
   });
 
+  it("takes existing user locks sequentially in stable order before friendship decisions", async () => {
+    const fake = setup();
+    const session = { id: "session" };
+    const repo = new RelationshipRepository(fake.db as never, session as never);
+    vi.spyOn(repo, "isFriend").mockImplementation(async () => {
+      expect(fake.col("users").updateOne).toHaveBeenNthCalledWith(
+        1,
+        { clerkId: "a" },
+        { $inc: { "community.uploadLock": 1 } },
+        { session },
+      );
+      expect(fake.col("users").updateOne).toHaveBeenNthCalledWith(
+        2,
+        { clerkId: "z" },
+        { $inc: { "community.uploadLock": 1 } },
+        { session },
+      );
+      return true;
+    });
+    await repo.becomeFriends("z", "a");
+    expect(fake.col("friendRequests").findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
   it("creates, finds, removes, and detects blocks", async () => {
     const fake = setup();
     fake.col("blocks").countDocuments.mockResolvedValueOnce(1).mockResolvedValueOnce(0);

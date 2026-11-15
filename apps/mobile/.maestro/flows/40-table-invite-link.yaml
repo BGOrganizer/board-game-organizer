@@ -1,0 +1,64 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Contextual Table invite generation and native sharing
+tags: [manual, events, invites]
+---
+# Pre-existing owned Development manager, PRIVATE Group/Event, PLANNING Table.
+# Repeat with empty/full member lists, full Table and EN/IT + light/dark + large text.
+# Forbidden fixtures: PUBLIC Group/Event, non-manager, or non-PLANNING Table.
+# Verify installed API/account manually; never point this APK at Production.
+# This writes real invite tokens only. Browser consent/claim is tested separately.
+- runScript: ../helpers/table-invite-link-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.tableInvite.link}
+- extendedWaitUntil:
+    visible: ${output.tableInvite.ready}
+    timeout: 60000
+- runFlow:
+    when:
+      true: ${output.tableInvite.forbidden}
+    commands:
+      - assertNotVisible:
+          id: table-invite-link-row
+- runFlow:
+    when:
+      true: ${!output.tableInvite.forbidden}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: generate-table-invite-link
+            enabled: true
+          timeout: 60000
+      - runFlow:
+          when:
+            true: ${output.tableInvite.offline}
+          commands:
+            - setAirplaneMode: true
+            - tapOn:
+                id: generate-table-invite-link
+            - extendedWaitUntil:
+                visible: ${output.tableInvite.failure}
+                timeout: 120000
+            - setAirplaneMode: false
+      - tapOn:
+          id: generate-table-invite-link
+      # Real native Share UI opens; dismiss without sending the capability to anyone.
+      - extendedWaitUntil:
+          notVisible:
+            id: generate-table-invite-link
+          timeout: 60000
+      - back
+      - extendedWaitUntil:
+          visible:
+            id: table-invite-link-value
+          timeout: 60000
+      # System copy is available in this same Android Share sheet, as in Contacts.
+      - tapOn:
+          id: share-table-invite-link
+      - extendedWaitUntil:
+          notVisible:
+            id: share-table-invite-link
+          timeout: 60000
+      - back
+      - assertVisible:
+          id: table-invite-link-value

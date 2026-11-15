@@ -1,6 +1,7 @@
 import type { User } from "@board-game-organizer/schemas";
 import { claimInviteParamsSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
+import { runRecordOperation } from "@/app/lib/community/record-http";
 import { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb, withTransaction } from "@/app/lib/db";
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
 
   const invite = await new InvitesRepository(db).findByToken(token);
   if (!invite) return corsJson({ error: "Invite not found" }, { status: 404 }, request);
+  if (invite.tableId) {
+    return runRecordOperation(request, (actor, { invites }) => invites.claim(actor, parsed.data));
+  }
   if (invite.inviterUserId === userId) {
     return corsJson({ error: "You cannot claim your own invite" }, { status: 400 }, request);
   }

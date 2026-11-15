@@ -21,7 +21,7 @@ export function InviteCard({
   apiUrl: string;
   protectionBypass?: string | null;
 }) {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, userId, isLoaded, isSignedIn } = useAuth();
   const { t } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
@@ -43,6 +43,7 @@ export function InviteCard({
 
   const create = useInvites({
     apiUrl,
+    userId,
     token,
     getToken,
     protectionBypass,

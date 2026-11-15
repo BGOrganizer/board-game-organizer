@@ -40,6 +40,8 @@ export function corsJson(body: unknown, init: ResponseInit = {}, request?: Reque
 /** OPTIONS preflight response for CORS. Accepts the request so the real
  * Origin header reaches getCorsHeaders (a synthesized request has no origin
  * and would answer `*`, which browsers reject for credentialed requests). */
+export function corsOptions(): Response;
+export function corsOptions(request: Request): Response;
 export function corsOptions(request?: Request) {
   return new Response(null, {
     status: 204,
