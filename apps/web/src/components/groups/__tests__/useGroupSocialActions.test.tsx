@@ -2,6 +2,7 @@ import type { GroupPersonResponse } from "@board-game-organizer/schemas";
 import {
   groupPersonContact,
   groupRecordKeys,
+  relationshipListKey,
   useGroupSocialActions,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -36,8 +37,8 @@ function setup(people = [person]) {
   });
   const key = groupRecordKeys.people(options, "group", "accepted", "");
   client.setQueryData(key, page(people));
-  for (const name of ["following", "followers", "friends", "pending", "sent", "blocked"])
-    client.setQueryData(["contacts", name, options.apiUrl, options.userId], {
+  for (const name of ["following", "followers", "friends", "pending", "sent", "blocked"] as const)
+    client.setQueryData(relationshipListKey(options.apiUrl, options.userId, name), {
       pages: [{ rows: [], nextCursor: null }],
       pageParams: [""],
     });
@@ -140,12 +141,9 @@ it("blocks a second write for the same target but keeps a different target inter
     await a;
   });
   expect(data().pages[0].items.map((row) => row.social?.isFollowing)).toEqual([false, true]);
-  const contacts = client.getQueryData<{ pages: Array<{ rows: Array<{ toUserId: string }> }> }>([
-    "contacts",
-    "following",
-    options.apiUrl,
-    options.userId,
-  ]);
+  const contacts = client.getQueryData<{ pages: Array<{ rows: Array<{ toUserId: string }> }> }>(
+    relationshipListKey(options.apiUrl, options.userId, "following"),
+  );
   expect(contacts?.pages[0].rows.map((row) => row.toUserId)).toEqual(["other"]);
   expect(options.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "follow");
 });
