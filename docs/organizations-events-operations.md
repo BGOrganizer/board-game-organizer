@@ -308,6 +308,9 @@ tag deletion or a claim of successful publication.
 Main verification has no workflow-wide concurrency group: every merge is checked. Release
 preparation is serialized; publication is serialized per release SHA. A newer merge supersedes an
 older delivery without skipping its verification. Release commits use `[skip ci]` to avoid recursion.
+Release preparation verifies the existing `RELEASE_PAT` has repository-admin permission and uses
+it both for the Git remote and semantic-release's `GITHUB_TOKEN`. Authentication retries must retain
+that release identity; the privileged token stays scoped to the validated preparation steps.
 A rerun can resume only the current direct release-bump child of its original validated merge:
 all three manifests may change only version, Expo config only its version, and the changelog must
 prepend exactly the commit's release notes. The stable version must increase and its remote tag

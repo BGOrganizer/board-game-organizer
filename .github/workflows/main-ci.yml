@@ -161,6 +161,8 @@ jobs:
         env:
           RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
         run: |
+          test -n "$RELEASE_PAT"
+          test "$(GH_TOKEN="$RELEASE_PAT" gh api "repos/$GITHUB_REPOSITORY" --jq '.permissions.admin')" = true
           git config --local --unset-all http.https://github.com/.extraheader || true
           git remote set-url origin "https://x-access-token:${RELEASE_PAT}@github.com/${{ github.repository }}.git"
           git config --global user.name "Hermes Bot"
@@ -169,7 +171,8 @@ jobs:
       - name: 🚀 Run semantic-release (SKIP_PUBLISH — release created after the gates)
         if: steps.current.outputs.mode == 'prepare'
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          # Git authentication retries must use the same release identity as origin.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
           SKIP_PUBLISH: "true"
         run: bun run release
 
