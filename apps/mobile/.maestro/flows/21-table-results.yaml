@@ -1,0 +1,114 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Owned provisional Table results and atomic Event finalization
+# MUTATING: owned disposable Development/Preview fixture, exactly one included two-player
+# Table and one excluded Table. Verify APK API target and selected EN/IT locale first.
+# Explicit ACKs mandatory. No mocks, saves to Production, fixtures/reset/provisioning or optional steps.
+tags: [manual, tables, results]
+---
+- runScript: ../helpers/table-results-inputs.js
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: ${output.results.excludedLink}
+- extendedWaitUntil:
+    visible: ${output.results.excluded}
+    timeout: 120000
+- assertNotVisible:
+    id: table-register-result
+- openLink: ${output.results.tableLink}
+- extendedWaitUntil:
+    visible:
+      id: table-register-result
+    timeout: 120000
+- tapOn:
+    id: table-register-result
+- extendedWaitUntil:
+    visible:
+      id: ${output.results.open1}
+    timeout: 120000
+- tapOn:
+    id: ${output.results.open1}
+- tapOn:
+    id: ${output.results.input1}
+- eraseText: 120
+- inputText: "2"
+- hideKeyboard
+- tapOn: ${output.results.done}
+- tapOn:
+    id: ${output.results.open2}
+- tapOn:
+    id: ${output.results.input2}
+- eraseText: 120
+- inputText: "1"
+- hideKeyboard
+- tapOn: ${output.results.done}
+- tapOn: "^(Position|Posizione): #1$"
+- assertVisible: "^(Position|Posizione)$"
+- assertVisible: "^#1$"
+- back
+- tapOn:
+    id: table-save-result
+- extendedWaitUntil:
+    visible:
+      id: table-register-result
+    timeout: 120000
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: ${output.results.tableLink}
+- extendedWaitUntil:
+    visible:
+      id: table-register-result
+    timeout: 120000
+- tapOn:
+    id: table-register-result
+- extendedWaitUntil:
+    visible:
+      id: ${output.results.open1}
+    timeout: 120000
+- tapOn:
+    id: ${output.results.open1}
+- assertVisible:
+    id: ${output.results.input1}
+    text: "2"
+- tapOn:
+    id: ${output.results.input1}
+- eraseText: 120
+- inputText: "3"
+- hideKeyboard
+- tapOn: ${output.results.done}
+- tapOn:
+    id: table-save-result
+- extendedWaitUntil:
+    visible:
+      id: table-register-result
+    timeout: 120000
+- openLink: ${output.results.eventLink}
+- extendedWaitUntil:
+    visible: ${output.results.event}
+    timeout: 120000
+- tapOn:
+    id: event-finalize-results
+- assertVisible: ${output.results.finalizeTitle}
+- tapOn:
+    text: ${output.results.finalize}
+    below:
+      text: ${output.results.finalizeTitle}
+- extendedWaitUntil:
+    visible: ${output.results.terminated}
+    timeout: 120000
+- assertNotVisible:
+    id: event-finalize-results
+- openLink: ${output.results.tableLink}
+- extendedWaitUntil:
+    visible: ${output.results.table}
+    timeout: 120000
+- assertNotVisible:
+    id: table-register-result
+- tapOn: ${output.results.results}
+- assertNotVisible: "^Ranking$"
+- tapOn:
+    text: "^(Global ranking|Ranking globale): .*$"
+    index: 0
+- assertVisible: "^(Global ranking|Ranking globale)$"
+- takeScreenshot: table-results-immutable-after-finalization

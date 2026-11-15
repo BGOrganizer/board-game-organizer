@@ -1,0 +1,308 @@
+import type { NotificationDto } from "@board-game-organizer/schemas";
+import {
+  resolveApiUrl,
+  shouldReadOnNotificationOpen,
+  useNotifications,
+} from "@board-game-organizer/shared";
+import { useAuth } from "@clerk/expo";
+import { useLingui } from "@lingui/react";
+import { useQueryClient } from "@tanstack/react-query";
+import Constants from "expo-constants";
+import * as Notifications from "expo-notifications";
+import { useRouter } from "expo-router";
+import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
+import { Popover } from "heroui-native/popover";
+import { Skeleton } from "heroui-native/skeleton";
+import { Typography } from "heroui-native/text";
+import { Bell, CheckCheck } from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState, Linking, Pressable, View } from "react-native";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
+import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
+import { useT } from "@/lib/i18n";
+import {
+  notificationItemHref,
+  registerMobilePush,
+  requestMobilePushPermission,
+} from "@/lib/notifications/push-notifications";
+
+function apiUrl(): string {
+  return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
+}
+
+export function NotificationBell() {
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const t = useT();
+  const { i18n } = useLingui();
+  const locale = i18n.locale.startsWith("it") ? "it" : "en";
+  const [overlay, foreground, muted] = useThemeColor(["overlay", "foreground", "muted"]);
+  const registrationKey = JSON.stringify([apiUrl(), userId, locale]);
+  const activeRegistration = useRef(registrationKey);
+  activeRegistration.current = registrationKey;
+  const registeredRef = useRef<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [permission, setPermission] = useState<{
+    status: Notifications.PermissionStatus | "unsupported";
+    canAskAgain: boolean;
+  }>({ status: "unsupported", canAskAgain: false });
+  const [pushError, setPushError] = useState(false);
+  const notifications = useNotifications(
+    {
+      apiUrl: apiUrl(),
+      getToken,
+      userId,
+      enabled: isLoaded && Boolean(isSignedIn),
+      locale,
+    },
+    3,
+  );
+  const registerPushSubscription = notifications.registerPush.mutateAsync;
+  const registrationPromiseRef = useRef<{ key: string; promise: Promise<void> } | null>(null);
+
+  const registerPush = useCallback(() => {
+    if (registrationPromiseRef.current?.key === registrationKey)
+      return registrationPromiseRef.current.promise;
+    const previous = registrationPromiseRef.current?.promise;
+    const promise = (async () => {
+      await previous?.catch(() => undefined);
+      if (activeRegistration.current !== registrationKey) return;
+      const result = await registerMobilePush();
+      if (activeRegistration.current !== registrationKey) return;
+      setPermission({
+        status:
+          result.status === "granted"
+            ? Notifications.PermissionStatus.GRANTED
+            : result.status === "denied"
+              ? Notifications.PermissionStatus.DENIED
+              : "unsupported",
+        canAskAgain: result.status === "denied" && result.canAskAgain,
+      });
+      if (result.status !== "granted") {
+        setPushError(result.status === "unsupported");
+        return;
+      }
+      await registerPushSubscription({
+        token: result.token,
+        platform: result.platform,
+        locale,
+      });
+      if (activeRegistration.current !== registrationKey) return;
+      registeredRef.current = registrationKey;
+      setPushError(false);
+    })().finally(() => {
+      if (registrationPromiseRef.current?.key === registrationKey)
+        registrationPromiseRef.current = null;
+    });
+    registrationPromiseRef.current = { key: registrationKey, promise };
+    return promise;
+  }, [registrationKey, locale, registerPushSubscription]);
+
+  const refreshPermission = useCallback(async () => {
+    const result = await Notifications.getPermissionsAsync();
+    setPermission({ status: result.status, canAskAgain: result.canAskAgain });
+    return result;
+  }, []);
+
+  const refreshPermissionAndRegister = useCallback(async () => {
+    const result = await refreshPermission();
+    if (result.status === "granted" && registeredRef.current !== registrationKey && isSignedIn) {
+      await registerPush();
+    }
+  }, [isSignedIn, refreshPermission, registerPush, registrationKey]);
+
+  useEffect(() => {
+    refreshPermissionAndRegister().catch(() => setPushError(true));
+  }, [refreshPermissionAndRegister]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        refreshPermissionAndRegister().catch(() => setPushError(true));
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshPermissionAndRegister]);
+
+  const requestPermissionFromBell = useCallback(async () => {
+    // Do not mount a dismissible popover underneath the OS permission dialog.
+    // Open the inbox once the native prompt settles, even if push is unavailable.
+    const result = await requestMobilePushPermission().finally(() => setIsOpen(true));
+    setPermission({
+      status:
+        result.status === "granted"
+          ? Notifications.PermissionStatus.GRANTED
+          : result.status === "denied"
+            ? Notifications.PermissionStatus.DENIED
+            : "unsupported",
+      canAskAgain: result.status === "denied" && result.canAskAgain,
+    });
+    if (result.status === "granted") {
+      try {
+        if (registeredRef.current !== registrationKey && isSignedIn) await registerPush();
+      } finally {
+        await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      }
+    }
+  }, [isSignedIn, registerPush, queryClient, registrationKey]);
+
+  const openNotification = (notification: NotificationDto) => {
+    if (shouldReadOnNotificationOpen(notification)) notifications.markRead.mutate(notification.id);
+    setIsOpen(false);
+    router.push(notificationItemHref(notification));
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setIsOpen(false);
+      return;
+    }
+    setPushError(false);
+    return requestPermissionFromBell().catch(() => setPushError(true));
+  };
+
+  return (
+    <Popover isOpen={isOpen} onOpenChange={handleOpenChange}>
+      <View
+        style={{
+          width: 44,
+          height: 40,
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "visible",
+        }}
+      >
+        <Popover.Trigger asChild>
+          <Button
+            {...headerButtonProps}
+            variant="ghost"
+            accessibilityLabel={t("Notifications")}
+            testID="notifications-button"
+          >
+            <Bell size={HEADER_ICON_SIZE} color={foreground} />
+          </Button>
+        </Popover.Trigger>
+        <View pointerEvents="none" style={{ position: "absolute", right: 1, top: 1 }}>
+          <NotificationCountBadge count={notifications.unreadCount} counted />
+        </View>
+      </View>
+      <Popover.Portal>
+        <Popover.Overlay />
+        <Popover.Content
+          presentation="popover"
+          placement="bottom"
+          align="end"
+          width={320}
+          className="bg-overlay"
+          background={<Popover.ContentBackground className="bg-overlay" />}
+        >
+          <View style={{ width: "100%", gap: 8 }} className="p-3">
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Popover.Title>{t("Notifications")}</Popover.Title>
+              {notifications.unreadCount > 0 && (
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  accessibilityLabel={t("Mark all as read")}
+                  onPress={() => notifications.markAllRead.mutate()}
+                >
+                  <CheckCheck size={18} color={foreground} />
+                </Button>
+              )}
+            </View>
+
+            {notifications.list.isPending && (
+              <View
+                accessibilityLabel={t("Loading notifications")}
+                style={{ gap: 8, width: "100%" }}
+              >
+                {[0, 1].map((index) => (
+                  <View key={index} style={{ gap: 6, width: "100%" }}>
+                    <Skeleton style={{ height: 16, width: 150, borderRadius: 6 }} />
+                    <Skeleton style={{ height: 12, width: "100%", borderRadius: 6 }} />
+                  </View>
+                ))}
+              </View>
+            )}
+            {notifications.list.isError && (
+              <Typography className="text-sm text-danger">
+                {t("Could not load notifications")}
+              </Typography>
+            )}
+            {!notifications.list.isPending &&
+              !notifications.list.isError &&
+              notifications.notifications.length === 0 && (
+                <EmptyList icon={<Bell size={28} color={muted} />}>
+                  {t("No notifications yet")}
+                </EmptyList>
+              )}
+            {notifications.notifications.slice(0, 3).map((notification) => (
+              <Pressable
+                key={notification.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${notification.title}. ${notification.description}`}
+                onPress={() => openNotification(notification)}
+                className="rounded-lg p-2 active:bg-muted/20"
+                style={{ flexDirection: "row", gap: 8, width: "100%" }}
+              >
+                <NotificationKindIcon kind={notification.kind} size={18} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Typography className="text-sm font-medium" style={{ flexShrink: 1 }}>
+                      {notification.title}
+                    </Typography>
+                    {!notification.readAt && <View className="h-2 w-2 rounded-full bg-accent" />}
+                  </View>
+                  <Typography className="text-xs text-muted" numberOfLines={2}>
+                    {notification.description}
+                  </Typography>
+                  <Typography className="text-[10px] text-muted">
+                    {new Intl.DateTimeFormat(i18n.locale, {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    }).format(new Date(notification.createdAt))}
+                  </Typography>
+                </View>
+              </Pressable>
+            ))}
+
+            {permission.status === "denied" && !permission.canAskAgain && (
+              <Button size="sm" variant="outline" onPress={() => void Linking.openSettings()}>
+                {t("Open notification settings")}
+              </Button>
+            )}
+            {pushError && (
+              <Typography className="text-xs text-danger">
+                {t("Could not enable push notifications")}
+              </Typography>
+            )}
+            {permission.status === "granted" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() => {
+                  setIsOpen(false);
+                  router.push("/notifications");
+                }}
+              >
+                {t("View all notifications")}
+              </Button>
+            )}
+          </View>
+          <Popover.Arrow fill={overlay} />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover>
+  );
+}

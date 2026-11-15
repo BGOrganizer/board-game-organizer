@@ -1,5 +1,30 @@
-appId: com.bgo.mobile
-name: Board Game Organizer
----
-# Maestro E2E flows live in apps/mobile/.maestro/flows
-# Run: maestro test apps/mobile/.maestro/flows
+flows:
+  - "flows/01-launch-welcome.yaml"
+  - "flows/02-login.yaml"
+  - "flows/02-startup-deep-link.yaml"
+  - "flows/05-contacts-follow-block.yaml"
+  - "flows/03-profile-logout.yaml"
+  - "flows/07-reauth-after-logout.yaml"
+  - "flows/06-match-wizard.yaml"
+  - "flows/08-groups.yaml"
+  - "flows/09-group-invitations.yaml"
+  - "flows/10-bgg-collection.yaml"
+  - "flows/12-organizations.yaml"
+  - "flows/13-event-draft.yaml"
+  - "flows/04-dark-mode.yaml"
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - "01-launch-welcome"
+    - "02-login"
+    - "02-startup-deep-link"
+    - "05-contacts-follow-block"
+    - "03-profile-logout"
+    - "07-reauth-after-logout"
+    - "06-match-wizard"
+    - "08-groups"
+    - "09-group-invitations"
+    - "10-bgg-collection"
+    - "12-organizations"
+    - "13-event-draft"
+    - "04-dark-mode"

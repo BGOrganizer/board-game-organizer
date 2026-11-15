@@ -6,12 +6,63 @@ import type { StateCreator } from "zustand";
  */
 export type ThemePreference = "system" | "light" | "dark";
 
+export type ProfileUi = {
+  tab: "activity" | "player" | "collection";
+  gameId: number | null;
+  activityKind: string;
+};
 export interface UiSlice {
+  communityViews: Partial<
+    Record<
+      string,
+      { tab: "activity" | "market"; network: "all" | "friends" | "following"; activityKind: string }
+    >
+  >;
+  setCommunityView: (
+    key: string,
+    patch: Partial<{
+      tab: "activity" | "market";
+      network: "all" | "friends" | "following";
+      activityKind: string;
+    }>,
+  ) => void;
+  profileViews: Partial<Record<string, ProfileUi>>;
+  setProfileView: (key: string, patch: Partial<ProfileUi>) => void;
+  clearProfileViews: () => void;
   themePreference: ThemePreference;
   setThemePreference: (theme: ThemePreference) => void;
 }
 
 export const createUiSlice: StateCreator<UiSlice, [], []> = (set) => ({
+  communityViews: {},
+  setCommunityView: (key, patch) =>
+    set((state) => ({
+      communityViews: {
+        ...state.communityViews,
+        [key]: {
+          tab: "activity",
+          network: "all",
+          activityKind: "",
+          ...state.communityViews[key],
+          ...patch,
+        },
+      },
+    })),
+  profileViews: {},
+  setProfileView: (key, patch) =>
+    set((state) => ({
+      profileViews: {
+        ...state.profileViews,
+        [key]: {
+          tab: "activity",
+          gameId: null,
+          activityKind: "",
+          ...state.profileViews[key],
+          ...patch,
+        },
+      },
+    })),
+  clearProfileViews: () => set({ profileViews: {}, communityViews: {} }),
   themePreference: "system",
   setThemePreference: (themePreference) => set({ themePreference }),
 });

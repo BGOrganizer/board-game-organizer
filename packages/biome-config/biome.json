@@ -1,54 +1,30 @@
 {
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/.expo", "!**/.next", "!**/coverage", "!**/dist", "!**/node_modules"]
+    "includes": [
+      "**",
+      "!**/.expo",
+      "!**/.next",
+      "!**/coverage",
+      "!**/dist",
+      "!**/next-env.d.ts",
+      "!**/node_modules"
+    ]
   },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 100
-  },
-  "assist": {
-    "actions": {
-      "source": {
-        "organizeImports": "on"
-      }
-    }
-  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "javascript": {
-    "formatter": {
-      "quoteStyle": "double",
-      "semicolons": "always",
-      "trailingCommas": "all"
-    }
+    "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all" }
   },
-  "json": {
-    "formatter": {
-      "trailingCommas": "none"
-    }
-  },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
-    }
-  },
+  "json": { "formatter": { "trailingCommas": "none" } },
+  "css": { "parser": { "tailwindDirectives": true } },
   "linter": {
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "correctness": {
-        "useExhaustiveDependencies": "warn",
-        "useHookAtTopLevel": "error"
-      },
-      "style": {
-        "useImportType": "warn"
-      }
+      "correctness": { "useExhaustiveDependencies": "warn", "useHookAtTopLevel": "error" },
+      "style": { "useImportType": "warn" }
     }
   },
   "root": false

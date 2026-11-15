@@ -1,0 +1,8 @@
+appId: com.bgo.boardgameorganizer.dev
+---
+- extendedWaitUntil:
+    visible:
+      id: table-participants-tab
+    timeout: 120000
+- tapOn:
+    id: table-participants-tab

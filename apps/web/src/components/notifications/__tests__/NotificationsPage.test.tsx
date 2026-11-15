@@ -1,0 +1,215 @@
+import { fireEvent, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NotificationsPage } from "@/components/notifications/NotificationsPage";
+import { renderWithI18n } from "@/test-utils";
+
+const mocks = vi.hoisted(() => ({
+  markRead: vi.fn(),
+  markAllRead: vi.fn(),
+  deleteNotification: vi.fn(),
+  deleteAllNotifications: vi.fn(),
+  auth: { userId: "user_1", sessionId: "session_1" },
+  refetch: vi.fn(),
+  fetchNextPage: vi.fn(),
+  state: {} as Record<string, unknown>,
+}));
+
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({
+    getToken: vi.fn(async () => "token"),
+    isLoaded: true,
+    isSignedIn: true,
+    ...mocks.auth,
+  }),
+}));
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
+  resolveApiUrl: (value?: string) => value || "http://localhost:4000",
+  useNotifications: () => mocks.state,
+}));
+
+const item = {
+  id: "0123456789abcdef01234567",
+  kind: "match_invitation",
+  title: "New match invitation",
+  description: "Alex invited you to Catan.",
+  href: "/matches",
+  readAt: null,
+  createdAt: "2026-01-01T10:00:00.000Z",
+};
+
+function setState(overrides: Record<string, unknown> = {}) {
+  mocks.state = {
+    list: {
+      isPending: false,
+      isError: false,
+      isFetchingNextPage: false,
+      refetch: mocks.refetch,
+      fetchNextPage: mocks.fetchNextPage,
+    },
+    notifications: [item],
+    unreadCount: 1,
+    busy: false,
+    isBusy: () => false,
+    hasMore: false,
+    markRead: { mutate: mocks.markRead },
+    markAllRead: { mutate: mocks.markAllRead },
+    deleteNotification: { mutate: mocks.deleteNotification, isPending: false },
+    deleteAllNotifications: { mutate: mocks.deleteAllNotifications, isPending: false },
+    ...overrides,
+  };
+}
+
+describe("NotificationsPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.auth = { userId: "user_1", sessionId: "session_1" };
+    const header = document.createElement("header");
+    header.id = "page-header-actions";
+    document.body.append(header);
+    setState();
+  });
+  afterEach(() => document.getElementById("page-header-actions")?.remove());
+
+  it("renders inbox and marks notifications read", () => {
+    renderWithI18n(<NotificationsPage />);
+    expect(screen.getByRole("heading", { name: "Notifications" })).toBeTruthy();
+    const card = screen.getByText("New match invitation").closest("article");
+    expect(card?.className).toContain("bg-surface");
+    expect(card?.querySelector("svg")?.getAttribute("class")).toContain("lucide-calendar-plus");
+    fireEvent.click(screen.getByText("Mark all as read"));
+    expect(mocks.markAllRead).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByText("New match invitation"));
+    expect(mocks.markRead).toHaveBeenCalledWith(item.id);
+  });
+
+  it("confirms permanent deletion without opening notification", () => {
+    renderWithI18n(<NotificationsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Delete notification" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete notification?" });
+    expect(mocks.markRead).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete notification" }));
+    expect(mocks.deleteNotification).toHaveBeenCalledWith(item.id);
+    expect(screen.queryByRole("dialog", { name: "Delete notification?" })).toBeNull();
+  });
+
+  it("requires confirmation for the app-header action; cancellation never writes", () => {
+    renderWithI18n(<NotificationsPage />);
+    const header = document.getElementById("page-header-actions") as HTMLElement;
+    const button = within(header).getByRole("button", { name: "Delete all notifications" });
+    expect(button.querySelector("svg")?.getAttribute("class")).toContain("lucide-trash");
+    fireEvent.click(button);
+    const dialog = screen.getByRole("dialog", { name: "Delete all notifications?" });
+    expect(within(dialog).getByText("All notifications will be permanently deleted.")).toBeTruthy();
+    expect(mocks.deleteAllNotifications).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mocks.deleteAllNotifications).not.toHaveBeenCalled();
+    fireEvent.click(button);
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Delete all notifications" }),
+    );
+    expect(mocks.deleteAllNotifications).toHaveBeenCalledOnce();
+    expect(mocks.deleteNotification).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it.each([
+    { notifications: [], unreadCount: 0, hasMore: false, busy: false, disabled: true },
+    { notifications: [], unreadCount: 0, hasMore: true, busy: false, disabled: false },
+    { notifications: [item], unreadCount: 0, hasMore: false, busy: false, disabled: false },
+    { notifications: [item], unreadCount: 1, hasMore: false, busy: true, disabled: true },
+  ])("gates bulk deletion on owned inbox availability and conflicting writes (%j)", (state) => {
+    setState(state);
+    renderWithI18n(<NotificationsPage />);
+    expect(
+      (screen.getByRole("button", { name: "Delete all notifications" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(state.disabled);
+  });
+
+  it.each(["userId", "sessionId"] as const)(
+    "does not transfer destructive consent across a changed %s",
+    (field) => {
+      const view = renderWithI18n(<NotificationsPage />);
+      fireEvent.click(screen.getByRole("button", { name: "Delete all notifications" }));
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      mocks.auth[field] = "replacement";
+      view.rerender(<NotificationsPage />);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(mocks.deleteAllNotifications).not.toHaveBeenCalled();
+      mocks.auth[field] = field === "userId" ? "user_1" : "session_1";
+      view.rerender(<NotificationsPage />);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    },
+  );
+
+  it("keeps inbox navigation available while conflicting notification writes stay disabled", () => {
+    setState({
+      busy: true,
+      isBusy: () => true,
+      deleteNotification: { mutate: mocks.deleteNotification, isPending: true },
+    });
+    renderWithI18n(<NotificationsPage />);
+    const link = screen.getByText("New match invitation").closest("a");
+    expect(link?.closest("[inert]")).toBeNull();
+    expect(fireEvent.click(link as HTMLAnchorElement)).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Delete notification" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Mark all as read" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(mocks.markRead).not.toHaveBeenCalled();
+  });
+
+  it("does not block a different notification while one row is updating", () => {
+    const other = { ...item, id: "1123456789abcdef01234567", title: "Other notification" };
+    setState({ busy: true, notifications: [item, other], isBusy: (id: string) => id === item.id });
+    renderWithI18n(<NotificationsPage />);
+    const remove = screen.getAllByRole("button", {
+      name: "Delete notification",
+    }) as HTMLButtonElement[];
+    expect(remove[0].disabled).toBe(true);
+    expect(remove[1].disabled).toBe(false);
+    fireEvent.click(screen.getByText("Other notification"));
+    expect(mocks.markRead).toHaveBeenCalledWith(other.id);
+  });
+  it("renders loading, error retry, and empty states", () => {
+    setState({ list: { isPending: true, isError: false }, notifications: [], unreadCount: 0 });
+    const loading = renderWithI18n(<NotificationsPage />);
+    expect(screen.getByRole("status", { name: "Loading notifications" })).toBeTruthy();
+    loading.unmount();
+
+    setState({
+      list: { isPending: false, isError: true, refetch: mocks.refetch },
+      notifications: [],
+      unreadCount: 0,
+    });
+    const failed = renderWithI18n(<NotificationsPage />);
+    fireEvent.click(screen.getByText("Try again"));
+    expect(mocks.refetch).toHaveBeenCalledOnce();
+    failed.unmount();
+
+    setState({ list: { isPending: false, isError: false }, notifications: [], unreadCount: 0 });
+    renderWithI18n(<NotificationsPage />);
+    expect(screen.getByText("No notifications yet").parentElement?.className).toContain(
+      "text-center",
+    );
+  });
+
+  it("loads another page without a spinner", () => {
+    setState({
+      list: {
+        isPending: false,
+        isError: false,
+        isFetchingNextPage: false,
+        fetchNextPage: mocks.fetchNextPage,
+      },
+      hasMore: true,
+    });
+    renderWithI18n(<NotificationsPage />);
+    fireEvent.click(screen.getByText("Load more"));
+    expect(mocks.fetchNextPage).toHaveBeenCalledOnce();
+  });
+});

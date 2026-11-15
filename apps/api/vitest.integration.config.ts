@@ -12,6 +12,8 @@ export default defineConfig({
   test: {
     include: ["test/integration/**/*.test.ts"],
     environment: "node",
+    // Provider-backed cases install their own mocks; never inherit a local BGG credential.
+    env: { BGG_TOKEN: "" },
     testTimeout: 180_000,
     hookTimeout: 180_000,
     fileParallelism: false,

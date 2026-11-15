@@ -1,0 +1,56 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Owned Group ranking identity, role explanation and searchable game viewport
+# Manual, signed-in accepted member/creator, verified Development/Preview APK.
+# Run once per ADMIN/MODERATOR/MEMBER fixture with real rated Table history.
+# The named game must be on the bounded initial game page; the player is source-paged.
+tags: [manual, groups, rankings]
+---
+- runScript: ../helpers/group-ranking-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.groupRanking.link}
+- extendedWaitUntil:
+    visible: ${output.groupRanking.group}
+    timeout: 120000
+- tapOn: ${output.groupRanking.ranking}
+- extendedWaitUntil:
+    visible:
+      id: rating-game-select-trigger
+    timeout: 120000
+- tapOn:
+    id: rating-game-select-trigger
+- tapOn: ${output.groupRanking.search}
+- inputText: ${output.groupRanking.query}
+- extendedWaitUntil:
+    visible: ${output.groupRanking.game}
+    timeout: 120000
+- assertVisible:
+    id: rating-game-select-popover
+- assertVisible:
+    id: rating-game-select-list
+- takeScreenshot: group-ranking-search-with-keyboard
+- tapOn: ${output.groupRanking.game}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: ${output.groupRanking.row}
+    direction: DOWN
+    timeout: 60000
+    centerElement: true
+- assertVisible:
+    text: ${output.groupRanking.username}
+    childOf:
+      id: ${output.groupRanking.row}
+- assertVisible:
+    text: ${output.groupRanking.role}
+    childOf:
+      id: ${output.groupRanking.row}
+- tapOn:
+    text: ${output.groupRanking.role}
+    childOf:
+      id: ${output.groupRanking.row}
+    # Avatar badge precedes the secondary caption within this exact entity row.
+    index: 0
+- assertVisible: ${output.groupRanking.roles}
+- assertVisible: ${output.groupRanking.role}
+- takeScreenshot: group-ranking-current-role-explanation

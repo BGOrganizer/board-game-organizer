@@ -10,6 +10,11 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.example
+.mcp.json
+google-services.json*
+service-account.json*
 *.log
 .DS_Store
 coverage/
@@ -17,11 +22,17 @@ coverage/
 .specify/
 .clinerules/
 .agents
-skills-lock.json
 
+apps/mobile/android/
 apps/mobile/build-output/
 .vercel/
 test-results/
 playwright-report/
 .pi/
 core.*
+
+/scripts/mongodb/data/
+boardgames_ranks.csv
+/docker/raspberry/
+/compose.raspberry.yaml
+/compose.raspberry.telegram.yaml

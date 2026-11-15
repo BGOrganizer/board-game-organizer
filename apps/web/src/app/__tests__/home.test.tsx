@@ -48,9 +48,9 @@ describe("Home page", () => {
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  it("redirects signed-in users to /matches", async () => {
+  it("redirects signed-in users to /tables", async () => {
     authMock.mockReturnValue({ userId: "user_1" });
     await Home();
-    expect(redirectMock).toHaveBeenCalledWith("/matches");
+    expect(redirectMock).toHaveBeenCalledWith("/tables");
   });
 });

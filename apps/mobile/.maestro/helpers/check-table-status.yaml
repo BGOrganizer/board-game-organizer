@@ -1,0 +1,31 @@
+appId: com.bgo.boardgameorganizer.dev
+---
+- runFlow:
+    file: check-list-status.yaml
+    env:
+      SECTION: history
+      ROW_LABEL: ${output.status.historyCard}
+      OTHER_ROW_LABEL: ${output.status.scheduledCard}
+      EMPTY_TEXT: ${output.status.emptyTables}
+      FAILURE_TEXT: ${output.status.failedTables}
+- scrollUntilVisible:
+    element: ${output.status.filter}
+    direction: UP
+    timeout: 60000
+- tapOn: ${output.status.filter}
+- eraseText: 120
+- inputText: ${output.status.names.history.name}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.status.historyCard}
+    timeout: 120000
+- assertVisible: ${output.status.dates}
+- assertVisible: ${output.status.locations}
+- assertVisible: ${output.status.games}
+- tapOn: ${output.status.tableStatus}
+- assertVisible: ${output.status.winners}
+- assertNotVisible: ${output.status.minimum}
+- assertNotVisible: ${output.status.maximum}
+- assertNotVisible: ${output.status.waiting}
+- takeScreenshot: history-winners-comma-separated
+- back

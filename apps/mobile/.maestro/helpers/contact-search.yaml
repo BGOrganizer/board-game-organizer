@@ -1,0 +1,27 @@
+appId: com.bgo.boardgameorganizer.dev
+---
+- openLink: bgo-dev:///contacts?tab=search
+- extendedWaitUntil:
+    visible:
+      id: "contact-search-input"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Clear search"
+    commands:
+      - tapOn: "Clear search"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "contact-search-input"
+- runScript: contact-email.js
+- inputText: ${CONTACT_EMAIL}
+- assertVisible:
+    id: "contact-search-input"
+    text: ${output.contactEmailPattern}
+- hideKeyboard
+# Search now owns only remote results; the address book is in its separate tab.
+- assertNotVisible: "Device Contacts"
+- extendedWaitUntil:
+    visible: ${CONTACT_ACTIONS}
+    timeout: 90000
+- assertVisible: ${CONTACT_ACTIONS}

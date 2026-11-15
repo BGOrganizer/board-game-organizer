@@ -1,0 +1,61 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Scheduled, Available, Terminated and History with real source filtering
+# Owned Development fixtures only; EN/IT, both themes, enlarged text.
+# No saves, consent bypass, provisioning or successful-response mocks.
+# Offline cases require actual disconnected data/Wi-Fi; completion restores connectivity.
+tags: [manual, tables, events, history]
+onFlowComplete:
+  - setAirplaneMode: false
+---
+- runScript: ../helpers/list-status-inputs.js
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///events
+- extendedWaitUntil:
+    visible: ${output.status.scheduled}
+    timeout: 120000
+- assertVisible: ${output.status.available}
+- assertVisible: ${output.status.terminated}
+- tapOn: ${output.status.scheduled}
+- runFlow:
+    file: ../helpers/check-list-status.yaml
+    env:
+      SECTION: scheduled
+      ROW_LABEL: ${output.status.scheduledCard}
+      OTHER_ROW_LABEL: ${output.status.terminatedCard}
+      EMPTY_TEXT: ${output.status.emptyEvents}
+      FAILURE_TEXT: ${output.status.failedEvents}
+- openLink: bgo-dev:///events?section=available
+- extendedWaitUntil:
+    visible: ${output.status.available}
+    timeout: 120000
+- tapOn: ${output.status.available}
+- runFlow:
+    file: ../helpers/check-list-status.yaml
+    env:
+      SECTION: available
+      ROW_LABEL: ${output.status.availableCard}
+      OTHER_ROW_LABEL: ${output.status.scheduledCard}
+      EMPTY_TEXT: ${output.status.emptyEvents}
+      FAILURE_TEXT: ${output.status.failedEvents}
+- openLink: bgo-dev:///events?section=terminated
+- extendedWaitUntil:
+    visible: ${output.status.terminated}
+    timeout: 120000
+- tapOn: ${output.status.terminated}
+- runFlow:
+    file: ../helpers/check-list-status.yaml
+    env:
+      SECTION: terminated
+      ROW_LABEL: ${output.status.terminatedCard}
+      OTHER_ROW_LABEL: ${output.status.availableCard}
+      EMPTY_TEXT: ${output.status.emptyEvents}
+      FAILURE_TEXT: ${output.status.failedEvents}
+- openLink: bgo-dev:///tables
+- extendedWaitUntil:
+    visible: ${output.status.filter}
+    timeout: 120000
+- assertVisible: ${output.status.history}
+- runFlow: ../helpers/check-table-status.yaml
+- takeScreenshot: event-sections-history

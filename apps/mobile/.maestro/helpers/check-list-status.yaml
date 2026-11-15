@@ -1,0 +1,54 @@
+appId: com.bgo.boardgameorganizer.dev
+---
+- assertNotVisible:
+    id: list-filter-CONFIRMED
+- assertNotVisible:
+    id: list-filter-PLANNING
+- assertNotVisible:
+    id: list-filter-TERMINATED
+- tapOn: ${output.status.filter}
+- eraseText: 120
+- inputText: ${output.status.query}
+- hideKeyboard
+- scrollUntilVisible:
+    element: ${ROW_LABEL}
+    direction: DOWN
+    timeout: 120000
+- assertNotVisible: ${OTHER_ROW_LABEL}
+- scrollUntilVisible:
+    element: ${output.status.filter}
+    direction: UP
+    timeout: 60000
+- tapOn: ${output.status.filter}
+- eraseText: 120
+- inputText: ${output.status.emptyQuery}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${EMPTY_TEXT}
+    timeout: 120000
+- tapOn: ${output.status.clear}
+- extendedWaitUntil:
+    notVisible: ${EMPTY_TEXT}
+    timeout: 120000
+# Fresh uncached query while genuinely offline; no fabricated successful response.
+- setAirplaneMode: true
+- tapOn: ${output.status.filter}
+- inputText: ${output.status.emptyQuery + '-offline-' + SECTION}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${FAILURE_TEXT}
+    timeout: 120000
+- assertNotVisible: ${EMPTY_TEXT}
+- setAirplaneMode: false
+- tapOn: ${output.status.retry}
+- extendedWaitUntil:
+    visible: ${EMPTY_TEXT}
+    timeout: 120000
+- tapOn: ${output.status.clear}
+- tapOn: ${output.status.filter}
+- inputText: ${output.status.query}
+- hideKeyboard
+- scrollUntilVisible:
+    element: ${ROW_LABEL}
+    direction: DOWN
+    timeout: 120000

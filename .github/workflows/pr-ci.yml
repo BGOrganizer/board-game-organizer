@@ -1,24 +1,55 @@
-name: 🚦 PR CI/CD (quality gates → draft prerelease + Telegram)
+name: CI
 
 on:
+  push:
+    branches-ignore: [main]
   pull_request:
     branches: [main]
+
+env:
+  # Explicit operator policy, not acceptance evidence. Main/manual E2E workflows are retired.
+  BGO_PR_E2E_ENABLED: 'false'
 
 permissions:
   contents: read
   actions: read # reuse the last successful APK from a prior run
-  pull-requests: write # preview URL comments on the PR
-  statuses: write # deployment statuses
-  deployments: write # Vercel deployments
 
 concurrency:
-  group: pr-${{ github.event.pull_request.number }}
+  # Routing-only push runs must never cancel the actual PR run.
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('branch-{0}', github.ref) }}
   cancel-in-progress: true
 
 jobs:
-  # ---------------------------------------------------------------- commitlint
+  context:
+    name: Route branch / PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      mode: ${{ steps.route.outputs.mode }}
+      trusted: ${{ steps.route.outputs.trusted }}
+      e2e-enabled: ${{ steps.policy.outputs.e2e-enabled }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: 🔀 Route branch checks or PR pipeline
+        id: route
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/ci-context.mjs
+      - name: 📋 Record explicit E2E policy
+        id: policy
+        run: printf 'e2e-enabled=%s\n' "$BGO_PR_E2E_ENABLED" >> "$GITHUB_OUTPUT"
+
   commitlint:
-    name: 💬 commitlint (Conventional Commits)
+    name: Check commits
+    needs: [context]
+    if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -27,15 +58,29 @@ jobs:
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
-      - name: 💬 Check PR commits
+      - name: 💬 Check eligible commits
+        env:
+          CI_MODE: ${{ needs.context.outputs.mode }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
         run: |
-          npx commitlint --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"
+          set -euo pipefail
+          if [ "$CI_MODE" = pr ]; then
+            bunx --no-install commitlint --from "$PR_BASE" --to "$PR_HEAD"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] && git merge-base --is-ancestor "$BEFORE" "$AFTER" 2>/dev/null; then
+            bunx --no-install commitlint --from "$BEFORE" --to "$AFTER"
+          else
+            bunx --no-install commitlint --from HEAD~1 --to HEAD
+          fi
 
-  # ---------------------------------------------------------------------- lint
   lint:
-    name: 🧹 Biome lint & format
+    name: Lint and CI contracts
+    needs: [context]
+    if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -44,14 +89,18 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🧹 Biome check
-        run: pnpm lint
+        run: bun run lint
 
-  # ----------------------------------------------------------------- typecheck
+      - name: 🔒 Check CI isolation and MapTiler build configuration
+        run: node --test .github/scripts/__tests__/*.test.mjs
+
   typecheck:
-    name: 🧪 TypeScript typecheck
+    name: Typecheck
+    needs: [context]
+    if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -60,19 +109,27 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🧪 tsc --noEmit
-        run: pnpm typecheck
+        run: bun run typecheck
 
-  # --------------------------------------------------------------- unit tests
   unit-tests:
-    name: 🧪 Unit tests (${{ matrix.app }}) + coverage
+    name: Unit tests (${{ matrix.app }})
+    environment: development
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    needs: [context]
+    if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
+    env:
+      WORKSPACE: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('@board-game-organizer/{0}', matrix.app) || matrix.app }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        app: [mobile, web, api, schemas]
+        app: [mobile, web, api, schemas, shared]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -80,30 +137,43 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
-      - name: 🧪 Vitest with coverage
-        run: pnpm --filter ${{ matrix.app }} test:coverage
+      - name: 🧪 Vitest
+        env:
+          TEST_SCRIPT: ${{ needs.context.outputs.mode == 'pr' && 'test:coverage' || 'test' }}
+        run: bun run --filter "$WORKSPACE" "$TEST_SCRIPT"
+
+      - name: 🔏 Verify Codecov signing key
+        if: needs.context.outputs.mode == 'pr'
+        run: bash .github/scripts/prepare-codecov-key.sh
 
       - name: 📤 Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        if: needs.context.outputs.mode == 'pr'
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: apps/${{ matrix.app }}/coverage/lcov.info
+          use_oidc: true
+          files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
           flags: unit,${{ matrix.app }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
       - name: 📤 Upload coverage report
-        if: always()
+        if: always() && !cancelled() && needs.context.outputs.mode == 'pr'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.app }}
-          path: apps/${{ matrix.app }}/coverage/**
+          path: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/**', matrix.app) || format('apps/{0}/coverage/**', matrix.app) }}
           if-no-files-found: warn
 
-  # ------------------------------------------------------- integration tests
   integration-tests:
-    name: 🐳 API integration tests (testcontainers)
+    name: Integration tests (API)
+    environment: development
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    needs: [context]
+    if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -112,150 +182,118 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🐳 Vitest integration (MongoDB in Docker)
-        run: pnpm --filter api test:integration --coverage
+        env:
+          CI_MODE: ${{ needs.context.outputs.mode }}
+        run: |
+          if [ "$CI_MODE" = pr ]; then bun run --filter api test:integration --coverage;
+          else bun run --filter api test:integration; fi
+
+      - name: 🔏 Verify Codecov signing key
+        if: needs.context.outputs.mode == 'pr'
+        run: bash .github/scripts/prepare-codecov-key.sh
 
       - name: 📤 Upload integration coverage to Codecov
-        uses: codecov/codecov-action@v5
+        if: needs.context.outputs.mode == 'pr'
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: apps/api/coverage/lcov.info
           flags: integration
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
       - name: 📤 Upload integration report
-        if: always()
+        if: always() && !cancelled() && needs.context.outputs.mode == 'pr'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-api-integration
           path: apps/api/coverage/**
           if-no-files-found: warn
 
-  # ------------------------------------------------- build api & web (next)
-  build-api-web:
-    name: 🏗️ Build API + Web (next build)
+  # Build in parallel with quality checks; deployments wait for every gate.
+  build-api:
+    name: Build API
+    needs: [context]
+    if: needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
+      - name: 🏗️ Build API
+        run: bun run --filter api build
 
-      - name: 🏗️ Build api
-        run: pnpm --filter api build
-
-      - name: 🏗️ Build web
-        run: pnpm --filter web build
-
-  # --------------------------------------- mobile change detection
-  # If no mobile-affecting file changed vs the base branch, skip the ~25min
-  # EAS APK build and reuse the last successful APK artifact instead.
-  detect-mobile-changes:
-    name: 🔍 Detect mobile changes
+  build-web:
+    name: Build Web
+    needs: [context]
+    if: needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.check.outputs.changed }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-bun
+      - name: 🏗️ Build Web
+        run: bun run --filter web build
 
-      - name: 🔍 Diff mobile-affecting paths
-        id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          # Incremental diff: compare HEAD against the last GREEN pr-ci run on
-          # this branch (not against the PR base — the base diff always
-          # contains every historical mobile commit, so changed would be true
-          # forever and the APK would rebuild on every run).
-          LAST_GREEN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&conclusion=success&per_page=20" --jq '.workflow_runs[] | select(.head_sha != "'"$HEAD_SHA"'") | .head_sha' | head -1 || true)
-          if [ -z "$LAST_GREEN_SHA" ]; then
-            echo "No previous green run → changed=true"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Code that rebuilds the APK: mobile source, the packages the app
-          # imports, and lockfiles, PLUS the CI files that bake env into the
-          # APK (mobile-build action, pr-ci job wiring). Maestro flows and
-          # unit tests are EXCLUDED: new flows or tests without app-code
-          # changes must NOT rebuild.
-          CHANGED=$(
-            git diff --name-only "$LAST_GREEN_SHA"...HEAD -- \
-              apps/mobile \
-              apps/web \
-              packages/shared packages/query packages/store packages/schemas \
-              pnpm-lock.yaml pnpm-workspace.yaml \
-              .github/actions/mobile-build .github/workflows/pr-ci.yml |
-              grep -v '^apps/mobile/\.maestro/' |
-              grep -v '^apps/mobile/src/.*\.(test|spec)\.' |
-              grep -v '__tests__' |
-              wc -l
-          )
-          echo "diff vs $LAST_GREEN_SHA → $CHANGED changed file(s)"
-          if [ "$CHANGED" -gt 0 ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
-
-  # -------------------------------------------------- mobile internal build
+  # Compare against the last successful PR run; ignore unrelated web/API edits.
+  # Reuse APK only when the artifact's own mobile inputs also match HEAD.
   build-mobile-internal:
-    name: 📱 Mobile APK (internal) — build or reuse
-    needs: [detect-mobile-changes, deploy-preview-api]
-    # Build even if the API preview deploy failed: fall back to the repo
-    # variable (EXPO_PUBLIC_API_URL) in that case.
-    if: ${{ !cancelled() && needs.detect-mobile-changes.result == 'success' }}
+    name: "APK (CI): build or reuse"
+    environment: development
+    needs: [context, deploy-preview-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    outputs:
-      reused: ${{ steps.reuse.outputs.reused }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # Reuse compares prior run SHAs; shallow tips have no diffable ancestry.
+          fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
-      - name: ♻️ Find last successful APK
+      - name: ♻️ Find last successful APK build
         id: reuse
-        if: needs.detect-mobile-changes.outputs.changed == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           RUN_ID=""
-          # NOTE: the API ignores conclusion=success as a query filter, so we
-          # must select it in jq — otherwise failed runs (which can still have
-          # an APK artifact when only e.g. lint failed) get picked up.
-          RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&branch=$GITHUB_HEAD_REF&per_page=10" --jq '.workflow_runs[] | select(.conclusion == "success" and .head_sha != "'"$HEAD_SHA"'") | .id')
+          # A failed acceptance run may contain a successful, reusable build.
+          # Require the build job itself to pass; rerun every acceptance gate.
+          RUNS_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&per_page=100" 2>/dev/null) || RUNS_JSON='{}'
+          RUNS=$(echo "$RUNS_JSON" | jq -r --argjson pr "${{ github.event.pull_request.number }}" \
+            '.workflow_runs[]? | select(.path == ".github/workflows/pr-ci.yml" and .status == "completed" and any(.pull_requests[]?; .number == $pr)) | [.id, .head_sha] | @tsv') || RUNS=''
           # ONLY reuse an APK whose SHA has ZERO mobile-relevant diff vs HEAD.
-          # A success run with an APK can be OLDER than the last green SHA the
-          # detect step diffed against (interleaved cancelled/failed runs never
-          # produce an APK), and reusing it would ship stale code silently.
-          MOBILE_PATHS="apps/mobile apps/web packages/shared packages/query packages/store packages/schemas pnpm-lock.yaml pnpm-workspace.yaml .github/actions/mobile-build .github/workflows/pr-ci.yml"
-          for id in $RUNS; do
-            RUN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha')
-            # The checkout is fetch-depth:1, so bring the candidate SHA in.
+          # Compare each artifact's own SHA, never only the last green run.
+          while IFS=$'\t' read -r id RUN_SHA; do
+            [[ "$id" =~ ^[1-9][0-9]*$ && "$RUN_SHA" =~ ^[a-f0-9]{40}$ ]] || continue
             # A rewritten/rebased SHA may no longer exist → skip the candidate
             # instead of crashing the whole job.
-            git fetch --depth 1 origin "$RUN_SHA" >/dev/null 2>&1 || continue
-            CHANGED=$(git diff --name-only "$RUN_SHA".."$HEAD_SHA" -- $MOBILE_PATHS | grep -v '^apps/mobile/\.maestro/' | grep -v '^apps/mobile/src/.*\.\(test\|spec\)\.' | grep -v '__tests__' | wc -l) || continue
-            if [ "$CHANGED" -gt 0 ]; then
-              echo "APK run $id ($RUN_SHA) stale vs HEAD ($CHANGED mobile change(s)) — skipping"
+            git cat-file -e "$RUN_SHA^{commit}" 2>/dev/null || continue
+            CHANGED=$(node .github/scripts/mobile-build-changed.mjs "$RUN_SHA" "$HEAD_SHA") || continue
+            if [ "$CHANGED" = 'true' ]; then
+              echo "APK run $id ($RUN_SHA) has stale mobile inputs — skipping"
               continue
             fi
-            ART=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '.artifacts[] | select(.name=="apk-internal") | .id' 2>/dev/null || true)
+            BUILD_OK=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100" \
+              --jq 'any(.jobs[]; (.name == "APK (CI): build or reuse" or .name == "📱 Mobile APK (internal) — build or reuse") and .conclusion == "success")' 2>/dev/null) || continue
+            [ "$BUILD_OK" = 'true' ] || continue
+            ART=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '.artifacts[] | select(.name=="apk-internal" and .expired==false) | .id' 2>/dev/null || true)
             if [ -n "$ART" ]; then RUN_ID="$id"; break; fi
-          done
+          done <<< "$RUNS"
           echo "run-id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          if [ -n "$RUN_ID" ]; then echo "reused=true" >> "$GITHUB_OUTPUT"; else echo "reused=false" >> "$GITHUB_OUTPUT"; fi
           echo "last reusable APK run: ${RUN_ID:-none}"
 
       - name: 📥 Download reused APK
@@ -267,32 +305,71 @@ jobs:
           run-id: ${{ steps.reuse.outputs.run-id }}
           github-token: ${{ github.token }}
 
+      - name: 🔑 Fingerprint current APK configuration
+        env:
+          APP_VARIANT: development
+          EXPO_UPDATE_CHANNEL: ci-pr-${{ github.event.pull_request.number }}
+          MOBILE_BUILD_PROFILE: internal
+          EXPO_PUBLIC_API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_MAPTILER_API_KEY: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          GOOGLE_SERVICES_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: node .github/scripts/mobile-build-inputs.mjs > "$RUNNER_TEMP/expected-apk-inputs.sha256"
+
+      - name: 🔎 Verify reused APK targets this PR branch
+        id: verify-apk
+        if: steps.reuse.outputs.run-id != ''
+        env:
+          EXPECTED_API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+        run: |
+          if [ -n "$EXPECTED_API_URL" ] && [ "$(cat apps/mobile/build-output/api-url.txt 2>/dev/null)" = "$EXPECTED_API_URL" ] \
+            && cmp -s "$RUNNER_TEMP/expected-apk-inputs.sha256" apps/mobile/build-output/build-inputs.sha256 \
+            && (cd apps/mobile/build-output && test -s apk.sha256 && sha256sum --check apk.sha256); then
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "reused=false" >> "$GITHUB_OUTPUT"
+            rm -rf apps/mobile/build-output
+            echo "APK provenance missing or stale; rebuilding"
+          fi
+
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
-        if: steps.reuse.outputs.run-id == ''
+        if: steps.reuse.outputs.run-id == '' || steps.verify-apk.outputs.reused != 'true'
         uses: ./.github/actions/mobile-build
         with:
+          install-dependencies: 'false' # Cache inspection already installed this checkout.
           profile: internal
+          app-environment: development
+          update-channel: ci-pr-${{ github.event.pull_request.number }}
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          # Option B: point the APK at THIS PR's preview API deployment so
-          # the app talks to the exact code under test. Falls back to the
-          # repo variable when the preview deploy produced no URL.
-          api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
+          api-url: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
+      - name: 🏷️ Record API URL embedded in new APK
+        if: steps.build.outcome == 'success'
+        env:
+          API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+        run: printf '%s\n' "$API_URL" > apps/mobile/build-output/api-url.txt
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-internal
-          path: ${{ steps.reuse.outputs.run-id != '' && 'apps/mobile/build-output' || steps.build.outputs.artifact-path }}
+          path: apps/mobile/build-output/
           retention-days: 7
 
-  # ------------------------------------------------ provision E2E test user
   provision:
-    name: 👤 Provision E2E test users (Clerk API)
+    name: Create E2E users
+    needs: [context, deploy-preview-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
     runs-on: ubuntu-latest
+    environment: development
     outputs:
       username: ${{ steps.provision.outputs.username }}
       email: ${{ steps.provision.outputs.email }}
@@ -300,39 +377,57 @@ jobs:
       user_id: ${{ steps.provision.outputs.user_id }}
       username_2: ${{ steps.provision.outputs.username_2 }}
       email_2: ${{ steps.provision.outputs.email_2 }}
+      phone_2: ${{ steps.provision.outputs.phone_2 }}
       password_2: ${{ steps.provision.outputs.password_2 }}
       user_id_2: ${{ steps.provision.outputs.user_id_2 }}
+      native_username: ${{ steps.native.outputs.username }}
+      native_email: ${{ steps.native.outputs.email }}
+      native_password: ${{ steps.native.outputs.password }}
+      native_user_id: ${{ steps.native.outputs.user_id }}
+      native_username_2: ${{ steps.native.outputs.username_2 }}
+      native_email_2: ${{ steps.native.outputs.email_2 }}
+      native_phone_2: ${{ steps.native.outputs.phone_2 }}
+      native_password_2: ${{ steps.native.outputs.password_2 }}
+      native_user_id_2: ${{ steps.native.outputs.user_id_2 }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 👤 Provision E2E user
+      - name: 👤 Provision web E2E users
         id: provision
         uses: ./.github/actions/provision-e2e-user
         with:
           clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
 
-  # ---------------------------------------------------- Vercel preview API
+      - name: 👤 Provision mobile E2E users
+        id: native
+        uses: ./.github/actions/provision-e2e-user
+        with:
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
+
   deploy-preview-api:
-    name: 🔌 Vercel preview (API)
-    needs: [build-api-web]
+    name: Deploy API (CI)
+    permissions:
+      contents: read
+      pull-requests: write
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
     runs-on: ubuntu-latest
     environment: development
     outputs:
       url: ${{ steps.deploy.outputs.deployment-url }}
+      db-name: ${{ steps.deploy.outputs.ci-db-name }}
+      branch-url: ${{ steps.branch-alias.outputs.url }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+      - name: 🔗 Restore PR branch metadata for Vercel alias
+        run: git switch -C "$GITHUB_HEAD_REF"
 
       - name: 🚀 Deploy to Vercel (preview)
         id: deploy
@@ -346,18 +441,132 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          ci-db-name: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
           # The /invite/<token> claim page is a client component: it needs the
           # Clerk publishable key baked at build time.
           extra-env: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
 
-  # ---------------------------------------------------- Vercel preview web
+      # Persist immutable URL before any CI DB write; cancellation cleanup needs it.
+      - name: 📋 Record isolated API deployment URL
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          test -n "$API_URL"
+          printf '%s\n' "$API_URL" > ci-api-url.txt
+
+      - name: 📤 Preserve URL for cancellation cleanup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-api-url-${{ github.run_attempt }}
+          path: ci-api-url.txt
+          retention-days: 7
+
+      - name: 🔒 Attest API runtime database before any E2E writes
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          EXPECTED_DB: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          BYPASS=$(printf '%s' "$BYPASS" | jq -sRr @uri)
+          test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
+          curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" |
+            jq -e --arg expected "$EXPECTED_DB" '.databaseName == $expected and .webhookDbReady == true and (.webhookDatabaseName | startswith("bgo_ci_") | not)' > /dev/null
+
+      - name: 🌱 Seed isolated CI database
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          DB_NAME: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          BYPASS=$(printf '%s' "$BYPASS" | jq -sRr @uri)
+          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg name "$DB_NAME" '{action:"seed",databaseName:$name}')" |
+            jq -e '.ok == true' > /dev/null
+
+      - name: 🔗 Assign and verify moving PR API alias
+        id: branch-alias
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          EXPECTED_BRANCH: ${{ github.head_ref }}
+          CI_ALIAS: api-pr-${{ github.event.pull_request.number }}-board-game-organizers-projects.vercel.app
+        run: |
+          set -euo pipefail
+          [[ "$CI_ALIAS" =~ ^api-pr-[1-9][0-9]*-board-game-organizers-projects[.]vercel[.]app$ ]] || exit 1
+          info=$(vercel inspect "$DEPLOYMENT_URL" --json --token="$VERCEL_TOKEN")
+          deployment_id=$(jq -er '.id' <<< "$info")
+          vercel api "/v13/deployments/$deployment_id" --raw --token="$VERCEL_TOKEN" |
+            jq -e --arg expected "$EXPECTED_BRANCH" '.meta.githubCommitRef == $expected' > /dev/null || {
+              echo "Vercel deployment has wrong Git branch metadata" >&2
+              exit 1
+            }
+          vercel alias set "$DEPLOYMENT_URL" "$CI_ALIAS" --token="$VERCEL_TOKEN"
+          for attempt in {1..20}; do
+            target=$(vercel inspect "https://$CI_ALIAS" --json --token="$VERCEL_TOKEN" 2>/dev/null) || target='{}'
+            if jq -e --arg id "$deployment_id" '.id == $id and .readyState == "READY"' <<< "$target" > /dev/null; then
+              echo "url=https://$CI_ALIAS" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "PR alias did not resolve to the ready API deployment" >&2
+          exit 1
+
+      - name: 🔗 Point Clerk webhook alias to preview
+        env:
+          GIT_BRANCH: ${{ github.head_ref }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.deployment-url }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          WEBHOOK_ALIAS: clerk-preview-api.board-game-organizer.com
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const { GIT_BRANCH, PREVIEW_URL, VERCEL_ORG_ID, VERCEL_PROJECT_ID, VERCEL_TOKEN, WEBHOOK_ALIAS } = process.env;
+          if (!GIT_BRANCH || GIT_BRANCH === 'main' || !PREVIEW_URL || !VERCEL_ORG_ID || !VERCEL_PROJECT_ID || !VERCEL_TOKEN || WEBHOOK_ALIAS !== 'clerk-preview-api.board-game-organizer.com') {
+            throw new Error('A non-production branch and deployment credentials are required');
+          }
+          const endpoint = `/v9/projects/${VERCEL_PROJECT_ID}/domains/${WEBHOOK_ALIAS}?teamId=${VERCEL_ORG_ID}`;
+          function vercel(args) {
+            try {
+              return execFileSync('vercel', [...args, `--token=${VERCEL_TOKEN}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+            } catch {
+              throw new Error('Vercel webhook alias command failed');
+            }
+          }
+          function readBinding() {
+            const binding = JSON.parse(vercel(['api', endpoint, '--raw']));
+            if (binding.name !== WEBHOOK_ALIAS || binding.verified !== true) {
+              throw new Error('The webhook domain must be verified in the API project');
+            }
+            return binding;
+          }
+          let binding = readBinding();
+          // Do not reconfigure an already-correct binding: Git integration may reject a redundant PATCH.
+          // Preserve preview binding so production deployments cannot reclaim this domain.
+          if (binding.gitBranch !== GIT_BRANCH) {
+            vercel(['api', endpoint, '--method=PATCH', `--raw-field=gitBranch=${GIT_BRANCH}`, '--silent']);
+            binding = readBinding();
+          }
+          if (binding.gitBranch !== GIT_BRANCH) throw new Error('Webhook domain is not bound to the expected Preview branch');
+          vercel(['alias', 'set', PREVIEW_URL, WEBHOOK_ALIAS]);
+          NODE
+
   deploy-preview-web:
-    name: 🌐 Vercel preview (Web)
-    needs: [build-api-web, deploy-preview-api]
-    # Build even if the API preview deploy failed: fall back to the project
-    # env var (NEXT_PUBLIC_API_URL) in that case.
-    if: ${{ !cancelled() && needs.build-api-web.result == 'success' }}
+    name: Deploy Web (CI)
+    permissions:
+      contents: read
+      pull-requests: write
+    needs: [context, build-web, deploy-preview-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -367,9 +576,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
 
       - name: 🚀 Deploy to Vercel (preview)
         id: deploy
@@ -390,47 +596,76 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ needs.deploy-preview-api.outputs.url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
-  # ------------------------------------------------ mirror E2E users into users
   sync-e2e-users:
-    name: 🔄 Mirror E2E users into users collection
-    needs: [provision, deploy-preview-api]
+    name: Mirror E2E users
+    needs: [context, provision, deploy-preview-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
     runs-on: ubuntu-latest
+    environment: development
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: 🔄 Sync actor + target into the preview users collection
+      - name: 🔄 Sync isolated web/mobile actors and targets into the preview users collection
         env:
           API_URL: ${{ needs.deploy-preview-api.outputs.url }}
           BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          USER_ID: ${{ needs.provision.outputs.user_id }}
+          NATIVE_USER_ID: ${{ needs.provision.outputs.native_user_id }}
+          USER_EMAIL: ${{ needs.provision.outputs.email }}
+          USER_ID_2: ${{ needs.provision.outputs.user_id_2 }}
+          USER_EMAIL_2: ${{ needs.provision.outputs.email_2 }}
+          PHONE_2: ${{ needs.provision.outputs.phone_2 }}
+          NATIVE_EMAIL: ${{ needs.provision.outputs.native_email }}
+          NATIVE_USER_ID_2: ${{ needs.provision.outputs.native_user_id_2 }}
+          NATIVE_EMAIL_2: ${{ needs.provision.outputs.native_email_2 }}
+          NATIVE_PHONE_2: ${{ needs.provision.outputs.native_phone_2 }}
+          DB_NAME: ${{ needs.deploy-preview-api.outputs.db-name }}
         run: |
-          # Deterministic mirroring: the Clerk webhook only reaches the
-          # production deployment (which may be on main, without this route),
-          # so CI seeds the preview DB directly via the sync-user endpoint
+          set -euo pipefail
+          # The signed webhook skips E2E users; sync them only into this run's
+          # isolated database via the authenticated admin endpoint.
           # (Bearer == CLERK_SECRET_KEY).
           AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
-          Q="x-vercel-protection-bypass=$BYPASS"
-          curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
-            -H "$AUTH" -H "Content-Type: application/json" \
-            -d '{"clerkId":"${{ needs.provision.outputs.user_id }}","email":"${{ needs.provision.outputs.email }}","name":"E2E Test"}' \
-            && echo "actor synced"
-          curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
-            -H "$AUTH" -H "Content-Type: application/json" \
-            -d '{"clerkId":"${{ needs.provision.outputs.user_id_2 }}","email":"${{ needs.provision.outputs.email_2 }}","name":"E2E Target"}' \
-            && echo "target synced"
+          Q="x-vercel-protection-bypass=$(printf '%s' "$BYPASS" | jq -sRr @uri)"
+          sync_user() {
+            jq -cn --arg id "$1" --arg email "$2" --arg name "$3" --arg phone "$4" \
+              '{clerkId:$id,email:$email,name:$name} + (if $phone == "" then {} else {mobileNumber:$phone} end)' |
+              curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
+                -H "$AUTH" -H 'Content-Type: application/json' -d @- |
+              jq -e '.ok == true' > /dev/null
+          }
+          sync_user "$USER_ID" "$USER_EMAIL" 'E2E Test' ''
+          sync_user "$USER_ID_2" "$USER_EMAIL_2" 'E2E Target' "$PHONE_2"
+          sync_user "$NATIVE_USER_ID" "$NATIVE_EMAIL" 'E2E Test' ''
+          sync_user "$NATIVE_USER_ID_2" "$NATIVE_EMAIL_2" 'E2E Target' "$NATIVE_PHONE_2"
+          for actor in "$USER_ID" "$NATIVE_USER_ID"; do
+            jq -cn --arg userId "$actor" --arg name "$DB_NAME" '{action:"seed-bgg",databaseName:$name,userId:$userId}' |
+              curl -fsS -X POST "$API_URL/api/admin/ci-db?$Q" \
+                -H "$AUTH" -H 'Content-Type: application/json' -d @- |
+              jq -e '.ok == true' > /dev/null
+          done
 
-  # ------------------------------------------------------------- Maestro E2E
   e2e-maestro:
-    name: 🎬 Maestro E2E (mobile)
-    needs: [build-mobile-internal, sync-e2e-users, provision]
+    name: E2E (mobile)
+    # Explicit operator policy; disabled does not establish native acceptance.
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.context.outputs.e2e-enabled == 'true'
+    needs: [context, build-mobile-internal, sync-e2e-users, provision]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      E2E_USERNAME: ${{ needs.provision.outputs.native_username }}
+      E2E_EMAIL: ${{ needs.provision.outputs.native_email }}
+      E2E_PASSWORD: ${{ needs.provision.outputs.native_password }}
+      E2E_TARGET_EMAIL: ${{ needs.provision.outputs.native_email_2 }}
+      E2E_TARGET_USERNAME: ${{ needs.provision.outputs.native_username_2 }}
+      E2E_TARGET_PASSWORD: ${{ needs.provision.outputs.native_password_2 }}
+      E2E_TARGET_PHONE: ${{ needs.provision.outputs.native_phone_2 }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -438,7 +673,7 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: ☕ Set up JDK 17 (Maestro requirement)
         uses: actions/setup-java@v4
@@ -459,34 +694,133 @@ jobs:
           echo "path=$APK" >> "$GITHUB_OUTPUT"
 
       - name: ⚡ Install Maestro CLI
-        run: |
-          curl -Ls "https://get.maestro.mobile.dev" | bash
-          export PATH="$PATH:$HOME/.maestro/bin"
-          maestro --version
+        run: bash .github/scripts/install-maestro.sh
 
-      - name: 🚀 Maestro E2E flows
+      - name: 🛠️ Install Android SDK
+        uses: ./.github/actions/android-emulator
+        with:
+          phase: sdk
+      - name: 🏗️ Create Android AVD
+        uses: ./.github/actions/android-emulator
+        with:
+          phase: avd
+      - name: 📱 Boot shared Android emulator
+        uses: ./.github/actions/android-emulator
+        with:
+          phase: boot
+      - name: 📦 Install APK and verify Clerk callbacks
         uses: ./.github/actions/maestro-e2e
         with:
+          phase: install
           apk-path: ${{ steps.apk.outputs.path }}
-          username: ${{ needs.provision.outputs.username }}
-          password: ${{ needs.provision.outputs.password }}
-          target-email: ${{ needs.provision.outputs.email_2 }}
-          target-username: ${{ needs.provision.outputs.username_2 }}
+      - name: 🔥 Warm native app
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: warm
+      - name: 📒 Seed native address book
+        id: maestro_ready
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: seed
+      - name: 🎬 01 Welcome
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 01-launch-welcome
+      - name: 🎬 02 Login
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 02-login
+      - name: 🎬 02 Startup deep link
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 02-startup-deep-link
+      - name: 🎬 05 Contacts
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 05-contacts-follow-block
+      - name: 🎬 03 Profile and logout
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 03-profile-logout
+      - name: 🎬 07 Reauthentication
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 07-reauth-after-logout
+      - name: 🎬 06 Match wizard
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 06-match-wizard
+      - name: 🎬 08 Groups
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 08-groups
+      - name: 🎬 09 Group invitations
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 09-group-invitations
+      - name: 🎬 10 BGG collection
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 10-bgg-collection
+      - name: 🎬 12 Organizations
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 12-organizations
+      - name: 🎬 13 Event draft
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 13-event-draft
+      - name: 🎬 04 Dark mode
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 04-dark-mode
+      - name: 🔒 Verify all 13 real Maestro reports
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: verify
+      - name: 🧹 Stop shared emulator and preserve diagnostics
+        if: always()
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: cleanup
 
       - name: 📥 Collect Maestro reports (workspace)
-        if: always()
+        if: always() && !cancelled()
         run: |
-          # The maestro-e2e action persists reports into the workspace;
-          # this step only guarantees a summary exists if the action's own
-          # persist step did not (e.g. script exited early on failure).
+          # Preserve only real reports; missing results must never become passing tests.
           mkdir -p maestro-reports maestro-debug
-          ls maestro-reports/*.xml 2>/dev/null | grep -q . || \
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
           echo "---- maestro-reports ----"; ls -la maestro-reports || true
           echo "---- maestro-debug ----"; ls -la maestro-debug || true
 
       - name: 📤 Upload Maestro reports
-        if: always()
+        if: always() && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: maestro-reports
@@ -499,11 +833,13 @@ jobs:
             maestro-rec.mp4
           if-no-files-found: warn
 
-  # ---------------------------------------------------------- Playwright E2E
   e2e-playwright:
-    name: 🎭 Playwright E2E (web)
-    needs: [deploy-preview-web, sync-e2e-users, provision]
+    name: E2E (web)
+    # Explicit operator policy; disabled does not establish web acceptance.
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.context.outputs.e2e-enabled == 'true'
+    needs: [context, deploy-preview-web, sync-e2e-users, provision]
     runs-on: ubuntu-latest
+    environment: development
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -511,7 +847,7 @@ jobs:
           fetch-depth: 1
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
       - name: 🌐 Install Playwright browsers
         working-directory: apps/web
@@ -524,84 +860,319 @@ jobs:
           PLAYWRIGHT_BASE_URL: ${{ needs.deploy-preview-web.outputs.url }}
           E2E_EMAIL: ${{ needs.provision.outputs.email }}
           E2E_EMAIL_2: ${{ needs.provision.outputs.email_2 }}
+          E2E_PHONE_2: ${{ needs.provision.outputs.phone_2 }}
           E2E_USERNAME_2: ${{ needs.provision.outputs.username_2 }}
           # Clerk testing token (global setup) + ticket sign-in helper:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-        run: pnpm test:e2e
+        run: bun run test:e2e
 
       - name: 📤 Upload Playwright report
-        if: always()
+        if: always() && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: apps/web/playwright-report/**
           if-no-files-found: warn
 
-  # ------------------------------------------------ cleanup E2E test users
   cleanup-e2e-user:
-    name: 🗑️ Cleanup E2E test user
-    needs: [provision, e2e-maestro, e2e-playwright]
-    if: always()
-    # Cleanup must never block the PR result: a failure here only means the
-    # next run's orphan sweep (>24h) will take care of it.
-    continue-on-error: true
+    name: Clean E2E users
+    # With both E2E jobs skipped, wait for mirroring before deleting their fixtures.
+    needs: [context, provision, sync-e2e-users, e2e-maestro, e2e-playwright]
+    if: always() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    # Cleanup failure must stay visible; otherwise leaked Clerk users accumulate silently.
     runs-on: ubuntu-latest
+    environment: development
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
       - name: 🗑️ Delete this run's users + sweep stale e2e users
         env:
+          E2E_RUN_KEY: ${{ github.run_id }}_${{ github.run_attempt }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           USER_ID: ${{ needs.provision.outputs.user_id }}
           USER_ID_2: ${{ needs.provision.outputs.user_id_2 }}
+          NATIVE_USER_ID: ${{ needs.provision.outputs.native_user_id }}
+          NATIVE_USER_ID_2: ${{ needs.provision.outputs.native_user_id_2 }}
         run: |
-          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2"
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2" "$NATIVE_USER_ID" "$NATIVE_USER_ID_2"
 
-  # ----------------------------------------------------------- draft release
+  cleanup-e2e-db:
+    name: Clean CI database
+    # Skipped E2E must not let cleanup race remaining CI API consumers.
+    needs: [context, deploy-preview-api, cleanup-e2e-user, build-mobile-internal, deploy-preview-web]
+    if: always() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.deploy-preview-api.outputs.url != ''
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: 🗑️ Clear only this run's database collections
+        env:
+          API_URL: ${{ needs.deploy-preview-api.outputs.url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          DB_NAME: ${{ needs.deploy-preview-api.outputs.db-name }}
+        run: |
+          set -euo pipefail
+          BYPASS=$(printf '%s' "$BYPASS" | jq -sRr @uri)
+          test -n "$DB_NAME" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
+          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg name "$DB_NAME" '{action:"cleanup",databaseName:$name}')" |
+            jq -e '.ok == true' > /dev/null
+
+  # Non-CI Preview runs after quality gates, in parallel with isolated CI Preview.
+  # Development publication never waits for Internal/E2E or its cleanup.
+  deploy-development-api:
+    name: Deploy API (Development)
+    permissions:
+      contents: read
+      pull-requests: write
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    environment: development
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+      branch-url: ${{ steps.client-url.outputs.url }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: 🔗 Restore PR branch metadata
+        run: git switch -C "$GITHUB_HEAD_REF"
+
+      - name: 🚀 Deploy API Preview with development database
+        id: deploy
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: API (Development)
+          app-path: apps/api
+          vercel-environment: preview
+          production: 'false'
+          status-context: vercel/api/development-preview
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          extra-env: |
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+
+      - name: 🔒 Attest non-CI development database
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          BYPASS=$(printf '%s' "$BYPASS" | jq -sRr @uri)
+          test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
+          curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" | \
+            jq -e '.webhookDbReady == true and .webhookDatabaseName == .databaseName and (.databaseName | type) == "string" and (.databaseName | length) > 0 and (.databaseName | startswith("bgo_ci_") | not)' > /dev/null
+
+      - name: 🔗 Resolve stable Development client API URL
+        id: client-url
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/development-api-alias.mjs --url
+
+  deploy-development-web:
+    name: Deploy Web (Development)
+    permissions:
+      contents: read
+      pull-requests: write
+    needs: [context, build-web, deploy-development-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    environment: development
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: 🔗 Restore PR branch metadata
+        run: git switch -C "$GITHUB_HEAD_REF"
+
+      - name: 🚀 Deploy Web against Development API
+        id: deploy
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: Web (Development)
+          app-path: apps/web
+          vercel-environment: preview
+          production: 'false'
+          status-context: vercel/web/development-preview
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          extra-env: |
+            NEXT_PUBLIC_API_URL=${{ needs.deploy-development-api.outputs.branch-url }}
+            NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
+  build-mobile-development:
+    name: Build APK (Development)
+    environment: development
+    needs: [context, deploy-development-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: 🏗️ Build internal APK against development Preview
+        uses: ./.github/actions/mobile-build
+        with:
+          profile: internal
+          app-environment: development
+          update-channel: development
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          api-url: ${{ needs.deploy-development-api.outputs.branch-url }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
+      - name: 🏷️ Record development API URL in APK artifact
+        env:
+          API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+        run: |
+          printf '%s\n' "$API_URL" > apps/mobile/build-output/api-url.txt
+          git rev-parse HEAD > apps/mobile/build-output/source-head.txt
+
+      - name: 📤 Upload development APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-development
+          path: apps/mobile/build-output/
+          retention-days: 7
+
   draft-release:
-    name: 📦 Draft prerelease (APK + changelog) → Telegram
+    name: Publish PR preview and notify
+    # All PRs share the Development OTA lane; keep each verified publication together.
+    concurrency:
+      group: development-publication
+      cancel-in-progress: false
+    # Common quality + Development only. Internal/E2E cannot block publication.
+    if: success() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    environment: development
     needs:
+      - context
       - commitlint
       - lint
       - typecheck
       - unit-tests
       - integration-tests
-      - build-api-web
-      - build-mobile-internal
-      - deploy-preview-api
-      - deploy-preview-web
-      - e2e-maestro
-      - e2e-playwright
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+      - build-api
+      - build-web
+      - deploy-development-api
+      - deploy-development-web
+      - build-mobile-development
     runs-on: ubuntu-latest
     permissions:
       contents: write # create/update the draft release + attach the APK
+      pull-requests: read # refuse stale/closed/untrusted PR publication
+      actions: read
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
 
-      - name: 📥 Download internal APK
+      - name: 📥 Download development APK
         uses: actions/download-artifact@v4
         with:
-          name: apk-internal
+          name: apk-development
           path: apk
+
+      - name: 🔒 Verify APK development API URL
+        env:
+          EXPECTED_API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          EXPECTED_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test -n "$EXPECTED_API_URL" && test "$(cat apk/api-url.txt)" = "$EXPECTED_API_URL"
+          test "$(cat apk/source-head.txt)" = "$EXPECTED_HEAD_SHA"
+          (cd apk && sha256sum --check apk.sha256)
+
+      - name: 🔒 Refuse stale Development publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node .github/scripts/ci-current-pr.mjs
 
       - name: 🔎 Resolve version & APK
         id: meta
         run: |
           echo "version=$(node -p "require('./apps/mobile/app.config.js').expo.version")" >> "$GITHUB_OUTPUT"
           APK=$(find apk -name '*.apk' | head -1)
-          echo "apk-name=$(basename "$APK")" >> "$GITHUB_OUTPUT"
+          # Build uses internal Gradle profile; release asset must identify its development API target.
+          echo "apk-name=$(basename "$APK" -internal.apk)-development.apk" >> "$GITHUB_OUTPUT"
           echo "apk-path=$APK" >> "$GITHUB_OUTPUT"
 
-      - name: 📦 Publish/update draft prerelease
+      - name: ☁️ Upload verified development APK to EAS
+        id: eas
+        working-directory: apps/mobile
+        env:
+          APP_VARIANT: development
+          EXPO_UPDATE_CHANNEL: development
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APK_PATH: ${{ steps.meta.outputs.apk-path }}
+        run: |
+          bun add --global eas-cli@27.7.2
+          node ../../.github/scripts/eas-upload.mjs "$GITHUB_WORKSPACE/$APK_PATH"
+
+      - name: 🔗 Activate Development API after smoke and current PR checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          OTA_SOURCE_SHA: ${{ github.sha }}
+          DEVELOPMENT_API_URL: ${{ needs.deploy-development-api.outputs.url }}
+          DEVELOPMENT_WEB_URL: ${{ needs.deploy-development-web.outputs.url }}
+          VERCEL_API_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          VERCEL_WEB_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          bun add --global vercel@65.14.0
+          node .github/scripts/development-api-alias.mjs
+
+      - name: 📡 Publish verified Development OTA
+        uses: ./.github/actions/mobile-update
+        with:
+          source-sha: ${{ github.sha }}
+          app-environment: development
+          update-channel: development
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          api-url: ${{ needs.deploy-development-api.outputs.branch-url }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
+      - name: 📦 Publish/update public PR prerelease
         id: draft
         uses: ./.github/actions/publish-draft-release
         with:
@@ -613,22 +1184,58 @@ jobs:
           head-sha: ${{ github.event.pull_request.head.sha }}
           apk-path: ${{ steps.meta.outputs.apk-path }}
           apk-name: ${{ steps.meta.outputs.apk-name }}
-          web-preview-url: ${{ needs.deploy-preview-web.outputs.url }}
-          api-preview-url: ${{ needs.deploy-preview-api.outputs.url }}
+          eas-build-url: ${{ steps.eas.outputs.url }}
+          web-preview-url: ${{ needs.deploy-development-web.outputs.url }}
+          api-preview-url: ${{ needs.deploy-development-api.outputs.branch-url }}
 
       - name: 🔗 Compose Telegram links
+        env:
+          EAS_BUILD_URL: ${{ steps.eas.outputs.url }}
         run: |
           cat > /tmp/telegram-links.html <<EOF
-          📱 <a href="${{ steps.draft.outputs.apk_url }}">APK (PR)</a>
-          🌐 <a href="${{ needs.deploy-preview-web.outputs.url }}">Web (preview)</a>
-          🔌 <a href="${{ needs.deploy-preview-api.outputs.url }}">API (preview)</a>
+          📱 <a href="${{ steps.draft.outputs.release_url }}">APK (PR, GitHub)</a>
+          🌐 <a href="${{ needs.deploy-development-web.outputs.url }}">Web (development preview)</a>
+          🔌 <a href="${{ needs.deploy-development-api.outputs.branch-url }}">API (development preview)</a>
           EOF
+          if [ -n "$EAS_BUILD_URL" ]; then
+            printf '☁️ <a href="%s">Build (EAS preview)</a>\n' "$EAS_BUILD_URL" >> /tmp/telegram-links.html
+          fi
+
+      - name: 🔒 Verify current head before Telegram
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node .github/scripts/ci-current-pr.mjs
 
       - name: 📤 Send Telegram notification
         uses: ./.github/actions/telegram-notify
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          title: 🚀 Board Game Organizer — PR #${{ github.event.pull_request.number }} · draft ${{ steps.meta.outputs.version }}-pr.${{ github.event.pull_request.number }}
+          title: 🚀 Development disponibile — PR #${{ github.event.pull_request.number }} · ${{ github.event.pull_request.head.sha }}
           changelog-file: /tmp/pr-changelog.md
           links-file: /tmp/telegram-links.html
+
+  ready:
+    name: ${{ github.event_name == 'pull_request' && 'PR ready' || 'Branch checks' }}
+    if: always() && (github.event_name == 'pull_request' || needs.context.outputs.mode == 'branch')
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api, build-web, deploy-preview-api, deploy-preview-web, build-mobile-internal, provision, sync-e2e-users, e2e-maestro, e2e-playwright, cleanup-e2e-user, cleanup-e2e-db]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: 🔒 Verify mandatory Branch or Internal gates
+        env:
+          CI_MODE: ${{ needs.context.outputs.mode }}
+          PR_E2E_ENABLED: ${{ needs.context.outputs.e2e-enabled }}
+          # Statuses only: never serialize provisioning outputs/credentials into the gate.
+          CI_RESULTS: >-
+            {"context":"${{ needs.context.result }}","commitlint":"${{ needs.commitlint.result }}","lint":"${{ needs.lint.result }}","typecheck":"${{ needs.typecheck.result }}","unit-tests":"${{ needs.unit-tests.result }}","integration-tests":"${{ needs.integration-tests.result }}","build-api":"${{ needs.build-api.result }}","build-web":"${{ needs.build-web.result }}","deploy-preview-api":"${{ needs.deploy-preview-api.result }}","deploy-preview-web":"${{ needs.deploy-preview-web.result }}","build-mobile-internal":"${{ needs.build-mobile-internal.result }}","provision":"${{ needs.provision.result }}","sync-e2e-users":"${{ needs.sync-e2e-users.result }}","e2e-maestro":"${{ needs.e2e-maestro.result }}","e2e-playwright":"${{ needs.e2e-playwright.result }}","cleanup-e2e-user":"${{ needs.cleanup-e2e-user.result }}","cleanup-e2e-db":"${{ needs.cleanup-e2e-db.result }}"}
+        run: node .github/scripts/ci-gate.mjs

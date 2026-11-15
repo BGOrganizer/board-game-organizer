@@ -1,0 +1,121 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Group Event and Table card metadata
+# Explicit existing PRIVATE fixture; actor already signed in, same fixture as web manual scenario.
+# Two Event dates/venues, two Table games. No setup, consent shortcuts, resets or mocked responses.
+tags: [manual, cards]
+---
+- runScript: ../helpers/card-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///groups
+- extendedWaitUntil:
+    visible:
+      id: "list-search-input"
+    timeout: 120000
+- tapOn:
+    id: "list-search-input"
+- eraseText: 120
+- inputText: ${output.cardGroupName}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.cardGroup}
+    timeout: 120000
+- assertVisible: ${output.cardMembers}
+- assertVisible: ${output.cardGroupEvents}
+- assertVisible: ${output.cardPrivate}
+- takeScreenshot: card-group-metadata
+- tapOn: ${output.cardGroup}
+- extendedWaitUntil:
+    visible: ${output.cardGroupTitle}
+    timeout: 120000
+- assertVisible: ${output.cardPrivate}
+- takeScreenshot: card-group-background-identity
+- assertVisible: ${output.cardOverview}
+- assertVisible: ${output.cardRankingTab}
+- tapOn: ${output.cardMembersTab}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardPerson}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardGroupRole}
+- takeScreenshot: card-group-member-identity-role
+- openLink: bgo-dev:///events
+- tapOn:
+    id: "list-search-input"
+- eraseText: 120
+- inputText: ${output.cardEventName}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.cardEvent}
+    timeout: 120000
+- assertVisible: ${output.cardGroupParent}
+- assertVisible: ${output.cardEventTableCount}
+- assertVisible: ${output.cardRoles}
+- tapOn: ${output.cardRoles}
+- assertVisible: ${output.cardEventAccepted}
+- takeScreenshot: card-event-roles-popover
+- back
+- assertNotVisible: ${output.cardEventDatesPopover}
+- assertNotVisible: ${output.cardEventLocationsPopover}
+- tapOn:
+    text: ${output.cardEventState}
+    below:
+      text: ${output.cardGroupParent}
+- takeScreenshot: card-event-planning-readiness
+- back
+- tapOn: ${output.cardEvent}
+- extendedWaitUntil:
+    visible: ${output.cardEventTitle}
+    timeout: 120000
+- takeScreenshot: card-event-background-identity
+- tapOn: ${output.cardParticipantsTab}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardPerson}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardEventRole}
+- takeScreenshot: card-event-participant-avatar-role
+- tapOn: ${output.cardTables}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardTable}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.cardTable}
+- assertVisible: ${output.cardRoles}
+- assertNotVisible: ${output.cardDatesPopover}
+- assertNotVisible: ${output.cardLocationsPopover}
+- assertNotVisible: ${output.cardGamesPopover}
+- takeScreenshot: card-table-planning-metadata
+- tapOn: ${output.cardTable}
+- extendedWaitUntil:
+    visible: ${output.cardTableTitle}
+    timeout: 120000
+- scrollUntilVisible:
+    element:
+      text: ${output.cardRoles}
+      childOf:
+        id: "record-identity-controls"
+    direction: LEFT
+    timeout: 20000
+- tapOn:
+    text: ${output.cardRoles}
+    childOf:
+      id: "record-identity-controls"
+- takeScreenshot: card-table-roles-popover
+- back
+- assertNotVisible: ${output.cardDatesPopover}
+- assertNotVisible: ${output.cardLocationsPopover}
+- assertNotVisible: ${output.cardGamesPopover}
+- tapOn: ${output.cardParticipantsTab}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardPerson}
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${output.cardTableStatus}
+- takeScreenshot: card-table-participant-identity-status
+# Existing real Planning fixtures remain readable through their Event, never through History.
+# Final schedule/game/winner controls are covered by the History/list-status acceptance journey.
