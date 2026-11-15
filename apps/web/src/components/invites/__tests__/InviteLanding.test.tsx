@@ -254,7 +254,9 @@ it("resets stale acceptance drafts after a changed event version", () => {
 });
 it("server page awaits params and keys each invite workflow", async () => {
   const page = await InvitePage({ params: Promise.resolve({ token }) });
-  const child = page.props.children.props.children;
+  const children = page.props.children.props.children;
+  expect(children[0].props.token).toBe(token);
+  const child = children[1];
   expect(child.type).toBe(InviteLanding);
   expect(child.key).toBe(token);
   expect(child.props.token).toBe(token);

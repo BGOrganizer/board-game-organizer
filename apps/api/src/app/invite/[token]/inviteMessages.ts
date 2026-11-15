@@ -1,5 +1,10 @@
 /** Explicit runtime descriptors: this API-hosted page does not use a Babel macro transform. */
 export const inviteMessages = {
+  openApp: { id: "invite.openApp", message: "Open in app" },
+  openAppHint: {
+    id: "invite.openAppHint",
+    message: "If the app is installed, open this invitation there. Otherwise, continue on the web.",
+  },
   title: { id: "invite.title", message: "You have been invited" },
   sessionLoading: { id: "invite.sessionLoading", message: "Loading your session…" },
   loading: { id: "invite.loading", message: "Loading invitation…" },

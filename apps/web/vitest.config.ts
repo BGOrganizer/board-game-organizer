@@ -39,7 +39,7 @@ export default defineConfig({
         fileURLToPath(new URL("../api/src/app/invite/*/InviteProviders.tsx", import.meta.url)),
         fileURLToPath(
           new URL(
-            "../api/src/app/invite/*/{claim,page,InviteLanding,InviteVotes,InviteShell,TableInviteClaim,inviteMessages}.{ts,tsx}",
+            "../api/src/app/invite/*/{claim,page,InviteLanding,InviteVotes,InviteShell,TableInviteClaim,InviteAppLink,inviteMessages}.{ts,tsx}",
             import.meta.url,
           ),
         ),
@@ -47,6 +47,7 @@ export default defineConfig({
           "common/hooks/useListSearch.ts",
           "invites/hooks/useInvites.ts",
           "invites/hooks/useInviteClaim.ts",
+          "invites/hooks/useTableInviteForm.ts",
           "games/hooks/useBggCollectionFilters.ts",
           "organizations/hooks/useOrganizationPeople.ts",
           "organizations/hooks/useOrganizationSocialActions.ts",
@@ -107,19 +108,20 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "../../packages/shared/src/invites/hooks/{useInvites,useInviteClaim}.ts": {
-          lines: 100,
-          functions: 100,
-          branches: 100,
-          statements: 100,
-        },
+        "../../packages/shared/src/invites/hooks/{useInvites,useInviteClaim,useTableInviteForm}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "../api/src/app/invite/*/InviteProviders.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "../api/src/app/invite/*/{claim,page,InviteLanding,InviteVotes,InviteShell,TableInviteClaim,inviteMessages}.{ts,tsx}":
+        "../api/src/app/invite/*/{claim,page,InviteLanding,InviteVotes,InviteShell,TableInviteClaim,InviteAppLink,inviteMessages}.{ts,tsx}":
           {
             lines: 100,
             functions: 100,

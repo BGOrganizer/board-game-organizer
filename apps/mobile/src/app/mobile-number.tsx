@@ -9,7 +9,7 @@ import {
 import { useUser } from "@clerk/expo";
 import { useLingui } from "@lingui/react";
 import * as Localization from "expo-localization";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
@@ -28,7 +28,11 @@ import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { useT } from "@/lib/i18n";
 
+import { inviteDestination } from "@/lib/inviteLinks";
+
 export default function MobileNumberScreen() {
+  const { inviteToken } = useLocalSearchParams<{ inviteToken?: string | string[] }>();
+  const destination = inviteDestination(inviteToken);
   const { isLoaded, user } = useUser();
   const router = useRouter();
   const t = useT();
@@ -66,7 +70,7 @@ export default function MobileNumberScreen() {
   }
 
   if (!user) return <Redirect href="/" />;
-  if (savedMobileNumber) return <Redirect href="/tables" />;
+  if (savedMobileNumber) return <Redirect href={destination} />;
   const currentUser = user;
 
   async function saveMobileNumber() {
@@ -84,7 +88,7 @@ export default function MobileNumberScreen() {
           [MOBILE_NUMBER_METADATA_KEY]: value,
         },
       });
-      router.replace("/tables");
+      router.replace(destination);
     } catch {
       setError(t("Could not save mobile number"));
     } finally {

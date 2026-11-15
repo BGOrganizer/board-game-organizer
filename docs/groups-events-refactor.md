@@ -411,7 +411,15 @@ exceptions retain their explicit authorization boundaries throughout this contra
   while its PRIVATE Event is PLANNING. The first row of Invite players generates and shares/copies
   it with the Contacts interaction on both clients, even when the table is full or the candidate
   list is empty. Links expire after seven days and reserve no seat before acceptance.
-  Existing accounts and new sign-ups return to the API-hosted invitation review. Authentication or
+  Existing accounts and new sign-ups return to the invitation review. Production Android App Links open
+  `/invite/[token]` on the stable Production API domain in the installed Production app; the API-hosted
+  web page also offers Open in app through `bgo` / `bgo-dev`, retaining a browser fallback.
+  Changing Preview hosts use the explicit app action, preserving Development OTA runtime compatibility
+  across PRs instead of embedding a different native link host for each PR. iOS uses the explicit
+  app action; universal-link entitlements require a configured Apple team and domain association.
+  Native sign-in and required profile completion preserve only the validated invitation token,
+  never an arbitrary return URL or API override. The native review uses the same restricted data,
+  explicit consent and preference validation as web, then opens the complete Table from the receipt. Authentication or
   opening the link alone never accepts a contextual invitation. One explicit final acceptance covers
   friendship with the inviter, accepted Group membership and accepted Table participation; required
   multi-option preferences follow the ordinary Table consent rules. The authenticated token review

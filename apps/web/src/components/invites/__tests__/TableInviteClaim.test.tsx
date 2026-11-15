@@ -1,5 +1,6 @@
 import type { TableInviteReviewResponse } from "@board-game-organizer/schemas";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { useTableInviteForm } from "@board-game-organizer/shared";
+import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import {
   eventId,
@@ -238,4 +239,18 @@ it("keeps unknown game metadata and unnamed locations readable without fabricati
   mount(value);
   expect(screen.getByText("Unknown")).toBeTruthy();
   expect(screen.getByText(value.event.locations[0].name)).toBeTruthy();
+});
+
+it("guards direct form submission while disabled or missing canonical settings", async () => {
+  const value = review();
+  value.event.dates = [];
+  const onClaim = vi.fn();
+  const { result, rerender } = renderHook(
+    ({ disabled }) => useTableInviteForm(value, disabled, onClaim),
+    { initialProps: { disabled: true } },
+  );
+  await act(async () => result.current.submit());
+  rerender({ disabled: false });
+  await act(async () => result.current.submit());
+  expect(onClaim).not.toHaveBeenCalled();
 });

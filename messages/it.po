@@ -7313,3 +7313,13 @@ msgstr "Link di invito"
 
 msgid "Could not share the invite. Try again."
 msgstr "Impossibile condividere l’invito. Riprova."
+
+#. js-lingui-explicit-id
+#. defaultMessage: Open in app
+msgid "invite.openApp"
+msgstr "Apri nell’app"
+
+#. js-lingui-explicit-id
+#. defaultMessage: If the app is installed, open this invitation there. Otherwise, continue on the web.
+msgid "invite.openAppHint"
+msgstr "Se l’app è installata, apri l’invito lì. Altrimenti, continua sul web."

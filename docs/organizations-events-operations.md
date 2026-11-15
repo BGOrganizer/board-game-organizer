@@ -385,3 +385,21 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 - When re-enabled, PR Maestro attempts all 13 ordered flows after an earlier flow failure when native preparation succeeded and the run is not cancelled. Each failed step remains failed; final report verification still runs and rejects failed, skipped or missing reports. Shared-session failures may cascade into later flows, so inspect their actual traces before treating each failure as an independent defect.
 - Maestro uses the rendering-enabled Android 34 `google_apis;x86_64` image for Expo Location's Google Play Services provider, selected explicitly even if a cached AOSP or ATD image is present. [ATD images disable hardware rendering](https://developer.android.com/studio/test/managed-devices#use-atds) and remove GUI services; a headless emulator window must not imply a non-rendering Android guest. Keep actual screenshots/video and animated portal assertions; do not substitute longer waits or disable animations to hide missing UI.
 - GitHub native acceptance requires Linux KVM: trigger the job-local device rule with `udevadm trigger --name-match=kvm --settle` before checking read/write permissions and running `emulator -accel-check`. The ordinary trigger is asynchronous; immediate permission checks race rule application. Missing devices or denied permissions fail explicitly with device/runner diagnostics. Keep `-accel on`, never software-CPU fallback. Windows WHPX and shell simulations are not Linux KVM acceptance; verify the real runner before claiming native success.
+
+### Invitation links and native routing
+
+Production Android builds register only `https://api.board-game-organizer.com/invite/` with
+verified App Links. The API exposes `/.well-known/assetlinks.json` with the existing lane's public
+APK signing-certificate SHA-256 and package identity. Key rotation or Google Play App Signing
+requires updating that public fingerprint from the actual distributed signing certificate.
+The domain association must return HTTP 200 JSON without authentication or redirects.
+A fresh Production APK is required to install this native intent filter; OTA cannot add it.
+
+Development Preview hosts change across PRs, so they are not embedded into Android intent filters:
+this keeps Development native runtimes compatible across Preview endpoint changes. The web invitation
+page offers **Open in app**, using the existing Android `bgo-dev` / `bgo` scheme and existing iOS
+`bgo` scheme. It preserves web acceptance for browsers/devices without the app. Browsers or OS
+preferences may retain an HTTPS link on the web; the explicit app action remains available.
+iOS currently uses this action; universal links require Apple team/domain association configuration.
+Native authentication/profile completion retain only the validated invitation token; all reviews and
+claims continue using the installed app's configured API and session, without a link-provided override.

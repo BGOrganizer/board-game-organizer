@@ -702,3 +702,14 @@ The offline case retries after restoring connectivity; restore it manually if a 
 early. Verify the Android Share sheet's copy action manually, as for Contacts. Browser consent,
 friendship/membership and accepted-or-queued registration need their separate browser/API paths;
 native generation or source tests cannot establish those outcomes.
+
+`41-native-table-invite.yaml` covers real native recipient review (single/multiple choices),
+validation, offline retry, expired/revoked links and the existing-account sign-in/profile continuation.
+Use a fresh owned Development token per mode, with `NATIVE_TABLE_INVITE_ACK=owned-preview-native-invite`
+and `NATIVE_TABLE_INVITE_INPUT` containing `token`, `locale` (`en`/`it`), `mode`, `tableName` and
+`positiveLabels` (every multiple-option row's exact positive vote accessibility label). Supported modes:
+`success`, `waiting` (pre-filled table), `incomplete`, `expired`, `revoked`, `offline`, `auth` and
+`onboarding`. Auth uses the provisioned `EMAIL`/`PASSWORD`; onboarding starts with a signed-in recipient
+whose required mobile-number field is missing. Verify the installed API and expected authority first;
+never substitute Production tokens. Check final friendship, Group membership and seat/queue via actual
+API reads. Web's app handoff link does not itself grant any of those consents.

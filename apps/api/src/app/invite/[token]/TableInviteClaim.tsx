@@ -1,32 +1,21 @@
 "use client";
 
-import type {
-  EventVote,
-  InviteReviewResponse,
-  JoinTableInput,
-} from "@board-game-organizer/schemas";
+import type { InviteReviewResponse, JoinTableInput } from "@board-game-organizer/schemas";
 import {
   type ClaimResult,
   eventDateWall,
   eventLocalToIso,
-  eventOptionVotesAreComplete,
-  eventVotingChoices,
   formatUsername,
+  useTableInviteForm,
 } from "@board-game-organizer/shared";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { InviteShell } from "./InviteShell";
 import { InviteVotes } from "./InviteVotes";
 import { inviteMessages as messages } from "./inviteMessages";
 
 type Review = Extract<InviteReviewResponse, { kind: "TABLE" }>;
-type Choices = JoinTableInput["gameVotes"];
-function explicitVotes(choices: Readonly<Record<string, EventVote>> | undefined): Choices {
-  return Object.fromEntries(
-    Object.entries(choices ?? {}).filter(([, vote]) => vote !== "UNKNOWN"),
-  ) as Choices;
-}
 export function TableInviteClaim({
   review,
   busy,
@@ -44,31 +33,19 @@ export function TableInviteClaim({
 }) {
   const { i18n } = useLingui();
   const { event, table } = review;
-  const gameOptions = useMemo(
-    () => table.games.map((game) => ({ id: String(game.gameId) })),
-    [table.games],
-  );
-  const [dateVotes, setDates] = useState<Choices>(() =>
-    eventVotingChoices(event.dates, explicitVotes(review.ownAvailability?.dateVotes)),
-  );
-  const [locationVotes, setLocations] = useState<Choices>(() =>
-    eventVotingChoices(event.locations, explicitVotes(review.ownAvailability?.locationVotes)),
-  );
-  const [gameVotes, setGames] = useState<Choices>(() =>
-    eventVotingChoices(gameOptions, explicitVotes(review.ownRegistration?.gameVotes)),
-  );
-  const [attempted, setAttempted] = useState(false);
-  const inFlight = useRef(false);
-  const alreadyAccepted = review.ownRegistration?.status === "ACCEPTED";
-  const complete =
-    alreadyAccepted ||
-    ((!review.requiresAvailability ||
-      (eventOptionVotesAreComplete(event.dates, dateVotes) &&
-        eventOptionVotesAreComplete(event.locations, locationVotes))) &&
-      eventOptionVotesAreComplete(gameOptions, gameVotes));
-  const settingsReady =
-    alreadyAccepted ||
-    (event.dates.length > 0 && event.locations.length > 0 && table.games.length > 0);
+  const {
+    dateVotes,
+    locationVotes,
+    gameVotes,
+    setDates,
+    setLocations,
+    setGames,
+    attempted,
+    alreadyAccepted,
+    complete,
+    settingsReady,
+    submit,
+  } = useTableInviteForm(review, busy || disabled, onClaim);
   const dateFormat = useMemo(
     () =>
       new Intl.DateTimeFormat(i18n.locale, {
@@ -78,40 +55,6 @@ export function TableInviteClaim({
       }),
     [i18n.locale, event.timeZone],
   );
-  const submit = async () => {
-    if (inFlight.current) return;
-    if (!complete) {
-      setAttempted(true);
-      return;
-    }
-    inFlight.current = true;
-    try {
-      await onClaim({
-        consent: true,
-        ...(alreadyAccepted
-          ? {}
-          : {
-              participation: {
-                version: event.version,
-                gameVotes: eventVotingChoices(gameOptions, gameVotes),
-                ...(review.requiresAvailability
-                  ? {
-                      availability: {
-                        version: event.version,
-                        dateVotes: eventVotingChoices(event.dates, dateVotes),
-                        locationVotes: eventVotingChoices(event.locations, locationVotes),
-                      },
-                    }
-                  : {}),
-              },
-            }),
-      });
-    } catch {
-      // The shared mutation exposes its authoritative failure; keep the reviewed choices for retry.
-    } finally {
-      inFlight.current = false;
-    }
-  };
   return (
     <InviteShell title={i18n._(messages.tableTitle)}>
       <div>

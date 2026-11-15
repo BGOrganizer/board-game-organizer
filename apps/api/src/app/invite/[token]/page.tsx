@@ -1,4 +1,5 @@
 import { ClerkProvider } from "@clerk/nextjs";
+import { InviteAppLink } from "./InviteAppLink";
 import { InviteLanding } from "./InviteLanding";
 import { InviteProviders } from "./InviteProviders";
 
@@ -15,6 +16,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   return (
     <ClerkProvider publishableKey={publishableKey}>
       <InviteProviders>
+        <InviteAppLink token={token} production={process.env.VERCEL_ENV === "production"} />
         <InviteLanding key={token} token={token} />
       </InviteProviders>
     </ClerkProvider>

@@ -59,6 +59,10 @@ async function open(page: Page, link: string) {
   if (process.env.VERCEL_PROTECTION_BYPASS)
     url.searchParams.set("x-vercel-set-bypass-cookie", "true");
   await page.goto(url.href);
+  await expect(page.getByRole("link", { name: "Open in app", exact: true })).toHaveAttribute(
+    "href",
+    `bgo-dev://${url.pathname}`,
+  );
   await page.waitForFunction(() => Reflect.get(window, "Clerk")?.loaded);
   expect(
     await page.evaluate(() => Reflect.get(window, "Clerk").publishableKey.startsWith("pk_test_")),

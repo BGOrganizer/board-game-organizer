@@ -146,3 +146,21 @@ it("rejects unreadable Firebase files without printing file contents", () => {
   vi.stubEnv("GOOGLE_SERVICES_JSON", join(folder, "missing.json"));
   expect(config).toThrow("Cannot read GOOGLE_SERVICES_JSON as a Firebase app configuration");
 });
+
+it("claims only Production invite HTTPS links without embedding changing Preview hosts", () => {
+  vi.stubEnv("APP_VARIANT", "production");
+  expect(config().android.intentFilters).toEqual([
+    {
+      action: "VIEW",
+      autoVerify: true,
+      data: [{ scheme: "https", host: "api.board-game-organizer.com", pathPrefix: "/invite/" }],
+      category: ["BROWSABLE", "DEFAULT"],
+    },
+  ]);
+  vi.stubEnv("APP_VARIANT", "development");
+  for (const host of ["https://preview-one.vercel.app", "https://preview-two.vercel.app"]) {
+    vi.stubEnv("EXPO_PUBLIC_API_URL", host);
+    expect(config().android.intentFilters).toBeUndefined();
+    expect(config().android.scheme).toBe("bgo-dev");
+  }
+});
