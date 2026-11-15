@@ -27,7 +27,7 @@ jobs:
         run: bun run typecheck
 
       - name: 🔒 CI isolation contract
-        run: node --test .github/scripts/__tests__/*.test.mjs
+        run: node --test --experimental-test-coverage --test-coverage-include='scripts/release/*format.mjs' --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100 .github/scripts/__tests__/*.test.mjs
 
   coverage:
     name: Unit tests and coverage (${{ matrix.app }})
@@ -329,6 +329,8 @@ jobs:
       cancel-in-progress: false
     outputs:
       release_url: ${{ steps.publish.outputs.release_url }}
+      apk_url: ${{ steps.publish.outputs.apk_url }}
+      pr_number: ${{ steps.publish.outputs.pr_number }}
       eas_build_url: ${{ steps.eas.outputs.url }}
     steps:
       - name: 📥 Checkout pinned release commit (full history)
@@ -425,6 +427,7 @@ jobs:
           fi
     permissions:
       contents: write
+      pull-requests: read
     environment: production
 
   notify-telegram:
@@ -451,37 +454,21 @@ jobs:
           git fetch --no-tags origin main
           test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
 
-      - name: 📥 Fetch release changelog
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.release.outputs.version }}
+      - name: 📖 Read pinned release changelog
         run: |
           set -euo pipefail
-          curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" \
-            | jq -r '.body' > /tmp/changelog.md
-
-      - name: 🔗 Compose Telegram links
-        env:
-          VERSION: ${{ needs.release.outputs.version }}
-          RELEASE_URL: ${{ needs.publish-release.outputs.release_url }}
-          EAS_BUILD_URL: ${{ needs.publish-release.outputs.eas_build_url }}
-        run: |
-          cat > /tmp/telegram-links.html <<EOF
-          📱 <a href="$RELEASE_URL">APK (GitHub)</a>
-          🌐 <a href="https://board-game-organizer.com">Web (produzione)</a>
-          🔌 <a href="https://api.board-game-organizer.com">API (produzione)</a>
-          EOF
-          if [ -n "$EAS_BUILD_URL" ]; then
-            printf '☁️ <a href="%s">Build (EAS production)</a>\n' "$EAS_BUILD_URL" >> /tmp/telegram-links.html
-          fi
+          git log -1 --format=%b > /tmp/changelog.md
 
       - name: 📤 Send Telegram notification
         uses: ./.github/actions/telegram-notify
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          title: 🚀 Board Game Organizer v${{ needs.release.outputs.version }} — release
+          app-environment: production
+          version: ${{ needs.release.outputs.version }}
+          pr-number: ${{ needs.publish-release.outputs.pr_number }}
+          release-url: ${{ needs.publish-release.outputs.release_url }}
+          apk-url: ${{ needs.publish-release.outputs.apk_url }}
+          web-url: https://board-game-organizer.com
           changelog-file: /tmp/changelog.md
-          links-file: /tmp/telegram-links.html
     environment: production

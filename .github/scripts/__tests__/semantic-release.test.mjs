@@ -31,8 +31,8 @@ test("the installed release generator renders the configured changelog without p
   );
   for (const text of [
     "1.4.0",
-    "✨ Nuove funzionalità",
-    "🐛 Bug fix",
+    "✨ Features",
+    "🐛 Bug Fixes",
     "♻️ Refactoring",
     "🔧 CI/CD",
     "explain simultaneous roles",
@@ -50,7 +50,37 @@ test("the real analyzer preserves conventional release levels and broader scopes
     ["feat(release+mobile): publish verified updates", "minor"],
     ["fix: repair release notes", "patch"],
     ["feat!: change the public contract", "major"],
+    ["fix(release+mobile)!: change a required contract", "major"],
+    ["docs: explain the replacement\n\nBREAKING CHANGE: Use the new contract.", "major"],
     ["refactor: simplify release internals", null],
   ])
     assert.equal(await analyzeCommits(options, context([message])), expected, message);
+});
+
+test("all supported change types use ordered English sections and linked commit references", async () => {
+  const sections = [
+    ["feat", "✨ Features"],
+    ["fix", "🐛 Bug Fixes"],
+    ["perf", "⚡ Performance"],
+    ["refactor", "♻️ Refactoring"],
+    ["style", "🎨 Style"],
+    ["docs", "📚 Documentation"],
+    ["test", "🧪 Tests"],
+    ["ci", "🔧 CI/CD"],
+    ["build", "📦 Build"],
+    ["chore", "🧹 Chores"],
+    ["revert", "⏪ Reverts"],
+  ];
+  const input = context(
+    sections.toReversed().map(([type]) => `${type}(release): explain ${type} change`),
+  );
+  const notes = await generateNotes(plugin("@semantic-release/release-notes-generator"), input);
+  let previous = -1;
+  for (const [, section] of sections) {
+    const position = notes.indexOf(`### ${section}`);
+    assert(position > previous, `Missing or unordered release section: ${section}`);
+    previous = position;
+  }
+  for (const { hash } of input.commits)
+    assert(notes.includes(`https://github.com/BGOrganizer/board-game-organizer/commit/${hash}`));
 });

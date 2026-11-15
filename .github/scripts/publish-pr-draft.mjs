@@ -4,6 +4,11 @@ import { appendFileSync, createReadStream, openAsBlob, statSync, writeFileSync }
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import {
+  isDevelopmentReleaseName,
+  releaseBody,
+  releaseTitle,
+} from "../../scripts/release/release-format.mjs";
 import { requireCurrentPr } from "./ci-current-pr.mjs";
 
 function https(value, host) {
@@ -71,7 +76,8 @@ export async function publishDevelopmentDraft(
     !/^[1-9][0-9]*$/.test(String(input.attempt)) ||
     typeof input.title !== "string" ||
     !input.title.trim() ||
-    input.title.length > 256
+    input.title.length > 256 ||
+    !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(input.sourceSha ?? "")
   )
     throw new Error("Invalid Development release identity");
   const web = https(input.webUrl),
@@ -109,18 +115,22 @@ export async function publishDevelopmentDraft(
     return response.status === 204 ? null : response.json();
   }
   const canonicalTag = `development-pr-${input.number}`,
-    name = `board-game-organizer-development-pr.${input.number}`,
+    name = releaseTitle({ ...input, environment: "development" }),
     owner = `<!-- bgo:development-pr=${input.number} -->`,
     legacyName = new RegExp(`^board-game-organizer-v[\\w.+-]+-pr\\.${input.number}$`);
   let release;
   for (let page = 1; !release; page++) {
     const rows = await call(`${api}/releases?per_page=100&page=${page}`);
     release = rows.find(
-      (row) => row.name === name || row.tag_name === canonicalTag || legacyName.test(row.name),
+      (row) =>
+        isDevelopmentReleaseName(row.name, input.number) ||
+        row.tag_name === canonicalTag ||
+        legacyName.test(row.name),
     );
     if (release || rows.length < 100) break;
   }
-  const managed = release?.name === name && release?.body?.includes(owner);
+  const managed =
+    isDevelopmentReleaseName(release?.name, input.number) && release?.body?.includes(owner);
   if (release && (!release.prerelease || (!release.draft && !managed)))
     throw new Error("Refusing to replace an unrelated or stable release");
   const tag = release?.tag_name || canonicalTag;
@@ -159,27 +169,17 @@ export async function publishDevelopmentDraft(
   const apkUrl = `https://github.com/${input.repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`;
   await publishTag(tag, input.headSha, current, Boolean(managed));
   await current();
-  const body = [
-    owner,
-    "## Development preview disponibile",
-    "",
-    `**PR:** #${input.number} — ${input.title}`,
-    `**Commit:** [${input.headSha}](https://github.com/${input.repository}/tree/${input.headSha})`,
-    "",
-    "Questa pubblicazione non certifica il superamento del flusso Internal/E2E.",
-    `[Stato verifiche Internal e merge](https://github.com/${input.repository}/actions/runs/${input.runId})`,
-    "",
-    "### Development",
-    `- **APK:** [${assetName}](${apkUrl})`,
-    `- **SHA256:** ${digest}`,
-    `- **Web:** ${web}`,
-    `- **API:** ${apiUrl}`,
-    ...(eas ? [`- **EAS:** ${eas}`] : []),
-    "",
-    "### Changelog",
-    "",
-    input.changelog,
-  ].join("\n");
+  const body = releaseBody({
+    ...input,
+    environment: "development",
+    sha: input.sourceSha,
+    checksum: digest,
+    apkUrl,
+    webUrl: web,
+    apiUrl,
+    easUrl: eas,
+    notes: input.changelog,
+  });
   const published = await call(`${api}/releases/${release.id}`, "PATCH", {
     name,
     tag_name: tag,
@@ -254,6 +254,7 @@ async function main() {
   const result = await publishDevelopmentDraft({
     ...identity,
     title: e.PR_TITLE,
+    sourceSha: e.APK_SOURCE_SHA,
     version: e.APP_VERSION,
     apkName: e.APK_NAME,
     apkPath: e.APK_PATH,

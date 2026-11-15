@@ -300,6 +300,19 @@ notes generator and commit analyzer; a passing PR-note renderer alone does not v
 The PR title must also be Conventional Commit syntax when choosing squash, because the single
 squash commit determines the release level. A normal merge retains the original analyzed commits.
 
+New Development and Production publications share English titles, metadata, downloads and
+Conventional Commit sections with linked commit hashes. PR notes use only `base..head`; Production
+notes retain the interval since the prior stable release. The same installed notes generator owns
+both formats without changing version analysis. Existing releases, messages and historical changelog
+entries are not reformatted. See [release helpers](../scripts/release/README.md).
+
+Telegram sends one bounded English excerpt with the same categories and commit references. Its
+links target the PR, verified direct APK download, Web app and complete release; API and optional
+EAS links appear only in the GitHub release. Production links only the merged PR associated with the
+original workflow-triggering merge SHA, not every PR since the preceding version. A direct Main
+push without such an association omits the PR link. Notification metadata comes from verified
+publication receipts, and notes come from the pinned release commit rather than the full release body.
+
 The removed `mobile-e2e.yml` is not a remaining manual GitHub gate. Maestro/Playwright suites and
 retained disabled PR hooks still exist for explicitly owned local acceptance. Losing automatic E2E
 means that green coverage, builds and smoke **do not attest** native startup, keyboard, permissions,

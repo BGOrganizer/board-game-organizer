@@ -11,8 +11,9 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { releaseBody, releaseTitle } from "../../scripts/release/release-format.mjs";
 
-function publication(input, request) {
+async function publication(input, request) {
   if (
     !/^[\w.-]+\/[\w.-]+$/.test(input.repository ?? "") ||
     !/^[a-f0-9]{40}$/.test(input.sha ?? "") ||
@@ -29,15 +30,17 @@ function publication(input, request) {
   const api = `https://api.github.com/repos/${input.repository}`;
   const tag = `v${input.version}`,
     owner = `<!-- bgo:production=${input.sha};version=${input.version} -->`;
-  const body = [
-    owner,
-    input.notes.trim(),
-    "## 🚀 Production",
-    "- **Web:** https://board-game-organizer.com",
-    "- **API:** https://api.board-game-organizer.com",
-    "- **APK:** allegato alla release",
-    ...(input.easUrl ? [`- **Build EAS:** ${input.easUrl}`] : []),
-  ].join("\n\n");
+  const apk = await artifact(input);
+  const apkUrl = `https://github.com/${input.repository}/releases/download/${tag}/${apk.name}`;
+  const title = releaseTitle({ ...input, environment: "production" });
+  const body = releaseBody({
+    ...input,
+    environment: "production",
+    apkUrl,
+    checksum: apk.digest.slice(7),
+    webUrl: "https://board-game-organizer.com",
+    apiUrl: "https://api.board-game-organizer.com",
+  });
   async function call(path, method = "GET", value, upload = false) {
     const response = await request(path.startsWith("https://") ? path : `${api}${path}`, {
       method,
@@ -74,7 +77,7 @@ function publication(input, request) {
       !Number.isSafeInteger(release?.id) ||
       release.id < 1 ||
       release.tag_name !== tag ||
-      release.name !== tag ||
+      (release.name !== title && release.name !== tag) ||
       release.target_commitish !== input.sha ||
       release.prerelease !== false ||
       typeof release.draft !== "boolean" ||
@@ -89,7 +92,7 @@ function publication(input, request) {
       throw new Error("Invalid Production release URL");
     return expected;
   };
-  return { api, tag, owner, body, call, current, owned, url };
+  return { api, tag, owner, title, body, apk, apkUrl, call, current, owned, url };
 }
 
 async function artifact(input) {
@@ -127,15 +130,15 @@ function matches(asset, expected) {
 }
 function sameNotes(release, expected) {
   return (
-    release.body.replace(/^- \*\*Build EAS:\*\* .+\n?/gm, "").trim() ===
-    expected.replace(/^- \*\*Build EAS:\*\* .+\n?/gm, "").trim()
+    release.body.replace(/^- \*\*(?:Build EAS|EAS):\*\* .+\n?/gm, "").trim() ===
+    expected.replace(/^- \*\*(?:Build EAS|EAS):\*\* .+\n?/gm, "").trim()
   );
 }
 
 /** Keep this release private until its owned APK, notes and links are verified, before OTA. */
 export async function stageProductionRelease(input, request = fetch) {
-  const p = publication(input, request),
-    apk = await artifact(input);
+  const p = await publication(input, request),
+    apk = p.apk;
   await p.current();
   let release;
   for (let page = 1; !release; page++) {
@@ -150,7 +153,7 @@ export async function stageProductionRelease(input, request = fetch) {
       await p.call("/releases", "POST", {
         tag_name: p.tag,
         target_commitish: input.sha,
-        name: p.tag,
+        name: p.title,
         draft: true,
         prerelease: false,
         body: p.body,
@@ -163,7 +166,13 @@ export async function stageProductionRelease(input, request = fetch) {
   if (!release.draft) {
     if (!matches(asset, apk) || !sameNotes(release, p.body))
       throw new Error("Published Production release differs from this verified artifact");
-    return { release_id: release.id, release_url: p.url(release), already_published: true };
+    return {
+      release_id: release.id,
+      release_url: p.url(release),
+      apk_url: p.apkUrl,
+      ...(input.number ? { pr_number: String(input.number) } : {}),
+      already_published: true,
+    };
   }
   if (asset && !matches(asset, apk)) {
     if (!Number.isSafeInteger(asset.id) || asset.id < 1) throw new Error("Invalid owned draft APK");
@@ -187,13 +196,19 @@ export async function stageProductionRelease(input, request = fetch) {
     if (!release.draft || release.body !== p.body)
       throw new Error("Production staging changed unexpectedly");
   }
-  return { release_id: release.id, release_url: p.url(release), already_published: false };
+  return {
+    release_id: release.id,
+    release_url: p.url(release),
+    apk_url: p.apkUrl,
+    ...(input.number ? { pr_number: String(input.number) } : {}),
+    already_published: false,
+  };
 }
 
 /** Publish only the same fully staged release after the verified Production OTA succeeds. */
 export async function publishProductionRelease(input, staged, request = fetch) {
-  const p = publication(input, request),
-    apk = await artifact(input);
+  const p = await publication(input, request),
+    apk = p.apk;
   if (!Number.isSafeInteger(staged?.release_id) || staged.release_id < 1)
     throw new Error("Verified private release required");
   await p.current();
@@ -214,7 +229,48 @@ export async function publishProductionRelease(input, staged, request = fetch) {
     );
     if (release.draft) throw new Error("Production release did not become public");
   }
-  return { release_url: p.url(release) };
+  return {
+    release_url: p.url(release),
+    apk_url: p.apkUrl,
+    ...(input.number ? { pr_number: String(input.number) } : {}),
+  };
+}
+
+/** Select only the merged PR whose merge commit triggered this Main run. */
+export async function findTriggerPullRequest({ repository, sha, token }, request = fetch) {
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? "") || !/^[a-f0-9]{40}$/.test(sha ?? "") || !token)
+    throw new Error("Verified release trigger required");
+  const matches = new Set();
+  for (let page = 1; ; page++) {
+    const response = await request(
+      `https://api.github.com/repos/${repository}/commits/${sha}/pulls?per_page=100&page=${page}`,
+      {
+        method: "GET",
+        redirect: "error",
+        signal: AbortSignal.timeout(30_000),
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+      },
+    );
+    if (!response.ok) throw new Error("Release pull request lookup failed");
+    const rows = await response.json();
+    if (!Array.isArray(rows)) throw new Error("Invalid release pull request response");
+    for (const row of rows) {
+      if (
+        row.merge_commit_sha !== sha ||
+        !row.merged_at ||
+        row.state !== "closed" ||
+        row.base?.ref !== "main" ||
+        row.base?.repo?.full_name !== repository
+      )
+        continue;
+      if (!Number.isSafeInteger(row.number) || row.number < 1)
+        throw new Error("Invalid release pull request number");
+      matches.add(row.number);
+    }
+    if (rows.length < 100) break;
+  }
+  if (matches.size > 1) throw new Error("Ambiguous release pull request");
+  return [...matches][0];
 }
 
 export async function runProductionRelease(
@@ -225,6 +281,16 @@ export async function runProductionRelease(
   if (!["stage", "publish"].includes(action)) throw new Error("Expected stage or publish");
   if (execute("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim() !== env.RELEASE_SHA)
     throw new Error("Pinned Production checkout required");
+  const file = env.RELEASE_STATE_FILE ?? "/tmp/production-release.json";
+  const staged = action === "publish" ? JSON.parse(readFileSync(file, "utf8")) : undefined;
+  const number =
+    staged?.pr_number ||
+    (env.GITHUB_SHA
+      ? await findTriggerPullRequest(
+          { repository: env.GITHUB_REPOSITORY, sha: env.GITHUB_SHA, token: env.GH_TOKEN },
+          request,
+        )
+      : undefined);
   const input = {
     repository: env.GITHUB_REPOSITORY,
     token: env.GH_TOKEN,
@@ -233,14 +299,14 @@ export async function runProductionRelease(
     artifactDir: env.ARTIFACT_DIR ?? "apk",
     easUrl: env.EAS_BUILD_URL ?? "",
     notes: execute("git", ["log", "-1", "--format=%b"], { encoding: "utf8" }).trim(),
+    number,
+    runId: env.GITHUB_RUN_ID,
   };
-  const file = env.RELEASE_STATE_FILE ?? "/tmp/production-release.json";
   let result;
   if (action === "stage") {
     result = await stageProductionRelease(input, request);
     writeFileSync(file, `${JSON.stringify(result)}\n`);
-  } else
-    result = await publishProductionRelease(input, JSON.parse(readFileSync(file, "utf8")), request);
+  } else result = await publishProductionRelease(input, staged, request);
   if (env.GITHUB_OUTPUT)
     appendFileSync(
       env.GITHUB_OUTPUT,
