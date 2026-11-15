@@ -1,3 +1,14 @@
+## [1.4.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.4.0...v1.4.1) (2026-11-15)
+
+### 🐛 Bug Fixes
+
+* **ci:** unify release notes and Telegram notifications ([2c1ff50](https://github.com/BGOrganizer/board-game-organizer/commit/2c1ff506249b75748cae33b6623cc3fe2120998b))
+* **contacts:** isolate paginated social cache identities ([7dee1f3](https://github.com/BGOrganizer/board-game-organizer/commit/7dee1f37bf9dae66d95ee8406c01686d0b9f8af7))
+
+### 🧪 Tests
+
+* **contacts:** use canonical cache keys in social fixtures ([338f7ca](https://github.com/BGOrganizer/board-game-organizer/commit/338f7caccff6d5e5692e7f53565b33ec1273467d))
+
 ## [1.4.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.3.2...v1.4.0) (2026-11-15)
 
 ### ✨ Nuove funzionalità
