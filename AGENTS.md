@@ -99,6 +99,18 @@ There is no root test script. `bun run build` does not build native binaries.
 See [README setup](README.md#get-started), [dependency updates](docs/development.md#dependency-updates)
 and each app's instructions. Do not run imports/migrations merely as ordinary validation.
 
+### Raspberry resource limits
+
+The Raspberry is a shared, resource-constrained host; saturation can make it unreachable over the
+network. Run at most one heavy local job at a time across all agents and worktrees, including
+dependency installation, coverage, typechecks, builds, browser/device tests and large transfers.
+Coordinate ownership before starting another job. Use one test worker and run application builds
+sequentially; do not run the root parallel build on this host. Keep heavy browsers and Android
+emulators on remote runners, and use CI for full suites that exceed the local budget. Monitor
+available RAM, CPU load and network activity; stop owned work if pressure rises, then resume
+sequentially. Parallel agents may inspect or edit independent worktrees, but may not launch
+concurrent heavy commands. Report interrupted checks as incomplete rather than passing.
+
 ## 4. Architecture and UI ownership
 
 - Keep Next.js and Expo Router entry files in their apps. Keep DOM/HeroUI web and React Native/
