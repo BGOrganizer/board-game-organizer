@@ -17,7 +17,11 @@ const styles = {
 };
 
 /** Both clients scale this same 240px drawing; display size never changes the seeded artwork. */
-export function createResourceArtwork(kind: ResourceArtworkKind, seed: string): ResourceArtwork {
-  const { svg, options } = new Avatar(styles[kind], { seed, animationVariant: "medium" }).toJSON();
+export function createResourceArtwork(
+  kind: ResourceArtworkKind,
+  seed: string,
+  animationVariant: "medium" | "none" = "medium",
+): ResourceArtwork {
+  const { svg, options } = new Avatar(styles[kind], { seed, animationVariant }).toJSON();
   return { svg, options: { ...options } };
 }

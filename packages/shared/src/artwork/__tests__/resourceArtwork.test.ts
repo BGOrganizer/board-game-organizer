@@ -82,3 +82,16 @@ it.each([
     }
   }
 });
+
+it.each(Object.keys(approved) as ResourceArtworkKind[])(
+  "offers static %s artwork without changing any seeded drawing options",
+  (kind) => {
+    const animated = createResourceArtwork(kind, "resource-123", "medium");
+    const reduced = createResourceArtwork(kind, "resource-123", "none");
+    expect(reduced.options).toEqual({ ...animated.options, animationVariant: "none" });
+    expect(reduced.svg).not.toContain("@keyframes");
+    expect(reduced.svg).not.toContain("<style");
+    expect(reduced.svg).toContain('viewBox="0 0 240 240"');
+    expect(reduced).toEqual(createResourceArtwork(kind, "resource-123", "none"));
+  },
+);
