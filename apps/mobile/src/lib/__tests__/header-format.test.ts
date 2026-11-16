@@ -40,10 +40,10 @@ it("keeps the centered indicator outside card navigation and the Table legend on
   expect(card).toContain("controls={controls}");
   expect(card).toContain("controlsDisabled={controlsDisabled}");
   const cover = source("common/ui/ListCardCoverContent");
-  expect(cover).toContain("<ScrollView");
-  expect(cover).toContain("horizontal");
+  expect(cover).not.toContain("<ScrollView");
+  expect(cover).toContain('flexWrap: "wrap"');
   expect(cover).toContain('justifyContent: "flex-end"');
-  expect(cover).toContain('pointerEvents={controlsDisabled ? "none" : "auto"}');
+  expect(cover).toContain('pointerEvents={controlsDisabled ? "none" : "box-none"}');
   expect(card).toContain('pointerEvents="none"');
   expect(card).toContain('flexWrap: "wrap"');
   expect(card).toContain('alignItems: "center"');

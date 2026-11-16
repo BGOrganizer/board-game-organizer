@@ -19,7 +19,7 @@ it.each(["group", "event"] as const)(
       );
     };
     const view = renderWithI18n(card());
-    const footer = view.container.querySelector(".overflow-x-auto");
+    const footer = view.container.querySelector('[data-slot="card-controls"]');
     const footerClasses = footer?.className;
     expect(footer).not.toBeNull();
     const fact = kind === "group" ? "1 Member" : "1 Table";
@@ -32,7 +32,7 @@ it.each(["group", "event"] as const)(
       ["failed", "Not saved"],
     ] as const) {
       view.rerender(card(phase));
-      expect(view.container.querySelector(".overflow-x-auto")).toBe(footer);
+      expect(view.container.querySelector('[data-slot="card-controls"]')).toBe(footer);
       expect(footer?.className).toBe(footerClasses);
       expect(screen.getByLabelText(info)).toBe(infoNode);
       expect(infoNode.parentElement).toBe(infoParent);
@@ -54,7 +54,7 @@ it.each(["group", "event"] as const)(
       }
     }
     view.rerender(card());
-    expect(view.container.querySelector(".overflow-x-auto")).toBe(footer);
+    expect(view.container.querySelector('[data-slot="card-controls"]')).toBe(footer);
     expect(footer?.hasAttribute("inert")).toBe(false);
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.getByText(fact)).toBeTruthy();
