@@ -399,14 +399,15 @@ is deployed so Android can verify it.
 
 Development APIs keep their changing per-PR endpoints. Canonical invite links still point at the
 API that created them. Only an owned non-CI Development alias on a Preview server may additionally advertise a stable
-`appLink`, after a credential-free, bounded and cached GET of the public association verifies the
-Development package/fingerprint. Local, CI, immutable and Production origins make no such probe.
+`appLink`, after credential-free, bounded public checks verify the association's Development
+package/fingerprint and the managed publication below. Creation caches the publication proof for
+300 seconds. Local, CI, immutable and Production origins make no such probe.
 Until that public deployment is ready, generation returns the original working Preview link.
 Existing Preview links retain their explicit app action; newly generated links can use automatic
 native routing once the association and fresh APK are installed.
 
 The public Development route redirects browsers only to an exact `/invite/<same token>` on an
-owned `api-development-pr-N-board-game-organizers-projects.vercel.app` HTTPS origin, without
+published `api-development-pr-N-board-game-organizers-projects.vercel.app` HTTPS origin, without
 credentials, ports, query strings or fragments. No token is claimed by that route. Native URL
 rewriting discards all incoming parameters and uses the installed app's configured API/session;
 it never forwards Development authentication to Production or switches API from the link.
@@ -414,3 +415,20 @@ The web invitation page retains **Open in app** via Android `bgo-dev` / `bgo` an
 browser or OS preference retains the HTTPS link. Preview browser pages retain their existing
 Vercel protection. iOS universal links require Apple team/domain association configuration.
 Native authentication/profile completion retain only the validated invitation token.
+
+The Vercel alias suffix is a naming convention, not an ownership guarantee. Before browser redirects,
+fresh credential-free requests to fixed endpoints in the public `BGOrganizer/board-game-organizer`
+GitHub repository must verify an open or merged same-repository PR targeting `main` and the managed
+public `development-pr-N` prerelease. Its target commit must equal that PR's current head, its body
+must contain the managed PR marker and exact API link. The publisher's authenticated alias check
+before publication is the ownership receipt's trust root. Missing, revoked, mismatched or unavailable
+proof returns 503 with `Retry-After`; malformed gateway URLs return 400. Neither invitation tokens
+nor client authentication, cookies or Preview bypass are sent to GitHub. Public GitHub rate limits
+apply (60 anonymous requests/hour per originating IP); installed Android App Links bypass this
+browser gateway, while creation reuses the bounded public cache.
+
+Never release, transfer or delete a Development alias while its managed release is public. Withdraw
+the publication first, close an unmerged PR as appropriate, and allow at least 300 seconds plus
+outstanding request lifetimes before any alias reassignment. Current cleanup does not delete these
+aliases; Vercel retention protects currently aliased deployments. Merged PR publications remain
+eligible so links can activate when the Production gateway is first deployed after merge.

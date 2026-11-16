@@ -5,6 +5,9 @@ import { GET, OPTIONS } from "../[token]/route";
 import { POST as claim } from "../claim/route";
 import { POST as create } from "../route";
 
+vi.mock("@/app/lib/invites/development-invite-publication", () => ({
+  developmentInvitePublication: vi.fn().mockResolvedValue("eligible"),
+}));
 const state = vi.hoisted(() => ({
   userId: "user_viewer" as string | null,
   transaction: vi.fn(),

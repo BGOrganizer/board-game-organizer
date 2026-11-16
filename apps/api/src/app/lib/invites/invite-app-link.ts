@@ -4,10 +4,12 @@ import {
   isDevelopmentInviteOrigin,
 } from "@board-game-organizer/shared";
 import { appLinkAssociation } from "./app-link-association";
+import { developmentInvitePublication } from "./development-invite-publication";
 
 /** Public readiness only: no authentication, database/user data or Preview bypass is forwarded. */
 export async function inviteAppLinkReady(origin: string): Promise<boolean> {
   if (process.env.VERCEL_ENV !== "preview" || !isDevelopmentInviteOrigin(origin)) return false;
+  if ((await developmentInvitePublication(origin, true)) !== "eligible") return false;
   try {
     const response = await fetch(`${inviteAppOrigin}/.well-known/assetlinks.json`, {
       credentials: "omit",

@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as claimPOST } from "@/app/api/invites/claim/route";
 import { POST } from "@/app/api/invites/route";
 
+vi.mock("@/app/lib/invites/development-invite-publication", () => ({
+  developmentInvitePublication: vi.fn().mockResolvedValue("eligible"),
+}));
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
 vi.mock("@/app/lib/db", () => ({
   getDb: vi.fn(),

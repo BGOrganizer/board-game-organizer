@@ -417,8 +417,10 @@ exceptions retain their explicit authorization boundaries throughout this contra
   New Development share links can use `/development/invite/[token]` on the same stable public
   domain with a separate native filter, preserving changing Preview API endpoints and cross-PR OTA
   compatibility. Canonical links remain on their creating API; an optional stable link is advertised
-  only after public association readiness is verified without credentials. Its browser fallback is
-  restricted to the same token on the exact owned non-CI Development alias. Before public deployment,
+  only after public association and managed-publication readiness are verified without credentials.
+  Its browser fallback requires fresh public publication proof and is restricted to the same token
+  on the exact published non-CI Development alias; [operational gates](organizations-events-operations.md)
+  define proof validation and alias retention. Before public deployment,
   generation keeps the original Preview link; existing Preview links retain the explicit app action.
   A fresh APK and public association deployment are required for automatic routing. iOS uses the
   explicit app action; universal-link entitlements require Apple team/domain association configuration.

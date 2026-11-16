@@ -66,10 +66,15 @@ intended replica set within an authorized migration scope.
 Invite tokens are 128-bit base64url values with seven-day expiry. Creation links always use `new
 URL(request.url).origin`; preview APIs create preview links and production creates production links.
 A trusted non-CI Development alias on a Preview server may also return an optional `appLink` on the stable public
-Production domain after a credential-free public association check confirms deployment readiness.
+Production domain after credential-free public association and managed-publication checks confirm readiness.
 The canonical `link` stays on the receiving API. The public `/development/invite/[token]` route
-only redirects to an exact matching token on an owned Development alias; it reads no database and
+only redirects to an exact matching token on a published Development alias; it reads no database and
 receives no authentication or bypass credentials. Native clients retain their own configured API.
+The alias suffix alone is not ownership proof: fixed public GitHub endpoints must confirm an open
+or merged same-repository PR targeting `main`, plus its managed public `development-pr-N` prerelease
+with matching current head and API origin. Creation caches this proof for 300 seconds; browser
+redirects require fresh proof and fail closed with 503/Retry-After when unavailable or ineligible.
+Preserve the alias retention/withdrawal invariant in the [operational gates](../../docs/organizations-events-operations.md).
 Claim UI is hosted by the API at `/invite/[token]`, uses Clerk modal sign-in, and claims with a
 Bearer token. Successful claim connects both users.
 

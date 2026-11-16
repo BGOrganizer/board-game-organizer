@@ -1,11 +1,18 @@
 import { developmentInviteAppLink, inviteAppOrigin } from "@board-game-organizer/shared";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { appLinkAssociation } from "../app-link-association";
+import { developmentInvitePublication } from "../development-invite-publication";
 import { inviteAppLinkReady, inviteLinkFields } from "../invite-app-link";
 
+vi.mock("../development-invite-publication", () => ({
+  developmentInvitePublication: vi.fn().mockResolvedValue("eligible"),
+}));
 const origin = "https://api-development-pr-25-board-game-organizers-projects.vercel.app";
 const token = "abcdefghijklmnopqrstuv";
-beforeEach(() => vi.stubEnv("VERCEL_ENV", "preview"));
+beforeEach(() => {
+  vi.stubEnv("VERCEL_ENV", "preview");
+  vi.mocked(developmentInvitePublication).mockResolvedValue("eligible");
+});
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -26,6 +33,7 @@ it("probes only public association readiness without credentials, redirects or p
   const request = vi.fn().mockResolvedValue(Response.json(appLinkAssociation(true)));
   vi.stubGlobal("fetch", request);
   expect(await inviteAppLinkReady(origin)).toBe(true);
+  expect(developmentInvitePublication).toHaveBeenCalledWith(origin, true);
   expect(request).toHaveBeenCalledWith(`${inviteAppOrigin}/.well-known/assetlinks.json`, {
     credentials: "omit",
     redirect: "error",
@@ -34,6 +42,16 @@ it("probes only public association readiness without credentials, redirects or p
     headers: { Accept: "application/json" },
   });
 });
+it.each(["ineligible", "unavailable"] as const)(
+  "keeps the canonical link for a %s public release",
+  async (status) => {
+    vi.mocked(developmentInvitePublication).mockResolvedValue(status);
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    expect(await inviteAppLinkReady(origin)).toBe(false);
+    expect(request).not.toHaveBeenCalled();
+  },
+);
 it.each([
   new Response("not deployed", { status: 404 }),
   Response.json(null),
