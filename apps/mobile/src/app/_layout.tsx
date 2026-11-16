@@ -137,6 +137,10 @@ function RootNavigator() {
             name="mobile-number"
             options={titleOptions(t("Complete your profile"), Phone)}
           />
+          <Stack.Screen
+            name="invite/[token]"
+            options={titleOptions(t("Review table invitation"), Dices)}
+          />
           <Stack.Screen name="notifications" options={titleOptions(t("Notifications"), Bell)} />
           <Stack.Screen name="profile" options={titleOptions(t("Profile"), UserRound)} />
           <Stack.Screen

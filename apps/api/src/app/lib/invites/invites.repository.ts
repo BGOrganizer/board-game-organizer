@@ -1,16 +1,12 @@
 import { randomBytes } from "node:crypto";
-import type { Invite, InviteStatus } from "@board-game-organizer/schemas";
+import type { Invite, InviteStatus, TableInviteClaimReceipt } from "@board-game-organizer/schemas";
 import { INVITE_TTL_DAYS } from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
 /**
- * Repository over the `invites` collection (Phase 3).
- *
- * An invite is a shareable link with a unique token, valid for
- * INVITE_TTL_DAYS. Claiming connects the claimer with the inviter: when the
- * invite carries an email and it matches the authenticated user, they become
- * friends; otherwise the claimer follows the inviter.
+ * Single-use tokens with INVITE_TTL_DAYS validity. The source transaction creates
+ * mutual friendship and any contextual membership/registration before consuming the token.
  */
 export class InvitesRepository {
   constructor(
@@ -36,11 +32,12 @@ export class InvitesRepository {
     return INVITE_TTL_DAYS * 24 * 60 * 60 * 1000;
   }
 
-  async create(inviterUserId: string, email?: string): Promise<Invite> {
+  async create(inviterUserId: string, email?: string, tableId?: string): Promise<Invite> {
     const now = new Date();
     const invite: Omit<Invite, "_id"> = {
       token: InvitesRepository.generateToken(),
       inviterUserId,
+      ...(tableId ? { tableId } : {}),
       ...(email ? { email } : {}),
       status: "pending",
       expiresAt: new Date(now.getTime() + InvitesRepository.ttlMs()),
@@ -64,7 +61,11 @@ export class InvitesRepository {
   }
 
   /** Mark an invite as claimed (idempotent: only pending invites transition). */
-  async claim(token: string, claimedByUserId: string): Promise<Invite | null> {
+  async claim(
+    token: string,
+    claimedByUserId: string,
+    tableReceipt?: TableInviteClaimReceipt,
+  ): Promise<Invite | null> {
     const now = new Date();
     const result = await this.col.findOneAndUpdate(
       { token, status: "pending", expiresAt: { $gt: now } },
@@ -73,6 +74,7 @@ export class InvitesRepository {
           status: "claimed" as InviteStatus,
           claimedAt: now,
           claimedByUserId,
+          ...(tableReceipt ? { tableReceipt } : {}),
         },
       },
       { returnDocument: "after", ...this.opts },

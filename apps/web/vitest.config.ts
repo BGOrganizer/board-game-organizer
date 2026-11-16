@@ -36,8 +36,19 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       allowExternal: true,
       include: [
+        fileURLToPath(new URL("../api/src/app/invite/layout.tsx", import.meta.url)),
+        fileURLToPath(new URL("../api/src/app/invite/*/InviteProviders.tsx", import.meta.url)),
+        fileURLToPath(
+          new URL(
+            "../api/src/app/invite/*/{claim,page,InviteLanding,InviteVotes,InviteShell,TableInviteClaim,InviteAppLink,inviteMessages}.{ts,tsx}",
+            import.meta.url,
+          ),
+        ),
         ...[
           "common/hooks/useListSearch.ts",
+          "invites/hooks/useInvites.ts",
+          "invites/hooks/useInviteClaim.ts",
+          "invites/hooks/useTableInviteForm.ts",
           "games/hooks/useBggCollectionFilters.ts",
           "organizations/hooks/useOrganizationPeople.ts",
           "organizations/hooks/useOrganizationSocialActions.ts",
@@ -92,6 +103,38 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../api/src/app/invite/layout.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/TableInviteLinkRow.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/invites/hooks/{useInvites,useInviteClaim,useTableInviteForm}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
+        "../api/src/app/invite/*/InviteProviders.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../api/src/app/invite/*/{claim,page,InviteLanding,InviteVotes,InviteShell,TableInviteClaim,InviteAppLink,inviteMessages}.{ts,tsx}":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "src/components/profile/{ProfileIdentity,ProfileVersion}.tsx": {
           lines: 100,
           functions: 100,

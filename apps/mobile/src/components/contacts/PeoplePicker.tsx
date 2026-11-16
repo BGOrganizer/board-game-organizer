@@ -11,6 +11,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { UserRoundPlus, UsersRound } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -20,6 +21,7 @@ import { UserRelationshipBadge } from "@/components/common/ui/UserRelationshipBa
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 export function PeoplePicker({
+  children,
   friendsOnly,
   invitationGroupId,
   invitationTable,
@@ -27,6 +29,7 @@ export function PeoplePicker({
   excludeIds = [],
   onSelect,
 }: {
+  children?: ReactNode;
   friendsOnly: boolean;
   invitationGroupId?: string;
   invitationTable?: { eventId: string; tableId: string };
@@ -60,27 +63,30 @@ export function PeoplePicker({
       keyExtractor={(person) => person.id}
       contentContainerStyle={{ padding: 20, flexGrow: 1, paddingBottom: insets.bottom + 24 }}
       header={
-        <ListSearch
-          query={filters.query}
-          onQueryChange={filters.setQuery}
-          label={
-            invitationTable && !friendsOnly
-              ? t("Search members")
-              : friendsOnly
-                ? t("Search friends")
-                : t("Search users")
-          }
-          placeholder={
-            invitationTable && !friendsOnly
-              ? t("Search members")
-              : friendsOnly
-                ? t("Search friends")
-                : t("Search users")
-          }
-          options={[]}
-          selected={[]}
-          onToggle={filters.toggle}
-        />
+        <>
+          {children}
+          <ListSearch
+            query={filters.query}
+            onQueryChange={filters.setQuery}
+            label={
+              invitationTable && !friendsOnly
+                ? t("Search members")
+                : friendsOnly
+                  ? t("Search friends")
+                  : t("Search users")
+            }
+            placeholder={
+              invitationTable && !friendsOnly
+                ? t("Search members")
+                : friendsOnly
+                  ? t("Search friends")
+                  : t("Search users")
+            }
+            options={[]}
+            selected={[]}
+            onToggle={filters.toggle}
+          />
+        </>
       }
       skeleton={<Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />}
       empty={

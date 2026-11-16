@@ -1,11 +1,18 @@
-import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
-import { useMutation } from "@tanstack/react-query";
+import type { TableInviteClaimReceipt } from "@board-game-organizer/schemas";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiHeaders, withProtectionBypass } from "../../common/api";
 import type { MutationFeedback } from "../../common/mutationFeedback";
+import {
+  beginOptimisticOperation,
+  optimisticMutationSignal,
+} from "../../common/optimisticOperation";
+import { developmentInviteAppLink } from "../inviteLinks";
 
 /** A shareable invite returned by the API. */
 export interface InviteRow {
   token: string;
   link: string;
+  appLink?: string;
   email: string | null;
   expiresAt: string;
 }
@@ -14,6 +21,7 @@ export interface InviteRow {
 export interface ClaimResult {
   success: boolean;
   inviter: { id: string; name: string; email: string; avatarUrl: string | null } | null;
+  table?: TableInviteClaimReceipt;
 }
 
 export interface UseInvitesOptions {
@@ -24,6 +32,8 @@ export interface UseInvitesOptions {
   /** Vercel preview protection-bypass token (web passes it explicitly). */
   protectionBypass?: string | null;
   feedback?: MutationFeedback;
+  userId?: string | null;
+  tableId?: string;
 }
 
 async function resolveToken(
@@ -32,7 +42,8 @@ async function resolveToken(
 ): Promise<string> {
   if (getToken) {
     const fresh = await getToken().catch(() => null);
-    if (fresh) return fresh;
+    if (!fresh) throw new Error("No session token");
+    return fresh;
   }
   if (!token) throw new Error("No session token");
   return token;
@@ -47,11 +58,14 @@ export async function createInvite(
   apiUrl: string,
   sessionToken: string,
   protectionBypass?: string | null,
+  tableId?: string,
+  signal?: AbortSignal,
 ): Promise<InviteRow> {
   return fetch(withProtectionBypass(`${apiUrl}/api/invites`, protectionBypass), {
     method: "POST",
     headers: apiHeaders(sessionToken),
-    body: JSON.stringify({}),
+    body: JSON.stringify(tableId ? { tableId } : {}),
+    signal,
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as InviteRow;
@@ -65,7 +79,10 @@ export async function claimInvite(
   inviteLinkOrToken: string,
   protectionBypass?: string | null,
 ): Promise<ClaimResult> {
-  const token = inviteLinkOrToken.trim().split("/invite/").pop() ?? "";
+  const input = inviteLinkOrToken.trim();
+  const token = input.includes("/invite/")
+    ? input.replace(/^.*\/invite\//, "").split(/[?#]/, 1)[0]
+    : input;
   return fetch(withProtectionBypass(`${apiUrl}/api/invites/claim`, protectionBypass), {
     method: "POST",
     headers: apiHeaders(sessionToken),
@@ -86,11 +103,43 @@ export function useInvites({
   getToken,
   protectionBypass,
   feedback,
+  userId,
+  tableId,
 }: UseInvitesOptions) {
-  return useMutation({
-    mutationFn: async () =>
-      createInvite(apiUrl, await resolveToken(token, getToken), protectionBypass),
-    onSuccess: () => feedback?.onSuccess?.("create_invite"),
-    onError: (error: Error) => feedback?.onError?.(error, "create_invite"),
+  const client = useQueryClient();
+  const mutationKey = ["invites", apiUrl, userId, "create", tableId] as const;
+  return useMutation<InviteRow, Error, void, Awaited<ReturnType<typeof beginOptimisticOperation>>>({
+    mutationKey,
+    retry: false,
+    mutationFn: async (variables, context) => {
+      const signal = await optimisticMutationSignal(client, context.mutationKey, variables);
+      const sessionToken = await resolveToken(token, getToken);
+      if (signal.aborted) throw new Error("MUTATION_OWNER_CHANGED");
+      const created = await createInvite(apiUrl, sessionToken, protectionBypass, tableId, signal);
+      if (signal.aborted) throw new Error("MUTATION_OWNER_CHANGED");
+      // Only use the server-approved stable route matching this exact canonical invite.
+      return created.appLink && created.appLink === developmentInviteAppLink(created.link)
+        ? { ...created, link: created.appLink }
+        : created;
+    },
+    onMutate: async () => {
+      if (!userId) throw new Error("No session owner");
+      return beginOptimisticOperation(
+        client,
+        mutationKey,
+        { queryKey: mutationKey },
+        (data) => data,
+      );
+    },
+    onSuccess: (_created, _variables, operation) => {
+      if (!operation?.active) return;
+      operation.commit();
+      feedback?.onSuccess?.("create_invite");
+    },
+    onError: (error: Error, _variables, operation) => {
+      if (!operation?.active) return;
+      operation.rollback();
+      feedback?.onError?.(error, "create_invite");
+    },
   });
 }

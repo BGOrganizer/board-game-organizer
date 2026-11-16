@@ -7130,3 +7130,197 @@ msgstr "Version"
 
 msgid "Best BGG players"
 msgstr "Best BGG players"
+
+#. js-lingui-explicit-id
+msgid "invite.title"
+msgstr "You have been invited"
+
+#. js-lingui-explicit-id
+msgid "invite.sessionLoading"
+msgstr "Loading your session…"
+
+#. js-lingui-explicit-id
+msgid "invite.loading"
+msgstr "Loading invitation…"
+
+#. js-lingui-explicit-id
+msgid "invite.signInHint"
+msgstr "Sign in to claim this invite and connect with the inviter."
+
+#. js-lingui-explicit-id
+msgid "invite.signIn"
+msgstr "Sign in to claim"
+
+#. js-lingui-explicit-id
+msgid "invite.claimHint"
+msgstr "Claiming this invite connects you with the inviter."
+
+#. js-lingui-explicit-id
+msgid "invite.claim"
+msgstr "Claim invite"
+
+#. js-lingui-explicit-id
+msgid "invite.claiming"
+msgstr "Claiming…"
+
+#. js-lingui-explicit-id
+msgid "invite.friendSuccess"
+msgstr "Invite claimed — you are now friends with the inviter!"
+
+#. js-lingui-explicit-id
+msgid "invite.claimFailure"
+msgstr "Could not claim this invite. Try again."
+
+#. js-lingui-explicit-id
+msgid "invite.unavailable"
+msgstr "Invitation unavailable"
+
+#. js-lingui-explicit-id
+msgid "invite.readFailure"
+msgstr "Could not load this invitation."
+
+#. js-lingui-explicit-id
+msgid "invite.retry"
+msgstr "Try again"
+
+#. js-lingui-explicit-id
+msgid "invite.tableTitle"
+msgstr "Review table invitation"
+
+#. js-lingui-explicit-id
+msgid "invite.tableConsent"
+msgstr "Accepting makes you friends with {inviter}, joins the private group {group}, and accepts your participation at {table}."
+
+#. js-lingui-explicit-id
+msgid "invite.queueHint"
+msgstr "If the table is full, you will join its waiting list."
+
+#. js-lingui-explicit-id
+msgid "invite.currentParticipation"
+msgstr "You already participate at this table. Your place and choices will be kept."
+
+#. js-lingui-explicit-id
+msgid "invite.availabilityKept"
+msgstr "Your existing event availability will be kept."
+
+#. js-lingui-explicit-id
+msgid "invite.voteHint"
+msgstr "Joining accepts single options. For sections with multiple options, answer every option and choose at least one Yes or If needed."
+
+#. js-lingui-explicit-id
+msgid "invite.validation"
+msgstr "Answer every option and choose at least one Yes or If needed in each section."
+
+#. js-lingui-explicit-id
+msgid "invite.accept"
+msgstr "Accept invitation"
+
+#. js-lingui-explicit-id
+msgid "invite.accepting"
+msgstr "Accepting invitation…"
+
+#. js-lingui-explicit-id
+msgid "invite.acceptFailure"
+msgstr "Could not accept this invitation. Refresh the details and try again."
+
+#. js-lingui-explicit-id
+msgid "invite.expiry"
+msgstr "Single-use invitation. Expires on {date}."
+
+#. js-lingui-explicit-id
+msgid "invite.players"
+msgstr "Players: {minimum}–{maximum}"
+
+#. js-lingui-explicit-id
+msgid "invite.rated"
+msgstr "Rated table"
+
+#. js-lingui-explicit-id
+msgid "invite.unrated"
+msgstr "Unrated table"
+
+#. js-lingui-explicit-id
+msgid "invite.manual"
+msgstr "Manual planning"
+
+#. js-lingui-explicit-id
+msgid "invite.assisted"
+msgstr "Assisted planning"
+
+#. js-lingui-explicit-id
+msgid "invite.morePlayers"
+msgstr "Maximize players"
+
+#. js-lingui-explicit-id
+msgid "invite.bestPlayers"
+msgstr "Best BGG player count"
+
+#. js-lingui-explicit-id
+msgid "invite.dates"
+msgstr "Dates"
+
+#. js-lingui-explicit-id
+msgid "invite.locations"
+msgstr "Locations"
+
+#. js-lingui-explicit-id
+msgid "invite.games"
+msgstr "Games"
+
+#. js-lingui-explicit-id
+msgid "invite.yes"
+msgstr "Yes"
+
+#. js-lingui-explicit-id
+msgid "invite.ifNeeded"
+msgstr "If needed"
+
+#. js-lingui-explicit-id
+msgid "invite.no"
+msgstr "No"
+
+#. js-lingui-explicit-id
+msgid "invite.unknown"
+msgstr "Unknown"
+
+#. js-lingui-explicit-id
+msgid "invite.successTitle"
+msgstr "Invitation accepted"
+
+#. js-lingui-explicit-id
+msgid "invite.tableSuccess"
+msgstr "You are now connected with the inviter and have joined the group."
+
+#. js-lingui-explicit-id
+msgid "invite.seated"
+msgstr "You have a place at the table."
+
+#. js-lingui-explicit-id
+msgid "invite.waiting"
+msgstr "You joined the waiting list."
+
+#. js-lingui-explicit-id
+msgid "invite.settingsUnavailable"
+msgstr "The table settings are incomplete. Ask the inviter to update them."
+
+msgid "Generate invite"
+msgstr "Generate invite"
+
+msgid "Share invite link"
+msgstr "Share invite link"
+
+msgid "Invite link"
+msgstr "Invite link"
+
+msgid "Could not share the invite. Try again."
+msgstr "Could not share the invite. Try again."
+
+#. js-lingui-explicit-id
+#. defaultMessage: Open in app
+msgid "invite.openApp"
+msgstr "Open in app"
+
+#. js-lingui-explicit-id
+#. defaultMessage: If the app is installed, open this invitation there. Otherwise, continue on the web.
+msgid "invite.openAppHint"
+msgstr "If the app is installed, open this invitation there. Otherwise, continue on the web."

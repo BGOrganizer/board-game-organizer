@@ -163,3 +163,10 @@ describe("translate (runtime)", () => {
     expect(translate(en, "Some untranslated string")).toBe("Some untranslated string");
   });
 });
+
+it("keeps native translations consistent with contextual invite messages using the same English copy", () => {
+  const italian = createAppI18n("it");
+  expect(translate(italian, "Unknown")).toBe("Non indicato");
+  expect(italian._({ id: "invite.unknown", message: "Unknown" })).toBe("Non indicato");
+  expect(translate(italian, "Sign in to claim")).toBe("Accedi per accettare");
+});

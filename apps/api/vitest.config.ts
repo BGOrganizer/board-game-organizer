@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { coverageConfigDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -17,8 +17,53 @@ export default defineConfig({
     exclude: ["test/integration/**", "node_modules/**", "dist/**", ".next/**"],
     coverage: {
       provider: "v8",
+      // API-hosted invitation UI is exercised and 100%-gated by the web jsdom suite.
+      // An unexecuted Node report otherwise invents misses for erased types/imports.
+      exclude: [...coverageConfigDefaults.exclude, "src/app/invite/**"],
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "src/app/lib/invites/development-invite-publication.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/invites/invite-app-link.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/development/invite/**/route.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/invites/app-link-association.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/api/invites/**/route.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/invites/invites.repository.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/invites/table-invites.service.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/lib/notifications/notification-navigation-transport.ts": {
           lines: 100,
           functions: 100,

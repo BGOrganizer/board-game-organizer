@@ -174,3 +174,23 @@ it("treats an observable API error as settled but never a pending request", asyn
   expect(settled(client, "/tables")).toBe(true);
   client.clear();
 });
+
+it("recognizes only stable owned invitation App Links for startup prioritization", () => {
+  const token = "abcdefghijklmnopqrstuv";
+  expect(startupLinkPath(`https://api.board-game-organizer.com/invite/${token}?source=link`)).toBe(
+    `/invite/${token}`,
+  );
+  expect(
+    startupLinkPath(`https://api.board-game-organizer.com/development/invite/${token}?web=ignored`),
+  ).toBe(`/invite/${token}`);
+  for (const path of [
+    `http://api.board-game-organizer.com/invite/${token}`,
+    `https://api.board-game-organizer.com:444/invite/${token}`,
+    `https://user@api.board-game-organizer.com/invite/${token}`,
+    `https://user:password@api.board-game-organizer.com/invite/${token}`,
+    `https://:password@api.board-game-organizer.com/invite/${token}`,
+    `https://api.board-game-organizer.com/invite/invalid`,
+    `https://evil.test/invite/${token}`,
+  ])
+    expect(startupLinkPath(path)).toBeNull();
+});

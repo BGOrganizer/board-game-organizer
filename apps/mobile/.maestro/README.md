@@ -687,3 +687,42 @@ exact-SHA CI run, cleanup and publication gates. A rewritten file is not a pass.
 The Event access `presentation` journey uses an included confirmed/terminated Table, so card game
 metadata is definitive. Active Tables are opened through their parent Event; History/list-status
 covers the completed personal list. Planning proposal controls remain in their detail voting sections.
+
+## Manual Table invite link generation
+
+`40-table-invite-link.yaml` requires an existing owned Preview fixture and an authenticated
+Development APK whose API/account you have verified. Set
+`TABLE_INVITE_NATIVE_ACK=owned-preview-table-invite` and `TABLE_INVITE_NATIVE_INPUT` JSON with
+`eventId`, `tableId`, `locale=en|it` and `mode=success|create-offline|forbidden`.
+The success/offline fixture is a Group manager with a PRIVATE Group/Event and a PLANNING Table.
+Repeat with empty/full player lists, a full Table, EN/IT, both themes and large text. Forbidden
+fixtures use a PUBLIC Group/Event, non-manager or non-PLANNING Table. This opt-in flow generates
+real invite tokens; it does not provision resources, claim links or send them to anyone.
+The offline case retries after restoring connectivity; restore it manually if a failed run stops
+early. Verify the Android Share sheet's copy action manually, as for Contacts. Browser consent,
+friendship/membership and accepted-or-queued registration need their separate browser/API paths;
+native generation or source tests cannot establish those outcomes.
+
+`41-native-table-invite.yaml` covers real native recipient review (single/multiple choices),
+validation, offline retry, expired/revoked links and the existing-account sign-in/profile continuation.
+Use a fresh owned Development token per mode, with `NATIVE_TABLE_INVITE_ACK=owned-preview-native-invite`
+and `NATIVE_TABLE_INVITE_INPUT` containing `token`, `locale` (`en`/`it`), `mode`, `tableName` and
+`optionLabels` (the exact title of every multiple-option row; the flow opens its vote dialog). Supported modes:
+`success`, `waiting` (pre-filled table), `incomplete`, `expired`, `revoked`, `offline`, `auth` and
+`onboarding`. Auth uses the provisioned `EMAIL`/`PASSWORD`; onboarding starts with a signed-in recipient
+whose required mobile-number field is missing. Verify the installed API and expected authority first;
+never substitute Production tokens. Check final friendship, Group membership and seat/queue via actual
+API reads. Web's app handoff link does not itself grant any of those consents.
+
+Native invite review groups date, location and game choices under section headings. Each multiple-option
+row opens the existing vote dialog; final acceptance remains disabled until all required categories
+are valid. The stable Development App Link is activated only after the public Production router and
+association file are deployed. Install its fresh Development APK after that deployment to verify OS
+handoff; previous Preview links continue through their browser app action. Native tests must verify
+that a stable Development URL opens the Development package when both variants are installed, while
+ordinary Production `/invite/` links open Production, preserving the app's own API and account.
+
+For real OS App Links acceptance, pass `openWithAppLink: true`, its `prNumber`, and the actual
+`shareLink` returned by the owned Development API after public readiness. Set `coldOpen: true` to
+stop the app before opening; repeat warm as well. The flow disables Maestro's `autoVerify` and
+browser forcing, so it does not manufacture domain approval or hide a browser fallback.

@@ -10,6 +10,7 @@ import {
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserRoundPlus, UsersRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -27,6 +28,7 @@ export function PeoplePicker({
   excludeIds = [],
   onSelect,
   onClose,
+  children,
 }: {
   friendsOnly: boolean;
   invitationGroupId?: string;
@@ -35,6 +37,7 @@ export function PeoplePicker({
   excludeIds?: readonly string[];
   onSelect: (person: Pick<ContactUser, "id" | "name" | "email" | "avatarUrl" | "username">) => void;
   onClose?: () => void;
+  children?: ReactNode;
 }) {
   const { t } = useLingui(),
     options = useCommunityApi(),
@@ -86,6 +89,7 @@ export function PeoplePicker({
         onToggle={filters.toggle}
       />
       <GroupedList>
+        {children}
         {items.map((person) => {
           const handle = formatUsername(person.username, "");
           const name = invitationTable ? handle || person.name : person.name;

@@ -263,3 +263,36 @@ it("guards repeated invitation actions while pending and supports header Back", 
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
   expect(m.back).toHaveBeenCalledTimes(2);
 });
+
+it.each([
+  { groupId: optionId, groupType: "PRIVATE", status: "PLANNING", allowed: true },
+  { groupId: optionId, groupType: "PUBLIC", status: "PLANNING", allowed: false },
+  { groupId: null, groupType: null, status: "PLANNING", allowed: false },
+  { groupId: optionId, groupType: "PRIVATE", status: "CONFIRMED", allowed: false },
+  { groupId: optionId, groupType: "PRIVATE", status: "TERMINATED", allowed: false },
+])(
+  "keeps contextual generation first for an eligible empty picker: %j",
+  async ({ allowed, ...context }) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.includes("/invitations")
+            ? { items: [], nextCursor: null }
+            : { ...plannedEvent, ...context },
+        ),
+      ),
+    );
+    mount();
+    await screen.findByRole("searchbox", {
+      name: context.groupId ? "Search members" : "Search friends",
+    });
+    if (allowed) {
+      expect(screen.getByRole("button", { name: "Generate invite" })).toBeTruthy();
+      expect(screen.getAllByRole("listitem")[0].textContent).toContain("Generate invite");
+      await screen.findByText("No members found");
+    } else {
+      expect(screen.queryByRole("button", { name: "Generate invite" })).toBeNull();
+    }
+  },
+);

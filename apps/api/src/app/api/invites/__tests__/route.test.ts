@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { developmentInviteAppLink } from "@board-game-organizer/shared";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as claimPOST } from "@/app/api/invites/claim/route";
 import { POST } from "@/app/api/invites/route";
 
+vi.mock("@/app/lib/invites/development-invite-publication", () => ({
+  developmentInvitePublication: vi.fn().mockResolvedValue("eligible"),
+}));
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
 vi.mock("@/app/lib/db", () => ({
   getDb: vi.fn(),
@@ -207,4 +211,126 @@ describe("OPTIONS /api/invites", () => {
       "https://web-x-board-game-organizers-projects.vercel.app",
     );
   });
+});
+
+it("keeps the optional email in a legacy invite response", async () => {
+  authMock.mockResolvedValueOnce({ userId: "user_1" });
+  repoMock.create.mockResolvedValueOnce(fakeInvite({ email: "friend@example.test" }));
+  getDbMock.mockResolvedValueOnce({ collection: vi.fn() });
+  const response = await POST(
+    new Request("https://api.example.test/api/invites", {
+      method: "POST",
+      body: JSON.stringify({ email: "friend@example.test" }),
+    }),
+  );
+  expect(await response.json()).toMatchObject({ email: "friend@example.test" });
+  expect(repoMock.create).toHaveBeenLastCalledWith("user_1", "friend@example.test");
+});
+it("accepts an absent create body while rejecting malformed claim bodies", async () => {
+  authMock.mockResolvedValueOnce({ userId: "user_1" });
+  repoMock.create.mockResolvedValueOnce(fakeInvite());
+  getDbMock.mockResolvedValueOnce({ collection: vi.fn() });
+  expect(
+    (await POST(new Request("https://api.example.test/api/invites", { method: "POST" }))).status,
+  ).toBe(201);
+  for (const body of ["invalid json", "{}", JSON.stringify({ token: "bad" })]) {
+    authMock.mockResolvedValueOnce({ userId: "user_1" });
+    expect(
+      (
+        await claimPOST(
+          new Request("https://api.example.test/api/invites/claim", { method: "POST", body }),
+        )
+      ).status,
+    ).toBe(400);
+  }
+});
+it("rejects unauthenticated and self claims before consuming a link", async () => {
+  authMock.mockResolvedValueOnce({ userId: null });
+  expect(
+    (
+      await claimPOST(
+        new Request("https://api.example.test/api/invites/claim", { method: "POST", body: "{}" }),
+      )
+    ).status,
+  ).toBe(401);
+  authMock.mockResolvedValueOnce({ userId: "inviter_1" });
+  getDbMock.mockResolvedValueOnce({ collection: vi.fn() });
+  repoMock.findByToken.mockResolvedValueOnce(fakeInvite());
+  expect(
+    (
+      await claimPOST(
+        new Request("https://api.example.test/api/invites/claim", {
+          method: "POST",
+          body: JSON.stringify({ token: "tok1234567890" }),
+        }),
+      )
+    ).status,
+  ).toBe(400);
+});
+it("returns conflict when a pending legacy claim loses the transaction race", async () => {
+  authMock.mockResolvedValueOnce({ userId: "claimer_1" });
+  getDbMock.mockResolvedValueOnce({ collection: vi.fn() });
+  repoMock.findByToken.mockResolvedValueOnce(fakeInvite());
+  repoMock.claim.mockResolvedValueOnce(null);
+  expect(
+    (
+      await claimPOST(
+        new Request("https://api.example.test/api/invites/claim", {
+          method: "POST",
+          body: JSON.stringify({ token: "tok1234567890" }),
+        }),
+      )
+    ).status,
+  ).toBe(409);
+});
+it.each([null, "https://avatar.example.test/image.png"])(
+  "returns the authoritative legacy inviter profile (avatar %s)",
+  async (avatarUrl) => {
+    authMock.mockResolvedValueOnce({ userId: "claimer_1" });
+    const inviter = {
+      clerkId: "inviter_1",
+      name: "Inviter",
+      email: "inviter@example.test",
+      ...(avatarUrl ? { avatarUrl } : {}),
+    };
+    getDbMock.mockResolvedValueOnce({
+      collection: vi.fn(() => ({ findOne: vi.fn(async () => inviter) })),
+    });
+    repoMock.findByToken.mockResolvedValueOnce(fakeInvite());
+    repoMock.claim.mockResolvedValueOnce(fakeInvite({ status: "claimed" }));
+    const response = await claimPOST(
+      new Request("https://api.example.test/api/invites/claim", {
+        method: "POST",
+        body: JSON.stringify({ token: "tok1234567890" }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      success: true,
+      inviter: { id: "inviter_1", name: "Inviter", email: "inviter@example.test", avatarUrl },
+    });
+  },
+);
+it("supports legacy claim CORS preflight", async () => {
+  const { OPTIONS } = await import("../claim/route");
+  expect((await OPTIONS()).status).toBe(204);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+it("keeps friend links canonical while advertising verified Preview app routing", async () => {
+  vi.stubEnv("VERCEL_ENV", "preview");
+  const origin = "https://api-development-pr-25-board-game-organizers-projects.vercel.app";
+  const canonicalToken = "abcdefghijklmnopqrstuv";
+  const { appLinkAssociation } = await import("@/app/lib/invites/app-link-association");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(appLinkAssociation(true))));
+  authMock.mockResolvedValueOnce({ userId: "user_1" });
+  repoMock.create.mockResolvedValueOnce(fakeInvite({ token: canonicalToken }));
+  getDbMock.mockResolvedValueOnce({ collection: vi.fn() });
+  const response = await POST(new Request(`${origin}/api/invites`, { method: "POST", body: "{}" }));
+  const link = `${origin}/invite/${canonicalToken}`;
+  expect(response.status).toBe(201);
+  expect(await response.json()).toMatchObject({ link, appLink: developmentInviteAppLink(link) });
 });

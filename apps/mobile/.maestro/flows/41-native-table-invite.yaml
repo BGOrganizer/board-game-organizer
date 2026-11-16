@@ -1,0 +1,129 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Native Table invitation review and explicit consent
+# Run each mode on a fresh owned Preview token; verify the installed APK API first.
+# auth/onboarding require the provisioned recipient and EMAIL/PASSWORD, never Production.
+# For waiting, the owned table must already be full; incomplete requires multiple choices.
+# Run both EN/IT, light/dark, large text and cold/warm opens. No claim occurs before Submit.
+tags: [manual, events, invites]
+---
+- runScript: ../helpers/native-table-invite-inputs.js
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      true: ${output.nativeTableInvite.cold}
+    commands:
+      - stopApp
+- openLink:
+    link: ${output.nativeTableInvite.link}
+    autoVerify: false
+    browser: false
+- runFlow:
+    when:
+      true: ${output.nativeTableInvite.mode === 'auth'}
+    commands:
+      - extendedWaitUntil:
+          visible: ".*[Ee]mail or username.*|.*[Ee]mail o nome utente.*"
+          timeout: 120000
+      - tapOn: ".*[Ee]mail or username.*|.*[Ee]mail o nome utente.*"
+      - inputText: ${EMAIL}
+      - tapOn: "^Continue$|^Continua$"
+      - extendedWaitUntil:
+          visible: "^[Ee]nter your [Pp]assword$|.*[Pp]assword.*"
+          timeout: 60000
+      - tapOn: "^[Ee]nter your [Pp]assword$|.*[Pp]assword.*"
+      - inputText: ${PASSWORD}
+      - tapOn: "^Continue$|^Continua$"
+      - runFlow: ../helpers/verify-clerk-device.yaml
+- runFlow:
+    when:
+      true: ${output.nativeTableInvite.mode === 'onboarding'}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: mobile-number-input
+          timeout: 120000
+      - tapOn:
+          id: mobile-number-input
+      - inputText: "3331234567"
+      - hideKeyboard
+      - tapOn: "^Continue$|^Continua$"
+- runFlow:
+    when:
+      true: ${output.nativeTableInvite.unavailable}
+    commands:
+      - extendedWaitUntil:
+          visible: ${output.nativeTableInvite.unavailableText}
+          timeout: 60000
+      - assertNotVisible:
+          id: table-link-consent-submit
+      - assertVisible: "^Try again$|^Riprova$"
+- runFlow:
+    when:
+      true: ${!output.nativeTableInvite.unavailable}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: table-link-consent-submit
+            enabled: true
+          timeout: 60000
+      - assertVisible: ${output.nativeTableInvite.table}
+      - assertNotVisible:
+          id: table-overview-tab
+      - runFlow:
+          when:
+            true: ${output.nativeTableInvite.mode === 'incomplete'}
+          commands:
+            - assertVisible:
+                id: table-link-consent-submit
+                enabled: false
+            - assertNotVisible:
+                id: table-overview-tab
+      - runFlow:
+          when:
+            true: ${output.nativeTableInvite.votes.length > 0}
+          commands:
+            - repeat:
+                times: ${output.nativeTableInvite.votes.length}
+                commands:
+                  - scrollUntilVisible:
+                      element:
+                        text: ${output.nativeTableInvite.votes[output.nativeTableInvite.index]}
+                      direction: DOWN
+                  - tapOn: ${output.nativeTableInvite.votes[output.nativeTableInvite.index]}
+                  - extendedWaitUntil:
+                      visible: "^Choose your vote$|^Scegli il tuo voto$"
+                      timeout: 30000
+                  - tapOn: ${output.nativeTableInvite.yes}
+                  - evalScript: ${output.nativeTableInvite.index = output.nativeTableInvite.index + 1}
+      - runFlow:
+          when:
+            true: ${output.nativeTableInvite.mode === 'offline'}
+          commands:
+            - setAirplaneMode: true
+            - tapOn:
+                id: table-link-consent-submit
+            - extendedWaitUntil:
+                visible: ${output.nativeTableInvite.failure}
+                timeout: 120000
+            - assertNotVisible:
+                id: table-overview-tab
+            - setAirplaneMode: false
+      - assertVisible:
+          id: table-link-consent-submit
+          enabled: true
+      - tapOn:
+          id: table-link-consent-submit
+      - extendedWaitUntil:
+          visible:
+            id: table-overview-tab
+          timeout: 120000
+      - assertNotVisible:
+          id: table-link-consent-submit
+      - assertVisible: ${output.nativeTableInvite.table}
+      - stopApp
+      - launchApp:
+          clearState: false
+      - openLink: bgo-dev:///groups
+      # The fixture owner verifies accepted membership, mutual friendship and seated/waiting
+      # registration against authoritative reads; opening a link never substitutes for consent.
