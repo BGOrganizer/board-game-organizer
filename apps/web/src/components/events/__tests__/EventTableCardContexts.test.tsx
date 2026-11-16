@@ -5,7 +5,6 @@ import { groupRecord, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventTableCard } from "../EventTableCard";
 import { EventTableInvitationActions } from "../EventTableInvitationActions";
-import { TableListHeading } from "../TableListHeading";
 
 const m = vi.hoisted(() => ({
   busy: false,
@@ -54,12 +53,7 @@ it("uses the same normal-flow horizontal artwork, identity and controls in both 
     waitingCount: 3,
     pendingRegistrationCount: 2,
   };
-  const q = renderWithI18n(
-    <>
-      <TableListHeading />
-      <EventTableCard table={table} context="personal" />
-    </>,
-  );
+  const q = renderWithI18n(<EventTableCard table={table} context="personal" />);
   const artwork = document.querySelector("img")?.getAttribute("src");
   expect(artwork).toBe(
     `data:image/svg+xml,${encodeURIComponent(createResourceArtwork("tables", table.id).svg)}`,
@@ -80,22 +74,12 @@ it("uses the same normal-flow horizontal artwork, identity and controls in both 
   };
   inspect();
   expect(screen.getByRole("link").getAttribute("href")).not.toContain("fromEvent");
-  q.rerender(
-    <>
-      <TableListHeading />
-      <EventTableCard table={table} context="event" />
-    </>,
-  );
+  q.rerender(<EventTableCard table={table} context="event" />);
   inspect();
   expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
   expect(screen.getByRole("link").getAttribute("href")).toContain(`?fromEvent=${table.eventId}`);
-  const help = screen.getByRole("button", { name: "Table legend" });
-  expect(help.closest(".card")).toBeNull();
-  fireEvent.click(help);
-  expect(await screen.findByText("Accepted players, including the waiting list.")).not.toBeNull();
-  expect(
-    screen.getByText("Pending players, including reserved waiting-list places."),
-  ).not.toBeNull();
+  expect(screen.queryByRole("heading", { name: "Table list" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Table legend" })).toBeNull();
 });
 it.each(["personal", "event"] as const)(
   "keeps one neutral role disclosure outside navigation in %s",

@@ -40,7 +40,6 @@ import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
-import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { LocationListRow } from "@/components/locations/LocationListRow";
@@ -62,7 +61,6 @@ import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
 import { EventVoteLegend } from "./EventVoteLegend";
-import { TableListHeading } from "./TableListHeading";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const artwork = useArtworkListVisibility();
   const { i18n } = useLingui();
@@ -215,12 +213,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const header = (
     <View style={{ gap: 12 }}>
       <View style={{ gap: 8 }}>
-        <NotificationItem itemId={notificationItemId(event.id, "overview")}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Typography className="font-semibold text-foreground">{t("Details")}</Typography>
-            <EventVoteLegend />
-          </View>
-        </NotificationItem>
+        <NotificationItem itemId={notificationItemId(event.id, "overview")} />
         {event.readOnly ? (
           <Typography className="text-sm text-muted">
             {event.personalAccessOnly
@@ -236,11 +229,14 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       ) : null}
       <View style={{ gap: 8 }}>
         <NotificationItem itemId={notificationItemId(event.id, "dates")}>
-          <SearchHelpLabel
-            label={event.groupType === "PUBLIC" ? t("Start Date and Time") : t("Date and time")}
-            helpTitle={t("Field help")}
-            help={t("Times are local to the location chosen for the event.")}
-          />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Typography className="font-semibold text-foreground">
+              {event.groupType === "PUBLIC" ? t("Start Date and Time") : t("Dates and times")}
+            </Typography>
+            {voteDates && event.status === "PLANNING" ? (
+              <EventVoteLegend label={t("Dates and times")} />
+            ) : null}
+          </View>
         </NotificationItem>
         <GroupedList>
           {event.dates
@@ -294,13 +290,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       <EventProposalSection event={event} kind="date" disabled={q.isPlaceholderData} />
       {event.endsAt ? (
         <View style={{ gap: 8 }}>
-          <SearchHelpLabel
-            label={t("End Date and Time")}
-            helpTitle={t("Field help")}
-            help={t(
-              "Choose a later time on the same day as the event start. All public tables must finish by this time.",
-            )}
-          />
+          <Typography className="font-semibold text-foreground">
+            {t("End Date and Time")}
+          </Typography>
           <GroupedList>
             <GroupedRow>
               <DateTimeInfo
@@ -314,13 +306,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       ) : null}
       {event.bookingClosesAt ? (
         <View style={{ gap: 8 }}>
-          <SearchHelpLabel
-            label={t("Registration Deadline Date and Time")}
-            helpTitle={t("Field help")}
-            help={t(
-              "Registration closes on a day before the event starts. A new event needs a future deadline.",
-            )}
-          />
+          <Typography className="font-semibold text-foreground">
+            {t("Registration Deadline Date and Time")}
+          </Typography>
           <GroupedList>
             <GroupedRow>
               <DateTimeInfo
@@ -333,7 +321,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         </View>
       ) : null}
       <NotificationItem itemId={notificationItemId(event.id, "locations")}>
-        <Typography className="font-semibold text-foreground">{t("Locations")}</Typography>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Typography className="font-semibold text-foreground">{t("Locations")}</Typography>
+          {voteLocations && event.status === "PLANNING" ? (
+            <EventVoteLegend label={t("Locations")} />
+          ) : null}
+        </View>
       </NotificationItem>
       <GroupedList>
         {event.locations
@@ -489,9 +482,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                   {tab === "details" ? (
                     header
                   ) : (
-                    <NotificationItem itemId={notificationItemId(event.id, "tables")}>
-                      <TableListHeading />
-                    </NotificationItem>
+                    <NotificationItem itemId={notificationItemId(event.id, "tables")} />
                   )}
                 </View>
               }

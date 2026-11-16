@@ -4,11 +4,17 @@ import { Check, Minus, X } from "lucide-react-native";
 import { View } from "react-native";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { useT } from "@/lib/i18n";
-export function EventVoteLegend() {
+export function EventVoteLegend({
+  label,
+  scope = "event",
+}: {
+  label: string;
+  scope?: "event" | "table";
+}) {
   const t = useT(),
     [yes, needed, no] = useThemeColor(["success", "warning", "danger"]);
   return (
-    <HelpPopover label={t("Voting legend")} title={t("Voting legend")} width={300}>
+    <HelpPopover label={`${label}: ${t("Voting legend")}`} title={label} width={300}>
       <View style={{ gap: 10 }}>
         {[
           { Icon: Check, label: t("Yes"), color: yes },
@@ -21,14 +27,14 @@ export function EventVoteLegend() {
           </View>
         ))}
         <Typography className="text-muted">
-          {t(
-            "Single options are accepted when joining. Only categories with multiple options require votes.",
-          )}
+          {scope === "table"
+            ? t("You can vote only if you are an accepted participant at this table.")
+            : t(
+                "You can vote only if you are an accepted participant in at least one table in the event.",
+              )}
         </Typography>
         <Typography className="text-muted">
-          {t(
-            "Only accepted players vote. Pending players keep a reserved place until accepted. Join at least one table to participate in the event.",
-          )}
+          {t('Choose at least one "Yes" or "If needed" option in this category.')}
         </Typography>
       </View>
     </HelpPopover>

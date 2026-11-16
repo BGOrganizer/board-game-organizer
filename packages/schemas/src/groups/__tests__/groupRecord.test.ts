@@ -30,6 +30,27 @@ const privateGroup = {
 const revision = { name: "Public club", logoAssetId: id, location };
 
 describe("unified group records", () => {
+  it.each([31, 120])(
+    "keeps historical %s-character private/public revisions readable",
+    (length) => {
+      const historical = { ...revision, name: "a".repeat(length) };
+      expect(
+        groupRecordSchema.parse({ ...privateGroup, approved: historical }).approved?.name,
+      ).toBe(historical.name);
+      const publicGroup = {
+        ...privateGroup,
+        type: "PUBLIC",
+        approved: historical,
+        proposal: historical,
+        reviewStatus: "PENDING",
+        reservedNames: [historical.name],
+      };
+      expect(groupRecordSchema.parse(publicGroup).proposal?.name).toBe(historical.name);
+      expect(groupRecordSchema.parse({ ...publicGroup, proposal: revision }).approved?.name).toBe(
+        historical.name,
+      );
+    },
+  );
   it("allows optional private venue/logo but public revisions require both", () => {
     expect(groupRecordSchema.safeParse(privateGroup).success).toBe(true);
     expect(groupRecordSchema.safeParse({ ...privateGroup, approved: revision }).success).toBe(true);
@@ -73,6 +94,31 @@ describe("unified group records", () => {
   });
 });
 describe("unified group commands", () => {
+  it.each(["abcde", "a".repeat(30)])(
+    "accepts and trims boundary name %s on private/public creation and edits",
+    (name) => {
+      for (const type of ["PRIVATE", "PUBLIC"] as const) {
+        const fields =
+          type === "PUBLIC" ? { ...revision, name: ` ${name} ` } : { name: ` ${name} ` };
+        expect(createGroupRecordSchema.parse({ ...fields, type, invitedUserIds: [] }).name).toBe(
+          name,
+        );
+        expect(editGroupRecordSchema.parse({ ...fields, version: 1 }).name).toBe(name);
+      }
+    },
+  );
+  it.each(["", "   ", "abcd", " abcd ", "a".repeat(31)])(
+    "rejects out-of-range name %j on private/public creation and edits",
+    (name) => {
+      for (const type of ["PRIVATE", "PUBLIC"] as const) {
+        const fields = type === "PUBLIC" ? { ...revision, name } : { name };
+        expect(
+          createGroupRecordSchema.safeParse({ ...fields, type, invitedUserIds: [] }).success,
+        ).toBe(false);
+        expect(editGroupRecordSchema.safeParse({ ...fields, version: 1 }).success).toBe(false);
+      }
+    },
+  );
   it("accepts optional creation correlation for either immutable type but not resource IDs or edit replacement", () => {
     const clientRequestId = "99999999-9999-4999-8999-999999999999";
     const body = { type: "PRIVATE", name: "Club group", invitedUserIds: [], clientRequestId };

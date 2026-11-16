@@ -169,3 +169,59 @@ it.each([null, undefined])(
     expect(screen.queryByLabelText("Loading…") !== null).toBe(groupRole === undefined);
   },
 );
+
+it("bounds retained web leaderboard rows on entry and reveals cached rows before asking the server", async () => {
+  const state = picker();
+  const player = state.players.data.pages[0].players[0];
+  const more = vi.fn();
+  picker.mockReturnValue({
+    ...state,
+    players: {
+      ...state.players,
+      isFetching: false,
+      fetchNextPage: more,
+      data: {
+        pages: Array.from({ length: 40 }, (_, page) => ({
+          players: Array.from({ length: 25 }, (_, index) => ({
+            ...player,
+            userId: `player-${page}-${index}`,
+            username: `player-${page}-${index}`,
+          })),
+        })),
+      },
+    },
+  });
+  const view = renderWithI18n(<GroupLeaderboard groupId="test" />);
+  fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+  fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
+  expect(screen.getAllByRole("row")).toHaveLength(26);
+  expect(screen.queryByText("@player-1-0")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /^Load more$/ }));
+  expect(screen.getAllByRole("row")).toHaveLength(51);
+  expect(more).not.toHaveBeenCalled();
+  view.unmount();
+  renderWithI18n(<GroupLeaderboard groupId="test" />);
+  fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+  fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
+  expect(screen.getAllByRole("row")).toHaveLength(26);
+});
+
+it("keeps the selected game label when closing search restores an option window that excludes it", async () => {
+  const state = picker();
+  picker.mockImplementation((args: { gameId: number | null }) => ({
+    ...state,
+    games: {
+      ...state.games,
+      data: { games: args.gameId === 2 ? [games[0]] : games },
+      selectedGame: args.gameId === 2 ? games[1] : undefined,
+    },
+  }));
+  renderWithI18n(<GroupLeaderboard groupId="test" />);
+  fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+  fireEvent.click(await screen.findByRole("option", { name: "Cascadia" }));
+  const selected = screen.getByRole("button", { name: /Cascadia Board game/ });
+  expect(selected.querySelector('[data-slot="selected-game-name"]')?.textContent?.trim()).toBe(
+    "Cascadia",
+  );
+  expect(screen.queryByText("Unknown")).toBeNull();
+});

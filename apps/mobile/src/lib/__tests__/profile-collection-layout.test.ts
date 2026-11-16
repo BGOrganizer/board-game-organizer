@@ -52,6 +52,7 @@ it("keeps one keyboard-aware virtualized owner for empty/few results, sticky fil
       }),
     },
     useT: () => (text: string) => text,
+    useThemeColor: (token: string) => token,
     useLingui: () => ({ i18n: { locale: "en" } }),
     useCommunityApi: () => ({ apiUrl: "https://api.test", userId: "owner" }),
     useSafeAreaInsets: () => ({ bottom: 20 }),
@@ -88,6 +89,8 @@ it("keeps one keyboard-aware virtualized owner for empty/few results, sticky fil
     "Heart",
     "Puzzle",
     "UsersRound",
+    "EmptyList",
+    "LibraryBig",
   ])
     context[name] = name;
   const render = () => runInNewContext(code, context);

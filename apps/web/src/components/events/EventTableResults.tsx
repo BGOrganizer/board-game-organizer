@@ -11,6 +11,7 @@ import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ListOrdered, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { IconBadge } from "@/components/common/ui/IconBadge";
@@ -128,7 +129,7 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
         </div>
       ) : null}
       {(terminated || (!q.isPending && !q.isError && !q.isFetching)) && !rows.length ? (
-        <p>{t`No players found`}</p>
+        <EmptyList icon={<Trophy className="size-7" />}>{t`No players found`}</EmptyList>
       ) : null}
       {more ? (
         <Button

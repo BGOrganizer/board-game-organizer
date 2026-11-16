@@ -920,7 +920,11 @@ it("retains a queue entry beyond capacity and shows pending, accepted and waitin
   expect(screen.getByRole("button", { name: "Roles and participation" })).not.toBeNull();
   expect(screen.getByRole("button", { name: "Join waiting list" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Seats list: Field help" }));
-  expect(await screen.findByText(/Free places allow joining or invitations/)).not.toBeNull();
+  expect(
+    await screen.findByText("Pending invitations do not count toward agreement."),
+  ).not.toBeNull();
+  expect(screen.getByText("Accepted player")).not.toBeNull();
+  expect(screen.getByText("Invitation pending")).not.toBeNull();
 });
 it("retains historical SELF requests and does not invent a seat for an accepted unknown position", async () => {
   rows.push(

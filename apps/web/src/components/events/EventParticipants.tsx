@@ -9,8 +9,9 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { UserRoundMinus } from "lucide-react";
+import { UserRoundMinus, UsersRound } from "lucide-react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { MemberActions } from "@/components/common/ui/MemberActions";
@@ -87,7 +88,7 @@ export function EventParticipants({
       ) : null}
       {q.isPending || q.isFetchingNextPage ? <Skeleton className="h-20 w-full rounded-xl" /> : null}
       {!q.isPending && !q.isError && !q.items.length && !q.hasMore ? (
-        <p role="status" className="text-muted">{t`No participants yet`}</p>
+        <EmptyList icon={<UsersRound className="size-7" />}>{t`No participants yet`}</EmptyList>
       ) : null}
       {q.isError ? (
         <div role="alert">

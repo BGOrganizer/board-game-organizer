@@ -85,7 +85,7 @@ export function UserList<T>({
         </View>
       }
       ListEmptyComponent={
-        pages.some((page) => page.isLoading || page.isError) ? null : (
+        pages.some((page) => page.isLoading || page.isError || page.hasNextPage) ? null : (
           <EmptyList icon={emptyIcon}>{empty}</EmptyList>
         )
       }

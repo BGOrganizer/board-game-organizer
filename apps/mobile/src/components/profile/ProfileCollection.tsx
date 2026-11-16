@@ -12,12 +12,14 @@ import { useLingui } from "@lingui/react";
 import { hashKey } from "@tanstack/react-query";
 import { Button } from "heroui-native/button";
 import { Chip } from "heroui-native/chip";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Gamepad2, Heart, Puzzle, UsersRound } from "lucide-react-native";
+import { Gamepad2, Heart, LibraryBig, Puzzle, UsersRound } from "lucide-react-native";
 import { memo, type ReactNode, useCallback, useMemo } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
 import { InputSectionList } from "@/components/common/ui/InputSectionList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
@@ -41,6 +43,7 @@ export function ProfileCollection({
   subjectId: string;
   viewerSnapshot?: string;
 }) {
+  const muted = useThemeColor("muted");
   const t = useT(),
     { i18n } = useLingui(),
     o = useCommunityApi(),
@@ -184,9 +187,11 @@ export function ProfileCollection({
             <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
           ) : null}
           {!q.isPending && !q.isError && !window.hasMore && !window.items.length ? (
-            <Typography accessibilityLiveRegion="polite" className="text-muted">
-              {t("No games found")}
-            </Typography>
+            <View accessibilityLiveRegion="polite">
+              <EmptyList icon={<LibraryBig size={28} color={muted} />}>
+                {t("No games found")}
+              </EmptyList>
+            </View>
           ) : null}
           {q.isFetchingNextPage ? (
             <Skeleton style={{ width: "100%", height: 48, borderRadius: 12 }} />

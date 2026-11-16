@@ -65,20 +65,19 @@ export function EventDraftTableEditor({
           required
           label={t`Table name`}
           helpTitle={helpTitle}
-          help={t`Name this table so players can recognize it. Use between 1 and 120 characters.`}
+          help={t`Name this table so players can recognize it. Use between 5 and 30 characters.`}
         />
         <NameInput
           category="tavolo"
           onGenerate={(name) => onChange({ name })}
           isDisabled={busy}
           placeholder={t`Strategy table`}
-          maxLength={120}
         />
         {fieldError("name") ? (
           <p
             role="alert"
             className="text-sm text-danger"
-          >{t`Enter a table name between 1 and 120 characters.`}</p>
+          >{t`Enter a table name between 5 and 30 characters.`}</p>
         ) : null}
       </TextField>
       <fieldset
@@ -91,7 +90,7 @@ export function EventDraftTableEditor({
           required
           label={t`Number of players`}
           helpTitle={helpTitle}
-          help={t`Choose the minimum on the left and maximum on the right. At least two players are required, and the minimum cannot exceed the maximum.`}
+          help={t`Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data.`}
         />
         <div className="flex gap-4">
           <PlayerCount
@@ -290,7 +289,7 @@ export function EventDraftTableEditor({
           required
           label={t`Games`}
           helpTitle={helpTitle}
-          help={t`Choose at least one game. Use the empty game slot to add another option. Players vote only when multiple games are proposed.`}
+          help={t`Suggest games for participants to vote on.`}
         />
         <GroupedList>
           {row.games.map((game) => (

@@ -7,6 +7,8 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       include: [
+        "src/contacts/contactRelationshipIds.ts",
+        "src/contacts/contactRequestContext.ts",
         "src/artwork/resourceArtwork.ts",
         "src/invites/invitePolicy.ts",
         "src/invites/inviteLinks.ts",
@@ -51,6 +53,7 @@ export default defineConfig({
         "src/events/eventTablePending.ts",
         "src/events/eventTableInvitees.ts",
         "src/groups/groupPolicy.ts",
+        "src/groups/groupRecordSeed.ts",
         "src/groups/groupLeaderboardRoles.ts",
         "src/groups/groupBanForm.ts",
         "src/groups/groupDeletionCache.ts",
@@ -95,6 +98,24 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/contacts/contactRelationshipIds.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/contacts/contactRequestContext.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/groups/groupRecordSeed.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/artwork/resourceArtwork.ts": {
           lines: 100,
           functions: 100,

@@ -34,7 +34,7 @@ tags: [manual, groups, draft]
 - tapOn: ${output.groupCreate.generate}
 - copyTextFrom:
     id: group-name-input
-- assertTrue: ${maestro.copiedText !== output.groupCreate.previousName && maestro.copiedText.trim().length >= 5 && maestro.copiedText.length <= 120}
+- assertTrue: ${maestro.copiedText !== output.groupCreate.previousName && maestro.copiedText.trim().length >= 5 && maestro.copiedText.length <= 30}
 - tapOn:
     id: group-name-input
 - eraseText: 120

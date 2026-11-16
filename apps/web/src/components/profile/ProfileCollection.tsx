@@ -9,8 +9,9 @@ import {
 import { Button, Chip, ListBox, Skeleton } from "@heroui/react";
 import { Collection, ListBoxLoadMoreItem, ListLayout, Virtualizer } from "@heroui/react/rac";
 import { useLingui } from "@lingui/react/macro";
-import { Gamepad2, Heart, Puzzle, UsersRound } from "lucide-react";
+import { Gamepad2, Heart, LibraryBig, Puzzle, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GameListCard } from "@/components/games/GameListCard";
@@ -141,7 +142,7 @@ export function ProfileCollection({
         ) : null}
         {q.isPending && !pages ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
         {!q.isPending && !q.isError && !hasMore && items.length === 0 ? (
-          <p role="status" className="text-muted">{t`No games found`}</p>
+          <EmptyList icon={<LibraryBig className="size-7" />}>{t`No games found`}</EmptyList>
         ) : null}
         {items.length ? (
           <Virtualizer layout={ListLayout} layoutOptions={layoutOptions} shouldObserveItemSize>

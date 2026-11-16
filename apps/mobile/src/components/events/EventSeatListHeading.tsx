@@ -21,21 +21,11 @@ export function EventSeatListHeading({ waiting }: { waiting: boolean }) {
       </Typography>
       <HelpPopover label={`${title}: ${t("Field help")}`} title={title} width={300}>
         {waiting ? (
-          <>
-            <Typography className="text-sm text-foreground">
-              {t(
-                "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves.",
-              )}
-            </Typography>
-            <Typography className="text-sm text-foreground">
-              {t(
-                "Accepted waiting players may vote. Pending invitations do not vote or count toward agreement.",
-              )}
-            </Typography>
-            <Typography className="text-sm text-foreground">
-              {t("Only the organizer and recipient can see pending invitation identities.")}
-            </Typography>
-          </>
+          <Typography className="text-sm text-foreground">
+            {t(
+              "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
+            )}
+          </Typography>
         ) : (
           <>
             <IconLegend
@@ -45,15 +35,7 @@ export function EventSeatListHeading({ waiting }: { waiting: boolean }) {
               ]}
             />
             <Typography className="text-sm text-foreground">
-              {t("Pending invitations reserve a place but do not vote or count toward agreement.")}
-            </Typography>
-            <Typography className="text-sm text-foreground">
-              {t(
-                "Free places allow joining or invitations. Places are not assigned physical seats.",
-              )}
-            </Typography>
-            <Typography className="text-sm text-foreground">
-              {t("Only the organizer and recipient can see pending invitation identities.")}
+              {t("Pending invitations do not count toward agreement.")}
             </Typography>
           </>
         )}

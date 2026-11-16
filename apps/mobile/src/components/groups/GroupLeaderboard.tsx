@@ -60,7 +60,7 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
             .includes(debouncedSearch.toLocaleLowerCase(i18n.locale)),
         )
       : choices;
-  const selected = choices.find((game) => game.id === gameId);
+  const selected = choices.find((game) => game.id === gameId) ?? games.selectedGame;
   const scope = JSON.stringify([Constants.expoConfig?.extra?.apiUrl, userId, groupId, gameId]);
   const firstPage = players.data?.pages[0];
   const [window, setWindow] = useState({ scope, firstPage, pages: 1 });

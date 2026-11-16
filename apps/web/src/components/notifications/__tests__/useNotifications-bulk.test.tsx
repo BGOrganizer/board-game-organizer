@@ -81,7 +81,11 @@ it.each(["success", "rejected", "lost-response-saved", "lost-response-rejected",
       }),
       { wrapper },
     );
-    expect(hook.result.current.inbox.notifications).toHaveLength(3);
+    expect(hook.result.current.inbox.notifications).toHaveLength(2);
+    if (outcome !== "success") {
+      await act(() => hook.result.current.inbox.list.fetchNextPage());
+      expect(hook.result.current.inbox.notifications).toHaveLength(3);
+    }
     act(() => hook.result.current.inbox.deleteAllNotifications.mutate());
     await waitFor(() => expect(finish).toBeDefined());
     expect(hook.result.current.inbox.notifications).toEqual([]);
@@ -189,6 +193,7 @@ it("cannot overlap a bulk deletion with another notification write", async () =>
   );
   vi.stubGlobal("fetch", fetcher);
   const hook = renderHook(() => useNotifications({ ...options, enabled: false }, 20), { wrapper });
+  await act(() => hook.result.current.list.fetchNextPage());
   act(() => hook.result.current.deleteNotification.mutate(item("3").id));
   await waitFor(() => expect(finish).toBeDefined());
   await act(async () => {

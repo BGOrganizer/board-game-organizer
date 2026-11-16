@@ -15,6 +15,7 @@ function load(file: string, name: string, extra: Record<string, unknown> = {}) {
     "heroui-native/button": { Button: "Button" },
     "heroui-native/hooks": { useThemeColor: (tokens: string | string[]) => tokens },
     "heroui-native/text": { Typography: "Typography" },
+    "@/components/common/ui/EmptyList": { EmptyList: "EmptyList" },
     "@/lib/i18n": { useT: () => (id: string) => id },
     ...extra,
   };

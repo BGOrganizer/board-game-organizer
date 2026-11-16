@@ -2,6 +2,8 @@
 import { communityAccessDenied, type useRecordTables } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Dices } from "lucide-react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { WindowedList } from "@/components/common/ui/WindowedList";
 import { EventTableCard } from "./EventTableCard";
 
@@ -27,7 +29,7 @@ export function EventTables({ query: q }: { query: ReturnType<typeof useRecordTa
         />
       ) : null}
       {!q.isPending && !q.isError && !items.length ? (
-        <p role="status" className="text-muted">{t`No tables found`}</p>
+        <EmptyList icon={<Dices className="size-7" />}>{t`No tables found`}</EmptyList>
       ) : null}
       {q.isPending || q.isFetchingNextPage ? <Skeleton className="h-32 w-full rounded-xl" /> : null}
       {q.isError ? (

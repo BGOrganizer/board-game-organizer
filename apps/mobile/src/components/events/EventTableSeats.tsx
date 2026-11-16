@@ -17,7 +17,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX } from "lucide-react-native";
+import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX, UsersRound } from "lucide-react-native";
 import { type ReactNode, useRef, useState } from "react";
 import { type ScrollView, SectionList, View } from "react-native";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
@@ -252,7 +252,9 @@ export function EventTableSeats({
             active ? (
               <View style={{ gap: 8 }}>
                 {!roster.rows.length && !roster.isPending && !roster.isError ? (
-                  <Typography className="text-foreground">{t("No players found")}</Typography>
+                  <EmptyList icon={<UsersRound size={28} color={muted} />}>
+                    {t("No players found")}
+                  </EmptyList>
                 ) : null}
                 {roster.isPending || roster.isFetchingNextPage ? (
                   <Skeleton style={{ width: "100%", height: 64, borderRadius: 12 }} />

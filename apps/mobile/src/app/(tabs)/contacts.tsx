@@ -10,6 +10,7 @@ import {
   useInvites,
   useNotificationAttentionContext,
   useReadNotificationAttention,
+  useRecordListWindow,
 } from "@board-game-organizer/shared";
 import * as Sentry from "@sentry/react-native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,7 +37,7 @@ import {
   UserRoundPlus,
   UsersRound,
 } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Linking, Pressable, Share, View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -193,7 +194,7 @@ export default function ContactsScreen() {
     return () => clearInterval(interval);
   }, [token, getToken]);
 
-  const contacts = useContacts(apiUrl(), token, getToken, undefined, userId, mutationFeedback);
+  const contacts = useContacts(apiUrl(), token, getToken, undefined, userId, mutationFeedback, tab);
   const invite = useInvites({
     apiUrl: apiUrl(),
     userId,
@@ -528,12 +529,6 @@ export default function ContactsScreen() {
     ...sentRows.map((row) => ({ row, type: "sent" as const })),
   ].filter(({ row }) => row.profile);
   const requestPages = [contacts.pending, contacts.sent];
-  const pendingRequestIds = new Set(
-    pendingRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
-  );
-  const sentRequestIds = new Set(
-    sentRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
-  );
   const friendRequestsLoaded = contacts.pending.isSuccess && contacts.sent.isSuccess;
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
@@ -546,11 +541,21 @@ export default function ContactsScreen() {
     followersRows,
     visibleSuggestions,
     blockedRows,
+    contacts.knownConnectionIds,
   );
   const bgoContacts = visibleSuggestions;
+  const devicePages = useMemo(() => [{ items: unregistered }], [unregistered]);
+  const deviceWindow = useRecordListWindow({
+    scope: JSON.stringify([apiUrl(), userId, tab, deviceGenerationRef.current]),
+    pages: devicePages,
+    pageSize: CONTACT_LIST_PAGE_SIZE,
+    hasNextPage: hasMoreDeviceContacts,
+    isFetching: loadingDevicePage || syncingContacts,
+    fetchNextPage: loadDevicePage,
+  });
   const deviceRows = contactDeviceRows(
     bgoContacts,
-    contacts.suggestions.hasNextPage ? [] : unregistered,
+    contacts.suggestions.hasNextPage ? [] : deviceWindow.items,
   );
   const connectionLabels = {
     friends: t("Friends"),
@@ -590,8 +595,7 @@ export default function ContactsScreen() {
     !user.isFriend &&
     !user.blockedByMe &&
     !user.blockedMe &&
-    !pendingRequestIds.has(user.id) &&
-    !sentRequestIds.has(user.id);
+    !contacts.friendRequestContext(user.id);
   const contactRow = (
     user: ContactUser,
     friendRequest?: FriendRequestContext,
@@ -617,15 +621,7 @@ export default function ContactsScreen() {
         <Pressable
           accessibilityRole="button"
           onPress={() =>
-            openUserActions(
-              user,
-              friendRequest ??
-                (pendingRequestIds.has(user.id)
-                  ? "incoming"
-                  : sentRequestIds.has(user.id)
-                    ? "outgoing"
-                    : undefined),
-            )
+            openUserActions(user, friendRequest ?? contacts.friendRequestContext(user.id))
           }
           hitSlop={8}
           accessibilityLabel={`${t("Actions")}: ${user.name}`}
@@ -721,7 +717,7 @@ export default function ContactsScreen() {
                     !contacts.suggestions.isFetchNextPageError
                   )
                     void contacts.suggestions.fetchNextPage();
-                } else void loadDevicePage();
+                } else void deviceWindow.fetchNextPage();
               }}
               onEndReachedThreshold={0.5}
               initialNumToRender={12}
@@ -804,6 +800,7 @@ export default function ContactsScreen() {
                       !hasMoreDeviceContacts &&
                       !contacts.suggestions.isLoading &&
                       !contacts.suggestions.isError &&
+                      !contacts.suggestions.hasNextPage &&
                       bgoContacts.length === 0 &&
                       unregistered.length === 0 ? (
                         <EmptyList icon={<BookUser size={28} color={muted} />}>

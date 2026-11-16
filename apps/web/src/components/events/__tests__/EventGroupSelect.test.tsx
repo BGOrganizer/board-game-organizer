@@ -61,6 +61,7 @@ it("preloads a compact searchable Select with group artwork, explicit no-group a
   const list = await screen.findByRole("listbox");
   expect(list.className).toContain("max-h-48");
   await within(list).findByRole("option", { name: /Friday group/ });
+  expect(within(list).queryByRole("img", { name: "Group admin" })).toBeNull();
   expect(
     within(list)
       .getByRole("option", { name: /Friday group/ })

@@ -160,6 +160,7 @@ export function Contacts() {
     attentionRead.read({ kind: "contacts", id });
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState("connections");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -213,6 +214,7 @@ export function Contacts() {
     protectionBypass(),
     userId,
     mutationFeedback,
+    tab,
   );
   const connectionPages = [
     contacts.friends,
@@ -291,20 +293,9 @@ export function Contacts() {
   const friendsRows = contacts.friends.data ?? [];
   const pendingRows = contacts.pending.data ?? [];
   const sentRows = contacts.sent.data ?? [];
-  const pendingRequestIds = new Set(
-    pendingRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
-  );
-  const sentRequestIds = new Set(
-    sentRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
-  );
   const friendRequestsLoaded = contacts.pending.isSuccess && contacts.sent.isSuccess;
   const canSendFriendRequest = (user: ContactUser) =>
-    friendRequestsLoaded &&
-    !user.isFriend &&
-    !user.blockedByMe &&
-    !user.blockedMe &&
-    !pendingRequestIds.has(user.id) &&
-    !sentRequestIds.has(user.id);
+    friendRequestsLoaded && !user.isFriend && !user.blockedByMe && !user.blockedMe;
 
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
@@ -316,6 +307,7 @@ export function Contacts() {
     followersRows,
     suggestions,
     blockedRows,
+    contacts.knownConnectionIds,
   );
   const bgoContacts = suggestions;
   const connectionLabels = {
@@ -366,14 +358,8 @@ export function Contacts() {
           user={user}
           busy={contacts.isBusy(user.id)}
           canSendFriendRequest={canSendFriendRequest(user)}
-          friendRequest={
-            friendRequest ??
-            (pendingRequestIds.has(user.id)
-              ? "incoming"
-              : sentRequestIds.has(user.id)
-                ? "outgoing"
-                : undefined)
-          }
+          friendRequest={friendRequest}
+          resolveFriendRequest={() => contacts.friendRequestContext(user.id)}
           onAction={handleUserAction(user)}
         />
       }
@@ -405,8 +391,9 @@ export function Contacts() {
 
         <Tabs
           aria-label={t`Contacts`}
-          defaultSelectedKey="connections"
+          selectedKey={tab}
           onSelectionChange={(key) => {
+            setTab(String(key));
             if (key === "connections" || key === "requests" || key === "search") readSection(key);
           }}
         >
@@ -476,6 +463,7 @@ export function Contacts() {
               ) : null}
               {!contacts.suggestions.isLoading &&
               !contacts.suggestions.isError &&
+              !contacts.suggestions.hasNextPage &&
               bgoContacts.length === 0 ? (
                 <EmptyList icon={<BookUser className="size-7" />}>
                   {t`No contacts to invite`}
@@ -557,7 +545,7 @@ export function Contacts() {
                 className="text-sm text-danger"
               >{t`Could not load friend requests`}</p>
             ) : null}
-            {!requestPages.some((page) => page.isLoading || page.isError) &&
+            {!requestPages.some((page) => page.isLoading || page.isError || page.hasNextPage) &&
             pendingRows.length === 0 &&
             sentRows.length === 0 ? (
               <EmptyList icon={<Mail className="size-7" />}>{t`No friend requests`}</EmptyList>
@@ -615,7 +603,7 @@ export function Contacts() {
             {connectionPages.some((page) => page.isError) ? (
               <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
             ) : null}
-            {!connectionPages.some((page) => page.isLoading || page.isError) &&
+            {!connectionPages.some((page) => page.isLoading || page.isError || page.hasNextPage) &&
             connections.every(
               (section) => section.key === "device" || section.users.length === 0,
             ) ? (

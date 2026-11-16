@@ -21,14 +21,19 @@ export function EventVisibilityPicker({
   const { t } = useLingui();
   const choices = [
     { value: "PRIVATE" as const, label: t`Private`, icon: LockKeyhole, color: "text-muted" },
-    { value: "PUBLIC" as const, label: t`Public`, icon: Globe, color: "text-accent" },
+    {
+      value: "PUBLIC" as const,
+      label: t`Public`,
+      icon: Globe,
+      color: publicAllowed ? "text-accent" : "text-muted",
+    },
   ];
   return (
     <section className="space-y-2">
       <SearchHelpLabel
         label={t`Event visibility`}
         helpTitle={t`Field help`}
-        help={t`Public events require an approved public group. Private events remain private when you change groups.`}
+        help={t`Public events are visible to everyone and can be joined without group membership. Select an approved public group to enable this option.`}
       />
       <RadioGroup
         name="event-visibility"
@@ -46,7 +51,7 @@ export function EventVisibilityPicker({
           <Card
             key={choice.value}
             variant={value === choice.value ? "secondary" : "default"}
-            className={`min-w-0 border-2 p-0 ${value === choice.value ? "border-accent" : "border-transparent"}`}
+            className={`min-w-0 border-2 p-0 ${choice.value === "PUBLIC" && !publicAllowed ? "border-dashed border-separator" : value === choice.value ? "border-accent" : "border-transparent"}`}
           >
             <Radio
               value={choice.value}
@@ -67,19 +72,23 @@ export function EventVisibilityPicker({
                     <Radio.Indicator />
                   </Radio.Control>
                 </span>
-                <span className="break-words font-semibold text-foreground">{choice.label}</span>
+                <span
+                  className={`break-words font-semibold ${choice.value === "PUBLIC" && !publicAllowed ? "text-muted" : "text-foreground"}`}
+                >
+                  {choice.label}
+                </span>
               </Radio.Content>
             </Radio>
           </Card>
         ))}
       </RadioGroup>
-      <p className="text-sm text-muted">
-        {locked
-          ? t`Event visibility cannot be changed after creation.`
-          : !publicAllowed
-            ? t`Public events require an approved public group.`
-            : t`Private events are visible only to accepted group members. Public-group scheduling rules still apply.`}
-      </p>
+      {locked || !publicAllowed ? (
+        <p className="text-sm text-muted">
+          {locked
+            ? t`Event visibility cannot be changed after creation.`
+            : t`Select an approved public group to enable public events.`}
+        </p>
+      ) : null}
     </section>
   );
 }

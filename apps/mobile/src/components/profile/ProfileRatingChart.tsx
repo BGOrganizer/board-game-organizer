@@ -2,12 +2,14 @@ import type { ProfileRatingPoint } from "@board-game-organizer/schemas";
 import { profileRatingPath } from "@board-game-organizer/shared";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
+import { useMemo } from "react";
 import { View } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import { useT } from "@/lib/i18n";
 export function ProfileRatingChart({ points }: { points: ProfileRatingPoint[] }) {
   const t = useT(),
     accent = useThemeColor("accent");
+  const path = useMemo(() => profileRatingPath(points, 300, 160), [points]);
   if (points.length < 2)
     return (
       <Typography className="text-sm text-muted">
@@ -23,12 +25,7 @@ export function ProfileRatingChart({ points }: { points: ProfileRatingPoint[] })
         accessible
         accessibilityLabel={t("OpenSkill rating history")}
       >
-        <Polyline
-          points={profileRatingPath(points, 300, 160)}
-          fill="none"
-          stroke={accent}
-          strokeWidth={2}
-        />
+        <Polyline points={path} fill="none" stroke={accent} strokeWidth={2} />
       </Svg>
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
         <Typography className="text-xs text-muted">{points[0].ordinal}</Typography>

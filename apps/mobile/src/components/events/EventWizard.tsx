@@ -27,6 +27,7 @@ import {
   Save,
   Table2,
   Trash2,
+  TriangleAlert,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, View } from "react-native";
@@ -123,10 +124,11 @@ function Editor({
     o = useCommunityApi(),
     router = useRouter(),
     insets = useSafeAreaInsets(),
-    [fg, accentForeground, dangerForeground] = useThemeColor([
+    [fg, accentForeground, dangerForeground, warning] = useThemeColor([
       "foreground",
       "accent-foreground",
       "danger-foreground",
+      "warning",
     ]),
     a = useEventRecordActions(o, event?.id ?? ""),
     edit = useClientMutationDraft<EditEventVariables>(
@@ -447,9 +449,17 @@ function Editor({
                 </Button>
               ) : null}
               {step === 3 ? (
-                <Typography className="text-muted">
-                  {t("The organizer has no automatic playing seat.")}
-                </Typography>
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+                  <TriangleAlert
+                    size={20}
+                    color={warning}
+                    accessible={false}
+                    style={{ marginTop: 2, flexShrink: 0 }}
+                  />
+                  <Typography className="text-muted" style={{ flex: 1 }}>
+                    {t("The organizer has no automatic playing seat.")}
+                  </Typography>
+                </View>
               ) : null}
               {form.closed ? (
                 <Typography accessibilityRole="alert" className="text-danger">

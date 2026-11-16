@@ -106,7 +106,7 @@ export function EventGroupSelect({
             <Collection items={rows}>
               {(row) => (
                 <ListBox.Item id={row.id} textValue={row.name} isDisabled={!row.canInvite}>
-                  <GroupArtwork group={row} size={40} />
+                  <GroupArtwork group={row} size={40} status="none" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{row.name}</span>
                     <span className="text-xs text-muted">

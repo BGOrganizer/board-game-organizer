@@ -11,6 +11,7 @@ import { useLingui } from "@lingui/react/macro";
 import { CalendarClock, CircleCheck, CircleX, ClipboardCheck, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -112,7 +113,7 @@ export function EventProposalSection({
         </div>
       ) : null}
       {!s.q.isPending && !s.q.isError && !s.q.items.length ? (
-        <p role="status" className="text-muted">{t`No proposals`}</p>
+        <EmptyList icon={<ClipboardCheck className="size-7" />}>{t`No proposals`}</EmptyList>
       ) : null}
       <GroupedList>
         {s.q.items.map((row) => {

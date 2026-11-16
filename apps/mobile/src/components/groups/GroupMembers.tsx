@@ -117,7 +117,7 @@ export function GroupMembers({
           <>
             {header}
             {isGroupManagerRole(group.role) ? (
-              <View style={{ gap: 12 }}>
+              <View style={{ gap: 12, marginTop: 16 }}>
                 <AddUserRow
                   label={t("Invite friends")}
                   isDisabled={!group.canInvite || workflow.blocking || denied}

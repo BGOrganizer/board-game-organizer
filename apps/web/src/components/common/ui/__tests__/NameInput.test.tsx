@@ -1,8 +1,11 @@
 import type { NameCategory } from "@board-game-organizer/shared";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { fireEvent, screen } from "@testing-library/react";
 import type { FormEvent } from "react";
 import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
+import { messages as italian } from "../../../../../../../messages/it.js";
 import { NameInput } from "../NameInput";
 
 const generate = vi.hoisted(() => vi.fn(() => "Generated draft name"));
@@ -41,4 +44,17 @@ it("keeps generation disabled with the actual input", () => {
   fireEvent.click(button);
   expect(onGenerate).not.toHaveBeenCalled();
   expect((screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement).disabled).toBe(true);
+  expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("minlength")).toBe("5");
+  expect(screen.getByRole("textbox", { name: "Name" }).getAttribute("maxlength")).toBe("30");
+});
+it("generates the active Italian name within the default thirty-character input limit", () => {
+  const onGenerate = vi.fn();
+  renderWithI18n(
+    <I18nProvider i18n={setupI18n({ locale: "it", messages: { it: italian } })}>
+      <NameInput category="evento" onGenerate={onGenerate} aria-label="Name" />
+    </I18nProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Genera un nome casuale" }));
+  expect(generate).toHaveBeenLastCalledWith("evento", "it");
+  expect(onGenerate).toHaveBeenCalledWith("Generated draft name");
 });

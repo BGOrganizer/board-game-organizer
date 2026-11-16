@@ -71,3 +71,32 @@ it("reserves a relationship badge only for a canonical known fact", () => {
   for (const fact of ["blockedByMe", "isFriend", "isFollowing", "isFollower"] as const)
     expect(hasContactRelationship(user("known", { [fact]: true }))).toBe(true);
 });
+
+it("preserves canonical precedence and blocks when higher-priority profiles are outside the visible window", () => {
+  const sections = contactConnections(
+    [row(user("friend-visible")), row(user("blocked-hidden"))],
+    [row(user("friend-hidden")), row(user("following-visible")), row(user("blocked-hidden"))],
+    [row(user("friend-hidden")), row(user("following-hidden")), row(user("follower-visible"))],
+    [
+      user("friend-hidden"),
+      user("following-hidden"),
+      user("follower-hidden"),
+      user("blocked-hidden"),
+      user("device"),
+    ],
+    [row(user("blocked-visible"))],
+    {
+      friends: new Set(["friend-visible", "friend-hidden"]),
+      following: new Set(["following-visible", "following-hidden"]),
+      followers: new Set(["follower-visible", "follower-hidden"]),
+      blocked: new Set(["blocked-visible", "blocked-hidden"]),
+    },
+  );
+  expect(sections.map(({ key, users }) => [key, users.map(({ id }) => id)])).toEqual([
+    ["friends", ["friend-visible"]],
+    ["following", ["following-visible"]],
+    ["followers", ["follower-visible"]],
+    ["blocked", ["blocked-visible"]],
+    ["device", ["device"]],
+  ]);
+});

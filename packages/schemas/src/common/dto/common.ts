@@ -5,6 +5,16 @@ import { z } from "zod";
  * Relationship targets are Clerk user IDs, never ObjectIds.
  */
 
+export const RESOURCE_NAME_MIN_LENGTH = 5;
+export const RESOURCE_NAME_MAX_LENGTH = 30;
+
+/** Name writes only; persisted records retain their historical name limits. */
+export const resourceNameSchema = z
+  .string()
+  .trim()
+  .min(RESOURCE_NAME_MIN_LENGTH)
+  .max(RESOURCE_NAME_MAX_LENGTH);
+
 /** A Clerk user ID passed as a route/body target. */
 export const targetUserIdSchema = z.string().trim().min(1).max(255);
 

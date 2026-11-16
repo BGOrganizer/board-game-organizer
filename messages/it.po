@@ -2530,7 +2530,7 @@ msgstr "Date / Luoghi"
 #: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Dates and times"
-msgstr "Date e orari"
+msgstr "Date e Orari"
 
 #: apps/web/src/components/events/EventCard.tsx
 msgid "Dates to agree"
@@ -6196,7 +6196,7 @@ msgstr "Legenda tavoli"
 #: apps/web/src/components/events/EventTables.tsx
 #: apps/web/src/components/events/TableListHeading.tsx
 msgid "Table list"
-msgstr "Lista Tavoli"
+msgstr "Lista tavoli"
 
 #: apps/web/src/components/events/EventTableOverview.tsx
 msgid "Table location help"
@@ -7323,3 +7323,68 @@ msgstr "Apri nell’app"
 #. defaultMessage: If the app is installed, open this invitation there. Otherwise, continue on the web.
 msgid "invite.openAppHint"
 msgstr "Se l’app è installata, apri l’invito lì. Altrimenti, continua sul web."
+
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "You can vote only if you are an accepted participant in at least one table in the event."
+msgstr "Puoi votare solo se partecipi ad almeno un tavolo dell'evento con iscrizione accettata."
+
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "You can vote only if you are an accepted participant at this table."
+msgstr "Puoi votare solo se partecipi a questo tavolo con iscrizione accettata."
+
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "Choose at least one \"Yes\" or \"If needed\" option in this category."
+msgstr "Scegli almeno un'opzione \"Sì\" o \"Se necessario\" in questa categoria."
+
+#: apps/web/src/components/events/EventSeatListHeading.tsx
+msgid "Pending invitations do not count toward agreement."
+msgstr "Gli inviti in attesa non contano per l'accordo."
+
+#: apps/web/src/components/events/EventSeatListHeading.tsx
+msgid "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules."
+msgstr "I giocatori accettati in lista d'attesa possono votare. Possono partecipare se l'amministratore o l'app li seleziona secondo le regole del tavolo."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Choose a name, from 5 to 30 characters."
+msgstr "Scegli un nome da 5 a 30 caratteri."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Choose a recognizable event name between 5 and 30 characters."
+msgstr "Scegli un nome riconoscibile per l'evento, da 5 a 30 caratteri."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Enter an event name between 5 and 30 characters."
+msgstr "Inserisci un nome per l'evento da 5 a 30 caratteri."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Name this table so players can recognize it. Use between 5 and 30 characters."
+msgstr "Scegli un nome riconoscibile per il tavolo, da 5 a 30 caratteri."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Enter a table name between 5 and 30 characters."
+msgstr "Inserisci un nome per il tavolo da 5 a 30 caratteri."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Public events are visible to everyone and can be joined without group membership. Select an approved public group to enable this option."
+msgstr "Gli eventi pubblici sono visibili a tutti e puoi partecipare senza essere membro del gruppo. Seleziona un gruppo pubblico approvato per abilitare questa opzione."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Select an approved public group to enable public events."
+msgstr "Seleziona un gruppo pubblico approvato per abilitare gli eventi pubblici."
+
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Propose dates and times for participants to vote on."
+msgstr "Proponi date e orari da fare votare ai partecipanti."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Suggest locations for participants to vote on."
+msgstr "Proponi luoghi da fare votare ai partecipanti."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Suggest games for participants to vote on."
+msgstr "Proponi giochi da fare votare ai partecipanti."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data."
+msgstr "Scegli il numero minimo e massimo di giocatori. L'intervallo è limitato dai giochi scelti, secondo i dati di BGG."

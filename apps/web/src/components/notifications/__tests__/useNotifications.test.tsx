@@ -63,6 +63,42 @@ describe("useNotifications", () => {
     );
   });
 
+  it("reveals retained inbox pages progressively without rescanning hidden notifications", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const owner = { ...options, enabled: false };
+    const reads = Array.from({ length: 200 }, () => vi.fn());
+    const pages = reads.map((read, index) => ({
+      get notifications() {
+        read();
+        return [item(`cached-${index}`)];
+      },
+      unreadCount: 200,
+      nextCursor: index === reads.length - 1 ? null : `cursor-${index}`,
+    }));
+    const key = notificationListKey(owner, 20);
+    client.setQueryData(key, { pages, pageParams: pages.map((_, index) => String(index)) });
+    for (const read of reads) read.mockClear();
+    const view = renderHook(() => useNotifications(owner, 20), { wrapper: wrapper(client) });
+    expect(view.result.current.notifications.map((row) => row.id)).toEqual(["cached-0"]);
+    expect(reads.slice(1).every((read) => !read.mock.calls.length)).toBe(true);
+    const first = view.result.current.notifications;
+    view.rerender();
+    expect(view.result.current.notifications).toBe(first);
+    await act(() => view.result.current.list.fetchNextPage());
+    expect(view.result.current.notifications.map((row) => row.id)).toEqual([
+      "cached-0",
+      "cached-1",
+    ]);
+    expect(reads.slice(2).every((read) => !read.mock.calls.length)).toBe(true);
+    expect(client.getQueryData(key)).toMatchObject({ pages: { length: 200 } });
+    expect(fetch).not.toHaveBeenCalled();
+    view.unmount();
+    const reentry = renderHook(() => useNotifications(owner, 20), { wrapper: wrapper(client) });
+    expect(reentry.result.current.notifications.map((row) => row.id)).toEqual(["cached-0"]);
+    reentry.unmount();
+    client.clear();
+  });
+
   it.each([false, true])(
     "refreshes an open Table on a remote invitation, including an initially empty inbox (%s)",
     async (hadNotifications) => {

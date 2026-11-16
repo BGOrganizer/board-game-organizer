@@ -79,8 +79,39 @@ function setup(full = false) {
   const wrap = (children: ReactNode) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
-  return { client, group, event, fetcher, wrap };
+  return { client, group, event, table, fetcher, wrap };
 }
+it.each([false, true])(
+  "shows table-specific game voting help only for multiple=%s",
+  async (multiple) => {
+    const s = setup();
+    if (multiple) {
+      s.table.games = [...s.table.games, { ...s.table.games[0], gameId: 99 }];
+      s.table.gamesDetail = [
+        ...s.table.gamesDetail,
+        { ...s.table.gamesDetail[0], id: 99, name: "Another game" },
+      ];
+    }
+    renderWithI18n(s.wrap(<EventTableOverview eventId={eventId} tableId={tableId} />));
+    await screen.findByRole("heading", { name: "Board games" });
+    const help = screen.queryByRole("button", { name: "Board games: Voting legend" });
+    if (!multiple) expect(help).toBeNull();
+    else {
+      fireEvent.click(help as HTMLElement);
+      const popover = await screen.findByRole("dialog");
+      expect(
+        within(popover).getByText(
+          "You can vote only if you are an accepted participant at this table.",
+        ),
+      ).not.toBeNull();
+      expect(
+        within(popover).getByText(
+          'Choose at least one "Yes" or "If needed" option in this category.',
+        ),
+      ).not.toBeNull();
+    }
+  },
+);
 it.each([undefined, optionId, "different-group"])(
   "shows the separate Group card only outside its matching Group context (from=%s)",
   async (fromGroup) => {
@@ -163,7 +194,9 @@ it.each([false, true])(
     expect(within(waiting).getByRole("button", { name: "Join waiting list" })).toBeTruthy();
     fireEvent.click(within(waiting).getByRole("button", { name: "Waiting list: Field help" }));
     expect(
-      await screen.findByText(/When all places are reserved, new players join the waiting list/),
+      await screen.findByText(
+        "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
+      ),
     ).toBeTruthy();
   },
 );

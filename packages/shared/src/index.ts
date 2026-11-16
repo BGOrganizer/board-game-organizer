@@ -56,6 +56,7 @@ export * from "./events/hooks/useEventRecordForm";
 export * from "./events/hooks/useEventRecords";
 export * from "./events/hooks/useEventResultsForm";
 export * from "./events/hooks/useEventTableRoster";
+export * from "./events/hooks/useRecordListWindow";
 export * from "./events/hooks/useTableLeaderboard";
 export * from "./events/hooks/useTableSeatOrder";
 export * from "./events/tablePlayerRating";

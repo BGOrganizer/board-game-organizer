@@ -129,6 +129,20 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await expect(sent.getByText(/^@\S+$/)).toBeVisible();
   await expect(sent.getByRole("img", { name: "Sent" })).toBeVisible({ timeout: 30_000 });
 
+  // Reenter cached subtabs without losing the canonical request action for this person.
+  await page.getByRole("tab", { name: "Connections" }).click();
+  await findTarget(page);
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: "E2E Target" })
+    .getByRole("button", { name: "Actions" })
+    .click();
+  await expect(page.getByRole("menuitem", { name: "Cancel friend request" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Send friend request" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByRole("tab", { name: "Requests" }).click();
+  await expect(sent.getByRole("img", { name: "Sent" })).toBeVisible();
+
   // Outgoing requests can be cancelled from the contextual menu and sent again.
   await sent.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel friend request" }).click();
@@ -193,6 +207,11 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   expect((await acceptResponse).ok()).toBe(true);
   await targetPage.getByRole("tab", { name: "Connections" }).click();
   await expect(targetPage.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
+  await expect(targetPage.getByRole("img", { name: "Friends" })).toBeVisible();
+  await targetPage.getByRole("tab", { name: "Requests" }).click();
+  await expect(targetPage.getByText("No friend requests")).toBeVisible();
+  await targetPage.getByRole("tab", { name: "Connections" }).click();
+  await expect(targetPage.getByText("E2E Test")).toBeVisible();
   await expect(targetPage.getByRole("img", { name: "Friends" })).toBeVisible();
 
   // A slow, uncached following page must recover if an action cancels it.

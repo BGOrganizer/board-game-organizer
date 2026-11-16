@@ -12,11 +12,13 @@ it("owns date/location votes on event and game votes only on accepted table regi
   expect(event).toContain("<EventDetailsCard");
   expect(event).toContain("<EventVoteLegend");
   expect(source("EventDetailsCard")).toContain("background=");
-  expect(source("EventVoteLegend")).toContain("Only accepted players vote.");
   expect(source("EventVoteLegend")).toContain(
-    "Pending players keep a reserved place until accepted.",
+    "You can vote only if you are an accepted participant in at least one table in the event.",
   );
-  expect(source("EventVoteLegend")).toContain("Join at least one table");
+  expect(source("EventVoteLegend")).toContain(
+    "You can vote only if you are an accepted participant at this table.",
+  );
+  expect(source("EventVoteLegend")).toContain('Choose at least one "Yes" or "If needed"');
   expect(table).toMatch(/kind:\s*"game"/);
   expect(table).toMatch(/myRegistration\?\.status\s*===\s*"ACCEPTED"/);
   expect(event).not.toContain("useMatch");

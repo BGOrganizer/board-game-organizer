@@ -6,6 +6,8 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Dices } from "lucide-react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { WindowedList } from "@/components/common/ui/WindowedList";
@@ -57,8 +59,8 @@ export function TableList() {
         />
         {q.isPending ? (
           <Skeleton className="h-32 w-full rounded-xl" />
-        ) : !q.isError && !q.items.length ? (
-          <p>{t`No tables found`}</p>
+        ) : !q.isError && !q.hasNextPage && !q.items.length ? (
+          <EmptyList icon={<Dices className="size-7" />}>{t`No tables found`}</EmptyList>
         ) : null}
         {q.isError ? (
           <div role="alert">

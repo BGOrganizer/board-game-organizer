@@ -34,6 +34,7 @@ import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
+import { EventVoteLegend } from "./EventVoteLegend";
 export function EventTableOverview({
   eventId,
   tableId,
@@ -192,9 +193,14 @@ export function EventTableOverview({
         </View>
       ) : null}
       <NotificationItem itemId={notificationItemId(table.id, "games")}>
-        <Typography accessibilityRole="header" className="font-semibold text-foreground">
-          {t("Board games")}
-        </Typography>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Typography accessibilityRole="header" className="font-semibold text-foreground">
+            {t("Board games")}
+          </Typography>
+          {votableGames && table.eventStatus === "PLANNING" ? (
+            <EventVoteLegend label={t("Board games")} scope="table" />
+          ) : null}
+        </View>
       </NotificationItem>
       <GroupedList>
         {tableCardGames(table).map((game) => (

@@ -42,6 +42,7 @@ it.each(["tavolo", "evento", "gruppo"])(
       const generateName = vi.fn(() => "Generated draft name"),
         onChangeText = vi.fn();
       const render = load("common/ui/NameInput", "NameInput", {
+        "@board-game-organizer/schemas": { RESOURCE_NAME_MAX_LENGTH: 30 },
         "@board-game-organizer/shared": { generateName },
         "@lingui/react": { useLingui: () => ({ i18n: { locale } }) },
         "heroui-native/button": { Button: "Button" },
@@ -74,6 +75,9 @@ it.each(["tavolo", "evento", "gruppo"])(
         (node) => node.type === "Button",
       );
       expect(disabled?.props.isDisabled).toBe(true);
+      expect(
+        nodes(render({ category })).find((node) => node.type === "Input")?.props.maxLength,
+      ).toBe(30);
     }
   },
 );

@@ -2,23 +2,33 @@
 import { useLingui } from "@lingui/react/macro";
 import { Check, Minus, X } from "lucide-react";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
-export function EventVoteLegend() {
+export function EventVoteLegend({
+  label,
+  scope = "event",
+}: {
+  label: string;
+  scope?: "event" | "table";
+}) {
   const { t } = useLingui();
   return (
-    <HelpPopover label={t`Voting legend`} title={t`Voting legend`}>
+    <HelpPopover label={`${label}: ${t`Voting legend`}`} title={label}>
       <div className="space-y-3">
         {[
-          { Icon: Check, label: t`Yes` },
-          { Icon: Minus, label: t`If needed` },
-          { Icon: X, label: t`No` },
-        ].map(({ Icon, label }) => (
+          { Icon: Check, label: t`Yes`, color: "text-success" },
+          { Icon: Minus, label: t`If needed`, color: "text-warning" },
+          { Icon: X, label: t`No`, color: "text-danger" },
+        ].map(({ Icon, label, color }) => (
           <p key={label} className="flex items-center gap-2">
-            <Icon className="size-4" aria-hidden />
+            <Icon className={`size-4 ${color}`} aria-hidden />
             {label}
           </p>
         ))}
-        <p className="text-sm text-muted">{t`Single options are accepted when joining. Only categories with multiple options require votes.`}</p>
-        <p className="text-sm text-muted">{t`Only accepted players vote. Pending players keep a reserved place until accepted. Join at least one table to participate in the event.`}</p>
+        <p className="text-sm text-muted">
+          {scope === "table"
+            ? t`You can vote only if you are an accepted participant at this table.`
+            : t`You can vote only if you are an accepted participant in at least one table in the event.`}
+        </p>
+        <p className="text-sm text-muted">{t`Choose at least one "Yes" or "If needed" option in this category.`}</p>
       </div>
     </HelpPopover>
   );

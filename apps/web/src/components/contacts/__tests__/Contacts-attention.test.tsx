@@ -48,6 +48,14 @@ vi.mock("@board-game-organizer/shared", async (original) => ({
       fetchNextPage: vi.fn(),
     };
     return {
+      knownConnectionIds: {
+        friends: new Set(),
+        following: new Set(mutations.deviceOnly ? [] : [user.id]),
+        followers: new Set(),
+        blocked: new Set(),
+      },
+      friendRequestContext: (id: string) =>
+        !mutations.deviceOnly && id === user.id ? "incoming" : undefined,
       friends: page,
       following: {
         ...page,

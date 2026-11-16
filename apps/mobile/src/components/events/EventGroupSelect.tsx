@@ -80,7 +80,7 @@ export function EventGroupSelect({
         }
       }}
     >
-      <Select.Trigger accessibilityLabel={t("Group")}>
+      <Select.Trigger testID="event-group-select" accessibilityLabel={t("Group")}>
         <Select.Value placeholder={t("No group")} />
         <Select.TriggerIndicator />
       </Select.Trigger>
@@ -123,7 +123,7 @@ export function EventGroupSelect({
               artwork.row(
                 row.id,
                 <Select.Item value={row.id} label={row.name} disabled={!row.canInvite}>
-                  <GroupArtwork group={row} size={40} />
+                  <GroupArtwork group={row} size={40} status="none" />
                   <View style={{ flex: 1, gap: 4 }}>
                     <Typography className="text-foreground" numberOfLines={1}>
                       {row.name}

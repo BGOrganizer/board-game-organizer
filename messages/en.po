@@ -7324,3 +7324,68 @@ msgstr "Open in app"
 #. defaultMessage: If the app is installed, open this invitation there. Otherwise, continue on the web.
 msgid "invite.openAppHint"
 msgstr "If the app is installed, open this invitation there. Otherwise, continue on the web."
+
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "You can vote only if you are an accepted participant in at least one table in the event."
+msgstr "You can vote only if you are an accepted participant in at least one table in the event."
+
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "You can vote only if you are an accepted participant at this table."
+msgstr "You can vote only if you are an accepted participant at this table."
+
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "Choose at least one \"Yes\" or \"If needed\" option in this category."
+msgstr "Choose at least one \"Yes\" or \"If needed\" option in this category."
+
+#: apps/web/src/components/events/EventSeatListHeading.tsx
+msgid "Pending invitations do not count toward agreement."
+msgstr "Pending invitations do not count toward agreement."
+
+#: apps/web/src/components/events/EventSeatListHeading.tsx
+msgid "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules."
+msgstr "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Choose a name, from 5 to 30 characters."
+msgstr "Choose a name, from 5 to 30 characters."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Choose a recognizable event name between 5 and 30 characters."
+msgstr "Choose a recognizable event name between 5 and 30 characters."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Enter an event name between 5 and 30 characters."
+msgstr "Enter an event name between 5 and 30 characters."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Name this table so players can recognize it. Use between 5 and 30 characters."
+msgstr "Name this table so players can recognize it. Use between 5 and 30 characters."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Enter a table name between 5 and 30 characters."
+msgstr "Enter a table name between 5 and 30 characters."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Public events are visible to everyone and can be joined without group membership. Select an approved public group to enable this option."
+msgstr "Public events are visible to everyone and can be joined without group membership. Select an approved public group to enable this option."
+
+#: apps/web/src/components/events/EventInformationFields.tsx
+msgid "Select an approved public group to enable public events."
+msgstr "Select an approved public group to enable public events."
+
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Propose dates and times for participants to vote on."
+msgstr "Propose dates and times for participants to vote on."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Suggest locations for participants to vote on."
+msgstr "Suggest locations for participants to vote on."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Suggest games for participants to vote on."
+msgstr "Suggest games for participants to vote on."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data."
+msgstr "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data."

@@ -202,6 +202,53 @@ it("History shows terminated player, demonstrator and currently managed tables w
   ).toBe(true);
 });
 
+it.each([false, true])(
+  "does not announce an empty list before the remaining source is revealed (History=%s)",
+  async (history) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const u = new URL(url);
+        const second = u.searchParams.has("cursor");
+        return (
+          attention(u) ??
+          Response.json({
+            items: history
+              ? [
+                  {
+                    ...plannedTable,
+                    name: "Visible table",
+                    eventStatus: second ? "TERMINATED" : "PLANNING",
+                    confirmed: {
+                      gameId: 1,
+                      playerIds: ["owner"],
+                      startsAt: "2030-06-03T18:00:00Z",
+                    },
+                  },
+                ]
+              : [
+                  {
+                    ...plannedEvent,
+                    name: "Visible event",
+                    status: second ? "PLANNING" : "TERMINATED",
+                    canManage: true,
+                  },
+                ],
+            nextCursor: second ? null : "second",
+          })
+        );
+      }),
+    );
+    render(history ? <Tables /> : <Events canCreate={false} />);
+    const more = await screen.findByRole("button", { name: "Load more" });
+    expect(screen.queryByText(history ? "No tables found" : "No events found")).toBeNull();
+    fireEvent.click(more);
+    await screen.findByRole("link", {
+      name: history ? "Open table: Visible table" : "Open event: Visible event",
+    });
+  },
+);
+
 it.each(["mine", "available", "terminated", "history"] as const)(
   "%s keeps debounced text filtering, clearing and no minimum length",
   async (section) => {
@@ -213,7 +260,16 @@ it.each(["mine", "available", "terminated", "history"] as const)(
     render(
       section === "history" ? <Tables /> : <Events canCreate={false} initialSection={section} />,
     );
-    await screen.findByText(section === "history" ? "No tables found" : "No events found");
+    const empty = await screen.findByText(
+      section === "history" ? "No tables found" : "No events found",
+    );
+    const status = empty.closest('[role="status"]');
+    expect(
+      status?.querySelector(
+        section === "history" ? "svg.lucide-dices" : "svg.lucide-calendar-days",
+      ),
+    ).not.toBeNull();
+    expect(status?.className).toContain("items-center");
     const input = screen.getByRole("searchbox", { name: "Filter" });
     expect(input.getAttribute("placeholder")).toBe(
       section === "history" ? "Filter tables" : "Filter events",

@@ -7,12 +7,14 @@ import {
   useTableLeaderboard,
 } from "@board-game-organizer/shared";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { ListOrdered, Trophy } from "lucide-react-native";
 import { type ReactNode, useMemo, useRef } from "react";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
@@ -30,6 +32,7 @@ export function EventTableResults({
   header?: ReactNode;
 }) {
   const artwork = useArtworkListVisibility();
+  const muted = useThemeColor("muted");
   const t = useT(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets();
@@ -107,7 +110,7 @@ export function EventTableResults({
         !terminated && (q.isPending || q.isFetching) ? (
           <Skeleton style={{ width: "100%", height: 80, borderRadius: 12 }} />
         ) : terminated || !q.isError ? (
-          <Typography className="text-muted">{t("No players found")}</Typography>
+          <EmptyList icon={<Trophy size={28} color={muted} />}>{t("No players found")}</EmptyList>
         ) : null
       }
       ListFooterComponent={

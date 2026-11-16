@@ -57,6 +57,7 @@ function component(file: string, name: string, modules: Record<string, unknown>)
         return icons;
       }
       if (id === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
+      if (id === "@/components/common/ui/EmptyList") return { EmptyList: "EmptyList" };
       if (id === "./ListCardCoverContent") {
         cover = component("common/ui/ListCardCoverContent", "ListCardCoverContent", modules);
         return { ListCardCoverContent: cover };
@@ -709,6 +710,7 @@ it.each([
         ShieldCheck: "Shield",
         UserRoundCheck: "Player",
         UserRoundMinus: "Remove",
+        UsersRound: "UsersRound",
       },
       "react-native": { FlatList: "FlatList", View: "View" },
       "react-native-safe-area-context": { useSafeAreaInsets: () => ({ bottom: 0 }) },

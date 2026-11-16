@@ -71,7 +71,7 @@ output.status = {
   historyCard: literal(`${tablePrefix}: ${input.history.name}`),
   historyTableName: literal(input.history.name),
   tableStatus: literal(it ? "Terminata" : "Terminated"),
-  dates: literal(`${it ? "Date e orari" : "Dates and times"}: ${input.history.name}`),
+  dates: literal(`${it ? "Date e Orari" : "Dates and times"}: ${input.history.name}`),
   locations: literal(`${it ? "Luoghi" : "Locations"}: ${input.history.name}`),
   games: literal(`${it ? "Giochi da tavolo" : "Board games"}: ${input.history.name}`),
   minimum: literal(it ? "Giocatori minimi" : "Minimum players"),

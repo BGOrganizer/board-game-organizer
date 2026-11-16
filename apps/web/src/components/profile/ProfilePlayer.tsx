@@ -7,7 +7,9 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Gamepad2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
@@ -28,9 +30,7 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
   }, [search]);
   const games = useProfileRatingGames(o, userId, query),
     history = useProfileRating(o, userId, gameId);
-  const choices = communityAccessDenied(games.error)
-    ? []
-    : (games.data?.pages.flatMap((p) => p.items) ?? []);
+  const choices = communityAccessDenied(games.error) ? [] : games.items;
   const data =
     gameId === null || communityAccessDenied(games.error) || communityAccessDenied(history.error)
       ? undefined
@@ -38,7 +38,7 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
   const selected =
     gameId === null ? undefined : (choices.find((g) => g.id === gameId) ?? data?.game);
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
-  const points = [...(history.data?.pages ?? [])].reverse().flatMap((p) => p.points);
+  const points = history.points;
   return (
     <section className="space-y-3" aria-label={t`OpenSkill statistics`}>
       <h2 className="font-semibold">{t`OpenSkill statistics`}</h2>
@@ -87,7 +87,7 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
         </div>
       ) : null}
       {!choices.length && !games.isPending && !games.isError && !query ? (
-        <p className="text-muted">{t`No rated games yet`}</p>
+        <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No rated games yet`}</EmptyList>
       ) : null}
       {gameId && history.isPending ? <Skeleton className="h-44 w-full rounded-xl" /> : null}
       {data ? (

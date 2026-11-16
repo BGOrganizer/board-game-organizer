@@ -1,7 +1,13 @@
 "use client";
 
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  hashKey,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import type { MutationFeedback } from "../../common/mutationFeedback";
@@ -11,6 +17,9 @@ import {
   optimisticOperationSignal,
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
+import { useRecordListWindow } from "../../events/hooks/useRecordListWindow";
+import { contactRelationshipIds } from "../contactRelationshipIds";
+import { contactRequestContext } from "../contactRequestContext";
 import {
   type ContactAction,
   type ContactMutationVariables,
@@ -338,6 +347,9 @@ async function respondToFriendRequestWithToken(
   return (await res.json()) as { success: boolean };
 }
 
+const relationshipRows = (page: { rows: RelationshipRow[] }) => page.rows;
+const suggestionUsers = (page: { users: ContactUser[] }) => page.users;
+
 export function useRelationshipList(
   apiUrl: string,
   token: string | null | undefined,
@@ -346,19 +358,45 @@ export function useRelationshipList(
   currentUserId: string | null | undefined,
   type: RelationshipListType,
   enabled = true,
+  presentationScope = "",
 ) {
+  const key = relationshipListKey(apiUrl, currentUserId ?? token, type);
   const query = useInfiniteQuery({
-    queryKey: relationshipListKey(apiUrl, currentUserId ?? token, type),
-    queryFn: ({ pageParam }) =>
-      fetchRelationshipPageWithToken(apiUrl, token, getToken, type, pageParam, protectionBypass),
+    queryKey: key,
+    queryFn: ({ pageParam, signal }) =>
+      fetchRelationshipPageWithToken(
+        apiUrl,
+        token,
+        getToken,
+        type,
+        pageParam,
+        protectionBypass,
+        signal,
+      ),
     initialPageParam: "",
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: enabled && Boolean(apiUrl && (token || (getToken && currentUserId))),
     staleTime: 5 * 60_000,
   });
+  const window = useRecordListWindow({
+    scope: hashKey([key, presentationScope]),
+    pages: query.data?.pages,
+    getItems: relationshipRows,
+    hasNextPage: query.hasNextPage,
+    isFetching: query.isFetching,
+    fetchNextPage: () => query.fetchNextPage({ cancelRefetch: false }),
+  });
+  // IDs alone retain known block/precedence facts; never flatten hidden profile pages for UI.
+  const knownIds = useMemo(
+    () =>
+      type === "pending" || type === "sent" ? undefined : contactRelationshipIds(query.data?.pages),
+    [type, query.data?.pages],
+  );
   return {
     ...query,
-    data: query.data?.pages.flatMap((page) => page.rows),
+    ...window,
+    data: query.data ? window.items : undefined,
+    knownIds,
   };
 }
 
@@ -379,6 +417,7 @@ export function useContacts(
   protectionBypass?: string | null,
   currentUserId?: string | null,
   feedback?: MutationFeedback,
+  presentationScope = "",
 ) {
   const queryClient = useQueryClient();
   const resource = ["contacts", apiUrl, currentUserId ?? token] as const;
@@ -406,6 +445,8 @@ export function useContacts(
     protectionBypass,
     currentUserId,
     "following",
+    true,
+    presentationScope,
   );
 
   const followers = useRelationshipList(
@@ -415,6 +456,8 @@ export function useContacts(
     protectionBypass,
     currentUserId,
     "followers",
+    true,
+    presentationScope,
   );
 
   const friends = useRelationshipList(
@@ -424,6 +467,8 @@ export function useContacts(
     protectionBypass,
     currentUserId,
     "friends",
+    true,
+    presentationScope,
   );
 
   const pending = useRelationshipList(
@@ -433,6 +478,8 @@ export function useContacts(
     protectionBypass,
     currentUserId,
     "pending",
+    true,
+    presentationScope,
   );
 
   const sent = useRelationshipList(
@@ -442,6 +489,8 @@ export function useContacts(
     protectionBypass,
     currentUserId,
     "sent",
+    true,
+    presentationScope,
   );
 
   const blocked = useRelationshipList(
@@ -451,6 +500,18 @@ export function useContacts(
     protectionBypass,
     currentUserId,
     "blocked",
+    true,
+    presentationScope,
+  );
+
+  const knownConnectionIds = useMemo(
+    () => ({
+      friends: friends.knownIds ?? new Set<string>(),
+      following: following.knownIds ?? new Set<string>(),
+      followers: followers.knownIds ?? new Set<string>(),
+      blocked: blocked.knownIds ?? new Set<string>(),
+    }),
+    [friends.knownIds, following.knownIds, followers.knownIds, blocked.knownIds],
   );
 
   const suggestionsQuery = useInfiniteQuery({
@@ -462,17 +523,37 @@ export function useContacts(
     enabled,
     staleTime: 5 * 60_000,
   });
-  const suggestions = useMemo(
-    () => ({
-      ...suggestionsQuery,
-      data: suggestionsQuery.data
+  const suggestionWindow = useRecordListWindow({
+    scope: hashKey([contactSuggestionsKey(apiUrl, currentUserId ?? token), presentationScope]),
+    pages: suggestionsQuery.data?.pages,
+    getItems: suggestionUsers,
+    hasNextPage: suggestionsQuery.hasNextPage,
+    isFetching: suggestionsQuery.isFetching,
+    fetchNextPage: () => suggestionsQuery.fetchNextPage({ cancelRefetch: false }),
+  });
+  const suggestionData = useMemo(
+    () =>
+      suggestionsQuery.data
         ? {
-            users: suggestionsQuery.data.pages.flatMap((page) => page.users),
+            users: suggestionWindow.items,
             hasContacts: suggestionsQuery.data.pages[0]?.hasContacts ?? false,
           }
         : undefined,
-    }),
-    [suggestionsQuery],
+    [suggestionWindow.items, suggestionsQuery.data],
+  );
+  const suggestions = { ...suggestionsQuery, ...suggestionWindow, data: suggestionData };
+  const friendRequestContext = useCallback(
+    (targetUserId: string) =>
+      contactRequestContext(
+        queryClient.getQueryData<{ pages: { rows: RelationshipRow[] }[] }>(
+          relationshipListKey(apiUrl, currentUserId ?? token, "pending"),
+        )?.pages,
+        queryClient.getQueryData<{ pages: { rows: RelationshipRow[] }[] }>(
+          relationshipListKey(apiUrl, currentUserId ?? token, "sent"),
+        )?.pages,
+        targetUserId,
+      ),
+    [queryClient, apiUrl, currentUserId, token],
   );
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -760,52 +841,29 @@ export function useContacts(
 
   const runSearch = useCallback((query: string) => setSearchQuery(query.trim()), []);
 
-  return useMemo(
-    () => ({
-      following,
-      followers,
-      friends,
-      pending,
-      sent,
-      blocked,
-      suggestions,
-      follow,
-      unfollow,
-      unfriend,
-      friendRequest,
-      cancelFriendRequest,
-      acceptFriendRequest,
-      rejectFriendRequest,
-      block,
-      unblock,
-      syncContacts,
-      search,
-      runSearch,
-      refreshContacts,
-      isBusy,
-    }),
-    [
-      following,
-      followers,
-      friends,
-      pending,
-      sent,
-      blocked,
-      suggestions,
-      follow,
-      unfollow,
-      unfriend,
-      friendRequest,
-      cancelFriendRequest,
-      acceptFriendRequest,
-      rejectFriendRequest,
-      block,
-      unblock,
-      syncContacts,
-      search,
-      runSearch,
-      refreshContacts,
-      isBusy,
-    ],
-  );
+  return {
+    following,
+    followers,
+    friends,
+    pending,
+    sent,
+    blocked,
+    suggestions,
+    friendRequestContext,
+    knownConnectionIds,
+    follow,
+    unfollow,
+    unfriend,
+    friendRequest,
+    cancelFriendRequest,
+    acceptFriendRequest,
+    rejectFriendRequest,
+    block,
+    unblock,
+    syncContacts,
+    search,
+    runSearch,
+    refreshContacts,
+    isBusy,
+  };
 }

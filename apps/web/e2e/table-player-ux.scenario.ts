@@ -57,6 +57,26 @@ for (const width of [390, 1280])
     ).toBeVisible();
     await expect(waiting.getByRole("list")).toHaveCount(0);
     await expect(waiting.getByRole("button")).toHaveCount(1); // Dedicated help, no queue action.
+    await main
+      .getByRole("button", {
+        name: it ? "Lista posti: Guida al campo" : "Seats list: Field help",
+        exact: true,
+      })
+      .click();
+    const seatsHelp = page.getByRole("dialog");
+    for (const label of it
+      ? [
+          "Giocatore accettato",
+          "Invito in attesa",
+          "Gli inviti in attesa non contano per l'accordo.",
+        ]
+      : [
+          "Accepted player",
+          "Invitation pending",
+          "Pending invitations do not count toward agreement.",
+        ])
+      await expect(seatsHelp.getByText(label, { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.goto(full);
     await main
       .getByRole("tab", { name: it ? "Partecipanti" : "Participants", exact: true })
@@ -71,12 +91,22 @@ for (const width of [390, 1280])
     await expect(
       page.getByText(
         it
-          ? "I giocatori accettati in attesa possono votare. Gli inviti in sospeso non votano e non contano per l'accordo."
-          : "Accepted waiting players may vote. Pending invitations do not vote or count toward agreement.",
+          ? "I giocatori accettati in lista d'attesa possono votare. Possono partecipare se l'amministratore o l'app li seleziona secondo le regole del tavolo."
+          : "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
         { exact: true },
       ),
     ).toBeVisible();
     await page.keyboard.press("Escape");
+    await page.goto(full.split("/tables/")[0]);
+    const tablesTab = main.getByRole("tab", { name: it ? "Tavoli" : "Tables", exact: true });
+    await tablesTab.click();
+    await expect(tablesTab).toHaveAttribute("aria-selected", "true");
+    await expect(
+      main.getByRole("heading", { name: it ? "Lista tavoli" : "Table list", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      main.getByRole("button", { name: it ? "Legenda tavoli" : "Table legend", exact: true }),
+    ).toHaveCount(0);
     await page.goto(confirmed);
     await main
       .getByRole("tab", { name: it ? "Partecipanti" : "Participants", exact: true })
@@ -88,12 +118,33 @@ for (const width of [390, 1280])
     await expect(main.getByText(it ? "% di vittorie" : "Win %", { exact: true })).toBeVisible();
     // Existing valid owned PLANNING Event; inspect draft only, never save.
     await page.goto(`${free.split("/tables/")[0]}/edit`);
+    await expect(
+      main.getByRole("textbox", { name: it ? "Nome evento" : "Event name", exact: true }),
+    ).toHaveAttribute("maxlength", "30");
     await main.getByRole("button", { name: it ? "Avanti" : "Next", exact: true }).click();
     await main.getByRole("button", { name: it ? "Avanti" : "Next", exact: true }).click();
     await main.getByTestId(`event-draft-table-${free.split("/tables/")[1]}`).click();
     await expect(
       main.getByRole("textbox", { name: it ? "Nome tavolo" : "Table name", exact: true }).first(),
     ).toBeVisible();
+    await expect(
+      main.getByRole("textbox", { name: it ? "Nome tavolo" : "Table name", exact: true }).first(),
+    ).toHaveAttribute("maxlength", "30");
+    await main
+      .getByRole("button", {
+        name: it ? "Nome tavolo: Guida al campo" : "Table name: Field help",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByText(
+        it
+          ? "Scegli un nome riconoscibile per il tavolo, da 5 a 30 caratteri."
+          : "Name this table so players can recognize it. Use between 5 and 30 characters.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     const counts = main
       .getByRole("group", { name: it ? "Numero giocatori" : "Number of players", exact: true })
       .first();
@@ -103,8 +154,8 @@ for (const width of [390, 1280])
     await expect(
       page.getByText(
         it
-          ? "Scegli il minimo a sinistra e il massimo a destra. Servono almeno due giocatori e il minimo non può superare il massimo."
-          : "Choose the minimum on the left and maximum on the right. At least two players are required, and the minimum cannot exceed the maximum.",
+          ? "Scegli il numero minimo e massimo di giocatori. L'intervallo è limitato dai giochi scelti, secondo i dati di BGG."
+          : "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data.",
         { exact: true },
       ),
     ).toBeVisible();

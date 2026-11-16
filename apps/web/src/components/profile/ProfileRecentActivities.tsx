@@ -3,7 +3,9 @@ import type { ActivityAuthor } from "@board-game-organizer/schemas";
 import { communityAccessDenied, useProfileActivities } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Activity } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileActivityRow } from "./ProfileActivityRow";
@@ -18,7 +20,7 @@ export function ProfileRecentActivities({
     o = useCommunityApi(),
     router = useRouter(),
     q = useProfileActivities(o, userId);
-  const items = communityAccessDenied(q.error) ? [] : q.data?.pages[0]?.items;
+  const items = communityAccessDenied(q.error) ? [] : q.data ? q.items : undefined;
   return (
     <section className="space-y-3" aria-label={t`Recent activities`}>
       <h2 className="font-semibold">{t`Recent activities`}</h2>
@@ -36,7 +38,7 @@ export function ProfileRecentActivities({
           ))}
         </GroupedList>
       ) : !q.isPending && !q.isError ? (
-        <p className="text-muted">{t`No activities yet`}</p>
+        <EmptyList icon={<Activity className="size-7" />}>{t`No activities yet`}</EmptyList>
       ) : null}
       <Button
         variant="secondary"

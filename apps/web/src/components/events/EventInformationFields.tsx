@@ -53,7 +53,7 @@ export function EventInformationFields({
             required
             label={t`Event name`}
             helpTitle={t`Field help`}
-            help={t`Choose a recognizable event name between 5 and 120 characters.`}
+            help={t`Choose a recognizable event name between 5 and 30 characters.`}
           />
           <NameInput
             category="evento"
@@ -65,7 +65,7 @@ export function EventInformationFields({
             <p
               role="alert"
               className="text-sm text-danger"
-            >{t`Enter an event name between 5 and 120 characters.`}</p>
+            >{t`Enter an event name between 5 and 30 characters.`}</p>
           ) : null}
         </TextField>
         <section

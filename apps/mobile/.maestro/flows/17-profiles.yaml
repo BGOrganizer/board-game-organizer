@@ -83,6 +83,18 @@ tags: [manual, profile]
     direction: DOWN
     timeout: 120000
 - takeScreenshot: profile-real-ordinal-openskill-chart
+# Reenter Player using retained Query history, preserving the selected game.
+- scrollUntilVisible:
+    element: ${output.profile.activity}
+    direction: UP
+    timeout: 120000
+- tapOn: ${output.profile.activity}
+- tapOn: ${output.profile.player}
+- scrollUntilVisible:
+    element: ${output.profile.chart}
+    direction: DOWN
+    timeout: 120000
+- assertVisible: ${output.profile.chart}
 - scrollUntilVisible:
     element: ${output.profile.clearGame}
     direction: UP

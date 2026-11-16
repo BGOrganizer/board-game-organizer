@@ -11,11 +11,7 @@ export function EventSeatListHeading({ waiting }: { waiting: boolean }) {
       <h2 className="font-semibold">{title}</h2>
       <HelpPopover label={`${title}: ${t`Field help`}`} title={title}>
         {waiting ? (
-          <>
-            <p>{t`When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves.`}</p>
-            <p className="mt-2 text-sm">{t`Accepted waiting players may vote. Pending invitations do not vote or count toward agreement.`}</p>
-            <p className="mt-2 text-sm">{t`Only the organizer and recipient can see pending invitation identities.`}</p>
-          </>
+          <p>{t`Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.`}</p>
         ) : (
           <>
             <IconLegend
@@ -24,9 +20,7 @@ export function EventSeatListHeading({ waiting }: { waiting: boolean }) {
                 { icon: Mail, description: t`Invitation pending` },
               ]}
             />
-            <p className="mt-3 text-sm">{t`Pending invitations reserve a place but do not vote or count toward agreement.`}</p>
-            <p className="mt-2 text-sm">{t`Free places allow joining or invitations. Places are not assigned physical seats.`}</p>
-            <p className="mt-2 text-sm">{t`Only the organizer and recipient can see pending invitation identities.`}</p>
+            <p className="mt-3 text-sm">{t`Pending invitations do not count toward agreement.`}</p>
           </>
         )}
       </HelpPopover>

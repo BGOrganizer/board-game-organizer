@@ -1,0 +1,43 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Category voting legends for multiple options only
+# Read-only, authenticated Development. Run for EN/IT and light/dark.
+# VOTE_HELP_ACK=owned-development-resources; VOTE_HELP_LOCALE=en|it
+# VOTE_HELP_FIXTURES=[{eventId,tableId,eventName,tableName,multiple:false},
+#                     {eventId,tableId,eventName,tableName,multiple:true}]
+# Fixtures are PRIVATE PLANNING; all three categories must match `multiple`.
+tags: [manual, events, voting]
+---
+- runScript: ../helpers/vote-help-inputs.js
+- launchApp:
+    clearState: false
+- repeat:
+    times: ${output.voteHelp.cases.length}
+    commands:
+      - evalScript: ${output.voteHelp.current = output.voteHelp.cases[output.voteHelp.index]}
+      - openLink: ${output.voteHelp.current.link}
+      - extendedWaitUntil:
+          visible: ${output.voteHelp.current.name}
+          timeout: 120000
+      - scrollUntilVisible:
+          element: ${output.voteHelp.current.heading}
+          direction: DOWN
+          timeout: 20000
+      - runFlow:
+          when:
+            true: ${output.voteHelp.current.multiple}
+          commands:
+            - tapOn: ${output.voteHelp.current.trigger}
+            - assertVisible: ${output.voteHelp.yes}
+            - assertVisible: ${output.voteHelp.needed}
+            - assertVisible: ${output.voteHelp.no}
+            - assertVisible: ${output.voteHelp.current.participation}
+            - assertVisible: ${output.voteHelp.positive}
+            - assertNotVisible: ${output.voteHelp.obsolete}
+            - takeScreenshot: vote-help-${output.voteHelp.index}
+            - back
+      - runFlow:
+          when:
+            true: ${!output.voteHelp.current.multiple}
+          commands:
+            - assertNotVisible: ${output.voteHelp.current.trigger}
+      - evalScript: ${output.voteHelp.index = output.voteHelp.index + 1}

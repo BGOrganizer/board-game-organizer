@@ -3,7 +3,7 @@ tags: [ci, contacts, notifications]
 ---
 # Fixture: primary actor signed in, clean social graph, contacts permission denied.
 # Native address book has target, unregistered contact, and 43 paging sentinels.
-- assertVisible: "Matches"
+- assertVisible: "History"
 - runFlow: ../helpers/contacts-permissions.yaml
 - runFlow: ../helpers/contacts-friend-requests.yaml
 - runFlow: ../helpers/contacts-connections.yaml

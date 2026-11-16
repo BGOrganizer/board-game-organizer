@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { clientRequestIdSchema, targetUserIdSchema } from "../../common/dto/common";
+import {
+  clientRequestIdSchema,
+  resourceNameSchema,
+  targetUserIdSchema,
+} from "../../common/dto/common";
 import {
   GROUP_LOGO_CHUNK_BYTES,
   GROUP_LOGO_MAX_BYTES,
@@ -20,15 +24,18 @@ export const groupRecordListRoles = ["admin", "invited", "accepted"] as const;
 export const groupRecordMemberRoles = groupRecordListRoles;
 export type GroupRecordListRole = (typeof groupRecordListRoles)[number];
 
+// Command validation must not tighten historical approved/proposed revisions.
+const groupRevisionInputSchema = groupRevisionSchema.extend({ name: resourceNameSchema });
+
 export const createGroupRecordSchema = z.discriminatedUnion("type", [
-  groupRevisionSchema
+  groupRevisionInputSchema
     .extend({
       type: z.literal("PRIVATE"),
       invitedUserIds: invitedUsers,
       clientRequestId: clientRequestIdSchema.optional(),
     })
     .strict(),
-  groupRevisionSchema
+  groupRevisionInputSchema
     .required({ logoAssetId: true, location: true })
     .extend({
       type: z.literal("PUBLIC"),
@@ -38,7 +45,7 @@ export const createGroupRecordSchema = z.discriminatedUnion("type", [
     .strict(),
 ]);
 export type CreateGroupRecordInput = z.infer<typeof createGroupRecordSchema>;
-export const editGroupRecordSchema = groupRevisionSchema
+export const editGroupRecordSchema = groupRevisionInputSchema
   .extend({ version: z.number().int().positive() })
   .strict();
 export type EditGroupRecordInput = z.infer<typeof editGroupRecordSchema>;

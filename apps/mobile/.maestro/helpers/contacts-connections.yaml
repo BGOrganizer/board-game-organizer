@@ -16,6 +16,12 @@ appId: com.bgo.boardgameorganizer.dev
     timeout: 30000
 - assertVisible: "Friends"
 - assertVisible: "^@[^ ]+$"
+# Switching tabs keeps the cached friendship visible when returning.
+- tapOn: "Requests"
+- assertVisible: "No friend requests"
+- tapOn: "Connections"
+- assertVisible: "E2E Target"
+- assertVisible: "Friends"
 # Reopen the persisted account after another client changed the social graph.
 - stopApp
 - launchApp:

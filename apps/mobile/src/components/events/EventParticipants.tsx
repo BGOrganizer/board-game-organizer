@@ -11,10 +11,11 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { UserRoundMinus } from "lucide-react-native";
+import { UserRoundMinus, UsersRound } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { FlatList, View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { MemberActions } from "@/components/common/ui/MemberActions";
 import { UserListRow } from "@/components/common/ui/UserListRow";
@@ -38,6 +39,7 @@ export function EventParticipants({
   hasFloatingActions?: boolean;
 }) {
   const artwork = useArtworkListVisibility();
+  const muted = useThemeColor("muted");
   const t = useT(),
     o = useCommunityApi(),
     q = useEventParticipants(
@@ -106,9 +108,11 @@ export function EventParticipants({
         }}
         ListEmptyComponent={
           !q.isPending && !q.isError && !q.hasMore ? (
-            <Typography accessibilityLiveRegion="polite" className="text-muted">
-              {t("No participants yet")}
-            </Typography>
+            <View accessibilityLiveRegion="polite">
+              <EmptyList icon={<UsersRound size={28} color={muted} />}>
+                {t("No participants yet")}
+              </EmptyList>
+            </View>
           ) : null
         }
         ListFooterComponent={

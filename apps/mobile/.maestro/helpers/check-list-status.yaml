@@ -26,6 +26,8 @@ appId: com.bgo.boardgameorganizer.dev
 - extendedWaitUntil:
     visible: ${EMPTY_TEXT}
     timeout: 120000
+- takeScreenshot: ${'empty-list-' + SECTION}
+# Review the screenshot: centered semantic icon above the unchanged empty message.
 - tapOn: ${output.status.clear}
 - extendedWaitUntil:
     notVisible: ${EMPTY_TEXT}

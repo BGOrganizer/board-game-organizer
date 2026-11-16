@@ -1,0 +1,115 @@
+import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
+import { expect, test } from "@playwright/test";
+import { completeMobileNumberIfNeeded } from "./mobile-number";
+
+function required(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} required for owned read-only voting-help acceptance`);
+  return value;
+}
+const origin = new URL(required("PLAYWRIGHT_BASE_URL"));
+if (
+  required("VOTE_HELP_ACK") !== "owned-development-resources" ||
+  !["http:", "https:"].includes(origin.protocol) ||
+  (!["localhost", "127.0.0.1"].includes(origin.hostname) &&
+    !(origin.protocol === "https:" && origin.hostname.endsWith(".vercel.app"))) ||
+  origin.username ||
+  origin.password ||
+  process.env.CLERK_SECRET_KEY?.startsWith("sk_live_") ||
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_live_")
+)
+  throw new Error("Owned Development fixtures and Clerk only; never Production");
+const locale = required("VOTE_HELP_LOCALE");
+if (!["en", "it"].includes(locale)) throw new Error("VOTE_HELP_LOCALE must be en or it");
+const fixtures = JSON.parse(required("VOTE_HELP_FIXTURES")) as {
+  eventId: string;
+  tableId: string;
+  eventName: string;
+  tableName: string;
+  multiple: boolean;
+}[];
+const uuid = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
+if (
+  !Array.isArray(fixtures) ||
+  fixtures.length !== 2 ||
+  !fixtures.every(
+    (f) =>
+      f &&
+      uuid.test(f.eventId) &&
+      uuid.test(f.tableId) &&
+      typeof f.multiple === "boolean" &&
+      [f.eventName, f.tableName].every(
+        (name) => typeof name === "string" && name.trim().length > 0 && name.length <= 120,
+      ),
+  ) ||
+  !fixtures.some((f) => f.multiple) ||
+  !fixtures.some((f) => !f.multiple)
+)
+  throw new Error(
+    "Provide two owned PLANNING fixtures: single and multiple dates, locations and games",
+  );
+const it = locale === "it";
+const labels = [
+  it ? "Date e Orari" : "Dates and times",
+  it ? "Luoghi" : "Locations",
+  it ? "Giochi da tavolo" : "Board games",
+];
+const positive = it
+  ? 'Scegli almeno un\'opzione "Sì" o "Se necessario" in questa categoria.'
+  : 'Choose at least one "Yes" or "If needed" option in this category.';
+const eventHelp = it
+  ? "Puoi votare solo se partecipi ad almeno un tavolo dell'evento con iscrizione accettata."
+  : "You can vote only if you are an accepted participant in at least one table in the event.";
+const tableHelp = it
+  ? "Puoi votare solo se partecipi a questo tavolo con iscrizione accettata."
+  : "You can vote only if you are an accepted participant at this table.";
+
+for (const width of [390, 1280])
+  test(`category voting help ${locale} at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await setupClerkTestingToken({ page });
+    await page.goto("/");
+    await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
+    await page.goto("/");
+    await completeMobileNumberIfNeeded(page);
+    for (const fixture of fixtures) {
+      for (const [index, label] of labels.entries()) {
+        await page.goto(
+          index === 2
+            ? `/events/${fixture.eventId}/tables/${fixture.tableId}`
+            : `/events/${fixture.eventId}`,
+        );
+        await expect(
+          page.getByRole("heading", {
+            name: index === 2 ? fixture.tableName : fixture.eventName,
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
+        await expect(
+          page.getByRole("heading", { name: it ? "Dettagli" : "Details", exact: true }),
+        ).toHaveCount(0);
+        const trigger = page.getByRole("button", {
+          name: `${label}: ${it ? "Legenda voti" : "Voting legend"}`,
+          exact: true,
+        });
+        if (!fixture.multiple) {
+          await expect(trigger).toHaveCount(0);
+          continue;
+        }
+        await trigger.click();
+        const popover = page.getByRole("dialog");
+        await expect(
+          popover.getByText(index === 2 ? tableHelp : eventHelp, { exact: true }),
+        ).toBeVisible();
+        await expect(popover.getByText(positive, { exact: true })).toBeVisible();
+        for (const vote of it ? ["Sì", "Se necessario", "No"] : ["Yes", "If needed", "No"])
+          await expect(popover.getByText(vote, { exact: true })).toBeVisible();
+        await expect(
+          popover.getByText(it ? "Guida al campo" : "Field help", { exact: true }),
+        ).toHaveCount(0);
+        await page.keyboard.press("Escape");
+        await expect(popover).toHaveCount(0);
+      }
+    }
+  });

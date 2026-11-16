@@ -40,7 +40,7 @@ output.cardOverview = italian ? "^Dettagli$" : "^Details$";
 output.cardDateCount = italian ? "2 date proposte" : "2 proposed dates";
 output.cardLocationCount = italian ? "2 luoghi proposti" : "2 proposed locations";
 output.cardDatesPopover =
-  "^" + (italian ? "Date e orari: " : "Dates and times: ") + escaped(output.cardTableName) + "$";
+  "^" + (italian ? "Date e Orari: " : "Dates and times: ") + escaped(output.cardTableName) + "$";
 output.cardLocationsPopover =
   "^" + (italian ? "Luoghi: " : "Locations: ") + escaped(output.cardTableName) + "$";
 output.cardGamesPopover =
@@ -51,7 +51,7 @@ output.cardGamesTitle = italian ? "^Giochi da tavolo$" : "^Board games$";
 output.cardNoGames = italian ? "^Nessun gioco trovato$" : "^No games found$";
 output.cardEventState = italian ? "^In pianificazione$" : "^Planning$";
 output.cardEventDatesPopover =
-  "^" + (italian ? "Date e orari: " : "Dates and times: ") + escaped(output.cardEventName) + "$";
+  "^" + (italian ? "Date e Orari: " : "Dates and times: ") + escaped(output.cardEventName) + "$";
 output.cardEventLocationsPopover =
   "^" + (italian ? "Luoghi: " : "Locations: ") + escaped(output.cardEventName) + "$";
 output.cardPlayers = italian ? "^Giocatori: [0-9]+$" : "^Players: [0-9]+$";

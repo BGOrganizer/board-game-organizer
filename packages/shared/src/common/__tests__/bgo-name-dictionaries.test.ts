@@ -1,3 +1,4 @@
+import { resourceNameSchema } from "@board-game-organizer/schemas";
 import { expect, it } from "vitest";
 import { generateName, nameDictionaries } from "../bgo-name-dictionaries";
 
@@ -18,8 +19,7 @@ it("keeps all 300 supplied suggestions valid for the strictest shared name lengt
       expect(names).toHaveLength(50);
       for (const name of names) {
         expect(name).toBe(name.trim());
-        expect(name.length).toBeGreaterThanOrEqual(5);
-        expect(name.length).toBeLessThanOrEqual(120);
+        expect(resourceNameSchema.parse(name)).toBe(name);
       }
     }
   }

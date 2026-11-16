@@ -10,9 +10,10 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CalendarCheck2, CalendarClock, Flag, Plus } from "lucide-react-native";
+import { CalendarCheck2, CalendarClock, CalendarDays, Flag, Plus } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -34,6 +35,7 @@ export function EventList({
   header?: ReactNode;
 }) {
   const artwork = useArtworkListVisibility();
+  const muted = useThemeColor("muted");
   const t = useT(),
     router = useRouter(),
     o = useCommunityApi(),
@@ -120,8 +122,10 @@ export function EventList({
           ListEmptyComponent={
             list.isPending ? (
               <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
-            ) : !list.isError ? (
-              <Typography className="text-foreground">{t("No events found")}</Typography>
+            ) : !list.isError && !list.hasNextPage ? (
+              <EmptyList icon={<CalendarDays size={28} color={muted} />}>
+                {t("No events found")}
+              </EmptyList>
             ) : null
           }
           ListFooterComponent={

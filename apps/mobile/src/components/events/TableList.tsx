@@ -4,10 +4,13 @@ import {
   useRecordTables,
 } from "@board-game-organizer/shared";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
+import { Dices } from "lucide-react-native";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -17,6 +20,7 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableCard } from "./EventTableCard";
 export function TableList() {
   const artwork = useArtworkListVisibility();
+  const muted = useThemeColor("muted");
   const t = useT(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets(),
@@ -66,8 +70,8 @@ export function TableList() {
         ListEmptyComponent={
           q.isPending ? (
             <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
-          ) : !q.isError ? (
-            <Typography className="text-foreground">{t("No tables found")}</Typography>
+          ) : !q.isError && !q.hasNextPage ? (
+            <EmptyList icon={<Dices size={28} color={muted} />}>{t("No tables found")}</EmptyList>
           ) : null
         }
         ListFooterComponent={

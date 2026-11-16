@@ -127,3 +127,51 @@ it("rejects callbacks from a previous mount or a previous generation of the same
   await afterUnmount();
   expect(options.fetchNextPage).not.toHaveBeenCalled();
 });
+
+it("reads custom source pages lazily at their page size and keeps unchanged projections and callbacks stable", async () => {
+  const getItems = vi.fn((page: { rows: number[] }) => page.rows);
+  const pages = Array.from({ length: 300 }, (_, page) => ({
+    rows: Array.from({ length: 25 }, (_, row) => page * 25 + row),
+  }));
+  const options = { ...base(), pages, getItems, pageSize: 25 };
+  const view = renderHook(useRecordListWindow<number, { rows: number[] }>, {
+    initialProps: options,
+  });
+  expect(view.result.current.items).toHaveLength(25);
+  expect(getItems).toHaveBeenCalledTimes(1);
+  const items = view.result.current.items;
+  const more = view.result.current.fetchNextPage;
+  view.rerender({ ...options, fetchNextPage: vi.fn(async () => undefined) });
+  expect(view.result.current.items).toBe(items);
+  expect(view.result.current.fetchNextPage).toBe(more);
+  await act(async () => {
+    await Promise.all([more(), more()]);
+  });
+  expect(view.result.current.items).toHaveLength(50);
+  expect(getItems).toHaveBeenCalledTimes(3);
+  expect(pages).toHaveLength(300);
+  view.rerender({ ...options, scope: "owner/query/new-snapshot" });
+  expect(view.result.current.items).toHaveLength(25);
+  await act(async () => {
+    await more();
+  });
+  expect(view.result.current.items).toHaveLength(25);
+});
+
+it("uses the current request adapter without recreating callbacks or reading after unmount", async () => {
+  const options = { ...base(), hasNextPage: true };
+  const view = renderHook(useRecordListWindow<number>, { initialProps: options });
+  const more = view.result.current.fetchNextPage;
+  const replacement = vi.fn(async () => undefined);
+  view.rerender({ ...options, fetchNextPage: replacement });
+  expect(view.result.current.fetchNextPage).toBe(more);
+  await act(async () => {
+    await more();
+  });
+  expect(options.fetchNextPage).not.toHaveBeenCalled();
+  expect(replacement).toHaveBeenCalledOnce();
+  const afterUnmount = view.result.current.fetchNextPage;
+  view.unmount();
+  await afterUnmount();
+  expect(replacement).toHaveBeenCalledOnce();
+});

@@ -25,7 +25,12 @@ vi.mock("@board-game-organizer/shared", async (original) => ({
   ...(await original<typeof import("@board-game-organizer/shared")>()),
   useCommunityActivities: (...args: unknown[]) => {
     m.calls(...args);
-    return m.q;
+    return {
+      ...m.q,
+      items:
+        (m.q.data as { pages?: { items: CommunityActivity[] }[] } | undefined)?.pages?.[0]?.items ??
+        [],
+    };
   },
 }));
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => m.options }));
