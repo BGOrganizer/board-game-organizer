@@ -2,7 +2,7 @@ appId: com.bgo.boardgameorganizer.dev
 name: Approved resource artwork, uploaded logos and foreground continuity
 # Opt-in existing Preview fixtures. Configure OS Reduce Motion and app theme before each run.
 # Detail screenshots must show proportional artwork across the full card background.
-# List screenshots must show full-width titles, bottom-left artwork and wrapping controls to its right.
+# List screenshots must show full-width titles, bottom-left artwork and a single control row that may extend over the artwork.
 tags: [manual, artwork, accessibility]
 ---
 - runScript: ../helpers/resource-artwork-inputs.js

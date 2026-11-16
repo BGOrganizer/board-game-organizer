@@ -51,8 +51,17 @@ tags: [manual, cards]
     timeout: 120000
 - assertVisible: ${output.cardGroupParent}
 - assertVisible: ${output.cardEventTableCount}
-- assertVisible: ${output.cardRoles}
-- tapOn: ${output.cardRoles}
+- scrollUntilVisible:
+    element:
+      text: ${output.cardRoles}
+      childOf:
+        id: card-controls
+    direction: RIGHT
+    timeout: 20000
+- tapOn:
+    text: ${output.cardRoles}
+    childOf:
+      id: card-controls
 - assertVisible: ${output.cardEventAccepted}
 - takeScreenshot: card-event-roles-popover
 - back

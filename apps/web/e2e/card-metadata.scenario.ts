@@ -81,6 +81,18 @@ for (const width of [390, 1280])
         const image = c.querySelector('[data-slot="card-artwork"]')!.getBoundingClientRect();
         const facts = c.querySelector('[data-slot="card-facts"]')!.getBoundingClientRect();
         const controls = c.querySelector('[data-slot="card-controls"]')!;
+        const controlRow = controls.firstElementChild!;
+        const viewport = controls.getBoundingClientRect();
+        const centers = buttons.map((button) => {
+          const bounds = button.getBoundingClientRect();
+          return bounds.top + bounds.height / 2;
+        });
+        const initialScroll = controls.scrollLeft;
+        controls.scrollLeft = 0;
+        const firstReachable = buttons[0].getBoundingClientRect().left >= viewport.left - 1;
+        controls.scrollLeft = controls.scrollWidth;
+        const lastReachable = buttons.at(-1)!.getBoundingClientRect().right <= viewport.right + 1;
+        controls.scrollLeft = initialScroll;
         const frame = content.getBoundingClientRect();
         const padding = getComputedStyle(content);
         return {
@@ -91,16 +103,15 @@ for (const width of [390, 1280])
           titleAbove: heading.bottom <= row.top + 1,
           artworkBottomAligned: Math.abs(image.bottom - row.bottom) <= 1,
           factsToRight: facts.left >= image.right,
-          controlsWrap: getComputedStyle(controls).flexWrap === "wrap",
-          controlsInsideFacts: buttons.every((button) => {
-            const bounds = button.getBoundingClientRect();
-            return (
-              bounds.left >= facts.left - 1 &&
-              bounds.right <= facts.right + 1 &&
-              bounds.top >= facts.top - 1 &&
-              bounds.bottom <= facts.bottom + 1
-            );
-          }),
+          singleControlRow: Math.max(...centers) - Math.min(...centers) < 2,
+          controlsNoWrap: getComputedStyle(controlRow).flexWrap === "nowrap",
+          controlsSpanArtwork:
+            Math.abs(viewport.left - image.left) <= 1 && Math.abs(viewport.right - row.right) <= 1,
+          factsAboveControls:
+            c.querySelector('[data-slot="card-facts"]')!.firstElementChild!.getBoundingClientRect()
+              .bottom <=
+            viewport.top + 1,
+          overflowReachable: firstReachable && lastReachable,
           overflow: c.scrollWidth > c.clientWidth + 1,
           generated: Boolean(c.querySelector('[data-slot="resource-artwork"]')),
           generatedLightScope: c
@@ -114,8 +125,11 @@ for (const width of [390, 1280])
         titleAbove: true,
         artworkBottomAligned: true,
         factsToRight: true,
-        controlsWrap: true,
-        controlsInsideFacts: true,
+        singleControlRow: true,
+        controlsNoWrap: true,
+        controlsSpanArtwork: true,
+        factsAboveControls: true,
+        overflowReachable: true,
         overflow: false,
       });
       if (info.generated) expect(info.generatedLightScope).toBe("light");
@@ -138,7 +152,8 @@ for (const width of [390, 1280])
       await expect(card.locator("h1")).toHaveCSS("text-shadow", "none");
       await expect(card.locator('[class~="bg-background/80"]')).toHaveCount(1);
       const layout = await caption.evaluate((content) => {
-        const band = content.firstElementChild!.getBoundingClientRect();
+        const bandElement = content.firstElementChild!;
+        const band = bandElement.getBoundingClientRect();
         const artwork = content
           .closest(".card")!
           .querySelector('[data-slot="card-background"]')!
@@ -164,7 +179,10 @@ for (const width of [390, 1280])
             frame.left >= card.left - 1 &&
             frame.right <= card.right + 1 &&
             frame.bottom <= card.bottom + 1,
-          bottomAligned: card.bottom - frame.bottom <= 24,
+          bottomAligned: card.bottom - frame.bottom <= 6,
+          compactBand:
+            Number.parseFloat(getComputedStyle(bandElement).paddingTop) <= 2 &&
+            Number.parseFloat(getComputedStyle(bandElement).paddingBottom) <= 2,
           singleRow: Math.max(...centers) - Math.min(...centers) < 2,
           noWrap: getComputedStyle(toolbar).flexWrap === "nowrap",
           rightAligned: getComputedStyle(toolbar).justifyContent === "flex-end",
@@ -177,6 +195,7 @@ for (const width of [390, 1280])
         bandInside: true,
         controlsInside: true,
         bottomAligned: true,
+        compactBand: true,
         singleRow: true,
         noWrap: true,
         rightAligned: true,
@@ -239,6 +258,17 @@ for (const width of [390, 1280])
       .getByRole("dialog")
       .getByText(it ? "Partecipante accettato" : "Accepted participant", { exact: true });
     await expect(acceptedRole).toBeVisible();
+    expect(
+      await acceptedRole.evaluate((text) => {
+        const bounds = text.getBoundingClientRect();
+        const dialog = text.closest('[role="dialog"]')!.getBoundingClientRect();
+        return (
+          bounds.left >= dialog.left &&
+          bounds.right <= dialog.right &&
+          text.scrollWidth <= text.clientWidth + 1
+        );
+      }),
+    ).toBe(true);
     await expect(acceptedRole.locator("..").locator(".lucide-user-round-check")).toBeVisible();
     await page.keyboard.press("Escape");
     await event

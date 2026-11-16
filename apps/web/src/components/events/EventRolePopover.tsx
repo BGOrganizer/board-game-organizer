@@ -35,15 +35,18 @@ export function EventRolePopover({
       tone="muted"
       size="compact"
       triggerClassName="bg-default"
+      className="w-80 max-w-[calc(100vw-2rem)]"
     >
       <ul className="space-y-2">
         {roles.map((role) => {
           const item = RECORD_USER_ROLES[role],
             Icon = recordUserRoleIcons[item.icon];
           return (
-            <li key={role} className="flex items-center gap-2">
-              <Icon aria-hidden className={`size-4 shrink-0 ${colors[item.tone]}`} />
-              <span>{i18n._(recordUserRoleMessages[role])}</span>
+            <li key={role} className="flex items-start gap-2">
+              <Icon aria-hidden className={`mt-0.5 size-4 shrink-0 ${colors[item.tone]}`} />
+              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                {i18n._(recordUserRoleMessages[role])}
+              </span>
             </li>
           );
         })}

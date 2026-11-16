@@ -5,10 +5,24 @@ import { groupRecord, plannedEvent, plannedTable, seat } from "@/test-fixtures/e
 import { renderWithI18n } from "@/test-utils";
 import { EventCard } from "../EventCard";
 import { EventDetailsCard } from "../EventDetailsCard";
+import { EventRolePopover } from "../EventRolePopover";
 import { EventTableCard } from "../EventTableCard";
 import { EventTableInfo } from "../EventTableInfo";
 
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "owner" }) }));
+it("gives long role labels a bounded popover and wrapping text beside a fixed icon", async () => {
+  renderWithI18n(<EventRolePopover roles={["acceptedParticipant", "invitedParticipant"]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
+  const dialog = await screen.findByRole("dialog");
+  const accepted = within(dialog).getByText("Accepted participant");
+  expect(dialog.parentElement?.className).toContain("w-80");
+  expect(dialog.parentElement?.className).toContain("max-w-[calc(100vw-2rem)]");
+  expect(accepted.className).toContain("min-w-0 flex-1");
+  expect(accepted.className).toContain("[overflow-wrap:anywhere]");
+  expect(accepted.className).not.toMatch(/truncate|line-clamp/);
+  expect(accepted.previousElementSibling?.classList.contains("shrink-0")).toBe(true);
+  expect(within(dialog).getByText("Participant with pending invitation")).not.toBeNull();
+});
 it("keeps Event management, accepted waiting participation and demonstrator duty independent on list and detail cards", async () => {
   const event = {
     ...plannedEvent,

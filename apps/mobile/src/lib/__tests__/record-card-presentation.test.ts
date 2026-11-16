@@ -142,7 +142,7 @@ it.each(["cover", "thumbnail"])(
     const footer = (tree: Element) => {
       const body = tree.props.children[1] as Element;
       return artworkLayout === "cover"
-        ? body.props.children[1].props.children[1].props.children[1]
+        ? body.props.children[1].props.children[2]
         : body.props.children[0].props.children[1];
     };
     const pending = render({ ...props, controlsDisabled: true });
@@ -250,7 +250,7 @@ it("lets field-help labels shrink beside fixed controls at large native font sca
   expect(tree.props.style).toMatchObject({ flexShrink: 1, minWidth: 0 });
   expect(tree.props.children[0].props.style.flexShrink).toBe(1);
 });
-it("gives the title full width and puts wrapping controls beside bottom-aligned artwork", () => {
+it("gives the title full width and lets one scrollable control row extend over bottom-aligned artwork", () => {
   const render = component("common/ui/LinkedListCard", "LinkedListCard", {
     "heroui-native/card": { Card: { Body: "Card.Body" } },
     "react-native": {
@@ -276,24 +276,41 @@ it("gives the title full width and puts wrapping controls beside bottom-aligned 
   expect(body.props.style).toMatchObject({ alignItems: "stretch", padding: 16, gap: 12 });
   const [heading, main] = body.props.children as Element[];
   expect(heading.props.children).toBe("Title");
-  const [picture, content] = main.props.children as Element[];
+  const [picture, content, footer] = main.props.children as Element[];
   expect(main.props.style).toMatchObject({ flexDirection: "row", alignItems: "flex-end", gap: 16 });
   expect(picture.props.style).toMatchObject({ width: 96, height: 96, position: "relative" });
   expect(picture.props.children).toBe("Artwork");
   expect(content.props.style.marginLeft).toBeUndefined();
   expect(content.props.style.minHeight).toBe(96);
-  expect(content.props.children[0].props.children).toBe("Facts");
-  const footer = content.props.children[1];
-  expect(footer.type).toBe("View");
-  expect(footer.props.horizontal).toBeUndefined();
+  expect(content.props.style.paddingBottom).toBe(56);
+  expect(content.props.children.props.children).toBe("Facts");
+  expect(footer.type).toBe("ScrollView");
+  expect(footer.props.horizontal).toBe(true);
   expect(footer.props.style).toMatchObject({
-    marginTop: "auto",
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 48,
+    zIndex: 1,
+  });
+  expect(footer.props.contentContainerStyle).toMatchObject({
+    flexGrow: 1,
     flexDirection: "row",
     justifyContent: "flex-end",
-    flexWrap: "wrap",
   });
-  expect(footer.props.style.height).toBeUndefined();
+  expect(footer.props.contentContainerStyle.flexWrap).toBeUndefined();
   expect(footer.props.children.props.children).toEqual(["Icons", "Action"]);
+  const draft = render({
+    label: "Draft",
+    onPress: vi.fn(),
+    artwork: "Artwork",
+    children: "Facts",
+    artworkLayout: "cover",
+  });
+  const draftRow = draft.props.children[1].props.children[1];
+  expect(draftRow.props.children[1].props.style.paddingBottom).toBe(0);
+  expect(draftRow.props.children[2]).toBeNull();
 });
 it.each([
   ["admin", "warning", "Crown"],
@@ -807,6 +824,7 @@ it("fills the card background with artwork behind the natural title and bottom c
   expect(tree.props.background).toBe("Artwork");
   expect(tree.props.style).toEqual({ overflow: "hidden" });
   expect(tree.props.children.props.style.minHeight).toBe(224);
+  expect(tree.props.children.props.style.paddingBottom).toBe(4);
   const [scope, toolbar] = tree.props.children.props.children;
   expect(tree.props.children.props.children).toHaveLength(2);
   expect(scope.type).toBe("ScopedTheme");
@@ -819,7 +837,8 @@ it("fills the card background with artwork behind the natural title and bottom c
   expect(heading.props.style).toMatchObject({
     width: "100%",
     paddingHorizontal: 16,
-    alignItems: "flex-start",
+    alignItems: "center",
+    paddingVertical: 2,
   });
   expect(title.props.style.textShadowColor).toBeUndefined();
   expect(title.props.style.textShadowRadius).toBeUndefined();
@@ -829,7 +848,7 @@ it("fills the card background with artwork behind the natural title and bottom c
   expect(toolbar.props.style).toMatchObject({
     width: "100%",
     marginTop: "auto",
-    height: 52,
+    height: 44,
     flexShrink: 0,
   });
   expect(toolbar.props.contentContainerStyle).toMatchObject({
@@ -839,6 +858,7 @@ it("fills the card background with artwork behind the natural title and bottom c
     paddingHorizontal: 16,
   });
   expect(toolbar.props.contentContainerStyle.flexWrap).toBeUndefined();
+  expect(toolbar.props.contentContainerStyle.paddingVertical).toBeUndefined();
   expect(toolbar.props.style.position).toBeUndefined();
   expect(toolbar.props.children).toBe("Indicators");
   const card = component("common/ui/ListCard", "ListCard", {
@@ -1051,57 +1071,68 @@ it("keeps seat lock actions on the avatar and edits only the local order", () =>
   ]);
 });
 
-it("keeps the native role identity neutral while listing independent roles and explicit invitation help", () => {
-  const render = component("events/EventRolePopover", "EventRolePopover", {
-    "@board-game-organizer/shared": shared,
-    "heroui-native/text": { Typography: "Typography" },
-    "lucide-react-native": { IdCard: "IdCard" },
-    "react-native": { View: "View" },
-    "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
-    "@/lib/i18n": { useT: () => (id: string) => id },
-  });
-  const roles = render({
-    roles: [
-      "admin",
-      "moderator",
-      "demonstrator",
-      "invitedPlayer",
-      "waitingPlayer",
-      "confirmedPlayer",
-      "requestedMember",
-    ],
-    action: "reply",
-  });
-  expect(roles.props).toMatchObject({
-    icon: "IdCard",
-    tone: "muted",
-    size: "compact",
-    triggerClassName: "bg-default",
-  });
-  expect(
-    roles.props.children.props.children[0].map((row: Element) => [
-      row.props.children[0].type,
-      row.props.children[1].props.children,
-    ]),
-  ).toEqual([
-    ["Crown", "Admin"],
-    ["ShieldCheck", "Moderator"],
-    ["Presentation", "Demonstrator"],
-    ["Mail", "Player with pending invitation"],
-    ["ListOrdered", "Player on the waiting list"],
-    ["UserRoundCheck", "Confirmed player"],
-    ["Clock3", "Member with pending request"],
-  ]);
-  expect(roles.props.children.props.children[2].props.children).toBe(
-    "Open details to accept or decline your invitation.",
-  );
-  for (const pending of [true, false]) {
-    const empty = render({ roles: [], pending });
-    expect(empty.props.children.props.children[1].props.children).toBe(
-      pending ? "Loading…" : "You are not registered.",
+it.each([240, 320, 800])(
+  "bounds native role text at screen width %s while preserving roles and invitation help",
+  (width) => {
+    const render = component("events/EventRolePopover", "EventRolePopover", {
+      "@board-game-organizer/shared": shared,
+      "heroui-native/text": { Typography: "Typography" },
+      "lucide-react-native": { IdCard: "IdCard" },
+      "react-native": { View: "View", useWindowDimensions: () => ({ width }) },
+      "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
+      "@/lib/i18n": { useT: () => (id: string) => id },
+    });
+    const roles = render({
+      roles: [
+        "admin",
+        "moderator",
+        "demonstrator",
+        "invitedPlayer",
+        "waitingPlayer",
+        "confirmedPlayer",
+        "acceptedParticipant",
+        "requestedMember",
+      ],
+      action: "reply",
+    });
+    expect(roles.props).toMatchObject({
+      icon: "IdCard",
+      tone: "muted",
+      size: "compact",
+      triggerClassName: "bg-default",
+      width: Math.min(320, width - 32),
+    });
+    expect(
+      roles.props.children.props.children[0].map((row: Element) => [
+        row.props.children[0].type,
+        row.props.children[1].props.children,
+      ]),
+    ).toEqual([
+      ["Crown", "Admin"],
+      ["ShieldCheck", "Moderator"],
+      ["Presentation", "Demonstrator"],
+      ["Mail", "Player with pending invitation"],
+      ["ListOrdered", "Player on the waiting list"],
+      ["UserRoundCheck", "Confirmed player"],
+      ["UserRoundCheck", "Accepted participant"],
+      ["Clock3", "Member with pending request"],
+    ]);
+    for (const row of roles.props.children.props.children[0]) {
+      expect(row.props.children[0].props.style.flexShrink).toBe(0);
+      expect(row.props.children[1].props.style).toMatchObject({ flex: 1, minWidth: 0 });
+      expect(row.props.children[1].props.numberOfLines).toBeUndefined();
+    }
+    expect(roles.props.children.props.children[2].props.children).toBe(
+      "Open details to accept or decline your invitation.",
     );
-  }
-});
+    for (const pending of [true, false]) {
+      const empty = render({ roles: [], pending });
+      expect(empty.props.children.props.children[1].props.children).toBe(
+        pending ? "Loading…" : "You are not registered.",
+      );
+    }
+  },
+);
 it.each(["planning", "exclusions", "results"] as const)(
   "virtualizes native card %s summaries, with comma-separated winners beside the Table name",
   (mode) => {

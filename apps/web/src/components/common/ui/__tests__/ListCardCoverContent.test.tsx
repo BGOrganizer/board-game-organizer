@@ -34,13 +34,17 @@ it("gives long titles the full width and keeps artwork below the heading, alongs
   expect(body?.contains(heading)).toBe(false);
   expect(heading.parentElement?.nextElementSibling).toBe(body);
   expect(body?.firstElementChild).toBe(image);
-  expect(body?.lastElementChild).toBe(facts);
+  expect(body?.children[1]).toBe(facts);
   expect(body?.className).toContain("items-end");
-  expect(facts?.contains(screen.getByRole("button", { name: "Status" }))).toBe(true);
+  expect(facts?.contains(screen.getByRole("button", { name: "Status" }))).toBe(false);
+  expect(facts?.className).toContain("pb-14");
+  expect(body?.lastElementChild?.contains(screen.getByRole("button", { name: "Status" }))).toBe(
+    true,
+  );
   expect(facts?.contains(screen.getByText("Resource facts"))).toBe(true);
 });
 it.each([false, true])(
-  "keeps wrapping controls visible and preserves the saving-only interaction lock: %s",
+  "keeps a full-width single action row scrollable and preserves the saving-only interaction lock: %s",
   (disabled) => {
     const action = vi.fn();
     const { container } = renderWithI18n(
@@ -58,9 +62,11 @@ it.each([false, true])(
     );
     const toolbar = container.querySelector('[data-slot="card-controls"]');
     expect(toolbar?.hasAttribute("inert")).toBe(disabled);
-    expect(toolbar?.className).toContain("flex-wrap");
-    expect(toolbar?.className).toContain("justify-end");
-    expect(toolbar?.className).not.toContain("overflow-x-auto");
+    expect(toolbar?.className).toContain("absolute inset-x-0 bottom-0");
+    expect(toolbar?.className).toContain("overflow-x-auto");
+    expect(toolbar?.firstElementChild?.className).toContain("flex-nowrap");
+    expect(toolbar?.firstElementChild?.className).toContain("min-w-full");
+    expect(toolbar?.firstElementChild?.className).toContain("justify-end");
     const click = new MouseEvent("click", { bubbles: true, cancelable: true });
     const stop = vi.spyOn(click, "stopPropagation");
     fireEvent(screen.getByRole("button", { name: "Info" }), click);

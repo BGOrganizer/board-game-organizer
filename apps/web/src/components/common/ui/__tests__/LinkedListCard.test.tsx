@@ -48,11 +48,11 @@ it("keeps a lone action usable without leading controls or an optional navigatio
   expect(link.contains(screen.getByRole("button", { name: "Retry" }))).toBe(false);
   expect(
     view.container
-      .querySelector('[data-slot="card-facts"]')
+      .querySelector('[data-slot="card-controls"]')
       ?.contains(screen.getByRole("button", { name: "Retry" })),
   ).toBe(true);
 });
-it("puts cover-card controls beside bottom-aligned artwork, below a full-width heading", () => {
+it("allows cover-card controls over bottom-aligned artwork below a full-width heading", () => {
   const q = renderWithI18n(
     <LinkedListCard
       href="/events/id"
@@ -68,11 +68,13 @@ it("puts cover-card controls beside bottom-aligned artwork, below a full-width h
   );
   const button = screen.getByRole("button", { name: "Info" });
   const toolbar = button.parentElement,
-    facts = toolbar?.parentElement,
-    body = facts?.parentElement;
-  expect(toolbar?.className).toContain("flex-wrap");
+    viewport = toolbar?.parentElement,
+    body = viewport?.parentElement;
+  const facts = body?.querySelector('[data-slot="card-facts"]');
+  expect(toolbar?.className).toContain("flex-nowrap");
   expect(toolbar?.className).toContain("[&>*]:shrink-0");
-  expect(toolbar?.className).not.toContain("overflow-x-auto");
+  expect(viewport?.className).toContain("overflow-x-auto");
+  expect(viewport?.className).toContain("absolute inset-x-0 bottom-0");
   expect(facts?.className).toContain("flex-col");
   expect(body?.className).toContain("items-end");
   const imageFrame = body?.querySelector(".size-24");

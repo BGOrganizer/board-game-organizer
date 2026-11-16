@@ -78,7 +78,7 @@ it.each([
     expect(caption.className).toContain("flex-col");
     expect(caption.className).not.toContain("absolute");
     expect(heading.parentElement?.className).toContain("dark");
-    expect(heading.parentElement?.className).toContain("items-start");
+    expect(heading.parentElement?.className).toContain("items-center");
     expect(heading.parentElement?.className).toContain("bg-background/80");
     expect(heading.parentElement?.className).toContain("w-full");
     expect(heading.className).not.toContain("text-shadow");

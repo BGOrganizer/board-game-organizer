@@ -20,13 +20,13 @@ function IdentityHeading({ title, icon: Icon, titleAccessory, titleAction }: Hea
       style={{
         width: "100%",
         paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingVertical: 2,
         flexDirection: "row",
-        alignItems: "flex-start",
+        alignItems: "center",
         gap: 8,
       }}
     >
-      <Icon size={20} color={foreground} accessible={false} style={{ marginTop: 4 }} />
+      <Icon size={20} color={foreground} accessible={false} />
       <Typography
         accessibilityRole="header"
         className="text-lg font-semibold text-foreground"
@@ -52,7 +52,7 @@ export function RecordIdentityCard({
     <ListCard background={background} style={{ overflow: "hidden" }}>
       <View
         testID="record-identity-card"
-        style={{ minHeight: 224, paddingVertical: 16, gap: 12, flexGrow: 1 }}
+        style={{ minHeight: 224, paddingTop: 16, paddingBottom: 4, gap: 12, flexGrow: 1 }}
       >
         <ScopedTheme theme="dark">
           <IdentityHeading {...heading} />
@@ -62,11 +62,10 @@ export function RecordIdentityCard({
           horizontal
           bounces={false}
           alwaysBounceHorizontal={false}
-          style={{ marginTop: "auto", width: "100%", height: 52, flexGrow: 0, flexShrink: 0 }}
+          style={{ marginTop: "auto", width: "100%", height: 44, flexGrow: 0, flexShrink: 0 }}
           contentContainerStyle={{
             flexGrow: 1,
             paddingHorizontal: 16,
-            paddingVertical: 4,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "flex-end",

@@ -82,8 +82,11 @@ space at the sides rather than cropping or stretching the approved drawing. Titl
 retain their natural layout and semantic contrast above the decorative, noninteractive background.
 
 Resource list cards put the title across the full width above a lower row. The 96px artwork sits
-at that row's bottom-left; facts and controls occupy the right column. Controls wrap onto additional
-rows rather than scrolling horizontally, retaining native touch targets and saving-state guards.
+at that row's bottom-left, with facts in the right column. A single bottom action row spans the
+card width and may overlap the artwork; facts reserve space above it. Controls scroll horizontally
+only when they exceed the full row width, retaining native touch targets and saving-state guards.
+Detail controls sit near the bottom edge, and the title band uses compact vertical padding while
+keeping complete multiline titles and the notification action accessible.
 
 Web uses the SVG's embedded CSS animation and explicitly selects the static variant for system
 reduced motion; the embedded media query remains an additional safeguard. Server rendering starts

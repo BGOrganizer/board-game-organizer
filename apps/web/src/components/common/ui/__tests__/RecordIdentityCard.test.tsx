@@ -44,7 +44,9 @@ it.each([undefined, "h2"] as const)(
     expect(band?.className).toContain("dark");
     expect(band?.className).toContain("bg-background/80");
     expect(band?.className).toContain("w-full");
-    expect(band?.className).toContain("items-start");
+    expect(band?.className).toContain("items-center");
+    expect(band?.className).toContain("py-0.5");
+    expect(content?.className).toContain("pb-1");
     expect(band?.textContent).toContain(title);
     expect(label.className).not.toMatch(/shadow|truncate|line-clamp/u);
     expect(label.className).toContain("[overflow-wrap:anywhere]");
@@ -61,6 +63,7 @@ it.each([undefined, "h2"] as const)(
     expect(content?.className).toContain("grow");
     expect(controls?.className).toContain("mt-auto");
     expect(controls?.className).toContain("overflow-x-auto");
+    expect(controls?.className).not.toContain("py-1");
     expect(row?.className).toContain("justify-end");
     expect(row?.className).toContain("flex-nowrap");
     expect(row?.className).toContain("[&>*]:shrink-0");
