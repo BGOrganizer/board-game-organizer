@@ -7,6 +7,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       include: [
+        "src/artwork/resourceArtwork.ts",
         "src/invites/invitePolicy.ts",
         "src/invites/inviteLinks.ts",
         "src/common/appVersion.ts",
@@ -94,6 +95,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/artwork/resourceArtwork.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/invites/inviteLinks.ts": {
           lines: 100,
           functions: 100,

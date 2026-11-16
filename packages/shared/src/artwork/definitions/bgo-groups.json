@@ -1,0 +1,1419 @@
+{
+  "$schema": "https://cdn.hopjs.net/npm/@dicebear/schema@1.5.1/dist/definition.min.json",
+  "$comment": "BGO artwork v9. Approved v8 shapes and motion, using the exact official Waves background palette and black/white neutrals. One seeded hue per image, with opacity-based tones. Keep the JSON artwork palette when integrating; do not override it with HeroUI. Preview-only. CSS animation is opt-in and browser-only.",
+  "meta": {
+    "creator": {
+      "name": "Board Game Organizer"
+    },
+    "source": {
+      "name": "BGO groups v9"
+    },
+    "license": {
+      "name": "AGPL-3.0-only",
+      "url": "https://www.gnu.org/licenses/agpl-3.0.html"
+    }
+  },
+  "attributes": {
+    "fill": "none",
+    "stroke": {
+      "type": "color",
+      "name": "ink"
+    },
+    "stroke-width": "3.8",
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round"
+  },
+  "canvas": {
+    "width": 240,
+    "height": 240,
+    "elements": [
+      {
+        "type": "component",
+        "name": "halo"
+      },
+      {
+        "type": "component",
+        "name": "crest"
+      },
+      {
+        "type": "component",
+        "name": "members"
+      },
+      {
+        "type": "component",
+        "name": "badge"
+      },
+      {
+        "type": "component",
+        "name": "sparkles"
+      },
+      {
+        "type": "component",
+        "name": "miniature"
+      },
+      {
+        "type": "component",
+        "name": "extras"
+      },
+      {
+        "type": "component",
+        "name": "animation"
+      }
+    ]
+  },
+  "components": {
+    "halo": {
+      "width": 240,
+      "height": 240,
+      "variants": {
+        "cloud": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M39 62C55 28 106 32 140 28S212 44 217 85 209 181 177 205 82 219 44 193 18 103 39 62Z",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                },
+                "fill-opacity": ".12",
+                "stroke": "none"
+              }
+            }
+          ]
+        },
+        "pebble": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M25 107C20 63 65 30 109 26S200 38 218 81 212 170 180 203 87 216 49 191 28 146 25 107Z",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                },
+                "fill-opacity": ".14",
+                "stroke": "none"
+              }
+            }
+          ]
+        },
+        "orbit": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "ellipse",
+              "attributes": {
+                "cx": "120",
+                "cy": "122",
+                "rx": "103",
+                "ry": "92",
+                "transform": "rotate(-15 120 122)",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                },
+                "fill-opacity": ".12",
+                "stroke": "none"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "crest": {
+      "width": 240,
+      "height": 240,
+      "variants": {
+        "shield": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M120 29Q162 29 198 55V129Q198 179 120 213 42 179 42 129V55Q78 29 120 29Z",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                }
+              }
+            },
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M120 40Q158 40 186 62V129Q186 171 120 199 54 171 54 129V62Q82 40 120 40Z",
+                "fill": {
+                  "type": "color",
+                  "name": "paper"
+                },
+                "stroke-width": "2"
+              }
+            }
+          ]
+        },
+        "circle": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "circle",
+              "attributes": {
+                "cx": "120",
+                "cy": "120",
+                "r": "91",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                }
+              }
+            },
+            {
+              "type": "element",
+              "name": "circle",
+              "attributes": {
+                "cx": "120",
+                "cy": "120",
+                "r": "80",
+                "fill": {
+                  "type": "color",
+                  "name": "paper"
+                },
+                "stroke-width": "2"
+              }
+            }
+          ]
+        },
+        "hexagon": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M120 22 201 69V167L120 215 39 167V69Z",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                }
+              }
+            },
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M120 35 190 76V160L120 201 50 160V76Z",
+                "fill": {
+                  "type": "color",
+                  "name": "paper"
+                },
+                "stroke-width": "2"
+              }
+            }
+          ]
+        },
+        "diamond": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M120 23 215 120 120 217 25 120Z",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                }
+              }
+            },
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M120 31 207 120 120 209 33 120Z",
+                "fill": {
+                  "type": "color",
+                  "name": "paper"
+                },
+                "stroke-width": "2"
+              }
+            }
+          ]
+        },
+        "arch": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M42 195V104C42 60 77 27 120 27S198 60 198 104V195Q198 210 183 210H57Q42 210 42 195Z",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                }
+              }
+            },
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M54 191V104C54 67 83 39 120 39S186 67 186 104V191Q186 198 179 198H61Q54 198 54 191Z",
+                "fill": {
+                  "type": "color",
+                  "name": "paper"
+                },
+                "stroke-width": "2"
+              }
+            }
+          ]
+        },
+        "medallion": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "path",
+              "attributes": {
+                "d": "M103.9272958406662 32.197059634525964 Q120.00 22.00 136.07 32.20 Q152.15 42.39 170.72 46.55 Q189.30 50.70 193.45 69.28 Q197.61 87.85 207.80 103.93 Q218.00 120.00 207.80 136.07 Q197.61 152.15 193.45 170.72 Q189.30 189.30 170.72 193.45 Q152.15 197.61 136.07 207.80 Q120.00 218.00 103.93 207.80 Q87.85 197.61 69.28 193.45 Q50.70 189.30 46.55 170.72 Q42.39 152.15 32.20 136.07 Q22.00 120.00 32.20 103.93 Q42.39 87.85 46.55 69.28 Q50.70 50.70 69.28 46.55 Q87.85 42.39 103.93 32.20Z",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                }
+              }
+            },
+            {
+              "type": "element",
+              "name": "circle",
+              "attributes": {
+                "cx": "120",
+                "cy": "120",
+                "r": "77",
+                "fill": {
+                  "type": "color",
+                  "name": "paper"
+                },
+                "stroke-width": "2"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "members": {
+      "width": 240,
+      "height": 240,
+      "variants": {
+        "triangle": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(120 85) scale(0.8)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-member-0",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    }
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-27C-9-27-13-20-10-13L-23-7Q-30-3-25 3L-13 8-23 25Q-26 31-18 31H-9L0 18 9 31H18Q26 31 23 25L13 8 25 3Q30-3 23-7L10-13C13-20 9-27 0-27Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(89 137) scale(0.8)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-member-1",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-27C-9-27-13-20-10-13L-23-7Q-30-3-25 3L-13 8-23 25Q-26 31-18 31H-9L0 18 9 31H18Q26 31 23 25L13 8 25 3Q30-3 23-7L10-13C13-20 9-27 0-27Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(151 137) scale(0.8)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-member-2",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".7"
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-27C-9-27-13-20-10-13L-23-7Q-30-3-25 3L-13 8-23 25Q-26 31-18 31H-9L0 18 9 31H18Q26 31 23 25L13 8 25 3Q30-3 23-7L10-13C13-20 9-27 0-27Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "arc": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(120 83) scale(0.85)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-member-0",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    }
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-27C-9-27-13-20-10-13L-23-7Q-30-3-25 3L-13 8-23 25Q-26 31-18 31H-9L0 18 9 31H18Q26 31 23 25L13 8 25 3Q30-3 23-7L10-13C13-20 9-27 0-27Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(78 132) scale(0.8)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-member-1",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-27C-9-27-13-20-10-13L-23-7Q-30-3-25 3L-13 8-23 25Q-26 31-18 31H-9L0 18 9 31H18Q26 31 23 25L13 8 25 3Q30-3 23-7L10-13C13-20 9-27 0-27Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(162 132) scale(0.8)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-member-2",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".7"
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-27C-9-27-13-20-10-13L-23-7Q-30-3-25 3L-13 8-23 25Q-26 31-18 31H-9L0 18 9 31H18Q26 31 23 25L13 8 25 3Q30-3 23-7L10-13C13-20 9-27 0-27Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "gathering": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(120 114) scale(1)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-member-0",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    }
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-27C-9-27-13-20-10-13L-23-7Q-30-3-25 3L-13 8-23 25Q-26 31-18 31H-9L0 18 9 31H18Q26 31 23 25L13 8 25 3Q30-3 23-7L10-13C13-20 9-27 0-27Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(74 132) scale(0.73)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-member-1",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-27C-9-27-13-20-10-13L-23-7Q-30-3-25 3L-13 8-23 25Q-26 31-18 31H-9L0 18 9 31H18Q26 31 23 25L13 8 25 3Q30-3 23-7L10-13C13-20 9-27 0-27Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(166 132) scale(0.73)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-member-2",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".7"
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-27C-9-27-13-20-10-13L-23-7Q-30-3-25 3L-13 8-23 25Q-26 31-18 31H-9L0 18 9 31H18Q26 31 23 25L13 8 25 3Q30-3 23-7L10-13C13-20 9-27 0-27Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "badge": {
+      "width": 240,
+      "height": 240,
+      "variants": {
+        "star": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "class": "bgo-groups-badge"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "transform": "translate(120 183) scale(0.55)",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-20 6-7 20-5 10 5 13 19 0 12-13 19-10 5-20-5-6-7Z"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "die": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(120 180) scale(0.45)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-badge",
+                    "fill": {
+                      "type": "color",
+                      "name": "paper"
+                    }
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-25 25-12V17L0 31-25 17V-12Z"
+                      }
+                    },
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M-25-12 0 1 25-12M0 1V31",
+                        "fill": "none"
+                      }
+                    },
+                    {
+                      "type": "element",
+                      "name": "g",
+                      "attributes": {
+                        "fill": {
+                          "type": "color",
+                          "name": "ink"
+                        },
+                        "stroke": "none"
+                      },
+                      "children": [
+                        {
+                          "type": "element",
+                          "name": "ellipse",
+                          "attributes": {
+                            "cx": "0",
+                            "cy": "-12",
+                            "rx": "4",
+                            "ry": "2.5"
+                          }
+                        },
+                        {
+                          "type": "element",
+                          "name": "circle",
+                          "attributes": {
+                            "cx": "-14",
+                            "cy": "4",
+                            "r": "3"
+                          }
+                        },
+                        {
+                          "type": "element",
+                          "name": "circle",
+                          "attributes": {
+                            "cx": "-8",
+                            "cy": "16",
+                            "r": "3"
+                          }
+                        },
+                        {
+                          "type": "element",
+                          "name": "circle",
+                          "attributes": {
+                            "cx": "12",
+                            "cy": "10",
+                            "r": "3"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "gem": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(120 183)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "class": "bgo-groups-badge"
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M0-13 14 0 0 13-14 0Z",
+                        "fill": {
+                          "type": "color",
+                          "name": "accent"
+                        },
+                        "fill-opacity": ".45"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "sparkles": {
+      "width": 240,
+      "height": 240,
+      "variants": {
+        "rays": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                },
+                "fill-opacity": ".45",
+                "stroke": {
+                  "type": "color",
+                  "name": "accent"
+                },
+                "stroke-width": "5"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M27 101 22 91M24 120 14 117M193 177 203 181",
+                    "fill": "none"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "circle",
+                  "attributes": {
+                    "cx": "204",
+                    "cy": "68",
+                    "r": "3",
+                    "stroke": "none"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "stars": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(27 96) scale(0.35)",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                },
+                "fill-opacity": ".45"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M0-20 6-7 20-5 10 5 13 19 0 12-13 19-10 5-20-5-6-7Z"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(208 168) scale(0.4)",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                },
+                "fill-opacity": ".45"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M0-20 6-7 20-5 10 5 13 19 0 12-13 19-10 5-20-5-6-7Z"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "circle",
+              "attributes": {
+                "cx": "202",
+                "cy": "61",
+                "r": "4",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                },
+                "stroke": "none"
+              }
+            }
+          ]
+        },
+        "dots": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "stroke": "none",
+                "fill": {
+                  "type": "color",
+                  "name": "accent"
+                },
+                "fill-opacity": ".45"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "circle",
+                  "attributes": {
+                    "cx": "25",
+                    "cy": "111",
+                    "r": "4"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "circle",
+                  "attributes": {
+                    "cx": "207",
+                    "cy": "85",
+                    "r": "3"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "circle",
+                  "attributes": {
+                    "cx": "215",
+                    "cy": "195",
+                    "r": "4"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "miniature": {
+      "width": 240,
+      "height": 240,
+      "variants": {
+        "house": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(43 183) scale(0.84)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "rect",
+                  "attributes": {
+                    "x": "-14",
+                    "y": "-1",
+                    "width": "28",
+                    "height": "21",
+                    "rx": "3",
+                    "fill": {
+                      "type": "color",
+                      "name": "paper"
+                    }
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-19-1Q-20-3-17-5L-3-18Q0-21 3-18L17-5Q20-3 19-1Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    }
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-4 19V10Q-4 5 0 5T4 10V19Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45",
+                    "stroke-width": "2.5"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "castle": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(43 183) scale(0.84)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-20 17V-16H-14V-10H-8V-16H-2V-3H2V-16H8V-10H14V-16H20V17Q20 20 17 20H-17Q-20 20-20 17Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    }
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-6 19V9Q-6 3 0 3T6 9V19Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "paper"
+                    },
+                    "stroke-width": "2.5"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-12-3V2M12-3V2",
+                    "fill": "none",
+                    "stroke": {
+                      "type": "color",
+                      "name": "paper"
+                    },
+                    "stroke-width": "3"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "ship": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(43 183) scale(0.84)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-3-23V9",
+                    "fill": "none",
+                    "stroke-width": "3"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-3-23 8-20-3-16Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45",
+                    "stroke-width": "2.5"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-8-12-19 3H-8Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-2-15Q13-10 16 3H-2Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "paper"
+                    }
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M-21 7Q0 11 21 6L15 16Q0 24-14 16Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "extras": {
+      "width": 240,
+      "height": 240,
+      "variants": {
+        "harvest": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(213 140) scale(0.75)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M0 20V-15",
+                    "fill": "none",
+                    "stroke": {
+                      "type": "color",
+                      "name": "ink"
+                    },
+                    "stroke-width": "4"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M0 6Q-14 6-14-6 0-6 0 6ZM0-4Q-13-4-12-16 0-15 0-4ZM0 9Q14 9 14-3 0-3 0 9ZM0-1Q13-1 12-13 0-12 0-1Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(183 207) scale(0.74)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "ellipse",
+                  "attributes": {
+                    "cx": "0",
+                    "cy": "6",
+                    "rx": "15",
+                    "ry": "8",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "ellipse",
+                  "attributes": {
+                    "cx": "0",
+                    "cy": "-3",
+                    "rx": "15",
+                    "ry": "8",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "lumber": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(213 140) scale(0.75)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "g",
+                  "attributes": {
+                    "transform": "rotate(-18)"
+                  },
+                  "children": [
+                    {
+                      "type": "element",
+                      "name": "rect",
+                      "attributes": {
+                        "x": "-18",
+                        "y": "-9",
+                        "width": "35",
+                        "height": "18",
+                        "rx": "9",
+                        "fill": {
+                          "type": "color",
+                          "name": "accent"
+                        },
+                        "fill-opacity": ".45"
+                      }
+                    },
+                    {
+                      "type": "element",
+                      "name": "circle",
+                      "attributes": {
+                        "cx": "-9",
+                        "cy": "0",
+                        "r": "9",
+                        "fill": {
+                          "type": "color",
+                          "name": "accent"
+                        },
+                        "fill-opacity": ".45"
+                      }
+                    },
+                    {
+                      "type": "element",
+                      "name": "path",
+                      "attributes": {
+                        "d": "M-13-1Q-12-6-7-3T-10 4",
+                        "fill": "none",
+                        "stroke-width": "2"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(183 207) scale(0.74)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "ellipse",
+                  "attributes": {
+                    "cx": "0",
+                    "cy": "6",
+                    "rx": "15",
+                    "ry": "8",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "ellipse",
+                  "attributes": {
+                    "cx": "0",
+                    "cy": "-3",
+                    "rx": "15",
+                    "ry": "8",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "crystal": {
+          "elements": [
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(213 140) scale(0.75)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M0-20 14-4 0 20-14-4Z",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".7"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "path",
+                  "attributes": {
+                    "d": "M0-20V20",
+                    "fill": "none",
+                    "stroke-width": "2.5"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "element",
+              "name": "g",
+              "attributes": {
+                "transform": "translate(183 207) scale(0.74)"
+              },
+              "children": [
+                {
+                  "type": "element",
+                  "name": "ellipse",
+                  "attributes": {
+                    "cx": "0",
+                    "cy": "6",
+                    "rx": "15",
+                    "ry": "8",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  }
+                },
+                {
+                  "type": "element",
+                  "name": "ellipse",
+                  "attributes": {
+                    "cx": "0",
+                    "cy": "-3",
+                    "rx": "15",
+                    "ry": "8",
+                    "fill": {
+                      "type": "color",
+                      "name": "accent"
+                    },
+                    "fill-opacity": ".45"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "animation": {
+      "width": 240,
+      "height": 240,
+      "variants": {
+        "none": {
+          "elements": [],
+          "weight": 1
+        },
+        "slow": {
+          "weight": 0,
+          "tags": ["animation"],
+          "elements": [
+            {
+              "type": "element",
+              "name": "style",
+              "attributes": {},
+              "children": [
+                {
+                  "type": "text",
+                  "value": "@media (prefers-reduced-motion: no-preference){@keyframes bgoGroupsMeet{0%,70%,100%{transform:translateY(0)}35%{transform:translateY(-4px)}}@keyframes bgoGroupsBadge{0%,100%{opacity:1}50%{opacity:.65}}.bgo-groups-member-0,.bgo-groups-member-1,.bgo-groups-member-2{animation:bgoGroupsMeet 6.72s ease-in-out infinite}.bgo-groups-member-1{animation-delay:-.7s}.bgo-groups-member-2{animation-delay:-1.4s}.bgo-groups-badge{animation:bgoGroupsBadge 6.72s ease-in-out infinite}}"
+                }
+              ]
+            }
+          ]
+        },
+        "medium": {
+          "weight": 0,
+          "tags": ["animation"],
+          "elements": [
+            {
+              "type": "element",
+              "name": "style",
+              "attributes": {},
+              "children": [
+                {
+                  "type": "text",
+                  "value": "@media (prefers-reduced-motion: no-preference){@keyframes bgoGroupsMeet{0%,70%,100%{transform:translateY(0)}35%{transform:translateY(-4px)}}@keyframes bgoGroupsBadge{0%,100%{opacity:1}50%{opacity:.65}}.bgo-groups-member-0,.bgo-groups-member-1,.bgo-groups-member-2{animation:bgoGroupsMeet 4.8s ease-in-out infinite}.bgo-groups-member-1{animation-delay:-.7s}.bgo-groups-member-2{animation-delay:-1.4s}.bgo-groups-badge{animation:bgoGroupsBadge 4.8s ease-in-out infinite}}"
+                }
+              ]
+            }
+          ]
+        },
+        "fast": {
+          "weight": 0,
+          "tags": ["animation"],
+          "elements": [
+            {
+              "type": "element",
+              "name": "style",
+              "attributes": {},
+              "children": [
+                {
+                  "type": "text",
+                  "value": "@media (prefers-reduced-motion: no-preference){@keyframes bgoGroupsMeet{0%,70%,100%{transform:translateY(0)}35%{transform:translateY(-4px)}}@keyframes bgoGroupsBadge{0%,100%{opacity:1}50%{opacity:.65}}.bgo-groups-member-0,.bgo-groups-member-1,.bgo-groups-member-2{animation:bgoGroupsMeet 3.84s ease-in-out infinite}.bgo-groups-member-1{animation-delay:-.7s}.bgo-groups-member-2{animation-delay:-1.4s}.bgo-groups-badge{animation:bgoGroupsBadge 3.84s ease-in-out infinite}}"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "colors": {
+    "ink": {
+      "values": ["#000000"]
+    },
+    "paper": {
+      "values": ["#ffffff"]
+    },
+    "accent": {
+      "values": [
+        "#0369a1",
+        "#1d4ed8",
+        "#4338ca",
+        "#6d28d9",
+        "#a21caf",
+        "#be185d",
+        "#be123c",
+        "#c2410c",
+        "#b45309",
+        "#047857",
+        "#0f766e",
+        "#1e293b"
+      ]
+    }
+  }
+}
