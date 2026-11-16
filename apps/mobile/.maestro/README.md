@@ -423,13 +423,21 @@ success responses. The `.scenario.ts` extension keeps it outside canonical suite
 and device runs remain separate acceptance requirements.
 
 `14-query-cache.yaml` is a manual scenario outside the unchanged 13-report CI fixture set.
-Use a freshly built MMKV/Nitro APK, two isolated already-onboarded EN accounts and a device with
+Use an MMKV/Nitro-capable Development APK running the tested bundle (a verified compatible OTA
+is sufficient for this adapter fix), two isolated already-onboarded EN accounts and a device with
 working Android airplane-mode controls. Actor A starts authenticated with unique visible first-page
-`CACHE_TABLE_NAME`, `CACHE_GROUP_NAME` (Private), and `CACHE_EVENT_NAME` (Registered). Actor B uses
+`CACHE_TABLE_NAME` (a finalized played Table in History), `CACHE_GROUP_NAME` (Private), and
+`CACHE_EVENT_NAME` (Scheduled). `CACHE_USERNAME` and `CACHE_USERNAME_2` must be their exact
+visible `@username` values; the flow verifies the API-backed profile identity after each switch.
+Actor A credentials are `EMAIL` / `PASSWORD`; actor B uses
 `EMAIL_2` / `PASSWORD_2` and has empty personal Tables, Private Groups and Registered Events.
 Run the flow directly; missing inputs fail. It records the three main tab strips, kills the actual
 process without clearing data, requires the same real rows after an offline restart, reconnects,
-then performs real logout/sign-in and requires B's completed empty responses without A's rows.
+then performs A → logout → B → logout → A in the same native process. It explicitly backgrounds/
+foregrounds immediately after logout and after each account switch with `launchApp.stopApp: false`;
+no process restart or state reset may mask stale MMKV listeners. It requires B's completed empty
+responses without A's rows, then A's own profile and History row after reauthentication. Both owned
+accounts must be distinct and fully onboarded; verify the installed Development APK/API before running.
 Confirm airplane mode really disables networking on the owned device; Clerk must restore a known
 identity before any private cache can appear. The completion hook restores networking on exit.
 Screenshots require native geometry/inline-dot review; source/VM tests and screenshots from a web

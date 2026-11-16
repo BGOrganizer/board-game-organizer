@@ -1,7 +1,8 @@
 appId: com.bgo.boardgameorganizer.dev
 ---
+- assertTrue: ${typeof AUTH_READY_PATTERN === "undefined" || (typeof AUTH_READY_PATTERN === "string" && AUTH_READY_PATTERN.length > 0)}
 - extendedWaitUntil:
-    visible: "Check your email|Mobile number|Matches"
+    visible: '${"Check your email|Mobile number|" + (typeof AUTH_READY_PATTERN === "undefined" ? "^History$" : AUTH_READY_PATTERN)}'
     timeout: 120000
 # Device Trust remains enabled. Only Clerk's Development test OTP is used.
 - runFlow:
@@ -10,6 +11,6 @@ appId: com.bgo.boardgameorganizer.dev
     commands:
       - inputText: "424242"
       - extendedWaitUntil:
-          visible: "Mobile number|Matches"
+          visible: '${"Mobile number|" + (typeof AUTH_READY_PATTERN === "undefined" ? "^History$" : AUTH_READY_PATTERN)}'
           timeout: 120000
 - assertNotVisible: "Check your email"

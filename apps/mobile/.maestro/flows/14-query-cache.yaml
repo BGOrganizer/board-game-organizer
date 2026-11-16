@@ -1,17 +1,21 @@
 appId: com.bgo.boardgameorganizer.dev
-name: Encrypted query cache cold restart and account isolation
+name: Encrypted query cache cold restart and same-process account switching
 tags: [manual, cache]
 onFlowComplete:
   - setAirplaneMode: disabled
 ---
 # Manual, isolated fixture. No resets, provider setup or domain writes.
 # Actor A already authenticated; CACHE_TABLE_NAME/GROUP_NAME/EVENT_NAME are unique,
-# visible first-page rows (Tables require confirmed frozen participation). Actor B (EMAIL_2/PASSWORD_2) has empty Tables/Private Groups/Participation Events.
-# Both actors use EN. Run on a fresh MMKV-capable native build.
+# visible first-page rows (History Tables require finalized played participation). Actor B (EMAIL_2/PASSWORD_2) has empty Tables/Private Groups/Participation Events.
+# Both actors use EN. Verify the MMKV-capable Development build and tested bundle first.
 - runScript: ../helpers/cache-inputs.js
 - setAirplaneMode: disabled
 - launchApp:
     clearState: false
+- openLink: bgo-dev:///profile
+- extendedWaitUntil:
+    visible: ${output.cacheOwnerPattern}
+    timeout: 120000
 - openLink: bgo-dev:///tables
 - extendedWaitUntil:
     visible: ${output.cacheTablePattern}
@@ -52,8 +56,13 @@ onFlowComplete:
 - extendedWaitUntil:
     visible: ${output.cacheTablePattern}
     timeout: 120000
-# Real logout/reauthentication, no clearState shortcut.
+# No process stop/restart below: foreground callbacks must be safe before another account signs in.
 - runFlow: ../helpers/logout.yaml
+- pressKey: Home
+- launchApp:
+    stopApp: false
+    clearState: false
+- assertVisible: "Sign in / Register"
 - runFlow:
     file: ../helpers/sign-in.yaml
     env:
@@ -61,7 +70,7 @@ onFlowComplete:
       AUTH_PASSWORD: ${PASSWORD_2}
 - openLink: bgo-dev:///profile
 - extendedWaitUntil:
-    visible: ${output.authEmailPattern}
+    visible: ${output.cacheOtherOwnerPattern}
     timeout: 120000
 - openLink: bgo-dev:///tables
 - extendedWaitUntil:
@@ -78,3 +87,35 @@ onFlowComplete:
     visible: "No events found"
     timeout: 120000
 - assertNotVisible: ${output.cacheEventPattern}
+
+# B -> logout -> A repeats the lifecycle without restarting the native process.
+- pressKey: Home
+- launchApp:
+    stopApp: false
+    clearState: false
+- assertVisible: "No events found"
+- runFlow: ../helpers/logout.yaml
+- pressKey: Home
+- launchApp:
+    stopApp: false
+    clearState: false
+- assertVisible: "Sign in / Register"
+- runFlow:
+    file: ../helpers/sign-in.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
+- openLink: bgo-dev:///profile
+- extendedWaitUntil:
+    visible: ${output.cacheOwnerPattern}
+    timeout: 120000
+- openLink: bgo-dev:///tables
+- extendedWaitUntil:
+    visible: ${output.cacheTablePattern}
+    timeout: 120000
+- pressKey: Home
+- launchApp:
+    stopApp: false
+    clearState: false
+- assertVisible: ${output.cacheTablePattern}
+- takeScreenshot: cache-same-process-account-switch
