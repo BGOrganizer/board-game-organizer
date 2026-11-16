@@ -1,3 +1,23 @@
+## [1.5.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.4.1...v1.5.0) (2026-11-16)
+
+### ✨ Features
+
+* **invites:** accept table links in the native app ([c0b226b](https://github.com/BGOrganizer/board-game-organizer/commit/c0b226b438c659599ab91e515cb908c4fbff8eff))
+* **invites:** add explicit private table invitation links ([161752a](https://github.com/BGOrganizer/board-game-organizer/commit/161752ad4a3bdb13cf617d790613cc1fe28cf7dd))
+* **invites:** route development app links through a stable domain ([b556d8d](https://github.com/BGOrganizer/board-game-organizer/commit/b556d8de7c32feade6bcc1cb4013d7701efb1764))
+
+### 🐛 Bug Fixes
+
+* **invites:** preserve shared translations and CI assertions ([b58c5df](https://github.com/BGOrganizer/board-game-organizer/commit/b58c5df356ec31ab447f3574ba71b824a4e29e19))
+* **invites:** recognize iPad desktop browsers for app handoff ([38f9bff](https://github.com/BGOrganizer/board-game-organizer/commit/38f9bff7f1776cd5bff8a2a59e664b480c40e657))
+* **invites:** refine invitation choices and native app routing ([5cb2773](https://github.com/BGOrganizer/board-game-organizer/commit/5cb2773878a06bc2eb630c89fc1ae1b51584afe1))
+* **invites:** resume explicit claims after sign-up ([4ef7bf5](https://github.com/BGOrganizer/board-game-organizer/commit/4ef7bf5342850a19c26d719987e4349c4d4a8237))
+* **invites:** verify managed development link destinations ([400b85c](https://github.com/BGOrganizer/board-game-organizer/commit/400b85c62826728860fba0fcfb6343083e28458a))
+
+### 🧪 Tests
+
+* **invites:** report invite UI coverage from web ([29d332c](https://github.com/BGOrganizer/board-game-organizer/commit/29d332c080db8f51a1a01e64580da6752aa06875))
+
 ## [1.4.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.4.0...v1.4.1) (2026-11-15)
 
 ### 🐛 Bug Fixes
