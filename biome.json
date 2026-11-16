@@ -1,4 +1,10 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": ["@board-game-organizer/biome-config/biome"]
+  "extends": ["@board-game-organizer/biome-config/biome"],
+  "overrides": [
+    {
+      "includes": ["packages/shared/src/artwork/definitions/*.json"],
+      "formatter": { "enabled": false }
+    }
+  ]
 }

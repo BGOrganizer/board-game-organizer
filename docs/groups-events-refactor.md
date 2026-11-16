@@ -277,7 +277,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   viewers see only their own pending invitation identities; authority loss revokes privileged RAM/
   encrypted-disk pages without removing unrelated or ordinary authorized data.
 - Main Tables and parent Event lists use one platform-owned horizontal HeroUI Table Card. Its
-  stable-ID animated DiceBear Planets artwork occupies a contained normal-flow left frame. The right side
+  stable-ID approved BGO Tables artwork occupies a contained normal-flow left frame; see
+  [resource illustrations](branding.md#resource-illustrations). The right side
   shows Table name/Dices, localized **accepted seats / maximum capacity**, then Group/people (when
   present), a dot divider and Event/calendar. Both contexts retain those parent identities; only the
   existing Back hint changes. Pending reservations and accepted/pending waiting places do not inflate
