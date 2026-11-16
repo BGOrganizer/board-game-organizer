@@ -65,8 +65,8 @@ regressions keep the reviewed assets intact. Revision 9 is an artwork revision, 
 the locked `@dicebear/core` 10.7.0 engine, rather than a requirement for DiceBear SDK 9.
 
 Both clients use the shared `@board-game-organizer/shared/artwork` entry point. Its immutable
-style instances generate one canonical 240px SVG with `animationVariant: "medium"`, using only
-the resource ID as seed. Renderers scale the complete drawing into their existing frames;
+style instances generate a canonical 240px SVG with `animationVariant: "medium"` (or `"none"`
+for reduced motion), using only the resource ID as seed. Renderers scale the complete drawing into their frames;
 they do not crop, stretch or replace approved elements. An unsaved Table uses its stable local
 draft key until a server ID exists. Uploaded Group logos retain priority over generated artwork;
 an unavailable logo falls back to the same seeded Group illustration.
@@ -76,7 +76,12 @@ to DiceBear. A generated illustration's light HeroUI surface scope keeps its bla
 readable on dark screens. Surrounding controls, status indicators and uploaded logos keep their
 own theme behavior; no parallel UI palette or literal light backplate is introduced.
 
-Web uses the SVG's embedded CSS animation and reduced-motion media query. Native renders the
+Detail cards give artwork its own normal-flow space between the title and control bands, so
+multiline titles and controls never hide approved illustration elements.
+
+Web uses the SVG's embedded CSS animation and explicitly selects the static variant for system
+reduced motion; the embedded media query remains an additional safeguard. Server rendering starts
+static until the browser preference is known. Native renders the
 same SVG nodes through `react-native-svg` and applies the approved internal transforms and
 opacity with Reanimated. Keep motion on the UI thread, react to system reduced-motion changes,
 and stop decorative loops for background/inactive screens and nonvisible resource rows.
