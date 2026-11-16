@@ -80,17 +80,18 @@ for (const width of [390, 1280])
           fit: getComputedStyle(c.querySelector("img")!).objectFit,
           sameRow: Math.max(...y) - Math.min(...y) < 1,
           overflow: c.scrollWidth > c.clientWidth + 1,
-          transparentCanvas:
-            getComputedStyle(c.querySelector("img")!.parentElement!).backgroundColor ===
-            "rgba(0, 0, 0, 0)",
+          generated: Boolean(c.querySelector('[data-slot="resource-artwork"]')),
+          generatedLightScope: c
+            .querySelector('[data-slot="resource-artwork"]')
+            ?.getAttribute("data-theme"),
         };
       });
-      expect(info).toEqual({
+      expect(info).toMatchObject({
         fit: "contain",
         sameRow: true,
         overflow: false,
-        transparentCanvas: true,
       });
+      if (info.generated) expect(info.generatedLightScope).toBe("light");
     };
     const labels = (card: Locator) =>
       card
@@ -111,6 +112,9 @@ for (const width of [390, 1280])
       await expect(card.locator('[class~="bg-background/80"]')).toHaveCount(1);
       const layout = await caption.evaluate((content) => {
         const band = content.firstElementChild!.getBoundingClientRect();
+        const artwork = content
+          .querySelector('[data-slot="record-artwork"]')!
+          .getBoundingClientRect();
         const viewport = content.lastElementChild!;
         const toolbar = viewport.firstElementChild!;
         const frame = viewport.getBoundingClientRect();
@@ -121,6 +125,8 @@ for (const width of [390, 1280])
         });
         return {
           titleAbove: band.bottom <= frame.top + 1,
+          artworkBetween: artwork.top >= band.bottom && artwork.bottom <= frame.top,
+          artworkMinimum: artwork.height >= 96,
           bandInside: band.left >= card.left - 1 && band.right <= card.right + 1,
           controlsInside:
             frame.left >= card.left - 1 &&
@@ -134,6 +140,8 @@ for (const width of [390, 1280])
       });
       expect(layout).toEqual({
         titleAbove: true,
+        artworkBetween: true,
+        artworkMinimum: true,
         bandInside: true,
         controlsInside: true,
         bottomAligned: true,

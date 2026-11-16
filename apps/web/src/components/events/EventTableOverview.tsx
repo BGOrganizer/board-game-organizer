@@ -119,7 +119,7 @@ export function EventTableOverview({
                 artwork={
                   <AnimatedDicebearArtwork
                     seed={table.eventId}
-                    variant="constellation"
+                    variant="events"
                     presentation="cover"
                   />
                 }

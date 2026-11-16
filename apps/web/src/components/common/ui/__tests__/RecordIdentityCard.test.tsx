@@ -50,6 +50,12 @@ it.each([undefined, "h2"] as const)(
     expect(label.className).toContain("[overflow-wrap:anywhere]");
     expect(content?.firstElementChild).toBe(band);
     expect(content?.lastElementChild).toBe(controls);
+    const artwork = view.container.querySelector('[data-slot="record-artwork"]');
+    expect(artwork?.textContent).toBe("Artwork");
+    expect(artwork?.previousElementSibling).toBe(band);
+    expect(artwork?.nextElementSibling).toBe(controls);
+    expect(artwork?.className).toContain("min-h-24");
+    expect(artwork?.className).not.toContain("absolute");
     expect(content?.className).toContain("grow");
     expect(controls?.className).toContain("mt-auto");
     expect(controls?.className).toContain("overflow-x-auto");

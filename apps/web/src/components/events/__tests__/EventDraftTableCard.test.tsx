@@ -1,6 +1,5 @@
 import { eventDraft, tableDraft } from "@board-game-organizer/shared";
-import { Avatar, Style } from "@dicebear/core";
-import planets from "@dicebear/styles/planets.json" with { type: "json" };
+import { createResourceArtwork } from "@board-game-organizer/shared/artwork";
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
@@ -19,6 +18,14 @@ async function closePopover() {
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 }
+
+it("keeps an unsaved table's existing local key as its temporary artwork seed", () => {
+  const row = { ...tableDraft(plannedTable, plannedEvent.timeZone), id: undefined };
+  const view = renderWithI18n(<EventDraftTableCard row={row} />);
+  expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+    `data:image/svg+xml,${encodeURIComponent(createResourceArtwork("tables", row.key).svg)}`,
+  );
+});
 
 it.each([
   {
@@ -77,7 +84,7 @@ it.each([
     );
     expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
     expect(document.querySelector("img")?.getAttribute("src")).toBe(
-      `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: plannedTable.id, size: 72 }).toString())}`,
+      `data:image/svg+xml,${encodeURIComponent(createResourceArtwork("tables", plannedTable.id).svg)}`,
     );
     expect(
       screen

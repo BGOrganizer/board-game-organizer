@@ -36,9 +36,7 @@ export function EventCard({
       href={href}
       notificationCount={count}
       artworkLayout="cover"
-      artwork={
-        <AnimatedDicebearArtwork seed={event.id} variant="constellation" presentation="cover" />
-      }
+      artwork={<AnimatedDicebearArtwork seed={event.id} variant="events" presentation="cover" />}
       leadingActions={<EventCardIndicators event={event} />}
       controlsDisabled={local?.phase === "saving"}
       disabled={Boolean(local && local.phase !== "failed")}

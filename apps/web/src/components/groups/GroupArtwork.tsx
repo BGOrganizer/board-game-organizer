@@ -2,6 +2,7 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { useLingui } from "@lingui/react/macro";
 import { Crown } from "lucide-react";
+import { useState } from "react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
 export function GroupArtwork({
@@ -16,15 +17,19 @@ export function GroupArtwork({
   presentation?: "thumbnail" | "background" | "cover";
 }) {
   const { t } = useLingui();
+  const [failedLogo, setFailedLogo] = useState<string>();
+  const logo = group.logo && group.logo !== failedLogo ? group.logo : undefined;
   return (
     <span
       className={`flex items-center justify-center ${presentation !== "thumbnail" ? "absolute inset-0" : "relative shrink-0"}`}
       style={presentation !== "thumbnail" ? undefined : { width: size, height: size }}
     >
-      {group.logo ? (
+      {logo ? (
         // biome-ignore lint/performance/noImgElement: Authenticated, optimized MongoDB data URI, not a remote image.
         <img
-          src={group.logo}
+          key={logo}
+          src={logo}
+          onError={() => setFailedLogo(logo)}
           alt=""
           width={size}
           height={size}
@@ -37,7 +42,7 @@ export function GroupArtwork({
       ) : (
         <AnimatedDicebearArtwork
           seed={group.id}
-          variant="landscape"
+          variant="groups"
           size={size}
           presentation={presentation}
         />

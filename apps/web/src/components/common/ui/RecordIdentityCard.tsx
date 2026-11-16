@@ -21,10 +21,10 @@ export function RecordIdentityCard({
   children: ReactNode;
 }) {
   return (
-    <ListCard background={background}>
+    <ListCard className="overflow-hidden">
       <div
         data-testid="record-identity-card"
-        className="flex min-w-0 grow flex-col items-start gap-3 py-4"
+        className="flex min-h-56 min-w-0 grow flex-col items-start gap-3 py-4"
       >
         <div className="dark relative flex w-full min-w-0 items-start gap-2 bg-background/80 px-4 py-2 text-foreground">
           <Icon className="mt-1 size-5 shrink-0" aria-hidden />
@@ -33,6 +33,13 @@ export function RecordIdentityCard({
           </Heading>
           {titleAccessory}
           {titleAction ? <span className="ml-auto shrink-0">{titleAction}</span> : null}
+        </div>
+        <div
+          data-slot="record-artwork"
+          aria-hidden
+          className="pointer-events-none relative min-h-24 w-full grow overflow-hidden"
+        >
+          {background}
         </div>
         <div className="relative mt-auto w-full min-w-0 shrink-0 overflow-x-auto overscroll-x-contain py-1">
           <div className="flex w-max min-w-full flex-nowrap items-center justify-end px-4 [&>*]:shrink-0">
