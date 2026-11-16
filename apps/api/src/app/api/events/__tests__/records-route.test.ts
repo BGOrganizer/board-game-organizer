@@ -117,7 +117,12 @@ it.each(["abcd", "a".repeat(31)])(
       expect((await root.POST(request("POST", body))).status).toBe(400);
       const { groupId: _groupId, ...fields } = body;
       expect(
-        (await detail.PATCH(request("PATCH", { ...fields, version: 1, removedTableIds: [] }), context)).status,
+        (
+          await detail.PATCH(
+            request("PATCH", { ...fields, version: 1, removedTableIds: [] }),
+            context,
+          )
+        ).status,
       ).toBe(400);
     }
     expect(events.create).not.toHaveBeenCalled();
@@ -134,9 +139,14 @@ it.each(["abcde", "a".repeat(30)])(
     };
     expect((await root.POST(request("POST", body))).status).toBe(201);
     const { groupId: _groupId, ...fields } = body;
-    expect((await detail.PATCH(request("PATCH", { ...fields, version: 1, removedTableIds: [] }), context)).status).toBe(
-      200,
-    );
+    expect(
+      (
+        await detail.PATCH(
+          request("PATCH", { ...fields, version: 1, removedTableIds: [] }),
+          context,
+        )
+      ).status,
+    ).toBe(200);
     expect(events.create).toHaveBeenCalledWith(
       "actor",
       expect.objectContaining({ name, tables: [expect.objectContaining({ name })] }),
