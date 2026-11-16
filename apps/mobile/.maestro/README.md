@@ -353,7 +353,8 @@ Both clients require `STATUS_ACK=owned-development-list-fixtures`, `STATUS_LOCAL
 Replace every ID/name/handle with real authorized fixtures. All four unique names must contain
 `STATUS_QUERY` and occur in the first matching source page; `emptyQuery` and its `-failure-*` /
 `-offline-*` suffixes must match nothing. The History fixture must have final venue/date/game metadata
-and actual winners. `available.kind` is `public-outsider` (PUBLIC Event, approved PUBLIC Group,
+and actual winners, and its `eventId` must equal the Terminated fixture ID so the same outcome is
+verified in both status popovers. `available.kind` is `public-outsider` (PUBLIC Event, approved PUBLIC Group,
 actor not a member), `private-member` (PRIVATE Group) or `public-group-private-member` (PRIVATE Event
 of an approved PUBLIC Group). Repeat all three availability cases, Scheduled player/queue/pending
 invitation/current manager/demonstrator/excluded cases, and Terminated/History player/demonstrator/
@@ -368,6 +369,11 @@ Native requires an already authenticated Android Development app in the selected
 actual loss of both Wi-Fi/data during its airplane-mode cases. Its completion hook restores
 connectivity; restore it manually if the runner itself is interrupted. Native assertions use visible
 rows, explicit errors and winner ordering; screenshots remain required for colors/layout.
+
+`43-confirmed-event-status.yaml` uses the same inputs with a confirmed Scheduled fixture in which
+the actor has frozen seats. It additionally requires `STATUS_CONFIRMED_TABLE_PATTERNS`, a JSON array
+of exact-name regexes for all Tables where that actor is confirmed, such as `["^First table$","^Second table$"]`.
+The flow fails when this fixture metadata is missing; it does not infer participation or create data.
 Repeat EN/IT, light/dark and enlarged text. YAML/VM/discovery checks are not authenticated/device
 acceptance. Profile flows 17/18 still enter Collection explicitly; 17 checks game clearing.
 
@@ -423,13 +429,21 @@ success responses. The `.scenario.ts` extension keeps it outside canonical suite
 and device runs remain separate acceptance requirements.
 
 `14-query-cache.yaml` is a manual scenario outside the unchanged 13-report CI fixture set.
-Use a freshly built MMKV/Nitro APK, two isolated already-onboarded EN accounts and a device with
+Use an MMKV/Nitro-capable Development APK running the tested bundle (a verified compatible OTA
+is sufficient for this adapter fix), two isolated already-onboarded EN accounts and a device with
 working Android airplane-mode controls. Actor A starts authenticated with unique visible first-page
-`CACHE_TABLE_NAME`, `CACHE_GROUP_NAME` (Private), and `CACHE_EVENT_NAME` (Registered). Actor B uses
+`CACHE_TABLE_NAME` (a finalized played Table in History), `CACHE_GROUP_NAME` (Private), and
+`CACHE_EVENT_NAME` (Scheduled). `CACHE_USERNAME` and `CACHE_USERNAME_2` must be their exact
+visible `@username` values; the flow verifies the API-backed profile identity after each switch.
+Actor A credentials are `EMAIL` / `PASSWORD`; actor B uses
 `EMAIL_2` / `PASSWORD_2` and has empty personal Tables, Private Groups and Registered Events.
 Run the flow directly; missing inputs fail. It records the three main tab strips, kills the actual
 process without clearing data, requires the same real rows after an offline restart, reconnects,
-then performs real logout/sign-in and requires B's completed empty responses without A's rows.
+then performs A → logout → B → logout → A in the same native process. It explicitly backgrounds/
+foregrounds immediately after logout and after each account switch with `launchApp.stopApp: false`;
+no process restart or state reset may mask stale MMKV listeners. It requires B's completed empty
+responses without A's rows, then A's own profile and History row after reauthentication. Both owned
+accounts must be distinct and fully onboarded; verify the installed Development APK/API before running.
 Confirm airplane mode really disables networking on the owned device; Clerk must restore a known
 identity before any private cache can appear. The completion hook restores networking on exit.
 Screenshots require native geometry/inline-dot review; source/VM tests and screenshots from a web
@@ -726,3 +740,38 @@ For real OS App Links acceptance, pass `openWithAppLink: true`, its `prNumber`, 
 `shareLink` returned by the owned Development API after public readiness. Set `coldOpen: true` to
 stop the app before opening; repeat warm as well. The flow disables Maestro's `autoVerify` and
 browser forcing, so it does not manufacture domain approval or hide a browser fallback.
+
+## Manual approved resource artwork
+
+`42-resource-artwork.yaml` is opt-in and uses existing owned Development/Preview resources.
+Verify the installed APK's API and authenticated account before setting
+`ARTWORK_BUILD_ACK=owned-preview-build`; set `ARTWORK_FIXTURE_ACK=owned-preview-resource-artwork`,
+`ARTWORK_LOCALE=en|it`, `ARTWORK_THEME=light|dark`, `ARTWORK_MOTION=normal|reduced` and
+`ARTWORK_INPUT` JSON with `groupId`, `eventId`, `tableId`, `groupName`, `eventName`, `tableName`,
+`logo=generated|uploaded|failed`. Use an accepted private Group member and a non-pending Event with the
+named Table. The Event must appear in the Group's default Events list. Resources need no mutation;
+existing notification-read behavior remains. No tokens, provisioning, provider changes or uploads
+are performed. `logo` records the pre-existing fixture, not an injected network/image response.
+
+Run each logo case in both themes, locales and system motion settings. Review screenshots of
+Group/Event/Table list cards and all three details for the original Waves palette,
+complete uncropped silhouettes/miniatures, uploaded-logo priority, and generated fallback after
+an actually failed logo load. Review
+64px and 96px thumbnail instances where rendered; unit dimensions are not visual acceptance.
+No decorative test ID or accessibility assertion alone proves artwork pixels. Small Group
+illustrations inside the navigation-less Group selector portal intentionally remain static;
+they must render without a navigation-context error.
+
+On device, record normal-motion internal calendar/banner, die/token and group member/badge
+movement; the full illustration must remain stationary. While the app stays mounted, change
+system Reduce Motion and return: generated artwork must immediately become the original static
+SVG, then resume when disabled. Background/foreground, navigation away/back and scrolling a
+resource out of view must stop/resume work without lost rows or scroll position. Use a long
+resource list and profile entry/reentry and scroll UI-thread frame timing; a screenshot cannot
+prove paused clocks or performance. Test failed and subsequently changed valid logo URLs using
+owned fixtures, including a delayed prior image response. Compare animation pivots with the web
+reference. Animated SVG Defs/Use invalidation must be checked on an actual release APK.
+
+This retained flow and VM/unit checks do not prove native rendering, frame timing, system settings
+reactivity or physical 64/96px contrast. Maestro/device execution is required for that evidence;
+this flow does not join the canonical 13-journey CI suite automatically.

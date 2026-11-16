@@ -52,6 +52,7 @@ it.each(["en", "it"])("builds exact %s source selectors and comma-separated winn
     locale === "it" ? "^Apri tavolo: fixture table$" : "^Open table: fixture table$",
   );
   expect(output.winners).toBe("^@winner\\.one, @winner-two$");
+  expect(output.historyTableName).toBe("^fixture table$");
   expect(output.emptyQuery).toBe("known-unmatched");
 });
 it.each(["public-outsider", "private-member", "public-group-private-member"])(

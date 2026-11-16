@@ -3,7 +3,7 @@ import { CARD_EXCLUSION_MESSAGES, CARD_PLANNING_MESSAGES } from "@board-game-org
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { Trophy } from "lucide-react-native";
-import { FlatList, useWindowDimensions, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
 export function EventCardTableSummaries({
@@ -12,17 +12,16 @@ export function EventCardTableSummaries({
   showNames = true,
 }: {
   tables: readonly TableCardSummary[];
-  mode: "planning" | "exclusions" | "results";
+  mode: "planning" | "exclusions" | "results" | "confirmed";
   showNames?: boolean;
 }) {
   const t = useT();
   const warning = useThemeColor("warning-soft-foreground");
-  const { height } = useWindowDimensions();
   return (
     <FlatList
       data={tables}
       keyExtractor={(table) => table.tableId}
-      style={{ maxHeight: Math.min(320, height * 0.5) }}
+      style={{ width: "100%", flexGrow: 0, flexShrink: 1 }}
       contentContainerStyle={{ gap: 12 }}
       initialNumToRender={8}
       maxToRenderPerBatch={6}
@@ -50,18 +49,33 @@ export function EventCardTableSummaries({
                 {t(CARD_EXCLUSION_MESSAGES[code])}
               </Typography>
             ))
-          ) : (
-            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+          ) : mode === "results" ? (
+            <View
+              style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: 8 }}
+            >
               {showNames ? (
                 <Typography className="font-semibold text-foreground" style={{ flexShrink: 1 }}>
                   {table.name}
                 </Typography>
               ) : null}
-              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <View
+                style={{
+                  flexShrink: 1,
+                  minWidth: 0,
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  gap: 4,
+                }}
+              >
                 {table.winners.length ? (
-                  <Trophy size={16} color={warning} accessible={false} />
+                  <Trophy
+                    size={16}
+                    color={warning}
+                    accessible={false}
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                  />
                 ) : null}
-                <Typography className="text-foreground" style={{ flex: 1 }}>
+                <Typography className="text-foreground" style={{ flexShrink: 1, minWidth: 0 }}>
                   {table.winners.length
                     ? table.winners
                         .map((winner) =>
@@ -74,12 +88,16 @@ export function EventCardTableSummaries({
                 </Typography>
               </View>
             </View>
-          )}
+          ) : null}
         </View>
       )}
       ListEmptyComponent={
         <Typography className="text-foreground">
-          {mode === "results" ? t("No winners.") : t("No tables are ready for confirmation.")}
+          {mode === "results"
+            ? t("No winners.")
+            : mode === "confirmed"
+              ? t("No tables found")
+              : t("No tables are ready for confirmation.")}
         </Typography>
       }
     />

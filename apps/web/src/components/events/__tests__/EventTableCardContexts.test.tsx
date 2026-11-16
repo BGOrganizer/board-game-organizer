@@ -1,5 +1,4 @@
-import { Avatar, Style } from "@dicebear/core";
-import planets from "@dicebear/styles/planets.json" with { type: "json" };
+import { createResourceArtwork } from "@board-game-organizer/shared/artwork";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { groupRecord, plannedTable, seat } from "@/test-fixtures/eventRecords";
@@ -63,7 +62,7 @@ it("uses the same normal-flow horizontal artwork, identity and controls in both 
   );
   const artwork = document.querySelector("img")?.getAttribute("src");
   expect(artwork).toBe(
-    `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: table.id, size: 72 }).toString())}`,
+    `data:image/svg+xml,${encodeURIComponent(createResourceArtwork("tables", table.id).svg)}`,
   );
   const inspect = () => {
     const event = screen.getByText(table.eventName),

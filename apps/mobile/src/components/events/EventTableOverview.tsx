@@ -26,6 +26,7 @@ import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { GameListRow } from "@/components/games/GameListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventCard } from "./EventCard";
 import { EventProposalSection } from "./EventProposalSection";
@@ -46,6 +47,7 @@ export function EventTableOverview({
   section?: "overview" | "participants";
   header?: ReactNode;
 }) {
+  const artwork = useArtworkListVisibility();
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -148,7 +150,7 @@ export function EventTableOverview({
               artwork={
                 <AnimatedDicebearArtwork
                   seed={table.eventId}
-                  variant="constellation"
+                  variant="events"
                   presentation="cover"
                 />
               }
@@ -255,9 +257,13 @@ export function EventTableOverview({
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: table.name }} />
       {table.sharedResultsOnly ? (
-        <ScreenScrollView>
-          {detailHeader}
-          {header}
+        <ScreenScrollView onLayout={artwork.onLayout} onScroll={artwork.onScroll}>
+          {artwork.header(
+            <>
+              {detailHeader}
+              {header}
+            </>,
+          )}
           {eventRecovery}
         </ScreenScrollView>
       ) : (

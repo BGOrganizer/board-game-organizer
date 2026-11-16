@@ -64,7 +64,7 @@ it("edits one server-backed Table result with a singular header and no Event fin
   expect(results).toContain("headerBackOptions");
   expect(source("events", "TableScoreEditor")).not.toContain('t("Back to tables")');
   expect(source("events", "EventTableOverview")).toContain('t("Event")');
-  expect(source("events", "EventTableOverview")).toContain('variant="constellation"');
+  expect(source("events", "EventTableOverview")).toContain('variant="events"');
   expect(source("events", "EventTableSeats")).toContain("setJoining(true)");
   expect(source("events", "EventJoinSheet")).toContain('value="games"');
   expect(source("events", "EventJoinSheet")).toContain('votingTabs.includes("games")');

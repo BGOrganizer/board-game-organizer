@@ -35,6 +35,14 @@ export function GroupCard({
   const events = group.canViewEvents && group.eventCount !== null;
   return (
     <LinkedListCard
+      heading={
+        <ListCardBody
+          title={group.name}
+          titleIcon={<UsersRound className="size-4 shrink-0 text-muted" aria-hidden />}
+          unread={Boolean(count)}
+          titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
+        />
+      }
       href={target}
       notificationCount={count}
       artworkLayout="cover"
@@ -58,40 +66,33 @@ export function GroupCard({
         ) : undefined
       }
     >
-      <ListCardBody
-        title={group.name}
-        titleIcon={<UsersRound className="size-4 shrink-0 text-muted" aria-hidden />}
-        unread={Boolean(count)}
-        titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
-      >
-        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
-          <span className="inline-flex min-w-0 max-w-full items-start gap-1">
-            <UsersRound className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span className="min-w-0 break-words">
-              {i18n._({
-                id: "group.card.members",
-                message: "{count, plural, one {# Member} other {# Members}}",
-                values: { count: group.memberCount },
-              })}
-            </span>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
+        <span className="inline-flex min-w-0 max-w-full items-start gap-1">
+          <UsersRound className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span className="min-w-0 break-words">
+            {i18n._({
+              id: "group.card.members",
+              message: "{count, plural, one {# Member} other {# Members}}",
+              values: { count: group.memberCount },
+            })}
           </span>
-          {events ? (
-            <>
-              <span aria-hidden>·</span>
-              <span className="inline-flex min-w-0 max-w-full items-start gap-1">
-                <CalendarDays className="mt-0.5 size-4 shrink-0" aria-hidden />
-                <span className="min-w-0 break-words">
-                  {i18n._({
-                    id: "group.card.events",
-                    message: "{count, plural, one {# Event} other {# Events}}",
-                    values: { count: group.eventCount },
-                  })}
-                </span>
+        </span>
+        {events ? (
+          <>
+            <span aria-hidden>·</span>
+            <span className="inline-flex min-w-0 max-w-full items-start gap-1">
+              <CalendarDays className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span className="min-w-0 break-words">
+                {i18n._({
+                  id: "group.card.events",
+                  message: "{count, plural, one {# Event} other {# Events}}",
+                  values: { count: group.eventCount },
+                })}
               </span>
-            </>
-          ) : null}
-        </div>
-      </ListCardBody>
+            </span>
+          </>
+        ) : null}
+      </div>
     </LinkedListCard>
   );
 }

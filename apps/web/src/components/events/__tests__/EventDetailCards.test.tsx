@@ -1,5 +1,4 @@
-import { Avatar, Style } from "@dicebear/core";
-import constellation from "@dicebear/styles/constellation.json" with { type: "json" };
+import { createResourceArtwork } from "@board-game-organizer/shared/artwork";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { groupRecord, plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
@@ -63,7 +62,7 @@ it.each([
   ["CONFIRMED", "Confirmed", "muted"],
   ["TERMINATED", "Terminated", "accent"],
 ] as const)(
-  "puts the %s identity and compact state controls directly over background artwork",
+  "keeps the %s illustration behind its identity and compact state controls",
   (status, label, color) => {
     const event = { ...plannedEvent, status, groupId: groupRecord.id, groupName: groupRecord.name };
     const view = renderWithI18n(<EventDetailsCard event={event} />);
@@ -79,10 +78,14 @@ it.each([
     expect(caption.className).toContain("flex-col");
     expect(caption.className).not.toContain("absolute");
     expect(heading.parentElement?.className).toContain("dark");
-    expect(heading.parentElement?.className).toContain("items-start");
+    expect(heading.parentElement?.className).toContain("items-center");
     expect(heading.parentElement?.className).toContain("bg-background/80");
     expect(heading.parentElement?.className).toContain("w-full");
     expect(heading.className).not.toContain("text-shadow");
+    const background = card.querySelector('[data-slot="card-background"]');
+    expect(background?.querySelector("img")).not.toBeNull();
+    expect(background?.contains(caption)).toBe(false);
+    expect(caption.children).toHaveLength(2);
     expect(caption.children[1].className).toContain("mt-auto");
     expect(caption.children[1].className).toContain("overflow-x-auto");
     expect(caption.children[1].firstElementChild?.className).toContain("flex-nowrap");
@@ -99,11 +102,11 @@ it.each([
       artwork = image?.getAttribute("src");
     expect(image?.getAttribute("alt")).toBe("");
     expect(artwork).toBe(
-      `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(constellation), { seed: event.id, size: 72 }).toString())}`,
+      `data:image/svg+xml,${encodeURIComponent(createResourceArtwork("events", event.id).svg)}`,
     );
     view.rerender(<EventCard event={event} />);
     expect(document.querySelector("img")?.getAttribute("src")).toBe(
-      `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(constellation), { seed: event.id, size: 72 }).toString())}`,
+      `data:image/svg+xml,${encodeURIComponent(createResourceArtwork("events", event.id).svg)}`,
     );
   },
 );

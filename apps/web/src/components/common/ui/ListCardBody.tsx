@@ -11,18 +11,22 @@ export function ListCardBody({
   titleIcon?: ReactNode;
   titleAccessory?: ReactNode;
   unread?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
+  const heading = (
+    <div data-slot="card-heading" className="flex flex-wrap items-center gap-2">
+      {titleIcon}
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="min-w-0 break-words font-semibold">{title}</span>
+        <NotificationUnreadDot active={unread} />
+      </span>
+      {titleAccessory}
+    </div>
+  );
+  if (children === undefined) return heading;
   return (
     <div className="min-w-0 flex-1 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        {titleIcon}
-        <span className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="min-w-0 break-words font-semibold">{title}</span>
-          <NotificationUnreadDot active={unread} />
-        </span>
-        {titleAccessory}
-      </div>
+      {heading}
       <div className="space-y-2">{children}</div>
     </div>
   );

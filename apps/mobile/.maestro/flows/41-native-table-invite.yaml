@@ -5,6 +5,8 @@ name: Native Table invitation review and explicit consent
 # For waiting, the owned table must already be full; incomplete requires multiple choices.
 # Run both EN/IT, light/dark, large text and cold/warm opens. No claim occurs before Submit.
 tags: [manual, events, invites]
+onFlowComplete:
+  - setAirplaneMode: disabled
 ---
 - runScript: ../helpers/native-table-invite-inputs.js
 - launchApp:
@@ -34,7 +36,10 @@ tags: [manual, events, invites]
       - tapOn: "^[Ee]nter your [Pp]assword$|.*[Pp]assword.*"
       - inputText: ${PASSWORD}
       - tapOn: "^Continue$|^Continua$"
-      - runFlow: ../helpers/verify-clerk-device.yaml
+      - runFlow:
+          file: ../helpers/verify-clerk-device.yaml
+          env:
+            AUTH_READY_PATTERN: ${output.nativeTableInvite.table}
 - runFlow:
     when:
       true: ${output.nativeTableInvite.mode === 'onboarding'}
@@ -65,7 +70,6 @@ tags: [manual, events, invites]
       - extendedWaitUntil:
           visible:
             id: table-link-consent-submit
-            enabled: true
           timeout: 60000
       - assertVisible: ${output.nativeTableInvite.table}
       - assertNotVisible:
@@ -100,7 +104,7 @@ tags: [manual, events, invites]
           when:
             true: ${output.nativeTableInvite.mode === 'offline'}
           commands:
-            - setAirplaneMode: true
+            - setAirplaneMode: enabled
             - tapOn:
                 id: table-link-consent-submit
             - extendedWaitUntil:
@@ -108,7 +112,7 @@ tags: [manual, events, invites]
                 timeout: 120000
             - assertNotVisible:
                 id: table-overview-tab
-            - setAirplaneMode: false
+            - setAirplaneMode: disabled
       - assertVisible:
           id: table-link-consent-submit
           enabled: true

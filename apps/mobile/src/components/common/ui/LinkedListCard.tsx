@@ -15,6 +15,7 @@ export function LinkedListCard({
   actions,
   leadingActions,
   artwork,
+  heading,
   children,
   artworkLayout = "thumbnail",
 }: {
@@ -26,6 +27,7 @@ export function LinkedListCard({
   actions?: ReactNode;
   leadingActions?: ReactNode;
   artwork: ReactNode;
+  heading?: ReactNode;
   children: ReactNode;
   artworkLayout?: "thumbnail" | "cover";
 }) {
@@ -52,6 +54,7 @@ export function LinkedListCard({
       {cover ? (
         <ListCardCoverContent
           artwork={artwork}
+          heading={heading}
           controls={controls}
           controlsDisabled={controlsDisabled}
         >

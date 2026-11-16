@@ -38,7 +38,7 @@ describe("unified group presentation", () => {
     expect(screen.getByRole("button", { name: "Private" })).not.toBeNull();
     expect(screen.queryByText("Approved")).toBeNull();
   });
-  it("explains accepted membership below artwork without entering the group", async () => {
+  it("explains accepted membership beside artwork without entering the group", async () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "accepted" }} />);
     const badge = screen.getByRole("button", { name: "Accepted member" });
     expect(badge.className).toContain("text-success-soft-foreground");

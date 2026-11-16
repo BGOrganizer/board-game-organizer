@@ -14,20 +14,27 @@ export function ListCardBody({
   titleIcon?: ReactNode;
   titleAccessory?: ReactNode;
   unread?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
+  const heading = (
+    <View
+      testID="card-heading"
+      style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}
+    >
+      {titleIcon}
+      <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Typography className="font-semibold text-foreground" style={{ flexShrink: 1 }}>
+          {title}
+        </Typography>
+        <NotificationUnreadDot active={unread} />
+      </View>
+      {titleAccessory}
+    </View>
+  );
+  if (children === undefined) return heading;
   return (
     <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-        {titleIcon}
-        <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Typography className="font-semibold text-foreground" style={{ flexShrink: 1 }}>
-            {title}
-          </Typography>
-          <NotificationUnreadDot active={unread} />
-        </View>
-        {titleAccessory}
-      </View>
+      {heading}
       {children}
     </View>
   );

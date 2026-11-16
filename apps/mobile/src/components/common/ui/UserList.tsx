@@ -4,6 +4,7 @@ import { Typography } from "heroui-native/text";
 import type { ReactNode } from "react";
 import { type FlatListProps, type StyleProp, View, type ViewStyle } from "react-native";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { nextUserPage, type UserPage } from "@/lib/user-list";
 import { EmptyList } from "./EmptyList";
 import { GroupedList } from "./GroupedList";
@@ -42,10 +43,13 @@ export function UserList<T>({
   onViewableItemsChanged?: FlatListProps<T>["onViewableItemsChanged"];
   viewabilityConfig?: FlatListProps<T>["viewabilityConfig"];
 }) {
+  const artwork = useArtworkListVisibility();
   const t = useT();
   const next = nextUserPage(pages);
   return (
     <InputFlatList
+      onLayout={artwork.onLayout}
+      onScroll={artwork.onScroll}
       testID={testID}
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={viewabilityConfig}
@@ -61,7 +65,7 @@ export function UserList<T>({
       onEndReachedThreshold={0.5}
       ListHeaderComponent={
         <View style={{ gap: 8 }}>
-          {header}
+          {artwork.header(header)}
           {pages.some((page) => page.isLoading) ? skeleton : null}
           {pages.some((page) => page.isError) ? (
             <View style={{ gap: 4 }}>

@@ -41,7 +41,13 @@ consent or capability. Persist authoritative journal bases, not optimistic overl
 exclude credentials, raw address-book scans and transient provider searches. Logout, definitive
 session termination and account/session switches cancel RAM work and purge the owned disk/key;
 late callbacks must never recreate purged data. Keep the total five-second splash limit and refresh
-restored data in the existing bounded workers. See [native cache and builds](development.md#native-cache-and-builds) for retention and native-build limits.
+restored data in the existing bounded workers. The mobile adapter revokes old storage leases before
+any queued logout/open work. With MMKV 4.3.2 it clears live encrypted instances rather than deleting
+them: native foreground/memory-warning listeners otherwise retain a freed pointer
+([upstream issue](https://github.com/margelo/react-native-mmkv/issues/1082)). Purged values and their
+SecureStore key are removed; empty encrypted files/one native handle per opened ID remain for the
+runtime, and cold purge/key-loss recovery physically deletes files before opening a handle.
+Reopening a live ID explicitly re-encrypts with its current AES-256 key. See [native cache and builds](development.md#native-cache-and-builds) for retention and native-build limits.
 
 Reuse cached data between lists and details when the server-authorized response actually contains
 all required fields. Fetch missing Event/Table/Group detail through its individual endpoint, prefetch likely next

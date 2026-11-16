@@ -242,7 +242,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/common/ui/{NotificationUnreadDot,ArtworkStatusPopover,ClientRecordBadge,ListCardCoverContent}.tsx":
+        "src/components/common/ui/{NotificationUnreadDot,ArtworkStatusPopover,ClientRecordBadge,ListCardCoverContent,ListCardBody,LinkedListCard}.tsx":
           {
             lines: 100,
             functions: 100,

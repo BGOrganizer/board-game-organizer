@@ -42,6 +42,7 @@ import GamePicker from "@/components/games/GamePicker";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
 import LocationPicker from "@/components/locations/LocationPicker";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useValidationList } from "@/lib/useValidationList";
 import { EventDraftTableCard } from "./EventDraftTableCard";
@@ -179,6 +180,7 @@ function Editor({
       !pick &&
       (!invalidTable || expandedTables.includes(draft.tables[Number(invalidTable[1])]?.key ?? "")),
   });
+  const artwork = useArtworkListVisibility(validation.onViewableItemsChanged);
   useEffect(() => {
     if (!pick) return;
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -330,6 +332,9 @@ function Editor({
         <InputFlatList
           key={validationScope}
           {...validation}
+          onLayout={artwork.onLayout}
+          onScroll={artwork.onScroll}
+          onViewableItemsChanged={artwork.onViewableItemsChanged}
           data={step < 2 ? [] : draft.tables}
           keyExtractor={(row) => row.key}
           keyboardShouldPersistTaps="handled"
@@ -363,46 +368,49 @@ function Editor({
                   ),
                 )}
               </View>
-              {header}
+              {artwork.header(header)}
             </>
           }
           renderItem={({ item: row, index }) =>
-            step === 2 ? (
-              <Accordion.Item value={row.key} className="rounded-xl bg-default">
-                <Accordion.Trigger
-                  testID={`event-draft-table-${row.key}`}
-                  accessibilityLabel={row.name.trim() || `${t("Table")} #${index + 1}`}
-                  isDisabled={submitting}
-                  style={{ minHeight: 44 }}
-                >
-                  <Table2 size={20} color={fg} accessible={false} />
-                  <Typography
-                    className="font-semibold text-foreground"
-                    style={{ flex: 1, minWidth: 0 }}
+            artwork.row(
+              row.key,
+              step === 2 ? (
+                <Accordion.Item value={row.key} className="rounded-xl bg-default">
+                  <Accordion.Trigger
+                    testID={`event-draft-table-${row.key}`}
+                    accessibilityLabel={row.name.trim() || `${t("Table")} #${index + 1}`}
+                    isDisabled={submitting}
+                    style={{ minHeight: 44 }}
                   >
-                    {row.name.trim() || `${t("Table")} #${index + 1}`}
-                  </Typography>
-                  <Accordion.Indicator />
-                </Accordion.Trigger>
-                <Accordion.Content>
-                  <EventDraftTableEditor
-                    row={row}
-                    privateGroup={form.flexibleSchedule}
-                    publicGroup={publicGroup}
-                    timeZone={draft.timeZone}
-                    eventStartWall={draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : ""}
-                    eventEndWall={draft.endsWall}
-                    busy={submitting}
-                    fieldError={(path) => form.fieldError(`tables.${index}.${path}`)}
-                    onChange={(value) => form.patchTable(row.key, value)}
-                    onRemove={() => setRemove(row.key)}
-                    onGame={() => setPick({ kind: "game", key: row.key })}
-                    onDemonstrator={() => setPick({ kind: "demonstrator", key: row.key })}
-                  />
-                </Accordion.Content>
-              </Accordion.Item>
-            ) : (
-              <EventDraftTableCard row={row} publicGroup={publicGroup} />
+                    <Table2 size={20} color={fg} accessible={false} />
+                    <Typography
+                      className="font-semibold text-foreground"
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
+                      {row.name.trim() || `${t("Table")} #${index + 1}`}
+                    </Typography>
+                    <Accordion.Indicator />
+                  </Accordion.Trigger>
+                  <Accordion.Content>
+                    <EventDraftTableEditor
+                      row={row}
+                      privateGroup={form.flexibleSchedule}
+                      publicGroup={publicGroup}
+                      timeZone={draft.timeZone}
+                      eventStartWall={draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : ""}
+                      eventEndWall={draft.endsWall}
+                      busy={submitting}
+                      fieldError={(path) => form.fieldError(`tables.${index}.${path}`)}
+                      onChange={(value) => form.patchTable(row.key, value)}
+                      onRemove={() => setRemove(row.key)}
+                      onGame={() => setPick({ kind: "game", key: row.key })}
+                      onDemonstrator={() => setPick({ kind: "demonstrator", key: row.key })}
+                    />
+                  </Accordion.Content>
+                </Accordion.Item>
+              ) : (
+                <EventDraftTableCard row={row} publicGroup={publicGroup} />
+              ),
             )
           }
           ListFooterComponent={

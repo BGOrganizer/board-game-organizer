@@ -6,7 +6,7 @@ import {
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { IdCard } from "lucide-react-native";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { useT } from "@/lib/i18n";
 import { recordUserRoleIcons } from "@/lib/recordUserRoleIcons";
@@ -21,6 +21,7 @@ export function EventRolePopover({
   pending?: boolean;
 }) {
   const t = useT();
+  const { width } = useWindowDimensions();
   const [warning, accent, success] = useThemeColor([
     "warning-soft-foreground",
     "accent-soft-foreground",
@@ -35,16 +36,21 @@ export function EventRolePopover({
       tone="muted"
       size="compact"
       triggerClassName="bg-default"
-      width="content-fit"
+      width={Math.min(320, width - 32)}
     >
       <View style={{ gap: 8 }}>
         {roles.map((role) => {
           const item = RECORD_USER_ROLES[role],
             Icon = recordUserRoleIcons[item.icon];
           return (
-            <View key={role} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Icon size={16} color={colors[item.tone]} accessible={false} />
-              <Typography className="text-foreground" style={{ flex: 1 }}>
+            <View key={role} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+              <Icon
+                size={16}
+                color={colors[item.tone]}
+                accessible={false}
+                style={{ flexShrink: 0, marginTop: 2 }}
+              />
+              <Typography className="text-foreground" style={{ flex: 1, minWidth: 0 }}>
                 {t(item.message)}
               </Typography>
             </View>

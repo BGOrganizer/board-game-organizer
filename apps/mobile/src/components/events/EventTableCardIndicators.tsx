@@ -20,7 +20,8 @@ import {
   UserRoundCheck,
   UsersRound,
 } from "lucide-react-native";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { cardStateMessages } from "@/lib/eventCardMessages";
 import { useT } from "@/lib/i18n";
@@ -33,6 +34,8 @@ import { EventTableSchedulePopover } from "./EventTableSchedulePopover";
 
 export function EventTableCardIndicators({ table }: { table: PlannedTableResponse }) {
   const t = useT();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { i18n } = useLingui();
   const { userId } = useCommunityApi();
   const muted = useThemeColor("muted");
@@ -61,9 +64,10 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
         tone={CARD_STATE_TONES[state]}
         triggerVariant={variant}
         triggerClassName={variant === "ghost" ? "bg-default" : undefined}
-        width="content-fit"
+        width={Math.min(360, width - insets.left - insets.right - 32)}
+        contentStyle={{ maxHeight: Math.max(0, height - insets.top - insets.bottom - 32) }}
       >
-        <View style={{ gap: 8 }}>
+        <View style={{ gap: 8, flexShrink: 1 }}>
           {state === "TERMINATED" ? (
             summary ? (
               <EventCardTableSummaries tables={[summary]} mode="results" showNames={false} />

@@ -55,6 +55,7 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
         title={status}
         icon={state === "PLANNING" ? CalendarClock : state === "TERMINATED" ? Flag : CalendarCheck}
         tone={CARD_STATE_TONES[state]}
+        className="w-90 max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain"
         triggerVariant={variant}
         triggerClassName={variant === "ghost" ? "bg-default" : ""}
       >

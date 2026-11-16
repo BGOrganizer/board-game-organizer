@@ -163,6 +163,7 @@ it.each(["ADMIN", "MODERATOR", "MEMBER", null, undefined] as const)(
         "@/components/ratings/RatingGameSelect": { RatingGameSelect: "Picker" },
         "@/lib/i18n": { useT: vi.fn() },
         "@/lib/useSessionAuth": { useSessionAuth: vi.fn() },
+        "@/lib/useArtworkListVisibility": { useArtworkListVisibility: vi.fn() },
       },
       true,
     );

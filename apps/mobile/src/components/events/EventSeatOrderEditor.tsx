@@ -25,6 +25,7 @@ import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 export function EventSeatOrderEditor({
@@ -36,6 +37,7 @@ export function EventSeatOrderEditor({
   header?: ReactNode;
   demonstratorUserId?: string | null;
 }) {
+  const artwork = useArtworkListVisibility();
   const t = useT();
   const layout = useFloatingActionLayout();
   const [foreground, successForeground, muted] = useThemeColor([
@@ -59,13 +61,15 @@ export function EventSeatOrderEditor({
         </View>
       ) : null}
       <SectionList
+        onLayout={artwork.onLayout}
+        onScroll={artwork.onScroll}
         testID="seat-order-list"
         sections={[
           { key: "seats", data: model.places.seated },
           { key: "waiting", data: model.places.waiting },
         ]}
         stickySectionHeadersEnabled={false}
-        ListHeaderComponent={
+        ListHeaderComponent={artwork.header(
           <View style={{ gap: 16, paddingBottom: 8 }}>
             {header}
             <Typography className="text-sm text-muted">
@@ -73,8 +77,8 @@ export function EventSeatOrderEditor({
                 "Locked places stay fixed. Move unlocked players or pending invitations between seats and the waiting list. Manual mode preserves empty places; Assisted may rearrange unlocked players.",
               )}
             </Typography>
-          </View>
-        }
+          </View>,
+        )}
         renderSectionHeader={({ section }) => (
           <EventSeatListHeading waiting={section.key === "waiting"} />
         )}

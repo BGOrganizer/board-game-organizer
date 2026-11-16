@@ -18,6 +18,7 @@ import { IconBadge } from "@/components/common/ui/IconBadge";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
 
@@ -28,6 +29,7 @@ export function EventTableResults({
   table: PlannedTableResponse;
   header?: ReactNode;
 }) {
+  const artwork = useArtworkListVisibility();
   const t = useT(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets();
@@ -72,14 +74,16 @@ export function EventTableResults({
   ]);
   if (!table.confirmed && (!terminated || !table.results))
     return (
-      <ScreenScrollView>
-        {header}
+      <ScreenScrollView onLayout={artwork.onLayout} onScroll={artwork.onScroll}>
+        {artwork.header(header)}
         <Typography className="text-foreground">{t("Excluded from confirmation")}</Typography>
       </ScreenScrollView>
     );
   return (
     <FlatList
-      ListHeaderComponent={<>{header}</>}
+      onLayout={artwork.onLayout}
+      onScroll={artwork.onScroll}
+      ListHeaderComponent={artwork.header(header)}
       key={owner}
       data={rows}
       keyExtractor={(row) => row.key}

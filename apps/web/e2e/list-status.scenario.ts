@@ -234,6 +234,28 @@ for (const width of [390, 1280])
       const link = main.locator(`a[href="${href}"]`);
       await expect(link).toBeVisible();
       await expect(main.locator("[aria-pressed]")).toHaveCount(0);
+      if (current.section === "mine") {
+        const source = rows.items.find((row) => row.id === current.fixture.id);
+        const confirmed = source?.cardSummary?.tables.filter(
+          (table) => table.myParticipation === "CONFIRMED",
+        );
+        if (source?.status === "CONFIRMED" && confirmed?.length) {
+          const card = main.getByRole("listitem").filter({ has: link });
+          await card
+            .getByRole("button", { name: it ? "Confermata" : "Confirmed", exact: true })
+            .click();
+          const popup = page.getByRole("dialog");
+          const heading = popup.getByText(
+            it ? "Tavoli in cui sei confermato:" : "Tables where you are confirmed:",
+            { exact: true },
+          );
+          await expect(heading).toBeVisible();
+          await expect(
+            heading.locator("xpath=following-sibling::ul[1]").getByRole("listitem"),
+          ).toHaveText(confirmed.slice(0, 8).map((table) => table.name));
+          await page.keyboard.press("Escape");
+        }
+      }
       if (current.section === "terminated") {
         const card = main.getByRole("listitem").filter({ has: link });
         await card
@@ -243,6 +265,8 @@ for (const width of [390, 1280])
           name: it ? "Terminata" : "Terminated",
           exact: true,
         });
+        await expect(popup).toBeVisible();
+        expect(await popup.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
         const summary = rows.items.find((row) => row.id === current.fixture.id)?.cardSummary;
         if (!summary) throw new Error("Actual terminated Event summary required");
         for (const table of summary.tables.filter((table) => table.confirmed).slice(0, 8)) {
@@ -283,6 +307,7 @@ for (const width of [390, 1280])
         await expect(popup).toBeVisible();
         const winners = popup.getByText(input.history.winnerHandles.join(", "), { exact: true });
         await expect(winners).toBeVisible();
+        expect(await popup.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
         await expect(winners.locator(".lucide-trophy.text-warning-soft-foreground")).toBeVisible();
         for (const text of it
           ? ["Giocatori minimi", "Giocatori massimi", "Lista d'attesa"]

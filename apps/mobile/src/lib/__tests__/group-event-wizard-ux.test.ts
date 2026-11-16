@@ -114,7 +114,7 @@ it("owns removal actions inside grouped location/game rows and uses constrained 
   );
   expect(table).toContain("min={Math.max(row.minPlayers, playerBounds?.minPlayers ?? 2)}");
   expect(source("events", "EventDraftTableCard")).toMatch(
-    /seed=\{row.id \?\? row.key\}\s+variant="planets"/,
+    /seed=\{row.id \?\? row.key\}\s+variant="tables"/,
   );
   expect(source("events", "EventDraftTableCard")).toContain("<EventTableRatingInfo");
   expect(table).toContain("value <= min");

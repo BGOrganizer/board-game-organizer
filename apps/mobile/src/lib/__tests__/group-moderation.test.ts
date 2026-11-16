@@ -45,13 +45,16 @@ function expression(fileName: string, tag: string, attribute: string) {
 
 it("renders moderation items through the existing Group card and opens their review, not ordinary group detail", () => {
   const item = { id: "11111111-1111-4111-8111-111111111111", name: "Pending club" };
+  const visibleRow = vi.fn((_id: string, child: unknown) => child);
   const renderItem = runInNewContext(expression("GroupModeration", "InputFlatList", "renderItem"), {
+    artwork: { row: visibleRow },
     GroupCard: "GroupCard",
     React: { createElement: (type: string, props: Record<string, unknown>) => ({ type, props }) },
   });
   const row = renderItem({ item });
   expect(row.type).toBe("GroupCard");
   expect(row.props.group).toBe(item);
+  expect(visibleRow).toHaveBeenCalledWith(item.id, row);
   expect(row.props.onRespond).toBeUndefined();
   expect(row.props.href).toEqual({
     pathname: "/moderation/[groupId]",

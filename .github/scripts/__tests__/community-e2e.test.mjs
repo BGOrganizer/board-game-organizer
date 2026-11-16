@@ -128,7 +128,7 @@ test("actor changes require completed logout, real sign-in and exact API-backed 
   assert(guest >= 0 && guest < signin && signin < identity);
   assert(
     contains(steps, "scrollUntilVisible", {
-      element: { text: "^Logout$" },
+      element: { text: "^Sign out of your account$" },
       direction: "DOWN",
       timeout: 60000,
     }),
@@ -382,7 +382,25 @@ test("native device verification uses Clerk development fixtures, without disabl
     new URL("../../../apps/mobile/.maestro/helpers/verify-clerk-device.yaml", import.meta.url),
     "utf8",
   );
-  assert(helper.includes('visible: "Check your email|Mobile number|Matches"'));
+  const verification = parseAllDocuments(helper)[1].toJSON();
+  const guardExpression = verification[0].assertTrue.slice(2, -1);
+  assert.equal(runInNewContext(guardExpression), true);
+  for (const value of ["", null, 42])
+    assert.equal(runInNewContext(guardExpression, { AUTH_READY_PATTERN: value }), false);
+  const readyExpression = verification[1].extendedWaitUntil.visible;
+  assert(readyExpression.startsWith("${") && readyExpression.endsWith("}"));
+  const defaultReady = runInNewContext(readyExpression.slice(2, -1));
+  const tableReady = runInNewContext(readyExpression.slice(2, -1), {
+    AUTH_READY_PATTERN: "^Owned table\\?$",
+  });
+  assert(new RegExp(defaultReady).test("History"));
+  assert(!new RegExp(defaultReady).test("Owned table?"));
+  assert(new RegExp(tableReady).test("Owned table?"));
+  assert(!new RegExp(tableReady).test("History"));
+  for (const pattern of [defaultReady, tableReady]) {
+    assert(new RegExp(pattern).test("Check your email"));
+    assert(new RegExp(pattern).test("Mobile number"));
+  }
   assert(helper.includes('inputText: "424242"'));
   const signIn = readFileSync(
     new URL("../../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
@@ -1018,7 +1036,8 @@ test("final dark-mode acceptance signs out explicitly without clearing authentic
   const steps = journey("04-dark-mode");
   assert.equal(steps[0].launchApp.stopApp, true);
   assert.equal(steps[0].launchApp.clearState, false);
-  assert(contains(steps, "tapOn", "^Logout$"));
+  assert(contains(steps, "tapOn", "^Sign out of your account$"));
+  assert(contains(steps, "tapOn", { id: "confirmation-action-0" }));
   assert(
     contains(steps, "extendedWaitUntil", {
       visible: "Welcome to Board Game Organizer",
@@ -1384,12 +1403,15 @@ test("native confirmation titles match literal question marks, not background ac
   const titles = new Set();
   for (const path of paths) {
     for (const step of nativeSteps(path)) {
-      for (const pattern of [
+      for (let pattern of [
         step.assertVisible,
         step.assertNotVisible,
         step.extendedWaitUntil?.visible,
         step.extendedWaitUntil?.notVisible,
       ]) {
+        if (typeof pattern !== "string" || !pattern.includes("?")) continue;
+        if (pattern.startsWith("${") && pattern.endsWith("}"))
+          pattern = runInNewContext(pattern.slice(2, -1));
         if (typeof pattern !== "string" || !pattern.includes("?")) continue;
         assert(pattern.startsWith("^") && pattern.endsWith("\\?$"), `${path}: ${pattern}`);
         const title = `${pattern.slice(1, -3)}?`;

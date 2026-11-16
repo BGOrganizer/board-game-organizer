@@ -16,9 +16,11 @@ import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage"
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupCard } from "./GroupCard";
 export function GroupModeration() {
+  const artwork = useArtworkListVisibility();
   const t = useT(),
     o = useCommunityApi(),
     f = useListSearch<never>([]),
@@ -35,6 +37,8 @@ export function GroupModeration() {
     >
       <ListPage>
         <InputFlatList
+          onLayout={artwork.onLayout}
+          onViewableItemsChanged={artwork.onViewableItemsChanged}
           style={{ flex: 1 }}
           data={communityAccessDenied(q.error) ? [] : q.items}
           keyExtractor={(row) => row.id}
@@ -52,12 +56,15 @@ export function GroupModeration() {
               onToggle={f.toggle}
             />
           }
-          renderItem={({ item }) => (
-            <GroupCard
-              group={item}
-              href={{ pathname: "/moderation/[groupId]", params: { groupId: item.id } }}
-            />
-          )}
+          renderItem={({ item }) =>
+            artwork.row(
+              item.id,
+              <GroupCard
+                group={item}
+                href={{ pathname: "/moderation/[groupId]", params: { groupId: item.id } }}
+              />,
+            )
+          }
           onEndReached={() => {
             if (q.hasNextPage && !q.isFetchingNextPage && !q.isFetchNextPageError)
               void q.fetchNextPage();

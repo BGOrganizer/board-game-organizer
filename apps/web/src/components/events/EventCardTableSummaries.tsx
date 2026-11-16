@@ -14,7 +14,7 @@ export function EventCardTableSummaries({
   showNames = true,
 }: {
   tables: readonly TableCardSummary[];
-  mode: "planning" | "exclusions" | "results";
+  mode: "planning" | "exclusions" | "results" | "confirmed";
   showNames?: boolean;
 }) {
   const { t, i18n } = useLingui();
@@ -23,7 +23,7 @@ export function EventCardTableSummaries({
   const page = Math.min(requestedPage, pageCount - 1);
   return (
     <>
-      <ul className="max-h-[50vh] space-y-3 overflow-y-auto overscroll-contain">
+      <ul className="min-w-0 space-y-3">
         {tables.slice(page * 8, (page + 1) * 8).map((table) => (
           <li key={table.tableId}>
             {showNames && mode !== "results" ? <p className="font-semibold">{table.name}</p> : null}
@@ -43,7 +43,7 @@ export function EventCardTableSummaries({
                   <li key={code}>{i18n._(cardExclusionMessages[code])}</li>
                 ))}
               </ul>
-            ) : (
+            ) : mode === "results" ? (
               <p className="break-words">
                 {showNames ? (
                   <>
@@ -68,12 +68,18 @@ export function EventCardTableSummaries({
                   t`No winners.`
                 )}
               </p>
-            )}
+            ) : null}
           </li>
         ))}
       </ul>
       {!tables.length ? (
-        <p>{mode === "results" ? t`No winners.` : t`No tables are ready for confirmation.`}</p>
+        <p>
+          {mode === "results"
+            ? t`No winners.`
+            : mode === "confirmed"
+              ? t`No tables found`
+              : t`No tables are ready for confirmation.`}
+        </p>
       ) : null}
       {pageCount > 1 ? (
         <div className="mt-2 flex items-center justify-between gap-2">

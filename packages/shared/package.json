@@ -15,10 +15,15 @@
     "./matchResults": {
       "types": "./src/matches/matchResults.ts",
       "default": "./src/matches/matchResults.ts"
+    },
+    "./artwork": {
+      "types": "./src/artwork/resourceArtwork.ts",
+      "default": "./src/artwork/resourceArtwork.ts"
     }
   },
   "dependencies": {
     "@board-game-organizer/schemas": "workspace:*",
+    "@dicebear/core": "10.7.0",
     "@tanstack/react-query": "^5.102.8",
     "i18n-iso-countries": "^7.14.0",
     "libphonenumber-js": "^1.13.14",

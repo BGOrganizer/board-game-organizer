@@ -1,0 +1,67 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Approved resource artwork, uploaded logos and foreground continuity
+# Opt-in existing Preview fixtures. Configure OS Reduce Motion and app theme before each run.
+# Detail screenshots must show proportional artwork across the full card background.
+# List screenshots must show full-width titles, bottom-left artwork and a single control row that may extend over the artwork.
+tags: [manual, artwork, accessibility]
+---
+- runScript: ../helpers/resource-artwork-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///groups
+- extendedWaitUntil:
+    visible: ${output.artwork.groupTab}
+    timeout: 120000
+- tapOn: ${output.artwork.groupTab}
+- tapOn:
+    id: list-search-input
+- inputText: ${output.artwork.groupFilter}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.artwork.openGroup}
+    timeout: 120000
+- takeScreenshot: ${output.artwork.screenshot + '-group-card'}
+- tapOn: ${output.artwork.openGroup}
+- extendedWaitUntil:
+    visible: ${output.artwork.events}
+    timeout: 120000
+- assertVisible: ${output.artwork.group}
+- takeScreenshot: ${output.artwork.screenshot + '-group-detail'}
+- tapOn: ${output.artwork.events}
+- extendedWaitUntil:
+    visible:
+      id: list-search-input
+    timeout: 120000
+- tapOn:
+    id: list-search-input
+- inputText: ${output.artwork.eventFilter}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.artwork.openEvent}
+    timeout: 120000
+- takeScreenshot: ${output.artwork.screenshot + '-event-card'}
+- tapOn: ${output.artwork.openEvent}
+- extendedWaitUntil:
+    visible: ${output.artwork.tables}
+    timeout: 120000
+- assertVisible: ${output.artwork.event}
+- takeScreenshot: ${output.artwork.screenshot + '-event-detail'}
+- tapOn: ${output.artwork.tables}
+- scrollUntilVisible:
+    element: ${output.artwork.openTable}
+    direction: DOWN
+    timeout: 120000
+- takeScreenshot: ${output.artwork.screenshot + '-table-card'}
+- tapOn: ${output.artwork.openTable}
+- extendedWaitUntil:
+    visible:
+      id: table-participants-tab
+    timeout: 120000
+- assertVisible: ${output.artwork.table}
+- takeScreenshot: ${output.artwork.screenshot + '-table-detail'}
+- pressKey: Home
+- launchApp:
+    stopApp: false
+    clearState: false
+- assertVisible: ${output.artwork.table}
+- takeScreenshot: ${output.artwork.screenshot + '-foreground'}

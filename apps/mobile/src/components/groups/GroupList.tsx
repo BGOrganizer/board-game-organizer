@@ -18,6 +18,7 @@ import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage"
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { GroupCard } from "./GroupCard";
@@ -28,6 +29,7 @@ export function GroupList({
   scope?: "mine" | "public";
   type?: GroupRecord["type"];
 }) {
+  const artwork = useArtworkListVisibility();
   const t = useT(),
     router = useRouter(),
     options = useCommunityApi(),
@@ -46,6 +48,8 @@ export function GroupList({
     >
       <ListPage>
         <InputFlatList
+          onLayout={artwork.onLayout}
+          onViewableItemsChanged={artwork.onViewableItemsChanged}
           testID="groups-scroll"
           style={{ flex: 1 }}
           data={communityAccessDenied(list.error) ? [] : list.items}
@@ -88,13 +92,16 @@ export function GroupList({
               ) : null}
             </View>
           }
-          renderItem={({ item: group }) => (
-            <GroupCard
-              group={group}
-              checking={list.isFetching}
-              onVerify={() => void list.refetch({ cancelRefetch: false })}
-            />
-          )}
+          renderItem={({ item: group }) =>
+            artwork.row(
+              group.id,
+              <GroupCard
+                group={group}
+                checking={list.isFetching}
+                onVerify={() => void list.refetch({ cancelRefetch: false })}
+              />,
+            )
+          }
           ListEmptyComponent={
             searchable && list.isPending ? (
               <View style={{ gap: 12 }}>

@@ -7,7 +7,6 @@ import {
   eventRecordVisibility,
   RECORD_USER_ROLES,
 } from "@board-game-organizer/shared";
-import { useLingui } from "@lingui/react";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import {
@@ -18,7 +17,8 @@ import {
   LockKeyhole,
   Settings,
 } from "lucide-react-native";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { cardStateMessages } from "@/lib/eventCardMessages";
 import { useT } from "@/lib/i18n";
@@ -28,14 +28,13 @@ import { EventSchedulePopover } from "./EventSchedulePopover";
 
 export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
   const t = useT();
-  const { i18n } = useLingui();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const roles = eventCardRoles(event);
   const state = eventCardState(event);
   const summary = event.cardSummary;
   const status = t(cardStateMessages[state]);
-  const confirmedCount = summary?.tables.filter(
-    (table) => table.myParticipation === "CONFIRMED",
-  ).length;
+  const confirmedTables = summary?.tables.filter((table) => table.myParticipation === "CONFIRMED");
   const exclusions = summary?.tables.filter((table) => table.myParticipation === "EXCLUDED");
   const publicEvent = eventRecordVisibility(event, event.groupType) === "PUBLIC";
   return (
@@ -109,9 +108,10 @@ export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
         icon={state === "PLANNING" ? CalendarClock : state === "TERMINATED" ? Flag : CalendarCheck}
         tone={CARD_STATE_TONES[state]}
         triggerClassName="bg-default"
-        width="content-fit"
+        width={Math.min(360, width - insets.left - insets.right - 32)}
+        contentStyle={{ maxHeight: Math.max(0, height - insets.top - insets.bottom - 32) }}
       >
-        <View style={{ gap: 8 }}>
+        <View style={{ gap: 8, flexShrink: 1 }}>
           {state === "PLANNING" ? (
             summary ? (
               <>
@@ -146,15 +146,18 @@ export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
                 {t("The event has been confirmed.")}
               </Typography>
               {state === "CONFIRMED" ? (
-                confirmedCount === undefined ? (
+                confirmedTables === undefined ? (
                   <Skeleton
                     accessibilityLabel={t("Loading…")}
                     style={{ width: 96, height: 20, borderRadius: 4 }}
                   />
                 ) : (
-                  <Typography className="text-foreground">
-                    {t("Tables where you are confirmed")}: {i18n.number(confirmedCount)}
-                  </Typography>
+                  <>
+                    <Typography className="text-foreground">
+                      {t("Tables where you are confirmed")}:
+                    </Typography>
+                    <EventCardTableSummaries tables={confirmedTables} mode="confirmed" />
+                  </>
                 )
               ) : state === "DUTY" ? (
                 <Typography className="text-foreground">

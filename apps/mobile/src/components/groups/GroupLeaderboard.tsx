@@ -23,9 +23,11 @@ import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { LeaderboardStat } from "@/components/ratings/LeaderboardStat";
 import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
 export function GroupLeaderboard({ groupId, header }: { groupId: string; header?: ReactNode }) {
+  const artwork = useArtworkListVisibility();
   const { getToken, userId } = useSessionAuth();
   const t = useT();
   const muted = useThemeColor("muted");
@@ -109,6 +111,8 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
 
   return (
     <FlatList
+      onLayout={artwork.onLayout}
+      onScroll={artwork.onScroll}
       style={{ flex: 1 }}
       data={gameId === null || games.isError || (players.isError && !players.data) ? [] : rows}
       keyExtractor={(item) => item.userId}
@@ -122,7 +126,7 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
       onEndReachedThreshold={0.5}
       ListHeaderComponent={
         <View style={{ gap: 16 }}>
-          {header}
+          {artwork.header(header)}
           {games.isPending ? (
             <Skeleton style={{ width: "100%", height: 60, borderRadius: 12 }} />
           ) : games.isError ? (

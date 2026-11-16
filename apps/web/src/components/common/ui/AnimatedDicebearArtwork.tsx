@@ -1,20 +1,19 @@
 "use client";
 
-import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
-import constellation from "@dicebear/styles/constellation.json" with { type: "json" };
-import landscape from "@dicebear/styles/landscape.json" with { type: "json" };
-import planets from "@dicebear/styles/planets.json" with { type: "json" };
-import shapes from "@dicebear/styles/shapes.json" with { type: "json" };
-import waves from "@dicebear/styles/waves.json" with { type: "json" };
-import { useMemo } from "react";
+import {
+  createResourceArtwork,
+  type ResourceArtworkKind,
+} from "@board-game-organizer/shared/artwork";
+import { useMemo, useSyncExternalStore } from "react";
 
-const styles = {
-  constellation: new Style(constellation),
-  landscape: new Style(landscape),
-  planets: new Style(planets),
-  shapes: new Style(shapes),
-  waves: new Style(waves),
-};
+const motionQuery = "(prefers-reduced-motion: reduce)";
+function subscribeMotion(listener: () => void) {
+  const media = window.matchMedia(motionQuery);
+  media.addEventListener("change", listener);
+  return () => media.removeEventListener("change", listener);
+}
+const prefersReducedMotion = () => window.matchMedia(motionQuery).matches;
+const serverReducedMotion = () => true;
 
 export function AnimatedDicebearArtwork({
   seed,
@@ -23,18 +22,27 @@ export function AnimatedDicebearArtwork({
   presentation = "thumbnail",
 }: {
   seed: string;
-  variant: keyof typeof styles;
+  variant: ResourceArtworkKind;
   size?: number;
   presentation?: "thumbnail" | "background" | "cover";
 }) {
+  // SVG-as-image media queries do not reliably honor the host's motion preference.
+  const reduceMotion = useSyncExternalStore(
+    subscribeMotion,
+    prefersReducedMotion,
+    serverReducedMotion,
+  );
   const src = useMemo(
     () =>
-      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(styles[variant], { seed, size: size + 8 }).toString())}`,
-    [seed, variant, size],
+      `data:image/svg+xml,${encodeURIComponent(createResourceArtwork(variant, seed, reduceMotion ? "none" : "medium").svg)}`,
+    [seed, variant, reduceMotion],
   );
   return (
     <span
-      className={`block shrink-0 overflow-hidden ${presentation === "cover" ? "rounded-xl" : "rounded-xl bg-accent/10"} ${presentation !== "thumbnail" ? "absolute inset-0" : ""}`}
+      data-theme="light"
+      data-slot="resource-artwork"
+      data-artwork-kind={variant}
+      className={`light block shrink-0 overflow-hidden rounded-xl bg-surface ${presentation !== "thumbnail" ? "absolute inset-0" : ""}`}
       style={presentation !== "thumbnail" ? undefined : { width: size, height: size }}
       aria-hidden="true"
     >
@@ -42,9 +50,11 @@ export function AnimatedDicebearArtwork({
       <img
         src={src}
         alt=""
-        width={size + 8}
-        height={size + 8}
-        className={`dicebear-artwork ${presentation === "cover" ? "absolute inset-0 h-full w-full rounded-xl object-contain p-1" : presentation === "background" ? "absolute inset-0 h-full w-full object-cover" : "relative -top-1 -left-1"} ${variant === "waves" ? "match-waves" : variant === "shapes" ? "table-shapes" : ""}`}
+        width={240}
+        height={240}
+        loading="lazy"
+        decoding="async"
+        className={`dicebear-artwork h-full w-full rounded-xl object-contain ${presentation === "cover" ? "p-1" : ""}`}
       />
     </span>
   );

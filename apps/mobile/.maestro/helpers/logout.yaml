@@ -8,14 +8,19 @@ appId: com.bgo.boardgameorganizer.dev
     timeout: 30000
 - openLink: bgo-dev:///profile
 - extendedWaitUntil:
-    visible: "Powered by BoardGameGeek|Logout"
+    visible: "^Activities$|^Sign out of your account$"
     timeout: 120000
 - scrollUntilVisible:
     element:
-      text: "^Logout$"
+      text: "^Sign out of your account$"
     direction: DOWN
     timeout: 60000
-- tapOn: "^Logout$"
+- tapOn: "^Sign out of your account$"
+- assertVisible:
+    id: "confirmation-dialog"
+- assertVisible: '^Sign out of your account\?$'
+- tapOn:
+    id: "confirmation-action-0"
 - extendedWaitUntil:
     visible: "Welcome to Board Game Organizer"
     timeout: 180000

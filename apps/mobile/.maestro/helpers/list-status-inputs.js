@@ -69,6 +69,7 @@ output.status = {
   availableCard: literal(`${eventPrefix}: ${input.available.name}`),
   terminatedCard: literal(`${eventPrefix}: ${input.terminated.name}`),
   historyCard: literal(`${tablePrefix}: ${input.history.name}`),
+  historyTableName: literal(input.history.name),
   tableStatus: literal(it ? "Terminata" : "Terminated"),
   dates: literal(`${it ? "Date e orari" : "Dates and times"}: ${input.history.name}`),
   locations: literal(`${it ? "Luoghi" : "Locations"}: ${input.history.name}`),

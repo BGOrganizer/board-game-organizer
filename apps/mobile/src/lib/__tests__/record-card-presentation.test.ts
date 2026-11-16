@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import * as shared from "@board-game-organizer/shared";
@@ -11,6 +10,7 @@ import {
   plannedTable,
   seat,
 } from "../../../../web/src/test-fixtures/eventRecords";
+import { containedArtwork } from "../artworkLayout";
 import { cardStateMessages } from "../eventCardMessages";
 
 type Element = { type: unknown; props: Record<string, any> };
@@ -72,10 +72,19 @@ function component(file: string, name: string, modules: Record<string, unknown>)
         return { useLingui: () => ({ i18n: { _: (id: string) => id } }) };
       if (!(id in modules) && id === "@/lib/useFloatingActionLayout")
         return { useFloatingActionLayout: () => ({ bottom: 100, paddingBottom: 172 }) };
+      if (!(id in modules) && id === "react-native-safe-area-context")
+        return { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
       if (!(id in modules) && id === "@/components/common/ui/IconBadge")
         return { IconBadge: "IconBadge" };
       if (!(id in modules) && id === "@/components/common/ui/UserRoleBadge")
         return { UserRoleBadge: "UserRoleBadge" };
+      if (!(id in modules) && id === "@/lib/useArtworkListVisibility")
+        return {
+          useArtworkListVisibility: () => ({
+            header: (value: unknown) => value,
+            row: (_id: string, value: unknown) => value,
+          }),
+        };
       if (!(id in modules)) throw new Error(`Unexpected presentation dependency ${id}`);
       return modules[id];
     },
@@ -135,7 +144,7 @@ it.each(["cover", "thumbnail"])(
     const footer = (tree: Element) => {
       const body = tree.props.children[1] as Element;
       return artworkLayout === "cover"
-        ? body.props.children[1]
+        ? body.props.children[1].props.children[2]
         : body.props.children[0].props.children[1];
     };
     const pending = render({ ...props, controlsDisabled: true });
@@ -195,38 +204,6 @@ it.each([
     expect(list.props.ListEmptyComponent.props.children).toBe("No games found");
   },
 );
-it.each(["planets", "constellation", "landscape"])(
-  "preserves the original native %s illustration and colored sky in both compositions",
-  (variant) => {
-    const req = createRequire(import.meta.url);
-    const render = component("common/ui/AnimatedDicebearArtwork", "AnimatedDicebearArtwork", {
-      "@dicebear/core": req("@dicebear/core"),
-      ...Object.fromEntries(
-        ["planets", "constellation", "landscape", "shapes", "waves"].map((name) => [
-          `@dicebear/styles/${name}.json`,
-          req(`@dicebear/styles/${name}.json`),
-        ]),
-      ),
-      react: { useMemo: (fn: () => unknown) => fn(), useEffect: () => {} },
-      "react-native": { View: "View" },
-      "react-native-reanimated": {
-        __esModule: true,
-        default: { View: "Animated.View" },
-        useReducedMotion: () => false,
-        useSharedValue: () => ({ get: () => 0, set: () => {} }),
-        useAnimatedStyle: (fn: () => unknown) => fn(),
-      },
-      "react-native-svg": { SvgXml: "SvgXml" },
-    });
-    const cover = render({ seed: "stable", variant, presentation: "cover" });
-    const coverXml = cover.props.children.props.children.props.xml as string;
-    expect(cover.props.className).toBeUndefined();
-    expect(coverXml).toMatch(/<rect[^>]*\bfill=/);
-    const background = render({ seed: "stable", variant, presentation: "background" });
-    expect(background.props.children.props.children.props.xml).toMatch(/<rect[^>]*\bfill=/);
-    expect(background.props.children.props.children.props.xml).toBe(coverXml);
-  },
-);
 it("keeps the horizontal card artwork fixed and actions outside its stretched navigation target", () => {
   const render = component("common/ui/LinkedListCard", "LinkedListCard", {
     "heroui-native/card": { Card: { Body: "Card.Body" } },
@@ -275,16 +252,7 @@ it("lets field-help labels shrink beside fixed controls at large native font sca
   expect(tree.props.style).toMatchObject({ flexShrink: 1, minWidth: 0 });
   expect(tree.props.children[0].props.style.flexShrink).toBe(1);
 });
-it("fits whole list artwork without overscan while leaving background artwork unchanged", () => {
-  const source = readFileSync(
-    new URL("../../components/common/ui/AnimatedDicebearArtwork.tsx", import.meta.url),
-    "utf8",
-  );
-  expect(source).toContain('presentation === "cover" ? "xMidYMid meet" : "xMidYMid slice"');
-  expect(source).toContain('left: presentation === "cover" ? 4 : -4');
-  expect(source).toContain('{ right: 4, bottom: 4, borderRadius: 8, overflow: "hidden" }');
-});
-it("stretches artwork along the left edge and keeps controls on one full-width horizontal row", () => {
+it("gives the title full width and lets one scrollable control row extend over bottom-aligned artwork", () => {
   const render = component("common/ui/LinkedListCard", "LinkedListCard", {
     "heroui-native/card": { Card: { Body: "Card.Body" } },
     "react-native": {
@@ -300,23 +268,34 @@ it("stretches artwork along the left edge and keeps controls on one full-width h
     label: "Table",
     onPress: vi.fn(),
     artwork: "Artwork",
-    children: "Title",
+    heading: "Title",
+    children: "Facts",
     leadingActions: "Icons",
     actions: "Action",
     artworkLayout: "cover",
   });
   const body = tree.props.children[1] as Element;
-  expect(body.props.style).toMatchObject({ alignItems: "stretch", padding: 0, gap: 0 });
-  const [main, footer] = body.props.children as Element[];
-  const [picture, content] = main.props.children as Element[];
-  expect(main.props.style).toMatchObject({ flexDirection: "row", padding: 16, gap: 16 });
+  expect(body.props.style).toMatchObject({ alignItems: "stretch", padding: 16, gap: 12 });
+  const [heading, main] = body.props.children as Element[];
+  expect(heading.props.children).toBe("Title");
+  const [picture, content, footer] = main.props.children as Element[];
+  expect(main.props.style).toMatchObject({ flexDirection: "row", alignItems: "flex-end", gap: 16 });
   expect(picture.props.style).toMatchObject({ width: 96, height: 96, position: "relative" });
   expect(picture.props.children).toBe("Artwork");
   expect(content.props.style.marginLeft).toBeUndefined();
-  expect(content.props.children).toBe("Title");
+  expect(content.props.style.minHeight).toBe(96);
+  expect(content.props.style.paddingBottom).toBe(56);
+  expect(content.props.children.props.children).toBe("Facts");
   expect(footer.type).toBe("ScrollView");
   expect(footer.props.horizontal).toBe(true);
-  expect(footer.props.style).toMatchObject({ height: 44, marginHorizontal: 12 });
+  expect(footer.props.style).toMatchObject({
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 48,
+    zIndex: 1,
+  });
   expect(footer.props.contentContainerStyle).toMatchObject({
     flexGrow: 1,
     flexDirection: "row",
@@ -324,6 +303,16 @@ it("stretches artwork along the left edge and keeps controls on one full-width h
   });
   expect(footer.props.contentContainerStyle.flexWrap).toBeUndefined();
   expect(footer.props.children.props.children).toEqual(["Icons", "Action"]);
+  const draft = render({
+    label: "Draft",
+    onPress: vi.fn(),
+    artwork: "Artwork",
+    children: "Facts",
+    artworkLayout: "cover",
+  });
+  const draftRow = draft.props.children[1].props.children[1];
+  expect(draftRow.props.children[1].props.style.paddingBottom).toBe(0);
+  expect(draftRow.props.children[2]).toBeNull();
 });
 it.each([
   ["admin", "warning", "Crown"],
@@ -454,7 +443,7 @@ it("keeps native manager, demonstrator, pending and waiting indicators cumulativ
     "react-native": {
       View: "View",
       ScrollView: "ScrollView",
-      useWindowDimensions: () => ({ height: 640 }),
+      useWindowDimensions: () => ({ width: 320, height: 640 }),
     },
     "@/components/common/ui/ArtworkStatusPopover": { ArtworkStatusPopover: "Role" },
     "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
@@ -555,7 +544,12 @@ it("keeps native Event admin/moderation, accepted, pending and demonstration ind
   ]);
   expect(
     tree.props.children.find((node: Element) => node?.props?.label === "Planning").props,
-  ).toMatchObject({ size: "compact", width: "content-fit", label: "Planning" });
+  ).toMatchObject({
+    size: "compact",
+    width: 288,
+    contentStyle: { maxHeight: 608 },
+    label: "Planning",
+  });
   expect(tree.props.children.filter((node: Element) => node?.type === "Schedule")).toHaveLength(0);
   const moderator = render({ event: { ...event, managementRole: "moderator" } });
   expect(moderator.props.children[0].props.roles).toContain("moderator");
@@ -595,6 +589,17 @@ it("keeps native Event admin/moderation, accepted, pending and demonstration ind
           node?.type === "Status" && ["Confirmed", "You are excluded"].includes(node?.props?.label),
       ).props.tone,
     ).toBe(tone);
+    if (participation === "CONFIRMED") {
+      const status = final.props.children.find(
+        (node: Element) => node?.type === "Status" && node.props.label === "Confirmed",
+      );
+      const content = status.props.children.props.children.props.children[1].props.children;
+      expect(content[0].props.children).toEqual(["Tables where you are confirmed", ":"]);
+      expect(content[1].props.mode).toBe("confirmed");
+      expect(content[1].props.tables.map((table: { name: string }) => table.name)).toEqual([
+        "Table",
+      ]);
+    }
   }
   const terminated = render({
     event: { ...event, status: "TERMINATED", cardSummary: { ready: false, tables: [summary] } },
@@ -821,7 +826,7 @@ it.each([
   expect(row.props.name).toBe("@handle");
   expect(row.props.secondary).toBe(label);
 });
-it("places a full top-left title band and one bottom-right control row inside the background card", () => {
+it("fills the card background with artwork behind the natural title and bottom controls", () => {
   const render = component("common/ui/RecordIdentityCard", "RecordIdentityCard", {
     "heroui-native/text": { Typography: "Typography" },
     "react-native": { View: "View", ScrollView: "ScrollView" },
@@ -835,7 +840,11 @@ it("places a full top-left title band and one bottom-right control row inside th
     children: "Indicators",
   });
   expect(tree.props.background).toBe("Artwork");
+  expect(tree.props.style).toEqual({ overflow: "hidden" });
+  expect(tree.props.children.props.style.minHeight).toBe(224);
+  expect(tree.props.children.props.style.paddingBottom).toBe(4);
   const [scope, toolbar] = tree.props.children.props.children;
+  expect(tree.props.children.props.children).toHaveLength(2);
   expect(scope.type).toBe("ScopedTheme");
   expect(scope.props.theme).toBe("dark");
   const heading = scope.props.children.type(scope.props.children.props);
@@ -846,7 +855,8 @@ it("places a full top-left title band and one bottom-right control row inside th
   expect(heading.props.style).toMatchObject({
     width: "100%",
     paddingHorizontal: 16,
-    alignItems: "flex-start",
+    alignItems: "center",
+    paddingVertical: 2,
   });
   expect(title.props.style.textShadowColor).toBeUndefined();
   expect(title.props.style.textShadowRadius).toBeUndefined();
@@ -856,7 +866,7 @@ it("places a full top-left title band and one bottom-right control row inside th
   expect(toolbar.props.style).toMatchObject({
     width: "100%",
     marginTop: "auto",
-    height: 52,
+    height: 44,
     flexShrink: 0,
   });
   expect(toolbar.props.contentContainerStyle).toMatchObject({
@@ -866,6 +876,7 @@ it("places a full top-left title band and one bottom-right control row inside th
     paddingHorizontal: 16,
   });
   expect(toolbar.props.contentContainerStyle.flexWrap).toBeUndefined();
+  expect(toolbar.props.contentContainerStyle.paddingVertical).toBeUndefined();
   expect(toolbar.props.style.position).toBeUndefined();
   expect(toolbar.props.children).toBe("Indicators");
   const card = component("common/ui/ListCard", "ListCard", {
@@ -874,6 +885,12 @@ it("places a full top-left title band and one bottom-right control row inside th
   });
   const background = card({ background: "Artwork", children: "Identity" });
   expect(background.props.children).toHaveLength(2);
+  expect(background.props.children[0].props).toMatchObject({
+    testID: "card-background",
+    pointerEvents: "none",
+    children: "Artwork",
+    style: { position: "absolute", inset: 0, overflow: "hidden" },
+  });
   expect(background.props.children[1].props.children).toBe("Identity");
   expect(tree.props.children.props.className).not.toBe("bg-background/90");
   expect(tree.props.children.props.style.flexWrap).toBeUndefined();
@@ -1072,58 +1089,69 @@ it("keeps seat lock actions on the avatar and edits only the local order", () =>
   ]);
 });
 
-it("keeps the native role identity neutral while listing independent roles and explicit invitation help", () => {
-  const render = component("events/EventRolePopover", "EventRolePopover", {
-    "@board-game-organizer/shared": shared,
-    "heroui-native/text": { Typography: "Typography" },
-    "lucide-react-native": { IdCard: "IdCard" },
-    "react-native": { View: "View" },
-    "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
-    "@/lib/i18n": { useT: () => (id: string) => id },
-  });
-  const roles = render({
-    roles: [
-      "admin",
-      "moderator",
-      "demonstrator",
-      "invitedPlayer",
-      "waitingPlayer",
-      "confirmedPlayer",
-      "requestedMember",
-    ],
-    action: "reply",
-  });
-  expect(roles.props).toMatchObject({
-    icon: "IdCard",
-    tone: "muted",
-    size: "compact",
-    triggerClassName: "bg-default",
-  });
-  expect(
-    roles.props.children.props.children[0].map((row: Element) => [
-      row.props.children[0].type,
-      row.props.children[1].props.children,
-    ]),
-  ).toEqual([
-    ["Crown", "Admin"],
-    ["ShieldCheck", "Moderator"],
-    ["Presentation", "Demonstrator"],
-    ["Mail", "Player with pending invitation"],
-    ["ListOrdered", "Player on the waiting list"],
-    ["UserRoundCheck", "Confirmed player"],
-    ["Clock3", "Member with pending request"],
-  ]);
-  expect(roles.props.children.props.children[2].props.children).toBe(
-    "Open details to accept or decline your invitation.",
-  );
-  for (const pending of [true, false]) {
-    const empty = render({ roles: [], pending });
-    expect(empty.props.children.props.children[1].props.children).toBe(
-      pending ? "Loading…" : "You are not registered.",
+it.each([240, 320, 800])(
+  "bounds native role text at screen width %s while preserving roles and invitation help",
+  (width) => {
+    const render = component("events/EventRolePopover", "EventRolePopover", {
+      "@board-game-organizer/shared": shared,
+      "heroui-native/text": { Typography: "Typography" },
+      "lucide-react-native": { IdCard: "IdCard" },
+      "react-native": { View: "View", useWindowDimensions: () => ({ width }) },
+      "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
+      "@/lib/i18n": { useT: () => (id: string) => id },
+    });
+    const roles = render({
+      roles: [
+        "admin",
+        "moderator",
+        "demonstrator",
+        "invitedPlayer",
+        "waitingPlayer",
+        "confirmedPlayer",
+        "acceptedParticipant",
+        "requestedMember",
+      ],
+      action: "reply",
+    });
+    expect(roles.props).toMatchObject({
+      icon: "IdCard",
+      tone: "muted",
+      size: "compact",
+      triggerClassName: "bg-default",
+      width: Math.min(320, width - 32),
+    });
+    expect(
+      roles.props.children.props.children[0].map((row: Element) => [
+        row.props.children[0].type,
+        row.props.children[1].props.children,
+      ]),
+    ).toEqual([
+      ["Crown", "Admin"],
+      ["ShieldCheck", "Moderator"],
+      ["Presentation", "Demonstrator"],
+      ["Mail", "Player with pending invitation"],
+      ["ListOrdered", "Player on the waiting list"],
+      ["UserRoundCheck", "Confirmed player"],
+      ["UserRoundCheck", "Accepted participant"],
+      ["Clock3", "Member with pending request"],
+    ]);
+    for (const row of roles.props.children.props.children[0]) {
+      expect(row.props.children[0].props.style.flexShrink).toBe(0);
+      expect(row.props.children[1].props.style).toMatchObject({ flex: 1, minWidth: 0 });
+      expect(row.props.children[1].props.numberOfLines).toBeUndefined();
+    }
+    expect(roles.props.children.props.children[2].props.children).toBe(
+      "Open details to accept or decline your invitation.",
     );
-  }
-});
-it.each(["planning", "exclusions", "results"] as const)(
+    for (const pending of [true, false]) {
+      const empty = render({ roles: [], pending });
+      expect(empty.props.children.props.children[1].props.children).toBe(
+        pending ? "Loading…" : "You are not registered.",
+      );
+    }
+  },
+);
+it.each(["planning", "exclusions", "results", "confirmed"] as const)(
   "virtualizes native card %s summaries, with comma-separated winners beside the Table name",
   (mode) => {
     const render = component("events/EventCardTableSummaries", "EventCardTableSummaries", {
@@ -1151,6 +1179,7 @@ it.each(["planning", "exclusions", "results"] as const)(
     };
     const list = render({ tables: [item], mode });
     expect(list.type).toBe("FlatList");
+    expect(list.props.style).toEqual({ width: "100%", flexGrow: 0, flexShrink: 1 });
     expect(list.props.initialNumToRender).toBe(8);
     expect(list.props.keyExtractor(item)).toBe("table");
     const row = list.props.renderItem({ item });
@@ -1164,9 +1193,12 @@ it.each(["planning", "exclusions", "results"] as const)(
         size: 16,
         color: "warning-soft-foreground",
         accessible: false,
+        style: { flexShrink: 0 },
       });
+      expect(winners[1].props.style).toEqual({ flexShrink: 1, minWidth: 0 });
       expect(winners[1].props.children).toBe("@alice, @bob, Username unavailable");
     } else expect(row.props.children[0].props.children).toBe("Table");
+    if (mode === "confirmed") expect(row.props.children[1]).toBeNull();
     if (mode === "planning") {
       expect(row.props.children[1][0].props.children).toBe(
         "Not enough eligible players to reach the minimum.",
@@ -1266,3 +1298,54 @@ it.each(["EventSchedulePopover", "EventTableSchedulePopover"] as const)(
     }
   },
 );
+
+it("keeps uploaded Group logos first and scopes URI failures to their own source", () => {
+  const values: any[] = [];
+  let cursor = 0;
+  const componentRender = component("groups/GroupArtwork", "GroupArtwork", {
+    react: {
+      useState: (initial: unknown) => {
+        const index = cursor++;
+        if (!(index in values)) values[index] = initial;
+        return [
+          values[index],
+          (value: any) => {
+            values[index] = typeof value === "function" ? value(values[index]) : value;
+          },
+        ];
+      },
+      useEffect: (effect: () => void) => effect(),
+    },
+    "react-native": { Image: "Image", View: "View" },
+    "lucide-react-native": { Crown: "Crown" },
+    "@/components/common/ui/AnimatedDicebearArtwork": { AnimatedDicebearArtwork: "Generated" },
+    "@/components/common/ui/PendingArtworkBadge": { PendingArtworkBadge: "Badge" },
+    "@/lib/artworkLayout": { containedArtwork },
+    "@/lib/i18n": { useT: () => (id: string) => id },
+  });
+  const render = (logo: string | null) => {
+    cursor = 0;
+    return componentRender({ group: { id: "same-group", logo, role: "admin" }, size: 96 });
+  };
+  const first = render("https://assets.example.test/a.png");
+  const a = first.props.children[0];
+  expect(a.type).toBe("Image");
+  expect(a.props.resizeMode).toBe("contain");
+  a.props.onError();
+  const fallback = render("https://assets.example.test/a.png");
+  expect(fallback.props.children[0].type).toBe("Generated");
+  expect(fallback.props.children[0].props).toMatchObject({
+    variant: "groups",
+    seed: "same-group",
+    size: 96,
+  });
+  const b = render("https://assets.example.test/b.png").props.children[0];
+  expect(b.type).toBe("Image");
+  a.props.onError();
+  a.props.onLoad({ nativeEvent: { source: { width: 300, height: 100 } } });
+  const current = render("https://assets.example.test/b.png");
+  expect(current.props.children[0].type).toBe("Image");
+  expect(current.props.children[0].props.source.uri).toBe("https://assets.example.test/b.png");
+  expect(current.props.children[1].props.children.props.color).toBe("warning");
+  expect(render(null).props.children[0].type).toBe("Generated");
+});

@@ -27,6 +27,7 @@ export function ListCard({
     >
       {background ? (
         <View
+          testID="card-background"
           pointerEvents="none"
           style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 12 }}
         >

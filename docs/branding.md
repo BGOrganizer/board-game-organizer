@@ -55,3 +55,49 @@ The Android native layer therefore shows the theme background with a transparent
 (`splash-android.png`). As soon as the application overlay mounts, the complete mascot appears
 at 280 dp with its existing animation; no smaller mascot precedes it. iOS retains its native
 280 dp artwork. This configuration change requires a new Android binary, not only an OTA update.
+
+## Resource illustrations
+Groups, Events and Tables use the approved BGO revision 9 DiceBear definitions in
+[`packages/shared/src/artwork/definitions`](../packages/shared/src/artwork/definitions).
+These JSON files are the artwork source of truth: preserve their original bytes, shapes,
+miniatures, crowns, resources, tokens and Waves palette. Their formatter exclusion and hash
+regressions keep the reviewed assets intact. Revision 9 is an artwork revision, consumed by
+the locked `@dicebear/core` 10.7.0 engine, rather than a requirement for DiceBear SDK 9.
+
+Both clients use the shared `@board-game-organizer/shared/artwork` entry point. Its immutable
+style instances generate a canonical 240px SVG with `animationVariant: "medium"` (or `"none"`
+for reduced motion), using only the resource ID as seed. Renderers scale the complete drawing into their frames;
+they do not crop, stretch or replace approved elements. An unsaved Table uses its stable local
+draft key until a server ID exists. Uploaded Group logos retain priority over generated artwork;
+an unavailable logo falls back to the same seeded Group illustration.
+
+The Waves colors come directly from the JSON definitions, with no HeroUI color options passed
+to DiceBear. A generated illustration's light HeroUI surface scope keeps its black outlines
+readable on dark screens. Surrounding controls, status indicators and uploaded logos keep their
+own theme behavior; no parallel UI palette or literal light backplate is introduced.
+
+Detail artwork fills the entire card background behind the title and control bands. Scale the
+complete illustration proportionally with containment (`object-contain` / SVG `meet`), allowing
+space at the sides rather than cropping or stretching the approved drawing. Titles and controls
+retain their natural layout and semantic contrast above the decorative, noninteractive background.
+
+Resource list cards put the title across the full width above a lower row. The 96px artwork sits
+at that row's bottom-left, with facts in the right column. A single bottom action row spans the
+card width and may overlap the artwork; facts reserve space above it. Controls scroll horizontally
+only when they exceed the full row width, retaining native touch targets and saving-state guards.
+Detail controls sit near the bottom edge, and the title band uses compact vertical padding while
+keeping complete multiline titles and the notification action accessible.
+
+Web uses the SVG's embedded CSS animation and explicitly selects the static variant for system
+reduced motion; the embedded media query remains an additional safeguard. Server rendering starts
+static until the browser preference is known. Native renders the
+same SVG nodes through `react-native-svg` and applies the approved internal transforms and
+opacity with Reanimated. Keep motion on the UI thread, react to system reduced-motion changes,
+and stop decorative loops for background/inactive screens and nonvisible resource rows.
+Whole-image oscillation is not a substitute for the approved internal movements.
+
+Verify 64px and 96px artwork in light/dark list and detail frames, as well as the existing 40px
+Group selector. Include every main silhouette, miniature/resource variants, custom-logo priority
+and failure fallback, motion and its reduced-motion alternative. Pure SVG/unit checks and browser
+rendering do not establish authenticated app journeys, native appearance or native frame timing;
+report actual Playwright/Maestro execution separately from device limitations.
