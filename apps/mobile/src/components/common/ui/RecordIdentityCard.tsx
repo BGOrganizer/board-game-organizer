@@ -42,14 +42,14 @@ function IdentityHeading({ title, icon: Icon, titleAccessory, titleAction }: Hea
   );
 }
 
-/** Natural-flow title, unobstructed artwork and bottom-right controls. */
+/** Full-card artwork behind a natural-flow title and bottom-right controls. */
 export function RecordIdentityCard({
   background,
   children,
   ...heading
 }: HeadingProps & { background: ReactNode; children: ReactNode }) {
   return (
-    <ListCard style={{ overflow: "hidden" }}>
+    <ListCard background={background} style={{ overflow: "hidden" }}>
       <View
         testID="record-identity-card"
         style={{ minHeight: 224, paddingVertical: 16, gap: 12, flexGrow: 1 }}
@@ -57,13 +57,6 @@ export function RecordIdentityCard({
         <ScopedTheme theme="dark">
           <IdentityHeading {...heading} />
         </ScopedTheme>
-        <View
-          testID="record-identity-artwork"
-          pointerEvents="none"
-          style={{ position: "relative", width: "100%", minHeight: 96, flexGrow: 1 }}
-        >
-          {background}
-        </View>
         <ScrollView
           testID="record-identity-controls"
           horizontal

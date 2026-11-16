@@ -46,7 +46,7 @@ it.each([
     expect(button.querySelector(".size-7.bg-default")).not.toBeNull();
     expect(button.className).toContain("min-h-11 min-w-11");
     expect(button.closest("a")).toBeNull();
-    expect(button.parentElement?.className).toContain("flex-nowrap");
+    expect(button.parentElement?.className).toContain("flex-wrap");
     expect(fetcher).not.toHaveBeenCalled();
   },
 );

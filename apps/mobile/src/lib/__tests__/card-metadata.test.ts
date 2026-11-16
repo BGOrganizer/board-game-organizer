@@ -157,14 +157,14 @@ function nodes(value: unknown): Node[] {
   if (Array.isArray(value)) return value.flatMap(nodes);
   if (value && typeof value === "object" && "props" in value) {
     const node = value as Node;
-    return [node, ...nodes(node.props.children)];
+    return [node, ...nodes(node.props.heading), ...nodes(node.props.children)];
   }
   return [];
 }
 function text(value: unknown): string {
   if (Array.isArray(value)) return value.map(text).join("");
   if (value && typeof value === "object" && "props" in value)
-    return text((value as Node).props.children);
+    return text([(value as Node).props.heading, (value as Node).props.children]);
   return value === null || value === undefined || typeof value === "boolean" ? "" : String(value);
 }
 it.each(["group", "event"])(

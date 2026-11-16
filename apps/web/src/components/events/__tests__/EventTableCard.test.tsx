@@ -130,7 +130,7 @@ it("keeps external cards navigation-only and preserves explicit versioned consen
   expect(screen.queryByText("Invitation received")).toBeNull();
   const badge = screen.getByRole("button", { name: "Roles and participation" });
   expect(badge.className).toContain("text-muted");
-  expect(badge.parentElement?.className).toContain("flex-nowrap");
+  expect(badge.parentElement?.className).toContain("flex-wrap");
   expect(badge.parentElement?.className).not.toContain("absolute");
   expect(screen.getByRole("link").contains(badge)).toBe(false);
   expect(badge.querySelector("svg.lucide-id-card")).not.toBeNull();

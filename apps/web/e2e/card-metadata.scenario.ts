@@ -74,11 +74,33 @@ for (const width of [390, 1280])
     };
     const inspectFrame = async (card: Locator) => {
       const info = await card.evaluate((c) => {
-        const buttons = [...c.querySelectorAll<HTMLElement>("[role=button],button")],
-          y = buttons.map((b) => b.getBoundingClientRect().y);
+        const buttons = [...c.querySelectorAll<HTMLElement>("[role=button],button")];
+        const content = c.querySelector(".card__content")!;
+        const heading = c.querySelector('[data-slot="card-heading"]')!.getBoundingClientRect();
+        const row = c.querySelector('[data-slot="card-body-row"]')!.getBoundingClientRect();
+        const image = c.querySelector('[data-slot="card-artwork"]')!.getBoundingClientRect();
+        const facts = c.querySelector('[data-slot="card-facts"]')!.getBoundingClientRect();
+        const controls = c.querySelector('[data-slot="card-controls"]')!;
+        const frame = content.getBoundingClientRect();
+        const padding = getComputedStyle(content);
         return {
           fit: getComputedStyle(c.querySelector("img")!).objectFit,
-          sameRow: Math.max(...y) - Math.min(...y) < 1,
+          fullWidthHeading:
+            Math.abs(heading.left - frame.left - Number.parseFloat(padding.paddingLeft)) <= 1 &&
+            Math.abs(heading.right - frame.right + Number.parseFloat(padding.paddingRight)) <= 1,
+          titleAbove: heading.bottom <= row.top + 1,
+          artworkBottomAligned: Math.abs(image.bottom - row.bottom) <= 1,
+          factsToRight: facts.left >= image.right,
+          controlsWrap: getComputedStyle(controls).flexWrap === "wrap",
+          controlsInsideFacts: buttons.every((button) => {
+            const bounds = button.getBoundingClientRect();
+            return (
+              bounds.left >= facts.left - 1 &&
+              bounds.right <= facts.right + 1 &&
+              bounds.top >= facts.top - 1 &&
+              bounds.bottom <= facts.bottom + 1
+            );
+          }),
           overflow: c.scrollWidth > c.clientWidth + 1,
           generated: Boolean(c.querySelector('[data-slot="resource-artwork"]')),
           generatedLightScope: c
@@ -88,7 +110,12 @@ for (const width of [390, 1280])
       });
       expect(info).toMatchObject({
         fit: "contain",
-        sameRow: true,
+        fullWidthHeading: true,
+        titleAbove: true,
+        artworkBottomAligned: true,
+        factsToRight: true,
+        controlsWrap: true,
+        controlsInsideFacts: true,
         overflow: false,
       });
       if (info.generated) expect(info.generatedLightScope).toBe("light");
@@ -113,7 +140,8 @@ for (const width of [390, 1280])
       const layout = await caption.evaluate((content) => {
         const band = content.firstElementChild!.getBoundingClientRect();
         const artwork = content
-          .querySelector('[data-slot="record-artwork"]')!
+          .closest(".card")!
+          .querySelector('[data-slot="card-background"]')!
           .getBoundingClientRect();
         const viewport = content.lastElementChild!;
         const toolbar = viewport.firstElementChild!;
@@ -125,8 +153,12 @@ for (const width of [390, 1280])
         });
         return {
           titleAbove: band.bottom <= frame.top + 1,
-          artworkBetween: artwork.top >= band.bottom && artwork.bottom <= frame.top,
-          artworkMinimum: artwork.height >= 96,
+          artworkFillsCard:
+            Math.abs(artwork.left - card.left) <= 1 &&
+            Math.abs(artwork.top - card.top) <= 1 &&
+            Math.abs(artwork.width - card.width) <= 1 &&
+            Math.abs(artwork.height - card.height) <= 1,
+          artworkMinimum: artwork.height >= 224,
           bandInside: band.left >= card.left - 1 && band.right <= card.right + 1,
           controlsInside:
             frame.left >= card.left - 1 &&
@@ -140,7 +172,7 @@ for (const width of [390, 1280])
       });
       expect(layout).toEqual({
         titleAbove: true,
-        artworkBetween: true,
+        artworkFillsCard: true,
         artworkMinimum: true,
         bandInside: true,
         controlsInside: true,

@@ -116,6 +116,6 @@ it("retains uploaded Group logos and their list-only non-overlay status", () => 
     "data:image/png;base64,public-artwork",
   );
   const trigger = screen.getByRole("button", { name: "Admin" });
-  expect(trigger.parentElement?.className).toContain("flex-nowrap");
+  expect(trigger.parentElement?.className).toContain("flex-wrap");
   expect(document.querySelector(".absolute.left-0.top-0")).toBeNull();
 });

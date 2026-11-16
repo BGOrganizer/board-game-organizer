@@ -15,6 +15,7 @@ export function ListCard({
     <Card className={`relative rounded-xl p-0 ${background ? "overflow-hidden" : ""} ${className}`}>
       {background ? (
         <div
+          data-slot="card-background"
           aria-hidden
           className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl"
         >

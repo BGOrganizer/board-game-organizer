@@ -36,6 +36,14 @@ export function GroupCard({
   const events = group.canViewEvents && group.eventCount !== null;
   return (
     <LinkedListCard
+      heading={
+        <ListCardBody
+          title={group.name}
+          titleIcon={<UsersRound size={16} color={muted} accessible={false} />}
+          unread={Boolean(count)}
+          titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
+        />
+      }
       label={`${status || t("Open group")}: ${group.name}`}
       notificationCount={count}
       artworkLayout="cover"
@@ -63,66 +71,59 @@ export function GroupCard({
         ) : undefined
       }
     >
-      <ListCardBody
-        title={group.name}
-        titleIcon={<UsersRound size={16} color={muted} accessible={false} />}
-        unread={Boolean(count)}
-        titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          alignItems: "center",
+          columnGap: 6,
+          rowGap: 4,
+        }}
       >
         <View
           style={{
             flexDirection: "row",
-            flexWrap: "wrap",
-            alignItems: "center",
-            columnGap: 6,
-            rowGap: 4,
+            alignItems: "flex-start",
+            gap: 4,
+            maxWidth: "100%",
+            flexShrink: 1,
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "flex-start",
-              gap: 4,
-              maxWidth: "100%",
-              flexShrink: 1,
-            }}
-          >
-            <UsersRound size={16} color={muted} accessible={false} />
-            <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
-              {i18n._({
-                id: "group.card.members",
-                message: "{count, plural, one {# Member} other {# Members}}",
-                values: { count: group.memberCount },
-              })}
-            </Typography>
-          </View>
-          {events ? (
-            <>
-              <Typography accessible={false} className="text-sm text-muted">
-                ·
-              </Typography>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "flex-start",
-                  gap: 4,
-                  maxWidth: "100%",
-                  flexShrink: 1,
-                }}
-              >
-                <CalendarDays size={16} color={muted} accessible={false} />
-                <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
-                  {i18n._({
-                    id: "group.card.events",
-                    message: "{count, plural, one {# Event} other {# Events}}",
-                    values: { count: group.eventCount },
-                  })}
-                </Typography>
-              </View>
-            </>
-          ) : null}
+          <UsersRound size={16} color={muted} accessible={false} />
+          <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
+            {i18n._({
+              id: "group.card.members",
+              message: "{count, plural, one {# Member} other {# Members}}",
+              values: { count: group.memberCount },
+            })}
+          </Typography>
         </View>
-      </ListCardBody>
+        {events ? (
+          <>
+            <Typography accessible={false} className="text-sm text-muted">
+              ·
+            </Typography>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 4,
+                maxWidth: "100%",
+                flexShrink: 1,
+              }}
+            >
+              <CalendarDays size={16} color={muted} accessible={false} />
+              <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
+                {i18n._({
+                  id: "group.card.events",
+                  message: "{count, plural, one {# Event} other {# Events}}",
+                  values: { count: group.eventCount },
+                })}
+              </Typography>
+            </View>
+          </>
+        ) : null}
+      </View>
     </LinkedListCard>
   );
 }

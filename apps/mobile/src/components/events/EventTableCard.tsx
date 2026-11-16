@@ -28,6 +28,13 @@ export function EventTableCard({
   const count = attention?.get({ kind: "table", id: table.id })?.count;
   return (
     <LinkedListCard
+      heading={
+        <ListCardBody
+          title={table.name}
+          unread={Boolean(count)}
+          titleIcon={<Dices size={16} color={muted} accessible={false} />}
+        />
+      }
       label={`${t("Open table")}: ${table.name}`}
       notificationCount={count}
       onPress={() =>
@@ -44,73 +51,67 @@ export function EventTableCard({
       artwork={<AnimatedDicebearArtwork seed={table.id} variant="tables" presentation="cover" />}
       leadingActions={<EventTableCardIndicators table={table} />}
     >
-      <ListCardBody
-        title={table.name}
-        unread={Boolean(count)}
-        titleIcon={<Dices size={16} color={muted} accessible={false} />}
+      <Typography className="text-sm text-foreground">
+        {i18n._({
+          id: "table.card.participants",
+          message:
+            "{count, plural, one {#/{capacity} participant} other {#/{capacity} participants}}",
+          values: { count: table.seatedCount, capacity: i18n.number(table.maxPlayers) },
+        })}
+      </Typography>
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          alignItems: "center",
+          columnGap: 6,
+          rowGap: 4,
+        }}
       >
-        <Typography className="text-sm text-foreground">
-          {i18n._({
-            id: "table.card.participants",
-            message:
-              "{count, plural, one {#/{capacity} participant} other {#/{capacity} participants}}",
-            values: { count: table.seatedCount, capacity: i18n.number(table.maxPlayers) },
-          })}
-        </Typography>
+        {table.groupId ? (
+          <>
+            <View
+              accessible
+              accessibilityLabel={`${t("Group")}: ${table.groupName || t("Loading…")}`}
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 4,
+                maxWidth: "100%",
+                flexShrink: 1,
+              }}
+            >
+              <UsersRound size={16} color={muted} accessible={false} />
+              {table.groupName ? (
+                <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
+                  {table.groupName}
+                </Typography>
+              ) : (
+                <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
+              )}
+            </View>
+            <Typography accessible={false} className="text-sm text-muted">
+              ·
+            </Typography>
+          </>
+        ) : null}
         <View
+          accessible
+          accessibilityLabel={`${t("Event")}: ${table.eventName}`}
           style={{
             flexDirection: "row",
-            flexWrap: "wrap",
-            alignItems: "center",
-            columnGap: 6,
-            rowGap: 4,
+            alignItems: "flex-start",
+            gap: 4,
+            maxWidth: "100%",
+            flexShrink: 1,
           }}
         >
-          {table.groupId ? (
-            <>
-              <View
-                accessible
-                accessibilityLabel={`${t("Group")}: ${table.groupName || t("Loading…")}`}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "flex-start",
-                  gap: 4,
-                  maxWidth: "100%",
-                  flexShrink: 1,
-                }}
-              >
-                <UsersRound size={16} color={muted} accessible={false} />
-                {table.groupName ? (
-                  <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
-                    {table.groupName}
-                  </Typography>
-                ) : (
-                  <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
-                )}
-              </View>
-              <Typography accessible={false} className="text-sm text-muted">
-                ·
-              </Typography>
-            </>
-          ) : null}
-          <View
-            accessible
-            accessibilityLabel={`${t("Event")}: ${table.eventName}`}
-            style={{
-              flexDirection: "row",
-              alignItems: "flex-start",
-              gap: 4,
-              maxWidth: "100%",
-              flexShrink: 1,
-            }}
-          >
-            <CalendarDays size={16} color={muted} accessible={false} />
-            <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
-              {table.eventName}
-            </Typography>
-          </View>
+          <CalendarDays size={16} color={muted} accessible={false} />
+          <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
+            {table.eventName}
+          </Typography>
         </View>
-      </ListCardBody>
+      </View>
     </LinkedListCard>
   );
 }

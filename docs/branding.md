@@ -76,8 +76,14 @@ to DiceBear. A generated illustration's light HeroUI surface scope keeps its bla
 readable on dark screens. Surrounding controls, status indicators and uploaded logos keep their
 own theme behavior; no parallel UI palette or literal light backplate is introduced.
 
-Detail cards give artwork its own normal-flow space between the title and control bands, so
-multiline titles and controls never hide approved illustration elements.
+Detail artwork fills the entire card background behind the title and control bands. Scale the
+complete illustration proportionally with containment (`object-contain` / SVG `meet`), allowing
+space at the sides rather than cropping or stretching the approved drawing. Titles and controls
+retain their natural layout and semantic contrast above the decorative, noninteractive background.
+
+Resource list cards put the title across the full width above a lower row. The 96px artwork sits
+at that row's bottom-left; facts and controls occupy the right column. Controls wrap onto additional
+rows rather than scrolling horizontally, retaining native touch targets and saving-state guards.
 
 Web uses the SVG's embedded CSS animation and explicitly selects the static variant for system
 reduced motion; the embedded media query remains an additional safeguard. Server rendering starts

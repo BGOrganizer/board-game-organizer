@@ -26,6 +26,12 @@ export function EventDraftTableCard({
   return (
     <ListCard style={{ overflow: "hidden" }}>
       <ListCardCoverContent
+        heading={
+          <ListCardBody
+            title={row.name}
+            titleIcon={<Dices size={16} color={muted} accessible={false} />}
+          />
+        }
         artwork={
           <AnimatedDicebearArtwork seed={row.id ?? row.key} variant="tables" presentation="cover" />
         }
@@ -72,16 +78,11 @@ export function EventDraftTableCard({
           </>
         }
       >
-        <ListCardBody
-          title={row.name}
-          titleIcon={<Dices size={16} color={muted} accessible={false} />}
-        >
-          <Typography className="text-sm text-foreground">
-            {t("Minimum players")}: {i18n.number(row.minPlayers)}
-            {"\n"}
-            {t("Maximum players")}: {i18n.number(row.maxPlayers)}
-          </Typography>
-        </ListCardBody>
+        <Typography className="text-sm text-foreground">
+          {t("Minimum players")}: {i18n.number(row.minPlayers)}
+          {"\n"}
+          {t("Maximum players")}: {i18n.number(row.maxPlayers)}
+        </Typography>
       </ListCardCoverContent>
     </ListCard>
   );

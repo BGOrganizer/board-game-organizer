@@ -36,6 +36,14 @@ export function EventCard({
   const count = local ? undefined : attention?.get({ kind: "event", id: event.id })?.count;
   return (
     <LinkedListCard
+      heading={
+        <ListCardBody
+          title={event.name}
+          unread={Boolean(count)}
+          titleIcon={<CalendarDays size={16} color={muted} accessible={false} />}
+          titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
+        />
+      }
       label={`${status || t("Open event")}: ${event.name}`}
       disabled={Boolean(local && local.phase !== "failed")}
       notificationCount={count}
@@ -69,68 +77,61 @@ export function EventCard({
             })
       }
     >
-      <ListCardBody
-        title={event.name}
-        unread={Boolean(count)}
-        titleIcon={<CalendarDays size={16} color={muted} accessible={false} />}
-        titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          alignItems: "center",
+          columnGap: 6,
+          rowGap: 4,
+        }}
       >
+        {event.groupId ? (
+          <>
+            <View
+              accessible
+              accessibilityLabel={`${t("Group")}: ${event.groupName || t("Loading…")}`}
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 4,
+                maxWidth: "100%",
+                flexShrink: 1,
+              }}
+            >
+              <UsersRound size={16} color={muted} accessible={false} />
+              {event.groupName ? (
+                <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
+                  {event.groupName}
+                </Typography>
+              ) : (
+                <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
+              )}
+            </View>
+            <Typography accessible={false} className="text-sm text-muted">
+              ·
+            </Typography>
+          </>
+        ) : null}
         <View
           style={{
             flexDirection: "row",
-            flexWrap: "wrap",
-            alignItems: "center",
-            columnGap: 6,
-            rowGap: 4,
+            alignItems: "flex-start",
+            gap: 4,
+            maxWidth: "100%",
+            flexShrink: 1,
           }}
         >
-          {event.groupId ? (
-            <>
-              <View
-                accessible
-                accessibilityLabel={`${t("Group")}: ${event.groupName || t("Loading…")}`}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "flex-start",
-                  gap: 4,
-                  maxWidth: "100%",
-                  flexShrink: 1,
-                }}
-              >
-                <UsersRound size={16} color={muted} accessible={false} />
-                {event.groupName ? (
-                  <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
-                    {event.groupName}
-                  </Typography>
-                ) : (
-                  <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
-                )}
-              </View>
-              <Typography accessible={false} className="text-sm text-muted">
-                ·
-              </Typography>
-            </>
-          ) : null}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "flex-start",
-              gap: 4,
-              maxWidth: "100%",
-              flexShrink: 1,
-            }}
-          >
-            <Dices size={16} color={muted} accessible={false} />
-            <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
-              {i18n._({
-                id: "event.card.tables",
-                message: "{count, plural, one {# Table} other {# Tables}}",
-                values: { count: event.tableCount },
-              })}
-            </Typography>
-          </View>
+          <Dices size={16} color={muted} accessible={false} />
+          <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
+            {i18n._({
+              id: "event.card.tables",
+              message: "{count, plural, one {# Table} other {# Tables}}",
+              values: { count: event.tableCount },
+            })}
+          </Typography>
         </View>
-      </ListCardBody>
+      </View>
     </LinkedListCard>
   );
 }

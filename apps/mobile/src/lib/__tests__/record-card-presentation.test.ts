@@ -142,7 +142,7 @@ it.each(["cover", "thumbnail"])(
     const footer = (tree: Element) => {
       const body = tree.props.children[1] as Element;
       return artworkLayout === "cover"
-        ? body.props.children[1]
+        ? body.props.children[1].props.children[1].props.children[1]
         : body.props.children[0].props.children[1];
     };
     const pending = render({ ...props, controlsDisabled: true });
@@ -250,7 +250,7 @@ it("lets field-help labels shrink beside fixed controls at large native font sca
   expect(tree.props.style).toMatchObject({ flexShrink: 1, minWidth: 0 });
   expect(tree.props.children[0].props.style.flexShrink).toBe(1);
 });
-it("stretches artwork along the left edge and keeps controls on one full-width horizontal row", () => {
+it("gives the title full width and puts wrapping controls beside bottom-aligned artwork", () => {
   const render = component("common/ui/LinkedListCard", "LinkedListCard", {
     "heroui-native/card": { Card: { Body: "Card.Body" } },
     "react-native": {
@@ -266,29 +266,33 @@ it("stretches artwork along the left edge and keeps controls on one full-width h
     label: "Table",
     onPress: vi.fn(),
     artwork: "Artwork",
-    children: "Title",
+    heading: "Title",
+    children: "Facts",
     leadingActions: "Icons",
     actions: "Action",
     artworkLayout: "cover",
   });
   const body = tree.props.children[1] as Element;
-  expect(body.props.style).toMatchObject({ alignItems: "stretch", padding: 0, gap: 0 });
-  const [main, footer] = body.props.children as Element[];
+  expect(body.props.style).toMatchObject({ alignItems: "stretch", padding: 16, gap: 12 });
+  const [heading, main] = body.props.children as Element[];
+  expect(heading.props.children).toBe("Title");
   const [picture, content] = main.props.children as Element[];
-  expect(main.props.style).toMatchObject({ flexDirection: "row", padding: 16, gap: 16 });
+  expect(main.props.style).toMatchObject({ flexDirection: "row", alignItems: "flex-end", gap: 16 });
   expect(picture.props.style).toMatchObject({ width: 96, height: 96, position: "relative" });
   expect(picture.props.children).toBe("Artwork");
   expect(content.props.style.marginLeft).toBeUndefined();
-  expect(content.props.children).toBe("Title");
-  expect(footer.type).toBe("ScrollView");
-  expect(footer.props.horizontal).toBe(true);
-  expect(footer.props.style).toMatchObject({ height: 44, marginHorizontal: 12 });
-  expect(footer.props.contentContainerStyle).toMatchObject({
-    flexGrow: 1,
+  expect(content.props.style.minHeight).toBe(96);
+  expect(content.props.children[0].props.children).toBe("Facts");
+  const footer = content.props.children[1];
+  expect(footer.type).toBe("View");
+  expect(footer.props.horizontal).toBeUndefined();
+  expect(footer.props.style).toMatchObject({
+    marginTop: "auto",
     flexDirection: "row",
     justifyContent: "flex-end",
+    flexWrap: "wrap",
   });
-  expect(footer.props.contentContainerStyle.flexWrap).toBeUndefined();
+  expect(footer.props.style.height).toBeUndefined();
   expect(footer.props.children.props.children).toEqual(["Icons", "Action"]);
 });
 it.each([
@@ -787,7 +791,7 @@ it.each([
   expect(row.props.name).toBe("@handle");
   expect(row.props.secondary).toBe(label);
 });
-it("keeps approved artwork unobstructed between the natural title band and bottom controls", () => {
+it("fills the card background with artwork behind the natural title and bottom controls", () => {
   const render = component("common/ui/RecordIdentityCard", "RecordIdentityCard", {
     "heroui-native/text": { Typography: "Typography" },
     "react-native": { View: "View", ScrollView: "ScrollView" },
@@ -800,18 +804,11 @@ it("keeps approved artwork unobstructed between the natural title band and botto
     background: "Artwork",
     children: "Indicators",
   });
-  expect(tree.props.background).toBeUndefined();
+  expect(tree.props.background).toBe("Artwork");
   expect(tree.props.style).toEqual({ overflow: "hidden" });
   expect(tree.props.children.props.style.minHeight).toBe(224);
-  const [scope, artwork, toolbar] = tree.props.children.props.children;
-  expect(artwork.props.testID).toBe("record-identity-artwork");
-  expect(artwork.props.children).toBe("Artwork");
-  expect(artwork.props.style).toEqual({
-    position: "relative",
-    width: "100%",
-    minHeight: 96,
-    flexGrow: 1,
-  });
+  const [scope, toolbar] = tree.props.children.props.children;
+  expect(tree.props.children.props.children).toHaveLength(2);
   expect(scope.type).toBe("ScopedTheme");
   expect(scope.props.theme).toBe("dark");
   const heading = scope.props.children.type(scope.props.children.props);
@@ -850,6 +847,12 @@ it("keeps approved artwork unobstructed between the natural title band and botto
   });
   const background = card({ background: "Artwork", children: "Identity" });
   expect(background.props.children).toHaveLength(2);
+  expect(background.props.children[0].props).toMatchObject({
+    testID: "card-background",
+    pointerEvents: "none",
+    children: "Artwork",
+    style: { position: "absolute", inset: 0, overflow: "hidden" },
+  });
   expect(background.props.children[1].props.children).toBe("Identity");
   expect(tree.props.children.props.className).not.toBe("bg-background/90");
   expect(tree.props.children.props.style.flexWrap).toBeUndefined();

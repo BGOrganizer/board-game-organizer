@@ -38,11 +38,11 @@ describe("unified group presentation", () => {
     expect(screen.getByRole("button", { name: "Private" })).not.toBeNull();
     expect(screen.queryByText("Approved")).toBeNull();
   });
-  it("explains accepted membership below artwork without entering the group", async () => {
+  it("explains accepted membership beside artwork without entering the group", async () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "accepted" }} />);
     const badge = screen.getByRole("button", { name: "Accepted member" });
     expect(badge.className).toContain("text-success-soft-foreground");
-    expect(badge.parentElement?.className).toContain("flex-nowrap");
+    expect(badge.parentElement?.className).toContain("flex-wrap");
     expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-user-round-check")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);
@@ -84,7 +84,7 @@ describe("unified group presentation", () => {
       name: "Member with pending invitation · Reply required",
     });
     expect(badge.className).toContain("text-warning");
-    expect(badge.parentElement?.className).toContain("flex-nowrap");
+    expect(badge.parentElement?.className).toContain("flex-wrap");
     expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);
@@ -123,7 +123,7 @@ describe("unified group presentation", () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "requested" }} />);
     const badge = screen.getByRole("button", { name: "Member with pending request" });
     expect(badge.className).toContain("text-warning");
-    expect(badge.parentElement?.className).toContain("flex-nowrap");
+    expect(badge.parentElement?.className).toContain("flex-wrap");
     expect(badge.parentElement?.className).not.toContain("absolute");
     expect(badge.querySelector("svg.lucide-clock-3")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);

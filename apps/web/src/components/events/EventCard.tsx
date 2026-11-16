@@ -33,6 +33,14 @@ export function EventCard({
     : `/events/${event.id}${context === "group" && event.groupId ? `?fromGroup=${encodeURIComponent(event.groupId)}` : ""}`;
   return (
     <LinkedListCard
+      heading={
+        <ListCardBody
+          title={event.name}
+          unread={Boolean(count)}
+          titleIcon={<CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />}
+          titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
+        />
+      }
       href={href}
       notificationCount={count}
       artworkLayout="cover"
@@ -56,39 +64,32 @@ export function EventCard({
         ) : undefined
       }
     >
-      <ListCardBody
-        title={event.name}
-        unread={Boolean(count)}
-        titleIcon={<CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />}
-        titleAccessory={<ClientRecordBadge phase={local?.phase} iconOnly />}
-      >
-        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
-          {event.groupId ? (
-            <>
-              <span className="inline-flex min-w-0 max-w-full items-start gap-1">
-                <UsersRound className="mt-0.5 size-4 shrink-0" aria-hidden />
-                <span className="sr-only">{t`Group`}: </span>
-                {event.groupName ? (
-                  <span className="min-w-0 break-words">{event.groupName}</span>
-                ) : (
-                  <Skeleton aria-label={t`Loading…`} className="h-4 w-28 rounded" />
-                )}
-              </span>
-              <span aria-hidden>·</span>
-            </>
-          ) : null}
-          <span className="inline-flex min-w-0 max-w-full items-start gap-1">
-            <Dices className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span className="min-w-0 break-words">
-              {i18n._({
-                id: "event.card.tables",
-                message: "{count, plural, one {# Table} other {# Tables}}",
-                values: { count: event.tableCount },
-              })}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
+        {event.groupId ? (
+          <>
+            <span className="inline-flex min-w-0 max-w-full items-start gap-1">
+              <UsersRound className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span className="sr-only">{t`Group`}: </span>
+              {event.groupName ? (
+                <span className="min-w-0 break-words">{event.groupName}</span>
+              ) : (
+                <Skeleton aria-label={t`Loading…`} className="h-4 w-28 rounded" />
+              )}
             </span>
+            <span aria-hidden>·</span>
+          </>
+        ) : null}
+        <span className="inline-flex min-w-0 max-w-full items-start gap-1">
+          <Dices className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span className="min-w-0 break-words">
+            {i18n._({
+              id: "event.card.tables",
+              message: "{count, plural, one {# Table} other {# Tables}}",
+              values: { count: event.tableCount },
+            })}
           </span>
-        </div>
-      </ListCardBody>
+        </span>
+      </div>
     </LinkedListCard>
   );
 }
