@@ -1,3 +1,31 @@
+## [1.6.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.5.0...v1.6.0) (2026-11-16)
+
+### ✨ Features
+
+* **artwork:** share approved DiceBear resource definitions ([b957325](https://github.com/BGOrganizer/board-game-organizer/commit/b9573251b385667000865b2cfd00d589cb5c8bd0))
+* **mobile:** render approved resource artwork with native motion ([ead921e](https://github.com/BGOrganizer/board-game-organizer/commit/ead921e43a77ba70afec6924999c182d49b5153d))
+* **web:** render approved resource artwork with accessible motion ([69466b2](https://github.com/BGOrganizer/board-game-organizer/commit/69466b2f56b1ac7b859dfed940c8a571c630f5a9))
+
+### 🐛 Bug Fixes
+
+* **artwork:** provide deterministic reduced-motion rendering ([c395130](https://github.com/BGOrganizer/board-game-organizer/commit/c3951307a85f8c84f1d72fbce9a570f92f8aabb6))
+* **mobile:** preserve MMKV handles across account switches ([a806a6d](https://github.com/BGOrganizer/board-game-organizer/commit/a806a6d5e465082789190e273e386dc486ec1cd1))
+* **ui:** restore full-card artwork and align resource lists ([b37841f](https://github.com/BGOrganizer/board-game-organizer/commit/b37841fae8f2cf84f199ceebce54f33f0612bbd5))
+* **ui:** size status popovers and list confirmed tables ([9eecf72](https://github.com/BGOrganizer/board-game-organizer/commit/9eecf727db4f98a54b12e7171d3aaefe443991dc))
+* **ui:** tighten resource cards and prevent role text clipping ([c1881f6](https://github.com/BGOrganizer/board-game-organizer/commit/c1881f68a666f659b44a171b80b9d3832924cd1e))
+
+### 📚 Documentation
+
+* **agents:** account for shared sandbox host resources ([20105a0](https://github.com/BGOrganizer/board-game-organizer/commit/20105a0d13161ba86b55f31b9e97435cbfb23b03))
+* **agents:** limit concurrent Raspberry resource usage ([bd06c2a](https://github.com/BGOrganizer/board-game-organizer/commit/bd06c2ae46c7cf3c7d8ae61c8ed7ea3f1a1f55b1))
+* **artwork:** describe accessible motion and detail framing ([a404e56](https://github.com/BGOrganizer/board-game-organizer/commit/a404e56a6056f72cc171a00ef23adcfa248b2adb))
+* **artwork:** record rendering and asset preservation rules ([cefd3f4](https://github.com/BGOrganizer/board-game-organizer/commit/cefd3f4d87916802c57c4f919e58ca08fb633e7e))
+
+### 🧪 Tests
+
+* **ui:** align card guards with wrapping actions ([3a61cae](https://github.com/BGOrganizer/board-game-organizer/commit/3a61cae288303058bee234190b89c5907c943da3))
+* **web:** cover decorative card accessibility and actions ([c242dc5](https://github.com/BGOrganizer/board-game-organizer/commit/c242dc55e5d9198422c9a096b5a61bbdcde0b424))
+
 ## [1.5.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.4.1...v1.5.0) (2026-11-16)
 
 ### ✨ Features
