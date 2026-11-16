@@ -106,7 +106,9 @@ network. Run at most one heavy local job at a time across all agents and worktre
 dependency installation, coverage, typechecks, builds, browser/device tests and large transfers.
 Coordinate ownership before starting another job. Use one test worker and run application builds
 sequentially; do not run the root parallel build on this host. Keep heavy browsers and Android
-emulators on remote runners, and use CI for full suites that exceed the local budget. Monitor
+emulators on remote runners, and use CI for full suites that exceed the local budget. Verify that
+a sandbox uses a different physical host before treating it as remote; containers on the Raspberry
+share its CPU, RAM and network budget. Monitor
 available RAM, CPU load and network activity; stop owned work if pressure rises, then resume
 sequentially. Parallel agents may inspect or edit independent worktrees, but may not launch
 concurrent heavy commands. Report interrupted checks as incomplete rather than passing.
