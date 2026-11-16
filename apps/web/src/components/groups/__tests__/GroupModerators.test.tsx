@@ -7,6 +7,14 @@ import { GroupDetail } from "../GroupDetail";
 import { GroupMemberActions } from "../GroupMemberActions";
 import { GroupMembers } from "../GroupMembers";
 
+function contactReadResponse(url: string, init?: RequestInit) {
+  if ((init?.method ?? "GET") !== "GET") return;
+  const path = new URL(url).pathname;
+  if (path === "/api/relationships") return Response.json({ rows: [], nextCursor: null });
+  if (path === "/api/users/suggestions")
+    return Response.json({ users: [], hasContacts: false, nextCursor: null });
+}
+
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
@@ -97,6 +105,9 @@ it("optimistically shows the moderator role, then rolls back only a rejected rol
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+
       if (init?.method === "PATCH") return pending;
       if (url.endsWith(`/groups/${groupRecord.id}`)) return Response.json(groupRecord);
       return Response.json({
@@ -144,11 +155,13 @@ it("never confuses moderator edit powers with creator-only Group deletion", asyn
   };
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string) =>
-      Response.json(
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+      return Response.json(
         url.endsWith(`/groups/${groupRecord.id}`) ? group : { items: [], nextCursor: null },
-      ),
-    ),
+      );
+    }),
   );
   renderWithI18n(
     <>
@@ -166,6 +179,9 @@ it.each(["promote", "demote", "remove", "ban"] as const)(
     let person = member(action === "demote"),
       submitted = false;
     const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+
       if (init?.method === "PATCH" || init?.method === "POST") {
         submitted = true;
         if (action === "ban")

@@ -6,6 +6,14 @@ import { groupRecord } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { GroupDetail } from "../GroupDetail";
 
+function contactReadResponse(url: string, init?: RequestInit) {
+  if ((init?.method ?? "GET") !== "GET") return;
+  const path = new URL(url).pathname;
+  if (path === "/api/relationships") return Response.json({ rows: [], nextCursor: null });
+  if (path === "/api/users/suggestions")
+    return Response.json({ users: [], hasContacts: false, nextCursor: null });
+}
+
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
@@ -64,29 +72,30 @@ it("pending members can read permitted information and accepted members, never e
   };
   vi.stubGlobal(
     "fetch",
-    vi.fn(
-      async (url: string) =>
-        new Response(
-          JSON.stringify(
-            url.includes("/members?")
-              ? {
-                  items: [
-                    {
-                      userId: "owner",
-                      name: "Owner",
-                      avatarUrl: null,
-                      username: null,
-                      isAdmin: true,
-                      membership: null,
-                      ban: null,
-                    },
-                  ],
-                  nextCursor: null,
-                }
-              : invited,
-          ),
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+      return new Response(
+        JSON.stringify(
+          url.includes("/members?")
+            ? {
+                items: [
+                  {
+                    userId: "owner",
+                    name: "Owner",
+                    avatarUrl: null,
+                    username: null,
+                    isAdmin: true,
+                    membership: null,
+                    ban: null,
+                  },
+                ],
+                nextCursor: null,
+              }
+            : invited,
         ),
-    ),
+      );
+    }),
   );
   mount();
   expect(await screen.findByRole("button", { name: "Accept" })).not.toBeNull();
@@ -119,12 +128,13 @@ it("pending members can read permitted information and accepted members, never e
 it("opens the contextual Events tab directly without the main Events destination", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(
-      async (url: string) =>
-        new Response(
-          JSON.stringify(url.includes("/events") ? { items: [], nextCursor: null } : groupRecord),
-        ),
-    ),
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+      return new Response(
+        JSON.stringify(url.includes("/events") ? { items: [], nextCursor: null } : groupRecord),
+      );
+    }),
   );
   mount("events");
   await screen.findByRole("tab", { name: "Events", selected: true });
@@ -147,6 +157,9 @@ it("moves accepted member departure to the danger header action and preserves ex
     },
   };
   const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+    const contacts = contactReadResponse(_url, init);
+    if (contacts) return contacts;
+
     if (init?.method === "PATCH")
       current = {
         ...current,
@@ -203,6 +216,9 @@ it.each([
       myMembership: invitation,
     };
     const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(_url, init);
+      if (contacts) return contacts;
+
       if (init?.method === "PATCH")
         current = {
           ...current,
@@ -250,6 +266,9 @@ it("keeps public request/pending cancellation centered after Overview and permit
     updatedAt: groupRecord.updatedAt,
   };
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    const contacts = contactReadResponse(url, init);
+    if (contacts) return contacts;
+
     if (init?.method === "POST") {
       requested = true;
       return new Response(JSON.stringify(membership));
@@ -323,6 +342,9 @@ it("requires explicit cascade confirmation, then closes and navigates before DEL
   let finish!: (value: Response) => void;
   let deleted = false;
   const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+    const contacts = contactReadResponse(_url, init);
+    if (contacts) return contacts;
+
     if (init?.method === "DELETE")
       return new Promise<Response>((resolve) => {
         finish = resolve;
@@ -368,13 +390,14 @@ it("requires explicit cascade confirmation, then closes and navigates before DEL
 it("reports a definite deletion rejection after immediate navigation and restores only its removed list row", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(
-      async (_url: string, init?: RequestInit) =>
-        new Response(
-          JSON.stringify(init?.method === "DELETE" ? { error: "GROUP_CHANGED" } : groupRecord),
-          { status: init?.method === "DELETE" ? 409 : 200 },
-        ),
-    ),
+    vi.fn(async (_url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(_url, init);
+      if (contacts) return contacts;
+      return new Response(
+        JSON.stringify(init?.method === "DELETE" ? { error: "GROUP_CHANGED" } : groupRecord),
+        { status: init?.method === "DELETE" ? 409 : 200 },
+      );
+    }),
   );
   const client = mount();
   const key = groupRecordKeys.list({ apiUrl: "https://api.test", userId: "guest" }, "mine");
