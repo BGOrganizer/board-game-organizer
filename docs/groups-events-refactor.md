@@ -291,8 +291,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   Missing position never fabricates an accepted seat; historical SELF requests are not invitations. Status and enabled/disabled Rating always have
   their own icons and explanations. Status help retains minimum/maximum, accepted-registration total,
   pending total (Unconfirmed players / Giocatori non confermati), queue count, assigned demonstrator
-  and all joint winner names when terminated, with counter/duty icons. Content-fit native sizing and
-  bounded scrolling replace verbose player-limit prose.
+  and all joint winner names when terminated, with counter/duty icons. Status popovers use a
+  viewport-bounded width and height; their content fits naturally before scrolling is needed.
   Separate date/time, location and game icons expose read-only local-data popovers. Location rows
   pair a left MapPin icon with only the formatted verified address, not a repeated venue name or
   IANA continent/city zone.
@@ -333,7 +333,7 @@ exceptions retain their explicit authorization boundaries throughout this contra
   date/location/game agreement categories, with a combined-constraints explanation when appropriate.
   At least one valid Table can make an Event ready; excluded sibling Tables do not block that readiness.
   Ready Events still require explicit manager confirmation. Confirmed personal participation is success;
-  Event summaries count confirmed own Tables and disclose other own exclusions. Actual exclusion takes
+  Event summaries list confirmed own Tables by name, one per row, and disclose other own exclusions. Actual exclusion takes
   precedence over duty/management: a physically excluded Table is danger, an included Table excluding the
   actor is danger-soft. Current management/duty without a player seat uses accent with an explanation;
   genuine nonparticipants use muted. Terminated status retains Flag with accent and winner-only Table

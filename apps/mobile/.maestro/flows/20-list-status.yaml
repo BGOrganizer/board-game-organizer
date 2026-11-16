@@ -8,6 +8,7 @@ onFlowComplete:
   - setAirplaneMode: false
 ---
 - runScript: ../helpers/list-status-inputs.js
+- assertTrue: ${output.status.names.history.eventId === output.status.names.terminated.id}
 - stopApp
 - launchApp:
     clearState: false
@@ -52,6 +53,23 @@ onFlowComplete:
       OTHER_ROW_LABEL: ${output.status.availableCard}
       EMPTY_TEXT: ${output.status.emptyEvents}
       FAILURE_TEXT: ${output.status.failedEvents}
+- tapOn: ${output.status.filter}
+- eraseText: 120
+- inputText: ${output.status.names.terminated.name}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.status.terminatedCard}
+    timeout: 120000
+- tapOn:
+    text: ${output.status.tableStatus}
+    childOf:
+      id: card-controls
+- scrollUntilVisible:
+    element: ${output.status.historyTableName}
+    direction: DOWN
+    timeout: 20000
+- takeScreenshot: terminated-event-table-winners
+- back
 - openLink: bgo-dev:///tables
 - extendedWaitUntil:
     visible: ${output.status.filter}

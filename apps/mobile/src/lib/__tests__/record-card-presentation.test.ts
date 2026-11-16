@@ -72,6 +72,8 @@ function component(file: string, name: string, modules: Record<string, unknown>)
         return { useLingui: () => ({ i18n: { _: (id: string) => id } }) };
       if (!(id in modules) && id === "@/lib/useFloatingActionLayout")
         return { useFloatingActionLayout: () => ({ bottom: 100, paddingBottom: 172 }) };
+      if (!(id in modules) && id === "react-native-safe-area-context")
+        return { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
       if (!(id in modules) && id === "@/components/common/ui/IconBadge")
         return { IconBadge: "IconBadge" };
       if (!(id in modules) && id === "@/components/common/ui/UserRoleBadge")
@@ -441,7 +443,7 @@ it("keeps native manager, demonstrator, pending and waiting indicators cumulativ
     "react-native": {
       View: "View",
       ScrollView: "ScrollView",
-      useWindowDimensions: () => ({ height: 640 }),
+      useWindowDimensions: () => ({ width: 320, height: 640 }),
     },
     "@/components/common/ui/ArtworkStatusPopover": { ArtworkStatusPopover: "Role" },
     "@/components/common/ui/HelpPopover": { HelpPopover: "Help" },
@@ -542,7 +544,12 @@ it("keeps native Event admin/moderation, accepted, pending and demonstration ind
   ]);
   expect(
     tree.props.children.find((node: Element) => node?.props?.label === "Planning").props,
-  ).toMatchObject({ size: "compact", width: "content-fit", label: "Planning" });
+  ).toMatchObject({
+    size: "compact",
+    width: 288,
+    contentStyle: { maxHeight: 608 },
+    label: "Planning",
+  });
   expect(tree.props.children.filter((node: Element) => node?.type === "Schedule")).toHaveLength(0);
   const moderator = render({ event: { ...event, managementRole: "moderator" } });
   expect(moderator.props.children[0].props.roles).toContain("moderator");
@@ -582,6 +589,17 @@ it("keeps native Event admin/moderation, accepted, pending and demonstration ind
           node?.type === "Status" && ["Confirmed", "You are excluded"].includes(node?.props?.label),
       ).props.tone,
     ).toBe(tone);
+    if (participation === "CONFIRMED") {
+      const status = final.props.children.find(
+        (node: Element) => node?.type === "Status" && node.props.label === "Confirmed",
+      );
+      const content = status.props.children.props.children.props.children[1].props.children;
+      expect(content[0].props.children).toEqual(["Tables where you are confirmed", ":"]);
+      expect(content[1].props.mode).toBe("confirmed");
+      expect(content[1].props.tables.map((table: { name: string }) => table.name)).toEqual([
+        "Table",
+      ]);
+    }
   }
   const terminated = render({
     event: { ...event, status: "TERMINATED", cardSummary: { ready: false, tables: [summary] } },
@@ -1133,7 +1151,7 @@ it.each([240, 320, 800])(
     }
   },
 );
-it.each(["planning", "exclusions", "results"] as const)(
+it.each(["planning", "exclusions", "results", "confirmed"] as const)(
   "virtualizes native card %s summaries, with comma-separated winners beside the Table name",
   (mode) => {
     const render = component("events/EventCardTableSummaries", "EventCardTableSummaries", {
@@ -1161,6 +1179,7 @@ it.each(["planning", "exclusions", "results"] as const)(
     };
     const list = render({ tables: [item], mode });
     expect(list.type).toBe("FlatList");
+    expect(list.props.style).toEqual({ width: "100%", flexGrow: 0, flexShrink: 1 });
     expect(list.props.initialNumToRender).toBe(8);
     expect(list.props.keyExtractor(item)).toBe("table");
     const row = list.props.renderItem({ item });
@@ -1174,9 +1193,12 @@ it.each(["planning", "exclusions", "results"] as const)(
         size: 16,
         color: "warning-soft-foreground",
         accessible: false,
+        style: { flexShrink: 0 },
       });
+      expect(winners[1].props.style).toEqual({ flexShrink: 1, minWidth: 0 });
       expect(winners[1].props.children).toBe("@alice, @bob, Username unavailable");
     } else expect(row.props.children[0].props.children).toBe("Table");
+    if (mode === "confirmed") expect(row.props.children[1]).toBeNull();
     if (mode === "planning") {
       expect(row.props.children[1][0].props.children).toBe(
         "Not enough eligible players to reach the minimum.",

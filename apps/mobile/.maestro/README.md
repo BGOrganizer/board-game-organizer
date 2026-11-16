@@ -353,7 +353,8 @@ Both clients require `STATUS_ACK=owned-development-list-fixtures`, `STATUS_LOCAL
 Replace every ID/name/handle with real authorized fixtures. All four unique names must contain
 `STATUS_QUERY` and occur in the first matching source page; `emptyQuery` and its `-failure-*` /
 `-offline-*` suffixes must match nothing. The History fixture must have final venue/date/game metadata
-and actual winners. `available.kind` is `public-outsider` (PUBLIC Event, approved PUBLIC Group,
+and actual winners, and its `eventId` must equal the Terminated fixture ID so the same outcome is
+verified in both status popovers. `available.kind` is `public-outsider` (PUBLIC Event, approved PUBLIC Group,
 actor not a member), `private-member` (PRIVATE Group) or `public-group-private-member` (PRIVATE Event
 of an approved PUBLIC Group). Repeat all three availability cases, Scheduled player/queue/pending
 invitation/current manager/demonstrator/excluded cases, and Terminated/History player/demonstrator/
@@ -368,6 +369,11 @@ Native requires an already authenticated Android Development app in the selected
 actual loss of both Wi-Fi/data during its airplane-mode cases. Its completion hook restores
 connectivity; restore it manually if the runner itself is interrupted. Native assertions use visible
 rows, explicit errors and winner ordering; screenshots remain required for colors/layout.
+
+`43-confirmed-event-status.yaml` uses the same inputs with a confirmed Scheduled fixture in which
+the actor has frozen seats. It additionally requires `STATUS_CONFIRMED_TABLE_PATTERNS`, a JSON array
+of exact-name regexes for all Tables where that actor is confirmed, such as `["^First table$","^Second table$"]`.
+The flow fails when this fixture metadata is missing; it does not infer participation or create data.
 Repeat EN/IT, light/dark and enlarged text. YAML/VM/discovery checks are not authenticated/device
 acceptance. Profile flows 17/18 still enter Collection explicitly; 17 checks game clearing.
 

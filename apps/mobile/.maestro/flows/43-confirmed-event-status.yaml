@@ -1,0 +1,40 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Confirmed Event lists the actor's confirmed Tables
+# Existing owned confirmed Scheduled fixture; exact Table-name regexes, one per array entry.
+tags: [manual, cards, events]
+---
+- runScript: ../helpers/list-status-inputs.js
+- assertTrue: ${typeof STATUS_CONFIRMED_TABLE_PATTERNS !== "undefined"}
+- evalScript: ${output.confirmedPatterns = JSON.parse(STATUS_CONFIRMED_TABLE_PATTERNS)}
+- assertTrue: ${Array.isArray(output.confirmedPatterns) && output.confirmedPatterns.length > 0 && output.confirmedPatterns.every(p => typeof p === "string" && p.length > 0)}
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///events
+- extendedWaitUntil:
+    visible: ${output.status.scheduled}
+    timeout: 120000
+- tapOn: ${output.status.scheduled}
+- tapOn: ${output.status.filter}
+- eraseText: 120
+- inputText: ${output.status.names.scheduled.name}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.status.scheduledCard}
+    timeout: 120000
+- tapOn:
+    text: '${STATUS_LOCALE === "it" ? "^Confermata$" : "^Confirmed$"}'
+    childOf:
+      id: card-controls
+- assertVisible: '${STATUS_LOCALE === "it" ? "^Tavoli in cui sei confermato:$" : "^Tables where you are confirmed:$"}'
+- evalScript: ${output.confirmedIndex = 0}
+- repeat:
+    times: ${output.confirmedPatterns.length}
+    commands:
+      - scrollUntilVisible:
+          element: ${output.confirmedPatterns[output.confirmedIndex]}
+          direction: DOWN
+          timeout: 20000
+      - assertVisible: ${output.confirmedPatterns[output.confirmedIndex]}
+      - evalScript: ${output.confirmedIndex = output.confirmedIndex + 1}
+- takeScreenshot: confirmed-event-table-names
+- back

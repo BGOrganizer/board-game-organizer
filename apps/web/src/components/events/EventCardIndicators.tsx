@@ -24,9 +24,7 @@ export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
   const state = eventCardState(event);
   const summary = event.cardSummary;
   const status = i18n._(cardStateMessages[state]);
-  const confirmedCount = summary?.tables.filter(
-    (table) => table.myParticipation === "CONFIRMED",
-  ).length;
+  const confirmedTables = summary?.tables.filter((table) => table.myParticipation === "CONFIRMED");
   const exclusions = summary?.tables.filter((table) => table.myParticipation === "EXCLUDED");
   const publicEvent = eventRecordVisibility(event, event.groupType) === "PUBLIC";
   return (
@@ -86,6 +84,7 @@ export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
         icon={state === "PLANNING" ? CalendarClock : state === "TERMINATED" ? Flag : CalendarCheck}
         tone={CARD_STATE_TONES[state]}
         triggerClassName="bg-default"
+        className="w-90 max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain"
       >
         <div className="space-y-2">
           {state === "PLANNING" ? (
@@ -114,12 +113,13 @@ export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
             <>
               <p>{t`The event has been confirmed.`}</p>
               {state === "CONFIRMED" ? (
-                confirmedCount === undefined ? (
+                confirmedTables === undefined ? (
                   <Skeleton aria-label={t`Loading…`} className="h-5 w-24 rounded" />
                 ) : (
-                  <p>
-                    {t`Tables where you are confirmed`}: {i18n.number(confirmedCount)}
-                  </p>
+                  <>
+                    <p>{t`Tables where you are confirmed`}:</p>
+                    <EventCardTableSummaries tables={confirmedTables} mode="confirmed" />
+                  </>
                 )
               ) : state === "DUTY" ? (
                 <p>{t`You have an assigned role without a player seat.`}</p>

@@ -188,7 +188,7 @@ it("retains public visibility independently of personal status", () => {
     screen.getByText("Authenticated users can enroll without joining the group."),
   ).not.toBeNull();
 });
-it("keeps mixed participation green, counts included Tables, and explains other exclusions", () => {
+it("keeps mixed participation green, lists each confirmed Table and explains other exclusions", () => {
   renderWithI18n(
     <EventCardIndicators
       event={{
@@ -198,6 +198,12 @@ it("keeps mixed participation green, counts included Tables, and explains other 
           ready: false,
           tables: [
             tableSummary({ confirmed: true, myParticipation: "CONFIRMED" }),
+            tableSummary({
+              tableId: "second",
+              name: "Second confirmed table",
+              confirmed: true,
+              myParticipation: "CONFIRMED",
+            }),
             tableSummary({
               tableId: "other",
               name: "Other table",
@@ -212,7 +218,12 @@ it("keeps mixed participation green, counts included Tables, and explains other 
   expect(screen.getByRole("button", { name: "Confirmed" }).parentElement?.dataset.tone).toBe(
     "success",
   );
-  expect(screen.getByText("Tables where you are confirmed: 1")).not.toBeNull();
+  const heading = screen.getByText("Tables where you are confirmed:");
+  expect(heading.nextElementSibling?.textContent).toBe(
+    `${plannedTable.name}Second confirmed table`,
+  );
+  expect(heading.nextElementSibling?.children).toHaveLength(2);
+  expect(screen.getByText("The table was excluded from confirmation.")).not.toBeNull();
   expect(screen.getByText("Other table")).not.toBeNull();
   expect(screen.getByText("event-dates")).not.toBeNull();
 });
@@ -438,11 +449,34 @@ it.each([true, false])(
     expect(winners.textContent).not.toContain("@undefined");
   },
 );
-it.each(["planning", "results"] as const)("has an explicit empty %s state", (mode) => {
+it.each(["planning", "results", "confirmed"] as const)("has an explicit empty %s state", (mode) => {
   renderWithI18n(<EventCardTableSummaries mode={mode} tables={[]} />);
   expect(
-    screen.getByText(mode === "results" ? "No winners." : "No tables are ready for confirmation."),
+    screen.getByText(
+      mode === "results"
+        ? "No winners."
+        : mode === "confirmed"
+          ? "No tables found"
+          : "No tables are ready for confirmation.",
+    ),
   ).not.toBeNull();
+});
+it("renders confirmed table names only, with one item per table and no result or blocker text", () => {
+  renderWithI18n(
+    <EventCardTableSummaries
+      mode="confirmed"
+      tables={[
+        tableSummary({ name: "First" }),
+        tableSummary({ tableId: "second", name: "Second" }),
+      ]}
+    />,
+  );
+  expect(screen.getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+    "First",
+    "Second",
+  ]);
+  expect(screen.queryByText("No winners.")).toBeNull();
+  expect(screen.queryByText("Not enough eligible players to reach the minimum.")).toBeNull();
 });
 it("keeps no-winner Tables explicit", () => {
   renderWithI18n(<EventCardTableSummaries mode="results" tables={[tableSummary()]} />);
