@@ -10,6 +10,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Check, Crown, Mail, Plus, UsersRound } from "lucide-react-native";
+import { useCallback } from "react";
 import { View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -39,6 +40,19 @@ export function GroupList({
   const filters = useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4),
     list = useGroupRecords(options, scope, filters.search, filters.selected, type);
   const searchable = scope !== "public" || Boolean(filters.search);
+  const verify = useCallback(() => void list.refetch({ cancelRefetch: false }), [list.refetch]);
+  const renderItem = useCallback(
+    ({ item: group }: { item: (typeof list.items)[number] }) =>
+      artwork.row(
+        group.id,
+        <GroupCard
+          group={group}
+          checking={group.optimistic?.phase === "verifying" && list.isFetching}
+          onVerify={group.optimistic?.phase === "verifying" ? verify : undefined}
+        />,
+      ),
+    [artwork, list.isFetching, verify],
+  );
   return (
     <NotificationAttentionScope
       options={options}
@@ -92,16 +106,7 @@ export function GroupList({
               ) : null}
             </View>
           }
-          renderItem={({ item: group }) =>
-            artwork.row(
-              group.id,
-              <GroupCard
-                group={group}
-                checking={list.isFetching}
-                onVerify={() => void list.refetch({ cancelRefetch: false })}
-              />,
-            )
-          }
+          renderItem={renderItem}
           ListEmptyComponent={
             searchable && list.isPending ? (
               <View style={{ gap: 12 }}>

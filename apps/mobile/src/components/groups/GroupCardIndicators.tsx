@@ -13,12 +13,17 @@ import {
   MapPin,
   UsersRound,
 } from "lucide-react-native";
+import { memo } from "react";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { useT } from "@/lib/i18n";
 
-export function GroupCardIndicators({ group }: { group: ClientGroupRecord }) {
+export const GroupCardIndicators = memo(function GroupCardIndicators({
+  group,
+}: {
+  group: ClientGroupRecord;
+}) {
   const t = useT();
   const muted = useThemeColor("muted");
   const { i18n } = useLingui();
@@ -145,4 +150,4 @@ export function GroupCardIndicators({ group }: { group: ClientGroupRecord }) {
       ) : null}
     </>
   );
-}
+});

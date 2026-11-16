@@ -11,7 +11,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarCheck2, CalendarClock, CalendarDays, Flag, Plus } from "lucide-react-native";
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 import { View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -58,6 +58,20 @@ export function EventList({
   useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
     "admin",
   ]);
+  const verify = useCallback(() => void list.refetch({ cancelRefetch: false }), [list.refetch]);
+  const renderItem = useCallback(
+    ({ item }: { item: (typeof list.items)[number] }) =>
+      artwork.row(
+        item.id,
+        <EventCard
+          event={item}
+          context={groupId ? "group" : "personal"}
+          checking={item.optimistic?.phase === "verifying" && list.isFetching}
+          onVerify={item.optimistic?.phase === "verifying" ? verify : undefined}
+        />,
+      ),
+    [artwork, groupId, list.isFetching, verify],
+  );
   return (
     <NotificationAttentionScope
       options={o}
@@ -104,17 +118,7 @@ export function EventList({
               />
             </View>
           }
-          renderItem={({ item }) =>
-            artwork.row(
-              item.id,
-              <EventCard
-                event={item}
-                context={groupId ? "group" : "personal"}
-                checking={list.isFetching}
-                onVerify={() => void list.refetch({ cancelRefetch: false })}
-              />,
-            )
-          }
+          renderItem={renderItem}
           onEndReached={() => {
             if (list.hasNextPage && !list.isFetching && !list.isFetchNextPageError)
               void list.fetchNextPage();

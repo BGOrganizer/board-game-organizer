@@ -6,6 +6,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, Dices, UsersRound } from "lucide-react-native";
+import { memo } from "react";
 import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
@@ -13,19 +14,26 @@ import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { useT } from "@/lib/i18n";
 import { EventTableCardIndicators } from "./EventTableCardIndicators";
 
-export function EventTableCard({
-  table,
-  context = "personal",
-}: {
+type Props = {
   table: PlannedTableResponse;
   context?: "personal" | "event";
-}) {
+};
+
+export const EventTableCard = memo(function EventTableCard(props: Props) {
+  const attention = useNotificationAttentionContext();
+  const count = attention?.get({ kind: "table", id: props.table.id })?.count;
+  return <EventTableCardContent {...props} notificationCount={count} />;
+});
+
+const EventTableCardContent = memo(function EventTableCardContent({
+  table,
+  context = "personal",
+  notificationCount: count,
+}: Props & { notificationCount?: number }) {
   const t = useT();
   const { i18n } = useLingui();
   const router = useRouter();
   const muted = useThemeColor("muted");
-  const attention = useNotificationAttentionContext();
-  const count = attention?.get({ kind: "table", id: table.id })?.count;
   return (
     <LinkedListCard
       heading={
@@ -114,4 +122,4 @@ export function EventTableCard({
       </View>
     </LinkedListCard>
   );
-}
+});

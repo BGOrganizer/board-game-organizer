@@ -57,13 +57,7 @@ export function GroupModeration() {
             />
           }
           renderItem={({ item }) =>
-            artwork.row(
-              item.id,
-              <GroupCard
-                group={item}
-                href={{ pathname: "/moderation/[groupId]", params: { groupId: item.id } }}
-              />,
-            )
+            artwork.row(item.id, <GroupCard group={item} href={`/moderation/${item.id}`} />)
           }
           onEndReached={() => {
             if (q.hasNextPage && !q.isFetchingNextPage && !q.isFetchNextPageError)

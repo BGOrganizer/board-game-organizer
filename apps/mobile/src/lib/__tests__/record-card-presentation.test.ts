@@ -20,7 +20,11 @@ function component(file: string, name: string, modules: Record<string, unknown>)
   const output: Record<string, (props: any) => Element> = {};
   let cover: ((props: any) => Element) | undefined;
   const jsx = (type: unknown, props: Record<string, unknown>) =>
-    cover && type === cover ? cover(props) : { type, props };
+    cover && type === cover
+      ? cover(props)
+      : typeof type === "function" && type.name.endsWith("CardContent")
+        ? type(props)
+        : { type, props };
   const code = ts.transpileModule(text, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -31,6 +35,9 @@ function component(file: string, name: string, modules: Record<string, unknown>)
   runInNewContext(code, {
     exports: output,
     require: (id: string) => {
+      if (id === "react")
+        return { memo: (component: unknown) => component, ...(modules.react as object) };
+      if (id === "@clerk/expo") return { useAuth: () => ({ userId: "owner" }) };
       if (id === "@/lib/recordUserRoleIcons") {
         const icons: Record<string, unknown> = {};
         runInNewContext(

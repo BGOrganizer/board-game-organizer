@@ -34,6 +34,35 @@ reserved for the game picker. Existing ownership, privacy and authorization rule
   current native build. Do not hide costs with arbitrary delays, disabled animations or unbounded
   hidden lists. Unit/source checks and desktop timings are not device-frame acceptance.
 
+### Native render profiling
+
+Resource cards keep notification-context reads in a small wrapper and pass the scalar count to
+a memoized body. Artwork and Group/Event/Table indicators have their own memo boundaries, shared
+by list and detail cards. Row verification callbacks are stable and background fetching changes
+only the verifying optimistic rows' busy state. These boundaries preserve real resource, language,
+theme, identity and visibility updates; they cannot prevent a subtree from mounting after a tab
+switch replaces its scroll owner.
+
+The installed React Native tooling includes **React Native DevTools**; no additional profiling
+library is required. Use its React Profiler to record commits and why components rendered, and its
+Performance panel to separate JavaScript work from network activity. See the
+[React Native guide](https://reactnative.dev/docs/0.86/react-native-devtools) and
+[Expo debugging tools](https://docs.expo.dev/debugging/tools/).
+
+Both CI APK lanes use the `internal` EAS profile and release mode, including the APK named
+Development. That APK does not expose the development Profiler. Use the existing `development`
+profile for a diagnostic native build, connect it to Metro (`bun run dev --max-workers 1` from
+`apps/mobile` with the existing Development configuration), then open DevTools with `j` on the
+developer workstation. On the Raspberry keep the DevTools browser/device on another host and
+honor the [resource limit](../AGENTS.md#raspberry-resource-limits).
+
+Record first entry, cached reentry, subtab changes, opening/closing a popover, background refetch,
+and Back navigation for Groups, Events and Tables; include Contacts as a comparison. Save the
+trace with the source SHA, build mode, device, dataset size and cache state. Distinguish rerenders
+from remounts. The native render-count tests use real React reconciliation with substituted
+native/HeroUI hosts: they verify memo boundaries and update propagation, not native layout,
+gesture latency or device FPS. Do not treat their timings as screen-load acceptance.
+
 ## Native cache and builds
 
 - Native cache-first restart: authoritative TanStack Query data persists in account/API-scoped,

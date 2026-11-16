@@ -27,6 +27,7 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
       measurements.push({ success, fail }),
   };
   const react: Record<string, any> = {
+    memo: (component: unknown) => component,
     createContext: (value: unknown) => ({ context: true, value }),
     use: (context: { value: unknown }) => context.value,
     useState: (initial: unknown) => {

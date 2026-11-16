@@ -8,6 +8,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Dices } from "lucide-react-native";
+import { useCallback } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -26,6 +27,11 @@ export function TableList() {
     insets = useSafeAreaInsets(),
     f = useListSearch(["TERMINATED"] as const, 0),
     q = useRecordTables(o, null, { query: f.search, statuses: ["TERMINATED"] });
+  const renderItem = useCallback(
+    ({ item }: { item: (typeof q.items)[number] }) =>
+      artwork.row(item.id, <EventTableCard table={item} context="personal" />),
+    [artwork],
+  );
   return (
     <NotificationAttentionScope
       options={o}
@@ -61,9 +67,7 @@ export function TableList() {
             />
           </View>
         }
-        renderItem={({ item }) =>
-          artwork.row(item.id, <EventTableCard table={item} context="personal" />)
-        }
+        renderItem={renderItem}
         onEndReached={() => {
           if (q.hasNextPage && !q.isFetching && !q.isFetchNextPageError) void q.fetchNextPage();
         }}

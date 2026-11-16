@@ -17,6 +17,7 @@ import {
   LockKeyhole,
   Settings,
 } from "lucide-react-native";
+import { memo } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
@@ -26,7 +27,11 @@ import { EventCardTableSummaries } from "./EventCardTableSummaries";
 import { EventRolePopover } from "./EventRolePopover";
 import { EventSchedulePopover } from "./EventSchedulePopover";
 
-export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
+export const EventCardIndicators = memo(function EventCardIndicators({
+  event,
+}: {
+  event: ClientEventRecord;
+}) {
   const t = useT();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -194,4 +199,4 @@ export function EventCardIndicators({ event }: { event: ClientEventRecord }) {
       ) : null}
     </>
   );
-}
+});

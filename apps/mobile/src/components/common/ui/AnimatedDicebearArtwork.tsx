@@ -5,6 +5,7 @@ import {
 import { NavigationContext } from "expo-router/react-navigation";
 import {
   createContext,
+  memo,
   use,
   useCallback,
   useEffect,
@@ -58,7 +59,7 @@ function AnimatedArtworkPart({ className, ...props }: GProps & { className?: str
   return <AnimatedGroup {...props} animatedProps={animatedProps} />;
 }
 
-export function AnimatedDicebearArtwork({
+export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
   seed,
   variant,
   size = 64,
@@ -217,4 +218,4 @@ export function AnimatedDicebearArtwork({
       </ScopedTheme>
     </View>
   );
-}
+});

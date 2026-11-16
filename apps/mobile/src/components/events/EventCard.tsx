@@ -7,6 +7,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, Dices, RefreshCw, UsersRound } from "lucide-react-native";
+import { memo } from "react";
 import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
@@ -15,25 +16,34 @@ import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { useT } from "@/lib/i18n";
 import { EventCardIndicators } from "./EventCardIndicators";
 
-export function EventCard({
-  event,
-  context = "personal",
-  onVerify,
-  checking = false,
-}: {
+type Props = {
   event: ClientEventRecord;
   context?: "personal" | "group";
   onVerify?: () => void;
   checking?: boolean;
-}) {
+};
+
+export const EventCard = memo(function EventCard(props: Props) {
+  const attention = useNotificationAttentionContext();
+  const count = props.event.optimistic
+    ? undefined
+    : attention?.get({ kind: "event", id: props.event.id })?.count;
+  return <EventCardContent {...props} notificationCount={count} />;
+});
+
+const EventCardContent = memo(function EventCardContent({
+  event,
+  context = "personal",
+  onVerify,
+  checking = false,
+  notificationCount: count,
+}: Props & { notificationCount?: number }) {
   const t = useT();
   const { i18n } = useLingui();
   const router = useRouter();
   const [fg, muted] = useThemeColor(["foreground", "muted"]);
-  const attention = useNotificationAttentionContext();
   const local = event.optimistic,
     status = useClientRecordStatus(local?.phase);
-  const count = local ? undefined : attention?.get({ kind: "event", id: event.id })?.count;
   return (
     <LinkedListCard
       heading={
@@ -134,4 +144,4 @@ export function EventCard({
       </View>
     </LinkedListCard>
   );
-}
+});

@@ -7,6 +7,7 @@ import {
   tableCardState,
   tablePendingAction,
 } from "@board-game-organizer/shared";
+import { useAuth } from "@clerk/expo";
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
@@ -20,24 +21,28 @@ import {
   UserRoundCheck,
   UsersRound,
 } from "lucide-react-native";
+import { memo } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { cardStateMessages } from "@/lib/eventCardMessages";
 import { useT } from "@/lib/i18n";
-import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventCardTableSummaries } from "./EventCardTableSummaries";
 import { EventRolePopover } from "./EventRolePopover";
 import { EventTableGamesPopover } from "./EventTableGamesPopover";
 import { EventTableRatingInfo } from "./EventTableRatingInfo";
 import { EventTableSchedulePopover } from "./EventTableSchedulePopover";
 
-export function EventTableCardIndicators({ table }: { table: PlannedTableResponse }) {
+export const EventTableCardIndicators = memo(function EventTableCardIndicators({
+  table,
+}: {
+  table: PlannedTableResponse;
+}) {
   const t = useT();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { i18n } = useLingui();
-  const { userId } = useCommunityApi();
+  const { userId } = useAuth();
   const muted = useThemeColor("muted");
   const roles = tableCardRoles(table, userId);
   const state = tableCardState(table, userId);
@@ -172,4 +177,4 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
       ) : null}
     </>
   );
-}
+});

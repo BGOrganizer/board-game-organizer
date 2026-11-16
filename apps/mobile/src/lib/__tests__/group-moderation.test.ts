@@ -56,10 +56,7 @@ it("renders moderation items through the existing Group card and opens their rev
   expect(row.props.group).toBe(item);
   expect(visibleRow).toHaveBeenCalledWith(item.id, row);
   expect(row.props.onRespond).toBeUndefined();
-  expect(row.props.href).toEqual({
-    pathname: "/moderation/[groupId]",
-    params: { groupId: item.id },
-  });
+  expect(row.props.href).toBe(`/moderation/${item.id}`);
   const router = { push: vi.fn() };
   const press = runInNewContext(expression("GroupCard", "LinkedListCard", "onPress"), {
     router,

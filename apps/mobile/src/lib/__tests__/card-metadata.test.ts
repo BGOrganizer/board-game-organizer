@@ -72,6 +72,7 @@ function evaluate(file: string, name: string, locale: "en" | "it", props: Record
   const child = (file: string, name: string) => (p: Record<string, unknown>) =>
     evaluate(file, name, locale, p);
   const modules: Record<string, unknown> = {
+    react: { memo: (component: unknown) => component },
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
     "react-native": {
       View: "View",

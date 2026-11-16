@@ -28,7 +28,7 @@ import {
   RotateCcw,
   UsersRound,
 } from "lucide-react-native";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { FlatList, type ScrollView, View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -105,6 +105,15 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const tabRef = useRef(tab);
   tabRef.current = tab;
   const scroll = useRef<ScrollView>(null);
+  const changeTab = useCallback((value: string) => {
+    scroll.current?.scrollTo({ y: 0, animated: false });
+    setTab(value);
+  }, []);
+  const renderTable = useCallback(
+    ({ item }: { item: (typeof tables.items)[number] }) =>
+      artwork.row(item.id, <EventTableCard table={item} context="event" />),
+    [artwork],
+  );
   const [accentForeground, muted, foreground] = useThemeColor([
     "accent-foreground",
     "muted",
@@ -384,7 +393,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           ) : undefined
         }
       />
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={changeTab}>
         <View>
           <TabBar>
             <TabTrigger icon={Info} value="details" style={{ flexDirection: "row", gap: 6 }}>
@@ -464,7 +473,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               onLayout={artwork.onLayout}
               onScroll={artwork.onScroll}
               onViewableItemsChanged={artwork.onViewableItemsChanged}
-              key={tab}
+              key={eventId}
               ref={(node) => {
                 scroll.current = node?.getNativeScrollRef() as ScrollView | null;
               }}
@@ -493,9 +502,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                   </EmptyList>
                 ) : null
               }
-              renderItem={({ item }) =>
-                artwork.row(item.id, <EventTableCard table={item} context="event" />)
-              }
+              renderItem={renderTable}
               onEndReached={() => {
                 if (
                   tabRef.current === "tables" &&
