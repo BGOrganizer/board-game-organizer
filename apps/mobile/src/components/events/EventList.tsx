@@ -18,6 +18,7 @@ import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventCard } from "./EventCard";
@@ -32,6 +33,7 @@ export function EventList({
   section?: EventListSection;
   header?: ReactNode;
 }) {
+  const artwork = useArtworkListVisibility();
   const t = useT(),
     router = useRouter(),
     o = useCommunityApi(),
@@ -63,6 +65,9 @@ export function EventList({
     >
       <View style={{ flex: 1 }}>
         <InputFlatList
+          onViewableItemsChanged={artwork.onViewableItemsChanged}
+          onLayout={artwork.onLayout}
+          onScroll={artwork.onScroll}
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
           data={communityAccessDenied(list.error) ? [] : list.items}
@@ -76,7 +81,7 @@ export function EventList({
           }}
           ListHeaderComponent={
             <View style={{ gap: 12 }}>
-              {header}
+              {artwork.header(header)}
               <ListSearch
                 query={filters.query}
                 onQueryChange={filters.setQuery}
@@ -97,14 +102,17 @@ export function EventList({
               />
             </View>
           }
-          renderItem={({ item }) => (
-            <EventCard
-              event={item}
-              context={groupId ? "group" : "personal"}
-              checking={list.isFetching}
-              onVerify={() => void list.refetch({ cancelRefetch: false })}
-            />
-          )}
+          renderItem={({ item }) =>
+            artwork.row(
+              item.id,
+              <EventCard
+                event={item}
+                context={groupId ? "group" : "personal"}
+                checking={list.isFetching}
+                onVerify={() => void list.refetch({ cancelRefetch: false })}
+              />,
+            )
+          }
           onEndReached={() => {
             if (list.hasNextPage && !list.isFetching && !list.isFetchNextPageError)
               void list.fetchNextPage();

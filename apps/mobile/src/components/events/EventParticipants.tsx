@@ -20,6 +20,7 @@ import { MemberActions } from "@/components/common/ui/MemberActions";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 
@@ -36,6 +37,7 @@ export function EventParticipants({
   header?: ReactNode;
   hasFloatingActions?: boolean;
 }) {
+  const artwork = useArtworkListVisibility();
   const t = useT(),
     o = useCommunityApi(),
     q = useEventParticipants(
@@ -50,7 +52,9 @@ export function EventParticipants({
   return (
     <>
       <FlatList
-        ListHeaderComponent={<>{header}</>}
+        onLayout={artwork.onLayout}
+        onScroll={artwork.onScroll}
+        ListHeaderComponent={artwork.header(header)}
         style={{ flex: 1 }}
         contentContainerStyle={{
           padding: 20,

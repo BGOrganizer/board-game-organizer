@@ -19,7 +19,7 @@ export function EventTableInfo({
       title={table.name}
       icon={Dices}
       background={
-        <AnimatedDicebearArtwork seed={table.id} variant="planets" presentation="background" />
+        <AnimatedDicebearArtwork seed={table.id} variant="tables" presentation="background" />
       }
       titleAccessory={
         titleAction ? undefined : (

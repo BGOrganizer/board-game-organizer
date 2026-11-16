@@ -35,6 +35,18 @@ export default defineConfig({
         "src/store/**",
       ],
       thresholds: {
+        "src/lib/{resourceArtworkMotion,resourceArtworkTree,artworkVisibility}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/lib/useArtworkListVisibility.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/+native-intent.tsx": {
           lines: 100,
           functions: 100,

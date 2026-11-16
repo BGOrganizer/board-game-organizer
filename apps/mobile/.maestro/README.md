@@ -734,3 +734,38 @@ For real OS App Links acceptance, pass `openWithAppLink: true`, its `prNumber`, 
 `shareLink` returned by the owned Development API after public readiness. Set `coldOpen: true` to
 stop the app before opening; repeat warm as well. The flow disables Maestro's `autoVerify` and
 browser forcing, so it does not manufacture domain approval or hide a browser fallback.
+
+## Manual approved resource artwork
+
+`42-resource-artwork.yaml` is opt-in and uses existing owned Development/Preview resources.
+Verify the installed APK's API and authenticated account before setting
+`ARTWORK_BUILD_ACK=owned-preview-build`; set `ARTWORK_FIXTURE_ACK=owned-preview-resource-artwork`,
+`ARTWORK_LOCALE=en|it`, `ARTWORK_THEME=light|dark`, `ARTWORK_MOTION=normal|reduced` and
+`ARTWORK_INPUT` JSON with `groupId`, `eventId`, `tableId`, `groupName`, `eventName`, `tableName`,
+`logo=generated|uploaded|failed`. Use an accepted private Group member and a non-pending Event with the
+named Table. The Event must appear in the Group's default Events list. Resources need no mutation;
+existing notification-read behavior remains. No tokens, provisioning, provider changes or uploads
+are performed. `logo` records the pre-existing fixture, not an injected network/image response.
+
+Run each logo case in both themes, locales and system motion settings. Review screenshots of
+Group/Event/Table list cards and all three details for the original Waves palette,
+complete uncropped silhouettes/miniatures, uploaded-logo priority, and generated fallback after
+an actually failed logo load. Review
+64px and 96px thumbnail instances where rendered; unit dimensions are not visual acceptance.
+No decorative test ID or accessibility assertion alone proves artwork pixels. Small Group
+illustrations inside the navigation-less Group selector portal intentionally remain static;
+they must render without a navigation-context error.
+
+On device, record normal-motion internal calendar/banner, die/token and group member/badge
+movement; the full illustration must remain stationary. While the app stays mounted, change
+system Reduce Motion and return: generated artwork must immediately become the original static
+SVG, then resume when disabled. Background/foreground, navigation away/back and scrolling a
+resource out of view must stop/resume work without lost rows or scroll position. Use a long
+resource list and profile entry/reentry and scroll UI-thread frame timing; a screenshot cannot
+prove paused clocks or performance. Test failed and subsequently changed valid logo URLs using
+owned fixtures, including a delayed prior image response. Compare animation pivots with the web
+reference. Animated SVG Defs/Use invalidation must be checked on an actual release APK.
+
+This retained flow and VM/unit checks do not prove native rendering, frame timing, system settings
+reactivity or physical 64/96px contrast. Maestro/device execution is required for that evidence;
+this flow does not join the canonical 13-journey CI suite automatically.

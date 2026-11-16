@@ -35,7 +35,7 @@ it("keeps compact cumulative Table icons at bottom right beside full-height left
   expect(table).toContain("<EventRolePopover");
   expect(table).toContain("table.demonstratorUserId");
   expect(table).toContain("leadingActions=");
-  expect(table).toContain('variant="planets"');
+  expect(table).toContain('variant="tables"');
   expect(table).toContain("table.groupName");
   expect(table).toContain("<UsersRound");
   for (const token of [

@@ -12,9 +12,11 @@ import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableCard } from "./EventTableCard";
 export function TableList() {
+  const artwork = useArtworkListVisibility();
   const t = useT(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets(),
@@ -29,6 +31,8 @@ export function TableList() {
       }))}
     >
       <InputFlatList
+        onLayout={artwork.onLayout}
+        onViewableItemsChanged={artwork.onViewableItemsChanged}
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         data={communityAccessDenied(q.error) ? [] : q.items}
@@ -53,7 +57,9 @@ export function TableList() {
             />
           </View>
         }
-        renderItem={({ item }) => <EventTableCard table={item} context="personal" />}
+        renderItem={({ item }) =>
+          artwork.row(item.id, <EventTableCard table={item} context="personal" />)
+        }
         onEndReached={() => {
           if (q.hasNextPage && !q.isFetching && !q.isFetchNextPageError) void q.fetchNextPage();
         }}

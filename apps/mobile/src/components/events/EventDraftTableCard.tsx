@@ -27,11 +27,7 @@ export function EventDraftTableCard({
     <ListCard style={{ overflow: "hidden" }}>
       <ListCardCoverContent
         artwork={
-          <AnimatedDicebearArtwork
-            seed={row.id ?? row.key}
-            variant="planets"
-            presentation="cover"
-          />
+          <AnimatedDicebearArtwork seed={row.id ?? row.key} variant="tables" presentation="cover" />
         }
         controls={
           <>

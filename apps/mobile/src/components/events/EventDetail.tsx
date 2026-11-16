@@ -49,6 +49,7 @@ import { NotificationChangesPopover } from "@/components/notifications/Notificat
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -63,6 +64,7 @@ import { EventVoteCounts } from "./EventVoteCounts";
 import { EventVoteLegend } from "./EventVoteLegend";
 import { TableListHeading } from "./TableListHeading";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
+  const artwork = useArtworkListVisibility();
   const { i18n } = useLingui();
   const t = useT(),
     o = useCommunityApi(),
@@ -445,8 +447,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           {screenHeader}
           {tab === "participants" ? (
             event.readOnly ? (
-              <ScreenScrollView hasFloatingActions={hasFloatingActions}>
-                {detailHeader}
+              <ScreenScrollView
+                hasFloatingActions={hasFloatingActions}
+                onLayout={artwork.onLayout}
+                onScroll={artwork.onScroll}
+              >
+                {artwork.header(detailHeader)}
                 <Typography className="text-muted">
                   {t("Public event. Group membership is not required to participate.")}
                 </Typography>
@@ -462,6 +468,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             )
           ) : (
             <FlatList
+              onLayout={artwork.onLayout}
+              onScroll={artwork.onScroll}
+              onViewableItemsChanged={artwork.onViewableItemsChanged}
               key={tab}
               ref={(node) => {
                 scroll.current = node?.getNativeScrollRef() as ScrollView | null;
@@ -476,7 +485,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               }}
               ListHeaderComponent={
                 <View style={{ gap: 12 }}>
-                  {detailHeader}
+                  {artwork.header(detailHeader)}
                   {tab === "details" ? (
                     header
                   ) : (
@@ -493,7 +502,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                   </EmptyList>
                 ) : null
               }
-              renderItem={({ item }) => <EventTableCard table={item} context="event" />}
+              renderItem={({ item }) =>
+                artwork.row(item.id, <EventTableCard table={item} context="event" />)
+              }
               onEndReached={() => {
                 if (
                   tabRef.current === "tables" &&

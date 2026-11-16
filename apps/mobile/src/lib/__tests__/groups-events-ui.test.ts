@@ -64,7 +64,7 @@ it("resets header confirmation on access loss, preserves manual captured-version
   expect(identity).toContain("background=");
   expect(detail).toContain("<EventVoteLegend");
   expect(identity).toContain("seed={event.id}");
-  expect(identity).toContain('variant="constellation"');
+  expect(identity).toContain('variant="events"');
   expect(identity).toContain("icon={CalendarDays}");
   expect(identity).not.toContain("/group/[groupId]");
   expect(detail).toContain("<EventGroupLink");
@@ -98,7 +98,7 @@ it("keeps Table identity over the image and shares all compact controls with lis
   expect(indicators).not.toContain("The minimum is required for agreement.");
   expect(table).toContain('presentation="background"');
   expect(table).toContain("seed={table.id}");
-  expect(table).toContain('variant="planets"');
+  expect(table).toContain('variant="tables"');
   expect(table).toContain("icon={Dices}");
   expect(table).toContain("<EventTableCardIndicators");
   for (const token of [
@@ -120,7 +120,7 @@ it("shares one horizontal Table card across feeds with only Back context varying
   expect(card).toContain('context === "event"');
   expect(card).toContain('artworkLayout="cover"');
   expect(card).toContain('presentation="cover"');
-  expect(card).toContain('variant="planets"');
+  expect(card).toContain('variant="tables"');
   expect(card).toContain("leadingActions=");
   expect(card).not.toContain("<IconLegend");
   expect(source("events", "TableListHeading")).toContain("<IconLegend");

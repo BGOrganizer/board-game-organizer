@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import * as shared from "@board-game-organizer/shared";
@@ -11,6 +10,7 @@ import {
   plannedTable,
   seat,
 } from "../../../../web/src/test-fixtures/eventRecords";
+import { containedArtwork } from "../artworkLayout";
 import { cardStateMessages } from "../eventCardMessages";
 
 type Element = { type: unknown; props: Record<string, any> };
@@ -76,6 +76,13 @@ function component(file: string, name: string, modules: Record<string, unknown>)
         return { IconBadge: "IconBadge" };
       if (!(id in modules) && id === "@/components/common/ui/UserRoleBadge")
         return { UserRoleBadge: "UserRoleBadge" };
+      if (!(id in modules) && id === "@/lib/useArtworkListVisibility")
+        return {
+          useArtworkListVisibility: () => ({
+            header: (value: unknown) => value,
+            row: (_id: string, value: unknown) => value,
+          }),
+        };
       if (!(id in modules)) throw new Error(`Unexpected presentation dependency ${id}`);
       return modules[id];
     },
@@ -195,38 +202,6 @@ it.each([
     expect(list.props.ListEmptyComponent.props.children).toBe("No games found");
   },
 );
-it.each(["planets", "constellation", "landscape"])(
-  "preserves the original native %s illustration and colored sky in both compositions",
-  (variant) => {
-    const req = createRequire(import.meta.url);
-    const render = component("common/ui/AnimatedDicebearArtwork", "AnimatedDicebearArtwork", {
-      "@dicebear/core": req("@dicebear/core"),
-      ...Object.fromEntries(
-        ["planets", "constellation", "landscape", "shapes", "waves"].map((name) => [
-          `@dicebear/styles/${name}.json`,
-          req(`@dicebear/styles/${name}.json`),
-        ]),
-      ),
-      react: { useMemo: (fn: () => unknown) => fn(), useEffect: () => {} },
-      "react-native": { View: "View" },
-      "react-native-reanimated": {
-        __esModule: true,
-        default: { View: "Animated.View" },
-        useReducedMotion: () => false,
-        useSharedValue: () => ({ get: () => 0, set: () => {} }),
-        useAnimatedStyle: (fn: () => unknown) => fn(),
-      },
-      "react-native-svg": { SvgXml: "SvgXml" },
-    });
-    const cover = render({ seed: "stable", variant, presentation: "cover" });
-    const coverXml = cover.props.children.props.children.props.xml as string;
-    expect(cover.props.className).toBeUndefined();
-    expect(coverXml).toMatch(/<rect[^>]*\bfill=/);
-    const background = render({ seed: "stable", variant, presentation: "background" });
-    expect(background.props.children.props.children.props.xml).toMatch(/<rect[^>]*\bfill=/);
-    expect(background.props.children.props.children.props.xml).toBe(coverXml);
-  },
-);
 it("keeps the horizontal card artwork fixed and actions outside its stretched navigation target", () => {
   const render = component("common/ui/LinkedListCard", "LinkedListCard", {
     "heroui-native/card": { Card: { Body: "Card.Body" } },
@@ -274,15 +249,6 @@ it("lets field-help labels shrink beside fixed controls at large native font sca
   const tree = render({ label: "Impostazioni", help: "Existing help" });
   expect(tree.props.style).toMatchObject({ flexShrink: 1, minWidth: 0 });
   expect(tree.props.children[0].props.style.flexShrink).toBe(1);
-});
-it("fits whole list artwork without overscan while leaving background artwork unchanged", () => {
-  const source = readFileSync(
-    new URL("../../components/common/ui/AnimatedDicebearArtwork.tsx", import.meta.url),
-    "utf8",
-  );
-  expect(source).toContain('presentation === "cover" ? "xMidYMid meet" : "xMidYMid slice"');
-  expect(source).toContain('left: presentation === "cover" ? 4 : -4');
-  expect(source).toContain('{ right: 4, bottom: 4, borderRadius: 8, overflow: "hidden" }');
 });
 it("stretches artwork along the left edge and keeps controls on one full-width horizontal row", () => {
   const render = component("common/ui/LinkedListCard", "LinkedListCard", {
@@ -821,7 +787,7 @@ it.each([
   expect(row.props.name).toBe("@handle");
   expect(row.props.secondary).toBe(label);
 });
-it("places a full top-left title band and one bottom-right control row inside the background card", () => {
+it("keeps approved artwork unobstructed between the natural title band and bottom controls", () => {
   const render = component("common/ui/RecordIdentityCard", "RecordIdentityCard", {
     "heroui-native/text": { Typography: "Typography" },
     "react-native": { View: "View", ScrollView: "ScrollView" },
@@ -834,8 +800,18 @@ it("places a full top-left title band and one bottom-right control row inside th
     background: "Artwork",
     children: "Indicators",
   });
-  expect(tree.props.background).toBe("Artwork");
-  const [scope, toolbar] = tree.props.children.props.children;
+  expect(tree.props.background).toBeUndefined();
+  expect(tree.props.style).toEqual({ overflow: "hidden" });
+  expect(tree.props.children.props.style.minHeight).toBe(224);
+  const [scope, artwork, toolbar] = tree.props.children.props.children;
+  expect(artwork.props.testID).toBe("record-identity-artwork");
+  expect(artwork.props.children).toBe("Artwork");
+  expect(artwork.props.style).toEqual({
+    position: "relative",
+    width: "100%",
+    minHeight: 96,
+    flexGrow: 1,
+  });
   expect(scope.type).toBe("ScopedTheme");
   expect(scope.props.theme).toBe("dark");
   const heading = scope.props.children.type(scope.props.children.props);
@@ -1266,3 +1242,54 @@ it.each(["EventSchedulePopover", "EventTableSchedulePopover"] as const)(
     }
   },
 );
+
+it("keeps uploaded Group logos first and scopes URI failures to their own source", () => {
+  const values: any[] = [];
+  let cursor = 0;
+  const componentRender = component("groups/GroupArtwork", "GroupArtwork", {
+    react: {
+      useState: (initial: unknown) => {
+        const index = cursor++;
+        if (!(index in values)) values[index] = initial;
+        return [
+          values[index],
+          (value: any) => {
+            values[index] = typeof value === "function" ? value(values[index]) : value;
+          },
+        ];
+      },
+      useEffect: (effect: () => void) => effect(),
+    },
+    "react-native": { Image: "Image", View: "View" },
+    "lucide-react-native": { Crown: "Crown" },
+    "@/components/common/ui/AnimatedDicebearArtwork": { AnimatedDicebearArtwork: "Generated" },
+    "@/components/common/ui/PendingArtworkBadge": { PendingArtworkBadge: "Badge" },
+    "@/lib/artworkLayout": { containedArtwork },
+    "@/lib/i18n": { useT: () => (id: string) => id },
+  });
+  const render = (logo: string | null) => {
+    cursor = 0;
+    return componentRender({ group: { id: "same-group", logo, role: "admin" }, size: 96 });
+  };
+  const first = render("https://assets.example.test/a.png");
+  const a = first.props.children[0];
+  expect(a.type).toBe("Image");
+  expect(a.props.resizeMode).toBe("contain");
+  a.props.onError();
+  const fallback = render("https://assets.example.test/a.png");
+  expect(fallback.props.children[0].type).toBe("Generated");
+  expect(fallback.props.children[0].props).toMatchObject({
+    variant: "groups",
+    seed: "same-group",
+    size: 96,
+  });
+  const b = render("https://assets.example.test/b.png").props.children[0];
+  expect(b.type).toBe("Image");
+  a.props.onError();
+  a.props.onLoad({ nativeEvent: { source: { width: 300, height: 100 } } });
+  const current = render("https://assets.example.test/b.png");
+  expect(current.props.children[0].type).toBe("Image");
+  expect(current.props.children[0].props.source.uri).toBe("https://assets.example.test/b.png");
+  expect(current.props.children[1].props.children.props.color).toBe("warning");
+  expect(render(null).props.children[0].type).toBe("Generated");
+});

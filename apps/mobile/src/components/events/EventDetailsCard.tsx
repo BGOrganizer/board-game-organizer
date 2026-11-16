@@ -18,11 +18,7 @@ export function EventDetailsCard({
       title={event.name}
       icon={CalendarDays}
       background={
-        <AnimatedDicebearArtwork
-          seed={event.id}
-          variant="constellation"
-          presentation="background"
-        />
+        <AnimatedDicebearArtwork seed={event.id} variant="events" presentation="background" />
       }
     >
       <EventCardIndicators event={event} />

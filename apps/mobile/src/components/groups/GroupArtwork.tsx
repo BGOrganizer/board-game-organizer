@@ -1,7 +1,7 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { useThemeColor } from "heroui-native/hooks";
 import { Crown } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Image, View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
@@ -22,6 +22,8 @@ export function GroupArtwork({
     warning = useThemeColor("warning");
   const [frame, setFrame] = useState({ width: size, height: size });
   const [loaded, setLoaded] = useState({ uri: group.logo, ratio: 1 });
+  const [failedUri, setFailedUri] = useState<string>();
+  useEffect(() => setFailedUri((old) => (old === group.logo ? old : undefined)), [group.logo]);
   const dimensions = containedArtwork(
     frame.width,
     frame.height,
@@ -44,12 +46,13 @@ export function GroupArtwork({
         { alignItems: "center", justifyContent: "center" },
       ]}
     >
-      {group.logo ? (
+      {group.logo && failedUri !== group.logo ? (
         <Image
           key={group.logo}
           source={{ uri: group.logo }}
           resizeMode="contain"
           accessible={false}
+          onError={() => setFailedUri(group.logo ?? undefined)}
           onLoad={({ nativeEvent }) =>
             setLoaded({
               uri: group.logo,
@@ -61,7 +64,7 @@ export function GroupArtwork({
       ) : (
         <AnimatedDicebearArtwork
           seed={group.id}
-          variant="landscape"
+          variant="groups"
           size={size}
           presentation={presentation}
         />

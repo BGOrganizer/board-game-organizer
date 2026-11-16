@@ -72,6 +72,13 @@ function ranking() {
     "expo-constants": { default: { expoConfig: { extra: { apiUrl: "https://api.test" } } } },
     "@/lib/useSessionAuth": { useSessionAuth: () => ({ userId: "owned", getToken: vi.fn() }) },
     "@/lib/i18n": { useT: () => (text: string) => text },
+    "@/lib/useArtworkListVisibility": {
+      useArtworkListVisibility: () => ({
+        onLayout: vi.fn(),
+        onScroll: vi.fn(),
+        header: (node: unknown) => node,
+      }),
+    },
     "heroui-native/hooks": { useThemeColor: () => "muted" },
   };
   (modules["@board-game-organizer/shared"] as Record<string, unknown>).resolveApiUrl = (

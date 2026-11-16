@@ -37,6 +37,7 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
+import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupIdentityCard } from "./GroupIdentityCard";
@@ -51,6 +52,7 @@ export function GroupDetail({
   groupId: string;
   initialTab?: "info" | "members" | "events";
 }) {
+  const artwork = useArtworkListVisibility();
   const { i18n } = useLingui();
   const t = useT(),
     o = useCommunityApi(),
@@ -253,10 +255,12 @@ export function GroupDetail({
               <GroupLeaderboard groupId={group.id} header={detailHeader} />
             ) : (
               <ScreenScrollView
+                onLayout={artwork.onLayout}
+                onScroll={artwork.onScroll}
                 hasFloatingActions={group.canEdit && tab === "info"}
                 contentContainerStyle={{ paddingTop: 0 }}
               >
-                {detailHeader}
+                {artwork.header(detailHeader)}
                 <GroupDetailsCard group={group} identity={null} />
                 {bodyActions.length ? (
                   <GroupJoinRequest

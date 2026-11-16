@@ -41,7 +41,7 @@ export function EventTableCard({
         })
       }
       artworkLayout="cover"
-      artwork={<AnimatedDicebearArtwork seed={table.id} variant="planets" presentation="cover" />}
+      artwork={<AnimatedDicebearArtwork seed={table.id} variant="tables" presentation="cover" />}
       leadingActions={<EventTableCardIndicators table={table} />}
     >
       <ListCardBody
