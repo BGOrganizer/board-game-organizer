@@ -5,6 +5,7 @@
 | File | Display name | Responsibility |
 | --- | --- | --- |
 | [pr-ci.yml](workflows/pr-ci.yml) | CI | Route branch/PR events, run shared checks, then independent isolated CI and Development publication lanes. |
+| [mobile-debug.yml](workflows/mobile-debug.yml) | Android debug APK | Build an ARM64 development client for the current trusted PR and upload a separate diagnostic artifact. |
 | [main-ci.yml](workflows/main-ci.yml) | Release | Verify every merge, serialize version preparation, build the pinned APK, deploy and publish the verified release. |
 | [pr-ci-fail-fast.yml](workflows/pr-ci-fail-fast.yml) | CI watchdog | Cancel only shared-quality failures; keep lane-specific failures isolated. |
 | [pr-ci-cleanup.yml](workflows/pr-ci-cleanup.yml) | CI cleanup | Recover resources after an unsuccessful PR run, using trusted default-branch code. |

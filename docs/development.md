@@ -56,6 +56,14 @@ profile for a diagnostic native build, connect it to Metro (`bun run dev --max-w
 developer workstation. On the Raspberry keep the DevTools browser/device on another host and
 honor the [resource limit](../AGENTS.md#raspberry-resource-limits).
 
+The [Android debug APK workflow](../.github/workflows/mobile-debug.yml) uses that existing
+`development` profile, verifies the `.dev` package and Android's `debuggable` flag, then uploads
+`apk-debug-<source SHA>` as a seven-day Actions artifact. It resolves only an open, same-repository
+Development PR and rejects Production Clerk keys. It does not publish an OTA, release or Telegram
+message. Its branch-scoped push trigger bootstraps the workflow before default-branch registration;
+manual dispatch still follows GitHub's default-branch availability rules. JavaScript-only edits
+are served by Metro and do not trigger another diagnostic native build.
+
 Record first entry, cached reentry, subtab changes, opening/closing a popover, background refetch,
 and Back navigation for Groups, Events and Tables; include Contacts as a comparison. Save the
 trace with the source SHA, build mode, device, dataset size and cache state. Distinguish rerenders
