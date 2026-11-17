@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { InputFieldContext, InputScrollContext } from "@/lib/inputScrollContext";
+import { useListActivity } from "@/lib/listActivity";
 import { useInputScroll } from "@/lib/useInputScroll";
 import { useOptionalHeaderHeight } from "@/lib/useOptionalHeaderHeight";
 
@@ -23,6 +24,7 @@ export function InputScrollView({
   const list = useRef<ScrollView>(null);
   useImperativeHandle(ref, () => list.current!, []);
   const scroll = useInputScroll(() => list.current);
+  const isActive = useListActivity();
   const headerHeight = useOptionalHeaderHeight();
   const Component = (scroll.inSheet ? BottomSheetScrollView : ScrollView) as typeof ScrollView;
   const minHeight = StyleSheet.flatten(contentContainerStyle)?.minHeight;
@@ -38,7 +40,9 @@ export function InputScrollView({
     >
       <View
         ref={scroll.viewport}
-        onLayout={scroll.onLayout}
+        onLayout={(event) => {
+          if (isActive()) scroll.onLayout(event);
+        }}
         onTouchStart={scroll.touch}
         style={{ flexGrow: contentSized ? 0 : 1, flexShrink: 1 }}
       >
@@ -46,6 +50,13 @@ export function InputScrollView({
           <InputFieldContext.Provider value={null}>
             <Component
               {...props}
+              onLayout={
+                props.onLayout
+                  ? (event) => {
+                      if (isActive()) props.onLayout?.(event);
+                    }
+                  : undefined
+              }
               ref={list}
               style={{ flexGrow: contentSized ? 0 : 1, flexShrink: 1 }}
               bounces={props.bounces ?? (contentSized ? false : undefined)}
@@ -56,14 +67,17 @@ export function InputScrollView({
               keyboardShouldPersistTaps={props.keyboardShouldPersistTaps ?? "handled"}
               scrollEventThrottle={props.scrollEventThrottle ?? 16}
               onScroll={(event) => {
+                if (!isActive()) return;
                 scroll.onScroll(event);
                 onScroll?.(event);
               }}
               onContentSizeChange={(width, height) => {
+                if (!isActive()) return;
                 scroll.contentChanged();
                 props.onContentSizeChange?.(width, height);
               }}
               onScrollBeginDrag={(event) => {
+                if (!isActive()) return;
                 scroll.beginScroll();
                 props.onScrollBeginDrag?.(event);
               }}

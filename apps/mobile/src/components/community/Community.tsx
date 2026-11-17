@@ -3,6 +3,7 @@ import { Tabs } from "heroui-native/tabs";
 import { Activity, Store } from "lucide-react-native";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
+import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -33,7 +34,18 @@ export function Community() {
             <Tabs.Label numberOfLines={1}>{t("Marketplace")}</Tabs.Label>
           </TabTrigger>
         </MainTabBar>
-        {tab === "activity" ? <CommunityActivities /> : <CommunityMarketplace />}
+        <RetainedTabPanel
+          key={JSON.stringify([o.apiUrl, o.userId, "activity"])}
+          active={tab === "activity"}
+        >
+          <CommunityActivities />
+        </RetainedTabPanel>
+        <RetainedTabPanel
+          key={JSON.stringify([o.apiUrl, o.userId, "market"])}
+          active={tab === "market"}
+        >
+          <CommunityMarketplace />
+        </RetainedTabPanel>
       </Tabs>
     </View>
   );

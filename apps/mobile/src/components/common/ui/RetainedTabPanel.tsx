@@ -1,7 +1,7 @@
 import { Activity, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ListActivityContext } from "@/lib/listActivity";
 
-/** Keep visited detail views; hidden effects disconnect without discarding their UI state. */
+/** Keep visited tab views; hidden effects disconnect without discarding their UI state. */
 export function RetainedTabPanel({ active, children }: { active: boolean; children: ReactNode }) {
   const [visited, setVisited] = useState(active);
   const activity = useRef(active);

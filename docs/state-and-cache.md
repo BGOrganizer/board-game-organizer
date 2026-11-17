@@ -31,8 +31,9 @@ snapshot: finish the scan before syncing in the background.
 
 Apply the same bounded, cache-first navigation policy on web without adding a web splash.
 
-Native Group, Event and Table details mount a tab on first access and retain visited views with
-React Activity. Hidden views disconnect effects and Query observers; native scroll/layout/end
+Native main-list, Contacts, Community, Profile and resource-detail panels mount a tab on first
+access and retain visited views with React Activity. Hidden children disconnect their effects and
+Query observers; shared parent owners remain live. Native scroll/layout/end
 callbacks must also check their active-panel lease. Keep separate HeroUI tab roots for retained
 scroll containers, so hidden layout measurements cannot resize the visible tab bar. Scope retained
 views by API, user and resource, and remove panels when their permission or lifecycle no longer
@@ -42,6 +43,9 @@ List presentation windows reset on deactivation or owner changes while authorita
 remain cached. Reject callbacks from an earlier activation, including late fetch completions; reveal
 cached pages progressively again on reentry. Event Tables reset their presentation when leaving the
 Tables panel because their data hook belongs to the shared detail owner.
+Profile Collection additionally pins its published snapshot and is removed when collection access
+is revoked. Vote-category panels retain their list and validation owner while the consent form
+remains the single owner of votes, submission and validation attempts.
 
 Native Query data additionally persists through the mobile-only encrypted MMKV adapter. This is
 an application-wide default for eligible server data, not an optional per-screen optimization: new

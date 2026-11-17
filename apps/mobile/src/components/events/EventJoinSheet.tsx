@@ -7,7 +7,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, Dices, MapPin, UserRoundCheck } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
@@ -16,6 +16,7 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { InputField } from "@/components/common/ui/InputField";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
+import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -55,24 +56,6 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
     seenAttempt.current = form.validationAttempt;
     if (form.invalidChoice) setTab(form.invalidChoice.tab);
   }, [form.validationAttempt, form.invalidChoice]);
-  const validationScope = JSON.stringify([
-    o.apiUrl,
-    o.userId,
-    eventId,
-    tableId,
-    event?.version,
-    tab,
-  ]);
-  const validation = useValidationList({
-    scope: validationScope,
-    attempt: form.validationAttempt,
-    index: form.invalidChoice?.index,
-    active: form.invalidChoice?.tab === tab,
-  });
-  const invalidRow = (index: number) =>
-    form.validationAttempt > 0 &&
-    form.invalidChoice?.tab === tab &&
-    form.invalidChoice.index === index;
   const fixedSettings = event ? (
     <View style={{ gap: 12 }}>
       <FixedSettings event={event} table={form.tableQuery.isPlaceholderData ? undefined : table} />
@@ -140,115 +123,28 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
                       </TabTrigger>
                     ) : null}
                   </TabBar>
-                  {tab === "dates" ? (
-                    <InputFlatList
-                      key={validationScope}
-                      {...validation}
-                      ListHeaderComponent={fixedSettings}
-                      style={{ flex: 1 }}
-                      data={event.dates}
-                      keyExtractor={(row) => row.id}
-                      renderItem={({ item, index }) => (
-                        <InputField
-                          invalid={invalidRow(index)}
-                          className={
-                            invalidRow(index) ? "rounded-lg border border-danger" : undefined
-                          }
-                        >
-                          <GroupedRow>
-                            <View style={{ flex: 1 }}>
-                              <DateTimeInfo
-                                startsAt={eventLocalToIso(
-                                  eventDateWall(event, item),
-                                  event.timeZone,
-                                )}
-                                timeZone={event.timeZone}
-                              />
-                            </View>
-                            <EventVoteButtons
-                              inline
-                              label={eventDateWall(event, item).replace("T", " ")}
-                              value={form.votes.dateVotes[item.id]}
-                              busy={false}
-                              onChange={(vote) => form.choose("date", item.id, vote)}
-                            />
-                          </GroupedRow>
-                        </InputField>
-                      )}
-                    />
-                  ) : tab === "locations" ? (
-                    <InputFlatList
-                      key={validationScope}
-                      {...validation}
-                      ListHeaderComponent={fixedSettings}
-                      style={{ flex: 1 }}
-                      data={event.locations}
-                      keyExtractor={(row) => row.id}
-                      renderItem={({ item, index }) => (
-                        <InputField
-                          invalid={invalidRow(index)}
-                          className={
-                            invalidRow(index) ? "rounded-lg border border-danger" : undefined
-                          }
-                        >
-                          <LocationListRow
-                            name={item.name}
-                            address={item.address}
-                            actions={
-                              <EventVoteButtons
-                                inline
-                                label={item.name}
-                                value={form.votes.locationVotes[item.id]}
-                                busy={false}
-                                onChange={(vote) => form.choose("location", item.id, vote)}
-                              />
-                            }
-                          />
-                        </InputField>
-                      )}
-                    />
-                  ) : table ? (
-                    <InputFlatList
-                      key={validationScope}
-                      {...validation}
-                      ListHeaderComponent={fixedSettings}
-                      style={{ flex: 1 }}
-                      data={table.games}
-                      keyExtractor={(row) => String(row.gameId)}
-                      renderItem={({ item, index }) => {
-                        const game = table.gamesDetail.find((row) => row.id === item.gameId);
-                        return (
-                          <InputField
-                            invalid={invalidRow(index)}
-                            className={
-                              invalidRow(index) ? "rounded-lg border border-danger" : undefined
-                            }
-                          >
-                            <GameListRow
-                              year={game?.year}
-                              average={game?.average}
-                              rank={game?.rank}
-                              suggestedPlayers={game?.suggestedPlayers}
-                              durationMinutes={item.durationMinutes}
-                              name={game?.name ?? t("Unknown")}
-                              imageUrl={game?.imageUrl}
-                              actions={
-                                <EventVoteButtons
-                                  inline
-                                  label={game?.name ?? t("Unknown")}
-                                  value={form.votes.gameVotes[String(item.gameId)]}
-                                  busy={false}
-                                  onChange={(vote) =>
-                                    form.choose("game", String(item.gameId), vote)
-                                  }
-                                />
-                              }
-                            />
-                          </InputField>
-                        );
-                      }}
-                    />
-                  ) : null}
+                  {votingTabs.map((panel) => (
+                    <RetainedTabPanel
+                      key={JSON.stringify([
+                        o.apiUrl,
+                        o.userId,
+                        eventId,
+                        tableId,
+                        registrationId,
+                        panel,
+                      ])}
+                      active={tab === panel}
+                    >
+                      <JoinVoteList
+                        form={form}
+                        event={event}
+                        table={table}
+                        panel={panel}
+                        active={tab === panel}
+                        header={fixedSettings}
+                      />
+                    </RetainedTabPanel>
+                  ))}
                 </Tabs>
               ) : (
                 <InputFlatList
@@ -310,6 +206,142 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
       </BottomSheet.Portal>
     </BottomSheet>
   );
+}
+
+function JoinVoteList({
+  form,
+  event,
+  table,
+  panel,
+  active,
+  header: fixedSettings,
+}: {
+  form: ReturnType<typeof useEventJoinForm>;
+  event: PlannedEventResponse;
+  table: PlannedTableResponse | undefined;
+  panel: "dates" | "locations" | "games";
+  active: boolean;
+  header: ReactElement | null;
+}) {
+  const t = useT();
+  const o = useCommunityApi();
+  const validationScope = JSON.stringify([
+    o.apiUrl,
+    o.userId,
+    event.id,
+    table?.id,
+    event?.version,
+    panel,
+  ]);
+  const validation = useValidationList({
+    scope: validationScope,
+    attempt: form.validationAttempt,
+    index: form.invalidChoice?.index,
+    active: active && form.invalidChoice?.tab === panel,
+  });
+  const invalidRow = (index: number) =>
+    form.validationAttempt > 0 &&
+    active &&
+    form.invalidChoice?.tab === panel &&
+    form.invalidChoice.index === index;
+  return panel === "dates" ? (
+    <InputFlatList
+      key={validationScope}
+      {...validation}
+      ListHeaderComponent={fixedSettings}
+      style={{ flex: 1 }}
+      data={event.dates}
+      keyExtractor={(row) => row.id}
+      renderItem={({ item, index }) => (
+        <InputField
+          invalid={invalidRow(index)}
+          className={invalidRow(index) ? "rounded-lg border border-danger" : undefined}
+        >
+          <GroupedRow>
+            <View style={{ flex: 1 }}>
+              <DateTimeInfo
+                startsAt={eventLocalToIso(eventDateWall(event, item), event.timeZone)}
+                timeZone={event.timeZone}
+              />
+            </View>
+            <EventVoteButtons
+              inline
+              label={eventDateWall(event, item).replace("T", " ")}
+              value={form.votes.dateVotes[item.id]}
+              busy={false}
+              onChange={(vote) => form.choose("date", item.id, vote)}
+            />
+          </GroupedRow>
+        </InputField>
+      )}
+    />
+  ) : panel === "locations" ? (
+    <InputFlatList
+      key={validationScope}
+      {...validation}
+      ListHeaderComponent={fixedSettings}
+      style={{ flex: 1 }}
+      data={event.locations}
+      keyExtractor={(row) => row.id}
+      renderItem={({ item, index }) => (
+        <InputField
+          invalid={invalidRow(index)}
+          className={invalidRow(index) ? "rounded-lg border border-danger" : undefined}
+        >
+          <LocationListRow
+            name={item.name}
+            address={item.address}
+            actions={
+              <EventVoteButtons
+                inline
+                label={item.name}
+                value={form.votes.locationVotes[item.id]}
+                busy={false}
+                onChange={(vote) => form.choose("location", item.id, vote)}
+              />
+            }
+          />
+        </InputField>
+      )}
+    />
+  ) : table ? (
+    <InputFlatList
+      key={validationScope}
+      {...validation}
+      ListHeaderComponent={fixedSettings}
+      style={{ flex: 1 }}
+      data={table.games}
+      keyExtractor={(row) => String(row.gameId)}
+      renderItem={({ item, index }) => {
+        const game = table.gamesDetail.find((row) => row.id === item.gameId);
+        return (
+          <InputField
+            invalid={invalidRow(index)}
+            className={invalidRow(index) ? "rounded-lg border border-danger" : undefined}
+          >
+            <GameListRow
+              year={game?.year}
+              average={game?.average}
+              rank={game?.rank}
+              suggestedPlayers={game?.suggestedPlayers}
+              durationMinutes={item.durationMinutes}
+              name={game?.name ?? t("Unknown")}
+              imageUrl={game?.imageUrl}
+              actions={
+                <EventVoteButtons
+                  inline
+                  label={game?.name ?? t("Unknown")}
+                  value={form.votes.gameVotes[String(item.gameId)]}
+                  busy={false}
+                  onChange={(vote) => form.choose("game", String(item.gameId), vote)}
+                />
+              }
+            />
+          </InputField>
+        );
+      }}
+    />
+  ) : null;
 }
 
 function FixedSettings({

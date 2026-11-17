@@ -20,9 +20,11 @@ import { ActivityTypeSelect } from "@/components/activities/ActivityTypeSelect";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useT } from "@/lib/i18n";
+import { useListActivity } from "@/lib/listActivity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 export function CommunityActivities() {
   const muted = useThemeColor("muted");
+  const isActive = useListActivity();
   const t = useT(),
     { i18n } = useLingui(),
     o = useCommunityApi(),
@@ -48,8 +50,8 @@ export function CommunityActivities() {
   refresh.current = { stale: q.isStale, fetching: q.isFetching };
   useFocusEffect(
     useCallback(() => {
-      if (refresh.current.stale && !refresh.current.fetching) void refetch();
-    }, [refetch]),
+      if (isActive() && refresh.current.stale && !refresh.current.fetching) void refetch();
+    }, [refetch, isActive]),
   );
   return (
     <SectionList
@@ -73,7 +75,13 @@ export function CommunityActivities() {
         </Typography>
       )}
       onEndReached={() => {
-        if (!denied && q.hasNextPage && !q.isFetchingNextPage && !q.isFetchNextPageError)
+        if (
+          isActive() &&
+          !denied &&
+          q.hasNextPage &&
+          !q.isFetchingNextPage &&
+          !q.isFetchNextPageError
+        )
           void q.fetchNextPage();
       }}
       ListHeaderComponent={

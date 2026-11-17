@@ -44,7 +44,9 @@ export function InputSectionList<T, S = Record<string, unknown>>({
     >
       <View
         ref={scroll.viewport}
-        onLayout={scroll.onLayout}
+        onLayout={(event) => {
+          if (isActive()) scroll.onLayout(event);
+        }}
         onTouchStart={scroll.touch}
         style={{ flex: 1 }}
       >
@@ -52,6 +54,13 @@ export function InputSectionList<T, S = Record<string, unknown>>({
           <InputFieldContext.Provider value={null}>
             <Component
               {...props}
+              onLayout={
+                props.onLayout
+                  ? (event) => {
+                      if (isActive()) props.onLayout?.(event);
+                    }
+                  : undefined
+              }
               ref={list}
               style={{ flex: 1 }}
               keyboardShouldPersistTaps={props.keyboardShouldPersistTaps ?? "handled"}
@@ -100,6 +109,13 @@ export function InputSectionList<T, S = Record<string, unknown>>({
               onEndReached={(event) => {
                 if (isActive() && !focusScroll.current) props.onEndReached?.(event);
               }}
+              onScrollToIndexFailed={
+                props.onScrollToIndexFailed
+                  ? (event) => {
+                      if (isActive()) props.onScrollToIndexFailed?.(event);
+                    }
+                  : undefined
+              }
               contentContainerStyle={[
                 contentContainerStyle,
                 {

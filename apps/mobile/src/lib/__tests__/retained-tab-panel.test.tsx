@@ -107,6 +107,15 @@ it("does not mount an unvisited panel, and disconnects effects/queries while ret
   expect(connected).toHaveBeenCalledTimes(2);
   expect(fetch).toHaveBeenCalledOnce();
   expect(oldCallback()).toBe(true);
+  fetch.mockResolvedValueOnce("server-refresh");
+  await act(async () => {
+    await client.refetchQueries({ queryKey: ["retention", "owner-a"], exact: true });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  expect(button.textContent).toBe("owner-a:server-refresh:1");
+  expect(host.querySelector("button")).toBe(button);
+  expect(initialized).toHaveBeenCalledOnce();
+  expect(fetch).toHaveBeenCalledTimes(2);
 });
 
 it("evicts state for a changed owner and for revoked panel access", async () => {

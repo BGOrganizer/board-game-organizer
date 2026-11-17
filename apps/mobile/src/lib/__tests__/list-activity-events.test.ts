@@ -4,7 +4,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
 
-function callback(component: string, name: string, context: Record<string, unknown>) {
+function callback(component: string, name: string, context: Record<string, unknown>, tag?: string) {
   const text = readFileSync(
     new URL(
       `../../components/${component.includes("/") ? component : `common/ui/${component}`}.tsx`,
@@ -24,6 +24,10 @@ function callback(component: string, name: string, context: Record<string, unkno
     if (
       ts.isJsxAttribute(node) &&
       node.name.getText(file) === name &&
+      (!tag ||
+        ((ts.isJsxOpeningElement(node.parent.parent) ||
+          ts.isJsxSelfClosingElement(node.parent.parent)) &&
+          node.parent.parent.tagName.getText(file) === tag)) &&
       node.initializer &&
       ts.isJsxExpression(node.initializer)
     ) {
@@ -41,7 +45,7 @@ function callback(component: string, name: string, context: Record<string, unkno
   ) as (...args: unknown[]) => void;
 }
 
-it.each(["InputFlatList", "InputSectionList"])(
+it.each(["InputFlatList", "InputSectionList", "InputScrollView"])(
   "ignores hidden %s size events before focus scrolling or user callbacks",
   (component) => {
     let active = false;
@@ -213,3 +217,193 @@ for (const component of ["InputFlatList", "InputSectionList"]) {
     },
   );
 }
+
+it.each(["InputFlatList", "InputSectionList", "InputScrollView"])(
+  "ignores hidden %s viewport measurements and forwards active layout events unchanged",
+  (component) => {
+    let active = false;
+    const onLayout = vi.fn();
+    const handle = callback(
+      component,
+      "onLayout",
+      {
+        isActive: () => active,
+        scroll: { onLayout },
+      },
+      "View",
+    );
+    const event = { nativeEvent: { layout: { width: 200, height: 300 } } };
+    handle(event);
+    expect(onLayout).not.toHaveBeenCalled();
+    active = true;
+    handle(event);
+    expect(onLayout).toHaveBeenCalledExactlyOnceWith(event);
+    active = false;
+    handle(event);
+    expect(onLayout).toHaveBeenCalledOnce();
+  },
+);
+
+it.each(["InputFlatList", "InputSectionList", "InputScrollView"])(
+  "gates hidden %s scroll callbacks before focus bookkeeping or caller handlers",
+  (component) => {
+    let active = false;
+    const onScroll = vi.fn(),
+      user = vi.fn();
+    const handle = callback(component, "onScroll", {
+      isActive: () => active,
+      scroll: { onScroll },
+      onScroll: user,
+    });
+    const event = { nativeEvent: { contentOffset: { y: 80 } } };
+    handle(event);
+    expect(onScroll).not.toHaveBeenCalled();
+    expect(user).not.toHaveBeenCalled();
+    active = true;
+    handle(event);
+    expect(onScroll).toHaveBeenCalledExactlyOnceWith(event);
+    expect(user).toHaveBeenCalledExactlyOnceWith(event);
+    callback(component, "onScroll", {
+      isActive: () => true,
+      scroll: { onScroll },
+      onScroll: undefined,
+    })(event);
+    expect(onScroll).toHaveBeenCalledTimes(2);
+  },
+);
+
+it("keeps the active InputScrollView drag callback and rejects it while hidden", () => {
+  let active = false;
+  const beginScroll = vi.fn(),
+    user = vi.fn();
+  const handle = callback("InputScrollView", "onScrollBeginDrag", {
+    isActive: () => active,
+    scroll: { beginScroll },
+    props: { onScrollBeginDrag: user },
+  });
+  const event = { nativeEvent: { contentOffset: { y: 80 } } };
+  handle(event);
+  expect(beginScroll).not.toHaveBeenCalled();
+  expect(user).not.toHaveBeenCalled();
+  active = true;
+  handle(event);
+  expect(beginScroll).toHaveBeenCalledOnce();
+  expect(user).toHaveBeenCalledExactlyOnceWith(event);
+  callback("InputScrollView", "onScrollBeginDrag", {
+    isActive: () => true,
+    scroll: { beginScroll },
+    props: {},
+  })(event);
+  expect(beginScroll).toHaveBeenCalledTimes(2);
+});
+
+it("gates both the InputFlatList index failure fallback and the caller override", () => {
+  let active = false;
+  const scrollToOffset = vi.fn(),
+    user = vi.fn();
+  const context = {
+    isActive: () => active,
+    list: { current: { scrollToOffset } as { scrollToOffset: typeof scrollToOffset } | null },
+    props: {} as { onScrollToIndexFailed?: (...args: unknown[]) => void },
+  };
+  const handle = callback("InputFlatList", "onScrollToIndexFailed", context);
+  const event = { averageItemLength: 55, index: 3 };
+  handle(event);
+  expect(scrollToOffset).not.toHaveBeenCalled();
+  active = true;
+  handle(event);
+  expect(scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 165, animated: false });
+  context.props.onScrollToIndexFailed = user;
+  active = false;
+  handle(event);
+  expect(user).not.toHaveBeenCalled();
+  active = true;
+  handle(event);
+  expect(user).toHaveBeenCalledExactlyOnceWith(event);
+  expect(scrollToOffset).toHaveBeenCalledOnce();
+  context.list.current = null;
+  delete context.props.onScrollToIndexFailed;
+  handle(event);
+  expect(scrollToOffset).toHaveBeenCalledOnce();
+});
+
+it("gates a SectionList index failure callback without inventing a fallback when absent", () => {
+  let active = false;
+  const user = vi.fn();
+  const context = { isActive: () => active, props: { onScrollToIndexFailed: user } };
+  const handle = callback("InputSectionList", "onScrollToIndexFailed", context);
+  const event = { averageItemLength: 55, index: 3 };
+  handle(event);
+  expect(user).not.toHaveBeenCalled();
+  active = true;
+  handle(event);
+  expect(user).toHaveBeenCalledExactlyOnceWith(event);
+  expect(
+    callback("InputSectionList", "onScrollToIndexFailed", {
+      isActive: () => true,
+      props: {},
+    }),
+  ).toBeUndefined();
+});
+
+it("does not consume a notification scroll target while hidden or after an asynchronous measurement hides", () => {
+  let active = false;
+  let measured: ((_x: number, y: number) => void) | undefined;
+  const scrollTo = vi.fn();
+  const measureLayout = vi.fn((_node: unknown, result: typeof measured) => {
+    measured = result;
+  });
+  const context = {
+    isActive: () => active,
+    requested: "target",
+    itemId: "target",
+    target: { id: "target" },
+    positioned: { current: null as string | null },
+    scroll: { current: { getInnerViewNode: () => "scroll-node", scrollTo } },
+    ref: { current: { measureLayout } },
+  };
+  const finishMeasurement = (y: number) => {
+    if (!measured) throw Error("Expected native measurement callback");
+    measured(0, y);
+  };
+  const handle = callback("notifications/NotificationItem", "onLayout", context);
+  handle();
+  expect(measureLayout).not.toHaveBeenCalled();
+  active = true;
+  handle();
+  expect(measureLayout).toHaveBeenCalledOnce();
+  active = false;
+  finishMeasurement(100);
+  expect(scrollTo).not.toHaveBeenCalled();
+  expect(context.positioned.current).toBeNull();
+  active = true;
+  handle();
+  finishMeasurement(100);
+  expect(context.positioned.current).toBe("target");
+  expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 84, animated: false });
+  handle();
+  expect(measureLayout).toHaveBeenCalledTimes(2);
+  context.positioned.current = null;
+  context.requested = "different";
+  handle();
+  expect(measureLayout).toHaveBeenCalledTimes(2);
+});
+
+it.each(["InputFlatList", "InputSectionList", "InputScrollView"])(
+  "gates %s caller layout events independently of its viewport measurements",
+  (component) => {
+    let active = false;
+    const user = vi.fn();
+    const context = { isActive: () => active, props: { onLayout: user } };
+    const handle = callback(component, "onLayout", context, "Component");
+    const event = { nativeEvent: { layout: { width: 200, height: 300 } } };
+    handle(event);
+    expect(user).not.toHaveBeenCalled();
+    active = true;
+    handle(event);
+    expect(user).toHaveBeenCalledExactlyOnceWith(event);
+    expect(
+      callback(component, "onLayout", { isActive: () => true, props: {} }, "Component"),
+    ).toBeUndefined();
+  },
+);

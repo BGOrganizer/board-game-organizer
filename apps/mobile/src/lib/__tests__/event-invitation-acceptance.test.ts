@@ -37,6 +37,7 @@ function render(
     {
       props,
       TabTrigger: "tab",
+      RetainedTabPanel: "retained-panel",
       useRef: (value: unknown) => ({ current: value }),
       useEffect: (effect: () => void) => effect(),
       useValidationList: () => ({}),
@@ -58,6 +59,9 @@ function nodes(value: unknown): Tree[] {
   if (Array.isArray(value)) return value.flatMap(nodes);
   if (!value || typeof value !== "object" || !("props" in value)) return [];
   const node = value as Tree;
+  if (node.type === "retained-panel" && !node.props.active) return [node];
+  if (typeof node.type === "function" && node.type.name === "JoinVoteList")
+    return [node, ...nodes(node.type(node.props))];
   return [node, ...nodes(node.props.children)];
 }
 it.each([false, true])(
@@ -198,6 +202,9 @@ it.each(Array.from({ length: 16 }, (_, value) => [value % 8, value >= 8] as cons
         .filter((n) => n.type === "tab")
         .map((n) => n.props.value),
     ).toEqual(votingTabs);
+    const panels = nodes(tree).filter((node) => node.type === "retained-panel");
+    expect(panels).toHaveLength(votingTabs.length);
+    expect(panels.filter((panel) => panel.props.active)).toHaveLength(votingTabs.length ? 1 : 0);
     expect(
       nodes(tree)
         .filter((n) => n.type === "tab")

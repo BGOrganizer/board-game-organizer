@@ -133,6 +133,21 @@ tags: [manual, performance, navigation]
       - assertVisible:
           id: top-tab-player
           selected: true
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-collection
+      - assertVisible:
+          id: profile-collection-filter
+      - scrollUntilVisible:
+          element:
+            id: top-tab-activity
+          direction: UP
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-activity
+      - assertVisible:
+          id: top-tab-activity
+          selected: true
 - back
 - assertVisible:
     id: main-tab-contacts

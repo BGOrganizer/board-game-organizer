@@ -13,12 +13,12 @@ const file = ts.createSourceFile(
   true,
   ts.ScriptKind.TSX,
 );
-function prop(name: string) {
+function prop(name: string, tag = "MemoizedGroupList") {
   let expression = "";
   function visit(node: ts.Node) {
     if (
       (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) &&
-      node.tagName.getText(file) === "MemoizedGroupList"
+      node.tagName.getText(file) === tag
     ) {
       const value = node.attributes.properties
         .filter(ts.isJsxAttribute)
@@ -40,7 +40,10 @@ it.each([
   (section, scope, type) => {
     expect(runInNewContext(prop("scope"), { section })).toBe(scope);
     expect(runInNewContext(prop("type"), { section })).toBe(type);
-    expect(runInNewContext(prop("key"), { section })).toBe(section);
+    const options = { apiUrl: "https://owned-preview.test", userId: "owner" };
+    expect(runInNewContext(prop("key", "RetainedTabPanel"), { section, options })).toBe(
+      JSON.stringify([options.apiUrl, options.userId, section]),
+    );
   },
 );
 it("includes pending invitations in typed owned tabs, without treating requests as membership", () => {

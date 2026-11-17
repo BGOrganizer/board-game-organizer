@@ -6,10 +6,12 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
 import { Gamepad2, LibraryBig, UsersRound } from "lucide-react-native";
-import { ScrollView, View } from "react-native";
+import { useCallback } from "react";
+import { Keyboard, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
+import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -45,6 +47,15 @@ export function Profile({ userId }: { userId?: string }) {
   const storedTab = useAppStore((s) => s.profileViews[viewKey]?.tab ?? "activity"),
     setView = useAppStore((s) => s.setProfileView);
   const tab = storedTab === "collection" && !active ? "activity" : storedTab;
+  const changeTab = useCallback(
+    (value: string) => {
+      if (value === tab) return;
+      if (value !== "activity" && value !== "player" && !(active && value === "collection")) return;
+      Keyboard.dismiss();
+      setView(viewKey, { tab: value });
+    },
+    [active, tab, setView, viewKey],
+  );
   const data = communityAccessDenied(q.error) ? undefined : q.data;
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 });
   const header = (
@@ -76,13 +87,7 @@ export function Profile({ userId }: { userId?: string }) {
       ) : null}
       {own ? <ProfileBggCard bgg={bgg} /> : null}
       {data ? (
-        <Tabs
-          value={tab}
-          onValueChange={(value) => {
-            if (value === "activity" || value === "player" || (active && value === "collection"))
-              setView(viewKey, { tab: value });
-          }}
-        >
+        <Tabs value={tab} onValueChange={changeTab}>
           <MainTabBar>
             <TabTrigger icon={UsersRound} value="activity" style={tabStyle}>
               <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
@@ -103,53 +108,79 @@ export function Profile({ userId }: { userId?: string }) {
       ) : null}
     </View>
   );
-  if (data && tab === "collection" && active)
+  if (!data)
     return (
-      <ProfileCollection
-        key={`${viewKey}:${active.snapshot}`}
-        snapshot={active.snapshot}
-        counts={active.counts}
-        subjectId={subject}
-        viewerSnapshot={
-          communityAccessDenied(bgg.account.error) ? undefined : bgg.account.data?.active?.snapshot
-        }
-        header={header}
-      />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24, gap: 16 }}
+      >
+        {header}
+        {own ? <ProfileLogout /> : null}
+      </ScrollView>
     );
   return (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24, gap: 16 }}
-    >
-      {header}
-      {data && tab === "activity" ? (
-        <>
-          <ProfileStats
-            items={[
-              { label: t("Friends"), value: number.format(data.social.friends) },
-              { label: t("Followers"), value: number.format(data.social.followers) },
-              { label: t("Following"), value: number.format(data.social.following) },
-            ]}
+    <View style={{ flex: 1 }}>
+      {(["activity", "player"] as const).map((panel) => (
+        <RetainedTabPanel
+          key={JSON.stringify([o.apiUrl, o.userId, subject, panel])}
+          active={tab === panel}
+        >
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24, gap: 16 }}
+          >
+            {header}
+            {panel === "activity" ? (
+              <>
+                <ProfileStats
+                  items={[
+                    { label: t("Friends"), value: number.format(data.social.friends) },
+                    { label: t("Followers"), value: number.format(data.social.followers) },
+                    { label: t("Following"), value: number.format(data.social.following) },
+                  ]}
+                />
+                <ProfileRecentActivities userId={subject} author={data} />
+              </>
+            ) : (
+              <>
+                <ProfileStats
+                  items={[
+                    { label: t("Games played"), value: number.format(data.player.gamesPlayed) },
+                    { label: t("Games won"), value: number.format(data.player.gamesWon) },
+                    {
+                      label: t("Win percentage"),
+                      value:
+                        data.player.winRate === null
+                          ? "—"
+                          : `${number.format(data.player.winRate)}%`,
+                    },
+                  ]}
+                />
+                <ProfilePlayer userId={subject} viewKey={viewKey} />
+              </>
+            )}
+            {own ? <ProfileLogout /> : null}
+          </ScrollView>
+        </RetainedTabPanel>
+      ))}
+      {active ? (
+        <RetainedTabPanel
+          key={JSON.stringify([o.apiUrl, o.userId, subject, "collection", active.snapshot])}
+          active={tab === "collection"}
+        >
+          <ProfileCollection
+            snapshot={active.snapshot}
+            counts={active.counts}
+            subjectId={subject}
+            viewerSnapshot={
+              communityAccessDenied(bgg.account.error)
+                ? undefined
+                : bgg.account.data?.active?.snapshot
+            }
+            header={header}
           />
-          <ProfileRecentActivities userId={subject} author={data} />
-        </>
-      ) : data && tab === "player" ? (
-        <>
-          <ProfileStats
-            items={[
-              { label: t("Games played"), value: number.format(data.player.gamesPlayed) },
-              { label: t("Games won"), value: number.format(data.player.gamesWon) },
-              {
-                label: t("Win percentage"),
-                value:
-                  data.player.winRate === null ? "—" : `${number.format(data.player.winRate)}%`,
-              },
-            ]}
-          />
-          <ProfilePlayer userId={subject} viewKey={viewKey} />
-        </>
+        </RetainedTabPanel>
       ) : null}
-      {own ? <ProfileLogout /> : null}
-    </ScrollView>
+    </View>
   );
 }

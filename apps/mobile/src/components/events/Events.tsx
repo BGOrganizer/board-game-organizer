@@ -1,9 +1,9 @@
 import type { EventListSection } from "@board-game-organizer/schemas";
 import { Tabs } from "heroui-native/tabs";
 import { CalendarCheck, CalendarSearch, Flag } from "lucide-react-native";
-import { memo, type ReactNode, useDeferredValue, useState } from "react";
-import { View } from "react-native";
+import { memo, type ReactNode, useState } from "react";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
+import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
@@ -27,8 +27,6 @@ export function Events({
   const t = useT();
   const options = useCommunityApi();
   const [selectedSection, setSection] = useState<EventListSection>(initialSection);
-  const section = useDeferredValue(selectedSection);
-  const pending = selectedSection !== section;
   if (groupId) return <EventList groupId={groupId} canCreate={canCreate} header={header} />;
   return (
     <NotificationAttentionScope
@@ -65,15 +63,14 @@ export function Events({
             <NotificationTabBadge target={{ kind: "event-list", id: "terminated" }} />
           </TabTrigger>
         </MainTabBar>
-        <View
-          style={{ flex: 1 }}
-          pointerEvents={pending ? "none" : "auto"}
-          accessibilityElementsHidden={pending}
-          importantForAccessibility={pending ? "no-hide-descendants" : "auto"}
-          accessibilityState={{ busy: pending }}
-        >
-          <MemoizedEventList key={section} section={section} canCreate={canCreate} />
-        </View>
+        {(["mine", "available", "terminated"] as const).map((section) => (
+          <RetainedTabPanel
+            key={JSON.stringify([options.apiUrl, options.userId, groupId, section])}
+            active={selectedSection === section}
+          >
+            <MemoizedEventList section={section} canCreate={canCreate} />
+          </RetainedTabPanel>
+        ))}
       </Tabs>
     </NotificationAttentionScope>
   );

@@ -7,6 +7,7 @@ type Hooks = {
   useState: (value: unknown) => [unknown, (next: unknown) => void];
   useMemo: (factory: () => unknown, deps: unknown[]) => unknown;
   useCallback: (callback: unknown, deps: unknown[]) => unknown;
+  useEffect: (callback: () => () => void, deps: unknown[]) => void;
 };
 const runtime = vi.hoisted(() => ({ current: undefined as Hooks | undefined }));
 vi.mock("react", async (original) => ({
@@ -15,6 +16,8 @@ vi.mock("react", async (original) => ({
   useState: (value: unknown) => runtime.current?.useState(value),
   useMemo: (factory: () => unknown, deps: unknown[]) => runtime.current?.useMemo(factory, deps),
   useCallback: (callback: unknown, deps: unknown[]) => runtime.current?.useCallback(callback, deps),
+  useEffect: (callback: () => () => void, deps: unknown[]) =>
+    runtime.current?.useEffect(callback, deps),
 }));
 // Exercise the real headless hook with deterministic React state scheduling, not UI frame timing.
 function harness() {
@@ -22,6 +25,8 @@ function harness() {
     refs: { current: unknown }[] = [];
   const memos: { value: unknown; deps: unknown[] }[] = [],
     deferred: (() => void)[] = [];
+  const effects: { deps: unknown[]; cleanup: () => void }[] = [];
+  let effectIndex = 0;
   let stateIndex = 0,
     refIndex = 0,
     memoIndex = 0,
@@ -79,12 +84,20 @@ function harness() {
         },
       ];
     },
+    useEffect: (callback, deps) => {
+      const index = effectIndex++;
+      const previous = effects[index];
+      if (!previous || deps.some((value, i) => !Object.is(value, previous.deps[i]))) {
+        previous?.cleanup();
+        effects[index] = { deps, cleanup: callback() };
+      }
+    },
     useMemo: memo,
     useCallback: (callback, deps) => memo(() => callback, deps),
   };
   const render = () => {
     for (let pass = 0; pass < 4; pass++) {
-      stateIndex = refIndex = memoIndex = 0;
+      stateIndex = refIndex = memoIndex = effectIndex = 0;
       changed = false;
       runtime.current = hooks;
       // biome-ignore lint/correctness/useHookAtTopLevel: React is mocked; each pass simulates a complete render with the same hook order.
@@ -97,6 +110,9 @@ function harness() {
     options,
     render,
     deferred,
+    deactivate: () => {
+      for (const effect of effects) effect.cleanup();
+    },
     defer: () => {
       defer = true;
     },
@@ -169,6 +185,17 @@ it("does not apply a lower-priority old-source updater after a new owner reset",
   h.options.scope = "second";
   expect(h.render().items).toHaveLength(8);
   h.deferred[1](); // Higher-priority owner reset commits before the deferred old update.
+  h.deferred[0]();
+  expect(h.render().items).toHaveLength(8);
+});
+
+it("rejects an old activation updater queued before hide but applied after the presentation reset", () => {
+  const h = harness();
+  const old = h.render();
+  h.defer();
+  old.loadMore();
+  h.deactivate();
+  h.deferred[1](); // Cleanup reset wins before the older deferred expansion.
   h.deferred[0]();
   expect(h.render().items).toHaveLength(8);
 });

@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { useT } from "@/lib/i18n";
+import { useListActivity } from "@/lib/listActivity";
 
 type Model = ReturnType<typeof useNotificationChanges>;
 const key = (row: NotificationChangeRow) => `${row.notificationId}:${row.itemId ?? "generic"}`;
@@ -27,6 +28,7 @@ const ChangeRow = memo(function ChangeRow({ row }: { row: NotificationChangeRow 
 /** Opening is informational; only the explicit resource action acknowledges changes. */
 export function NotificationChangesPopover({ model }: { model: Model }) {
   const t = useT();
+  const isActive = useListActivity();
   const [dangerForeground, foreground] = useThemeColor([
     "danger-soft-foreground",
     "default-foreground",
@@ -44,6 +46,7 @@ export function NotificationChangesPopover({ model }: { model: Model }) {
     model.changes.length > 0 || Object.values(model.tabCounts).some((count) => count > 0);
   const more = useCallback(() => {
     if (
+      isActive() &&
       open &&
       model.hasNextPage &&
       !model.isFetchingNextPage &&
@@ -52,6 +55,7 @@ export function NotificationChangesPopover({ model }: { model: Model }) {
     )
       void model.fetchNextPage();
   }, [
+    isActive,
     open,
     model.hasNextPage,
     model.isFetchingNextPage,

@@ -172,7 +172,11 @@ it.each(containers)("%s handles screen, headerless screen, portal and sheet cont
         expect(h.list.props.keyboardShouldPersistTaps).toBe("handled");
         expect(h.list.props.scrollEventThrottle).toBe(16);
         expect(h.viewport.props.ref).toBe(h.scroll.viewport);
-        expect(h.viewport.props.onLayout).toBe(h.scroll.onLayout);
+        const layoutEvent = { nativeEvent: { layout: { width: 200, height: 300 } } };
+        const onLayout = h.viewport.props.onLayout;
+        if (typeof onLayout !== "function") throw Error("Missing viewport layout callback");
+        onLayout(layoutEvent);
+        expect(h.scroll.onLayout).toHaveBeenCalledExactlyOnceWith(layoutEvent);
         expect(h.viewport.props.onTouchStart).toBe(h.scroll.touch);
         expect(h.owner.props.value).toBe(h.scroll.owner);
         expect(h.field.props.value).toBeNull();

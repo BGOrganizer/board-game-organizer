@@ -41,6 +41,7 @@ function harness(overrides: Record<string, unknown> = {}) {
   let cursor = 0;
   const effects: (() => void)[] = [];
   const dimensions = { width: 400, height: 700 };
+  const activity = { current: true };
   const modules: Record<string, unknown> = {
     react: {
       memo: (fn: unknown) => fn,
@@ -69,6 +70,7 @@ function harness(overrides: Record<string, unknown> = {}) {
     "lucide-react-native": { Bell: "Bell", CheckCheck: "CheckCheck", RotateCcw: "RotateCcw" },
     "@/components/common/ui/HelpPopover": { HelpPopover: "HelpPopover" },
     "@/components/common/ui/NotificationUnreadDot": { NotificationUnreadDot: "UnreadDot" },
+    "@/lib/listActivity": { useListActivity: () => () => activity.current },
     "@/lib/i18n": { useT: () => (message: string) => message },
   };
   const out: Record<string, (props: unknown) => Element> = {};
@@ -108,7 +110,7 @@ function harness(overrides: Record<string, unknown> = {}) {
     render().props.onOpenChange(true);
     return render();
   };
-  return { model, dimensions, render, open, find, effects };
+  return { model, dimensions, render, open, find, effects, activity };
 }
 
 it("uses a warning card control with an internal danger dot and one explicit resource read action", () => {
@@ -292,4 +294,21 @@ it("formats row categories/current labels and invitation hints without making ro
     ).toEqual([row.title, row.description]);
   }
   expect(h.model.markAllAsRead).not.toHaveBeenCalled();
+});
+
+it("ignores late popover end events while hidden without acknowledging notifications", () => {
+  const h = harness({ hasNextPage: true });
+  const list = h.find(h.open(), "FlatList");
+  h.activity.current = false;
+  for (const effect of h.effects) effect();
+  list.props.onEndReached();
+  expect(h.model.fetchNextPage).not.toHaveBeenCalled();
+  h.activity.current = true;
+  list.props.onEndReached();
+  expect(h.model.fetchNextPage).toHaveBeenCalledOnce();
+  h.activity.current = false;
+  list.props.onEndReached();
+  expect(h.model.fetchNextPage).toHaveBeenCalledOnce();
+  expect(h.model.markAllAsRead).not.toHaveBeenCalled();
+  expect(h.model.markDisplayedAsRead).not.toHaveBeenCalled();
 });

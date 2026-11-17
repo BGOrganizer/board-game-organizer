@@ -46,7 +46,9 @@ export function InputFlatList<T>({
     >
       <View
         ref={scroll.viewport}
-        onLayout={scroll.onLayout}
+        onLayout={(event) => {
+          if (isActive()) scroll.onLayout(event);
+        }}
         onTouchStart={scroll.touch}
         style={{ flex: 1 }}
       >
@@ -54,6 +56,13 @@ export function InputFlatList<T>({
           <InputFieldContext.Provider value={null}>
             <Component
               {...props}
+              onLayout={
+                props.onLayout
+                  ? (event) => {
+                      if (isActive()) props.onLayout?.(event);
+                    }
+                  : undefined
+              }
               ref={list}
               style={{ flex: 1 }}
               keyboardShouldPersistTaps={props.keyboardShouldPersistTaps ?? "handled"}
@@ -111,15 +120,15 @@ export function InputFlatList<T>({
                   ),
                 },
               ]}
-              onScrollToIndexFailed={
-                props.onScrollToIndexFailed ??
-                ((event) => {
+              onScrollToIndexFailed={(event) => {
+                if (!isActive()) return;
+                if (props.onScrollToIndexFailed) props.onScrollToIndexFailed(event);
+                else
                   list.current?.scrollToOffset({
                     offset: event.averageItemLength * event.index,
                     animated: false,
                   });
-                })
-              }
+              }}
             />
           </InputFieldContext.Provider>
         </InputScrollContext.Provider>

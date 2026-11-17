@@ -128,10 +128,13 @@ it.each([
       },
     });
     const allowed = published && !denied;
-    const choose = evaluate(attribute("Profile", "Tabs", "onValueChange"), {
+    const choose = evaluate(initializer("Profile", "changeTab"), {
       active,
+      tab: "activity",
       setView,
       viewKey: "scope",
+      useCallback: (callback: unknown) => callback,
+      Keyboard: { dismiss: vi.fn() },
     });
     choose("collection");
     expect(setView).toHaveBeenCalledTimes(allowed ? 1 : 0);

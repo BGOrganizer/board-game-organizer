@@ -4,8 +4,10 @@ import { type ReactNode, useContext, useRef } from "react";
 import { View } from "react-native";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
+import { useListActivity } from "@/lib/listActivity";
 
 export function NotificationItem({ itemId, children }: { itemId?: string; children?: ReactNode }) {
+  const isActive = useListActivity();
   const attention = useNotificationAttentionContext(),
     scroll = useContext(ScrollTargetContext);
   const { attention: requested } = useLocalSearchParams<{ attention?: string }>();
@@ -26,8 +28,15 @@ export function NotificationItem({ itemId, children }: { itemId?: string; childr
         alignItems: "center",
       }}
       onLayout={() => {
-        if (requested !== itemId || positioned.current === requested || !scroll?.current) return;
+        if (
+          !isActive() ||
+          requested !== itemId ||
+          positioned.current === requested ||
+          !scroll?.current
+        )
+          return;
         ref.current?.measureLayout(scroll.current.getInnerViewNode(), (_x, y) => {
+          if (!isActive()) return;
           positioned.current = target.id;
           scroll.current?.scrollTo({ y: Math.max(0, y - 16), animated: false });
         });

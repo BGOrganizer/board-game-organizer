@@ -154,6 +154,7 @@ it.each(["ios", "android"])(
               InputScrollContext: { Provider: "Owner" },
               InputFieldContext: { Provider: "Field" },
             },
+            "@/lib/listActivity": { useListActivity: () => () => true },
             "@/lib/useOptionalHeaderHeight": { useOptionalHeaderHeight: () => 0 },
             "@/lib/useInputScroll": {
               useInputScroll: () => ({
@@ -232,6 +233,7 @@ it.each([
         InputScrollContext: { Provider: "Owner" },
         InputFieldContext: { Provider: "Field" },
       },
+      "@/lib/listActivity": { useListActivity: () => () => true },
       "@/lib/useOptionalHeaderHeight": { useOptionalHeaderHeight: () => 0 },
       "@/lib/useInputScroll": {
         useInputScroll: () => ({

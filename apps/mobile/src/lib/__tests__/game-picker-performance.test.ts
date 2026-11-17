@@ -20,6 +20,7 @@ type TestHooks = {
   useRef: (initial: unknown) => unknown;
   useMemo: (factory: () => unknown, deps: unknown[]) => unknown;
   useCallback: (callback: unknown, deps: unknown[]) => unknown;
+  useEffect: (effect: () => void | (() => void), deps: unknown[]) => void;
 };
 const hooks = vi.hoisted(() => ({ current: undefined as TestHooks | undefined }));
 vi.mock("react", async (original) => ({
@@ -28,6 +29,8 @@ vi.mock("react", async (original) => ({
   useRef: (initial: unknown) => hooks.current?.useRef(initial),
   useMemo: (factory: () => unknown, deps: unknown[]) => hooks.current?.useMemo(factory, deps),
   useCallback: (callback: unknown, deps: unknown[]) => hooks.current?.useCallback(callback, deps),
+  useEffect: (effect: () => void | (() => void), deps: unknown[]) =>
+    hooks.current?.useEffect(effect, deps),
 }));
 
 // Execute real application derivation/callbacks without loading RN Flow modules.
@@ -76,10 +79,12 @@ function harness(pageCount = 3) {
     refs: { current: unknown }[] = [],
     memos: MemoSlot[] = [],
     callbacks: MemoSlot[] = [];
+  const effects: { deps: unknown[]; cleanup: void | (() => void) }[] = [];
   let stateIndex = 0,
     refIndex = 0,
     memoIndex = 0,
     callbackIndex = 0,
+    effectIndex = 0,
     changed = false;
   let timer: (() => void) | undefined;
   const auth = {
@@ -165,7 +170,14 @@ function harness(pageCount = 3) {
     useMemo: (factory: () => unknown, deps: unknown[]) => memo(memos, memoIndex++, factory, deps),
     useCallback: (callback: unknown, deps: unknown[]) =>
       memo(callbacks, callbackIndex++, () => callback, deps),
-    useEffect: (effect: () => void) => effect(),
+    useEffect: (effect: () => void | (() => void), deps: unknown[]) => {
+      const index = effectIndex++;
+      const previous = effects[index];
+      if (!previous || !same(previous.deps, deps)) {
+        previous?.cleanup?.();
+        effects[index] = { deps, cleanup: effect() };
+      }
+    },
     setTimeout: (callback: () => void, delay: number) => {
       expect(delay).toBe(300);
       timer = callback;
@@ -192,7 +204,7 @@ function harness(pageCount = 3) {
   };
   const render = (): Node => {
     for (let i = 0; i < 5; i++) {
-      stateIndex = refIndex = memoIndex = callbackIndex = 0;
+      stateIndex = refIndex = memoIndex = callbackIndex = effectIndex = 0;
       changed = false;
       hooks.current = context;
       const node = runInNewContext(code, context) as Node;
@@ -217,6 +229,12 @@ function harness(pageCount = 3) {
       return render();
     },
     debounce: () => timer?.(),
+    cleanup: () => {
+      for (const effect of effects) {
+        effect.cleanup?.();
+        effect.cleanup = undefined;
+      }
+    },
   };
 }
 it("memoizes the actual identity/action row while retaining artwork, metadata and its labeled 44px action", () => {
@@ -547,3 +565,18 @@ it.each([
     ).toBe(false);
   },
 );
+
+it("disconnects the real paging activation and rejects late native end/accessibility callbacks", () => {
+  const h = harness(3);
+  const first = h.render();
+  first.props.onScrollBeginDrag();
+  first.props.onEndReached();
+  expect(h.render().props.data).toHaveLength(16);
+  h.cleanup();
+  first.props.onScrollBeginDrag();
+  first.props.onEndReached();
+  first.props.onAccessibilityAction({ nativeEvent: { actionName: "increment" } });
+  expect(h.render().props.data).toHaveLength(8);
+  expect(h.picker.data.pages).toHaveLength(3);
+  expect(h.picker.fetchNextPage).not.toHaveBeenCalled();
+});
