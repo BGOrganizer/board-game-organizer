@@ -1,0 +1,67 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Retained Event Tables scroll and reentry
+# Read-only existing owned PRIVATE PLANNING fixture with 20 Tables.
+# Before running, verify the authenticated actor/API and exact fixture relationship.
+# NAVIGATION_BUILD_ACK=owned-preview-build; NAVIGATION_FIXTURE_ACK=owned-private-planning-event
+# NAVIGATION_API_URL=verified Preview URL; NAVIGATION_LOCALE=en|it
+# NAVIGATION_REENTRY_INPUT JSON: groupId, eventId, targetTableId, groupName,
+# eventName, targetTableName, tableCount=20. Target must already exist in that Event.
+# No writes, votes, registrations, invitations or notification acknowledgments.
+# The target is explicitly selected; its canonical sort position is not assumed.
+# This exercises native scroll/reentry, NOT a second canonical page: Event Tables
+# are capped at 20 and the shipping query requests 20 per page. Multipage cache
+# retention and bounded presentation reset are covered by useRecordListWindow tests.
+tags: [manual, performance, details]
+---
+- runScript: ../helpers/retained-detail-reentry-inputs.js
+- openLink: ${output.reentry.groupLink}
+- assertVisible: ${output.reentry.groupName}
+- openLink: ${output.reentry.eventLink}
+- assertVisible: ${output.reentry.eventName}
+- scrollUntilVisible:
+    element:
+      id: top-tab-tables
+    direction: DOWN
+- tapOn:
+    id: top-tab-tables
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: top-tab-tables
+    selected: true
+- repeat:
+    times: 8
+    commands:
+      - scroll
+- scrollUntilVisible:
+    element: ${output.reentry.openTable}
+    direction: UP
+    timeout: 120000
+- assertVisible: ${output.reentry.openTable}
+- scrollUntilVisible:
+    element:
+      id: top-tab-details
+    direction: UP
+    timeout: 120000
+- tapOn:
+    id: top-tab-details
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: top-tab-details
+    selected: true
+- tapOn:
+    id: top-tab-tables
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: top-tab-tables
+    selected: true
+- repeat:
+    times: 8
+    commands:
+      - scroll
+- scrollUntilVisible:
+    element: ${output.reentry.openTable}
+    direction: UP
+    timeout: 120000
+- assertVisible: ${output.reentry.openTable}
+- back
+- assertVisible: ${output.reentry.groupName}

@@ -48,6 +48,16 @@ links after local selection, legacy aliases, search, an unknown-tab fallback, an
 Profile with the selected section intact. Local presses must not dispatch navigation actions;
 verify that separately with the native React Profiler rather than inferring it from assertions.
 
+`50-retained-detail-reentry.yaml` checks scrolling and reentry into an Event's Tables panel without
+writing data. Verify an owned private planning Event with 20 existing Tables, then set the build/API/
+locale guards above, `NAVIGATION_FIXTURE_ACK=owned-private-planning-event`, and
+`NAVIGATION_REENTRY_INPUT` JSON with `groupId`, `eventId`, `targetTableId`, `groupName`, `eventName`,
+`targetTableName`, and `tableCount: 20`. The target is an explicitly verified existing Table; its sort
+position is not assumed. The flow scrolls down and back to that row, changes panels, repeats, then
+checks Back. This is not a second-page API test: an Event permits at most 20 Tables and the query
+requests 20 per page. Multipage presentation, deactivation and stale callbacks have separate hook
+tests; they do not establish native frame timing.
+
 ## Manual OTA startup
 
 `34-ota-consent.yaml` covers a real compatible update with `OTA_CASE=later`, `update`,

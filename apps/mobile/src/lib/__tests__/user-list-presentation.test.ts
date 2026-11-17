@@ -16,9 +16,6 @@ function render(pages: UserPage[]): Element {
     "heroui-native/text": { Typography: "Typography" },
     "@/lib/i18n": { useT: () => (value: string) => value },
     "@/lib/user-list": { nextUserPage },
-    "@/lib/useArtworkListVisibility": {
-      useArtworkListVisibility: () => ({ header: (value: unknown) => value }),
-    },
     "./InputFlatList": { InputFlatList: "List" },
     "./GroupedList": { GroupedList: "Grouped" },
     "./EmptyList": { EmptyList: "Empty" },

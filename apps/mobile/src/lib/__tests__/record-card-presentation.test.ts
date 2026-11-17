@@ -38,6 +38,7 @@ function component(file: string, name: string, modules: Record<string, unknown>)
       if (id === "react")
         return { memo: (component: unknown) => component, ...(modules.react as object) };
       if (id === "@clerk/expo") return { useAuth: () => ({ userId: "owner" }) };
+      if (id === "@/lib/listActivity") return { useListActivity: () => () => true };
       if (id === "@/lib/recordUserRoleIcons") {
         const icons: Record<string, unknown> = {};
         runInNewContext(
@@ -86,13 +87,6 @@ function component(file: string, name: string, modules: Record<string, unknown>)
         return { IconBadge: "IconBadge" };
       if (!(id in modules) && id === "@/components/common/ui/UserRoleBadge")
         return { UserRoleBadge: "UserRoleBadge" };
-      if (!(id in modules) && id === "@/lib/useArtworkListVisibility")
-        return {
-          useArtworkListVisibility: () => ({
-            header: (value: unknown) => value,
-            row: (_id: string, value: unknown) => value,
-          }),
-        };
       if (!(id in modules)) throw new Error(`Unexpected presentation dependency ${id}`);
       return modules[id];
     },
@@ -910,6 +904,7 @@ it("fills the card background with artwork behind the natural title and bottom c
 });
 it("requires a scroll in the current Results owner scope and rejects detached native callbacks", () => {
   let actor = "owner";
+  let disconnect: (() => void) | undefined;
   const scrolled = { current: null as string | null },
     loadMore = vi.fn();
   const render = component("events/EventTableResults", "EventTableResults", {
@@ -921,7 +916,13 @@ it("requires a scroll in the current Results owner scope and rejects detached na
     "heroui-native/skeleton": { Skeleton: "Skeleton" },
     "heroui-native/text": { Typography: "Typography" },
     "lucide-react-native": { Trophy: "Trophy", ListOrdered: "ListOrdered" },
-    react: { useMemo: (fn: () => unknown) => fn(), useRef: () => scrolled },
+    react: {
+      useEffect: (effect: () => () => void) => {
+        disconnect = effect();
+      },
+      useMemo: (fn: () => unknown) => fn(),
+      useRef: () => scrolled,
+    },
     "react-native": { FlatList: "FlatList", View: "View" },
     "react-native-safe-area-context": { useSafeAreaInsets: () => ({ bottom: 0 }) },
     "@/components/common/ui/GroupedList": { GroupedList: "GroupedList" },
@@ -953,6 +954,10 @@ it("requires a scroll in the current Results owner scope and rejects detached na
   expect(loadMore).toHaveBeenCalledTimes(1);
   second.props.onEndReached();
   expect(loadMore).toHaveBeenCalledTimes(2);
+  disconnect?.();
+  second.props.onEndReached();
+  expect(loadMore).toHaveBeenCalledTimes(2);
+  expect(scrolled.current).toBeNull();
   const history = render({
     table: {
       ...table,

@@ -30,7 +30,7 @@ import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
+import { useListActivity } from "@/lib/listActivity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventJoinSheet } from "./EventJoinSheet";
@@ -50,7 +50,7 @@ export function EventTableSeats({
   hasJoinedEvent?: boolean;
   onRemove: (row: TableSeatResponse, own: boolean) => void;
 }) {
-  const artwork = useArtworkListVisibility();
+  const isActive = useListActivity();
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -86,8 +86,6 @@ export function EventTableSeats({
     <ScrollTargetContext.Provider value={scroll}>
       <View style={{ flex: 1 }}>
         <SectionList
-          onLayout={artwork.onLayout}
-          onScroll={artwork.onScroll}
           ref={(node) => {
             scroll.current = node?.getScrollResponder() as ScrollView | null;
           }}
@@ -108,9 +106,11 @@ export function EventTableSeats({
             paddingBottom: layout.paddingBottom,
           }}
           keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={artwork.header(
-            <View style={{ gap: 16, paddingBottom: 8 }}>{header}</View>,
-          )}
+          ListHeaderComponent={
+            <View>
+              <View style={{ gap: 16, paddingBottom: 8 }}>{header}</View>
+            </View>
+          }
           renderSectionHeader={({ section }) => (
             <EventSeatListHeading waiting={section.key === "waiting"} />
           )}
@@ -241,6 +241,7 @@ export function EventTableSeats({
           }}
           onEndReached={() => {
             if (
+              isActive() &&
               active &&
               roster.hasNextPage &&
               !roster.isFetchingNextPage &&

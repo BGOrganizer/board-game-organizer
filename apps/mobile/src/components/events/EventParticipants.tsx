@@ -21,7 +21,7 @@ import { MemberActions } from "@/components/common/ui/MemberActions";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
+import { useListActivity } from "@/lib/listActivity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 
@@ -38,8 +38,8 @@ export function EventParticipants({
   header?: ReactNode;
   hasFloatingActions?: boolean;
 }) {
-  const artwork = useArtworkListVisibility();
   const muted = useThemeColor("muted");
+  const isActive = useListActivity();
   const t = useT(),
     o = useCommunityApi(),
     q = useEventParticipants(
@@ -54,9 +54,9 @@ export function EventParticipants({
   return (
     <>
       <FlatList
-        onLayout={artwork.onLayout}
-        onScroll={artwork.onScroll}
-        ListHeaderComponent={artwork.header(header)}
+        ListHeaderComponent={
+          header === undefined || header === null || header === false ? null : <View>{header}</View>
+        }
         style={{ flex: 1 }}
         contentContainerStyle={{
           padding: 20,
@@ -69,8 +69,12 @@ export function EventParticipants({
         initialNumToRender={8}
         maxToRenderPerBatch={6}
         windowSize={7}
-        onScrollBeginDrag={q.beginScroll}
-        onEndReached={q.endReached}
+        onScrollBeginDrag={() => {
+          if (isActive()) q.beginScroll();
+        }}
+        onEndReached={() => {
+          if (isActive()) q.endReached();
+        }}
         onEndReachedThreshold={0.4}
         renderItem={({ item: person }) => {
           const name = formatUsername(person.username, person.name || t("Username unavailable"));

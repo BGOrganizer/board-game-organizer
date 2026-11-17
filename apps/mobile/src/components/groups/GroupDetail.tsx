@@ -24,11 +24,12 @@ import {
   UserRoundPlus,
   UsersRound,
 } from "lucide-react-native";
-import { useState } from "react";
-import { View } from "react-native";
+import { useCallback, useState } from "react";
+import { Keyboard, View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
@@ -37,7 +38,6 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupIdentityCard } from "./GroupIdentityCard";
@@ -52,7 +52,6 @@ export function GroupDetail({
   groupId: string;
   initialTab?: "info" | "members" | "events";
 }) {
-  const artwork = useArtworkListVisibility();
   const { i18n } = useLingui();
   const t = useT(),
     o = useCommunityApi(),
@@ -67,9 +66,21 @@ export function GroupDetail({
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
   const selectedTab =
-    (tab === "members" && !group?.canViewMembers) || (tab === "events" && !group?.canViewEvents)
-      ? "info"
-      : tab;
+    tab === "members" && group?.canViewMembers
+      ? "members"
+      : tab === "events" && group?.canViewEvents
+        ? "events"
+        : tab === "rankings" && group?.canViewRankings
+          ? "rankings"
+          : "info";
+  const changeTab = useCallback(
+    (value: string) => {
+      if (value === selectedTab) return;
+      Keyboard.dismiss();
+      setTab(value);
+    },
+    [selectedTab],
+  );
   const changes = useNotificationChanges(
     {
       ...o,
@@ -241,26 +252,17 @@ export function GroupDetail({
     >
       <View style={{ flex: 1 }}>
         {header}
-        <Tabs value={selectedTab} onValueChange={setTab} style={{ flex: 1 }}>
-          <View style={{ flex: 1, paddingTop: 8 }}>
-            {tab === "members" && group.canViewMembers ? (
-              <GroupMembers group={group} header={detailHeader} />
-            ) : tab === "events" && group.canViewEvents ? (
-              <Events
-                groupId={group.id}
-                header={detailHeader}
-                canCreate={isGroupManagerRole(group.role) && group.canInvite}
-              />
-            ) : tab === "rankings" && group.canViewRankings ? (
-              <GroupLeaderboard groupId={group.id} header={detailHeader} />
-            ) : (
+        <View style={{ flex: 1, paddingTop: 8 }}>
+          <RetainedTabPanel
+            key={JSON.stringify([o.apiUrl, o.userId, group.id, "info"])}
+            active={selectedTab === "info"}
+          >
+            <Tabs value={selectedTab} onValueChange={changeTab} style={{ flex: 1 }}>
               <ScreenScrollView
-                onLayout={artwork.onLayout}
-                onScroll={artwork.onScroll}
                 hasFloatingActions={group.canEdit && tab === "info"}
                 contentContainerStyle={{ paddingTop: 0 }}
               >
-                {artwork.header(detailHeader)}
+                <View>{detailHeader}</View>
                 <GroupDetailsCard group={group} identity={null} />
                 {bodyActions.length ? (
                   <GroupJoinRequest
@@ -285,9 +287,43 @@ export function GroupDetail({
                   />
                 ) : null}
               </ScreenScrollView>
-            )}
-          </View>
-        </Tabs>
+            </Tabs>
+          </RetainedTabPanel>
+          {group.canViewMembers ? (
+            <RetainedTabPanel
+              key={JSON.stringify([o.apiUrl, o.userId, group.id, "members"])}
+              active={selectedTab === "members"}
+            >
+              <Tabs value={selectedTab} onValueChange={changeTab} style={{ flex: 1 }}>
+                <GroupMembers group={group} header={detailHeader} />
+              </Tabs>
+            </RetainedTabPanel>
+          ) : null}
+          {group.canViewEvents ? (
+            <RetainedTabPanel
+              key={JSON.stringify([o.apiUrl, o.userId, group.id, "events"])}
+              active={selectedTab === "events"}
+            >
+              <Tabs value={selectedTab} onValueChange={changeTab} style={{ flex: 1 }}>
+                <Events
+                  groupId={group.id}
+                  header={detailHeader}
+                  canCreate={isGroupManagerRole(group.role) && group.canInvite}
+                />
+              </Tabs>
+            </RetainedTabPanel>
+          ) : null}
+          {group.canViewRankings ? (
+            <RetainedTabPanel
+              key={JSON.stringify([o.apiUrl, o.userId, group.id, "rankings"])}
+              active={selectedTab === "rankings"}
+            >
+              <Tabs value={selectedTab} onValueChange={changeTab} style={{ flex: 1 }}>
+                <GroupLeaderboard groupId={group.id} header={detailHeader} />
+              </Tabs>
+            </RetainedTabPanel>
+          ) : null}
+        </View>
         {group.canEdit && tab === "info" ? (
           <FloatingActions
             label={t("Edit group")}

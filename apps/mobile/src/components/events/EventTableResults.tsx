@@ -11,7 +11,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { ListOrdered, Trophy } from "lucide-react-native";
-import { type ReactNode, useMemo, useRef } from "react";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -20,7 +20,7 @@ import { IconBadge } from "@/components/common/ui/IconBadge";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
+import { useListActivity } from "@/lib/listActivity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
 
@@ -31,8 +31,8 @@ export function EventTableResults({
   table: PlannedTableResponse;
   header?: ReactNode;
 }) {
-  const artwork = useArtworkListVisibility();
   const muted = useThemeColor("muted");
+  const isActive = useListActivity();
   const t = useT(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets();
@@ -75,18 +75,24 @@ export function EventTableResults({
     table.confirmed?.gameId,
     table.confirmed?.playerIds,
   ]);
+  useEffect(
+    () => () => {
+      scrolled.current = null;
+    },
+    [],
+  );
   if (!table.confirmed && (!terminated || !table.results))
     return (
-      <ScreenScrollView onLayout={artwork.onLayout} onScroll={artwork.onScroll}>
-        {artwork.header(header)}
+      <ScreenScrollView>
+        {header === undefined || header === null || header === false ? null : <View>{header}</View>}
         <Typography className="text-foreground">{t("Excluded from confirmation")}</Typography>
       </ScreenScrollView>
     );
   return (
     <FlatList
-      onLayout={artwork.onLayout}
-      onScroll={artwork.onScroll}
-      ListHeaderComponent={artwork.header(header)}
+      ListHeaderComponent={
+        header === undefined || header === null || header === false ? null : <View>{header}</View>
+      }
       key={owner}
       data={rows}
       keyExtractor={(row) => row.key}
@@ -100,10 +106,10 @@ export function EventTableResults({
       maxToRenderPerBatch={6}
       windowSize={7}
       onScrollBeginDrag={() => {
-        scrolled.current = owner;
+        if (isActive()) scrolled.current = owner;
       }}
       onEndReached={() => {
-        if (scrolled.current === owner && !terminated) q.loadMore();
+        if (isActive() && scrolled.current === owner && !terminated) q.loadMore();
       }}
       onEndReachedThreshold={0.4}
       ListEmptyComponent={

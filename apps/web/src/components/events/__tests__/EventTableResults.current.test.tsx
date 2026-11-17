@@ -1,7 +1,7 @@
 import { tableLeaderboardQuery, useTableLeaderboard } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, renderHook, screen } from "@testing-library/react";
-import type { ComponentProps, ReactNode } from "react";
+import { Activity, type ComponentProps, type ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -51,7 +51,7 @@ const table = {
   eventStatus: "CONFIRMED" as const,
   confirmed: { gameId: 1, playerIds: ids, startsAt: plannedTable.createdAt },
 };
-function setup() {
+function setup(activity = { hidden: false }) {
   m.actor = "owner";
   m.more = [];
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -65,7 +65,9 @@ function setup() {
     pageParams: ["", "20"],
   });
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    <QueryClientProvider client={client}>
+      <Activity mode={activity.hidden ? "hidden" : "visible"}>{children}</Activity>
+    </QueryClientProvider>
   );
   return { client, key, wrapper };
 }
@@ -74,6 +76,27 @@ afterEach(() => {
     client.clear();
   });
   vi.unstubAllGlobals();
+});
+it("resets current-rating presentation after Activity reentry and rejects the old callback", () => {
+  const activity = { hidden: false };
+  const { client, key, wrapper } = setup(activity);
+  const h = renderHook(() => useTableLeaderboard(options, table.eventId, table.id, 1, ids), {
+    wrapper,
+  });
+  act(() => h.result.current.loadMore());
+  expect(h.result.current.items).toHaveLength(40);
+  const late = h.result.current.loadMore;
+  activity.hidden = true;
+  h.rerender();
+  act(() => late());
+  activity.hidden = false;
+  h.rerender();
+  expect(h.result.current.items).toHaveLength(20);
+  act(() => late());
+  expect(h.result.current.items).toHaveLength(20);
+  act(() => h.result.current.loadMore());
+  expect(h.result.current.items).toHaveLength(40);
+  expect((client.getQueryData(key) as { pages: unknown[] }).pages).toHaveLength(2);
 });
 it("reveals cached rows and pages progressively, resets on owner change and rejects old button callbacks", async () => {
   const { client, key, wrapper: Wrapper } = setup();

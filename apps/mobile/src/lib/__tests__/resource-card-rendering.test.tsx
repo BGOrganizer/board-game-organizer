@@ -10,6 +10,7 @@ import * as runtime from "react/jsx-runtime";
 import { createRoot } from "react-dom/client";
 import ts from "typescript";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import {
   groupRecord,
   plannedEvent,
@@ -268,7 +269,7 @@ it.each([
   },
 );
 
-it("keeps the Event header mounted between details and tables and rejects inactive-tab paging", async () => {
+it("retains each Event list/header and rejects inactive-tab paging", async () => {
   const host = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
   const labelHost = Object.assign(host, { Label: host });
   const scrollTo = vi.fn();
@@ -276,8 +277,9 @@ it("keeps the Event header mounted between details and tables and rejects inacti
   const disposed = vi.fn();
   const headerMounted = vi.fn();
   const fetchNextPage = vi.fn();
+  const resetPresentation = vi.fn();
   let select: (value: string) => void = () => {};
-  let endReached: () => void = () => {};
+  const endReached = new Map<string, () => void>();
   function List(props: {
     ref: React.Ref<unknown>;
     ListHeaderComponent: React.ReactNode;
@@ -288,30 +290,34 @@ it("keeps the Event header mounted between details and tables and rejects inacti
     maxToRenderPerBatch: number;
     windowSize: number;
   }) {
+    React.useState(() => {
+      mounted();
+      return null;
+    });
     expect([props.initialNumToRender, props.maxToRenderPerBatch, props.windowSize]).toEqual([
       8, 6, 7,
     ]);
     React.useImperativeHandle(props.ref, () => ({ getNativeScrollRef: () => ({ scrollTo }) }), []);
     React.useEffect(() => {
-      mounted();
       return () => {
         disposed();
       };
     }, []);
-    endReached = props.onEndReached;
+    endReached.set(props.data.length ? "tables" : "details", props.onEndReached);
     return (
-      <>
+      <div data-list="retained">
         {props.ListHeaderComponent}
         {props.data.map((item) => (
           <React.Fragment key={item.id}>{props.renderItem({ item })}</React.Fragment>
         ))}
-      </>
+      </div>
     );
   }
   function Header() {
-    React.useEffect(() => {
+    React.useState(() => {
       headerMounted();
-    }, []);
+      return null;
+    });
     return <span>Event identity</span>;
   }
   const tabs = Object.assign(
@@ -325,7 +331,12 @@ it("keeps the Event header mounted between details and tables and rejects inacti
     "@board-game-organizer/shared": {
       ...shared,
       useEventRecord: () => ({ data: plannedEvent }),
-      useRecordTables: () => ({ items: [plannedTable], hasNextPage: true, fetchNextPage }),
+      useRecordTables: () => ({
+        items: [plannedTable],
+        hasNextPage: true,
+        fetchNextPage,
+        resetPresentation,
+      }),
       useEventRecordActions: () => ({ busy: false, blocking: false }),
       useNotificationChanges: () => ({ tabCounts: {} }),
     },
@@ -335,16 +346,11 @@ it("keeps the Event header mounted between details and tables and rejects inacti
     "heroui-native/button": { Button: labelHost },
     "@/lib/useCommunityApi": { useCommunityApi: () => ({ userId: "owner" }) },
     "@/lib/useFloatingActionLayout": { useFloatingActionLayout: () => ({ paddingBottom: 32 }) },
-    "@/lib/useArtworkListVisibility": {
-      useArtworkListVisibility: () => ({
-        header: (node: React.ReactNode) => node,
-        row: (_id: string, node: React.ReactNode) => node,
-      }),
-    },
     "@/components/common/layout/headerStyles": { HEADER_ICON_SIZE: 20, headerButtonProps: {} },
     "@/components/common/ui/ScrollTargetContext": {
       ScrollTargetContext: React.createContext(null),
     },
+    "@/components/common/ui/RetainedTabPanel": { RetainedTabPanel },
     "./EventDetailsCard": { EventDetailsCard: Header },
     "./EventTableCard": {
       EventTableCard: ({ table }: { table: typeof plannedTable }) => <span>{table.name}</span>,
@@ -390,19 +396,24 @@ it("keeps the Event header mounted between details and tables and rejects inacti
     expect(mounted).toHaveBeenCalledTimes(1);
     expect(headerMounted).toHaveBeenCalledTimes(1);
     for (const tab of ["tables", "details", "tables", "details"]) {
-      const previousEnd = endReached;
+      const previousEnd = endReached.get("tables");
       await React.act(async () => select(tab));
-      expect(container.textContent?.includes(plannedTable.name)).toBe(tab === "tables");
-      if (tab === "details") previousEnd();
+      const visibleList = container.querySelector('[data-list]:not([style*="display: none"])');
+      expect(visibleList.textContent?.includes(plannedTable.name)).toBe(tab === "tables");
+      if (tab === "details") {
+        if (!previousEnd) throw new Error("Expected the previously active Tables callback");
+        previousEnd();
+      }
     }
     expect(fetchNextPage).not.toHaveBeenCalled();
-    expect(mounted).toHaveBeenCalledTimes(1);
-    expect(headerMounted).toHaveBeenCalledTimes(1);
-    expect(disposed).not.toHaveBeenCalled();
+    expect(resetPresentation).toHaveBeenCalledTimes(2);
+    expect(mounted).toHaveBeenCalledTimes(2);
+    expect(headerMounted).toHaveBeenCalledTimes(2);
+    expect(disposed).toHaveBeenCalledTimes(4);
     expect(scrollTo).toHaveBeenCalledTimes(4);
     expect(scrollTo).toHaveBeenLastCalledWith({ y: 0, animated: false });
   } finally {
     await React.act(async () => root.unmount());
   }
-  expect(disposed).toHaveBeenCalledTimes(1);
+  expect(disposed).toHaveBeenCalledTimes(5);
 });

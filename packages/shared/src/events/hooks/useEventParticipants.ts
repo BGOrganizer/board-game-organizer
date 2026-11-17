@@ -1,7 +1,7 @@
 "use client";
 import type { EventParticipantsResponse } from "@board-game-organizer/schemas";
 import { hashKey, infiniteQueryOptions, useInfiniteQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   type CommunityApiOptions,
   communityAccessDenied,
@@ -9,6 +9,7 @@ import {
 } from "../../community/communityApi";
 import { reconcileProposalAccessError } from "../eventProposalCache";
 import { eventRecordKeys } from "./useEventRecords";
+import { useRecordListWindow } from "./useRecordListWindow";
 
 type ParticipantView = { mode: "member" } | { mode: "review"; groupId: string | null };
 export function eventParticipantsQuery(
@@ -65,28 +66,20 @@ export function useEventParticipants(o: CommunityApiOptions, id: string, view?: 
     current.current = scope;
     return () => {
       if (current.current === scope) current.current = null;
+      scrolled.current = null;
     };
   }, [scope]);
-  const [window, setWindow] = useState({ scope, pages: 1 });
-  if (window.scope !== scope) {
-    scrolled.current = null;
-    setWindow({ scope, pages: 1 });
-  }
-  const count = window.scope === scope ? window.pages : 1;
   const pages = communityAccessDenied(q.error) ? undefined : q.data?.pages;
-  const items = useMemo(
-    () => pages?.slice(0, count).flatMap((page) => page.items) ?? [],
-    [pages, count],
-  );
-  const cachedMore = (pages?.length ?? 0) > count;
+  const window = useRecordListWindow({
+    scope,
+    pages,
+    hasNextPage: q.hasNextPage,
+    isFetching: q.isFetching || q.isError,
+    fetchNextPage: () => q.fetchNextPage({ cancelRefetch: false }),
+  });
   const loadMore = useCallback(() => {
-    if (current.current !== scope || (!cachedMore && (!q.hasNextPage || q.isFetching || q.isError)))
-      return;
-    setWindow((old) =>
-      old.scope === scope && old.pages < count + 1 ? { scope, pages: count + 1 } : old,
-    );
-    if (!cachedMore) void q.fetchNextPage({ cancelRefetch: false });
-  }, [scope, cachedMore, count, q.hasNextPage, q.isFetching, q.isError, q.fetchNextPage]);
+    void window.fetchNextPage();
+  }, [window.fetchNextPage]);
   const beginScroll = useCallback(() => {
     if (current.current === scope) scrolled.current = scope;
   }, [scope]);
@@ -95,11 +88,11 @@ export function useEventParticipants(o: CommunityApiOptions, id: string, view?: 
   }, [scope, loadMore]);
   return {
     ...q,
-    items,
+    items: window.items,
     loadMore,
     beginScroll,
     endReached,
-    hasMore: cachedMore || q.hasNextPage,
-    cachedMore,
+    hasMore: window.hasNextPage,
+    cachedMore: window.cachedMore,
   };
 }

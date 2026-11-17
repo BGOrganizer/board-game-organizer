@@ -11,7 +11,9 @@ type WindowOptions = {
 };
 type WindowResult<T> = {
   items: T[];
+  cachedMore: boolean;
   hasNextPage: boolean;
+  resetPresentation: () => void;
   fetchNextPage: (_options?: { cancelRefetch?: boolean }) => Promise<void>;
 };
 
@@ -40,19 +42,29 @@ export function useRecordListWindow<T, Page>({
   const fetchCurrent = useRef(fetchNextPage);
   fetchCurrent.current = fetchNextPage;
   const [window, setWindow] = useState({ scope, chunks: 1 });
-  const gate = useRef({ scope, chunks: 1, loading: false, active: true });
+  const gate = useRef({ scope, chunks: 1, loading: false, active: false, epoch: 0 });
   if (window.scope !== scope) {
-    gate.current = { scope, chunks: 1, loading: false, active: true };
+    gate.current = { scope, chunks: 1, loading: false, active: false, epoch: 0 };
     setWindow({ scope, chunks: 1 });
   }
   const chunks = window.scope === scope ? window.chunks : 1;
   const generation = gate.current;
+  const activation = generation.epoch;
+  const resetPresentation = useCallback(() => {
+    generation.epoch++;
+    generation.chunks = 1;
+    generation.loading = false;
+    // Keep Query pages intact and never let an old owner overwrite a newer window.
+    // Always publish a new object so StrictMode cleanup/recreate refreshes captured epochs.
+    if (gate.current === generation) setWindow({ scope, chunks: 1 });
+  }, [generation, scope]);
   useEffect(() => {
     generation.active = true;
     return () => {
       generation.active = false;
+      resetPresentation();
     };
-  }, [generation]);
+  }, [generation, resetPresentation]);
   const visible = useMemo(() => {
     const items: T[] = [];
     let remaining = chunks * pageSize;
@@ -77,7 +89,13 @@ export function useRecordListWindow<T, Page>({
   const fetch = useCallback(
     async (_options?: { cancelRefetch?: boolean }) => {
       const current = gate.current;
-      if (current !== generation || !current.active || current.chunks !== chunks || current.loading)
+      if (
+        current !== generation ||
+        !current.active ||
+        current.epoch !== activation ||
+        current.chunks !== chunks ||
+        current.loading
+      )
         return;
       if (visible.hasCachedMore) {
         current.chunks++;
@@ -88,19 +106,21 @@ export function useRecordListWindow<T, Page>({
       current.loading = true;
       try {
         await fetchCurrent.current();
-        if (gate.current === current && current.active) {
+        if (gate.current === current && current.active && current.epoch === activation) {
           current.chunks++;
           setWindow({ scope, chunks: current.chunks });
         }
       } finally {
-        current.loading = false;
+        if (gate.current === current && current.epoch === activation) current.loading = false;
       }
     },
-    [scope, generation, chunks, visible.hasCachedMore, hasNextPage, isFetching],
+    [scope, generation, activation, chunks, visible.hasCachedMore, hasNextPage, isFetching],
   );
   return {
     items: visible.items,
+    cachedMore: visible.hasCachedMore,
     hasNextPage: visible.hasCachedMore || hasNextPage,
+    resetPresentation,
     fetchNextPage: fetch,
   };
 }

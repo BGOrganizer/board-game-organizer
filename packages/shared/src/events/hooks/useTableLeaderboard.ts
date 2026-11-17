@@ -6,7 +6,7 @@ import {
   useInfiniteQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback } from "react";
 import {
   CommunityApiError,
   type CommunityApiOptions,
@@ -14,6 +14,7 @@ import {
   communityRequest,
 } from "../../community/communityApi";
 import { eventRecordKeys } from "./useEventRecords";
+import { useRecordListWindow } from "./useRecordListWindow";
 
 export function tableLeaderboardQuery(
   o: CommunityApiOptions,
@@ -64,31 +65,17 @@ export function useTableLeaderboard(
   const options = tableLeaderboardQuery(o, eventId, tableId, gameId, playerIds);
   const q = useInfiniteQuery(options);
   const scope = hashKey(options.queryKey);
-  const current = useRef<string | null>(scope);
-  current.current = scope;
-  useEffect(() => {
-    current.current = scope;
-    return () => {
-      if (current.current === scope) current.current = null;
-    };
-  }, [scope]);
-  const [window, setWindow] = useState({ scope, pages: 1 });
-  if (window.scope !== scope) setWindow({ scope, pages: 1 });
-  const count = window.scope === scope ? window.pages : 1;
   const pages = communityAccessDenied(q.error) ? undefined : q.data?.pages;
-  const items = useMemo(
-    () => pages?.slice(0, count).flatMap((page) => page.items) ?? [],
-    [pages, count],
-  );
-  const cachedMore = (pages?.length ?? 0) > count;
+  const window = useRecordListWindow({
+    scope,
+    pages,
+    hasNextPage: q.hasNextPage,
+    isFetching: q.isFetching || q.isError,
+    fetchNextPage: () => q.fetchNextPage({ cancelRefetch: false }),
+  });
   const loadMore = useCallback(() => {
-    if (current.current !== scope || (!cachedMore && (!q.hasNextPage || q.isFetching || q.isError)))
-      return;
-    setWindow((old) =>
-      old.scope === scope && old.pages < count + 1 ? { scope, pages: count + 1 } : old,
-    );
-    if (!cachedMore) void q.fetchNextPage({ cancelRefetch: false });
-  }, [scope, cachedMore, count, q.hasNextPage, q.isFetching, q.isError, q.fetchNextPage]);
+    void window.fetchNextPage();
+  }, [window.fetchNextPage]);
   const retry = () =>
     q.error instanceof CommunityApiError &&
     ["TABLE_GAME_CHANGED", "TABLE_ROSTER_CHANGED"].includes(q.error.code)
@@ -97,5 +84,12 @@ export function useTableLeaderboard(
           exact: true,
         })
       : q.refetch();
-  return { ...q, items, retry, loadMore, cachedMore, hasMore: cachedMore || q.hasNextPage };
+  return {
+    ...q,
+    items: window.items,
+    retry,
+    loadMore,
+    cachedMore: window.cachedMore,
+    hasMore: window.hasNextPage,
+  };
 }

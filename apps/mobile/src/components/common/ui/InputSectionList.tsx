@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { InputFieldContext, InputScrollContext } from "@/lib/inputScrollContext";
+import { useListActivity } from "@/lib/listActivity";
 import { useInputScroll } from "@/lib/useInputScroll";
 import { useOptionalHeaderHeight } from "@/lib/useOptionalHeaderHeight";
 
@@ -28,6 +29,7 @@ export function InputSectionList<T, S = Record<string, unknown>>({
       list.current?.getScrollResponder()?.scrollTo(options);
     },
   }));
+  const isActive = useListActivity();
   const headerHeight = useOptionalHeaderHeight();
   const Component = (scroll.inSheet ? BottomSheetSectionList : SectionList) as typeof SectionList<
     T,
@@ -58,14 +60,17 @@ export function InputSectionList<T, S = Record<string, unknown>>({
               windowSize={props.windowSize ?? 7}
               scrollEventThrottle={props.scrollEventThrottle ?? 16}
               onScroll={(event) => {
+                if (!isActive()) return;
                 scroll.onScroll(event);
                 onScroll?.(event);
               }}
               onContentSizeChange={(width, height) => {
+                if (!isActive()) return;
                 scroll.contentChanged();
                 props.onContentSizeChange?.(width, height);
               }}
               onScrollBeginDrag={(event) => {
+                if (!isActive()) return;
                 scroll.beginScroll();
                 focusScroll.current = false;
                 props.onScrollBeginDrag?.(event);
@@ -79,6 +84,7 @@ export function InputSectionList<T, S = Record<string, unknown>>({
                   props.onEndReached?.({ distanceFromEnd });
               }}
               onMomentumScrollBegin={(event) => {
+                if (!isActive()) return;
                 scroll.beginScroll();
                 focusScroll.current = false;
                 props.onMomentumScrollBegin?.(event);
@@ -92,7 +98,7 @@ export function InputSectionList<T, S = Record<string, unknown>>({
                   props.onEndReached?.({ distanceFromEnd });
               }}
               onEndReached={(event) => {
-                if (!focusScroll.current) props.onEndReached?.(event);
+                if (isActive() && !focusScroll.current) props.onEndReached?.(event);
               }}
               contentContainerStyle={[
                 contentContainerStyle,

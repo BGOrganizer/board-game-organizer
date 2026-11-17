@@ -91,6 +91,7 @@ function renderContainer(
     beginScroll: vi.fn(),
   };
   const modules: Record<string, unknown> = {
+    "@/lib/listActivity": { useListActivity: () => () => true },
     "@gorhom/bottom-sheet": {
       BottomSheetFlatList: "BottomSheetFlatList",
       BottomSheetScrollView: "BottomSheetScrollView",

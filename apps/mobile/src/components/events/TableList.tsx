@@ -16,11 +16,9 @@ import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableCard } from "./EventTableCard";
 export function TableList() {
-  const artwork = useArtworkListVisibility();
   const muted = useThemeColor("muted");
   const t = useT(),
     o = useCommunityApi(),
@@ -28,9 +26,10 @@ export function TableList() {
     f = useListSearch(["TERMINATED"] as const, 0),
     q = useRecordTables(o, null, { query: f.search, statuses: ["TERMINATED"] });
   const renderItem = useCallback(
-    ({ item }: { item: (typeof q.items)[number] }) =>
-      artwork.row(item.id, <EventTableCard table={item} context="personal" />),
-    [artwork],
+    ({ item }: { item: (typeof q.items)[number] }) => (
+      <EventTableCard table={item} context="personal" />
+    ),
+    [],
   );
   return (
     <NotificationAttentionScope
@@ -41,8 +40,6 @@ export function TableList() {
       }))}
     >
       <InputFlatList
-        onLayout={artwork.onLayout}
-        onViewableItemsChanged={artwork.onViewableItemsChanged}
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         data={communityAccessDenied(q.error) ? [] : q.items}
