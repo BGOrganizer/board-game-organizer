@@ -1000,7 +1000,7 @@ it("uses actual HeroUI background compositions and keeps the existing API-owned 
   expect(table).toContain('table.eventStatus !== "PLANNING"');
   const roster = source("events/EventTableSeats");
   expect(roster).toContain("useEventTableRoster(o, table)");
-  expect(roster).toContain("active &&");
+  expect(roster).toContain("activePanel.current &&");
   expect(roster).toContain("roster.waitingRows");
 });
 

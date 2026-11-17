@@ -119,7 +119,7 @@ it("gates hidden Table rosters without bypassing section, error or in-flight che
     isFetchNextPageError: false,
     more: vi.fn(),
   };
-  const context = { isActive: () => visible, active: true, roster };
+  const context = { isActive: () => visible, activePanel: { current: true }, roster };
   const end = callback("events/EventTableSeats", "onEndReached", context);
   end({});
   expect(roster.more).not.toHaveBeenCalled();
@@ -128,10 +128,10 @@ it("gates hidden Table rosters without bypassing section, error or in-flight che
   expect(roster.more).toHaveBeenCalledOnce();
   for (const change of [
     () => {
-      context.active = false;
+      context.activePanel.current = false;
     },
     () => {
-      context.active = true;
+      context.activePanel.current = true;
       roster.hasNextPage = false;
     },
     () => {

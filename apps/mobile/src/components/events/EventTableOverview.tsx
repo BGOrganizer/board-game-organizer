@@ -11,7 +11,7 @@ import {
   useNotificationAttentionContext,
   useRecordTable,
 } from "@board-game-organizer/shared";
-import { Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
@@ -259,7 +259,6 @@ export function EventTableOverview({
   );
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: table.name }} />
       {table.sharedResultsOnly ? (
         <ScreenScrollView>
           <View>
@@ -280,10 +279,10 @@ export function EventTableOverview({
           header={
             <>
               {detailHeader}
-              {section === "overview" ? header : null}
               {eventRecovery}
             </>
           }
+          overview={header}
           active={section === "participants"}
           onRemove={(row, own) =>
             setConfirm({

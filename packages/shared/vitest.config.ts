@@ -72,6 +72,7 @@ export default defineConfig({
         "src/games/gamePickerWindow.ts",
         "src/games/hooks/useGameListWindow.ts",
         "src/events/hooks/useRecordListWindow.ts",
+        "src/events/hooks/useEventTableRoster.ts",
         "src/events/eventGameDuration.ts",
         "src/events/eventPersonalAccessCache.ts",
         "src/games/hooks/useBggPicker.ts",
@@ -99,6 +100,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/events/hooks/useEventTableRoster.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/hooks/useRecordListWindow.ts": {
           lines: 100,
           functions: 100,

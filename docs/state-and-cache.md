@@ -46,6 +46,9 @@ Tables panel because their data hook belongs to the shared detail owner.
 Profile Collection additionally pins its published snapshot and is removed when collection access
 is revoked. Vote-category panels retain their list and validation owner while the consent form
 remains the single owner of votes, submission and validation attempts.
+Table Details and Participants keep separate native scroll presentations beneath a single seat-order
+and roster owner. Leaving Participants resets its bounded roster presentation, including pending
+streams and queued callbacks, while retaining the editor model and authoritative Query pages.
 
 Native Query data additionally persists through the mobile-only encrypted MMKV adapter. This is
 an application-wide default for eligible server data, not an optional per-screen optimization: new

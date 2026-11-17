@@ -1,6 +1,6 @@
 "use client";
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useScopedMutations } from "../../common/hooks/useScopedMutations";
 import type { CommunityApiOptions } from "../../community/communityApi";
 import { useProfileQuery } from "../../profile/hooks/useProfile";
@@ -15,7 +15,16 @@ import { eventTableSections } from "../eventTableSections";
 import { useEventParticipationIntent } from "./useEventParticipationIntent";
 import { eventRecordKeys, useTableSeats } from "./useEventRecords";
 export function useEventTableRoster(o: CommunityApiOptions, table: PlannedTableResponse) {
-  const [limit, setLimit] = useState(20);
+  const owner = JSON.stringify([o.apiUrl, o.userId, table.eventId, table.id]);
+  const [window, setWindow] = useState({ owner, limit: 20 });
+  const lease = useRef({ owner, epoch: 0, limit: 20, active: false });
+  if (lease.current.owner !== owner) {
+    lease.current = { owner, epoch: 0, limit: 20, active: false };
+    setWindow({ owner, limit: 20 });
+  }
+  const generation = lease.current;
+  const activation = generation.epoch;
+  const limit = window.owner === owner ? window.limit : 20;
   // Subscribe to the canonical owned profile; roster presentation never starts another request.
   const selfProfile = useProfileQuery({ ...o, userId: o.userId, enabled: false }).data;
   const accepted = useTableSeats(o, table.eventId, table.id);
@@ -29,6 +38,23 @@ export function useEventTableRoster(o: CommunityApiOptions, table: PlannedTableR
     table.id,
     true,
   );
+  const resetAccepted = accepted.resetPresentation;
+  const resetPending = pending.resetPresentation;
+  const resetPresentation = useCallback(() => {
+    if (lease.current !== generation) return;
+    generation.epoch++;
+    generation.limit = 20;
+    resetAccepted();
+    resetPending();
+    setWindow({ owner, limit: 20 });
+  }, [generation, owner, resetAccepted, resetPending]);
+  useEffect(() => {
+    generation.active = true;
+    return () => {
+      generation.active = false;
+      resetPresentation();
+    };
+  }, [generation, resetPresentation]);
   const ownerPending = table.eventStatus === "PLANNING" && canManageEvent(table, o.userId);
   const pages = ownerPending ? [accepted, pending] : [accepted];
   const view = eventTableRoster(
@@ -89,11 +115,24 @@ export function useEventTableRoster(o: CommunityApiOptions, table: PlannedTableR
     refetch: () => {
       for (const page of pages) if (page.isError) void page.refetch();
     },
+    resetPresentation,
     more: () => {
-      if (fetching) return;
+      if (
+        lease.current !== generation ||
+        !generation.active ||
+        generation.epoch !== activation ||
+        generation.limit !== limit ||
+        fetching
+      )
+        return;
+      generation.limit = limit + 20;
       const page = pages.find((page) => page.hasNextPage);
       if (page) void page.fetchNextPage();
-      setLimit((old) => old + 20);
+      setWindow((old) =>
+        lease.current === generation && generation.active && generation.epoch === activation
+          ? { owner, limit: limit + 20 }
+          : old,
+      );
     },
   };
 }

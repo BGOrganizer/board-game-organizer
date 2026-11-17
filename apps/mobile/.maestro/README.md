@@ -58,6 +58,12 @@ checks Back. This is not a second-page API test: an Event permits at most 20 Tab
 requests 20 per page. Multipage presentation, deactivation and stale callbacks have separate hook
 tests; they do not establish native frame timing.
 
+`51-retained-table-editor.yaml` uses the same owned private planning fixture/input as flow 47,
+with Table management capability. It switches between Details and Participants while the seat
+editor is open, checks that editor mode survives reentry, and discards only local editor state.
+It never saves an order or changes registrations, locks, votes or notifications. This checks editor
+lifetime, not a changed row's eventual saved order; the seat-management journeys cover those writes.
+
 ## Manual OTA startup
 
 `34-ota-consent.yaml` covers a real compatible update with `OTA_CASE=later`, `update`,

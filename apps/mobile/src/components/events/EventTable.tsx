@@ -132,36 +132,38 @@ export function EventTable({
           ) : undefined
         }
       />
-      <View style={{ alignItems: "center" }}>
-        <TabBar style={{ alignSelf: "center", width: "auto" }}>
-          <TabTrigger
-            icon={Info}
-            value="overview"
-            testID="table-overview-tab"
-            style={{ flexDirection: "row", gap: 6 }}
-          >
-            <Tabs.Label>{t("Details")}</Tabs.Label>
-            <NotificationTabBadge
-              target={{ kind: "table", id: tableId }}
-              count={changes.tabCounts.details}
-            />
-          </TabTrigger>
-          {!table.sharedResultsOnly ? (
-            <TabTrigger icon={UsersRound} value="participants" testID="table-participants-tab">
-              <Tabs.Label>{t("Participants")}</Tabs.Label>
+      <Tabs value={selected} onValueChange={setTab}>
+        <View style={{ alignItems: "center" }}>
+          <TabBar style={{ alignSelf: "center", width: "auto" }}>
+            <TabTrigger
+              icon={Info}
+              value="overview"
+              testID="table-overview-tab"
+              style={{ flexDirection: "row", gap: 6 }}
+            >
+              <Tabs.Label>{t("Details")}</Tabs.Label>
               <NotificationTabBadge
-                target={{ kind: "item", id: invitationItem }}
-                count={changes.tabCounts.participants}
+                target={{ kind: "table", id: tableId }}
+                count={changes.tabCounts.details}
               />
             </TabTrigger>
-          ) : null}
-          {table.eventStatus !== "PLANNING" ? (
-            <TabTrigger icon={Trophy} value="results" testID="table-results-tab">
-              <Tabs.Label>{t("Results")}</Tabs.Label>
-            </TabTrigger>
-          ) : null}
-        </TabBar>
-      </View>
+            {!table.sharedResultsOnly ? (
+              <TabTrigger icon={UsersRound} value="participants" testID="table-participants-tab">
+                <Tabs.Label>{t("Participants")}</Tabs.Label>
+                <NotificationTabBadge
+                  target={{ kind: "item", id: invitationItem }}
+                  count={changes.tabCounts.participants}
+                />
+              </TabTrigger>
+            ) : null}
+            {table.eventStatus !== "PLANNING" ? (
+              <TabTrigger icon={Trophy} value="results" testID="table-results-tab">
+                <Tabs.Label>{t("Results")}</Tabs.Label>
+              </TabTrigger>
+            ) : null}
+          </TabBar>
+        </View>
+      </Tabs>
     </View>
   );
   return (
@@ -183,28 +185,24 @@ export function EventTable({
           key={JSON.stringify([o.apiUrl, o.userId, eventId, tableId, "overview"])}
           active={selected !== "results"}
         >
-          <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
-            <View style={{ flex: 1 }}>
-              <EventTableOverview
-                eventId={eventId}
-                tableId={tableId}
-                context={context}
-                header={detailHeader}
-                section={overviewSection.current}
-              />
-            </View>
-          </Tabs>
+          <View style={{ flex: 1 }}>
+            <EventTableOverview
+              eventId={eventId}
+              tableId={tableId}
+              context={context}
+              header={detailHeader}
+              section={overviewSection.current}
+            />
+          </View>
         </RetainedTabPanel>
         {table.eventStatus !== "PLANNING" ? (
           <RetainedTabPanel
             key={JSON.stringify([o.apiUrl, o.userId, eventId, tableId, "results"])}
             active={selected === "results"}
           >
-            <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
-              <View style={{ flex: 1 }}>
-                <EventTableResults table={table} header={detailHeader} />
-              </View>
-            </Tabs>
+            <View style={{ flex: 1 }}>
+              <EventTableResults table={table} header={detailHeader} />
+            </View>
           </RetainedTabPanel>
         ) : null}
         {q.isError && selected !== "overview" ? (

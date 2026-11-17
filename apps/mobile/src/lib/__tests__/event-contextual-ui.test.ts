@@ -86,13 +86,18 @@ it("caps keyboard-aware options and keeps search inside their own virtualized he
   expect(text).toMatch(/ListHeaderComponent=\{[\s\S]*<SearchInput/);
   expect(text).toContain('keyboardAvoidance="external"');
 });
-it.each([false, true])(
-  "keeps a single virtualized native list, with waiting always after seats (waiting=%s)",
-  (waiting) => {
+it.each([
+  [false, false],
+  [false, true],
+  [true, false],
+  [true, true],
+])(
+  "keeps visited roster rows when inactive and waiting always after seats (waiting=%s, active=%s)",
+  (waiting, active) => {
     const seats = [{ key: "main" }],
       queued = waiting ? [{ key: "queued" }] : [];
     const sections = runInNewContext(expression("EventTableSeats", "SectionList", "sections"), {
-      active: true,
+      active,
       roster: { seatRows: seats, waitingRows: queued },
       t: (value: string) => value,
     });
