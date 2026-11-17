@@ -27,6 +27,7 @@ export function TabBar({ children, style }: { children: ReactNode; style?: ViewS
       >
         <Tabs.ScrollView
           testID="top-tab-scroll"
+          keyboardShouldPersistTaps="handled"
           style={{ flexGrow: 0, flexShrink: 1 }}
           contentContainerStyle={{ flexGrow: 0 }}
           onContentSizeChange={handleContentSizeChange}

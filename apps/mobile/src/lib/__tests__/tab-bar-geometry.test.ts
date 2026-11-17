@@ -56,6 +56,7 @@ it.each([
     alignSelf: "center",
     maxWidth: "100%",
   });
+  expect(scroll.props.keyboardShouldPersistTaps).toBe("handled");
   expect(scroll.props.contentContainerStyle).toEqual({ flexGrow: 0 });
   expect(scroll.props.style).toEqual({ flexGrow: 0, flexShrink: 1 });
   tree.props.onLayout({ nativeEvent: { layout: { width: 500 } } });

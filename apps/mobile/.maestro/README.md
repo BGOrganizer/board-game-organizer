@@ -64,6 +64,11 @@ editor is open, checks that editor mode survives reentry, and discards only loca
 It never saves an order or changes registrations, locks, votes or notifications. This checks editor
 lifetime, not a changed row's eventual saved order; the seat-management journeys cover those writes.
 
+`52-retained-tab-keyboard.yaml` uses flow 46's build/API/collection guards. With the Group filter
+keyboard open, one Public-tab press must select that panel; returning to Private must retain the
+filter text. It clears only this local filter afterward. Do not hide the keyboard before the press
+or retry the press: either would mask the ScrollView swallowing the initial touch.
+
 ## Manual OTA startup
 
 `34-ota-consent.yaml` covers a real compatible update with `OTA_CASE=later`, `update`,
