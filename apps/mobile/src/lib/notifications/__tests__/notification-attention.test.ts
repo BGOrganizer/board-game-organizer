@@ -74,7 +74,7 @@ it("uses a small numberless dot outside cards while leaving the bell's counter i
   expect(element?.props.style).toMatchObject({ minWidth: 8, height: 8, top: -4, right: -4 });
 });
 it.each(["connections", "requests", "search"])(
-  "native inner selection reads only %s and retains route state",
+  "native inner selection reads only %s and retains local selection without navigation",
   (section) => {
     const source = readFileSync(
       new URL("../../../app/(tabs)/contacts.tsx", import.meta.url),
@@ -100,14 +100,16 @@ it.each(["connections", "requests", "search"])(
     }
     visit(file);
     const readSection = vi.fn(),
+      setTab = vi.fn(),
       setParams = vi.fn();
     runInNewContext(
       ts.transpileModule(`(${expression})`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } })
         .outputText,
-      { contactTab, readSection, router: { setParams } },
+      { contactTab, readSection, setTab, router: { setParams } },
     )(section);
     expect(readSection).toHaveBeenCalledExactlyOnceWith(section);
-    expect(setParams).toHaveBeenCalledWith({ tab: section });
+    expect(setTab).toHaveBeenCalledExactlyOnceWith(section);
+    expect(setParams).not.toHaveBeenCalled();
     expect(source).not.toContain("readOnOpen=");
   },
 );
