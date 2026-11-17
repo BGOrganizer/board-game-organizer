@@ -1,0 +1,155 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Cached native tabs, Profile and Notifications
+# Navigation-only opt-in: already foreground/authenticated owned Preview build.
+# Run with native Event Timing / React profiling separately; assertions alone are not timing evidence.
+tags: [manual, performance, navigation]
+---
+- runScript: ../helpers/cached-tab-navigation-inputs.js
+- assertVisible:
+    id: main-tab-events
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: main-tab-tables
+      - assertVisible:
+          id: list-search-input
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: main-tab-events
+      - repeat:
+          times: ${output.navigation.events.length}
+          commands:
+            - evalScript: ${output.navigation.next = output.navigation.events[output.navigation.eventIndex++ % output.navigation.events.length]}
+            - tapOn:
+                waitToSettleTimeoutMs: 500
+                id: ${'top-tab-' + output.navigation.next}
+            - assertVisible:
+                id: ${'top-tab-' + output.navigation.next}
+                selected: true
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: main-tab-groups
+      - repeat:
+          times: ${output.navigation.groups.length}
+          commands:
+            - evalScript: ${output.navigation.next = output.navigation.groups[output.navigation.groupIndex++ % output.navigation.groups.length]}
+            - tapOn:
+                waitToSettleTimeoutMs: 500
+                id: ${'top-tab-' + output.navigation.next}
+            - assertVisible:
+                id: ${'top-tab-' + output.navigation.next}
+                selected: true
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: main-tab-community
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-market
+      - assertVisible:
+          id: top-tab-market
+          selected: true
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-activity
+      - assertVisible:
+          id: top-tab-activity
+          selected: true
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: main-tab-contacts
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-requests
+      - assertVisible:
+          id: top-tab-requests
+          selected: true
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-device
+      - assertVisible:
+          id: top-tab-device
+          selected: true
+      - swipe:
+          from:
+            id: top-tab-scroll
+          direction: LEFT
+          waitToSettleTimeoutMs: 500
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-search
+      - assertVisible:
+          id: contact-search-input
+      - swipe:
+          from:
+            id: top-tab-scroll
+          direction: RIGHT
+          waitToSettleTimeoutMs: 500
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-connections
+      - assertVisible:
+          id: top-tab-connections
+          selected: true
+- tapOn:
+    waitToSettleTimeoutMs: 500
+    id: profile-button
+- scrollUntilVisible:
+    element:
+      id: top-tab-player
+    direction: DOWN
+- tapOn:
+    waitToSettleTimeoutMs: 500
+    id: top-tab-player
+- assertVisible:
+    id: top-tab-player
+    selected: true
+- tapOn:
+    waitToSettleTimeoutMs: 500
+    id: top-tab-activity
+- assertVisible:
+    id: top-tab-activity
+    selected: true
+- runFlow:
+    when:
+      true: ${output.navigation.collection}
+    commands:
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-collection
+      - assertVisible:
+          id: profile-collection-filter
+      - scroll
+      - swipe:
+          direction: DOWN
+      - scrollUntilVisible:
+          element:
+            id: top-tab-player
+          direction: UP
+      - tapOn:
+          waitToSettleTimeoutMs: 500
+          id: top-tab-player
+      - assertVisible:
+          id: top-tab-player
+          selected: true
+- back
+- assertVisible:
+    id: main-tab-contacts
+- tapOn:
+    id: notifications-button
+    waitToSettleTimeoutMs: 500
+- assertVisible: "^(View all notifications|Vedi tutte le notifiche)$"
+- back
+- tapOn:
+    id: notifications-button
+    waitToSettleTimeoutMs: 500
+- tapOn:
+    text: "^(View all notifications|Vedi tutte le notifiche)$"
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: delete-all-notifications
+- scroll
+- back
+- assertVisible:
+    id: main-tab-contacts

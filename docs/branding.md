@@ -91,8 +91,11 @@ keeping complete multiline titles and the notification action accessible.
 Web uses the SVG's embedded CSS animation and explicitly selects the static variant for system
 reduced motion; the embedded media query remains an additional safeguard. Server rendering starts
 static until the browser preference is known. Native renders the
-same SVG nodes through `react-native-svg` and applies the approved internal transforms and
-opacity with Reanimated. Keep motion on the UI thread, react to system reduced-motion changes,
+same SVG nodes through `react-native-svg`, preserving draw order in static planes, and applies the
+approved internal transforms and opacity to their native layers with React Native's native animation
+driver. One native clock per illustration keeps the parts synchronized, using the original medium
+curves and phases. SVG properties remain static during motion so Android can reuse their rasterized
+content. Keep motion on the UI thread, react to system reduced-motion changes,
 and stop decorative loops for background/inactive screens and nonvisible resource rows.
 Whole-image oscillation is not a substitute for the approved internal movements.
 

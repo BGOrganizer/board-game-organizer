@@ -6,8 +6,10 @@ import type { XmlAST } from "react-native-svg";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
 import { createArtworkVisibility } from "../artworkVisibility";
+import * as frames from "../resourceArtworkFrames";
+import * as layers from "../resourceArtworkLayers";
+import { resourceArtworkLayers } from "../resourceArtworkLayers";
 import * as motion from "../resourceArtworkMotion";
-import { resourceArtworkTree } from "../resourceArtworkTree";
 
 type Element = { type: any; props: Record<string, any> };
 function harness(preference: Promise<boolean> = Promise.resolve(false)) {
@@ -88,38 +90,87 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
   let progress!: { get(): number; set(value: unknown): void };
   const generated = vi.fn(createResourceArtwork),
     parsed = vi.fn((xml: string, middleware: (node: XmlAST) => XmlAST) => {
-      const classes = [...xml.matchAll(/class="([^"]+)"/g)].map((match) => ({
-        tag: "g",
-        props: { class: match[1] },
-        children: [],
-        parent: null,
-        Tag: "G",
-      }));
-      const ast = middleware({
-        tag: "svg",
-        props: {},
-        children: classes,
-        parent: null,
-        Tag: "Svg",
-      } as unknown as XmlAST);
-      // react-native-svg astToReact converts XML class to className after middleware.
-      for (const node of ast.children) {
-        if (typeof node !== "string" && node.props.class) {
-          node.props.className = node.props.class;
-          delete node.props.class;
-        }
-      }
-      return Object.assign(ast, { svg: xml });
+      const node = (
+        tag: string,
+        props: Record<string, string> = {},
+        children: XmlAST[] = [],
+      ): XmlAST => ({ tag, props, children, parent: null, Tag: "G" as unknown as XmlAST["Tag"] });
+      const parts = [...xml.matchAll(/class="([^"]+)"/g)].map((match, index) =>
+        node("g", { id: `part-${index}` }, [node("g", { class: match[1] })]),
+      );
+      const clip = node("clipPath", { id: "clip" }, [
+        node("rect", { width: "240", height: "240", rx: "0", ry: "0" }),
+      ]);
+      const ast = Object.assign(
+        node("svg", { viewBox: "0 0 240 240" }, [
+          node("defs", {}, [...parts, clip]),
+          node(
+            "g",
+            { clipPath: "url(#clip)" },
+            parts.map((part) => node("use", { href: `#${part.props.id}` })),
+          ),
+        ]),
+        { svg: xml },
+      );
+      return middleware(ast);
     });
-  const timing = vi.fn((value: number, options: unknown) => ({ value, options })),
-    repeat = vi.fn((animation: unknown) => ({ animation })),
+  const started = vi.fn(),
+    stopped = vi.fn(),
+    constructed = vi.fn(),
+    interpolated = vi.fn();
+  const timing = vi.fn((value: unknown, options: unknown) => ({ value, options })),
+    repeat = vi.fn((animation: unknown, options: unknown) => ({
+      animation,
+      options,
+      start: started,
+      stop: stopped,
+    })),
     cancel = vi.fn();
+  class NativeValue {
+    value: number;
+    constructor(value: number) {
+      this.value = value;
+      progress = this;
+      constructed(this);
+    }
+    get() {
+      return this.value;
+    }
+    set(value: unknown) {
+      if (typeof value === "number") this.value = value;
+    }
+    setValue(value: number) {
+      this.value = value;
+    }
+    stopAnimation() {
+      cancel();
+    }
+    interpolate({
+      inputRange,
+      outputRange,
+    }: {
+      inputRange: number[];
+      outputRange: (number | string)[];
+    }) {
+      interpolated({ inputRange, outputRange });
+      let index = 0;
+      while (index < inputRange.length - 2 && this.value >= inputRange[index + 1]) index++;
+      const amount = (this.value - inputRange[index]) / (inputRange[index + 1] - inputRange[index]);
+      const start = outputRange[index],
+        end = outputRange[index + 1];
+      if (typeof start === "string")
+        return `${Number.parseFloat(start) + (Number.parseFloat(String(end)) - Number.parseFloat(start)) * amount}rad`;
+      return start + (Number(end) - start) * amount;
+    }
+  }
   const easing = vi.fn(() => ({ factory: () => (value: number) => value }));
   const jsx = (type: any, props: Record<string, any>): Element => {
     if (type?.context) type.value = props.value;
     if (props.ref && type === "View") props.ref.current = nativeFrame;
     return { type, props };
   };
+  react.createElement = (type: any, props: Record<string, any>, ...children: unknown[]) =>
+    jsx(type, { ...props, children });
   const navigationListeners: Record<string, () => void> = {};
   const removeNavigation = vi.fn();
   const navigation = {
@@ -138,6 +189,8 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": {
       View: "View",
+      Animated: { View: "Animated.View", Value: NativeValue, timing, loop: repeat },
+      Easing: { linear: (value: number) => value },
       AccessibilityInfo: {
         isReduceMotionEnabled: () => preference,
         addEventListener: (_name: string, fn: (value: boolean) => void) => {
@@ -155,57 +208,50 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
     },
     "react-native-reanimated": {
       __esModule: true,
-      default: { createAnimatedComponent: () => "Animated.G" },
+      default: { View: "Animated.View" },
       Easing: { bezier: easing, linear: (value: number) => value },
       ReduceMotion: { Never: "never" },
       useReducedMotion: () => state.initialReduced,
-      useSharedValue: () => {
-        const ref = react.useRef(null);
-        if (!ref.current) {
-          let value = 0;
-          ref.current = {
-            get: () => value,
-            set: (next: unknown) => {
-              if (typeof next === "number") value = next;
-            },
-          };
-        }
-        progress = ref.current;
-        return ref.current;
-      },
-      useAnimatedProps: (fn: () => unknown) => fn(),
-      withTiming: timing,
-      withRepeat: repeat,
-      cancelAnimation: cancel,
     },
     "react-native-svg": { G: "G", SvgAst: "SvgAst", parse: parsed },
     uniwind: { ScopedTheme: "ScopedTheme" },
     "@/lib/resourceArtworkMotion": motion,
-    "@/lib/resourceArtworkTree": { resourceArtworkTree },
+    "@/lib/resourceArtworkFrames": frames,
+    "@/lib/resourceArtworkLayers": {
+      resourceArtworkLayers,
+      artworkLayerTransform: layers.artworkLayerTransform,
+    },
+    "./DicebearArtworkLayer": { DicebearArtworkLayer: "DicebearArtworkLayer" },
     "./ArtworkVisibility": { ArtworkVisibleContext: visible, ArtworkHeaderContext: header },
   };
-  const output: Record<string, any> = {};
-  const source = readFileSync(
-    new URL("../../components/common/ui/AnimatedDicebearArtwork.tsx", import.meta.url),
-    "utf8",
-  );
-  runInNewContext(
-    ts.transpileModule(source, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-        jsx: ts.JsxEmit.ReactJSX,
+  function load(name: string) {
+    const output: Record<string, any> = {};
+    const source = readFileSync(
+      new URL(`../../components/common/ui/${name}.tsx`, import.meta.url),
+      "utf8",
+    );
+    runInNewContext(
+      ts.transpileModule(source, {
+        compilerOptions: {
+          module: ts.ModuleKind.CommonJS,
+          target: ts.ScriptTarget.ES2022,
+          jsx: ts.JsxEmit.ReactJSX,
+        },
+      }).outputText,
+      {
+        exports: output,
+        require: (id: string) => {
+          if (!(id in modules)) throw new Error(`Unexpected artwork dependency ${id}`);
+          return modules[id];
+        },
       },
-    }).outputText,
-    {
-      exports: output,
-      require: (id: string) => {
-        if (!(id in modules)) throw new Error(`Unexpected artwork dependency ${id}`);
-        return modules[id];
-      },
-    },
-  );
+    );
+    return output;
+  }
+  const output = load("AnimatedDicebearArtwork"),
+    layerComponent = load("DicebearArtworkLayer");
   let props: Record<string, unknown> = { seed: "stable", variant: "events" };
+  const retainedPartHooks = new Map<unknown, any[]>();
   return {
     state,
     navigation,
@@ -217,12 +263,24 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
     parsed,
     timing,
     repeat,
+    started,
+    stopped,
+    constructed,
+    interpolated,
     cancel,
     remove,
     updates,
     easing,
     get progress() {
       return progress;
+    },
+    renderUnmeasured(next = {}) {
+      props = { ...props, ...next };
+      dirty = false;
+      cursor = 0;
+      const tree = output.AnimatedDicebearArtwork(props);
+      while (effects.length) effects.shift()?.();
+      return tree as Element;
     },
     render(next = {}) {
       props = { ...props, ...next };
@@ -232,7 +290,15 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
         cursor = 0;
         tree = output.AnimatedDicebearArtwork(props);
         while (effects.length) effects.shift()!();
-        if (!dirty) return tree;
+        if (!dirty) {
+          const measure = tree.props.children.props.children.props.children as Element;
+          const square = measure.props.children as Element;
+          if (square.props.style.width === 0) {
+            measure.props.onLayout({ nativeEvent: { layout: { width: 64, height: 64 } } });
+            continue;
+          }
+          return tree;
+        }
       }
       throw new Error("Artwork effects failed to settle");
     },
@@ -242,14 +308,13 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
       state.focused = focused;
       navigationListeners[focused ? "focus" : "blur"]?.();
     },
-    part(ast: XmlAST) {
-      const group = ast.children.find(
-        (node) => typeof node !== "string" && typeof node.Tag === "function",
-      ) as XmlAST;
+    part(props: Record<string, unknown>, retain = false) {
       const rootHooks = hooks;
-      hooks = [];
+      const key = (props.layer as { ast: XmlAST }).ast;
+      hooks = retain ? (retainedPartHooks.get(key) ?? []) : [];
       cursor = 0;
-      const result = (group.Tag as any)(group.props);
+      const result = layerComponent.DicebearArtworkLayer(props);
+      if (retain) retainedPartHooks.set(key, hooks);
       hooks = rootHooks;
       return result as Element;
     },
@@ -259,33 +324,47 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
   };
 }
 function svg(tree: Element) {
-  return tree.props.children.props.children.props.children.props.children as Element;
+  const square = tree.props.children.props.children.props.children.props.children as Element;
+  return square.props.children.find((child: Element) => child.props.layer.motion) as Element;
 }
 function enabled(tree: Element) {
-  return tree.props.children.props.children.props.children.props.value.enabled;
+  return svg(tree).props.enabled;
 }
+const identity = {
+  opacity: 1,
+  transform: [{ translateX: 0 }, { translateY: 0 }, { rotate: "0rad" }],
+};
 
 it.each(["events", "tables", "groups"])(
   "uses shared deterministic %s SVG unchanged at64/96 and contains every composition",
   (variant) => {
     const h = harness();
     const small = h.render({ variant, size: 64 });
-    const xml = svg(small).props.ast.svg;
+    const xml = svg(small).props.layer.ast.svg;
     expect(small.props.style).toMatchObject({ width: 64, height: 64 });
     expect(small.props.children.props.theme).toBe("light");
     expect(small.props.children.props.children.props.className).toBe("bg-surface");
-    expect(svg(small).props.override.preserveAspectRatio).toBe("xMidYMid meet");
+    expect(h.part(svg(small).props).props.children.props.override.preserveAspectRatio).toBe(
+      "xMidYMid meet",
+    );
     expect(xml).toBe(createResourceArtwork(variant as "events", "stable").svg);
     expect(h.generated).toHaveBeenCalledWith(variant, "stable");
     for (const presentation of ["thumbnail", "cover", "background"]) {
       const large = h.render({ size: 96, presentation });
-      expect(svg(large).props.ast.svg).toBe(xml);
-      expect(svg(large).props.override.preserveAspectRatio).toBe("xMidYMid meet");
+      expect(svg(large).props.layer.ast.svg).toBe(xml);
+      expect(h.part(svg(large).props).props.children.props.override.preserveAspectRatio).toBe(
+        "xMidYMid meet",
+      );
     }
     expect(h.generated).toHaveBeenCalledOnce();
     expect(h.parsed).toHaveBeenCalledOnce();
     expect(h.easing).toHaveBeenCalledWith(0.42, 0, 0.58, 1);
-    expect(h.timing.mock.calls[0][1]).toMatchObject({ duration: 4800, reduceMotion: "never" });
+    expect(h.timing.mock.calls[0][1]).toMatchObject({
+      duration: 4800,
+      toValue: 1,
+      useNativeDriver: true,
+      isInteraction: false,
+    });
     h.unmount();
   },
 );
@@ -300,15 +379,12 @@ it("reacts to system reduced motion without a stale initial read re-enabling mov
   let tree = h.render();
   expect(enabled(tree)).toBe(true);
   h.progress.set(0.5);
-  const activePart = h.part(svg(tree).props.ast);
-  expect(activePart.props.animatedProps.matrix).not.toEqual([1, 0, 0, 1, 0, 0]);
+  const activePart = h.part(svg(tree).props);
+  expect(activePart.props.style[1]).not.toEqual(identity);
   h.emitReduced(true);
   tree = h.render();
   expect(enabled(tree)).toBe(false);
-  expect(h.part(svg(tree).props.ast).props.animatedProps).toEqual({
-    matrix: [1, 0, 0, 1, 0, 0],
-    opacity: 1,
-  });
+  expect(h.part(svg(tree).props).props.style[1]).toEqual(identity);
   resolve(false);
   await Promise.resolve();
   await Promise.resolve();
@@ -385,10 +461,7 @@ it("starts static under the system preference and rejects late reads/events afte
   const tree = h.render();
   expect(enabled(tree)).toBe(false);
   expect(h.timing).not.toHaveBeenCalled();
-  expect(h.part(svg(tree).props.ast).props.animatedProps).toEqual({
-    matrix: [1, 0, 0, 1, 0, 0],
-    opacity: 1,
-  });
+  expect(h.part(svg(tree).props).props.style[1]).toEqual(identity);
   h.unmount();
   const updates = h.updates.mock.calls.length;
   resolve(false);
@@ -405,10 +478,7 @@ it("renders portal artwork statically without a navigator and disposes prior foc
   h.navigation.value = undefined;
   const portal = h.render();
   expect(enabled(portal)).toBe(false);
-  expect(h.part(svg(portal).props.ast).props.animatedProps).toEqual({
-    matrix: [1, 0, 0, 1, 0, 0],
-    opacity: 1,
-  });
+  expect(h.part(svg(portal).props).props.style[1]).toEqual(identity);
   expect(h.removeNavigation).toHaveBeenCalledTimes(2);
   const calls = h.updates.mock.calls.length;
   h.emitFocus(true);
@@ -430,27 +500,168 @@ it("resumes after startup Reduce Motion is turned off and cancels when it is ena
   h.emitReduced(false);
   let tree = h.render();
   expect(enabled(tree)).toBe(true);
-  expect(h.timing).toHaveBeenCalledWith(1, expect.objectContaining({ reduceMotion: "never" }));
-  expect(h.repeat).toHaveBeenCalledWith(expect.anything(), -1, false, undefined, "never");
+  expect(h.timing).toHaveBeenCalledWith(
+    h.progress,
+    expect.objectContaining({ toValue: 1, useNativeDriver: true, isInteraction: false }),
+  );
+  expect(h.repeat).toHaveBeenCalledWith(expect.anything(), {
+    iterations: -1,
+    resetBeforeIteration: true,
+  });
   resolve(true);
   await Promise.resolve();
   await Promise.resolve();
   expect(enabled(h.render())).toBe(true);
   h.progress.set(0.5);
-  expect(h.part(svg(tree).props.ast).props.animatedProps.matrix).not.toEqual([1, 0, 0, 1, 0, 0]);
+  expect(h.part(svg(tree).props).props.style[1]).not.toEqual(identity);
   const cancellations = h.cancel.mock.calls.length;
   h.emitReduced(true);
   tree = h.render();
   expect(enabled(tree)).toBe(false);
   expect(h.cancel.mock.calls.length).toBeGreaterThan(cancellations);
   expect(h.progress.get()).toBe(0);
-  expect(h.part(svg(tree).props.ast).props.animatedProps).toEqual({
-    matrix: [1, 0, 0, 1, 0, 0],
-    opacity: 1,
-  });
+  expect(h.part(svg(tree).props).props.style[1]).toEqual(identity);
   h.emitReduced(false);
   expect(enabled(h.render())).toBe(true);
   expect(h.timing).toHaveBeenCalledTimes(2);
   expect(h.repeat).toHaveBeenCalledTimes(2);
+  h.unmount();
+});
+
+it("keeps GPU planes static and contains the complete illustration in square and letterboxed frames", () => {
+  const h = harness();
+  let tree = h.render({ presentation: "cover" });
+  expect(tree.props.children.props.children.props.style.padding).toBe(4);
+  const measure = tree.props.children.props.children.props.children as Element;
+  measure.props.onLayout({ nativeEvent: { layout: { width: 88, height: 88 } } });
+  tree = h.render();
+  let square = tree.props.children.props.children.props.children.props.children as Element;
+  expect(square.props.style).toEqual({ width: 88, height: 88, overflow: "hidden" });
+  const plane = h.part(svg(tree).props);
+  expect(plane.type).toBe("Animated.View");
+  expect(plane.props.renderToHardwareTextureAndroid).toBe(true);
+  expect(plane.props.shouldRasterizeIOS).toBe(true);
+  expect(plane.props.style[0].transformOrigin).toEqual([0, 0, 0]);
+  expect(plane.props.children.type).toBe("SvgAst");
+  expect(plane.props.children.props).not.toHaveProperty("animatedProps");
+  expect(
+    h.part({ ...svg(tree).props, layer: { ...svg(tree).props.layer, motion: undefined } }).props
+      .style[1],
+  ).toEqual(identity);
+  measure.props.onLayout({ nativeEvent: { layout: { width: 390, height: 150 } } });
+  tree = h.render({ presentation: "background" });
+  square = tree.props.children.props.children.props.children.props.children as Element;
+  expect(square.props.style).toEqual({ width: 150, height: 150, overflow: "hidden" });
+  expect(tree.props.children.props.children.props.style.padding).toBe(0);
+  expect(h.generated).toHaveBeenCalledOnce();
+  expect(h.parsed).toHaveBeenCalledOnce();
+  h.unmount();
+});
+
+it("owns one native noninteraction clock for all planes and stops it on every disable and disposal", () => {
+  const h = harness();
+  let tree = h.render({ variant: "groups" });
+  const square = tree.props.children.props.children.props.children.props.children as Element;
+  expect(square.props.children.length).toBeGreaterThan(1);
+  for (const layer of square.props.children) {
+    expect(layer.props.progress).toBe(h.progress);
+    h.part(layer.props);
+  }
+  expect(h.constructed).toHaveBeenCalledOnce();
+  expect(h.timing).toHaveBeenCalledOnce();
+  expect(h.repeat).toHaveBeenCalledOnce();
+  expect(h.started).toHaveBeenCalledOnce();
+  h.progress.set(0.5);
+  tree = h.render({ size: 96, presentation: "background" });
+  expect(h.timing).toHaveBeenCalledOnce();
+  expect(h.progress.get()).toBe(0.5);
+  h.emitApp("background");
+  expect(enabled(h.render())).toBe(false);
+  expect(h.stopped).toHaveBeenCalledOnce();
+  expect(h.progress.get()).toBe(0);
+  h.emitApp("active");
+  expect(enabled(h.render())).toBe(true);
+  expect(h.started).toHaveBeenCalledTimes(2);
+  h.unmount();
+  expect(h.stopped).toHaveBeenCalledTimes(2);
+  expect(h.progress.get()).toBe(0);
+  expect(h.constructed).toHaveBeenCalledOnce();
+});
+
+it("mounts no SVG planes until the artwork frame has a usable size", () => {
+  const h = harness();
+  const unmeasured = h.renderUnmeasured();
+  const emptySquare = unmeasured.props.children.props.children.props.children.props
+    .children as Element;
+  expect(emptySquare.props.style.width).toBe(0);
+  expect(emptySquare.props.children).toBe(false);
+  const measured = h.render();
+  const square = measured.props.children.props.children.props.children.props.children as Element;
+  expect(square.props.style.width).toBe(64);
+  expect(square.props.children.length).toBeGreaterThan(0);
+  expect(h.constructed).toHaveBeenCalledOnce();
+  h.unmount();
+});
+
+it("collapses only exactly constant channels without changing sampled geometry or the shared clock", () => {
+  const h = harness();
+  const props = svg(h.render()).props;
+  const cases: Array<[string, string | undefined, number]> = [
+    ["bgo-events-calendar", undefined, 3],
+    ["bgo-events-banner", "bunting", 3],
+    ["bgo-events-banner", "flag", 3],
+    ["bgo-events-banner", "stars", 3],
+    ["bgo-events-accessory", undefined, 1],
+    ["bgo-tables-die", undefined, 3],
+    ["bgo-tables-token", undefined, 1],
+    ["bgo-groups-member-0", undefined, 1],
+    ["bgo-groups-member-1", undefined, 1],
+    ["bgo-groups-member-2", undefined, 1],
+    ["bgo-groups-badge", undefined, 1],
+  ];
+  const placement = { x: 148, y: 151, scale: 0.72 };
+  for (const [name, celebration, channels] of cases) {
+    const profile = motion.resourceArtworkMotion(name, celebration) as motion.ArtworkMotion;
+    const expected = frames.resourceArtworkFrames(profile, placement, 96, (value) => value);
+    for (const progress of [0, 0.25, 0.5, 0.75]) {
+      h.progress.set(progress);
+      h.interpolated.mockClear();
+      const plane = h.part({
+        ...props,
+        size: 96,
+        layer: { ...props.layer, motion: profile, placement },
+      });
+      const index = progress * (expected.inputRange.length - 1);
+      expect(plane.props.style[1]).toEqual({
+        opacity: expected.opacity[index],
+        transform: [
+          { translateX: expected.translateX[index] },
+          { translateY: expected.translateY[index] },
+          { rotate: expected.rotate[index] },
+        ],
+      });
+      expect(h.interpolated).toHaveBeenCalledTimes(channels);
+      expect(h.timing).toHaveBeenCalledOnce();
+    }
+  }
+  h.unmount();
+});
+
+it("reuses the exact SVG subtree while focus or frame dimensions change", () => {
+  const h = harness();
+  const props = svg(h.render()).props;
+  const first = h.part(props, true);
+  const disabled = h.part({ ...props, enabled: false }, true);
+  const resized = h.part({ ...props, size: 96 }, true);
+  expect(disabled.props.children).toBe(first.props.children);
+  expect(resized.props.children).toBe(first.props.children);
+  expect(disabled.props.style[1]).toEqual(identity);
+  const replacement = h.part(
+    { ...props, layer: { ...props.layer, ast: { ...props.layer.ast } } },
+    true,
+  );
+  expect(replacement.props.children).not.toBe(first.props.children);
+  expect(h.constructed).toHaveBeenCalledOnce();
+  expect(h.timing).toHaveBeenCalledOnce();
   h.unmount();
 });

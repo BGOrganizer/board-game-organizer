@@ -1,0 +1,107 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Cached Group Event and Table details
+# Existing owned PRIVATE PLANNING fixtures, already authenticated Development app.
+# No votes, registrations, invitations, acknowledgments or other writes.
+tags: [manual, performance, details]
+---
+- runScript: ../helpers/cached-detail-navigation-inputs.js
+- openLink: ${output.details.groupLink}
+- assertVisible: ${output.details.groupName}
+- repeat:
+    times: 2
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: top-tab-members
+          direction: DOWN
+      - tapOn:
+          id: top-tab-members
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: top-tab-members
+          selected: true
+      - tapOn:
+          id: top-tab-events
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: list-search-input
+      - swipe:
+          from:
+            id: top-tab-scroll
+          direction: LEFT
+          waitToSettleTimeoutMs: 500
+      - tapOn:
+          id: top-tab-rankings
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: top-tab-rankings
+          selected: true
+      - swipe:
+          from:
+            id: top-tab-scroll
+          direction: RIGHT
+          waitToSettleTimeoutMs: 500
+      - tapOn:
+          id: top-tab-info
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: top-tab-info
+          selected: true
+- openLink: ${output.details.eventLink}
+- assertVisible: ${output.details.eventName}
+- repeat:
+    times: 2
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: top-tab-participants
+          direction: DOWN
+      - tapOn:
+          id: top-tab-participants
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: top-tab-participants
+          selected: true
+      - tapOn:
+          id: top-tab-tables
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: top-tab-tables
+          selected: true
+      - scroll
+      - scrollUntilVisible:
+          element:
+            id: top-tab-details
+          direction: UP
+          timeout: 120000
+      - tapOn:
+          id: top-tab-details
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: top-tab-details
+          selected: true
+- openLink: ${output.details.tableLink}
+- assertVisible: ${output.details.tableName}
+- repeat:
+    times: 2
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: table-participants-tab
+          direction: DOWN
+      - tapOn:
+          id: table-participants-tab
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: table-participants-tab
+          selected: true
+      - tapOn:
+          id: table-overview-tab
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: table-overview-tab
+          selected: true
+- back
+- assertVisible: ${output.details.eventName}
+- back
+- assertVisible: ${output.details.groupName}

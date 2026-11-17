@@ -1,6 +1,6 @@
 import { Tabs } from "heroui-native/tabs";
 import { Globe, LockKeyhole, Search } from "lucide-react-native";
-import { useState } from "react";
+import { memo, useDeferredValue, useState } from "react";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
@@ -10,6 +10,8 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupList } from "./GroupList";
 
+const MemoizedGroupList = memo(GroupList);
+
 export function Groups({
   initialSection = "private",
 }: {
@@ -17,7 +19,9 @@ export function Groups({
 }) {
   const t = useT();
   const options = useCommunityApi();
-  const [section, setSection] = useState<string>(initialSection);
+  const [selectedSection, setSection] = useState<string>(initialSection);
+  const section = useDeferredValue(selectedSection);
+  const pending = selectedSection !== section;
   return (
     <NotificationAttentionScope
       options={options}
@@ -27,7 +31,7 @@ export function Groups({
         { kind: "group-list", id: "search" },
       ]}
     >
-      <Tabs value={section} onValueChange={setSection} style={{ flex: 1 }}>
+      <Tabs value={selectedSection} onValueChange={setSection} style={{ flex: 1 }}>
         <MainTabBar>
           <TabTrigger icon={LockKeyhole} value="private" style={{ flexDirection: "row", gap: 6 }}>
             <Tabs.Label>{t("Private groups")}</Tabs.Label>
@@ -42,8 +46,14 @@ export function Groups({
             <NotificationTabBadge target={{ kind: "group-list", id: "search" }} />
           </TabTrigger>
         </MainTabBar>
-        <View style={{ flex: 1 }}>
-          <GroupList
+        <View
+          style={{ flex: 1 }}
+          pointerEvents={pending ? "none" : "auto"}
+          accessibilityElementsHidden={pending}
+          importantForAccessibility={pending ? "no-hide-descendants" : "auto"}
+          accessibilityState={{ busy: pending }}
+        >
+          <MemoizedGroupList
             key={section}
             scope={section === "search" ? "public" : "mine"}
             type={section === "private" ? "PRIVATE" : section === "public" ? "PUBLIC" : undefined}

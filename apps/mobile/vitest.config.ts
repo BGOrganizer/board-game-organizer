@@ -35,12 +35,25 @@ export default defineConfig({
         "src/store/**",
       ],
       thresholds: {
-        "src/lib/{resourceArtworkMotion,resourceArtworkTree,artworkVisibility}.ts": {
+        "src/lib/contacts/useContactTab.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
+        "src/lib/tabBarGeometry.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/lib/{resourceArtworkMotion,resourceArtworkLayers,resourceArtworkFrames,artworkVisibility}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "src/lib/useArtworkListVisibility.tsx": {
           lines: 100,
           functions: 100,

@@ -6,6 +6,48 @@ journeys invoked by `.github/scripts/maestro-e2e.sh`; see
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
 Do not run the helpers directory or treat helpers as independent test reports.
 
+## Manual cached navigation performance
+
+`46-cached-tab-navigation.yaml` changes navigation and starts in an already foreground, authenticated
+Development app. Verify its exact Preview API and account, then set
+`NAVIGATION_BUILD_ACK=owned-preview-build`, `NAVIGATION_API_URL` and
+`NAVIGATION_COLLECTION=present|absent` from the account's actual published collection capability.
+Use a fixture with native notification permission already granted, so opening the bell does not
+introduce an OS prompt. It changes all five main tabs, every main HeroUI tab, Profile tabs and the
+notification popover/inbox, then checks Back. It does not grant permissions, generate invitations,
+reset data or provision fixtures. Existing Contacts source-acknowledgment behavior still applies;
+the journey never presses mark-read or deletion actions. The collection branch is required when
+that capability exists; an absent collection is
+an explicit fixture limit, not acceptance of a populated collection.
+
+Run alongside separate, short native React Profiler and Event Timing captures. Maestro visibility
+assertions and its implicit waits establish navigation behavior, not response latency or frame rate.
+Also measure resource detail tabs, popovers, scrolling and reentry using owned Group/Event/Table
+fixtures; empty History alone does not establish populated History performance. Keep screenshots,
+raw profiles and account data in private diagnostic artifacts rather than Git.
+
+`47-cached-detail-navigation.yaml` checks every authorized Group tab, the Event detail/participants/
+Tables tabs, Table detail/participants and Back with existing owned PRIVATE PLANNING resources.
+Use the same build/API guards plus `NAVIGATION_DETAILS_INPUT` JSON containing
+`groupId`, `eventId`, `tableId`, `groupName`, `eventName` and `tableName`. The actor must be able to
+view Group members/Events/rankings and Event participants. It never fabricates permissions or
+silently skips those paths. Planning fixtures cannot establish Results-tab acceptance: additionally
+exercise an actual terminated Table visible in that account's populated History, including winners
+and Event/Table status popovers. Do not invent results or another participant's consent for setup.
+
+`48-cached-history-navigation.yaml` retains that populated History/Results path. Set the same
+build/API guards, `NAVIGATION_LOCALE=en|it` and `NAVIGATION_HISTORY_INPUT` JSON containing the exact
+`eventId`, `tableId`, `eventName`, `tableName` and `winnerUsername` (including `@`) of a real completed
+game accessible to the signed-in account. The actor needs full participant access, not a shared-results
+projection. It checks History entry, repeated Results/Participants/Details changes, winner popovers,
+the Event-to-Table path and Back. Provisioning, voting, finalizing and marking notices read remain
+outside this read-only journey.
+
+`49-contacts-deep-link-tabs.yaml` uses the same guards as flow 46. It checks repeated requests
+links after local selection, legacy aliases, search, an unknown-tab fallback, and returning from
+Profile with the selected section intact. Local presses must not dispatch navigation actions;
+verify that separately with the native React Profiler rather than inferring it from assertions.
+
 ## Manual OTA startup
 
 `34-ota-consent.yaml` covers a real compatible update with `OTA_CASE=later`, `update`,

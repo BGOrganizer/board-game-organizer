@@ -12,7 +12,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Bell, CheckCheck, Trash2 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -29,6 +29,10 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const t = useT();
   const { i18n } = useLingui();
+  const dateTime = useMemo(
+    () => new Intl.DateTimeFormat(i18n.locale, { dateStyle: "medium", timeStyle: "short" }),
+    [i18n.locale],
+  );
   const feedback = useMutationFeedback();
   const [danger, foreground, muted] = useThemeColor(["danger", "foreground", "muted"]);
   const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -190,10 +194,7 @@ export default function NotificationsScreen() {
                 </View>
                 <Typography className="text-sm text-muted">{item.description}</Typography>
                 <Typography className="text-xs text-muted">
-                  {new Intl.DateTimeFormat(i18n.locale, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  }).format(new Date(item.createdAt))}
+                  {dateTime.format(new Date(item.createdAt))}
                 </Typography>
               </View>
             </Pressable>

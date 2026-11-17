@@ -1,0 +1,81 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Populated History and terminated Event Table results
+# Read-only existing real completed game. No finalization or acknowledgments.
+tags: [manual, performance, history]
+---
+- runScript: ../helpers/cached-history-navigation-inputs.js
+- openLink: bgo-dev:///tables
+- assertVisible:
+    id: list-search-input
+- scrollUntilVisible:
+    element: ${output.history.openTable}
+    direction: DOWN
+- tapOn:
+    text: ${output.history.openTable}
+    waitToSettleTimeoutMs: 500
+- assertVisible: ${output.history.tableName}
+- repeat:
+    times: 2
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: table-results-tab
+          direction: DOWN
+      - tapOn:
+          id: table-results-tab
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: table-results-tab
+          selected: true
+      - assertVisible: ${output.history.winner}
+      - tapOn:
+          id: table-participants-tab
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: table-participants-tab
+          selected: true
+      - tapOn:
+          id: table-overview-tab
+          waitToSettleTimeoutMs: 500
+      - tapOn:
+          text: ${output.history.terminated}
+          waitToSettleTimeoutMs: 500
+      - assertVisible: ${output.history.winner}
+      - back
+- back
+- assertVisible:
+    id: main-tab-tables
+- openLink: ${output.history.eventLink}
+- assertVisible: ${output.history.eventName}
+- tapOn:
+    text: ${output.history.terminated}
+    waitToSettleTimeoutMs: 500
+- assertVisible: ${output.history.winner}
+- assertVisible: ${output.history.tableName}
+- back
+- scrollUntilVisible:
+    element:
+      id: top-tab-tables
+    direction: DOWN
+- tapOn:
+    id: top-tab-tables
+    waitToSettleTimeoutMs: 500
+- scrollUntilVisible:
+    element: ${output.history.openTable}
+    direction: DOWN
+- tapOn:
+    text: ${output.history.openTable}
+    waitToSettleTimeoutMs: 500
+- scrollUntilVisible:
+    element:
+      id: table-results-tab
+    direction: DOWN
+- tapOn:
+    id: table-results-tab
+    waitToSettleTimeoutMs: 500
+- assertVisible: ${output.history.winner}
+- back
+- assertVisible: ${output.history.eventName}
+- back
+- assertVisible:
+    id: main-tab-tables

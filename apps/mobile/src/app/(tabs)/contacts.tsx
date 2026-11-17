@@ -16,7 +16,7 @@ import * as Sentry from "@sentry/react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -65,6 +65,7 @@ import {
   scanContactIdentifiers,
 } from "@/lib/contacts/registeredContacts";
 import { unregisteredContacts } from "@/lib/contacts/unregisteredContacts";
+import { useContactTab } from "@/lib/contacts/useContactTab";
 import type { FriendRequestContext, UserActionKey } from "@/lib/contacts/user-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -129,9 +130,7 @@ export default function ContactsScreen() {
   const readSection = (id: ContactTab) => {
     if (id !== "device") attentionRead.read({ kind: "contacts", id });
   };
-  const router = useRouter();
-  const { tab: tabParam } = useLocalSearchParams<{ tab?: string | string[] }>();
-  const tab = contactTab(tabParam);
+  const { tab, setTab } = useContactTab();
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [menuUser, setMenuUser] = useState<ContactUser | null>(null);
@@ -656,7 +655,7 @@ export default function ContactsScreen() {
           onValueChange={(value) => {
             const next = contactTab(value);
             readSection(next);
-            router.setParams({ tab: next });
+            setTab(next);
           }}
           variant="primary"
         >

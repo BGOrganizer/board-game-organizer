@@ -1,0 +1,50 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Contacts local tabs and repeated deep links
+# Already authenticated owned Preview session; existing source acknowledgments still apply.
+tags: [manual, performance, contacts]
+---
+- runScript: ../helpers/cached-tab-navigation-inputs.js
+- openLink: bgo-dev:///contacts?tab=requests
+- assertVisible:
+    id: top-tab-requests
+    selected: true
+- repeat:
+    times: 2
+    commands:
+      - tapOn:
+          id: top-tab-connections
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: top-tab-connections
+          selected: true
+      - openLink: bgo-dev:///contacts?tab=requests
+      - assertVisible:
+          id: top-tab-requests
+          selected: true
+- openLink: bgo-dev:///contacts?tab=blocked
+- assertVisible:
+    id: top-tab-requests
+    selected: true
+- openLink: bgo-dev:///contacts?tab=suggestions
+- assertVisible:
+    id: top-tab-device
+    selected: true
+- openLink: bgo-dev:///contacts?tab=search
+- assertVisible:
+    id: contact-search-input
+- openLink: bgo-dev:///contacts?tab=unknown
+- assertVisible:
+    id: top-tab-connections
+    selected: true
+- tapOn:
+    id: top-tab-requests
+    waitToSettleTimeoutMs: 500
+- tapOn:
+    id: profile-button
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: profile-joined-at
+- back
+- assertVisible:
+    id: top-tab-requests
+    selected: true

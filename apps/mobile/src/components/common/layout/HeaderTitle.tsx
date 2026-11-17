@@ -1,10 +1,17 @@
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import type { LucideIcon } from "lucide-react-native";
+import { memo } from "react";
 import { View } from "react-native";
 import { HEADER_ICON_SIZE } from "./headerStyles";
 
-export function HeaderTitle({ title, icon: Icon }: { title: string; icon: LucideIcon }) {
+export const HeaderTitle = memo(function HeaderTitle({
+  title,
+  icon: Icon,
+}: {
+  title: string;
+  icon: LucideIcon;
+}) {
   const foreground = useThemeColor("foreground");
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 }}>
@@ -19,4 +26,4 @@ export function HeaderTitle({ title, icon: Icon }: { title: string; icon: Lucide
       </Typography>
     </View>
   );
-}
+});

@@ -4,7 +4,6 @@ import {
 } from "@board-game-organizer/shared/artwork";
 import { NavigationContext } from "expo-router/react-navigation";
 import {
-  createContext,
   memo,
   use,
   useCallback,
@@ -15,49 +14,21 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { AccessibilityInfo, AppState, View } from "react-native";
-import Animated, {
-  cancelAnimation,
-  Easing,
-  ReduceMotion,
-  type SharedValue,
-  useAnimatedProps,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
-import { G, type GProps, parse, SvgAst, type XmlAST } from "react-native-svg";
-import { ScopedTheme } from "uniwind";
 import {
-  ARTWORK_CYCLE_MS,
-  interpolateArtworkMotion,
-  resourceArtworkMotion,
-} from "@/lib/resourceArtworkMotion";
-import { resourceArtworkTree } from "@/lib/resourceArtworkTree";
+  AccessibilityInfo,
+  Animated,
+  AppState,
+  Easing,
+  type LayoutChangeEvent,
+  View,
+} from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
+import { parse } from "react-native-svg";
+import { ScopedTheme } from "uniwind";
+import { type ArtworkLayer, resourceArtworkLayers } from "@/lib/resourceArtworkLayers";
+import { ARTWORK_CYCLE_MS } from "@/lib/resourceArtworkMotion";
 import { ArtworkHeaderContext, ArtworkVisibleContext } from "./ArtworkVisibility";
-
-const AnimatedGroup = Animated.createAnimatedComponent(G);
-const easeInOut = Easing.bezier(0.42, 0, 0.58, 1).factory();
-const MotionContext = createContext<{
-  progress: SharedValue<number>;
-  enabled: boolean;
-  celebration?: string;
-} | null>(null);
-
-function AnimatedArtworkPart({ className, ...props }: GProps & { className?: string }) {
-  const motion = use(MotionContext);
-  const profile = useMemo(
-    () => resourceArtworkMotion(className ?? "", motion?.celebration),
-    [className, motion?.celebration],
-  );
-  const animatedProps = useAnimatedProps(() =>
-    motion && profile
-      ? interpolateArtworkMotion(profile, motion.progress.get(), easeInOut, motion.enabled)
-      : {},
-  );
-  return <AnimatedGroup {...props} animatedProps={animatedProps} />;
-}
+import { DicebearArtworkLayer } from "./DicebearArtworkLayer";
 
 export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
   seed,
@@ -75,13 +46,19 @@ export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
     typeof artwork.options.celebrationVariant === "string"
       ? artwork.options.celebrationVariant
       : undefined;
-  const ast = useMemo(
-    () =>
-      parse(artwork.svg, (node) =>
-        resourceArtworkTree(node, AnimatedArtworkPart as XmlAST["Tag"], celebration),
-      ),
-    [artwork.svg, celebration],
-  );
+  const layers = useMemo(() => {
+    let layers: ArtworkLayer[] = [];
+    parse(artwork.svg, (root) => {
+      layers = resourceArtworkLayers(root, celebration);
+      return { ...root, children: [] };
+    });
+    return layers;
+  }, [artwork.svg, celebration]);
+  const [frameSize, setFrameSize] = useState(0);
+  const measureArtwork = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setFrameSize(Math.min(width, height));
+  }, []);
   const visible = use(ArtworkVisibleContext);
   const header = use(ArtworkHeaderContext);
   const frameId = useId();
@@ -119,7 +96,7 @@ export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
   const initialReducedMotion = useReducedMotion();
   const [reducedMotion, setReducedMotion] = useState(initialReducedMotion);
   const [active, setActive] = useState(AppState.currentState === "active");
-  const progress = useSharedValue(0);
+  const progress = useMemo(() => new Animated.Value(0), []);
   const enabled = visible && frameVisible && focused && active && !reducedMotion;
   useEffect(() => {
     if (!header) return;
@@ -168,29 +145,27 @@ export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
     };
   }, []);
   useEffect(() => {
-    cancelAnimation(progress);
-    progress.set(0);
-    // AccessibilityInfo owns the live preference; Reanimated System caches its startup value.
-    if (enabled)
-      progress.set(
-        withRepeat(
-          withTiming(1, {
+    progress.stopAnimation();
+    progress.setValue(0);
+    const animation = enabled
+      ? Animated.loop(
+          Animated.timing(progress, {
+            toValue: 1,
             duration: ARTWORK_CYCLE_MS,
             easing: Easing.linear,
-            reduceMotion: ReduceMotion.Never,
+            useNativeDriver: true,
+            isInteraction: false,
           }),
-          -1,
-          false,
-          undefined,
-          ReduceMotion.Never,
-        ),
-      );
-    return () => cancelAnimation(progress);
+          { iterations: -1, resetBeforeIteration: true },
+        )
+      : null;
+    animation?.start();
+    return () => {
+      animation?.stop();
+      progress.stopAnimation();
+      progress.setValue(0);
+    };
   }, [enabled, progress]);
-  const motion = useMemo(
-    () => ({ progress, enabled, celebration }),
-    [progress, enabled, celebration],
-  );
   return (
     <View
       ref={frame}
@@ -208,12 +183,23 @@ export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
     >
       <ScopedTheme theme="light">
         <View className="bg-surface" style={{ flex: 1, padding: presentation === "cover" ? 4 : 0 }}>
-          <MotionContext value={motion}>
-            <SvgAst
-              ast={ast}
-              override={{ width: "100%", height: "100%", preserveAspectRatio: "xMidYMid meet" }}
-            />
-          </MotionContext>
+          <View
+            onLayout={measureArtwork}
+            style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+          >
+            <View style={{ width: frameSize, height: frameSize, overflow: "hidden" }}>
+              {frameSize > 0 &&
+                layers.map((layer) => (
+                  <DicebearArtworkLayer
+                    key={layer.key}
+                    layer={layer}
+                    progress={progress}
+                    enabled={enabled}
+                    size={frameSize}
+                  />
+                ))}
+            </View>
+          </View>
         </View>
       </ScopedTheme>
     </View>

@@ -3,6 +3,7 @@ import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
+import { stableTabContentWidth } from "../tabBarGeometry";
 
 // Execute application layout/callback logic; native pixel rendering remains device acceptance.
 const text = readFileSync(
@@ -44,6 +45,9 @@ it.each([
     View: "View",
     Tabs: { List: "List", ScrollView: "ScrollView", Indicator: "Indicator" },
     useState: () => (hook++ === 0 ? [available, setAvailable] : [content, setContent]),
+    useCallback: (callback: unknown) => callback,
+    PixelRatio: { get: () => 2.625 },
+    stableTabContentWidth,
   });
   const list = tree.children[0],
     scroll = list.children[0];
@@ -57,7 +61,8 @@ it.each([
   tree.props.onLayout({ nativeEvent: { layout: { width: 500 } } });
   scroll.props.onContentSizeChange(220);
   expect(setAvailable).toHaveBeenCalledWith(500);
-  expect(setContent).toHaveBeenCalledWith(220);
+  expect(setContent).toHaveBeenCalledWith(expect.any(Function));
+  expect(setContent.mock.calls[0][0](content)).toBe(220);
 });
 it("retains minimum native targets without forcing a smaller font or flex-growing each tab", () => {
   const trigger = readFileSync(

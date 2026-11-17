@@ -1,7 +1,7 @@
 import type { EventListSection } from "@board-game-organizer/schemas";
 import { Tabs } from "heroui-native/tabs";
 import { CalendarCheck, CalendarSearch, Flag } from "lucide-react-native";
-import { type ReactNode, useState } from "react";
+import { memo, type ReactNode, useDeferredValue, useState } from "react";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
@@ -10,6 +10,8 @@ import { NotificationTabBadge } from "@/components/notifications/NotificationTab
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventList } from "./EventList";
+
+const MemoizedEventList = memo(EventList);
 
 export function Events({
   groupId,
@@ -24,7 +26,9 @@ export function Events({
 }) {
   const t = useT();
   const options = useCommunityApi();
-  const [section, setSection] = useState<EventListSection>(initialSection);
+  const [selectedSection, setSection] = useState<EventListSection>(initialSection);
+  const section = useDeferredValue(selectedSection);
+  const pending = selectedSection !== section;
   if (groupId) return <EventList groupId={groupId} canCreate={canCreate} header={header} />;
   return (
     <NotificationAttentionScope
@@ -36,7 +40,7 @@ export function Events({
       ]}
     >
       <Tabs
-        value={section}
+        value={selectedSection}
         onValueChange={(value) => {
           if (value === "mine" || value === "available" || value === "terminated")
             setSection(value);
@@ -61,8 +65,14 @@ export function Events({
             <NotificationTabBadge target={{ kind: "event-list", id: "terminated" }} />
           </TabTrigger>
         </MainTabBar>
-        <View style={{ flex: 1 }}>
-          <EventList key={section} section={section} canCreate={canCreate} />
+        <View
+          style={{ flex: 1 }}
+          pointerEvents={pending ? "none" : "auto"}
+          accessibilityElementsHidden={pending}
+          importantForAccessibility={pending ? "no-hide-descendants" : "auto"}
+          accessibilityState={{ busy: pending }}
+        >
+          <MemoizedEventList key={section} section={section} canCreate={canCreate} />
         </View>
       </Tabs>
     </NotificationAttentionScope>

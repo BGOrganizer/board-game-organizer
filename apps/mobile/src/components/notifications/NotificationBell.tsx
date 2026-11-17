@@ -16,7 +16,7 @@ import { Popover } from "heroui-native/popover";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Bell, CheckCheck } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Linking, Pressable, View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -33,13 +33,17 @@ function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 }
 
-export function NotificationBell() {
+export const NotificationBell = memo(function NotificationBell() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const t = useT();
   const { i18n } = useLingui();
   const locale = i18n.locale.startsWith("it") ? "it" : "en";
+  const dateTime = useMemo(
+    () => new Intl.DateTimeFormat(i18n.locale, { dateStyle: "short", timeStyle: "short" }),
+    [i18n.locale],
+  );
   const [overlay, foreground, muted] = useThemeColor(["overlay", "foreground", "muted"]);
   const registrationKey = JSON.stringify([apiUrl(), userId, locale]);
   const activeRegistration = useRef(registrationKey);
@@ -268,10 +272,7 @@ export function NotificationBell() {
                     {notification.description}
                   </Typography>
                   <Typography className="text-[10px] text-muted">
-                    {new Intl.DateTimeFormat(i18n.locale, {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    }).format(new Date(notification.createdAt))}
+                    {dateTime.format(new Date(notification.createdAt))}
                   </Typography>
                 </View>
               </Pressable>
@@ -305,4 +306,4 @@ export function NotificationBell() {
       </Popover.Portal>
     </Popover>
   );
-}
+});

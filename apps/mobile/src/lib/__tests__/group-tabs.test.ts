@@ -18,7 +18,7 @@ function prop(name: string) {
   function visit(node: ts.Node) {
     if (
       (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) &&
-      node.tagName.getText(file) === "GroupList"
+      node.tagName.getText(file) === "MemoizedGroupList"
     ) {
       const value = node.attributes.properties
         .filter(ts.isJsxAttribute)
