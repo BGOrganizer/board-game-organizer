@@ -213,7 +213,7 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
       ReduceMotion: { Never: "never" },
       useReducedMotion: () => state.initialReduced,
     },
-    "react-native-svg": { G: "G", SvgAst: "SvgAst", parse: parsed },
+    "react-native-svg": { G: "G", SvgAst: "SvgAst", SvgXml: "SvgXml", parse: parsed },
     uniwind: { ScopedTheme: "ScopedTheme" },
     "@/lib/resourceArtworkMotion": motion,
     "@/lib/resourceArtworkFrames": frames,
@@ -250,7 +250,15 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
   }
   const output = load("AnimatedDicebearArtwork"),
     layerComponent = load("DicebearArtworkLayer");
-  let props: Record<string, unknown> = { seed: "stable", variant: "events" };
+  let props: Record<string, unknown> = {
+    seed: "stable",
+    variant: "events",
+    presentation: "background",
+  };
+  function renderRoot() {
+    const tree = output.AnimatedDicebearArtwork(props);
+    return typeof tree.type === "function" ? tree.type(tree.props) : tree;
+  }
   const retainedPartHooks = new Map<unknown, any[]>();
   return {
     state,
@@ -278,7 +286,7 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
       props = { ...props, ...next };
       dirty = false;
       cursor = 0;
-      const tree = output.AnimatedDicebearArtwork(props);
+      const tree = renderRoot();
       while (effects.length) effects.shift()?.();
       return tree as Element;
     },
@@ -288,7 +296,7 @@ function harness(preference: Promise<boolean> = Promise.resolve(false)) {
       for (let count = 0; count < 10; count++) {
         dirty = false;
         cursor = 0;
-        tree = output.AnimatedDicebearArtwork(props);
+        tree = renderRoot();
         while (effects.length) effects.shift()!();
         if (!dirty) {
           const measure = tree.props.children.props.children.props.children as Element;
@@ -341,7 +349,7 @@ it.each(["events", "tables", "groups"])(
     const h = harness();
     const small = h.render({ variant, size: 64 });
     const xml = svg(small).props.layer.ast.svg;
-    expect(small.props.style).toMatchObject({ width: 64, height: 64 });
+    expect(small.props.style).toMatchObject({ position: "absolute", inset: 0 });
     expect(small.props.children.props.theme).toBe("light");
     expect(small.props.children.props.children.props.className).toBe("bg-surface");
     expect(h.part(svg(small).props).props.children.props.override.preserveAspectRatio).toBe(
@@ -349,8 +357,8 @@ it.each(["events", "tables", "groups"])(
     );
     expect(xml).toBe(createResourceArtwork(variant as "events", "stable").svg);
     expect(h.generated).toHaveBeenCalledWith(variant, "stable");
-    for (const presentation of ["thumbnail", "cover", "background"]) {
-      const large = h.render({ size: 96, presentation });
+    for (const size of [64, 96]) {
+      const large = h.render({ size });
       expect(svg(large).props.layer.ast.svg).toBe(xml);
       expect(h.part(svg(large).props).props.children.props.override.preserveAspectRatio).toBe(
         "xMidYMid meet",
@@ -530,8 +538,8 @@ it("resumes after startup Reduce Motion is turned off and cancels when it is ena
 
 it("keeps GPU planes static and contains the complete illustration in square and letterboxed frames", () => {
   const h = harness();
-  let tree = h.render({ presentation: "cover" });
-  expect(tree.props.children.props.children.props.style.padding).toBe(4);
+  let tree = h.render();
+  expect(tree.props.children.props.children.props.style.padding).toBe(0);
   const measure = tree.props.children.props.children.props.children as Element;
   measure.props.onLayout({ nativeEvent: { layout: { width: 88, height: 88 } } });
   tree = h.render();
@@ -665,3 +673,41 @@ it("reuses the exact SVG subtree while focus or frame dimensions change", () => 
   expect(h.timing).toHaveBeenCalledOnce();
   h.unmount();
 });
+
+it.each(["events", "tables", "groups"] as const)(
+  "keeps %s lists and selectors static without mounting animation machinery",
+  (variant) => {
+    for (const presentation of [undefined, "thumbnail", "cover"] as const) {
+      const h = harness();
+      const first = h.renderUnmeasured({ variant, presentation, size: 64 });
+      const surface = first.props.children.props.children;
+      const drawing = surface.props.children;
+      expect(first.props.testID).toBe(`dicebear-${variant}-image`);
+      expect(first.props.pointerEvents).toBe("none");
+      expect(first.props.importantForAccessibility).toBe("no-hide-descendants");
+      expect(first.props.children.props.theme).toBe("light");
+      expect(surface.props.className).toBe("bg-surface");
+      expect(surface.props.style.padding).toBe(presentation === "cover" ? 4 : 0);
+      expect(first.props.style).toMatchObject(
+        presentation === "cover" ? { position: "absolute", inset: 0 } : { width: 64, height: 64 },
+      );
+      expect(drawing.type).toBe("SvgXml");
+      expect(drawing.props).toMatchObject({
+        xml: createResourceArtwork(variant, "stable", "none").svg,
+        width: "100%",
+        height: "100%",
+        preserveAspectRatio: "xMidYMid meet",
+      });
+      h.renderUnmeasured({ size: 96 });
+      expect(h.generated).toHaveBeenCalledExactlyOnceWith(variant, "stable", "none");
+      expect(h.parsed).not.toHaveBeenCalled();
+      expect(h.constructed).not.toHaveBeenCalled();
+      expect(h.timing).not.toHaveBeenCalled();
+      expect(h.repeat).not.toHaveBeenCalled();
+      expect(h.measurements).toHaveLength(0);
+      expect(h.easing).toHaveBeenCalledOnce(); // Layer module setup, never a mounted layer.
+      expect(h.removeNavigation).not.toHaveBeenCalled();
+      h.unmount();
+    }
+  },
+);

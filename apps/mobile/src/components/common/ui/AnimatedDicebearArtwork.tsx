@@ -23,24 +23,58 @@ import {
   View,
 } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
-import { parse } from "react-native-svg";
+import { parse, SvgXml } from "react-native-svg";
 import { ScopedTheme } from "uniwind";
 import { type ArtworkLayer, resourceArtworkLayers } from "@/lib/resourceArtworkLayers";
 import { ARTWORK_CYCLE_MS } from "@/lib/resourceArtworkMotion";
 import { ArtworkHeaderContext, ArtworkVisibleContext } from "./ArtworkVisibility";
 import { DicebearArtworkLayer } from "./DicebearArtworkLayer";
 
-export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
-  seed,
-  variant,
-  size = 64,
-  presentation = "thumbnail",
-}: {
+type Props = {
   seed: string;
   variant: ResourceArtworkKind;
   size?: number;
   presentation?: "thumbnail" | "background" | "cover";
-}) {
+};
+
+export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork(props: Props) {
+  return props.presentation === "background" ? (
+    <AnimatedDetailArtwork {...props} />
+  ) : (
+    <StaticArtwork {...props} />
+  );
+});
+
+// Lists and selectors use one static SVG, without animation planes or native clocks.
+function StaticArtwork({ seed, variant, size = 64, presentation = "thumbnail" }: Props) {
+  const artwork = useMemo(() => createResourceArtwork(variant, seed, "none"), [variant, seed]);
+  return (
+    <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      pointerEvents="none"
+      testID={`dicebear-${variant}-image`}
+      style={
+        presentation === "cover"
+          ? { position: "absolute", inset: 0, borderRadius: 12, overflow: "hidden" }
+          : { width: size, height: size, flexShrink: 0, borderRadius: 12, overflow: "hidden" }
+      }
+    >
+      <ScopedTheme theme="light">
+        <View className="bg-surface" style={{ flex: 1, padding: presentation === "cover" ? 4 : 0 }}>
+          <SvgXml
+            xml={artwork.svg}
+            width="100%"
+            height="100%"
+            preserveAspectRatio="xMidYMid meet"
+          />
+        </View>
+      </ScopedTheme>
+    </View>
+  );
+}
+
+function AnimatedDetailArtwork({ seed, variant, size = 64, presentation = "background" }: Props) {
   const artwork = useMemo(() => createResourceArtwork(variant, seed), [variant, seed]);
   const celebration =
     typeof artwork.options.celebrationVariant === "string"
@@ -204,4 +238,4 @@ export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
       </ScopedTheme>
     </View>
   );
-});
+}

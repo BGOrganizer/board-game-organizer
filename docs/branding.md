@@ -90,13 +90,14 @@ keeping complete multiline titles and the notification action accessible.
 
 Web uses the SVG's embedded CSS animation and explicitly selects the static variant for system
 reduced motion; the embedded media query remains an additional safeguard. Server rendering starts
-static until the browser preference is known. Native renders the
-same SVG nodes through `react-native-svg`, preserving draw order in static planes, and applies the
-approved internal transforms and opacity to their native layers with React Native's native animation
+static until the browser preference is known. Native lists, selectors and embedded resource cards
+use the original static (`"none"`) SVG through `react-native-svg`, without animation planes or
+clocks. Detail backgrounds preserve draw order in static planes and apply the approved internal
+transforms and opacity to their native layers with React Native's native animation
 driver. One native clock per illustration keeps the parts synchronized, using the original medium
 curves and phases. SVG properties remain static during motion so Android can reuse their rasterized
 content. Keep motion on the UI thread, react to system reduced-motion changes,
-and stop decorative loops for background/inactive screens and nonvisible resource rows.
+and stop decorative loops for background/inactive screens and nonvisible detail artwork.
 Whole-image oscillation is not a substitute for the approved internal movements.
 
 Verify 64px and 96px artwork in light/dark list and detail frames, as well as the existing 40px
