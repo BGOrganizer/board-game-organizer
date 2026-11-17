@@ -80,9 +80,13 @@ jobs:
           set -euo pipefail
           mapfile -t apks < <(find apps/mobile/build-output -maxdepth 1 -name '*.apk')
           test "${#apks[@]}" -eq 1
-          analyzer="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
-          test "$("$analyzer" manifest application-id "${apks[0]}")" = com.bgo.boardgameorganizer.dev
-          test "$("$analyzer" manifest debuggable "${apks[0]}")" = true
+          # Read compiled manifest attributes directly; apkanalyzer's XML
+          # reconstruction fails on metadata in the development client.
+          aapt2="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name aapt2 -type f | sort -V | tail -n 1)"
+          test -x "$aapt2"
+          test "$("$aapt2" dump packagename "${apks[0]}")" = com.bgo.boardgameorganizer.dev
+          "$aapt2" dump badging "${apks[0]}" > "$RUNNER_TEMP/bgo-debug-badging.txt"
+          grep -Fxq 'application-debuggable' "$RUNNER_TEMP/bgo-debug-badging.txt"
           printf '%s\n' "$GITHUB_SHA" > apps/mobile/build-output/source-head.txt
           printf '%s\n' "$DEBUG_API_URL" > apps/mobile/build-output/api-url.txt
           printf '%s\n' 'debug' > apps/mobile/build-output/build-mode.txt

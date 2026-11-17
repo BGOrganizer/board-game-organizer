@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { parse } from "yaml";
 import { mobileDebugContext } from "../mobile-debug-context.mjs";
@@ -69,7 +72,8 @@ test("diagnostic workflow checks debug mode and only uploads a separate artifact
   assert.equal(build.with["app-environment"], "development");
   assert.equal(build.with["install-dependencies"], "false");
   const verify = steps.find((step) => step.name === "Verify diagnostic APK").run;
-  assert.match(verify, /manifest debuggable/);
+  assert.match(verify, /dump badging/);
+  assert.match(verify, /application-debuggable/);
   assert.match(verify, /com\.bgo\.boardgameorganizer\.dev/);
   assert.ok(!steps.some((step) => /publish|telegram|mobile-update/i.test(step.uses ?? "")));
   // biome-ignore lint/suspicious/noTemplateCurlyInString: Literal GitHub Actions expression.
@@ -80,4 +84,85 @@ test("diagnostic workflow checks debug mode and only uploads a separate artifact
   assert.equal(eas.build.development.android.gradleCommand, ":app:assembleDebug");
   assert.ok(!eas.build.internal.developmentClient);
   assert.equal(eas.build.internal.android.buildType, "apk");
+});
+
+test("APK gate accepts debug Development only and fails closed before metadata", () => {
+  const workflow = parse(readFileSync(".github/workflows/mobile-debug.yml", "utf8"));
+  const script = workflow.jobs.build.steps.find(
+    (step) => step.name === "Verify diagnostic APK",
+  ).run;
+  const root = mkdtempSync(join(tmpdir(), "bgo-debug-gate-"));
+  try {
+    const output = join(root, "apps/mobile/build-output");
+    const tools = join(root, "sdk/build-tools/36.0.0");
+    mkdirSync(tools, { recursive: true });
+    const analyzer = join(tools, "aapt2");
+    writeFileSync(
+      analyzer,
+      `#!/usr/bin/env node
+if (process.env.FIXTURE_TOOL_FAIL === "1") process.exit(1);
+if (process.argv[2] !== "dump") process.exit(2);
+if (process.argv[3] === "packagename") console.log(process.env.FIXTURE_PACKAGE);
+else if (process.argv[3] === "badging") console.log(process.env.FIXTURE_BADGING);
+else process.exit(2);
+`,
+    );
+    chmodSync(analyzer, 0o700);
+    for (const scenario of [
+      {
+        count: 1,
+        packageName: "com.bgo.boardgameorganizer.dev",
+        badging: "application-debuggable",
+        valid: true,
+      },
+      { count: 1, packageName: "com.bgo.boardgameorganizer", badging: "application-debuggable" },
+      {
+        count: 1,
+        packageName: "com.bgo.boardgameorganizer.dev",
+        badging: "application: label='BGO'",
+      },
+      {
+        count: 1,
+        packageName: "com.bgo.boardgameorganizer.dev",
+        badging: "application-debuggable-fake",
+      },
+      {
+        count: 1,
+        packageName: "com.bgo.boardgameorganizer.dev",
+        badging: "application-debuggable",
+        fail: true,
+      },
+      { count: 0 },
+      { count: 2 },
+    ]) {
+      rmSync(output, { recursive: true, force: true });
+      mkdirSync(output, { recursive: true });
+      for (let i = 0; i < scenario.count; i++) writeFileSync(join(output, `${i}.apk`), "fixture");
+      const execute = () =>
+        execFileSync("bash", ["-euo", "pipefail", "-c", script], {
+          cwd: root,
+          env: {
+            ...process.env,
+            ANDROID_HOME: join(root, "sdk"),
+            RUNNER_TEMP: root,
+            GITHUB_SHA: context.sha,
+            DEBUG_API_URL: "https://development.example.test",
+            FIXTURE_PACKAGE: scenario.packageName ?? "",
+            FIXTURE_BADGING: scenario.badging ?? "",
+            FIXTURE_TOOL_FAIL: scenario.fail ? "1" : "0",
+          },
+          stdio: "pipe",
+        });
+      if (scenario.valid) {
+        execute();
+        assert.equal(readFileSync(join(output, "build-mode.txt"), "utf8"), "debug\n");
+        assert.equal(readFileSync(join(output, "source-head.txt"), "utf8"), `${context.sha}\n`);
+      } else {
+        assert.throws(execute);
+        assert.throws(() => readFileSync(join(output, "build-mode.txt")));
+      }
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
