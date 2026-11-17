@@ -58,7 +58,7 @@ jobs:
           appendFileSync(e.GITHUB_OUTPUT, `api-url=${context.apiUrl}\n`);
           NODE
 
-      - name: Build ARM64 debug client
+      - name: Build ARM64 debug client with optimized native libraries
         uses: ./.github/actions/mobile-build
         with:
           install-dependencies: 'false'
@@ -89,7 +89,7 @@ jobs:
           grep -Fxq 'application-debuggable' "$RUNNER_TEMP/bgo-debug-badging.txt"
           printf '%s\n' "$GITHUB_SHA" > apps/mobile/build-output/source-head.txt
           printf '%s\n' "$DEBUG_API_URL" > apps/mobile/build-output/api-url.txt
-          printf '%s\n' 'debug' > apps/mobile/build-output/build-mode.txt
+          printf '%s\n' 'debug-optimized' > apps/mobile/build-output/build-mode.txt
 
       - name: Upload diagnostic artifact
         uses: actions/upload-artifact@v4

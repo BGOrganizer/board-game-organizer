@@ -9,7 +9,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "gradleCommand": ":app:assembleDebug",
+        "gradleCommand": ":app:assembleDebugOptimized",
         "env": {
           "GRADLE_OPTS": "-Dorg.gradle.project.android.abiFilters=arm64-v8a"
         }

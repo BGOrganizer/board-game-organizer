@@ -81,7 +81,7 @@ test("diagnostic workflow checks debug mode and only uploads a separate artifact
   assert.equal(steps.at(-1).with["retention-days"], 7);
   const eas = JSON.parse(readFileSync("apps/mobile/eas.json", "utf8"));
   assert.equal(eas.build.development.developmentClient, true);
-  assert.equal(eas.build.development.android.gradleCommand, ":app:assembleDebug");
+  assert.equal(eas.build.development.android.gradleCommand, ":app:assembleDebugOptimized");
   assert.ok(!eas.build.internal.developmentClient);
   assert.equal(eas.build.internal.android.buildType, "apk");
 });
@@ -155,7 +155,7 @@ else process.exit(2);
         });
       if (scenario.valid) {
         execute();
-        assert.equal(readFileSync(join(output, "build-mode.txt"), "utf8"), "debug\n");
+        assert.equal(readFileSync(join(output, "build-mode.txt"), "utf8"), "debug-optimized\n");
         assert.equal(readFileSync(join(output, "source-head.txt"), "utf8"), `${context.sha}\n`);
       } else {
         assert.throws(execute);
