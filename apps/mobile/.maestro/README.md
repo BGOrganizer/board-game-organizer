@@ -28,6 +28,7 @@ raw profiles and account data in private diagnostic artifacts rather than Git.
 
 `47-cached-detail-navigation.yaml` checks every authorized Group tab, the Event detail/participants/
 Tables tabs, Table detail/participants and Back with existing owned PRIVATE PLANNING resources.
+It opens Events before any other lazy Group panel, then repeats the retained paths.
 Use the same build/API guards plus `NAVIGATION_DETAILS_INPUT` JSON containing
 `groupId`, `eventId`, `tableId`, `groupName`, `eventName` and `tableName`. The actor must be able to
 view Group members/Events/rankings and Event participants. It never fabricates permissions or

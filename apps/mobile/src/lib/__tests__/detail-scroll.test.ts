@@ -384,14 +384,15 @@ it("isolates each retained Group panel's tab measurements and scopes its identit
     expect(keyFor("preview", "actor", "other-group")).not.toBe(JSON.stringify(ownerKey));
     const active = h.attribute(opening, "active");
     for (const selectedTab of destinations.keys())
-      expect(runInNewContext(active, { selectedTab })).toBe(selectedTab === destination);
+      expect(runInNewContext(active, { panelTab: selectedTab })).toBe(selectedTab === destination);
     const roots = panel.children.filter((node): node is ts.JsxElement => ts.isJsxElement(node));
     expect(roots).toHaveLength(1);
     const tabs = roots[0];
     expect(tabs.openingElement.tagName.getText(h.ast)).toBe("Tabs");
     expect(h.attribute(tabs.openingElement, "value")).toBe("selectedTab");
     expect(h.attribute(tabs.openingElement, "onValueChange")).toBe("changeTab");
-    expect(tabs.getText(h.ast)).toContain(`<${destinations.get(destination)}`);
+    const content = h.declarations.get(`${destination}Content`)?.initializer?.getText(h.ast);
+    expect(content ?? tabs.getText(h.ast)).toContain(`<${destinations.get(destination)}`);
     if (destination !== "info") {
       let guard: ts.Node | undefined = panel.parent;
       while (guard && !ts.isConditionalExpression(guard)) guard = guard.parent;
@@ -452,4 +453,30 @@ it("dismisses the keyboard only when changing the selected Group destination", (
   change("events");
   expect(dismiss).toHaveBeenCalledOnce();
   expect(setTab).toHaveBeenCalledExactlyOnceWith("events");
+});
+
+it("never keeps a deferred Group panel visible after its permission is revoked", () => {
+  const h = groupPanelSource();
+  const expression = h.declarations.get("panelTab")?.initializer?.getText(h.ast);
+  if (!expression) throw new Error("Missing authorized deferred Group selection");
+  for (let mask = 0; mask < 8; mask++) {
+    const group = {
+      canViewMembers: Boolean(mask & 1),
+      canViewEvents: Boolean(mask & 2),
+      canViewRankings: Boolean(mask & 4),
+    };
+    for (const deferredTab of ["info", "members", "events", "rankings", "unknown"]) {
+      const allowed =
+        deferredTab === "members"
+          ? group.canViewMembers
+          : deferredTab === "events"
+            ? group.canViewEvents
+            : deferredTab === "rankings"
+              ? group.canViewRankings
+              : false;
+      expect(runInNewContext(expression, { group, deferredTab })).toBe(
+        allowed ? deferredTab : "info",
+      );
+    }
+  }
 });

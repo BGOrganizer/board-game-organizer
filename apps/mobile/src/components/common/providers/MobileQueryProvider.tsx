@@ -13,8 +13,8 @@ import { openMobileQueryStorage, purgeMobileQueryStorage } from "@/lib/cache/mob
 import {
   configureMobileCache,
   createSessionPersister,
-  ownsPersistedQuery,
   restoreSessionCache,
+  shouldPersistCacheEvent,
 } from "@/lib/cache/queryPersistence";
 import { useT } from "@/lib/i18n";
 import { remainingSplashMs } from "@/lib/startup";
@@ -98,11 +98,7 @@ export function MobileQueryProvider({
           return;
         }
         unsubscribe = client.getQueryCache().subscribe((event) => {
-          if (
-            (event.type === "added" || event.type === "updated" || event.type === "removed") &&
-            ownsPersistedQuery(event.query.queryKey, { apiUrl, userId })
-          )
-            persister.schedule();
+          if (shouldPersistCacheEvent(event, { apiUrl, userId })) persister.schedule();
         });
         persister.schedule();
       } catch {

@@ -7,6 +7,26 @@ tags: [manual, performance, details]
 - runScript: ../helpers/cached-detail-navigation-inputs.js
 - openLink: ${output.details.groupLink}
 - assertVisible: ${output.details.groupName}
+# Exercise Events before Members: the first lazy list mount must preserve tab selection.
+- tapOn:
+    id: top-tab-events
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: top-tab-events
+    selected: true
+- assertVisible:
+    id: list-search-input
+- swipe:
+    from:
+      id: top-tab-scroll
+    direction: RIGHT
+    waitToSettleTimeoutMs: 500
+- tapOn:
+    id: top-tab-info
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: top-tab-info
+    selected: true
 - repeat:
     times: 2
     commands:

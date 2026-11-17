@@ -79,6 +79,8 @@ export function EventList({
         <InputFlatList
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
+          initialNumToRender={groupId ? 1 : undefined}
+          maxToRenderPerBatch={groupId ? 1 : undefined}
           data={communityAccessDenied(list.error) ? [] : list.items}
           keyExtractor={(row) => row.id}
           contentContainerStyle={{

@@ -78,6 +78,22 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
+it("mounts social mutations without observing or fetching contact lists", () => {
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  const { client, hook } = setup();
+  expect(fetch).not.toHaveBeenCalled();
+  expect(client.getQueryCache().getAll()).toHaveLength(7);
+  expect(
+    client
+      .getQueryCache()
+      .getAll()
+      .every((query) => query.getObserversCount() === 0),
+  ).toBe(true);
+  expect(hook.result.current.isBusy(person.userId)).toBe(false);
+  hook.unmount();
+  client.clear();
+});
 it("uses name/username/id fallbacks without exposing fabricated presence", () => {
   expect(groupPersonContact({ ...person, name: undefined, username: "handle" }).name).toBe(
     "handle",

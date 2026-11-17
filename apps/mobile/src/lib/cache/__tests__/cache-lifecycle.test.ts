@@ -8,8 +8,8 @@ import { afterEach, expect, it, vi } from "vitest";
 import { remainingSplashMs } from "../../startup";
 import {
   createSessionPersister,
-  ownsPersistedQuery,
   restoreSessionCache,
+  shouldPersistCacheEvent,
 } from "../queryPersistence";
 
 // Executes the actual account/restore effects. This is not RN rendering or MMKV native acceptance.
@@ -75,7 +75,7 @@ function bindings() {
     clearSessionQueryCache,
     remainingSplashMs,
     createSessionPersister,
-    ownsPersistedQuery,
+    shouldPersistCacheEvent,
     restoreSessionCache,
     hydrate,
     setTimeout,
