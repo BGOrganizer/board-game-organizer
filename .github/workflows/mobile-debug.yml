@@ -58,6 +58,27 @@ jobs:
           appendFileSync(e.GITHUB_OUTPUT, `api-url=${context.apiUrl}\n`);
           NODE
 
+      - name: Prepare temporary optimized diagnostic profile
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const path = 'apps/mobile/eas.json';
+          const original = readFileSync(path);
+          const config = JSON.parse(original.toString());
+          const profile = config.build?.development;
+          if (profile?.developmentClient !== true || profile.channel !== 'development' || profile.android?.gradleCommand !== ':app:assembleDebug') {
+            throw new Error('Expected the unchanged Development debug profile');
+          }
+          // Back up exact bytes before touching this fingerprint input. Never alter release profiles.
+          writeFileSync(join(process.env.RUNNER_TEMP, 'bgo-debug-eas-original.json'), original, { flag: 'wx', mode: 0o600 });
+          profile.android.gradleCommand = ':app:assembleDebugOptimized';
+          const effective = `${JSON.stringify(config, null, 2)}\n`;
+          writeFileSync(path, effective);
+          writeFileSync(join(process.env.RUNNER_TEMP, 'bgo-debug-eas.sha256'), `${createHash('sha256').update(effective).digest('hex')}\n`);
+          NODE
+
       - name: Build ARM64 debug client with optimized native libraries
         uses: ./.github/actions/mobile-build
         with:
@@ -72,6 +93,19 @@ jobs:
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
+      - name: Restore normal EAS configuration
+        if: ${{ always() }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const backup = join(process.env.RUNNER_TEMP, 'bgo-debug-eas-original.json');
+          if (existsSync(backup)) {
+            writeFileSync('apps/mobile/eas.json', readFileSync(backup));
+            unlinkSync(backup);
+          }
+          NODE
 
       - name: Verify diagnostic APK
         env:
@@ -90,6 +124,7 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > apps/mobile/build-output/source-head.txt
           printf '%s\n' "$DEBUG_API_URL" > apps/mobile/build-output/api-url.txt
           printf '%s\n' 'debug-optimized' > apps/mobile/build-output/build-mode.txt
+          cp "$RUNNER_TEMP/bgo-debug-eas.sha256" apps/mobile/build-output/eas-config.sha256
 
       - name: Upload diagnostic artifact
         uses: actions/upload-artifact@v4

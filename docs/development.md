@@ -64,11 +64,13 @@ message. Its branch-scoped push trigger bootstraps the workflow before default-b
 manual dispatch still follows GitHub's default-branch availability rules. JavaScript-only edits
 are served by Metro and do not trigger another diagnostic native build.
 
-The diagnostic profile uses React Native's `debugOptimized` variant: native C++ libraries use
-release optimizations while Metro, Hermes inspection and React profiling remain available.
-Artifact provenance records `debug-optimized`; this is still a development client, not a standalone
-release APK. Use it to avoid attributing unoptimized native debug overhead to product behavior,
-then calibrate final frame timings against a standalone release build.
+The diagnostic workflow temporarily selects React Native's `debugOptimized` variant: native C++
+libraries use release optimizations while Metro, Hermes inspection and React profiling remain
+available. It restores the exact original `eas.json` bytes after the build, including failures;
+the tracked normal profiles stay unchanged because Expo fingerprints the whole file. Artifact
+provenance records `debug-optimized` and the effective EAS configuration digest; this is still a
+development client, not a standalone release APK. Use it to avoid attributing unoptimized native
+debug overhead to product behavior, then calibrate final frame timings against a standalone release build.
 
 Record first entry, cached reentry, subtab changes, opening/closing a popover, background refetch,
 and Back navigation for Groups, Events and Tables; include Contacts as a comparison. Save the
