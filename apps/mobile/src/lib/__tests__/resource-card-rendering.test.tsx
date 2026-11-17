@@ -284,7 +284,13 @@ it("keeps the Event header mounted between details and tables and rejects inacti
     data: (typeof plannedTable)[];
     renderItem: (row: { item: typeof plannedTable }) => React.ReactNode;
     onEndReached: () => void;
+    initialNumToRender: number;
+    maxToRenderPerBatch: number;
+    windowSize: number;
   }) {
+    expect([props.initialNumToRender, props.maxToRenderPerBatch, props.windowSize]).toEqual([
+      8, 6, 7,
+    ]);
     React.useImperativeHandle(props.ref, () => ({ getNativeScrollRef: () => ({ scrollTo }) }), []);
     React.useEffect(() => {
       mounted();

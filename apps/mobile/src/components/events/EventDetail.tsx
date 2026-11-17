@@ -470,6 +470,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             )
           ) : (
             <FlatList
+              initialNumToRender={8}
+              maxToRenderPerBatch={6}
+              windowSize={7}
               onLayout={artwork.onLayout}
               onScroll={artwork.onScroll}
               onViewableItemsChanged={artwork.onViewableItemsChanged}
