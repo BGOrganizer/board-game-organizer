@@ -255,7 +255,7 @@ it.each(["event", "author", "correlation"] as const)(
     await waitFor(() =>
       expect(f.feedback.onError).toHaveBeenCalledWith(
         expect.objectContaining({ message: "MUTATION_READ_UNVERIFIED" }),
-        "propose_event_option",
+        "verify_saved_changes",
       ),
     );
     expect(f.client.getQueryData<EventProposalsResponse>(f.mineKey)?.items).toEqual([]);
@@ -324,7 +324,7 @@ it.each(["event", "proposal", "proposal-event", "version", "status"] as const)(
     await waitFor(() =>
       expect(f.feedback.onError).toHaveBeenCalledWith(
         expect.objectContaining({ message: "MUTATION_READ_UNVERIFIED" }),
-        "reject_event_proposal",
+        "verify_saved_changes",
       ),
     );
     expect(f.client.getQueryData(eventRecordKeys.detail(f.options, f.event.id))).toEqual(f.event);

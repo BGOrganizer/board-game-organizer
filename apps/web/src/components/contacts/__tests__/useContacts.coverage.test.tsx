@@ -309,7 +309,7 @@ it.each([false, true])(
         .catch((error: Error) => expect(error.message).toBe("HTTP 400")),
     );
     expect(client.getQueryData(key)).toEqual(before);
-    expect(hook.result.current.syncContacts.isError).toBe(true);
+    await waitFor(() => expect(hook.result.current.syncContacts.isError).toBe(true));
     expect(feedback.onSuccess).not.toHaveBeenCalled();
     if (silent) expect(feedback.onError).not.toHaveBeenCalled();
     else expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "sync_contacts");

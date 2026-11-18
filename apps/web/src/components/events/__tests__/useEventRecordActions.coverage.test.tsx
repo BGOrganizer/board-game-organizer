@@ -6,6 +6,7 @@ import {
   type SaveTableResultResponse,
   type TableSeatOrderSnapshot,
   type TableSeatResponse,
+  tableRegistrationReceiptSchema,
 } from "@board-game-organizer/schemas";
 import {
   clearSessionQueryCache,
@@ -129,11 +130,19 @@ it.each(["identity", "role", "invite", "edit"] as const)(
     act(() => hook.result.current.create.mutate(createInput()));
     await waitFor(() => expect(hook.result.current.create.isError).toBe(true));
     expect(calls.every(({ method }) => method === "GET")).toBe(true);
-    expect(hook.result.current.create.error).toMatchObject({
-      status: 403,
-      message: "GROUP_ADMIN_REQUIRED",
-    });
-    expect(options.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "create_event");
+    if (reason === "role") {
+      // The canonical group read revokes the dependent intent before its explicit capability check.
+      expect(hook.result.current.create.error?.message).toBe("MUTATION_OWNER_CHANGED");
+      expect(options.feedback.onError).not.toHaveBeenCalled();
+    } else {
+      expect(hook.result.current.create.error).toMatchObject({
+        status: 403,
+        message: "GROUP_ADMIN_REQUIRED",
+      });
+      expect(options.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "create_event");
+    }
+    expect(options.feedback.onSuccess).not.toHaveBeenCalled();
+    expect(client.isMutating()).toBe(0);
     expect(client.getQueryData(foreign)).toEqual(groupRecord);
   },
 );
@@ -503,8 +512,12 @@ it.each(["event", "table", "parent", "epoch"] as const)(
     expect(
       client.getQueryData<PlannedEventResponse>(eventRecordKeys.detail(options, eventId))?.version,
     ).toBe(1);
+    // Seed-only caches have no authoritative readers: recovery cannot verify this write.
+    await waitFor(() => expect(client.getQueryState(key)?.isInvalidated).toBe(true));
+    expect(hook.result.current.blocking).toBe(true);
+    expect(hook.result.current.saveResult.isPending).toBe(true);
+    expect(options.feedback.onSuccess).not.toHaveBeenCalled();
     expect(calls).toHaveLength(1);
-    expect(hook.result.current.blocking).toBe(false);
   },
 );
 
@@ -548,6 +561,22 @@ it.each(["CANCELLED", "DECLINED"] as const)(
   async (removedStatus) => {
     const { options, wrapper } = setup();
     const guest = seat("guest");
+    // Atomic write receipts contain registration fields, not roster display/profile fields.
+    const removalReceipt = tableRegistrationReceiptSchema.parse({
+      id: guest.id,
+      eventId,
+      tableId,
+      userId: guest.userId,
+      kind: guest.kind,
+      status: removedStatus,
+      priorityAt: guest.priorityAt,
+      sequence: guest.sequence,
+      version: 2,
+      gameVotes: guest.gameVotes,
+      createdAt: guest.createdAt,
+      updatedAt: guest.updatedAt,
+      eventVersion: 2,
+    });
     let epoch = 1,
       release: (response: Response) => void = () => {};
     const calls = transport(async (url, method) => {
@@ -557,13 +586,15 @@ it.each(["CANCELLED", "DECLINED"] as const)(
         });
       if (method === "POST") {
         epoch = 3;
-        return Response.json({
-          ...guest,
-          id: tableId,
-          kind: "INVITATION",
-          status: "PENDING",
-          eventVersion: epoch,
-        });
+        return Response.json(
+          tableRegistrationReceiptSchema.parse({
+            ...removalReceipt,
+            id: tableId,
+            status: "PENDING",
+            version: 1,
+            eventVersion: epoch,
+          }),
+        );
       }
       if (url.pathname === `/api/events/${eventId}`)
         return Response.json({ ...plannedEvent, version: epoch });
@@ -583,9 +614,7 @@ it.each(["CANCELLED", "DECLINED"] as const)(
     await waitFor(() => expect(hook.result.current.isInviting(tableId, "guest")).toBe(true));
     expect(calls.some(({ method }) => method === "POST")).toBe(false);
     epoch = 2;
-    await act(() =>
-      release(Response.json({ ...guest, status: removedStatus, version: 2, eventVersion: epoch })),
-    );
+    await act(() => release(Response.json(removalReceipt)));
     await waitFor(() =>
       expect(
         removedStatus === "CANCELLED"
@@ -596,11 +625,21 @@ it.each(["CANCELLED", "DECLINED"] as const)(
     expect(calls.filter(({ method }) => method === "POST")).toHaveLength(
       removedStatus === "CANCELLED" ? 1 : 0,
     );
+    expect(hook.result.current.respond.isSuccess).toBe(true);
+    expect(hook.result.current.respond.data).toEqual(removalReceipt);
     if (removedStatus === "DECLINED")
       expect(hook.result.current.invite.error).toMatchObject({
         status: 409,
         message: "EVENT_CHANGED",
       });
+    else {
+      expect(hook.result.current.invite.data).toMatchObject({
+        userId: guest.userId,
+        status: "PENDING",
+        eventVersion: 3,
+      });
+      expect(calls.find(({ method }) => method === "POST")?.body).toEqual({ userId: "guest" });
+    }
   },
 );
 
