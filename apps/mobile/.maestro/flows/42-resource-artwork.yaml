@@ -11,6 +11,10 @@ tags: [manual, artwork, accessibility]
 - runScript: ../helpers/resource-artwork-inputs.js
 - launchApp:
     clearState: false
+- extendedWaitUntil:
+    visible:
+      id: main-tab-groups
+    timeout: 120000
 - openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible: ${output.artwork.groupTab}
