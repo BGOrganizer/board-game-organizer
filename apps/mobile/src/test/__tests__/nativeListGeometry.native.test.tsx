@@ -3,9 +3,13 @@ import { FlatList, Text } from "react-native";
 import { expect, it, vi } from "vitest";
 import { scrollNativeListToEnd } from "../nativeListGeometry";
 
-it.each([1, 40])(
-  "delivers native end-reached after measured scrolling through %i rows",
-  async (count) => {
+it.each([
+  { count: 1, batch: 12 },
+  { count: 40, batch: 6 },
+  { count: 40, batch: 12 },
+])(
+  "delivers native end-reached after measured scrolling through $count rows with $batch-row batches",
+  async ({ count, batch }) => {
     const end = vi.fn();
     await render(
       <FlatList
@@ -14,7 +18,7 @@ it.each([1, 40])(
         keyExtractor={String}
         renderItem={({ item }) => <Text>{`Row ${item}`}</Text>}
         initialNumToRender={12}
-        maxToRenderPerBatch={12}
+        maxToRenderPerBatch={batch}
         windowSize={7}
         onEndReached={end}
         onEndReachedThreshold={0.4}

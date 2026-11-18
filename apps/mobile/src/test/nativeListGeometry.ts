@@ -17,9 +17,11 @@ function contentHost(list: NativeHost) {
 }
 const isCell = (node: NativeHost) =>
   typeof node.props.onFocusCapture === "function" && typeof node.props.onLayout === "function";
-function cells(list: NativeHost) {
-  return contentHost(list).children.filter(
-    (node): node is NativeHost => typeof node !== "string" && isCell(node),
+function renderedWindow(list: NativeHost) {
+  return contentHost(list).children.flatMap((node) =>
+    typeof node === "string"
+      ? []
+      : [{ node, height: StyleSheet.flatten(node.props.style)?.height }],
   );
 }
 
@@ -91,7 +93,7 @@ export async function scrollNativeListToEnd(list: NativeHost, contentHeight = 12
   await measureNativeList(list, { contentHeight: initialHeight });
   await user.scrollTo(list, { y: 0, ...metrics(initialHeight) });
   for (let pass = 0; pass < 32; pass++) {
-    const before = cells(list);
+    const before = renderedWindow(list);
     const layout = await measureNativeListCells(list);
     const height = layout.trailingSpacer
       ? Math.max(501, layout.height)
@@ -101,12 +103,17 @@ export async function scrollNativeListToEnd(list: NativeHost, contentHeight = 12
     // An absent tail spacer means the final window was already laid out. Stop
     // after its gesture; any appended API page belongs to the caller's next action.
     if (!layout.trailingSpacer) return;
-    // RN schedules lower-priority window expansion at its real 50ms batching
-    // interval. An unchanged host tree immediately after the gesture is not
-    // evidence of completion; await actual new native cells before their Yoga pass.
+    // RN can revise a capped tail spacer before mounting another cell. Wait
+    // for either public geometry or mounted hosts to advance before the next Yoga pass.
     await waitFor(() => {
-      const after = cells(list);
-      if (before.length === after.length && before.every((cell, index) => cell === after[index]))
+      const after = renderedWindow(list);
+      if (
+        before.length === after.length &&
+        before.every(
+          (entry, index) =>
+            entry.node === after[index].node && entry.height === after[index].height,
+        )
+      )
         throw new Error("Waiting for RN's next native virtualized window");
     });
   }

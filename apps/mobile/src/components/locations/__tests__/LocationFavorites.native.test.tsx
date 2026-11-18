@@ -185,11 +185,17 @@ async function toggle(name = "Add location to favorites") {
 it("keeps an authoritative empty selector disabled while allowing an explicitly verified favorite addition", async () => {
   await render(<Fixture />);
   await ready();
-  expect(screen.getByTestId("favorite-location-select")).toBeDisabled();
+  expect(await screen.findByTestId("favorite-location-select")).toBeDisabled();
   expect(
     within(screen.getByTestId("favorite-location-select")).getByText("No favorite locations"),
   ).toBeVisible();
-  expect(screen.getByRole("button", { name: "Add location to favorites" })).toBeEnabled();
+  expect(
+    await screen.findByRole("button", {
+      name: "Add location to favorites",
+      selected: false,
+      disabled: false,
+    }),
+  ).toBeEnabled();
   expect(writes).toHaveLength(0);
 });
 
@@ -348,11 +354,27 @@ it("disables a cold favorite mutation if its authoritative status check fails", 
 it("retains a verified cached status during an ordinary refresh error rather than manufacturing a cold failure", async () => {
   await render(<Fixture />);
   await ready();
+  expect(
+    await screen.findByRole("button", {
+      name: "Add location to favorites",
+      selected: false,
+      disabled: false,
+    }),
+  ).toBeEnabled();
+  const statusKey = ["favoriteLocations", API, "owner", "status", [locationFavoriteKey(venue)]];
+  expect(client.getQueryData(statusKey)).toEqual([]);
   statusCode = 503;
   await act(() =>
     client.invalidateQueries({ queryKey: ["favoriteLocations", API, "owner", "status"] }),
   );
-  expect(screen.getByRole("button", { name: "Add location to favorites" })).toBeEnabled();
+  expect(client.getQueryState(statusKey)).toMatchObject({ status: "error", data: [] });
+  expect(
+    await screen.findByRole("button", {
+      name: "Add location to favorites",
+      selected: false,
+      disabled: false,
+    }),
+  ).toBeEnabled();
   expect(writes).toHaveLength(0);
 });
 

@@ -508,7 +508,7 @@ it("falls back to Details when a selected Results panel becomes a planning table
       canFinalize: false,
     });
   });
-  expect(screen.queryByTestId("table-results-tab")).toBeNull();
+  await waitFor(() => expect(screen.queryByTestId("table-results-tab")).toBeNull());
   expect(screen.getByTestId("table-overview-tab")).toBeSelected();
 });
 

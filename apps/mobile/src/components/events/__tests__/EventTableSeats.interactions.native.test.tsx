@@ -128,7 +128,7 @@ function Fixture(props: Partial<ComponentProps<typeof EventTableSeats>> = {}) {
     </QueryClientProvider>
   );
 }
-async function ready() {
+async function ready(expectedPlayer?: string) {
   await screen.findByText("Seats list");
   await waitFor(() => expect(client.isFetching()).toBe(0));
   expect(
@@ -137,6 +137,7 @@ async function ready() {
       .getAll()
       .filter((query) => query.state.status === "error"),
   ).toEqual([]);
+  if (expectedPlayer) await screen.findByText(expectedPlayer);
 }
 async function press(name: string) {
   const button =
@@ -250,7 +251,7 @@ it.each([{ name: null }, { name: "owner" }])(
       acceptedCount: 1,
     };
     await render(<Fixture />);
-    await ready();
+    await ready("You");
     expect(screen.getByText("You")).toBeVisible();
     expect(screen.queryByText("@owner")).toBeNull();
   },
@@ -266,7 +267,7 @@ it("keeps a username-less other player's identifier as a fallback and identifies
     acceptedCount: 1,
   };
   await render(<Fixture />);
-  await ready();
+  await ready("bob");
   expect(screen.getByText("bob")).toBeVisible();
   expect(screen.getByText("Demonstrator")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Remove player: bob" })).toBeNull();
@@ -404,7 +405,7 @@ it.each(["button", "native end event"] as const)(
       resolvePage = resolve;
     });
     await render(<Fixture />);
-    await ready();
+    await ready("@bob");
     expect(await screen.findByText("@bob")).toBeVisible();
     if (trigger === "button") await press("Load more");
     else {
@@ -443,7 +444,7 @@ it("rejects hidden or obsolete roster ends, avoids failed-page loops and retries
     </ListActivityContext>
   );
   const view = await render(fixture());
-  await ready();
+  await ready("@bob");
   let list: ReturnType<typeof screen.getByText> | null = screen.getByText("@bob");
   while (list && typeof list.props.onScroll !== "function") list = list.parent;
   if (!list) throw new Error("Expected the actual retained roster SectionList host");

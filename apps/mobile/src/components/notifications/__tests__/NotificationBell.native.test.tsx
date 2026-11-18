@@ -258,7 +258,7 @@ it("offers system settings after permanent permission denial while keeping the i
   const settings = vi.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
   await render(<Fixture />);
   await openBell();
-  expect(screen.getByText("No notifications yet")).toBeVisible();
+  expect(await screen.findByText("No notifications yet")).toBeVisible();
   expect(boundary.requestPermission).not.toHaveBeenCalled();
   await userEvent.setup().press(screen.getByRole("button", { name: "Open notification settings" }));
   expect(settings).toHaveBeenCalledOnce();
@@ -276,7 +276,7 @@ it("registers granted native push once and keeps foreground checks and ordinary 
   await render(<Fixture />);
   await waitFor(() => expect(boundary.token).toHaveBeenCalledOnce());
   await openBell();
-  expect(screen.getByText("No notifications yet")).toBeVisible();
+  expect(await screen.findByText("No notifications yet")).toBeVisible();
   expect(registrations).toHaveLength(0);
   await act(() => finish({ type: "fcm", data: "fixture-native-push-token" }));
   await waitFor(() =>
@@ -346,7 +346,7 @@ it.each([
     await render(<Fixture />);
     await openBell();
     await userEvent.setup().press(
-      screen.getByRole("button", {
+      await screen.findByRole("button", {
         name: `${item.title}. ${item.description}`,
       }),
     );
@@ -372,7 +372,9 @@ it("reads eligible notices explicitly while pending invitations remain unread", 
   await render(<Fixture />);
   await openBell();
   expect(writes).toHaveLength(0);
-  await userEvent.setup().press(screen.getByRole("button", { name: "Mark all as read" }));
+  await userEvent
+    .setup()
+    .press(await screen.findByRole("button", { name: "Mark all as read", disabled: false }));
   await waitFor(() => expect(writes).toEqual([{ owner: "owner", path: "/api/notifications" }]));
   await waitFor(() =>
     expect(
@@ -413,8 +415,8 @@ it("keeps token registration failures observable and lets a later bell opening r
   await render(<Fixture />);
   await waitFor(() => expect(boundary.token).toHaveBeenCalled());
   await openBell();
-  expect(screen.getByText("Could not enable push notifications")).toBeVisible();
-  expect(screen.getByText("No notifications yet")).toBeVisible();
+  expect(await screen.findByText("Could not enable push notifications")).toBeVisible();
+  expect(await screen.findByText("No notifications yet")).toBeVisible();
   await closeBell();
   boundary.token.mockResolvedValue({
     type: "fcm",
@@ -449,7 +451,7 @@ it("rejects a late old-account device token before registering the replacement a
     ]),
   );
   await openBell();
-  expect(screen.getByText("Other account notification")).toBeVisible();
+  expect(await screen.findByText("Other account notification")).toBeVisible();
   expect(registrations.some((item) => item.owner === "owner")).toBe(false);
 });
 
@@ -472,7 +474,7 @@ it("keeps the inbox usable and exposes a rejected native permission prompt witho
   await waitFor(() => expect(boundary.readPermission).toHaveBeenCalled());
   await openBell();
   expect(await screen.findByText("Could not enable push notifications")).toBeVisible();
-  expect(screen.getByText("No notifications yet")).toBeVisible();
+  expect(await screen.findByText("No notifications yet")).toBeVisible();
   expect(boundary.requestPermission).toHaveBeenCalledOnce();
   expect(boundary.token).not.toHaveBeenCalled();
   expect(registrations).toHaveLength(0);
@@ -481,5 +483,5 @@ it("keeps the inbox usable and exposes a rejected native permission prompt witho
   await openBell();
   expect(boundary.requestPermission).toHaveBeenCalledTimes(2);
   expect(screen.queryByText("Could not enable push notifications")).toBeNull();
-  expect(screen.getByText("No notifications yet")).toBeVisible();
+  expect(await screen.findByText("No notifications yet")).toBeVisible();
 });

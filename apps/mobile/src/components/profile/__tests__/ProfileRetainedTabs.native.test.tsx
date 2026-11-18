@@ -478,7 +478,7 @@ it("keeps loading and retryable profile errors observable while logout stays ava
       exact: true,
     });
   });
-  expect(screen.getByText("Could not load profile")).toBeVisible();
+  expect(await screen.findByText("Could not load profile")).toBeVisible();
   expect(screen.getByText("Profile owner")).toBeVisible();
   expect(screen.getByRole("button", { name: "Sign out of your account" })).toBeEnabled();
   boundary.profileStatus.set("owner", 200);
