@@ -72,12 +72,13 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/lib/{inputScrollOffset,artworkLayout}.ts": {
-          lines: 100,
-          functions: 100,
-          branches: 100,
-          statements: 100,
-        },
+        "src/lib/{inputScrollOffset,artworkLayout,resourceArtworkLayers,resourceArtworkFrames,resourceArtworkMotion}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "src/lib/navigationColors.ts": {
           lines: 100,
           functions: 100,

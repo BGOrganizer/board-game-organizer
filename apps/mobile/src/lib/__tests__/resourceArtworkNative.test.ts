@@ -47,6 +47,7 @@ function harness() {
     "react-native": { View: "View" },
     "react-native-svg": { SvgXml: "SvgXml" },
     uniwind: { ScopedTheme: "ScopedTheme" },
+    "./AnimatedDetailArtwork": { AnimatedDetailArtwork: "AnimatedDetailArtwork" },
   };
   const output = {} as { AnimatedDicebearArtwork(props: Props): Element };
   runInNewContext(compiled, {
@@ -71,7 +72,12 @@ it.each(["groups", "events", "tables"] as const)(
         const root = h.render({ seed: "resource-id", variant, presentation, size });
         const scope = child(root),
           surface = child(scope),
-          svg = child(surface);
+          content = child(surface),
+          svg = presentation === "background" ? child(content) : content;
+        if (presentation === "background") {
+          expect(content.type).toBe("AnimatedDetailArtwork");
+          expect((content.props.artwork as { svg: string }).svg).toBe(expected);
+        } else expect(content.type).toBe("SvgXml");
         expect(root.type).toBe("View");
         expect(root.props).toMatchObject({
           accessible: false,
@@ -110,7 +116,7 @@ it("defaults to a 64px thumbnail and reuses generation across presentation-only 
   const initial = h.render(props);
   expect(initial.props.style).toMatchObject({ width: 64, height: 64 });
   const background = h.render({ ...props, presentation: "background" });
-  expect(drawing(background).props.xml).toBe(drawing(initial).props.xml);
+  expect(child(drawing(background)).props.xml).toBe(drawing(initial).props.xml);
   expect(h.generate).toHaveBeenCalledOnce();
   h.render({ ...props, seed: "saved-table-id" });
   expect(h.generate).toHaveBeenLastCalledWith("tables", "saved-table-id", "none");

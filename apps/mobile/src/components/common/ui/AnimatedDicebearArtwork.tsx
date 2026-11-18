@@ -6,6 +6,7 @@ import { memo, useMemo } from "react";
 import { View } from "react-native";
 import { SvgXml } from "react-native-svg";
 import { ScopedTheme } from "uniwind";
+import { AnimatedDetailArtwork } from "./AnimatedDetailArtwork";
 
 export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
   seed,
@@ -19,6 +20,9 @@ export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
   presentation?: "thumbnail" | "background" | "cover";
 }) {
   const artwork = useMemo(() => createResourceArtwork(variant, seed, "none"), [variant, seed]);
+  const drawing = (
+    <SvgXml xml={artwork.svg} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" />
+  );
   return (
     <View
       accessible={false}
@@ -33,12 +37,13 @@ export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
     >
       <ScopedTheme theme="light">
         <View className="bg-surface" style={{ flex: 1, padding: presentation === "cover" ? 4 : 0 }}>
-          <SvgXml
-            xml={artwork.svg}
-            width="100%"
-            height="100%"
-            preserveAspectRatio="xMidYMid meet"
-          />
+          {presentation === "background" ? (
+            <AnimatedDetailArtwork key={`${variant}:${seed}`} artwork={artwork}>
+              {drawing}
+            </AnimatedDetailArtwork>
+          ) : (
+            drawing
+          )}
         </View>
       </ScopedTheme>
     </View>

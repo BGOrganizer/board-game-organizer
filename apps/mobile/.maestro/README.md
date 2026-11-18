@@ -827,14 +827,19 @@ illustrations inside the navigation-less Group selector portal intentionally rem
 they must render without a navigation-context error.
 
 On device, record normal-motion internal calendar/banner, die/token and group member/badge
-movement; the full illustration must remain stationary. While the app stays mounted, change
+movement only in the detail backgrounds; list cards, selectors and embedded cards remain static.
+The full illustration must remain stationary. While the app stays mounted, change
 system Reduce Motion and return: generated artwork must immediately become the original static
-SVG, then resume when disabled. Background/foreground, navigation away/back and scrolling a
-resource out of view must stop/resume work without lost rows or scroll position. Use a long
+SVG, then resume when disabled. Background/foreground, navigation away/back and retained-panel changes must stop/resume the
+active detail's clock without lost rows or scroll position. Scrolling the detail card out of view
+must preserve geometry and list responsiveness; profile that path separately. Use a long
 resource list and profile entry/reentry and scroll UI-thread frame timing; a screenshot cannot
 prove paused clocks or performance. Test failed and subsequently changed valid logo URLs using
 owned fixtures, including a delayed prior image response. Compare animation pivots with the web
-reference. Animated SVG Defs/Use invalidation must be checked on an actual release APK.
+reference. Immutable SVG-plane composition and native-driver motion must be checked on an actual release
+APK; no SVG properties are animated per frame. Verify that a first-visit header shows its complete
+static artwork while the animation planes are prepared and that hidden retained headers never
+run competing clocks.
 
 This retained flow and VM/unit checks do not prove native rendering, frame timing, system settings
 reactivity or physical 64/96px contrast. Maestro/device execution is required for that evidence;

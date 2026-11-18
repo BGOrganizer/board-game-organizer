@@ -3,7 +3,7 @@ import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
-import { stableTabContentWidth } from "../tabBarGeometry";
+import { revealedTabOffset, stableTabContentWidth } from "../tabBarGeometry";
 
 // Execute application layout/callback logic; native pixel rendering remains device acceptance.
 const text = readFileSync(
@@ -44,7 +44,20 @@ it.each([
     },
     View: "View",
     Tabs: { List: "List", ScrollView: "ScrollView", Indicator: "Indicator" },
-    useState: () => (hook++ === 0 ? [available, setAvailable] : [content, setContent]),
+    useState: () => {
+      const index = hook++;
+      return index === 0
+        ? [available, setAvailable]
+        : index === 1
+          ? [content, setContent]
+          : [available, vi.fn()];
+    },
+    useRef: (initial: unknown) => ({ current: initial }),
+    useEffect: () => {},
+    useListActivity: () => () => true,
+    useTabs: () => ({ value: "events" }),
+    useTabsMeasurements: () => ({ measurements: {} }),
+    revealedTabOffset,
     useCallback: (callback: unknown) => callback,
     PixelRatio: { get: () => 2.625 },
     stableTabContentWidth,
@@ -57,6 +70,8 @@ it.each([
     maxWidth: "100%",
   });
   expect(scroll.props.keyboardShouldPersistTaps).toBe("handled");
+  expect(scroll.props.scrollAlign).toBe("none");
+  expect(scroll.children[0].props.animation).toBe("disabled");
   expect(scroll.props.contentContainerStyle).toEqual({ flexGrow: 0 });
   expect(scroll.props.style).toEqual({ flexGrow: 0, flexShrink: 1 });
   tree.props.onLayout({ nativeEvent: { layout: { width: 500 } } });

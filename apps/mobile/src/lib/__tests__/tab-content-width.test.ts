@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stableTabContentWidth } from "../tabBarGeometry";
+import { revealedTabOffset, stableTabContentWidth } from "../tabBarGeometry";
 
 describe("native tab content measurement", () => {
   it("settles the measured Samsung/Fabric one-pixel oscillation", () => {
@@ -31,4 +31,29 @@ describe("native tab content measurement", () => {
       expect(width).toBe(measured);
     }
   });
+});
+
+describe("selected tab visibility", () => {
+  it.each([
+    [0, 180, 100, 320, 500, 0],
+    [80, 180, 100, 320, 500, 80],
+    [180, 180, 100, 320, 500, 180],
+    [180, 30, 100, 320, 500, 30],
+    [0, 350, 100, 320, 500, 130],
+    [0, 470, 30, 320, 500, 180],
+    [0, 20, 600, 320, 900, 20],
+    [0, 0, 600, 320, 900, 0],
+    [-30, 0, 100, 320, 500, 0],
+    [900, 350, 100, 320, 500, 180],
+    [0, -20, 100, 320, 500, 0],
+    [0, 0, 100, 320, 100, 0],
+    [120, 180, 100, 0, 500, 120],
+    [120, 180, 0, 320, 500, 120],
+    [120, 180, 100, 320, 0, 120],
+  ])(
+    "reveals %s/%s/%s/%s/%s at %s without recentering visible labels",
+    (offset, x, width, viewport, content, expected) => {
+      expect(revealedTabOffset(offset, x, width, viewport, content)).toBe(expected);
+    },
+  );
 });
