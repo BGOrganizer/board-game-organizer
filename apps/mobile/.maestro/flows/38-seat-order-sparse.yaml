@@ -140,13 +140,13 @@ tags: [manual, events, seats]
                 when:
                   true: ${output.seats.mode === 'save-offline'}
                 commands:
-                  - setAirplaneMode: true
+                  - setAirplaneMode: enabled
                   - tapOn:
                       id: seat-order-save
                   - extendedWaitUntil:
                       visible: ${output.seats.failure}
                       timeout: 120000
-                  - setAirplaneMode: false
+                  - setAirplaneMode: disabled
             - runFlow:
                 when:
                   true: ${output.seats.mode === 'conflict'}

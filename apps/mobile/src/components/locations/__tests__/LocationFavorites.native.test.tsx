@@ -179,7 +179,7 @@ async function open() {
   // native sheet opacity/physical gesture acceptance is separate Maestro proof.
 }
 async function toggle(name = "Add location to favorites") {
-  await userEvent.setup().press(screen.getByRole("button", { name }));
+  await userEvent.setup().press(await screen.findByRole("button", { name, disabled: false }));
 }
 
 it("keeps an authoritative empty selector disabled while allowing an explicitly verified favorite addition", async () => {
@@ -206,15 +206,21 @@ it("keeps initial list and status reads pending without exposing a premature emp
   expect(screen.queryByTestId("favorite-location-select")).toBeNull();
   expect(screen.queryByText("No favorite locations")).toBeNull();
   expect(screen.getByRole("button", { name: "Add location to favorites" })).toBeDisabled();
-  await toggle();
+  await userEvent
+    .setup()
+    .press(
+      await screen.findByRole("button", { name: "Add location to favorites", disabled: true }),
+    );
   expect(writes).toHaveLength(0);
   await act(() => {
     finishList(json({ items: [], nextCursor: null }));
     finishStatus(json({ keys: [] }));
   });
   await ready();
-  expect(screen.getByTestId("favorite-location-select")).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Add location to favorites" })).toBeEnabled();
+  expect(await screen.findByTestId("favorite-location-select")).toBeDisabled();
+  expect(
+    await screen.findByRole("button", { name: "Add location to favorites", disabled: false }),
+  ).toBeEnabled();
 });
 
 it("opens the real selector after dismissing the keyboard and returns the exact canonical name, address, coordinates and timezone", async () => {
@@ -248,7 +254,11 @@ it.each([undefined, MATCH])(
     if (!matchId) expect(writes[0].input).not.toHaveProperty("matchId");
     expect(writes[0].authorization).toMatch(/^Bearer fixture-favorite-token-\d+$/);
     expect(
-      await screen.findByRole("button", { name: "Remove location from favorites", selected: true }),
+      await screen.findByRole("button", {
+        name: "Remove location from favorites",
+        selected: true,
+        disabled: false,
+      }),
     ).toBeEnabled();
     expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("add_favorite_location");
   },
@@ -258,12 +268,16 @@ it("removes only the current canonical favorite key through a separate explicit 
   favorites = [entry()];
   await render(<Fixture matchId={MATCH} />);
   await ready();
-  expect(screen.getByRole("button", { name: "Remove location from favorites" })).toBeSelected();
+  expect(
+    await screen.findByRole("button", { name: "Remove location from favorites", selected: true }),
+  ).toBeSelected();
   await toggle("Remove location from favorites");
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0].method).toBe("DELETE");
   expect(writes[0].input).toEqual({ key: locationFavoriteKey(venue) });
-  expect(await screen.findByRole("button", { name: "Add location to favorites" })).toBeEnabled();
+  expect(
+    await screen.findByRole("button", { name: "Add location to favorites", disabled: false }),
+  ).toBeEnabled();
   expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("remove_favorite_location");
 });
 
@@ -312,7 +326,11 @@ it("rolls back a rejected removal and preserves the previously authorized favori
     expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "remove_favorite_location"),
   );
   expect(
-    await screen.findByRole("button", { name: "Remove location from favorites", selected: true }),
+    await screen.findByRole("button", {
+      name: "Remove location from favorites",
+      selected: true,
+      disabled: false,
+    }),
   ).toBeEnabled();
   expect(screen.getByTestId("favorite-location-select")).toBeEnabled();
 });
@@ -361,7 +379,9 @@ it("shows a failed favorite-list read without converting it to empty success and
     await screen.findByRole("button", { name: "Retry", includeHiddenElements: true }),
   );
   await ready();
-  expect(screen.queryByText("Could not load favorite locations")).toBeNull();
+  await waitFor(() =>
+    expect(screen.queryAllByText("Could not load favorite locations")).toHaveLength(0),
+  );
   const recoveredOption = within(
     await screen.findByTestId("favorite-location-0", { includeHiddenElements: true }),
   );
@@ -388,14 +408,22 @@ it("removes the previous viewer's list and status from the rendered controls aft
   favorites = [entry()];
   const view = await render(<Fixture />);
   await ready();
-  expect(screen.getByRole("button", { name: "Remove location from favorites" })).toBeSelected();
+  expect(
+    await screen.findByRole("button", { name: "Remove location from favorites", selected: true }),
+  ).toBeSelected();
   boundary.userId = "another-owner";
   boundary.apiUrl = "https://another-favorite-native.test";
   favorites = [];
   await view.rerender(<Fixture />);
   await ready();
+  expect(
+    await screen.findByRole("button", {
+      name: "Add location to favorites",
+      selected: false,
+      disabled: false,
+    }),
+  ).not.toBeSelected();
   expect(screen.queryByRole("button", { name: "Remove location from favorites" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Add location to favorites" })).not.toBeSelected();
-  expect(screen.getByTestId("favorite-location-select")).toBeDisabled();
+  await waitFor(() => expect(screen.getByTestId("favorite-location-select")).toBeDisabled());
   expect(reads.at(-1)?.origin).toBe(boundary.apiUrl);
 });

@@ -405,7 +405,7 @@ it.each(["button", "native end event"] as const)(
     });
     await render(<Fixture />);
     await ready();
-    expect(screen.getByText("@bob")).toBeVisible();
+    expect(await screen.findByText("@bob")).toBeVisible();
     if (trigger === "button") await press("Load more");
     else {
       let list: ReturnType<typeof screen.getByText> | null = screen.getByText("@bob");

@@ -403,7 +403,7 @@ it("distinguishes initial loading, an empty inbox and a failed background read",
   await act(async () => {
     await client.refetchQueries({ queryKey: ["notifications", API, "owner"] });
   });
-  expect(screen.getByText("Could not load notifications")).toBeVisible();
+  expect(await screen.findByText("Could not load notifications")).toBeVisible();
   expect(screen.queryByText("No notifications yet")).toBeNull();
 });
 

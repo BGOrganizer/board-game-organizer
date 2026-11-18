@@ -374,10 +374,10 @@ it("updates a retained hidden overview and roster from fresh authoritative serve
       pageParams: [""],
     });
   });
-  expect(screen.getByRole("header", { name: "Current server table" })).toBeVisible();
+  expect(await screen.findByRole("header", { name: "Current server table" })).toBeVisible();
   expect(screen.getByText("Current server game")).toBeVisible();
   await select("participants");
-  expect(screen.getByText("@new-guest-handle")).toBeVisible();
+  expect(await screen.findByText("@new-guest-handle")).toBeVisible();
   expect(screen.queryByText("@guest")).toBeNull();
   expect(writes).toHaveLength(0);
 });

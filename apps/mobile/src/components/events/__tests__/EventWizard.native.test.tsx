@@ -381,7 +381,7 @@ it.each(["confirmed", "changed-version"] as const)(
         client.setQueryData(eventRecordKeys.detail(options, event.id), { ...event, version: 2 }),
       );
     expect(
-      screen.getByText(
+      await screen.findByText(
         reason === "confirmed"
           ? "Bookings are closed"
           : "This event changed. Go back and reopen the editor before saving.",
