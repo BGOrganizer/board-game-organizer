@@ -106,15 +106,19 @@ it("prunes History ownership when its only Table item has already been read", ()
     historyTableIds: [tableId],
     lists: [{ kind: "event-list" as const, id: "terminated" as const }],
   };
-  const notice = {
-    kind: "event_settings_changed",
+  const notice: Parameters<typeof attentionReference>[0] = {
+    kind: "event_updated",
     href: `/events/${eventId}`,
     attention: reference,
     attentionItems: [
-      { id: JSON.stringify(["event", eventId, "name"]), readAt: null },
-      { id: JSON.stringify(["table", tableId, "name"]), readAt: "2030-01-01T00:00:00.000Z" },
+      { id: JSON.stringify(["event", eventId, "overview"]), revision: 1, readAt: null },
+      {
+        id: JSON.stringify(["table", tableId, "overview"]),
+        revision: 1,
+        readAt: "2030-01-01T00:00:00.000Z",
+      },
     ],
-  } as Parameters<typeof attentionReference>[0];
+  };
   expect(attentionReference(notice)?.historyTableIds).toEqual([]);
   expect(attentionReference({ ...notice, attentionItems: [] })?.historyTableIds).toEqual([tableId]);
 });

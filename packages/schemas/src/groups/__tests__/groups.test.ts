@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   createGroupSchema,
@@ -49,7 +48,7 @@ describe("group and rating boundaries", () => {
     expect(createGroupSchema.safeParse({ ...base, extra: "no" }).success).toBe(false);
     expect(
       groupModel.safeParse({
-        id: randomUUID(),
+        id: "11111111-1111-4111-8111-111111111111",
         adminUserId: "user_admin",
         name: base.name,
         isPublic: true,
@@ -76,7 +75,7 @@ describe("group and rating boundaries", () => {
     expect(playerRatingModel.safeParse({ ...state, mu: Number.NaN }).success).toBe(false);
     expect(
       ratingEventModel.safeParse({
-        matchId: randomUUID(),
+        matchId: "22222222-2222-4222-8222-222222222222",
         userId: state.userId,
         gameId: 1,
         scope: "GLOBAL",

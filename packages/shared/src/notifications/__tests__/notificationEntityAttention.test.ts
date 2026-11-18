@@ -348,7 +348,11 @@ it("generic entry reads never consume structured, source-derived or pending invi
   ]);
   expect(next.pages[0].unreadCount).toBe(4);
   const client = new QueryClient(),
-    options = { apiUrl: "https://api.test", userId: "owner" };
+    options = {
+      apiUrl: "https://api.test",
+      userId: "owner",
+      getToken: async () => "fixture-token",
+    };
   try {
     client
       .getQueryCache()

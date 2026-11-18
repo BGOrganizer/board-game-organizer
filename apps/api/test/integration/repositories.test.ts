@@ -1899,8 +1899,7 @@ describe("source-paged entity notification attention", () => {
 });
 
 beforeAll(async () => {
-  container = await mongodbContainer()
-    .withCommand(["mongod", "--replSet", "rs0", "--bind_ip_all"])
+  container = await mongodbContainer(undefined, { replicaSet: true })
     .withExposedPorts(27017)
     .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/))
     .start();

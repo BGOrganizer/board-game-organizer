@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const db = await getDb();
   try {
     const details = await gameDetails(db, parsed.data.id);
-    return corsJson(details, request);
+    return corsJson(details, {}, request);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Game not found";
     return corsJson({ error: message }, { status: 404 }, request);

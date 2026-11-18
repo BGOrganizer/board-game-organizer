@@ -94,14 +94,14 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
       if (current.current === generation) setWindow({ scope, firstPage, pages: 1 });
     };
   }, [generation, scope, firstPage]);
-  const morePlayers = async () => {
+  const morePlayers = async (retryFailed = false) => {
     if (
       !isActive() ||
       current.current !== generation ||
       !generation.active ||
       generation.epoch !== activation ||
       generation.count !== count ||
-      scrolled.current !== scope ||
+      (!retryFailed && scrolled.current !== scope) ||
       fetching.current === scope ||
       players.isFetching
     )
@@ -114,7 +114,7 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
       );
       return;
     }
-    if (!players.hasNextPage || players.isFetchNextPageError) return;
+    if (!players.hasNextPage || (!retryFailed && players.isFetchNextPageError)) return;
     fetching.current = scope;
     try {
       const result = await players.fetchNextPage({ cancelRefetch: false });
@@ -224,10 +224,7 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
       }
       ListFooterComponent={
         players.isFetchNextPageError ? (
-          <Button
-            variant="ghost"
-            onPress={() => void players.fetchNextPage({ cancelRefetch: false })}
-          >
+          <Button variant="ghost" onPress={() => void morePlayers(true)}>
             <Typography>{t("Could not load leaderboards. Retry")}</Typography>
           </Button>
         ) : players.isFetchingNextPage ? (

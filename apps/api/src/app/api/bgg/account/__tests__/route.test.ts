@@ -38,17 +38,19 @@ vi.mock("@/app/lib/db", () => ({
     callback({ id: "session" }, {}),
 }));
 vi.mock("@/app/lib/games/bgg-account.repository", () => ({
-  BggAccountRepository: vi.fn().mockImplementation(() => ({
-    get: mocks.get,
-    stage: mocks.stage,
-    unlink: mocks.unlink,
-    pending: mocks.pending,
-    restart: mocks.restart,
-    claim: mocks.claim,
-    publish: mocks.publish,
-    queued: mocks.queued,
-    failed: mocks.failed,
-  })),
+  BggAccountRepository: vi.fn().mockImplementation(function MockBggAccountRepository() {
+    return {
+      get: mocks.get,
+      stage: mocks.stage,
+      unlink: mocks.unlink,
+      pending: mocks.pending,
+      restart: mocks.restart,
+      claim: mocks.claim,
+      publish: mocks.publish,
+      queued: mocks.queued,
+      failed: mocks.failed,
+    };
+  }),
 }));
 vi.mock("@/app/lib/games/bgg-collection", async (load) => ({
   ...(await load<typeof import("@/app/lib/games/bgg-collection")>()),

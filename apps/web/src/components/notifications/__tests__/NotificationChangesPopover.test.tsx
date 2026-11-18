@@ -1,27 +1,32 @@
 import type { NotificationChangeRow } from "@board-game-organizer/schemas";
 import type { useNotificationChanges } from "@board-game-organizer/shared";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import { NotificationChangesPopover } from "../NotificationChangesPopover";
 
-// Real HeroUI popover and actions; native/browser geometry is covered by retained acceptance paths.
-vi.mock("@heroui/react/rac", async (original) => ({
-  ...(await original<typeof import("@heroui/react/rac")>()),
-  Virtualizer: ({ children }: { children: ReactNode }) => children,
-}));
 beforeEach(() => {
-  vi.stubGlobal(
-    "IntersectionObserver",
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  );
+  installBrowserIntersections();
+  // Browser measurement only: preserve real RAC row/layout ownership within a
+  // finite notification list viewport, including its dynamic overlay limit.
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.matches('[role="listbox"]') ? 320 : 0;
+  });
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.matches('[role="listbox"]')
+      ? Math.min(320, Number.parseFloat(this.style.maxHeight) || 320)
+      : 0;
+  });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 type Model = ReturnType<typeof useNotificationChanges>;
 const at = "2026-01-01T00:00:00.000Z";
 function row(

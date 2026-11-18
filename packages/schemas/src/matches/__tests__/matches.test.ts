@@ -99,6 +99,17 @@ const invitation = {
   updatedAt: match.updatedAt,
 };
 
+it("accepts distinct updated locations and rejects duplicate IDs even when their labels differ", () => {
+  const first = valid.locations[0];
+  const second = { ...first, id: "b3cd91cd-85a0-4a9c-a360-57c2f672ee66", name: "Another cafe" };
+  expect(updateMatchSchema.parse({ locations: [first, second] }).locations).toHaveLength(2);
+  const duplicate = updateMatchSchema.safeParse({
+    locations: [first, { ...first, name: "A different label for the same venue" }],
+  });
+  expect(duplicate.success).toBe(false);
+  if (!duplicate.success) expect(duplicate.error.issues[0].path).toEqual(["locations"]);
+});
+
 describe("createMatchSchema", () => {
   it("accepts complete input and defaults invitations", () => {
     expect(createMatchSchema.parse(valid)).toEqual(valid);

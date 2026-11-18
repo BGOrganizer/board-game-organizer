@@ -147,7 +147,7 @@ test("every main merge runs all non-E2E gates once in parallel before preparing 
     "shared",
   ]);
   assert.deepEqual(jobs.build.strategy.matrix.app, ["api", "web"]);
-  for (const gate of ["quality", "coverage", "integration-tests", "build"]) {
+  for (const gate of ["quality", "coverage", "integration-tests", "native-tooling", "build"]) {
     assert.equal(jobs[gate].needs, undefined);
     assert(jobs.release.needs.includes(gate));
   }

@@ -76,5 +76,5 @@ export async function POST(request: Request) {
     e2e: true,
   });
 
-  return corsJson({ ok: true, clerkId }, request);
+  return corsJson({ ok: true, clerkId }, {}, request);
 }

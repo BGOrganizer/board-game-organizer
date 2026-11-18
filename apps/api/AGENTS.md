@@ -92,6 +92,9 @@ Use the [shared validation commands](../../AGENTS.md#3-workspace-and-commands).
 Run Biome from the API workspace (`bun run --cwd apps/api biome check <path-relative-to-api>`)
 so file checks use the same configuration as the API lint job. Unit tests live near their library;
 replica-set integration tests live in `test/integration`.
+`test` selects the unit project. `test:coverage` runs unit and integration projects together so
+the 90% API gate measures repositories against real MongoDB as well as route/service unit paths;
+it requires Docker. `test:integration` remains available for a focused replica-set run.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

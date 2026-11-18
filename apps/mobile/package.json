@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format": "biome format --write .",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:perf": "node --expose-gc --no-concurrent-sweeping --max-old-space-size=1024 --max-opt=1 ../../node_modules/vitest/vitest.mjs run --config performance/vitest.config.ts",
+    "test:components": "node --max-old-space-size=1024 ../../node_modules/vitest/vitest.mjs run --project native --maxWorkers=1 --no-file-parallelism"
   },
   "dependencies": {
     "@board-game-organizer/query": "workspace:*",
@@ -76,9 +78,13 @@
     "@board-game-organizer/biome-config": "workspace:*",
     "@board-game-organizer/typescript-config": "workspace:*",
     "@types/react": "^19.2.18",
-    "@vitest/coverage-v8": "^3.2.7",
+    "@vitest/coverage-v8": "4.1.12",
     "expo-doctor": "1.20.4",
     "typescript": "~6.0.3",
-    "vitest": "^3.2.7"
+    "vitest": "4.1.12",
+    "@callstack/reassure-measure": "1.6.1",
+    "@testing-library/react-native": "14.1.0",
+    "test-renderer": "1.2.0",
+    "vitest-native": "0.14.1"
   }
 }

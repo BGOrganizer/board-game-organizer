@@ -40,9 +40,11 @@ it("uses existing EN/IT Lingui plurals even when Hermes lacks RelativeTimeFormat
   const now = Date.parse("2030-06-03T12:00:00Z"),
     i18n = setupI18n({ locale: "en", messages: { en, it: itMessages } }),
     format = (id: string, values: Record<string, string | number>) => i18n._({ id, values });
-  const unsupported = vi.spyOn(Intl, "RelativeTimeFormat").mockImplementation(() => {
-    throw new Error("unsupported Hermes API");
-  });
+  const unsupported = vi
+    .spyOn(Intl, "RelativeTimeFormat")
+    .mockImplementation(function MockRelativeTimeFormat() {
+      throw new Error("unsupported Hermes API");
+    });
   for (const [seconds, unit] of [
     [1, "second"],
     [60, "minute"],

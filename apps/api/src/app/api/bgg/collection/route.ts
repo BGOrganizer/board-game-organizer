@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     if (subject !== userId) await profiles.requireVisible(userId, subject);
     const page = await new BggAccountRepository(db).page(subject, parsed.data, userId);
     if (subject !== userId) await profiles.requireVisible(userId, subject);
-    return corsJson(page, request);
+    return corsJson(page, {}, request);
   } catch (error) {
     return corsJson(
       { error: error instanceof CommunityError ? error.code : "BGG_COLLECTION_UNAVAILABLE" },

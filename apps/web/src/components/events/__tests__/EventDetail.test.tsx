@@ -4,8 +4,8 @@ import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { eventId, groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { messages as italian } from "../../../../../../messages/it.js";
@@ -22,16 +22,11 @@ vi.mock("@/lib/useCommunityApi", () => ({
     feedback: mocks.feedback,
   }),
 }));
-// jsdom has no layout; browser acceptance verifies the real Virtualizer separately.
-vi.mock("@heroui/react/rac", async (original) => ({
-  ...(await original<typeof import("@heroui/react/rac")>()),
-  Virtualizer: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
 let event: PlannedEventResponse,
   tables: PlannedTableResponse[],
   fail = false,
   failWrite = false,
-  fetcher: ReturnType<typeof vi.fn>;
+  fetcher: ReturnType<typeof vi.fn<(url: string, init?: RequestInit) => Promise<Response>>>;
 function multipleSchedule() {
   const alternative = "99999999-9999-4999-8999-999999999999";
   event = {
@@ -145,6 +140,21 @@ it("renders the category and concise voting rules in Italian without field guide
   expect(screen.queryByText("Guida al campo")).toBeNull();
 });
 beforeEach(() => {
+  installBrowserIntersections();
+  // Browser measurement only: preserve real RAC row/layout ownership within a
+  // finite notification list viewport, including its dynamic overlay limit.
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.matches('[role="listbox"]') ? 320 : 0;
+  });
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.matches('[role="listbox"]')
+      ? Math.min(320, Number.parseFloat(this.style.maxHeight) || 320)
+      : 0;
+  });
   vi.clearAllMocks();
   const header = document.createElement("header");
   header.id = "page-header-actions";
@@ -210,6 +220,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetcher);
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.getElementById("page-header-actions")?.remove();
 });
@@ -350,7 +361,7 @@ it("does not retain forbidden cached Table cards or submit their IDs for attenti
   const original = fetcher.getMockImplementation();
   if (!original) throw new Error("Missing adapter");
   let denied = false;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     denied && url.includes("/tables?")
       ? Promise.resolve(Response.json({ error: "Forbidden" }, { status: 403 }))
       : original(url, init),
@@ -388,7 +399,7 @@ it.each([true, false])(
     let finish: ((response: Response) => void) | undefined;
     const original = fetcher.getMockImplementation();
     if (!original) throw new Error("Missing read adapter");
-    fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
       url.endsWith("/state") && init?.method === "PATCH"
         ? new Promise<Response>((resolve) => {
             finish = resolve;
@@ -567,7 +578,7 @@ it("blocks header finalization while only cached summary data is available, then
   });
   let resolve!: (value: Response) => void;
   const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     url.endsWith(`/events/${eventId}`)
       ? new Promise<Response>((done) => {
           resolve = done;

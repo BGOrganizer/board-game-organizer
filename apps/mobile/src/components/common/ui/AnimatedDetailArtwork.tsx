@@ -17,7 +17,7 @@ import { type ArtworkLayer, resourceArtworkLayers } from "@/lib/resourceArtworkL
 import { ARTWORK_CYCLE_MS } from "@/lib/resourceArtworkMotion";
 import { DicebearArtworkLayer } from "./DicebearArtworkLayer";
 
-/** Only an active detail uses immutable SVG planes driven by one native clock. */
+/** Active resource artwork uses immutable SVG planes driven by a native clock. */
 export function AnimatedDetailArtwork({
   artwork,
   children,

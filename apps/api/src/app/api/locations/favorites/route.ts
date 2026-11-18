@@ -75,7 +75,7 @@ export async function GET(request: Request) {
     if (keys) {
       const result = await repository.statuses(userId, keys);
       trace("completed", "storage", 200);
-      return corsJson({ keys: result }, request);
+      return corsJson({ keys: result }, {}, request);
     }
     const page = await repository.list(userId, parsed.data.limit, parsed.data.cursor);
     const result = {
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
       })),
     };
     trace("completed", "storage", 200);
-    return corsJson(result, request);
+    return corsJson(result, {}, request);
   } catch {
     trace("failed", "storage", 500, "INTERNAL_ERROR");
     return corsJson({ error: "Internal server error" }, { status: 500 }, request);
@@ -155,7 +155,7 @@ export async function DELETE(request: Request) {
       await new FavoriteLocationsRepository(db, session).remove(userId, parsed.data.key);
     });
     trace("completed", "storage", 200);
-    return corsJson({ success: true }, request);
+    return corsJson({ success: true }, {}, request);
   } catch {
     trace("failed", "storage", 500, "INTERNAL_ERROR");
     return corsJson({ error: "Internal server error" }, { status: 500 }, request);

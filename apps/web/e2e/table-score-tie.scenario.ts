@@ -1,0 +1,144 @@
+import type {
+  CommunityPageResponse,
+  PlannedEventResponse,
+  PlannedTableResponse,
+  TableSeatResponse,
+} from "@board-game-organizer/schemas";
+import { withProtectionBypass } from "@board-game-organizer/shared";
+import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
+import { expect, type Page, test } from "@playwright/test";
+import { completeMobileNumberIfNeeded } from "./mobile-number";
+
+function required(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} required for owned local-score acceptance`);
+  return value;
+}
+if (required("SCORE_TIE_FIXTURE_ACK") !== "owned-confirmed-three-player-local-draft")
+  throw new Error("Explicit owned three-player fixture required; this journey never saves results");
+const api = new URL(required("SCORE_TIE_API_URL")),
+  eventId = required("SCORE_TIE_EVENT_ID"),
+  tableId = required("SCORE_TIE_TABLE_ID"),
+  locale = required("SCORE_TIE_LOCALE");
+for (const url of [api, new URL(required("PLAYWRIGHT_BASE_URL"))]) {
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    (!["localhost", "127.0.0.1"].includes(url.hostname) &&
+      !(url.protocol === "https:" && url.hostname.endsWith(".vercel.app")))
+  )
+    throw new Error("Local/Preview only; Production score fixtures are forbidden");
+}
+if (
+  ![eventId, tableId].every((id) => /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id)) ||
+  !["en", "it"].includes(locale) ||
+  process.env.CLERK_SECRET_KEY?.startsWith("sk_live_") ||
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_live_")
+)
+  throw new Error("Owned UUID fixtures, EN/IT locale and Development Clerk required");
+const italian = locale === "it";
+const labels = {
+  register: italian ? "Registra Risultato" : "Register result",
+  score: italian ? "Punteggio" : "Score",
+  close: italian ? "Chiudi" : "Close",
+  resolve: italian ? "Risolvi parità" : "Resolve tie",
+  confirm: italian ? "Conferma spareggio" : "Confirm tie-break",
+  applied: italian ? "Spareggio applicato" : "Tie-break applied",
+  tied: italian ? "Punteggio pari" : "Tied score",
+  edit: italian ? "Modifica spareggio" : "Edit tie-break",
+  remove: italian ? "Rimuovi spareggio" : "Remove tie-break",
+  down: italian ? "Sposta giù" : "Move down",
+};
+async function read<T>(page: Page, path: string): Promise<T> {
+  return page.evaluate(
+    async (url) => {
+      const token = await (
+        window as unknown as { Clerk?: { session?: { getToken(): Promise<string | null> } } }
+      ).Clerk?.session?.getToken();
+      if (!token) throw new Error("Authenticated fixture session required");
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error(`Owned fixture read failed: ${response.status}`);
+      return response.json();
+    },
+    withProtectionBypass(
+      `${api.href.replace(/\/$/, "")}/api/${path}`,
+      process.env.VERCEL_PROTECTION_BYPASS,
+    ),
+  );
+}
+
+test("invalidates a three-player tie-break when its score group shrinks to two players, without saving", async ({
+  page,
+}) => {
+  const unexpectedWrites: string[] = [];
+  // Preserve real reads; prevent an accidental score write during this draft-only journey.
+  await page.route("**/api/events/**", async (route) => {
+    const request = route.request();
+    if (!["GET", "OPTIONS"].includes(request.method())) {
+      unexpectedWrites.push(`${request.method()} ${new URL(request.url()).pathname}`);
+      await route.abort("blockedbyclient");
+    } else await route.continue();
+  });
+  await page.setViewportSize({ width: 390, height: 1100 });
+  await setupClerkTestingToken({ page });
+  await page.goto("/");
+  await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
+  await page.goto("/");
+  await completeMobileNumberIfNeeded(page);
+  const event = await read<PlannedEventResponse>(page, `events/${eventId}`);
+  const table = await read<PlannedTableResponse>(page, `events/${eventId}/tables/${tableId}`);
+  if (
+    event.status !== "CONFIRMED" ||
+    !event.canFinalize ||
+    !table.confirmed ||
+    table.confirmed.playerIds.length !== 3 ||
+    table.resultDraft ||
+    table.results ||
+    table.eventVersion !== event.version
+  )
+    throw new Error(
+      "Fixture requires an authorized confirmed, unsaved, three-player Table at the current Event version",
+    );
+  const roster = await read<CommunityPageResponse<TableSeatResponse>>(
+    page,
+    `events/${eventId}/tables/${tableId}/seats?limit=50`,
+  );
+  const names = table.confirmed.playerIds.map((id) => {
+    const player = roster.items.find((row) => row.userId === id);
+    if (!player)
+      throw new Error("All frozen players must be present on the first owned roster page");
+    return player.name ?? player.userId;
+  });
+  if (new Set(names).size !== 3) throw new Error("Fixture requires three distinct player labels");
+  await page.goto(`/events/${eventId}/tables/${tableId}/results`);
+  await expect(page.getByRole("heading", { name: labels.register, exact: true })).toBeVisible();
+  const setScore = async (name: string, value: string) => {
+    const label = `${labels.score}: ${name}`;
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await page.getByRole("textbox", { name: label, exact: true }).fill(value);
+    await page.getByRole("button", { name: labels.close, exact: true }).click();
+  };
+  for (const name of names) await setScore(name, "10");
+  await page.getByRole("button", { name: labels.resolve, exact: true }).click();
+  await page.getByRole("button", { name: `${labels.down}: ${names[0]}`, exact: true }).click();
+  await page.getByRole("button", { name: labels.confirm, exact: true }).click();
+  await expect(page.getByText(`${labels.applied}: 10`, { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: labels.edit, exact: true })).toBeVisible();
+  await setScore(names[0], "11");
+  await expect(page.getByText(`${labels.tied}: 10`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`${labels.applied}: 10`, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: labels.edit, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: labels.remove, exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: labels.resolve, exact: true }).click();
+  await page.getByRole("button", { name: labels.confirm, exact: true }).click();
+  await expect(page.getByText(`${labels.applied}: 10`, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: labels.remove, exact: true }).click();
+  await expect(page.getByText(`${labels.tied}: 10`, { exact: true })).toBeVisible();
+  await page.screenshot({ path: `test-results/table-score-tie-${locale}.png`, fullPage: true });
+  expect(unexpectedWrites).toEqual([]);
+  expect(
+    (await read<PlannedTableResponse>(page, `events/${eventId}/tables/${tableId}`)).resultDraft,
+  ).toEqual(table.resultDraft);
+  expect((await read<PlannedEventResponse>(page, `events/${eventId}`)).version).toBe(event.version);
+});

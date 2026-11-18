@@ -67,8 +67,8 @@ the locked `@dicebear/core` 10.7.0 engine, rather than a requirement for DiceBea
 Both clients use the shared `@board-game-organizer/shared/artwork` entry point. Its immutable
 style instances generate a canonical 240px SVG, using only the resource ID as seed. Web selects
 `animationVariant: "medium"` or `"none"` for reduced motion; native generates one `"none"` SVG.
-Native detail backgrounds derive the approved motion from that same immutable geometry; other
-native presentations remain static.
+Native thumbnails, covers and detail backgrounds derive the approved motion from that same
+immutable geometry when their mounted presentation is eligible for motion.
 Renderers scale the complete drawing into their frames;
 they do not crop, stretch or replace approved elements. An unsaved Table uses its stable local
 draft key until a server ID exists. Uploaded Group logos retain priority over generated artwork;
@@ -93,11 +93,10 @@ keeping complete multiline titles and the notification action accessible.
 
 Web uses the SVG's embedded CSS animation and explicitly selects the static variant for system
 reduced motion; the embedded media query remains an additional safeguard. Server rendering starts
-static until the browser preference is known. Native lists, selectors and embedded resource cards
-use one original static (`"none"`) SVG through `react-native-svg`, without animation planes, native
-clocks or layout-measurement prerequisites. Only detail backgrounds prepare immutable SVG planes
+static until the browser preference is known. Native resource presentations first render the
+original static (`"none"`) SVG through `react-native-svg`, then prepare immutable SVG planes
 and apply the approved transforms/opacity with React Native's native animation driver. One clock
-per active detail uses no per-frame React state or SVG-property updates. Hidden retained panels,
+per active illustration uses no per-frame React state or SVG-property updates. Hidden retained panels,
 blurred routes, app backgrounding and system reduced motion stop/reset the clock. An unknown or
 failed motion-preference read keeps motion disabled. The complete static SVG remains visible until
 positive dimensions and motion eligibility are available; preparing the planes is interruptible React
@@ -106,7 +105,7 @@ or rendering latency; measure those separately on the installed build.
 
 Verify 64px and 96px artwork in light/dark list and detail frames, as well as the existing 40px
 Group selector. Include every main silhouette, miniature/resource variants, custom-logo priority
-and failure fallback, static native rendering across tab changes, and web motion with its
+and failure fallback, native motion eligibility across tab changes, and web motion with its
 reduced-motion alternative. Pure SVG/unit checks and browser
 rendering do not establish authenticated app journeys, native appearance or native frame timing;
 report actual Playwright/Maestro execution separately from device limitations.

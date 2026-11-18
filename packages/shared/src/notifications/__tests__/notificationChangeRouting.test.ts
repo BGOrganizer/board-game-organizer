@@ -30,7 +30,7 @@ it("routes a precise Table invitation to Participants while preserving the exact
   const note = {
     kind: "table_invitation" as const,
     href,
-    attentionItems: [{ id: point, readAt: null }],
+    attentionItems: [{ id: point, revision: 1, readAt: null }],
   };
   expect(notificationDestination(note)).toEqual({ href, itemId: point, section: "participants" });
   expect(notificationWebHref(note)).toBe(

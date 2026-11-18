@@ -7,7 +7,7 @@ const user = (id: string, extra: Partial<ContactUser> = {}): ContactUser => ({
   name: id,
   email: null,
   avatarUrl: null,
-  presence: { online: false, lastActiveAt: null },
+  presence: { online: false, lastActiveAt: "" },
   ...extra,
 });
 const row = (profile: ContactUser | null): RelationshipRow => ({

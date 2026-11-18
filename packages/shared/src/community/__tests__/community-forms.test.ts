@@ -24,17 +24,42 @@ const location = {
   longitude: 12,
   latitude: 45,
 };
-const event = {
+const event: EventResponse = {
   id: "event",
+  organizationId: "organization",
+  adminUserId: "admin",
+  status: "PUBLISHED",
+  version: 1,
+  createdAt: "2030-01-01T00:00:00.000Z",
+  updatedAt: "2030-01-01T00:00:00.000Z",
+  organizationName: "Game club",
+  logo: "",
+  tableCount: 1,
+  confirmedParticipantCount: 0,
+  organizationApproved: true,
+  role: "admin",
+  canModify: true,
+  canPublish: true,
   name: "Games evening",
   startsAt: "2030-03-04T18:00:00.000Z",
   endsAt: "2030-03-04T23:00:00.000Z",
   bookingClosesAt: "2030-03-03T18:00:00.000Z",
   timeZone: "Europe/Rome",
   location,
-} as EventResponse;
-const table = {
+};
+const table: EventTableResponse = {
   id: "table",
+  eventId: event.id,
+  status: "PLANNING",
+  createdAt: event.createdAt,
+  updatedAt: event.updatedAt,
+  gameName: "Chess",
+  image: null,
+  confirmedCount: 0,
+  reservedCount: 0,
+  myBooking: null,
+  canBook: true,
+  demonstrator: null,
   name: "Table one",
   startsAt: event.startsAt,
   endsAt: event.endsAt,
@@ -42,8 +67,8 @@ const table = {
   minPlayers: 2,
   maxPlayers: 4,
   openSkill: false,
-} as EventTableResponse;
-const input = { ...event, status: "PUBLISHED", tables: [] } as SaveEventInput;
+};
+const input: SaveEventInput = { ...event, status: "PUBLISHED", tables: [] };
 describe("event form instants and destructive edits", () => {
   it("defaults to 24 elapsed hours and retains fractional, second-precise offsets", () => {
     expect(eventBookingHours()).toBe("24");
@@ -112,10 +137,20 @@ describe("event form instants and destructive edits", () => {
         ...table,
         status: "CREATED",
         matchId: "match",
-        confirmedPlayers: 3,
+        confirmedCount: 3,
         demonstratorUserId: "demo",
       }),
-    ).toEqual({ ...table, demonstratorUserId: "demo" });
+    ).toEqual({
+      id: table.id,
+      name: table.name,
+      startsAt: table.startsAt,
+      endsAt: table.endsAt,
+      gameId: table.gameId,
+      minPlayers: table.minPlayers,
+      maxPlayers: table.maxPlayers,
+      openSkill: table.openSkill,
+      demonstratorUserId: "demo",
+    });
     expect(editableEventTable(table).id).toBe(table.id);
   });
   it("preserves reservations for titles, deadlines, display labels and new tables", () => {
@@ -180,20 +215,56 @@ describe("event form instants and destructive edits", () => {
   });
 });
 describe("explicit event participant seats and result authority", () => {
-  const data = {
-    match: { adminUserId: "admin", status: "CREATED" },
-    administrator: { id: "admin" },
+  const invitee = (
+    id: string,
+    status: MatchDetailResponse["invitedPlayers"][number]["invitation"]["status"],
+  ): MatchDetailResponse["invitedPlayers"][number] => ({
+    id,
+    name: id,
+    email: null,
+    avatarUrl: null,
+    invitation: {
+      id: `invitation-${id}`,
+      matchId: "match",
+      inviterUserId: "admin",
+      inviteeUserId: id,
+      status,
+      createdAt: event.createdAt,
+      updatedAt: event.updatedAt,
+    },
+  });
+  const data: MatchDetailResponse = {
+    match: {
+      id: "match",
+      adminUserId: "admin",
+      name: "Historical match",
+      status: "CREATED",
+      dates: [],
+      minPlayers: 2,
+      maxPlayers: 4,
+      invitedUserIds: ["guest", "pending", "declined"],
+      gameIds: [1],
+      invitations: [],
+      createdAt: event.createdAt,
+      updatedAt: event.updatedAt,
+    },
+    administrator: { id: "admin", name: "Administrator", email: null, avatarUrl: null },
     invitedPlayers: [
-      { id: "guest", invitation: { status: "ACCEPTED" } },
-      { id: "pending", invitation: { status: "PENDING" } },
-      { id: "declined", invitation: { status: "DECLINED" } },
+      invitee("guest", "ACCEPTED"),
+      invitee("pending", "PENDING"),
+      invitee("declined", "DECLINED"),
     ],
-  } as unknown as MatchDetailResponse;
+    games: [],
+  };
   const metadata = {
     organizationId: "org",
     eventId: "event",
     tableId: "table",
     demonstratorUserId: "demo",
+    eventName: event.name,
+    tableName: table.name,
+    bookingClosesAt: event.bookingClosesAt,
+    endsAt: event.endsAt,
     openSkill: false,
   };
   it("keeps ordinary administrator seat and invitation states", () =>
@@ -227,20 +298,17 @@ describe("explicit event participant seats and result authority", () => {
     expect(canRegisterMatchResults({ ...match, status: "TERMINATED" }, "demo")).toBe(false);
   });
   it("counts only booked confirmed players on event cards", () => {
-    const match = {
+    const match: MatchResponse = {
       ...data.match,
       eventTable: metadata,
       status: "PLANNING",
       dates: [],
       locations: [],
       gameIds: [1],
-      invitations: [
-        { status: "ACCEPTED", inviteeUserId: "guest" },
-        { status: "PENDING", inviteeUserId: "pending" },
-      ],
+      invitations: data.invitedPlayers.slice(0, 2).map((player) => player.invitation),
       minPlayers: 2,
       maxPlayers: 4,
-    } as MatchResponse;
+    };
     expect(matchCardData(match).players).toBe(1);
     expect(matchCardData({ ...match, invitations: [] }).players).toBe(0);
     expect(matchCardData({ ...match, status: "CREATED" }).players).toBe(1);

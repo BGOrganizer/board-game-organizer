@@ -6,6 +6,7 @@ export function WizardSteps({ current, count }: { current: number; count: number
   const t = useT();
   return (
     <View
+      accessible
       accessibilityRole="progressbar"
       accessibilityLabel={t("Steps")}
       accessibilityValue={{ min: 1, max: count, now: current }}

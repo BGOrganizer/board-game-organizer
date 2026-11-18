@@ -239,6 +239,19 @@
       "computedHash": "3002df30668ddbaa1d11306af76e7b7f4520b92345697369d181da86d2ff4af1",
       "ref": "ba8cf864dc7876fb1a32330ce1dfe0435f340ae5"
     },
+    "perf-control": {
+      "source": "jeferson-sb/skills",
+      "sourceType": "github",
+      "skillPath": "react-native-perf-skills/skills/control/SKILL.md",
+      "computedHash": "a0b5b897ed485229fdf9c68f14c6fdf83f55538b19ca863383f75afc2a0437ca"
+    },
+    "perfetto": {
+      "source": "google/perfetto",
+      "sourceType": "github",
+      "ref": "33f1de9084ba039d52b20b88de8b83654aa3cbb7",
+      "skillPath": "plugins/perfetto/skills/perfetto/SKILL.md",
+      "computedHash": "fc32791887c6df6e609311a7c96d969d8e67003090751ff3ef4cb404e3149135"
+    },
     "playwright-best-practices": {
       "source": "currents-dev/playwright-best-practices-skill",
       "sourceType": "github",
@@ -252,6 +265,13 @@
       "skillPath": "skills/ponytail/SKILL.md",
       "computedHash": "56d72677aca02689ac89bd48734e8c19b40ab86716d1257eaf5f1238b43cda6b",
       "ref": "96608e078b2d5ea607c5c3b8b5a54d1c1fba6846"
+    },
+    "react-native-testing": {
+      "source": "callstack/react-native-testing-library",
+      "sourceType": "github",
+      "ref": "564a84294717d8e4b0831f3e3a5e115cc3832e01",
+      "skillPath": "skills/react-native-testing/SKILL.md",
+      "computedHash": "9bed4271c080eb6ff6745db5a634b28552571f197d6b5efe58a734e75fe162f0"
     },
     "sentry-react-native-sdk": {
       "source": "getsentry/sentry-agent-skills",

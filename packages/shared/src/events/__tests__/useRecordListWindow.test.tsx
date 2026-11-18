@@ -74,10 +74,10 @@ async function harness(options: Partial<Options> = {}, strict = false) {
   };
   const render = async () => {
     await act(async () => {
-      const panel = createElement(
-        Activity,
-        { mode: shown ? "visible" : "hidden" },
-        createElement(Probe, { options: currentOptions, publish }),
+      const panel = (
+        <Activity mode={shown ? "visible" : "hidden"}>
+          <Probe options={currentOptions} publish={publish} />
+        </Activity>
       );
       root.render(strict ? createElement(StrictMode, null, panel) : panel);
     });

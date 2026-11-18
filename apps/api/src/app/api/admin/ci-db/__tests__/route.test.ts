@@ -25,13 +25,15 @@ vi.mock("@/app/lib/db", () => ({
   })),
 }));
 vi.mock("@/app/lib/games/bgg-account.repository", () => ({
-  BggAccountRepository: vi
-    .fn()
-    .mockImplementation(() => ({ stage: mocks.stageBgg, publish: mocks.publishBgg })),
+  BggAccountRepository: vi.fn().mockImplementation(function MockBggAccountRepository() {
+    return { stage: mocks.stageBgg, publish: mocks.publishBgg };
+  }),
 }));
 vi.mock("@/app/lib/migrate", () => ({ migrate: vi.fn(async () => ({})) }));
 vi.mock("@/app/lib/games/boardGames.repository", () => ({
-  BoardGamesRepository: vi.fn().mockImplementation(() => ({ bulkUpsert: mocks.bulkUpsert })),
+  BoardGamesRepository: vi.fn().mockImplementation(function MockBoardGamesRepository() {
+    return { bulkUpsert: mocks.bulkUpsert };
+  }),
 }));
 
 const url = "http://localhost/api/admin/ci-db";

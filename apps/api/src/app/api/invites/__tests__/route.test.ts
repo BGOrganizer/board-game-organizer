@@ -66,7 +66,9 @@ const repoMock = {
   listByInviter: vi.fn(),
   claim: vi.fn(),
 };
-vi.mocked(InvitesRepository).mockReturnValue(repoMock as never);
+vi.mocked(InvitesRepository).mockImplementation(function MockInvitesRepository() {
+  return repoMock as never;
+});
 
 function fakeInvite(overrides: Record<string, unknown> = {}) {
   const now = new Date();

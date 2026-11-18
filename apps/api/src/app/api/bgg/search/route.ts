@@ -32,5 +32,5 @@ export async function GET(request: Request) {
 
   const db = await getDb();
   const items = await searchGames(db, parsed.data.query);
-  return corsJson({ items }, request);
+  return corsJson({ items }, {}, request);
 }

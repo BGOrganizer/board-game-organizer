@@ -44,7 +44,7 @@ let table: PlannedTableResponse,
   fail = false,
   paged = false,
   acceptedElsewhere = false,
-  fetcher: ReturnType<typeof vi.fn>;
+  fetcher: ReturnType<typeof vi.fn<(url: string, init?: RequestInit) => Promise<Response>>>;
 it("retains selected Results across final-only access changes without exposing private rosters", async () => {
   table = { ...table, eventStatus: "CONFIRMED" };
   const client = mount();
@@ -414,7 +414,7 @@ it.each([
       readOnly: kind === "public-parent",
     };
   let resolve: ((value: Response) => void) | undefined;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     new URL(url).pathname === `/api/events/${eventId}` && (!init?.method || init.method === "GET")
       ? kind === "cached"
         ? new Promise<Response>((done) => {
@@ -449,11 +449,12 @@ it.each([
 });
 it.each([403, 503])("keeps uncached table errors observable (%s) and retries", async (status) => {
   const original = fetcher.getMockImplementation();
+  if (!original) throw new Error("Expected the configured fetch implementation");
   let broken = true;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     url.endsWith(`/tables/${tableId}`) && broken
       ? new Response("{}", { status })
-      : original?.(url, init),
+      : original(url, init),
   );
   mount();
   await screen.findByText("Could not load table");
@@ -490,7 +491,7 @@ it.each([
         : {}),
     };
     const original = fetcher.getMockImplementation()!;
-    fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
       url.includes("/leaderboard?")
         ? Promise.resolve(
             new Response(
@@ -576,7 +577,7 @@ it("retries incomplete cached overview details without replacing usable identity
   );
   const original = fetcher.getMockImplementation()!;
   let broken = true;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     url.endsWith(`/tables/${tableId}`) && broken
       ? Promise.resolve(new Response("{}", { status: 503 }))
       : original(url, init),
@@ -719,7 +720,7 @@ it("waits for Event participation metadata, exposes failures and retries before 
   };
   const original = fetcher.getMockImplementation()!;
   const pending: Array<(response: Response) => void> = [];
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     url.endsWith(`/events/${eventId}`) && pending.length < 2
       ? new Promise<Response>((resolve) => pending.push(resolve))
       : original(url, init),
@@ -1068,9 +1069,10 @@ it("closes departure immediately, restores a rejected participant for explicit r
 });
 it("keeps seat read failures visible, retries and renders empty places rather than empty-list success", async () => {
   const original = fetcher.getMockImplementation();
+  if (!original) throw new Error("Expected the configured fetch implementation");
   let broken = true;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
-    url.includes("/seats?") && broken ? new Response("{}", { status: 503 }) : original?.(url, init),
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
+    url.includes("/seats?") && broken ? new Response("{}", { status: 503 }) : original(url, init),
   );
   mount();
   await openParticipants();
@@ -1160,11 +1162,12 @@ it("retains immutable exact scores, ND, profiles and both rating scopes, includi
     { updatedAt: 0 },
   );
   const original = fetcher.getMockImplementation();
+  if (!original) throw new Error("Expected the configured fetch implementation");
   let broken = true;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     url.endsWith(`/tables/${tableId}`) && broken
       ? new Response("{}", { status: 503 })
-      : original?.(url, init),
+      : original(url, init),
   );
   mount(client);
   await screen.findByText("Could not load complete table details");
@@ -1300,9 +1303,10 @@ it("keeps cached players during a failed next page and permits explicit retry", 
   rows.push(player("guest", tableId));
   paged = true;
   const original = fetcher.getMockImplementation();
+  if (!original) throw new Error("Expected the configured fetch implementation");
   let broken = true;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
-    url.includes("cursor=") && broken ? new Response("{}", { status: 503 }) : original?.(url, init),
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
+    url.includes("cursor=") && broken ? new Response("{}", { status: 503 }) : original(url, init),
   );
   mount();
   await openParticipants();

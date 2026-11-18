@@ -10,6 +10,18 @@ const base: PlayerPoll = {
     { players: 8, orMore: false, best: 0, recommended: 0, notRecommended: 10, sampleCount: 10 },
   ],
 };
+it("prefers an exact player count over a range and the most specific matching range over broader ranges", () => {
+  const poll: PlayerPoll = {
+    ...base,
+    rows: [...base.rows, { ...base.rows[0], players: 8, orMore: true }],
+  };
+  const originalOrder = poll.rows.map((row) => [row.players, row.orMore]);
+  expect(classifyPlayerCount(poll, 9)).toBe("BEST");
+  expect(classifyPlayerCount(poll, 8)).toBe("NOT_RECOMMENDED");
+  expect(classifyPlayerCount(poll, 7)).toBe("RECOMMENDED");
+  expect(poll.rows.map((row) => [row.players, row.orMore])).toEqual(originalOrder);
+});
+
 it("keeps exact and open-ended votes distinct, with unknown for absent or tied samples", () => {
   expect(playerPollSchema.parse(base)).toEqual(base);
   expect(classifyPlayerCount({ ...base, totalVotes: 0 }, 2)).toBe("UNKNOWN");

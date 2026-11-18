@@ -50,5 +50,5 @@ export async function POST(request: Request) {
     { upsert: true },
   );
 
-  return corsJson({ success: true, lastActiveAt: now.toISOString() }, request);
+  return corsJson({ success: true, lastActiveAt: now.toISOString() }, {}, request);
 }

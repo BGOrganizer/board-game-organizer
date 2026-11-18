@@ -34,7 +34,7 @@ let event: PlannedEventResponse,
   failed = false,
   loadStatus = 200,
   tableStatus = 200;
-let fetcher: ReturnType<typeof vi.fn>;
+let fetcher: ReturnType<typeof vi.fn<(url: string, init?: RequestInit) => Promise<Response>>>;
 beforeEach(() => {
   failed = false;
   loadStatus = 200;
@@ -82,7 +82,10 @@ function hook() {
   });
   return { ...q, client, close };
 }
-const posts = () => fetcher.mock.calls.filter(([, init]) => init?.method === "POST");
+const posts = () =>
+  fetcher.mock.calls.filter(
+    (call): call is [url: string, init: RequestInit] => call[1]?.method === "POST",
+  );
 const alternativeId = "55555555-5555-4555-8555-555555555555";
 function multipleOptions(mask = 7) {
   event = {
@@ -701,7 +704,7 @@ it.each([false, true])(
       });
     let release: ((response: Response) => void) | undefined;
     const original = fetcher.getMockImplementation()!;
-    fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
       url.endsWith(`/tables/${tableId}`)
         ? new Promise<Response>((done) => {
             release = done;

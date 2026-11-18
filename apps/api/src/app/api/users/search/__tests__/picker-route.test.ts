@@ -112,3 +112,70 @@ it("keeps legacy default size50 and rejects unknown friend-filter values without
   ).toBe(400);
   expect(mocks.db.collection).not.toHaveBeenCalled();
 });
+
+it("returns independent following, follower and mutual friendship state for search results", async () => {
+  const users = ["following_only", "follower_only", "mutual", "unrelated"].map((id) => ({
+    clerkId: id,
+    name: "Player",
+    email: `${id}@example.test`,
+    username: id,
+    avatarUrl: null,
+    presence: { online: false, lastActiveAt: new Date(0) },
+  }));
+  const cursor = {
+    sort: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    toArray: async () => users,
+  };
+  const followFind = vi.fn((filter: { fromUserId?: string; toUserId?: string }) => ({
+    toArray: async () =>
+      filter.fromUserId === "viewer"
+        ? [
+            { fromUserId: "viewer", toUserId: "following_only" },
+            { fromUserId: "viewer", toUserId: "mutual" },
+          ]
+        : [
+            { fromUserId: "follower_only", toUserId: "viewer" },
+            { fromUserId: "mutual", toUserId: "viewer" },
+          ],
+  }));
+  const userFind = vi.fn(() => cursor);
+  const friendFind = vi.fn(() => ({
+    toArray: async () => [
+      { fromUserId: "viewer", toUserId: "mutual" },
+      { fromUserId: "mutual", toUserId: "viewer" },
+      { fromUserId: "viewer", toUserId: "following_only" },
+      { fromUserId: "unrelated", toUserId: "someone_else" },
+    ],
+  }));
+  mocks.db.collection.mockImplementation((name: string) => {
+    if (name === "users") return { find: userFind };
+    if (name === "follows") return { find: followFind };
+    return { find: friendFind };
+  });
+
+  const response = await GET(new Request("https://api.test/api/users/search?query=play"));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    users: users.map((user) => ({
+      id: user.clerkId,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      avatarUrl: null,
+      presence: { online: false, lastActiveAt: new Date(0).toISOString() },
+      blockedByMe: false,
+      blockedMe: false,
+      isFollowing: ["following_only", "mutual"].includes(user.clerkId),
+      isFollower: ["follower_only", "mutual"].includes(user.clerkId),
+      isFriend: user.clerkId === "mutual",
+    })),
+    nextCursor: null,
+  });
+  expect(followFind.mock.calls).toEqual([[{ fromUserId: "viewer" }], [{ toUserId: "viewer" }]]);
+  expect(friendFind).toHaveBeenCalledWith({ status: "accepted" });
+  expect(userFind).toHaveBeenCalledWith(
+    expect.objectContaining({ clerkId: { $nin: ["viewer", "blocked", "blocker"] } }),
+    { projection: { _id: 0 } },
+  );
+});

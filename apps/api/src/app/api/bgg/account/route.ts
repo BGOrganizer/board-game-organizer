@@ -11,7 +11,7 @@ export const OPTIONS = corsOptions;
 export async function GET(request: Request) {
   const { userId } = await auth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
-  return corsJson(await new BggAccountRepository(await getDb()).get(userId), request);
+  return corsJson(await new BggAccountRepository(await getDb()).get(userId), {}, request);
 }
 
 export async function POST(request: Request) {
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (!identity) return corsJson({ error: "BGG user not found" }, { status: 404 }, request);
     const repository = new BggAccountRepository(await getDb());
     await repository.stage(userId, identity);
-    return corsJson(await repository.get(userId), request);
+    return corsJson(await repository.get(userId), {}, request);
   } catch (error) {
     if (error instanceof BggRemoteError)
       return corsJson(
@@ -48,5 +48,5 @@ export async function DELETE(request: Request) {
   await withTransaction(async (session, db) => {
     await new BggAccountRepository(db).unlink(userId, session);
   });
-  return corsJson({ active: null, pending: null }, request);
+  return corsJson({ active: null, pending: null }, {}, request);
 }

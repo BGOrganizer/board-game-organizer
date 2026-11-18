@@ -68,10 +68,10 @@ async function harness(patch: Partial<Options> = {}, strict = false) {
   const results: Result[] = [];
   const render = async () => {
     await act(async () => {
-      const activity = createElement(
-        Activity,
-        { mode: visible ? "visible" : "hidden" },
-        createElement(Probe, { options, publish: (value) => results.push(value) }),
+      const activity = (
+        <Activity mode={visible ? "visible" : "hidden"}>
+          <Probe options={options} publish={(value) => results.push(value)} />
+        </Activity>
       );
       root.render(strict ? createElement(StrictMode, null, activity) : activity);
     });

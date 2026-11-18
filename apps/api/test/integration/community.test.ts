@@ -256,8 +256,7 @@ async function book(eventId: string, tableId: string, userId: string, confirm = 
   return row;
 }
 beforeAll(async () => {
-  container = await mongodbContainer()
-    .withCommand(["--replSet", "rs0", "--bind_ip_all"])
+  container = await mongodbContainer(undefined, { replicaSet: true })
     .withExposedPorts(27017)
     .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/))
     .start();

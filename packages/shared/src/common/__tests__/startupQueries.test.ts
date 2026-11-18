@@ -136,9 +136,11 @@ it("progressively warms scoped first pages, linked events and authorized groups,
   ).toBeDefined();
   for (const [query] of prefetch.mock.calls) {
     if (query.queryKey[0] !== "contacts") continue;
+    if (!("getNextPageParam" in query) || typeof query.getNextPageParam !== "function")
+      throw new Error("Expected a paginated Contacts prefetch");
     const page = { rows: [], users: [], hasContacts: false, nextCursor: "next" };
-    expect(query.getNextPageParam?.(page, [page], "", [""])).toBe("next");
-    expect(query.getNextPageParam?.({ ...page, nextCursor: null }, [], "", [])).toBeUndefined();
+    expect(query.getNextPageParam(page, [page], "", [""])).toBe("next");
+    expect(query.getNextPageParam({ ...page, nextCursor: null }, [], "", [])).toBeUndefined();
   }
   const urls = fetch.mock.calls.map(([url]) => new URL(url));
   expect(urls.filter((url) => url.pathname.startsWith("/api/bgg/picker"))).toHaveLength(1);

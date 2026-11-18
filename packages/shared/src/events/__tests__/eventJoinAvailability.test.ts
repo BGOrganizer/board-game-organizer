@@ -1,3 +1,4 @@
+import type { EventVote } from "@board-game-organizer/schemas";
 import { expect, it } from "vitest";
 import {
   eventAvailabilityVoteIsAllowed,
@@ -58,12 +59,13 @@ it("omits singleton preferences without weakening foreign/missing/negative multi
   expect(eventOptionVotesAreComplete(one, {})).toBe(true);
   for (const vote of ["YES", "IF_NEEDED"] as const)
     expect(eventOptionVotesAreComplete(one, { one: vote })).toBe(true);
-  for (const choices of [
+  const invalidSingletonVotes: Readonly<Record<string, EventVote>>[] = [
     { one: "NO" },
     { one: "UNKNOWN" },
     { other: "YES" },
     { one: "YES", other: "YES" },
-  ] as const)
+  ];
+  for (const choices of invalidSingletonVotes)
     expect(eventOptionVotesAreComplete(one, choices)).toBe(false);
   expect(eventOptionVotesAreComplete(many, {})).toBe(false);
   expect(eventOptionVotesAreComplete([], {})).toBe(false);

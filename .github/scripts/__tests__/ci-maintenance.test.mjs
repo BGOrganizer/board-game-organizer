@@ -204,9 +204,13 @@ test("Maestro checksum failure stops before extraction or execution", () => {
       '#!/usr/bin/env bash\nwhile [ "$#" -gt 0 ]; do if [ "$1" = -o ]; then printf corrupt > "$2"; exit 0; fi; shift; done\n',
       { mode: 0o755 },
     );
-    writeFileSync(join(bin, "unzip"), '#!/usr/bin/env bash\nprintf unsafe > "$INSTALL_MARKER"\n', {
-      mode: 0o755,
-    });
+    writeFileSync(
+      join(bin, "python3"),
+      '#!/usr/bin/env bash\nprintf unsafe > "$INSTALL_MARKER"\n',
+      {
+        mode: 0o755,
+      },
+    );
     const marker = join(dir, "marker");
     const run = spawnSync("bash", [".github/scripts/install-maestro.sh"], {
       env: {

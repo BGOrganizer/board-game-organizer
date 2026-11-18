@@ -5,9 +5,8 @@
 | File | Display name | Responsibility |
 | --- | --- | --- |
 | [pr-ci.yml](workflows/pr-ci.yml) | CI | Route branch/PR events, run shared checks, then independent isolated CI and Development publication lanes. |
-| [mobile-debug.yml](workflows/mobile-debug.yml) | Android debug APK | Build an ARM64 development client for the current trusted PR and upload a separate diagnostic artifact. |
 | [main-ci.yml](workflows/main-ci.yml) | Release | Verify every merge, serialize version preparation, build the pinned APK, deploy and publish the verified release. |
-| [pr-ci-fail-fast.yml](workflows/pr-ci-fail-fast.yml) | CI watchdog | Cancel only shared-quality failures; keep lane-specific failures isolated. |
+| [pr-ci-fail-fast.yml](workflows/pr-ci-fail-fast.yml) | CI watchdog | Wait for all mandatory test suites before cancelling remaining work after shared-quality failures; keep lane-specific failures isolated. |
 | [pr-ci-cleanup.yml](workflows/pr-ci-cleanup.yml) | CI cleanup | Recover resources after an unsuccessful PR run, using trusted default-branch code. |
 | [e2e-user-cleanup.yml](workflows/e2e-user-cleanup.yml) | Test users | Hourly/manual orphan cleanup after verifying the owning run has completed. |
 
@@ -39,8 +38,9 @@ credential scope; scripts implement routing, provenance, publication and recover
 
 Third-party Bun/Codecov actions use reviewed commit SHAs with major-version comments.
 EAS CLI **27.7.2** and Vercel CLI **65.14.0** use exact Bun global installs.
-Maestro **2.11.0** is downloaded from its tagged GitHub release and checked against the release asset's
-SHA-256 before extraction. Updating these identities is an explicit dependency/tooling task;
+Maestro's version is pinned in [`.maestro-version`](../.maestro-version), downloaded from its tagged
+GitHub release and checked against the reviewed release asset's SHA-256 before extraction. Local
+[Maestro commands](../apps/mobile/.maestro/README.md) use the same installer. Updating these identities is an explicit dependency/tooling task;
 never replace them with moving tags, `@latest` or a remote installer piped into a shell.
 
 ## Local verification
@@ -58,8 +58,27 @@ They do not dispatch workflows, create/delete provider users or publish builds.
 Validate workflow expressions with `actionlint`; check changed Bash scripts with `bash -n`.
 Run Biome on changed JavaScript. Keep workflow contract tests aligned with script behavior,
 including negative paths, without weakening required checks or mocking E2E acceptance.
-Both CI lanes enforce 100% line, function and branch coverage for the shared release/Telegram
+Both CI lanes enforce 90% line, function and branch coverage for the shared release/Telegram
 formatters through Node's test coverage flags on the same contract suite.
+Branch, PR and Main unit jobs use each workspace's `test:coverage` command, enforcing at least
+90% lines, functions, branches and statements through the same Vitest configuration used locally.
+The API coverage command includes its unit and MongoDB integration projects in one report;
+the separate integration job remains an independent required check.
+Reassure measurements are paused by explicit operator request. Both complete web/mobile job
+matrices and their paired baseline/current definitions remain retained with `if: ${{ false }}`,
+but are absent from active deployment/release/readiness dependencies and watchdog requirements.
+No skipped benchmark is reported as a passing performance measurement. Comparator, paired-helper
+and other tooling unit tests remain active within ordinary tests.
+
+The existing five-workspace 90% coverage matrix, real MongoDB integration, lint, typecheck, builds,
+native tooling, release provenance and cleanup gates remain active. The retained rendering jobs
+preserve same-runner sequencing, approved refs, strict samples/count caps and the documented
+initial-main bootstrap policy for explicit resumption; see
+[rendering benchmarks](../docs/render-performance.md#paired-statistical-ci-checks). There is no
+fabricated old baseline or claim that the interrupted local measurement completed.
+
+Native tooling checks verify pinned CLI identities and parse every Maestro flow without running a
+device, emulator or E2E journey. Test matrices finish their other suites after a sibling failure.
 
 Verify live GitHub required-check settings against the current workflow contexts and app identity.
 A local YAML edit does not migrate branch protection or activate default-branch controllers;

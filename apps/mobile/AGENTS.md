@@ -68,7 +68,11 @@ Expo web is not a product target even though the package exposes a web script.
 
 `bun run --filter mobile dev` starts Metro for a development client, not a native build.
 Use `bun run --filter mobile android` for local Android builds, or `bun run --filter mobile ios` on macOS.
-The [shared validation commands](../../AGENTS.md#3-workspace-and-commands) cover pure-logic Vitest
-checks. Native component tests are not run in Vitest because React Native Flow source is not transformed.
+The [shared validation commands](../../AGENTS.md#3-workspace-and-commands) cover Vitest logic and
+native component checks. `bun run --filter mobile test:components` runs actual React Native and
+HeroUI component implementations through React Native Testing Library and `vitest-native`.
+Native runtime/device boundaries remain controlled adapters, not Android frame-timing evidence.
+Use [React benchmarks](../../docs/render-performance.md) for Reassure render/update contracts and
+[native profiling](../../docs/native-performance.md) for project-pinned Perfetto with Maestro.
 Use [Maestro](.maestro/README.md) for actual device UI acceptance, covering permissions, keyboard,
 Settings-return, startup and error paths. Preserve the root coverage and evidence requirements.

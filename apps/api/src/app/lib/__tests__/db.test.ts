@@ -9,11 +9,13 @@ const mocks = vi.hoisted(() => {
     withTransaction: sessionWithTransactionMock,
     endSession: endSessionMock,
   }));
-  const MongoClientMock = vi.fn(() => ({
-    connect: connectMock,
-    db: dbMock,
-    startSession: startSessionMock,
-  }));
+  const MongoClientMock = vi.fn(function MockMongoClient() {
+    return {
+      connect: connectMock,
+      db: dbMock,
+      startSession: startSessionMock,
+    };
+  });
   return {
     MongoClientMock,
     connectMock,

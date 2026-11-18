@@ -18,6 +18,7 @@ export const HeaderTitle = memo(function HeaderTitle({
       <Icon size={HEADER_ICON_SIZE} color={foreground} aria-hidden />
       <Typography
         type="h4"
+        accessible
         accessibilityRole="header"
         className="font-semibold text-foreground"
         numberOfLines={1}

@@ -109,7 +109,7 @@ export function HelpPopover({
           style={contentStyle}
         >
           {title ? (
-            <Popover.Title accessibilityRole="header" importantForAccessibility="yes">
+            <Popover.Title accessible accessibilityRole="header" importantForAccessibility="yes">
               {title}
             </Popover.Title>
           ) : null}

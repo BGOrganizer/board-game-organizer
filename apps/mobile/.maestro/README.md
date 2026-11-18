@@ -1,6 +1,24 @@
 # Native acceptance
 
-Android, Maestro CLI 2.11.0. `config.yaml` discovers only the same 13 canonical
+Install the project-pinned CLI from the repository root with `bun run maestro:install`.
+It requires Bash, curl, SHA-256 tooling, Python 3 and Java 17+. The reviewed version lives in
+`.maestro-version`; local installation and writable Java runtime data live under the ignored
+`.tools/maestro/` directory. CI uses the same version and SHA-256-verified installer.
+No global Maestro installation or shell PATH change is required.
+
+```sh
+bun run maestro --version
+bun run maestro check-syntax apps/mobile/.maestro/flows/01-launch-welcome.yaml
+# Only after preparing the isolated fixtures and connecting the intended device:
+bun run maestro --device <device-id> test apps/mobile/.maestro
+```
+
+Run these commands on Linux/macOS, or in the supported container with device access. Java's
+Maestro runtime home is isolated to this checkout; global Maestro login/settings are not inherited.
+Android device access still requires the SDK/ADB and the normal host USB authorization.
+The remaining examples using `maestro` can use `bun run maestro` from the repository root.
+
+`config.yaml` discovers only the same 13 canonical
 journeys invoked by `.github/scripts/maestro-e2e.sh`; see
 [AGENTS.md](../../../AGENTS.md#8-git-and-delivery) for current CI enablement. Retained flows are not execution evidence.
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
@@ -827,11 +845,12 @@ illustrations inside the navigation-less Group selector portal intentionally rem
 they must render without a navigation-context error.
 
 On device, record normal-motion internal calendar/banner, die/token and group member/badge
-movement only in the detail backgrounds; list cards, selectors and embedded cards remain static.
+movement in detail backgrounds, list cards and eligible embedded cards. Navigation-less selector
+portals remain static when they cannot establish motion eligibility.
 The full illustration must remain stationary. While the app stays mounted, change
 system Reduce Motion and return: generated artwork must immediately become the original static
 SVG, then resume when disabled. Background/foreground, navigation away/back and retained-panel changes must stop/resume the
-active detail's clock without lost rows or scroll position. Scrolling the detail card out of view
+active illustration's clock without lost rows or scroll position. Scrolling the detail card out of view
 must preserve geometry and list responsiveness; profile that path separately. Use a long
 resource list and profile entry/reentry and scroll UI-thread frame timing; a screenshot cannot
 prove paused clocks or performance. Test failed and subsequently changed valid logo URLs using

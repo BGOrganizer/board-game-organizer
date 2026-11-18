@@ -43,9 +43,9 @@ allows them. Retention never grants capabilities or copies remote data into loca
 Group tab selection updates before a first-visit panel mounts in interruptible React work; current
 capabilities still gate both the selected destination and any deferred panel immediately.
 Shared native tab bars reveal only clipped selections rather than recentering already visible tabs.
-Their indicators switch immediately, avoiding competing scroll/indicator animations when retained
-panels hand off their separate headers. Hidden-panel layout and scroll callbacks cannot alter the
-active bar's geometry.
+Their indicators retain HeroUI's default animation; clipped-tab reveal scrolls without a second
+animation when retained panels hand off their separate headers. Hidden-panel layout and scroll
+callbacks cannot alter the active bar's geometry.
 
 List presentation windows reset on deactivation or owner changes while authoritative Query pages
 remain cached. Reject callbacks from an earlier activation, including late fetch completions; reveal

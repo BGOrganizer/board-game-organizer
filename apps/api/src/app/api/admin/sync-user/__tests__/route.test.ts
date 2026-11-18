@@ -67,6 +67,27 @@ describe("POST /api/admin/sync-user", () => {
     expect(res.status).toBe(400);
   });
 
+  it("rejects syntactically invalid JSON before accessing the database", async () => {
+    const database = vi.fn(async () => {
+      throw new Error("Invalid input must not reach the database");
+    });
+    vi.doMock("@/app/lib/db", () => ({ getDb: database }));
+    const { POST: post } = await import("../route");
+    const response = await post(
+      new Request("http://localhost/api/admin/sync-user", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer sk_test_sync",
+          "content-type": "application/json",
+        },
+        body: '{"clerkId":',
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Invalid payload" });
+    expect(database).not.toHaveBeenCalled();
+  });
+
   it("upserts the user into the collection and returns ok", async () => {
     const upsert = vi.fn().mockResolvedValue({ ok: true });
     const fakeDb = { collection: vi.fn(() => ({ findOneAndUpdate: upsert })) };

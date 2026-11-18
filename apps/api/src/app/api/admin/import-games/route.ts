@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   }
   const db = await getDb();
-  return corsJson({ schemaVersion: 2, databaseName: db.databaseName }, request);
+  return corsJson({ schemaVersion: 2, databaseName: db.databaseName }, {}, request);
 }
 
 export async function PATCH(request: Request) {
@@ -33,7 +33,7 @@ export async function PATCH(request: Request) {
   }
   const db = await getDb();
   const removed = await new BoardGamesRepository(db).removeLegacyThumbnails();
-  return corsJson({ ok: true, removed }, request);
+  return corsJson({ ok: true, removed }, {}, request);
 }
 
 export async function POST(request: Request) {
@@ -53,5 +53,5 @@ export async function POST(request: Request) {
   const written = await new BoardGamesRepository(db).bulkUpsert(parsed.data.games);
   const total = await new BoardGamesRepository(db).count();
 
-  return corsJson({ ok: true, written, total }, request);
+  return corsJson({ ok: true, written, total }, {}, request);
 }

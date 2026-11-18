@@ -75,9 +75,26 @@ debug overhead to product behavior, then calibrate final frame timings against a
 Record first entry, cached reentry, subtab changes, opening/closing a popover, background refetch,
 and Back navigation for Groups, Events and Tables; include Contacts as a comparison. Save the
 trace with the source SHA, build mode, device, dataset size and cache state. Distinguish rerenders
-from remounts. The native render-count tests use real React reconciliation with substituted
-native/HeroUI hosts: they verify memo boundaries and update propagation, not native layout,
-gesture latency or device FPS. Do not treat their timings as screen-load acceptance.
+from remounts. Native component tests use React Native Testing Library with the installed React
+Native and HeroUI implementations. Isolated unit tests control application dependencies; component
+integration tests also exercise real hooks, Query and cache. Native IO adapters and fixture layout
+events cover boundaries unavailable in Node. Separate Reassure suites measure React commits;
+Maestro and device profiling verify complete user journeys, native layout, gesture latency and FPS.
+See [rendering verification and its limits](render-performance.md); JavaScript timings are not
+screen-load acceptance.
+
+The native runner registers the actual Metro-compiled Uniwind stylesheet and delegates external
+CommonJS React Native imports to the app's installed Uniwind Metro resolver. Its importer checks
+preserve raw React Native/Uniwind internals and public SDK identities. The test-only
+[interop adapter](../apps/mobile/performance/uniwind-native-interop.ts) temporarily wraps Node's private
+CommonJS loader and supplies the native export condition on Node.js 26; it restores the loader after
+RNTL cleanup. Run `NativeUniwindInterop.native.test.tsx` when updating that toolchain. This adapter
+does not rewrite external ESM absolute facades or dependencies already embedded in the native
+registry, and its styling assertions do not establish native pixel/layout or frame-timing acceptance.
+The [horizontal scroll adapter](../apps/mobile/performance/horizontal-scroll-interop.ts) maps only
+Android's horizontal native binding to the runner's existing scroll host so RNTL can deliver events.
+It preserves React Native/HeroUI JavaScript, horizontal props, public refs and command axes; it does
+not alter the device binding. Run `NativeHorizontalScrollAdapter.native.test.tsx` after tool updates.
 
 ## Native cache and builds
 
@@ -219,8 +236,9 @@ Upgrade major versions one package family at a time; do not use a blanket `--lat
 running and fixing the full validation suite. Expo owns compatible versions of React Native and
 native modules. Do not force npm-latest versions over Expo's compatibility matrix. Keep mobile
 `react`, `react-dom`, and other exact Expo-managed versions pinned when a caret would let Bun
-dedupe to an incompatible version. Keep Vitest 3.2 until the web JSX transform and constructor mocks
-are migrated for Vitest 5.
+dedupe to an incompatible version. Keep Vitest and its coverage provider aligned across tested
+workspaces. Major upgrades must migrate JSX transforms, constructor mocks, worker settings and
+coverage mapping together; preserve explicit source inclusion and existing coverage thresholds.
 
 After any dependency update, run lint, typecheck, unit tests, builds, and relevant integration
 tests.

@@ -26,8 +26,13 @@ export function getCorsHeaders(request: NextRequest | Request) {
 
 /** JSON response with CORS headers attached. Pass the incoming request so the
  * real Origin header is echoed (a synthesized request has no origin and would
- * answer `*`, which browsers reject for credentialed/authorized requests). */
-export function corsJson(body: unknown, init: ResponseInit = {}, request?: Request) {
+ * answer `*`, which browsers reject for credentialed requests).
+ * Exclude method to reject Request values that otherwise share the headers property. */
+export function corsJson(
+  body: unknown,
+  init: ResponseInit & { method?: never } = {},
+  request?: Request,
+) {
   return Response.json(body, {
     ...init,
     headers: {

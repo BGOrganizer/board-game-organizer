@@ -237,7 +237,7 @@ describe("notificationChangeReconciliation transaction-owned union effects", () 
       id: "222222222222222222222222",
       requiresResponse: true,
       kind: "table_invitation" as const,
-      attentionItems: [{ id: invitationId, readAt: null }],
+      attentionItems: [{ id: invitationId, revision: 1, readAt: null }],
     };
     const initial = inbox([note, b]),
       changes = {

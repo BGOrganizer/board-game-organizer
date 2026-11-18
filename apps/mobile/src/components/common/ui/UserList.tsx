@@ -67,7 +67,7 @@ export function UserList<T>({
           {pages.some((page) => page.isLoading) ? skeleton : null}
           {pages.some((page) => page.isError) ? (
             <View style={{ gap: 4 }}>
-              <Typography accessibilityRole="alert" className="text-sm text-danger">
+              <Typography accessible accessibilityRole="alert" className="text-sm text-danger">
                 {error}
               </Typography>
               <Button

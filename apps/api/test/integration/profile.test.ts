@@ -20,8 +20,7 @@ const at = "2030-06-03T12:00:00.000Z",
   subject = "subject",
   viewer = "viewer";
 beforeAll(async () => {
-  container = await mongodbContainer()
-    .withCommand(["--replSet", "rs0", "--bind_ip_all"])
+  container = await mongodbContainer(undefined, { replicaSet: true })
     .withExposedPorts(27017)
     .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/))
     .start();

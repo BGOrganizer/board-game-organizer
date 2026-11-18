@@ -82,7 +82,7 @@ describe("sending invitation places, not server seats", () => {
         {
           key: "one",
           userId: "one",
-          person: { name: null, username: "Known username", avatarUrl: null },
+          person: { name: "", username: "Known username", avatarUrl: null },
         },
         { key: "two", userId: "two", person: { name: "", username: null, avatarUrl: null } },
         { key: "three", userId: "three" },

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   );
   if (!parsed.success) return corsJson({ error: "Invalid search" }, { status: 400 }, request);
   try {
-    return corsJson(await bggPickerPage(await getDb(), userId, parsed.data), request);
+    return corsJson(await bggPickerPage(await getDb(), userId, parsed.data), {}, request);
   } catch (error) {
     return corsJson(
       { error: error instanceof CommunityError ? error.code : "Internal server error" },

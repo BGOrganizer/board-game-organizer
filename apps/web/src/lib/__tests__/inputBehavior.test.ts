@@ -374,4 +374,91 @@ describe("installInputBehavior local owners and first blocking errors", () => {
     await mutations();
     expect(document.documentElement.scrollTo).not.toHaveBeenCalled();
   });
+  it("uses the window viewport fallback and restores existing page and result-scope properties", () => {
+    vi.stubGlobal("visualViewport", undefined);
+    vi.stubGlobal("innerHeight", 800);
+    const { input, scope } = form("<input><div data-input-results></div>");
+    scope.dataset.inputScope = "";
+    const results = scope.querySelector<HTMLElement>("[data-input-results]");
+    if (!results) throw Error("Missing search results");
+    geometry(results, 100, 100);
+    document.documentElement.style.setProperty("--app-visible-height", "700px");
+    dispose = installInputBehavior();
+    input.focus();
+    flush();
+    expect(scope.style.getPropertyValue("--input-results-height")).toBe("480px");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
+    expect(scope.style.getPropertyValue("--input-results-height")).toBe("480px");
+    expect(document.documentElement.style.getPropertyValue("--app-visible-height")).toBe("800px");
+    dispose();
+    dispose = undefined;
+    expect(scope.style.getPropertyValue("--input-results-height")).toBe("");
+    expect(document.documentElement.style.getPropertyValue("--app-visible-height")).toBe("700px");
+    document.documentElement.style.removeProperty("--app-visible-height");
+  });
+  it("ignores document-level submit/invalid events and non-text focus without acquiring a scroll owner", () => {
+    const { button } = form("<input>");
+    dispose = installInputBehavior();
+    button.focus();
+    document.dispatchEvent(new Event("submit"));
+    document.dispatchEvent(new Event("invalid"));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    flush();
+    expect(document.activeElement).toBe(button);
+    expect(document.documentElement.scrollTo).not.toHaveBeenCalled();
+  });
+  it("rejects an already selected error field moved into another form before the reveal frame", () => {
+    const { button, input } = form();
+    dispose = installInputBehavior();
+    button.click();
+    const firstFrame = [...frames.values()][0];
+    frames.clear();
+    firstFrame(0);
+    const replacement = document.createElement("form");
+    document.body.append(replacement);
+    replacement.append(input);
+    flush();
+    expect(document.activeElement).not.toBe(input);
+    expect(document.documentElement.scrollTo).not.toHaveBeenCalled();
+  });
+  it("uses horizontal visual order for invalid fields on the same row", () => {
+    const { button, input, scope } = form(
+      '<input aria-invalid="true"><textarea aria-invalid="true"></textarea>',
+    );
+    const textarea = scope.querySelector("textarea");
+    if (!textarea) throw Error("Missing second control");
+    vi.mocked(input.getBoundingClientRect).mockReturnValue({ ...rect(500), left: 100 });
+    dispose = installInputBehavior();
+    button.click();
+    flush();
+    expect(document.activeElement).toBe(textarea);
+  });
+  it("restores a preexisting error-summary tabindex instead of deleting it", () => {
+    const { button, scope } = form('<div data-form-error tabindex="2">Save failed</div><input>');
+    const summary = scope.querySelector<HTMLElement>("[data-form-error]");
+    if (!summary) throw Error("Missing error summary");
+    dispose = installInputBehavior();
+    button.click();
+    flush();
+    expect(document.activeElement).toBe(summary);
+    expect(summary.tabIndex).toBe(-1);
+    dispose();
+    dispose = undefined;
+    expect(summary.getAttribute("tabindex")).toBe("2");
+  });
+  it("removes a temporary results-height property when its unstyled scope is detached", async () => {
+    const { input, scope } = form("<input><div data-input-results></div>");
+    scope.dataset.inputScope = "";
+    const results = scope.querySelector<HTMLElement>("[data-input-results]");
+    if (!results) throw Error("Missing search results");
+    geometry(results, 400, 100);
+    dispose = installInputBehavior();
+    input.focus();
+    flush();
+    expect(scope.style.getPropertyValue("--input-results-height")).not.toBe("");
+    scope.remove();
+    await mutations();
+    expect(scope.style.getPropertyValue("--input-results-height")).toBe("");
+  });
 });

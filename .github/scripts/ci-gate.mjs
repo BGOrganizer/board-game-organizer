@@ -1,7 +1,14 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const qualityJobs = ["commitlint", "lint", "typecheck", "unit-tests", "integration-tests"];
+export const qualityJobs = [
+  "commitlint",
+  "lint",
+  "typecheck",
+  "unit-tests",
+  "integration-tests",
+  "native-tooling",
+];
 export const internalJobs = [
   "build-api",
   "build-web",

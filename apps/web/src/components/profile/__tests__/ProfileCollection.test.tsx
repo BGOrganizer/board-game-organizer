@@ -1,15 +1,10 @@
 import { useBggCollectionFilters } from "@board-game-organizer/shared";
 import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import { ProfileCollection } from "../ProfileCollection";
 
-// Row/query unit checks only. Real Virtualizer measurements belong to browser acceptance.
-vi.mock("@heroui/react/rac", async (original) => ({
-  ...(await original<typeof import("@heroui/react/rac")>()),
-  Virtualizer: ({ children }: { children: ReactNode }) => children,
-}));
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
@@ -46,6 +41,19 @@ const items = [
 let failed: boolean, legacy: boolean;
 let fetch: ReturnType<typeof vi.fn>;
 beforeEach(() => {
+  installBrowserIntersections();
+  // jsdom geometry only: keep the actual RAC Virtualizer on a finite viewport,
+  // including its real layout/row lifecycle rather than its unbounded test fallback.
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.matches("[data-input-results]") ? 390 : 0;
+  });
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.matches("[data-input-results]") ? 480 : 0;
+  });
   failed = legacy = false;
   fetch = vi.fn(async (url: string) => {
     if (failed) return Response.json({ error: "unavailable" }, { status: 503 });
@@ -70,7 +78,10 @@ beforeEach(() => {
   });
   vi.stubGlobal("fetch", fetch);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 it("covers every type combination, toggle direction and common eligibility without duplicating Query data", () => {
   const h = renderHook(
     ({ snapshot }: { snapshot: string | undefined }) => useBggCollectionFilters(snapshot),

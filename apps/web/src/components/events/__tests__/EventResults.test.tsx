@@ -60,7 +60,7 @@ vi.mock("../TableScoreEditor", () => ({
   },
 }));
 let fail: boolean,
-  fetcher: ReturnType<typeof vi.fn>,
+  fetcher: ReturnType<typeof vi.fn<(url: string, init?: RequestInit) => Promise<Response>>>,
   event: typeof plannedEvent,
   table: typeof plannedTable;
 beforeEach(() => {
@@ -215,7 +215,7 @@ it.each(["error", "missing"])(
   async (kind) => {
     let broken = true;
     const original = fetcher.getMockImplementation()!;
-    fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
       url.includes("/seats?") && broken
         ? Promise.resolve(
             kind === "error"
@@ -234,7 +234,7 @@ it.each(["error", "missing"])(
 );
 it("loads missing frozen players from the next source page before enabling the editor", async () => {
   const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     url.includes("/seats?")
       ? Promise.resolve(
           Response.json(
@@ -252,7 +252,7 @@ it("loads missing frozen players from the next source page before enabling the e
 it("does not repeat a save or navigate until the server acknowledges it", async () => {
   let release: (() => Promise<void>) | undefined;
   const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     init?.method === "PUT"
       ? new Promise<Response>((resolve) => {
           release = async () => resolve(await original(url, init));
@@ -273,7 +273,7 @@ it("does not repeat a save or navigate until the server acknowledges it", async 
 });
 it("keeps uncertain save outcomes in verification without replay, false failure or navigation", async () => {
   const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     init?.method === "PUT"
       ? Promise.resolve(Response.json({}, { status: 503 }))
       : original(url, init),
@@ -311,7 +311,7 @@ it("keeps Back in the app header", async () => {
 it.each([403, 503])("keeps denied or failed Table reads observable (%s)", async (status) => {
   const original = fetcher.getMockImplementation()!;
   let broken = true;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     url.endsWith(`/tables/${tableId}`) && broken
       ? Promise.resolve(Response.json({}, { status }))
       : original(url, init),

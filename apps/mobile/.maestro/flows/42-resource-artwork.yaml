@@ -2,9 +2,11 @@ appId: com.bgo.boardgameorganizer.dev
 name: Approved resource artwork, uploaded logos and foreground continuity
 # Opt-in existing Preview fixtures. Configure OS Reduce Motion and app theme before each run.
 # Detail screenshots must show proportional artwork across the full card background.
-# List screenshots must show full-width titles, bottom-left STATIC artwork and a single control row that may extend over the artwork.
-# Only detail backgrounds animate in normal motion; lists and selectors remain static.
-# Review paired detail frames/video for motion; screenshots alone do not prove animation.
+# List screenshots must show full-width titles, bottom-left artwork and a single control row that may extend over the artwork.
+# In normal motion, active list/embedded artwork and detail backgrounds animate.
+# Uploaded logos, reduced motion and navigation-less selectors remain static.
+# Review the recording for internal-only motion and the tab indicator.
+# Screenshots/accessibility assertions alone do not prove animation or frame timing.
 # Check unchanged geometry in both system motion settings and retained artwork after tab changes.
 tags: [manual, artwork, accessibility]
 ---
@@ -29,6 +31,7 @@ tags: [manual, artwork, accessibility]
 - extendedWaitUntil:
     visible: ${output.artwork.openGroup}
     timeout: 120000
+- startRecording: ${output.artwork.screenshot + '-navigation'}
 - takeScreenshot: ${output.artwork.screenshot + '-group-card'}
 - tapOn:
     text: ${output.artwork.openGroup}
@@ -97,3 +100,4 @@ tags: [manual, artwork, accessibility]
     clearState: false
 - assertVisible: ${output.artwork.table}
 - takeScreenshot: ${output.artwork.screenshot + '-foreground'}
+- stopRecording

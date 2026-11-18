@@ -8,6 +8,7 @@ const shared = new Set([
   "Lint and CI contracts",
   "Typecheck",
   "Integration tests (API)",
+  "Native tooling and flow syntax",
   "Build API",
   "Build Web",
   "🔀 Resolve CI context",
@@ -18,6 +19,18 @@ const shared = new Set([
   "🏗️ Build API",
   "🏗️ Build Web",
 ]);
+// A failed matrix sibling must never prevent the other test suites from running.
+export const mandatoryTestJobs = [
+  "Lint and CI contracts",
+  "Integration tests (API)",
+  "Native tooling and flow syntax",
+  ...["mobile", "web", "api", "schemas", "shared"].map((app) => `Unit tests (${app})`),
+];
+export function allTestJobsCompleted(jobs) {
+  return mandatoryTestJobs.every((name) =>
+    jobs.some((job) => job.name === name && job.status === "completed"),
+  );
+}
 export function sharedQualityFailed(jobs) {
   return jobs.some(
     (job) =>
@@ -49,8 +62,11 @@ async function main() {
   }
   while (true) {
     if ((await api("")).status === "completed") return;
-    if (sharedQualityFailed((await api("/jobs?per_page=100")).jobs)) {
-      console.log("Cancelling CI after a shared quality failure; lane failures remain isolated.");
+    const jobs = (await api("/jobs?per_page=100")).jobs;
+    if (allTestJobsCompleted(jobs) && sharedQualityFailed(jobs)) {
+      console.log(
+        "Cancelling remaining CI work after all active test suites completed with a shared quality failure.",
+      );
       try {
         await api("/cancel", "POST");
       } catch (error) {

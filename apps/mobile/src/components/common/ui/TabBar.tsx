@@ -62,7 +62,7 @@ export function TabBar({ children, style }: { children: ReactNode; style?: ViewS
           contentContainerStyle={{ flexGrow: 0 }}
           onContentSizeChange={handleContentSizeChange}
         >
-          <Tabs.Indicator animation="disabled" />
+          <Tabs.Indicator />
           {children}
         </Tabs.ScrollView>
       </Tabs.List>

@@ -25,6 +25,10 @@ export function LocationFavoriteSelect({
   const insets = useSafeAreaInsets();
   const [foreground, muted] = useThemeColor(["foreground", "muted"]);
   const selected = favorites.items.find((item) => item.key === selectedKey);
+  const placeholder =
+    favorites.list.isError || favorites.items.length
+      ? t("Select a favorite location")
+      : t("No favorite locations");
   return (
     <>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -43,7 +47,11 @@ export function LocationFavoriteSelect({
           onOpenChange={(open) => {
             if (open) Keyboard.dismiss();
           }}
-          value={selected ? { value: selected.key, label: selected.location.name } : undefined}
+          value={
+            selected
+              ? { value: selected.key, label: selected.location.name }
+              : { value: "", label: placeholder }
+          }
           onValueChange={(value) => {
             const item = favorites.items.find((item) => item.key === value?.value);
             if (item) onSelect(item.key, item.location);
@@ -54,13 +62,7 @@ export function LocationFavoriteSelect({
             testID="favorite-location-select"
             accessibilityLabel={t("Favorite locations")}
           >
-            <Select.Value
-              placeholder={
-                favorites.list.isError || favorites.items.length
-                  ? t("Select a favorite location")
-                  : t("No favorite locations")
-              }
-            />
+            <Select.Value placeholder={placeholder} />
             <Select.TriggerIndicator />
           </Select.Trigger>
           <Select.Portal>

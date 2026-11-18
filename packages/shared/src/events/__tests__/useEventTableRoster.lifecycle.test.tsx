@@ -188,17 +188,17 @@ async function harness(patch: Partial<PlannedTableResponse> = {}, strict = false
   const results: Result[] = [];
   let queueRender!: () => void;
   const renderTree = () => {
-    const panel = createElement(
-      Activity,
-      { mode: visible ? "visible" : "hidden" },
-      createElement(Probe, {
-        options,
-        table,
-        publish: (result) => results.push(result),
-        control: (queue) => {
-          queueRender = queue;
-        },
-      }),
+    const panel = (
+      <Activity mode={visible ? "visible" : "hidden"}>
+        <Probe
+          options={options}
+          table={table}
+          publish={(result) => results.push(result)}
+          control={(queue) => {
+            queueRender = queue;
+          }}
+        />
+      </Activity>
     );
     root.render(strict ? createElement(StrictMode, null, panel) : panel);
   };

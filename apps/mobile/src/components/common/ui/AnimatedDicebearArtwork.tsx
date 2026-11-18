@@ -37,13 +37,9 @@ export const AnimatedDicebearArtwork = memo(function AnimatedDicebearArtwork({
     >
       <ScopedTheme theme="light">
         <View className="bg-surface" style={{ flex: 1, padding: presentation === "cover" ? 4 : 0 }}>
-          {presentation === "background" ? (
-            <AnimatedDetailArtwork key={`${variant}:${seed}`} artwork={artwork}>
-              {drawing}
-            </AnimatedDetailArtwork>
-          ) : (
-            drawing
-          )}
+          <AnimatedDetailArtwork key={`${variant}:${seed}`} artwork={artwork}>
+            {drawing}
+          </AnimatedDetailArtwork>
         </View>
       </ScopedTheme>
     </View>

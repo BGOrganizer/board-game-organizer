@@ -1,4 +1,4 @@
-import type { TableRegistration } from "@board-game-organizer/schemas";
+import type { GroupMembership, TableRegistration } from "@board-game-organizer/schemas";
 import { afterEach, expect, it, vi } from "vitest";
 import { eventPendingAction, groupPendingAction, tablePendingAction } from "../pendingActions";
 
@@ -31,7 +31,16 @@ it("shows Group review only to its admin from a complete source count, never fro
   ).toBeNull();
 });
 it("distinguishes a recipient's pending Group invitation from outgoing requests and resolved memberships", () => {
-  const membership = { ...row, groupId: row.eventId, kind: "INVITATION" as const };
+  const membership: GroupMembership = {
+    id: row.id,
+    groupId: row.eventId,
+    userId: row.userId,
+    kind: "INVITATION",
+    status: "PENDING",
+    version: row.version,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
   expect(groupPendingAction({ role: "invited", myMembership: membership })).toBe("reply");
   expect(groupPendingAction({ role: "invited", myMembership: null })).toBeNull();
   expect(

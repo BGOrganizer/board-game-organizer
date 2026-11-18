@@ -14,15 +14,15 @@ export async function POST(request: Request) {
   if (!pending) return corsJson({ error: "No BGG sync pending" }, { status: 409 }, request);
   const retry = new URL(request.url).searchParams.get("retry") === "true";
   if (pending.status === "failed") {
-    if (!retry) return corsJson(await repository.get(userId), request);
+    if (!retry) return corsJson(await repository.get(userId), {}, request);
     await repository.restart(userId, pending.snapshot);
     pending = await repository.pending(userId);
-    if (!pending) return corsJson(await repository.get(userId), request);
+    if (!pending) return corsJson(await repository.get(userId), {}, request);
   }
   if (pending.nextAttemptAt && pending.nextAttemptAt > new Date())
-    return corsJson(await repository.get(userId), request);
+    return corsJson(await repository.get(userId), {}, request);
   if (!(await repository.claim(userId, pending.snapshot)))
-    return corsJson(await repository.get(userId), request);
+    return corsJson(await repository.get(userId), {}, request);
   try {
     const games = await fetchBggCollection(pending.username, userId, pending.snapshot);
     await repository.publish(userId, pending.snapshot, pending, games);
@@ -31,5 +31,5 @@ export async function POST(request: Request) {
       await repository.queued(userId, pending.snapshot, error.retryAfterMs);
     else await repository.failed(userId, pending.snapshot);
   }
-  return corsJson(await repository.get(userId), request);
+  return corsJson(await repository.get(userId), {}, request);
 }
