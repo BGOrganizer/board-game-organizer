@@ -61,6 +61,7 @@ export function HelpPopover({
   return (
     <Popover onOpenChange={onOpenChange}>
       <Button
+        slot={null}
         isIconOnly
         size="sm"
         variant={size === "compact" ? "ghost" : triggerVariant}
