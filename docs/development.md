@@ -353,7 +353,11 @@ SDK 57 requires the EAS environment flag. Supply the same `APP_VARIANT`, `EXPO_U
 API URL, public keys, Sentry DSN, bypass and Firebase configuration as the verified publication APK;
 do not dump them into logs. EAS environment values must agree with the intended Infisical configuration.
 `fingerprint.config.js` excludes Expo version/build-number labels and retains the SDK default
-script filter. Its SDK `fileHookTransform` also excludes only `extra.apiUrl` when both variant and
+Android/iOS script filter. Its SDK `fileHookTransform` excludes only `test` and `test:*` commands
+from the package script input in every environment; other scripts, native build hooks and native
+dependencies remain covered. Adopting this filter changes the runtime once and requires a new APK
+for Development and Production; subsequent test-command edits do not require another native build.
+The transform also excludes only `extra.apiUrl` when both variant and
 channel are `development`: that JavaScript endpoint comes from the active OTA manifest. The Preview
 API URL remains separate per PR; it does not require a global Development domain or a Vercel plan
 change. A compatible update from another PR brings its own verified API URL when accepted and
