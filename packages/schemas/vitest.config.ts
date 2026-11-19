@@ -8,6 +8,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reportOnFailure: true,
+      // Keep test modules and private fixtures out of selective coverage reports.
+      exclude: ["**/__tests__/**", "**/*.{test,spec}.{js,cjs,mjs,jsx,ts,cts,mts,tsx}"],
       include: ["src/**/*.{ts,tsx}"],
       reporter: [
         ["lcov", { projectRoot: fileURLToPath(new URL("../..", import.meta.url)) }],

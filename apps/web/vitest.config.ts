@@ -114,7 +114,7 @@ export default defineConfig({
         ".next/**",
         "coverage/**",
         "**/__tests__/**",
-        "**/*.test.*",
+        "**/*.{test,spec}.{js,cjs,mjs,jsx,ts,cts,mts,tsx}",
         "test-utils.tsx",
         "src/test-fixtures/**",
       ],

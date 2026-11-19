@@ -51,7 +51,12 @@ export default defineConfig({
         "src/components/common/ui/RetainedTabPanel.tsx",
       ],
       // Test providers and private fixtures have no application callers. Runtime components stay included.
-      exclude: [...coverageConfigDefaults.exclude, "src/test/**", "src/**/__tests__/**"],
+      exclude: [
+        ...coverageConfigDefaults.exclude,
+        "src/test/**",
+        "**/__tests__/**",
+        "**/*.{test,spec}.{js,cjs,mjs,jsx,ts,cts,mts,tsx}",
+      ],
       thresholds: {
         "index.js": {
           lines: 90,

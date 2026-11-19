@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -139,4 +139,78 @@ test("actual Vitest LCOV reporters preserve repository-relative application and 
   }
   // API unit and integration reports intentionally merge the same resource; other owners stay distinct.
   assert.equal(identities.size, 7);
+});
+
+test("actual uncovered-source collector excludes unexecuted test support without dropping runtime owners", async (t) => {
+  async function collect(directory, coverage) {
+    const provider = await v8.getProvider();
+    provider.initialize({
+      version: provider.version,
+      config: { root: directory },
+      _coverageOptions: coverage,
+      logger: { error: (message) => assert.fail(message), warn: (message) => assert.fail(message) },
+    });
+    return new Set(await provider.getUntestedFiles([]));
+  }
+  const examples = {
+    web: {
+      runtime: ["apps/web/src/components/events/EventCard.tsx"],
+      support: [
+        "apps/web/src/components/contacts/__tests__/useContacts.coverage.test.tsx",
+        "apps/web/src/components/ratings/RatingGameSelect.test.tsx",
+        "apps/web/src/test-fixtures/browserIntersections.ts",
+      ],
+    },
+    mobile: {
+      runtime: ["apps/mobile/src/components/events/EventCard.tsx"],
+      support: [
+        "apps/mobile/src/components/locations/__tests__/LocationFavorites.native.test.tsx",
+        "apps/mobile/src/test/NativeTestProviders.tsx",
+        "apps/mobile/src/test/NativeBottomSheetAdapter.native.test.tsx",
+      ],
+    },
+    api: {
+      runtime: ["apps/api/src/app/lib/cors.ts"],
+      support: [
+        "apps/api/src/app/lib/events/__tests__/event-records.service.test.ts",
+        "apps/api/src/app/lib/notifications/__tests__/fixtures/installed-notification-attention.ts",
+      ],
+    },
+    shared: {
+      runtime: [
+        "packages/shared/src/index.ts",
+        "packages/query/src/index.ts",
+        "packages/store/src/index.ts",
+      ],
+      support: ["packages/shared/src/common/__tests__/startupQueries.test.ts"],
+    },
+    schemas: {
+      runtime: ["packages/schemas/src/groups/models/groupRecord.ts"],
+      support: ["packages/schemas/src/__tests__/schemas.test.ts"],
+    },
+  };
+  for (const [workspace, { runtime, support }] of Object.entries(examples)) {
+    const { directory, coverage } = configs[workspace];
+    const sources = await collect(directory, coverage);
+    for (const path of [...runtime, ...support]) assert(existsSync(resolve(root, path)), path);
+    for (const path of runtime)
+      assert(sources.has(resolve(root, path)), `${workspace} must retain actual runtime ${path}`);
+    for (const path of support)
+      assert(!sources.has(resolve(root, path)), `${workspace} must exclude test support ${path}`);
+  }
+  const { directory, coverage } = configs["api-integration"];
+  const sources = await collect(directory, coverage);
+  // No tests were reported as executed. This reproduces the standalone integration collector,
+  // whose selected integration tests cannot automatically exclude src's inactive unit tests.
+  const withoutExplicitExclusions = await collect(directory, { ...coverage, exclude: [] });
+  const inactiveTests = [...withoutExplicitExclusions].filter((path) =>
+    path.split(/[\\/]/).includes("__tests__"),
+  );
+  assert(inactiveTests.includes(resolve(root, examples.api.support[0])));
+  assert(inactiveTests.includes(resolve(root, examples.api.support[1])));
+  for (const path of inactiveTests)
+    assert(!sources.has(path), `Standalone integration must not collect unexecuted ${path}`);
+  for (const path of examples.api.runtime)
+    assert(sources.has(resolve(root, path)), `Standalone integration must retain ${path}`);
+  t.diagnostic(`Excluded ${inactiveTests.length} actual inactive API unit-test and fixture files`);
 });
