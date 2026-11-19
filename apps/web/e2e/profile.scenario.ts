@@ -113,6 +113,14 @@ for (const width of [390, 1280]) {
       await expect(tab).toHaveCSS("flex-direction", "row");
       await expect(tab).toHaveCSS("white-space", "nowrap");
       await expect(tab).toHaveCSS("font-size", "14px");
+      await expect
+        .poll(() =>
+          tab.evaluate((node) => {
+            const icon = node.querySelector("svg");
+            return icon !== null && getComputedStyle(icon).color === getComputedStyle(node).color;
+          }),
+        )
+        .toBe(true);
     }
     await expect(main.getByRole("heading", { name: labels.bgg })).toBeVisible();
     const account = await read(page, "bgg/account");
@@ -123,6 +131,16 @@ for (const width of [390, 1280]) {
     await expect(main.getByRole("button", { name: labels.logout, exact: true })).toBeVisible();
     for (const tab of [labels.player, labels.activities]) {
       await main.getByRole("tab", { name: tab, exact: true }).click();
+      const selectedTab = main.getByRole("tab", { name: tab, exact: true });
+      await expect(selectedTab).toHaveAttribute("aria-selected", "true");
+      await expect
+        .poll(() =>
+          selectedTab.evaluate((node) => {
+            const icon = node.querySelector("svg");
+            return icon !== null && getComputedStyle(icon).color === getComputedStyle(node).color;
+          }),
+        )
+        .toBe(true);
       await expect(main.getByTestId("profile-version")).toHaveText(
         `${it ? "Versione" : "Version"}: ${appVersion}`,
       );

@@ -141,6 +141,19 @@ for (const theme of ["light", "dark"] as const)
           .fill(name);
         const link = page.getByRole("link", { name: `${label}: ${name}`, exact: true });
         await expect(link).toBeVisible();
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        await link.hover({ position: { x: 3, y: 3 } });
+        const hoverSurface = await link.evaluate((node) => {
+          const probe = document.createElement("span");
+          probe.style.backgroundColor = "var(--surface-hover)";
+          node.append(probe);
+          const color = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          return color;
+        });
+        expect(hoverSurface).not.toBe("rgba(0, 0, 0, 0)");
+        await expect(link).toHaveCSS("background-color", hoverSurface);
+        await page.mouse.move(0, 0);
         return page.locator(".card").filter({ has: link });
       };
       const groupCard = await openCard("/groups", group.name, it ? "Apri gruppo" : "Open group");

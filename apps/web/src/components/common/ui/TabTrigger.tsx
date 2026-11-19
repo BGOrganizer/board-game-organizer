@@ -17,10 +17,7 @@ export function TabTrigger({
     >
       {(state) => (
         <>
-          <Icon
-            className={`size-4 shrink-0 ${state.isSelected ? "text-accent" : "text-muted"}`}
-            aria-hidden
-          />
+          <Icon className="size-4 shrink-0" aria-hidden />
           {typeof children === "function" ? children(state) : children}
           <Tabs.Indicator />
         </>

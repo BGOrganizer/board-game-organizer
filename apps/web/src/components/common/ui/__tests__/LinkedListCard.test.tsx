@@ -39,6 +39,7 @@ it("keeps a lone action usable without leading controls or an optional navigatio
     </LinkedListCard>,
   );
   const link = screen.getByRole("link", { name: "Open event" });
+  expect(link).toHaveClass("hover:bg-surface-hover");
   const navigation = new MouseEvent("click", { bubbles: true, cancelable: true });
   fireEvent(link, navigation);
   expect(action).not.toHaveBeenCalled();

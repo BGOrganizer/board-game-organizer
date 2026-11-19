@@ -6,7 +6,7 @@ import { renderWithI18n } from "@/test-utils";
 import { TabBar } from "../TabBar";
 import { TabTrigger } from "../TabTrigger";
 
-it("keeps HeroUI selection, actions and panels while coloring only the selected decorative icon", () => {
+it("inherits HeroUI tab colors for decorative icons while keeping selection, actions and panels", () => {
   const onPress = vi.fn();
   renderWithI18n(
     <Tabs defaultSelectedKey="info">
@@ -26,17 +26,19 @@ it("keeps HeroUI selection, actions and panels while coloring only the selected 
   const members = screen.getByRole("tab", { name: "Members" });
   expect(info.getAttribute("aria-selected")).toBe("true");
   expect(info.querySelectorAll('[data-slot="tabs-indicator"]')).toHaveLength(1);
-  expect(info.querySelector("svg")?.classList.contains("text-accent")).toBe(true);
+  expect(info.querySelector("svg")).toHaveClass("size-4", "shrink-0");
+  expect(info.querySelector("svg")).not.toHaveAttribute("style");
+  expect(info.querySelector("svg")?.className.baseVal).not.toMatch(/text-/);
   expect(info.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
   expect(info.classList.contains("relative")).toBe(true);
-  expect(members.querySelector("svg")?.classList.contains("text-muted")).toBe(true);
+  expect(members.querySelector("svg")?.className.baseVal).not.toMatch(/text-/);
   fireEvent.click(members);
   expect(onPress).toHaveBeenCalledOnce();
   expect(screen.getByRole("tabpanel").textContent).toContain("People");
   expect(members.getAttribute("aria-selected")).toBe("true");
   expect(members.querySelectorAll('[data-slot="tabs-indicator"]')).toHaveLength(1);
-  expect(members.querySelector("svg")?.classList.contains("text-accent")).toBe(true);
-  expect(info.querySelector("svg")?.classList.contains("text-muted")).toBe(true);
+  expect(members.querySelector("svg")?.className.baseVal).not.toMatch(/text-/);
+  expect(info.querySelector("svg")?.className.baseVal).not.toMatch(/text-/);
 });
 
 it("keeps keyboard navigation, disabled tabs and notification content with the stock indicator", async () => {

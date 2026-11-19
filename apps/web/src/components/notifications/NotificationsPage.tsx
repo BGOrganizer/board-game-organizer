@@ -129,7 +129,7 @@ export function NotificationsPage() {
       )}
 
       {notifications.list.isError && (
-        <div className="rounded-xl border border-danger-200 bg-danger-50 p-4 text-danger">
+        <div className="rounded-xl border border-danger bg-danger-soft p-4 text-danger-soft-foreground">
           <p>{t`Could not load notifications`}</p>
           <Button className="mt-3" size="sm" onPress={() => void notifications.list.refetch()}>
             {t`Try again`}

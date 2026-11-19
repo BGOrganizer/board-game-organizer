@@ -185,6 +185,11 @@ describe("NotificationsPage", () => {
       unreadCount: 0,
     });
     const failed = renderWithI18n(<NotificationsPage />);
+    expect(screen.getByText("Could not load notifications").parentElement).toHaveClass(
+      "border-danger",
+      "bg-danger-soft",
+      "text-danger-soft-foreground",
+    );
     fireEvent.click(screen.getByText("Try again"));
     expect(mocks.refetch).toHaveBeenCalledOnce();
     failed.unmount();
