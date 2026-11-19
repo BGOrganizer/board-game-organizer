@@ -1,3 +1,51 @@
+## [1.6.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.6.0...v1.6.1) (2026-11-19)
+
+### 🐛 Bug Fixes
+
+* **ci:** isolate optimized diagnostic EAS configuration ([2e0d73f](https://github.com/BGOrganizer/board-game-organizer/commit/2e0d73fc44af148a5a489ec62acd82ce510a309f))
+* harmonize resource forms and cached tab rendering ([82c031a](https://github.com/BGOrganizer/board-game-organizer/commit/82c031a3967ffcf020f8fd0e9d7099ca593b7917))
+* **mobile:** exclude test commands from runtime fingerprints ([1fc5530](https://github.com/BGOrganizer/board-game-organizer/commit/1fc55303f99ac265eee9268b7546e6a1dc8b0423))
+* **mobile:** handle tab presses with the keyboard open ([646ebb9](https://github.com/BGOrganizer/board-game-organizer/commit/646ebb92666b85caf9fb2d4d50d4036169617d6f))
+
+### ⚡ Performance
+
+* bound native event detail rendering ([9cda457](https://github.com/BGOrganizer/board-game-organizer/commit/9cda4571e7b352c1b9f9d206021dcd72095bf125))
+* isolate native resource card renders ([2e7564a](https://github.com/BGOrganizer/board-game-organizer/commit/2e7564ada9b53e13d3e2b093018e06dd16a5d6e7))
+* **mobile:** keep resource list artwork static ([8a8ba13](https://github.com/BGOrganizer/board-game-organizer/commit/8a8ba134f4c0fdd256ed47ff556f49475c80ea80))
+* **mobile:** preserve visited views across all app tabs ([8f3e0de](https://github.com/BGOrganizer/board-game-organizer/commit/8f3e0de9885d69b217d50d1c80f44d1f1cb40bc3))
+* **mobile:** prioritize first group tab interactions ([fee21d8](https://github.com/BGOrganizer/board-game-organizer/commit/fee21d8d5475404a76c71a5caa4c145f84eec26f))
+* **mobile:** reduce tab and artwork rendering work ([ebd55dd](https://github.com/BGOrganizer/board-game-organizer/commit/ebd55dd4784bdbc15f3185882b3b423665e7774a))
+* **mobile:** retain table overview and participant presentations ([79f724e](https://github.com/BGOrganizer/board-game-organizer/commit/79f724e2cb2f9c8af561aef2dfb17fb55d45248a))
+* **mobile:** retain visited detail panels and remove artwork motion ([b40432a](https://github.com/BGOrganizer/board-game-organizer/commit/b40432afd965395457b2d0be3d4dbe06ba3e8798))
+* **mobile:** stabilize tab bars and animate only detail artwork ([63920e8](https://github.com/BGOrganizer/board-game-organizer/commit/63920e887e0311fae1341e31d602a49b2e038f7b))
+* **shared:** avoid quadratic snapshot cache reads ([75c2afd](https://github.com/BGOrganizer/board-game-organizer/commit/75c2afd482a32531fc9c0b1012b61062c38abaf4))
+
+### 🎨 Style
+
+* format resource command validation tests ([d342e33](https://github.com/BGOrganizer/board-game-organizer/commit/d342e33c0d6feeafe4338271d6266543adf86bc9))
+
+### 🧪 Tests
+
+* add real component suites and 90% coverage gates ([0072f50](https://github.com/BGOrganizer/board-game-organizer/commit/0072f5022cd879300a4fa282ebdc8e97999cbccb))
+* align group contact fixtures with paginated APIs ([97ba592](https://github.com/BGOrganizer/board-game-organizer/commit/97ba592e24c2f694e8666f5f53b353d13ab02f7a))
+* align mutation cases with receipt verification and owner guards ([d6fe309](https://github.com/BGOrganizer/board-game-organizer/commit/d6fe30925f6a57c7bc2612c47d95c7f526c56668))
+* await native query updates and fix Maestro offline flows ([4bd97fa](https://github.com/BGOrganizer/board-game-organizer/commit/4bd97fa99dbb5f56bf483c704c3e5b6c3614cb3c))
+* clamp native spacer geometry and exercise both clocks ([0944863](https://github.com/BGOrganizer/board-game-organizer/commit/09448638f0849f4f0cd6e3421efeb8985e026a40))
+* **mobile:** preserve contact attention checks with local tabs ([73f7250](https://github.com/BGOrganizer/board-game-organizer/commit/73f72501f1e0907e0ad147353ae1b9ff45c7889e))
+* **mobile:** wait for startup before artwork navigation ([3e7cff2](https://github.com/BGOrganizer/board-game-organizer/commit/3e7cff290d91c22660816e3c886f8235f38abf74))
+* stabilize native observer and list layout readiness ([ea74bfb](https://github.com/BGOrganizer/board-game-organizer/commit/ea74bfbf7ff76cfd174189791dd082c416034e0c))
+
+### 🔧 CI/CD
+
+* build diagnostic Android APKs for native profiling ([4c97808](https://github.com/BGOrganizer/board-game-organizer/commit/4c97808881cb39a1841ccb7b6aa31f880fb98369))
+* keep test sources out of runtime coverage uploads ([572cecc](https://github.com/BGOrganizer/board-game-organizer/commit/572ceccb78acd01da3f44498ee65f8af81c0dfca))
+* preserve monorepo coverage paths and enforce 90% Codecov gates ([90ec42a](https://github.com/BGOrganizer/board-game-organizer/commit/90ec42a88b4eadd50586bcfd467d61ed958f48dc))
+* verify debug APKs from compiled manifest attributes ([f349201](https://github.com/BGOrganizer/board-game-organizer/commit/f349201b374edc3e10c182b1c4ebc2306d24687b))
+
+### 📦 Build
+
+* **mobile:** optimize native diagnostic libraries ([d99f773](https://github.com/BGOrganizer/board-game-organizer/commit/d99f773fd8438be6ec2a53c14a3a8fb8e53d225c))
+
 ## [1.6.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.5.0...v1.6.0) (2026-11-16)
 
 ### ✨ Features
