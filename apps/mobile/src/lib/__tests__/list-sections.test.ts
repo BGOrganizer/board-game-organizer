@@ -3,9 +3,9 @@ import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import { formatUsername } from "@board-game-organizer/shared";
 import ts from "typescript";
-import { expect, it, vi } from "vitest";
+import { expect, it } from "vitest";
 
-// Actual native handler/prop expressions; not rendered/device acceptance.
+// Pure prop/guard policies; actual native owners have separate RNTL tests.
 it.each([
   ["player", "@player"],
   [" @player ", "@player"],
@@ -67,14 +67,21 @@ function callArgument(name: string, callee: string, index: number) {
   return ts.transpileModule(`(${value})`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } })
     .outputText;
 }
-it("native Events switches only its three canonical sections", () => {
-  const setSection = vi.fn();
-  const change = runInNewContext(expression("events/Events", "Tabs", "onValueChange"), {
-    setSection,
-  });
-  for (const value of ["mine", "available", "terminated", "foreign"]) change(value);
-  expect(setSection.mock.calls).toEqual([["mine"], ["available"], ["terminated"]]);
-});
+it.each(["mine", "available", "terminated", "foreign"])(
+  "native Events guards its canonical section input: %s",
+  (value) => {
+    const code = expression("events/Events", "Tabs", "onValueChange");
+    const ast = ts.createSourceFile("guard.ts", code, ts.ScriptTarget.Latest, true);
+    let guard = "";
+    function visit(node: ts.Node) {
+      if (ts.isIfStatement(node)) guard = node.expression.getText(ast);
+      ts.forEachChild(node, visit);
+    }
+    visit(ast);
+    expect(guard).not.toBe("");
+    expect(runInNewContext(guard, { value })).toBe(value !== "foreign");
+  },
+);
 it.each([
   ["mine", ["CONFIRMED", "PLANNING"]],
   ["available", ["PLANNING"]],

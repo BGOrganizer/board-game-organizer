@@ -26,10 +26,12 @@ import {
   ShieldCheck,
   UserRoundMinus,
   UserRoundPlus,
+  UsersRound,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -79,7 +81,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
     >
       <section className="space-y-4" aria-label={t`Members`}>
         {isGroupManagerRole(group.role) ? (
-          <div className="space-y-2">
+          <div className="space-y-2 pt-4">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -229,7 +231,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
           </div>
         ) : null}
         {!list.isPending && !list.isError && !list.items.length ? (
-          <p className="text-sm text-muted">{t`No members found`}</p>
+          <EmptyList icon={<UsersRound className="size-7" />}>{t`No members found`}</EmptyList>
         ) : null}
         <div ref={end} />
         {list.isFetchingNextPage ? (

@@ -14,14 +14,18 @@ vi.mock("@/app/lib/clerk", () => ({ enrichSingleUser: mocks.enrich }));
 vi.mock("@/app/lib/db", () => ({ getDb: mocks.getDb }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));
 vi.mock("@/app/lib/users/users.repository", () => ({
-  UsersRepository: vi.fn(() => ({ findById: async () => ({ preferredLanguage: "en" }) })),
+  UsersRepository: vi.fn(function MockUsersRepository() {
+    return { findById: async () => ({ preferredLanguage: "en" }) };
+  }),
 }));
 vi.mock("@/app/lib/profile/profile.repository", () => ({
-  ProfileRepository: vi.fn(() => ({
-    social: mocks.social,
-    player: mocks.player,
-    groupCounts: mocks.groupCounts,
-  })),
+  ProfileRepository: vi.fn(function MockProfileRepository() {
+    return {
+      social: mocks.social,
+      player: mocks.player,
+      groupCounts: mocks.groupCounts,
+    };
+  }),
 }));
 const request = () => new Request("http://localhost/api/profiles") as never;
 beforeEach(() => {

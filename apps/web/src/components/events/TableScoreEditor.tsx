@@ -198,7 +198,7 @@ export function TableScoreEditor({
         {groups.map((score) => {
           const tied = preview.ranked.filter((entry) => entry.score === score);
           const editing = editingTie?.score === score;
-          const active = tieBreaks.some((tie) => tie.score === score);
+          const active = preview.tieBreaks.some((tie) => tie.score === score);
           return (
             <div key={score} className="space-y-1">
               {tied.length > 1 && (

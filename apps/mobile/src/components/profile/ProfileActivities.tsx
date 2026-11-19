@@ -6,17 +6,21 @@ import {
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
+import { Activity } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ActivityTypeSelect } from "@/components/activities/ActivityTypeSelect";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { ProfileActivityRow } from "./ProfileActivityRow";
 
 export function ProfileActivities({ userId }: { userId: string }) {
+  const muted = useThemeColor("muted");
   const t = useT(),
     o = useCommunityApi(),
     insets = useSafeAreaInsets(),
@@ -28,7 +32,7 @@ export function ProfileActivities({ userId }: { userId: string }) {
   const subject = useProfileView(o, userId);
   const q = useProfileActivities(o, userId, kind, 10),
     denied = communityAccessDenied(q.error) || q.data === null;
-  const rows = denied ? [] : (q.data?.pages.flatMap((p) => p.items) ?? []);
+  const rows = denied ? [] : q.items;
   return (
     <FlatList
       style={{ flex: 1 }}
@@ -70,7 +74,9 @@ export function ProfileActivities({ userId }: { userId: string }) {
         q.isPending ? (
           <Skeleton style={{ width: "100%", height: 180, borderRadius: 12 }} />
         ) : !q.isError && !denied ? (
-          <Typography className="text-muted">{t("No activities yet")}</Typography>
+          <EmptyList icon={<Activity size={28} color={muted} />}>
+            {t("No activities yet")}
+          </EmptyList>
         ) : null
       }
       ListFooterComponent={

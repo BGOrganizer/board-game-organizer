@@ -5,7 +5,7 @@ import {
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { Activity, type ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
 const o = { apiUrl: "https://api.test", userId: "owner", getToken: async () => "fresh" };
@@ -28,7 +28,7 @@ const page = (id: string, nextCursor: string | null = null) => ({
   nextCursor,
 });
 const clients: QueryClient[] = [];
-function setup(pages = [page("first")]) {
+function setup(pages = [page("first")], activity = { hidden: false }) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
@@ -38,7 +38,9 @@ function setup(pages = [page("first")]) {
     pageParams: pages.map((_p, i) => String(i)),
   });
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    <QueryClientProvider client={client}>
+      <Activity mode={activity.hidden ? "hidden" : "visible"}>{children}</Activity>
+    </QueryClientProvider>
   );
   const hook = renderHook(({ id, userId }) => useEventParticipants({ ...o, userId }, id), {
     wrapper,
@@ -49,6 +51,34 @@ function setup(pages = [page("first")]) {
 afterEach(() => {
   for (const client of clients.splice(0)) clearSessionQueryCache(client);
   vi.unstubAllGlobals();
+});
+it("resets the participant window and drag lease on Activity reentry without discarding cached pages", () => {
+  const activity = { hidden: false };
+  const h = setup([page("first"), page("second")], activity);
+  act(() => h.result.current.loadMore());
+  expect(h.result.current.items).toHaveLength(2);
+  const late = h.result.current.loadMore;
+  act(() => h.result.current.beginScroll());
+  activity.hidden = true;
+  h.rerender({ id: "event", userId: "owner" });
+  act(() => late());
+  activity.hidden = false;
+  h.rerender({ id: "event", userId: "owner" });
+  expect(h.result.current.items.map((p) => p.id)).toEqual(["first"]);
+  act(() => {
+    late();
+    h.result.current.endReached();
+  });
+  expect(h.result.current.items).toHaveLength(1);
+  act(() => {
+    h.result.current.beginScroll();
+    h.result.current.endReached();
+  });
+  expect(h.result.current.items).toHaveLength(2);
+  expect(
+    (h.client.getQueryData(eventParticipantsQuery(o, "event").queryKey) as { pages: unknown[] })
+      .pages,
+  ).toHaveLength(2);
 });
 it("presents one cached source page, ignores layout-only end callbacks and grows once per committed viewport", () => {
   const hidden = page("hidden");

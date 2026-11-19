@@ -34,6 +34,68 @@ reserved for the game picker. Existing ownership, privacy and authorization rule
   current native build. Do not hide costs with arbitrary delays, disabled animations or unbounded
   hidden lists. Unit/source checks and desktop timings are not device-frame acceptance.
 
+### Native render profiling
+
+Resource cards keep notification-context reads in a small wrapper and pass the scalar count to
+a memoized body. Artwork and Group/Event/Table indicators have their own memo boundaries, shared
+by list and detail cards. Row verification callbacks are stable and background fetching changes
+only the verifying optimistic rows' busy state. These boundaries preserve real resource, language,
+theme, identity and visibility updates; they cannot prevent a subtree from mounting after a tab
+switch replaces its scroll owner.
+
+The installed React Native tooling includes **React Native DevTools**; no additional profiling
+library is required. Use its React Profiler to record commits and why components rendered, and its
+Performance panel to separate JavaScript work from network activity. See the
+[React Native guide](https://reactnative.dev/docs/0.86/react-native-devtools) and
+[Expo debugging tools](https://docs.expo.dev/debugging/tools/).
+
+Both CI APK lanes use the `internal` EAS profile and release mode, including the APK named
+Development. That APK does not expose the development Profiler. Use the existing `development`
+profile for a diagnostic native build, connect it to Metro (`bun run dev --max-workers 1` from
+`apps/mobile` with the existing Development configuration), then open DevTools with `j` on the
+developer workstation. On the Raspberry keep the DevTools browser/device on another host and
+honor the [resource limit](../AGENTS.md#raspberry-resource-limits).
+
+The [Android debug APK workflow](../.github/workflows/mobile-debug.yml) uses that existing
+`development` profile, verifies the `.dev` package and Android's `debuggable` flag, then uploads
+`apk-debug-<source SHA>` as a seven-day Actions artifact. It resolves only an open, same-repository
+Development PR and rejects Production Clerk keys. It does not publish an OTA, release or Telegram
+message. Its branch-scoped push trigger bootstraps the workflow before default-branch registration;
+manual dispatch still follows GitHub's default-branch availability rules. JavaScript-only edits
+are served by Metro and do not trigger another diagnostic native build.
+
+The diagnostic workflow temporarily selects React Native's `debugOptimized` variant: native C++
+libraries use release optimizations while Metro, Hermes inspection and React profiling remain
+available. It restores the exact original `eas.json` bytes after the build, including failures;
+the tracked normal profiles stay unchanged because Expo fingerprints the whole file. Artifact
+provenance records `debug-optimized` and the effective EAS configuration digest; this is still a
+development client, not a standalone release APK. Use it to avoid attributing unoptimized native
+debug overhead to product behavior, then calibrate final frame timings against a standalone release build.
+
+Record first entry, cached reentry, subtab changes, opening/closing a popover, background refetch,
+and Back navigation for Groups, Events and Tables; include Contacts as a comparison. Save the
+trace with the source SHA, build mode, device, dataset size and cache state. Distinguish rerenders
+from remounts. Native component tests use React Native Testing Library with the installed React
+Native and HeroUI implementations. Isolated unit tests control application dependencies; component
+integration tests also exercise real hooks, Query and cache. Native IO adapters and fixture layout
+events cover boundaries unavailable in Node. Separate Reassure suites measure React commits;
+Maestro and device profiling verify complete user journeys, native layout, gesture latency and FPS.
+See [rendering verification and its limits](render-performance.md); JavaScript timings are not
+screen-load acceptance.
+
+The native runner registers the actual Metro-compiled Uniwind stylesheet and delegates external
+CommonJS React Native imports to the app's installed Uniwind Metro resolver. Its importer checks
+preserve raw React Native/Uniwind internals and public SDK identities. The test-only
+[interop adapter](../apps/mobile/performance/uniwind-native-interop.ts) temporarily wraps Node's private
+CommonJS loader and supplies the native export condition on Node.js 26; it restores the loader after
+RNTL cleanup. Run `NativeUniwindInterop.native.test.tsx` when updating that toolchain. This adapter
+does not rewrite external ESM absolute facades or dependencies already embedded in the native
+registry, and its styling assertions do not establish native pixel/layout or frame-timing acceptance.
+The [horizontal scroll adapter](../apps/mobile/performance/horizontal-scroll-interop.ts) maps only
+Android's horizontal native binding to the runner's existing scroll host so RNTL can deliver events.
+It preserves React Native/HeroUI JavaScript, horizontal props, public refs and command axes; it does
+not alter the device binding. Run `NativeHorizontalScrollAdapter.native.test.tsx` after tool updates.
+
 ## Native cache and builds
 
 - Native cache-first restart: authoritative TanStack Query data persists in account/API-scoped,
@@ -174,8 +236,9 @@ Upgrade major versions one package family at a time; do not use a blanket `--lat
 running and fixing the full validation suite. Expo owns compatible versions of React Native and
 native modules. Do not force npm-latest versions over Expo's compatibility matrix. Keep mobile
 `react`, `react-dom`, and other exact Expo-managed versions pinned when a caret would let Bun
-dedupe to an incompatible version. Keep Vitest 3.2 until the web JSX transform and constructor mocks
-are migrated for Vitest 5.
+dedupe to an incompatible version. Keep Vitest and its coverage provider aligned across tested
+workspaces. Major upgrades must migrate JSX transforms, constructor mocks, worker settings and
+coverage mapping together; preserve explicit source inclusion and existing coverage thresholds.
 
 After any dependency update, run lint, typecheck, unit tests, builds, and relevant integration
 tests.
@@ -290,7 +353,11 @@ SDK 57 requires the EAS environment flag. Supply the same `APP_VARIANT`, `EXPO_U
 API URL, public keys, Sentry DSN, bypass and Firebase configuration as the verified publication APK;
 do not dump them into logs. EAS environment values must agree with the intended Infisical configuration.
 `fingerprint.config.js` excludes Expo version/build-number labels and retains the SDK default
-script filter. Its SDK `fileHookTransform` also excludes only `extra.apiUrl` when both variant and
+Android/iOS script filter. Its SDK `fileHookTransform` excludes only `test` and `test:*` commands
+from the package script input in every environment; other scripts, native build hooks and native
+dependencies remain covered. Adopting this filter changes the runtime once and requires a new APK
+for Development and Production; subsequent test-command edits do not require another native build.
+The transform also excludes only `extra.apiUrl` when both variant and
 channel are `development`: that JavaScript endpoint comes from the active OTA manifest. The Preview
 API URL remains separate per PR; it does not require a global Development domain or a Vercel plan
 change. A compatible update from another PR brings its own verified API URL when accepted and

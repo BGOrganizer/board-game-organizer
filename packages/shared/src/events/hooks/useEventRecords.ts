@@ -159,21 +159,22 @@ export function useEventRecords(
     return at > Date.now() && (!next || at < Date.parse(next)) ? row.bookingClosesAt : next;
   }, undefined);
   useEventCutoff(nextCutoff, !filters.groupId && filters.section === "available");
-  const eligibilityTime = Date.now();
-  const records = useMemo(
-    () =>
-      window.items.filter(
-        (row) =>
-          (!filters.statuses || filters.statuses.includes(row.status)) &&
-          (filters.groupId ||
-            filters.section !== "available" ||
-            (row.status === "PLANNING" && Boolean(row.groupId) && row.canRegister)) &&
-          (filters.groupId ||
-            personalEventSection(row, o.userId ?? "", eligibilityTime) ===
-              (filters.section ?? "mine")),
-      ),
-    [window.items, filters.groupId, filters.section, filters.statuses, o.userId, eligibilityTime],
-  );
+  const statusFilter = filters.statuses?.join(",");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the boundary timer changes nextCutoff when eligibility expires; ordinary renders must reuse the projection.
+  const records = useMemo(() => {
+    const eligibilityTime = Date.now();
+    const statuses = statusFilter?.split(",");
+    return window.items.filter(
+      (row) =>
+        (!statuses || statuses.includes(row.status)) &&
+        (filters.groupId ||
+          filters.section !== "available" ||
+          (row.status === "PLANNING" && Boolean(row.groupId) && row.canRegister)) &&
+        (filters.groupId ||
+          personalEventSection(row, o.userId ?? "", eligibilityTime) ===
+            (filters.section ?? "mine")),
+    );
+  }, [window.items, filters.groupId, filters.section, statusFilter, o.userId, nextCutoff]);
   const creations = useOptimisticCreations<CreateEventVariables, PlannedEventResponse>(
     eventRecordKeys.mutation(o, "", "create"),
   );
@@ -187,7 +188,7 @@ export function useEventRecords(
           }),
         )
     : [];
-  const items: ClientEventRecord[] = mergeCreationIntents(records, local);
+  const items: ClientEventRecord[] = local.length ? mergeCreationIntents(records, local) : records;
   return { ...q, ...window, isPending: q.isPending && !items.length, items };
 }
 export function useEventCreationDraft(o: CommunityApiOptions, draftId?: string) {
@@ -219,14 +220,18 @@ export function useEventRecord(o: CommunityApiOptions, id: string) {
   const client = useQueryClient();
   return useQuery({
     ...eventRecordQuery(o, id),
-    placeholderData: () =>
-      client
-        .getQueriesData<{ pages: CommunityPageResponse<PlannedEventResponse>[] }>({
+    placeholderData: () => {
+      const lists = client.getQueriesData<{ pages: CommunityPageResponse<PlannedEventResponse>[] }>(
+        {
           queryKey: eventRecordKeys.root(o),
           predicate: (q) => q.queryKey[3] === "list",
-        })
-        .flatMap(([, data]) => data?.pages.flatMap((p) => p.items) ?? [])
-        .find((row) => row.id === id),
+        },
+      );
+      for (const [, data] of lists)
+        for (const page of data?.pages ?? [])
+          for (const row of page.items) if (row.id === id) return row;
+      return undefined;
+    },
   });
 }
 export function recordTablesQuery(
@@ -283,18 +288,18 @@ export function useRecordTables(
     isFetching: q.isFetching,
     fetchNextPage: () => q.fetchNextPage({ cancelRefetch: false }),
   });
-  const items = useMemo(
-    () =>
-      window.items.filter(
-        (row) =>
-          id !== null ||
-          ((!filters.statuses || filters.statuses.includes(row.eventStatus)) &&
-            (filters.section
-              ? personalTableSection(row, o.userId ?? "") === filters.section
-              : isPersonalHistoryTable(row, o.userId ?? ""))),
-      ),
-    [window.items, id, o.userId, filters.section, filters.statuses],
-  );
+  const statusFilter = filters.statuses?.join(",");
+  const items = useMemo(() => {
+    const statuses = statusFilter?.split(",");
+    return window.items.filter(
+      (row) =>
+        id !== null ||
+        ((!statuses || statuses.includes(row.eventStatus)) &&
+          (filters.section
+            ? personalTableSection(row, o.userId ?? "") === filters.section
+            : isPersonalHistoryTable(row, o.userId ?? ""))),
+    );
+  }, [window.items, id, o.userId, filters.section, statusFilter]);
   return { ...q, ...window, items };
 }
 export function recordTableQuery(o: CommunityApiOptions, id: string, table: string) {
@@ -319,18 +324,22 @@ export function recordTableQuery(o: CommunityApiOptions, id: string, table: stri
 }
 export function useRecordTable(o: CommunityApiOptions, id: string, table: string) {
   const client = useQueryClient();
-  const cached = client
-    .getQueriesData<{ pages: CommunityPageResponse<PlannedTableResponse>[] }>({
+  let cached: { row: PlannedTableResponse; key: readonly unknown[] } | undefined;
+  if (client.getQueryData(eventRecordKeys.table(o, id, table)) === undefined) {
+    const lists = client.getQueriesData<{ pages: CommunityPageResponse<PlannedTableResponse>[] }>({
       queryKey: eventRecordKeys.root(o),
       predicate: (q) => q.queryKey[3] === "tables",
-    })
-    .flatMap(
-      ([key, data]) =>
-        (optimisticBaseData(client, key) as typeof data)?.pages.flatMap((p) =>
-          p.items.map((row) => ({ row, key })),
-        ) ?? [],
-    )
-    .find(({ row }) => row.id === table && row.eventId === id);
+    });
+    lookup: for (const [key, data] of lists) {
+      const base = optimisticBaseData(client, key) as typeof data;
+      for (const page of base?.pages ?? [])
+        for (const row of page.items)
+          if (row.id === table && row.eventId === id) {
+            cached = { row, key };
+            break lookup;
+          }
+    }
+  }
   const q = useQuery({
     ...recordTableQuery(o, id, table),
     ...(cached
@@ -381,8 +390,9 @@ export function useTableSeats(
   pending = false,
   query = "",
 ) {
+  const queryKey = [...eventRecordKeys.root(o), "seats", id, table, pending, query] as const;
   const q = useInfiniteQuery({
-    queryKey: [...eventRecordKeys.root(o), "seats", id, table, pending, query],
+    queryKey,
     queryFn: ({ pageParam, signal }) =>
       communityRequest<CommunityPageResponse<TableSeatResponse>>(
         o,
@@ -401,11 +411,20 @@ export function useTableSeats(
     staleTime: 30_000,
     gcTime: 30 * 60_000,
   });
+  const window = useRecordListWindow({
+    scope: hashKey(queryKey),
+    pages: q.data?.pages,
+    hasNextPage: q.hasNextPage,
+    isFetching: q.isFetching,
+    fetchNextPage: () => q.fetchNextPage({ cancelRefetch: false }),
+  });
+  const items = useMemo(
+    () => window.items.filter((row) => row.status === (pending ? "PENDING" : "ACCEPTED")),
+    [window.items, pending],
+  );
   return {
     ...q,
-    items:
-      q.data?.pages
-        .flatMap((p) => p.items)
-        .filter((row) => row.status === (pending ? "PENDING" : "ACCEPTED")) ?? [],
+    ...window,
+    items,
   };
 }

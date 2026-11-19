@@ -8,7 +8,9 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Activity } from "lucide-react";
 import { ActivityTypeSelect } from "@/components/activities/ActivityTypeSelect";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -26,7 +28,7 @@ export function ProfileActivities({ userId }: { userId: string }) {
   const q = useProfileActivities(o, userId, kind, 10),
     denied = communityAccessDenied(q.error) || q.data === null;
   const end = useInfiniteScroll({ ...q, hasNextPage: !denied && q.hasNextPage });
-  const rows = denied ? [] : (q.data?.pages.flatMap((p) => p.items) ?? []);
+  const rows = denied ? [] : q.items;
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 p-5 pb-24">
       <h1 className="text-lg font-semibold">{t`Activities`}</h1>
@@ -57,7 +59,7 @@ export function ProfileActivities({ userId }: { userId: string }) {
           ))}
         </GroupedList>
       ) : !q.isPending && !q.isError && !denied ? (
-        <p className="text-muted">{t`No activities yet`}</p>
+        <EmptyList icon={<Activity className="size-7" />}>{t`No activities yet`}</EmptyList>
       ) : null}
       <div ref={end} />
       {q.isFetchingNextPage ? (

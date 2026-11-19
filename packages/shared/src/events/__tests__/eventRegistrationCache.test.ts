@@ -2,7 +2,7 @@ import type { PlannedTableResponse, TableRegistration } from "@board-game-organi
 import { describe, expect, it } from "vitest";
 import { acknowledgeTableRegistration } from "../eventRegistrationCache";
 
-const registration = {
+const registration: TableRegistration = {
   id: "registration",
   eventId: "event",
   tableId: "table",
@@ -11,17 +11,40 @@ const registration = {
   status: "ACCEPTED",
   version: 2,
   gameVotes: { "1": "YES" },
-} as TableRegistration;
-const table = {
+  priorityAt: "2030-06-01T10:00:00.000Z",
+  sequence: 1,
+  createdAt: "2030-06-01T10:00:00.000Z",
+  updatedAt: "2030-06-01T10:00:00.000Z",
+};
+const table: PlannedTableResponse = {
   id: "table",
   eventId: "event",
+  name: "Table one",
+  order: 0,
+  minPlayers: 2,
+  maxPlayers: 4,
+  rankingEnabled: true,
+  games: [{ gameId: 1 }],
+  createdAt: registration.createdAt,
+  updatedAt: registration.updatedAt,
+  eventName: "Event one",
+  groupId: null,
+  groupType: null,
+  eventStatus: "PLANNING",
+  adminUserId: "owner",
+  seatedCount: 0,
+  waitingCount: 0,
+  pendingCount: 0,
+  canInvite: true,
+  gamesDetail: [],
+  ratingChanges: [],
   myRegistration: null,
   myPosition: null,
   canRegister: true,
   canRespond: false,
   canLeave: false,
   gameVoteCounts: { "1": { YES: 1, NO: 0, IF_NEEDED: 0, UNKNOWN: 2 } },
-} as PlannedTableResponse;
+};
 
 describe("acknowledged Table participation", () => {
   it("adds only the consenting actor's votes without stealing another player's unknown ballot or inventing a seat", () => {

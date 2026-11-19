@@ -11,7 +11,7 @@ import {
   useNotificationAttentionContext,
   useRecordTable,
 } from "@board-game-organizer/shared";
-import { Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
@@ -26,7 +26,6 @@ import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { GameListRow } from "@/components/games/GameListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventCard } from "./EventCard";
 import { EventProposalSection } from "./EventProposalSection";
@@ -34,6 +33,7 @@ import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
+import { EventVoteLegend } from "./EventVoteLegend";
 export function EventTableOverview({
   eventId,
   tableId,
@@ -47,7 +47,6 @@ export function EventTableOverview({
   section?: "overview" | "participants";
   header?: ReactNode;
 }) {
-  const artwork = useArtworkListVisibility();
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -192,9 +191,14 @@ export function EventTableOverview({
         </View>
       ) : null}
       <NotificationItem itemId={notificationItemId(table.id, "games")}>
-        <Typography accessibilityRole="header" className="font-semibold text-foreground">
-          {t("Board games")}
-        </Typography>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Typography accessibilityRole="header" className="font-semibold text-foreground">
+            {t("Board games")}
+          </Typography>
+          {votableGames && table.eventStatus === "PLANNING" ? (
+            <EventVoteLegend label={t("Board games")} scope="table" />
+          ) : null}
+        </View>
       </NotificationItem>
       <GroupedList>
         {tableCardGames(table).map((game) => (
@@ -255,15 +259,12 @@ export function EventTableOverview({
   );
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: table.name }} />
       {table.sharedResultsOnly ? (
-        <ScreenScrollView onLayout={artwork.onLayout} onScroll={artwork.onScroll}>
-          {artwork.header(
-            <>
-              {detailHeader}
-              {header}
-            </>,
-          )}
+        <ScreenScrollView>
+          <View>
+            {detailHeader}
+            {header}
+          </View>
           {eventRecovery}
         </ScreenScrollView>
       ) : (
@@ -278,10 +279,10 @@ export function EventTableOverview({
           header={
             <>
               {detailHeader}
-              {section === "overview" ? header : null}
               {eventRecovery}
             </>
           }
+          overview={header}
           active={section === "participants"}
           onRemove={(row, own) =>
             setConfirm({

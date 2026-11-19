@@ -176,7 +176,9 @@ describe("optimisticContactData", () => {
       });
       expect(result.pages[0].items[1]).toBe(data.pages[0].items[1]);
       expect(result.pages[0].items[2]).toBe(data.pages[0].items[2]);
-      expect(result.pages[0].items[0].social?.friendRequest).toBe(
+      const updated = result.pages[0].items[0];
+      if (!("social" in updated)) throw new Error("Expected the selected person's social state");
+      expect(updated.social?.friendRequest).toBe(
         action === "friend_request"
           ? "outgoing"
           : ["follow", "unfriend"].includes(action)

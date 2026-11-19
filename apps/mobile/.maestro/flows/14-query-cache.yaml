@@ -34,6 +34,11 @@ onFlowComplete:
 - takeScreenshot: cache-events-tabs
 - openLink: bgo-dev:///contacts
 - assertVisible: ${output.connectionsLabel}
+- tapOn: "Requests"
+- tapOn: "Search"
+- assertVisible: "Search users by name or email"
+- tapOn: "Contacts"
+- tapOn: "Connections"
 - takeScreenshot: cache-contacts-tabs
 # Actual process death + offline native launch: RAM cannot satisfy these rows.
 - setAirplaneMode: enabled

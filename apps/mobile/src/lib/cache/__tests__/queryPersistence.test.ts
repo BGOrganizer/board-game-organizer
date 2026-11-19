@@ -29,6 +29,7 @@ import {
   decodeCache,
   ownsPersistedQuery,
   restoreSessionCache,
+  shouldPersistCacheEvent,
 } from "../queryPersistence";
 
 const owner = { apiUrl: "https://api.test", userId: "user-a" };
@@ -57,6 +58,67 @@ afterEach(() => {
 });
 
 describe("account-owned canonical persistence", () => {
+  it("ignores transient query metadata while retaining data, errors and removal events", () => {
+    const f = fixture();
+    const query = f.client.getQueryCache().build(f.client, { queryKey: key });
+    expect(shouldPersistCacheEvent({ type: "added", query }, owner)).toBe(false);
+    f.client.setQueryData(key, { canonical: true });
+    expect(shouldPersistCacheEvent({ type: "added", query }, owner)).toBe(true);
+    expect(shouldPersistCacheEvent({ type: "removed", query }, owner)).toBe(true);
+    expect(shouldPersistCacheEvent({ type: "observerResultsUpdated", query }, owner)).toBe(false);
+    expect(
+      shouldPersistCacheEvent({ type: "removed", query }, { ...owner, userId: "foreign" }),
+    ).toBe(false);
+    const metadata = [
+      { type: "fetch" as const },
+      { type: "failed" as const, failureCount: 1, error: new Error("Retrying") },
+      { type: "pause" as const },
+      { type: "continue" as const },
+      { type: "invalidate" as const },
+    ];
+    for (const action of metadata)
+      expect(shouldPersistCacheEvent({ type: "updated", query, action }, owner)).toBe(false);
+    const authoritative = [
+      { type: "success" as const, data: { canonical: true } },
+      { type: "error" as const, error: new CommunityApiError(403, "ACCESS_DENIED") },
+      { type: "setState" as const, state: { data: undefined } },
+    ];
+    for (const action of authoritative)
+      expect(shouldPersistCacheEvent({ type: "updated", query, action }, owner)).toBe(true);
+  });
+
+  it("does not serialize on a cached refetch start, but persists its success and later removal", async () => {
+    const f = fixture();
+    f.client.setQueryData(key, { revision: 1 });
+    f.persister.flush();
+    const unsubscribe = f.client.getQueryCache().subscribe((event) => {
+      if (shouldPersistCacheEvent(event, owner)) f.persister.schedule();
+    });
+    let finish!: (data: { revision: number }) => void;
+    const request = f.client.fetchQuery({
+      queryKey: key,
+      queryFn: () =>
+        new Promise<{ revision: number }>((resolve) => {
+          finish = resolve;
+        }),
+      staleTime: 0,
+    });
+    await Promise.resolve();
+    expect(f.storage.set).toHaveBeenCalledTimes(1);
+    await f.client.invalidateQueries({ queryKey: key, refetchType: "none" });
+    await Promise.resolve();
+    expect(f.storage.set).toHaveBeenCalledTimes(1);
+    finish({ revision: 2 });
+    await request;
+    await Promise.resolve();
+    expect(f.storage.set).toHaveBeenCalledTimes(2);
+    expect(f.persister.restoreClient()?.clientState.queries[0].state.data).toEqual({ revision: 2 });
+    f.client.removeQueries({ queryKey: key });
+    await Promise.resolve();
+    expect(f.storage.set).toHaveBeenCalledTimes(3);
+    expect(f.persister.restoreClient()?.clientState.queries).toEqual([]);
+    unsubscribe();
+  });
   it.each([
     "events",
     "groups",

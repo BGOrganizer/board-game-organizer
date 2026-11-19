@@ -190,3 +190,62 @@ describe("UserMenu", () => {
     expect(onAction).not.toHaveBeenCalled();
   });
 });
+
+it("resolves known off-window requests only when opening the action menu", async () => {
+  const resolveFriendRequest = vi.fn(() => "incoming" as const);
+  const onAction = vi.fn();
+  renderWithI18n(
+    <UserMenu
+      user={user}
+      canSendFriendRequest
+      resolveFriendRequest={resolveFriendRequest}
+      onAction={onAction}
+    />,
+  );
+  expect(resolveFriendRequest).not.toHaveBeenCalled();
+  await openMenu();
+  expect(resolveFriendRequest).toHaveBeenCalled();
+  expect(screen.queryByRole("menuitem", { name: "Send friend request" })).toBeNull();
+  fireEvent.click(screen.getByRole("menuitem", { name: "Accept friend request" }));
+  expect(await screen.findByRole("dialog", { name: "Accept friend request?" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+  expect(onAction).toHaveBeenCalledWith("accept_friend_request");
+});
+
+it("keeps the request direction supplied by its displayed request row without another lookup", async () => {
+  const resolveFriendRequest = vi.fn(() => "incoming" as const);
+  renderWithI18n(
+    <UserMenu
+      user={user}
+      friendRequest="outgoing"
+      resolveFriendRequest={resolveFriendRequest}
+      onAction={vi.fn()}
+    />,
+  );
+  await openMenu();
+  expect(screen.getByRole("menuitem", { name: "Cancel friend request" })).toBeTruthy();
+  expect(resolveFriendRequest).not.toHaveBeenCalled();
+});
+
+it.each(["outgoing", undefined] as const)(
+  "uses current canonical request context %s in an opened menu",
+  async (context) => {
+    const resolveFriendRequest = vi.fn(() => context);
+    renderWithI18n(
+      <UserMenu
+        user={user}
+        canSendFriendRequest
+        resolveFriendRequest={resolveFriendRequest}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(resolveFriendRequest).not.toHaveBeenCalled();
+    await openMenu();
+    expect(resolveFriendRequest).toHaveBeenCalled();
+    expect(
+      screen.getByRole("menuitem", {
+        name: context === "outgoing" ? "Cancel friend request" : "Send friend request",
+      }),
+    ).toBeTruthy();
+  },
+);

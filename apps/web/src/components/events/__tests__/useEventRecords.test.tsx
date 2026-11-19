@@ -84,6 +84,138 @@ it("drops restored Available rows that are closed, standalone, managed or alread
   expect(result.result.current.items.map((row) => row.id)).toEqual(["eligible"]);
 });
 
+it("reuses cached Event projections across parent renders and equivalent filter arrays", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime("2030-01-01T12:00:00Z");
+  const { client, options, wrapper } = setup();
+  const filters = { groupId: "group", statuses: ["PLANNING"] as const };
+  const row = { ...plannedEvent, groupId: "group" };
+  client.setQueryData(eventRecordsQuery(options, filters).queryKey, {
+    pages: [{ items: [row], nextCursor: null }],
+    pageParams: [""],
+  });
+  const view = renderHook(
+    () => useEventRecords({ ...options, enabled: false }, { ...filters, statuses: ["PLANNING"] }),
+    { wrapper },
+  );
+  const items = view.result.current.items;
+  act(() => vi.advanceTimersByTime(20));
+  view.rerender();
+  expect(view.result.current.items).toBe(items);
+  expect(items.map((item) => item.id)).toEqual([row.id]);
+  expect(options.getToken).not.toHaveBeenCalled();
+  view.unmount();
+  client.clear();
+});
+
+it("reuses History projections when the same status filter is recreated", () => {
+  const { client, options, wrapper } = setup();
+  const row = {
+    ...plannedTable,
+    eventStatus: "TERMINATED" as const,
+    canManage: true,
+    confirmed: { gameId: 1, playerIds: ["owner"], startsAt: "2030-06-03T18:00:00Z" },
+  };
+  client.setQueryData(recordTablesQuery(options, null, { statuses: ["TERMINATED"] }).queryKey, {
+    pages: [{ items: [row], nextCursor: null }],
+    pageParams: [""],
+  });
+  const view = renderHook(
+    () => useRecordTables({ ...options, enabled: false }, null, { statuses: ["TERMINATED"] }),
+    { wrapper },
+  );
+  const items = view.result.current.items;
+  view.rerender();
+  expect(view.result.current.items).toBe(items);
+  expect(items.map((item) => item.id)).toEqual([row.id]);
+  view.unmount();
+  client.clear();
+});
+
+it("does not scan Table lists again when the owned detail already exists", () => {
+  const { client, options, wrapper } = setup();
+  client.setQueryData(eventRecordKeys.table(options, eventId, tableId), plannedTable);
+  const scan = vi.spyOn(client, "getQueriesData");
+  const view = renderHook(() => useRecordTable({ ...options, enabled: false }, eventId, tableId), {
+    wrapper,
+  });
+  view.rerender();
+  expect(view.result.current.data).toEqual(plannedTable);
+  expect(scan).not.toHaveBeenCalled();
+  view.unmount();
+  client.clear();
+});
+
+it("seeds cold Event and Table details without touching pages after the first match", () => {
+  const { client, options, wrapper } = setup();
+  const hidden = vi.fn(() => {
+    throw new Error("Hidden cache page was traversed");
+  });
+  for (const [key, row] of [
+    [eventRecordKeys.list(options), plannedEvent],
+    [eventRecordKeys.tables(options, eventId), { ...plannedTable, gameVoteCounts: {} }],
+  ] as const)
+    client.setQueryData(key, {
+      pages: [
+        { items: [row], nextCursor: "more" },
+        {
+          get items() {
+            return hidden();
+          },
+          nextCursor: null,
+        },
+      ],
+      pageParams: ["", "more"],
+    });
+  const view = renderHook(
+    () => ({
+      event: useEventRecord({ ...options, enabled: false }, eventId),
+      table: useRecordTable({ ...options, enabled: false }, eventId, tableId),
+    }),
+    { wrapper },
+  );
+  expect(view.result.current.event.data?.id).toBe(eventId);
+  expect(view.result.current.table.data?.id).toBe(tableId);
+  expect(hidden).not.toHaveBeenCalled();
+  view.unmount();
+  client.clear();
+});
+
+it("bounds retained Table participant pages before status filtering and reveals them from cache", async () => {
+  const { client, options, wrapper } = setup();
+  const reads = Array.from({ length: 200 }, () => vi.fn());
+  const pages = reads.map((read, index) => ({
+    get items() {
+      read();
+      return [seat(`player-${index}`)];
+    },
+    nextCursor: index === reads.length - 1 ? null : `cursor-${index}`,
+  }));
+  const key = [...eventRecordKeys.root(options), "seats", eventId, tableId, false, ""];
+  client.setQueryData(key, { pages, pageParams: pages.map((_, index) => String(index)) });
+  for (const read of reads) read.mockClear();
+  const view = renderHook(() => useTableSeats({ ...options, enabled: false }, eventId, tableId), {
+    wrapper,
+  });
+  expect(view.result.current.items.map((row) => row.userId)).toEqual(["player-0"]);
+  expect(reads.slice(1).every((read) => !read.mock.calls.length)).toBe(true);
+  const items = view.result.current.items;
+  view.rerender();
+  expect(view.result.current.items).toBe(items);
+  await act(() => view.result.current.fetchNextPage());
+  expect(view.result.current.items.map((row) => row.userId)).toEqual(["player-0", "player-1"]);
+  expect(reads.slice(2).every((read) => !read.mock.calls.length)).toBe(true);
+  expect(client.getQueryData<{ pages: unknown[] }>(key)?.pages).toHaveLength(200);
+  view.unmount();
+  const reentry = renderHook(
+    () => useTableSeats({ ...options, enabled: false }, eventId, tableId),
+    { wrapper },
+  );
+  expect(reentry.result.current.items).toHaveLength(1);
+  reentry.unmount();
+  client.clear();
+});
+
 it("expires successive public Available enrollments at their exact boundaries without list polling", () => {
   vi.useFakeTimers();
   const now = Date.parse("2030-01-01T12:00:00.000Z");

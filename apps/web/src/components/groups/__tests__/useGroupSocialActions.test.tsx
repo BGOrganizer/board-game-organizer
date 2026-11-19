@@ -11,6 +11,29 @@ import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { updateOptimisticBase } from "../../../../../../packages/shared/src/common/optimisticOperation";
 
+function contactReadResponse(
+  url: string,
+  init?: RequestInit,
+  following: readonly GroupPersonResponse[] = [],
+) {
+  if ((init?.method ?? "GET") !== "GET") return;
+  const parsed = new URL(url);
+  if (parsed.pathname === "/api/relationships")
+    return Response.json({
+      rows:
+        parsed.searchParams.get("type") === "following"
+          ? following.map((row) => ({
+              fromUserId: options.userId,
+              toUserId: row.userId,
+              profile: { ...groupPersonContact(row), isFollowing: true },
+            }))
+          : [],
+      nextCursor: null,
+    });
+  if (parsed.pathname === "/api/users/suggestions")
+    return Response.json({ users: [], hasContacts: false, nextCursor: null });
+}
+
 const options = {
   apiUrl: "https://api.test",
   userId: "viewer",
@@ -55,6 +78,22 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
+it("mounts social mutations without observing or fetching contact lists", () => {
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  const { client, hook } = setup();
+  expect(fetch).not.toHaveBeenCalled();
+  expect(client.getQueryCache().getAll()).toHaveLength(7);
+  expect(
+    client
+      .getQueryCache()
+      .getAll()
+      .every((query) => query.getObserversCount() === 0),
+  ).toBe(true);
+  expect(hook.result.current.isBusy(person.userId)).toBe(false);
+  hook.unmount();
+  client.clear();
+});
 it("uses name/username/id fallbacks without exposing fabricated presence", () => {
   expect(groupPersonContact({ ...person, name: undefined, username: "handle" }).name).toBe(
     "handle",
@@ -68,7 +107,8 @@ it("uses name/username/id fallbacks without exposing fabricated presence", () =>
 });
 it("delegates real social writes and keeps request direction coherent across Contacts and Groups", async () => {
   const fetch = vi.fn(
-    async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ success: true })),
+    async (url: string, init?: RequestInit) =>
+      contactReadResponse(url, init) ?? new Response(JSON.stringify({ success: true })),
   );
   vi.stubGlobal("fetch", fetch);
   for (const action of [
@@ -96,7 +136,9 @@ it("delegates real social writes and keeps request direction coherent across Con
     expect(hook.result.current.busy).toBe(false);
     hook.unmount();
   }
-  expect(fetch).toHaveBeenCalledTimes(9);
+  expect(fetch.mock.calls.filter(([, init]) => init?.method && init.method !== "GET")).toHaveLength(
+    9,
+  );
   expect(
     fetch.mock.calls.every(
       (call) =>
@@ -110,10 +152,12 @@ it("blocks a second write for the same target but keeps a different target inter
   const other = { ...person, userId: "other", name: "Other" };
   const { hook, data, client } = setup([person, other]);
   const requests: Array<{ body: string; resolve: (value: Response) => void }> = [];
+  const following: GroupPersonResponse[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(
-      (_url: string, init: RequestInit) =>
+      (url: string, init: RequestInit) =>
+        contactReadResponse(url, init, following) ??
         new Promise<Response>((resolve) => {
           requests.push({ body: String(init.body), resolve });
         }),
@@ -133,6 +177,7 @@ it("blocks a second write for the same target but keeps a different target inter
   });
   await waitFor(() => expect(requests).toHaveLength(2));
   await act(async () => {
+    following.push(other);
     requests[1].resolve(new Response(JSON.stringify({ success: true })));
     await b;
   });
@@ -169,7 +214,8 @@ it("rolls back the complete social operation while preserving acknowledged profi
   vi.stubGlobal(
     "fetch",
     vi.fn(
-      () =>
+      (url: string, init?: RequestInit) =>
+        contactReadResponse(url, init) ??
         new Promise<Response>((resolve) => {
           reject = resolve;
         }),

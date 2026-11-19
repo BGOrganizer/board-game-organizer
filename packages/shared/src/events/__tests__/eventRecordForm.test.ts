@@ -478,7 +478,7 @@ describe("unified unsaved event drafts", () => {
     const input = eventDraftInput(
       {
         ...eventDraft(event),
-        tables: [{ ...a, name: "One", startsWall: "2030-06-03T20:01" }],
+        tables: [{ ...a, name: "Table one", startsWall: "2030-06-03T20:01" }],
         endsWall: "2030-06-03T23:00",
         cutoffWall: "2030-06-02T20:00",
       },
@@ -496,6 +496,37 @@ describe("location-owned schedule and staged validation", () => {
     }),
     tables: [{ ...tableDraft(table, event.timeZone), startsWall: "2030-06-03T20:01" }],
   });
+  it.each([undefined, 2])(
+    "requires 5–30-character Event/Table names in staged and final draft validation at version %s",
+    (version) => {
+      for (const publicGroup of [false, true]) {
+        const draft = { ...valid(), version };
+        for (const name of ["abcde", "a".repeat(30)]) {
+          const named = {
+            ...draft,
+            name: ` ${name} `,
+            tables: [{ ...draft.tables[0], name: ` ${name} ` }],
+          };
+          expect(eventDraftStepIssues(named, publicGroup, 0)).toEqual([]);
+          expect(eventDraftStepIssues(named, publicGroup, 2)).toEqual([]);
+          const result = eventDraftInput(named, publicGroup);
+          expect(result.success).toBe(true);
+          if (result.success) {
+            expect(result.data.name).toBe(name);
+            expect(result.data.tables[0].name).toBe(name);
+          }
+        }
+        for (const name of ["", "   ", "abcd", " abcd ", "a".repeat(31)]) {
+          const namedEvent = { ...draft, name };
+          expect(eventDraftStepIssues(namedEvent, publicGroup, 0)).toContain("name");
+          expect(eventDraftInput(namedEvent, publicGroup).success).toBe(false);
+          const namedTable = { ...draft, tables: [{ ...draft.tables[0], name }] };
+          expect(eventDraftStepIssues(namedTable, publicGroup, 2)).toContain("tables.0.name");
+          expect(eventDraftInput(namedTable, publicGroup).success).toBe(false);
+        }
+      }
+    },
+  );
   it("validates schedule independently from tables and reports exact field paths", () => {
     const draft = valid();
     expect(eventDraftStepIssues({ ...draft, tables: [] }, false, 1)).toEqual([]);

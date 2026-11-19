@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import MobileNumberPage from "../page";
 
@@ -18,15 +18,26 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/nextjs", () => ({ useUser: () => mocks.clerk }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: mocks.replace }) }));
-// jsdom cannot measure a virtual viewport. Keep the real Select and complete country data;
-// actual windowing/scroll geometry belongs to browser acceptance, not this form unit test.
-vi.mock("@heroui/react/rac", async (original) => ({
-  ...(await original<typeof import("@heroui/react/rac")>()),
-  Virtualizer: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("MobileNumberPage", () => {
   beforeEach(() => {
+    installBrowserIntersections();
+    // Browser measurement only: the real country Select/Virtualizer keeps its 18rem viewport.
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.matches("[data-input-results]") ? 288 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.matches("[data-input-results]") ? 288 : 0;
+    });
     mocks.replace.mockReset();
     mocks.update.mockReset();
     mocks.update.mockResolvedValue(undefined);
@@ -148,13 +159,15 @@ describe("MobileNumberPage", () => {
     );
   });
 
-  it("selects a non-Italian prefix from the full country list", () => {
+  it("selects a non-Italian prefix from the full country list", async () => {
     renderWithI18n(<MobileNumberPage />);
     const prefix = screen.getByRole("button", { name: /Country calling code/ });
     fireEvent.click(prefix);
-    const germany = within(screen.getByRole("listbox"))
-      .getByText("Germany")
-      .closest('[role="option"]');
+    const list = screen.getByRole("listbox");
+    // Reach an offscreen country through the real list's typeahead, rather than
+    // substituting an unbounded renderer for its country collection.
+    for (const key of "Germany") fireEvent.keyDown(list, { key });
+    const germany = (await within(list).findByText("Germany")).closest('[role="option"]');
     if (!germany) throw new Error("Germany must be a selectable country option");
     expect(germany.textContent).toContain("+49");
     fireEvent.click(germany);

@@ -8,8 +8,11 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Activity } from "lucide-react";
+import { useMemo } from "react";
 import { ActivityRow } from "@/components/activities/ActivityRow";
 import { ActivityTypeSelect } from "@/components/activities/ActivityTypeSelect";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -24,8 +27,15 @@ export function CommunityActivities() {
   const kind = parsed.success ? parsed.data : undefined;
   const q = useCommunityActivities(o, "all", kind),
     denied = communityAccessDenied(q.error);
-  const rows = denied ? [] : (q.data?.pages.flatMap((p) => p.items) ?? []);
-  const sections = activitySections(rows, i18n.locale, t`Today`, t`Yesterday`);
+  const today = t`Today`,
+    yesterday = t`Yesterday`;
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  const day = midnight.getTime();
+  const sections = useMemo(
+    () => activitySections(denied ? [] : q.items, i18n.locale, today, yesterday, new Date(day)),
+    [denied, q.items, i18n.locale, today, yesterday, day],
+  );
   const end = useInfiniteScroll({ ...q, hasNextPage: !denied && q.hasNextPage });
   return (
     <div className="space-y-4">
@@ -58,8 +68,8 @@ export function CommunityActivities() {
           </GroupedList>
         </section>
       ))}
-      {!rows.length && !q.isPending && !q.isError ? (
-        <p className="text-muted">{t`No activities yet`}</p>
+      {!sections.length && !q.isPending && !q.isError ? (
+        <EmptyList icon={<Activity className="size-7" />}>{t`No activities yet`}</EmptyList>
       ) : null}
       <div ref={end} />
       {q.isFetchingNextPage ? (

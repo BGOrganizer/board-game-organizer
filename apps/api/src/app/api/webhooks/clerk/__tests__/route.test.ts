@@ -26,7 +26,9 @@ vi.mock("@/app/lib/db", () => ({
 vi.mock("@/app/lib/contacts/relationship.repository", () => {
   const instance = { deleteAllForUser: vi.fn(async () => undefined) };
   return {
-    RelationshipRepository: vi.fn().mockImplementation(() => instance),
+    RelationshipRepository: vi.fn().mockImplementation(function MockRelationshipRepository() {
+      return instance;
+    }),
     __lastInstance: instance,
   };
 });
@@ -34,7 +36,9 @@ vi.mock("@/app/lib/contacts/relationship.repository", () => {
 vi.mock("@/app/lib/notifications/notifications.repository", () => {
   const instance = { deleteForUser: vi.fn(async () => undefined) };
   return {
-    NotificationsRepository: vi.fn().mockImplementation(() => instance),
+    NotificationsRepository: vi.fn().mockImplementation(function MockNotificationsRepository() {
+      return instance;
+    }),
     __lastInstance: instance,
   };
 });
@@ -46,7 +50,9 @@ vi.mock("@/app/lib/users/users.repository", () => {
     deleteByClerkId: vi.fn(async () => ({ deletedCount: 1 })),
   };
   return {
-    UsersRepository: vi.fn().mockImplementation(() => instance),
+    UsersRepository: vi.fn().mockImplementation(function MockUsersRepository() {
+      return instance;
+    }),
     __lastInstance: instance,
   };
 });

@@ -1,10 +1,12 @@
 "use client";
 
+import type { GroupLeaderboardResponse } from "@board-game-organizer/schemas";
 import {
   formatUsername,
   groupLeaderboardRoles,
   resolveApiUrl,
   useGroupLeaderboard,
+  useRecordListWindow,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Button, Skeleton, Table } from "@heroui/react";
@@ -18,6 +20,8 @@ import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
+
+const leaderboardPlayers = (page: GroupLeaderboardResponse) => page.players;
 
 const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 const protectionBypass = process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
@@ -42,8 +46,17 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
     protectionBypass,
     query: debouncedSearch,
   });
-  const rows = players.data?.pages.flatMap((page) => page.players) ?? [];
-  const selectedGame = games.data?.games.find((game) => game.id === gameId);
+  const playerWindow = useRecordListWindow({
+    scope: JSON.stringify([apiUrl, userId, groupId, gameId]),
+    pages: players.data?.pages,
+    getItems: leaderboardPlayers,
+    pageSize: 25,
+    hasNextPage: players.hasNextPage,
+    isFetching: players.isFetching,
+    fetchNextPage: () => players.fetchNextPage({ cancelRefetch: false }),
+  });
+  const rows = playerWindow.items;
+  const selectedGame = games.data?.games.find((game) => game.id === gameId) ?? games.selectedGame;
   const filteredGames =
     debouncedSearch.length >= 4
       ? games.data?.games.filter((game) =>
@@ -59,20 +72,26 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
 
   useEffect(() => {
     const node = endRef.current;
-    if (!node || !players.hasNextPage || players.isFetchNextPageError) return;
+    if (
+      !node ||
+      !playerWindow.hasNextPage ||
+      players.isFetchNextPageError ||
+      typeof IntersectionObserver === "undefined"
+    )
+      return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !players.isFetchingNextPage) void players.fetchNextPage();
+        if (entry.isIntersecting && !players.isFetchingNextPage) void playerWindow.fetchNextPage();
       },
       { rootMargin: "300px" },
     );
     observer.observe(node);
     return () => observer.disconnect();
   }, [
-    players.hasNextPage,
+    playerWindow.hasNextPage,
     players.isFetchingNextPage,
     players.isFetchNextPageError,
-    players.fetchNextPage,
+    playerWindow.fetchNextPage,
   ]);
 
   if (games.isPending) return <Skeleton className="h-16 w-full rounded-xl" />;
@@ -207,11 +226,11 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
               </Table.ScrollContainer>
             </Table>
             <div ref={endRef} />
-            {players.hasNextPage ? (
+            {playerWindow.hasNextPage ? (
               <Button
                 variant="outline"
                 isDisabled={players.isFetchingNextPage}
-                onPress={() => void players.fetchNextPage()}
+                onPress={() => void playerWindow.fetchNextPage()}
               >
                 {players.isFetchNextPageError
                   ? t`Could not load leaderboards. Retry`

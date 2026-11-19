@@ -4,7 +4,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
 
-// Execute actual callbacks/structure only; not native keyboard, map or touch acceptance.
+// Pure keyboard-store and composition policies; interactions have separate RNTL tests.
 const load = (path: string) =>
   ts.createSourceFile(
     path,
@@ -55,6 +55,7 @@ function evaluate<T>(code: string, bindings: Record<string, unknown> = {}): T {
   ) as T;
 }
 it("keeps map/name/favorites/search in one local keyboard-aware virtualized owner", () => {
+  expect(picker.text).not.toContain("Keyboard.addListener");
   const map = element(picker, "MapLibreMap"),
     name = element(picker, "Input"),
     favorites = element(picker, "LocationFavoriteSelect"),
@@ -133,24 +134,6 @@ it("keeps controlled name/favorites and confirmation visible, with validation at
     expect(parent).toBeDefined();
   }
 });
-it("manual address edits cancel stale GPS ownership and clear selection without hiding controls", () => {
-  const callbacks = Object.fromEntries(
-    ["cancelLocate", "setQuery", "setSelected", "setFavoriteKey", "setResults"].map((name) => [
-      name,
-      vi.fn(),
-    ]),
-  );
-  evaluate<(value: string) => void>(
-    prop(picker, "SearchInput", "onChange"),
-    callbacks,
-  )("New address");
-  expect(callbacks.cancelLocate).toHaveBeenCalledOnce();
-  expect(callbacks.setQuery).toHaveBeenCalledWith("New address");
-  expect(callbacks.setSelected).toHaveBeenCalledWith(null);
-  expect(callbacks.setFavoriteKey).toHaveBeenCalledWith(null);
-  expect(callbacks.setResults).toHaveBeenCalledWith([]);
-  expect(picker.text).not.toContain("Keyboard.addListener");
-});
 it.each(["ios", "android"])(
   "shares keyboard snapshots and removes native subscriptions after the final owner: %s",
   (OS) => {
@@ -201,48 +184,6 @@ it.each(["ios", "android"])(
     expect(remove).toHaveBeenCalledTimes(2);
   },
 );
-it("selection dismisses keyboard and preserves verified address/zone and camera target", () => {
-  const callbacks = Object.fromEntries(
-    ["cancelLocate", "setSelected", "setFavoriteKey", "setResults", "setQuery", "moveTo"].map(
-      (name) => [name, vi.fn()],
-    ),
-  );
-  const dismiss = vi.fn(),
-    scrollToOffset = vi.fn();
-  const render = evaluate<(value: unknown) => { props: { onPress: () => void } }>(
-    prop(picker, "InputFlatList", "renderItem"),
-    {
-      ...callbacks,
-      React: {
-        createElement: (type: unknown, props: Record<string, unknown>, ...children: unknown[]) => ({
-          type,
-          props: { ...props, children },
-        }),
-      },
-      Pressable: "Pressable",
-      Typography: "Typography",
-      Keyboard: { dismiss },
-      resultsList: { current: { scrollToOffset } },
-      formatLocationAddress: (text: string) => text,
-    },
-  );
-  const item = {
-    id: "address-1",
-    address: "Verified address",
-    longitude: 12,
-    latitude: 42,
-    timeZone: "Europe/Rome",
-  };
-  render({ item, index: 0 }).props.onPress();
-  expect(dismiss).toHaveBeenCalledOnce();
-  expect(callbacks.cancelLocate).toHaveBeenCalledOnce();
-  expect(callbacks.setSelected).toHaveBeenCalledWith(item);
-  expect(callbacks.setFavoriteKey).toHaveBeenCalledWith(null);
-  expect(callbacks.setResults).toHaveBeenCalledWith([]);
-  expect(callbacks.setQuery).toHaveBeenCalledWith(item.address);
-  expect(callbacks.moveTo).toHaveBeenCalledWith(12, 42);
-  expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: false });
-});
 it("forwards native search focus through the shared owner and keeps licensed attribution reachable", () => {
   expect(input.text).toContain("useInputFocus");
   expect(element(input, "SearchField.Input").getText(input)).toContain("{...focus}");

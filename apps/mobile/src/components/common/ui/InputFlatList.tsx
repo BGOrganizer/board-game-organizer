@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { InputFieldContext, InputScrollContext } from "@/lib/inputScrollContext";
+import { useListActivity } from "@/lib/listActivity";
 import { useInputScroll } from "@/lib/useInputScroll";
 import { useOptionalHeaderHeight } from "@/lib/useOptionalHeaderHeight";
 
@@ -29,6 +30,7 @@ export function InputFlatList<T>({
       list.current?.scrollToOffset({ offset: y, animated });
     },
   }));
+  const isActive = useListActivity();
   const headerHeight = useOptionalHeaderHeight();
   const Component = (scroll.inSheet ? BottomSheetFlatList : FlatList) as typeof FlatList<T>;
   const minHeight = StyleSheet.flatten(contentContainerStyle)?.minHeight;
@@ -44,7 +46,9 @@ export function InputFlatList<T>({
     >
       <View
         ref={scroll.viewport}
-        onLayout={scroll.onLayout}
+        onLayout={(event) => {
+          if (isActive()) scroll.onLayout(event);
+        }}
         onTouchStart={scroll.touch}
         style={{ flex: 1 }}
       >
@@ -52,6 +56,13 @@ export function InputFlatList<T>({
           <InputFieldContext.Provider value={null}>
             <Component
               {...props}
+              onLayout={
+                props.onLayout
+                  ? (event) => {
+                      if (isActive()) props.onLayout?.(event);
+                    }
+                  : undefined
+              }
               ref={list}
               style={{ flex: 1 }}
               keyboardShouldPersistTaps={props.keyboardShouldPersistTaps ?? "handled"}
@@ -60,14 +71,17 @@ export function InputFlatList<T>({
               windowSize={props.windowSize ?? 7}
               scrollEventThrottle={props.scrollEventThrottle ?? 16}
               onScroll={(event) => {
+                if (!isActive()) return;
                 scroll.onScroll(event);
                 onScroll?.(event);
               }}
               onContentSizeChange={(width, height) => {
+                if (!isActive()) return;
                 scroll.contentChanged();
                 props.onContentSizeChange?.(width, height);
               }}
               onScrollBeginDrag={(event) => {
+                if (!isActive()) return;
                 scroll.beginScroll();
                 focusScroll.current = false;
                 props.onScrollBeginDrag?.(event);
@@ -81,6 +95,7 @@ export function InputFlatList<T>({
                   props.onEndReached?.({ distanceFromEnd });
               }}
               onMomentumScrollBegin={(event) => {
+                if (!isActive()) return;
                 scroll.beginScroll();
                 focusScroll.current = false;
                 props.onMomentumScrollBegin?.(event);
@@ -94,7 +109,7 @@ export function InputFlatList<T>({
                   props.onEndReached?.({ distanceFromEnd });
               }}
               onEndReached={(event) => {
-                if (!focusScroll.current) props.onEndReached?.(event);
+                if (isActive() && !focusScroll.current) props.onEndReached?.(event);
               }}
               contentContainerStyle={[
                 contentContainerStyle,
@@ -105,15 +120,15 @@ export function InputFlatList<T>({
                   ),
                 },
               ]}
-              onScrollToIndexFailed={
-                props.onScrollToIndexFailed ??
-                ((event) => {
+              onScrollToIndexFailed={(event) => {
+                if (!isActive()) return;
+                if (props.onScrollToIndexFailed) props.onScrollToIndexFailed(event);
+                else
                   list.current?.scrollToOffset({
                     offset: event.averageItemLength * event.index,
                     animated: false,
                   });
-                })
-              }
+              }}
             />
           </InputFieldContext.Provider>
         </InputScrollContext.Provider>

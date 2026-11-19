@@ -9,7 +9,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/app/lib/db", () => ({ getDb: async () => ({}), withTransaction: mocks.transaction }));
 vi.mock("@/app/lib/notifications/notification-changes.repository", () => ({
-  NotificationChangesRepository: vi.fn(() => ({ list: mocks.list, read: mocks.read })),
+  NotificationChangesRepository: vi.fn(function MockNotificationChangesRepository() {
+    return { list: mocks.list, read: mocks.read };
+  }),
 }));
 
 import { GET, OPTIONS, PATCH } from "../route";

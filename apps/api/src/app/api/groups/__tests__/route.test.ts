@@ -79,6 +79,27 @@ beforeEach(() => {
   for (const domain of Object.values(services))
     for (const call of Object.values(domain)) call.mockReset().mockResolvedValue({ id });
 });
+it.each(["abcd", "a".repeat(31)])(
+  "rejects out-of-range Group name %s before create/edit writes",
+  async (name) => {
+    expect((await groupsRoute.POST(request("POST", { ...input, name }))).status).toBe(400);
+    expect((await detail.PATCH(request("PATCH", { name, version: 1 }), context)).status).toBe(400);
+    expect(services.groups.save).not.toHaveBeenCalled();
+  },
+);
+it.each(["abcde", "a".repeat(30)])(
+  "accepts trimmed Group name boundary %s on create/edit",
+  async (name) => {
+    expect((await groupsRoute.POST(request("POST", { ...input, name: ` ${name} ` }))).status).toBe(
+      201,
+    );
+    expect(
+      (await detail.PATCH(request("PATCH", { name: ` ${name} `, version: 1 }), context)).status,
+    ).toBe(200);
+    expect(services.groups.save).toHaveBeenNthCalledWith(1, "owner", { ...input, name });
+    expect(services.groups.save).toHaveBeenNthCalledWith(2, "owner", { name, version: 1 }, id);
+  },
+);
 describe("safe Group write diagnostics", () => {
   const entries = () =>
     vi

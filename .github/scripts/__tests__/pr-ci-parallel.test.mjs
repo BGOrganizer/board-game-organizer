@@ -8,7 +8,15 @@ const pr = parse(readFileSync(".github/workflows/pr-ci.yml", "utf8"));
 const watchdog = parse(readFileSync(".github/workflows/pr-ci-fail-fast.yml", "utf8"));
 const cleanup = parse(readFileSync(".github/workflows/pr-ci-cleanup.yml", "utf8"));
 const jobs = pr.jobs;
-const quality = ["commitlint", "lint", "typecheck", "unit-tests", "integration-tests", "build-api"];
+const quality = [
+  "commitlint",
+  "lint",
+  "typecheck",
+  "unit-tests",
+  "integration-tests",
+  "native-tooling",
+  "build-api",
+];
 const step = (job, name) => jobs[job].steps.find((item) => item.name === name);
 
 test("one application workflow routes branch/PR events and overlaps checks after context resolution", () => {
@@ -21,7 +29,14 @@ test("one application workflow routes branch/PR events and overlaps checks after
   for (const name of [...quality, "build-web"]) {
     assert.deepEqual(jobs[name].needs, ["context"], `${name} waits only for routing`);
   }
-  for (const name of ["commitlint", "lint", "typecheck", "unit-tests", "integration-tests"])
+  for (const name of [
+    "commitlint",
+    "lint",
+    "typecheck",
+    "unit-tests",
+    "integration-tests",
+    "native-tooling",
+  ])
     assert(jobs[name].if.includes("'branch'"), name);
   for (const name of ["build-api", "build-web"]) assert(!jobs[name].if.includes("'branch'"), name);
   for (const name of ["deploy-preview-api", "deploy-development-api"]) {
@@ -236,14 +251,14 @@ test("PR publishes the verified development APK to EAS and keeps GitHub and Tele
   assert(steps.some((step) => step.name === "🔒 Verify current head before Telegram"));
 });
 
-test("watchdog cancels only shared-quality failures; independent cleanup survives cancellation", () => {
+test("watchdog waits for all test suites before cancelling shared failures; independent cleanup survives cancellation", () => {
   assert(watchdog.on.workflow_run.workflows.includes(pr.name));
   assert.deepEqual(watchdog.on.workflow_run.types, ["in_progress"]);
   assert.equal(watchdog.permissions.actions, "write");
   assert.equal(watchdog.jobs["cancel-failed-run"].steps[0].uses, "actions/checkout@v4");
   assert.match(watchdog.jobs["cancel-failed-run"].steps.at(-1).run, /ci-fail-fast\.mjs/);
   const controller = readFileSync(".github/scripts/ci-fail-fast.mjs", "utf8");
-  assert.match(controller, /sharedQualityFailed/);
+  assert.match(controller, /allTestJobsCompleted\(jobs\) && sharedQualityFailed\(jobs\)/);
   assert.match(controller, /api\("\/cancel", "POST"\)/);
   assert(cleanup.on.workflow_run.workflows.includes(pr.name));
   assert.deepEqual(cleanup.on.workflow_run.types, ["completed"]);

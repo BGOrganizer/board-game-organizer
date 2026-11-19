@@ -169,7 +169,7 @@ export function EventScheduleFields({
             helpTitle={helpTitle}
             help={
               form.flexibleSchedule
-                ? t`Propose dates and times for participants to vote on. Times are local to the chosen location.`
+                ? t`Propose dates and times for participants to vote on.`
                 : t`Choose one date and time. Remove the selected option before choosing another.`
             }
           />
@@ -244,11 +244,7 @@ export function EventScheduleFields({
           required
           label={t`Location`}
           helpTitle={helpTitle}
-          help={
-            form.flexibleSchedule
-              ? t`Propose verified addresses for participants to vote on. Each location determines its local time zone.`
-              : t`Each event has one verified address. Its time zone is automatic. Remove the location before choosing another.`
-          }
+          help={t`Suggest locations for participants to vote on.`}
         />
         <GroupedList>
           {draft.locations.map((location) => (

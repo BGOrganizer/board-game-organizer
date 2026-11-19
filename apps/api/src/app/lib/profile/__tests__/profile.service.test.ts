@@ -18,19 +18,25 @@ const m = vi.hoisted(() => ({
   group: vi.fn(),
 }));
 vi.mock("../profile.repository", () => ({
-  ProfileRepository: vi.fn(() => ({
-    user: m.user,
-    social: m.social,
-    player: m.player,
-    games: m.games,
-    history: m.history,
-  })),
+  ProfileRepository: vi.fn(function MockProfileRepository() {
+    return {
+      user: m.user,
+      social: m.social,
+      player: m.player,
+      games: m.games,
+      history: m.history,
+    };
+  }),
 }));
 vi.mock("../profile-activities.repository", () => ({
-  ProfileActivitiesRepository: vi.fn(() => ({ page: m.page, networkPage: m.network })),
+  ProfileActivitiesRepository: vi.fn(function MockProfileActivitiesRepository() {
+    return { page: m.page, networkPage: m.network };
+  }),
 }));
 vi.mock("../../contacts/relationship.repository", () => ({
-  RelationshipRepository: vi.fn(() => ({ isBlocked: m.blocked, getBlockedUserIds: m.blockedIds })),
+  RelationshipRepository: vi.fn(function MockRelationshipRepository() {
+    return { isBlocked: m.blocked, getBlockedUserIds: m.blockedIds };
+  }),
 }));
 vi.mock("../../community/record-services", () => ({
   recordServices: () => ({ events: { activityResource: m.event }, groups: { detail: m.group } }),

@@ -10,15 +10,15 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CalendarCheck2, CalendarClock, Flag, Plus } from "lucide-react-native";
-import type { ReactNode } from "react";
+import { CalendarCheck2, CalendarClock, CalendarDays, Flag, Plus } from "lucide-react-native";
+import { type ReactNode, useCallback } from "react";
 import { View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventCard } from "./EventCard";
@@ -33,7 +33,7 @@ export function EventList({
   section?: EventListSection;
   header?: ReactNode;
 }) {
-  const artwork = useArtworkListVisibility();
+  const muted = useThemeColor("muted");
   const t = useT(),
     router = useRouter(),
     o = useCommunityApi(),
@@ -56,6 +56,18 @@ export function EventList({
   useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
     "admin",
   ]);
+  const verify = useCallback(() => void list.refetch({ cancelRefetch: false }), [list.refetch]);
+  const renderItem = useCallback(
+    ({ item }: { item: (typeof list.items)[number] }) => (
+      <EventCard
+        event={item}
+        context={groupId ? "group" : "personal"}
+        checking={item.optimistic?.phase === "verifying" && list.isFetching}
+        onVerify={item.optimistic?.phase === "verifying" ? verify : undefined}
+      />
+    ),
+    [groupId, list.isFetching, verify],
+  );
   return (
     <NotificationAttentionScope
       options={o}
@@ -65,11 +77,10 @@ export function EventList({
     >
       <View style={{ flex: 1 }}>
         <InputFlatList
-          onViewableItemsChanged={artwork.onViewableItemsChanged}
-          onLayout={artwork.onLayout}
-          onScroll={artwork.onScroll}
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
+          initialNumToRender={groupId ? 1 : undefined}
+          maxToRenderPerBatch={groupId ? 1 : undefined}
           data={communityAccessDenied(list.error) ? [] : list.items}
           keyExtractor={(row) => row.id}
           contentContainerStyle={{
@@ -81,7 +92,9 @@ export function EventList({
           }}
           ListHeaderComponent={
             <View style={{ gap: 12 }}>
-              {artwork.header(header)}
+              {header === undefined || header === null || header === false ? null : (
+                <View>{header}</View>
+              )}
               <ListSearch
                 query={filters.query}
                 onQueryChange={filters.setQuery}
@@ -102,17 +115,7 @@ export function EventList({
               />
             </View>
           }
-          renderItem={({ item }) =>
-            artwork.row(
-              item.id,
-              <EventCard
-                event={item}
-                context={groupId ? "group" : "personal"}
-                checking={list.isFetching}
-                onVerify={() => void list.refetch({ cancelRefetch: false })}
-              />,
-            )
-          }
+          renderItem={renderItem}
           onEndReached={() => {
             if (list.hasNextPage && !list.isFetching && !list.isFetchNextPageError)
               void list.fetchNextPage();
@@ -120,8 +123,10 @@ export function EventList({
           ListEmptyComponent={
             list.isPending ? (
               <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
-            ) : !list.isError ? (
-              <Typography className="text-foreground">{t("No events found")}</Typography>
+            ) : !list.isError && !list.hasNextPage ? (
+              <EmptyList icon={<CalendarDays size={28} color={muted} />}>
+                {t("No events found")}
+              </EmptyList>
             ) : null
           }
           ListFooterComponent={

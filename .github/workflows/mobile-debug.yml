@@ -1,0 +1,135 @@
+name: Android debug APK
+
+on:
+  # Bootstrap the diagnostic workflow before it exists on main. JavaScript-only
+  # changes are served by Metro and do not need another native debug binary.
+  push:
+    branches: [fix/group-members-invite-spacing]
+    paths:
+      - .github/workflows/mobile-debug.yml
+      - .github/scripts/mobile-debug-context.mjs
+      - apps/mobile/app.config.js
+      - apps/mobile/eas.json
+      - apps/mobile/package.json
+      - bun.lock
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build diagnostic Android APK
+    if: github.repository == 'BGOrganizer/board-game-organizer' && github.ref_type == 'branch' && github.ref_name != 'main'
+    environment: development
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout diagnostic source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up locked workspace
+        uses: ./.github/actions/setup-bun
+
+      - name: Resolve current Development PR
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLERK_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          import { mobileDebugContext } from './.github/scripts/mobile-debug-context.mjs';
+          const e = process.env;
+          const query = new URLSearchParams({ state: 'open', base: 'main', head: `${e.GITHUB_REPOSITORY_OWNER}:${e.GITHUB_REF_NAME}`, per_page: '100' });
+          const response = await fetch(`https://api.github.com/repos/${e.GITHUB_REPOSITORY}/pulls?${query}`, {
+            redirect: 'error', signal: AbortSignal.timeout(30000),
+            headers: { Authorization: `Bearer ${e.GH_TOKEN}`, Accept: 'application/vnd.github+json' },
+          });
+          if (!response.ok) throw new Error(`PR lookup failed (${response.status})`);
+          const context = mobileDebugContext({ repository: e.GITHUB_REPOSITORY, branch: e.GITHUB_REF_NAME, sha: e.GITHUB_SHA, clerkKey: e.CLERK_KEY }, await response.json());
+          appendFileSync(e.GITHUB_OUTPUT, `api-url=${context.apiUrl}\n`);
+          NODE
+
+      - name: Prepare temporary optimized diagnostic profile
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const path = 'apps/mobile/eas.json';
+          const original = readFileSync(path);
+          const config = JSON.parse(original.toString());
+          const profile = config.build?.development;
+          if (profile?.developmentClient !== true || profile.channel !== 'development' || profile.android?.gradleCommand !== ':app:assembleDebug') {
+            throw new Error('Expected the unchanged Development debug profile');
+          }
+          // Back up exact bytes before touching this fingerprint input. Never alter release profiles.
+          writeFileSync(join(process.env.RUNNER_TEMP, 'bgo-debug-eas-original.json'), original, { flag: 'wx', mode: 0o600 });
+          profile.android.gradleCommand = ':app:assembleDebugOptimized';
+          const effective = `${JSON.stringify(config, null, 2)}\n`;
+          writeFileSync(path, effective);
+          writeFileSync(join(process.env.RUNNER_TEMP, 'bgo-debug-eas.sha256'), `${createHash('sha256').update(effective).digest('hex')}\n`);
+          NODE
+
+      - name: Build ARM64 debug client with optimized native libraries
+        uses: ./.github/actions/mobile-build
+        with:
+          install-dependencies: 'false'
+          profile: development
+          app-environment: development
+          update-channel: development
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          api-url: ${{ steps.context.outputs.api-url }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
+      - name: Restore normal EAS configuration
+        if: ${{ always() }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const backup = join(process.env.RUNNER_TEMP, 'bgo-debug-eas-original.json');
+          if (existsSync(backup)) {
+            writeFileSync('apps/mobile/eas.json', readFileSync(backup));
+            unlinkSync(backup);
+          }
+          NODE
+
+      - name: Verify diagnostic APK
+        env:
+          DEBUG_API_URL: ${{ steps.context.outputs.api-url }}
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find apps/mobile/build-output -maxdepth 1 -name '*.apk')
+          test "${#apks[@]}" -eq 1
+          # Read compiled manifest attributes directly; apkanalyzer's XML
+          # reconstruction fails on metadata in the development client.
+          aapt2="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name aapt2 -type f | sort -V | tail -n 1)"
+          test -x "$aapt2"
+          test "$("$aapt2" dump packagename "${apks[0]}")" = com.bgo.boardgameorganizer.dev
+          "$aapt2" dump badging "${apks[0]}" > "$RUNNER_TEMP/bgo-debug-badging.txt"
+          grep -Fxq 'application-debuggable' "$RUNNER_TEMP/bgo-debug-badging.txt"
+          printf '%s\n' "$GITHUB_SHA" > apps/mobile/build-output/source-head.txt
+          printf '%s\n' "$DEBUG_API_URL" > apps/mobile/build-output/api-url.txt
+          printf '%s\n' 'debug-optimized' > apps/mobile/build-output/build-mode.txt
+          cp "$RUNNER_TEMP/bgo-debug-eas.sha256" apps/mobile/build-output/eas-config.sha256
+
+      - name: Upload diagnostic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-debug-${{ github.sha }}
+          path: apps/mobile/build-output/
+          if-no-files-found: error
+          retention-days: 7

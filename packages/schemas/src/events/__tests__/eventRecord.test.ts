@@ -68,6 +68,38 @@ const input = {
 };
 const at = "2027-01-01T00:00:00Z";
 describe("unified event request boundaries", () => {
+  it.each(["abcde", "a".repeat(30)])(
+    "accepts and trims boundary Event/Table name %s on creation and edits",
+    (name) => {
+      const body = {
+        ...input,
+        name: ` ${name} `,
+        tables: [{ ...table, name: ` ${name} ` }],
+      };
+      const created = createPlannedEventSchema.parse(body);
+      expect(created.name).toBe(name);
+      expect(created.tables[0].name).toBe(name);
+      const { groupId: _group, ...fields } = body;
+      const edited = editPlannedEventSchema.parse({ ...fields, version: 1, removedTableIds: [] });
+      expect(edited.name).toBe(name);
+      expect(edited.tables[0].name).toBe(name);
+      expect(plannedTableInputSchema.parse(body.tables[0]).name).toBe(name);
+    },
+  );
+  it.each(["", "   ", "abcd", " abcd ", "a".repeat(31)])(
+    "rejects Event and nested Table name %j independently on creation and edits",
+    (name) => {
+      for (const patch of [{ name }, { tables: [{ ...table, name }] }]) {
+        const body = { ...input, ...patch };
+        expect(createPlannedEventSchema.safeParse(body).success).toBe(false);
+        const { groupId: _group, ...fields } = body;
+        expect(
+          editPlannedEventSchema.safeParse({ ...fields, version: 1, removedTableIds: [] }).success,
+        ).toBe(false);
+      }
+      expect(plannedTableInputSchema.safeParse({ ...table, name }).success).toBe(false);
+    },
+  );
   it("accepts explicit Event visibility but reserves the optional immutable sharing choice for finalization only", () => {
     expect(
       createPlannedEventSchema.parse({ ...input, groupId: other, visibility: "PRIVATE" })
@@ -442,6 +474,40 @@ describe("unified event request boundaries", () => {
       }).success,
     ).toBe(false);
   });
+});
+it("keeps historical Event and Table names readable without accepting them in name-write commands", () => {
+  const { tables: _tables, ...fields } = input;
+  for (const length of [31, 120]) {
+    const name = "a".repeat(length);
+    expect(
+      eventRecordSchema.parse({
+        ...fields,
+        name,
+        id,
+        adminUserId: "user_owner",
+        status: "PLANNING",
+        version: 1,
+        planningGeneration: 1,
+        nextPriority: 0,
+        nextTableOrder: 1,
+        createdAt: at,
+        updatedAt: at,
+      }).name,
+    ).toBe(name);
+  }
+  for (const length of [1, 4, 31, 120]) {
+    const name = "a".repeat(length);
+    expect(
+      tableRecordSchema.parse({
+        ...table,
+        name,
+        eventId: id,
+        order: 0,
+        createdAt: at,
+        updatedAt: at,
+      }).name,
+    ).toBe(name);
+  }
 });
 it("stores only the new lifecycle and table/registration data, not independent operational Matches", () => {
   const { tables: _tables, ...fields } = input;

@@ -3,16 +3,27 @@ name: Approved resource artwork, uploaded logos and foreground continuity
 # Opt-in existing Preview fixtures. Configure OS Reduce Motion and app theme before each run.
 # Detail screenshots must show proportional artwork across the full card background.
 # List screenshots must show full-width titles, bottom-left artwork and a single control row that may extend over the artwork.
+# In normal motion, active list/embedded artwork and detail backgrounds animate.
+# Uploaded logos, reduced motion and navigation-less selectors remain static.
+# Review the recording for internal-only motion and the tab indicator.
+# Screenshots/accessibility assertions alone do not prove animation or frame timing.
+# Check unchanged geometry in both system motion settings and retained artwork after tab changes.
 tags: [manual, artwork, accessibility]
 ---
 - runScript: ../helpers/resource-artwork-inputs.js
 - launchApp:
     clearState: false
+- extendedWaitUntil:
+    visible:
+      id: main-tab-groups
+    timeout: 120000
 - openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible: ${output.artwork.groupTab}
     timeout: 120000
-- tapOn: ${output.artwork.groupTab}
+- tapOn:
+    text: ${output.artwork.groupTab}
+    waitToSettleTimeoutMs: 500
 - tapOn:
     id: list-search-input
 - inputText: ${output.artwork.groupFilter}
@@ -20,14 +31,32 @@ tags: [manual, artwork, accessibility]
 - extendedWaitUntil:
     visible: ${output.artwork.openGroup}
     timeout: 120000
+- startRecording: ${output.artwork.screenshot + '-navigation'}
 - takeScreenshot: ${output.artwork.screenshot + '-group-card'}
-- tapOn: ${output.artwork.openGroup}
+- tapOn:
+    text: ${output.artwork.openGroup}
+    waitToSettleTimeoutMs: 500
 - extendedWaitUntil:
     visible: ${output.artwork.events}
     timeout: 120000
 - assertVisible: ${output.artwork.group}
 - takeScreenshot: ${output.artwork.screenshot + '-group-detail'}
-- tapOn: ${output.artwork.events}
+- tapOn:
+    id: top-tab-members
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: top-tab-members
+    selected: true
+- tapOn:
+    id: top-tab-info
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: top-tab-info
+    selected: true
+- takeScreenshot: ${output.artwork.screenshot + '-group-detail-reentry'}
+- tapOn:
+    text: ${output.artwork.events}
+    waitToSettleTimeoutMs: 500
 - extendedWaitUntil:
     visible:
       id: list-search-input
@@ -40,19 +69,25 @@ tags: [manual, artwork, accessibility]
     visible: ${output.artwork.openEvent}
     timeout: 120000
 - takeScreenshot: ${output.artwork.screenshot + '-event-card'}
-- tapOn: ${output.artwork.openEvent}
+- tapOn:
+    text: ${output.artwork.openEvent}
+    waitToSettleTimeoutMs: 500
 - extendedWaitUntil:
     visible: ${output.artwork.tables}
     timeout: 120000
 - assertVisible: ${output.artwork.event}
 - takeScreenshot: ${output.artwork.screenshot + '-event-detail'}
-- tapOn: ${output.artwork.tables}
+- tapOn:
+    text: ${output.artwork.tables}
+    waitToSettleTimeoutMs: 500
 - scrollUntilVisible:
     element: ${output.artwork.openTable}
     direction: DOWN
     timeout: 120000
 - takeScreenshot: ${output.artwork.screenshot + '-table-card'}
-- tapOn: ${output.artwork.openTable}
+- tapOn:
+    text: ${output.artwork.openTable}
+    waitToSettleTimeoutMs: 500
 - extendedWaitUntil:
     visible:
       id: table-participants-tab
@@ -65,3 +100,4 @@ tags: [manual, artwork, accessibility]
     clearState: false
 - assertVisible: ${output.artwork.table}
 - takeScreenshot: ${output.artwork.screenshot + '-foreground'}
+- stopRecording

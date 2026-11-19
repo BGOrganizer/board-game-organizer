@@ -144,9 +144,17 @@ it.each([false, true])("reviews manual Best settings and reduction=%s", (allowBe
   );
   expect(screen.getByText("Manual")).toBeTruthy();
   expect(screen.getByText("BGG Best")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Settings" })).not.toBeNull();
+  expect(screen.getByText("Manual").querySelector("svg.lucide-hand")).not.toBeNull();
+  expect(screen.getByText("BGG Best").querySelector("svg.lucide-trophy")).not.toBeNull();
   expect(
     screen.getByText("BGG Best allows reducing the seated group in Assisted planning."),
   ).toBeTruthy();
+  expect(
+    screen
+      .getByText("BGG Best allows reducing the seated group in Assisted planning.")
+      .querySelector("svg.text-warning"),
+  ).not.toBeNull();
 });
 it("reviews public start, same-day end and combined cutoff before the venue", () => {
   const draft = {
@@ -157,7 +165,7 @@ it("reviews public start, same-day end and combined cutoff before the venue", ()
   renderWithI18n(<EventWizardSummary draft={draft} publicGroup />);
   const schedule = screen.getByText("Date and start/end time"),
     cutoff = screen.getByText("Registration Deadline Date and Time"),
-    location = screen.getByText("Location");
+    location = screen.getByText("Locations");
   expect(schedule.compareDocumentPosition(cutoff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(cutoff.compareDocumentPosition(location) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByText("June 3, 2030 \u00b7 20:00 \u00b7 23:00")).not.toBeNull();
@@ -189,10 +197,12 @@ it.each(["Friday group", null])(
     renderWithI18n(<EventWizardSummary draft={eventDraft(plannedEvent)} groupName={groupName} />);
     expect(screen.getByText(groupName ?? "No group")).not.toBeNull();
     const date = screen.getByText("Dates and times").closest("section");
-    const location = screen.getByText("Location").closest("section");
+    const location = screen.getByText("Locations").closest("section");
     if (!date || !location) throw new Error("Missing labelled summary sections");
     expect(within(date).queryByRole("textbox")).toBeNull();
     expect(within(location).getByText("Club venue")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /Field help/ })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Table list" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
   },
 );

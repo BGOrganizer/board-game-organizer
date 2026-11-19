@@ -292,7 +292,7 @@ for (const width of [390, 1280])
         await filter.fill(current.fixture.name);
         const card = main.getByRole("listitem").filter({ has: link });
         for (const prefix of it
-          ? ["Date e orari", "Luoghi", "Giochi da tavolo"]
+          ? ["Date e Orari", "Luoghi", "Giochi da tavolo"]
           : ["Dates and times", "Locations", "Board games"])
           await expect(
             card.getByRole("button", { name: `${prefix}: ${current.fixture.name}`, exact: true }),
@@ -323,7 +323,11 @@ for (const width of [390, 1280])
           ? "No events found"
           : "No tables found";
       await filter.fill(input.emptyQuery);
-      await expect(main.getByText(emptyText, { exact: true })).toBeVisible();
+      const empty = main.getByRole("status").filter({ hasText: emptyText });
+      await expect(empty.getByText(emptyText, { exact: true })).toBeVisible();
+      await expect(empty).toHaveCSS("align-items", "center");
+      await expect(empty).toHaveCSS("flex-direction", "column");
+      await expect(empty.locator('span[aria-hidden="true"] svg')).toBeVisible();
       await main.getByRole("button", { name: labels.clear, exact: true }).click();
       await expect(filter).toHaveValue("");
       const failureQuery = `${input.emptyQuery}-failure-${current.section}`;

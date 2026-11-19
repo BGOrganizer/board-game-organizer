@@ -72,7 +72,7 @@ it("uses one player-count label and help while retaining both accessible bounded
   expect(onChange).toHaveBeenLastCalledWith({ maxPlayers: 5 });
   fireEvent.click(screen.getByRole("button", { name: "Number of players: Field help" }));
   expect(
-    await screen.findByText(/Choose the minimum on the left and maximum on the right/),
+    await screen.findByText(/Choose the minimum and maximum number of players/),
   ).not.toBeNull();
 });
 it("shows the selected demonstrator identity and clears its draft metadata explicitly", () => {

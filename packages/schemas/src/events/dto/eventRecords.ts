@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { clientRequestIdSchema, targetUserIdSchema } from "../../common/dto/common";
+import {
+  clientRequestIdSchema,
+  resourceNameSchema,
+  targetUserIdSchema,
+} from "../../common/dto/common";
 import type { CommunityPageResponse } from "../../community/dto/communityResponses";
 import type { BggSearchItem } from "../../games/dto/boardGames";
 import { verifiedLocationSchema } from "../../locations/models/locations";
@@ -39,7 +43,7 @@ const gameInputSchema = z
 export const plannedTableInputSchema = z
   .object({
     id: z.uuid().optional(),
-    name: z.string().trim().min(1).max(120),
+    name: resourceNameSchema,
     minPlayers: z.number().int().min(2),
     maxPlayers: z.number().int().min(2),
     games: z
@@ -70,7 +74,7 @@ export const createPlannedEventSchema = z
     groupId: z.uuid().nullable(),
     visibility: z.enum(["PRIVATE", "PUBLIC"]).optional(),
     clientRequestId: clientRequestIdSchema.optional(),
-    name: z.string().trim().min(5).max(120),
+    name: resourceNameSchema,
     timeZone: zoneSchema,
     planningMode: z.enum(["MANUAL", "ASSISTED"]).optional(),
     playerPreference: z.enum(["MORE_PLAYERS", "BEST"]).optional(),

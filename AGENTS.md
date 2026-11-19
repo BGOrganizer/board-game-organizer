@@ -79,7 +79,8 @@ for new provider operations or establish production/device acceptance.
 Current versions come from manifests and `bun.lock`, not copied version lists.
 Use Node.js 26 and the Bun version declared in the root `packageManager`, synchronized with CI
 and EAS; preserve Expo-managed exact mobile pins.
-Do not upgrade Vitest beyond the compatible 3.2 baseline without the required migration/checks.
+Keep Vitest and its coverage provider aligned across tested workspaces; major upgrades require
+the migration and full verification described in [development](docs/development.md#dependency-updates).
 
 Run from the repository root. Bun installs dependencies; Node.js remains the application/test runtime.
 
@@ -88,7 +89,14 @@ Run from the repository root. Bun installs dependencies; Node.js remains the app
 | Install locked dependencies | `bun install --frozen-lockfile` |
 | Lint / typecheck | `bun run lint` / `bun run typecheck` |
 | One workspace's tests | `bun run --filter web test` (or `api`, `mobile`, `@board-game-organizer/shared`, `@board-game-organizer/schemas`) |
-| Unit coverage | `bun run --filter web test:coverage` (same tested workspaces) |
+| Coverage | `bun run --filter web test:coverage` (same tested workspaces; API includes MongoDB integration) |
+| Web components / React Testing Library | `bun run --filter web test src/components` |
+| Native components / React Native Testing Library | `bun run --filter mobile test:components` |
+| React render benchmarks / Reassure | `bun run perf:web` / `bun run perf:mobile` |
+| Install / run pinned Maestro | `bun run maestro:install` / `bun run maestro --version` |
+| Device UI flow | `bun run maestro --device <serial> test apps/mobile/.maestro/flows/<flow>.yaml` |
+| Install / run pinned Perfetto | `bun run perfetto:install` / `bun run perfetto --version` |
+| Maestro + native trace | `bun run perfetto:maestro --serial <serial> --flow apps/mobile/.maestro/flows/53-group-tabs-perfetto.yaml --seconds 90` |
 | One test file | `bun run --filter web test src/components/events/__tests__/useTableSeatOrder.test.tsx` |
 | MongoDB integration | `bun run --filter api test:integration` |
 | Web E2E | `bun run --filter web test:e2e` |
@@ -112,6 +120,11 @@ share its CPU, RAM and network budget. Monitor
 available RAM, CPU load and network activity; stop owned work if pressure rises, then resume
 sequentially. Parallel agents may inspect or edit independent worktrees, but may not launch
 concurrent heavy commands. Report interrupted checks as incomplete rather than passing.
+
+Verify Docker's memory-controller support and effective container limits; requested limits alone
+do not prove enforcement. If the host lacks memory cgroups, bound worker heaps and database caches
+explicitly, monitor host memory, and stop only owned work before pressure exhausts the host.
+Report unavailable kernel limits separately from the application limits actually verified.
 
 ## 4. Architecture and UI ownership
 
@@ -211,19 +224,65 @@ concurrent heavy commands. Report interrupted checks as incomplete rather than p
 
 ## 7. Verification
 
-Vitest covers web, mobile pure logic, API, shared logic and schemas. Each coverage config enforces at least 50%
-for lines, functions, branches, and statements.
+Vitest covers web, native React components, API, shared logic and schemas. Include all first-party
+application and package runtime sources in coverage, including web and mobile components and
+uncovered files. Require **at least 90% lines, functions, branches and statements across the entire project**.
+Keep isolated unit tests distinct from component integrations using real hooks, Query and cache.
+Testing Library events run in the test renderer; they are not browser/device E2E journeys.
+Coverage may combine both layers; Playwright/Maestro acceptance and Reassure measurements stay explicit.
+Do not achieve this by omitting components, narrowing the source set, lowering thresholds, adding
+unjustified ignore hints, replacing the component under test, or treating source-text checks as
+executed behavior. Test-only files, generated output, type declarations and third-party code are
+not application runtime sources; keep any such exclusions explicit and justified.
+
+Before **every commit and every push**, verify current, complete coverage reports for all affected
+workspaces and the entire project, including the required integration coverage, and confirm the
+90% minimum for each metric. The evidence must
+match the exact content being delivered. Partial, stale, skipped, failed or interrupted checks do
+not establish coverage and block commit/push. A commit may reuse an unchanged-source successful
+report for its subsequent push only after verifying that no source or test content changed.
 
 API integration tests use Testcontainers with MongoDB configured as a single-node replica set so
 transactions behave like production.
+The API's `test:coverage` combines its unit and integration projects into one source-wide report;
+Docker is required. Its ordinary `test` command selects the unit project only. Do not treat either
+partial API report as the complete 90% gate or replace real repository tests with mock-only coverage.
+
+Component tests use the actual application component implementations: React Testing Library for
+web and React Native Testing Library for mobile. Use Vitest for both. Mocks belong at explicit
+external-service, provider and device/native-runtime boundaries, never in place of the component
+under test. Replace hand-written React Native/HeroUI facsimiles and VM-based UI harnesses with
+equivalent actual-component behavior tests before removing their existing assertions.
+
+Use the project-locked `react-native-testing` skill (official Callstack guide), `perf-control`
+(Reassure guidance) and `perfetto` (official Perfetto guide) for the corresponding work. Their
+files live under `.agents/skills/<name>/SKILL.md`; sources/integrity are in `skills-lock.json`.
+The project uses Vitest, so translate generic Jest timer/mock examples to `vi` rather than adding
+a second runner. Testing Library has no separate test CLI; use the commands above. Reassure uses
+its measurement module with the actual Testing Library renderer; its Jest-oriented CLI is not used.
+
+Every component needs meaningful render/update scenarios with Reassure assertions, including
+rerender-count contracts calibrated from repeated observed samples. Record durations and sample
+counts; apply timing regression limits only against a stable, host-matched baseline. A passing
+finite-duration assertion alone does not establish a performance budget. Coverage-instrumented
+runs are not performance measurements. See [React benchmarks](docs/render-performance.md).
+
+For native responsiveness investigations, capture a bounded Perfetto trace around a focused
+Maestro flow, then analyze it using the **project-pinned** `bun run perfetto` tool. Verify the
+owned Development device, binary/API and fixture prerequisites in
+[native profiling](docs/native-performance.md). Keep traces private, inspect trace errors/data loss
+and report missing metrics as unavailable. React render time, native frame completion,
+input acknowledgment and visible target readiness are different measurements; do not substitute
+one for another. Run capture/automation as the Raspberry's single heavy job, with SQL analysis
+afterward; never launch Chrome or another build concurrently for profiling.
 
 Every product feature requires both:
 
 - Playwright coverage for web in `apps/web/e2e`;
 - Maestro coverage for mobile in `apps/mobile/.maestro/flows`.
 
-New and changed feature behavior must have 100% acceptance-path coverage across unit, API, and E2E
-suites. Add per-file 100% line, function, branch, and statement thresholds for deterministic logic
+New and changed feature behavior must cover every required acceptance path across unit, API, and E2E
+suites. Add per-file 90% line, function, branch, and statement thresholds for deterministic logic
 measured by Vitest. Because Playwright and Maestro do not expose statement metrics, exercise every
 user-visible success, empty, failure, and action path on both clients.
 
@@ -251,9 +310,10 @@ For each feature, fix, documentation change, dependency update, or CI change:
 
 1. honor the operator's selected branch and local-only/commit/push scope; otherwise start a new branch from current `main`;
 2. implement the complete task;
-3. run relevant checks;
-4. when authorized, commit with a signed Conventional Commit;
-5. when authorized, push with `git push origin <branch>` so the unified branch/PR CI validates it;
+3. run relevant checks, including the [entire-project 90% coverage gate](#7-verification);
+4. when authorized and that coverage gate passes, commit with a signed Conventional Commit;
+5. reverify that coverage gate before every authorized push with `git push origin <branch>` so
+   the unified branch/PR CI validates it;
 6. open a PR only after the user explicitly requests it.
 
 Allowed commit types:

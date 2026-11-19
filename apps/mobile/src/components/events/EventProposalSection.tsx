@@ -13,6 +13,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CircleCheck, CircleX, ClipboardCheck } from "lucide-react-native";
 import { View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
@@ -33,6 +34,7 @@ export function EventProposalSection({
   disabled?: boolean;
 }) {
   const { i18n } = useLingui();
+  const muted = useThemeColor("muted");
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -134,9 +136,11 @@ export function EventProposalSection({
         </View>
       ) : null}
       {!s.q.isPending && !s.q.isError && !s.q.items.length ? (
-        <Typography accessibilityLiveRegion="polite" className="text-muted">
-          {t("No proposals")}
-        </Typography>
+        <View accessibilityLiveRegion="polite">
+          <EmptyList icon={<ClipboardCheck size={28} color={muted} />}>
+            {t("No proposals")}
+          </EmptyList>
+        </View>
       ) : null}
       {/* Five source rows per page; never nest a virtualized feed inside the parent list. */}
       <GroupedList>

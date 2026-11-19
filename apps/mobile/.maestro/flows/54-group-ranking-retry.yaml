@@ -1,0 +1,31 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Explicit ranking retry reveals the recovered page
+# MANUAL: use a verified Preview build/account, an owned paginated ranking,
+# and an actual failed next-page request. Restore connectivity before running.
+# Start with the failed footer and previousPageUserId row visible; userId in
+# GROUP_RANKING_INPUT must belong to the failed page, never a preloaded page.
+tags: [manual, groups, rankings, retry]
+---
+- runScript: ../helpers/group-ranking-inputs.js
+- runScript: ../helpers/group-ranking-retry-inputs.js
+- assertVisible: ${output.groupRanking.group}
+- assertVisible:
+    id: ${output.groupRankingRetry.previousRow}
+- assertVisible: ${output.groupRankingRetry.retry}
+- assertNotVisible:
+    id: ${output.groupRanking.row}
+- tapOn: ${output.groupRankingRetry.retry}
+- assertVisible:
+    id: ${output.groupRankingRetry.previousRow}
+- scrollUntilVisible:
+    element:
+      id: ${output.groupRanking.row}
+    direction: DOWN
+    timeout: 60000
+    centerElement: true
+- assertVisible:
+    text: ${output.groupRanking.username}
+    childOf:
+      id: ${output.groupRanking.row}
+- assertNotVisible: ${output.groupRankingRetry.retry}
+- takeScreenshot: group-ranking-recovered-next-page

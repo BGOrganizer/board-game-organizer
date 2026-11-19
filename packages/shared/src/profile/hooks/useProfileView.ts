@@ -10,6 +10,7 @@ import type {
   ProfileView,
 } from "@board-game-organizer/schemas";
 import {
+  hashKey,
   infiniteQueryOptions,
   notifyManager,
   type QueryKey,
@@ -18,7 +19,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { updateOptimisticBase } from "../../common/optimisticOperation";
 import {
   CommunityApiError,
@@ -26,7 +27,10 @@ import {
   communityAccessDenied,
   communityRequest,
 } from "../../community/communityApi";
+import { useRecordListWindow } from "../../events/hooks/useRecordListWindow";
 import { ACTIVITY_FEED_POLICY, activityVisibilityVerified } from "../activityFeed";
+
+const ratingPoints = (page: ProfileRatingHistory) => page.points;
 
 function verifiedActivityPage<T extends ProfileActivityPage>(page: T): T {
   if (!activityVisibilityVerified(page))
@@ -159,11 +163,24 @@ export function useProfileActivities(
   kind?: ProfileActivityKind,
   limit: 5 | 10 = 5,
 ) {
-  const query = useInfiniteQuery({
-    ...profileActivitiesQuery(o, subject, kind, limit),
-    enabled: o.enabled !== false && Boolean(o.userId && subject),
+  const options = profileActivitiesQuery(o, subject, kind, limit);
+  const query = useProfileReadGuard(
+    o,
+    subject,
+    useInfiniteQuery({
+      ...options,
+      enabled: o.enabled !== false && Boolean(o.userId && subject),
+    }),
+  );
+  const window = useRecordListWindow({
+    scope: hashKey(options.queryKey),
+    pages: query.data?.pages,
+    pageSize: limit,
+    hasNextPage: query.hasNextPage,
+    isFetching: query.isFetching,
+    fetchNextPage: () => query.fetchNextPage({ cancelRefetch: false }),
   });
-  return useProfileReadGuard(o, subject, query);
+  return { ...query, ...window };
 }
 export function communityActivitiesQuery(
   o: CommunityApiOptions,
@@ -196,44 +213,84 @@ export function useCommunityActivities(
   network: CommunityNetwork,
   kind?: ProfileActivityKind,
 ) {
-  return useInfiniteQuery({
-    ...communityActivitiesQuery(o, network, kind),
+  const options = communityActivitiesQuery(o, network, kind);
+  const query = useInfiniteQuery({
+    ...options,
     enabled: o.enabled !== false && Boolean(o.userId),
   });
+  const window = useRecordListWindow({
+    scope: hashKey(options.queryKey),
+    pages: query.data?.pages,
+    pageSize: 10,
+    hasNextPage: query.hasNextPage,
+    isFetching: query.isFetching,
+    fetchNextPage: () => query.fetchNextPage({ cancelRefetch: false }),
+  });
+  return { ...query, ...window };
 }
 export function useProfileRatingGames(o: CommunityApiOptions, subject: string, query: string) {
-  const result = useInfiniteQuery({
-    queryKey: [...profileViewKeys.root(o), "games", subject, query] as const,
-    initialPageParam: 0,
-    queryFn: ({ pageParam, signal }) =>
-      communityRequest<ProfileRatingGames>(
-        o,
-        `profiles/${encodeURIComponent(subject)}/games?${new URLSearchParams({ cursor: String(pageParam), query })}`,
-        "GET",
-        undefined,
-        signal,
-      ),
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
-    enabled: o.enabled !== false && Boolean(o.userId && subject),
-    staleTime: 60_000,
+  const queryKey = [...profileViewKeys.root(o), "games", subject, query] as const;
+  const result = useProfileReadGuard(
+    o,
+    subject,
+    useInfiniteQuery({
+      queryKey,
+      initialPageParam: 0,
+      queryFn: ({ pageParam, signal }) =>
+        communityRequest<ProfileRatingGames>(
+          o,
+          `profiles/${encodeURIComponent(subject)}/games?${new URLSearchParams({ cursor: String(pageParam), query })}`,
+          "GET",
+          undefined,
+          signal,
+        ),
+      getNextPageParam: (last) => last.nextCursor ?? undefined,
+      enabled: o.enabled !== false && Boolean(o.userId && subject),
+      staleTime: 60_000,
+    }),
+  );
+  const window = useRecordListWindow({
+    scope: hashKey(queryKey),
+    pages: result.data?.pages,
+    hasNextPage: result.hasNextPage,
+    isFetching: result.isFetching,
+    fetchNextPage: () => result.fetchNextPage({ cancelRefetch: false }),
   });
-  return useProfileReadGuard(o, subject, result);
+  return { ...result, ...window };
 }
 export function useProfileRating(o: CommunityApiOptions, subject: string, gameId: number | null) {
-  const query = useInfiniteQuery({
-    queryKey: [...profileViewKeys.root(o), "rating", subject, gameId] as const,
-    initialPageParam: undefined as number | undefined,
-    queryFn: ({ pageParam, signal }) =>
-      communityRequest<ProfileRatingHistory>(
-        o,
-        `profiles/${encodeURIComponent(subject)}/games/${gameId}${pageParam ? `?cursor=${pageParam}` : ""}`,
-        "GET",
-        undefined,
-        signal,
-      ),
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
-    enabled: o.enabled !== false && Boolean(o.userId && subject && gameId),
-    staleTime: 60_000,
+  const queryKey = [...profileViewKeys.root(o), "rating", subject, gameId] as const;
+  const query = useProfileReadGuard(
+    o,
+    subject,
+    useInfiniteQuery({
+      queryKey,
+      initialPageParam: undefined as number | undefined,
+      queryFn: ({ pageParam, signal }) =>
+        communityRequest<ProfileRatingHistory>(
+          o,
+          `profiles/${encodeURIComponent(subject)}/games/${gameId}${pageParam ? `?cursor=${pageParam}` : ""}`,
+          "GET",
+          undefined,
+          signal,
+        ),
+      getNextPageParam: (last) => last.nextCursor ?? undefined,
+      enabled: o.enabled !== false && Boolean(o.userId && subject && gameId),
+      staleTime: 60_000,
+    }),
+  );
+  const window = useRecordListWindow({
+    scope: hashKey(queryKey),
+    pages: query.data?.pages,
+    pageSize: 100,
+    getItems: ratingPoints,
+    hasNextPage: query.hasNextPage,
+    isFetching: query.isFetching,
+    fetchNextPage: () => query.fetchNextPage({ cancelRefetch: false }),
   });
-  return useProfileReadGuard(o, subject, query);
+  const points = useMemo(
+    () => [...window.items].sort((a, b) => a.ordinal - b.ordinal),
+    [window.items],
+  );
+  return { ...query, ...window, points };
 }

@@ -56,13 +56,13 @@ tags: [manual, ota, startup]
     when:
       true: ${OTA_CASE === 'download-error'}
     commands:
-      - setAirplaneMode: true
+      - setAirplaneMode: enabled
       - tapOn:
           id: ota-update-accept
       - extendedWaitUntil:
           visible: 'The update could not be downloaded.*|Impossibile scaricare l’aggiornamento.*'
           timeout: 120000
-      - setAirplaneMode: false
+      - setAirplaneMode: disabled
 - runFlow:
     when:
       true: ${OTA_CASE === 'update' || OTA_CASE === 'download-error'}

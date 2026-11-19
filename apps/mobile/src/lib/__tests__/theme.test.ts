@@ -110,4 +110,5 @@ it("keeps both clients' runtime UI free of literal palettes and obsolete HeroUI 
   for (const app of ["mobile", "web"]) visitDirectory(`${root}apps/${app}/src`);
   expect(files).toBeGreaterThan(300);
   expect(violations).toEqual([]);
-});
+  // Parsing both complete client trees under coverage is not a render-time benchmark.
+}, 30_000);

@@ -13,6 +13,7 @@ import {
   UserRound,
   UsersRound,
 } from "lucide-react-native";
+import { memo } from "react";
 import { Platform, View } from "react-native";
 
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
@@ -24,9 +25,6 @@ import { useT } from "@/lib/i18n";
 export default function TabLayout() {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { isLoaded: isUserLoaded, user } = useUser();
-  const t = useT();
-  const router = useRouter();
-  const [foreground, muted] = useThemeColor(["foreground", "muted"]);
 
   if (!isAuthLoaded || (isSignedIn && !isUserLoaded)) {
     return (
@@ -48,6 +46,15 @@ export default function TabLayout() {
   if (!isSignedIn) return <Redirect href="/" />;
   if (!getMobileNumber(user?.unsafeMetadata)) return <Redirect href="/mobile-number" />;
 
+  return <MainTabs administrator={getBgoRole(user?.publicMetadata) === "ADMIN"} />;
+}
+
+// Session refreshes keep the same navigator options while access checks remain live above.
+const MainTabs = memo(function MainTabs({ administrator }: { administrator: boolean }) {
+  const t = useT();
+  const router = useRouter();
+  const [foreground, muted] = useThemeColor(["foreground", "muted"]);
+
   return (
     <Tabs
       screenOptions={{
@@ -56,7 +63,7 @@ export default function TabLayout() {
         headerRight: () => (
           <View style={{ marginRight: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
             <NotificationBell />
-            {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
+            {administrator ? (
               <Button
                 {...headerButtonProps}
                 variant="ghost"
@@ -83,6 +90,7 @@ export default function TabLayout() {
         name="tables"
         options={{
           title: t("History"),
+          tabBarButtonTestID: "main-tab-tables",
           headerTitle: () => <HeaderTitle title={t("History")} icon={Dices} />,
           tabBarIcon: ({ color }) => (
             <View style={{ position: "relative" }}>
@@ -96,6 +104,7 @@ export default function TabLayout() {
         name="events"
         options={{
           title: t("Events"),
+          tabBarButtonTestID: "main-tab-events",
           headerTitle: () => <HeaderTitle title={t("Events")} icon={CalendarDays} />,
           tabBarIcon: ({ color }) => (
             <View style={{ position: "relative" }}>
@@ -109,6 +118,7 @@ export default function TabLayout() {
         name="groups"
         options={{
           title: t("Groups"),
+          tabBarButtonTestID: "main-tab-groups",
           headerTitle: () => <HeaderTitle title={t("Groups")} icon={UsersRound} />,
           tabBarIcon: ({ color }) => (
             <View style={{ position: "relative" }}>
@@ -122,6 +132,7 @@ export default function TabLayout() {
         name="community"
         options={{
           title: t("Community"),
+          tabBarButtonTestID: "main-tab-community",
           headerTitle: () => <HeaderTitle title={t("Community")} icon={Network} />,
           tabBarIcon: ({ color }) => <Network size={26} color={color} />,
         }}
@@ -132,6 +143,7 @@ export default function TabLayout() {
         name="contacts"
         options={{
           title: t("Contacts"),
+          tabBarButtonTestID: "main-tab-contacts",
           headerTitle: () => <HeaderTitle title={t("Contacts")} icon={ContactRound} />,
           tabBarIcon: ({ color }) => (
             <View style={{ position: "relative" }}>
@@ -143,4 +155,4 @@ export default function TabLayout() {
       />
     </Tabs>
   );
-}
+});

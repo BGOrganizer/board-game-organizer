@@ -197,10 +197,14 @@ describe("useContacts friend request", () => {
   it("surfaces a failed friend-request response", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (_input: string | URL | Request, init?: RequestInit) =>
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) =>
         init?.method
           ? new Response(null, { status: 500 })
-          : new Response(JSON.stringify([]), { status: 200 }),
+          : Response.json(
+              String(input).includes("/suggestions")
+                ? { users: [], hasContacts: false, nextCursor: null }
+                : { rows: [], nextCursor: null },
+            ),
       ),
     );
 

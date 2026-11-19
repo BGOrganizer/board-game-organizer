@@ -28,6 +28,7 @@ function IdentityHeading({ title, icon: Icon, titleAccessory, titleAction }: Hea
     >
       <Icon size={20} color={foreground} accessible={false} />
       <Typography
+        accessible
         accessibilityRole="header"
         className="text-lg font-semibold text-foreground"
         style={{ flexShrink: 1, minWidth: 0 }}

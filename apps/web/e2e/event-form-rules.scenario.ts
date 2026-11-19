@@ -1,0 +1,97 @@
+import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
+import { expect, test } from "@playwright/test";
+import { completeMobileNumberIfNeeded } from "./mobile-number";
+
+function required(key: string) {
+  const value = process.env[key]?.trim();
+  if (!value) throw new Error(`${key} required for owned Event form acceptance`);
+  return value;
+}
+const origin = new URL(required("PLAYWRIGHT_BASE_URL"));
+const locale = required("FORM_RULES_LOCALE");
+const group = required("FORM_RULES_PUBLIC_GROUP");
+if (
+  required("FORM_RULES_ACK") !== "owned-development-groups" ||
+  !["en", "it"].includes(locale) ||
+  group.length < 5 ||
+  group.length > 120 ||
+  !["http:", "https:"].includes(origin.protocol) ||
+  origin.username ||
+  origin.password ||
+  (!["localhost", "127.0.0.1"].includes(origin.hostname) &&
+    !(origin.protocol === "https:" && origin.hostname.endsWith(".vercel.app"))) ||
+  process.env.CLERK_SECRET_KEY?.startsWith("sk_live_") ||
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_live_")
+)
+  throw new Error(
+    "Owned Development only; unique approved Public group administered/moderated by this actor required",
+  );
+// Fresh local creation draft required. Leaves only an unsaved draft; never submits valid data.
+const it = locale === "it";
+for (const width of [390, 1280])
+  test(`Event form name limits and Public eligibility ${locale}/${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await setupClerkTestingToken({ page });
+    await page.goto("/");
+    await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
+    await page.goto("/");
+    await completeMobileNumberIfNeeded(page);
+    await page.goto("/events/new");
+    const name = page.getByRole("textbox", {
+      name: it ? "Nome evento" : "Event name",
+      exact: true,
+    });
+    await expect(name).toBeEmpty();
+    await expect(name).toHaveAttribute("minlength", "5");
+    await expect(name).toHaveAttribute("maxlength", "30");
+    const publicRadio = page.getByRole("radio", { name: it ? "Pubblico" : "Public", exact: true });
+    await expect(publicRadio).toBeDisabled();
+    await expect(
+      page.getByText(it ? "Non disponibile" : "Unavailable", { exact: true }),
+    ).toHaveCount(0);
+    await page
+      .getByRole("button", {
+        name: it ? "Visibilità dell’evento: Guida al campo" : "Event visibility: Field help",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page
+        .getByRole("dialog")
+        .getByText(
+          it
+            ? "Gli eventi pubblici sono visibili a tutti e puoi partecipare senza essere membro del gruppo. Seleziona un gruppo pubblico approvato per abilitare questa opzione."
+            : "Public events are visible to everyone and can be joined without group membership. Select an approved public group to enable this option.",
+          { exact: true },
+        ),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await name.fill("abcd");
+    await page.getByRole("button", { name: it ? "Avanti" : "Next", exact: true }).click();
+    await expect(
+      page.getByText(
+        it
+          ? "Inserisci un nome per l'evento da 5 a 30 caratteri."
+          : "Enter an event name between 5 and 30 characters.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await name.fill("");
+    await name.pressSequentially("a".repeat(31));
+    expect((await name.inputValue()).length).toBe(30);
+    await page.getByRole("button", { name: new RegExp(`${it ? "Gruppo" : "Group"}$`) }).click();
+    const popover = page.getByRole("listbox");
+    await page.getByPlaceholder(it ? "Cerca gruppi" : "Search groups", { exact: true }).fill(group);
+    const option = popover.getByRole("option", { name: group, exact: true });
+    await expect(option).toBeVisible();
+    await expect(
+      popover.getByRole("img", {
+        name: it ? "Amministratore del gruppo" : "Group admin",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await option.click();
+    await expect(publicRadio).toBeEnabled();
+    await publicRadio.click();
+    await expect(publicRadio).toBeChecked();
+  });

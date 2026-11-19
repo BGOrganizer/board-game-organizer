@@ -71,6 +71,20 @@ describe("POST /api/contacts/sync", () => {
     expect(res.status).toBe(400);
   });
 
+  it("rejects syntactically invalid JSON before reading or replacing contacts", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/contacts/sync", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: '{"emails":',
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Invalid payload" });
+    expect(getDbMock).not.toHaveBeenCalled();
+    expect(transaction.run).not.toHaveBeenCalled();
+  });
+
   it("matches unique registered emails and normalized phones only", async () => {
     const database = fakeDb([
       { clerkId: "user_1", email: "self@example.com", mobileNumberNormalized: "391111111111" },

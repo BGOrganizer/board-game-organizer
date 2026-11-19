@@ -224,8 +224,11 @@ export async function optimisticMutationSignal(
 
 /** Seed another query from the server snapshot, never from a pending projection. */
 export function optimisticBaseData(client: QueryClient, key: QueryKey): unknown {
+  const journal = journals.get(client);
+  // Entries remain authoritative while the final operation's commit reconciler runs.
+  if (!journal?.entries.size) return client.getQueryData(key);
   const query = client.getQueryCache().find({ queryKey: key, exact: true });
-  const entry = query && journalFor(client).entries.get(query.queryHash);
+  const entry = query && journal.entries.get(query.queryHash);
   return entry ? entry.base : client.getQueryData(key);
 }
 

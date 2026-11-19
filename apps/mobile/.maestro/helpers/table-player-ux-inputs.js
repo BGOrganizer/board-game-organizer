@@ -32,6 +32,10 @@ var it = locale === "it";
 output.ux = {
   free: link("FREE"),
   full: link("FULL"),
+  fullEvent: "bgo-dev:///event/" + parts("FULL")[1],
+  tablesTab: literal(it ? "Tavoli" : "Tables"),
+  tableList: literal(it ? "Lista tavoli" : "Table list"),
+  tableLegend: literal(it ? "Legenda tavoli" : "Table legend"),
   confirmed: link("CONFIRMED"),
   edit: "bgo-dev:///event/wizard?eventId=" + parts("FREE")[1],
   tableTrigger: "event-draft-table-" + parts("FREE")[2],
@@ -41,21 +45,34 @@ output.ux = {
   empty: literal(it ? "Nessun utente in lista d'attesa" : "No players waiting"),
   join: literal(it ? "Mettiti in coda" : "Join waiting list"),
   waitingHelp: literal(it ? "Lista d'attesa: Guida al campo" : "Waiting list: Field help"),
+  seatsHelp: literal(it ? "Lista posti: Guida al campo" : "Seats list: Field help"),
+  seatsText: literal(
+    it
+      ? "Gli inviti in attesa non contano per l'accordo."
+      : "Pending invitations do not count toward agreement.",
+  ),
+  acceptedLegend: literal(it ? "Giocatore accettato" : "Accepted player"),
+  pendingLegend: literal(it ? "Invito in attesa" : "Invitation pending"),
   waitingText: literal(
     it
-      ? "I giocatori accettati in attesa possono votare. Gli inviti in sospeso non votano e non contano per l'accordo."
-      : "Accepted waiting players may vote. Pending invitations do not vote or count toward agreement.",
+      ? "I giocatori accettati in lista d'attesa possono votare. Possono partecipare se l'amministratore o l'app li seleziona secondo le regole del tavolo."
+      : "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
   ),
   player: literal(it ? "Giocatore" : "Player"),
   win: literal(it ? "% di vittorie" : "Win %"),
   next: literal(it ? "Avanti" : "Next"),
   name: literal(it ? "Nome tavolo" : "Table name"),
   nameHelp: literal(it ? "Nome tavolo: Guida al campo" : "Table name: Field help"),
+  nameGuide: literal(
+    it
+      ? "Scegli un nome riconoscibile per il tavolo, da 5 a 30 caratteri."
+      : "Name this table so players can recognize it. Use between 5 and 30 characters.",
+  ),
   count: literal(it ? "Numero giocatori" : "Number of players"),
   countHelp: literal(it ? "Numero giocatori: Guida al campo" : "Number of players: Field help"),
   countText: literal(
     it
-      ? "Scegli il minimo a sinistra e il massimo a destra. Servono almeno due giocatori e il minimo non può superare il massimo."
-      : "Choose the minimum on the left and maximum on the right. At least two players are required, and the minimum cannot exceed the maximum.",
+      ? "Scegli il numero minimo e massimo di giocatori. L'intervallo è limitato dai giochi scelti, secondo i dati di BGG."
+      : "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data.",
   ),
 };

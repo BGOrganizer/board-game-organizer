@@ -72,6 +72,19 @@ appId: com.bgo.boardgameorganizer.dev
     direction: DOWN
     timeout: 90000
 - assertVisible: "ZZ Page 43"
+# Reentry reveals retained address-book rows progressively without losing later pages.
+- tapOn: "Connections"
+- openLink: bgo-dev:///contacts?tab=device
+- scrollUntilVisible:
+    element: "E2E Target"
+    direction: UP
+    timeout: 30000
+- assertVisible: "^@[^ ]+$"
+- scrollUntilVisible:
+    element: "ZZ Page 43"
+    direction: DOWN
+    timeout: 90000
+- assertVisible: "ZZ Page 43"
 - scrollUntilVisible:
     element: "Send invite: E2E Unregistered"
     direction: UP

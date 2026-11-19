@@ -1,0 +1,192 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { NativeTestProviders } from "@/test/NativeTestProviders";
+import { plannedEvent, plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
+import { EventDetail } from "../EventDetail";
+
+const boundary = vi.hoisted(() => ({
+  event: undefined as typeof plannedEvent | undefined,
+  tables: [undefined] as unknown as (typeof plannedTable)[],
+  fetchNextPage: vi.fn(),
+  resetPresentation: vi.fn(),
+  refetch: vi.fn(),
+  getToken: vi.fn(async () => "fixture-token"),
+  push: vi.fn(),
+}));
+
+// Remote models/actions and session/router boundaries are controlled. Native lists, retained
+// panels, their headers, HeroUI tabs, cards and popovers remain the real code.
+vi.mock("expo-router", () => ({
+  useRouter: () => ({ push: boundary.push }),
+  useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+  useLocalSearchParams: () => ({}),
+  Stack: { Screen: () => null },
+}));
+vi.mock("@clerk/expo", () => ({ useAuth: () => ({ userId: "owner" }) }));
+vi.mock("@/lib/useCommunityApi", () => ({
+  useCommunityApi: () => ({
+    apiUrl: "https://retained-fixtures.test",
+    userId: "owner",
+    enabled: false,
+    getToken: boundary.getToken,
+  }),
+}));
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
+  useEventRecord: () => ({ data: boundary.event, refetch: boundary.refetch }),
+  useRecordTables: () => ({
+    items: boundary.tables,
+    hasNextPage: true,
+    fetchNextPage: boundary.fetchNextPage,
+    resetPresentation: boundary.resetPresentation,
+    isFetching: false,
+    isFetchNextPageError: false,
+    isPending: false,
+    isError: false,
+    isFetchingNextPage: false,
+    refetch: boundary.refetch,
+  }),
+  useEventRecordActions: () => ({ busy: false, blocking: false }),
+  useEventProposalSection: () => ({ visible: false }),
+  useNotificationChanges: () => ({
+    changes: [],
+    tabCounts: { details: 0, participants: 0, tables: 0 },
+    hasNextPage: false,
+    isPending: false,
+    isError: false,
+    isFetchingNextPage: false,
+    isFetchNextPageError: false,
+    isReading: false,
+    fetchNextPage: boundary.fetchNextPage,
+    refetch: boundary.refetch,
+    markAllAsRead: vi.fn(),
+    resetWindow: vi.fn(),
+  }),
+}));
+
+let client: QueryClient;
+let scrollCommands: {
+  scrollTo: (target: unknown, x: number, y: number, animated: boolean) => void;
+};
+beforeEach(() => {
+  vi.clearAllMocks();
+  boundary.event = plannedEvent;
+  boundary.tables = [plannedTable];
+  client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+  // Match the native-owned module used by the real ScrollView implementation.
+  scrollCommands = createRequire(import.meta.url)(
+    "react-native/Libraries/Components/ScrollView/ScrollViewCommands",
+  ).default;
+  vi.spyOn(scrollCommands, "scrollTo");
+});
+afterEach(() => {
+  client.clear();
+  vi.restoreAllMocks();
+});
+
+function Fixture() {
+  return (
+    <QueryClientProvider client={client}>
+      <NativeTestProviders>
+        <EventDetail eventId={plannedEvent.id} />
+      </NativeTestProviders>
+    </QueryClientProvider>
+  );
+}
+
+function nativeScrollHost(node: ReturnType<typeof screen.getByText>) {
+  let current: typeof node | null = node;
+  while (current && typeof current.props.onScroll !== "function") current = current.parent;
+  if (!current) throw new Error("Expected the actual native scroll host");
+  return current;
+}
+const bottomScroll = {
+  timeStamp: 1000,
+  nativeEvent: {
+    contentSize: { width: 390, height: 10000 },
+    layoutMeasurement: { width: 390, height: 500 },
+    contentOffset: { x: 0, y: 9500 },
+    zoomScale: 1,
+  },
+};
+
+async function changeTab(name: string, activeScroll: ReturnType<typeof nativeScrollHost>) {
+  const before = vi.mocked(scrollCommands.scrollTo).mock.calls.length;
+  await fireEvent.press(screen.getByRole("tab", { name }));
+  const calls = vi.mocked(scrollCommands.scrollTo).mock.calls.slice(before);
+  expect(calls).toHaveLength(1);
+  const [target, x, y, animated] = calls[0];
+  expect(target).toEqual(
+    expect.objectContaining({
+      props: expect.objectContaining({ onScroll: activeScroll.props.onScroll }),
+    }),
+  );
+  expect({ x, y, animated }).toEqual({ x: 0, y: 0, animated: false });
+}
+
+// This proves retained content and real ScrollView command intent; the native
+// renderer boundary does not execute physical scrolling or measure frame timing.
+it("retains actual Event content and headers across tab switches while rejecting hidden paging", async () => {
+  const view = await render(<Fixture />);
+  const detailsName = screen.getByText("Dates and times");
+  const detailHeader = screen.getByRole("header", { name: plannedEvent.name });
+  const detailsScroll = nativeScrollHost(detailsName);
+  expect(detailsName).toBeVisible();
+  expect(screen.queryByText(plannedTable.name)).toBeNull();
+  await changeTab("Tables", detailsScroll);
+  const tableName = screen.getByText(plannedTable.name);
+  const tablesScroll = nativeScrollHost(tableName);
+  const tableHeader = screen.getByRole("header", { name: plannedEvent.name });
+  expect(tableHeader).not.toBe(detailHeader);
+  const previousScroll = tablesScroll.props.onScroll;
+  await fireEvent(tablesScroll, "layout", {
+    nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 500 } },
+  });
+  const content = tablesScroll.queryAll((node) => typeof node.props.onLayout === "function")[0];
+  if (!content) throw new Error("Expected the actual native table scroll content host");
+  await fireEvent(content, "layout", {
+    nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 10000 } },
+  });
+  expect(screen.queryByText("Dates and times")).toBeNull();
+  for (const tab of ["Details", "Tables", "Details"]) {
+    await changeTab(tab, tab === "Details" ? tablesScroll : detailsScroll);
+    expect(screen.getByRole("tab", { name: tab })).toBeSelected();
+    if (tab === "Details") {
+      expect(screen.getByText("Dates and times")).toBe(detailsName);
+      expect(nativeScrollHost(screen.getByText("Dates and times"))).toBe(detailsScroll);
+      expect(screen.getByRole("header", { name: plannedEvent.name })).toBe(detailHeader);
+      expect(screen.queryByText(plannedTable.name)).toBeNull();
+      await act(() => previousScroll(bottomScroll));
+    } else {
+      expect(screen.getByText(plannedTable.name)).toBe(tableName);
+      expect(nativeScrollHost(screen.getByText(plannedTable.name))).toBe(tablesScroll);
+      expect(screen.getByRole("header", { name: plannedEvent.name })).toBe(tableHeader);
+    }
+  }
+  expect(boundary.fetchNextPage).not.toHaveBeenCalled();
+  expect(boundary.resetPresentation).toHaveBeenCalledTimes(2);
+  await changeTab("Tables", detailsScroll);
+  await fireEvent.press(screen.getByRole("button", { name: "Load more" }));
+  expect(boundary.fetchNextPage).toHaveBeenCalledOnce();
+  expect(boundary.getToken).not.toHaveBeenCalled();
+  await view.unmount();
+  expect(() => view.container).toThrow("unmounted test renderer");
+});
+
+it("updates a retained native table viewport when the authoritative record changes", async () => {
+  await render(<Fixture />);
+  await fireEvent.press(screen.getByRole("tab", { name: "Tables" }));
+  const tableName = screen.getByText(plannedTable.name);
+  const tablesScroll = nativeScrollHost(tableName);
+  await fireEvent.press(screen.getByRole("tab", { name: "Details" }));
+  boundary.tables = [{ ...plannedTable, name: "Updated authoritative table" }];
+  await screen.rerender(<Fixture />);
+  await fireEvent.press(screen.getByRole("tab", { name: "Tables" }));
+  expect(screen.getByText("Updated authoritative table")).toBe(tableName);
+  expect(nativeScrollHost(screen.getByText("Updated authoritative table"))).toBe(tablesScroll);
+  expect(screen.queryByText(plannedTable.name)).toBeNull();
+  expect(boundary.getToken).not.toHaveBeenCalled();
+});
+
+import { createRequire } from "node:module";

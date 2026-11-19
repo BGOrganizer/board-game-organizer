@@ -113,6 +113,16 @@ test(`owned Group creation draft ${locale}/${theme}`, async ({ page }) => {
   await expect(page.getByText(l.legend, { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   const name = page.getByRole("textbox", { name: l.name, exact: true });
+  await expect(name).toHaveAttribute("minlength", "5");
+  await expect(name).toHaveAttribute("maxlength", "30");
+  await page.getByRole("button", { name: `${l.name}: ${l.help}`, exact: true }).click();
+  await expect(
+    page.getByText(
+      it ? "Scegli un nome da 5 a 30 caratteri." : "Choose a name, from 5 to 30 characters.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(name).toBeEmpty();
   await page.getByRole("button", { name: l.create, exact: true }).click();
   await expect(name).toBeFocused();

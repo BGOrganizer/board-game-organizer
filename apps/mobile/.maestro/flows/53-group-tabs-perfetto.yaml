@@ -1,0 +1,27 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Focused owned Group Members and Events trace
+# Start in the exact verified Group; capture only the tab interactions, without navigation setup.
+tags: [manual, performance, perfetto]
+---
+- runScript: ../helpers/cached-detail-navigation-inputs.js
+- assertVisible: ${output.details.groupName}
+- repeat:
+    times: 2
+    commands:
+      - tapOn:
+          id: top-tab-members
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: top-tab-members
+          selected: true
+      - assertVisible:
+          id: group-members-scroll
+      - tapOn:
+          id: top-tab-events
+          waitToSettleTimeoutMs: 500
+      - assertVisible:
+          id: top-tab-events
+          selected: true
+      - assertVisible:
+          id: list-search-input
+      - assertVisible: ${output.details.eventName}

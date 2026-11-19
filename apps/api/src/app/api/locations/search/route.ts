@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     trace("starting", "lookup");
     const items = await geocodeAddresses(query.data);
     trace("completed", "lookup", 200);
-    return corsJson({ items }, request);
+    return corsJson({ items }, {}, request);
   } catch (error) {
     trace(
       "failed",

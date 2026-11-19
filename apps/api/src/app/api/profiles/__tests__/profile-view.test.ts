@@ -20,13 +20,15 @@ vi.mock("@clerk/nextjs/server", () => ({ auth: m.auth }));
 vi.mock("@/app/lib/db", () => ({ getDb: m.db }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: m.ensure }));
 vi.mock("@/app/lib/profile/profile.service", () => ({
-  ProfileService: vi.fn(() => ({
-    profile: m.profile,
-    feed: m.feed,
-    networkFeed: m.network,
-    games: m.games,
-    history: m.history,
-  })),
+  ProfileService: vi.fn(function MockProfileService() {
+    return {
+      profile: m.profile,
+      feed: m.feed,
+      networkFeed: m.network,
+      games: m.games,
+      history: m.history,
+    };
+  }),
 }));
 const context = (userId = "subject", gameId = "7") => ({
   params: Promise.resolve({ userId, gameId }),

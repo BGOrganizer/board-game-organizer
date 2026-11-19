@@ -27,7 +27,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { mergeCreationIntents, withClientRequestId } from "../../common/clientMutation";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import { useOptimisticCreations } from "../../common/hooks/useOptimisticCreations";
@@ -57,6 +57,7 @@ import {
   projectGroupParticipantBan,
 } from "../../events/eventParticipantCache";
 import { revokeProposalReview } from "../../events/eventProposalCache";
+import { useRecordListWindow } from "../../events/hooks/useRecordListWindow";
 import { notificationFilters } from "../../notifications/notificationAttentionCache";
 import { beginNotificationItemRead } from "../../notifications/notificationReadOperation";
 import { revokeCachedGroupAccess } from "../groupAccessCache";
@@ -68,6 +69,7 @@ import {
   groupCreationRecord,
 } from "../groupOptimisticCreation";
 import { isGroupManagerRole } from "../groupPolicy";
+import { groupRecordSeed } from "../groupRecordSeed";
 export type GroupRecordScope = "mine" | "public" | "moderation";
 export type GroupPeopleScope = "accepted" | "pending" | "bans";
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
@@ -163,7 +165,15 @@ export function useGroupRecords(
   roles: readonly GroupRecordListRole[] = groupRecordListRoles,
   type?: GroupRecord["type"],
 ) {
-  const paging = useInfiniteQuery(groupRecordsPageQuery(options, scope, query, roles, type));
+  const config = groupRecordsPageQuery(options, scope, query, roles, type);
+  const paging = useInfiniteQuery(config);
+  const window = useRecordListWindow({
+    scope: hashKey(config.queryKey),
+    pages: paging.data?.pages,
+    hasNextPage: paging.hasNextPage,
+    isFetching: paging.isFetching,
+    fetchNextPage: () => paging.fetchNextPage({ cancelRefetch: false }),
+  });
   const creations = useOptimisticCreations<CreateGroupVariables, GroupRecordResponse>(
     groupRecordKeys.mutation(options, "", "create"),
   );
@@ -178,11 +188,10 @@ export function useGroupRecords(
               row.name.toLowerCase().includes(query.trim().toLowerCase()),
           )
       : [];
-  const items: ClientGroupRecord[] = mergeCreationIntents(
-    paging.data?.pages.flatMap((page) => page.items) ?? [],
-    local,
-  );
-  return { ...paging, isPending: paging.isPending && !items.length, items };
+  const items: ClientGroupRecord[] = local.length
+    ? mergeCreationIntents(window.items, local)
+    : window.items;
+  return { ...paging, ...window, isPending: paging.isPending && !items.length, items };
 }
 export function useGroupCreationDraft(options: CommunityApiOptions, draftId?: string) {
   return useOptimisticCreations<CreateGroupVariables, GroupRecordResponse>(
@@ -211,21 +220,7 @@ export function groupRecordDetailQuery(options: CommunityApiOptions, id: string,
 }
 export function useGroupRecord(options: CommunityApiOptions, id: string, review = false) {
   const client = useQueryClient();
-  // List responses contain every group-detail field. Moderator proposals are never seeded from ordinary lists.
-  const lists = review
-    ? []
-    : client.getQueriesData<{ pages: Array<CommunityPageResponse<GroupRecordResponse>> }>({
-        queryKey: groupRecordKeys.root(options),
-        predicate: (query) => query.queryKey[3] === "list" && query.queryKey[4] !== "moderation",
-      });
-  const cached = lists
-    .flatMap(
-      ([key, data]) =>
-        (optimisticBaseData(client, key) as typeof data)?.pages.flatMap((page) =>
-          page.items.map((row) => ({ row, key })),
-        ) ?? [],
-    )
-    .find((item) => item.row.id === id);
+  const cached = review ? undefined : groupRecordSeed(client, groupRecordKeys.root(options), id);
   const result = useQuery({
     ...groupRecordDetailQuery(options, id, review),
     ...(cached
@@ -276,19 +271,26 @@ export function useGroupPeople(
   mode: GroupPeopleScope = "accepted",
   query = "",
 ) {
-  const paging = useInfiniteQuery(groupPeopleQuery(options, id, mode, query));
-  return {
-    ...paging,
-    items:
-      paging.data?.pages
-        .flatMap((page) => page.items)
-        .filter((person) =>
-          mode === "bans"
-            ? Boolean(person.ban)
-            : person.isAdmin ||
-              person.membership?.status === (mode === "accepted" ? "ACCEPTED" : "PENDING"),
-        ) ?? [],
-  };
+  const config = groupPeopleQuery(options, id, mode, query);
+  const paging = useInfiniteQuery(config);
+  const window = useRecordListWindow({
+    scope: hashKey(config.queryKey),
+    pages: paging.data?.pages,
+    hasNextPage: paging.hasNextPage,
+    isFetching: paging.isFetching,
+    fetchNextPage: () => paging.fetchNextPage({ cancelRefetch: false }),
+  });
+  const items = useMemo(
+    () =>
+      window.items.filter((person) =>
+        mode === "bans"
+          ? Boolean(person.ban)
+          : person.isAdmin ||
+            person.membership?.status === (mode === "accepted" ? "ACCEPTED" : "PENDING"),
+      ),
+    [window.items, mode],
+  );
+  return { ...paging, ...window, items };
 }
 export function groupMembershipFeedback(
   action: DecideGroupMembershipInput["action"],

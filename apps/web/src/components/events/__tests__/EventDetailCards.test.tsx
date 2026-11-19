@@ -148,16 +148,25 @@ it("uses one role control for cumulative facts in both detail and list", async (
   renderWithI18n(<EventCard event={event} />);
   expect(screen.getAllByRole("button", { name: "Roles and participation" })).toHaveLength(1);
 });
-it("retains the existing voting legend below the identity and tabs", () => {
-  renderWithI18n(<EventVoteLegend />);
-  fireEvent.click(screen.getByRole("button", { name: "Voting legend" }));
-  for (const label of ["Yes", "If needed", "No"]) expect(screen.getByText(label)).not.toBeNull();
-  expect(
-    screen.getByText(
-      "Only accepted players vote. Pending players keep a reserved place until accepted. Join at least one table to participate in the event.",
-    ),
-  ).not.toBeNull();
-});
+it.each([undefined, "event", "table"] as const)(
+  "explains %s participation and the minimum positive vote",
+  (scope) => {
+    renderWithI18n(<EventVoteLegend label="Options" scope={scope} />);
+    fireEvent.click(screen.getByRole("button", { name: "Options: Voting legend" }));
+    for (const label of ["Yes", "If needed", "No"]) expect(screen.getByText(label)).not.toBeNull();
+    expect(
+      screen.getByText(
+        scope === "table"
+          ? "You can vote only if you are an accepted participant at this table."
+          : "You can vote only if you are an accepted participant in at least one table in the event.",
+      ),
+    ).not.toBeNull();
+    expect(
+      screen.getByText('Choose at least one "Yes" or "If needed" option in this category.'),
+    ).not.toBeNull();
+    expect(screen.queryByText("Field help")).toBeNull();
+  },
+);
 it.each([true, false])(
   "retains Table state, rating=%s and all list option controls in detail",
   async (enabled) => {

@@ -8,6 +8,7 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 import timers from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import { mandatoryTestJobs } from "../ci-fail-fast.mjs";
 
 const repo = "BGOrganizer/board-game-organizer",
   sha = "a".repeat(40),
@@ -154,7 +155,15 @@ test("current-PR CLI distinguishes verified and revoked revisions", async (t) =>
   assert(!revoked.errors.join().includes("unit-token"));
 });
 test("gate CLI reports success only for its actual required status set", async (t) => {
-  const names = ["context", "commitlint", "lint", "typecheck", "unit-tests", "integration-tests"];
+  const names = [
+    "context",
+    "commitlint",
+    "lint",
+    "typecheck",
+    "unit-tests",
+    "integration-tests",
+    "native-tooling",
+  ];
   const env = {
     CI_MODE: "branch",
     CI_RESULTS: JSON.stringify(Object.fromEntries(names.map((n) => [n, "success"]))),
@@ -190,7 +199,16 @@ test("watchdog CLI exits completed runs, polls lane failures and cancels only sh
         return new Response(null, { status: cancelStatus });
       }
       if (url.includes("/jobs"))
-        return Response.json({ jobs: [{ name: "🧹 Biome lint & format", conclusion: "failure" }] });
+        return Response.json({
+          jobs: [
+            ...mandatoryTestJobs.map((name) => ({
+              name,
+              status: "completed",
+              conclusion: "success",
+            })),
+            { name: "🧹 Biome lint & format", status: "completed", conclusion: "failure" },
+          ],
+        });
       return Response.json({
         status: reads++ && cancelStatus === 409 ? "completed" : "in_progress",
       });
@@ -202,10 +220,43 @@ test("watchdog CLI exits completed runs, polls lane failures and cancels only sh
     url.endsWith("/cancel")
       ? new Response(null, { status: 500 })
       : url.includes("/jobs")
-        ? Response.json({ jobs: [{ name: "🏗️ Build API", conclusion: "failure" }] })
+        ? Response.json({
+            jobs: [
+              ...mandatoryTestJobs.map((name) => ({
+                name,
+                status: "completed",
+                conclusion: "success",
+              })),
+              { name: "🏗️ Build API", status: "completed", conclusion: "failure" },
+            ],
+          })
         : Response.json({ status: "in_progress" }),
   );
   assert.equal(failed.code, 1);
+});
+test("watchdog CLI lets a live test matrix finish after another test has failed", async (t) => {
+  let jobReads = 0;
+  let cancels = 0;
+  const result = await cli(t, "ci-fail-fast", {}, async (url) => {
+    if (url.endsWith("/cancel")) {
+      cancels++;
+      assert.equal(jobReads, 2, "Cancellation must wait for the still-running test matrix");
+      return new Response(null, { status: 202 });
+    }
+    if (url.includes("/jobs")) {
+      jobReads++;
+      return Response.json({
+        jobs: mandatoryTestJobs.map((name) => ({
+          name,
+          status: name === "Unit tests (mobile)" && jobReads === 1 ? "in_progress" : "completed",
+          conclusion: name === "Unit tests (web)" ? "failure" : "success",
+        })),
+      });
+    }
+    return Response.json({ status: "in_progress" });
+  });
+  assert.equal(result.code, 0);
+  assert.equal(cancels, 1);
 });
 test("publication CLI generates changelog and safe output receipts without exposing credentials", async (t) => {
   assert.equal((await cli(t, "publish-pr-draft", { PR_BASE_SHA: "bad" })).code, 1);

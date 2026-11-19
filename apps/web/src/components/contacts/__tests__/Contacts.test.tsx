@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   searchResult: false,
   suggestion: false,
   mixed: false,
+  more: false,
 }));
 
 const target = {
@@ -58,7 +59,23 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   useReadNotificationAttention: () => ({ read: vi.fn(), error: null }),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
   useContacts: () => ({
+    knownConnectionIds: {
+      friends: new Set(mocks.friends ? ["user_2"] : []),
+      following: new Set(mocks.following ? ["user_2", ...(mocks.mixed ? ["user_3"] : [])] : []),
+      followers: new Set(mocks.mixed ? ["user_4"] : []),
+      blocked: new Set(mocks.mixed ? ["user_5"] : mocks.blockedByMe ? ["user_2"] : []),
+    },
+    friendRequestContext: (id: string) =>
+      id === "user_2"
+        ? mocks.pending
+          ? "incoming"
+          : mocks.sent
+            ? "outgoing"
+            : undefined
+        : undefined,
     following: {
+      hasNextPage: mocks.more,
+      fetchNextPage: vi.fn(async () => undefined),
       data: mocks.following
         ? [
             {
@@ -106,6 +123,8 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
       isError: mocks.friendsError,
     },
     pending: {
+      hasNextPage: mocks.more,
+      fetchNextPage: vi.fn(async () => undefined),
       data: mocks.pending ? [{ fromUserId: "user_2", toUserId: "user_1", profile: target }] : [],
       isLoading: mocks.loading,
       isSuccess: !mocks.loading,
@@ -139,6 +158,8 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
       isError: false,
     },
     suggestions: {
+      hasNextPage: mocks.more,
+      fetchNextPage: vi.fn(async () => undefined),
       data: {
         users: mocks.suggestion ? [{ ...target, isFollowing: false }] : [],
         nextCursor: null,
@@ -172,15 +193,20 @@ vi.mock("@/components/contacts/UserMenu", () => ({
   UserMenu: ({
     user,
     canSendFriendRequest,
-    friendRequest,
+    friendRequest: initialFriendRequest,
+    resolveFriendRequest,
     onAction,
   }: {
     user: typeof target;
     canSendFriendRequest?: boolean;
     friendRequest?: "incoming" | "outgoing";
+    resolveFriendRequest?: () => "incoming" | "outgoing" | undefined;
     onAction: (key: string) => void;
   }) => {
     const [open, setOpen] = useState(false);
+    const friendRequest = open
+      ? (initialFriendRequest ?? resolveFriendRequest?.())
+      : initialFriendRequest;
     return (
       <div>
         <button type="button" aria-label={`Actions: ${user.name}`} onClick={() => setOpen(!open)}>
@@ -240,7 +266,21 @@ describe("Contacts tabs", () => {
       searchResult: false,
       suggestion: false,
       mixed: false,
+      more: false,
     });
+  });
+
+  it.each([
+    ["Connections", "No connections yet"],
+    ["Requests", "No friend requests"],
+    ["Contacts", "No contacts to invite"],
+  ])("does not announce %s empty while cached/source pages remain", (tab, empty) => {
+    mocks.following = false;
+    mocks.more = true;
+    renderWithI18n(<Contacts />);
+    fireEvent.click(screen.getByRole("tab", { name: tab }));
+    expect(screen.queryByText(empty)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows one empty connections state and search guidance before typing", () => {

@@ -1,14 +1,16 @@
 import { Tabs } from "heroui-native/tabs";
 import { Globe, LockKeyhole, Search } from "lucide-react-native";
-import { useState } from "react";
-import { View } from "react-native";
+import { memo, useState } from "react";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
+import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupList } from "./GroupList";
+
+const MemoizedGroupList = memo(GroupList);
 
 export function Groups({
   initialSection = "private",
@@ -17,7 +19,7 @@ export function Groups({
 }) {
   const t = useT();
   const options = useCommunityApi();
-  const [section, setSection] = useState<string>(initialSection);
+  const [selectedSection, setSection] = useState<string>(initialSection);
   return (
     <NotificationAttentionScope
       options={options}
@@ -27,7 +29,7 @@ export function Groups({
         { kind: "group-list", id: "search" },
       ]}
     >
-      <Tabs value={section} onValueChange={setSection} style={{ flex: 1 }}>
+      <Tabs value={selectedSection} onValueChange={setSection} style={{ flex: 1 }}>
         <MainTabBar>
           <TabTrigger icon={LockKeyhole} value="private" style={{ flexDirection: "row", gap: 6 }}>
             <Tabs.Label>{t("Private groups")}</Tabs.Label>
@@ -42,13 +44,17 @@ export function Groups({
             <NotificationTabBadge target={{ kind: "group-list", id: "search" }} />
           </TabTrigger>
         </MainTabBar>
-        <View style={{ flex: 1 }}>
-          <GroupList
-            key={section}
-            scope={section === "search" ? "public" : "mine"}
-            type={section === "private" ? "PRIVATE" : section === "public" ? "PUBLIC" : undefined}
-          />
-        </View>
+        {(["private", "public", "search"] as const).map((section) => (
+          <RetainedTabPanel
+            key={JSON.stringify([options.apiUrl, options.userId, section])}
+            active={selectedSection === section}
+          >
+            <MemoizedGroupList
+              scope={section === "search" ? "public" : "mine"}
+              type={section === "private" ? "PRIVATE" : section === "public" ? "PUBLIC" : undefined}
+            />
+          </RetainedTabPanel>
+        ))}
       </Tabs>
     </NotificationAttentionScope>
   );

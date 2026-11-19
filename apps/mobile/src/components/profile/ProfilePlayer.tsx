@@ -6,10 +6,13 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
+import { Gamepad2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
@@ -19,6 +22,7 @@ import { ProfileRatingChart } from "./ProfileRatingChart";
 import { ProfileStats } from "./ProfileStats";
 
 export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: string }) {
+  const muted = useThemeColor("muted");
   const t = useT(),
     { i18n } = useLingui(),
     o = useCommunityApi();
@@ -32,9 +36,7 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
   }, [search]);
   const games = useProfileRatingGames(o, userId, query),
     history = useProfileRating(o, userId, gameId);
-  const choices = communityAccessDenied(games.error)
-    ? []
-    : (games.data?.pages.flatMap((p) => p.items) ?? []);
+  const choices = communityAccessDenied(games.error) ? [] : games.items;
   const data =
     gameId === null || communityAccessDenied(games.error) || communityAccessDenied(history.error)
       ? undefined
@@ -42,7 +44,7 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
   const selected =
     gameId === null ? undefined : (choices.find((g) => g.id === gameId) ?? data?.game);
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
-  const points = [...(history.data?.pages ?? [])].reverse().flatMap((p) => p.points);
+  const points = history.points;
   return (
     <View style={{ gap: 12 }}>
       <Typography accessibilityRole="header" className="font-semibold text-foreground">
@@ -107,7 +109,7 @@ export function ProfilePlayer({ userId, viewKey }: { userId: string; viewKey: st
         </View>
       ) : null}
       {!choices.length && !games.isPending && !games.isError && !query ? (
-        <Typography className="text-muted">{t("No rated games yet")}</Typography>
+        <EmptyList icon={<Gamepad2 size={28} color={muted} />}>{t("No rated games yet")}</EmptyList>
       ) : null}
       {gameId && history.isPending ? (
         <Skeleton style={{ width: "100%", height: 180, borderRadius: 12 }} />

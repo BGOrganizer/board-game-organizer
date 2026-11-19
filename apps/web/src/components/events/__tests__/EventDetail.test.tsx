@@ -4,8 +4,8 @@ import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { eventId, groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { messages as italian } from "../../../../../../messages/it.js";
@@ -22,16 +22,11 @@ vi.mock("@/lib/useCommunityApi", () => ({
     feedback: mocks.feedback,
   }),
 }));
-// jsdom has no layout; browser acceptance verifies the real Virtualizer separately.
-vi.mock("@heroui/react/rac", async (original) => ({
-  ...(await original<typeof import("@heroui/react/rac")>()),
-  Virtualizer: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
 let event: PlannedEventResponse,
   tables: PlannedTableResponse[],
   fail = false,
   failWrite = false,
-  fetcher: ReturnType<typeof vi.fn>;
+  fetcher: ReturnType<typeof vi.fn<(url: string, init?: RequestInit) => Promise<Response>>>;
 function multipleSchedule() {
   const alternative = "99999999-9999-4999-8999-999999999999";
   event = {
@@ -69,7 +64,97 @@ function mount(
   );
   return client;
 }
+it.each([
+  [false, false],
+  [true, false],
+  [false, true],
+  [true, true],
+])("shows help only for multiple dates=%s and locations=%s", async (dates, locations) => {
+  multipleSchedule();
+  if (!dates) event = { ...event, dates: event.dates.slice(0, 1) };
+  if (!locations) event = { ...event, locations: event.locations.slice(0, 1) };
+  mount();
+  await screen.findByRole("heading", { name: "Dates and times" });
+  expect(screen.queryByRole("heading", { name: "Details" })).toBeNull();
+  for (const [label, multiple] of [
+    ["Dates and times", dates],
+    ["Locations", locations],
+  ] as const) {
+    const help = screen.queryByRole("button", { name: `${label}: Voting legend` });
+    if (!multiple) expect(help).toBeNull();
+    else {
+      expect(help).not.toBeNull();
+      fireEvent.click(help as HTMLElement);
+      const popover = await screen.findByRole("dialog");
+      expect(
+        within(popover).getByText(
+          'Choose at least one "Yes" or "If needed" option in this category.',
+        ),
+      ).not.toBeNull();
+      expect(
+        within(popover).getByText(
+          "You can vote only if you are an accepted participant in at least one table in the event.",
+        ),
+      ).not.toBeNull();
+      fireEvent.keyDown(popover, { key: "Escape", code: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    }
+  }
+});
+it("hides voting help after confirmation when only the final date and location remain", async () => {
+  multipleSchedule();
+  event = {
+    ...event,
+    status: "CONFIRMED",
+    confirmed: {
+      dateId: event.dates[0].id,
+      locationId: event.locations[0].id,
+      at: event.createdAt,
+    },
+  };
+  mount();
+  await screen.findByRole("heading", { name: "Dates and times" });
+  expect(screen.queryByRole("button", { name: /Voting legend/ })).toBeNull();
+  expect(
+    within(screen.getByRole("region", { name: "Dates and times" })).getAllByRole("listitem"),
+  ).toHaveLength(1);
+  expect(
+    within(screen.getByRole("region", { name: "Locations" })).getAllByRole("listitem"),
+  ).toHaveLength(1);
+});
+it("renders the category and concise voting rules in Italian without field guides", async () => {
+  multipleSchedule();
+  mount(new QueryClient({ defaultOptions: { queries: { retry: false } } }), "it");
+  fireEvent.click(await screen.findByRole("button", { name: "Date e Orari: Legenda voti" }));
+  const popover = screen.getByRole("dialog");
+  expect(
+    within(popover).getByText(
+      "Puoi votare solo se partecipi ad almeno un tavolo dell'evento con iscrizione accettata.",
+    ),
+  ).not.toBeNull();
+  expect(
+    within(popover).getByText(
+      'Scegli almeno un\'opzione "Sì" o "Se necessario" in questa categoria.',
+    ),
+  ).not.toBeNull();
+  expect(screen.queryByText("Guida al campo")).toBeNull();
+});
 beforeEach(() => {
+  installBrowserIntersections();
+  // Browser measurement only: preserve real RAC row/layout ownership within a
+  // finite notification list viewport, including its dynamic overlay limit.
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.matches('[role="listbox"]') ? 320 : 0;
+  });
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.matches('[role="listbox"]')
+      ? Math.min(320, Number.parseFloat(this.style.maxHeight) || 320)
+      : 0;
+  });
   vi.clearAllMocks();
   const header = document.createElement("header");
   header.id = "page-header-actions";
@@ -135,6 +220,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetcher);
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.getElementById("page-header-actions")?.remove();
 });
@@ -275,7 +361,7 @@ it("does not retain forbidden cached Table cards or submit their IDs for attenti
   const original = fetcher.getMockImplementation();
   if (!original) throw new Error("Missing adapter");
   let denied = false;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     denied && url.includes("/tables?")
       ? Promise.resolve(Response.json({ error: "Forbidden" }, { status: 403 }))
       : original(url, init),
@@ -313,7 +399,7 @@ it.each([true, false])(
     let finish: ((response: Response) => void) | undefined;
     const original = fetcher.getMockImplementation();
     if (!original) throw new Error("Missing read adapter");
-    fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
       url.endsWith("/state") && init?.method === "PATCH"
         ? new Promise<Response>((resolve) => {
             finish = resolve;
@@ -492,7 +578,7 @@ it("blocks header finalization while only cached summary data is available, then
   });
   let resolve!: (value: Response) => void;
   const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
     url.endsWith(`/events/${eventId}`)
       ? new Promise<Response>((done) => {
           resolve = done;
@@ -591,7 +677,7 @@ it("presents public start, end and booking cutoff with the same labelled date/ti
     const section = await screen.findByRole("region", { name });
     expect(within(section).getByText(name)).not.toBeNull();
     expect(section.querySelector("li time")).not.toBeNull();
-    expect(within(section).getByRole("button", { name: `${name}: Field help` })).not.toBeNull();
+    expect(within(section).queryByRole("button", { name: /legend|Field help/ })).toBeNull();
   }
 });
 async function selectVote(label: string) {
@@ -681,6 +767,8 @@ it("hydrates missing agreement/table fields from a canonical list summary withou
   await act(async () => release());
   fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
   expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
+  expect(screen.queryByRole("heading", { name: "Table list" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Table legend" })).toBeNull();
 });
 it("retries uncached event and table failures instead of turning them into empty success", async () => {
   fail = true;
@@ -819,10 +907,10 @@ it("renders pending/unavailable agreements, location votes, paging and manual co
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 });
-it("opens unified event/table routes, one voting legend and guarded Event deletion without legacy drafts", async () => {
+it("opens unified event/table routes, category-scoped voting legends and guarded Event deletion without legacy drafts", async () => {
   mount();
   expect(await screen.findByRole("heading", { name: event.name })).not.toBeNull();
-  expect(screen.getAllByRole("button", { name: "Voting legend" })).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: /Voting legend/ })).toBeNull();
   expect(screen.getByRole("link", { name: "Edit event" }).getAttribute("href")).toBe(
     `/events/${eventId}/edit`,
   );
@@ -961,7 +1049,7 @@ it("shows a disabled owner confirmation in the app header, explains agreement an
   const card = heading.closest(".card");
   expect(card?.querySelector("img")).not.toBeNull();
   expect(heading.previousElementSibling?.classList.contains("lucide-calendar-days")).toBe(true);
-  const legend = screen.getByRole("button", { name: "Voting legend" }),
+  const legend = screen.getByRole("heading", { name: "Dates and times" }),
     badge = screen.getByRole("button", { name: "Planning" });
   expect(legend.closest(".card")).toBeNull();
   expect(card?.contains(badge)).toBe(true);
@@ -980,7 +1068,7 @@ it("shows a disabled owner confirmation in the app header, explains agreement an
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(screen.getByRole("region", { name: "Details" })).not.toBeNull();
-  expect(screen.getByRole("button", { name: "Date and time: Field help" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Date and time: Field help" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Event name: Field help" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Group: Field help" })).toBeNull();
   const date = new Intl.DateTimeFormat("en", {

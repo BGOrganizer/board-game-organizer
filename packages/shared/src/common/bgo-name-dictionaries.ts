@@ -231,7 +231,7 @@ export const nameDictionaries: Record<NameLanguage, Record<NameCategory, string[
       "Night of the Game Boards",
       "Cards in Good Company",
       "The Meeple Gathering",
-      "An Afternoon of Brilliant Moves",
+      "Afternoon of Brilliant Moves",
       "A Turn for Adventure",
       "Mission: Game Night",
       "The Strategy Challenge",

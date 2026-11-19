@@ -87,6 +87,13 @@ tags: [manual, cards]
 - assertVisible: ${output.cardEventRole}
 - takeScreenshot: card-event-participant-avatar-role
 - tapOn: ${output.cardTables}
+# Reenter the same Event list owner: identity/controls remain usable after cached subtab switches.
+- repeat:
+    times: 2
+    commands:
+      - tapOn: ${output.cardOverview}
+      - assertVisible: ${output.cardEventTitle}
+      - tapOn: ${output.cardTables}
 - scrollUntilVisible:
     element:
       text: ${output.cardTable}

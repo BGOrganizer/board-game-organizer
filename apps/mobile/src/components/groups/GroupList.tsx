@@ -10,6 +10,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Check, Crown, Mail, Plus, UsersRound } from "lucide-react-native";
+import { useCallback } from "react";
 import { View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -18,7 +19,6 @@ import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage"
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { GroupCard } from "./GroupCard";
@@ -29,7 +29,6 @@ export function GroupList({
   scope?: "mine" | "public";
   type?: GroupRecord["type"];
 }) {
-  const artwork = useArtworkListVisibility();
   const t = useT(),
     router = useRouter(),
     options = useCommunityApi(),
@@ -39,6 +38,17 @@ export function GroupList({
   const filters = useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4),
     list = useGroupRecords(options, scope, filters.search, filters.selected, type);
   const searchable = scope !== "public" || Boolean(filters.search);
+  const verify = useCallback(() => void list.refetch({ cancelRefetch: false }), [list.refetch]);
+  const renderItem = useCallback(
+    ({ item: group }: { item: (typeof list.items)[number] }) => (
+      <GroupCard
+        group={group}
+        checking={group.optimistic?.phase === "verifying" && list.isFetching}
+        onVerify={group.optimistic?.phase === "verifying" ? verify : undefined}
+      />
+    ),
+    [list.isFetching, verify],
+  );
   return (
     <NotificationAttentionScope
       options={options}
@@ -48,8 +58,6 @@ export function GroupList({
     >
       <ListPage>
         <InputFlatList
-          onLayout={artwork.onLayout}
-          onViewableItemsChanged={artwork.onViewableItemsChanged}
           testID="groups-scroll"
           style={{ flex: 1 }}
           data={communityAccessDenied(list.error) ? [] : list.items}
@@ -92,16 +100,7 @@ export function GroupList({
               ) : null}
             </View>
           }
-          renderItem={({ item: group }) =>
-            artwork.row(
-              group.id,
-              <GroupCard
-                group={group}
-                checking={list.isFetching}
-                onVerify={() => void list.refetch({ cancelRefetch: false })}
-              />,
-            )
-          }
+          renderItem={renderItem}
           ListEmptyComponent={
             searchable && list.isPending ? (
               <View style={{ gap: 12 }}>

@@ -26,6 +26,14 @@ import { renderWithI18n } from "@/test-utils";
 import { GroupMembers } from "../GroupMembers";
 import { GroupPeoplePicker } from "../GroupPeoplePicker";
 
+function contactReadResponse(url: string, init?: RequestInit) {
+  if ((init?.method ?? "GET") !== "GET") return;
+  const path = new URL(url).pathname;
+  if (path === "/api/relationships") return Response.json({ rows: [], nextCursor: null });
+  if (path === "/api/users/suggestions")
+    return Response.json({ users: [], hasContacts: false, nextCursor: null });
+}
+
 const mocks = vi.hoisted(() => ({
   options: {} as CommunityApiOptions,
   back: vi.fn(),
@@ -132,6 +140,9 @@ it("returns from the Group picker before POST, preserves a held metadata read an
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+
       if (init?.method === "POST")
         return new Promise<Response>((resolve) =>
           writes.push({ input: JSON.parse(String(init.body)), resolve }),
@@ -207,6 +218,9 @@ it("serializes only the same Group, never unrelated GroupList targets sharing on
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+
       const id = new URL(url).pathname.split("/groups/")[1].split("/")[0];
       if (init?.method === "POST")
         return new Promise<Response>((resolve) =>
@@ -250,6 +264,9 @@ it("closes per-person membership dialogs before PATCH and keeps another request 
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+
       if (init?.method === "PATCH")
         return new Promise<Response>((resolve) =>
           writes.push({ input: JSON.parse(String(init.body)), resolve }),

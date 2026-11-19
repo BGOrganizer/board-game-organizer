@@ -1,7 +1,13 @@
 "use client";
 
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  hashKey,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import type { MutationFeedback } from "../../common/mutationFeedback";
@@ -11,6 +17,9 @@ import {
   optimisticOperationSignal,
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
+import { useRecordListWindow } from "../../events/hooks/useRecordListWindow";
+import { contactRelationshipIds } from "../contactRelationshipIds";
+import { contactRequestContext } from "../contactRequestContext";
 import {
   type ContactAction,
   type ContactMutationVariables,
@@ -338,6 +347,9 @@ async function respondToFriendRequestWithToken(
   return (await res.json()) as { success: boolean };
 }
 
+const relationshipRows = (page: { rows: RelationshipRow[] }) => page.rows;
+const suggestionUsers = (page: { users: ContactUser[] }) => page.users;
+
 export function useRelationshipList(
   apiUrl: string,
   token: string | null | undefined,
@@ -346,33 +358,50 @@ export function useRelationshipList(
   currentUserId: string | null | undefined,
   type: RelationshipListType,
   enabled = true,
+  presentationScope = "",
 ) {
+  const key = relationshipListKey(apiUrl, currentUserId ?? token, type);
   const query = useInfiniteQuery({
-    queryKey: relationshipListKey(apiUrl, currentUserId ?? token, type),
-    queryFn: ({ pageParam }) =>
-      fetchRelationshipPageWithToken(apiUrl, token, getToken, type, pageParam, protectionBypass),
+    queryKey: key,
+    queryFn: ({ pageParam, signal }) =>
+      fetchRelationshipPageWithToken(
+        apiUrl,
+        token,
+        getToken,
+        type,
+        pageParam,
+        protectionBypass,
+        signal,
+      ),
     initialPageParam: "",
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: enabled && Boolean(apiUrl && (token || (getToken && currentUserId))),
     staleTime: 5 * 60_000,
   });
+  const window = useRecordListWindow({
+    scope: hashKey([key, presentationScope]),
+    pages: query.data?.pages,
+    getItems: relationshipRows,
+    hasNextPage: query.hasNextPage,
+    isFetching: query.isFetching,
+    fetchNextPage: () => query.fetchNextPage({ cancelRefetch: false }),
+  });
+  // IDs alone retain known block/precedence facts; never flatten hidden profile pages for UI.
+  const knownIds = useMemo(
+    () =>
+      type === "pending" || type === "sent" ? undefined : contactRelationshipIds(query.data?.pages),
+    [type, query.data?.pages],
+  );
   return {
     ...query,
-    data: query.data?.pages.flatMap((page) => page.rows),
+    ...window,
+    data: query.data ? window.items : undefined,
+    knownIds,
   };
 }
 
-/**
- * All contact queries + mutations in one hook. The web Contacts tab and the
- * mobile Contacts screen share this surface.
- *
- * When `getToken` is provided (Clerk), every query/mutation resolves a
- * FRESH token right before the call, so a rotating Clerk JWT never turns
- * into stale-session 401s. After every successful relationship mutation the
- * contact lists and suggestions are invalidated (refetched) and an active search is
- * re-run, so buttons reflect the new state without manual refresh.
- */
-export function useContacts(
+/** Canonical relationship writes without mounting any list/search observers. */
+export function useContactActions(
   apiUrl: string,
   token: string | null | undefined,
   getToken?: () => Promise<string | null>,
@@ -397,98 +426,6 @@ export function useContacts(
         key[3] === "people") ||
       (key[0] === "profile" && key[1] === apiUrl && key[2] === currentUserId),
   };
-  const enabled = Boolean(apiUrl) && Boolean(token);
-
-  const following = useRelationshipList(
-    apiUrl,
-    token,
-    getToken,
-    protectionBypass,
-    currentUserId,
-    "following",
-  );
-
-  const followers = useRelationshipList(
-    apiUrl,
-    token,
-    getToken,
-    protectionBypass,
-    currentUserId,
-    "followers",
-  );
-
-  const friends = useRelationshipList(
-    apiUrl,
-    token,
-    getToken,
-    protectionBypass,
-    currentUserId,
-    "friends",
-  );
-
-  const pending = useRelationshipList(
-    apiUrl,
-    token,
-    getToken,
-    protectionBypass,
-    currentUserId,
-    "pending",
-  );
-
-  const sent = useRelationshipList(
-    apiUrl,
-    token,
-    getToken,
-    protectionBypass,
-    currentUserId,
-    "sent",
-  );
-
-  const blocked = useRelationshipList(
-    apiUrl,
-    token,
-    getToken,
-    protectionBypass,
-    currentUserId,
-    "blocked",
-  );
-
-  const suggestionsQuery = useInfiniteQuery({
-    queryKey: contactSuggestionsKey(apiUrl, currentUserId ?? token),
-    queryFn: ({ pageParam, signal }) =>
-      fetchSuggestionPageWithToken(apiUrl, token, getToken, pageParam, protectionBypass, signal),
-    initialPageParam: "",
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled,
-    staleTime: 5 * 60_000,
-  });
-  const suggestions = useMemo(
-    () => ({
-      ...suggestionsQuery,
-      data: suggestionsQuery.data
-        ? {
-            users: suggestionsQuery.data.pages.flatMap((page) => page.users),
-            hasContacts: suggestionsQuery.data.pages[0]?.hasContacts ?? false,
-          }
-        : undefined,
-    }),
-    [suggestionsQuery],
-  );
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const searchResult = useQuery({
-    queryKey: ["contacts", `search:${searchQuery}`, apiUrl, currentUserId ?? token],
-    queryFn: () => searchUsersWithToken(apiUrl, token, getToken, searchQuery, protectionBypass),
-    enabled: enabled && searchQuery.length >= 4,
-    staleTime: 30_000,
-  });
-  const search = searchResult;
-
-  const refreshContacts = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
-    [queryClient],
-  );
-
   const optimisticOptions = (action: ContactAction) => ({
     mutationKey: [...resource, "mutation", action],
     onMutate: async (variables: ContactMutationVariables) => {
@@ -758,54 +695,198 @@ export function useContacts(
     },
   });
 
+  return {
+    follow,
+    unfollow,
+    unfriend,
+    friendRequest,
+    cancelFriendRequest,
+    acceptFriendRequest,
+    rejectFriendRequest,
+    block,
+    unblock,
+    syncContacts,
+    isBusy,
+  };
+}
+
+/**
+ * All contact queries + mutations in one hook. The web Contacts tab and the
+ * mobile Contacts screen share this surface.
+ *
+ * When `getToken` is provided (Clerk), every query/mutation resolves a
+ * FRESH token right before the call, so a rotating Clerk JWT never turns
+ * into stale-session 401s. After every successful relationship mutation the
+ * contact lists and suggestions are invalidated (refetched) and an active search is
+ * re-run, so buttons reflect the new state without manual refresh.
+ */
+export function useContacts(
+  apiUrl: string,
+  token: string | null | undefined,
+  getToken?: () => Promise<string | null>,
+  protectionBypass?: string | null,
+  currentUserId?: string | null,
+  feedback?: MutationFeedback,
+  presentationScope = "",
+) {
+  const queryClient = useQueryClient();
+  const actions = useContactActions(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    feedback,
+  );
+  const enabled = Boolean(apiUrl) && Boolean(token);
+
+  const following = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "following",
+    true,
+    presentationScope,
+  );
+
+  const followers = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "followers",
+    true,
+    presentationScope,
+  );
+
+  const friends = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "friends",
+    true,
+    presentationScope,
+  );
+
+  const pending = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "pending",
+    true,
+    presentationScope,
+  );
+
+  const sent = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "sent",
+    true,
+    presentationScope,
+  );
+
+  const blocked = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "blocked",
+    true,
+    presentationScope,
+  );
+
+  const knownConnectionIds = useMemo(
+    () => ({
+      friends: friends.knownIds ?? new Set<string>(),
+      following: following.knownIds ?? new Set<string>(),
+      followers: followers.knownIds ?? new Set<string>(),
+      blocked: blocked.knownIds ?? new Set<string>(),
+    }),
+    [friends.knownIds, following.knownIds, followers.knownIds, blocked.knownIds],
+  );
+
+  const suggestionsQuery = useInfiniteQuery({
+    queryKey: contactSuggestionsKey(apiUrl, currentUserId ?? token),
+    queryFn: ({ pageParam, signal }) =>
+      fetchSuggestionPageWithToken(apiUrl, token, getToken, pageParam, protectionBypass, signal),
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+  const suggestionWindow = useRecordListWindow({
+    scope: hashKey([contactSuggestionsKey(apiUrl, currentUserId ?? token), presentationScope]),
+    pages: suggestionsQuery.data?.pages,
+    getItems: suggestionUsers,
+    hasNextPage: suggestionsQuery.hasNextPage,
+    isFetching: suggestionsQuery.isFetching,
+    fetchNextPage: () => suggestionsQuery.fetchNextPage({ cancelRefetch: false }),
+  });
+  const suggestionData = useMemo(
+    () =>
+      suggestionsQuery.data
+        ? {
+            users: suggestionWindow.items,
+            hasContacts: suggestionsQuery.data.pages[0]?.hasContacts ?? false,
+          }
+        : undefined,
+    [suggestionWindow.items, suggestionsQuery.data],
+  );
+  const suggestions = { ...suggestionsQuery, ...suggestionWindow, data: suggestionData };
+  const friendRequestContext = useCallback(
+    (targetUserId: string) =>
+      contactRequestContext(
+        queryClient.getQueryData<{ pages: { rows: RelationshipRow[] }[] }>(
+          relationshipListKey(apiUrl, currentUserId ?? token, "pending"),
+        )?.pages,
+        queryClient.getQueryData<{ pages: { rows: RelationshipRow[] }[] }>(
+          relationshipListKey(apiUrl, currentUserId ?? token, "sent"),
+        )?.pages,
+        targetUserId,
+      ),
+    [queryClient, apiUrl, currentUserId, token],
+  );
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchResult = useQuery({
+    queryKey: ["contacts", `search:${searchQuery}`, apiUrl, currentUserId ?? token],
+    queryFn: () => searchUsersWithToken(apiUrl, token, getToken, searchQuery, protectionBypass),
+    enabled: enabled && searchQuery.length >= 4,
+    staleTime: 30_000,
+  });
+  const search = searchResult;
+
+  const refreshContacts = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+    [queryClient],
+  );
+
   const runSearch = useCallback((query: string) => setSearchQuery(query.trim()), []);
 
-  return useMemo(
-    () => ({
-      following,
-      followers,
-      friends,
-      pending,
-      sent,
-      blocked,
-      suggestions,
-      follow,
-      unfollow,
-      unfriend,
-      friendRequest,
-      cancelFriendRequest,
-      acceptFriendRequest,
-      rejectFriendRequest,
-      block,
-      unblock,
-      syncContacts,
-      search,
-      runSearch,
-      refreshContacts,
-      isBusy,
-    }),
-    [
-      following,
-      followers,
-      friends,
-      pending,
-      sent,
-      blocked,
-      suggestions,
-      follow,
-      unfollow,
-      unfriend,
-      friendRequest,
-      cancelFriendRequest,
-      acceptFriendRequest,
-      rejectFriendRequest,
-      block,
-      unblock,
-      syncContacts,
-      search,
-      runSearch,
-      refreshContacts,
-      isBusy,
-    ],
-  );
+  return {
+    following,
+    followers,
+    friends,
+    pending,
+    sent,
+    blocked,
+    suggestions,
+    friendRequestContext,
+    knownConnectionIds,
+    ...actions,
+    search,
+    runSearch,
+    refreshContacts,
+  };
 }

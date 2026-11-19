@@ -26,12 +26,14 @@ appId: com.bgo.boardgameorganizer.dev
 - extendedWaitUntil:
     visible: ${EMPTY_TEXT}
     timeout: 120000
+- takeScreenshot: ${'empty-list-' + SECTION}
+# Review the screenshot: centered semantic icon above the unchanged empty message.
 - tapOn: ${output.status.clear}
 - extendedWaitUntil:
     notVisible: ${EMPTY_TEXT}
     timeout: 120000
 # Fresh uncached query while genuinely offline; no fabricated successful response.
-- setAirplaneMode: true
+- setAirplaneMode: enabled
 - tapOn: ${output.status.filter}
 - inputText: ${output.status.emptyQuery + '-offline-' + SECTION}
 - hideKeyboard
@@ -39,7 +41,7 @@ appId: com.bgo.boardgameorganizer.dev
     visible: ${FAILURE_TEXT}
     timeout: 120000
 - assertNotVisible: ${EMPTY_TEXT}
-- setAirplaneMode: false
+- setAirplaneMode: disabled
 - tapOn: ${output.status.retry}
 - extendedWaitUntil:
     visible: ${EMPTY_TEXT}

@@ -2,7 +2,7 @@
 import type { GroupPersonResponse } from "@board-game-organizer/schemas";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import type { ContactAction } from "../../contacts/hooks/contactOptimistic";
-import { type ContactUser, useContacts } from "../../contacts/hooks/useContacts";
+import { type ContactUser, useContactActions } from "../../contacts/hooks/useContacts";
 import type { CommunityApiOptions } from "../communityApi";
 
 type SocialPerson = Pick<GroupPersonResponse, "userId" | "social"> &
@@ -25,7 +25,7 @@ export function communityPersonContact(person: SocialPerson): ContactUser {
 }
 export function usePeopleSocialActions<Person extends SocialPerson>(options: CommunityApiOptions) {
   const busy = useOptimisticBusy(["contacts", options.apiUrl, options.userId]);
-  const contacts = useContacts(
+  const contacts = useContactActions(
     options.apiUrl,
     null,
     options.getToken,

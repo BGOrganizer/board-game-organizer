@@ -1,0 +1,58 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Table overview participants and editor retention
+# Existing owned PRIVATE PLANNING fixture with canManage=true, using flow 47 inputs.
+# Opens a read-only order snapshot and discards local editor state; never saves,
+# registers, invites, votes, changes a lock or acknowledges a notification.
+# Checks editor-mode retention; changed-row order acceptance belongs to the seat flows.
+tags: [manual, performance, details]
+---
+- runScript: ../helpers/cached-detail-navigation-inputs.js
+- openLink: ${output.details.groupLink}
+- assertVisible: ${output.details.groupName}
+- openLink: ${output.details.eventLink}
+- assertVisible: ${output.details.eventName}
+- openLink: ${output.details.tableLink}
+- assertVisible: ${output.details.tableName}
+- scrollUntilVisible:
+    element:
+      id: table-participants-tab
+    direction: DOWN
+- tapOn:
+    id: table-participants-tab
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: table-participants-tab
+    selected: true
+- tapOn:
+    text: "^(Reorder seats|Riordina posti)$"
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: seat-order-list
+- assertVisible:
+    id: seat-order-discard
+- tapOn:
+    id: table-overview-tab
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: table-overview-tab
+    selected: true
+- assertNotVisible:
+    id: seat-order-discard
+- tapOn:
+    id: table-participants-tab
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: seat-order-list
+- assertVisible:
+    id: seat-order-discard
+- tapOn:
+    id: seat-order-discard
+    waitToSettleTimeoutMs: 500
+- assertNotVisible:
+    id: seat-order-list
+- assertVisible:
+    text: "^(Reorder seats|Riordina posti)$"
+- back
+- assertVisible: ${output.details.eventName}
+- back
+- assertVisible: ${output.details.groupName}

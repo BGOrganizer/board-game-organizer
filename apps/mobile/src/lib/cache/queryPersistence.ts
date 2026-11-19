@@ -10,6 +10,7 @@ import {
   hashKey,
   hydrate,
   type Query,
+  type QueryCacheNotifyEvent,
   type QueryClient,
   type QueryKey,
 } from "@tanstack/react-query";
@@ -51,6 +52,14 @@ export function ownsPersistedQuery(key: QueryKey, owner: CacheOwner) {
     key[1] === owner.apiUrl &&
     key[2] === owner.userId
   );
+}
+
+/** Fetch/observer metadata is never serialized; persist data, authority loss and removals. */
+export function shouldPersistCacheEvent(event: QueryCacheNotifyEvent, owner: CacheOwner) {
+  if (!ownsPersistedQuery(event.query.queryKey, owner)) return false;
+  if (event.type === "removed") return true;
+  if (event.type === "added") return event.query.state.data !== undefined;
+  return event.type === "updated" && ["success", "error", "setState"].includes(event.action.type);
 }
 
 /** Native infinite refetches start at page one; do not walk all pages restored from disk. */

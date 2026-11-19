@@ -361,6 +361,9 @@ it("submits one complete event only on final review, with no server draft or imp
   expect(screen.getByRole("button", { name: "Remove game: Chess" }).closest("li")).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   expect(screen.getByText(/organizer has no automatic playing seat/)).not.toBeNull();
+  expect(
+    screen.getByText(/organizer has no automatic playing seat/).querySelector("svg.text-warning"),
+  ).not.toBeNull();
   expect(screen.queryByRole("button", { name: /^Remove (date|location|table)/ })).toBeNull();
   expect(screen.getByRole("button", { name: "Rating enabled" })).not.toBeNull();
   expect(screen.queryByText("No demonstrator")).toBeNull();
@@ -716,7 +719,7 @@ it("keeps validation attempts reachable, showing blocking schedule errors withou
   expect(screen.getByRole("textbox", { name: "Event name" }).getAttribute("aria-invalid")).toBe(
     "true",
   );
-  expect(screen.getByText("Enter an event name between 5 and 120 characters.")).not.toBeNull();
+  expect(screen.getByText("Enter an event name between 5 and 30 characters.")).not.toBeNull();
   expect(screen.queryByText("Choose at least one valid date and time.")).toBeNull();
   fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
     target: { value: "Friday games" },

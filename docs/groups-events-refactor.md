@@ -682,6 +682,10 @@ All top HeroUI tabs use relevant selected-accent Lucide icons; bottom navigation
 Required-field stars follow actual conditional validation. Group name inputs have the localized
 Group name placeholder on both clients. Group create/edit reuse the same type Cards; both remain
 visible but disabled in edit because type is immutable. Group/Event/Table name fields expose an
+input limit of 30 characters. Create/edit commands trim names and require 5–30 characters, also
+for every submitted Table in an Event edit. Historical names remain readable; saving an out-of-range
+name requires renaming it, while omitted Tables and unrelated actions retain their historical data.
+Name fields expose an
 explicit dice action using the single supplied EN/IT dictionary source and unique-names-generator;
 it changes only the unsaved name in the active locale, never autosaves or regenerates during render.
 Table invitations use a normalized handle as primary identity without a secondary line; Group

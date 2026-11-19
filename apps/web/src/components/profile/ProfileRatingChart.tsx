@@ -2,8 +2,10 @@
 import type { ProfileRatingPoint } from "@board-game-organizer/schemas";
 import { profileRatingPath } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
+import { useMemo } from "react";
 export function ProfileRatingChart({ points }: { points: ProfileRatingPoint[] }) {
   const { t } = useLingui();
+  const path = useMemo(() => profileRatingPath(points, 300, 160), [points]);
   if (points.length < 2)
     return <p className="text-sm text-muted">{t`Not enough ranked games for a chart`}</p>;
   return (
@@ -16,12 +18,7 @@ export function ProfileRatingChart({ points }: { points: ProfileRatingPoint[] })
         viewBox="0 0 300 160"
         className="text-accent"
       >
-        <polyline
-          points={profileRatingPath(points, 300, 160)}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        />
+        <polyline points={path} fill="none" stroke="currentColor" strokeWidth="2" />
       </svg>
       <div className="flex justify-between text-xs text-muted">
         <span>{points[0].ordinal}</span>

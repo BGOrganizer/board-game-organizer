@@ -5,6 +5,14 @@ import { groupRecord } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { GroupMembers } from "../GroupMembers";
 
+function contactReadResponse(url: string, init?: RequestInit) {
+  if ((init?.method ?? "GET") !== "GET") return;
+  const path = new URL(url).pathname;
+  if (path === "/api/relationships") return Response.json({ rows: [], nextCursor: null });
+  if (path === "/api/users/suggestions")
+    return Response.json({ users: [], hasContacts: false, nextCursor: null });
+}
+
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
@@ -38,6 +46,9 @@ it.each(["approve", "reject"] as const)(
     };
     let answered = false;
     const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+
       if (init?.method === "PATCH") {
         answered = true;
         return new Response(

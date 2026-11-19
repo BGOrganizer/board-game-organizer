@@ -21,22 +21,28 @@ vi.mock("@/app/lib/db", () => ({
   ),
 }));
 vi.mock("@/app/lib/notifications/notifications.repository", () => ({
-  NotificationsRepository: vi.fn(() => ({
-    list: mocks.list,
-    markRead: mocks.markRead,
-    deleteOne: mocks.deleteOne,
-    deleteAll: mocks.deleteAll,
-    markAllRead: mocks.markAllRead,
-  })),
+  NotificationsRepository: vi.fn(function MockNotificationsRepository() {
+    return {
+      list: mocks.list,
+      markRead: mocks.markRead,
+      deleteOne: mocks.deleteOne,
+      deleteAll: mocks.deleteAll,
+      markAllRead: mocks.markAllRead,
+    };
+  }),
 }));
 vi.mock("@/app/lib/notifications/notification-attention.repository", () => ({
-  NotificationAttentionRepository: vi.fn(() => ({
-    snapshot: mocks.attentionSnapshot,
-    read: mocks.attentionRead,
-  })),
+  NotificationAttentionRepository: vi.fn(function MockNotificationAttentionRepository() {
+    return {
+      snapshot: mocks.attentionSnapshot,
+      read: mocks.attentionRead,
+    };
+  }),
 }));
 vi.mock("@/app/lib/notifications/push-subscriptions.repository", () => ({
-  PushSubscriptionsRepository: vi.fn(() => ({ upsert: mocks.upsert, remove: mocks.remove })),
+  PushSubscriptionsRepository: vi.fn(function MockPushSubscriptionsRepository() {
+    return { upsert: mocks.upsert, remove: mocks.remove };
+  }),
 }));
 
 import {

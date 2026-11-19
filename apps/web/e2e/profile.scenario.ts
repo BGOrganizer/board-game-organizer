@@ -180,6 +180,13 @@ for (const width of [390, 1280]) {
     await page.getByRole("searchbox", { name: labels.filter }).fill(gameName);
     await page.getByRole("option", { name: gameName, exact: true }).click();
     await expect(main.getByRole("img", { name: labels.chart })).toBeVisible();
+    // Reenter Player from another tab with the selected history already in Query.
+    await main.getByRole("tab", { name: labels.activities, exact: true }).click();
+    await main.getByRole("tab", { name: labels.player, exact: true }).click();
+    await expect(main.getByRole("img", { name: labels.chart })).toBeVisible();
+    await expect(main.getByRole("button", { name: new RegExp(labels.boardGame) })).toContainText(
+      gameName,
+    );
     const history = await read(page, `profiles/${target}/games/${gameId}`);
     expect(history.status).toBe(200);
     expect(history.body.points.length).toBeGreaterThanOrEqual(2);

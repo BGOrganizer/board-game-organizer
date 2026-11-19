@@ -66,7 +66,11 @@ describe("owned community cache updates", () => {
         updatedAt: "optimistic",
       }),
     ).toEqual({ name: "before", updatedAt: "server" });
-    expect(restoreCommunityFields({ name: "pending" }, before, { name: "pending" })).toEqual({
+    expect(
+      restoreCommunityFields<{ name: string; updatedAt?: string }>({ name: "pending" }, before, {
+        name: "pending",
+      }),
+    ).toEqual({
       name: "before",
     });
   });

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -13,14 +13,18 @@ vi.mock("@/app/lib/clerk", () => ({ enrichSingleUser: m.enrich }));
 vi.mock("@/app/lib/db", () => ({ getDb: vi.fn(async () => ({})) }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: m.ensure }));
 vi.mock("@/app/lib/users/users.repository", () => ({
-  UsersRepository: vi.fn(() => ({ findById: m.mirror, setPreferredLanguage: m.setLanguage })),
+  UsersRepository: vi.fn(function MockUsersRepository() {
+    return { findById: m.mirror, setPreferredLanguage: m.setLanguage };
+  }),
 }));
 vi.mock("@/app/lib/profile/profile.repository", () => ({
-  ProfileRepository: vi.fn(() => ({
-    social: async () => ({ friends: 0, followers: 0, following: 0 }),
-    player: async () => ({ gamesPlayed: 0, gamesWon: 0, winRate: null }),
-    groupCounts: async () => ({ adminGroups: 1, joinedGroups: 1 }),
-  })),
+  ProfileRepository: vi.fn(function MockProfileRepository() {
+    return {
+      social: async () => ({ friends: 0, followers: 0, following: 0 }),
+      player: async () => ({ gamesPlayed: 0, gamesWon: 0, winRate: null }),
+      groupCounts: async () => ({ adminGroups: 1, joinedGroups: 1 }),
+    };
+  }),
 }));
 vi.mock("@/app/lib/contacts/relationship.repository", () => ({ RelationshipRepository: vi.fn() }));
 vi.mock("@/app/lib/contacts/relationship.service", () => ({

@@ -33,13 +33,13 @@ tags: [manual, events, invites]
           when:
             true: ${output.tableInvite.offline}
           commands:
-            - setAirplaneMode: true
+            - setAirplaneMode: enabled
             - tapOn:
                 id: generate-table-invite-link
             - extendedWaitUntil:
                 visible: ${output.tableInvite.failure}
                 timeout: 120000
-            - setAirplaneMode: false
+            - setAirplaneMode: disabled
       - tapOn:
           id: generate-table-invite-link
       # Real native Share UI opens; dismiss without sending the capability to anyone.

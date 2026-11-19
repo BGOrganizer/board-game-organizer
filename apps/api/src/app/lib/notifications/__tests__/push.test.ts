@@ -25,10 +25,12 @@ vi.mock("@/app/lib/db", () => ({
   })),
 }));
 vi.mock("@/app/lib/notifications/push-subscriptions.repository", () => ({
-  PushSubscriptionsRepository: vi.fn(() => ({
-    listByUser: vi.fn(async () => mocks.targets),
-    removeToken: mocks.removeToken,
-  })),
+  PushSubscriptionsRepository: vi.fn(function MockPushSubscriptionsRepository() {
+    return {
+      listByUser: vi.fn(async () => mocks.targets),
+      removeToken: mocks.removeToken,
+    };
+  }),
 }));
 vi.mock("node:http2", async () => {
   const actual = await vi.importActual<typeof import("node:http2")>("node:http2");

@@ -5,7 +5,7 @@ name: Scheduled, Available, Terminated and History with real source filtering
 # Offline cases require actual disconnected data/Wi-Fi; completion restores connectivity.
 tags: [manual, tables, events, history]
 onFlowComplete:
-  - setAirplaneMode: false
+  - setAirplaneMode: disabled
 ---
 - runScript: ../helpers/list-status-inputs.js
 - assertTrue: ${output.status.names.history.eventId === output.status.names.terminated.id}

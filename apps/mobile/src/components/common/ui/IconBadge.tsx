@@ -103,7 +103,7 @@ export function IconBadge({
               width={260}
               accessible={false}
             >
-              <Popover.Title accessibilityRole="header" importantForAccessibility="yes">
+              <Popover.Title accessible accessibilityRole="header" importantForAccessibility="yes">
                 {title}
               </Popover.Title>
               {children}

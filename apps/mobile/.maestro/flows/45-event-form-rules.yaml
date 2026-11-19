@@ -1,0 +1,68 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Event name bounds, unavailable Public choice and undecorated Group selector
+# Owned Development with a fresh local Event draft. No saves, resets, provisioning or API writes.
+# FORM_RULES_ACK=owned-development-groups; FORM_RULES_LOCALE=en|it
+# FORM_RULES_PUBLIC_GROUP=unique exact approved Public group name managed by the actor.
+# Leaves an unsaved local draft. Run EN/IT and light/dark with a compatible Preview APK.
+tags: [manual, events, forms]
+---
+- runScript: ../helpers/event-form-rules-inputs.js
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///event/wizard
+- extendedWaitUntil:
+    visible:
+      id: event-public-radio
+    timeout: 120000
+- assertVisible:
+    id: event-public-radio
+    enabled: false
+- assertNotVisible: ${output.formRules.unavailable}
+- tapOn: ${output.formRules.publicHelp}
+- assertVisible: ${output.formRules.publicGuide}
+- back
+- tapOn: ${output.formRules.name}
+- inputText: abcd
+- hideKeyboard
+- tapOn: ${output.formRules.next}
+- assertVisible: ${output.formRules.invalidName}
+- tapOn: ${output.formRules.name}
+- eraseText: 120
+- inputText: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- copyTextFrom: ${output.formRules.name}
+- assertTrue: ${maestro.copiedText.length === 30}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: event-group-select
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: event-group-select
+- extendedWaitUntil:
+    visible:
+      id: list-search-input
+    timeout: 30000
+- tapOn:
+    id: list-search-input
+- inputText: ${output.formRules.groupQuery}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${output.formRules.group}
+    timeout: 30000
+- assertNotVisible: ${output.formRules.admin}
+- tapOn: ${output.formRules.group}
+- scrollUntilVisible:
+    element:
+      id: event-public-radio
+    direction: UP
+    timeout: 20000
+- assertVisible:
+    id: event-public-radio
+    enabled: true
+- tapOn:
+    id: event-public-radio
+- assertVisible:
+    id: event-public-radio
+    checked: true
+- takeScreenshot: event-form-rules-unsaved

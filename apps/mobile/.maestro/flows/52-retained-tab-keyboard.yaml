@@ -1,0 +1,42 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Retained filter survives a single tab tap with the keyboard open
+tags: [manual, performance, navigation, keyboard]
+---
+- runScript: ../helpers/cached-tab-navigation-inputs.js
+- openLink: bgo-dev:///groups
+- tapOn:
+    id: top-tab-private
+- tapOn:
+    id: list-search-input
+- eraseText
+- inputText: Perf
+- assertVisible:
+    id: list-search-input
+    text: Perf
+# Do not hide the keyboard or repeat this tap: the first touch must select Public.
+- tapOn:
+    id: top-tab-public
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: top-tab-public
+    selected: true
+- tapOn:
+    id: top-tab-private
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: list-search-input
+    text: Perf
+- tapOn:
+    id: list-search-input
+- eraseText
+- tapOn:
+    id: top-tab-public
+    waitToSettleTimeoutMs: 500
+- assertVisible:
+    id: top-tab-public
+    selected: true
+- tapOn:
+    id: top-tab-private
+- assertVisible:
+    id: top-tab-private
+    selected: true

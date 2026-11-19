@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       nextOffset:
         body.data.offset + rows.length < top.length ? body.data.offset + rows.length : null,
     },
+    {},
     request,
   );
 }

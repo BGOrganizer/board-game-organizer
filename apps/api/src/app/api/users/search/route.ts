@@ -134,6 +134,7 @@ export async function GET(request: Request) {
       users: result,
       nextCursor: users.length > limit ? users[limit - 1].clerkId : null,
     },
+    {},
     request,
   );
 }

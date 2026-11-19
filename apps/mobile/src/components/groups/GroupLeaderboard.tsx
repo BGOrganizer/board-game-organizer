@@ -23,11 +23,11 @@ import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { LeaderboardStat } from "@/components/ratings/LeaderboardStat";
 import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
+import { useListActivity } from "@/lib/listActivity";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
 export function GroupLeaderboard({ groupId, header }: { groupId: string; header?: ReactNode }) {
-  const artwork = useArtworkListVisibility();
+  const isActive = useListActivity();
   const { getToken, userId } = useSessionAuth();
   const t = useT();
   const muted = useThemeColor("muted");
@@ -60,7 +60,7 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
             .includes(debouncedSearch.toLocaleLowerCase(i18n.locale)),
         )
       : choices;
-  const selected = choices.find((game) => game.id === gameId);
+  const selected = choices.find((game) => game.id === gameId) ?? games.selectedGame;
   const scope = JSON.stringify([Constants.expoConfig?.extra?.apiUrl, userId, groupId, gameId]);
   const firstPage = players.data?.pages[0];
   const [window, setWindow] = useState({ scope, firstPage, pages: 1 });
@@ -70,21 +70,42 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
     () => pages?.slice(0, count).flatMap((page) => page.players) ?? [],
     [pages, count],
   );
-  const current = useRef<{ scope: string; firstPage: typeof firstPage } | null>({
+  const current = useRef({
     scope,
     firstPage,
+    active: false,
+    epoch: 0,
+    count,
   });
-  current.current = { scope, firstPage };
+  if (current.current.scope !== scope || current.current.firstPage !== firstPage)
+    current.current = { scope, firstPage, active: false, epoch: 0, count };
+  const generation = current.current;
+  generation.count = count;
+  const activation = generation.epoch;
   const fetching = useRef<string | null>(null);
   const scrolled = useRef<string | null>(null);
-  useEffect(
-    () => () => {
-      current.current = null;
-    },
-    [],
-  );
-  const morePlayers = async () => {
-    if (scrolled.current !== scope || fetching.current === scope || players.isFetching) return;
+  useEffect(() => {
+    generation.active = true;
+    return () => {
+      generation.active = false;
+      generation.epoch++;
+      scrolled.current = null;
+      fetching.current = null;
+      if (current.current === generation) setWindow({ scope, firstPage, pages: 1 });
+    };
+  }, [generation, scope, firstPage]);
+  const morePlayers = async (retryFailed = false) => {
+    if (
+      !isActive() ||
+      current.current !== generation ||
+      !generation.active ||
+      generation.epoch !== activation ||
+      generation.count !== count ||
+      (!retryFailed && scrolled.current !== scope) ||
+      fetching.current === scope ||
+      players.isFetching
+    )
+      return;
     if ((pages?.length ?? 0) > count) {
       setWindow((old) =>
         old.scope === scope && old.firstPage === firstPage && old.pages >= count + 1
@@ -93,26 +114,26 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
       );
       return;
     }
-    if (!players.hasNextPage || players.isFetchNextPageError) return;
+    if (!players.hasNextPage || (!retryFailed && players.isFetchNextPageError)) return;
     fetching.current = scope;
     try {
       const result = await players.fetchNextPage({ cancelRefetch: false });
       if (
-        current.current?.scope === scope &&
-        current.current.firstPage === firstPage &&
+        current.current === generation &&
+        generation.active &&
+        generation.epoch === activation &&
         !result.isError
       )
         setWindow({ scope, firstPage, pages: count + 1 });
     } finally {
-      if (fetching.current === scope) fetching.current = null;
+      if (current.current === generation && generation.epoch === activation)
+        fetching.current = null;
     }
   };
   const retry = () => void (games.isError ? games.refetch() : players.refetch());
 
   return (
     <FlatList
-      onLayout={artwork.onLayout}
-      onScroll={artwork.onScroll}
       style={{ flex: 1 }}
       data={gameId === null || games.isError || (players.isError && !players.data) ? [] : rows}
       keyExtractor={(item) => item.userId}
@@ -120,13 +141,15 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
       maxToRenderPerBatch={6}
       windowSize={7}
       onScrollBeginDrag={() => {
-        scrolled.current = scope;
+        if (isActive()) scrolled.current = scope;
       }}
       onEndReached={() => void morePlayers()}
       onEndReachedThreshold={0.5}
       ListHeaderComponent={
         <View style={{ gap: 16 }}>
-          {artwork.header(header)}
+          {header === undefined || header === null || header === false ? null : (
+            <View>{header}</View>
+          )}
           {games.isPending ? (
             <Skeleton style={{ width: "100%", height: 60, borderRadius: 12 }} />
           ) : games.isError ? (
@@ -201,10 +224,7 @@ export function GroupLeaderboard({ groupId, header }: { groupId: string; header?
       }
       ListFooterComponent={
         players.isFetchNextPageError ? (
-          <Button
-            variant="ghost"
-            onPress={() => void players.fetchNextPage({ cancelRefetch: false })}
-          >
+          <Button variant="ghost" onPress={() => void morePlayers(true)}>
             <Typography>{t("Could not load leaderboards. Retry")}</Typography>
           </Button>
         ) : players.isFetchingNextPage ? (

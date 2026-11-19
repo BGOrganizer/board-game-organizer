@@ -134,6 +134,27 @@ reason to skip checks. Fork PRs do not enter secret-consuming lanes.
 
 Common quality gates feed two independent lanes:
 
+Coverage uses the same workspace Vitest configurations locally and in Branch, PR and Main
+jobs, with a 90% minimum for lines, functions, branches and statements. A quality-only branch
+push runs `test:coverage` as well; routing-only pushes for an open PR still avoid duplicate jobs.
+The API command combines unit tests and isolated MongoDB integration in one report and requires
+Docker. Repository unit tests exercise the real classes with the MongoDB boundary mocked;
+the replica-set tests verify real query and transaction behavior.
+Native CLI/flow syntax checks remain required. Reassure measurements are paused by explicit
+operator request: complete web/mobile job definitions are retained but disabled, and active
+quality, publication, readiness and watchdog dependencies exclude those jobs. Ordinary tests of
+the comparator/helper remain active. All five workspaces still enforce 90% coverage across the
+same runtime source ownership; real MongoDB integration, lint, typecheck, builds, native tooling,
+release verification and cleanup gates remain active. A skipped or interrupted benchmark is not
+performance acceptance evidence.
+
+The retained [render benchmark policy](render-performance.md#paired-statistical-ci-checks) defines
+same-runner sequential approved-baseline/current measurements, provenance and failure artifacts
+for explicit resumption. Only the documented initial no-harness main may bootstrap without old
+samples; later missing/corrupt baselines fail, and no historical result is fabricated.
+These secret-free checks do not execute Playwright or Maestro journeys, provision users or capture
+device traces. Test matrices do not cancel their remaining active suites on failure.
+
 - Internal owns the isolated API/database, CI web, CI APK, users, mirroring, optional retained E2E
   and exact-run cleanup. `PR ready` requires every common/Internal/cleanup result. Its job still
   evaluates after failed dependencies, so a skipped prerequisite cannot masquerade as readiness.
@@ -198,8 +219,9 @@ older watchdog. Source-contract tests do not establish live controller behavior.
 
 Controller changes use the protected-main review/merge process within explicit operator scope;
 never push directly to `main`, disable the watchdog or bypass branch protection. The watchdog
-recognizes compatible workflow/job names and cancels only shared routing/quality/API-web build
-failures. Trusted cancellation/failure cleanup uses exact run/attempt evidence and never targets
+recognizes compatible workflow/job names and waits for every mandatory non-E2E test job to finish
+before cancelling remaining work after shared routing/quality/API-web build failures.
+Trusted cancellation/failure cleanup uses exact run/attempt evidence and never targets
 Development resources. Observe actual trusted runs after a controller change and coordinate
 rollback with its pipeline and required checks.
 
@@ -285,7 +307,7 @@ There is no cross-PR API alias: each published OTA manifest carries that PR's ve
 
 By explicit operator request, Main delivery has no browser/native E2E gates or their Preview APK,
 API/web deployments, Clerk fixtures or application CI database/cleanup. Biome/typecheck/CI-script
-checks, five unit coverage suites, replica-set API integration coverage and API/web verification
+checks, five workspace coverage suites, an independent replica-set API integration check and API/web verification
 builds run in parallel on every merge. Codecov signing verification and both unit/integration uploads
 are blocking. Only the latest verified merge prepares the version/changelog/tag. APK, production
 API/web deployment, read-only smoke, private release staging, verified APK upload and final release

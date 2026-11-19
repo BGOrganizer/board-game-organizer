@@ -127,9 +127,8 @@ it("keeps sparse queue actions and restores only the owned user's missing displa
     eventTableRoster(sparse, [], [], "owner", 20, { ...profile, id: "foreign" }).rows[1],
   ).toMatchObject({ user: { name: null, username: null, avatarUrl: null } });
   expect(
-    eventTableRoster(sparse, [], [], "owner", 20, { id: "owner", name: null, avatarUrl: null })
-      .rows[1],
-  ).toMatchObject({ user: { name: null, username: null, avatarUrl: null } });
+    eventTableRoster(sparse, [], [], "owner", 20, { id: "owner", name: "", avatarUrl: "" }).rows[1],
+  ).toMatchObject({ user: { name: null, username: null, avatarUrl: "" } });
 });
 it.each(["mario", null, undefined])(
   "fills only a missing self handle from the owned cached profile: %s",

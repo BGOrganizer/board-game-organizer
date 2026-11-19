@@ -162,7 +162,7 @@ export function GroupLogoPicker({
           <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
             <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
               <BottomSheet isOpen={open} onOpenChange={setOpen}>
-                <BottomSheet.Trigger asChild>
+                <BottomSheet.Trigger asChild disabled={disabled || uploading}>
                   <Button
                     size="sm"
                     style={{ minHeight: 44, minWidth: 44, maxWidth: "100%" }}

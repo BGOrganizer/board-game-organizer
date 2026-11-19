@@ -11,6 +11,8 @@ JWTs rotate: shared hooks receive `getToken` and resolve a fresh token immediate
 request.
 
 Do not retain a token snapshot for later network calls.
+Group social controls reuse the canonical Contacts mutations without mounting relationship-list or
+search observers; the Contacts screen retains its own paginated reads.
 
 Paginated contact lists and suggestions use their shared canonical keys across screens, warmup
 and mutations. Their cache identity is distinct from retired flat snapshots so an infinite-query
@@ -30,6 +32,34 @@ during bootstrap. A partial address-book scan must never replace the complete se
 snapshot: finish the scan before syncing in the background.
 
 Apply the same bounded, cache-first navigation policy on web without adding a web splash.
+
+Native main-list, Contacts, Community, Profile and resource-detail panels mount a tab on first
+access and retain visited views with React Activity. Hidden children disconnect their effects and
+Query observers; shared parent owners remain live. Native scroll/layout/end
+callbacks must also check their active-panel lease. Keep separate HeroUI tab roots for retained
+scroll containers, so hidden layout measurements cannot resize the visible tab bar. Scope retained
+views by API, user and resource, and remove panels when their permission or lifecycle no longer
+allows them. Retention never grants capabilities or copies remote data into local state.
+Group tab selection updates before a first-visit panel mounts in interruptible React work; current
+capabilities still gate both the selected destination and any deferred panel immediately.
+Shared native tab bars reveal only clipped selections rather than recentering already visible tabs.
+Their indicators retain HeroUI's default animation; clipped-tab reveal scrolls without a second
+animation when retained panels hand off their separate headers. Hidden-panel layout and scroll
+callbacks cannot alter the active bar's geometry.
+
+List presentation windows reset on deactivation or owner changes while authoritative Query pages
+remain cached. Reject callbacks from an earlier activation, including late fetch completions; reveal
+cached pages progressively again on reentry. Event Tables reset their presentation when leaving the
+Tables panel because their data hook belongs to the shared detail owner.
+Profile Collection additionally pins its published snapshot and is removed when collection access
+is revoked. Vote-category panels retain their list and validation owner while the consent form
+remains the single owner of votes, submission and validation attempts.
+Table Details and Participants keep separate native scroll presentations beneath a single seat-order
+and roster owner. Leaving Participants resets its bounded roster presentation, including pending
+streams and queued callbacks, while retaining the editor model and authoritative Query pages.
+
+Native persistence ignores fetch, retry, pause, invalidation and observer-only metadata events.
+New data, errors, explicit state replacements and removals still update the owned disk snapshot.
 
 Native Query data additionally persists through the mobile-only encrypted MMKV adapter. This is
 an application-wide default for eligible server data, not an optional per-screen optimization: new

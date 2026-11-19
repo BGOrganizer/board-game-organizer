@@ -328,7 +328,7 @@ it.each([
 ])("preserves the specific Event state %s even for an overview change", (kind) => {
   const s = { kind: "event", id: "11111111-1111-4111-8111-111111111111", tab: "details" } as const;
   expect(notificationChangeMessage(s, kind)).toBe(kind);
-  expect(notificationChangeMessage(s, kind, notificationItemId("event", s.id, "overview"))).toBe(
-    kind,
-  );
+  expect(
+    notificationChangeMessage(s, kind, notificationItemId(s.id, "overview", undefined, "event")),
+  ).toBe(kind);
 });

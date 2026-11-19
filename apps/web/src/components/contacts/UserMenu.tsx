@@ -38,7 +38,8 @@ export function UserMenu({
   user,
   busy,
   canSendFriendRequest = false,
-  friendRequest,
+  friendRequest: initialFriendRequest,
+  resolveFriendRequest,
   blockLabel,
   onAction,
 }: {
@@ -46,12 +47,17 @@ export function UserMenu({
   busy?: boolean;
   canSendFriendRequest?: boolean;
   friendRequest?: FriendRequestContext;
+  resolveFriendRequest?: () => FriendRequestContext | undefined;
   blockLabel?: string;
   onAction: (key: UserActionKey) => void;
 }) {
   const { t } = useLingui(),
     router = useRouter();
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
+  const [open, setOpen] = useState(false);
+  const friendRequest = open
+    ? (initialFriendRequest ?? resolveFriendRequest?.())
+    : initialFriendRequest;
 
   const items: Array<{
     key: UserActionKey;
@@ -243,7 +249,7 @@ export function UserMenu({
 
   return (
     <>
-      <Dropdown>
+      <Dropdown onOpenChange={setOpen}>
         <Dropdown.Trigger
           aria-label={t`Actions`}
           className="button button--icon-only button--sm button--ghost"

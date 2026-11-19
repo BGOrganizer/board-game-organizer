@@ -36,7 +36,6 @@ import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
-import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { LocationListRow } from "@/components/locations/LocationListRow";
@@ -56,7 +55,6 @@ import { EventTables } from "./EventTables";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
 import { EventVoteLegend } from "./EventVoteLegend";
-import { TableListHeading } from "./TableListHeading";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const { t, i18n } = useLingui(),
     o = useCommunityApi(),
@@ -243,12 +241,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
 
         {tab === "details" ? (
           <>
-            <NotificationItem itemId={notificationItemId(event.id, "overview")}>
-              <div className="flex items-center gap-2">
-                <h2 className="font-semibold">{t`Details`}</h2>
-                <EventVoteLegend />
-              </div>
-            </NotificationItem>
+            <NotificationItem itemId={notificationItemId(event.id, "overview")} />
             {event.readOnly ? (
               <p className="text-sm text-muted">
                 {event.personalAccessOnly
@@ -262,15 +255,20 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               <EventGroupLink groupId={event.groupId} name={event.groupName} />
             ) : null}
             <section
-              aria-label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
+              aria-label={
+                event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Dates and times`
+              }
               className="space-y-3"
             >
               <NotificationItem itemId={notificationItemId(event.id, "dates")}>
-                <SearchHelpLabel
-                  label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
-                  helpTitle={t`Field help`}
-                  help={t`Times are local to the location chosen for the event.`}
-                />
+                <div className="flex items-center gap-1">
+                  <h2 className="font-semibold">
+                    {event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Dates and times`}
+                  </h2>
+                  {voteDates && event.status === "PLANNING" ? (
+                    <EventVoteLegend label={t`Dates and times`} />
+                  ) : null}
+                </div>
               </NotificationItem>
               <GroupedList>
                 {event.dates
@@ -324,11 +322,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <EventProposalSection event={event} kind="date" disabled={q.isPlaceholderData} />
             {event.endsAt ? (
               <section aria-label={t`End Date and Time`} className="space-y-3">
-                <SearchHelpLabel
-                  label={t`End Date and Time`}
-                  helpTitle={t`Field help`}
-                  help={t`Choose a later time on the same day as the event start. All public tables must finish by this time.`}
-                />
+                <h2 className="font-semibold">{t`End Date and Time`}</h2>
                 <GroupedList>
                   <GroupedRow>
                     <DateTimeInfo
@@ -342,11 +336,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             ) : null}
             {event.bookingClosesAt ? (
               <section aria-label={t`Registration Deadline Date and Time`} className="space-y-3">
-                <SearchHelpLabel
-                  label={t`Registration Deadline Date and Time`}
-                  helpTitle={t`Field help`}
-                  help={t`Registration closes on a day before the event starts. A new event needs a future deadline.`}
-                />
+                <h2 className="font-semibold">{t`Registration Deadline Date and Time`}</h2>
                 <GroupedList>
                   <GroupedRow>
                     <DateTimeInfo
@@ -360,7 +350,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             ) : null}
             <section aria-label={t`Locations`} className="space-y-3">
               <NotificationItem itemId={notificationItemId(event.id, "locations")}>
-                <h2 className="font-semibold">{t`Locations`}</h2>
+                <div className="flex items-center gap-1">
+                  <h2 className="font-semibold">{t`Locations`}</h2>
+                  {voteLocations && event.status === "PLANNING" ? (
+                    <EventVoteLegend label={t`Locations`} />
+                  ) : null}
+                </div>
               </NotificationItem>
               <GroupedList>
                 {event.locations
@@ -427,9 +422,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         ) : null}
         {tab === "tables" ? (
           <section aria-label={t`Table list`} className="space-y-3">
-            <NotificationItem itemId={notificationItemId(event.id, "tables")}>
-              <TableListHeading />
-            </NotificationItem>
+            <NotificationItem itemId={notificationItemId(event.id, "tables")} />
             <EventTables query={tables} />
           </section>
         ) : null}

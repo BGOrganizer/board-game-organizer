@@ -1,3 +1,4 @@
+import { RESOURCE_NAME_MAX_LENGTH } from "@board-game-organizer/schemas";
 import { generateName, type NameCategory } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
@@ -13,7 +14,7 @@ export function NameInput({
   ref,
   onFocus,
   onBlur,
-  maxLength = 120,
+  maxLength = RESOURCE_NAME_MAX_LENGTH,
   ...props
 }: ComponentProps<typeof InputGroup.Input> & { category: NameCategory }) {
   const t = useT(),

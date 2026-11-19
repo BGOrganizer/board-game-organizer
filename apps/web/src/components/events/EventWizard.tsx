@@ -16,7 +16,16 @@ import {
 } from "@board-game-organizer/shared";
 import { Accordion, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, ArrowRight, CalendarPlus, Plus, Save, Table2, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarPlus,
+  Plus,
+  Save,
+  Table2,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
@@ -327,7 +336,10 @@ function Editor({
               <EventDraftTableCard key={row.key} row={row} publicGroup={publicGroup} />
             ))}
           </div>
-          <p>{t`The organizer has no automatic playing seat.`}</p>
+          <p className="flex items-start gap-2">
+            <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+            {t`The organizer has no automatic playing seat.`}
+          </p>
         </>
       )}
       {step >= 2 && event && form.tables.isPending ? (

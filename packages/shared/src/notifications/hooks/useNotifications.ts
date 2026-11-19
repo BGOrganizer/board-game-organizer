@@ -8,6 +8,7 @@ import {
   type PushPlatform,
 } from "@board-game-organizer/schemas";
 import {
+  hashKey,
   type InfiniteData,
   type MutationFunctionContext,
   useInfiniteQuery,
@@ -24,6 +25,7 @@ import {
   optimisticMutationSignal,
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
+import { useRecordListWindow } from "../../events/hooks/useRecordListWindow";
 import { attentionReference, projectAttentionSnapshot } from "../notificationAttention";
 import { attentionRoot, notificationFilters } from "../notificationAttentionCache";
 import { notificationReadProtected, optimisticNotificationData } from "../notificationOptimistic";
@@ -125,6 +127,8 @@ export function useNotificationSummary(options: NotificationsApiOptions) {
     ?.attention;
 }
 
+const pageNotifications = (page: NotificationListResponse) => page.notifications;
+
 export function useNotifications(options: NotificationsApiOptions, limit = 5) {
   const queryClient = useQueryClient();
   const root = ["notifications", options.apiUrl, options.userId] as const;
@@ -133,6 +137,18 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     ...notificationsPageQuery(options, limit),
     enabled: options.enabled && Boolean(options.userId) && !resourceBusy(),
     refetchInterval: resourceBusy() ? false : 30_000,
+  });
+  const firstPage = list.data?.pages[0];
+  // Whole-inbox deletion retains empty optimistic pages for rollback, not further presentation.
+  const emptied = firstPage?.notifications.length === 0 && firstPage.nextCursor === null;
+  const window = useRecordListWindow({
+    scope: hashKey(notificationListKey(options, limit)),
+    pages: emptied ? undefined : list.data?.pages,
+    getItems: pageNotifications,
+    pageSize: limit,
+    hasNextPage: list.hasNextPage,
+    isFetching: list.isFetching,
+    fetchNextPage: () => list.fetchNextPage({ cancelRefetch: false }),
   });
   const lastSeen = useRef<{
     apiUrl: string;
@@ -411,11 +427,11 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
   });
 
   return {
-    list,
-    notifications: list.data?.pages.flatMap((page) => page.notifications) ?? [],
+    list: { ...list, hasNextPage: window.hasNextPage, fetchNextPage: window.fetchNextPage },
+    notifications: window.items,
     unreadCount: list.data?.pages[0]?.unreadCount ?? 0,
     attention: list.data?.pages[0]?.attention,
-    hasMore: list.hasNextPage,
+    hasMore: window.hasNextPage,
     markRead,
     markAllRead,
     deleteNotification,

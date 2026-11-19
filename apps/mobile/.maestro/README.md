@@ -1,10 +1,92 @@
 # Native acceptance
 
-Android, Maestro CLI 2.11.0. `config.yaml` discovers only the same 13 canonical
+Install the project-pinned CLI from the repository root with `bun run maestro:install`.
+It requires Bash, curl, SHA-256 tooling, Python 3 and Java 17+. The reviewed version lives in
+`.maestro-version`; local installation and writable Java runtime data live under the ignored
+`.tools/maestro/` directory. CI uses the same version and SHA-256-verified installer.
+No global Maestro installation or shell PATH change is required.
+
+```sh
+bun run maestro --version
+bun run maestro check-syntax apps/mobile/.maestro/flows/01-launch-welcome.yaml
+# Only after preparing the isolated fixtures and connecting the intended device:
+bun run maestro --device <device-id> test apps/mobile/.maestro
+```
+
+Run these commands on Linux/macOS, or in the supported container with device access. Java's
+Maestro runtime home is isolated to this checkout; global Maestro login/settings are not inherited.
+Android device access still requires the SDK/ADB and the normal host USB authorization.
+The remaining examples using `maestro` can use `bun run maestro` from the repository root.
+
+`config.yaml` discovers only the same 13 canonical
 journeys invoked by `.github/scripts/maestro-e2e.sh`; see
 [AGENTS.md](../../../AGENTS.md#8-git-and-delivery) for current CI enablement. Retained flows are not execution evidence.
 Run `maestro test apps/mobile/.maestro` after preparing the isolated fixtures.
 Do not run the helpers directory or treat helpers as independent test reports.
+
+## Manual cached navigation performance
+
+`46-cached-tab-navigation.yaml` changes navigation and starts in an already foreground, authenticated
+Development app. Verify its exact Preview API and account, then set
+`NAVIGATION_BUILD_ACK=owned-preview-build`, `NAVIGATION_API_URL` and
+`NAVIGATION_COLLECTION=present|absent` from the account's actual published collection capability.
+Use a fixture with native notification permission already granted, so opening the bell does not
+introduce an OS prompt. It changes all five main tabs, every main HeroUI tab, Profile tabs and the
+notification popover/inbox, then checks Back. It does not grant permissions, generate invitations,
+reset data or provision fixtures. Existing Contacts source-acknowledgment behavior still applies;
+the journey never presses mark-read or deletion actions. The collection branch is required when
+that capability exists; an absent collection is
+an explicit fixture limit, not acceptance of a populated collection.
+
+Run alongside separate, short native React Profiler and Event Timing captures. Maestro visibility
+assertions and its implicit waits establish navigation behavior, not response latency or frame rate.
+Also measure resource detail tabs, popovers, scrolling and reentry using owned Group/Event/Table
+fixtures; empty History alone does not establish populated History performance. Keep screenshots,
+raw profiles and account data in private diagnostic artifacts rather than Git.
+
+`47-cached-detail-navigation.yaml` checks every authorized Group tab, the Event detail/participants/
+Tables tabs, Table detail/participants and Back with existing owned PRIVATE PLANNING resources.
+It opens Events before any other lazy Group panel, then repeats the retained paths.
+Use the same build/API guards plus `NAVIGATION_DETAILS_INPUT` JSON containing
+`groupId`, `eventId`, `tableId`, `groupName`, `eventName` and `tableName`. The actor must be able to
+view Group members/Events/rankings and Event participants. It never fabricates permissions or
+silently skips those paths. Planning fixtures cannot establish Results-tab acceptance: additionally
+exercise an actual terminated Table visible in that account's populated History, including winners
+and Event/Table status popovers. Do not invent results or another participant's consent for setup.
+
+`48-cached-history-navigation.yaml` retains that populated History/Results path. Set the same
+build/API guards, `NAVIGATION_LOCALE=en|it` and `NAVIGATION_HISTORY_INPUT` JSON containing the exact
+`eventId`, `tableId`, `eventName`, `tableName` and `winnerUsername` (including `@`) of a real completed
+game accessible to the signed-in account. The actor needs full participant access, not a shared-results
+projection. It checks History entry, repeated Results/Participants/Details changes, winner popovers,
+the Event-to-Table path and Back. Provisioning, voting, finalizing and marking notices read remain
+outside this read-only journey.
+
+`49-contacts-deep-link-tabs.yaml` uses the same guards as flow 46. It checks repeated requests
+links after local selection, legacy aliases, search, an unknown-tab fallback, and returning from
+Profile with the selected section intact. Local presses must not dispatch navigation actions;
+verify that separately with the native React Profiler rather than inferring it from assertions.
+
+`50-retained-detail-reentry.yaml` checks scrolling and reentry into an Event's Tables panel without
+writing data. Verify an owned private planning Event with 20 existing Tables, then set the build/API/
+locale guards above, `NAVIGATION_FIXTURE_ACK=owned-private-planning-event`, and
+`NAVIGATION_REENTRY_INPUT` JSON with `groupId`, `eventId`, `targetTableId`, `groupName`, `eventName`,
+`targetTableName`, and `tableCount: 20`. The target is an explicitly verified existing Table; its sort
+position is not assumed. The flow scrolls down and back to that row, changes panels, repeats, then
+checks Back. This is not a second-page API test: an Event permits at most 20 Tables and the query
+requests 20 per page. Multipage presentation, deactivation and stale callbacks have separate hook
+tests; they do not establish native frame timing.
+
+`51-retained-table-editor.yaml` uses the same owned private planning fixture/input as flow 47,
+with Table management capability. It switches between Details and Participants while the seat
+editor is open, checks that editor mode survives reentry, and discards only local editor state.
+It never saves an order or changes registrations, locks, votes or notifications. This checks editor
+lifetime, not a changed row's eventual saved order; the seat-management journeys cover those writes.
+
+`52-retained-tab-keyboard.yaml` uses flow 46's build/API/collection guards. With the Group filter
+keyboard open, one Public-tab press must select that panel; returning to Private must retain the
+filter text. It clears only this local filter afterward. Do not hide the keyboard before the press
+or retry the press: either would mask the ScrollView swallowing the initial touch.
 
 ## Manual OTA startup
 
@@ -763,14 +845,20 @@ illustrations inside the navigation-less Group selector portal intentionally rem
 they must render without a navigation-context error.
 
 On device, record normal-motion internal calendar/banner, die/token and group member/badge
-movement; the full illustration must remain stationary. While the app stays mounted, change
+movement in detail backgrounds, list cards and eligible embedded cards. Navigation-less selector
+portals remain static when they cannot establish motion eligibility.
+The full illustration must remain stationary. While the app stays mounted, change
 system Reduce Motion and return: generated artwork must immediately become the original static
-SVG, then resume when disabled. Background/foreground, navigation away/back and scrolling a
-resource out of view must stop/resume work without lost rows or scroll position. Use a long
+SVG, then resume when disabled. Background/foreground, navigation away/back and retained-panel changes must stop/resume the
+active illustration's clock without lost rows or scroll position. Scrolling the detail card out of view
+must preserve geometry and list responsiveness; profile that path separately. Use a long
 resource list and profile entry/reentry and scroll UI-thread frame timing; a screenshot cannot
 prove paused clocks or performance. Test failed and subsequently changed valid logo URLs using
 owned fixtures, including a delayed prior image response. Compare animation pivots with the web
-reference. Animated SVG Defs/Use invalidation must be checked on an actual release APK.
+reference. Immutable SVG-plane composition and native-driver motion must be checked on an actual release
+APK; no SVG properties are animated per frame. Verify that a first-visit header shows its complete
+static artwork while the animation planes are prepared and that hidden retained headers never
+run competing clocks.
 
 This retained flow and VM/unit checks do not prove native rendering, frame timing, system settings
 reactivity or physical 64/96px contrast. Maestro/device execution is required for that evidence;

@@ -244,7 +244,7 @@ function Editor({
           required
           label={t`Group name`}
           helpTitle={t`Field help`}
-          help={t`Choose a name, from 5 to 120 characters.`}
+          help={t`Choose a name, from 5 to 30 characters.`}
         />
         <NameInput
           category="gruppo"
@@ -253,14 +253,12 @@ function Editor({
           name="group-name"
           placeholder={t`Group name`}
           autoComplete="off"
-          minLength={5}
-          maxLength={120}
         />
         {fieldError("name") ? (
           <p
             role="alert"
             className="text-sm text-danger"
-          >{t`Choose a name, from 5 to 120 characters.`}</p>
+          >{t`Choose a name, from 5 to 30 characters.`}</p>
         ) : null}
       </TextField>
       <div data-form-error={fieldError("logoAssetId") || undefined}>

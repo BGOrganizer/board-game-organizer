@@ -1,4 +1,8 @@
-import type { ProfileView } from "@board-game-organizer/schemas";
+import type {
+  CommunityActivity,
+  ProfileActivity,
+  ProfileView,
+} from "@board-game-organizer/schemas";
 import {
   bggCollectionQuery,
   communityActivitiesQuery,
@@ -393,4 +397,184 @@ it("applies blocking to actual cached queries immediately, preserves unrelated p
   expect(client.getQueryData(key)).toEqual({ ...data, id: "target" });
   expect(client.getQueryData(self)).toEqual(data);
   expect(client.getQueryData(networkKey)).toEqual(network);
+});
+
+it.each([5, 10] as const)(
+  "bounds cached Profile activity reentry to %i rows without consuming retained pages",
+  async (limit) => {
+    const { client, options, wrapper } = setup();
+    const reads = Array.from({ length: 200 }, () => 0);
+    const pages = reads.map((_, page) => ({
+      get items() {
+        reads[page]++;
+        return Array.from(
+          { length: limit },
+          (_, index): ProfileActivity => ({
+            id: `activity-${page}-${index}`,
+            kind: "friendship",
+            occurredAt: "2030-01-01T00:00:00.000Z",
+            context: "Friend",
+            href: "/profiles/friend",
+            visibility: "authorized",
+          }),
+        );
+      },
+      nextCursor: null,
+    }));
+    const key = profileActivitiesQuery(options, "subject", undefined, limit).queryKey;
+    client.setQueryData(key, { pages, pageParams: pages.map((_, index) => String(index)) });
+    const mount = () =>
+      renderHook(
+        () => useProfileActivities({ ...options, enabled: false }, "subject", undefined, limit),
+        { wrapper },
+      );
+    const first = mount();
+    expect(first.result.current.items).toHaveLength(limit);
+    expect(reads.slice(1).every((count) => count === 0)).toBe(true);
+    const items = first.result.current.items;
+    first.rerender();
+    expect(first.result.current.items).toBe(items);
+    await act(async () => {
+      await first.result.current.fetchNextPage();
+    });
+    expect(first.result.current.items).toHaveLength(limit * 2);
+    expect(reads.slice(2).every((count) => count === 0)).toBe(true);
+    expect(client.getQueryData<{ pages: unknown[] }>(key)?.pages).toHaveLength(200);
+    first.unmount();
+    const second = mount();
+    expect(second.result.current.items).toHaveLength(limit);
+    expect(options.getToken).not.toHaveBeenCalled();
+    second.unmount();
+    client.clear();
+  },
+);
+
+it("reveals cached Community activity pages before network reads and resets presentation on owner/filter changes", async () => {
+  const { client, options, wrapper } = setup();
+  const rows = (page: number) =>
+    Array.from(
+      { length: 10 },
+      (_, index): CommunityActivity => ({
+        id: `row-${page}-${index}`,
+        kind: "friendship",
+        occurredAt: "2030-01-01T00:00:00.000Z",
+        context: "Friend",
+        href: "/profiles/friend",
+        visibility: "authorized",
+        author: { id: "friend", name: "Friend", username: "friend", avatarUrl: null },
+      }),
+    );
+  const key = communityActivitiesQuery(options, "all").queryKey;
+  const cached = {
+    pages: [
+      { items: rows(0), nextCursor: "second" },
+      { items: rows(1), nextCursor: "server" },
+    ],
+    pageParams: ["", "second"],
+  };
+  client.setQueryData(key, cached);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+  );
+  const initialProps: { userId: string; kind?: "played" } = { userId: "owner" };
+  const view = renderHook(
+    ({ userId, kind }: { userId: string; kind?: "played" }) =>
+      useCommunityActivities({ ...options, userId, enabled: false }, "all", kind),
+    {
+      wrapper,
+      initialProps,
+    },
+  );
+  expect(view.result.current.items).toHaveLength(10);
+  const more = view.result.current.fetchNextPage;
+  await act(async () => {
+    await more();
+    await more();
+  });
+  expect(view.result.current.items).toHaveLength(20);
+  expect(options.getToken).not.toHaveBeenCalled();
+  expect(client.getQueryData<{ pages: unknown[] }>(key)?.pages).toHaveLength(2);
+  await act(async () => {
+    await view.result.current.fetchNextPage();
+  });
+  expect(options.getToken).toHaveBeenCalledOnce();
+  expect(view.result.current.hasNextPage).toBe(false);
+  const stale = view.result.current.fetchNextPage;
+  view.rerender({ userId: "other" });
+  expect(view.result.current.items).toEqual([]);
+  await act(async () => {
+    await stale();
+  });
+  expect(view.result.current.items).toEqual([]);
+  view.rerender({ userId: "owner", kind: "played" });
+  expect(view.result.current.items).toEqual([]);
+  view.rerender({ userId: "owner" });
+  expect(view.result.current.items).toHaveLength(10);
+  view.unmount();
+  client.clear();
+});
+
+it("bounds rated-game choices and earlier points independently while preserving chronological chart order", async () => {
+  const { client, options, wrapper } = setup();
+  const gameKey = [...profileViewKeys.root(options), "games", "subject", ""];
+  const ratingKey = [...profileViewKeys.root(options), "rating", "subject", 7];
+  const gamePages = Array.from({ length: 50 }, (_, page) => ({
+    items: Array.from({ length: 20 }, (_, index) => ({
+      id: page * 20 + index + 1,
+      name: `Game ${page}-${index}`,
+      imageUrl: null,
+    })),
+    nextCursor: null,
+  }));
+  const ratingPages = Array.from({ length: 50 }, (_, page) => ({
+    points: Array.from({ length: 100 }, (_, index) => ({
+      ordinal: 5000 - page * 100 - 99 + index,
+      rating: index,
+      delta: 1,
+    })),
+    game: { id: 7, name: "Selected outside the visible choices", imageUrl: null },
+    stats: { gamesPlayed: 5000, gamesWon: 100 },
+    rating: 500,
+    delta: 1,
+    nextCursor: null,
+  }));
+  client.setQueryData(gameKey, { pages: gamePages, pageParams: gamePages.map((_, page) => page) });
+  client.setQueryData(ratingKey, {
+    pages: ratingPages,
+    pageParams: ratingPages.map((_, page) => page),
+  });
+  const view = renderHook(
+    ({ subject, gameId }) => ({
+      games: useProfileRatingGames({ ...options, enabled: false }, subject, ""),
+      history: useProfileRating({ ...options, enabled: false }, subject, gameId),
+    }),
+    { wrapper, initialProps: { subject: "subject", gameId: 7 as number | null } },
+  );
+  expect(view.result.current.games.items).toHaveLength(20);
+  expect(view.result.current.history.points).toHaveLength(100);
+  expect(view.result.current.history.points[0].ordinal).toBe(4901);
+  expect(view.result.current.history.points.at(-1)?.ordinal).toBe(5000);
+  expect(view.result.current.history.data?.pages[0].game?.name).toBe(
+    "Selected outside the visible choices",
+  );
+  const points = view.result.current.history.points;
+  view.rerender({ subject: "subject", gameId: 7 });
+  expect(view.result.current.history.points).toBe(points);
+  await act(async () => {
+    await view.result.current.history.fetchNextPage();
+  });
+  expect(view.result.current.history.points).toHaveLength(200);
+  expect(view.result.current.history.points[0].ordinal).toBe(4801);
+  expect(view.result.current.games.items).toHaveLength(20);
+  expect(options.getToken).not.toHaveBeenCalled();
+  expect(client.getQueryData<{ pages: unknown[] }>(ratingKey)?.pages).toHaveLength(50);
+  view.rerender({ subject: "other", gameId: 7 });
+  expect(view.result.current.games.items).toEqual([]);
+  expect(view.result.current.history.points).toEqual([]);
+  view.rerender({ subject: "subject", gameId: null });
+  expect(view.result.current.history.points).toEqual([]);
+  expect(view.result.current.history.isFetching).toBe(false);
+  view.unmount();
+  client.clear();
 });

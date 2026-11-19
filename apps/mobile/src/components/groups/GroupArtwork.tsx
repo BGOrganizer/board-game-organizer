@@ -1,13 +1,13 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { useThemeColor } from "heroui-native/hooks";
 import { Crown } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Image, View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
 import { containedArtwork } from "@/lib/artworkLayout";
 import { useT } from "@/lib/i18n";
-export function GroupArtwork({
+export const GroupArtwork = memo(function GroupArtwork({
   group,
   size = 64,
   status = "overlay",
@@ -88,4 +88,4 @@ export function GroupArtwork({
       ) : null}
     </View>
   );
-}
+});

@@ -25,7 +25,12 @@ export function EventVisibilityPicker({
   const [muted, accent] = useThemeColor(["muted", "accent"]);
   const choices = [
     { value: "PRIVATE" as const, label: t("Private"), icon: LockKeyhole, color: muted },
-    { value: "PUBLIC" as const, label: t("Public"), icon: Globe, color: accent },
+    {
+      value: "PUBLIC" as const,
+      label: t("Public"),
+      icon: Globe,
+      color: publicAllowed ? accent : muted,
+    },
   ];
   return (
     <View style={{ gap: 8 }}>
@@ -33,7 +38,7 @@ export function EventVisibilityPicker({
         label={t("Event visibility")}
         helpTitle={t("Field help")}
         help={t(
-          "Public events require an approved public group. Private events remain private when you change groups.",
+          "Public events are visible to everyone and can be joined without group membership. Select an approved public group to enable this option.",
         )}
       />
       <RadioGroup
@@ -58,8 +63,21 @@ export function EventVisibilityPicker({
             <Card
               pointerEvents="none"
               variant={value === choice.value ? "secondary" : "default"}
-              className={value === choice.value ? "border-accent" : "border-transparent"}
-              style={{ width: "100%", minHeight: 112, padding: 12, borderWidth: 2 }}
+              className={
+                choice.value === "PUBLIC" && !publicAllowed
+                  ? "border-separator"
+                  : value === choice.value
+                    ? "border-accent"
+                    : "border-transparent"
+              }
+              style={{
+                width: "100%",
+                alignSelf: "stretch",
+                minHeight: 112,
+                padding: 12,
+                borderWidth: 2,
+                borderStyle: choice.value === "PUBLIC" && !publicAllowed ? "dashed" : "solid",
+              }}
             >
               <Card.Body style={{ gap: 8 }}>
                 <View
@@ -88,21 +106,27 @@ export function EventVisibilityPicker({
                     importantForAccessibility="no-hide-descendants"
                   />
                 </View>
-                <Typography className="font-semibold text-foreground">{choice.label}</Typography>
+                <Typography
+                  className={
+                    choice.value === "PUBLIC" && !publicAllowed
+                      ? "font-semibold text-muted"
+                      : "font-semibold text-foreground"
+                  }
+                >
+                  {choice.label}
+                </Typography>
               </Card.Body>
             </Card>
           </RadioGroup.Item>
         ))}
       </RadioGroup>
-      <Typography className="text-sm text-muted">
-        {locked
-          ? t("Event visibility cannot be changed after creation.")
-          : !publicAllowed
-            ? t("Public events require an approved public group.")
-            : t(
-                "Private events are visible only to accepted group members. Public-group scheduling rules still apply.",
-              )}
-      </Typography>
+      {locked || !publicAllowed ? (
+        <Typography className="text-sm text-muted">
+          {locked
+            ? t("Event visibility cannot be changed after creation.")
+            : t("Select an approved public group to enable public events.")}
+        </Typography>
+      ) : null}
     </View>
   );
 }

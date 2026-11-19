@@ -276,7 +276,7 @@ function Editor({
                   required
                   label={t("Group name")}
                   helpTitle={t("Field help")}
-                  help={t("Choose a name, from 5 to 120 characters.")}
+                  help={t("Choose a name, from 5 to 30 characters.")}
                 />
                 {conflict ? (
                   <Typography accessibilityRole="alert" className="text-danger">
@@ -297,11 +297,10 @@ function Editor({
                   placeholder={t("Group name")}
                   value={name}
                   onChangeText={setName}
-                  maxLength={120}
                 />
                 {fieldError("name") ? (
                   <Typography accessibilityRole="alert" className="text-sm text-danger">
-                    {t("Choose a name, from 5 to 120 characters.")}
+                    {t("Choose a name, from 5 to 30 characters.")}
                   </Typography>
                 ) : null}
               </InputField>

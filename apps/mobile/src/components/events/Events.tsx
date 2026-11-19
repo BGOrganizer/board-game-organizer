@@ -1,15 +1,17 @@
 import type { EventListSection } from "@board-game-organizer/schemas";
 import { Tabs } from "heroui-native/tabs";
 import { CalendarCheck, CalendarSearch, Flag } from "lucide-react-native";
-import { type ReactNode, useState } from "react";
-import { View } from "react-native";
+import { memo, type ReactNode, useState } from "react";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
+import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventList } from "./EventList";
+
+const MemoizedEventList = memo(EventList);
 
 export function Events({
   groupId,
@@ -24,7 +26,7 @@ export function Events({
 }) {
   const t = useT();
   const options = useCommunityApi();
-  const [section, setSection] = useState<EventListSection>(initialSection);
+  const [selectedSection, setSection] = useState<EventListSection>(initialSection);
   if (groupId) return <EventList groupId={groupId} canCreate={canCreate} header={header} />;
   return (
     <NotificationAttentionScope
@@ -36,7 +38,7 @@ export function Events({
       ]}
     >
       <Tabs
-        value={section}
+        value={selectedSection}
         onValueChange={(value) => {
           if (value === "mine" || value === "available" || value === "terminated")
             setSection(value);
@@ -61,9 +63,14 @@ export function Events({
             <NotificationTabBadge target={{ kind: "event-list", id: "terminated" }} />
           </TabTrigger>
         </MainTabBar>
-        <View style={{ flex: 1 }}>
-          <EventList key={section} section={section} canCreate={canCreate} />
-        </View>
+        {(["mine", "available", "terminated"] as const).map((section) => (
+          <RetainedTabPanel
+            key={JSON.stringify([options.apiUrl, options.userId, groupId, section])}
+            active={selectedSection === section}
+          >
+            <MemoizedEventList section={section} canCreate={canCreate} />
+          </RetainedTabPanel>
+        ))}
       </Tabs>
     </NotificationAttentionScope>
   );

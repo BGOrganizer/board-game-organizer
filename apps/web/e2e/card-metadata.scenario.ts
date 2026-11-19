@@ -276,7 +276,7 @@ for (const width of [390, 1280])
       .click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
-    for (const label of [it ? "Date e orari" : "Dates and times", it ? "Luoghi" : "Locations"])
+    for (const label of [it ? "Date e Orari" : "Dates and times", it ? "Luoghi" : "Locations"])
       await expect(
         event.getByRole("button", { name: `${label}: ${eventName}`, exact: true }),
       ).toHaveCount(0);
@@ -315,7 +315,7 @@ for (const width of [390, 1280])
       await page.keyboard.press("Escape");
       await expect(table.getByRole("button", { name: rolesLabel, exact: true })).toBeVisible();
       for (const label of [
-        it ? "Date e orari" : "Dates and times",
+        it ? "Date e Orari" : "Dates and times",
         it ? "Luoghi" : "Locations",
         it ? "Giochi da tavolo" : "Board games",
       ])
@@ -403,7 +403,7 @@ for (const width of [390, 1280])
     await expect(contextual.getByText(eventName, { exact: true })).toBeVisible();
     await expect(
       contextual.getByRole("button", {
-        name: `${it ? "Date e orari" : "Dates and times"}: ${tableName}`,
+        name: `${it ? "Date e Orari" : "Dates and times"}: ${tableName}`,
         exact: true,
       }),
     ).toHaveCount(0);

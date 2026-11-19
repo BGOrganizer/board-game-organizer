@@ -1,5 +1,12 @@
 import type { ContactUser, RelationshipRow } from "./hooks/useContacts";
 
+export type ContactConnectionIds = {
+  friends: ReadonlySet<string>;
+  following: ReadonlySet<string>;
+  followers: ReadonlySet<string>;
+  blocked: ReadonlySet<string>;
+};
+
 /** Each user appears once, in the highest-priority connection section. */
 export function contactConnections(
   friends: RelationshipRow[],
@@ -7,12 +14,23 @@ export function contactConnections(
   followers: RelationshipRow[],
   suggestions: ContactUser[],
   blocked: RelationshipRow[],
+  known?: ContactConnectionIds,
 ) {
   const seen = new Set<string>();
-  const blockedIds = new Set(blocked.map((row) => row.profile?.id));
-  const unique = (users: Array<ContactUser | null>, allowBlocked = false) =>
+  const blockedIds = known?.blocked ?? new Set(blocked.map((row) => row.profile?.id));
+  const unique = (
+    users: Array<ContactUser | null>,
+    earlier: readonly ReadonlySet<string>[] = [],
+    allowBlocked = false,
+  ) =>
     users.flatMap((user) => {
-      if (!user || seen.has(user.id) || (!allowBlocked && blockedIds.has(user.id))) return [];
+      if (
+        !user ||
+        seen.has(user.id) ||
+        earlier.some((ids) => ids.has(user.id)) ||
+        (!allowBlocked && blockedIds.has(user.id))
+      )
+        return [];
       seen.add(user.id);
       return [user];
     });
@@ -20,16 +38,23 @@ export function contactConnections(
     { key: "friends", users: unique(friends.map((row) => row.profile)) },
     {
       key: "following",
-      users: unique(following.map((row) => row.profile && { ...row.profile, isFollowing: true })),
+      users: unique(
+        following.map((row) => row.profile && { ...row.profile, isFollowing: true }),
+        known ? [known.friends] : [],
+      ),
     },
     {
       key: "followers",
-      users: unique(followers.map((row) => row.profile && { ...row.profile, isFollower: true })),
+      users: unique(
+        followers.map((row) => row.profile && { ...row.profile, isFollower: true }),
+        known ? [known.friends, known.following] : [],
+      ),
     },
     {
       key: "blocked",
       users: unique(
         blocked.map((row) => row.profile),
+        [],
         true,
       ),
     },
@@ -44,6 +69,7 @@ export function contactConnections(
             !user.blockedByMe &&
             !user.blockedMe,
         ),
+        known ? [known.friends, known.following, known.followers] : [],
       ),
     },
   ] as const;

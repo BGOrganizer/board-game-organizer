@@ -29,6 +29,7 @@ import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
+import { EventVoteLegend } from "./EventVoteLegend";
 export function EventTableOverview({
   eventId,
   tableId,
@@ -143,7 +144,12 @@ export function EventTableOverview({
         ) : null}
         <section className="space-y-3" aria-label={t`Board games`}>
           <NotificationItem itemId={notificationItemId(table.id, "games")}>
-            <h2 className="font-semibold">{t`Board games`}</h2>
+            <div className="flex items-center gap-1">
+              <h2 className="font-semibold">{t`Board games`}</h2>
+              {votableGames && table.eventStatus === "PLANNING" ? (
+                <EventVoteLegend label={t`Board games`} scope="table" />
+              ) : null}
+            </div>
           </NotificationItem>
           <GroupedList>
             {tableCardGames(table).map((game) => (

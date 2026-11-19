@@ -18,7 +18,6 @@ import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GroupArtwork } from "@/components/groups/GroupArtwork";
 import { useT } from "@/lib/i18n";
-import { useArtworkListVisibility } from "@/lib/useArtworkListVisibility";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useKeyboardHeight } from "@/lib/useKeyboardHeight";
 
@@ -35,7 +34,6 @@ export function EventGroupSelect({
   busy: boolean;
   onChange: (id: string | null, type: "PRIVATE" | "PUBLIC" | null) => void;
 }) {
-  const artwork = useArtworkListVisibility();
   const t = useT(),
     options = useCommunityApi(),
     muted = useThemeColor("muted");
@@ -80,7 +78,7 @@ export function EventGroupSelect({
         }
       }}
     >
-      <Select.Trigger accessibilityLabel={t("Group")}>
+      <Select.Trigger testID="event-group-select" accessibilityLabel={t("Group")}>
         <Select.Value placeholder={t("No group")} />
         <Select.TriggerIndicator />
       </Select.Trigger>
@@ -93,8 +91,6 @@ export function EventGroupSelect({
           style={{ maxHeight: listHeight }}
         >
           <InputFlatList
-            onLayout={artwork.onLayout}
-            onViewableItemsChanged={artwork.onViewableItemsChanged}
             keyboardAvoidance="external"
             data={rows}
             keyExtractor={(row) => row.id}
@@ -119,23 +115,20 @@ export function EventGroupSelect({
                 </Select.Item>
               </View>
             }
-            renderItem={({ item: row }) =>
-              artwork.row(
-                row.id,
-                <Select.Item value={row.id} label={row.name} disabled={!row.canInvite}>
-                  <GroupArtwork group={row} size={40} />
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Typography className="text-foreground" numberOfLines={1}>
-                      {row.name}
-                    </Typography>
-                    <Typography className="text-xs text-muted">
-                      {row.type === "PUBLIC" ? t("Public") : t("Private")}
-                    </Typography>
-                  </View>
-                  <Select.ItemIndicator />
-                </Select.Item>,
-              )
-            }
+            renderItem={({ item: row }) => (
+              <Select.Item value={row.id} label={row.name} disabled={!row.canInvite}>
+                <GroupArtwork group={row} size={40} status="none" />
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Typography className="text-foreground" numberOfLines={1}>
+                    {row.name}
+                  </Typography>
+                  <Typography className="text-xs text-muted">
+                    {row.type === "PUBLIC" ? t("Public") : t("Private")}
+                  </Typography>
+                </View>
+                <Select.ItemIndicator />
+              </Select.Item>
+            )}
             onEndReached={() => {
               if (groups.hasNextPage && !groups.isFetchingNextPage && !groups.isFetchNextPageError)
                 void loadMore();

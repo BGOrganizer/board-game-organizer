@@ -13,6 +13,7 @@ export function TabTrigger({
   return (
     <Tabs.Trigger
       {...props}
+      testID={props.testID ?? `top-tab-${props.value}`}
       style={
         typeof style === "function"
           ? (state) => [

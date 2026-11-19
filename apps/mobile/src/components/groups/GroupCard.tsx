@@ -6,6 +6,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, RefreshCw, UsersRound } from "lucide-react-native";
+import { memo } from "react";
 import { View } from "react-native";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
@@ -14,25 +15,34 @@ import { useT } from "@/lib/i18n";
 import { GroupArtwork } from "./GroupArtwork";
 import { GroupCardIndicators } from "./GroupCardIndicators";
 
-export function GroupCard({
-  group,
-  href,
-  onVerify,
-  checking = false,
-}: {
+type Props = {
   group: ClientGroupRecord;
   href?: Href;
   onVerify?: () => void;
   checking?: boolean;
-}) {
+};
+
+export const GroupCard = memo(function GroupCard(props: Props) {
+  const attention = useNotificationAttentionContext();
+  const count = props.group.optimistic
+    ? undefined
+    : attention?.get({ kind: "group", id: props.group.id })?.count;
+  return <GroupCardContent {...props} notificationCount={count} />;
+});
+
+const GroupCardContent = memo(function GroupCardContent({
+  group,
+  href,
+  onVerify,
+  checking = false,
+  notificationCount: count,
+}: Props & { notificationCount?: number }) {
   const t = useT(),
     router = useRouter(),
     muted = useThemeColor("muted");
   const { i18n } = useLingui();
-  const attention = useNotificationAttentionContext();
   const local = group.optimistic,
     status = useClientRecordStatus(local?.phase);
-  const count = local ? undefined : attention?.get({ kind: "group", id: group.id })?.count;
   const events = group.canViewEvents && group.eventCount !== null;
   return (
     <LinkedListCard
@@ -126,4 +136,4 @@ export function GroupCard({
       </View>
     </LinkedListCard>
   );
-}
+});

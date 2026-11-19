@@ -2,9 +2,12 @@ import type { ActivityAuthor } from "@board-game-organizer/schemas";
 import { communityAccessDenied, useProfileActivities } from "@board-game-organizer/shared";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
+import { Activity } from "lucide-react-native";
 import { View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -17,11 +20,12 @@ export function ProfileRecentActivities({
   userId: string;
   author?: ActivityAuthor;
 }) {
+  const muted = useThemeColor("muted");
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
     q = useProfileActivities(o, userId);
-  const items = communityAccessDenied(q.error) ? [] : q.data?.pages[0]?.items;
+  const items = communityAccessDenied(q.error) ? [] : q.data ? q.items : undefined;
   return (
     <View style={{ gap: 12 }}>
       <Typography accessibilityRole="header" className="font-semibold text-foreground">
@@ -47,7 +51,7 @@ export function ProfileRecentActivities({
           ))}
         </GroupedList>
       ) : !q.isPending && !q.isError ? (
-        <Typography className="text-muted">{t("No activities yet")}</Typography>
+        <EmptyList icon={<Activity size={28} color={muted} />}>{t("No activities yet")}</EmptyList>
       ) : null}
       <Button
         variant="secondary"

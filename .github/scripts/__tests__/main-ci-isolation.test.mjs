@@ -69,6 +69,9 @@ test("Codecov authenticates with job-scoped OIDC without static tokens on PR and
       assert.equal(job.permissions.contents, "read");
       for (const upload of uploads) {
         assert.equal(upload.with.use_oidc, true);
+        assert.equal(upload.with.disable_search, true, `${name}: ${id}`);
+        assert.equal(typeof upload.with.files, "string", `${name}: ${id}`);
+        assert(upload.with.files.trim().length > 0, `${name}: ${id}: explicit coverage files`);
         assert.equal(upload.with.token, undefined);
         assert.equal(upload.with.fail_ci_if_error, true);
         assert.equal(upload["continue-on-error"], undefined);
@@ -147,7 +150,7 @@ test("every main merge runs all non-E2E gates once in parallel before preparing 
     "shared",
   ]);
   assert.deepEqual(jobs.build.strategy.matrix.app, ["api", "web"]);
-  for (const gate of ["quality", "coverage", "integration-tests", "build"]) {
+  for (const gate of ["quality", "coverage", "integration-tests", "native-tooling", "build"]) {
     assert.equal(jobs[gate].needs, undefined);
     assert(jobs.release.needs.includes(gate));
   }

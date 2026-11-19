@@ -60,7 +60,7 @@ it.each(["en", "it"] as const)(
     ).not.toBeNull();
     fireEvent.click(
       screen.getByRole("button", {
-        name: `${locale === "it" ? "Date e orari" : "Dates and times"}: First table`,
+        name: `${locale === "it" ? "Date e Orari" : "Dates and times"}: First table`,
       }),
     );
     const dialog = await screen.findByRole("dialog");

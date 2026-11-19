@@ -109,6 +109,55 @@ beforeEach(() => {
   for (const method of Object.values(events)) method.mockReset().mockResolvedValue({ id });
 });
 afterEach(() => vi.restoreAllMocks());
+it.each(["abcd", "a".repeat(31)])(
+  "rejects Event or nested Table name %s before create/edit writes",
+  async (name) => {
+    for (const patch of [{ name }, { tables: [{ ...input.tables[0], name }] }]) {
+      const body = { ...input, ...patch };
+      expect((await root.POST(request("POST", body))).status).toBe(400);
+      const { groupId: _groupId, ...fields } = body;
+      expect(
+        (
+          await detail.PATCH(
+            request("PATCH", { ...fields, version: 1, removedTableIds: [] }),
+            context,
+          )
+        ).status,
+      ).toBe(400);
+    }
+    expect(events.create).not.toHaveBeenCalled();
+    expect(events.update).not.toHaveBeenCalled();
+  },
+);
+it.each(["abcde", "a".repeat(30)])(
+  "accepts trimmed Event and Table name boundary %s",
+  async (name) => {
+    const body = {
+      ...input,
+      name: ` ${name} `,
+      tables: [{ ...input.tables[0], name: ` ${name} ` }],
+    };
+    expect((await root.POST(request("POST", body))).status).toBe(201);
+    const { groupId: _groupId, ...fields } = body;
+    expect(
+      (
+        await detail.PATCH(
+          request("PATCH", { ...fields, version: 1, removedTableIds: [] }),
+          context,
+        )
+      ).status,
+    ).toBe(200);
+    expect(events.create).toHaveBeenCalledWith(
+      "actor",
+      expect.objectContaining({ name, tables: [expect.objectContaining({ name })] }),
+    );
+    expect(events.update).toHaveBeenCalledWith(
+      "actor",
+      id,
+      expect.objectContaining({ name, tables: [expect.objectContaining({ name })] }),
+    );
+  },
+);
 it("validates private proposal scopes, explicit payloads and versioned decisions before service writes", async () => {
   const target = { params: Promise.resolve({ eventId: id, proposalId: tableId }) };
   expect((await proposal.GET(request(), target)).status).toBe(200);

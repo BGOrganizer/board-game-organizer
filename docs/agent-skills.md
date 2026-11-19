@@ -74,6 +74,9 @@ Load skills by affected task:
 | Component architecture, extraction, or feature ownership | [AGENTS.md architecture rules](../AGENTS.md#4-architecture-and-ui-ownership), then `vercel-composition-patterns` and the relevant platform guide |
 | Web UI/accessibility | `heroui-react` while implementing; `web-design-guidelines` for final review |
 | React Native rendering/lists/performance | `vercel-react-native-skills`; no automatic FlashList, NativeWind, or alternative UI dependency |
+| Native component behavior tests | `react-native-testing`, the official Callstack guide; use async React Native Testing Library APIs with Vitest, translating generic Jest mocks/timers to `vi`. Follow [the project setup](render-performance.md); device boundaries do not establish native frame timing. |
+| React render regression benchmarks | `perf-control` from `jeferson-sb/skills`, installed for Codex; use its Reassure section with [the project setup](render-performance.md). Its legacy API, configuration and npm examples are not authoritative; verify installed types and official docs. No Flashlight, telemetry, cloud devices or additional CI gates follow from installing this guide. |
+| Native traces and frame/input investigation | `perfetto`, the official Google Perfetto guide; use [the project-pinned CLI and bounded Maestro capture](native-performance.md). Installing the guide does not authorize device settings changes, new telemetry or trace publication. |
 | General Expo work/navigation | `expo-overview`, then `expo-router` only for touched routes/layouts/links/headers; generic `@expo/ui` routing is not applicable here |
 | Native animation/gestures | `expo-animation` |
 | Native requests/cache/offline/loaders | `expo-data-fetching` and `tanstack-query-development`; no SWR or duplicated server state |

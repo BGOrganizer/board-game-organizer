@@ -8,7 +8,8 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarCheck2, CalendarClock, Flag, Plus } from "lucide-react";
+import { CalendarCheck2, CalendarClock, CalendarDays, Flag, Plus } from "lucide-react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -99,8 +100,8 @@ export function EventList({
         />
         {list.isPending ? (
           <Skeleton className="h-32 w-full rounded-xl" />
-        ) : !list.isError && !list.items.length ? (
-          <p>{t`No events found`}</p>
+        ) : !list.isError && !list.hasNextPage && !list.items.length ? (
+          <EmptyList icon={<CalendarDays className="size-7" />}>{t`No events found`}</EmptyList>
         ) : null}
         {list.isError ? (
           <div role="alert">

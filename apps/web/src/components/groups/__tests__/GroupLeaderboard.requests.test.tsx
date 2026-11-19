@@ -1,0 +1,248 @@
+import type { GroupLeaderboardResponse } from "@board-game-organizer/schemas";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { renderWithI18n } from "@/test-utils";
+import { GroupLeaderboard } from "../GroupLeaderboard";
+
+const boundary = vi.hoisted(() => ({ getToken: vi.fn() }));
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ userId: "ranking-viewer", getToken: boundary.getToken }),
+}));
+const groupId = "11111111-1111-4111-8111-111111111111";
+const game = { id: 1, name: "Strategy game", imageUrl: null };
+const player: GroupLeaderboardResponse["players"][number] = {
+  userId: "player-one",
+  name: "Private full name",
+  username: "player-one",
+  avatarUrl: null,
+  gamesPlayed: 8,
+  gamesWon: 2,
+  nd: 1,
+  rating: null,
+  provisional: false,
+  left: false,
+  groupRole: "MEMBER",
+};
+let games: GroupLeaderboardResponse;
+let players: GroupLeaderboardResponse;
+let playersStatus: number;
+let pageStatus: number;
+let pending: Promise<Response> | undefined;
+let client: QueryClient;
+const reads: URL[] = [];
+const json = (body: unknown, status = 200) => Response.json(body, { status });
+beforeEach(() => {
+  vi.clearAllMocks();
+  boundary.getToken.mockResolvedValue("fresh-ranking-token");
+  games = { games: [game], players: [], nextCursor: null };
+  players = { games: [], players: [player], nextCursor: null };
+  playersStatus = pageStatus = 200;
+  pending = undefined;
+  reads.length = 0;
+  client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      expect(url.pathname).toBe(`/api/groups/${groupId}/leaderboard`);
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer fresh-ranking-token");
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      reads.push(url);
+      const isPlayers = url.searchParams.has("gameId");
+      const next = url.searchParams.get("cursor") === "25";
+      if (pending && (isPlayers || next)) return pending;
+      const status = next ? pageStatus : isPlayers ? playersStatus : 200;
+      return json(
+        status !== 200
+          ? { error: "Fixture ranking unavailable" }
+          : next
+            ? isPlayers
+              ? {
+                  games: [],
+                  players: [
+                    { ...player, userId: "next-player", username: "next-player", rating: 530 },
+                  ],
+                  nextCursor: null,
+                }
+              : {
+                  games: [{ id: 2, name: "Next game", imageUrl: null }],
+                  players: [],
+                  nextCursor: null,
+                }
+            : isPlayers
+              ? players
+              : games,
+        status,
+      );
+    }),
+  );
+});
+afterEach(() => {
+  client.clear();
+  vi.unstubAllGlobals();
+});
+function mount() {
+  return renderWithI18n(
+    <QueryClientProvider client={client}>
+      <GroupLeaderboard groupId={groupId} />
+    </QueryClientProvider>,
+  );
+}
+async function chooseGame() {
+  fireEvent.click(await screen.findByRole("button", { name: /Board game/ }));
+  fireEvent.click(await screen.findByRole("option", { name: "Strategy game" }));
+}
+const playerReads = () => reads.filter((url) => url.searchParams.has("gameId"));
+
+it("keeps selected ranking loading distinct from failure, retries only players and never fabricates a missing rating", async () => {
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected pending ranking");
+  };
+  pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  mount();
+  await chooseGame();
+  expect(screen.queryByRole("grid")).toBeNull();
+  await act(() => finish(json({ error: "Fixture ranking unavailable" }, 503)));
+  const retry = await screen.findByRole("button", { name: "Could not load leaderboards. Retry" });
+  expect(screen.queryByText("No rated tables played in this group yet")).toBeNull();
+  pending = undefined;
+  fireEvent.click(retry);
+  expect(await screen.findByRole("grid", { name: "Group leaderboard" })).toBeVisible();
+  expect(screen.getByText("Not rated")).toBeVisible();
+  expect(screen.queryByText("Private full name")).toBeNull();
+  expect(playerReads()).toHaveLength(2);
+  expect(reads.filter((url) => !url.searchParams.has("gameId"))).toHaveLength(1);
+});
+
+it("appends canonical player pages and recovers a failed cursor without removing already loaded rows", async () => {
+  players.nextCursor = 25;
+  mount();
+  await chooseGame();
+  await screen.findByText("@player-one");
+  pageStatus = 503;
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  const retry = await screen.findByRole("button", { name: "Could not load leaderboards. Retry" });
+  expect(screen.getByText("@player-one")).toBeVisible();
+  pageStatus = 200;
+  fireEvent.click(retry);
+  expect(await screen.findByText("@next-player")).toBeVisible();
+  expect(screen.getByText("@player-one")).toBeVisible();
+  expect(screen.getByText("530.00")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(playerReads().map((url) => url.searchParams.get("cursor"))).toEqual(["0", "25", "25"]);
+});
+
+it("disables game pagination during an actual pending page while preserving selected options", async () => {
+  games.nextCursor = 25;
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: /Board game/ }));
+  await screen.findByRole("option", { name: "Strategy game" });
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected pending game page");
+  };
+  pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Load more games" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Load more games" })).toBeDisabled(),
+  );
+  expect(screen.getByRole("option", { name: "Strategy game" })).toBeVisible();
+  pending = undefined;
+  await act(() =>
+    finish(
+      json({
+        games: [{ id: 2, name: "Next game", imageUrl: null }],
+        players: [],
+        nextCursor: null,
+      }),
+    ),
+  );
+  expect(await screen.findByRole("option", { name: "Next game" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Load more games" })).toBeNull();
+  expect(playerReads()).toHaveLength(0);
+  expect(reads.at(-1)?.searchParams.get("cursor")).toBe("25");
+});
+
+it("pages from the browser intersection boundary only at the end and coalesces a pending request", async () => {
+  const observers: BrowserIntersectionObserver[] = [];
+  class BrowserIntersectionObserver implements IntersectionObserver {
+    readonly root = null;
+    readonly rootMargin: string;
+    readonly thresholds = [0];
+    readonly scrollMargin = "0px";
+    readonly delay = 0;
+    readonly trackVisibility = false;
+    private readonly targets = new Set<Element>();
+    constructor(
+      private readonly callback: IntersectionObserverCallback,
+      options?: IntersectionObserverInit,
+    ) {
+      this.rootMargin = options?.rootMargin ?? "0px";
+      observers.push(this);
+    }
+    observe(target: Element) {
+      this.targets.add(target);
+    }
+    unobserve(target: Element) {
+      this.targets.delete(target);
+    }
+    disconnect() {
+      this.targets.clear();
+    }
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+    intersect(isIntersecting: boolean) {
+      this.callback(
+        [...this.targets].map((target) => ({
+          target,
+          isIntersecting,
+          intersectionRatio: isIntersecting ? 1 : 0,
+          boundingClientRect: target.getBoundingClientRect(),
+          intersectionRect: target.getBoundingClientRect(),
+          rootBounds: null,
+          time: performance.now(),
+        })),
+        this,
+      );
+    }
+  }
+  vi.stubGlobal("IntersectionObserver", BrowserIntersectionObserver);
+  players.nextCursor = 25;
+  mount();
+  await chooseGame();
+  await screen.findByText("@player-one");
+  const end = observers.find((observer) => observer.rootMargin === "300px");
+  if (!end) throw new Error("Expected the actual leaderboard end sentinel observer");
+  act(() => end.intersect(false));
+  expect(playerReads()).toHaveLength(1);
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected pending observed page");
+  };
+  pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  act(() => {
+    end.intersect(true);
+    end.intersect(true);
+  });
+  await waitFor(() => expect(playerReads()).toHaveLength(2));
+  expect(screen.getByRole("button", { name: "Load more" })).toBeDisabled();
+  pending = undefined;
+  await act(() =>
+    finish(
+      json({
+        games: [],
+        players: [{ ...player, userId: "next-player", username: "next-player" }],
+        nextCursor: null,
+      }),
+    ),
+  );
+  expect(await screen.findByText("@next-player")).toBeVisible();
+  expect(playerReads()).toHaveLength(2);
+  expect(boundary.getToken).toHaveBeenCalledTimes(reads.length);
+});

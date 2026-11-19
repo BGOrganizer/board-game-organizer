@@ -1,5 +1,6 @@
 "use client";
 
+import { RESOURCE_NAME_MAX_LENGTH, RESOURCE_NAME_MIN_LENGTH } from "@board-game-organizer/schemas";
 import { generateName, type NameCategory } from "@board-game-organizer/shared";
 import { Button, InputGroup } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -10,7 +11,7 @@ export function NameInput({
   category,
   onGenerate,
   isDisabled,
-  maxLength = 120,
+  maxLength = RESOURCE_NAME_MAX_LENGTH,
   ...props
 }: ComponentProps<typeof InputGroup.Input> & {
   category: NameCategory;
@@ -20,7 +21,12 @@ export function NameInput({
   const { t, i18n } = useLingui();
   return (
     <InputGroup fullWidth>
-      <InputGroup.Input {...props} maxLength={maxLength} disabled={isDisabled} />
+      <InputGroup.Input
+        {...props}
+        minLength={RESOURCE_NAME_MIN_LENGTH}
+        maxLength={maxLength}
+        disabled={isDisabled}
+      />
       <InputGroup.Suffix>
         <Button
           type="button"

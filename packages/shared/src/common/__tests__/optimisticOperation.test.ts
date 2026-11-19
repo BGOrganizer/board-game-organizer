@@ -1,4 +1,4 @@
-import { QueryClient } from "@tanstack/react-query";
+import { hashKey, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import {
   beginOptimisticOperation,
@@ -469,6 +469,68 @@ describe("operation-scoped optimistic cache updates", () => {
     expect(optimisticOperationSignal(client, root).aborted).toBe(true);
     operation.commit();
     expect(client.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it.each([false, true])(
+    "reads snapshots with linear hashing work when the journal is empty (initialized=%s)",
+    (initialized) => {
+      const hashes = vi.fn(hashKey);
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, gcTime: Infinity, queryKeyHashFn: hashes },
+        },
+      });
+      const rows = Array.from({ length: 96 }, (_, index) => ({
+        key: [...root, "snapshot", index],
+        data: { index },
+      }));
+      for (const row of rows) client.setQueryData(row.key, row.data);
+      if (initialized) optimisticOperationState(client, root);
+      hashes.mockClear();
+      for (const row of rows) expect(optimisticBaseData(client, row.key)).toBe(row.data);
+      expect(hashes.mock.calls.length).toBeLessThanOrEqual(rows.length * 2);
+      expect(optimisticBaseData(client, [...root, "missing"])).toBeUndefined();
+      clearSessionQueryCache(client);
+      expect(optimisticBaseData(client, rows[0].key)).toBeUndefined();
+    },
+  );
+
+  it("retains custom-hash bases while the last operation's commit reconciler is running", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: Infinity,
+          queryKeyHashFn: (key) => `custom:${hashKey(key)}`,
+        },
+      },
+    });
+    seed(client);
+    const other = ["unrelated"];
+    const otherData = { untouched: true };
+    client.setQueryData(other, otherData);
+    expect(optimisticBaseData(client, list)).toBe(initial);
+    const operation = await beginOptimisticOperation(client, root, filters, patch("a"));
+    expect(client.getQueryData(list)).toEqual({ ...initial, a: true, count: 1 });
+    expect(optimisticBaseData(client, list)).toBe(initial);
+    expect(optimisticBaseData(client, other)).toBe(otherData);
+    expect(optimisticBaseData(client, [...other, "missing"])).toBeUndefined();
+    operation.commit((_data, key) => optimisticBaseData(client, key));
+    expect(client.getQueryData(list)).toEqual(initial);
+    expect(optimisticBaseData(client, list)).toEqual(initial);
+    clearSessionQueryCache(client);
+    expect(optimisticBaseData(client, list)).toBeUndefined();
+  });
+
+  it("never replaces an explicitly undefined authoritative base with its pending overlay", async () => {
+    const client = makeClient();
+    seed(client);
+    const operation = await beginOptimisticOperation(client, root, filters, patch("a"));
+    updateOptimisticBase(client, list, () => undefined);
+    expect(optimisticBaseData(client, list)).toBeUndefined();
+    operation.rollback();
+    clearSessionQueryCache(client);
+    expect(optimisticBaseData(client, list)).toBeUndefined();
   });
 
   it("seeds a new detail from the server base and rolls its pending projection back too", async () => {

@@ -65,8 +65,11 @@ regressions keep the reviewed assets intact. Revision 9 is an artwork revision, 
 the locked `@dicebear/core` 10.7.0 engine, rather than a requirement for DiceBear SDK 9.
 
 Both clients use the shared `@board-game-organizer/shared/artwork` entry point. Its immutable
-style instances generate a canonical 240px SVG with `animationVariant: "medium"` (or `"none"`
-for reduced motion), using only the resource ID as seed. Renderers scale the complete drawing into their frames;
+style instances generate a canonical 240px SVG, using only the resource ID as seed. Web selects
+`animationVariant: "medium"` or `"none"` for reduced motion; native generates one `"none"` SVG.
+Native thumbnails, covers and detail backgrounds derive the approved motion from that same
+immutable geometry when their mounted presentation is eligible for motion.
+Renderers scale the complete drawing into their frames;
 they do not crop, stretch or replace approved elements. An unsaved Table uses its stable local
 draft key until a server ID exists. Uploaded Group logos retain priority over generated artwork;
 an unavailable logo falls back to the same seeded Group illustration.
@@ -90,14 +93,19 @@ keeping complete multiline titles and the notification action accessible.
 
 Web uses the SVG's embedded CSS animation and explicitly selects the static variant for system
 reduced motion; the embedded media query remains an additional safeguard. Server rendering starts
-static until the browser preference is known. Native renders the
-same SVG nodes through `react-native-svg` and applies the approved internal transforms and
-opacity with Reanimated. Keep motion on the UI thread, react to system reduced-motion changes,
-and stop decorative loops for background/inactive screens and nonvisible resource rows.
-Whole-image oscillation is not a substitute for the approved internal movements.
+static until the browser preference is known. Native resource presentations first render the
+original static (`"none"`) SVG through `react-native-svg`, then prepare immutable SVG planes
+and apply the approved transforms/opacity with React Native's native animation driver. One clock
+per active illustration uses no per-frame React state or SVG-property updates. Hidden retained panels,
+blurred routes, app backgrounding and system reduced motion stop/reset the clock. An unknown or
+failed motion-preference read keeps motion disabled. The complete static SVG remains visible until
+positive dimensions and motion eligibility are available; preparing the planes is interruptible React
+work. Uploaded Group logos keep their existing priority. This does not establish native navigation
+or rendering latency; measure those separately on the installed build.
 
 Verify 64px and 96px artwork in light/dark list and detail frames, as well as the existing 40px
 Group selector. Include every main silhouette, miniature/resource variants, custom-logo priority
-and failure fallback, motion and its reduced-motion alternative. Pure SVG/unit checks and browser
+and failure fallback, native motion eligibility across tab changes, and web motion with its
+reduced-motion alternative. Pure SVG/unit checks and browser
 rendering do not establish authenticated app journeys, native appearance or native frame timing;
 report actual Playwright/Maestro execution separately from device limitations.

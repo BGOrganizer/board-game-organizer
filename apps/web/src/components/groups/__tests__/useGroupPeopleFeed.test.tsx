@@ -1,4 +1,4 @@
-import type { GroupRecordResponse } from "@board-game-organizer/schemas";
+import type { GroupPersonResponse, GroupRecordResponse } from "@board-game-organizer/schemas";
 import {
   clearSessionQueryCache,
   groupRecordKeys,
@@ -41,6 +41,71 @@ function setup() {
   return { client, options, wrapper };
 }
 afterEach(() => vi.unstubAllGlobals());
+it("reveals cached accepted and pending sources progressively before exclusions, without refetching retained pages", async () => {
+  const { client, options, wrapper } = setup();
+  const person = (userId: string, mode: "accepted" | "pending" | "bans"): GroupPersonResponse => ({
+    userId,
+    name: userId,
+    username: userId,
+    avatarUrl: null,
+    isAdmin: false,
+    membership:
+      mode === "bans"
+        ? null
+        : {
+            id: group.id,
+            groupId: group.id,
+            userId,
+            kind: "INVITATION",
+            status: mode === "accepted" ? "ACCEPTED" : "PENDING",
+            version: 1,
+            createdAt: group.createdAt,
+            updatedAt: group.updatedAt,
+          },
+    ban:
+      mode === "bans"
+        ? {
+            id: group.id,
+            groupId: group.id,
+            userId,
+            adminUserId: "owner",
+            until: null,
+            createdAt: group.createdAt,
+            updatedAt: group.updatedAt,
+          }
+        : null,
+  });
+  for (const mode of ["accepted", "pending", "bans"] as const)
+    client.setQueryData(groupRecordKeys.people(options, group.id, mode, ""), {
+      pages: Array.from({ length: mode === "bans" ? 1 : 2 }, (_, page) => ({
+        items: Array.from({ length: mode === "accepted" ? 20 : 1 }, (_, index) =>
+          person(`${mode}-${page}-${index}`, mode),
+        ),
+        nextCursor: mode !== "bans" && !page ? "next" : null,
+      })),
+      pageParams: mode === "bans" ? [""] : ["", "next"],
+    });
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  const hook = renderHook(() => useGroupPeopleFeed(options, group), { wrapper });
+  expect(hook.result.current.items).toHaveLength(20);
+  expect(hook.result.current.items.every((person) => person.userId.startsWith("accepted"))).toBe(
+    true,
+  );
+  await act(async () => hook.result.current.fetchNextPage());
+  await waitFor(() => expect(hook.result.current.items).toHaveLength(41));
+  expect(hook.result.current.items.some((person) => person.ban)).toBe(false);
+  await act(async () => hook.result.current.fetchNextPage());
+  await waitFor(() => expect(hook.result.current.items).toHaveLength(43));
+  expect(hook.result.current.items.at(-1)?.userId).toBe("bans-0-0");
+  expect(hook.result.current.hasNextPage).toBe(false);
+  expect(fetch).not.toHaveBeenCalled();
+  hook.unmount();
+  const reentry = renderHook(() => useGroupPeopleFeed(options, group), { wrapper });
+  expect(reentry.result.current.items).toHaveLength(20);
+  expect(reentry.result.current.hasNextPage).toBe(true);
+  expect(fetch).not.toHaveBeenCalled();
+});
 it("keeps an acknowledged off-page invitation visible until canonical paging catches up, then drops a remotely removed invitation", async () => {
   const { client, options, wrapper } = setup();
   const membership = {

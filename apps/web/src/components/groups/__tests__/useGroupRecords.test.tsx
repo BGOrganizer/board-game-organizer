@@ -68,6 +68,26 @@ function setup() {
 function page(items: unknown[], nextCursor: string | null = null) {
   return { pages: [{ items, nextCursor }], pageParams: [""] };
 }
+function member(userId: string, status: "ACCEPTED" | "PENDING" = "ACCEPTED"): GroupPersonResponse {
+  return {
+    userId,
+    name: userId,
+    username: userId,
+    avatarUrl: null,
+    isAdmin: false,
+    ban: null,
+    membership: {
+      id: otherId,
+      groupId: id,
+      userId,
+      kind: "INVITATION",
+      status,
+      version: 1,
+      createdAt: at,
+      updatedAt: at,
+    },
+  };
+}
 function deferred() {
   let resolve!: (response: Response) => void;
   const promise = new Promise<Response>((done) => {
@@ -80,6 +100,202 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("unified group Query ownership", () => {
+  it("reveals retained Group and member pages before fetching, and resets presentation on reentry", async () => {
+    const { client, options, wrapper } = setup();
+    const groupKey = groupRecordKeys.list(options, "mine"),
+      memberKey = groupRecordKeys.people(options, id, "accepted", "");
+    const groups = Array.from({ length: 3 }, (_, page) => ({
+      items: Array.from({ length: 20 }, (_, index) => ({ ...group, id: `group-${page}-${index}` })),
+      nextCursor: page === 2 ? null : `page-${page + 1}`,
+    }));
+    const members = groups.map((page) => ({
+      ...page,
+      items: page.items.map((row) => member(row.id)),
+    }));
+    client.setQueryData(groupKey, { pages: groups, pageParams: ["", "page-1", "page-2"] });
+    client.setQueryData(memberKey, { pages: members, pageParams: ["", "page-1", "page-2"] });
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const useLists = () => ({
+      groups: useGroupRecords(options),
+      members: useGroupPeople(options, id),
+    });
+    const hook = renderHook(useLists, { wrapper });
+    expect(hook.result.current.groups.items).toHaveLength(20);
+    expect(hook.result.current.members.items).toHaveLength(20);
+    const memberItems = hook.result.current.members.items;
+    const groupItems = hook.result.current.groups.items;
+    hook.rerender();
+    expect(hook.result.current.members.items).toBe(memberItems);
+    expect(hook.result.current.groups.items).toBe(groupItems);
+    const groupEnd = hook.result.current.groups.fetchNextPage,
+      memberEnd = hook.result.current.members.fetchNextPage;
+    await act(async () => {
+      await Promise.all([groupEnd(), groupEnd(), memberEnd(), memberEnd()]);
+    });
+    expect(hook.result.current.groups.items).toHaveLength(40);
+    expect(hook.result.current.members.items).toHaveLength(40);
+    await act(async () => {
+      await hook.result.current.groups.fetchNextPage();
+      await hook.result.current.members.fetchNextPage();
+    });
+    expect(hook.result.current.groups.items).toHaveLength(60);
+    expect(hook.result.current.members.items).toHaveLength(60);
+    expect(hook.result.current.groups.hasNextPage).toBe(false);
+    expect(hook.result.current.members.hasNextPage).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+    hook.unmount();
+    const reentry = renderHook(useLists, { wrapper });
+    expect(reentry.result.current.groups.items).toHaveLength(20);
+    expect(reentry.result.current.members.items).toHaveLength(20);
+    expect(client.getQueryData(groupKey)).toEqual({
+      pages: groups,
+      pageParams: ["", "page-1", "page-2"],
+    });
+    expect(client.getQueryData(memberKey)).toEqual({
+      pages: members,
+      pageParams: ["", "page-1", "page-2"],
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("does not read or filter hidden cached Group/member pages on initial entry", () => {
+    const { client, options, wrapper } = setup();
+    const hidden = vi.fn(() => [member("hidden")]),
+      hiddenGroups = vi.fn(() => [group]);
+    client.setQueryData(groupRecordKeys.list(options, "mine"), {
+      pages: [
+        {
+          items: Array.from({ length: 20 }, (_, index) => ({ ...group, id: `visible-${index}` })),
+          nextCursor: "next",
+        },
+        {
+          get items() {
+            return hiddenGroups();
+          },
+          nextCursor: null,
+        },
+      ],
+      pageParams: ["", "next"],
+    });
+    client.setQueryData(groupRecordKeys.people(options, id, "accepted", ""), {
+      pages: [
+        {
+          items: Array.from({ length: 20 }, (_, index) => member(`visible-${index}`)),
+          nextCursor: "next",
+        },
+        {
+          get items() {
+            return hidden();
+          },
+          nextCursor: null,
+        },
+      ],
+      pageParams: ["", "next"],
+    });
+    const hook = renderHook(
+      () => ({ members: useGroupPeople(options, id), groups: useGroupRecords(options) }),
+      { wrapper },
+    );
+    expect(hook.result.current.members.items).toHaveLength(20);
+    expect(hook.result.current.members.hasNextPage).toBe(true);
+    expect(hook.result.current.groups.items).toHaveLength(20);
+    expect(hook.result.current.groups.hasNextPage).toBe(true);
+    expect(hidden).not.toHaveBeenCalled();
+    expect(hiddenGroups).not.toHaveBeenCalled();
+  });
+  it("bounds the administered Group picker and resets changed type/filter without touching Query pages", async () => {
+    const { client, options, wrapper } = setup();
+    for (const type of ["PRIVATE", "PUBLIC"] as const)
+      client.setQueryData(
+        groupRecordKeys.list(options, "mine", type === "PRIVATE" ? "" : "club", ["admin"], type),
+        {
+          pages: [0, 1].map((page) => ({
+            items: Array.from({ length: 20 }, (_, index) => ({
+              ...group,
+              type,
+              id: `${type}-${page}-${index}`,
+            })),
+            nextCursor: page ? null : "next",
+          })),
+          pageParams: ["", "next"],
+        },
+      );
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const hook = renderHook(
+      ({ type, query }: { type: "PRIVATE" | "PUBLIC"; query: string }) =>
+        useGroupRecords(options, "mine", query, ["admin"], type),
+      {
+        wrapper,
+        initialProps: { type: "PRIVATE", query: "" },
+      },
+    );
+    expect(hook.result.current.items).toHaveLength(20);
+    await act(async () => hook.result.current.fetchNextPage());
+    expect(hook.result.current.items).toHaveLength(40);
+    const stale = hook.result.current.fetchNextPage;
+    hook.rerender({ type: "PUBLIC", query: "club" });
+    expect(hook.result.current.items).toHaveLength(20);
+    expect(hook.result.current.items[0].id).toBe("PUBLIC-0-0");
+    await act(async () => stale());
+    expect(hook.result.current.items).toHaveLength(20);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each(["api", "user", "group", "mode", "query"])(
+    "resets member presentation and rejects stale end callbacks when %s changes",
+    async (changed) => {
+      const { client, options, wrapper } = setup();
+      const first = { options, id, mode: "accepted" as "accepted" | "pending", query: "" };
+      const next = {
+        ...first,
+        options: {
+          ...options,
+          apiUrl: changed === "api" ? "https://other.test" : options.apiUrl,
+          userId: changed === "user" ? "another-owner" : options.userId,
+        },
+        id: changed === "group" ? otherId : id,
+        mode: changed === "mode" ? ("pending" as const) : first.mode,
+        query: changed === "query" ? "guest" : "",
+      };
+      for (const [scope, prefix] of [
+        [first, "first"],
+        [next, "next"],
+      ] as const)
+        client.setQueryData(
+          groupRecordKeys.people(scope.options, scope.id, scope.mode, scope.query),
+          {
+            pages: [0, 1].map((page) => ({
+              items: Array.from({ length: 20 }, (_, index) =>
+                member(
+                  `${prefix}-${page}-${index}`,
+                  scope.mode === "accepted" ? "ACCEPTED" : "PENDING",
+                ),
+              ),
+              nextCursor: page ? null : "next",
+            })),
+            pageParams: ["", "next"],
+          },
+        );
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      const hook = renderHook(
+        ({ scope }) => useGroupPeople(scope.options, scope.id, scope.mode, scope.query),
+        {
+          wrapper,
+          initialProps: { scope: first },
+        },
+      );
+      await act(async () => hook.result.current.fetchNextPage());
+      expect(hook.result.current.items).toHaveLength(40);
+      const stale = hook.result.current.fetchNextPage;
+      hook.rerender({ scope: next });
+      expect(hook.result.current.items).toHaveLength(20);
+      expect(hook.result.current.items[0].userId).toBe("next-0-0");
+      await act(async () => stale());
+      expect(hook.result.current.items).toHaveLength(20);
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
   it.each(["PRIVATE", "PUBLIC"] as const)(
     "isolates typed member pages and optimistic creation/receipts (%s)",
     async (type) => {
@@ -359,6 +575,44 @@ describe("unified group Query ownership", () => {
     expect(review.result.current.data).toBeUndefined();
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   });
+  it("keeps cached detail rerenders independent of retained list size and preserves its timestamp", () => {
+    const { options, client, wrapper } = setup();
+    const updatedAt = Date.now() - 1_000;
+    client.setQueryData(groupRecordKeys.detail(options, id), group, { updatedAt });
+    client.setQueryData(
+      groupRecordKeys.list(options, "mine"),
+      page([{ ...group, name: "List name" }]),
+    );
+    const scans = vi.spyOn(client, "getQueriesData"),
+      fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const hook = renderHook(() => useGroupRecord(options, id), { wrapper });
+    hook.rerender();
+    expect(hook.result.current.data).toBe(group);
+    expect(hook.result.current.dataUpdatedAt).toBe(updatedAt);
+    expect(scans).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each([false, true])(
+    "preserves seeded list freshness and invalidation (%s)",
+    async (invalidated) => {
+      const { options, client, wrapper } = setup();
+      const key = groupRecordKeys.list(options, "mine"),
+        updatedAt = Date.now() - 1_000;
+      client.setQueryData(key, page([group]), { updatedAt });
+      if (invalidated) await client.invalidateQueries({ queryKey: key, refetchType: "none" });
+      const response = deferred(),
+        fetch = vi.fn(() => response.promise);
+      vi.stubGlobal("fetch", fetch);
+      const hook = renderHook(() => useGroupRecord(options, id), { wrapper });
+      expect(hook.result.current.data).toEqual(group);
+      expect(hook.result.current.dataUpdatedAt).toBe(invalidated ? 0 : updatedAt);
+      if (invalidated) {
+        await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+        await act(async () => response.resolve(Response.json(group)));
+      } else expect(fetch).not.toHaveBeenCalled();
+    },
+  );
   it("rolls back only owned optimistic fields, preserving simultaneous edits and foreign caches", async () => {
     const { options, client, wrapper } = setup();
     const key = groupRecordKeys.list(options, "mine");
