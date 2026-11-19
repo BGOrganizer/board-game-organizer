@@ -30,7 +30,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reportOnFailure: true,
-      reporter: ["lcov", "html", "text", "json", "json-summary"],
+      reporter: [
+        ["lcov", { projectRoot: fileURLToPath(new URL("../..", import.meta.url)) }],
+        "html",
+        "text",
+        "json",
+        "json-summary",
+      ],
       // Both logic and actual native component projects contribute to this source-wide report.
       // JavaScript coverage and React benchmarks do not prove Android frame timing.
       include: [

@@ -1,0 +1,11 @@
+# Keep external checks aligned with the repository's Vitest coverage minimum.
+coverage:
+  status:
+    project:
+      default:
+        target: 90%
+        threshold: 0%
+    patch:
+      default:
+        target: 90%
+        threshold: 0%

@@ -8,7 +8,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reportOnFailure: true,
-      reporter: ["lcov", "html", "text", "json", "json-summary"],
+      reporter: [
+        ["lcov", { projectRoot: fileURLToPath(new URL("../..", import.meta.url)) }],
+        "html",
+        "text",
+        "json",
+        "json-summary",
+      ],
       allowExternal: true,
       // Exact package owners: browser projects supply drivers, never a smaller source set.
       include: [

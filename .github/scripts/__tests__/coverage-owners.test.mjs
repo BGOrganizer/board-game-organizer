@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import v8 from "@vitest/coverage-v8";
@@ -10,11 +12,17 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const require = createRequire(import.meta.url);
 const metrics = ["lines", "functions", "branches", "statements"];
 const configs = {};
-for (const owner of ["shared", "web"]) {
-  const directory = owner === "shared" ? "packages/shared" : "apps/web";
+for (const [owner, directory, filename = "vitest.config.ts"] of [
+  ["shared", "packages/shared"],
+  ["web", "apps/web"],
+  ["mobile", "apps/mobile"],
+  ["api", "apps/api"],
+  ["api-integration", "apps/api", "vitest.integration.config.ts"],
+  ["schemas", "packages/schemas"],
+]) {
   const loaded = await loadConfigFromFile(
     { command: "serve", mode: "test" },
-    resolve(root, directory, "vitest.config.ts"),
+    resolve(root, directory, filename),
   );
   assert(loaded, `Expected the actual ${owner} coverage configuration`);
   configs[owner] = { directory: resolve(root, directory), coverage: loaded.config.test.coverage };
@@ -78,3 +86,57 @@ for (const [workspace, pattern, uncovered, large] of [
     }
   });
 }
+
+test("actual Vitest LCOV reporters preserve repository-relative application and package identities", async (t) => {
+  const output = mkdtempSync(join(tmpdir(), "bgo-lcov-owners-"));
+  t.after(() => rmSync(output, { recursive: true, force: true }));
+  const expectedSources = {
+    web: ["apps/web/src/components/events/EventCard.tsx"],
+    mobile: ["apps/mobile/src/components/events/EventCard.tsx"],
+    api: ["apps/api/src/app/lib/cors.ts"],
+    "api-integration": ["apps/api/src/app/lib/cors.ts"],
+    shared: [
+      "packages/shared/src/index.ts",
+      "packages/query/src/index.ts",
+      "packages/store/src/index.ts",
+    ],
+    schemas: ["packages/schemas/src/index.ts"],
+  };
+  const identities = new Set();
+  for (const [workspace, paths] of Object.entries(expectedSources)) {
+    const { directory, coverage } = configs[workspace];
+    const reporter = coverage.reporter.find((entry) =>
+      Array.isArray(entry) ? entry[0] === "lcov" : entry === "lcov",
+    );
+    assert(Array.isArray(reporter), `${workspace} must configure the LCOV source root explicitly`);
+    assert.equal(resolve(reporter[1].projectRoot), root);
+    const provider = await v8.getProvider();
+    const reportsDirectory = join(output, workspace);
+    provider.initialize({
+      version: provider.version,
+      config: { root: directory },
+      // This isolates reporter behavior; synthetic fragments are never app coverage evidence.
+      _coverageOptions: {
+        ...coverage,
+        reporter: [reporter],
+        reportsDirectory,
+        thresholds: undefined,
+      },
+      logger: { error: (message) => assert.fail(message), warn: (message) => assert.fail(message) },
+    });
+    const map = provider.createCoverageMap();
+    for (const path of paths) map.addFileCoverage(fragment(resolve(root, path), true));
+    await provider.generateReports(map, true);
+    const report = readFileSync(join(reportsDirectory, "lcov.info"), "utf8");
+    const sources = [...report.matchAll(/^SF:(.+)$/gm)].map((match) => match[1]);
+    assert.deepEqual(
+      sources.sort(),
+      [...paths].sort(),
+      `${workspace} must retain each exact owner`,
+    );
+    assert.equal(new Set(sources).size, paths.length);
+    for (const source of sources) identities.add(source);
+  }
+  // API unit and integration reports intentionally merge the same resource; other owners stay distinct.
+  assert.equal(identities.size, 7);
+});
