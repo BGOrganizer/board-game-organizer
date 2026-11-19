@@ -137,7 +137,7 @@ export function DateTimePicker({
                   variant="primary"
                   onPress={() => state.setOpen(false)}
                 >
-                  {t`Done`}
+                  {t({ id: "Done", message: "Done" })}
                 </Button>
               </Popover.Dialog>
             </DatePicker.Popover>

@@ -48,6 +48,9 @@ it("reviews proposed public information with a pinned version and mandatory reje
   });
   vi.stubGlobal("fetch", fetch);
   mount();
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back).toBeEnabled();
+  expect(back.textContent).toBe("");
   expect(await screen.findByText("Proposed club")).not.toBeNull();
   const reject = screen.getByRole("button", { name: "Reject" }) as HTMLButtonElement;
   expect(reject.disabled).toBe(false);
@@ -60,6 +63,9 @@ it("reviews proposed public information with a pinned version and mandatory reje
   });
   fireEvent.click(screen.getByRole("button", { name: "Reject" }));
   expect(navigation.push).toHaveBeenCalledWith("/moderation");
+  await waitFor(() => expect(screen.getByRole("button", { name: "Back" })).toBeDisabled());
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(navigation.push).toHaveBeenCalledOnce();
   await waitFor(() =>
     expect(fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(true),
   );
@@ -75,6 +81,7 @@ it("reviews proposed public information with a pinned version and mandatory reje
   group = { ...group, reviewStatus: "REJECTED" };
   await act(async () => respond(Response.json(group)));
   expect(await screen.findByText("Review completed")).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Back" })).toBeEnabled();
 });
 it("does not expose proposals when moderator authorization fails", async () => {
   vi.stubGlobal(
@@ -84,4 +91,8 @@ it("does not expose proposals when moderator authorization fails", async () => {
   mount();
   expect(await screen.findByText("Could not load group review")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back.textContent).toBe("");
+  fireEvent.click(back);
+  expect(navigation.push).toHaveBeenCalledWith("/moderation");
 });

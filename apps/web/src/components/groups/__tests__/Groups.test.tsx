@@ -59,6 +59,7 @@ it("shows three exclusive tabs, with typed member lists distinct from four-chara
   });
   vi.stubGlobal("fetch", fetcher);
   renderGroups();
+  expect(screen.queryByRole("link", { name: "Back" })).toBeNull();
   expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
     "Private groups",
     "Public groups",
@@ -81,6 +82,7 @@ it("shows three exclusive tabs, with typed member lists distinct from four-chara
     fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("scope") === "public"),
   ).toBe(false);
   fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+  expect(screen.queryByRole("link", { name: "Back" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Create group" })).toBeNull();
   expect(screen.getByText("Enter at least 4 characters to search")).toBeTruthy();
   fireEvent.change(screen.getByPlaceholderText("Search groups"), { target: { value: "Public" } });
@@ -178,6 +180,10 @@ it("keeps existing discovery links on Search without an eager empty search", () 
   const fetcher = vi.fn();
   vi.stubGlobal("fetch", fetcher);
   renderGroups("search");
+  const back = screen.getByRole("link", { name: "Back" });
+  expect(back).toHaveAttribute("href", "/groups");
+  expect(back.textContent).toBe("");
+  expect(back.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeTruthy();
   expect(screen.queryByRole("link", { name: "Create group" })).toBeNull();
   expect(fetcher).not.toHaveBeenCalled();

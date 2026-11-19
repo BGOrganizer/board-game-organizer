@@ -8,7 +8,7 @@ import { eventProposalAuthorRows, withProtectionBypass } from "@board-game-organ
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
-import { expectVirtualizedListFits } from "./virtualized-layout";
+import { expectDocumentWindowListFits } from "./virtualized-layout";
 
 function required(key: string) {
   const value = process.env[key]?.trim();
@@ -132,6 +132,20 @@ test("detail proposal sections follow each category opt-in", async ({ page }) =>
   const games = page.getByRole("region", { name: labels.own, exact: true });
   if (table.allowParticipantGames === true) await expect(games).toBeVisible();
   else await expect(games).toBeHidden();
+  const previousUrl = page.url();
+  const proposalWrites: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /\/proposals(?:\?|$)/.test(request.url()))
+      proposalWrites.push(request.url());
+  });
+  await page.goto(`/events/${input.eventId}/proposals/new?kind=date`);
+  const back = page.getByRole("button", { name: labels.back, exact: true });
+  await expect(back).toBeVisible();
+  await expect(back).toHaveText("");
+  await expect(back.locator("svg")).toHaveAttribute("aria-hidden", "true");
+  await back.click();
+  await expect(page).toHaveURL(previousUrl);
+  expect(proposalWrites).toEqual([]);
 });
 
 test("real private own-Table proposal or current-manager decision; cancel writes nothing", async ({
@@ -193,7 +207,7 @@ test("real private own-Table proposal or current-manager decision; cancel writes
         page.getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true }),
       ).toBeVisible();
       await expect(search).toBeFocused();
-      await expectVirtualizedListFits(page.locator('[data-input-results][role="listbox"]'));
+      await expectDocumentWindowListFits(page.locator('[data-testid="document-window-list"]'));
       await expect(page.getByRole("button", { name: labels.send, exact: true })).toHaveCount(0);
     };
     await openPicker();

@@ -7,7 +7,7 @@ import { gameBestPlayers, withProtectionBypass } from "@board-game-organizer/sha
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
-import { expectVirtualizedListFits } from "./virtualized-layout";
+import { expectDocumentWindowListFits } from "./virtualized-layout";
 
 function required(key: string) {
   const value = process.env[key]?.trim();
@@ -87,7 +87,7 @@ async function read<T>(page: Page, path: string): Promise<T> {
   );
 }
 for (const width of [390, 1280])
-  test(`shared collection filters, privacy and sticky geometry ${locale}/${theme}/${width}`, async ({
+  test(`shared collection filters, privacy and document windowing ${locale}/${theme}/${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -143,8 +143,8 @@ for (const width of [390, 1280])
     const panel = page.getByRole("tabpanel"),
       input = panel.getByRole("searchbox", { name: l.filter, exact: true }),
       button = (name: string) => panel.getByRole("button", { name, exact: true });
-    const collectionList = panel.locator('[data-input-results][role="listbox"]');
-    await expectVirtualizedListFits(collectionList);
+    const collectionList = panel.locator('[data-testid="document-window-list"]');
+    await expectDocumentWindowListFits(collectionList);
     const cards = await Promise.all(
       [l.base, l.total, l.wishlist].map(async (name) =>
         panel.getByText(name, { exact: true }).and(panel.locator("p")).locator("..").boundingBox(),
@@ -169,9 +169,11 @@ for (const width of [390, 1280])
     await button(l.expansions).click();
     await button(l.games).click();
     await input.fill(p.expansionName);
-    const expansionRow = panel.getByRole("option", { name: p.expansionName, exact: true });
+    const expansionRow = collectionList
+      .locator(":scope > li")
+      .filter({ has: page.getByText(p.expansionName, { exact: true }) });
     await expect(expansionRow).toBeVisible();
-    await expectVirtualizedListFits(collectionList);
+    await expectDocumentWindowListFits(collectionList);
     const expansion = (
       await read<BggCollectionResponse>(
         page,
@@ -197,12 +199,12 @@ for (const width of [390, 1280])
     await button(l.games).click();
     await input.fill(p.wishlistName);
     await button(l.wishlist).click();
-    await expect(panel.getByRole("option", { name: p.wishlistName, exact: true })).toBeVisible();
+    await expect(panel.getByText(p.wishlistName, { exact: true })).toBeVisible();
     await button(l.wishlist).click();
     if (p.viewerSynced) {
       await button(l.common).click();
       await input.fill(p.commonName);
-      await expect(panel.getByRole("option", { name: p.commonName, exact: true })).toBeVisible();
+      await expect(panel.getByText(p.commonName, { exact: true })).toBeVisible();
     } else await expect(button(l.common)).toBeDisabled();
     const noSync = await read<ProfileView>(page, `profiles/${p.unsyncedId}`);
     if (noSync.collection) throw new Error("Unsynchronized subject fixture required");

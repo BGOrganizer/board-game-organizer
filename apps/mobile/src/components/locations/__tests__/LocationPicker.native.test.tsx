@@ -3,7 +3,15 @@ import type { FavoriteLocation, MatchLocation } from "@board-game-organizer/sche
 import { locationFavoriteKey, matchLocationSchema } from "@board-game-organizer/schemas";
 import { useAppStore } from "@board-game-organizer/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import {
   AppState,
@@ -261,8 +269,14 @@ it("preserves the native map/form controls while searching and caps verified sou
   expect(searches).toHaveLength(0);
   await search("  Rome  ");
   expect(searches.map((item) => item.query)).toEqual(["Rome"]);
-  for (let index = 0; index < 5; index++)
-    expect(screen.getByTestId(`address-result-${index}`)).toBeVisible();
+  for (let index = 0; index < 5; index++) {
+    const result = screen.getByTestId(`address-result-${index}`);
+    expect(result).toBeVisible();
+    expect(screen.getByRole("button", { name: places[index].address })).toBe(result);
+    expect(within(result).getAllByText(`Verified venue ${index + 1}, Rome`)).toHaveLength(1);
+    expect(within(result).queryByText(places[index].address)).toBeNull();
+    expect(result.parent?.queryAll((node) => node.type === "RNSVGPath").length).toBeGreaterThan(0);
+  }
   expect(screen.queryByTestId("address-result-5")).toBeNull();
   expect(screen.getByTestId("native-map-boundary")).toBe(map);
   expect(screen.getByRole("button", { name: "Center map on my location" })).toBeVisible();

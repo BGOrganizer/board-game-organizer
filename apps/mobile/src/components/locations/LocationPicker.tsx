@@ -53,6 +53,7 @@ import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useOptionalHeaderHeight } from "@/lib/useOptionalHeaderHeight";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 import { LocationFavoriteSelect } from "./LocationFavoriteSelect";
+import { LocationListRow } from "./LocationListRow";
 
 type Result = Pick<MatchLocation, "address" | "longitude" | "latitude" | "timeZone"> & {
   id: string;
@@ -467,9 +468,9 @@ export default function LocationPicker({
             </View>
           }
           renderItem={({ item, index }) => (
-            <Pressable
+            <LocationListRow
               testID={`address-result-${index}`}
-              accessibilityRole="button"
+              name={formatLocationAddress(item.address)}
               accessibilityLabel={item.address}
               onPress={() => {
                 cancelLocate();
@@ -481,12 +482,7 @@ export default function LocationPicker({
                 setQuery(item.address);
                 moveTo(item.longitude, item.latitude);
               }}
-              style={{ paddingHorizontal: 12, paddingVertical: 8, minHeight: 48 }}
-            >
-              <Typography className="text-foreground" numberOfLines={2}>
-                {formatLocationAddress(item.address)}
-              </Typography>
-            </Pressable>
+            />
           )}
           ListFooterComponent={
             <View style={{ gap: 12 }}>

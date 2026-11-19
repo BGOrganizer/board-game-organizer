@@ -39,74 +39,102 @@ if (
 )
   throw Error("Valid owned resource, tab and off-page row required");
 
-test("scrolls the actual detail card out of view and loads an owned off-page row with document scrolling", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 760 });
-  await setupClerkTestingToken({ page });
-  await page.goto("/");
-  await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
-  await page.goto("/");
-  await completeMobileNumberIfNeeded(page);
-  const path =
-    input.kind === "group"
-      ? `/groups/${input.id}`
-      : input.kind === "event"
-        ? `/events/${input.id}`
-        : `/events/${input.eventId}/tables/${input.id}`;
-  await page.goto(path);
-  const card = page.getByTestId("record-identity-card").first();
-  await expect(card).toBeInViewport();
-  await page.getByRole("tab", { name: input.tab, exact: true }).click();
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await expect(card).toBeInViewport();
-  const requests: string[] = [];
-  page.on("request", (request) => {
-    const url = new URL(request.url());
-    if (
-      request.method() === "GET" &&
-      url.pathname.includes(input.id) &&
-      (url.searchParams.has("cursor") || url.searchParams.has("after"))
-    )
-      requests.push(url.pathname);
+for (const width of [390, 1280]) {
+  test(`scrolls the actual detail card with the document beneath a persistent header at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 760 });
+    await setupClerkTestingToken({ page });
+    await page.goto("/");
+    await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
+    await page.goto("/");
+    await completeMobileNumberIfNeeded(page);
+    const path =
+      input.kind === "group"
+        ? `/groups/${input.id}`
+        : input.kind === "event"
+          ? `/events/${input.id}`
+          : `/events/${input.eventId}/tables/${input.id}`;
+    await page.goto(path);
+    const header = page.locator("[data-app-header]");
+    const toolbar = page.locator("[data-page-toolbar]").first();
+    const back = toolbar.getByRole("link", { name: /^(Back|Indietro)$/, exact: true });
+    await expect(back).toBeVisible();
+    await expect(back).toHaveText("");
+    expect(await toolbar.evaluate((node) => node.closest("nav"))).toBeNull();
+    const position = await toolbar.evaluate((node) => {
+      const left = node.firstElementChild?.getBoundingClientRect();
+      const right = node.lastElementChild?.getBoundingClientRect();
+      return left && right
+        ? {
+            left: left.left,
+            leftRight: left.right,
+            right: right.left,
+            leftCenter: left.top + left.height / 2,
+            rightCenter: right.top + right.height / 2,
+          }
+        : null;
+    });
+    if (!position) throw Error("Missing page toolbar layout");
+    expect(position.right).toBeGreaterThanOrEqual(position.leftRight);
+    expect(Math.abs(position.leftCenter - position.rightCenter)).toBeLessThanOrEqual(1);
+    const card = page.getByTestId("record-identity-card").first();
+    await expect(card).toBeInViewport();
+    await page.getByRole("tab", { name: input.tab, exact: true }).click();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(card).toBeInViewport();
+    const requests: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (
+        request.method() === "GET" &&
+        url.pathname.includes(input.id) &&
+        (url.searchParams.has("cursor") || url.searchParams.has("after"))
+      )
+        requests.push(url.pathname);
+    });
+    const last = page.getByText(input.lastRow, { exact: true }).first();
+    for (let attempt = 0; attempt < 40; attempt++) {
+      if (
+        (await last.isVisible()) &&
+        (await last.evaluate((node) => node.getBoundingClientRect().top < window.innerHeight))
+      )
+        break;
+      const before = await page.evaluate(() => ({
+        top: window.scrollY,
+        height: document.documentElement.scrollHeight,
+      }));
+      await page.mouse.wheel(0, 550);
+      await expect
+        .poll(async () => {
+          const after = await page.evaluate(() => ({
+            top: window.scrollY,
+            height: document.documentElement.scrollHeight,
+          }));
+          return after.top > before.top || after.height > before.height;
+        })
+        .toBe(true);
+    }
+    await expect(last).toBeInViewport();
+    await expect(card).not.toBeInViewport();
+    expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBeGreaterThan(0);
+    expect(await page.locator("#tab-content-scroll").evaluate((node) => node.scrollTop)).toBe(0);
+    await expect(header).toBeInViewport();
+    expect((await header.boundingBox())?.y).toBe(0);
+    // A cold owned fixture has a genuinely off-page final row, not a loaded static test list.
+    if (input.mode === "list") expect(requests.length).toBeGreaterThan(0);
+    if (input.mode === "list" && input.kind === "event") {
+      const windowed = page.getByTestId("document-window-list");
+      await expect(windowed).toHaveCount(1);
+      const count = await windowed.locator(":scope > li").count();
+      expect(count).toBeGreaterThan(0);
+      expect(count).toBeLessThan(40);
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(card).toBeInViewport();
+    await expect(page.getByRole("tab", { name: input.tab, exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
-  const last = page.getByText(input.lastRow, { exact: true }).first();
-  for (let attempt = 0; attempt < 40; attempt++) {
-    if (
-      (await last.isVisible()) &&
-      (await last.evaluate((node) => node.getBoundingClientRect().top < window.innerHeight))
-    )
-      break;
-    const before = await page.evaluate(() => ({
-      top: window.scrollY,
-      height: document.documentElement.scrollHeight,
-    }));
-    await page.mouse.wheel(0, 550);
-    await expect
-      .poll(async () => {
-        const after = await page.evaluate(() => ({
-          top: window.scrollY,
-          height: document.documentElement.scrollHeight,
-        }));
-        return after.top > before.top || after.height > before.height;
-      })
-      .toBe(true);
-  }
-  await expect(last).toBeInViewport();
-  await expect(card).not.toBeInViewport();
-  // A cold owned fixture has a genuinely off-page final row, not a loaded static test list.
-  if (input.mode === "list") expect(requests.length).toBeGreaterThan(0);
-  if (input.mode === "list" && input.kind === "event") {
-    const windowed = page.getByTestId("document-window-list");
-    await expect(windowed).toHaveCount(1);
-    const count = await windowed.locator(":scope > li").count();
-    expect(count).toBeGreaterThan(0);
-    expect(count).toBeLessThan(40);
-  }
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await expect(card).toBeInViewport();
-  await expect(page.getByRole("tab", { name: input.tab, exact: true })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-});
+}

@@ -192,6 +192,9 @@ it("keeps uncached loading distinct from eligibility denial and retries an autho
     finish = resolve;
   });
   mount("date", { seed: false });
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back).toBeVisible();
+  expect(back.textContent).toBe("");
   expect(screen.queryByText(deniedMessage)).toBeNull();
   expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
   await act(async () => finish(Response.json({ error: "Forbidden" }, { status: 403 })));
@@ -213,7 +216,9 @@ it.each([
   mount(kind, { tableId });
   expect(screen.getByText(deniedMessage)).toBeVisible();
   expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back.textContent).toBe("");
+  fireEvent.click(back);
   expect(boundary.back).toHaveBeenCalledOnce();
   expect(writes).toHaveLength(0);
 });
@@ -275,8 +280,8 @@ it("uses the actual game picker with proposal authorization, excludes current op
   fireEvent.change(screen.getByRole("searchbox", { name: "Search board games" }), {
     target: { value: "strategy" },
   });
-  const choice = await screen.findByRole("option", { name: "Select: New strategy game" });
-  expect(screen.queryByRole("option", { name: "Select: Chess" })).toBeNull();
+  const choice = await screen.findByRole("button", { name: "Select: New strategy game" });
+  expect(screen.queryByRole("button", { name: "Select: Chess" })).toBeNull();
   expect(writes).toHaveLength(0);
   const request = reads.find((url) => url.pathname.endsWith("/bgg/picker"));
   expect(request?.searchParams.get("proposalEventId")).toBe(event.id);

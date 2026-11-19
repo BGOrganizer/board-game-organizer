@@ -1,6 +1,6 @@
 import { locationFavoriteKey, type MatchLocation } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithI18n as renderI18n } from "../../../test-utils";
@@ -159,7 +159,7 @@ it("requires a chosen address and four-character name, caps results and hides th
     Response.json({
       items: Array.from({ length: 6 }, (_, index) => ({
         id: `address.${index}`,
-        address: `Main Street ${index}`,
+        address: `Main Street ${index}, Italy`,
         longitude: 12.5,
         latitude: 41.9,
       })),
@@ -188,10 +188,21 @@ it("requires a chosen address and four-character name, caps results and hides th
   fireEvent.change(screen.getByRole("searchbox", { name: "Search address/place" }), {
     target: { value: "Main St" },
   });
-  await waitFor(() => expect(screen.getByRole("button", { name: "Main Street 0" })).toBeTruthy());
-  expect(screen.queryByRole("button", { name: "Main Street 5" })).toBeNull();
+  const results = await screen.findByRole("list", { name: "Address results" });
+  expect(results).toHaveAttribute("data-input-results");
+  expect(results).not.toHaveClass("border");
+  expect(results).not.toHaveClass("overflow-y-auto");
+  expect(results.className).not.toContain("max-h-");
+  expect(within(results).getAllByRole("listitem")).toHaveLength(5);
+  expect(results.querySelector("li li")).toBeNull();
+  for (const row of within(results).getAllByRole("listitem")) {
+    expect(row.querySelector("svg.lucide-map-pin")).not.toBeNull();
+    expect(row.querySelectorAll("p")).toHaveLength(1);
+  }
+  expect(within(results).getAllByText("Main Street 0", { exact: true })).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "Main Street 5, Italy" })).toBeNull();
   expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer fresh-token");
-  fireEvent.click(screen.getByRole("button", { name: "Main Street 0" }));
+  fireEvent.click(screen.getByRole("button", { name: "Main Street 0, Italy" }));
   expect(confirm.hasAttribute("disabled")).toBe(false);
   fireEvent.click(confirm);
   expect(screen.getByText("Enter a location name between 4 and 120 characters.")).toBeTruthy();
@@ -204,7 +215,7 @@ it("requires a chosen address and four-character name, caps results and hides th
   expect(onSelect).toHaveBeenCalledWith(
     expect.objectContaining({
       name: "Game cafe",
-      address: "Main Street 0",
+      address: "Main Street 0, Italy",
       longitude: 12.5,
       latitude: 41.9,
     }),

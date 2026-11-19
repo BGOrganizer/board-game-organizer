@@ -20,7 +20,10 @@ import { Button, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Save, Send, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { NameInput } from "@/components/common/ui/NameInput";
@@ -49,13 +52,17 @@ export function GroupWizard({ groupId, draftId }: { groupId?: string; draftId?: 
     groupId ?? "",
   );
   if (groupId && (communityAccessDenied(detail.error) || !detail.data || !detail.data.canEdit))
-    return detail.isPending ? (
-      <Skeleton className="h-40 w-full rounded-xl" />
-    ) : (
-      <div role="alert">
-        <p className="text-danger">{t`Could not load group details`}</p>
-        <Button variant="outline" onPress={() => void detail.refetch()}>{t`Try again`}</Button>
-      </div>
+    return (
+      <UnavailableEditor>
+        {detail.isPending ? (
+          <Skeleton className="h-40 w-full rounded-xl" />
+        ) : (
+          <div role="alert">
+            <p className="text-danger">{t`Could not load group details`}</p>
+            <Button variant="outline" onPress={() => void detail.refetch()}>{t`Try again`}</Button>
+          </div>
+        )}
+      </UnavailableEditor>
     );
   if (draftId) return <RecoveredEditor draftId={draftId} />;
   return (
@@ -70,9 +77,34 @@ function RecoveredEditor({ draftId }: { draftId: string }) {
     { t } = useLingui(),
     recovery = useGroupCreationDraft(options, draftId);
   if (!recovery || creationState(recovery).phase !== "failed")
-    return <p role="alert" className="text-danger">{t`Could not recover draft`}</p>;
+    return (
+      <UnavailableEditor>
+        <p role="alert" className="text-danger">{t`Could not recover draft`}</p>
+      </UnavailableEditor>
+    );
   return (
     <Editor key={`${options.apiUrl}/${options.userId}/${draftId}`} recovery={recovery.variables} />
+  );
+}
+function UnavailableEditor({ children }: { children: ReactNode }) {
+  const { t } = useLingui(),
+    router = useRouter();
+  return (
+    <div className="space-y-4">
+      <HeaderActions
+        back={
+          <Button
+            {...headerButtonProps}
+            variant="ghost"
+            aria-label={t`Back`}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+          </Button>
+        }
+      />
+      {children}
+    </div>
   );
 }
 function Editor({

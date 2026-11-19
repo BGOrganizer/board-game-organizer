@@ -156,9 +156,6 @@ beforeEach(() => {
       : 0;
   });
   vi.clearAllMocks();
-  const header = document.createElement("header");
-  header.id = "page-header-actions";
-  document.body.append(header);
   event = { ...plannedEvent };
   tables = [{ ...plannedTable }];
   fail = false;
@@ -222,7 +219,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  document.getElementById("page-header-actions")?.remove();
 });
 it("requests Event notification copy in Italian", async () => {
   const client = mount(undefined, "it");
@@ -554,7 +550,9 @@ it("puts confirmed-owner finalization in the header and icon-only replan in a bo
   };
   mount();
   const finalize = await screen.findByRole("button", { name: "Finalize event" });
-  expect(document.getElementById("page-header-actions")?.contains(finalize)).toBe(true);
+  expect(
+    finalize.closest("[data-page-toolbar]")?.contains(screen.getByRole("link", { name: "Back" })),
+  ).toBe(true);
   expect(finalize.textContent).toBe("");
   expect(finalize.querySelector("svg.lucide-flag")).not.toBeNull();
   const reopen = screen.getByRole("button", { name: "Reopen planning" });
@@ -925,9 +923,10 @@ it("opens unified event/table routes, category-scoped voting legends and guarded
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(
-    document
-      .getElementById("page-header-actions")
-      ?.contains(screen.getByRole("button", { name: "Confirm event" })),
+    screen
+      .getByRole("button", { name: "Confirm event" })
+      .closest("[data-page-toolbar]")
+      ?.contains(screen.getByRole("link", { name: "Back" })),
   ).toBe(true);
 });
 it("only accepted players may vote, and voting never creates a table registration", async () => {
@@ -1105,7 +1104,8 @@ it("removes stale header actions after authorization loss and does not give anot
     });
   });
   expect(await screen.findByText("Could not load event")).not.toBeNull();
-  expect(document.getElementById("page-header-actions")?.childElementCount).toBe(0);
+  expect(screen.queryByRole("button", { name: "Delete event" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Back" })).toBeVisible();
 });
 it.each(["confirm", "replan"] as const)(
   "rejects %s when authorization/agreement changes while its confirmation is open",

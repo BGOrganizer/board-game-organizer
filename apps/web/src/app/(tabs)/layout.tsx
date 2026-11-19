@@ -9,15 +9,12 @@ export default function TabsLayout({
 }>) {
   return (
     <MobileNumberGate>
-      <div
-        className="flex h-dvh min-h-0 flex-col overflow-hidden"
-        style={{ height: "var(--app-visible-height, 100dvh)" }}
-      >
+      <div className="flex min-h-dvh flex-col">
         <WebDataWarmup />
         <Header />
         <main
           id="tab-content-scroll"
-          className="mx-auto min-h-0 w-full max-w-7xl flex-1 overflow-y-auto overscroll-contain scroll-pb-28 px-3 pt-6 pb-28 sm:px-6 sm:pt-10 lg:px-8"
+          className="mx-auto w-full max-w-7xl flex-1 scroll-pb-28 px-3 pt-6 pb-28 sm:px-6 sm:pt-10 lg:px-8"
         >
           {children}
         </main>

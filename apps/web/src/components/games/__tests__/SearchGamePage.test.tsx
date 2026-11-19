@@ -87,11 +87,12 @@ it("hides selected games and uses an icon-only selection action", async () => {
 
   expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Participants' collections" })).toBeNull();
-  const select = await screen.findByRole("option", { name: "Select: Cascadia" });
+  const select = await screen.findByRole("button", { name: "Select: Cascadia" });
   expect(screen.getByPlaceholderText(/Search board games/i)).toBe(input);
   expect(document.activeElement).toBe(input);
-  expect(screen.getByRole("listbox", { name: "Board games" }).contains(select)).toBe(true);
+  expect(screen.getByRole("list", { name: "Board games" }).contains(select)).toBe(true);
   expect(select.querySelector(".lucide-plus")).not.toBeNull();
+  expect(select.className).toContain("button--primary");
   expect(screen.queryByRole("button", { name: "Load more games" })).toBeNull();
   expect(screen.getByRole("button", { name: "Clear search" })).toBeTruthy();
   expect(screen.queryByText("Already selected")).toBeNull();
@@ -123,3 +124,55 @@ it("hides selected games and uses an icon-only selection action", async () => {
   fireEvent.click(select);
   expect(onSelect).toHaveBeenCalledTimes(1);
 });
+
+it.each(["pointer", "keyboard"])(
+  "selects a game's identity with %s and ignores a repeated Plus action",
+  async (interaction) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) =>
+        Response.json(
+          new URL(input).pathname.endsWith("/account")
+            ? {
+                active: {
+                  id: 1,
+                  username: "owner",
+                  avatarUrl: null,
+                  snapshot: "snapshot",
+                  syncedAt: "2026-11-14T00:00:00.000Z",
+                },
+                pending: null,
+              }
+            : {
+                items: [{ id: 1, name: "Chess", year: null, imageUrl: null, source: "collection" }],
+                nextCursor: null,
+              },
+        ),
+      ),
+    );
+    const onSelect = vi.fn();
+    renderWithI18n(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <SearchGamePage
+          apiUrl="https://api.example.com"
+          token="token"
+          userId="user"
+          onSelect={onSelect}
+          onClose={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+    const identity = await screen.findByRole("button", { name: "Chess" });
+    if (interaction === "pointer") fireEvent.click(identity);
+    else {
+      identity.focus();
+      fireEvent.keyDown(identity, { key: "Enter", code: "Enter", keyCode: 13 });
+      fireEvent.keyUp(identity, { key: "Enter", code: "Enter", keyCode: 13 });
+    }
+    expect(onSelect).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "Select: Chess" }));
+    expect(onSelect).toHaveBeenCalledOnce();
+  },
+);

@@ -78,7 +78,36 @@ export function WindowedList<T>({
       schedule();
     };
     const keyboard = (event: KeyboardEvent) => {
-      if (["ArrowDown", "PageDown", "End", " "].includes(event.key)) begin();
+      if (
+        event.target instanceof Element &&
+        event.target.closest(
+          'input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="searchbox"],[role="spinbutton"],[role="combobox"]',
+        )
+      )
+        return;
+      if (
+        ["ArrowDown", "PageDown", "End", " "].includes(event.key) ||
+        (event.key === "Tab" &&
+          !event.shiftKey &&
+          event.target instanceof Node &&
+          root.current?.contains(event.target))
+      )
+        begin();
+    };
+    const scrollbar = (event: PointerEvent) => {
+      const page = document.documentElement;
+      // Browser scrollbar hits target the root, including overlay scrollbars without a gutter.
+      if (
+        event.pointerType === "mouse" &&
+        event.button === 0 &&
+        event.target === page &&
+        page.scrollHeight > page.clientHeight &&
+        event.clientY >= 0 &&
+        event.clientY < page.clientHeight &&
+        event.clientX < window.innerWidth &&
+        (window.innerWidth === page.clientWidth || event.clientX >= page.clientWidth)
+      )
+        begin();
     };
     const observer = new ResizeObserver(schedule);
     for (let node: HTMLElement | null = root.current; node; node = node.parentElement)
@@ -88,6 +117,7 @@ export function WindowedList<T>({
     window.addEventListener("wheel", begin, { passive: true });
     window.addEventListener("touchstart", begin, { passive: true });
     window.addEventListener("keydown", keyboard);
+    window.addEventListener("pointerdown", scrollbar, { passive: true });
     schedule();
     return () => {
       observer.disconnect();
@@ -97,6 +127,7 @@ export function WindowedList<T>({
       window.removeEventListener("wheel", begin);
       window.removeEventListener("touchstart", begin);
       window.removeEventListener("keydown", keyboard);
+      window.removeEventListener("pointerdown", scrollbar);
     };
   }, [schedule]);
   const measure = useCallback(

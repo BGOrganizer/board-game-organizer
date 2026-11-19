@@ -14,6 +14,7 @@ import { ArrowLeft, Check, Heart, LocateFixed, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { LocationListRow } from "./LocationListRow";
 import "@maptiler/sdk/dist/maptiler-sdk.css";
 
 type Result = Pick<MatchLocation, "address" | "longitude" | "latitude" | "timeZone"> & {
@@ -385,22 +386,14 @@ export function SearchLocationPage({
         <EmptyList icon={<MapPin className="size-7" />}>{t`No addresses found`}</EmptyList>
       ) : null}
       {results.length > 0 && (
-        <ul
-          data-input-results
-          aria-label={t`Address results`}
-          className="max-h-[var(--input-results-height,60dvh)] overflow-y-auto rounded-lg border border-border"
-        >
+        <ul data-input-results aria-label={t`Address results`}>
           {results.map((result) => (
-            <li key={result.id}>
-              <Button
-                variant="tertiary"
-                className="h-auto w-full justify-start whitespace-normal text-left"
-                aria-label={result.address}
-                onPress={() => choose(result)}
-              >
-                {formatLocationAddress(result.address)}
-              </Button>
-            </li>
+            <LocationListRow
+              key={result.id}
+              name={formatLocationAddress(result.address)}
+              label={result.address}
+              onPress={() => choose(result)}
+            />
           ))}
         </ul>
       )}

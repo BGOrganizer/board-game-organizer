@@ -286,9 +286,7 @@ function renderCached(ui: ReactElement) {
   publishNoticeCaches(client, noticeSnapshotAt);
   return renderWithI18n(
     <>
-      <header>
-        <div id="page-header-actions" />
-      </header>
+      <header></header>
       <QueryClientProvider client={client}>{ui}</QueryClientProvider>
     </>,
   );

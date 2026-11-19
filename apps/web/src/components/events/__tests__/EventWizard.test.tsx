@@ -698,7 +698,7 @@ it("keeps validation attempts reachable, showing blocking schedule errors withou
   const next = screen.getByRole("button", { name: "Next" }) as HTMLButtonElement;
   expect(next.disabled).toBe(false);
   expect(next.textContent).toBe("");
-  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Back" }).textContent).toBe("");
   expect((screen.getByRole("button", { name: "4. Review" }) as HTMLButtonElement).disabled).toBe(
     true,
   );

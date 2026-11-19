@@ -245,27 +245,47 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
-  document.getElementById("page-header-actions")?.remove();
 });
 function mount(
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
   locale: "en" | "it" = "en",
+  context: "personal" | "event" = "personal",
 ) {
   renderWithI18n(
     <QueryClientProvider client={client}>
       {locale === "it" ? (
         <I18nProvider i18n={setupI18n({ locale, messages: { it: italian } })}>
-          <EventTable eventId={eventId} tableId={tableId} />
+          <EventTable eventId={eventId} tableId={tableId} context={context} />
         </I18nProvider>
       ) : (
-        <EventTable eventId={eventId} tableId={tableId} />
+        <EventTable eventId={eventId} tableId={tableId} context={context} />
       )}
     </QueryClientProvider>,
   );
   return client;
 }
+it.each(["personal", "event"] as const)(
+  "keeps an icon-only %s Back available while loading and after the table appears",
+  async (context) => {
+    mount(undefined, "en", context);
+    const back = screen.getByRole("link", { name: "Back" });
+    expect(back).toHaveAttribute("href", context === "event" ? `/events/${eventId}` : "/tables");
+    expect(back).toHaveTextContent("");
+    expect(back.querySelector("svg.lucide-arrow-left")).not.toBeNull();
+    expect(back.closest("[data-page-toolbar]")?.firstElementChild?.contains(back)).toBe(true);
+    back.focus();
+    await screen.findByRole("heading", { name: table.name });
+    expect(screen.getByRole("link", { name: "Back" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Back" })).toHaveFocus();
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute(
+      "href",
+      context === "event" ? `/events/${eventId}` : "/tables",
+    );
+  },
+);
+
 it.each([
   [true, "PLANNING"],
   [false, "PLANNING"],
@@ -387,9 +407,6 @@ it.each([
   "public-table",
   "public-parent",
 ])("offers result registration only on an included confirmed admin Table (%s)", async (kind) => {
-  const header = document.createElement("header");
-  header.id = "page-header-actions";
-  document.body.append(header);
   const status =
     kind === "planning" || kind === "public-planning"
       ? "PLANNING"
@@ -433,7 +450,9 @@ it.each([
   await screen.findByRole("heading", { name: "First table" });
   if (kind === "owner" || kind === "cached") {
     const link = await screen.findByRole("link", { name: "Register result" });
-    expect(header.contains(link)).toBe(true);
+    expect(
+      link.closest("[data-page-toolbar]")?.contains(screen.getByRole("link", { name: "Back" })),
+    ).toBe(true);
     expect(link.getAttribute("href")).toBe(`/events/${eventId}/tables/${tableId}/results`);
     if (kind === "cached") {
       expect(link.getAttribute("aria-disabled")).toBe("true");

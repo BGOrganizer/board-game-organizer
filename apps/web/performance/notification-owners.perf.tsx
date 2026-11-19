@@ -127,9 +127,7 @@ function renderOwner(element: ReactElement) {
   installBrowserIntersections();
   return renderWithI18n(
     <>
-      <header>
-        <div id="page-header-actions" />
-      </header>
+      <header></header>
       <QueryClientProvider client={client}>{element}</QueryClientProvider>
     </>,
   );

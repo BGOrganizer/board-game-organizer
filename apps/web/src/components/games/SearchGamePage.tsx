@@ -9,8 +9,7 @@ import {
   useBggPicker,
   useGameListWindow,
 } from "@board-game-organizer/shared";
-import { Button, ListBox, Skeleton } from "@heroui/react";
-import { Collection, ListBoxLoadMoreItem, ListLayout, Virtualizer } from "@heroui/react/rac";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { hashKey } from "@tanstack/react-query";
 import { ArrowLeft, Gamepad2, LibraryBig, Plus, UsersRound } from "lucide-react";
@@ -19,9 +18,8 @@ import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { WindowedList } from "@/components/common/ui/WindowedList";
 import { GameListCard } from "@/components/games/GameListCard";
-
-const layoutOptions = { estimatedRowHeight: 76, gap: 8 };
 
 interface Props {
   apiUrl: string;
@@ -91,10 +89,6 @@ export function SearchGamePage({
     excludedIds: excludeSet,
     ...picker,
   });
-  const beginUserScroll = (node: HTMLElement) => {
-    beginScroll();
-    if (node.scrollHeight - node.scrollTop - node.clientHeight < 200) endReached();
-  };
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 300);
     return () => clearTimeout(timer);
@@ -109,18 +103,7 @@ export function SearchGamePage({
 
   const active = (search && debounced.length >= 4) || (collection && hasCollection) || participants;
   return (
-    <div
-      data-input-scope
-      className="mx-auto w-full max-w-5xl pb-8"
-      onKeyDownCapture={(event) => {
-        const list =
-          event.target instanceof Element
-            ? event.target.closest<HTMLElement>('[role="listbox"]')
-            : null;
-        if (list && ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "End"].includes(event.key))
-          beginUserScroll(list);
-      }}
-    >
+    <div data-input-scope className="mx-auto w-full max-w-5xl pb-8">
       <div className="mb-4 flex items-center gap-2">
         <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft className="h-5 w-5" />
@@ -190,55 +173,39 @@ export function SearchGamePage({
         <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No games found`}</EmptyList>
       ) : null}
       {active && (items.length || hasMore) ? (
-        <Virtualizer layout={ListLayout} layoutOptions={layoutOptions} shouldObserveItemSize>
-          <ListBox
+        <div className="mt-3">
+          <WindowedList
             key={scope}
-            aria-label={t`Board games`}
-            selectionMode="none"
-            data-input-results
-            className="mt-3 h-[var(--input-results-height,60dvh)] min-h-24 min-w-0 w-full max-w-full overflow-auto p-0"
-            onWheel={(event) => beginUserScroll(event.currentTarget)}
-            onTouchMove={(event) => beginUserScroll(event.currentTarget)}
-            onScroll={(event) => {
-              const node = event.currentTarget;
-              if (node.scrollHeight - node.scrollTop - node.clientHeight < 200) endReached();
-            }}
-          >
-            <Collection items={items}>
-              {(item) => (
-                <ListBox.Item
-                  id={item.id}
-                  textValue={item.name}
-                  aria-label={`${t`Select`}: ${item.name}`}
-                  className="p-0"
-                  onAction={() => select(item)}
-                >
-                  <GameListCard
-                    name={item.name}
-                    imageUrl={item.imageUrl}
-                    year={item.year}
-                    average={item.average}
-                    rank={item.rank}
-                    suggestedPlayers={item.suggestedPlayers}
-                    actions={
-                      <span
-                        aria-hidden
-                        className="inline-flex size-11 shrink-0 items-center justify-center text-accent"
-                      >
-                        <Plus className="size-4" />
-                      </span>
-                    }
-                  />
-                </ListBox.Item>
-              )}
-            </Collection>
-            {hasMore && !picker.isError ? (
-              <ListBoxLoadMoreItem onLoadMore={endReached} isLoading={picker.isFetchingNextPage}>
-                {picker.isFetchingNextPage ? <Skeleton className="h-12 w-full rounded-xl" /> : null}
-              </ListBoxLoadMoreItem>
-            ) : null}
-          </ListBox>
-        </Virtualizer>
+            items={items}
+            itemKey={(item) => String(item.id)}
+            label={t`Board games`}
+            estimatedRowHeight={76}
+            onBeginScroll={beginScroll}
+            onEndReached={endReached}
+            renderItem={(item) => (
+              <GameListCard
+                name={item.name}
+                imageUrl={item.imageUrl}
+                year={item.year}
+                average={item.average}
+                rank={item.rank}
+                suggestedPlayers={item.suggestedPlayers}
+                onPress={() => select(item)}
+                actions={
+                  <Button
+                    isIconOnly
+                    variant="primary"
+                    aria-label={`${t`Select`}: ${item.name}`}
+                    onPress={() => select(item)}
+                  >
+                    <Plus className="size-5" aria-hidden />
+                  </Button>
+                }
+              />
+            )}
+          />
+          {picker.isFetchingNextPage ? <Skeleton className="h-12 w-full rounded-xl" /> : null}
+        </div>
       ) : null}
     </div>
   );

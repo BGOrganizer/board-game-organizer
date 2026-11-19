@@ -10,12 +10,13 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ClipboardPenLine, Info, Trophy, UsersRound } from "lucide-react";
+import { ArrowLeft, ClipboardPenLine, Info, Trophy, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { floatingActionContentStyle } from "@/components/common/layout/floatingActionStyles";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerControlClassName } from "@/components/common/layout/headerStyles";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -66,39 +67,54 @@ export function EventTable({
       tab: "all",
     },
   );
-  const header =
-    table && event.data ? (
-      <HeaderActions>
-        {!readOnly &&
-        canManageEvent(event.data, o.userId) &&
-        event.data.status === "CONFIRMED" &&
-        event.data.canFinalize &&
-        table.eventStatus === "CONFIRMED" &&
-        table.confirmed ? (
-          <Link
-            href={`/events/${eventId}/tables/${tableId}/results`}
-            aria-label={t`Register result`}
-            aria-disabled={q.isPlaceholderData || event.isPlaceholderData}
-            onClick={(e) => {
-              if (q.isPlaceholderData || event.isPlaceholderData) e.preventDefault();
-            }}
-            className="button button--primary button--icon-only size-9 min-h-9 min-w-9"
-          >
-            <ClipboardPenLine className="size-5" aria-hidden />
-          </Link>
-        ) : null}
-        <EventDeleteAction
-          event={event.data}
-          table={table}
-          disabled={q.isPlaceholderData || event.isPlaceholderData}
-        />
-      </HeaderActions>
-    ) : null;
+  const header = (
+    <HeaderActions
+      back={
+        <Link
+          href={context === "event" ? `/events/${eventId}` : "/tables"}
+          aria-label={t`Back`}
+          className={headerControlClassName}
+        >
+          <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+        </Link>
+      }
+    >
+      {table && event.data ? (
+        <>
+          {!readOnly &&
+          canManageEvent(event.data, o.userId) &&
+          event.data.status === "CONFIRMED" &&
+          event.data.canFinalize &&
+          table.eventStatus === "CONFIRMED" &&
+          table.confirmed ? (
+            <Link
+              href={`/events/${eventId}/tables/${tableId}/results`}
+              aria-label={t`Register result`}
+              aria-disabled={q.isPlaceholderData || event.isPlaceholderData}
+              onClick={(e) => {
+                if (q.isPlaceholderData || event.isPlaceholderData) e.preventDefault();
+              }}
+              className="button button--primary button--icon-only size-9 min-h-9 min-w-9"
+            >
+              <ClipboardPenLine className="size-5" aria-hidden />
+            </Link>
+          ) : null}
+          <EventDeleteAction
+            event={event.data}
+            table={table}
+            disabled={q.isPlaceholderData || event.isPlaceholderData}
+          />
+        </>
+      ) : null}
+    </HeaderActions>
+  );
   if (!table)
     return (
       <NotificationAttentionScope options={o} targets={[]}>
-        {header}
-        <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
+        <div className="mx-auto w-full max-w-4xl">
+          {header}
+          <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
+        </div>
       </NotificationAttentionScope>
     );
   return (

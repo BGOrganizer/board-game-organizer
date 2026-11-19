@@ -1,20 +1,15 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import type { ReactNode } from "react";
 
-/** Route-owned actions in the persistent app header; unmounting removes stale actions. */
-export function HeaderActions({ children }: { children: ReactNode }) {
-  const [target, setTarget] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setTarget(document.getElementById("page-header-actions"));
-  }, []);
-  return target
-    ? createPortal(
-        <div className="[&_svg]:size-5 [&_svg]:shrink-0 [&_.button]:min-h-11 [&_.button]:min-w-11">
-          {children}
-        </div>,
-        target,
-      )
-    : null;
+/** Page-owned navigation and actions below the persistent main menu. */
+export function HeaderActions({ back, children }: { back: ReactNode; children?: ReactNode }) {
+  return (
+    <div data-page-toolbar className="flex w-full items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2">{back}</div>
+      <div className="flex shrink-0 items-center justify-end gap-1 [&_svg]:size-5 [&_svg]:shrink-0 [&_.button]:min-h-11 [&_.button]:min-w-11">
+        {children}
+      </div>
+    </div>
+  );
 }

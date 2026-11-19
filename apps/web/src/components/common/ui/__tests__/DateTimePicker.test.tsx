@@ -1,9 +1,13 @@
 import { Label } from "@heroui/react";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { expect, it, vi } from "vitest";
 import { clearDateTime, enterDateTime } from "@/test-fixtures/dateTime";
 import { renderWithI18n } from "@/test-utils";
+import { messages as english } from "../../../../../../../messages/en.js";
+import { messages as italian } from "../../../../../../../messages/it.js";
 import { DateTimePicker } from "../DateTimePicker";
 import { TimePicker } from "../TimePicker";
 
@@ -42,6 +46,29 @@ it("keeps calendar and time inside one popover and closes with Done", async () =
   fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
   expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+it.each([
+  ["en", english, "Done"],
+  ["it", italian, "Fine"],
+] as const)(
+  "resolves confirmation from the real compiled %s catalog",
+  async (locale, messages, done) => {
+    const i18n = setupI18n({ locale, messages: { [locale]: messages } });
+    expect(i18n._("Done")).toBe(done);
+    render(
+      <I18nProvider i18n={i18n}>
+        <ControlledDateTime />
+      </I18nProvider>,
+    );
+    fireEvent.click(within(screen.getByRole("group", { name: "Appointment" })).getByRole("button"));
+    const dialog = await screen.findByRole("dialog");
+    const confirmation = within(dialog).getByRole("button", { name: done });
+    expect(confirmation).toHaveTextContent(done);
+    expect(within(dialog).queryByText("DPfwMq")).toBeNull();
+    fireEvent.click(confirmation);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  },
+);
 
 it("preserves disabled, required and invalid states and handles invalid restored wall values", () => {
   const { rerender } = renderWithI18n(

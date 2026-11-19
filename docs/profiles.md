@@ -45,9 +45,10 @@ visibility with a current-network/time selection; no offline mode is enabled.
   into client memory to calculate an intersection. Canonical Collection cache identity includes viewer,
   subject, both applicable snapshots and every filter.
   Native uses one SectionList without a scrolling parent and bounded eight-item cached chunks; web
-  uses the installed HeroUI React Aria Virtualizer with measured variable row sizes. Infinite scroll
+  uses the shared document-scrolling WindowedList with measured variable row sizes. Infinite scroll
   reveals/fetches more; Collection has no visible load-more button (native retains an accessibility
-  paging action). Only search/chips stick while identity/counters scroll away. Focus reveals search
+  paging action). Native keeps search/chips sticky; web scrolls the complete profile beneath its
+  persistent main header. Focus reveals search
   through its measured local keyboard/scroll owner; manual navigation cancels repinning and deferred
   error focus. Empty/few-result lists retain enough range without focus-driven bulk reveal/fetch. Picker/Collection rows
   reuse the same platform game-card component and spacing. Query changes never reset

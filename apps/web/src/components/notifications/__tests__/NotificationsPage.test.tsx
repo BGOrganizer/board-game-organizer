@@ -1,5 +1,5 @@
 import { fireEvent, screen, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotificationsPage } from "@/components/notifications/NotificationsPage";
 import { renderWithI18n } from "@/test-utils";
 
@@ -64,12 +64,8 @@ describe("NotificationsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.auth = { userId: "user_1", sessionId: "session_1" };
-    const header = document.createElement("header");
-    header.id = "page-header-actions";
-    document.body.append(header);
     setState();
   });
-  afterEach(() => document.getElementById("page-header-actions")?.remove());
 
   it("renders inbox and marks notifications read", () => {
     renderWithI18n(<NotificationsPage />);
@@ -93,9 +89,11 @@ describe("NotificationsPage", () => {
     expect(screen.queryByRole("dialog", { name: "Delete notification?" })).toBeNull();
   });
 
-  it("requires confirmation for the app-header action; cancellation never writes", () => {
+  it("requires confirmation for the page-toolbar action; cancellation never writes", () => {
     renderWithI18n(<NotificationsPage />);
-    const header = document.getElementById("page-header-actions") as HTMLElement;
+    const header = screen
+      .getByRole("button", { name: "Back" })
+      .closest("[data-page-toolbar]") as HTMLElement;
     const button = within(header).getByRole("button", { name: "Delete all notifications" });
     expect(button.querySelector("svg")?.getAttribute("class")).toContain("lucide-trash");
     fireEvent.click(button);

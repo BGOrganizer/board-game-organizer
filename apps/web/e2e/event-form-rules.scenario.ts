@@ -37,6 +37,14 @@ for (const width of [390, 1280])
     await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
     await page.goto("/");
     await completeMobileNumberIfNeeded(page);
+    const previousUrl = page.url();
+    await page.goto("/events/new");
+    const back = page.getByRole("button", { name: it ? "Indietro" : "Back", exact: true });
+    await expect(back).toBeVisible();
+    await expect(back).toHaveText("");
+    await expect(back.locator("svg")).toHaveAttribute("aria-hidden", "true");
+    await back.click();
+    await expect(page).toHaveURL(previousUrl);
     await page.goto("/events/new");
     const name = page.getByRole("textbox", {
       name: it ? "Nome evento" : "Event name",
@@ -118,7 +126,10 @@ for (const width of [390, 1280])
       picker.getByRole("group", { name: it ? "Ora" : "Time", exact: true }),
       "14:30",
     );
-    await picker.getByRole("button", { name: it ? "Fine" : "Done", exact: true }).click();
+    const done = picker.getByRole("button", { name: it ? "Fine" : "Done", exact: true });
+    await expect(done).toHaveText(it ? "Fine" : "Done");
+    await expect(picker.getByText("DPfwMq", { exact: true })).toHaveCount(0);
+    await done.click();
     await expect(picker).toHaveCount(0);
     await expect(start.locator('[role="spinbutton"][data-type="day"]')).toHaveAttribute(
       "aria-valuenow",

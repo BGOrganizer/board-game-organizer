@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { Header } from "../Header";
+import { HeaderActions } from "../HeaderActions";
 
 const sdk = vi.hoisted(() => {
   const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -107,10 +108,11 @@ afterAll(() => {
   if (sdk.previousApiUrl === undefined) delete process.env.NEXT_PUBLIC_API_URL;
   else process.env.NEXT_PUBLIC_API_URL = sdk.previousApiUrl;
 });
-function mount() {
+function mount(actions?: ReactNode) {
   const tree = () => (
     <QueryClientProvider client={client}>
       <Header />
+      {actions}
     </QueryClientProvider>
   );
   const view = renderWithI18n(tree());
@@ -119,6 +121,28 @@ function mount() {
 function linksTo(path: string) {
   return screen.getAllByRole("link").filter((link) => link.getAttribute("href") === path);
 }
+
+it("keeps route Back and actions below the global navigation", () => {
+  mount(
+    <HeaderActions
+      back={
+        <a href="/events" aria-label="Back">
+          <svg aria-hidden="true" />
+        </a>
+      }
+    >
+      <button type="button">Edit resource</button>
+    </HeaderActions>,
+  );
+  const nav = screen.getByRole("navigation");
+  const back = screen.getByRole("link", { name: "Back" });
+  const action = screen.getByRole("button", { name: "Edit resource" });
+  expect(nav.contains(action)).toBe(false);
+  expect(nav.contains(back)).toBe(false);
+  expect(action.closest("[data-page-toolbar]")).toBe(back.closest("[data-page-toolbar]"));
+  expect(within(nav).getByRole("link", { name: "Profile" })).toBeVisible();
+  expect(within(nav).getByRole("button", { name: "Notifications" })).toBeVisible();
+});
 
 it("closes the mobile menu after activating its real nested-route navigation link without reading notices", async () => {
   mount();

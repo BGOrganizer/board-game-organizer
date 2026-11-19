@@ -67,11 +67,14 @@ describe("TabsLayout", () => {
     expect(screen.getByText("Board Game Organizer")).toBeTruthy();
     expect(screen.getByText("inner")).toBeTruthy();
     const content = document.getElementById("tab-content-scroll");
-    expect(content?.className).toContain("overflow-y-auto");
-    expect(content?.className).toContain("min-h-0");
+    expect(content?.className).not.toContain("overflow-y-auto");
+    expect(content?.className).not.toContain("min-h-0");
     expect(content?.className).toContain("flex-1");
     expect(content?.className).toContain("pb-28");
-    expect(content?.parentElement?.className).toContain("h-dvh");
-    expect(content?.parentElement?.className).toContain("overflow-hidden");
+    expect(content?.parentElement?.className).toContain("min-h-dvh");
+    expect(content?.parentElement?.className).not.toContain("overflow-hidden");
+    expect(content?.parentElement?.style.height).toBe("");
+    expect(document.querySelector("[data-app-header]")?.className).toContain("sticky");
+    expect(document.getElementById("page-header-actions")).toBeNull();
   });
 });

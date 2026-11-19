@@ -9,8 +9,9 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { headerButtonProps } from "@/components/common/layout/headerStyles";
@@ -20,6 +21,7 @@ import { NotificationKindIcon } from "@/components/notifications/NotificationKin
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 export function NotificationsPage() {
+  const router = useRouter();
   const { getToken, isLoaded, isSignedIn, userId, sessionId } = useAuth();
   const { i18n, t } = useLingui();
   const feedback = useMutationFeedback();
@@ -69,7 +71,18 @@ export function NotificationsPage() {
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-      <HeaderActions>
+      <HeaderActions
+        back={
+          <Button
+            {...headerButtonProps}
+            variant="ghost"
+            aria-label={t`Back`}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft className="size-5" aria-hidden />
+          </Button>
+        }
+      >
         <Button
           {...headerButtonProps}
           variant="danger-soft"

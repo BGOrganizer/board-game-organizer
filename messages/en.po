@@ -419,6 +419,8 @@ msgid "Choose a valid time zone."
 msgstr "Choose a valid time zone."
 
 #. js-lingui-explicit-id
+#: apps/web/src/components/common/ui/__tests__/DateTimePicker.test.tsx
+#: apps/web/src/components/common/ui/DateTimePicker.tsx
 msgid "Done"
 msgstr "Done"
 
@@ -744,7 +746,6 @@ msgid "Accepted member"
 msgstr "Accepted member"
 
 #: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
-#: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
 msgid "Accepted participant"
 msgstr "Accepted participant"
@@ -868,7 +869,6 @@ msgid "Address results"
 msgstr "Address results"
 
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
-#: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 #: apps/web/src/components/groups/GroupList.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
@@ -1088,12 +1088,21 @@ msgstr "Awaiting review"
 #: apps/web/src/components/contacts/SearchUserPage.tsx
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventInvitationPicker.tsx
+#: apps/web/src/components/events/EventProposalEditor.tsx
 #: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventTable.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/games/SearchGamePage.tsx
 #: apps/web/src/components/groups/GroupDetail.tsx
+#: apps/web/src/components/groups/GroupModeration.tsx
+#: apps/web/src/components/groups/GroupPeoplePicker.tsx
+#: apps/web/src/components/groups/GroupReview.tsx
+#: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
 #: apps/web/src/components/locations/SearchLocationPage.tsx
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+#: apps/web/src/components/profile/Profile.tsx
+#: apps/web/src/components/profile/ProfileActivities.tsx
 msgid "Back"
 msgstr "Back"
 
@@ -1288,7 +1297,6 @@ msgstr "Camera permission is required"
 #: apps/web/src/components/common/ui/ContactConfirmDialog.tsx
 #: apps/web/src/components/common/ui/MemberActions.tsx
 #: apps/web/src/components/events/EventJoinSheet.tsx
-#: apps/web/src/components/events/EventProposalEditor.tsx
 #: apps/web/src/components/events/TableScoreEditor.tsx
 msgid "Cancel"
 msgstr "Cancel"
@@ -1430,7 +1438,6 @@ msgstr "Choose a group logo."
 msgid "Choose a later end time on the same day as the start."
 msgstr "Choose a later end time on the same day as the start."
 
-#: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Choose a later time on the same day as the event start. All public tables must finish by this time."
 msgstr "Choose a later time on the same day as the event start. All public tables must finish by this time."
@@ -1571,10 +1578,11 @@ msgstr "Choose collections to filter, or turn all collection filters off to sear
 msgid "Choose compatible games."
 msgstr "Choose compatible games."
 
-#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/common/ui/DateTimePicker.tsx
 msgid "Choose date"
 msgstr "Choose date"
 
+#: apps/web/src/components/common/ui/DateTimePicker.tsx
 #: apps/web/src/components/events/EventProposalEditor.tsx
 msgid "Choose date and time"
 msgstr "Choose date and time"
@@ -1612,7 +1620,6 @@ msgid "Choose one date and time. Remove the selected option before choosing anot
 msgstr "Choose one date and time. Remove the selected option before choosing another."
 
 #: apps/web/src/components/events/EventInformationFields.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Choose one of your groups, or create a standalone event without a group."
 msgstr "Choose one of your groups, or create a standalone event without a group."
 
@@ -1783,8 +1790,7 @@ msgstr "Confirm match?"
 msgid "Confirm tie-break"
 msgstr "Confirm tie-break"
 
-#: apps/web/src/components/events/EventCardIndicators.tsx
-#: apps/web/src/components/events/EventTableCardIndicators.tsx
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "Confirmed"
 msgstr "Confirmed"
 
@@ -1817,7 +1823,6 @@ msgid "Confirmed participants, counted once across active tables."
 msgstr "Confirmed participants, counted once across active tables."
 
 #: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
-#: apps/web/src/components/events/EventTableCardIndicators.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
 msgid "Confirmed player"
 msgstr "Confirmed player"
@@ -1857,10 +1862,12 @@ msgstr "Contacts synchronized"
 msgid "Continue"
 msgstr "Continue"
 
+#: apps/web/src/components/events/TableInviteLinkRow.tsx
 #: apps/web/src/components/invites/InviteCard.tsx
 msgid "Copied!"
 msgstr "Copied!"
 
+#: apps/web/src/components/events/TableInviteLinkRow.tsx
 #: apps/web/src/components/invites/InviteCard.tsx
 msgid "Copy"
 msgstr "Copy"
@@ -1933,6 +1940,7 @@ msgstr "Could not create invite link"
 msgid "Could not create match"
 msgstr "Could not create match"
 
+#: apps/web/src/components/events/TableInviteLinkRow.tsx
 #: apps/web/src/components/invites/InviteCard.tsx
 msgid "Could not create the invite. Try again."
 msgstr "Could not create the invite. Try again."
@@ -2466,6 +2474,7 @@ msgstr "Create invite"
 msgid "Create match"
 msgstr "Create match"
 
+#: apps/web/src/components/events/TableInviteLinkRow.tsx
 #: apps/web/src/components/invites/InviteCard.tsx
 msgid "Creating invite"
 msgstr "Creating invite"
@@ -2490,7 +2499,6 @@ msgstr "Date"
 msgid "Date and start/end time"
 msgstr "Date and start/end time"
 
-#: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventProposalSection.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Date and time"
@@ -2527,6 +2535,7 @@ msgstr "Dates / Locations"
 #~ msgstr "Dates and start times are displayed in the event's time zone."
 
 #: apps/web/src/components/common/ui/ScheduleOptionsPopover.tsx
+#: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Dates and times"
@@ -3009,6 +3018,7 @@ msgid "Event visibility cannot be changed after creation."
 msgstr "Event visibility cannot be changed after creation."
 
 #: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/events/EventList.tsx
 #: apps/web/src/components/groups/GroupDetail.tsx
 #: apps/web/src/components/groups/GroupDetailsCard.tsx
 msgid "Events"
@@ -3027,7 +3037,6 @@ msgstr "Exclude a user"
 msgid "Exclude from group"
 msgstr "Exclude from group"
 
-#: apps/web/src/components/events/EventTableCardIndicators.tsx
 #: apps/web/src/components/events/EventTableResults.tsx
 msgid "Excluded from confirmation"
 msgstr "Excluded from confirmation"
@@ -3069,14 +3078,12 @@ msgstr "Expansions"
 msgid "Favorite locations"
 msgstr "Favorite locations"
 
-#: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 #: apps/web/src/components/events/EventInformationFields.tsx
 #: apps/web/src/components/events/EventPlanningSettings.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/events/EventSeatListHeading.tsx
 #: apps/web/src/components/events/EventVisibilityPicker.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
 #: apps/web/src/components/groups/GroupVisibilityPicker.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Field help"
@@ -3822,12 +3829,15 @@ msgstr "Loading profile"
 #: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
 #: apps/web/src/components/common/ui/ScheduleOptionsPopover.tsx
 #: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventRolePopover.tsx
 #: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableCardIndicators.tsx
 #: apps/web/src/components/events/EventTableScheduleCard.tsx
 #: apps/web/src/components/events/EventTableSeats.tsx
 #: apps/web/src/components/groups/GroupLeaderboard.tsx
 #: apps/web/src/components/notifications/NotificationChangesPopover.tsx
+#: apps/web/src/components/profile/ProfileIdentity.tsx
 msgid "Loading…"
 msgstr "Loading…"
 
@@ -3839,7 +3849,6 @@ msgid "location"
 msgstr "location"
 
 #: apps/web/src/components/events/EventScheduleFields.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Location"
 msgstr "Location"
@@ -3885,6 +3894,7 @@ msgstr "locations"
 #: apps/web/src/components/common/ui/ScheduleOptionsPopover.tsx
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventJoinSheet.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Locations"
 msgstr "Locations"
 
@@ -4061,7 +4071,6 @@ msgstr "Maximize the number of players."
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 #: apps/web/src/components/events/EventTableCardIndicators.tsx
-#: apps/web/src/components/events/TableListHeading.tsx
 msgid "Maximum players"
 msgstr "Maximum players"
 
@@ -4126,7 +4135,6 @@ msgstr "Min"
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 #: apps/web/src/components/events/EventTableCardIndicators.tsx
-#: apps/web/src/components/events/TableListHeading.tsx
 msgid "Minimum players"
 msgstr "Minimum players"
 
@@ -4150,7 +4158,6 @@ msgstr "Mobile number"
 msgid "Mode"
 msgstr "Mode"
 
-#: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
 msgid "Moderator"
@@ -4172,8 +4179,7 @@ msgstr "More group actions"
 msgid "More match actions"
 msgstr "More match actions"
 
-#: apps/web/src/components/events/EventPlanningSettings.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
+#: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "More players"
 msgstr "More players"
 
@@ -4260,6 +4266,7 @@ msgstr "New organization"
 msgid "Next"
 msgstr "Next"
 
+#: apps/web/src/components/events/EventCardTableSummaries.tsx
 #: apps/web/src/components/events/EventTableGamesPopover.tsx
 msgid "Next page"
 msgstr "Next page"
@@ -4520,6 +4527,7 @@ msgstr "No shared location"
 #~ msgid "No suggestions yet — sync your address book to find friends."
 #~ msgstr "No suggestions yet — sync your address book to find friends."
 
+#: apps/web/src/components/events/EventCardTableSummaries.tsx
 #: apps/web/src/components/events/EventTables.tsx
 #: apps/web/src/components/events/TableList.tsx
 msgid "No tables found"
@@ -4659,6 +4667,7 @@ msgid "Open"
 msgstr "Open"
 
 #: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+#: apps/web/src/components/events/EventRolePopover.tsx
 msgid "Open details to accept or decline your invitation."
 msgstr "Open details to accept or decline your invitation."
 
@@ -4814,7 +4823,6 @@ msgstr "Page"
 msgid "Participant"
 msgstr "Participant"
 
-#: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
 msgid "Participant on the waiting list"
 msgstr "Participant on the waiting list"
@@ -4823,7 +4831,6 @@ msgstr "Participant on the waiting list"
 msgid "Participant proposals"
 msgstr "Participant proposals"
 
-#: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
 msgid "Participant with pending invitation"
 msgstr "Participant with pending invitation"
@@ -4962,9 +4969,8 @@ msgstr "Pick time"
 msgid "Plan:"
 msgstr "Plan:"
 
-#: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/components/events/EventList.tsx
-#: apps/web/src/components/events/EventTableCardIndicators.tsx
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "Planning"
 msgstr "Planning"
 
@@ -4985,7 +4991,6 @@ msgstr "Player"
 msgid "Player count"
 msgstr "Player count"
 
-#: apps/web/src/components/events/EventTableCardIndicators.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
 msgid "Player on the waiting list"
 msgstr "Player on the waiting list"
@@ -4998,12 +5003,10 @@ msgstr "Player removed from match"
 #~ msgid "Player scores"
 #~ msgstr "Player scores"
 
-#: apps/web/src/components/events/EventTableCardIndicators.tsx
 #: apps/web/src/lib/recordUserRoleMessages.ts
 msgid "Player with pending invitation"
 msgstr "Player with pending invitation"
 
-#: apps/web/src/components/events/EventCardIndicators.tsx
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventPlanningSettings.tsx
 #: apps/web/src/components/events/EventResultTableCard.tsx
@@ -5064,6 +5067,7 @@ msgstr "Preserve seated players"
 msgid "Previous"
 msgstr "Previous"
 
+#: apps/web/src/components/events/EventCardTableSummaries.tsx
 #: apps/web/src/components/events/EventTableGamesPopover.tsx
 msgid "Previous page"
 msgstr "Previous page"
@@ -5388,7 +5392,6 @@ msgstr "Registered"
 msgid "Registration closes at this local date and time, before the event starts. A new event needs a future cutoff."
 msgstr "Registration closes at this local date and time, before the event starts. A new event needs a future cutoff."
 
-#: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Registration closes on a day before the event starts. A new event needs a future deadline."
 msgstr "Registration closes on a day before the event starts. A new event needs a future deadline."
@@ -5711,6 +5714,7 @@ msgid "Revoking an exclusion does not restore membership or registrations. A new
 msgstr "Revoking an exclusion does not restore membership or registrations. A new invitation or request is required."
 
 #: apps/web/src/components/common/ui/UserRoleBadge.tsx
+#: apps/web/src/components/events/EventRolePopover.tsx
 msgid "Roles and participation"
 msgstr "Roles and participation"
 
@@ -6102,7 +6106,6 @@ msgid "Start Date and Time"
 msgstr "Start Date and Time"
 
 #: apps/web/src/components/common/ui/DateTimeInfo.tsx
-#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Start time"
 msgstr "Start time"
 
@@ -6195,7 +6198,7 @@ msgstr "Table legend"
 
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventTables.tsx
-#: apps/web/src/components/events/TableListHeading.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Table list"
 msgstr "Table list"
 
@@ -6233,7 +6236,6 @@ msgstr "Table start"
 msgid "Table start must be after event start and before event end."
 msgstr "Table start must be after event start and before event end."
 
-#: apps/web/src/components/common/layout/Header.tsx
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Tables"
@@ -6253,12 +6255,12 @@ msgstr "Tables navigation"
 msgid "Temporary exclusion"
 msgstr "Temporary exclusion"
 
-#: apps/web/src/components/events/EventCardIndicators.tsx
-#: apps/web/src/components/events/EventTableCardIndicators.tsx
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "Terminated"
 msgstr "Terminated"
 
 #: apps/web/src/components/events/EventList.tsx
+#: apps/web/src/components/events/Events.tsx
 msgid "Terminated events"
 msgstr "Terminated events"
 
@@ -6439,7 +6441,6 @@ msgid "This deletes the match and all invitations. This action cannot be undone.
 msgstr "This deletes the match and all invitations. This action cannot be undone."
 
 #: apps/web/src/components/events/EventInformationFields.tsx
-#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "This event belongs to this group. The group cannot be changed."
 msgstr "This event belongs to this group. The group cannot be changed."
 
@@ -6553,7 +6554,7 @@ msgstr "Tie-break applied"
 msgid "Tied score"
 msgstr "Tied score"
 
-#. Native runtime message
+#: apps/web/src/components/common/ui/DateTimePicker.tsx
 msgid "Time"
 msgstr "Time"
 
@@ -6735,6 +6736,7 @@ msgstr "User unblocked"
 msgid "User unfollowed"
 msgstr "User unfollowed"
 
+#: apps/web/src/components/events/EventCardTableSummaries.tsx
 #: apps/web/src/components/events/EventParticipants.tsx
 #: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/EventTableResults.tsx
@@ -6844,7 +6846,6 @@ msgstr "Waiting"
 #: apps/web/src/components/events/EventSeatOrderEditor.tsx
 #: apps/web/src/components/events/EventTableCardIndicators.tsx
 #: apps/web/src/components/events/EventTableSeats.tsx
-#: apps/web/src/components/events/TableListHeading.tsx
 msgid "Waiting list"
 msgstr "Waiting list"
 
@@ -6954,6 +6955,7 @@ msgid "You can view this item."
 msgstr "You can view this item."
 
 #: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+#: apps/web/src/components/events/EventTableCardIndicators.tsx
 msgid "You have a confirmed place at a table."
 msgstr "You have a confirmed place at a table."
 
@@ -7035,99 +7037,138 @@ msgstr "Your reserved place will become available again."
 msgid "YYYY-MM-DDTHH:mm"
 msgstr "YYYY-MM-DDTHH:mm"
 
+#: apps/web/src/components/events/Events.tsx
 msgid "Scheduled"
 msgstr "Scheduled"
 
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/events/TableList.tsx
 msgid "History"
 msgstr "History"
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "You are excluded"
 msgstr "You are excluded"
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "Table excluded"
 msgstr "Table excluded"
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventRolePopover.tsx
+#: apps/web/src/components/events/EventTableCardIndicators.tsx
 msgid "You are not registered."
 msgstr "You are not registered."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "Not enough eligible players to reach the minimum."
 msgstr "Not enough eligible players to reach the minimum."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "Reserved invitations still need to be accepted."
 msgstr "Reserved invitations still need to be accepted."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "There is no agreement on a date and time."
 msgstr "There is no agreement on a date and time."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "There is no agreement on a location."
 msgstr "There is no agreement on a location."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "There is no agreement on a game."
 msgstr "There is no agreement on a game."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "No combination of date, location and game satisfies the same players."
 msgstr "No combination of date, location and game satisfies the same players."
 
+#: apps/web/src/components/events/EventTableCardIndicators.tsx
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "The table was excluded from confirmation."
 msgstr "The table was excluded from confirmation."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "The invitation was not accepted before confirmation."
 msgstr "The invitation was not accepted before confirmation."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "Your votes do not agree with the chosen date and time."
 msgstr "Your votes do not agree with the chosen date and time."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "Your votes do not agree with the chosen location."
 msgstr "Your votes do not agree with the chosen location."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "Your votes do not agree with the chosen game."
 msgstr "Your votes do not agree with the chosen game."
 
+#: apps/web/src/lib/eventCardMessages.ts
 msgid "You were not included in the final roster."
 msgstr "You were not included in the final roster."
 
+#: apps/web/src/components/events/EventCardTableSummaries.tsx
 msgid "This table is ready for confirmation."
 msgstr "This table is ready for confirmation."
 
+#: apps/web/src/components/events/EventCardTableSummaries.tsx
 msgid "No winners."
 msgstr "No winners."
 
+#: apps/web/src/components/events/EventCardTableSummaries.tsx
 msgid "No tables are ready for confirmation."
 msgstr "No tables are ready for confirmation."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "Managers arrange seats and the waiting list. Confirmation requirements still apply."
 msgstr "Managers arrange seats and the waiting list. Confirmation requirements still apply."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "The app seeks compatible players, dates, locations and games. A manager must still confirm."
 msgstr "The app seeks compatible players, dates, locations and games. A manager must still confirm."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "Prefers the player count marked Best on BGG."
 msgstr "Prefers the player count marked Best on BGG."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "Prefers the solution that seats more people, respecting votes and constraints."
 msgstr "Prefers the solution that seats more people, respecting votes and constraints."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "Assisted planning may seat fewer players to improve the BGG recommendation."
 msgstr "Assisted planning may seat fewer players to improve the BGG recommendation."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventTableCardIndicators.tsx
 msgid "Ready for a manager to confirm."
 msgstr "Ready for a manager to confirm."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventTableCardIndicators.tsx
 msgid "Confirmation requirements are not yet met."
 msgstr "Confirmation requirements are not yet met."
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "Tables where you are confirmed"
 msgstr "Tables where you are confirmed"
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventTableCardIndicators.tsx
 msgid "You have an assigned role without a player seat."
 msgstr "You have an assigned role without a player seat."
 
+#: apps/web/src/components/profile/ProfileIdentity.tsx
 msgid "Joined on"
 msgstr "Joined on"
 
+#: apps/web/src/components/profile/ProfileVersion.tsx
 msgid "Version"
 msgstr "Version"
 
+#: apps/web/src/components/games/GameCatalogMetadata.tsx
 msgid "Best BGG players"
 msgstr "Best BGG players"
 
@@ -7188,6 +7229,7 @@ msgid "invite.tableTitle"
 msgstr "Review table invitation"
 
 #. js-lingui-explicit-id
+#: apps/mobile/src/components/invites/TableInviteReview.tsx
 msgid "invite.tableConsent"
 msgstr "Accepting makes you friends with {inviter}, joins the private group {group}, and accepts your participation at {table}."
 
@@ -7224,10 +7266,12 @@ msgid "invite.acceptFailure"
 msgstr "Could not accept this invitation. Refresh the details and try again."
 
 #. js-lingui-explicit-id
+#: apps/mobile/src/components/invites/TableInviteReview.tsx
 msgid "invite.expiry"
 msgstr "Single-use invitation. Expires on {date}."
 
 #. js-lingui-explicit-id
+#: apps/mobile/src/components/invites/TableInviteReview.tsx
 msgid "invite.players"
 msgstr "Players: {minimum}–{maximum}"
 
@@ -7303,6 +7347,7 @@ msgstr "You joined the waiting list."
 msgid "invite.settingsUnavailable"
 msgstr "The table settings are incomplete. Ask the inviter to update them."
 
+#: apps/web/src/components/events/TableInviteLinkRow.tsx
 msgid "Generate invite"
 msgstr "Generate invite"
 
@@ -7345,7 +7390,7 @@ msgstr "Pending invitations do not count toward agreement."
 msgid "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules."
 msgstr "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules."
 
-#: apps/web/src/components/events/EventInformationFields.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Choose a name, from 5 to 30 characters."
 msgstr "Choose a name, from 5 to 30 characters."
 
@@ -7357,22 +7402,21 @@ msgstr "Choose a recognizable event name between 5 and 30 characters."
 msgid "Enter an event name between 5 and 30 characters."
 msgstr "Enter an event name between 5 and 30 characters."
 
-#: apps/web/src/components/events/EventInformationFields.tsx
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Name this table so players can recognize it. Use between 5 and 30 characters."
 msgstr "Name this table so players can recognize it. Use between 5 and 30 characters."
 
-#: apps/web/src/components/events/EventInformationFields.tsx
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Enter a table name between 5 and 30 characters."
 msgstr "Enter a table name between 5 and 30 characters."
 
-#: apps/web/src/components/events/EventInformationFields.tsx
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
 msgid "Public events are visible to everyone and can be joined without group membership. Select an approved public group to enable this option."
 msgstr "Public events are visible to everyone and can be joined without group membership. Select an approved public group to enable this option."
 
-#: apps/web/src/components/events/EventInformationFields.tsx
+#: apps/web/src/components/events/EventVisibilityPicker.tsx
 msgid "Select an approved public group to enable public events."
 msgstr "Select an approved public group to enable public events."
-
 
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Propose dates and times for participants to vote on."
@@ -7382,10 +7426,10 @@ msgstr "Propose dates and times for participants to vote on."
 msgid "Suggest locations for participants to vote on."
 msgstr "Suggest locations for participants to vote on."
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Suggest games for participants to vote on."
 msgstr "Suggest games for participants to vote on."
 
-#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data."
 msgstr "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data."

@@ -7,7 +7,10 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { TableInviteLinkRow } from "./TableInviteLinkRow";
@@ -36,18 +39,37 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
     });
     router.back();
   };
-  if (!event || !event.canInvite)
-    return q.isPending ? (
-      <Skeleton className="h-32 w-full rounded-xl" />
-    ) : (
-      <p
-        role="alert"
-        className="text-danger"
-      >{t`Invitations are unavailable. Refresh the event.`}</p>
+  const back = (
+    <HeaderActions
+      back={
+        <Button
+          {...headerButtonProps}
+          variant="ghost"
+          aria-label={t`Back`}
+          onPress={() => router.back()}
+        >
+          <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+        </Button>
+      }
+    />
+  );
+  if (!event?.canInvite)
+    return (
+      <div className="space-y-4">
+        {back}
+        {q.isPending ? (
+          <Skeleton className="h-32 w-full rounded-xl" />
+        ) : (
+          <p
+            role="alert"
+            className="text-danger"
+          >{t`Invitations are unavailable. Refresh the event.`}</p>
+        )}
+      </div>
     );
   return (
     <div className="space-y-4">
-      <Button variant="ghost" onPress={() => router.back()}>{t`Back`}</Button>
+      {back}
       <PeoplePicker
         key={tableId}
         friendsOnly={!event.groupId}

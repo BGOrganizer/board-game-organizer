@@ -12,6 +12,13 @@ and [Community](../../docs/community.md). Do not repeat page titles inside tab c
 Use `@heroui/react` and Tailwind CSS; icons use `lucide-react` only. Browser-owned components
 remain in this app.
 
+The document owns page scrolling beneath the sticky main navigation, including game collections
+and picker pages. Use the existing document WindowedList for large lists; keep internal scrolling
+inside popups and selects. Put icon-only Back on the left and contextual actions on the right in
+the page's inline HeaderActions row, preserving draft/close handlers. The global header owns only
+main navigation, notifications, Profile and authorized moderation controls. Root-owned focus reveal
+must account for the actual sticky header height.
+
 HeroUI v3 uses React Aria composition:
 
 - Do not use obsolete `startContent`, `endContent`, `flat`, `light`, or `solid` APIs.

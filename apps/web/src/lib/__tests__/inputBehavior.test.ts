@@ -77,6 +77,22 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe("installInputBehavior local owners and first blocking errors", () => {
+  it("reveals document fields below the actual sticky main header", () => {
+    const { input } = form("<div data-form-field><label>Title</label><input></div>");
+    const header = document.createElement("nav");
+    header.setAttribute("data-app-header", "");
+    document.body.prepend(header);
+    geometry(header, 0, 96);
+    geometry(input.parentElement as HTMLElement, 450, 100);
+    geometry(input, 500);
+    dispose = installInputBehavior();
+    input.focus();
+    flush();
+    expect(document.documentElement.scrollTo).toHaveBeenLastCalledWith({
+      top: 338,
+      behavior: "instant",
+    });
+  });
   it("pins the field and label to its local list, not the page, and restores range on blur", () => {
     const { input, scope } = form("<div data-form-field><label>Title</label><input></div>");
     scope.style.overflowY = "auto";

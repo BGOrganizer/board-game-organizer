@@ -6,7 +6,10 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { UsersRound } from "lucide-react";
+import { ArrowLeft, UsersRound } from "lucide-react";
+import Link from "next/link";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerControlClassName } from "@/components/common/layout/headerStyles";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -34,6 +37,13 @@ export function GroupModeration() {
       }))}
     >
       <ListPage>
+        <HeaderActions
+          back={
+            <Link href="/groups" aria-label={t`Back`} className={headerControlClassName}>
+              <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+            </Link>
+          }
+        />
         <ListSearch
           query={f.query}
           onQueryChange={f.setQuery}

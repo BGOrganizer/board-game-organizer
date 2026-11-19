@@ -60,10 +60,12 @@ const guide = {
   },
 };
 const clients: QueryClient[] = [];
-function mount(props: { eventId?: string; draftId?: string } = { eventId }) {
-  const cache = new QueryClient({
+function mount(
+  props: { eventId?: string; draftId?: string } = { eventId },
+  cache = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  }),
+) {
   clients.push(cache);
   return renderWithI18n(
     <QueryClientProvider client={cache}>
@@ -158,7 +160,7 @@ it("uses real demonstrator and catalog pickers, preserves expanded table state a
   fireEvent.change(screen.getByRole("searchbox", { name: "Search board games" }), {
     target: { value: "Cascadia" },
   });
-  fireEvent.click(await screen.findByRole("option", { name: "Select: Cascadia" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Select: Cascadia" }));
   expect(screen.getByRole("button", { name: "Remove game: Cascadia" })).toBeTruthy();
   expect(screen.getByText("Guide Player")).toBeTruthy();
   expect(writes).toHaveLength(0);
@@ -255,7 +257,9 @@ it("retries an event-detail denial without exposing a writable substitute draft"
     ),
   );
   mount();
+  expect(screen.getByRole("button", { name: "Back" })).toBeVisible();
   expect(await screen.findByText("Could not edit event")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Back" }).textContent).toBe("");
   expect(screen.queryByRole("textbox", { name: "Event name" })).toBeNull();
   failed = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -269,6 +273,72 @@ it("refuses a missing creation recovery instead of creating a new event implicit
     vi.fn(async (input: string) => Response.json(fixture(input))),
   );
   mount({ draftId: "missing-draft" });
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back.textContent).toBe("");
+  const previous = navigation.back.mock.calls.length;
+  fireEvent.click(back);
+  expect(navigation.back).toHaveBeenCalledTimes(previous + 1);
   expect(screen.getByRole("alert").textContent).toBe("Could not recover draft");
   expect(screen.queryByRole("textbox", { name: "Event name" })).toBeNull();
+});
+
+it.each([false, true])(
+  "exits the first event step without saving or clearing its fields (edit=%s)",
+  async (edit) => {
+    const writes: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        if (init?.method && init.method !== "GET") writes.push(init.method);
+        return Response.json(fixture(input));
+      }),
+    );
+    mount(edit ? { eventId } : {});
+    const name = await screen.findByRole("textbox", { name: "Event name" });
+    fireEvent.change(name, { target: { value: "Unsaved event name" } });
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(back.textContent).toBe("");
+    expect(back.closest("[data-page-toolbar]")?.firstElementChild?.contains(back)).toBe(true);
+    const previous = navigation.back.mock.calls.length;
+    fireEvent.click(back);
+    expect(navigation.back).toHaveBeenCalledTimes(previous + 1);
+    expect(name).toHaveValue("Unsaved event name");
+    expect(writes).toEqual([]);
+  },
+);
+
+it("blocks first-step exit while an Event edit is still saving after reentry", async () => {
+  let finish: ((response: Response) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      if (init?.method === "PATCH") {
+        return new Promise<Response>((resolve) => {
+          finish = resolve;
+        });
+      }
+      return Response.json(fixture(input));
+    }),
+  );
+  const cache = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const view = mount({ eventId }, cache);
+  await openTables();
+  await screen.findByRole("button", { name: "First table" });
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Save event" }));
+  await waitFor(() => expect(finish).toBeDefined());
+  view.unmount();
+  mount({ eventId }, cache);
+  await screen.findByRole("textbox", { name: "Event name" });
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back).toBeDisabled();
+  const previous = navigation.back.mock.calls.length;
+  fireEvent.click(back);
+  expect(navigation.back).toHaveBeenCalledTimes(previous);
+  if (!finish) throw new Error("Expected pending Event update");
+  const respond = finish;
+  await act(async () => respond(Response.json({ ...event, version: event.version + 1 })));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Back" })).toBeEnabled());
 });

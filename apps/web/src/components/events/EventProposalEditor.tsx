@@ -2,8 +2,11 @@
 import { useEventProposalEditor, useFavoriteLocations } from "@board-game-organizer/shared";
 import { Button, Label, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { DateTimePicker } from "@/components/common/ui/DateTimePicker";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
@@ -68,6 +71,19 @@ export function EventProposalEditor({
       data-form-source={JSON.stringify([owner, form.event?.version])}
       className="mx-auto max-w-3xl space-y-5 py-8"
     >
+      <HeaderActions
+        back={
+          <Button
+            {...headerButtonProps}
+            variant="ghost"
+            aria-label={t`Back`}
+            isDisabled={form.actions.busy}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+          </Button>
+        }
+      />
       <h1 className="text-xl font-semibold">{t`Choose date and time`}</h1>
       {form.validInput && (form.q.isPending || (kind === "game" && form.table.isPending)) ? (
         <Skeleton className="h-32 w-full rounded-xl" />
@@ -111,7 +127,6 @@ export function EventProposalEditor({
           >{t`Send proposal`}</Button>
         </>
       )}
-      <Button variant="ghost" onPress={() => router.back()}>{t`Cancel`}</Button>
     </div>
   );
 }

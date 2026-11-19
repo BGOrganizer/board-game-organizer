@@ -2,8 +2,11 @@
 
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Globe, LockKeyhole, Search } from "lucide-react";
+import { ArrowLeft, Globe, LockKeyhole, Search } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerControlClassName } from "@/components/common/layout/headerStyles";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -28,6 +31,15 @@ export function Groups({
         { kind: "group-list", id: "search" },
       ]}
     >
+      {initialSection === "search" ? (
+        <HeaderActions
+          back={
+            <Link href="/groups" aria-label={t`Back`} className={headerControlClassName}>
+              <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+            </Link>
+          }
+        />
+      ) : null}
       <Tabs selectedKey={section} onSelectionChange={(key) => setSection(String(key))}>
         <TabBar label={t`Groups navigation`}>
           <TabTrigger icon={LockKeyhole} id="private">

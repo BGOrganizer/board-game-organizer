@@ -105,6 +105,132 @@ it("loads an underfilled page on user intent even when the document cannot scrol
   expect(more).toHaveBeenCalledOnce();
 });
 
+it("leaves editing and selection keys in form controls without starting pagination", () => {
+  const b = browser(),
+    begin = vi.fn(),
+    more = vi.fn();
+  render(
+    <>
+      <input aria-label="Search" />
+      <textarea aria-label="Notes" />
+      <select aria-label="Choose">
+        <option>First</option>
+      </select>
+      <div contentEditable suppressContentEditableWarning>
+        <span>Editable text</span>
+      </div>
+      <input type="text" aria-label="Rich text" />
+      <input type="search" aria-label="Find" />
+      <div role="spinbutton" aria-label="Score" tabIndex={0} />
+      <div role="combobox" aria-label="Game" aria-expanded={false} tabIndex={0} />
+      <WindowedList
+        items={items.slice(0, 2)}
+        itemKey={key}
+        renderItem={row}
+        label="People"
+        estimatedRowHeight={76}
+        onBeginScroll={begin}
+        onEndReached={more}
+      />
+    </>,
+  );
+  b.flush();
+  const controls = [
+    screen.getByLabelText("Search"),
+    screen.getByLabelText("Notes"),
+    screen.getByLabelText("Choose"),
+    screen.getByText("Editable text"),
+    screen.getByLabelText("Rich text"),
+    screen.getByLabelText("Find"),
+    screen.getByLabelText("Score"),
+    screen.getByLabelText("Game"),
+  ];
+  for (const control of controls)
+    for (const key of ["ArrowDown", "PageDown", "End", " "]) fireEvent.keyDown(control, { key });
+  b.flush();
+  expect(begin).not.toHaveBeenCalled();
+  expect(more).not.toHaveBeenCalled();
+  fireEvent.keyDown(screen.getByRole("button", { name: "Row 0" }), { key: "End" });
+  b.flush();
+  expect(begin).toHaveBeenCalledOnce();
+  expect(more).toHaveBeenCalledOnce();
+});
+
+it.each([784, 800])(
+  "recognizes document scrollbar intent with a %s-pixel client area without enabling ordinary control clicks",
+  (width) => {
+    const b = browser(),
+      more = vi.fn();
+    vi.stubGlobal("innerWidth", 800);
+    vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(width);
+    vi.spyOn(document.documentElement, "clientHeight", "get").mockReturnValue(600);
+    const height = vi.spyOn(document.documentElement, "scrollHeight", "get").mockReturnValue(600);
+    render(
+      <>
+        <input aria-label="Filter" />
+        <WindowedList
+          items={items.slice(0, 2)}
+          itemKey={key}
+          renderItem={row}
+          label="People"
+          estimatedRowHeight={76}
+          onEndReached={more}
+        />
+      </>,
+    );
+    b.flush();
+    const pointer = { pointerType: "mouse", button: 0, clientX: 799, clientY: 300 };
+    fireEvent.pointerDown(document.documentElement, pointer);
+    b.flush();
+    expect(more).not.toHaveBeenCalled();
+    height.mockReturnValue(1200);
+    fireEvent.pointerDown(screen.getByLabelText("Filter"), pointer);
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Row 0" }), pointer);
+    fireEvent.pointerDown(document.documentElement, { ...pointer, pointerType: "touch" });
+    fireEvent.pointerDown(document.documentElement, { ...pointer, button: 2 });
+    fireEvent.pointerDown(document.documentElement, { ...pointer, clientY: -1 });
+    fireEvent.pointerDown(document.documentElement, { ...pointer, clientY: 600 });
+    fireEvent.pointerDown(document.documentElement, { ...pointer, clientX: 800 });
+    if (width < 800) fireEvent.pointerDown(document.documentElement, { ...pointer, clientX: 200 });
+    fireEvent.scroll(window);
+    b.flush();
+    expect(more).not.toHaveBeenCalled();
+    fireEvent.pointerDown(document.documentElement, pointer);
+    b.flush();
+    expect(more).toHaveBeenCalledOnce();
+  },
+);
+
+it("recognizes forward Tab inside list rows without treating focus or Tab elsewhere as paging", () => {
+  const b = browser(),
+    more = vi.fn();
+  render(
+    <>
+      <input aria-label="Filter" />
+      <WindowedList
+        items={items.slice(0, 2)}
+        itemKey={key}
+        renderItem={row}
+        label="People"
+        estimatedRowHeight={76}
+        onEndReached={more}
+      />
+    </>,
+  );
+  b.flush();
+  const rowButton = screen.getByRole("button", { name: "Row 0" });
+  rowButton.focus();
+  fireEvent.keyDown(window, { key: "Tab" });
+  fireEvent.keyDown(document.body, { key: "Tab" });
+  fireEvent.keyDown(screen.getByLabelText("Filter"), { key: "Tab" });
+  fireEvent.keyDown(rowButton, { key: "Tab", shiftKey: true });
+  b.flush();
+  expect(more).not.toHaveBeenCalled();
+  fireEvent.keyDown(rowButton, { key: "Tab" });
+  b.flush();
+  expect(more).toHaveBeenCalledOnce();
+});
+
 it("tracks the nearest scrolling main even when its scroll does not bubble to window", () => {
   const b = browser(),
     more = vi.fn();

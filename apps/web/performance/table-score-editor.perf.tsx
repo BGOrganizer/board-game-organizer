@@ -53,7 +53,6 @@ const initial: TableScoreInput = {
   tieBreaks: [],
 };
 let activeClient: QueryClient | undefined;
-let header: HTMLElement | undefined;
 let serverEvent: PlannedEventResponse;
 let serverTable: PlannedTableResponse;
 let resultRoute = false;
@@ -106,9 +105,6 @@ function renderMeasured(element: ReactElement) {
         pageParams: [""],
       },
     );
-    header = document.createElement("header");
-    header.id = "page-header-actions";
-    document.body.append(header);
   }
   return renderWithI18n(<QueryClientProvider client={client}>{element}</QueryClientProvider>);
 }
@@ -116,8 +112,6 @@ function cleanupMeasured() {
   cleanup();
   activeClient?.clear();
   activeClient = undefined;
-  header?.remove();
-  header = undefined;
 }
 configure({
   testingLibrary: { render: renderMeasured, cleanup: cleanupMeasured },

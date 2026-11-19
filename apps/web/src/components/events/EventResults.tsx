@@ -17,8 +17,8 @@ export function EventResults({ eventId, tableId }: { eventId: string; tableId: s
   const busy = f.actions.busy || f.checking;
   return (
     <div className="mx-auto max-w-4xl space-y-3 pb-28">
-      <HeaderActions>
-        <div className="flex max-w-[60vw] items-center gap-2">
+      <HeaderActions
+        back={
           <Button
             {...headerButtonProps}
             variant="ghost"
@@ -28,9 +28,9 @@ export function EventResults({ eventId, tableId }: { eventId: string; tableId: s
           >
             <ArrowLeft className="size-5" aria-hidden />
           </Button>
-          <h1 className="min-w-0 truncate text-base font-semibold">{t`Register result`}</h1>
-        </div>
-      </HeaderActions>
+        }
+      />
+      <h1 className="min-w-0 truncate text-base font-semibold">{t`Register result`}</h1>
       {!denied && f.table.data ? <h2 className="font-semibold">{f.table.data.name}</h2> : null}
       {f.event.isError || f.table.isError ? (
         <div role="alert">

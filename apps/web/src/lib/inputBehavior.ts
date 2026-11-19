@@ -105,7 +105,10 @@ export function installInputBehavior() {
       owner.style.overflowY = saved.overflowY;
       const viewport = window.visualViewport;
       const ownerRect = owner.getBoundingClientRect();
-      const top = Math.max(root ? 0 : ownerRect.top, viewport?.offsetTop ?? 0);
+      const headerBottom = root
+        ? (document.querySelector("[data-app-header]")?.getBoundingClientRect().bottom ?? 0)
+        : 0;
+      const top = Math.max(root ? headerBottom : ownerRect.top, viewport?.offsetTop ?? 0);
       const visualBottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight);
       if (owner.matches('[role="dialog"],dialog,[data-input-overlay]')) {
         const existing = Number.parseFloat(getComputedStyle(owner).maxHeight);

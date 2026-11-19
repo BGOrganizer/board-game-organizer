@@ -215,6 +215,10 @@ it("refuses an absent recovered draft instead of silently opening a new editor",
     vi.fn(async (input: string) => Response.json(readFixture(input))),
   );
   mount(client(), { draftId: "missing-draft" });
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back.textContent).toBe("");
+  fireEvent.click(back);
+  expect(navigation.back).toHaveBeenCalledOnce();
   expect(screen.getByRole("alert").textContent).toBe("Could not recover draft");
   expect(screen.queryByRole("textbox", { name: "Group name" })).toBeNull();
   expect(navigation.replace).not.toHaveBeenCalled();
@@ -229,7 +233,9 @@ it("keeps detail failures observable and retries authorized Group editing withou
   });
   vi.stubGlobal("fetch", fetch);
   mount(client(), { groupId: groupRecord.id });
+  expect(screen.getByRole("button", { name: "Back" })).toBeVisible();
   expect(await screen.findByText("Could not load group details")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Back" }).textContent).toBe("");
   expect(screen.queryByRole("textbox", { name: "Group name" })).toBeNull();
   failed = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
