@@ -158,9 +158,9 @@ device traces. Test matrices do not cancel their remaining active suites on fail
 - Internal owns the isolated API/database, CI web, CI APK, users, mirroring, optional retained E2E
   and exact-run cleanup. `PR ready` requires every common/Internal/cleanup result. Its job still
   evaluates after failed dependencies, so a skipped prerequisite cannot masquerade as readiness.
-- Development owns a non-CI API, dedicated web using that immutable API, and an APK embedding the
-  same API URL. Publication verifies artifact checksum, source head, current PR, active run/attempt
-  and newer same-head runs. Draft release/Telegram announce **Development availability**, not a
+- Development owns a non-CI API, dedicated web using that immutable API, and an APK embedding its
+  stable per-PR API alias. Publication verifies artifact checksum, source head, current PR, active
+  run/attempt and newer same-head runs. Draft release/Telegram announce **Development availability**, not a
   successful PR or E2E. They do not wait for Internal or CI cleanup. A Development-only failure
   may leave the overall workflow red while `PR ready` is green; the failure remains visible.
 
@@ -293,10 +293,12 @@ The exact URL remains in the APK provenance digest and must match the verified p
 Production and isolated CI fingerprints keep the API URL; all other native inputs remain covered.
 Migrating an installed `development-pr-N` APK requires one manual install of the shared-channel base.
 
-CI web uses the immutable isolated API URL; E2E APKs use the verified per-PR alias. Published
-Development web and APK use a stable-within-PR `api-development-pr-N` Preview alias, distinct from
-the CI `api-pr-N` alias. The deploy job only computes its URL; the publication job assigns it after smoke,
-non-CI database attestation and current-PR checks, then verifies the exact ready deployment target.
+CI web uses the immutable isolated API URL; E2E APKs use the verified per-PR alias. Development web
+uses its attested immutable non-CI API URL, so it remains usable before or after a failed APK
+publication. Development APKs use a stable-within-PR `api-development-pr-N` Preview alias, distinct
+from the CI `api-pr-N` alias. The deploy job only computes its URL; the publication job assigns it
+after smoke, non-CI database attestation and current-PR checks, then verifies the exact ready
+deployment target.
 Immutable deployment URLs remain the source of deployment attestation. Development producers and
 publisher use the same pinned merge SHA; `source-head.txt` records the actual checkout, while the
 PR-head guard independently rejects stale/closed/untrusted PRs. Never redirect E2E
