@@ -13,9 +13,8 @@ import { UserRoundMinus, UsersRound } from "lucide-react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { MemberActions } from "@/components/common/ui/MemberActions";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { WindowedList } from "@/components/common/ui/WindowedList";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
@@ -67,20 +66,20 @@ export function EventParticipants({
             ];
             return (
               <GroupedList>
-                <GroupedRow>
-                  <UserIdentity
-                    name={name}
-                    avatarUrl={person.avatarUrl}
-                    secondary={primary ? i18n._(recordUserRoleMessages[primary]) : undefined}
-                    badge={<UserRoleBadge roles={roles} />}
-                  />
-                  <MemberActions
-                    title={`${t`Manage participant`}: ${name}`}
-                    busy={m.isBusy(person)}
-                    items={items}
-                    onAction={(action) => m.open(person, action)}
-                  />
-                </GroupedRow>
+                <UserListRow
+                  name={name}
+                  avatarUrl={person.avatarUrl}
+                  secondary={primary ? i18n._(recordUserRoleMessages[primary]) : undefined}
+                  badge={<UserRoleBadge roles={roles} />}
+                  actions={
+                    <MemberActions
+                      title={`${t`Manage participant`}: ${name}`}
+                      busy={m.isBusy(person)}
+                      items={items}
+                      onAction={(action) => m.open(person, action)}
+                    />
+                  }
+                />
               </GroupedList>
             );
           }}

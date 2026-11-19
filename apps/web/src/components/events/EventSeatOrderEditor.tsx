@@ -18,7 +18,7 @@ import {
 import type { ReactNode } from "react";
 import { floatingActionPositionStyle } from "@/components/common/layout/floatingActionStyles";
 import { IconBadge } from "@/components/common/ui/IconBadge";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { WindowedList } from "@/components/common/ui/WindowedList";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
@@ -87,9 +87,10 @@ export function EventSeatOrderEditor({
               return (
                 <div
                   data-seat-order-row={row.id}
-                  className="relative flex min-w-0 items-center gap-2 rounded-xl bg-surface p-3 pl-4"
+                  className="overflow-visible rounded-xl bg-surface"
                 >
-                  <UserIdentity
+                  <UserListRow
+                    as="div"
                     name={formatUsername(row.username, row.name ?? t`Username unavailable`)}
                     avatarUrl={row.avatarUrl}
                     badge={<UserRoleBadge roles={roles} />}
@@ -105,27 +106,31 @@ export function EventSeatOrderEditor({
                       ) : undefined
                     }
                     secondary={roles[0] ? i18n._(recordUserRoleMessages[roles[0]]) : undefined}
+                    actions={
+                      <>
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          aria-label={t`Move up`}
+                          data-testid={`seat-order-up-${row.id}`}
+                          isDisabled={model.busy || !model.canMove(index, -1)}
+                          onPress={() => model.move(index, -1)}
+                        >
+                          <ArrowUp className="size-4" />
+                        </Button>
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          aria-label={t`Move down`}
+                          data-testid={`seat-order-down-${row.id}`}
+                          isDisabled={model.busy || !model.canMove(index, 1)}
+                          onPress={() => model.move(index, 1)}
+                        >
+                          <ArrowDown className="size-4" />
+                        </Button>
+                      </>
+                    }
                   />
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label={t`Move up`}
-                    data-testid={`seat-order-up-${row.id}`}
-                    isDisabled={model.busy || !model.canMove(index, -1)}
-                    onPress={() => model.move(index, -1)}
-                  >
-                    <ArrowUp className="size-4" />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label={t`Move down`}
-                    data-testid={`seat-order-down-${row.id}`}
-                    isDisabled={model.busy || !model.canMove(index, 1)}
-                    onPress={() => model.move(index, 1)}
-                  >
-                    <ArrowDown className="size-4" />
-                  </Button>
                 </div>
               );
             }}

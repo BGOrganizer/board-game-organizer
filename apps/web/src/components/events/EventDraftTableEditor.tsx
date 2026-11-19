@@ -6,14 +6,15 @@ import {
   gamePlayerBounds,
   publicTableTimeBounds,
 } from "@board-game-organizer/shared";
-import { Button, Input, Switch, TextField } from "@heroui/react";
+import { Button, Switch, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Minus, Plus, Trash2, UserRoundPen, UserRoundPlus, X } from "lucide-react";
+import { Minus, Plus, Trash2, UserRoundPen, X } from "lucide-react";
+import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { TimePicker } from "@/components/common/ui/TimePicker";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { GameListRow } from "@/components/games/GameListRow";
 
 export function EventDraftTableEditor({
@@ -172,7 +173,10 @@ export function EventDraftTableEditor({
     <>
       {publicGroup ? (
         <>
-          <TextField
+          <TimePicker
+            name="tableStart"
+            minValue={bounds.min?.slice(11, 16)}
+            maxValue={bounds.max?.slice(11, 16)}
             value={row.startsWall.slice(11, 16)}
             onChange={(time) => {
               const startsWall = `${day}T${time}`;
@@ -185,13 +189,15 @@ export function EventDraftTableEditor({
             isRequired
             isDisabled={busy || !bounds.min || !bounds.max || bounds.min > bounds.max}
             isInvalid={fieldError("startsAt")}
+            label={
+              <SearchHelpLabel
+                required
+                label={t`Table start`}
+                helpTitle={helpTitle}
+                help={t`The date is fixed to the event day. Choose a time at or after the event starts; the whole table must finish by the event end.`}
+              />
+            }
           >
-            <SearchHelpLabel
-              required
-              label={t`Table start`}
-              helpTitle={helpTitle}
-              help={t`The date is fixed to the event day. Choose a time at or after the event starts; the whole table must finish by the event end.`}
-            />
             {day ? (
               <p className="text-sm text-muted">
                 {new Intl.DateTimeFormat(i18n.locale, {
@@ -200,20 +206,13 @@ export function EventDraftTableEditor({
                 }).format(new Date(`${day}T00:00Z`))}
               </p>
             ) : null}
-            <Input
-              type="time"
-              name="tableStart"
-              autoComplete="off"
-              min={bounds.min?.slice(11, 16)}
-              max={bounds.max?.slice(11, 16)}
-            />
             {fieldError("startsAt") ? (
               <p
                 role="alert"
                 className="text-sm text-danger"
               >{t`Choose a table start and duration within the event.`}</p>
             ) : null}
-          </TextField>
+          </TimePicker>
           <div
             data-form-field
             data-form-error={fieldError("demonstratorUserId") || undefined}
@@ -225,51 +224,49 @@ export function EventDraftTableEditor({
               help={t`Optionally assign an accepted group member to demonstrate this public table. Their other tables must not overlap.`}
             />
             <GroupedList>
-              <GroupedRow>
-                {row.demonstratorUserId ? (
-                  <UserIdentity
-                    name={row.demonstratorName ?? t`Unknown`}
-                    avatarUrl={row.demonstratorAvatarUrl}
-                  />
-                ) : (
-                  <UserRoundPlus className="size-8 text-muted" aria-hidden />
-                )}
-                <Button
-                  isIconOnly={Boolean(row.demonstratorUserId)}
-                  variant="ghost"
-                  className={
-                    row.demonstratorUserId ? "min-h-11 min-w-11" : "min-h-11 flex-1 justify-start"
+              {row.demonstratorUserId ? (
+                <UserListRow
+                  name={row.demonstratorName ?? t`Unknown`}
+                  avatarUrl={row.demonstratorAvatarUrl}
+                  actions={
+                    <>
+                      <Button
+                        isIconOnly
+                        variant="ghost"
+                        className="min-h-11 min-w-11"
+                        data-form-control
+                        aria-label={t`Choose demonstrator`}
+                        isDisabled={busy}
+                        onPress={onDemonstrator}
+                      >
+                        <UserRoundPen className="size-4" aria-hidden />
+                      </Button>
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="danger-soft"
+                        aria-label={t`Remove demonstrator`}
+                        isDisabled={busy}
+                        onPress={() =>
+                          onChange({
+                            demonstratorUserId: undefined,
+                            demonstratorName: undefined,
+                            demonstratorAvatarUrl: undefined,
+                          })
+                        }
+                      >
+                        <X className="size-4" aria-hidden />
+                      </Button>
+                    </>
                   }
-                  data-form-control
-                  aria-label={t`Choose demonstrator`}
+                />
+              ) : (
+                <AddUserRow
+                  label={t`Choose demonstrator`}
                   isDisabled={busy}
                   onPress={onDemonstrator}
-                >
-                  {row.demonstratorUserId ? (
-                    <UserRoundPen className="size-4" aria-hidden />
-                  ) : (
-                    t`Choose demonstrator`
-                  )}
-                </Button>
-                {row.demonstratorUserId ? (
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="danger-soft"
-                    aria-label={t`Remove demonstrator`}
-                    isDisabled={busy}
-                    onPress={() =>
-                      onChange({
-                        demonstratorUserId: undefined,
-                        demonstratorName: undefined,
-                        demonstratorAvatarUrl: undefined,
-                      })
-                    }
-                  >
-                    <X className="size-4" aria-hidden />
-                  </Button>
-                ) : null}
-              </GroupedRow>
+                />
+              )}
             </GroupedList>
             {fieldError("demonstratorUserId") ? (
               <p

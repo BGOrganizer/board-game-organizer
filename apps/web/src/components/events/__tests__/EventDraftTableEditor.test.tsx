@@ -1,6 +1,7 @@
 import { newTableDraft } from "@board-game-organizer/shared";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
+import { enterDateTime } from "@/test-fixtures/dateTime";
 import { renderWithI18n } from "@/test-utils";
 import { EventDraftTableEditor } from "../EventDraftTableEditor";
 
@@ -24,18 +25,16 @@ it("fixes the public table date, exposes only bounded time and uses a grouped de
       onDemonstrator={onDemonstrator}
     />,
   );
-  const time = screen.getByLabelText(/^Table start \*$/) as HTMLInputElement;
-  expect(time.type).toBe("time");
-  expect(time.min).toBe("20:00");
-  expect(time.max).toBe("22:00");
+  const time = screen.getByRole("group", { name: /^Table start$/ });
+  expect(within(time).getAllByRole("spinbutton")).toHaveLength(2);
   expect(container.querySelector('input[type="date"], input[type="datetime-local"]')).toBeNull();
-  fireEvent.change(time, { target: { value: "19:59" } });
+  enterDateTime(time, "19:59");
   expect(onChange).not.toHaveBeenCalled();
-  fireEvent.change(time, { target: { value: "22:01" } });
+  enterDateTime(time, "22:01");
   expect(onChange).not.toHaveBeenCalled();
-  fireEvent.change(time, { target: { value: "20:00" } });
+  enterDateTime(time, "20:00");
   expect(onChange).toHaveBeenLastCalledWith({ startsWall: "2030-06-03T20:00" });
-  fireEvent.change(time, { target: { value: "22:00" } });
+  enterDateTime(time, "22:00");
   expect(onChange).toHaveBeenLastCalledWith({ startsWall: "2030-06-03T22:00" });
   const choose = screen.getByRole("button", { name: "Choose demonstrator" });
   expect(choose.closest("li")).not.toBeNull();

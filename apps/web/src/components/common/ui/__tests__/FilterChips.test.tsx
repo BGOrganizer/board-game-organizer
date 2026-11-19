@@ -47,3 +47,18 @@ it("does not render a filter container for an empty option set", () => {
   );
   expect(container.children).toHaveLength(0);
 });
+
+it("keeps a disabled filter visible without toggling its selection", () => {
+  const toggle = vi.fn();
+  renderWithI18n(
+    <FilterChips
+      options={[{ key: "collection", label: "Collection", icon: LibraryBig, disabled: true }]}
+      selected={[]}
+      onToggle={toggle}
+    />,
+  );
+  const action = screen.getByRole("button", { name: "Collection", pressed: false });
+  expect((action as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(action);
+  expect(toggle).not.toHaveBeenCalled();
+});

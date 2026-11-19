@@ -59,6 +59,7 @@ export function IconBadge({
     return (
       <Popover>
         <Popover.Trigger
+          tabIndex={0}
           aria-label={label}
           className="button button--ghost relative inline-flex size-11 min-h-11 min-w-11 items-center justify-center bg-transparent p-0"
         >

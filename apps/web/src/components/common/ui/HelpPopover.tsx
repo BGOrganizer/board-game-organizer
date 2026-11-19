@@ -67,6 +67,7 @@ export function HelpPopover({
   return (
     <Popover onOpenChange={onOpenChange}>
       <Popover.Trigger
+        tabIndex={0}
         aria-label={label}
         className={`button button--sm button--icon-only ${variants[size === "compact" ? "ghost" : triggerVariant]} relative inline-flex min-h-11 min-w-11 items-center justify-center ${color} ${size === "compact" ? "p-0" : triggerClassName}`}
       >

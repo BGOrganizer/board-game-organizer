@@ -2,7 +2,7 @@
 
 import { getBgoRole } from "@board-game-organizer/schemas";
 
-import { Show, SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
+import { Show, SignInButton, SignUpButton, useUser } from "@clerk/nextjs";
 import { Button, cn } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { LucideIcon } from "lucide-react";
@@ -122,9 +122,6 @@ export function Header() {
               {user?.firstName || user?.username}
             </p>
             <NotificationBell />
-            <Link href="/profile" aria-label={t`Profile`} className={headerControlClassName}>
-              <UserRound className={HEADER_ICON_CLASS} aria-hidden="true" />
-            </Link>
             {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
               <Link
                 href="/moderation"
@@ -134,7 +131,9 @@ export function Header() {
                 <ShieldCheck className={HEADER_ICON_CLASS} aria-hidden="true" />
               </Link>
             ) : null}
-            <UserButton />
+            <Link href="/profile" aria-label={t`Profile`} className={headerControlClassName}>
+              <UserRound className={HEADER_ICON_CLASS} aria-hidden="true" />
+            </Link>
           </div>
         </Show>
         <div id="page-header-actions" className="shrink-0 empty:hidden" />

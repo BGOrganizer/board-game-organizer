@@ -12,6 +12,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { enterDateTime } from "@/test-fixtures/dateTime";
 import { optionId, plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventProposalSection } from "../EventProposalSection";
@@ -200,9 +201,7 @@ it("retries a real proposal queue failure through the section action", async () 
 it("retains a rejected inline proposal as an editable local intent and routes to its exact unsent draft", async () => {
   mount("date");
   await screen.findByText("No proposals");
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-05T21:00" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-05T21:00");
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(await screen.findByText("Could not send proposal")).toBeVisible();
   expect(writes).toHaveLength(1);

@@ -1,6 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
+import { enterDateTime } from "@/test-fixtures/dateTime";
 import { renderWithI18n } from "@/test-utils";
 
 afterEach(() => vi.restoreAllMocks());
@@ -33,12 +34,12 @@ it("validates timed bans in the venue timezone, not the device timezone", () => 
     />,
   );
   fireEvent.click(screen.getByRole("switch"));
-  const field = screen.getByLabelText("Excluded until");
-  fireEvent.change(field, { target: { value: "2029-12-31T12:00" } });
+  const field = screen.getByRole("group", { name: "Excluded until" });
+  enterDateTime(field, "2029-12-31T12:00");
   fireEvent.click(screen.getByRole("button", { name: "Ban from group" }));
   expect(screen.getByRole("alert").textContent).toBe("Choose a valid future date and time.");
   expect(confirm).not.toHaveBeenCalled();
-  fireEvent.change(field, { target: { value: "2030-01-03T12:00" } });
+  enterDateTime(field, "2030-01-03T12:00");
   fireEvent.click(screen.getByRole("button", { name: "Ban from group" }));
   expect(confirm).toHaveBeenCalledWith("2030-01-03T11:00:00.000Z");
 });

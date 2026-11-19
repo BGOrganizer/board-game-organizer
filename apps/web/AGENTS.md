@@ -25,8 +25,8 @@ HeroUI v3 uses React Aria composition:
 HeroUI dark mode is class-based. `ThemeScript` bootstraps before hydration, then synchronizes the
 root class and `data-theme` with the existing system/light/dark preference and live OS changes.
 Clerk web appearance, custom surfaces, hints, focus rings, backdrops and shadows consume HeroUI
-variables too. Compact action foreground overrides remain centralized in global CSS and use
-HeroUI's contrast primitives; preserve readable text/icon contrast when changing theme pairs.
+variables too. Global CSS imports the standard HeroUI theme; keep application-specific row layout
+in reusable components rather than globally overriding control geometry or colors.
 
 Read `NEXT_PUBLIC_*` variables inside this app and pass them to workspace helpers; Next.js does
 not reliably inline those environment reads from shared package source. Apply cache-first navigation without a web splash.

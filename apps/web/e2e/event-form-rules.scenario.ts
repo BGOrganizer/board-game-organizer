@@ -1,5 +1,6 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
+import { enterDateTime } from "./date-time";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
 
 function required(key: string) {
@@ -94,4 +95,47 @@ for (const width of [390, 1280])
     await expect(publicRadio).toBeEnabled();
     await publicRadio.click();
     await expect(publicRadio).toBeChecked();
+
+    const start = page.getByRole("group", {
+      name: it ? /^Data e orario/ : /^Date and time/,
+    });
+    await expect(start.getByRole("spinbutton")).toHaveCount(5);
+    await enterDateTime(start, "2030-06-12T14:00");
+    await start
+      .getByRole("button", {
+        name: it ? "Scegli data e ora" : "Choose date and time",
+        exact: true,
+      })
+      .click();
+    const picker = page.getByRole("dialog", {
+      name: it ? "Scegli data e ora" : "Choose date and time",
+      exact: true,
+    });
+    await expect(picker.getByRole("grid")).toBeVisible();
+    await picker.getByRole("grid").getByText("13", { exact: true }).click();
+    await expect(picker).toBeVisible();
+    await enterDateTime(
+      picker.getByRole("group", { name: it ? "Ora" : "Time", exact: true }),
+      "14:30",
+    );
+    await picker.getByRole("button", { name: it ? "Fine" : "Done", exact: true }).click();
+    await expect(picker).toHaveCount(0);
+    await expect(start.locator('[role="spinbutton"][data-type="day"]')).toHaveAttribute(
+      "aria-valuenow",
+      "13",
+    );
+    await expect(start.locator('[role="spinbutton"][data-type="hour"]')).toHaveAttribute(
+      "aria-valuenow",
+      "14",
+    );
+    await expect(start.locator('[role="spinbutton"][data-type="minute"]')).toHaveAttribute(
+      "aria-valuenow",
+      "30",
+    );
+    const end = page.getByRole("group", {
+      name: it ? /^Ora di fine/ : /^End time/,
+    });
+    await expect(end.getByRole("spinbutton")).toHaveCount(2);
+    await enterDateTime(end, "18:00");
+    // The entire journey leaves an unsaved draft; no event creation or provider writes.
   });

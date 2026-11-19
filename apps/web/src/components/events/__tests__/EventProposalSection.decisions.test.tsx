@@ -17,6 +17,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
+import { enterDateTime, readDateTime } from "@/test-fixtures/dateTime";
 import { optionId, plannedEvent, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventProposalSection } from "../EventProposalSection";
@@ -365,8 +366,8 @@ it("keeps inline sending as local intent, coalesces repeated taps and clears it 
   });
   serverRows = [];
   mount(participant);
-  const input = screen.getByLabelText("Date and time");
-  fireEvent.change(input, { target: { value: "2030-06-05T21:00" } });
+  const input = screen.getByRole("group", { name: "Date and time" });
+  enterDateTime(input, "2030-06-05T21:00");
   const add = screen.getByRole("button", { name: "Add date" });
   fireEvent.click(add);
   fireEvent.click(add);
@@ -378,17 +379,15 @@ it("keeps inline sending as local intent, coalesces repeated taps and clears it 
   await act(async () => finish(submitReceipt(submissions[0])));
   await waitFor(() => expect(screen.queryByText("Sending proposal")).toBeNull());
   expect(client.getQueryData<EventProposalsResponse>(key("mine"))?.items).toHaveLength(1);
-  expect(await screen.findByLabelText("Date and time")).toHaveValue("");
+  expect(readDateTime(await screen.findByRole("group", { name: "Date and time" }))).toBe("");
 });
 
 it("resets the inline date draft on a fresh event revision and keeps cached manager controls disabled during parent work", () => {
   serverRows = [];
   const view = mount(participant);
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-05T21:00" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-05T21:00");
   view.rerender(<Fixture event={{ ...participant, version: 2 }} />);
-  expect(screen.getByLabelText("Date and time")).toHaveValue("");
+  expect(readDateTime(screen.getByRole("group", { name: "Date and time" }))).toBe("");
   expect(screen.getByRole("button", { name: "Add date" })).toBeDisabled();
   serverRows = [proposal];
   client.setQueryData(key(), page());

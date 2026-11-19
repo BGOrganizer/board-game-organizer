@@ -180,6 +180,12 @@ it("reacts to authenticated role loss and logout without leaving moderation or p
     "href",
     "/moderation",
   );
+  const moderation = screen.getByRole("link", { name: "Group moderation" });
+  const profile = screen.getByRole("link", { name: "Profile" });
+  expect(
+    moderation.compareDocumentPosition(profile) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Clerk user menu" })).toBeNull();
   sdk.metadata = { role: "ADMIN" };
   view.refresh();
   expect(screen.queryByRole("link", { name: "Group moderation" })).toBeNull();

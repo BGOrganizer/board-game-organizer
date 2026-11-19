@@ -113,7 +113,7 @@ async function openTables() {
     ),
   );
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
-  await screen.findByLabelText(/^Event date \*$/);
+  await screen.findByRole("group", { name: /^Date and time$/ });
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
 }
 async function expandFirst() {

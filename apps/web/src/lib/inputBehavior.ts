@@ -1,5 +1,5 @@
 const textInput =
-  'textarea,input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"])';
+  'textarea,[role="spinbutton"][contenteditable="true"],input:not([hidden]):not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"])';
 const formControl = `${textInput},select`;
 const invalidField =
   '[aria-invalid="true"],[data-form-error],input:invalid,textarea:invalid,select:invalid';
@@ -113,7 +113,8 @@ export function installInputBehavior() {
         owner.style.overflowY = "auto";
       }
       const availableControl = (control: HTMLElement) =>
-        isVisible(control) && !control.matches(':disabled,[aria-disabled="true"],[readonly]');
+        isVisible(control) &&
+        !control.matches(':disabled,[aria-disabled="true"],[readonly],[aria-readonly="true"]');
       const controls = [target, ...target.querySelectorAll<HTMLElement>(formControl)].filter(
         (control) => control.matches(formControl) && availableControl(control),
       );
@@ -125,7 +126,7 @@ export function installInputBehavior() {
         );
       const group =
         target.closest<HTMLElement>("[data-form-field]") ??
-        target.closest<HTMLElement>(".text-field,.search-field") ??
+        target.closest<HTMLElement>(".text-field,.search-field,.date-picker,.time-field") ??
         target;
       const fieldRect = (field ?? target).getBoundingClientRect(),
         groupRect = group.getBoundingClientRect();

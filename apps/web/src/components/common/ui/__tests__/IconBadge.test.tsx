@@ -47,6 +47,7 @@ it("uses a 22px Chip, a 13px glyph and an absolute same-color plus inside a 44px
     </IconBadge>,
   );
   const button = screen.getByRole("button", { name: "Admin and player" });
+  expect(button).toHaveAttribute("tabindex", "0");
   expect(button.className).toContain("size-11");
   expect(button.classList.contains("bg-transparent")).toBe(true);
   expect(button.querySelector(".size-\\[22px\\]")).toBeTruthy();
@@ -62,7 +63,8 @@ it("uses a 22px Chip, a 13px glyph and an absolute same-color plus inside a 44px
   expect(plus?.getAttribute("class")).not.toMatch(/-top|-right/);
   expect(plus?.getAttribute("class")).not.toContain("text-");
   expect(plus?.classList.contains("bg-default")).toBe(true);
-  fireEvent.click(button);
+  fireEvent.keyDown(button, { key: "Enter", code: "Enter", keyCode: 13 });
+  fireEvent.keyUp(button, { key: "Enter", code: "Enter", keyCode: 13 });
   const dialog = await screen.findByRole("dialog", { name: "Roles" });
   expect(within(dialog).getByText("Both facts remain independent.")).toBeTruthy();
 });

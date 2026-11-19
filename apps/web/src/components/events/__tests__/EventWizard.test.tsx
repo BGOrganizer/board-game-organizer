@@ -16,6 +16,7 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { enterDateTime, readDateTime } from "@/test-fixtures/dateTime";
 import {
   eventId,
   groupRecord,
@@ -137,7 +138,7 @@ function openSchedule() {
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 }
 async function expandExistingTable() {
-  if (screen.queryByLabelText("Date and time"))
+  if (screen.queryByRole("group", { name: "Date and time" }))
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
   const trigger = await screen.findByRole("button", { name: plannedTable.name });
   if (trigger.getAttribute("aria-expanded") !== "true") fireEvent.click(trigger);
@@ -206,47 +207,48 @@ it("initializes public start tomorrow without venue defaults and bounds separate
     target: { value: "Public game night" },
   });
   openSchedule();
-  const date = (await screen.findByLabelText(/^Event date \*$/)) as HTMLInputElement;
+  const start = await screen.findByRole("group", { name: /^Date and time$/ });
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const day = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
-  await waitFor(() => expect(date.value).toBe(day));
-  expect(date.type).toBe("date");
+  await waitFor(() => expect(readDateTime(start).slice(0, 10)).toBe(day));
+  expect(within(start).getAllByRole("spinbutton")).toHaveLength(5);
   expect(screen.queryByRole("button", { name: /^Remove date/ })).toBeNull();
   expect(screen.queryByText("Club venue")).toBeNull();
-  fireEvent.change(date, { target: { value: "2030-06-03" } });
-  const start = screen.getByLabelText("Start time") as HTMLInputElement,
-    end = screen.getByLabelText("End time") as HTMLInputElement,
-    cutoff = screen.getByLabelText(/^Registration Deadline Date and Time \*$/) as HTMLInputElement;
-  fireEvent.change(start, { target: { value: "20:00" } });
-  expect(start.type).toBe("time");
-  expect(end.type).toBe("time");
-  expect(end.min).toBe("20:01");
-  expect(end.max).toBe("23:59");
-  expect(cutoff.max).toBe("2030-06-02T23:59");
+  enterDateTime(start, "2030-06-03T20:00");
+  const end = screen.getByRole("group", { name: /^End time/ }),
+    cutoff = screen.getByRole("group", { name: /^Registration Deadline Date and Time/ });
+  expect(within(end).getAllByRole("spinbutton")).toHaveLength(2);
   expect(end.compareDocumentPosition(cutoff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(
     cutoff.compareDocumentPosition(screen.getByRole("button", { name: "Choose a location" })) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
-  fireEvent.change(end, { target: { value: "20:00" } });
-  expect(end.value).toBe("");
-  fireEvent.change(end, { target: { value: "22:00" } });
-  expect(end.value).toBe("22:00");
-  fireEvent.change(cutoff, { target: { value: "2030-06-03T19:00" } });
-  expect(cutoff.value).toBe("");
-  fireEvent.change(cutoff, { target: { value: "2030-06-02T23:00" } });
-  expect(cutoff.value).toBe("2030-06-02T23:00");
-  fireEvent.change(start, { target: { value: "23:00" } });
-  expect(end.value).toBe("");
+  enterDateTime(end, "20:00");
+  expect(readDateTime(end)).toBe("");
+  enterDateTime(end, "20:01");
+  expect(readDateTime(end)).toBe("20:01");
+  enterDateTime(end, "23:59");
+  expect(readDateTime(end)).toBe("23:59");
+  enterDateTime(end, "22:00");
+  expect(readDateTime(end)).toBe("22:00");
+  enterDateTime(cutoff, "2030-06-03T19:00");
+  expect(readDateTime(cutoff)).toBe("");
+  enterDateTime(cutoff, "2030-06-02T23:59");
+  expect(readDateTime(cutoff)).toBe("2030-06-02T23:59");
+  enterDateTime(cutoff, "2030-06-02T23:00");
+  expect(readDateTime(cutoff)).toBe("2030-06-02T23:00");
+  enterDateTime(start, "2030-06-03T23:00");
+  expect(readDateTime(end)).toBe("");
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
-  const locatedCutoff = screen.getByLabelText(
-    /^Registration Deadline Date and Time \*$/,
-  ) as HTMLInputElement;
-  expect(locatedCutoff.min).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-  fireEvent.change(locatedCutoff, { target: { value: "2000-01-01T00:00" } });
-  expect(locatedCutoff.value).not.toBe("2000-01-01T00:00");
+  const locatedCutoff = screen.getByRole("group", {
+    name: /^Registration Deadline Date and Time/,
+  });
+  const previousCutoff = readDateTime(locatedCutoff);
+  enterDateTime(locatedCutoff, "2000-01-01T00:00");
+  expect(readDateTime(locatedCutoff)).toBe(previousCutoff);
+  expect(readDateTime(locatedCutoff)).not.toBe("2000-01-01T00:00");
 });
 it("keeps private add slots, independent same-day clocks, location choices and pending input through picker navigation until final save", async () => {
   const fetch = vi.fn(
@@ -275,27 +277,21 @@ it("keeps private add slots, independent same-day clocks, location choices and p
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   expect(screen.getByText("Choose at least one valid date and time.")).not.toBeNull();
   openSchedule();
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-03T18:15" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-03T18:15");
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
-  expect((screen.getByLabelText("Date and time") as HTMLInputElement).value).toBe("");
+  expect(readDateTime(screen.getByRole("group", { name: "Date and time" }))).toBe("");
   openSchedule();
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-03T21:30" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-03T21:30");
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose second verified location" }));
-  expect((screen.getByLabelText("Date and time") as HTMLInputElement).value).toBe(
+  expect(readDateTime(screen.getByRole("group", { name: "Date and time" }))).toBe(
     "2030-06-03T21:30",
   );
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(screen.getByRole("button", { name: "Remove date: 2030-06-03 18:15" })).not.toBeNull();
   expect(screen.getByRole("button", { name: "Remove date: 2030-06-03 21:30" })).not.toBeNull();
   openSchedule();
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-03T21:30" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-03T21:30");
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(screen.getAllByRole("button", { name: /^Remove date:/ })).toHaveLength(2);
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
@@ -343,9 +339,7 @@ it("submits one complete event only on final review, with no server draft or imp
     target: { value: "Friday games" },
   });
   openSchedule();
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-03T20:00" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-03T20:00");
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
@@ -401,9 +395,7 @@ it.each([false, true])(
         target: { value: "Unsaved draft" },
       });
       openSchedule();
-      fireEvent.change(screen.getByLabelText("Date and time"), {
-        target: { value: "2030-06-03T20:00" },
-      });
+      enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-03T20:00");
       fireEvent.click(screen.getByRole("button", { name: "Add date" }));
       fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
       fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
@@ -664,9 +656,7 @@ it("leaves final review immediately but retains the complete failed draft for ex
     target: { value: "Friday games" },
   });
   openSchedule();
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-03T20:00" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-03T20:00");
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
@@ -725,9 +715,7 @@ it("keeps validation attempts reachable, showing blocking schedule errors withou
     target: { value: "Friday games" },
   });
   openSchedule();
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-03T20:00" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-03T20:00");
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(screen.getByRole("button", { name: "Add date" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));

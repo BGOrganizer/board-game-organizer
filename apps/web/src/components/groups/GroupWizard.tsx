@@ -18,14 +18,14 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Plus, Save, Send, Trash2, UsersRound, X } from "lucide-react";
+import { ArrowLeft, Save, Send, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
-import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { LocationListRow } from "@/components/locations/LocationListRow";
@@ -320,43 +320,37 @@ function Editor({
           ) : null}
           <GroupedList>
             {friends.map((user) => (
-              <GroupedRow key={user.id}>
-                <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="md" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm">{user.name}</span>
-                  {formatUsername(user.username, "") ? (
-                    <span className="block truncate text-xs text-muted">
-                      {formatUsername(user.username, "")}
-                    </span>
-                  ) : null}
-                </span>
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="danger-soft"
-                  aria-label={`${t`Remove invite`}: ${user.name}`}
-                  isDisabled={submitting}
-                  onPress={() =>
-                    setFriends((current) => current.filter((item) => item.id !== user.id))
-                  }
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </Button>
-              </GroupedRow>
+              <UserListRow
+                key={user.id}
+                name={user.name}
+                avatarUrl={user.avatarUrl}
+                secondary={formatUsername(user.username, "")}
+                actions={
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="danger-soft"
+                    aria-label={`${t`Remove invite`}: ${user.name}`}
+                    isDisabled={submitting}
+                    onPress={() =>
+                      setFriends((current) => current.filter((item) => item.id !== user.id))
+                    }
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </Button>
+                }
+              />
             ))}
           </GroupedList>
-          <Button
-            className="h-auto max-w-full gap-[8px] whitespace-normal"
-            variant="outline"
-            isDisabled={submitting || uploading || type === "PUBLIC"}
-            onPress={() => {
-              if (type === "PRIVATE") setPicking("friend");
-            }}
-          >
-            <UsersRound className="size-[16px] shrink-0" aria-hidden />
-            <Plus className="size-[16px] shrink-0" aria-hidden />
-            <span className="min-w-0 break-words">{t`Add friend`}</span>
-          </Button>
+          <GroupedList>
+            <AddUserRow
+              label={t`Add friend`}
+              isDisabled={submitting || uploading || type === "PUBLIC"}
+              onPress={() => {
+                if (type === "PRIVATE") setPicking("friend");
+              }}
+            />
+          </GroupedList>
         </section>
       ) : null}
       <div className="fixed inset-x-0 bottom-0 z-40 bg-background px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">

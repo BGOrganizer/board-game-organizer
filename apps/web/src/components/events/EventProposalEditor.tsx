@@ -1,9 +1,10 @@
 "use client";
 import { useEventProposalEditor, useFavoriteLocations } from "@board-game-organizer/shared";
-import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
+import { Button, Label, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { DateTimePicker } from "@/components/common/ui/DateTimePicker";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -87,19 +88,19 @@ export function EventProposalEditor({
         </>
       ) : (
         <>
-          <TextField
+          <DateTimePicker
+            name="proposedDateTime"
+            label={<Label>{t`Choose date and time`}</Label>}
             value={
               form.payload?.kind === "date" ? `${form.payload.day}T${form.payload.startTime}` : ""
             }
             onChange={form.chooseDate}
             isInvalid={invalid}
           >
-            <Label>{t`Choose date and time`}</Label>
-            <Input name="proposedDateTime" autoComplete="off" type="datetime-local" step={60} />
             {invalid ? (
               <p role="alert" className="text-danger">{t`Choose a valid date and time.`}</p>
             ) : null}
-          </TextField>
+          </DateTimePicker>
           <Button
             data-form-submit
             isDisabled={!form.canAttempt}

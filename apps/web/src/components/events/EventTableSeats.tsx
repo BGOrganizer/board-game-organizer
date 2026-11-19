@@ -14,16 +14,16 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundPlus, UserRoundX } from "lucide-react";
+import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { floatingActionPositionStyle } from "@/components/common/layout/floatingActionStyles";
+import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { IconBadge } from "@/components/common/ui/IconBadge";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
@@ -112,18 +112,17 @@ export function EventTableSeats({
                         : t`Sending invitation`;
                 const Icon = item.action ? Clock3 : Mail;
                 return (
-                  <GroupedRow key={item.key}>
-                    <UserIdentity
-                      name={formatUsername(item.username, item.name || t`You`)}
-                      avatarUrl={item.avatarUrl}
-                      secondary={label}
-                      badge={
-                        <IconBadge icon={Icon} label={label} title={label} color="warning">
-                          <p>{label}</p>
-                        </IconBadge>
-                      }
-                    />
-                  </GroupedRow>
+                  <UserListRow
+                    key={item.key}
+                    name={formatUsername(item.username, item.name || t`You`)}
+                    avatarUrl={item.avatarUrl}
+                    secondary={label}
+                    badge={
+                      <IconBadge icon={Icon} label={label} title={label} color="warning">
+                        <p>{label}</p>
+                      </IconBadge>
+                    }
+                  />
                 );
               }
               if (item.kind !== "player") {
@@ -134,30 +133,21 @@ export function EventTableSeats({
                       ? t`Join waiting list`
                       : t`Free place`;
                 return (
-                  <GroupedRow
+                  <AddUserRow
+                    className="[contain-intrinsic-size:auto_5.5rem] [content-visibility:auto]"
                     key={item.key}
-                    className="[contain-intrinsic-size:auto_4rem] [content-visibility:auto]"
-                  >
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-default">
-                      <UserRoundPlus className="size-5 text-muted" aria-hidden />
-                    </span>
-                    <Button
-                      className="min-h-11 min-w-0 flex-1 justify-start px-0"
-                      variant="ghost"
-                      isDisabled={
-                        reserved ||
-                        item.key !== roster.rows.find((row) => row.kind === "empty")?.key ||
-                        !canAdd ||
-                        a.blocking
-                      }
-                      onPress={() => {
-                        if (table.canInvite || table.groupType === "PRIVATE") setChoose(true);
-                        else void join();
-                      }}
-                    >
-                      {label}
-                    </Button>
-                  </GroupedRow>
+                    label={label}
+                    isDisabled={
+                      reserved ||
+                      item.key !== roster.rows.find((row) => row.kind === "empty")?.key ||
+                      !canAdd ||
+                      a.blocking
+                    }
+                    onPress={() => {
+                      if (table.canInvite || table.groupType === "PRIVATE") setChoose(true);
+                      else void join();
+                    }}
+                  />
                 );
               }
               const row = item.user,
@@ -178,54 +168,53 @@ export function EventTableSeats({
                   ? t`Participation requested`
                   : t`Loading…`;
               return (
-                <GroupedRow
+                <UserListRow
+                  className="[contain-intrinsic-size:auto_5.5rem] [content-visibility:auto]"
                   key={item.key}
-                  className="[contain-intrinsic-size:auto_4rem] [content-visibility:auto]"
-                >
-                  <UserIdentity
-                    titleAccessory={
-                      <NotificationItem
-                        itemId={
-                          own && pending
-                            ? notificationItemId(table.id, "invitation", undefined, "table")
-                            : undefined
-                        }
-                      />
-                    }
-                    name={name}
-                    avatarUrl={row.avatarUrl}
-                    secondary={status}
-                    badge={<UserRoleBadge roles={roles} />}
-                  />
-                  <span className="flex shrink-0 items-center gap-1">
-                    {own && table.canRespond && pending && table.myRegistration ? (
-                      <EventTableInvitationActions
-                        eventId={table.eventId}
-                        registration={table.myRegistration}
-                      />
-                    ) : null}
-                    {(
-                      own
-                        ? !closed && table.canLeave && row.status === "ACCEPTED"
-                        : table.canInvite
-                    ) ? (
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="danger-soft"
-                        isDisabled={a.blocking}
-                        aria-label={own ? t`Leave table` : `${t`Remove player`}: ${name}`}
-                        onPress={() => onRemove(row, own)}
-                      >
-                        {own ? (
-                          <LogOut className="size-4" aria-hidden />
-                        ) : (
-                          <UserRoundX className="size-4" aria-hidden />
-                        )}
-                      </Button>
-                    ) : null}
-                  </span>
-                </GroupedRow>
+                  titleAccessory={
+                    <NotificationItem
+                      itemId={
+                        own && pending
+                          ? notificationItemId(table.id, "invitation", undefined, "table")
+                          : undefined
+                      }
+                    />
+                  }
+                  name={name}
+                  avatarUrl={row.avatarUrl}
+                  secondary={status}
+                  badge={<UserRoleBadge roles={roles} />}
+                  actions={
+                    <>
+                      {own && table.canRespond && pending && table.myRegistration ? (
+                        <EventTableInvitationActions
+                          eventId={table.eventId}
+                          registration={table.myRegistration}
+                        />
+                      ) : null}
+                      {(
+                        own
+                          ? !closed && table.canLeave && row.status === "ACCEPTED"
+                          : table.canInvite
+                      ) ? (
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="danger-soft"
+                          isDisabled={a.blocking}
+                          aria-label={own ? t`Leave table` : `${t`Remove player`}: ${name}`}
+                          onPress={() => onRemove(row, own)}
+                        >
+                          {own ? (
+                            <LogOut className="size-4" aria-hidden />
+                          ) : (
+                            <UserRoundX className="size-4" aria-hidden />
+                          )}
+                        </Button>
+                      ) : null}
+                    </>
+                  }
+                />
               );
             })}
           </GroupedList>

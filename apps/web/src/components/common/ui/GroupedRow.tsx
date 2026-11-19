@@ -4,14 +4,19 @@ export function GroupedRow({
   children,
   className = "",
   style,
+  as: Element = "li",
 }: {
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
+  as?: "li" | "div";
 }) {
   return (
-    <li style={style} className={`relative flex min-w-0 items-center gap-2 p-3 pl-4 ${className}`}>
+    <Element
+      style={style}
+      className={`relative flex min-w-0 items-center gap-2 p-3 pl-4 ${className}`}
+    >
       {children}
-    </li>
+    </Element>
   );
 }

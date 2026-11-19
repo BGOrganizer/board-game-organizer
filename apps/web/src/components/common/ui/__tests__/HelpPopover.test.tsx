@@ -13,7 +13,10 @@ it("opens rich feature content with a heading, constrains wrapping and closes wi
     </HelpPopover>,
   );
   expect(screen.queryByText("If needed")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Votes help" }));
+  const trigger = screen.getByRole("button", { name: "Votes help" });
+  expect(trigger).toHaveAttribute("tabindex", "0");
+  fireEvent.keyDown(trigger, { key: "Enter", code: "Enter", keyCode: 13 });
+  fireEvent.keyUp(trigger, { key: "Enter", code: "Enter", keyCode: 13 });
   expect(await screen.findByRole("heading", { name: "Votes" })).toBeTruthy();
   expect(screen.getByText("If needed")).toBeTruthy();
   const dialog = screen.getByRole("dialog");

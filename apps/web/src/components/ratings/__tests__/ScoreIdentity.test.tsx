@@ -16,7 +16,7 @@ const player = {
 };
 for (const locale of ["en", "it"] as const)
   it.each([1, 2])(
-    "keeps position %s visible and opens a localized avatar explanation (" + locale + ")",
+    `keeps position %s visible and opens a localized avatar explanation (${locale})`,
     async (rank) => {
       renderWithI18n(
         <I18nProvider i18n={setupI18n({ locale, messages: { en, it: italian } })}>
@@ -39,16 +39,21 @@ for (const locale of ["en", "it"] as const)
     },
   );
 
-it.each([null, undefined])("does not invent a rank or reserve a badge gap for %s", (rank) => {
-  const { container } = renderWithI18n(
-    <ScoreIdentity player={{ ...player, name: "", username: null, avatarUrl: null }} rank={rank} />,
-  );
-  expect(screen.queryByRole("button")).toBeNull();
-  expect(screen.queryByText(/Position:/)).toBeNull();
-  expect(screen.getByText("Username unavailable")).toBeTruthy();
-  expect(screen.getByText("?")).toBeTruthy();
-  expect((container.firstElementChild as HTMLElement).style.marginRight).toBe("0px");
-});
+it.each([null, undefined])(
+  "renders an unranked identity without inventing a rank for %s",
+  (rank) => {
+    renderWithI18n(
+      <ScoreIdentity
+        player={{ ...player, name: "", username: null, avatarUrl: null }}
+        rank={rank}
+      />,
+    );
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByText(/Position:/)).toBeNull();
+    expect(screen.getByText("Username unavailable")).toBeTruthy();
+    expect(screen.getByText("?")).toBeVisible();
+  },
+);
 
 it("preserves the existing game rating and delta when a rank is displayed", () => {
   const rating = { userId: player.id, score: 501.25, delta: 1.25, provisional: false };

@@ -6,11 +6,12 @@ import {
   eventProposalLabel,
   useEventProposalSection,
 } from "@board-game-organizer/shared";
-import { Button, Input, Skeleton, TextField } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarClock, CircleCheck, CircleX, ClipboardCheck, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { DateTimePicker } from "@/components/common/ui/DateTimePicker";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -201,14 +202,13 @@ function DateProposalAction({ submit }: { submit: (wall: string) => boolean }) {
   return (
     <GroupedRow>
       <CalendarClock className="size-4 shrink-0 text-muted" aria-hidden />
-      <TextField
+      <DateTimePicker
+        name="proposedDateTime"
         className="min-w-0 flex-1"
         aria-label={t`Date and time`}
         value={wall}
         onChange={setWall}
-      >
-        <Input name="proposedDateTime" autoComplete="off" type="datetime-local" step={60} />
-      </TextField>
+      />
       <Button
         isIconOnly
         variant="primary"

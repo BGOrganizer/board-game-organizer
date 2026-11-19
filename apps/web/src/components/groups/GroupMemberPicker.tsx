@@ -7,9 +7,11 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { UserRoundPlus } from "lucide-react";
+import { UserRoundPlus, UsersRound } from "lucide-react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { GroupedList } from "@/components/common/ui/GroupedList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -45,35 +47,39 @@ export function GroupMemberPicker({
         selected={[]}
         onToggle={f.toggle}
       />
-      {(communityAccessDenied(q.error) ? [] : q.items)
-        .filter((row) => !excludeIds.includes(row.userId))
-        .map((row) => (
-          <div
-            key={row.userId}
-            className="flex items-center justify-between gap-3 rounded-xl bg-default p-3"
-          >
-            <UserIdentity
+      <GroupedList>
+        {(communityAccessDenied(q.error) ? [] : q.items)
+          .filter((row) => !excludeIds.includes(row.userId))
+          .map((row) => (
+            <UserListRow
+              key={row.userId}
               name={row.name ?? row.userId}
               avatarUrl={row.avatarUrl}
               badge={<UserRoleBadge roles={groupUserRoles(row)} />}
-            />
-            <Button
-              isIconOnly
-              size="sm"
-              aria-label={`${t`Select user`}: ${row.name ?? row.userId}`}
-              isDisabled={disabled}
-              onPress={() =>
-                onSelect({ id: row.userId, name: row.name ?? row.userId, avatarUrl: row.avatarUrl })
+              actions={
+                <Button
+                  isIconOnly
+                  size="sm"
+                  aria-label={`${t`Select user`}: ${row.name ?? row.userId}`}
+                  isDisabled={disabled}
+                  onPress={() =>
+                    onSelect({
+                      id: row.userId,
+                      name: row.name ?? row.userId,
+                      avatarUrl: row.avatarUrl,
+                    })
+                  }
+                >
+                  <UserRoundPlus className="size-4" />
+                </Button>
               }
-            >
-              <UserRoundPlus className="size-4" />
-            </Button>
-          </div>
-        ))}
+            />
+          ))}
+      </GroupedList>
       {q.isPending ? (
         <Skeleton className="h-32 w-full rounded-xl" />
       ) : !q.isError && !q.items.length ? (
-        <p>{t`No members found`}</p>
+        <EmptyList icon={<UsersRound className="size-7" />}>{t`No members found`}</EmptyList>
       ) : null}
       {q.isError ? (
         <div role="alert">

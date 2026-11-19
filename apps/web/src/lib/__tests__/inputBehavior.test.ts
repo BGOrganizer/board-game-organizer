@@ -189,6 +189,20 @@ describe("installInputBehavior local owners and first blocking errors", () => {
     flush();
     expect(document.activeElement).toBe(scope.querySelector("[data-form-field]"));
   });
+  it("focuses an editable HeroUI date segment instead of its hidden form input or help button", () => {
+    const { button, scope } = form(
+      '<section class="date-picker" data-form-field aria-invalid="true"><button type="button">Date help</button><input hidden required><span id="day" role="spinbutton" contenteditable="true" tabindex="0">12</span></section><input>',
+    );
+    dispose = installInputBehavior();
+    button.click();
+    flush();
+    expect(document.activeElement).toBe(scope.querySelector("#day"));
+    const segment = scope.querySelector<HTMLElement>("#day");
+    segment?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    viewport.dispatchEvent(new Event("resize"));
+    flush();
+    expect(document.activeElement).toBe(segment);
+  });
   it("focuses a native invalid control before native submit dispatch", () => {
     const { input } = form("<input required>");
     dispose = installInputBehavior();
