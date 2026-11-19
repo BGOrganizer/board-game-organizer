@@ -63,7 +63,9 @@ export async function measureNativeListCells(
       await fireEvent.layout(node, { x: 0, y, width, height });
       y += height;
     } else if (typeof rowStyle?.height === "number") {
-      y += rowStyle.height;
+      // RN can transiently estimate a negative spacer; Yoga bounds its physical
+      // height at zero instead of subtracting space from the measured content.
+      y += Math.max(0, rowStyle.height);
       // The actual RN tail spacer is capped at its highest measured cell.
       // Until the last window mounts, it cannot claim the full dataset height.
       trailingSpacer = count > 0;

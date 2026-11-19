@@ -1,15 +1,24 @@
 import { render, screen, waitFor } from "@testing-library/react-native";
 import { FlatList, Text } from "react-native";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { scrollNativeListToEnd } from "../nativeListGeometry";
 
-it.each([
-  { count: 1, batch: 12 },
-  { count: 40, batch: 6 },
-  { count: 40, batch: 12 },
-])(
-  "delivers native end-reached after measured scrolling through $count rows with $batch-row batches",
-  async ({ count, batch }) => {
+afterEach(() => vi.useRealTimers());
+
+it.each(
+  [
+    { count: 1, batch: 12 },
+    { count: 40, batch: 6 },
+    { count: 40, batch: 12 },
+  ].flatMap((fixture) => [
+    { ...fixture, clock: "real" },
+    { ...fixture, clock: "controlled" },
+  ]),
+)(
+  "delivers native end-reached through $count rows with $batch-row batches and a $clock clock",
+  async ({ count, batch, clock }) => {
+    // Stop host speed from advancing RN's 50ms batches during individual Yoga events.
+    if (clock === "controlled") vi.useFakeTimers({ shouldAdvanceTime: false });
     const end = vi.fn();
     await render(
       <FlatList
