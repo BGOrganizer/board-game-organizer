@@ -33,17 +33,14 @@ export function Groups({
           <TabTrigger icon={LockKeyhole} id="private">
             {t`Private groups`}
             <NotificationTabBadge target={{ kind: "group-list", id: "PRIVATE" }} />
-            <Tabs.Indicator />
           </TabTrigger>
           <TabTrigger icon={Globe} id="public">
             {t`Public groups`}
             <NotificationTabBadge target={{ kind: "group-list", id: "PUBLIC" }} />
-            <Tabs.Indicator />
           </TabTrigger>
           <TabTrigger icon={Search} id="search">
             {t`Search`}
             <NotificationTabBadge target={{ kind: "group-list", id: "search" }} />
-            <Tabs.Indicator />
           </TabTrigger>
         </TabBar>
         <Tabs.Panel id="private" className="pt-0">

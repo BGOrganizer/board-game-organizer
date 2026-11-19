@@ -8,6 +8,7 @@ import { eventProposalAuthorRows, withProtectionBypass } from "@board-game-organ
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
+import { expectVirtualizedListFits } from "./virtualized-layout";
 
 function required(key: string) {
   const value = process.env[key]?.trim();
@@ -192,6 +193,7 @@ test("real private own-Table proposal or current-manager decision; cancel writes
         page.getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true }),
       ).toBeVisible();
       await expect(search).toBeFocused();
+      await expectVirtualizedListFits(page.locator('[data-input-results][role="listbox"]'));
       await expect(page.getByRole("button", { name: labels.send, exact: true })).toHaveCount(0);
     };
     await openPicker();

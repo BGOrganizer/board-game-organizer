@@ -73,16 +73,13 @@ export function Profile({ userId }: { userId?: string }) {
           <TabBar label={t`Profile navigation`}>
             <TabTrigger icon={UsersRound} id="activity">
               {t`Activities`}
-              <Tabs.Indicator />
             </TabTrigger>
             <TabTrigger icon={Gamepad2} id="player">
               {t`Player`}
-              <Tabs.Indicator />
             </TabTrigger>
             {active ? (
               <TabTrigger icon={LibraryBig} id="collection">
                 {t`Collection`}
-                <Tabs.Indicator />
               </TabTrigger>
             ) : null}
           </TabBar>

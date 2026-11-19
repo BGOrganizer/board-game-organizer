@@ -151,7 +151,7 @@ export function ProfileCollection({
               aria-label={t`Collection games`}
               selectionMode="none"
               data-input-results
-              className="h-[var(--input-results-height,60dvh)] min-h-24 w-full overflow-auto"
+              className="h-[var(--input-results-height,60dvh)] min-h-24 min-w-0 w-full max-w-full overflow-auto p-0"
             >
               <Collection items={items}>
                 {(item) => {

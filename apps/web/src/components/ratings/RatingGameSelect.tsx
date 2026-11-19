@@ -100,7 +100,7 @@ export function RatingGameSelect({
           <Virtualizer layout={ListLayout} shouldObserveItemSize>
             <ListBox
               data-input-results
-              className="h-[var(--input-results-height,18rem)] min-h-0 max-h-72 overflow-auto"
+              className="h-[var(--input-results-height,18rem)] min-h-0 max-h-72 min-w-0 max-w-full overflow-auto p-0"
               renderEmptyState={() => empty ?? t`No games found`}
             >
               <Collection items={games}>

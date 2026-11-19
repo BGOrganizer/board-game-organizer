@@ -67,8 +67,9 @@ it.each([
     expect(
       trigger.classList.contains(tone === "text-muted" ? tone : `${tone}-soft-foreground`),
     ).toBe(true);
-    for (const geometry of ["inline-flex", "items-center", "justify-center"])
-      expect(trigger.classList.contains(geometry)).toBe(true);
+    expect(trigger.tagName).toBe("BUTTON");
+    expect(trigger).toHaveAttribute("data-slot", "button");
+    expect(trigger.classList.contains("button--icon-only")).toBe(true);
     expect(trigger.className).toContain("button--sm");
     expect(trigger.querySelector(`svg.lucide-${icon}`)?.classList.contains("size-5")).toBe(true);
     fireEvent.click(trigger);

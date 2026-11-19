@@ -196,7 +196,7 @@ export function SearchGamePage({
             aria-label={t`Board games`}
             selectionMode="none"
             data-input-results
-            className="mt-3 h-[var(--input-results-height,60dvh)] min-h-24 w-full overflow-auto"
+            className="mt-3 h-[var(--input-results-height,60dvh)] min-h-24 min-w-0 w-full max-w-full overflow-auto p-0"
             onWheel={(event) => beginUserScroll(event.currentTarget)}
             onTouchMove={(event) => beginUserScroll(event.currentTarget)}
             onScroll={(event) => {

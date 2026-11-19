@@ -395,7 +395,6 @@ export function Contacts() {
                   .filter((row) => row.key !== "device")
                   .flatMap((row) => row.users.map((user) => user.id))}
               />
-              <Tabs.Indicator />
             </TabTrigger>
             <TabTrigger
               icon={UserRoundPlus}
@@ -410,12 +409,10 @@ export function Contacts() {
                   row.profile ? [row.profile.id] : [],
                 )}
               />
-              <Tabs.Indicator />
             </TabTrigger>
             <TabTrigger icon={BookUser} id="device" className="relative">
               {t`Contacts`}
               <ContactSectionBadge section="device" userIds={bgoContacts.map((user) => user.id)} />
-              <Tabs.Indicator />
             </TabTrigger>
             <TabTrigger
               icon={Search}
@@ -428,7 +425,6 @@ export function Contacts() {
                 section="search"
                 userIds={searchResults.map((user) => user.id)}
               />
-              <Tabs.Indicator />
             </TabTrigger>
           </TabBar>
 

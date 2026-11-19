@@ -22,6 +22,7 @@ export function TabTrigger({
             aria-hidden
           />
           {typeof children === "function" ? children(state) : children}
+          <Tabs.Indicator />
         </>
       )}
     </Tabs.Tab>

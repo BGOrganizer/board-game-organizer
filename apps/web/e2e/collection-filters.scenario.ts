@@ -7,6 +7,7 @@ import { gameBestPlayers, withProtectionBypass } from "@board-game-organizer/sha
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
+import { expectVirtualizedListFits } from "./virtualized-layout";
 
 function required(key: string) {
   const value = process.env[key]?.trim();
@@ -142,6 +143,8 @@ for (const width of [390, 1280])
     const panel = page.getByRole("tabpanel"),
       input = panel.getByRole("searchbox", { name: l.filter, exact: true }),
       button = (name: string) => panel.getByRole("button", { name, exact: true });
+    const collectionList = panel.locator('[data-input-results][role="listbox"]');
+    await expectVirtualizedListFits(collectionList);
     const cards = await Promise.all(
       [l.base, l.total, l.wishlist].map(async (name) =>
         panel.getByText(name, { exact: true }).and(panel.locator("p")).locator("..").boundingBox(),
@@ -168,6 +171,7 @@ for (const width of [390, 1280])
     await input.fill(p.expansionName);
     const expansionRow = panel.getByRole("option", { name: p.expansionName, exact: true });
     await expect(expansionRow).toBeVisible();
+    await expectVirtualizedListFits(collectionList);
     const expansion = (
       await read<BggCollectionResponse>(
         page,

@@ -93,19 +93,16 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
                       {votingTabs.includes("dates") ? (
                         <TabTrigger icon={CalendarDays} id="dates">
                           {t`Dates`}
-                          <Tabs.Indicator />
                         </TabTrigger>
                       ) : null}
                       {votingTabs.includes("locations") ? (
                         <TabTrigger icon={MapPin} id="locations">
                           {t`Locations`}
-                          <Tabs.Indicator />
                         </TabTrigger>
                       ) : null}
                       {votingTabs.includes("games") ? (
                         <TabTrigger icon={Dices} id="games">
                           {t`Games`}
-                          <Tabs.Indicator />
                         </TabTrigger>
                       ) : null}
                     </TabBar>

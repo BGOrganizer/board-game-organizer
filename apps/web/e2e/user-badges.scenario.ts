@@ -1,5 +1,5 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
 
 function required(key: string) {
@@ -29,12 +29,39 @@ if (
 const relationshipLabel = required("BADGE_RELATIONSHIP_LABEL"),
   roleLabel = required("BADGE_ROLE_LABEL");
 
+async function centeredIcon(control: Locator, selector = "svg") {
+  await expect
+    .poll(() =>
+      control.evaluate((root, iconSelector) => {
+        const icon = root.querySelector(iconSelector);
+        if (!icon) return false;
+        const box = root.getBoundingClientRect();
+        const glyph = icon.getBoundingClientRect();
+        return (
+          Math.abs(box.left + box.width / 2 - glyph.left - glyph.width / 2) <= 1 &&
+          Math.abs(box.top + box.height / 2 - glyph.top - glyph.height / 2) <= 1
+        );
+      }, selector),
+    )
+    .toBe(true);
+}
+
+async function stockTabs(page: Page) {
+  const selected = page.getByRole("tab", { selected: true });
+  await expect(selected).toHaveCSS("height", "32px");
+  await expect(selected.locator('[data-slot="tabs-indicator"]')).toHaveCount(1);
+  const bar = selected.locator('xpath=ancestor::*[@data-slot="tabs-list-container"][1]');
+  await expect(bar).toHaveCSS("height", "40px");
+}
+
 async function badgePresentation(control: Locator) {
   await control.scrollIntoViewIfNeeded();
   const chip = control.locator('[data-slot="chip"]');
   await expect(chip).toHaveCSS("width", "22px");
   await expect(chip).toHaveCSS("height", "22px");
   await expect(chip.locator("svg").first()).toHaveCSS("width", "13px");
+  await centeredIcon(chip);
+  await centeredIcon(control, '[data-slot="chip"]');
   const appearance = await chip.evaluate((element) => {
     const style = getComputedStyle(element);
     const canvas = document.createElement("canvas");
@@ -86,6 +113,7 @@ for (const width of [390, 1280])
     await page.goto("/");
     await completeMobileNumberIfNeeded(page);
     await page.goto("/contacts");
+    await stockTabs(page);
     const contactBadge = page.getByRole("button", { name: relationshipLabel, exact: true }).first();
     await badgePresentation(contactBadge);
     await contactBadge.click();
@@ -93,8 +121,17 @@ for (const width of [390, 1280])
       required("BADGE_RELATIONSHIP_EXPLANATION"),
     );
     await page.keyboard.press("Escape");
+    const actions = page
+      .getByRole("button", { name: italian ? "Azioni" : "Actions", exact: true })
+      .first();
+    await centeredIcon(actions);
+    await actions.click();
+    await expect(page.getByRole("menu")).toBeVisible();
+    await centeredIcon(actions);
+    await page.keyboard.press("Escape");
     await page.goto(group);
     await page.getByRole("tab", { name: italian ? "Membri" : "Members", exact: true }).click();
+    await stockTabs(page);
     const groupBadge = page
       .getByRole("button", { name: required("BADGE_GROUP_ROLE_LABEL"), exact: true })
       .first();
@@ -106,6 +143,7 @@ for (const width of [390, 1280])
     await page
       .getByRole("tab", { name: italian ? "Partecipanti" : "Participants", exact: true })
       .click();
+    await stockTabs(page);
     const roleBadge = page.getByRole("button", { name: roleLabel, exact: true }).first();
     await badgePresentation(roleBadge);
     await expect(roleBadge.locator(".lucide-plus")).toBeVisible();

@@ -48,12 +48,18 @@ export function UserAvatar({
         />
       ) : null}
       {badge ? (
-        <span className="absolute z-20" style={{ right: -20, bottom: offset }}>
+        <span
+          className="absolute z-20 flex size-11 items-center justify-center"
+          style={{ right: -20, bottom: offset }}
+        >
           {badge}
         </span>
       ) : null}
       {topBadge ? (
-        <span className="absolute z-20" style={{ right: -20, top: offset }}>
+        <span
+          className="absolute z-20 flex size-11 items-center justify-center"
+          style={{ right: -20, top: offset }}
+        >
           {topBadge}
         </span>
       ) : null}
