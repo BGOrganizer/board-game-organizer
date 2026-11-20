@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.6.2...v1.7.0) (2026-11-20)
+
+### ✨ Features
+
+* **site:** add the Board Game Organizer public site ([a102eb3](https://github.com/BGOrganizer/board-game-organizer/commit/a102eb34e483b554d185d093f919b5144c2df0c0))
+
 ## [1.6.2](https://github.com/BGOrganizer/board-game-organizer/compare/v1.6.1...v1.6.2) (2026-11-20)
 
 ### 🐛 Bug Fixes
