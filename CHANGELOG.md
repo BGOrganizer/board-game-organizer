@@ -1,3 +1,26 @@
+## [1.6.2](https://github.com/BGOrganizer/board-game-organizer/compare/v1.6.1...v1.6.2) (2026-11-20)
+
+### 🐛 Bug Fixes
+
+* **ci:** decouple web preview from APK publication ([8a8fe2e](https://github.com/BGOrganizer/board-game-organizer/commit/8a8fe2e80729143c537f7ceed91870384181d82e))
+* **ui:** align dialogs, date confirmation and score editing ([5bba0dc](https://github.com/BGOrganizer/board-game-organizer/commit/5bba0dc412e04f8f527fc442e3c8b542282385cf))
+* **ui:** align web page navigation and location results ([826d047](https://github.com/BGOrganizer/board-game-organizer/commit/826d0474bc4af88deb819202f236d249a78637a0))
+* **web:** correct list overflow and control alignment ([584dc86](https://github.com/BGOrganizer/board-game-organizer/commit/584dc86eef95402e131091e47a0ca42ecc0d7e26))
+* **web:** isolate help triggers from search clear actions ([e8c9a06](https://github.com/BGOrganizer/board-game-organizer/commit/e8c9a062d83bbdb3c6ee8a3b96522a968fd5cf00))
+* **web:** preserve HeroUI semantic colors across themes ([237b79a](https://github.com/BGOrganizer/board-game-organizer/commit/237b79a24837ecb8ad56050694a72fcc968f97cf))
+
+### ♻️ Refactoring
+
+* **web:** unify people rows and date-time controls ([8b1bf98](https://github.com/BGOrganizer/board-game-organizer/commit/8b1bf98c5a9161d2f42b23090d19e9f1ec99cc14))
+
+### 🎨 Style
+
+* **web:** stabilize proposal fixture formatting ([4eb0945](https://github.com/BGOrganizer/board-game-organizer/commit/4eb094544d5d9aecdc7e7b8c4ee710f20394d568))
+
+### 🧪 Tests
+
+* **web:** cover confirmation focus restoration guards ([aa5ebe2](https://github.com/BGOrganizer/board-game-organizer/commit/aa5ebe25dae967d793fa8b8863ed92e7095ae208))
+
 ## [1.6.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.6.0...v1.6.1) (2026-11-19)
 
 ### 🐛 Bug Fixes
