@@ -47,6 +47,57 @@ it.each(["close", "escape", "backdrop", "action"])(
   },
 );
 
+it("does not move focus away from a new destination when the dialog unmounts", () => {
+  const opener = document.createElement("button");
+  const destination = document.createElement("button");
+  document.body.append(opener, destination);
+  try {
+    opener.focus();
+    const view = renderWithI18n(
+      <ContactConfirmDialog title="Review" description="Details" onCancel={vi.fn()} actions={[]} />,
+    );
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+    destination.focus();
+    view.unmount();
+    expect(destination).toHaveFocus();
+  } finally {
+    opener.remove();
+    destination.remove();
+  }
+});
+
+it("does not restore focus to an opener removed by navigation", () => {
+  const opener = document.createElement("button");
+  document.body.append(opener);
+  try {
+    opener.focus();
+    const view = renderWithI18n(
+      <ContactConfirmDialog title="Review" description="Details" onCancel={vi.fn()} actions={[]} />,
+    );
+    const focus = vi.spyOn(opener, "focus");
+    opener.remove();
+    view.unmount();
+    expect(focus).not.toHaveBeenCalled();
+    focus.mockRestore();
+  } finally {
+    opener.remove();
+  }
+});
+
+it("opens and unmounts safely when there is no restorable active element", () => {
+  const activeElement = vi.spyOn(document, "activeElement", "get").mockReturnValue(null);
+  let view: ReturnType<typeof renderWithI18n>;
+  try {
+    view = renderWithI18n(
+      <ContactConfirmDialog title="Review" description="Details" onCancel={vi.fn()} actions={[]} />,
+    );
+  } finally {
+    activeElement.mockRestore();
+  }
+  expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+  expect(() => view.unmount()).not.toThrow();
+});
+
 it("uses an icon-only close action above aligned footer actions and preserves callbacks", () => {
   const accept = vi.fn(),
     cancel = vi.fn();
@@ -56,10 +107,13 @@ it("uses an icon-only close action above aligned footer actions and preserves ca
       description="Organization membership only"
       onCancel={cancel}
       actions={[{ label: "Accept", icon: <X />, onPress: accept }]}
-    />,
+    >
+      <p>Review the invitation details before accepting.</p>
+    </ContactConfirmDialog>,
   );
   const dialog = screen.getByRole("dialog", { name: "Request" });
   const buttons = within(dialog).getAllByRole("button");
+  expect(within(dialog).getByText("Review the invitation details before accepting.")).toBeVisible();
   expect(buttons.map((button) => button.textContent)).toEqual(["", "Accept"]);
   expect(buttons[0]).toHaveAccessibleName("Cancel");
   expect(buttons[0]).toHaveFocus();
