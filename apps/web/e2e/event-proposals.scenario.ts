@@ -28,12 +28,13 @@ if (required("EVENT_PROPOSAL_FIXTURE_ACK") !== "owned-disposable-event-proposals
   );
 const locale = required("EVENT_PROPOSAL_LOCALE"),
   api = new URL(required("EVENT_PROPOSAL_API_URL"));
+// submit-date requires a seated actor, enabled proposals and an empty own date queue.
+// Its opt-in input includes mode, eventId, groupId, tableId and dateTime (YYYY-MM-DDTHH:mm).
 const input = JSON.parse(required("EVENT_PROPOSAL_INPUT")) as {
   eventId: string;
   groupId: string;
   tableId: string;
-} & // Requires a genuinely seated actor, enabled date proposals and an empty own date queue. // Opt-in date fixture: mode, eventId, groupId, tableId, dateTime (YYYY-MM-DDTHH:mm).
-(
+} & (
   | { mode: "submit-date"; dateTime: string }
   | {
       mode: "submit-game" | "accept" | "reject";
