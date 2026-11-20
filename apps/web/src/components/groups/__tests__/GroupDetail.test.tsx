@@ -177,6 +177,7 @@ it("keeps accepted member departure in the danger page action and preserves expl
     leave.closest("[data-page-toolbar]")?.contains(screen.getByRole("link", { name: "Back" })),
   ).toBe(true);
   expect(leave.querySelector("svg.lucide-log-out")).not.toBeNull();
+  expect(leave.closest("[data-page-toolbar]")?.parentElement).toHaveClass("space-y-4");
   fireEvent.click(leave);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
   expect(fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);

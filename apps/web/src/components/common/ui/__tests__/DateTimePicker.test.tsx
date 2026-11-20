@@ -1,7 +1,7 @@
 import { Label } from "@heroui/react";
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { expect, it, vi } from "vitest";
 import { clearDateTime, enterDateTime } from "@/test-fixtures/dateTime";
@@ -11,7 +11,13 @@ import { messages as italian } from "../../../../../../../messages/it.js";
 import { DateTimePicker } from "../DateTimePicker";
 import { TimePicker } from "../TimePicker";
 
-function ControlledDateTime() {
+function ControlledDateTime({
+  onConfirm,
+  isDisabled,
+}: {
+  onConfirm?: (value: string) => void;
+  isDisabled?: boolean;
+} = {}) {
   const [value, setValue] = useState("2030-06-03T20:00");
   return (
     <>
@@ -19,11 +25,17 @@ function ControlledDateTime() {
         name="date"
         value={value}
         onChange={setValue}
+        onConfirm={onConfirm}
+        isDisabled={isDisabled}
         label={<Label>Appointment</Label>}
       />
       <output>{value}</output>
     </>
   );
+}
+
+function openPicker(label: string) {
+  fireEvent.click(within(screen.getByRole("group", { name: label })).getByRole("button"));
 }
 
 it("edits one location-local date/time and clears through actual keyboard segments", () => {
@@ -47,6 +59,69 @@ it("keeps calendar and time inside one popover and closes with Done", async () =
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
+it("confirms the last calendar day and time only through Done", async () => {
+  const onConfirm = vi.fn();
+  renderWithI18n(<ControlledDateTime onConfirm={onConfirm} />);
+  openPicker("Appointment");
+  const dialog = await screen.findByRole("dialog", { name: "Choose date and time" });
+  fireEvent.click(within(within(dialog).getByRole("grid")).getByText("15", { exact: true }));
+  enterDateTime(within(dialog).getByRole("group", { name: "Time" }), "21:45");
+  expect(onConfirm).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+  expect(onConfirm).toHaveBeenCalledExactlyOnceWith("2030-06-15T21:45");
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("dismisses the popover without confirming its edited value", async () => {
+  const onConfirm = vi.fn();
+  renderWithI18n(<ControlledDateTime onConfirm={onConfirm} />);
+  openPicker("Appointment");
+  const dialog = await screen.findByRole("dialog");
+  enterDateTime(within(dialog).getByRole("group", { name: "Time" }), "21:45");
+  fireEvent.keyDown(dialog, { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(onConfirm).not.toHaveBeenCalled();
+});
+
+it.each([
+  { value: "", isRequired: true },
+  { value: "invalid" },
+  { value: "2030-06-03T20:00", minValue: "2030-06-03T21:00" },
+  { value: "2030-06-03T20:00", maxValue: "2030-06-03T19:00" },
+  { value: "2030-06-03T20:00", isInvalid: true },
+])("does not confirm an incomplete or invalid candidate: %j", async (props) => {
+  const onConfirm = vi.fn();
+  renderWithI18n(
+    <DateTimePicker {...props} onChange={vi.fn()} onConfirm={onConfirm} aria-label="Date" />,
+  );
+  openPicker("Date");
+  const dialog = await screen.findByRole("dialog");
+  const done = within(dialog).getByRole("button", { name: "Done" });
+  expect(done).toBeDisabled();
+  fireEvent.click(done);
+  expect(onConfirm).not.toHaveBeenCalled();
+});
+
+it("keeps empty non-add fields dismissible and blocks confirmation if disabled while open", async () => {
+  const { unmount } = renderWithI18n(
+    <DateTimePicker value="" onChange={vi.fn()} aria-label="Date" />,
+  );
+  openPicker("Date");
+  const empty = await screen.findByRole("dialog");
+  fireEvent.click(within(empty).getByRole("button", { name: "Done" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  unmount();
+  const onConfirm = vi.fn();
+  const view = renderWithI18n(<ControlledDateTime onConfirm={onConfirm} />);
+  openPicker("Appointment");
+  await screen.findByRole("dialog");
+  view.rerender(<ControlledDateTime onConfirm={onConfirm} isDisabled />);
+  const done = within(screen.getByRole("dialog")).getByRole("button", { name: "Done" });
+  expect(done).toBeDisabled();
+  fireEvent.click(done);
+  expect(onConfirm).not.toHaveBeenCalled();
+});
+
 it.each([
   ["en", english, "Done"],
   ["it", italian, "Fine"],
@@ -55,9 +130,10 @@ it.each([
   async (locale, messages, done) => {
     const i18n = setupI18n({ locale, messages: { [locale]: messages } });
     expect(i18n._("Done")).toBe(done);
+    const onConfirm = vi.fn();
     render(
       <I18nProvider i18n={i18n}>
-        <ControlledDateTime />
+        <ControlledDateTime onConfirm={onConfirm} />
       </I18nProvider>,
     );
     fireEvent.click(within(screen.getByRole("group", { name: "Appointment" })).getByRole("button"));
@@ -66,6 +142,7 @@ it.each([
     expect(confirmation).toHaveTextContent(done);
     expect(within(dialog).queryByText("DPfwMq")).toBeNull();
     fireEvent.click(confirmation);
+    expect(onConfirm).toHaveBeenCalledExactlyOnceWith("2030-06-03T20:00");
     expect(screen.queryByRole("dialog")).toBeNull();
   },
 );

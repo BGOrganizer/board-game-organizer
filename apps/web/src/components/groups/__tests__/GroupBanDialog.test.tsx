@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { enterDateTime } from "@/test-fixtures/dateTime";
@@ -21,7 +21,7 @@ it("requires explicit dangerous confirmation, with ban icon and no manual timezo
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(cancel).toHaveBeenCalledOnce();
 });
-it("validates timed bans in the venue timezone, not the device timezone", () => {
+it("validates timed bans in the venue timezone and keeps Done separate from the dangerous confirmation", async () => {
   vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2030, 0, 1));
   const confirm = vi.fn();
   renderWithI18n(
@@ -40,6 +40,11 @@ it("validates timed bans in the venue timezone, not the device timezone", () => 
   expect(screen.getByRole("alert").textContent).toBe("Choose a valid future date and time.");
   expect(confirm).not.toHaveBeenCalled();
   enterDateTime(field, "2030-01-03T12:00");
+  fireEvent.click(within(field).getByRole("button"));
+  const picker = await screen.findByRole("dialog", { name: "Choose date and time" });
+  fireEvent.click(within(picker).getByRole("button", { name: "Done" }));
+  expect(screen.queryByRole("dialog", { name: "Choose date and time" })).toBeNull();
+  expect(confirm).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Ban from group" }));
   expect(confirm).toHaveBeenCalledWith("2030-01-03T11:00:00.000Z");
 });

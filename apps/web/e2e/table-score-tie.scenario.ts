@@ -49,6 +49,10 @@ const labels = {
   edit: italian ? "Modifica spareggio" : "Edit tie-break",
   remove: italian ? "Rimuovi spareggio" : "Remove tie-break",
   down: italian ? "Sposta giù" : "Move down",
+  standings: italian ? "Classifica provvisoria" : "Live standings",
+  lowerWins: italian ? "Vince il punteggio più basso" : "Lowest score wins",
+  nd: italian ? "Non ha partecipato" : "Did not participate",
+  save: italian ? "Salva risultato" : "Save result",
 };
 async function read<T>(page: Page, path: string): Promise<T> {
   return page.evaluate(
@@ -68,77 +72,149 @@ async function read<T>(page: Page, path: string): Promise<T> {
   );
 }
 
-test("invalidates a three-player tie-break when its score group shrinks to two players, without saving", async ({
-  page,
-}) => {
-  const unexpectedWrites: string[] = [];
-  // Preserve real reads; prevent an accidental score write during this draft-only journey.
-  await page.route("**/api/events/**", async (route) => {
-    const request = route.request();
-    if (!["GET", "OPTIONS"].includes(request.method())) {
-      unexpectedWrites.push(`${request.method()} ${new URL(request.url()).pathname}`);
-      await route.abort("blockedbyclient");
-    } else await route.continue();
-  });
-  await page.setViewportSize({ width: 390, height: 1100 });
-  await setupClerkTestingToken({ page });
-  await page.goto("/");
-  await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
-  await page.goto("/");
-  await completeMobileNumberIfNeeded(page);
-  const event = await read<PlannedEventResponse>(page, `events/${eventId}`);
-  const table = await read<PlannedTableResponse>(page, `events/${eventId}/tables/${tableId}`);
-  if (
-    event.status !== "CONFIRMED" ||
-    !event.canFinalize ||
-    !table.confirmed ||
-    table.confirmed.playerIds.length !== 3 ||
-    table.resultDraft ||
-    table.results ||
-    table.eventVersion !== event.version
-  )
-    throw new Error(
-      "Fixture requires an authorized confirmed, unsaved, three-player Table at the current Event version",
-    );
-  const roster = await read<CommunityPageResponse<TableSeatResponse>>(
+for (const width of [390, 1280])
+  test(`score focus, document standings and three-player tie edits without saving at ${width}px`, async ({
     page,
-    `events/${eventId}/tables/${tableId}/seats?limit=50`,
-  );
-  const names = table.confirmed.playerIds.map((id) => {
-    const player = roster.items.find((row) => row.userId === id);
-    if (!player)
-      throw new Error("All frozen players must be present on the first owned roster page");
-    return player.name ?? player.userId;
+  }) => {
+    const unexpectedWrites: string[] = [];
+    // Preserve real reads; prevent an accidental score write during this draft-only journey.
+    await page.route("**/api/events/**", async (route) => {
+      const request = route.request();
+      if (!["GET", "OPTIONS"].includes(request.method())) {
+        unexpectedWrites.push(`${request.method()} ${new URL(request.url()).pathname}`);
+        await route.abort("blockedbyclient");
+      } else await route.continue();
+    });
+    await page.setViewportSize({ width, height: 480 });
+    await setupClerkTestingToken({ page });
+    await page.goto("/");
+    await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
+    await page.goto("/");
+    await completeMobileNumberIfNeeded(page);
+    const event = await read<PlannedEventResponse>(page, `events/${eventId}`);
+    const table = await read<PlannedTableResponse>(page, `events/${eventId}/tables/${tableId}`);
+    if (
+      event.status !== "CONFIRMED" ||
+      !event.canFinalize ||
+      !table.confirmed ||
+      table.confirmed.playerIds.length !== 3 ||
+      table.resultDraft ||
+      table.results ||
+      table.eventVersion !== event.version
+    )
+      throw new Error(
+        "Fixture requires an authorized confirmed, unsaved, three-player Table at the current Event version",
+      );
+    const roster = await read<CommunityPageResponse<TableSeatResponse>>(
+      page,
+      `events/${eventId}/tables/${tableId}/seats?limit=50`,
+    );
+    const names = table.confirmed.playerIds.map((id) => {
+      const player = roster.items.find((row) => row.userId === id);
+      if (!player)
+        throw new Error("All frozen players must be present on the first owned roster page");
+      return player.name ?? player.userId;
+    });
+    if (new Set(names).size !== 3) throw new Error("Fixture requires three distinct player labels");
+    await page.goto(`/events/${eventId}/tables/${tableId}/results`);
+    await expect(page.getByRole("heading", { name: labels.register, exact: true })).toBeVisible();
+    const standings = page.getByRole("region", { name: labels.standings, exact: true });
+    const lowerWins = page.getByRole("switch", { name: labels.lowerWins, exact: true });
+    const [ruleBounds, standingBounds] = await Promise.all([
+      lowerWins.boundingBox(),
+      standings.boundingBox(),
+    ]);
+    if (!ruleBounds || !standingBounds) throw new Error("Missing standings header geometry");
+    expect(ruleBounds.y + ruleBounds.height).toBeLessThanOrEqual(standingBounds.y);
+    expect(await standings.evaluate((node) => getComputedStyle(node).overflowY)).not.toMatch(
+      /auto|scroll/,
+    );
+    await expect(lowerWins).not.toBeChecked();
+    await lowerWins.locator("xpath=ancestor::label[1]").click();
+    await expect(lowerWins).toBeChecked();
+    await lowerWins.locator("xpath=ancestor::label[1]").click();
+    const save = page.getByRole("button", { name: labels.save, exact: true });
+    await save.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    const footer = save.locator("..");
+    expect(await footer.evaluate((node) => getComputedStyle(node).position)).toBe("static");
+    expect(await footer.evaluate((node) => getComputedStyle(node).borderTopWidth)).toBe("0px");
+    const [listBox, footerBox, saveBox] = await Promise.all([
+      standings.boundingBox(),
+      footer.boundingBox(),
+      save.boundingBox(),
+    ]);
+    if (!listBox || !footerBox || !saveBox) throw new Error("Missing result-page geometry");
+    expect(listBox.y + listBox.height).toBeLessThanOrEqual(footerBox.y);
+    expect(saveBox.width).toBeCloseTo(footerBox.width, 0);
+    const setScore = async (name: string, value: string) => {
+      const label = `${labels.score}: ${name}`;
+      await page.getByRole("button", { name: label, exact: true }).click();
+      const field = page.getByRole("textbox", { name: label, exact: true });
+      const dialog = page.getByRole("dialog", { name, exact: true });
+      await field.fill("");
+      await field.focus();
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      const initialBox = await dialog.boundingBox();
+      const inputBox = await field.boundingBox();
+      if (!initialBox || !inputBox) throw new Error("Missing score editor geometry");
+      for (const character of value) {
+        await field.pressSequentially(character);
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
+        const [currentBox, currentInput] = await Promise.all([
+          dialog.boundingBox(),
+          field.boundingBox(),
+        ]);
+        if (!currentBox || !currentInput) throw new Error("Lost score editor geometry");
+        expect(currentBox.height).toBeCloseTo(initialBox.height, 0);
+        expect(currentInput.height).toBeCloseTo(inputBox.height, 0);
+        await expect(field).toBeFocused();
+      }
+      const nd = dialog.getByRole("switch", { name: `${labels.nd}: ${name}`, exact: true });
+      await nd.locator("xpath=ancestor::label[1]").click();
+      await expect(nd).toBeChecked();
+      await expect(field).toBeDisabled();
+      await nd.locator("xpath=ancestor::label[1]").click();
+      await expect(nd).not.toBeChecked();
+      await expect(field).toBeEnabled();
+      await expect(field).toHaveValue(value);
+      await page.getByRole("button", { name: labels.close, exact: true }).click();
+    };
+    for (const name of names) await setScore(name, "10");
+    await page.getByRole("button", { name: labels.resolve, exact: true }).click();
+    await page.getByRole("button", { name: `${labels.down}: ${names[0]}`, exact: true }).click();
+    await page.getByRole("button", { name: labels.confirm, exact: true }).click();
+    await expect(page.getByText(`${labels.applied}: 10`, { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: labels.edit, exact: true })).toBeVisible();
+    await setScore(names[0], "11");
+    await expect(page.getByText(`${labels.tied}: 10`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`${labels.applied}: 10`, { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: labels.edit, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: labels.remove, exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: labels.resolve, exact: true }).click();
+    await page.getByRole("button", { name: labels.confirm, exact: true }).click();
+    await expect(page.getByText(`${labels.applied}: 10`, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: labels.remove, exact: true }).click();
+    await expect(page.getByText(`${labels.tied}: 10`, { exact: true })).toBeVisible();
+    await page.screenshot({
+      path: `test-results/table-score-tie-${locale}-${width}.png`,
+      fullPage: true,
+    });
+    expect(unexpectedWrites).toEqual([]);
+    expect(
+      (await read<PlannedTableResponse>(page, `events/${eventId}/tables/${tableId}`)).resultDraft,
+    ).toEqual(table.resultDraft);
+    expect((await read<PlannedEventResponse>(page, `events/${eventId}`)).version).toBe(
+      event.version,
+    );
   });
-  if (new Set(names).size !== 3) throw new Error("Fixture requires three distinct player labels");
-  await page.goto(`/events/${eventId}/tables/${tableId}/results`);
-  await expect(page.getByRole("heading", { name: labels.register, exact: true })).toBeVisible();
-  const setScore = async (name: string, value: string) => {
-    const label = `${labels.score}: ${name}`;
-    await page.getByRole("button", { name: label, exact: true }).click();
-    await page.getByRole("textbox", { name: label, exact: true }).fill(value);
-    await page.getByRole("button", { name: labels.close, exact: true }).click();
-  };
-  for (const name of names) await setScore(name, "10");
-  await page.getByRole("button", { name: labels.resolve, exact: true }).click();
-  await page.getByRole("button", { name: `${labels.down}: ${names[0]}`, exact: true }).click();
-  await page.getByRole("button", { name: labels.confirm, exact: true }).click();
-  await expect(page.getByText(`${labels.applied}: 10`, { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: labels.edit, exact: true })).toBeVisible();
-  await setScore(names[0], "11");
-  await expect(page.getByText(`${labels.tied}: 10`, { exact: true })).toBeVisible();
-  await expect(page.getByText(`${labels.applied}: 10`, { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: labels.edit, exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: labels.remove, exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: labels.resolve, exact: true }).click();
-  await page.getByRole("button", { name: labels.confirm, exact: true }).click();
-  await expect(page.getByText(`${labels.applied}: 10`, { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: labels.remove, exact: true }).click();
-  await expect(page.getByText(`${labels.tied}: 10`, { exact: true })).toBeVisible();
-  await page.screenshot({ path: `test-results/table-score-tie-${locale}.png`, fullPage: true });
-  expect(unexpectedWrites).toEqual([]);
-  expect(
-    (await read<PlannedTableResponse>(page, `events/${eventId}/tables/${tableId}`)).resultDraft,
-  ).toEqual(table.resultDraft);
-  expect((await read<PlannedEventResponse>(page, `events/${eventId}`)).version).toBe(event.version);
-});

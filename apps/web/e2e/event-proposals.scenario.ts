@@ -4,9 +4,16 @@ import type {
   PlannedTableResponse,
   ReviewEventProposalResponse,
 } from "@board-game-organizer/schemas";
-import { eventProposalAuthorRows, withProtectionBypass } from "@board-game-organizer/shared";
+import { eventProposalPayloadSchema, MAX_EVENT_OPTIONS } from "@board-game-organizer/schemas";
+import {
+  eventDateWall,
+  eventLocalToIso,
+  eventProposalAuthorRows,
+  withProtectionBypass,
+} from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { enterDateTime } from "./date-time";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
 import { expectDocumentWindowListFits } from "./virtualized-layout";
 
@@ -25,17 +32,23 @@ const input = JSON.parse(required("EVENT_PROPOSAL_INPUT")) as {
   eventId: string;
   groupId: string;
   tableId: string;
-  mode: "submit-game" | "accept" | "reject";
-  gameId: number;
-  gameName: string;
-  gameQuery?: string;
-  proposerName?: string;
-  proposerNames?: string[];
-  proposalId?: string;
-  proposalOffset: number;
-};
+} & // Requires a genuinely seated actor, enabled date proposals and an empty own date queue. // Opt-in date fixture: mode, eventId, groupId, tableId, dateTime (YYYY-MM-DDTHH:mm).
+(
+  | { mode: "submit-date"; dateTime: string }
+  | {
+      mode: "submit-game" | "accept" | "reject";
+      gameId: number;
+      gameName: string;
+      gameQuery?: string;
+      proposerName?: string;
+      proposerNames?: string[];
+      proposalId?: string;
+      proposalOffset: number;
+    }
+);
 const uuid = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 if (
+  input.mode !== "submit-date" &&
   input.proposerNames !== undefined &&
   (!Array.isArray(input.proposerNames) ||
     input.proposerNames.length < 2 ||
@@ -45,20 +58,28 @@ if (
 if (
   !["en", "it"].includes(locale) ||
   ![input.eventId, input.groupId, input.tableId].every((id) => uuid.test(id)) ||
-  !["submit-game", "accept", "reject"].includes(input.mode) ||
-  !Number.isSafeInteger(input.gameId) ||
-  input.gameId < 1 ||
-  !input.gameName ||
-  input.gameName.length > 120 ||
-  !Number.isInteger(input.proposalOffset) ||
-  input.proposalOffset < 0 ||
-  input.proposalOffset > 24 ||
-  (input.mode === "submit-game"
-    ? !input.gameQuery || input.gameQuery.trim().length < 4
-    : !input.proposalId || !uuid.test(input.proposalId) || !input.proposerName)
+  !["submit-date", "submit-game", "accept", "reject"].includes(input.mode) ||
+  (input.mode === "submit-date"
+    ? typeof input.dateTime !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(input.dateTime) ||
+      !eventProposalPayloadSchema.safeParse({
+        kind: "date",
+        day: input.dateTime.slice(0, 10),
+        startTime: input.dateTime.slice(11, 16),
+      }).success
+    : !Number.isSafeInteger(input.gameId) ||
+      input.gameId < 1 ||
+      !input.gameName ||
+      input.gameName.length > 120 ||
+      !Number.isInteger(input.proposalOffset) ||
+      input.proposalOffset < 0 ||
+      input.proposalOffset > 24 ||
+      (input.mode === "submit-game"
+        ? !input.gameQuery || input.gameQuery.trim().length < 4
+        : !input.proposalId || !uuid.test(input.proposalId) || !input.proposerName))
 )
   throw new Error(
-    "Valid private fixture, base game and explicit source-paged proposal action required",
+    "Valid private fixture and an explicit date or source-paged game proposal action required",
   );
 for (const url of [api, new URL(required("PLAYWRIGHT_BASE_URL"))])
   if (!["localhost", "127.0.0.1"].includes(url.hostname) && !url.hostname.endsWith(".vercel.app"))
@@ -148,7 +169,7 @@ test("detail proposal sections follow each category opt-in", async ({ page }) =>
   expect(proposalWrites).toEqual([]);
 });
 
-test("real private own-Table proposal or current-manager decision; cancel writes nothing", async ({
+test("real private proposal or current-manager decision; cancel writes nothing", async ({
   page,
 }) => {
   await setupClerkTestingToken({ page });
@@ -161,13 +182,103 @@ test("real private own-Table proposal or current-manager decision; cancel writes
       page,
       `events/${input.eventId}/tables/${input.tableId}`,
     );
+  if (input.mode === "submit-date") {
+    const { dateTime } = input;
+    if (
+      event.groupId !== input.groupId ||
+      event.groupType !== "PRIVATE" ||
+      event.status !== "PLANNING" ||
+      event.readOnly ||
+      event.canManage ||
+      event.role === "admin" ||
+      !event.canProposeDates ||
+      event.dates.length >= MAX_EVENT_OPTIONS ||
+      event.dates.some((date) => eventDateWall(event, date) === dateTime) ||
+      table.eventId !== input.eventId ||
+      table.myRegistration?.status !== "ACCEPTED" ||
+      table.myPosition !== "SEATED" ||
+      Date.parse(eventLocalToIso(dateTime, event.timeZone)) <= Date.now()
+    )
+      throw new Error(
+        "Owned private planning date fixture with a seated actor, enabled date proposals and a new valid future wall time required",
+      );
+    const base = `events/${input.eventId}/proposals?kind=date&mode=mine&limit=5`;
+    const before = await read<EventProposalsResponse>(page, base);
+    if (before.items.length || before.nextCursor)
+      throw new Error("Empty own date queue required for disposable submit-date fixture");
+    const writes: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (
+        url.host === api.host &&
+        url.pathname.startsWith(`/api/events/${input.eventId}/proposals`) &&
+        request.method() !== "GET" &&
+        request.method() !== "OPTIONS"
+      )
+        writes.push(`${request.method()} ${url.pathname}`);
+    });
+    await page.goto(`/events/${input.eventId}`);
+    const region = page.getByRole("region", {
+      name: it ? "Date/Orari Proposti" : "Proposed dates/times",
+      exact: true,
+    });
+    const field = region.getByRole("group", {
+      name: it ? "Data e orario" : "Date and time",
+      exact: true,
+    });
+    await enterDateTime(field, dateTime);
+    await field
+      .getByRole("button", {
+        name: it ? "Scegli data e ora" : "Choose date and time",
+        exact: true,
+      })
+      .click();
+    const picker = page.getByRole("dialog", {
+      name: it ? "Scegli data e ora" : "Choose date and time",
+      exact: true,
+    });
+    await enterDateTime(
+      picker.getByRole("group", { name: it ? "Ora" : "Time", exact: true }),
+      dateTime.slice(11, 16),
+    );
+    expect(writes).toEqual([]);
+    const posted = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === `/api/events/${input.eventId}/proposals` &&
+        response.request().method() === "POST",
+    );
+    await picker.getByRole("button", { name: it ? "Fine" : "Done", exact: true }).click();
+    const response = await posted;
+    expect(response.status()).toBe(201);
+    const created = (await response.json()) as EventProposalsResponse["items"][number];
+    expect(created.payload).toEqual({
+      kind: "date",
+      day: dateTime.slice(0, 10),
+      startTime: dateTime.slice(11, 16),
+    });
+    expect(created.status).toBe("PENDING");
+    await expect(picker).toHaveCount(0);
+    await expect(region.getByTestId(`event-proposal-${created.id}`)).toBeVisible();
+    await expect(
+      region.getByRole("button", { name: it ? "Aggiungi data" : "Add date", exact: true }),
+    ).toBeDisabled();
+    expect((await read<EventProposalsResponse>(page, base)).items).toEqual([
+      expect.objectContaining({ id: created.id, payload: created.payload, status: "PENDING" }),
+    ]);
+    expect((await read<PlannedEventResponse>(page, `events/${input.eventId}`)).dates).toEqual(
+      event.dates,
+    );
+    expect(writes).toEqual([`POST /api/events/${input.eventId}/proposals`]);
+    return;
+  }
+  const gameInput = input;
   if (
     event.groupId !== input.groupId ||
     event.groupType !== "PRIVATE" ||
     event.status !== "PLANNING" ||
     table.allowParticipantGames !== true ||
     table.eventId !== input.eventId ||
-    table.games.some((g) => g.gameId === input.gameId)
+    table.games.some((g) => g.gameId === gameInput.gameId)
   )
     throw new Error(
       "Private planning Event with enabled game proposals and an unselected candidate required",
@@ -202,9 +313,9 @@ test("real private own-Table proposal or current-manager decision; cancel writes
     const openPicker = async () => {
       await region.getByRole("button", { name: labels.add, exact: true }).click();
       const search = page.getByPlaceholder(labels.search, { exact: true });
-      await search.fill(input.gameQuery!);
+      await search.fill(gameInput.gameQuery!);
       await expect(
-        page.getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true }),
+        page.getByRole("button", { name: `${labels.select}: ${gameInput.gameName}`, exact: true }),
       ).toBeVisible();
       await expect(search).toBeFocused();
       await expectDocumentWindowListFits(page.locator('[data-testid="document-window-list"]'));
@@ -224,16 +335,20 @@ test("real private own-Table proposal or current-manager decision; cancel writes
         r.request().method() === "POST",
     );
     await page
-      .getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true })
+      .getByRole("button", { name: `${labels.select}: ${gameInput.gameName}`, exact: true })
       .click();
     const response = await posted;
     expect(response.status()).toBe(201);
     const created = (await response.json()) as EventProposalsResponse["items"][number];
-    expect(created.payload).toEqual({ kind: "game", tableId: input.tableId, gameId: input.gameId });
+    expect(created.payload).toEqual({
+      kind: "game",
+      tableId: input.tableId,
+      gameId: gameInput.gameId,
+    });
     expect(created.status).toBe("PENDING");
     await page.goto(`/events/${input.eventId}/tables/${input.tableId}`);
     const savedRow = page.getByTestId(`event-proposal-${created.id}`);
-    await expect(savedRow).toContainText(input.gameName);
+    await expect(savedRow).toContainText(gameInput.gameName);
     await expect(savedRow.getByText(labels.pending, { exact: true })).toHaveCount(0);
     expect(
       (await read<PlannedTableResponse>(page, `events/${input.eventId}/tables/${input.tableId}`))
@@ -244,40 +359,40 @@ test("real private own-Table proposal or current-manager decision; cancel writes
     const searched = page.waitForResponse(
       (r) =>
         new URL(r.url()).pathname === "/api/bgg/picker" &&
-        new URL(r.url()).searchParams.get("query") === input.gameQuery!.trim(),
+        new URL(r.url()).searchParams.get("query") === gameInput.gameQuery!.trim(),
     );
-    await page.getByPlaceholder(labels.search, { exact: true }).fill(input.gameQuery!);
+    await page.getByPlaceholder(labels.search, { exact: true }).fill(gameInput.gameQuery!);
     const searchResponse = await searched;
     expect(searchResponse.status()).toBe(200);
     expect(
-      (await searchResponse.json()).items.some((g: { id: number }) => g.id === input.gameId),
+      (await searchResponse.json()).items.some((g: { id: number }) => g.id === gameInput.gameId),
     ).toBe(false);
     await expect(
-      page.getByRole("button", { name: `${labels.select}: ${input.gameName}`, exact: true }),
+      page.getByRole("button", { name: `${labels.select}: ${gameInput.gameName}`, exact: true }),
     ).toHaveCount(0);
     await page.getByRole("button", { name: labels.back, exact: true }).click();
   } else {
     if (!event.canManage)
       throw new Error("Current manager required, historical authorship is insufficient");
     const candidates = await read<EventProposalsResponse>(page, base + "&mode=review&limit=25"),
-      target = candidates.items[input.proposalOffset];
+      target = candidates.items[gameInput.proposalOffset];
     if (
-      target?.id !== input.proposalId ||
+      target?.id !== gameInput.proposalId ||
       target.status !== "PENDING" ||
-      target.authorName !== input.proposerName ||
-      target.label !== input.gameName
+      target.authorName !== gameInput.proposerName ||
+      target.label !== gameInput.gameName
     )
       throw new Error("Declared pending target at exact source offset required");
     const authors = eventProposalAuthorRows(target).map((author) => author.label);
-    if (input.proposerNames) expect(authors).toEqual(input.proposerNames);
+    if (gameInput.proposerNames) expect(authors).toEqual(gameInput.proposerNames);
     const pending = target.gameSuggestions?.filter((p) => p.status === "PENDING") ?? [target];
     const region = page.getByRole("region", { name: labels.review, exact: true });
-    for (let n = 0; n < Math.floor(input.proposalOffset / 5); n++) {
+    for (let n = 0; n < Math.floor(gameInput.proposalOffset / 5); n++) {
       await region.getByRole("button", { name: labels.next, exact: true }).click();
       await expect(region.getByText(`${labels.page} ${n + 2}`, { exact: true })).toBeVisible();
     }
     const action = region.getByRole("button", {
-      name: `${labels.reviewAction}: ${input.gameName}`,
+      name: `${labels.reviewAction}: ${gameInput.gameName}`,
       exact: true,
     });
     await expect(action).toBeVisible();
@@ -312,7 +427,7 @@ test("real private own-Table proposal or current-manager decision; cancel writes
     const posted = page.waitForResponse(
       (r) =>
         new URL(r.url()).pathname ===
-          `/api/events/${input.eventId}/proposals/${input.proposalId}` &&
+          `/api/events/${input.eventId}/proposals/${gameInput.proposalId}` &&
         r.request().method() === "POST",
     );
     await page
@@ -321,11 +436,11 @@ test("real private own-Table proposal or current-manager decision; cancel writes
       .click();
     expect((await posted).status()).toBe(200);
     await expect(
-      page.getByTestId(`event-proposal-${input.proposalId}`).getByRole("status"),
+      page.getByTestId(`event-proposal-${gameInput.proposalId}`).getByRole("status"),
     ).toHaveText(labels.result);
     const receipt = await read<ReviewEventProposalResponse>(
       page,
-      `events/${input.eventId}/proposals/${input.proposalId}`,
+      `events/${input.eventId}/proposals/${gameInput.proposalId}`,
     );
     expect(receipt.proposal.status).toBe(input.mode === "accept" ? "ACCEPTED" : "REJECTED");
     expect(receipt.proposals?.map((p) => p.id).sort()).toEqual(pending.map((p) => p.id).sort());
@@ -334,7 +449,7 @@ test("real private own-Table proposal or current-manager decision; cancel writes
       page,
       `events/${input.eventId}/tables/${input.tableId}`,
     );
-    expect(after.games.some((g) => g.gameId === input.gameId)).toBe(input.mode === "accept");
+    expect(after.games.some((g) => g.gameId === gameInput.gameId)).toBe(input.mode === "accept");
     expect(after.myRegistration?.gameVotes).toEqual(table.myRegistration?.gameVotes);
     expect(writes).toHaveLength(1);
   }

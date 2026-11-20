@@ -1,6 +1,7 @@
 import type { ScorePlayer, TableScoreInput } from "@board-game-organizer/shared";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
+import { installInputBehavior } from "@/lib/inputBehavior";
 import { renderWithI18n } from "@/test-utils";
 import { TableScoreEditor } from "../TableScoreEditor";
 
@@ -41,6 +42,83 @@ function expectBefore(first: string, second: string) {
     firstIdentity.compareDocumentPosition(secondIdentity) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
 }
+
+it("keeps the real score popover stable while typing and toggles ND after the focused input hands off a pointer press", async () => {
+  const submit = vi.fn();
+  const isDialog = (node: HTMLElement) => node.getAttribute("role") === "dialog";
+  const dialogHeight = (node: HTMLElement) =>
+    200 + (Number.parseFloat(node.style.paddingBottom) || 0);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return isDialog(this) ? dialogHeight(this) : 600;
+  });
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return isDialog(this) ? dialogHeight(this) : 600;
+  });
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    if (isDialog(this)) return new DOMRect(0, 100, 256, dialogHeight(this));
+    if (this.matches("[data-form-field]")) return new DOMRect(16, 160, 224, 70);
+    return new DOMRect(16, 180, 224, 44);
+  });
+  vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return [this.getBoundingClientRect()] as unknown as DOMRectList;
+  });
+  const view = renderWithI18n(
+    <TableScoreEditor players={players.slice(0, 2)} busy={false} onSubmit={submit} />,
+  );
+  const dispose = installInputBehavior();
+  try {
+    const input = await openScore("Alice");
+    const dialog = input.closest<HTMLElement>('[role="dialog"]');
+    if (!dialog) throw new Error("Missing score popover dialog");
+    dialog.scrollTo = vi.fn();
+    act(() => input.focus());
+    await waitFor(() => expect(Number.parseFloat(dialog.style.paddingBottom)).toBeGreaterThan(0));
+    const padding = dialog.style.paddingBottom;
+    const height = dialog.clientHeight;
+    for (const value of ["-", "-1", "-12", "-12.", "-12.5", "-12.50"]) {
+      fireEvent.input(input, { target: { value } });
+      await act(async () => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      });
+      expect(input).toHaveValue(value);
+      expect(document.activeElement).toBe(input);
+      expect(dialog.style.paddingBottom).toBe(padding);
+      expect(dialog.clientHeight).toBe(height);
+    }
+    const nd = screen.getByRole("switch", { name: "Did not participate: Alice" });
+    fireEvent.pointerDown(nd, { pointerId: 1, pointerType: "mouse", button: 0 });
+    fireEvent.mouseDown(nd, { button: 0 });
+    act(() => nd.focus());
+    expect(dialog.style.paddingBottom).toBe(padding);
+    fireEvent.pointerUp(nd, { pointerId: 1, pointerType: "mouse", button: 0 });
+    fireEvent.mouseUp(nd, { button: 0 });
+    fireEvent.click(nd);
+    expect(nd).toBeChecked();
+    expect(input).toBeDisabled();
+    expect(input).toHaveValue("-12.50");
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    });
+    expect(dialog.style.paddingBottom).toBe(padding);
+    fireEvent.click(nd);
+    expect(nd).not.toBeChecked();
+    expect(input).toBeEnabled();
+    expect(input).toHaveValue("-12.50");
+    expect(submit).not.toHaveBeenCalled();
+  } finally {
+    dispose();
+    view.unmount();
+    vi.restoreAllMocks();
+  }
+});
 
 it("opens the first incomplete score, preserves invalid input, then saves a normalized decimal and explicit ND", async () => {
   const submit = vi.fn();

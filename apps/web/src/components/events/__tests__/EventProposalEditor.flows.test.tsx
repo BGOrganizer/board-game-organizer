@@ -7,7 +7,7 @@ import type {
 import { submitEventProposalSchema } from "@board-game-organizer/schemas";
 import { clearSessionQueryCache, eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { enterDateTime, readDateTime } from "@/test-fixtures/dateTime";
@@ -239,6 +239,13 @@ it("validates an empty date attempt then sends one explicitly chosen proposal an
   expect(writes).toHaveLength(0);
   enterDateTime(screen.getByRole("group", { name: "Choose date and time" }), "2030-06-04T19:15");
   expect(screen.queryByText("Choose a valid date and time.")).toBeNull();
+  fireEvent.click(
+    within(screen.getByRole("group", { name: "Choose date and time" })).getByRole("button"),
+  );
+  const picker = await screen.findByRole("dialog", { name: "Choose date and time" });
+  fireEvent.click(within(picker).getByRole("button", { name: "Done" }));
+  expect(writes).toHaveLength(0);
+  expect(boundary.back).not.toHaveBeenCalled();
   fireEvent.click(send);
   fireEvent.click(send);
   await waitFor(() => expect(writes).toHaveLength(1));

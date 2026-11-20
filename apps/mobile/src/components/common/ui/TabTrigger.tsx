@@ -9,7 +9,7 @@ export function TabTrigger({
   style,
   ...props
 }: ComponentProps<typeof Tabs.Trigger> & { icon: LucideIcon }) {
-  const [accent, muted] = useThemeColor(["accent", "muted"]);
+  const [foreground, muted] = useThemeColor(["segment-foreground", "muted"]);
   return (
     <Tabs.Trigger
       {...props}
@@ -25,7 +25,7 @@ export function TabTrigger({
     >
       {(state) => (
         <>
-          <Icon size={16} color={state.isSelected ? accent : muted} accessible={false} />
+          <Icon size={16} color={state.isSelected ? foreground : muted} accessible={false} />
           {typeof children === "function" ? children(state) : children}
         </>
       )}

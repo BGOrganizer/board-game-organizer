@@ -41,6 +41,11 @@ export function EventScheduleFields({
           .endMin
       : undefined;
   const helpTitle = t`Field help`;
+  const addDate = (wall: string) => {
+    if (busy || !wall) return;
+    form.addDate(wall);
+    onDateTimeChange("");
+  };
   const error = (path: string, message: string) =>
     fieldError(path) ? (
       <p role="alert" className="text-sm text-danger">
@@ -184,6 +189,7 @@ export function EventScheduleFields({
                   aria-label={t`Date and time`}
                   value={dateTime}
                   onChange={onDateTimeChange}
+                  onConfirm={addDate}
                   isDisabled={busy}
                 />
                 <Button
@@ -191,10 +197,7 @@ export function EventScheduleFields({
                   variant="primary"
                   aria-label={t`Add date`}
                   isDisabled={busy || !dateTime}
-                  onPress={() => {
-                    form.addDate(dateTime);
-                    onDateTimeChange("");
-                  }}
+                  onPress={() => addDate(dateTime)}
                 >
                   <Plus className="size-5" aria-hidden />
                 </Button>

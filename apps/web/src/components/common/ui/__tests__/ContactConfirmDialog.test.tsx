@@ -1,10 +1,53 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { X } from "lucide-react";
+import { useState } from "react";
 import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { ContactConfirmDialog } from "../ContactConfirmDialog";
 
-it("opts into icon/text row actions with cancel below and preserves all callbacks", () => {
+function DismissibleConfirmation() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Open confirmation
+      </button>
+      {open ? (
+        <ContactConfirmDialog
+          title="Confirm action"
+          description="Review before continuing"
+          onCancel={() => setOpen(false)}
+          actions={[{ label: "Confirm", onPress: () => setOpen(false) }]}
+        />
+      ) : null}
+    </>
+  );
+}
+
+it.each(["close", "escape", "backdrop", "action"])(
+  "returns focus to the opener after %s dismissal",
+  (method) => {
+    renderWithI18n(<DismissibleConfirmation />);
+    const trigger = screen.getByRole("button", { name: "Open confirmation" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Confirm action" });
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toHaveFocus();
+    if (method === "close") fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    else if (method === "escape") fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    else if (method === "action")
+      fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
+    else {
+      const backdrop = dialog.querySelector<HTMLElement>(".bg-backdrop");
+      if (!backdrop) throw new Error("The confirmation backdrop is required");
+      fireEvent.click(backdrop);
+    }
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(trigger).toHaveFocus();
+  },
+);
+
+it("uses an icon-only close action above aligned footer actions and preserves callbacks", () => {
   const accept = vi.fn(),
     cancel = vi.fn();
   renderWithI18n(
@@ -12,45 +55,39 @@ it("opts into icon/text row actions with cancel below and preserves all callback
       title="Request"
       description="Organization membership only"
       onCancel={cancel}
-      cancelLast
-      actionsInRow
-      cancelIcon={<X />}
       actions={[{ label: "Accept", icon: <X />, onPress: accept }]}
     />,
   );
   const dialog = screen.getByRole("dialog", { name: "Request" });
   const buttons = within(dialog).getAllByRole("button");
-  expect(buttons.map((button) => button.textContent)).toEqual(["Accept", "Cancel"]);
-  expect(buttons[0].parentElement?.className).toBe("mt-5 flex flex-row gap-1");
-  expect(buttons[0].className).toContain("flex-1 flex-row");
+  expect(buttons.map((button) => button.textContent)).toEqual(["", "Accept"]);
+  expect(buttons[0]).toHaveAccessibleName("Cancel");
+  expect(buttons[0]).toHaveFocus();
+  expect(buttons[0].parentElement?.className).toBe("flex justify-end");
+  expect(buttons[1].parentElement?.className).toBe("mt-5 flex items-stretch justify-end gap-3");
   expect(buttons[1].parentElement).not.toBe(buttons[0].parentElement);
   for (const button of buttons) expect(button.querySelector("svg")).toBeTruthy();
-  fireEvent.click(buttons[0]);
-  expect(accept).toHaveBeenCalledOnce();
   fireEvent.click(buttons[1]);
+  expect(accept).toHaveBeenCalledOnce();
+  fireEvent.click(buttons[0]);
   fireEvent(dialog, new Event("cancel", { cancelable: true }));
   expect(cancel).toHaveBeenCalledTimes(2);
 });
-it.each([false, true])(
-  "retains the existing layout when cancelLast is %s without row opt-in",
-  (cancelLast) => {
+it.each(["primary", "danger", "danger-soft"] as const)(
+  "keeps the %s action semantic while cancellation is only the close control",
+  (variant) => {
     renderWithI18n(
       <ContactConfirmDialog
         title="Confirm"
         description="Existing caller"
         onCancel={vi.fn()}
-        cancelLast={cancelLast}
-        actions={[{ label: "Remove", variant: "danger", onPress: vi.fn() }]}
+        actions={[{ label: "Remove", variant, onPress: vi.fn() }]}
       />,
     );
     const buttons = within(screen.getByRole("dialog", { name: "Confirm" })).getAllByRole("button");
-    expect(buttons.map((button) => button.textContent)).toEqual(
-      cancelLast ? ["Remove", "Cancel"] : ["Cancel", "Remove"],
-    );
-    expect(buttons[0].parentElement?.className).toContain(
-      cancelLast ? "flex-col gap-2" : "flex-col-reverse",
-    );
-    expect(buttons[0].className).toContain("w-full");
+    expect(buttons.map((button) => button.textContent)).toEqual(["", "Remove"]);
+    expect(buttons[0]).toHaveAccessibleName("Cancel");
+    expect(buttons[1]).toHaveClass(`button--${variant}`, "whitespace-normal", "h-auto");
   },
 );
 it("opens a native modal and releases it on unmount without sharing title ids", () => {
@@ -80,7 +117,7 @@ it("opens a native modal and releases it on unmount without sharing title ids", 
   expect(close).toHaveBeenCalledTimes(2);
   close.mockRestore();
 });
-it("wraps desktop actions so a three-button removal cannot push Cancel outside the dialog", () => {
+it("keeps multiple actions in one evenly spaced row with wrapping labels", () => {
   renderWithI18n(
     <ContactConfirmDialog
       title="Remove member"
@@ -95,11 +132,15 @@ it("wraps desktop actions so a three-button removal cannot push Cancel outside t
   const dialog = screen.getByRole("dialog", { name: "Remove member" });
   const buttons = within(dialog).getAllByRole("button");
   expect(buttons.map((button) => button.textContent)).toEqual([
-    "Cancel",
+    "",
     "Remove from organization",
     "Remove and exclude",
   ]);
-  expect(buttons[0].parentElement?.className).toContain("sm:flex-wrap");
+  expect(buttons[1].parentElement).toBe(buttons[2].parentElement);
+  expect(buttons[1].parentElement).toHaveClass("flex", "gap-3", "items-stretch");
+  expect(buttons[1].parentElement).not.toHaveClass("flex-col", "flex-wrap");
+  for (const action of buttons.slice(1))
+    expect(action).toHaveClass("h-auto", "min-h-11", "min-w-11", "whitespace-normal");
 });
 it("blocks repeated submission, Escape and backdrop dismissal while busy", () => {
   const confirm = vi.fn(),
@@ -110,7 +151,6 @@ it("blocks repeated submission, Escape and backdrop dismissal while busy", () =>
       description="Pending"
       onCancel={cancel}
       busy
-      actionsInRow
       actions={[{ label: "Accept", onPress: confirm }]}
     />,
   );

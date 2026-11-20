@@ -199,6 +199,9 @@ export function EventProposalSection({
 function DateProposalAction({ submit }: { submit: (wall: string) => boolean }) {
   const { t } = useLingui();
   const [wall, setWall] = useState("");
+  const addDate = (value: string) => {
+    if (submit(value)) setWall("");
+  };
   return (
     <GroupedRow>
       <CalendarClock className="size-4 shrink-0 text-muted" aria-hidden />
@@ -208,15 +211,14 @@ function DateProposalAction({ submit }: { submit: (wall: string) => boolean }) {
         aria-label={t`Date and time`}
         value={wall}
         onChange={setWall}
+        onConfirm={addDate}
       />
       <Button
         isIconOnly
         variant="primary"
         aria-label={t`Add date`}
         isDisabled={!wall}
-        onPress={() => {
-          if (submit(wall)) setWall("");
-        }}
+        onPress={() => addDate(wall)}
       >
         <Plus className="size-5" aria-hidden />
       </Button>

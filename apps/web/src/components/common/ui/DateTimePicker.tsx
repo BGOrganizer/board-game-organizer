@@ -16,6 +16,7 @@ import { type ReactNode, useState } from "react";
 interface DateTimePickerProps {
   value: string;
   onChange: (value: string) => void;
+  onConfirm?: (value: string) => void;
   label?: ReactNode;
   children?: ReactNode;
   "aria-label"?: string;
@@ -42,6 +43,7 @@ function parseWallTime(value?: string) {
 export function DateTimePicker({
   value,
   onChange,
+  onConfirm,
   label,
   children,
   minValue,
@@ -135,7 +137,20 @@ export function DateTimePicker({
                   slot={null}
                   className="w-full"
                   variant="primary"
-                  onPress={() => state.setOpen(false)}
+                  isDisabled={
+                    props.isDisabled ||
+                    Boolean(onConfirm && (!state.value || state.realtimeValidation.isInvalid))
+                  }
+                  onPress={() => {
+                    const date = state.value;
+                    if (
+                      props.isDisabled ||
+                      (onConfirm && (!date || state.realtimeValidation.isInvalid))
+                    )
+                      return;
+                    state.setOpen(false);
+                    if (date) onConfirm?.(date.toString().slice(0, 16));
+                  }}
                 >
                   {t({ id: "Done", message: "Done" })}
                 </Button>

@@ -89,7 +89,7 @@ export function GroupDetail({
   );
   if (!group)
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         <HeaderActions back={back} />
         {q.isPending ? (
           <Skeleton className="h-40 w-full rounded-xl" />
@@ -137,7 +137,7 @@ export function GroupDetail({
       ]}
     >
       <div
-        className="space-y-5"
+        className="space-y-4"
         style={group.canEdit && tab === "info" ? floatingActionContentStyle : undefined}
       >
         <HeaderActions back={back}>

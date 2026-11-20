@@ -109,7 +109,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   );
   if (!event)
     return (
-      <div className="mx-auto max-w-4xl space-y-3">
+      <div className="mx-auto max-w-4xl space-y-4">
         <HeaderActions back={back} />
         {q.isPending ? (
           <Skeleton className="h-40 w-full rounded-xl" />
@@ -159,7 +159,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       }
     >
       <div
-        className="mx-auto max-w-4xl space-y-3"
+        className="mx-auto max-w-4xl space-y-4"
         style={hasFloatingActions ? floatingActionContentStyle : undefined}
       >
         <HeaderActions back={back}>

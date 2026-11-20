@@ -42,6 +42,25 @@ function form(markup = '<input aria-invalid="true">') {
   if (!button || !input) throw Error("Missing form controls");
   return { scope, button, input };
 }
+function autoDialog() {
+  const { scope, input } = form(
+    "<div data-form-field><input></div><button data-secondary>ND</button>",
+  );
+  scope.setAttribute("role", "dialog");
+  scope.style.paddingBottom = "4px";
+  const height = () => 200 + Math.max(0, Number.parseFloat(scope.style.paddingBottom) - 4);
+  Object.defineProperty(scope, "clientHeight", { configurable: true, get: height });
+  Object.defineProperty(scope, "scrollHeight", { configurable: true, get: height });
+  vi.spyOn(scope, "getBoundingClientRect").mockImplementation(() => rect(40, height()));
+  geometry(input.parentElement as HTMLElement, 100, 70);
+  geometry(input, 120);
+  scope.scrollTo = vi.fn();
+  const secondary = scope.querySelector<HTMLButtonElement>("[data-secondary]");
+  if (!secondary) throw new Error("Missing sibling control");
+  viewport.height = 600;
+  viewport.offsetTop = 0;
+  return { scope, input, secondary };
+}
 beforeEach(() => {
   vi.useFakeTimers();
   frames = new Map();
@@ -77,6 +96,117 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe("installInputBehavior local owners and first blocking errors", () => {
+  it("keeps an auto-height dialog's padding and height stable while each score character is entered", () => {
+    const { scope, input } = autoDialog();
+    dispose = installInputBehavior();
+    input.focus();
+    flush();
+    const padding = scope.style.paddingBottom;
+    const height = scope.clientHeight;
+    expect(height).toBeGreaterThan(200);
+    for (const value of ["-", "-1", "-12", "-12.", "-12.5", "-12.50"]) {
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      flush();
+      expect(scope.style.paddingBottom).toBe(padding);
+      expect(scope.clientHeight).toBe(height);
+      expect(document.activeElement).toBe(input);
+    }
+  });
+  it("keeps an internal pointer destination stable through pointerup and click, then restores on leaving the dialog", () => {
+    const { scope, input, secondary } = autoDialog();
+    dispose = installInputBehavior();
+    input.focus();
+    flush();
+    const padding = scope.style.paddingBottom;
+    const press = vi.fn();
+    secondary.addEventListener("click", press);
+    secondary.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    secondary.focus();
+    expect(scope.style.paddingBottom).toBe(padding);
+    secondary.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    expect(scope.style.paddingBottom).toBe(padding);
+    secondary.click();
+    vi.runOnlyPendingTimers();
+    expect(press).toHaveBeenCalledOnce();
+    expect(scope.style.paddingBottom).toBe(padding);
+    expect(document.activeElement).toBe(secondary);
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    outside.focus();
+    expect(scope.style.paddingBottom).toBe("4px");
+    expect(scope.style.maxHeight).toBe("");
+    expect(scope.style.overflowY).toBe("");
+  });
+  it("keeps a keyboard focus handoff inside an overlay stable without retaining a pointer gesture", () => {
+    const { scope, input, secondary } = autoDialog();
+    dispose = installInputBehavior();
+    input.focus();
+    flush();
+    const padding = scope.style.paddingBottom;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    secondary.focus();
+    expect(scope.style.paddingBottom).toBe(padding);
+    secondary.blur();
+    expect(scope.style.paddingBottom).toBe("4px");
+  });
+  it("restores document padding after the destination click rather than during its pointer press", () => {
+    const { input } = form();
+    const action = document.createElement("button");
+    document.body.append(action);
+    dispose = installInputBehavior();
+    input.focus();
+    flush();
+    const padding = document.documentElement.style.paddingBottom;
+    expect(Number.parseFloat(padding)).toBeGreaterThan(0);
+    const clicked = vi.fn(() => expect(document.documentElement.style.paddingBottom).toBe(padding));
+    action.addEventListener("click", clicked);
+    action.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    action.focus();
+    expect(document.documentElement.style.paddingBottom).toBe(padding);
+    document.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    action.click();
+    expect(clicked).toHaveBeenCalledOnce();
+    vi.runOnlyPendingTimers();
+    expect(document.documentElement.style.paddingBottom).toBe("");
+  });
+  it.each(["pointerup", "pointercancel", "window blur"])(
+    "restores a blurred owner's geometry after %s outside the owner",
+    (end) => {
+      const { scope, input, secondary } = autoDialog();
+      dispose = installInputBehavior();
+      input.focus();
+      flush();
+      const padding = scope.style.paddingBottom;
+      secondary.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      input.blur();
+      expect(scope.style.paddingBottom).toBe(padding);
+      if (end === "window blur") window.dispatchEvent(new Event("blur"));
+      else document.dispatchEvent(new Event(end, { bubbles: true }));
+      expect(scope.style.paddingBottom).toBe(padding);
+      vi.runOnlyPendingTimers();
+      expect(scope.style.paddingBottom).toBe("4px");
+    },
+  );
+  it("cancels a deferred pointer restoration when the behavior is disposed", () => {
+    const { scope, input, secondary } = autoDialog();
+    dispose = installInputBehavior();
+    input.focus();
+    flush();
+    secondary.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    input.blur();
+    secondary.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    document.dispatchEvent(new Event("pointercancel", { bubbles: true }));
+    dispose();
+    dispose = undefined;
+    expect(scope.style.paddingBottom).toBe("4px");
+    expect(scope.style.maxHeight).toBe("");
+    expect(scope.style.overflowY).toBe("");
+    scope.style.paddingBottom = "8px";
+    vi.runOnlyPendingTimers();
+    flush();
+    expect(scope.style.paddingBottom).toBe("8px");
+  });
   it("reveals document fields below the actual sticky main header", () => {
     const { input } = form("<div data-form-field><label>Title</label><input></div>");
     const header = document.createElement("nav");

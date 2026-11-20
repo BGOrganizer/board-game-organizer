@@ -275,10 +275,12 @@ it.each(["personal", "event"] as const)(
     expect(back).toHaveTextContent("");
     expect(back.querySelector("svg.lucide-arrow-left")).not.toBeNull();
     expect(back.closest("[data-page-toolbar]")?.firstElementChild?.contains(back)).toBe(true);
+    expect(back.closest("[data-page-toolbar]")?.parentElement).toHaveClass("space-y-4");
     back.focus();
     await screen.findByRole("heading", { name: table.name });
     expect(screen.getByRole("link", { name: "Back" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Back" })).toHaveFocus();
+    expect(back.closest("[data-page-toolbar]")?.parentElement).toHaveClass("space-y-4");
     expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute(
       "href",
       context === "event" ? `/events/${eventId}` : "/tables",

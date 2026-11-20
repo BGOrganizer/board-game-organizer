@@ -2,7 +2,8 @@ import { fireEvent, render, screen, userEvent } from "@testing-library/react-nat
 import { Tabs } from "heroui-native/tabs";
 import { CalendarDays, UsersRound } from "lucide-react-native";
 import { useState } from "react";
-import { StyleSheet } from "react-native";
+import { processColor, StyleSheet } from "react-native";
+import { ScopedTheme } from "uniwind";
 import { afterEach, expect, it, vi } from "vitest";
 import { ListActivityContext } from "@/lib/listActivity";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
@@ -26,6 +27,42 @@ function TabFixture({ active = { current: true } }: { active?: { current: boolea
     </ListActivityContext>
   );
 }
+
+function expectGlyphMatchesLabel(name: string) {
+  const tab = screen.getByRole("tab", { name });
+  const color = processColor(StyleSheet.flatten(screen.getByText(name).props.style).color);
+  expect(typeof color).toBe("number");
+  const glyph = tab.queryAll(
+    (node) =>
+      node.type.startsWith("RNSVG") &&
+      Number(node.props.bbWidth) === 16 &&
+      Number(node.props.bbHeight) === 16,
+  )[0];
+  if (!glyph) throw new Error("Expected the actual decorative Lucide tab glyph");
+  const stroke = glyph.queryAll(
+    (node) => node.type === "RNSVGGroup" && node.props.stroke != null,
+  )[0]?.props.stroke;
+  expect(stroke).toMatchObject({ type: 0, payload: color });
+}
+
+it.each(["light", "dark"] as const)(
+  "matches selected and unselected tab glyphs to the actual HeroUI labels in %s mode",
+  async (theme) => {
+    await render(
+      <NativeTestProviders>
+        <ScopedTheme theme={theme}>
+          <TabFixture />
+        </ScopedTheme>
+      </NativeTestProviders>,
+    );
+    expectGlyphMatchesLabel("Members");
+    expectGlyphMatchesLabel("Events");
+    await userEvent.setup().press(screen.getByRole("tab", { name: "Events" }));
+    expect(screen.getByRole("tab", { name: "Events" })).toBeSelected();
+    expectGlyphMatchesLabel("Members");
+    expectGlyphMatchesLabel("Events");
+  },
+);
 
 function measuredBar() {
   const node = screen.container.queryAll((candidate) => {

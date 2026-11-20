@@ -111,7 +111,7 @@ export function EventTable({
   if (!table)
     return (
       <NotificationAttentionScope options={o} targets={[]}>
-        <div className="mx-auto w-full max-w-4xl">
+        <div className="mx-auto w-full max-w-4xl space-y-4">
           {header}
           <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
         </div>
@@ -131,7 +131,7 @@ export function EventTable({
       }
     >
       <div
-        className="mx-auto w-full max-w-4xl"
+        className="mx-auto w-full max-w-4xl space-y-4"
         style={
           selected === "participants" && table.canManage && table.eventStatus === "PLANNING"
             ? floatingActionContentStyle

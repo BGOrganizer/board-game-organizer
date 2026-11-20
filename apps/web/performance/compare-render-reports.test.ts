@@ -122,7 +122,13 @@ function fixture({
     args,
     run: () => {
       writeFileSync(paths.provenance, JSON.stringify(proof));
-      return spawnSync(process.execPath, [script, ...args], { encoding: "utf8", timeout: 30_000 });
+      const result = spawnSync(process.execPath, [script, ...args], {
+        encoding: "utf8",
+        timeout: 30_000,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      return result;
     },
     report: () => JSON.parse(readFileSync(paths.output, "utf8")),
   };

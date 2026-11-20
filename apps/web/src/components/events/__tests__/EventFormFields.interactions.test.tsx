@@ -265,6 +265,69 @@ it("adds and removes flexible dates and locations using the real form, and updat
   expect(draft()).toMatchObject({ allowParticipantDates: true, allowParticipantLocations: true });
 });
 
+it("adds the popover's final date with Done, deduplicates it and retains the keyboard Add action", async () => {
+  mount();
+  const field = screen.getByRole("group", { name: "Date and time" });
+  enterDateTime(field, "2030-06-04T19:30");
+  fireEvent.click(within(field).getByRole("button"));
+  const dialog = await screen.findByRole("dialog", { name: "Choose date and time" });
+  fireEvent.click(within(within(dialog).getByRole("grid")).getByText("15", { exact: true }));
+  enterDateTime(within(dialog).getByRole("group", { name: "Time" }), "21:45");
+  expect(draft().dates).toHaveLength(1);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(draft().dates).toEqual([
+    plannedEvent.dates[0],
+    expect.objectContaining({ day: "2030-06-15", startTime: "21:45" }),
+  ]);
+  expect(readDateTime(field)).toBe("");
+  expect(screen.getByRole("button", { name: "Add date" })).toBeDisabled();
+  enterDateTime(field, "2030-06-15T21:45");
+  fireEvent.click(within(field).getByRole("button"));
+  fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Done" }));
+  expect(draft().dates).toHaveLength(2);
+  expect(readDateTime(field)).toBe("");
+  enterDateTime(field, "2030-06-06T19:30");
+  fireEvent.click(screen.getByRole("button", { name: "Add date" }));
+  expect(draft().dates).toHaveLength(3);
+  expect(draft().dates[2]).toMatchObject({ day: "2030-06-06", startTime: "19:30" });
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("removes the add row after Done fills the date limit without saving the event", async () => {
+  const dates = Array.from({ length: MAX_EVENT_OPTIONS - 1 }, (_, index) => ({
+    id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+    day: `2030-06-${String(index + 1).padStart(2, "0")}`,
+  }));
+  mount({ dates });
+  const field = screen.getByRole("group", { name: "Date and time" });
+  enterDateTime(field, "2030-07-01T19:30");
+  fireEvent.click(within(field).getByRole("button"));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+  expect(draft().dates).toHaveLength(MAX_EVENT_OPTIONS);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add date" })).toBeNull();
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("blocks popover addition when the parent becomes busy", async () => {
+  const view = mount();
+  const field = screen.getByRole("group", { name: "Date and time" });
+  enterDateTime(field, "2030-06-04T19:30");
+  fireEvent.click(within(field).getByRole("button"));
+  await screen.findByRole("dialog");
+  view.rerender(
+    <QueryClientProvider client={client}>
+      <Fixture initial={baseDraft()} busy />
+    </QueryClientProvider>,
+  );
+  const done = within(screen.getByRole("dialog")).getByRole("button", { name: "Done" });
+  expect(done).toBeDisabled();
+  fireEvent.click(done);
+  expect(draft().dates).toHaveLength(1);
+});
+
 it("keeps private schedule errors specific to missing dates and verified locations", () => {
   mount({ dates: [], locations: [] });
   validateSchedule();

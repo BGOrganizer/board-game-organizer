@@ -554,6 +554,7 @@ it("puts confirmed-owner finalization in the header and icon-only replan in a bo
     finalize.closest("[data-page-toolbar]")?.contains(screen.getByRole("link", { name: "Back" })),
   ).toBe(true);
   expect(finalize.textContent).toBe("");
+  expect(finalize.closest("[data-page-toolbar]")?.parentElement).toHaveClass("space-y-4");
   expect(finalize.querySelector("svg.lucide-flag")).not.toBeNull();
   const reopen = screen.getByRole("button", { name: "Reopen planning" });
   expect(reopen.className).toContain("fixed");
