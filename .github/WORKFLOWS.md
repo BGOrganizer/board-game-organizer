@@ -31,6 +31,9 @@ credential scope; scripts implement routing, provenance, publication and recover
   successful build, unexpired artifact, embedded API/configuration and checksum.
 - PR publication depends only on shared checks and the Development lane. Repeated current-head checks
   bracket external writes and must not be deduplicated away.
+- Site has its own coverage and build job. A trusted PR deploys a Site preview linked to that run's
+  Development Web. Main deploys Site independently of the app release. See the
+  [Site Vercel setup](../apps/site/README.md#vercel-and-github-actions).
 - Explicit-ID/run cleanup never performs an age sweep. Orphan cleanup only deletes marked, old users
   with a recognized completed owner; live Clerk keys, active reruns and unverifiable ownership are rejected or retained.
 

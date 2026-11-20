@@ -109,3 +109,14 @@ and failure fallback, native motion eligibility across tab changes, and web moti
 reduced-motion alternative. Pure SVG/unit checks and browser
 rendering do not establish authenticated app journeys, native appearance or native frame timing;
 report actual Playwright/Maestro execution separately from device limitations.
+
+## Public Site artwork
+
+The [informational site](../apps/site/README.md) uses the approved mascot and Android launcher art.
+Its sample group, event and table images are fixed-seed renders of the same resource definitions.
+It serves both medium-motion and static SVGs, with a page-wide pause control and a static source for
+reduced motion. Example player avatars use [DiceBear Clay](https://www.dicebear.com/styles/clay/).
+
+The game cover thumbnails illustrate [Azul](https://boardgamegeek.com/boardgame/230802/azul)
+and [Hegemony](https://boardgamegeek.com/boardgame/321608/hegemony-lead-your-class-to-victory).
+They link to their catalog entries and retain their original rights.

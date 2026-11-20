@@ -113,6 +113,55 @@ test("Development web reaches its attested API before APK publication activates 
   );
 });
 
+test("Site builds gate branch and PR checks, while deployments follow their own environments", () => {
+  const main = parse(readFileSync(".github/workflows/main-ci.yml", "utf8")).jobs;
+  assert.deepEqual(jobs["build-site"].needs, ["context"]);
+  assert.match(jobs["build-site"].if, /mode == 'branch'.*mode == 'pr'/);
+  assert(jobs.ready.needs.includes("build-site"));
+  assert.match(jobs.ready.steps.at(-1).env.CI_RESULTS, /needs\.build-site\.result/);
+  for (const workflow of [jobs, main]) {
+    const build = workflow["build-site"];
+    assert.equal(build.environment, undefined);
+    assert.deepEqual(
+      build.steps.filter((item) => item.run).map((item) => item.run),
+      ["bun run --filter site test:coverage", "bun run --filter site build"],
+    );
+  }
+
+  const preview = jobs["deploy-development-site"];
+  assert.deepEqual(preview.needs, ["context", "build-site", "deploy-development-web"]);
+  assert.equal(preview.if, jobs["deploy-development-web"].if);
+  assert.equal(preview.environment, "development");
+  assert.deepEqual(preview.permissions, { contents: "read", "pull-requests": "write" });
+  assert(!jobs.ready.needs.includes("deploy-development-site"));
+  assert(!jobs["draft-release"].needs.includes("deploy-development-site"));
+
+  const production = main["deploy-production-site"];
+  assert.deepEqual(production.needs, ["quality", "build-site"]);
+  assert.equal(production.environment, "production");
+  assert.deepEqual(production.permissions, { contents: "read", statuses: "write" });
+  assert(!main["publish-release"].needs.includes("deploy-production-site"));
+
+  const previewConfig = preview.steps.at(-1).with;
+  const productionConfig = production.steps.at(-1).with;
+  for (const config of [previewConfig, productionConfig]) {
+    assert.equal(config["app-path"], "apps/site");
+    assert.equal(config["vercel-project-id"], `\${{ secrets.VERCEL_SITE_PROJECT_ID }}`);
+  }
+  assert.equal(previewConfig["vercel-environment"], "preview");
+  assert.equal(previewConfig.production, "false");
+  assert.equal(
+    previewConfig["extra-env"],
+    `NEXT_PUBLIC_BGO_WEB_ORIGIN=\${{ needs.deploy-development-web.outputs.url }}`,
+  );
+  assert.equal(productionConfig["vercel-environment"], "production");
+  assert.equal(productionConfig.production, "true");
+  assert.equal(
+    productionConfig["extra-env"],
+    "NEXT_PUBLIC_BGO_WEB_ORIGIN=https://app.board-game-organizer.com",
+  );
+});
+
 test("PR E2E hooks remain explicitly disabled; approved Main/manual E2E workflows are retired", () => {
   const native = jobs["e2e-maestro"];
   assert.equal(pr.env.BGO_PR_E2E_ENABLED, "false");
@@ -319,7 +368,7 @@ test("PR deployment, auth, build and publication secrets use the development Git
       JSON.stringify(job),
     ),
   );
-  assert.equal(consumers.length, 12);
+  assert.equal(consumers.length, 13);
   for (const [name, job] of consumers) assert.equal(job.environment, "development", name);
 });
 

@@ -14,6 +14,7 @@ test("watchdog cancels shared failures only, preserving the opposite lane", () =
     "Native tooling and flow syntax",
     "Build API",
     "Build Web",
+    "Build Site",
     "🔀 Resolve CI context",
     "💬 commitlint (Conventional Commits)",
     "🧹 Biome lint & format",
@@ -64,6 +65,7 @@ test("watchdog recognizes the current workflow labels and keeps lane failures is
       "native-tooling",
       "build-api",
       "build-web",
+      "build-site",
     ].includes(id);
     for (const name of names)
       assert.equal(sharedQualityFailed([{ name, conclusion: "failure" }]), common, id);
@@ -87,6 +89,14 @@ test("watchdog waits for every active unit, integration and tooling job while Re
     conclusion: "success",
   }));
   assert.equal(allTestJobsCompleted(complete), true);
+  assert.equal(
+    allTestJobsCompleted([...complete, { name: "Build Site", status: "in_progress" }]),
+    false,
+  );
+  assert.equal(
+    allTestJobsCompleted([...complete, { name: "Build Site", status: "completed" }]),
+    true,
+  );
   assert.equal(allTestJobsCompleted([]), false);
   for (const name of mandatoryTestJobs) {
     assert.equal(allTestJobsCompleted(complete.filter((job) => job.name !== name)), false, name);

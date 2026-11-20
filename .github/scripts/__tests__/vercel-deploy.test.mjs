@@ -118,7 +118,7 @@ test("remote configuration builds and publishes only the selected monorepo app",
   const script = stage.run.match(/node <<'NODE'\n([\s\S]*?)\nNODE/)[1];
   const folder = mkdtempSync(join(tmpdir(), "bgo-vercel-workspace-"));
   try {
-    for (const app of ["api", "web"]) {
+    for (const app of ["api", "web", "site"]) {
       const result = spawnSync(process.execPath, ["-e", script], {
         cwd: folder,
         encoding: "utf8",
@@ -137,6 +137,13 @@ test("remote configuration builds and publishes only the selected monorepo app",
         outputDirectory: `apps/${app}/.next`,
       });
     }
+    const noSiteProject = spawnSync(process.execPath, ["-e", script], {
+      cwd: folder,
+      env: { ...process.env, VERCEL_APP_PATH: "apps/site", VERCEL_PROJECT_ID: "" },
+      encoding: "utf8",
+    });
+    assert.notEqual(noSiteProject.status, 0);
+    assert.match(noSiteProject.stderr, /Set VERCEL_SITE_PROJECT_ID/);
     assert.notEqual(
       spawnSync(process.execPath, ["-e", script], {
         cwd: folder,
@@ -144,6 +151,67 @@ test("remote configuration builds and publishes only the selected monorepo app",
       }).status,
       0,
     );
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test("Site Production promotes only after checking the source across the remote build", () => {
+  const folder = mkdtempSync(join(tmpdir(), "bgo-vercel-site-"));
+  try {
+    const output = join(folder, "output");
+    const run = (staleOn = "", url = "https://site-test.vercel.app", production = true) => {
+      rmSync(output, { force: true });
+      return spawnSync(
+        "bash",
+        [
+          "-c",
+          `
+          checks=0
+          node() { ((checks+=1)); printf 'verify\\n' >&2; [ "$checks" != "$STALE_ON" ] || return 3; }
+          vercel() { printf '%s\\n' "$@" >&2; [ "$1" != deploy ] || printf '%s\\n' "$DEPLOY_URL"; }
+          ${deploy.run}`,
+        ],
+        {
+          env: {
+            ...process.env,
+            VERCEL_TOKEN: "test-token",
+            VERCEL_ENVIRONMENT: production ? "production" : "preview",
+            PRODUCTION: String(production),
+            APP_PATH: "apps/site",
+            CI_DB_NAME: "",
+            EXTRA_ENV: "NEXT_PUBLIC_BGO_WEB_ORIGIN=https://app.board-game-organizer.com",
+            GITHUB_REF: "refs/heads/main",
+            GITHUB_SHA: "b".repeat(40),
+            GITHUB_OUTPUT: output,
+            STALE_ON: staleOn,
+            DEPLOY_URL: url,
+          },
+          encoding: "utf8",
+        },
+      );
+    };
+    const current = run();
+    assert.equal(current.status, 0, current.stderr);
+    assert.match(
+      current.stderr,
+      /^verify\ndeploy\n[\s\S]*?--prod\n--skip-domain\n[\s\S]*?verify\npromote\nhttps:\/\/site-test\.vercel\.app\n/,
+    );
+    assert.match(current.stderr, /--build-env\nBGO_SITE_VERCEL_TARGET=production\n/);
+    assert.equal(readFileSync(output, "utf8"), "url=https://site-test.vercel.app\n");
+    for (const check of ["1", "2"]) {
+      const stale = run(check);
+      assert.equal(stale.status, 0, stale.stderr);
+      assert.doesNotMatch(stale.stderr, /promote/);
+      assert.throws(() => readFileSync(output, "utf8"), { code: "ENOENT" });
+    }
+    const invalid = run("", "https://example.com");
+    assert.notEqual(invalid.status, 0);
+    assert.doesNotMatch(invalid.stderr, /promote/);
+    const preview = run("", undefined, false);
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.doesNotMatch(preview.stderr, /verify|promote|--prod|--skip-domain/);
+    assert.match(preview.stderr, /--build-env\nBGO_SITE_VERCEL_TARGET=preview\n/);
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }

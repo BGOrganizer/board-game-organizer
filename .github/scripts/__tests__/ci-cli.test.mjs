@@ -163,12 +163,20 @@ test("gate CLI reports success only for its actual required status set", async (
     "unit-tests",
     "integration-tests",
     "native-tooling",
+    "build-site",
   ];
-  const env = {
-    CI_MODE: "branch",
-    CI_RESULTS: JSON.stringify(Object.fromEntries(names.map((n) => [n, "success"]))),
-  };
+  const statuses = Object.fromEntries(names.map((name) => [name, "success"]));
+  const env = { CI_MODE: "branch", CI_RESULTS: JSON.stringify(statuses) };
   assert.equal((await cli(t, "ci-gate", env)).code, 0);
+  assert.equal(
+    (
+      await cli(t, "ci-gate", {
+        ...env,
+        CI_RESULTS: JSON.stringify({ ...statuses, "build-site": "failure" }),
+      })
+    ).code,
+    1,
+  );
   assert.equal((await cli(t, "ci-gate", { ...env, CI_RESULTS: "{}" })).code, 1);
 });
 test("watchdog CLI exits completed runs, polls lane failures and cancels only shared failures", async (t) => {

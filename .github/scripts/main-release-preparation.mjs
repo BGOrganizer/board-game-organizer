@@ -10,7 +10,10 @@ const config = "apps/mobile/app.config.js";
 const files = [...manifests, config, "CHANGELOG.md"].sort();
 
 /** Resume only the exact version-only child of this run's already validated merge. */
-export function inspectMainRelease({ sourceSha, cwd = process.cwd() }, execute = execFileSync) {
+export function inspectMainRelease(
+  { sourceSha, cwd = process.cwd(), requireTag = true },
+  execute = execFileSync,
+) {
   if (!/^[a-f0-9]{40}$/.test(sourceSha ?? "")) throw new Error("Validated Main source required");
   const git = (...args) => execute("git", args, { cwd, encoding: "utf8", stdio: "pipe" }).trim();
   git("fetch", "--no-tags", "origin", "main");
@@ -53,16 +56,19 @@ export function inspectMainRelease({ sourceSha, cwd = process.cwd() }, execute =
   const notes = git("log", "-1", "--format=%b", sha);
   if (!notes || read(sha, "CHANGELOG.md") !== `${notes}\n\n${read(sourceSha, "CHANGELOG.md")}`)
     throw new Error("Prepared changelog does not match its release notes");
-  const tag = `refs/tags/v${version}`;
-  const refs = git("ls-remote", "--tags", "origin", tag, `${tag}^{}`)
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => line.split(/\s+/));
-  const target =
-    refs.find(([, name]) => name === `${tag}^{}`)?.[0] ??
-    refs.find(([, name]) => name === tag)?.[0];
-  if (target !== sha) throw new Error("Prepared release tag is missing or targets another commit");
-  return { mode: "resume", published: true, sha, version };
+  if (requireTag) {
+    const tag = `refs/tags/v${version}`;
+    const refs = git("ls-remote", "--tags", "origin", tag, `${tag}^{}`)
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => line.split(/\s+/));
+    const target =
+      refs.find(([, name]) => name === `${tag}^{}`)?.[0] ??
+      refs.find(([, name]) => name === tag)?.[0];
+    if (target !== sha)
+      throw new Error("Prepared release tag is missing or targets another commit");
+  }
+  return { mode: "resume", published: requireTag, sha, version };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -11,6 +11,7 @@ const shared = new Set([
   "Native tooling and flow syntax",
   "Build API",
   "Build Web",
+  "Build Site",
   "🔀 Resolve CI context",
   "💬 commitlint (Conventional Commits)",
   "🧹 Biome lint & format",
@@ -27,8 +28,10 @@ export const mandatoryTestJobs = [
   ...["mobile", "web", "api", "schemas", "shared"].map((app) => `Unit tests (${app})`),
 ];
 export function allTestJobsCompleted(jobs) {
-  return mandatoryTestJobs.every((name) =>
-    jobs.some((job) => job.name === name && job.status === "completed"),
+  return (
+    mandatoryTestJobs.every((name) =>
+      jobs.some((job) => job.name === name && job.status === "completed"),
+    ) && jobs.every((job) => job.name !== "Build Site" || job.status === "completed")
   );
 }
 export function sharedQualityFailed(jobs) {

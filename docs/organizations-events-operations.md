@@ -167,6 +167,10 @@ device traces. Test matrices do not cancel their remaining active suites on fail
 `BGO_PR_E2E_ENABLED` is an explicit workflow policy, currently `'false'`. Only the two matching E2E
 skips are permitted by the aggregate gate. Setting it to `'true'` requires actual success of both
 retained suites. No skips or script/VM tests establish authenticated browser/native acceptance.
+The public Site adds coverage and a build to Branch and PR gates. Trusted PRs publish a separate
+Site Preview after Development Web so sign-in uses the current run's Web URL.
+This deployment does not wait for the APK. See the [Site setup](../apps/site/README.md#vercel-and-github-actions).
+
 Main delivery and manual operations follow the explicit operator-approved policy below; these
 PR changes alone do not establish live default-branch activation.
 
@@ -317,6 +321,10 @@ publication use the pinned release SHA. Verified APK assets and links are staged
 Production OTA; the GitHub release becomes public only after OTA succeeds. Telegram follows
 successful publication/deploys and a current-main check. The existing narrow exhausted-EAS-quota exception remains. No app-store
 submission, provisioning, secret synchronization or database migration is introduced.
+
+The Site build and coverage run on Main. A separate Site job deploys and promotes the verified
+source on Vercel with the production Web subdomain as its sign-in target. It does not wait for APK,
+OTA or the app version and rechecks Main before promotion.
 
 The release-note preset is an explicit root development dependency, compatible with the installed
 semantic-release writer independently of Commitlint's own preset. CI executes the actual configured

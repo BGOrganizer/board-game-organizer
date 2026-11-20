@@ -126,6 +126,43 @@ test("newer ordinary Main commits supersede this release without claiming a vers
     f.cleanup();
   }
 });
+
+test("Site deploy allows only the merged source or its version-only child before the tag is ready", () => {
+  const siteGuard = resolve(".github/scripts/check-site-main.mjs");
+  const current = fixture({ noTag: true });
+  const changed = fixture({
+    noTag: true,
+    change: ({ write }) => write("apps/site/index.ts", "new"),
+  });
+  const run = ({ cwd, sourceSha }, ref = "refs/heads/main") =>
+    spawnSync(process.execPath, [siteGuard, ref, sourceSha], {
+      cwd,
+      encoding: "utf8",
+    });
+  try {
+    assert.equal(run(current).status, 0);
+    assert.equal(run(current, "refs/heads/release").status, 1);
+    current.prepare();
+    assert.throws(current.inspect, /tag is missing/);
+    const canDeploy = run(current);
+    assert.equal(canDeploy.status, 0, canDeploy.stderr);
+
+    current.git("checkout", "main");
+    current.git("commit", "--allow-empty", "-m", "feat: newer merge");
+    current.git("push", "origin", "main");
+    assert.equal(run(current).status, 1, "checkout must match the run SHA");
+    current.git("checkout", "--detach", current.sourceSha);
+    assert.equal(run(current).status, 3, "newer main makes this source stale");
+
+    changed.prepare();
+    const unsafe = run(changed);
+    assert.equal(unsafe.status, 1);
+    assert.match(unsafe.stderr, /unrelated files/);
+  } finally {
+    current.cleanup();
+    changed.cleanup();
+  }
+});
 for (const [name, options, message] of [
   [
     "unexpected source change",
