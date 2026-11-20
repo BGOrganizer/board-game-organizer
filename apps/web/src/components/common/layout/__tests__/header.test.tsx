@@ -109,9 +109,10 @@ describe("Header", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      link.compareDocumentPosition(screen.getByRole("button", { name: "User menu" })) &
+      link.compareDocumentPosition(screen.getByRole("link", { name: "Profile" })) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "User menu" })).toBeNull();
   });
   it("shows auth CTAs for signed-out users", () => {
     useUserMock.mockReturnValue({ user: null });

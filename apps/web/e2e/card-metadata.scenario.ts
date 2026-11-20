@@ -143,6 +143,12 @@ for (const width of [390, 1280])
         .locator(".card")
         .filter({ has: page.getByRole("heading", { name, exact: true }) });
       await expect(card).toBeVisible();
+      const navigationGap = await card.evaluate((element) => {
+        const toolbar = document.querySelector("[data-page-toolbar]");
+        if (!toolbar) throw new Error("The detail page toolbar is required");
+        return element.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom;
+      });
+      expect(navigationGap).toBeCloseTo(16, 0);
       await expect(card.locator('[class~="bg-surface/95"]')).toHaveCount(0);
       await expect(card.locator('[class~="bg-background/70"]')).toHaveCount(0);
       await expect(card.locator('[class~="bg-background/90"]')).toHaveCount(0);

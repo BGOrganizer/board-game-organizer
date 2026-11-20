@@ -1,5 +1,5 @@
 const textInput =
-  'textarea,input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"])';
+  'textarea,[role="spinbutton"][contenteditable="true"],input:not([hidden]):not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"])';
 const formControl = `${textInput},select`;
 const invalidField =
   '[aria-invalid="true"],[data-form-error],input:invalid,textarea:invalid,select:invalid';
@@ -28,13 +28,20 @@ export function installInputBehavior() {
     !target.closest('[hidden],[aria-hidden="true"],[inert]') &&
     getComputedStyle(target).visibility !== "hidden" &&
     target.getClientRects().length > 0;
-  function restoreOwners() {
+  function restoreOwners(keepFocus: Node | null = null) {
     for (const [owner, saved] of owners) {
+      if (
+        keepFocus &&
+        owner !== document.documentElement &&
+        owner !== document.body &&
+        owner.contains(keepFocus)
+      )
+        continue;
       owner.style.paddingBottom = saved.inline;
       owner.style.maxHeight = saved.maxHeight;
       owner.style.overflowY = saved.overflowY;
+      owners.delete(owner);
     }
-    owners.clear();
   }
   function cancelErrors() {
     submitted = null;
@@ -51,6 +58,9 @@ export function installInputBehavior() {
     pinned: HTMLElement | null = null,
     resultsTarget: HTMLElement | null = null;
   let submitTimer: ReturnType<typeof setTimeout> | undefined;
+  let restoreTimer: ReturnType<typeof setTimeout> | undefined;
+  let pointerActive = false,
+    restorePending = false;
   let disposed = false,
     settingFocus = false;
 
@@ -105,15 +115,26 @@ export function installInputBehavior() {
       owner.style.overflowY = saved.overflowY;
       const viewport = window.visualViewport;
       const ownerRect = owner.getBoundingClientRect();
-      const top = Math.max(root ? 0 : ownerRect.top, viewport?.offsetTop ?? 0);
+      const headerBottom = root
+        ? (document.querySelector("[data-app-header]")?.getBoundingClientRect().bottom ?? 0)
+        : 0;
+      const top = Math.max(root ? headerBottom : ownerRect.top, viewport?.offsetTop ?? 0);
       const visualBottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight);
       if (owner.matches('[role="dialog"],dialog,[data-input-overlay]')) {
         const existing = Number.parseFloat(getComputedStyle(owner).maxHeight);
         owner.style.maxHeight = `${Math.max(44, Math.min(Number.isFinite(existing) ? existing : Number.POSITIVE_INFINITY, visualBottom - top - 16))}px`;
         owner.style.overflowY = "auto";
       }
+      // Measure the natural viewport so auto-height overlays never count our padding twice.
+      const scrollTop = owner.scrollTop;
+      owner.style.paddingBottom = saved.inline;
+      const naturalClientHeight = owner.clientHeight;
+      const naturalHeight = owner.scrollHeight;
+      owner.style.paddingBottom = `${saved.base + saved.extra}px`;
+      owner.scrollTop = scrollTop;
       const availableControl = (control: HTMLElement) =>
-        isVisible(control) && !control.matches(':disabled,[aria-disabled="true"],[readonly]');
+        isVisible(control) &&
+        !control.matches(':disabled,[aria-disabled="true"],[readonly],[aria-readonly="true"]');
       const controls = [target, ...target.querySelectorAll<HTMLElement>(formControl)].filter(
         (control) => control.matches(formControl) && availableControl(control),
       );
@@ -125,7 +146,7 @@ export function installInputBehavior() {
         );
       const group =
         target.closest<HTMLElement>("[data-form-field]") ??
-        target.closest<HTMLElement>(".text-field,.search-field") ??
+        target.closest<HTMLElement>(".text-field,.search-field,.date-picker,.time-field") ??
         target;
       const fieldRect = (field ?? target).getBoundingClientRect(),
         groupRect = group.getBoundingClientRect();
@@ -138,8 +159,7 @@ export function installInputBehavior() {
         owner.scrollTop + (labelFits ? groupRect.top : fieldRect.top) - top - gap,
       );
       const delta = offset - owner.scrollTop;
-      const naturalHeight = owner.scrollHeight - saved.extra;
-      saved.extra = Math.max(0, offset + owner.clientHeight - naturalHeight);
+      saved.extra = Math.max(0, offset + naturalClientHeight - naturalHeight);
       owner.style.paddingBottom = `${saved.base + saved.extra}px`;
       fitResults(field ?? target, delta);
       if (typeof owner.scrollTo === "function")
@@ -187,13 +207,30 @@ export function installInputBehavior() {
       reveal(event.target);
     }
   }
-  function blur() {
+  function blur(event?: FocusEvent) {
     if (settingFocus) return;
     pinned = null;
     resultsTarget = null;
     version++;
     cancelAnimationFrame(frame);
-    restoreOwners();
+    if (pointerActive) restorePending = true;
+    else restoreOwners(event?.relatedTarget instanceof Node ? event.relatedTarget : null);
+  }
+  function pointerDown() {
+    cancelErrors();
+    pointerActive = true;
+    clearTimeout(restoreTimer);
+  }
+  function pointerEnd() {
+    pointerActive = false;
+    if (!restorePending) return;
+    // React Aria completes mouse presses on click, after pointerup.
+    clearTimeout(restoreTimer);
+    restoreTimer = setTimeout(() => {
+      if (disposed) return;
+      restorePending = false;
+      restoreOwners(document.activeElement);
+    }, 0);
   }
   function queueErrors(scope: HTMLElement | null) {
     cancelErrors();
@@ -281,7 +318,9 @@ export function installInputBehavior() {
   });
   document.addEventListener("focusin", focus);
   document.addEventListener("focusout", blur);
-  document.addEventListener("pointerdown", cancelErrors, true);
+  document.addEventListener("pointerdown", pointerDown, true);
+  document.addEventListener("pointerup", pointerEnd, true);
+  document.addEventListener("pointercancel", pointerEnd, true);
   document.addEventListener("touchstart", cancelErrors, { capture: true, passive: true });
   document.addEventListener("click", click, true);
   document.addEventListener("submit", submit, true);
@@ -293,17 +332,21 @@ export function installInputBehavior() {
   window.visualViewport?.addEventListener("resize", viewport);
   window.visualViewport?.addEventListener("scroll", viewport);
   window.addEventListener("resize", viewport);
+  window.addEventListener("blur", pointerEnd);
   viewport();
   return () => {
     disposed = true;
     version++;
     clearTimeout(submitTimer);
+    clearTimeout(restoreTimer);
     cancelAnimationFrame(frame);
     cancelAnimationFrame(resultsFrame);
     observer.disconnect();
     document.removeEventListener("focusin", focus);
     document.removeEventListener("focusout", blur);
-    document.removeEventListener("pointerdown", cancelErrors, true);
+    document.removeEventListener("pointerdown", pointerDown, true);
+    document.removeEventListener("pointerup", pointerEnd, true);
+    document.removeEventListener("pointercancel", pointerEnd, true);
     document.removeEventListener("touchstart", cancelErrors, true);
     document.removeEventListener("click", click, true);
     document.removeEventListener("submit", submit, true);
@@ -315,6 +358,7 @@ export function installInputBehavior() {
     window.visualViewport?.removeEventListener("resize", viewport);
     window.visualViewport?.removeEventListener("scroll", viewport);
     window.removeEventListener("resize", viewport);
+    window.removeEventListener("blur", pointerEnd);
     restoreOwners();
     for (const [target, original] of tabIndices) {
       if (original === null) target.removeAttribute("tabindex");

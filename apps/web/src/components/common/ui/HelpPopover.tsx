@@ -1,6 +1,6 @@
 "use client";
 
-import { Popover } from "@heroui/react";
+import { Button, Popover } from "@heroui/react";
 import { CircleHelp, type LucideIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 
@@ -38,12 +38,6 @@ export function HelpPopover({
     accent: "text-accent-soft-foreground",
     danger: "text-danger-soft-foreground",
   };
-  const variants = {
-    ghost: "button--ghost",
-    primary: "button--primary",
-    "danger-soft": "button--danger-soft",
-    danger: "button--danger",
-  };
   const color =
     triggerVariant === "primary"
       ? "text-accent-foreground"
@@ -66,9 +60,13 @@ export function HelpPopover({
   );
   return (
     <Popover onOpenChange={onOpenChange}>
-      <Popover.Trigger
+      <Button
+        slot={null}
+        isIconOnly
+        size="sm"
+        variant={size === "compact" ? "ghost" : triggerVariant}
         aria-label={label}
-        className={`button button--sm button--icon-only ${variants[size === "compact" ? "ghost" : triggerVariant]} relative inline-flex min-h-11 min-w-11 items-center justify-center ${color} ${size === "compact" ? "p-0" : triggerClassName}`}
+        className={`relative min-h-11 min-w-11 ${color} ${size === "compact" ? "p-0" : triggerClassName}`}
       >
         {size === "compact" ? (
           <span
@@ -79,7 +77,7 @@ export function HelpPopover({
         ) : (
           symbol
         )}
-      </Popover.Trigger>
+      </Button>
       <Popover.Content placement={placement} className={className}>
         <Popover.Dialog
           aria-label={title ? undefined : label}

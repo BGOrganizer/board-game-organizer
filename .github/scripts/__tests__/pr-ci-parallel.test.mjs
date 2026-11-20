@@ -82,7 +82,34 @@ test("APK builds overlap but embed separate isolated and development Preview URL
   );
   assert.match(
     step("deploy-development-web", "🚀 Deploy Web against Development API").with["extra-env"],
-    /needs\.deploy-development-api\.outputs\.branch-url/,
+    /NEXT_PUBLIC_API_URL=\$\{\{ needs\.deploy-development-api\.outputs\.url \}\}/,
+  );
+});
+
+test("Development web reaches its attested API before APK publication activates an alias", () => {
+  const web = jobs["deploy-development-web"];
+  assert.deepEqual(web.needs, ["context", "build-web", "deploy-development-api"]);
+  const overrides = step("deploy-development-web", "🚀 Deploy Web against Development API")
+    .with["extra-env"].trim()
+    .split("\n");
+  assert.deepEqual(overrides, [
+    `NEXT_PUBLIC_API_URL=\${{ needs.deploy-development-api.outputs.url }}`,
+    `NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=\${{ secrets.VERCEL_PROTECTION_BYPASS }}`,
+  ]);
+  const prerequisites = new Set();
+  const visit = (id) => {
+    if (prerequisites.has(id)) return;
+    prerequisites.add(id);
+    for (const dependency of jobs[id].needs ?? []) visit(dependency);
+  };
+  visit("deploy-development-web");
+  for (const gate of [...quality, "build-web"]) assert(prerequisites.has(gate), gate);
+  for (const independent of ["build-mobile-development", "draft-release", "build-mobile-internal"])
+    assert(!prerequisites.has(independent), independent);
+  assert(
+    jobs["deploy-development-api"].steps.some(
+      (item) => item.name === "🔒 Attest non-CI development database",
+    ),
   );
 });
 

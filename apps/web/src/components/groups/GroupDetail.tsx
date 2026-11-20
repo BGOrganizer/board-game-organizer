@@ -26,7 +26,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { floatingActionContentStyle } from "@/components/common/layout/floatingActionStyles";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
-import { headerButtonProps } from "@/components/common/layout/headerStyles";
+import {
+  HEADER_ICON_CLASS,
+  headerButtonProps,
+  headerControlClassName,
+} from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { TabBar } from "@/components/common/ui/TabBar";
@@ -78,13 +82,23 @@ export function GroupDetail({
   const canDelete = group?.role === "admin";
   const failure =
     confirm === "delete" ? t`Could not delete group` : t`Could not update group membership`;
+  const back = (
+    <Link href="/groups" aria-label={t`Back`} className={headerControlClassName}>
+      <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+    </Link>
+  );
   if (!group)
-    return q.isPending ? (
-      <Skeleton className="h-40 w-full rounded-xl" />
-    ) : (
-      <div role="alert">
-        <p className="text-danger">{t`Could not load group details`}</p>
-        <Button variant="outline" onPress={() => void q.refetch()}>{t`Try again`}</Button>
+    return (
+      <div className="space-y-4">
+        <HeaderActions back={back} />
+        {q.isPending ? (
+          <Skeleton className="h-40 w-full rounded-xl" />
+        ) : (
+          <div role="alert">
+            <p className="text-danger">{t`Could not load group details`}</p>
+            <Button variant="outline" onPress={() => void q.refetch()}>{t`Try again`}</Button>
+          </div>
+        )}
       </div>
     );
   const run = (action: "request" | "accept" | "decline" | "cancel" | "delete") => {
@@ -123,11 +137,11 @@ export function GroupDetail({
       ]}
     >
       <div
-        className="space-y-5"
+        className="space-y-4"
         style={group.canEdit && tab === "info" ? floatingActionContentStyle : undefined}
       >
-        {canDelete || group.myMembership?.status === "ACCEPTED" ? (
-          <HeaderActions>
+        <HeaderActions back={back}>
+          {canDelete || group.myMembership?.status === "ACCEPTED" ? (
             <Button
               {...headerButtonProps}
               variant="danger"
@@ -144,12 +158,8 @@ export function GroupDetail({
                 <LogOut className="size-5" aria-hidden="true" />
               )}
             </Button>
-          </HeaderActions>
-        ) : null}
-        <Link href="/groups" className="inline-flex items-center gap-2 text-link">
-          <ArrowLeft className="size-4" />
-          {t`Back`}
-        </Link>
+          ) : null}
+        </HeaderActions>
         {error ? (
           <p role="alert" className="text-danger">
             {failure}

@@ -58,13 +58,12 @@ for (const width of [390, 1280]) {
 async function assertScrollableEnd(page: Page, last: Locator, fabLabel?: string) {
   const region = page.locator("#tab-content-scroll");
   await last.scrollIntoViewIfNeeded();
-  await region.evaluate((element) => {
-    element.scrollTop = element.scrollHeight;
-  });
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect(last).toBeVisible();
-  expect(await region.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  expect(await region.evaluate((element) => element.scrollTop)).toBe(0);
   const bounds = await last.boundingBox();
-  const viewport = await region.boundingBox();
+  const viewport = await page.evaluate(() => ({ y: 0, height: window.innerHeight }));
   expect(bounds).not.toBeNull();
   expect(viewport).not.toBeNull();
   if (!bounds || !viewport) throw new Error("Missing scroll geometry");

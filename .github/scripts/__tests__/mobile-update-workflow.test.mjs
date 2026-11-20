@@ -64,7 +64,7 @@ test("only trusted Development publication and pinned Production release publish
   );
 });
 
-test("Development producers consume a stable non-CI URL, assigning it only after publication gates", () => {
+test("Development APK uses its gated alias while web uses the ready immutable non-CI API", () => {
   const api = pr.jobs["deploy-development-api"];
   assert.equal(api.outputs.url, expression("steps.deploy.outputs.deployment-url"));
   assert.equal(api.outputs["branch-url"], expression("steps.client-url.outputs.url"));
@@ -77,7 +77,7 @@ test("Development producers consume a stable non-CI URL, assigning it only after
   assert.equal(find(web, "🔗 Restore PR branch metadata").run, 'git switch -C "$GITHUB_HEAD_REF"');
   assert.match(
     find(web, "🚀 Deploy Web against Development API").with["extra-env"],
-    /needs\.deploy-development-api\.outputs\.branch-url/,
+    /NEXT_PUBLIC_API_URL=\$\{\{ needs\.deploy-development-api\.outputs\.url \}\}/,
   );
   const publication = pr.jobs["draft-release"];
   const alias = find(publication, "🔗 Activate Development API after smoke and current PR checks");

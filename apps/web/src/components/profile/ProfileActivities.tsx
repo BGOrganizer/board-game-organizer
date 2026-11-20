@@ -8,8 +8,11 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Activity } from "lucide-react";
+import { Activity, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { ActivityTypeSelect } from "@/components/activities/ActivityTypeSelect";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerControlClassName } from "@/components/common/layout/headerStyles";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -31,6 +34,17 @@ export function ProfileActivities({ userId }: { userId: string }) {
   const rows = denied ? [] : q.items;
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 p-5 pb-24">
+      <HeaderActions
+        back={
+          <Link
+            href={userId === o.userId ? "/profile" : `/profiles/${encodeURIComponent(userId)}`}
+            aria-label={t`Back`}
+            className={headerControlClassName}
+          >
+            <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+          </Link>
+        }
+      />
       <h1 className="text-lg font-semibold">{t`Activities`}</h1>
       <ActivityTypeSelect
         value={kind}

@@ -14,6 +14,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { enterDateTime } from "@/test-fixtures/dateTime";
 import { plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventCard } from "../EventCard";
@@ -103,7 +104,7 @@ function setup() {
 function review(ui: ReturnType<typeof renderWithI18n>, name: string) {
   fireEvent.change(ui.getByRole("textbox", { name: "Event name" }), { target: { value: name } });
   fireEvent.click(ui.getByRole("button", { name: "Next" }));
-  fireEvent.change(ui.getByLabelText("Date and time"), { target: { value: "2030-06-03T20:00" } });
+  enterDateTime(ui.getByRole("group", { name: "Date and time" }), "2030-06-03T20:00");
   fireEvent.click(ui.getByRole("button", { name: "Add date" }));
   fireEvent.click(ui.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(ui.getByRole("button", { name: "Choose verified location" }));

@@ -17,6 +17,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
+import { enterDateTime, readDateTime } from "@/test-fixtures/dateTime";
 import { optionId, plannedEvent, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventProposalSection } from "../EventProposalSection";
@@ -358,37 +359,52 @@ it("closes a private manager decision when authority is revoked and switches to 
   expect(reviews).toHaveLength(0);
 });
 
-it("keeps inline sending as local intent, coalesces repeated taps and clears it only after an authoritative creation receipt", async () => {
-  let finish: (response: Response) => void = () => {};
-  pendingSubmit = new Promise((resolve) => {
-    finish = resolve;
-  });
-  serverRows = [];
-  mount(participant);
-  const input = screen.getByLabelText("Date and time");
-  fireEvent.change(input, { target: { value: "2030-06-05T21:00" } });
-  const add = screen.getByRole("button", { name: "Add date" });
-  fireEvent.click(add);
-  fireEvent.click(add);
-  expect(await screen.findByText("Sending proposal")).toBeVisible();
-  expect(submissions).toHaveLength(1);
-  expect(client.getQueryData<EventProposalsResponse>(key("mine"))?.items).toEqual([]);
-  expect(boundary.push).not.toHaveBeenCalled();
-  pendingSubmit = undefined;
-  await act(async () => finish(submitReceipt(submissions[0])));
-  await waitFor(() => expect(screen.queryByText("Sending proposal")).toBeNull());
-  expect(client.getQueryData<EventProposalsResponse>(key("mine"))?.items).toHaveLength(1);
-  expect(await screen.findByLabelText("Date and time")).toHaveValue("");
-});
+it.each(["keyboard", "popover"])(
+  "keeps inline %s sending as local intent, coalesces repeated taps and clears it only after an authoritative creation receipt",
+  async (entry) => {
+    let finish: (response: Response) => void = () => {};
+    pendingSubmit = new Promise((resolve) => {
+      finish = resolve;
+    });
+    serverRows = [];
+    mount(participant);
+    const input = screen.getByRole("group", { name: "Date and time" });
+    enterDateTime(input, "2030-06-05T21:00");
+    let add = screen.getByRole("button", { name: "Add date" });
+    if (entry === "popover") {
+      fireEvent.click(within(input).getByRole("button"));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.click(within(within(dialog).getByRole("grid")).getByText("16", { exact: true }));
+      enterDateTime(within(dialog).getByRole("group", { name: "Time" }), "22:15");
+      add = within(dialog).getByRole("button", { name: "Done" });
+      expect(submissions).toHaveLength(0);
+    }
+    fireEvent.click(add);
+    fireEvent.click(add);
+    expect(await screen.findByText("Sending proposal")).toBeVisible();
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0].payload).toEqual({
+      kind: "date",
+      day: entry === "popover" ? "2030-06-16" : "2030-06-05",
+      startTime: entry === "popover" ? "22:15" : "21:00",
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(client.getQueryData<EventProposalsResponse>(key("mine"))?.items).toEqual([]);
+    expect(boundary.push).not.toHaveBeenCalled();
+    pendingSubmit = undefined;
+    await act(async () => finish(submitReceipt(submissions[0])));
+    await waitFor(() => expect(screen.queryByText("Sending proposal")).toBeNull());
+    expect(client.getQueryData<EventProposalsResponse>(key("mine"))?.items).toHaveLength(1);
+    expect(readDateTime(await screen.findByRole("group", { name: "Date and time" }))).toBe("");
+  },
+);
 
 it("resets the inline date draft on a fresh event revision and keeps cached manager controls disabled during parent work", () => {
   serverRows = [];
   const view = mount(participant);
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-05T21:00" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-05T21:00");
   view.rerender(<Fixture event={{ ...participant, version: 2 }} />);
-  expect(screen.getByLabelText("Date and time")).toHaveValue("");
+  expect(readDateTime(screen.getByRole("group", { name: "Date and time" }))).toBe("");
   expect(screen.getByRole("button", { name: "Add date" })).toBeDisabled();
   serverRows = [proposal];
   client.setQueryData(key(), page());

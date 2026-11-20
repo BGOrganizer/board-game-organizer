@@ -27,11 +27,9 @@ export function Community() {
         <TabBar label={t`Community navigation`}>
           <TabTrigger icon={Activity} id="activity">
             {t`Activities`}
-            <Tabs.Indicator />
           </TabTrigger>
           <TabTrigger icon={Store} id="market">
             {t`Marketplace`}
-            <Tabs.Indicator />
           </TabTrigger>
         </TabBar>
         <Tabs.Panel id="activity" className="pt-0">

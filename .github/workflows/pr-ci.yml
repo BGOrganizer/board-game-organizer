@@ -1137,7 +1137,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
           extra-env: |
-            NEXT_PUBLIC_API_URL=${{ needs.deploy-development-api.outputs.branch-url }}
+            NEXT_PUBLIC_API_URL=${{ needs.deploy-development-api.outputs.url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
   build-mobile-development:

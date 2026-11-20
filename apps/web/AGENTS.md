@@ -12,6 +12,13 @@ and [Community](../../docs/community.md). Do not repeat page titles inside tab c
 Use `@heroui/react` and Tailwind CSS; icons use `lucide-react` only. Browser-owned components
 remain in this app.
 
+The document owns page scrolling beneath the sticky main navigation, including game collections
+and picker pages. Use the existing document WindowedList for large lists; keep internal scrolling
+inside popups and selects. Put icon-only Back on the left and contextual actions on the right in
+the page's inline HeaderActions row, preserving draft/close handlers. The global header owns only
+main navigation, notifications, Profile and authorized moderation controls. Root-owned focus reveal
+must account for the actual sticky header height.
+
 HeroUI v3 uses React Aria composition:
 
 - Do not use obsolete `startContent`, `endContent`, `flat`, `light`, or `solid` APIs.
@@ -25,8 +32,8 @@ HeroUI v3 uses React Aria composition:
 HeroUI dark mode is class-based. `ThemeScript` bootstraps before hydration, then synchronizes the
 root class and `data-theme` with the existing system/light/dark preference and live OS changes.
 Clerk web appearance, custom surfaces, hints, focus rings, backdrops and shadows consume HeroUI
-variables too. Compact action foreground overrides remain centralized in global CSS and use
-HeroUI's contrast primitives; preserve readable text/icon contrast when changing theme pairs.
+variables too. Global CSS imports the standard HeroUI theme; keep application-specific row layout
+in reusable components rather than globally overriding control geometry or colors.
 
 Read `NEXT_PUBLIC_*` variables inside this app and pass them to workspace helpers; Next.js does
 not reliably inline those environment reads from shared package source. Apply cache-first navigation without a web splash.

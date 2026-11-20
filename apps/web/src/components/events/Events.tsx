@@ -38,17 +38,14 @@ export function Events({
           <TabTrigger icon={CalendarCheck} id="mine">
             {t`Scheduled`}
             <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
-            <Tabs.Indicator />
           </TabTrigger>
           <TabTrigger icon={CalendarSearch} id="available">
             {t`Available events`}
             <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
-            <Tabs.Indicator />
           </TabTrigger>
           <TabTrigger icon={Flag} id="terminated">
             {t`Terminated events`}
             <NotificationTabBadge target={{ kind: "event-list", id: "terminated" }} />
-            <Tabs.Indicator />
           </TabTrigger>
         </TabBar>
         <Tabs.Panel id="mine" className="pt-0">

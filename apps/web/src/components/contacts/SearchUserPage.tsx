@@ -14,10 +14,9 @@ import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
-import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRelationshipBadge } from "@/components/common/ui/UserRelationshipBadge";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 
@@ -177,36 +176,33 @@ export function SearchUserPage({
         )}
       <GroupedList className="mt-3">
         {shown.map((u) => (
-          <GroupedRow key={u.id}>
-            <UserAvatar
-              name={u.name}
-              avatarUrl={u.avatarUrl}
-              size="md"
-              badge={hasContactRelationship(u) ? <UserRelationshipBadge user={u} /> : undefined}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{u.name}</p>
-              <p className="truncate text-xs text-muted">{formatUsername(u.username, "")}</p>
-            </div>
-            <Button
-              isIconOnly
-              className="shrink-0"
-              size="sm"
-              variant="primary"
-              aria-label={`${t`Add`}: ${u.name}`}
-              onPress={() =>
-                onSelect({
-                  id: u.id,
-                  name: u.name,
-                  username: u.username,
-                  email: u.email,
-                  avatarUrl: u.avatarUrl,
-                })
-              }
-            >
-              <UserPlus className="h-4 w-4" />
-            </Button>
-          </GroupedRow>
+          <UserListRow
+            key={u.id}
+            name={u.name}
+            avatarUrl={u.avatarUrl}
+            secondary={formatUsername(u.username, "")}
+            badge={hasContactRelationship(u) ? <UserRelationshipBadge user={u} /> : undefined}
+            actions={
+              <Button
+                isIconOnly
+                className="min-h-11 min-w-11 shrink-0 sm:min-h-0 sm:min-w-0"
+                size="sm"
+                variant="primary"
+                aria-label={`${t`Add`}: ${u.name}`}
+                onPress={() =>
+                  onSelect({
+                    id: u.id,
+                    name: u.name,
+                    username: u.username,
+                    email: u.email,
+                    avatarUrl: u.avatarUrl,
+                  })
+                }
+              >
+                <UserPlus className="h-4 w-4" />
+              </Button>
+            }
+          />
         ))}
       </GroupedList>
       {!members && query.trim().length < 4 && (

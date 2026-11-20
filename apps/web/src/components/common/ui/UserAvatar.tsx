@@ -2,7 +2,7 @@
 
 import { Avatar } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 export function UserAvatar({
   name,
@@ -11,6 +11,7 @@ export function UserAvatar({
   online,
   badge,
   topBadge,
+  style,
 }: {
   name: string;
   avatarUrl?: string | null;
@@ -18,6 +19,7 @@ export function UserAvatar({
   online?: boolean;
   badge?: ReactNode;
   topBadge?: ReactNode;
+  style?: CSSProperties;
 }) {
   const { t } = useLingui();
   const pixels = { sm: 32, md: 40, lg: 48 }[size];
@@ -30,11 +32,12 @@ export function UserAvatar({
         marginRight: badge || topBadge ? 12 : 0,
         marginTop: dual ? (64 - pixels) / 2 : topBadge ? 12 : 0,
         marginBottom: dual ? (64 - pixels) / 2 : badge ? 12 : 0,
+        ...style,
       }}
     >
       <Avatar size={size} className="z-0">
         <Avatar.Image src={avatarUrl ?? undefined} alt="" />
-        <Avatar.Fallback>{name.replace(/^@/, "").slice(0, 2)}</Avatar.Fallback>
+        <Avatar.Fallback>{name.replace(/^@/, "").slice(0, 2) || "?"}</Avatar.Fallback>
       </Avatar>
       {online !== undefined ? (
         <span
@@ -45,12 +48,18 @@ export function UserAvatar({
         />
       ) : null}
       {badge ? (
-        <span className="absolute z-20" style={{ right: -20, bottom: offset }}>
+        <span
+          className="absolute z-20 flex size-11 items-center justify-center"
+          style={{ right: -20, bottom: offset }}
+        >
           {badge}
         </span>
       ) : null}
       {topBadge ? (
-        <span className="absolute z-20" style={{ right: -20, top: offset }}>
+        <span
+          className="absolute z-20 flex size-11 items-center justify-center"
+          style={{ right: -20, top: offset }}
+        >
           {topBadge}
         </span>
       ) : null}

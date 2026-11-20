@@ -1,7 +1,7 @@
-import { useBggCollectionFilters } from "@board-game-organizer/shared";
+import { bggCollectionQuery, useBggCollectionFilters } from "@board-game-organizer/shared";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import { ProfileCollection } from "../ProfileCollection";
 
@@ -20,7 +20,7 @@ const items = [
     year: 2020,
     average: 6,
     rank: 2,
-    source: "collection",
+    source: "collection" as const,
     userRating: 8.5,
     isExpansion: false,
     wishlist: false,
@@ -32,28 +32,20 @@ const items = [
     year: null,
     average: null,
     rank: null,
-    source: "collection",
+    source: "collection" as const,
     userRating: null,
     isExpansion: true,
     wishlist: true,
   },
 ];
+function collectionRow(name: string) {
+  const row = screen.getByText(name, { exact: true }).closest("li");
+  if (!row) throw new Error(`Missing collection row: ${name}`);
+  return row;
+}
 let failed: boolean, legacy: boolean;
 let fetch: ReturnType<typeof vi.fn>;
 beforeEach(() => {
-  installBrowserIntersections();
-  // jsdom geometry only: keep the actual RAC Virtualizer on a finite viewport,
-  // including its real layout/row lifecycle rather than its unbounded test fallback.
-  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (
-    this: HTMLElement,
-  ) {
-    return this.matches("[data-input-results]") ? 390 : 0;
-  });
-  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (
-    this: HTMLElement,
-  ) {
-    return this.matches("[data-input-results]") ? 480 : 0;
-  });
   failed = legacy = false;
   fetch = vi.fn(async (url: string) => {
     if (failed) return Response.json({ error: "unavailable" }, { status: 503 });
@@ -117,11 +109,11 @@ it("covers every type combination, toggle direction and common eligibility witho
 });
 it("keeps search/chips on blur and empty results, clears only text, and combines source filters without changing snapshot totals", async () => {
   renderWithI18n(<ProfileCollection snapshot="snapshot" />);
-  await screen.findByRole("option", { name: /Chess/ });
+  await screen.findByText("Chess");
   fireEvent.click(screen.getByRole("button", { name: "Expansions" }));
-  await waitFor(() => expect(screen.queryByRole("option", { name: /Expansion/ })).toBeNull());
+  await waitFor(() => expect(screen.queryByText("Expansion", { exact: true })).toBeNull());
   fireEvent.click(screen.getByRole("button", { name: "Wishlist" }));
-  await screen.findByRole("option", { name: /Expansion/ });
+  await screen.findByText("Expansion");
   const input = screen.getByRole("searchbox", { name: "Filter collection" });
   fireEvent.focus(input);
   fireEvent.change(input, { target: { value: "missing" } });
@@ -152,7 +144,7 @@ it("keeps search/chips on blur and empty results, clears only text, and combines
     ).toBe(true),
   );
   fireEvent.click(screen.getByRole("button", { name: "Expansions" }));
-  await screen.findByRole("option", { name: /Expansion/ });
+  await screen.findByText("Expansion");
   expect(screen.getByText("Games including expansions").parentElement?.textContent).toContain("2");
   expect(screen.queryByRole("button", { name: "Load more games" })).toBeNull();
 });
@@ -173,20 +165,20 @@ it("disables common without viewer synchronization, otherwise pins viewer and su
       ),
     ).toBe(true),
   );
-  await waitFor(() => expect(screen.queryByRole("option", { name: /Expansion/ })).toBeNull());
-  expect(screen.getByRole("option", { name: /Chess/ })).toBeTruthy();
+  await waitFor(() => expect(screen.queryByText("Expansion", { exact: true })).toBeNull());
+  expect(collectionRow("Chess")).toBeTruthy();
 });
 it("renders global snapshot counters before filter, personal votes/N/A in place of selection controls", async () => {
   renderWithI18n(<ProfileCollection snapshot="snapshot" />);
-  await screen.findByRole("option", { name: /Chess/ });
+  await screen.findByText("Chess");
   expect(
-    within(screen.getByRole("option", { name: /Chess/ }))
+    within(collectionRow("Chess"))
       .getByLabelText("Personal BGG rating: 8.5")
       .getAttribute("aria-label"),
   ).toContain("Personal BGG rating: 8.5");
   expect(screen.getByLabelText("Personal BGG rating: 8.5").className).toContain("chip--accent");
   expect(
-    within(screen.getByRole("option", { name: /Expansion/ }))
+    within(collectionRow("Expansion"))
       .getByLabelText("Personal BGG rating: N/A")
       .getAttribute("aria-label"),
   ).toContain("Personal BGG rating: N/A");
@@ -199,7 +191,7 @@ it("renders global snapshot counters before filter, personal votes/N/A in place 
   );
   expect(screen.getAllByText("Wishlist")).toHaveLength(2);
   expect(screen.queryByRole("button", { name: "Load more games" })).toBeNull();
-  expect(within(screen.getByRole("option", { name: /Chess/ })).queryByText("8.5")).not.toBeNull();
+  expect(within(collectionRow("Chess")).queryByText("8.5")).not.toBeNull();
   fireEvent.change(screen.getByRole("searchbox", { name: "Filter collection" }), {
     target: { value: "c" },
   });
@@ -208,10 +200,10 @@ it("renders global snapshot counters before filter, personal votes/N/A in place 
       true,
     ),
   );
-  await waitFor(() => expect(screen.queryByRole("option", { name: /Expansion/ })).toBeNull());
+  await waitFor(() => expect(screen.queryByText("Expansion", { exact: true })).toBeNull());
   expect(screen.getByText("Games including expansions").parentElement?.textContent).toContain("2");
   fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
-  await screen.findByRole("option", { name: /Expansion/ });
+  await screen.findByText("Expansion");
   expect(fetch.mock.calls.every(([url]) => String(url).includes("/bgg/collection?"))).toBe(true);
 });
 it("does not confuse missing legacy totals with zero and requests an explicit new sync", async () => {
@@ -223,7 +215,7 @@ it("does not confuse missing legacy totals with zero and requests an explicit ne
 });
 it("keeps empty and network-error paths distinct", async () => {
   renderWithI18n(<ProfileCollection snapshot="snapshot" />);
-  await screen.findByRole("option", { name: /Chess/ });
+  await screen.findByText("Chess");
   fireEvent.change(screen.getByRole("searchbox", { name: "Filter collection" }), {
     target: { value: "not-matching" },
   });
@@ -237,4 +229,66 @@ it("keeps empty and network-error paths distinct", async () => {
   failed = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await screen.findByText("No games found");
+});
+
+it("reveals retained pages on document interaction, resets the entry budget, and isolates a changed snapshot", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const options = {
+    apiUrl: "https://api.test",
+    userId: "owner",
+    getToken: async () => "fresh",
+    snapshot: "snapshot",
+    query: "",
+    types: "all" as const,
+  };
+  const key = bggCollectionQuery(options).queryKey;
+  const first = {
+    snapshot: "snapshot",
+    counts: { withoutExpansions: 1, withExpansions: 2, wishlist: 1 },
+    items: [items[0]],
+    nextCursor: "next",
+  };
+  client.setQueryData(key, {
+    pages: [first, { ...first, items: [items[1]], nextCursor: null }],
+    pageParams: ["", "next"],
+  });
+  const mount = (snapshot: string) => (
+    <QueryClientProvider client={client}>
+      <ProfileCollection snapshot={snapshot} />
+    </QueryClientProvider>
+  );
+  const view = renderWithI18n(mount("snapshot"));
+  await screen.findByText("Chess");
+  expect(screen.queryByText("Expansion", { exact: true })).toBeNull();
+  const list = screen.getByRole("list", { name: "Collection games" });
+  expect(list.style.overflowY).toBe("");
+  fireEvent.wheel(window);
+  await screen.findByText("Expansion");
+  expect(fetch).not.toHaveBeenCalled();
+  expect(client.getQueryData(key)).toMatchObject({ pages: [first, { items: [items[1]] }] });
+  view.rerender(<p>Closed</p>);
+  view.rerender(mount("snapshot"));
+  await screen.findByText("Chess");
+  expect(screen.queryByText("Expansion", { exact: true })).toBeNull();
+  const nextKey = bggCollectionQuery({ ...options, snapshot: "new-snapshot" }).queryKey;
+  client.setQueryData(nextKey, {
+    pages: [
+      {
+        ...first,
+        snapshot: "new-snapshot",
+        items: [{ ...items[0], name: "New source game" }],
+        nextCursor: null,
+      },
+    ],
+    pageParams: [""],
+  });
+  view.rerender(mount("new-snapshot"));
+  await screen.findByText("New source game");
+  expect(screen.queryByText("Chess", { exact: true })).toBeNull();
+  expect(screen.queryByText("Expansion", { exact: true })).toBeNull();
+  fireEvent.wheel(window);
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 30));
+  });
+  expect(fetch).not.toHaveBeenCalled();
 });

@@ -7,9 +7,10 @@ import type {
 import { submitEventProposalSchema } from "@board-game-organizer/schemas";
 import { clearSessionQueryCache, eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
+import { enterDateTime, readDateTime } from "@/test-fixtures/dateTime";
 import { optionId, plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventProposalEditor } from "../EventProposalEditor";
@@ -191,6 +192,9 @@ it("keeps uncached loading distinct from eligibility denial and retries an autho
     finish = resolve;
   });
   mount("date", { seed: false });
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back).toBeVisible();
+  expect(back.textContent).toBe("");
   expect(screen.queryByText(deniedMessage)).toBeNull();
   expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
   await act(async () => finish(Response.json({ error: "Forbidden" }, { status: 403 })));
@@ -198,7 +202,10 @@ it("keeps uncached loading distinct from eligibility denial and retries an autho
   expect(screen.queryByLabelText("Choose date and time")).toBeNull();
   pendingEvent = undefined;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByLabelText("Choose date and time")).toBeEnabled();
+  expect(await screen.findByRole("group", { name: "Choose date and time" })).not.toHaveAttribute(
+    "data-disabled",
+    "true",
+  );
   expect(writes).toHaveLength(0);
 });
 
@@ -209,7 +216,9 @@ it.each([
   mount(kind, { tableId });
   expect(screen.getByText(deniedMessage)).toBeVisible();
   expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back.textContent).toBe("");
+  fireEvent.click(back);
   expect(boundary.back).toHaveBeenCalledOnce();
   expect(writes).toHaveLength(0);
 });
@@ -228,10 +237,15 @@ it("validates an empty date attempt then sends one explicitly chosen proposal an
   expect(screen.getByText("Choose a valid date and time.")).toBeVisible();
   expect(boundary.back).not.toHaveBeenCalled();
   expect(writes).toHaveLength(0);
-  fireEvent.change(screen.getByLabelText("Choose date and time"), {
-    target: { value: "2030-06-04T19:15" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Choose date and time" }), "2030-06-04T19:15");
   expect(screen.queryByText("Choose a valid date and time.")).toBeNull();
+  fireEvent.click(
+    within(screen.getByRole("group", { name: "Choose date and time" })).getByRole("button"),
+  );
+  const picker = await screen.findByRole("dialog", { name: "Choose date and time" });
+  fireEvent.click(within(picker).getByRole("button", { name: "Done" }));
+  expect(writes).toHaveLength(0);
+  expect(boundary.back).not.toHaveBeenCalled();
   fireEvent.click(send);
   fireEvent.click(send);
   await waitFor(() => expect(writes).toHaveLength(1));
@@ -245,9 +259,7 @@ it("validates an empty date attempt then sends one explicitly chosen proposal an
 
 it("reacts to an authoritative eligibility change without replacing the current user's unsaved date choice", async () => {
   mount("date");
-  fireEvent.change(screen.getByLabelText("Choose date and time"), {
-    target: { value: "2030-06-04T19:15" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Choose date and time" }), "2030-06-04T19:15");
   await act(async () =>
     client.setQueryData(eventRecordKeys.detail(options, event.id), {
       ...event,
@@ -260,7 +272,9 @@ it("reacts to an authoritative eligibility change without replacing the current 
   await act(async () =>
     client.setQueryData(eventRecordKeys.detail(options, event.id), { ...event, version: 3 }),
   );
-  expect(await screen.findByLabelText("Choose date and time")).toHaveValue("2030-06-04T19:15");
+  expect(readDateTime(await screen.findByRole("group", { name: "Choose date and time" }))).toBe(
+    "2030-06-04T19:15",
+  );
   fireEvent.click(screen.getByRole("button", { name: "Send proposal" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0].eventVersion).toBe(3);
@@ -273,8 +287,8 @@ it("uses the actual game picker with proposal authorization, excludes current op
   fireEvent.change(screen.getByRole("searchbox", { name: "Search board games" }), {
     target: { value: "strategy" },
   });
-  const choice = await screen.findByRole("option", { name: "Select: New strategy game" });
-  expect(screen.queryByRole("option", { name: "Select: Chess" })).toBeNull();
+  const choice = await screen.findByRole("button", { name: "Select: New strategy game" });
+  expect(screen.queryByRole("button", { name: "Select: Chess" })).toBeNull();
   expect(writes).toHaveLength(0);
   const request = reads.find((url) => url.pathname.endsWith("/bgg/picker"));
   expect(request?.searchParams.get("proposalEventId")).toBe(event.id);

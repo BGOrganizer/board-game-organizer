@@ -188,12 +188,20 @@ export function TableScoreEditor({
     );
   };
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-5 pb-28">
-      <section
-        aria-label={t`Live standings`}
-        className="space-y-3 overflow-y-auto"
-        style={{ height: Math.min(360, players.length * 72 + 72) }}
+    <div className="mx-auto w-full max-w-4xl space-y-5">
+      <Switch
+        isSelected={lowerWins}
+        isDisabled={busy}
+        onChange={(value) => animate(() => setLowerWins(value))}
       >
+        <Switch.Content>
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+          {t`Lowest score wins`}
+        </Switch.Content>
+      </Switch>
+      <section aria-label={t`Live standings`} className="space-y-3">
         <h2 className="font-semibold">{t`Live standings`}</h2>
         {groups.map((score) => {
           const tied = preview.ranked.filter((entry) => entry.score === score);
@@ -354,20 +362,9 @@ export function TableScoreEditor({
           <p className="text-sm text-muted">{t`Enter a score for every frozen player or mark them as not participating. An all-ND table changes no ratings or statistics.`}</p>
         )}
       </section>
-      <Switch
-        isSelected={lowerWins}
-        isDisabled={busy}
-        onChange={(value) => animate(() => setLowerWins(value))}
-      >
-        <Switch.Content>
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-          {t`Lowest score wins`}
-        </Switch.Content>
-      </Switch>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background p-4 text-center">
+      <footer className="pt-4">
         <Button
+          fullWidth
           isDisabled={busy || Boolean(editingTie) || Boolean(scoreEditor) || !players.length}
           onPress={() => {
             if (busy || editingTie || scoreEditor) return;
@@ -387,7 +384,7 @@ export function TableScoreEditor({
         >
           {t`Save result`}
         </Button>
-      </div>
+      </footer>
       {confirm && (
         <ContactConfirmDialog
           title={t`Save result?`}

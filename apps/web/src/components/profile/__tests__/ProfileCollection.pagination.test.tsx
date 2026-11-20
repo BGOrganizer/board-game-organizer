@@ -3,7 +3,6 @@ import { bggCollectionQuery } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import { ProfileCollection } from "../ProfileCollection";
 
@@ -34,7 +33,6 @@ const page = (
   snapshot = "snapshot-one",
 ): BggCollectionResponse => ({ snapshot, counts, items, nextCursor });
 let client: QueryClient;
-let visibility: ReturnType<typeof installBrowserIntersections>;
 let status: number;
 let pageStatus: number;
 let pending: Promise<Response> | undefined;
@@ -58,7 +56,6 @@ beforeEach(() => {
   pending = undefined;
   reads.length = 0;
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
-  visibility = installBrowserIntersections();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
@@ -96,12 +93,20 @@ function mount(snapshot = "snapshot-one", subjectId?: string) {
     </QueryClientProvider>,
   );
 }
+async function documentFrame() {
+  await act(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+}
 async function reachEnd() {
-  await waitFor(() => expect(visibility.observedTargetCount).toBeGreaterThan(0));
-  act(() => visibility.intersect());
+  const list = await screen.findByRole("list", { name: "Collection games" });
+  expect(list.style.overflowY).toBe("");
+  fireEvent.wheel(window);
+  fireEvent.scroll(window);
+  await documentFrame();
 }
 
-it("reveals retained canonical pages once despite duplicate intersection events and never refetches them", async () => {
+it("reveals retained canonical pages once despite duplicate document scroll events and never refetches them", async () => {
   const key = query().queryKey;
   const cached = {
     pages: [page([game(1)], "next-page"), page([game(2)])],
@@ -109,23 +114,24 @@ it("reveals retained canonical pages once despite duplicate intersection events 
   };
   client.setQueryData(key, cached);
   mount();
-  expect(await screen.findByRole("option", { name: /^Collection game 1(?:\s|$)/ })).toBeVisible();
-  expect(screen.queryByRole("option", { name: /^Collection game 2(?:\s|$)/ })).toBeNull();
-  await waitFor(() => expect(visibility.observedTargetCount).toBeGreaterThan(0));
-  act(() => {
-    visibility.intersect(false);
-    visibility.intersect();
-    visibility.intersect();
-  });
-  expect(await screen.findByRole("option", { name: /^Collection game 2(?:\s|$)/ })).toBeVisible();
-  expect(screen.getByRole("option", { name: /^Collection game 1(?:\s|$)/ })).toBeVisible();
+  expect(await screen.findByText("Collection game 1", { exact: true })).toBeVisible();
+  expect(screen.queryByText("Collection game 2", { exact: true })).toBeNull();
+  fireEvent.scroll(window);
+  await documentFrame();
+  expect(screen.queryByText("Collection game 2", { exact: true })).toBeNull();
+  fireEvent.wheel(window);
+  fireEvent.wheel(window);
+  fireEvent.scroll(window);
+  await documentFrame();
+  expect(await screen.findByText("Collection game 2", { exact: true })).toBeVisible();
+  expect(screen.getByText("Collection game 1", { exact: true })).toBeVisible();
   expect(client.getQueryData(key)).toBe(cached);
   expect(reads).toHaveLength(0);
 });
 
-it("retains rows and snapshot totals while one real next page is pending and coalesces repeated intersections", async () => {
+it("retains rows and snapshot totals while one real next page is pending and coalesces repeated document scroll events", async () => {
   mount();
-  await screen.findByRole("option", { name: /^Collection game 1(?:\s|$)/ });
+  await screen.findByText("Collection game 1", { exact: true });
   let finish: (response: Response) => void = () => {
     throw new Error("Expected pending collection page");
   };
@@ -134,17 +140,17 @@ it("retains rows and snapshot totals while one real next page is pending and coa
   });
   await reachEnd();
   await waitFor(() => expect(reads).toHaveLength(2));
-  act(() => {
-    visibility.intersect();
-    visibility.intersect();
-  });
+  fireEvent.wheel(window);
+  fireEvent.scroll(window);
+  fireEvent.scroll(window);
+  await documentFrame();
   expect(reads).toHaveLength(2);
-  expect(screen.getByRole("option", { name: /^Collection game 1(?:\s|$)/ })).toBeVisible();
+  expect(screen.getByText("Collection game 1", { exact: true })).toBeVisible();
   expect(screen.getByText("Games including expansions")).toBeVisible();
   expect(screen.queryByText("No games found")).toBeNull();
   pending = undefined;
   await act(() => finish(Response.json(page([game(2)]))));
-  expect(await screen.findByRole("option", { name: /^Collection game 2(?:\s|$)/ })).toBeVisible();
+  expect(await screen.findByText("Collection game 2", { exact: true })).toBeVisible();
   expect(reads.at(-1)?.searchParams.get("cursor")).toBe("next-page");
   expect(
     client.getQueryData<{ pages: BggCollectionResponse[] }>(query().queryKey)?.pages[0].counts,
@@ -153,18 +159,18 @@ it("retains rows and snapshot totals while one real next page is pending and coa
 
 it("keeps a failed page observable without losing cached rows and resumes paging after deliberate retry", async () => {
   mount();
-  await screen.findByRole("option", { name: /^Collection game 1(?:\s|$)/ });
+  await screen.findByText("Collection game 1", { exact: true });
   pageStatus = 400;
   await reachEnd();
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not load collection");
-  expect(screen.getByRole("option", { name: /^Collection game 1(?:\s|$)/ })).toBeVisible();
-  act(() => visibility.intersect());
+  expect(screen.getByText("Collection game 1", { exact: true })).toBeVisible();
+  await reachEnd();
   expect(reads).toHaveLength(2);
   pageStatus = 200;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   await reachEnd();
-  expect(await screen.findByRole("option", { name: /^Collection game 2(?:\s|$)/ })).toBeVisible();
+  expect(await screen.findByText("Collection game 2", { exact: true })).toBeVisible();
   expect(reads.map((url) => url.searchParams.get("cursor"))).toEqual([
     null,
     "next-page",
@@ -182,7 +188,7 @@ it("resets the visible window for a new account/snapshot without bridging old co
   client.setQueryData(oldKey, cached);
   const view = mount();
   await reachEnd();
-  await screen.findByRole("option", { name: /^Collection game 2(?:\s|$)/ });
+  await screen.findByText("Collection game 2", { exact: true });
   let finish: (response: Response) => void = () => {
     throw new Error("Expected pending new owned snapshot");
   };
@@ -195,8 +201,8 @@ it("resets the visible window for a new account/snapshot without bridging old co
       <ProfileCollection snapshot="snapshot-two" />
     </QueryClientProvider>,
   );
-  expect(screen.queryByRole("option", { name: /^Collection game 1(?:\s|$)/ })).toBeNull();
-  expect(screen.queryByRole("option", { name: /^Collection game 2(?:\s|$)/ })).toBeNull();
+  expect(screen.queryByText("Collection game 1", { exact: true })).toBeNull();
+  expect(screen.queryByText("Collection game 2", { exact: true })).toBeNull();
   expect(screen.queryByText("No games found")).toBeNull();
   await act(() =>
     finish(
@@ -206,7 +212,7 @@ it("resets the visible window for a new account/snapshot without bridging old co
       }),
     ),
   );
-  expect(await screen.findByRole("option", { name: /^Collection game 9(?:\s|$)/ })).toBeVisible();
+  expect(await screen.findByText("Collection game 9", { exact: true })).toBeVisible();
   expect(client.getQueryData(oldKey)).toBe(cached);
   expect(reads.at(-1)?.searchParams.get("snapshot")).toBe("snapshot-two");
 });
@@ -225,11 +231,11 @@ it("quarantines a denied foreign collection while retaining the unrelated owner'
   };
   client.setQueryData(ownKey, own);
   mount("snapshot-one", "subject");
-  await screen.findByRole("option", { name: /^Collection game 1(?:\s|$)/ });
+  await screen.findByText("Collection game 1", { exact: true });
   status = 403;
   await act(() => client.invalidateQueries({ queryKey: foreignKey, exact: true }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not load collection");
-  expect(screen.queryByRole("option", { name: /^Collection game 1(?:\s|$)/ })).toBeNull();
+  expect(screen.queryByText("Collection game 1", { exact: true })).toBeNull();
   expect(screen.queryByText("No games found")).toBeNull();
   expect(client.getQueryData(ownKey)).toBe(own);
 });

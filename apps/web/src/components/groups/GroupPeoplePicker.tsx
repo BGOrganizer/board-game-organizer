@@ -7,7 +7,10 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -19,18 +22,34 @@ export function GroupPeoplePicker({ groupId }: { groupId: string }) {
     actions = useGroupRecordActions(options, groupId);
   const group = communityAccessDenied(detail.error) ? undefined : detail.data;
   if (!group || !isGroupManagerRole(group.role) || !group.canInvite)
-    return detail.isPending ? (
-      <Skeleton className="h-40 w-full rounded-xl" />
-    ) : (
-      <div role="alert">
-        <p className="text-danger">
-          {detail.isError && !communityAccessDenied(detail.error)
-            ? t`Could not load group`
-            : isGroupManagerRole(group?.role ?? "none")
-              ? t`Invitations require an approved group.`
-              : t`Group admin required`}
-        </p>
-        <Button variant="outline" onPress={() => void detail.refetch()}>{t`Try again`}</Button>
+    return (
+      <div className="space-y-4">
+        <HeaderActions
+          back={
+            <Button
+              {...headerButtonProps}
+              variant="ghost"
+              aria-label={t`Back`}
+              onPress={() => router.back()}
+            >
+              <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+            </Button>
+          }
+        />
+        {detail.isPending ? (
+          <Skeleton className="h-40 w-full rounded-xl" />
+        ) : (
+          <div role="alert">
+            <p className="text-danger">
+              {detail.isError && !communityAccessDenied(detail.error)
+                ? t`Could not load group`
+                : isGroupManagerRole(group?.role ?? "none")
+                  ? t`Invitations require an approved group.`
+                  : t`Group admin required`}
+            </p>
+            <Button variant="outline" onPress={() => void detail.refetch()}>{t`Try again`}</Button>
+          </div>
+        )}
       </div>
     );
   const invite = (person: {

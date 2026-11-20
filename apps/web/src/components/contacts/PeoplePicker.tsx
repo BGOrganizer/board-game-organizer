@@ -13,10 +13,9 @@ import { ArrowLeft, UserRoundPlus, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { ListSearch } from "@/components/common/ui/ListSearch";
-import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRelationshipBadge } from "@/components/common/ui/UserRelationshipBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -99,45 +98,41 @@ export function PeoplePicker({
               person.invitationBlockReason === "TABLE_TIME_CONFLICT",
           );
           return (
-            <GroupedRow key={person.id}>
-              <UserAvatar
-                name={name}
-                avatarUrl={person.avatarUrl}
-                size="md"
-                badge={
-                  hasContactRelationship(person) ? (
-                    <UserRelationshipBadge user={person} />
-                  ) : undefined
-                }
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{name}</span>
-                {!invitationTable && handle ? (
-                  <span className="block truncate text-xs text-muted">{handle}</span>
-                ) : null}
-              </span>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="primary"
-                aria-label={`${t`Select user`}: ${name}`}
-                isDisabled={disabled || unavailable}
-                onPress={() => {
-                  if (!disabled && !unavailable) onSelect(person);
-                }}
-              >
-                <UserRoundPlus className="size-4" aria-hidden />
-              </Button>
-              {unavailable ? (
-                <HelpPopover
-                  label={`${t`Why invitation is unavailable`}: ${name}`}
-                  title={t`Invitation unavailable`}
-                  className="max-w-72"
-                >
-                  <p>{t`This user is already registered, invited, or assigned as a demonstrator at another table with overlapping times.`}</p>
-                </HelpPopover>
-              ) : null}
-            </GroupedRow>
+            <UserListRow
+              key={person.id}
+              name={name}
+              avatarUrl={person.avatarUrl}
+              secondary={!invitationTable ? handle : undefined}
+              badge={
+                hasContactRelationship(person) ? <UserRelationshipBadge user={person} /> : undefined
+              }
+              actions={
+                <>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    className="min-h-11 min-w-11 sm:min-h-0 sm:min-w-0"
+                    variant="primary"
+                    aria-label={`${t`Select user`}: ${name}`}
+                    isDisabled={disabled || unavailable}
+                    onPress={() => {
+                      if (!disabled && !unavailable) onSelect(person);
+                    }}
+                  >
+                    <UserRoundPlus className="size-4" aria-hidden />
+                  </Button>
+                  {unavailable ? (
+                    <HelpPopover
+                      label={`${t`Why invitation is unavailable`}: ${name}`}
+                      title={t`Invitation unavailable`}
+                      className="max-w-72"
+                    >
+                      <p>{t`This user is already registered, invited, or assigned as a demonstrator at another table with overlapping times.`}</p>
+                    </HelpPopover>
+                  ) : null}
+                </>
+              }
+            />
           );
         })}
       </GroupedList>

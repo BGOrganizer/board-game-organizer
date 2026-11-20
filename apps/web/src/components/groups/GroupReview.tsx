@@ -8,8 +8,11 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
@@ -28,6 +31,21 @@ export function GroupReview({ groupId }: { groupId: string }) {
     ),
     group = communityAccessDenied(q.error) ? undefined : q.data;
   const busy = a.busy || draft?.phase === "saving" || draft?.phase === "verifying";
+  const header = (
+    <HeaderActions
+      back={
+        <Button
+          {...headerButtonProps}
+          variant="ghost"
+          aria-label={t`Back`}
+          isDisabled={busy}
+          onPress={() => router.push("/moderation")}
+        >
+          <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+        </Button>
+      }
+    />
+  );
   const [attempted, setAttempted] = useState(false);
   const decide = (decision: "approve" | "reject") => {
     if (decision === "reject") setAttempted(true);
@@ -48,17 +66,23 @@ export function GroupReview({ groupId }: { groupId: string }) {
     router.push("/moderation");
   };
   if (!group)
-    return q.isPending ? (
-      <Skeleton className="h-40 w-full rounded-xl" />
-    ) : (
-      <div role="alert">
-        <p className="text-danger">{t`Could not load group review`}</p>
-        <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
+    return (
+      <div className="space-y-4">
+        {header}
+        {q.isPending ? (
+          <Skeleton className="h-40 w-full rounded-xl" />
+        ) : (
+          <div role="alert">
+            <p className="text-danger">{t`Could not load group review`}</p>
+            <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
+          </div>
+        )}
       </div>
     );
   return (
     <NotificationAttentionScope options={o} targets={[{ kind: "group", id: group.id }]}>
       <div data-form-scope className="space-y-4">
+        {header}
         <GroupDetailsCard group={group} />
         {group.reviewStatus === "PENDING" ? (
           <>

@@ -18,14 +18,17 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Plus, Save, Send, Trash2, UsersRound, X } from "lucide-react";
+import { ArrowLeft, Save, Send, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
+import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
-import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { LocationListRow } from "@/components/locations/LocationListRow";
@@ -49,13 +52,17 @@ export function GroupWizard({ groupId, draftId }: { groupId?: string; draftId?: 
     groupId ?? "",
   );
   if (groupId && (communityAccessDenied(detail.error) || !detail.data || !detail.data.canEdit))
-    return detail.isPending ? (
-      <Skeleton className="h-40 w-full rounded-xl" />
-    ) : (
-      <div role="alert">
-        <p className="text-danger">{t`Could not load group details`}</p>
-        <Button variant="outline" onPress={() => void detail.refetch()}>{t`Try again`}</Button>
-      </div>
+    return (
+      <UnavailableEditor>
+        {detail.isPending ? (
+          <Skeleton className="h-40 w-full rounded-xl" />
+        ) : (
+          <div role="alert">
+            <p className="text-danger">{t`Could not load group details`}</p>
+            <Button variant="outline" onPress={() => void detail.refetch()}>{t`Try again`}</Button>
+          </div>
+        )}
+      </UnavailableEditor>
     );
   if (draftId) return <RecoveredEditor draftId={draftId} />;
   return (
@@ -70,9 +77,34 @@ function RecoveredEditor({ draftId }: { draftId: string }) {
     { t } = useLingui(),
     recovery = useGroupCreationDraft(options, draftId);
   if (!recovery || creationState(recovery).phase !== "failed")
-    return <p role="alert" className="text-danger">{t`Could not recover draft`}</p>;
+    return (
+      <UnavailableEditor>
+        <p role="alert" className="text-danger">{t`Could not recover draft`}</p>
+      </UnavailableEditor>
+    );
   return (
     <Editor key={`${options.apiUrl}/${options.userId}/${draftId}`} recovery={recovery.variables} />
+  );
+}
+function UnavailableEditor({ children }: { children: ReactNode }) {
+  const { t } = useLingui(),
+    router = useRouter();
+  return (
+    <div className="space-y-4">
+      <HeaderActions
+        back={
+          <Button
+            {...headerButtonProps}
+            variant="ghost"
+            aria-label={t`Back`}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+          </Button>
+        }
+      />
+      {children}
+    </div>
   );
 }
 function Editor({
@@ -320,43 +352,37 @@ function Editor({
           ) : null}
           <GroupedList>
             {friends.map((user) => (
-              <GroupedRow key={user.id}>
-                <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="md" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm">{user.name}</span>
-                  {formatUsername(user.username, "") ? (
-                    <span className="block truncate text-xs text-muted">
-                      {formatUsername(user.username, "")}
-                    </span>
-                  ) : null}
-                </span>
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="danger-soft"
-                  aria-label={`${t`Remove invite`}: ${user.name}`}
-                  isDisabled={submitting}
-                  onPress={() =>
-                    setFriends((current) => current.filter((item) => item.id !== user.id))
-                  }
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </Button>
-              </GroupedRow>
+              <UserListRow
+                key={user.id}
+                name={user.name}
+                avatarUrl={user.avatarUrl}
+                secondary={formatUsername(user.username, "")}
+                actions={
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="danger-soft"
+                    aria-label={`${t`Remove invite`}: ${user.name}`}
+                    isDisabled={submitting}
+                    onPress={() =>
+                      setFriends((current) => current.filter((item) => item.id !== user.id))
+                    }
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </Button>
+                }
+              />
             ))}
           </GroupedList>
-          <Button
-            className="h-auto max-w-full gap-[8px] whitespace-normal"
-            variant="outline"
-            isDisabled={submitting || uploading || type === "PUBLIC"}
-            onPress={() => {
-              if (type === "PRIVATE") setPicking("friend");
-            }}
-          >
-            <UsersRound className="size-[16px] shrink-0" aria-hidden />
-            <Plus className="size-[16px] shrink-0" aria-hidden />
-            <span className="min-w-0 break-words">{t`Add friend`}</span>
-          </Button>
+          <GroupedList>
+            <AddUserRow
+              label={t`Add friend`}
+              isDisabled={submitting || uploading || type === "PUBLIC"}
+              onPress={() => {
+                if (type === "PRIVATE") setPicking("friend");
+              }}
+            />
+          </GroupedList>
         </section>
       ) : null}
       <div className="fixed inset-x-0 bottom-0 z-40 bg-background px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">

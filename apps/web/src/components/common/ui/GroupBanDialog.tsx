@@ -1,10 +1,11 @@
 "use client";
 import { eventLocalDateTime, groupBanDeadline } from "@board-game-organizer/shared";
-import { Input, Label, Switch, TextField } from "@heroui/react";
+import { Label, Switch } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Ban } from "lucide-react";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { DateTimePicker } from "@/components/common/ui/DateTimePicker";
 export function GroupBanDialog({
   name,
   timeZone,
@@ -61,10 +62,13 @@ export function GroupBanDialog({
           </Switch.Content>
         </Switch>
         {timed ? (
-          <TextField value={wall} onChange={setWall} isDisabled={busy} isInvalid={Boolean(error)}>
-            <Label>{t`Excluded until`}</Label>
-            <Input type="datetime-local" />
-          </TextField>
+          <DateTimePicker
+            value={wall}
+            onChange={setWall}
+            isDisabled={busy}
+            isInvalid={Boolean(error)}
+            label={<Label>{t`Excluded until`}</Label>}
+          />
         ) : null}
         {error || failure ? (
           <p role="alert" className="text-danger">

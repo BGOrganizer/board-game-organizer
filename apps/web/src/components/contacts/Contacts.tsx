@@ -29,7 +29,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
@@ -37,7 +36,7 @@ import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
-import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRelationshipBadge } from "@/components/common/ui/UserRelationshipBadge";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
@@ -82,42 +81,27 @@ function ContactCard({
   const attention = useNotificationAttentionContext();
   const handle = formatUsername(username, "");
   return (
-    <GroupedRow className="relative flex-col sm:flex-row sm:items-center">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <UserAvatar
-          name={name}
-          avatarUrl={avatarUrl}
-          size="md"
-          online={online}
-          badge={
-            badge ? (
-              <IconBadge
-                icon={badge.icon}
-                label={badge.label}
-                title={badge.label}
-                color={badge.color}
-              >
-                <p>{badge.description ?? badge.label}</p>
-              </IconBadge>
-            ) : hasContactRelationship(user) ? (
-              <UserRelationshipBadge user={user} />
-            ) : undefined
-          }
+    <UserListRow
+      name={name}
+      avatarUrl={avatarUrl}
+      online={online}
+      secondary={handle}
+      titleAccessory={
+        <NotificationUnreadDot
+          active={Boolean(attention?.get({ kind: "contact", id: userId })?.count)}
         />
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <p className="min-w-0 truncate font-medium">{name}</p>
-            <NotificationUnreadDot
-              active={Boolean(attention?.get({ kind: "contact", id: userId })?.count)}
-            />
-          </div>
-          {handle ? <p className="truncate text-sm text-muted">{handle}</p> : null}
-        </div>
-      </div>
-      {menu ? (
-        <div className="flex shrink-0 items-center justify-end self-end sm:self-auto">{menu}</div>
-      ) : null}
-    </GroupedRow>
+      }
+      badge={
+        badge ? (
+          <IconBadge icon={badge.icon} label={badge.label} title={badge.label} color={badge.color}>
+            <p>{badge.description ?? badge.label}</p>
+          </IconBadge>
+        ) : hasContactRelationship(user) ? (
+          <UserRelationshipBadge user={user} />
+        ) : undefined
+      }
+      actions={menu}
+    />
   );
 }
 
@@ -411,7 +395,6 @@ export function Contacts() {
                   .filter((row) => row.key !== "device")
                   .flatMap((row) => row.users.map((user) => user.id))}
               />
-              <Tabs.Indicator />
             </TabTrigger>
             <TabTrigger
               icon={UserRoundPlus}
@@ -426,12 +409,10 @@ export function Contacts() {
                   row.profile ? [row.profile.id] : [],
                 )}
               />
-              <Tabs.Indicator />
             </TabTrigger>
             <TabTrigger icon={BookUser} id="device" className="relative">
               {t`Contacts`}
               <ContactSectionBadge section="device" userIds={bgoContacts.map((user) => user.id)} />
-              <Tabs.Indicator />
             </TabTrigger>
             <TabTrigger
               icon={Search}
@@ -444,7 +425,6 @@ export function Contacts() {
                 section="search"
                 userIds={searchResults.map((user) => user.id)}
               />
-              <Tabs.Indicator />
             </TabTrigger>
           </TabBar>
 

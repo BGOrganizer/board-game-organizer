@@ -147,16 +147,11 @@ const attention: NotificationAttentionSnapshot = {
 };
 const attentionKey = notificationAttentionQuery(options, attentionTargets).queryKey;
 let activeClient: QueryClient | undefined;
-let intersections: ReturnType<typeof installBrowserIntersections> | undefined;
 const presenceWrites: string[] = [];
 const forbiddenRequests: string[] = [];
 function currentClient() {
   if (!activeClient) throw new Error("Expected the current measured Query owner");
   return activeClient;
-}
-function currentVisibility() {
-  if (!intersections) throw new Error("Expected the browser visibility boundary");
-  return intersections;
 }
 function renderCached(element: ReactElement) {
   const client = new QueryClient({
@@ -164,7 +159,7 @@ function renderCached(element: ReactElement) {
   });
   activeClient = client;
   presenceWrites.length = forbiddenRequests.length = 0;
-  intersections = installBrowserIntersections();
+  installBrowserIntersections();
   client.setQueryData(collectionKey(), collectionPages);
   client.setQueryData(collectionKey("games"), gamesPages);
   client.setQueryData(collectionKey("all", "different-owner"), foreignCollection);
@@ -211,7 +206,6 @@ function cleanupCached() {
   cleanup();
   activeClient?.clear();
   activeClient = undefined;
-  intersections = undefined;
 }
 configure({
   testingLibrary: { render: renderCached, cleanup: cleanupCached },
@@ -233,33 +227,22 @@ test(collectionScenario, async () => {
   const result = await measureRenders(<ProfileCollection snapshot={snapshotId} />, {
     scenario: async () => {
       const client = currentClient();
-      expect(
-        await screen.findByRole("option", { name: /^Collection game 1(?:\s|$)/ }),
-      ).toBeVisible();
-      expect(screen.queryByRole("option", { name: /^Collection game 3(?:\s|$)/ })).toBeNull();
-      await waitFor(() => expect(currentVisibility().observedTargetCount).toBeGreaterThan(0));
-      act(() => {
-        currentVisibility().intersect();
-        currentVisibility().intersect();
-      });
-      expect(
-        await screen.findByRole("option", { name: /^Collection game 3(?:\s|$)/ }),
-      ).toBeVisible();
+      expect(await screen.findByText("Collection game 1", { exact: true })).toBeVisible();
+      expect(screen.queryByText("Collection game 3", { exact: true })).toBeNull();
+      fireEvent.wheel(window);
+      fireEvent.scroll(window);
+      expect(await screen.findByText("Collection game 3", { exact: true })).toBeVisible();
       expect(client.getQueryData(collectionKey())).toBe(collectionPages);
       fireEvent.click(screen.getByRole("button", { name: "Expansions" }));
       expect(screen.getByRole("button", { name: "Expansions" })).toHaveAttribute(
         "aria-pressed",
         "false",
       );
-      expect(
-        await screen.findByRole("option", { name: /^Collection game 3(?:\s|$)/ }),
-      ).toBeVisible();
-      expect(screen.queryByRole("option", { name: /^Collection game 2(?:\s|$)/ })).toBeNull();
+      expect(await screen.findByText("Collection game 3", { exact: true })).toBeVisible();
+      expect(screen.queryByText("Collection game 2", { exact: true })).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Expansions" }));
-      expect(
-        await screen.findByRole("option", { name: /^Collection game 2(?:\s|$)/ }),
-      ).toBeVisible();
-      expect(screen.queryByRole("option", { name: /^Collection game 3(?:\s|$)/ })).toBeNull();
+      expect(await screen.findByText("Collection game 2", { exact: true })).toBeVisible();
+      expect(screen.queryByText("Collection game 3", { exact: true })).toBeNull();
       const fresh = {
         ...collectionPages,
         pages: [
@@ -271,10 +254,8 @@ test(collectionScenario, async () => {
         ],
       };
       act(() => client.setQueryData(collectionKey(), fresh));
-      expect(
-        await screen.findByRole("option", { name: /^Fresh collection title(?:\s|$)/ }),
-      ).toBeVisible();
-      expect(screen.queryByRole("option", { name: /^Collection game 1(?:\s|$)/ })).toBeNull();
+      expect(await screen.findByText("Fresh collection title", { exact: true })).toBeVisible();
+      expect(screen.queryByText("Collection game 1", { exact: true })).toBeNull();
       expect(client.getQueryData(collectionKey("games"))).toBe(gamesPages);
       expect(client.getQueryData(collectionKey("all", "different-owner"))).toBe(foreignCollection);
       expect(screen.queryByText("Other account private game")).toBeNull();

@@ -97,7 +97,8 @@ it("keeps the initial authorization read pending and cancels the real friend cho
   });
   mount();
   expect(screen.queryByRole("alert")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Back" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Back" }).textContent).toBe("");
   await act(() => finish(Response.json(group)));
   expect(await screen.findByText("Known Friend")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
@@ -109,6 +110,7 @@ it("recovers a failed authorization read only after explicit retry, then invites
   status = 503;
   mount();
   expect(await screen.findByText("Could not load group")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Back" })).toBeVisible();
   expect(screen.queryByText("No friends found")).toBeNull();
   expect(reads.filter((path) => path.endsWith("/invitees"))).toHaveLength(0);
   status = 200;
@@ -133,6 +135,10 @@ it.each([
     expect(screen.queryByRole("button", { name: "Select user: Known Friend" })).toBeNull();
     expect(reads.filter((path) => path.endsWith("/invitees"))).toHaveLength(0);
     expect(writes).toEqual([]);
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(back.textContent).toBe("");
+    fireEvent.click(back);
+    expect(boundary.back).toHaveBeenCalledOnce();
   },
 );
 
@@ -145,6 +151,7 @@ it("revokes a cached authorized chooser after a background permission denial", a
   );
   expect(await screen.findByText("Group admin required")).toBeVisible();
   expect(screen.queryByText("Known Friend")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(boundary.back).toHaveBeenCalledOnce();
   expect(writes).toEqual([]);
 });

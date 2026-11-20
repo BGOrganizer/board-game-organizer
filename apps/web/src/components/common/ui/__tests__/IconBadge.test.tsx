@@ -47,6 +47,7 @@ it("uses a 22px Chip, a 13px glyph and an absolute same-color plus inside a 44px
     </IconBadge>,
   );
   const button = screen.getByRole("button", { name: "Admin and player" });
+  expect(button).toHaveAttribute("tabindex", "0");
   expect(button.className).toContain("size-11");
   expect(button.classList.contains("bg-transparent")).toBe(true);
   expect(button.querySelector(".size-\\[22px\\]")).toBeTruthy();
@@ -54,15 +55,21 @@ it("uses a 22px Chip, a 13px glyph and an absolute same-color plus inside a 44px
     true,
   );
   expect(button.querySelector(".lucide-crown")?.classList.contains("size-[13px]")).toBe(true);
+  expect(button.querySelector('[data-slot="chip"]')?.classList.contains("justify-center")).toBe(
+    true,
+  );
+  expect(button.querySelector(".lucide-crown")?.classList.contains("m-0")).toBe(true);
   const plus = button.querySelector(".lucide-plus");
   expect(plus?.classList.contains("absolute")).toBe(true);
   expect(plus?.classList.contains("top-0.5")).toBe(true);
   expect(plus?.classList.contains("right-0.5")).toBe(true);
   expect(plus?.classList.contains("size-2")).toBe(true);
+  expect(plus?.classList.contains("m-0")).toBe(true);
   expect(plus?.getAttribute("class")).not.toMatch(/-top|-right/);
   expect(plus?.getAttribute("class")).not.toContain("text-");
   expect(plus?.classList.contains("bg-default")).toBe(true);
-  fireEvent.click(button);
+  fireEvent.keyDown(button, { key: "Enter", code: "Enter", keyCode: 13 });
+  fireEvent.keyUp(button, { key: "Enter", code: "Enter", keyCode: 13 });
   const dialog = await screen.findByRole("dialog", { name: "Roles" });
   expect(within(dialog).getByText("Both facts remain independent.")).toBeTruthy();
 });
@@ -85,6 +92,8 @@ it.each(["sm", "md", "lg"] as const)(
     expect(wrapper.children[0].classList.contains("z-0")).toBe(true);
     const bottom = wrapper.children[2] as HTMLElement;
     const top = wrapper.children[3] as HTMLElement;
+    expect(top.classList.contains("size-11")).toBe(true);
+    expect(bottom.classList.contains("size-11")).toBe(true);
     expect(Number.parseFloat(top.style.top)).toBe(-(44 - pixels / 2));
     expect(Number.parseFloat(bottom.style.bottom)).toBe(-(44 - pixels / 2));
     expect(pixels - Number.parseFloat(top.style.top) - Number.parseFloat(bottom.style.bottom)).toBe(

@@ -118,6 +118,10 @@ it("does not publish an empty history before a pending response and renders the 
     finish = resolve;
   });
   mount();
+  const back = screen.getByRole("link", { name: "Back" });
+  expect(back).toHaveAttribute("href", "/profiles/subject");
+  expect(back).toHaveTextContent("");
+  expect(back.closest("[data-page-toolbar]")?.firstElementChild?.contains(back)).toBe(true);
   expect(screen.queryByText("No activities yet")).toBeNull();
   await act(() => finish(json({ items: [], nextCursor: null })));
   expect(await screen.findByText("No activities yet")).toBeVisible();

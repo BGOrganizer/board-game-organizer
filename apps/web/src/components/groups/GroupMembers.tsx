@@ -30,14 +30,14 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupBanDialog } from "@/components/common/ui/GroupBanDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { IconBadge } from "@/components/common/ui/IconBadge";
-import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { UserMenu } from "@/components/contacts/UserMenu";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -82,21 +82,20 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
       <section className="space-y-4" aria-label={t`Members`}>
         {isGroupManagerRole(group.role) ? (
           <div className="space-y-2 pt-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
+            <GroupedList>
+              <AddUserRow
+                label={t`Invite friends`}
                 isDisabled={!group.canInvite || workflow.blocking || denied}
                 onPress={() => router.push(`/groups/${group.id}/invite`)}
-              >
-                <UserRoundPlus className="size-4" aria-hidden />
-                {t`Invite friends`}
-              </Button>
-              {!group.canInvite ? (
-                <HelpPopover
-                  label={t`Invitations unavailable`}
-                >{t`Invitations require an approved group.`}</HelpPopover>
-              ) : null}
-            </div>
+                actions={
+                  !group.canInvite ? (
+                    <HelpPopover
+                      label={t`Invitations unavailable`}
+                    >{t`Invitations require an approved group.`}</HelpPopover>
+                  ) : null
+                }
+              />
+            </GroupedList>
           </div>
         ) : null}
         <GroupedList>
@@ -130,96 +129,94 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                   ? i18n._(recordUserRoleMessages[primary])
                   : null;
             return (
-              <GroupedRow key={person.userId}>
-                <UserAvatar
-                  name={name(person)}
-                  avatarUrl={person.avatarUrl}
-                  size="md"
-                  badge={
-                    !person.optimisticInvited && !person.ban ? (
-                      <UserRoleBadge roles={roles} />
-                    ) : badge ? (
-                      <IconBadge
-                        icon={badge.Icon}
-                        label={badge.label}
-                        title={badge.label}
-                        color={person.ban ? "danger" : "warning"}
+              <UserListRow
+                key={person.userId}
+                name={name(person)}
+                avatarUrl={person.avatarUrl}
+                secondary={membershipLabel}
+                titleAccessory={
+                  person.membership?.status === "ACCEPTED" ? (
+                    <NotificationItem
+                      itemId={notificationItemId(group.id, "member", person.userId)}
+                    />
+                  ) : null
+                }
+                badge={
+                  !person.optimisticInvited && !person.ban ? (
+                    <UserRoleBadge roles={roles} />
+                  ) : badge ? (
+                    <IconBadge
+                      icon={badge.Icon}
+                      label={badge.label}
+                      title={badge.label}
+                      color={person.ban ? "danger" : "warning"}
+                    >
+                      <p>{badge.label}</p>
+                    </IconBadge>
+                  ) : undefined
+                }
+                actions={
+                  <>
+                    {allowed.includes("approve") ? (
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="primary"
+                        aria-label={`${t`Respond to membership request`}: ${name(person)}`}
+                        isDisabled={workflow.isBusy(person.userId)}
+                        onPress={() => workflow.open(person, "approve")}
                       >
-                        <p>{badge.label}</p>
-                      </IconBadge>
-                    ) : undefined
-                  }
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="min-w-0 truncate font-medium">{name(person)}</span>
-                    {person.membership?.status === "ACCEPTED" ? (
-                      <NotificationItem
-                        itemId={notificationItemId(group.id, "member", person.userId)}
+                        <ClipboardCheck className="size-4" aria-hidden />
+                      </Button>
+                    ) : null}
+                    <GroupMemberActions
+                      group={group}
+                      person={person}
+                      busy={workflow.isBusy(person.userId)}
+                      onAction={(action) => workflow.open(person, action)}
+                    />
+                    {allowed.includes("revoke") ? (
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="primary"
+                        aria-label={`${t`Revoke group exclusion`}: ${name(person)}`}
+                        isDisabled={workflow.isBusy(person.userId)}
+                        onPress={() => workflow.open(person, "revoke")}
+                      >
+                        <RotateCcw className="size-4" aria-hidden />
+                      </Button>
+                    ) : null}
+                    {group.canSocialInteract &&
+                    person.social &&
+                    person.userId !== options.userId ? (
+                      <UserMenu
+                        user={groupPersonContact(person)}
+                        busy={workflow.isBusy(person.userId)}
+                        blockLabel={t`Block user globally`}
+                        friendRequest={person.social.friendRequest}
+                        canSendFriendRequest={
+                          !person.social.isFriend &&
+                          !person.social.friendRequest &&
+                          !person.social.blockedByMe
+                        }
+                        onAction={(action) => {
+                          if (action !== "profile")
+                            void workflow.runSocial(person, action).catch(() => {});
+                        }}
                       />
                     ) : null}
+                  </>
+                }
+              >
+                {person.ban ? (
+                  <span className="block text-xs text-danger">
+                    {person.ban.until
+                      ? t`Excluded until ${new Date(person.ban.until).toLocaleString(i18n.locale)}`
+                      : t`Permanent exclusion`}
                   </span>
-                  {membershipLabel ? (
-                    <span className="block truncate text-xs text-muted">{membershipLabel}</span>
-                  ) : null}
-                  {person.ban ? (
-                    <span className="block text-xs text-danger">
-                      {person.ban.until
-                        ? t`Excluded until ${new Date(person.ban.until).toLocaleString(i18n.locale)}`
-                        : t`Permanent exclusion`}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="flex max-w-36 shrink-0 flex-wrap justify-end gap-1 sm:max-w-none">
-                  {allowed.includes("approve") ? (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="primary"
-                      aria-label={`${t`Respond to membership request`}: ${name(person)}`}
-                      isDisabled={workflow.isBusy(person.userId)}
-                      onPress={() => workflow.open(person, "approve")}
-                    >
-                      <ClipboardCheck className="size-4" aria-hidden />
-                    </Button>
-                  ) : null}
-                  <GroupMemberActions
-                    group={group}
-                    person={person}
-                    busy={workflow.isBusy(person.userId)}
-                    onAction={(action) => workflow.open(person, action)}
-                  />
-                  {allowed.includes("revoke") ? (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="primary"
-                      aria-label={`${t`Revoke group exclusion`}: ${name(person)}`}
-                      isDisabled={workflow.isBusy(person.userId)}
-                      onPress={() => workflow.open(person, "revoke")}
-                    >
-                      <RotateCcw className="size-4" aria-hidden />
-                    </Button>
-                  ) : null}
-                  {group.canSocialInteract && person.social && person.userId !== options.userId ? (
-                    <UserMenu
-                      user={groupPersonContact(person)}
-                      busy={workflow.isBusy(person.userId)}
-                      blockLabel={t`Block user globally`}
-                      friendRequest={person.social.friendRequest}
-                      canSendFriendRequest={
-                        !person.social.isFriend &&
-                        !person.social.friendRequest &&
-                        !person.social.blockedByMe
-                      }
-                      onAction={(action) => {
-                        if (action !== "profile")
-                          void workflow.runSocial(person, action).catch(() => {});
-                      }}
-                    />
-                  ) : null}
-                </span>
-              </GroupedRow>
+                ) : null}
+              </UserListRow>
             );
           })}
         </GroupedList>

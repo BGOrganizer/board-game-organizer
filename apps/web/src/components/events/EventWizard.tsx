@@ -27,7 +27,10 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
@@ -57,13 +60,17 @@ export function EventWizard({
     eventId &&
     (communityAccessDenied(q.error) || !q.data || q.isPlaceholderData || !q.data.canEdit)
   )
-    return q.isPending || q.isPlaceholderData ? (
-      <Skeleton className="h-40 w-full rounded-xl" />
-    ) : (
-      <div role="alert">
-        <p className="text-danger">{t`Could not edit event`}</p>
-        <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
-      </div>
+    return (
+      <UnavailableEditor>
+        {q.isPending || q.isPlaceholderData ? (
+          <Skeleton className="h-40 w-full rounded-xl" />
+        ) : (
+          <div role="alert">
+            <p className="text-danger">{t`Could not edit event`}</p>
+            <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
+          </div>
+        )}
+      </UnavailableEditor>
     );
   if (draftId) return <RecoveredEditor draftId={draftId} />;
   return (
@@ -80,13 +87,38 @@ function RecoveredEditor({ draftId }: { draftId: string }) {
     o = useCommunityApi(),
     recovery = useEventCreationDraft(o, draftId);
   if (!recovery?.variables.clientDraft || creationState(recovery).phase !== "failed")
-    return <p role="alert" className="text-danger">{t`Could not recover draft`}</p>;
+    return (
+      <UnavailableEditor>
+        <p role="alert" className="text-danger">{t`Could not recover draft`}</p>
+      </UnavailableEditor>
+    );
   return (
     <Editor
       key={`${o.apiUrl}/${o.userId}/${draftId}`}
       recovery={recovery.variables}
       groupId={recovery.variables.clientInitialGroupId}
     />
+  );
+}
+function UnavailableEditor({ children }: { children: ReactNode }) {
+  const { t } = useLingui(),
+    router = useRouter();
+  return (
+    <div className="space-y-4">
+      <HeaderActions
+        back={
+          <Button
+            {...headerButtonProps}
+            variant="ghost"
+            aria-label={t`Back`}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+          </Button>
+        }
+      />
+      {children}
+    </div>
   );
 }
 function Editor({
@@ -230,6 +262,19 @@ function Editor({
       data-form-source={event?.version}
       className="mx-auto max-w-4xl space-y-5 pt-8 pb-28"
     >
+      <HeaderActions
+        back={
+          <Button
+            {...headerButtonProps}
+            variant="ghost"
+            aria-label={t`Back`}
+            isDisabled={submitting || (step === 0 && Boolean(event && (a.busy || checking)))}
+            onPress={() => (step > 0 ? form.goToStep(step - 1) : router.back())}
+          >
+            <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+          </Button>
+        }
+      />
       <div className="flex flex-wrap justify-center gap-2 py-2">
         {[t`Event`, t`Dates / Locations`, t`Tables`, t`Review`].map((label, index) => (
           <Button
@@ -364,18 +409,7 @@ function Editor({
           className="text-danger"
         >{t`Check required fields, dates, player limits, games and durations.`}</p>
       ) : null}
-      <div className={`flex gap-3 ${step > 0 ? "justify-between" : "justify-end"}`}>
-        {step > 0 ? (
-          <Button
-            isIconOnly
-            variant="ghost"
-            aria-label={t`Back`}
-            isDisabled={submitting}
-            onPress={() => form.goToStep(step - 1)}
-          >
-            <ArrowLeft className="size-5" aria-hidden />
-          </Button>
-        ) : null}
+      <div className="flex justify-end gap-3">
         {step < 3 ? (
           <Button
             isIconOnly

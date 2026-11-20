@@ -86,7 +86,7 @@ export function EventGroupSelect({
           <ListBox
             data-input-results
             aria-label={t`Groups`}
-            className="h-[var(--input-results-height,12rem)] max-h-48 overflow-y-auto"
+            className="h-[var(--input-results-height,12rem)] max-h-48 min-w-0 max-w-full overflow-y-auto p-0"
             onScroll={({ currentTarget }) => {
               if (
                 currentTarget.scrollHeight - currentTarget.scrollTop - currentTarget.clientHeight <

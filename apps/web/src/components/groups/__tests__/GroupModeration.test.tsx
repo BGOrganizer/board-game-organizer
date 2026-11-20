@@ -57,6 +57,10 @@ it("uses Group cards with metadata and review destinations, source paging and au
   vi.stubGlobal("fetch", fetcher);
   mount();
   const card = await screen.findByRole("link", { name: "Open group: Pending club" });
+  const back = screen.getByRole("link", { name: "Back" });
+  expect(back).toHaveAttribute("href", "/groups");
+  expect(back.textContent).toBe("");
+  expect(back.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   expect(card.getAttribute("href")).toBe(`/moderation/${pending.id}`);
   fireEvent.click(screen.getByRole("button", { name: "Public" }));
   expect(await screen.findByText("Via Roma 1, Roma")).not.toBeNull();
@@ -97,6 +101,7 @@ it("keeps initial loading distinct from an empty queue", async () => {
     ),
   );
   const { container } = mount();
+  expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/groups");
   expect(container.querySelectorAll(".h-24")).toHaveLength(3);
   expect(screen.queryByText("No pending reviews")).toBeNull();
   await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
@@ -113,6 +118,7 @@ it("keeps queue failures observable and retries without claiming an empty succes
   );
   mount();
   expect(await screen.findByRole("alert")).not.toBeNull();
+  expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/groups");
   expect(screen.queryByText("No pending reviews")).toBeNull();
   fail = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));

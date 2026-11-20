@@ -30,13 +30,13 @@ export function IconBadge({
     <Chip
       color={color}
       variant="secondary"
-      className="relative size-[22px] min-h-0 min-w-0 overflow-hidden rounded-full p-0"
+      className="relative size-[22px] min-h-0 min-w-0 justify-center overflow-hidden rounded-full p-0"
       aria-hidden="true"
     >
-      <Icon className={`size-[13px] shrink-0 ${isDisabled ? "opacity-50" : ""}`} />
+      <Icon className={`m-0 size-[13px] shrink-0 ${isDisabled ? "opacity-50" : ""}`} />
       {multiple ? (
         <Plus
-          className={`absolute top-0.5 right-0.5 size-2 rounded-full bg-default ${isDisabled ? "opacity-50" : ""}`}
+          className={`absolute top-0.5 right-0.5 m-0 size-2 rounded-full bg-default ${isDisabled ? "opacity-50" : ""}`}
         />
       ) : null}
     </Chip>
@@ -58,12 +58,14 @@ export function IconBadge({
   if (title)
     return (
       <Popover>
-        <Popover.Trigger
+        <Button
+          isIconOnly
+          variant="ghost"
           aria-label={label}
-          className="button button--ghost relative inline-flex size-11 min-h-11 min-w-11 items-center justify-center bg-transparent p-0"
+          className="size-11 min-h-11 min-w-11 bg-transparent p-0"
         >
           {symbol}
-        </Popover.Trigger>
+        </Button>
         <Popover.Content placement="bottom start" className="max-w-[calc(100vw-2rem)]">
           <Popover.Dialog className="whitespace-normal break-words p-3 text-sm">
             <Popover.Heading>{title}</Popover.Heading>

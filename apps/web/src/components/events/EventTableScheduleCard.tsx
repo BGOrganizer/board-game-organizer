@@ -6,9 +6,8 @@ import { Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { ListCard } from "@/components/common/ui/ListCard";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 
 export function EventTableScheduleCard({
@@ -42,14 +41,12 @@ export function EventTableScheduleCard({
           </div>
           {schedule.demonstrator ? (
             <GroupedList>
-              <GroupedRow>
-                <UserIdentity
-                  name={schedule.demonstrator.name ?? t`Unknown`}
-                  avatarUrl={schedule.demonstrator.avatarUrl}
-                  badge={<UserRoleBadge roles={["demonstrator"]} />}
-                  secondary={t`Demonstrator`}
-                />
-              </GroupedRow>
+              <UserListRow
+                name={schedule.demonstrator.name ?? t`Unknown`}
+                avatarUrl={schedule.demonstrator.avatarUrl}
+                badge={<UserRoleBadge roles={["demonstrator"]} />}
+                secondary={t`Demonstrator`}
+              />
             </GroupedList>
           ) : null}
         </div>

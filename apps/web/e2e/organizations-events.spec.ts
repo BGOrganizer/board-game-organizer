@@ -1196,19 +1196,20 @@ function communityAcceptance() {
         name: "Respond to membership request",
         exact: true,
       });
-      await expect(dialog.getByRole("button")).toHaveText(["Accept", "Reject", "Ban", "Cancel"]);
+      await expect(dialog.getByRole("button")).toHaveText(["", "Accept", "Reject", "Ban"]);
+      await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toHaveText("");
       await expectButtonsOnOneRow(dialog.getByRole("button", { name: /^(Accept|Reject|Ban)$/ }));
       await expect
         .poll(() =>
           dialog.evaluate((element) => {
             const buttons = Array.from(element.querySelectorAll("button"));
-            const cancel = buttons.at(-1)?.getBoundingClientRect();
+            const cancel = buttons[0]?.getBoundingClientRect();
             return Boolean(
               cancel &&
-                buttons.slice(0, -1).every((button) => {
+                buttons.slice(1).every((button) => {
                   const box = button.getBoundingClientRect();
                   return (
-                    cancel.top > box.bottom && getComputedStyle(button).flexDirection === "row"
+                    cancel.bottom < box.top && getComputedStyle(button).flexDirection === "row"
                   );
                 }),
             );

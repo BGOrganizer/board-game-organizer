@@ -102,35 +102,42 @@ it("supports a card without controls or an open callback", () => {
   expect(screen.getByText("Plain resource")).toBeTruthy();
 });
 
-it("portals route-owned actions only when the header target exists and removes them on unmount", () => {
-  const absent = renderWithI18n(
-    <HeaderActions>
-      <button type="button">Absent action</button>
+it("keeps Back left and route actions right in the page without a global header target", () => {
+  const press = vi.fn();
+  const view = renderWithI18n(
+    <HeaderActions
+      back={
+        <a href="/events" aria-label="Back">
+          <svg aria-hidden="true" />
+        </a>
+      }
+    >
+      <button type="button" onClick={press}>
+        Edit event
+      </button>
     </HeaderActions>,
   );
-  expect(screen.queryByRole("button", { name: "Absent action" })).toBeNull();
-  absent.unmount();
-  const target = document.createElement("div");
-  target.id = "page-header-actions";
-  document.body.append(target);
-  try {
-    const press = vi.fn();
-    const view = renderWithI18n(
-      <HeaderActions>
-        <button type="button" onClick={press}>
-          Edit event
-        </button>
-      </HeaderActions>,
-    );
-    const action = screen.getByRole("button", { name: "Edit event" });
-    expect(target.contains(action)).toBe(true);
-    fireEvent.click(action);
-    expect(press).toHaveBeenCalledOnce();
-    view.unmount();
-    expect(target.textContent).toBe("");
-  } finally {
-    target.remove();
-  }
+  const back = screen.getByRole("link", { name: "Back" });
+  const action = screen.getByRole("button", { name: "Edit event" });
+  const toolbar = back.closest("[data-page-toolbar]");
+  expect(toolbar?.firstElementChild?.contains(back)).toBe(true);
+  expect(toolbar?.lastElementChild?.contains(action)).toBe(true);
+  expect(back).toHaveTextContent("");
+  expect(document.getElementById("page-header-actions")).toBeNull();
+  fireEvent.click(action);
+  expect(press).toHaveBeenCalledOnce();
+  view.unmount();
+  expect(screen.queryByRole("button", { name: "Edit event" })).toBeNull();
+  renderWithI18n(
+    <HeaderActions
+      back={
+        <a href="/events" aria-label="Back">
+          <svg aria-hidden="true" />
+        </a>
+      }
+    />,
+  );
+  expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/events");
 });
 
 it.each([false, true])(

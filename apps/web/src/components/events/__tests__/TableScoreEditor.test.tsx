@@ -11,6 +11,20 @@ const players = [
   { id: "a", name: "Alice", username: "alice", email: "a@example.test", avatarUrl: null },
   { id: "b", name: "Bob", username: "bob", email: "b@example.test", avatarUrl: null },
 ];
+it("places the lower-score rule above document-flow standings without a nested scroll viewport", () => {
+  renderWithI18n(<TableScoreEditor players={players} busy={false} onSubmit={vi.fn()} />);
+  const rule = screen.getByRole("switch", { name: "Lowest score wins" });
+  const standings = screen.getByRole("region", { name: "Live standings" });
+  expect(rule.compareDocumentPosition(standings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(standings.style.height).toBe("");
+  expect(standings.className).not.toContain("overflow-y-auto");
+  const save = screen.getByRole("button", { name: "Save result" });
+  const footer = save.closest("footer");
+  expect(footer).not.toBeNull();
+  expect(standings.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(footer?.className).not.toMatch(/fixed|sticky|border/);
+  expect(save.className).toContain("button--full-width");
+});
 it.each([
   ["en", en, "Score: Alice", "Enter a score", "Close"],
   ["it", itMessages, "Punteggio: Alice", "Inserisci un punteggio", "Chiudi"],

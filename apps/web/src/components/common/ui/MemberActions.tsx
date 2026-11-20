@@ -20,13 +20,9 @@ export function MemberActions<Action extends string>({
   if (!items.length) return null;
   return (
     <Drawer isOpen={open} onOpenChange={setOpen}>
-      <Drawer.Trigger
-        className="button button--primary button--icon-only button--sm"
-        isDisabled={busy}
-        aria-label={title}
-      >
+      <Button isIconOnly size="sm" variant="primary" isDisabled={busy} aria-label={title}>
         <UserRoundCog className="size-5" aria-hidden />
-      </Drawer.Trigger>
+      </Button>
       <Drawer.Backdrop>
         <Drawer.Content placement="bottom">
           <Drawer.Dialog className="mx-auto w-full max-w-md">

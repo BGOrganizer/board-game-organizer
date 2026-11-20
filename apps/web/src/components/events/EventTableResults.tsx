@@ -13,9 +13,8 @@ import { ListOrdered, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { IconBadge } from "@/components/common/ui/IconBadge";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
 
@@ -76,42 +75,43 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
             row.profileLoaded && row.name ? row.name : t`Username unavailable`,
           );
           return (
-            <GroupedRow key={row.key}>
-              <UserIdentity
+            <UserListRow
+              key={row.key}
+              name={name}
+              avatarUrl={row.avatarUrl}
+              badge={
+                terminated ? (
+                  <IconBadge
+                    icon={row.rank === 1 ? Trophy : ListOrdered}
+                    color={row.rank === 1 ? "success" : "default"}
+                    label={`${t`Position`}: ${row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}`}
+                    title={t`Position`}
+                  >
+                    <p>{row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}</p>
+                  </IconBadge>
+                ) : undefined
+              }
+              actions={
+                terminated ? (
+                  <span
+                    title={row.score ?? t`ND`}
+                    className="ml-auto max-w-full min-w-0 truncate text-right font-semibold tabular-nums"
+                  >
+                    <span className="sr-only">{t`Score`}: </span>
+                    {row.score ?? t`ND`}
+                  </span>
+                ) : null
+              }
+            >
+              <EventPlayerRatingPopover
+                table={table}
+                userId={row.userId}
                 name={name}
-                avatarUrl={row.avatarUrl}
-                badge={
-                  terminated ? (
-                    <IconBadge
-                      icon={row.rank === 1 ? Trophy : ListOrdered}
-                      color={row.rank === 1 ? "success" : "default"}
-                      label={`${t`Position`}: ${row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}`}
-                      title={t`Position`}
-                    >
-                      <p>{row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}</p>
-                    </IconBadge>
-                  ) : undefined
+                current={
+                  !terminated ? q.items.find((item) => item.userId === row.userId) : undefined
                 }
-              >
-                <EventPlayerRatingPopover
-                  table={table}
-                  userId={row.userId}
-                  name={name}
-                  current={
-                    !terminated ? q.items.find((item) => item.userId === row.userId) : undefined
-                  }
-                />
-              </UserIdentity>
-              {terminated ? (
-                <span
-                  title={row.score ?? t`ND`}
-                  className="ml-auto max-w-[40%] shrink-0 truncate text-right font-semibold tabular-nums"
-                >
-                  <span className="sr-only">{t`Score`}: </span>
-                  {row.score ?? t`ND`}
-                </span>
-              ) : null}
-            </GroupedRow>
+              />
+            </UserListRow>
           );
         })}
       </GroupedList>

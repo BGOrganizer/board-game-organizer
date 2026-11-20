@@ -6,11 +6,12 @@ import {
   eventProposalLabel,
   useEventProposalSection,
 } from "@board-game-organizer/shared";
-import { Button, Input, Skeleton, TextField } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarClock, CircleCheck, CircleX, ClipboardCheck, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { DateTimePicker } from "@/components/common/ui/DateTimePicker";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -198,25 +199,26 @@ export function EventProposalSection({
 function DateProposalAction({ submit }: { submit: (wall: string) => boolean }) {
   const { t } = useLingui();
   const [wall, setWall] = useState("");
+  const addDate = (value: string) => {
+    if (submit(value)) setWall("");
+  };
   return (
     <GroupedRow>
       <CalendarClock className="size-4 shrink-0 text-muted" aria-hidden />
-      <TextField
+      <DateTimePicker
+        name="proposedDateTime"
         className="min-w-0 flex-1"
         aria-label={t`Date and time`}
         value={wall}
         onChange={setWall}
-      >
-        <Input name="proposedDateTime" autoComplete="off" type="datetime-local" step={60} />
-      </TextField>
+        onConfirm={addDate}
+      />
       <Button
         isIconOnly
         variant="primary"
         aria-label={t`Add date`}
         isDisabled={!wall}
-        onPress={() => {
-          if (submit(wall)) setWall("");
-        }}
+        onPress={() => addDate(wall)}
       >
         <Plus className="size-5" aria-hidden />
       </Button>

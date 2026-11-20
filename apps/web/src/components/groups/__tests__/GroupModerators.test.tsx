@@ -165,7 +165,6 @@ it("never confuses moderator edit powers with creator-only Group deletion", asyn
   );
   renderWithI18n(
     <>
-      <div id="page-header-actions" />
       <GroupDetail groupId={groupRecord.id} />
     </>,
   );

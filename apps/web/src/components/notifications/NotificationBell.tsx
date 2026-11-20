@@ -9,12 +9,12 @@ import {
   usePreferredLanguageSync,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Badge, Dropdown, Skeleton } from "@heroui/react";
+import { Badge, Button, Dropdown, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Bell, CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HEADER_ICON_CLASS, headerControlClassName } from "@/components/common/layout/headerStyles";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
@@ -133,12 +133,12 @@ export function NotificationBell() {
 
   return (
     <Dropdown isOpen={isOpen} onOpenChange={setIsOpen}>
-      <Dropdown.Trigger aria-label={t`Notifications`} className={headerControlClassName}>
+      <Button {...headerButtonProps} variant="ghost" aria-label={t`Notifications`}>
         <Badge.Anchor>
           <Bell className={HEADER_ICON_CLASS} aria-hidden />
           <NotificationCountBadge count={notifications.unreadCount} corner counted />
         </Badge.Anchor>
-      </Dropdown.Trigger>
+      </Button>
       <Dropdown.Popover placement="bottom end" className="w-80 bg-surface sm:w-96">
         <Dropdown.Menu aria-label={t`Notifications`} disabledKeys={disabledKeys}>
           <Dropdown.Item id="heading" textValue={t`Notifications`}>

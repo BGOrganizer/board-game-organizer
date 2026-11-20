@@ -39,9 +39,7 @@ function mount(initialTab: "info" | "members" | "events" = "info") {
   });
   renderWithI18n(
     <>
-      <header data-testid="app-header">
-        <div id="page-header-actions" />
-      </header>
+      <header data-testid="app-header"></header>
       <QueryClientProvider client={client}>
         <GroupDetail groupId={groupRecord.id} initialTab={initialTab} />
       </QueryClientProvider>
@@ -139,7 +137,7 @@ it("opens the contextual Events tab directly without the main Events destination
   mount("events");
   await screen.findByRole("tab", { name: "Events", selected: true });
 });
-it("moves accepted member departure to the danger header action and preserves explicit confirmation", async () => {
+it("keeps accepted member departure in the danger page action and preserves explicit confirmation", async () => {
   let current = {
     ...groupRecord,
     role: "accepted",
@@ -174,8 +172,12 @@ it("moves accepted member departure to the danger header action and preserves ex
   vi.stubGlobal("fetch", fetch);
   mount();
   const leave = await screen.findByRole("button", { name: "Leave group" });
-  expect(leave.closest("header")).toBe(screen.getByTestId("app-header"));
+  expect(leave.closest("header")).toBeNull();
+  expect(
+    leave.closest("[data-page-toolbar]")?.contains(screen.getByRole("link", { name: "Back" })),
+  ).toBe(true);
   expect(leave.querySelector("svg.lucide-log-out")).not.toBeNull();
+  expect(leave.closest("[data-page-toolbar]")?.parentElement).toHaveClass("space-y-4");
   fireEvent.click(leave);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
   expect(fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
@@ -357,7 +359,10 @@ it("requires explicit cascade confirmation, then closes and navigates before DEL
   vi.stubGlobal("fetch", fetch);
   mount();
   const button = await screen.findByRole("button", { name: "Delete group" });
-  expect(button.closest("header")).toBe(screen.getByTestId("app-header"));
+  expect(button.closest("header")).toBeNull();
+  expect(
+    button.closest("[data-page-toolbar]")?.contains(screen.getByRole("link", { name: "Back" })),
+  ).toBe(true);
   fireEvent.click(button);
   let dialog = await screen.findByRole("dialog", { name: "Delete group" });
   expect(

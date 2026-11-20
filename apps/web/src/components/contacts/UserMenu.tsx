@@ -1,7 +1,7 @@
 "use client";
 
 import type { ContactUser } from "@board-game-organizer/shared";
-import { Dropdown } from "@heroui/react";
+import { Button, Dropdown } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   Ban,
@@ -250,12 +250,9 @@ export function UserMenu({
   return (
     <>
       <Dropdown onOpenChange={setOpen}>
-        <Dropdown.Trigger
-          aria-label={t`Actions`}
-          className="button button--icon-only button--sm button--ghost"
-        >
+        <Button isIconOnly size="sm" variant="ghost" aria-label={t`Actions`}>
           <MoreVertical className="h-4 w-4" />
-        </Dropdown.Trigger>
+        </Button>
         <Dropdown.Popover placement="bottom end">
           <Dropdown.Menu
             disabledKeys={items.filter((item) => busy || item.disabled).map((item) => item.key)}

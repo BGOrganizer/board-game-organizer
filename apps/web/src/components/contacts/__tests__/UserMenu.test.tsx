@@ -19,7 +19,10 @@ const user: ContactUser = {
 };
 
 async function openMenu() {
-  fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+  const trigger = screen.getByRole("button", { name: "Actions" });
+  expect(trigger).toHaveAttribute("data-slot", "button");
+  expect(trigger.classList.contains("dropdown__trigger")).toBe(false);
+  fireEvent.click(trigger);
   await screen.findByRole("menu");
 }
 

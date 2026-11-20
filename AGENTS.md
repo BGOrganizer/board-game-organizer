@@ -112,10 +112,11 @@ and each app's instructions. Do not run imports/migrations merely as ordinary va
 The Raspberry is a shared, resource-constrained host; saturation can make it unreachable over the
 network. Run at most one heavy local job at a time across all agents and worktrees, including
 dependency installation, coverage, typechecks, builds, browser/device tests and large transfers.
-Coordinate ownership before starting another job. Use one test worker and run application builds
-sequentially; do not run the root parallel build on this host. Keep heavy browsers and Android
-emulators on remote runners, and use CI for full suites that exceed the local budget. Verify that
-a sandbox uses a different physical host before treating it as remote; containers on the Raspberry
+Coordinate ownership before starting another job. Use up to three Node test workers when measured
+RAM and CPU headroom allow, with bounded worker heaps; reduce worker count if pressure rises.
+Run application builds sequentially; do not run the root parallel build on this host. Keep heavy
+browsers and Android emulators on remote runners, and use CI for full suites that exceed the local
+budget. Verify that a sandbox uses a different physical host before treating it as remote; containers on the Raspberry
 share its CPU, RAM and network budget. Monitor
 available RAM, CPU load and network activity; stop owned work if pressure rises, then resume
 sequentially. Parallel agents may inspect or edit independent worktrees, but may not launch

@@ -56,7 +56,7 @@ export function LinkedListCard({
           if (disabled) event.preventDefault();
           else if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) onOpen?.();
         }}
-        className="absolute inset-0 rounded-xl hover:bg-default focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+        className="absolute inset-0 rounded-xl hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
       />
       {cover ? (
         <ListCardCoverContent

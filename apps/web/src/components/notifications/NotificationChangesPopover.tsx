@@ -107,7 +107,7 @@ export function NotificationChangesPopover({ model }: { model: Model }) {
                 aria-label={t`Changes`}
                 selectionMode="none"
                 data-testid="notification-changes-list"
-                className="min-h-0 w-full shrink overflow-y-auto"
+                className="min-h-0 min-w-0 w-full max-w-full shrink overflow-y-auto p-0"
                 style={{ maxHeight: bodyHeight }}
                 onScroll={({ currentTarget }) => {
                   if (

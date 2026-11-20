@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
+import { clearDateTime, enterDateTime, readDateTime } from "@/test-fixtures/dateTime";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventInformationFields } from "../EventInformationFields";
@@ -244,9 +245,7 @@ it("reports failed contextual group reads and retries without substituting an un
 it("adds and removes flexible dates and locations using the real form, and updates both participant-proposal switches", () => {
   mount();
   expect(screen.getByRole("button", { name: "Add date" })).toBeDisabled();
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-04T19:30" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-04T19:30");
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(draft()).toMatchObject({
     dates: [
@@ -254,7 +253,7 @@ it("adds and removes flexible dates and locations using the real form, and updat
       expect.objectContaining({ day: "2030-06-04", startTime: "19:30" }),
     ],
   });
-  expect(screen.getByLabelText("Date and time")).toHaveValue("");
+  expect(readDateTime(screen.getByRole("group", { name: "Date and time" }))).toBe("");
   fireEvent.click(screen.getByRole("button", { name: "Remove date: 2030-06-03 20:00" }));
   expect(draft().dates).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
@@ -264,6 +263,69 @@ it("adds and removes flexible dates and locations using the real form, and updat
   fireEvent.click(screen.getByRole("switch", { name: "Allow date proposals" }));
   fireEvent.click(screen.getByRole("switch", { name: "Allow location proposals" }));
   expect(draft()).toMatchObject({ allowParticipantDates: true, allowParticipantLocations: true });
+});
+
+it("adds the popover's final date with Done, deduplicates it and retains the keyboard Add action", async () => {
+  mount();
+  const field = screen.getByRole("group", { name: "Date and time" });
+  enterDateTime(field, "2030-06-04T19:30");
+  fireEvent.click(within(field).getByRole("button"));
+  const dialog = await screen.findByRole("dialog", { name: "Choose date and time" });
+  fireEvent.click(within(within(dialog).getByRole("grid")).getByText("15", { exact: true }));
+  enterDateTime(within(dialog).getByRole("group", { name: "Time" }), "21:45");
+  expect(draft().dates).toHaveLength(1);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(draft().dates).toEqual([
+    plannedEvent.dates[0],
+    expect.objectContaining({ day: "2030-06-15", startTime: "21:45" }),
+  ]);
+  expect(readDateTime(field)).toBe("");
+  expect(screen.getByRole("button", { name: "Add date" })).toBeDisabled();
+  enterDateTime(field, "2030-06-15T21:45");
+  fireEvent.click(within(field).getByRole("button"));
+  fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Done" }));
+  expect(draft().dates).toHaveLength(2);
+  expect(readDateTime(field)).toBe("");
+  enterDateTime(field, "2030-06-06T19:30");
+  fireEvent.click(screen.getByRole("button", { name: "Add date" }));
+  expect(draft().dates).toHaveLength(3);
+  expect(draft().dates[2]).toMatchObject({ day: "2030-06-06", startTime: "19:30" });
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("removes the add row after Done fills the date limit without saving the event", async () => {
+  const dates = Array.from({ length: MAX_EVENT_OPTIONS - 1 }, (_, index) => ({
+    id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+    day: `2030-06-${String(index + 1).padStart(2, "0")}`,
+  }));
+  mount({ dates });
+  const field = screen.getByRole("group", { name: "Date and time" });
+  enterDateTime(field, "2030-07-01T19:30");
+  fireEvent.click(within(field).getByRole("button"));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+  expect(draft().dates).toHaveLength(MAX_EVENT_OPTIONS);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add date" })).toBeNull();
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("blocks popover addition when the parent becomes busy", async () => {
+  const view = mount();
+  const field = screen.getByRole("group", { name: "Date and time" });
+  enterDateTime(field, "2030-06-04T19:30");
+  fireEvent.click(within(field).getByRole("button"));
+  await screen.findByRole("dialog");
+  view.rerender(
+    <QueryClientProvider client={client}>
+      <Fixture initial={baseDraft()} busy />
+    </QueryClientProvider>,
+  );
+  const done = within(screen.getByRole("dialog")).getByRole("button", { name: "Done" });
+  expect(done).toBeDisabled();
+  fireEvent.click(done);
+  expect(draft().dates).toHaveLength(1);
 });
 
 it("keeps private schedule errors specific to missing dates and verified locations", () => {
@@ -296,44 +358,46 @@ it("keeps schedule mutation controls disabled while the parent is busy", () => {
   mount({}, { busy: true });
   for (const name of ["Remove date: 2030-06-03 20:00", "Remove location: Club venue", "Add date"])
     expect(screen.getByRole("button", { name })).toBeDisabled();
-  expect(screen.getByLabelText("Date and time")).toBeDisabled();
+  expect(
+    within(screen.getByRole("group", { name: "Date and time" })).getByRole("button"),
+  ).toBeDisabled();
   expect(screen.getByRole("switch", { name: "Allow date proposals" })).toBeDisabled();
   expect(screen.queryByRole("button", { name: "Choose a location" })).toBeNull();
 });
 
 it("enforces public same-day start/end and previous-day booking bounds through the actual controlled inputs", async () => {
   mount({ groupId: publicGroup.id, endsWall: "2030-06-03T22:00", cutoffWall: "2030-06-02T18:00" });
-  const day = await screen.findByLabelText(/^Event date \*$/);
+  const start = await screen.findByRole("group", { name: /^Date and time$/ });
   expect(screen.queryByRole("switch", { name: "Allow date proposals" })).toBeNull();
-  const end = screen.getByLabelText("End time");
-  fireEvent.change(end, { target: { value: "19:00" } });
+  const end = screen.getByRole("group", { name: /^End time/ });
+  enterDateTime(end, "19:00");
   expect(draft()).toMatchObject({ endsWall: "2030-06-03T22:00" });
-  fireEvent.change(end, { target: { value: "23:00" } });
+  enterDateTime(end, "23:00");
   expect(draft()).toMatchObject({ endsWall: "2030-06-03T23:00" });
-  fireEvent.change(end, { target: { value: "" } });
+  clearDateTime(end);
   expect(draft()).toMatchObject({ endsWall: "" });
-  fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "21:00" } });
+  enterDateTime(start, "2030-06-03T21:00");
   expect(draft().dates[0]).toMatchObject({ day: "2030-06-03", startTime: "21:00" });
-  fireEvent.change(day, { target: { value: "2030-06-05" } });
+  enterDateTime(start, "2030-06-05T21:00");
   expect(draft().dates[0]).toMatchObject({ day: "2030-06-05", startTime: "21:00" });
-  const cutoff = screen.getByLabelText(/^Registration Deadline Date and Time/, {
-    selector: "input",
-  });
-  fireEvent.change(cutoff, { target: { value: "2020-01-01T12:00" } });
+  const cutoff = screen.getByRole("group", { name: /^Registration Deadline Date and Time/ });
+  enterDateTime(cutoff, "2020-01-01T12:00");
   expect(draft()).toMatchObject({ cutoffWall: "2030-06-02T18:00" });
-  fireEvent.change(cutoff, { target: { value: "2030-06-05T12:00" } });
+  enterDateTime(cutoff, "2030-06-05T12:00");
   expect(draft()).toMatchObject({ cutoffWall: "2030-06-02T18:00" });
-  fireEvent.change(cutoff, { target: { value: "2030-06-04T18:00" } });
+  enterDateTime(cutoff, "2030-06-04T18:00");
   expect(draft()).toMatchObject({ cutoffWall: "2030-06-04T18:00" });
-  fireEvent.change(cutoff, { target: { value: "" } });
+  clearDateTime(cutoff);
   expect(draft()).toMatchObject({ cutoffWall: "" });
-  fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "23:59" } });
-  expect(screen.getByLabelText("End time")).toBeDisabled();
+  enterDateTime(start, "2030-06-05T23:59");
+  expect(
+    within(screen.getByRole("group", { name: /^End time/ })).getAllByRole("spinbutton")[0],
+  ).toHaveAttribute("aria-disabled", "true");
 });
 
 it("reports public schedule validation errors without replacing the missing fields with private alternatives", async () => {
   mount({ groupId: publicGroup.id, locations: [], endsWall: "", cutoffWall: "" });
-  await screen.findByLabelText(/^Event date \*$/);
+  await screen.findByRole("group", { name: /^Date and time$/ });
   validateSchedule();
   expect(screen.getByText("Choose a later end time on the same day as the start.")).toBeVisible();
   expect(

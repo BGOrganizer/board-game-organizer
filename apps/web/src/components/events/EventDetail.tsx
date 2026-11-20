@@ -29,7 +29,11 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { floatingActionContentStyle } from "@/components/common/layout/floatingActionStyles";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
-import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
+import {
+  HEADER_ICON_CLASS,
+  headerButtonProps,
+  headerControlClassName,
+} from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -94,13 +98,27 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     : q.isPlaceholderData
       ? t`Event details are still loading.`
       : t`No complete agreement yet. Check participation and votes for the date, location and game.`;
+  const back = (
+    <Link
+      href={event && fromGroup === event.groupId ? `/groups/${event.groupId}` : "/events"}
+      aria-label={t`Back`}
+      className={headerControlClassName}
+    >
+      <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+    </Link>
+  );
   if (!event)
-    return q.isPending ? (
-      <Skeleton className="h-40 w-full rounded-xl" />
-    ) : (
-      <div role="alert">
-        <p className="text-danger">{t`Could not load event`}</p>
-        <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
+    return (
+      <div className="mx-auto max-w-4xl space-y-4">
+        <HeaderActions back={back} />
+        {q.isPending ? (
+          <Skeleton className="h-40 w-full rounded-xl" />
+        ) : (
+          <div role="alert">
+            <p className="text-danger">{t`Could not load event`}</p>
+            <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
+          </div>
+        )}
       </div>
     );
   const voteDates = event.groupType !== "PUBLIC" && eventOptionsRequireVote(event.dates);
@@ -141,18 +159,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       }
     >
       <div
-        className="mx-auto max-w-4xl space-y-3"
+        className="mx-auto max-w-4xl space-y-4"
         style={hasFloatingActions ? floatingActionContentStyle : undefined}
       >
-        <Link
-          href={fromGroup === event.groupId ? `/groups/${event.groupId}` : "/events"}
-          className="inline-flex items-center gap-2 text-link"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          {t`Back`}
-        </Link>
-        {!event.readOnly && canManageEvent(event, o.userId) && event.status === "PLANNING" ? (
-          <HeaderActions>
+        <HeaderActions back={back}>
+          {!event.readOnly && canManageEvent(event, o.userId) && event.status === "PLANNING" ? (
             <div className="flex items-center gap-1">
               {confirmationBlocked ? (
                 <HelpPopover
@@ -192,13 +203,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               )}
               <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
             </div>
-          </HeaderActions>
-        ) : null}
-        {!event.readOnly && canManageEvent(event, o.userId) && event.status === "CONFIRMED" ? (
-          <HeaderActions>
+          ) : null}
+          {!event.readOnly && canManageEvent(event, o.userId) && event.status === "CONFIRMED" ? (
             <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
-          </HeaderActions>
-        ) : null}
+          ) : null}
+        </HeaderActions>
         <EventDetailsCard
           event={event}
           titleAction={

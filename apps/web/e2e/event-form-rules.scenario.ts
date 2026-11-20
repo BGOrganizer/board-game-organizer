@@ -1,5 +1,6 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
+import { enterDateTime } from "./date-time";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
 
 function required(key: string) {
@@ -36,6 +37,14 @@ for (const width of [390, 1280])
     await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
     await page.goto("/");
     await completeMobileNumberIfNeeded(page);
+    const previousUrl = page.url();
+    await page.goto("/events/new");
+    const back = page.getByRole("button", { name: it ? "Indietro" : "Back", exact: true });
+    await expect(back).toBeVisible();
+    await expect(back).toHaveText("");
+    await expect(back.locator("svg")).toHaveAttribute("aria-hidden", "true");
+    await back.click();
+    await expect(page).toHaveURL(previousUrl);
     await page.goto("/events/new");
     const name = page.getByRole("textbox", {
       name: it ? "Nome evento" : "Event name",
@@ -79,6 +88,50 @@ for (const width of [390, 1280])
     await name.fill("");
     await name.pressSequentially("a".repeat(31));
     expect((await name.inputValue()).length).toBe(30);
+    await page.getByRole("button", { name: it ? "Avanti" : "Next", exact: true }).click();
+    const privateDate = page.getByRole("group", {
+      name: it ? "Data e orario" : "Date and time",
+      exact: true,
+    });
+    const addDate = page.getByRole("button", {
+      name: it ? "Aggiungi data" : "Add date",
+      exact: true,
+    });
+    await expect(addDate).toBeDisabled();
+    await enterDateTime(privateDate, "2030-06-12T14:00");
+    await privateDate
+      .getByRole("button", {
+        name: it ? "Scegli data e ora" : "Choose date and time",
+        exact: true,
+      })
+      .click();
+    const privatePicker = page.getByRole("dialog", {
+      name: it ? "Scegli data e ora" : "Choose date and time",
+      exact: true,
+    });
+    await privatePicker.getByRole("grid").getByText("13", { exact: true }).click();
+    await enterDateTime(
+      privatePicker.getByRole("group", { name: it ? "Ora" : "Time", exact: true }),
+      "15:45",
+    );
+    await expect(page.locator('time[datetime="2030-06-13T15:45"]')).toHaveCount(0);
+    await privatePicker.getByRole("button", { name: it ? "Fine" : "Done", exact: true }).click();
+    await expect(privatePicker).toHaveCount(0);
+    const pickedDate = page.locator('time[datetime="2030-06-13T15:45"]');
+    await expect(pickedDate).toBeVisible();
+    await expect(addDate).toBeDisabled();
+    await expect(privateDate.locator('[data-type="year"]')).toHaveAttribute(
+      "data-placeholder",
+      "true",
+    );
+    await enterDateTime(privateDate, "2030-06-14T14:00");
+    await expect(addDate).toBeEnabled();
+    await addDate.click();
+    const keyboardDate = page.locator('time[datetime="2030-06-14T14:00"]');
+    await expect(keyboardDate).toBeVisible();
+    await pickedDate.locator("..").getByRole("button").click();
+    await keyboardDate.locator("..").getByRole("button").click();
+    await page.getByRole("button", { name: it ? "1. Evento" : "1. Event", exact: true }).click();
     await page.getByRole("button", { name: new RegExp(`${it ? "Gruppo" : "Group"}$`) }).click();
     const popover = page.getByRole("listbox");
     await page.getByPlaceholder(it ? "Cerca gruppi" : "Search groups", { exact: true }).fill(group);
@@ -94,4 +147,51 @@ for (const width of [390, 1280])
     await expect(publicRadio).toBeEnabled();
     await publicRadio.click();
     await expect(publicRadio).toBeChecked();
+    await page.getByRole("button", { name: it ? "Avanti" : "Next", exact: true }).click();
+
+    const start = page.getByRole("group", {
+      name: it ? /^Data e orario/ : /^Date and time/,
+    });
+    await expect(start.getByRole("spinbutton")).toHaveCount(5);
+    await enterDateTime(start, "2030-06-12T14:00");
+    await start
+      .getByRole("button", {
+        name: it ? "Scegli data e ora" : "Choose date and time",
+        exact: true,
+      })
+      .click();
+    const picker = page.getByRole("dialog", {
+      name: it ? "Scegli data e ora" : "Choose date and time",
+      exact: true,
+    });
+    await expect(picker.getByRole("grid")).toBeVisible();
+    await picker.getByRole("grid").getByText("13", { exact: true }).click();
+    await expect(picker).toBeVisible();
+    await enterDateTime(
+      picker.getByRole("group", { name: it ? "Ora" : "Time", exact: true }),
+      "14:30",
+    );
+    const done = picker.getByRole("button", { name: it ? "Fine" : "Done", exact: true });
+    await expect(done).toHaveText(it ? "Fine" : "Done");
+    await expect(picker.getByText("DPfwMq", { exact: true })).toHaveCount(0);
+    await done.click();
+    await expect(picker).toHaveCount(0);
+    await expect(start.locator('[role="spinbutton"][data-type="day"]')).toHaveAttribute(
+      "aria-valuenow",
+      "13",
+    );
+    await expect(start.locator('[role="spinbutton"][data-type="hour"]')).toHaveAttribute(
+      "aria-valuenow",
+      "14",
+    );
+    await expect(start.locator('[role="spinbutton"][data-type="minute"]')).toHaveAttribute(
+      "aria-valuenow",
+      "30",
+    );
+    const end = page.getByRole("group", {
+      name: it ? /^Ora di fine/ : /^End time/,
+    });
+    await expect(end.getByRole("spinbutton")).toHaveCount(2);
+    await enterDateTime(end, "18:00");
+    // The entire journey leaves an unsaved draft; no event creation or provider writes.
   });

@@ -16,6 +16,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import { enterDateTime } from "@/test-fixtures/dateTime";
 import {
   groupRecord,
   optionId,
@@ -285,9 +286,7 @@ it("lets a seated non-manager submit a date with the shared inline chooser, with
       <EventProposalSection event={participantEvent} kind="date" />
     </QueryClientProvider>,
   );
-  fireEvent.change(screen.getByLabelText("Date and time"), {
-    target: { value: "2030-06-05T21:00" },
-  });
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-05T21:00");
   expect(posts).toEqual([]);
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   await waitFor(() => expect(posts).toHaveLength(1));
@@ -797,9 +796,10 @@ it.each(["date", "game", "location"] as const)(
     const view = renderWithI18n(chooser);
     expect(posts).toEqual([]);
     if (kind === "date") {
-      fireEvent.change(screen.getByLabelText("Choose date and time"), {
-        target: { value: "2030-06-05T21:00" },
-      });
+      enterDateTime(
+        screen.getByRole("group", { name: "Choose date and time" }),
+        "2030-06-05T21:00",
+      );
       expect(posts).toEqual([]);
       fireEvent.click(screen.getByRole("button", { name: "Send proposal" }));
     } else {

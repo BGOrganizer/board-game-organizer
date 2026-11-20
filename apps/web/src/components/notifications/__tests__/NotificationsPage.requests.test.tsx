@@ -138,9 +138,7 @@ afterEach(() => {
 function Fixture() {
   return (
     <>
-      <header>
-        <div id="page-header-actions" />
-      </header>
+      <header></header>
       <QueryClientProvider client={client}>
         <NotificationsPage />
       </QueryClientProvider>

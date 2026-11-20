@@ -68,7 +68,7 @@ export function GameListRow({
     </>
   );
   return (
-    <GroupedRow className="flex-wrap">
+    <GroupedRow className="w-full flex-wrap">
       {onPress ? (
         <Button
           data-form-control

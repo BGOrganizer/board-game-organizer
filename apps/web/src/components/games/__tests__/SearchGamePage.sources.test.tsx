@@ -62,7 +62,10 @@ function mount(props: Partial<ComponentProps<typeof SearchGamePage>> = {}) {
   );
   return { ...view, client, onSelect, onClose };
 }
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 it("switches own and participant collections independently, then uses four-character catalog discovery with fresh authorization", async () => {
   const getToken = vi.fn(async () => "fresh-token");
@@ -93,23 +96,23 @@ it("switches own and participant collections independently, then uses four-chara
   });
   vi.stubGlobal("fetch", fetch);
   const { onClose } = mount({ getToken, tableScope, protectionBypass: "preview-bypass" });
-  await screen.findByRole("option", { name: "Select: Own collection" });
-  const own = screen.getByRole("button", { name: "Collection" });
+  const own = await screen.findByRole("button", { name: "Collection" });
+  await screen.findByRole("button", { name: "Select: Own collection" });
   const participants = screen.getByRole("button", { name: "Participants' collections" });
   expect(own.getAttribute("aria-pressed")).toBe("true");
   expect(participants.getAttribute("aria-pressed")).toBe("false");
   fireEvent.click(participants);
-  await screen.findByRole("option", { name: "Select: Combined sources" });
+  await screen.findByRole("button", { name: "Select: Combined sources" });
   expect(participants.getAttribute("aria-pressed")).toBe("true");
   fireEvent.click(own);
-  await screen.findByRole("option", { name: "Select: Participant collection" });
+  await screen.findByRole("button", { name: "Select: Participant collection" });
   expect(own.getAttribute("aria-pressed")).toBe("false");
   const participantRequest = pickerRequests.at(-1);
   expect(participantRequest?.searchParams.get("participantEventId")).toBe(tableScope.eventId);
   expect(participantRequest?.searchParams.get("participantTableId")).toBe(tableScope.tableId);
   expect(participantRequest?.searchParams.get("search")).toBe("0");
   fireEvent.click(participants);
-  expect(screen.queryByRole("listbox", { name: "Board games" })).toBeNull();
+  expect(screen.queryByRole("list", { name: "Board games" })).toBeNull();
   const previousRequests = pickerRequests.length;
   fireEvent.change(screen.getByRole("searchbox", { name: "Search board games" }), {
     target: { value: "abc" },
@@ -121,7 +124,7 @@ it("switches own and participant collections independently, then uses four-chara
   fireEvent.change(screen.getByRole("searchbox", { name: "Search board games" }), {
     target: { value: "  Chess  " },
   });
-  await screen.findByRole("option", { name: "Select: Catalog result" });
+  await screen.findByRole("button", { name: "Select: Catalog result" });
   const catalog = pickerRequests.at(-1);
   expect(catalog?.searchParams.get("query")).toBe("Chess");
   expect(catalog?.searchParams.get("search")).toBe("1");
@@ -156,7 +159,7 @@ it("retries failed account metadata and a failed initial collection read without
   const retry = await screen.findByRole("button", { name: "Search failed. Retry" });
   expect(screen.queryByText("No games found")).toBeNull();
   fireEvent.click(retry);
-  await screen.findByRole("option", { name: "Select: Recovered collection" });
+  await screen.findByRole("button", { name: "Select: Recovered collection" });
   expect(accountCalls).toBe(2);
   expect(pickerCalls).toBe(2);
   expect(screen.queryByRole("button", { name: "Search failed. Retry" })).toBeNull();
@@ -205,69 +208,24 @@ it.each([
       }),
     );
     const { client, onSelect } = mount();
-    await screen.findByRole("option", { name: "Select: Authorized game" });
+    await screen.findByRole("button", { name: "Select: Authorized game" });
     rejected = true;
     await act(async () => {
       await client.invalidateQueries({ queryKey: ["bgg-picker"] });
     });
     const retry = await screen.findByRole("button", { name: "Search failed. Retry" });
-    expect(screen.queryByRole("option", { name: "Select: Authorized game" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Select: Authorized game" })).toBeNull();
     expect(screen.queryByText("No games found")).toBeNull();
     expect(onSelect).not.toHaveBeenCalled();
     rejected = false;
     fireEvent.click(retry);
-    const item = await screen.findByRole("option", { name: "Select: Authorized game" });
+    const item = await screen.findByRole("button", { name: "Select: Authorized game" });
     fireEvent.click(item);
     expect(onSelect).toHaveBeenCalledExactlyOnceWith(game(1, "Authorized game"));
   },
 );
 
-it("requires list interaction before paging, coalesces overlapping end events and retries the failed cursor", async () => {
-  const observers: BrowserIntersectionObserver[] = [];
-  class BrowserIntersectionObserver implements IntersectionObserver {
-    readonly root: Element | Document | null;
-    readonly rootMargin: string;
-    readonly thresholds = [0];
-    readonly scrollMargin = "0px";
-    readonly delay = 0;
-    readonly trackVisibility = false;
-    private targets = new Set<Element>();
-    constructor(
-      private callback: IntersectionObserverCallback,
-      options?: IntersectionObserverInit,
-    ) {
-      this.root = options?.root ?? null;
-      this.rootMargin = options?.rootMargin ?? "0px";
-      observers.push(this);
-    }
-    observe(target: Element) {
-      this.targets.add(target);
-    }
-    unobserve(target: Element) {
-      this.targets.delete(target);
-    }
-    disconnect() {
-      this.targets.clear();
-    }
-    takeRecords(): IntersectionObserverEntry[] {
-      return [];
-    }
-    intersect() {
-      this.callback(
-        [...this.targets].map((target) => ({
-          target,
-          isIntersecting: true,
-          intersectionRatio: 1,
-          boundingClientRect: target.getBoundingClientRect(),
-          intersectionRect: target.getBoundingClientRect(),
-          rootBounds: null,
-          time: performance.now(),
-        })),
-        this,
-      );
-    }
-  }
-  vi.stubGlobal("IntersectionObserver", BrowserIntersectionObserver);
+it("requires document interaction before paging, coalesces overlapping end events and retries the failed cursor", async () => {
   let completePage: ((value: Response) => void) | undefined;
   const cursorRequests: URL[] = [];
   let nextAttempts = 0;
@@ -295,29 +253,24 @@ it("requires list interaction before paging, coalesces overlapping end events an
     }),
   );
   const { client } = mount();
-  await screen.findByRole("option", { name: "Select: Game 1" });
-  const list = screen.getByRole("listbox", { name: "Board games" });
-  act(() => {
-    for (const observer of observers) observer.intersect();
-  });
+  await screen.findByRole("button", { name: "Select: Game 1" });
+  const list = screen.getByRole("list", { name: "Board games" });
+  fireEvent.scroll(window);
   expect(cursorRequests).toHaveLength(0);
   fireEvent.keyDown(screen.getByRole("searchbox", { name: "Search board games" }), { key: "End" });
   fireEvent.keyDown(list, { key: "a" });
   expect(cursorRequests).toHaveLength(0);
   fireEvent.keyDown(list, { key: "End" });
   await waitFor(() => expect(completePage).toBeDefined());
-  fireEvent.wheel(list);
-  fireEvent.touchMove(list);
-  fireEvent.scroll(list);
-  act(() => {
-    for (const observer of observers) observer.intersect();
-  });
+  fireEvent.wheel(window);
+  fireEvent.touchStart(window);
+  fireEvent.scroll(window);
   expect(cursorRequests).toHaveLength(1);
   await act(async () => {
     completePage?.(Response.json({ error: "UNAVAILABLE" }, { status: 503 }));
   });
   const retry = await screen.findByRole("button", { name: "Search failed. Retry" });
-  expect(screen.getByRole("listbox", { name: "Board games" })).toBeTruthy();
+  expect(screen.getByRole("list", { name: "Board games" })).toBeTruthy();
   fireEvent.click(retry);
   await waitFor(() => expect(cursorRequests).toHaveLength(2));
   await waitFor(() =>
@@ -338,5 +291,68 @@ it("requires list interaction before paging, coalesces overlapping end events an
     ).toBe(true);
     expect(cached.some(([, value]) => value?.pages[0]?.items[0]?.id === 1)).toBe(true);
   });
-  expect(screen.getByRole("listbox", { name: "Board games" })).toBeTruthy();
+  expect(screen.getByRole("list", { name: "Board games" })).toBeTruthy();
+});
+
+it("windows retained game pages on entry and reentry without fetching or flattening the whole cache", async () => {
+  const fetch = vi.fn(async (input: string) =>
+    Response.json(
+      new URL(input).pathname.endsWith("/account")
+        ? account
+        : page(
+            Array.from({ length: 8 }, (_, index) => game(index + 1, `Game ${index + 1}`)),
+            "next",
+          ),
+    ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const view = mount();
+  await screen.findByRole("button", { name: "Select: Game 1" });
+  const retained = Array.from({ length: 100 }, (_, index) =>
+    page(
+      Array.from({ length: 8 }, (_, offset) =>
+        game(index * 8 + offset + 1, `Game ${index * 8 + offset + 1}`),
+      ),
+      index === 99 ? null : String(index + 1),
+    ),
+  );
+  act(() =>
+    view.client.setQueriesData(
+      { queryKey: ["bgg-picker"] },
+      {
+        pages: retained,
+        pageParams: retained.map((_, index) => (index === 0 ? "" : String(index))),
+      },
+    ),
+  );
+  const list = screen.getByRole("list", { name: "Board games" });
+  expect(list.querySelectorAll(":scope > li")).toHaveLength(8);
+  expect(screen.queryByRole("button", { name: "Select: Game 9" })).toBeNull();
+  const initialRequests = fetch.mock.calls.length;
+  fireEvent.wheel(window);
+  await screen.findByRole("button", { name: "Select: Game 9" });
+  expect(list.querySelectorAll(":scope > li").length).toBeLessThan(30);
+  expect(fetch).toHaveBeenCalledTimes(initialRequests);
+  view.rerender(<p>Closed</p>);
+  view.rerender(
+    <QueryClientProvider client={view.client}>
+      <SearchGamePage
+        apiUrl="https://api.test.invalid"
+        token="fallback-token"
+        userId="owner"
+        onSelect={view.onSelect}
+        onClose={view.onClose}
+      />
+    </QueryClientProvider>,
+  );
+  await screen.findByRole("button", { name: "Select: Game 1" });
+  expect(screen.queryByRole("button", { name: "Select: Game 9" })).toBeNull();
+  expect(
+    screen.getByRole("list", { name: "Board games" }).querySelectorAll(":scope > li"),
+  ).toHaveLength(8);
+  expect(
+    view.client.getQueriesData<{ pages: BggPickerResponse[] }>({ queryKey: ["bgg-picker"] })[0]?.[1]
+      ?.pages,
+  ).toHaveLength(100);
+  expect(fetch).toHaveBeenCalledTimes(initialRequests);
 });

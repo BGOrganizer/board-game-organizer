@@ -113,6 +113,14 @@ for (const width of [390, 1280]) {
       await expect(tab).toHaveCSS("flex-direction", "row");
       await expect(tab).toHaveCSS("white-space", "nowrap");
       await expect(tab).toHaveCSS("font-size", "14px");
+      await expect
+        .poll(() =>
+          tab.evaluate((node) => {
+            const icon = node.querySelector("svg");
+            return icon !== null && getComputedStyle(icon).color === getComputedStyle(node).color;
+          }),
+        )
+        .toBe(true);
     }
     await expect(main.getByRole("heading", { name: labels.bgg })).toBeVisible();
     const account = await read(page, "bgg/account");
@@ -123,6 +131,16 @@ for (const width of [390, 1280]) {
     await expect(main.getByRole("button", { name: labels.logout, exact: true })).toBeVisible();
     for (const tab of [labels.player, labels.activities]) {
       await main.getByRole("tab", { name: tab, exact: true }).click();
+      const selectedTab = main.getByRole("tab", { name: tab, exact: true });
+      await expect(selectedTab).toHaveAttribute("aria-selected", "true");
+      await expect
+        .poll(() =>
+          selectedTab.evaluate((node) => {
+            const icon = node.querySelector("svg");
+            return icon !== null && getComputedStyle(icon).color === getComputedStyle(node).color;
+          }),
+        )
+        .toBe(true);
       await expect(main.getByTestId("profile-version")).toHaveText(
         `${it ? "Versione" : "Version"}: ${appVersion}`,
       );
@@ -150,6 +168,10 @@ for (const width of [390, 1280]) {
       .getByRole("menuitem", { name: it ? "Visualizza profilo" : "View profile", exact: true })
       .click();
     await expect(page).toHaveURL(new RegExp(`/profiles/${target}$`));
+    const back = main.getByRole("button", { name: it ? "Indietro" : "Back", exact: true });
+    await expect(back).toBeVisible();
+    await expect(back).toHaveText("");
+    await expect(main.locator("[data-page-toolbar]").first()).toBeVisible();
     await expect(main.getByText(targetName, { exact: true })).toBeVisible();
     await expect(main.getByRole("heading", { name: labels.bgg })).toHaveCount(0);
     const profile = await read(page, `profiles/${target}`);
@@ -201,6 +223,9 @@ for (const width of [390, 1280]) {
     await main.getByRole("tab", { name: labels.activities, exact: true }).click();
     await main.getByRole("button", { name: labels.all, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/profiles/${target}/activities$`));
+    await expect(
+      main.getByRole("link", { name: it ? "Indietro" : "Back", exact: true }),
+    ).toHaveAttribute("href", `/profiles/${target}`);
     await expect(main.getByText(publicText, { exact: true })).toBeVisible();
     await expect(main.getByText(privateText, { exact: true })).toHaveCount(0);
     expect(await main.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
@@ -288,7 +313,8 @@ test("real provider BGG failure/success/retained snapshot/unlink and confirmed l
   if (collectionPage.body.items.length) {
     const first = collectionPage.body.items[0];
     const row = main
-      .getByRole("option")
+      .getByRole("list", { name: it ? "Giochi della collezione" : "Collection games", exact: true })
+      .locator(":scope > li")
       .filter({ has: page.getByText(first.name, { exact: true }) });
     const rating =
       first.userRating === null

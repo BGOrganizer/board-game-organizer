@@ -65,9 +65,6 @@ let fail: boolean,
   table: typeof plannedTable;
 beforeEach(() => {
   vi.clearAllMocks();
-  const header = document.createElement("header");
-  header.id = "page-header-actions";
-  document.body.append(header);
   fail = false;
   event = {
     ...plannedEvent,
@@ -108,7 +105,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
-  document.getElementById("page-header-actions")?.remove();
 });
 function mount(
   client = new QueryClient({
@@ -300,11 +296,12 @@ it.each([undefined, 2])(
     expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
   },
 );
-it("keeps Back in the app header", async () => {
+it("keeps icon-only Back in the page toolbar", async () => {
   mount();
   await screen.findByRole("button", { name: "Save all ND" });
   const back = screen.getByRole("button", { name: "Back" });
-  expect(document.getElementById("page-header-actions")?.contains(back)).toBe(true);
+  expect(back.closest("[data-page-toolbar]")).not.toBeNull();
+  expect(back.textContent).toBe("");
   fireEvent.click(back);
   expect(m.back).toHaveBeenCalledOnce();
 });

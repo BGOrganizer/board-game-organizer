@@ -8,6 +8,7 @@ import { clearSessionQueryCache, groupRecordKeys } from "@board-game-organizer/s
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { enterDateTime } from "@/test-fixtures/dateTime";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { GroupMembers } from "../GroupMembers";
@@ -284,14 +285,14 @@ it("validates temporary exclusion locally and rolls a rejected exclusion back to
   );
   const dialog = await screen.findByRole("dialog", { name: "Ban from group: @accepted-player" });
   fireEvent.click(within(dialog).getByRole("switch", { name: "Temporary exclusion" }));
-  const deadline = within(dialog).getByLabelText("Excluded until");
-  fireEvent.change(deadline, { target: { value: "2000-01-01T00:00" } });
+  const deadline = within(dialog).getByRole("group", { name: "Excluded until" });
+  enterDateTime(deadline, "2000-01-01T00:00");
   fireEvent.click(within(dialog).getByRole("button", { name: "Ban from group" }));
   expect(within(dialog).getByRole("alert").textContent).toBe(
     "Choose a valid future date and time.",
   );
   expect(writes).toHaveLength(0);
-  fireEvent.change(deadline, { target: { value: "2030-06-05T20:00" } });
+  enterDateTime(deadline, "2030-06-05T20:00");
   fireEvent.click(within(dialog).getByRole("button", { name: "Ban from group" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(JSON.parse(String(writes[0].body))).toEqual({

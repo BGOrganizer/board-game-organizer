@@ -175,6 +175,7 @@ it("keeps logout reachable while loading and exposes network failures with retry
   failProfile = 0;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await screen.findByText("Alessandro");
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
 });
 it("shows a compact identity, persistent tabs and real ordinal GLOBAL rating data", async () => {
   renderWithI18n(<Profile />);
@@ -258,6 +259,9 @@ it("starts with an empty game selection, clears it without stale history and sta
 it("quarantines all subject data after a denied child read and permits a fresh authorized retry", async () => {
   failGames = 404;
   renderWithI18n(<Profile userId="guest" />);
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(back).toHaveTextContent("");
+  expect(back.closest("[data-page-toolbar]")?.firstElementChild?.contains(back)).toBe(true);
   await screen.findByText("Alessandro");
   fireEvent.click(screen.getByRole("tab", { name: "Player" }));
   await screen.findByText("Profile unavailable");
