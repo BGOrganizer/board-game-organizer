@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { gameDetails, hydrateGames, searchGames } from "@/app/lib/games/bgg";
+import { gameDetails, gameDetailsBatch, hydrateGames, searchGames } from "@/app/lib/games/bgg";
 
 const quota = { updateOne: vi.fn() };
 const games = { find: vi.fn(), findOne: vi.fn(), bulkWrite: vi.fn() };
@@ -70,6 +70,7 @@ describe("BGG covers", () => {
         bayesAverage: 7.23456,
         average: 7.5,
         rank: 123,
+        categories: [],
         imageUrl: "https://cf.geekdo-images.com/a/full.jpg",
       },
       {
@@ -79,6 +80,7 @@ describe("BGG covers", () => {
         bayesAverage: null,
         average: null,
         rank: null,
+        categories: [],
         imageUrl: "https://cf.geekdo-images.com/b/full.jpg",
       },
     ]);
@@ -282,10 +284,13 @@ describe("BGG covers", () => {
       durationCheckedAt: new Date().toISOString(),
       averageWeight: 2.5,
       weightCheckedAt: new Date().toISOString(),
+      categories: [],
+      categoriesCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),
     });
     expect(await gameDetails(db, 1)).toEqual({
       averageWeight: 2.5,
+      categories: [],
       id: 1,
       name: "Azul",
       imageUrl,
@@ -303,6 +308,8 @@ describe("BGG covers", () => {
       durationCheckedAt: new Date().toISOString(),
       averageWeight: 2.5,
       weightCheckedAt: new Date().toISOString(),
+      categories: [],
+      categoriesCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),
     };
     games.find.mockReturnValue(cursor([row]));
@@ -311,6 +318,7 @@ describe("BGG covers", () => {
     expect(await searchGames(db, "Azul")).toEqual([
       {
         averageWeight: 2.5,
+        categories: [],
         id: 1,
         name: "Azul",
         year: null,
@@ -415,6 +423,8 @@ describe("BGG covers", () => {
       },
       averageWeight: 2.5,
       weightCheckedAt: new Date().toISOString(),
+      categories: [],
+      categoriesCheckedAt: new Date().toISOString(),
       playerCountsCheckedAt: new Date().toISOString(),
     };
     games.findOne.mockResolvedValue(row);
@@ -517,4 +527,50 @@ it("refreshes expired player metadata without overwriting verified previous boun
   vi.stubGlobal("fetch", fetch);
   expect(await gameDetails(db, 1)).toMatchObject({ minPlayers: 2, maxPlayers: 4 });
   expect(fetch).toHaveBeenCalledOnce();
+});
+
+describe("BGG metadata for visible games", () => {
+  it("hydrates categories and missing ranking facts with one request for existing catalog IDs", async () => {
+    const full = { ...sample, image: "https://cf.geekdo-images.com/azul.jpg" };
+    const partial = { id: 2, name: "New game" };
+    const omitted = { id: 3, name: "Not returned by BGG" };
+    games.find.mockReturnValue(cursor([full, partial, omitted]));
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => `<items>
+        <item id="1">
+          <link type="boardgamecategory" value=" Abstract Strategy "/>
+          <link type="boardgamecategory" value="Abstract Strategy"/>
+          <link type="boardgamecategory" value=" "/>
+          <link type="boardgamemechanic" value="Pattern Building"/>
+          <statistics><ratings><average value="2.0"/></ratings></statistics>
+        </item>
+        <item id="2">
+          <yearpublished value="2024"/>
+          <statistics><ratings><average value="8.05"/><ranks>
+            <rank type="family" name="strategygames" value="90"/>
+            <rank type="subtype" name="boardgame" value="440"/>
+          </ranks></ratings></statistics>
+        </item>
+      </items>`,
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    const result = await gameDetailsBatch(db, [1, 2, 3, 999]);
+    expect(games.find).toHaveBeenCalledWith({ id: { $in: [1, 2, 3, 999] } });
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(
+      "https://boardgamegeek.com/xmlapi2/thing?id=1,2,3&stats=1",
+      expect.any(Object),
+    );
+    expect(result[0]).toMatchObject({
+      categories: ["Abstract Strategy"],
+      average: 7.5,
+      rank: 123,
+    });
+    expect(result[1]).toMatchObject({ categories: [], year: 2024, rank: 440, average: 8.05 });
+    expect(result[2]).not.toHaveProperty("categories");
+    expect(partial).toHaveProperty("categoriesCheckedAt", expect.any(String));
+    expect(omitted).not.toHaveProperty("categoriesCheckedAt");
+  });
 });

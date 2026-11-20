@@ -38,8 +38,7 @@ function SelectGame() {
     <>
       <GameListCard
         name="Cascadia"
-        average={7.83}
-        rank={42}
+        game={{ id: 1, name: "Cascadia", imageUrl: null, year: 2021, average: 7.83, rank: 42 }}
         durationMinutes={60}
         onPress={() => setSelected(true)}
       />
@@ -63,26 +62,55 @@ function SelectLocation() {
   );
 }
 
+const knownGameBadge = (
+  <GameCatalogMetadata
+    name="Cascadia"
+    visible={false}
+    game={{
+      id: 1,
+      name: "Cascadia",
+      imageUrl: null,
+      year: 2021,
+      average: 7.83,
+      rank: 42,
+      minPlayMinutes: 30,
+      maxPlayMinutes: 60,
+    }}
+  />
+);
+
 const cases: { name: string; element: ReactElement; scenario: () => Promise<void> }[] = [
   {
     name: "GameCatalogMetadata: rating, rank and known duration",
-    element: <GameCatalogMetadata year={2021} average={7.83} rank={42} durationMinutes={60} />,
+    element: knownGameBadge,
     scenario: async () => {
-      screen.getByRole("img", { name: "Average: 7.83" });
-      screen.getByRole("img", { name: "Rank: 42" });
-      screen.getByText("60 minutes");
+      screen.getByRole("button", { name: "Game information: Cascadia" });
+    },
+  },
+  {
+    name: "GameCatalogMetadata: open BGG details",
+    element: knownGameBadge,
+    scenario: async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Game information: Cascadia" }));
+      await screen.findByRole("dialog", { name: "Cascadia" });
+      screen.getByText("7.83");
+      screen.getByText("#42");
+      screen.getByText("30–60 min");
     },
   },
   {
     name: "GameListRow: display-only game with supplied metadata",
     element: (
       <ul>
-        <GameListRow name="Ark Nova" rank={4} year={2021} />
+        <GameListRow
+          name="Ark Nova"
+          game={{ id: 2, name: "Ark Nova", imageUrl: null, rank: 4, year: 2021 }}
+        />
       </ul>
     ),
     scenario: async () => {
       screen.getByText("Ark Nova");
-      screen.getByRole("img", { name: "Rank: 4" });
+      screen.getByRole("button", { name: "Game information: Ark Nova" });
     },
   },
   {

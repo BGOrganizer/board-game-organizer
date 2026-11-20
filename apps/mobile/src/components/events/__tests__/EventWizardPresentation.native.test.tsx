@@ -313,7 +313,7 @@ it("renders explicit name/count/demonstrator/schedule errors without silently ac
   await render(
     <EditorFixture
       publicGroup
-      fieldError={() => true}
+      fieldError={(path) => path !== "demonstratorGuestName"}
       eventStartWall="2030-05-02T20:00"
       eventEndWall="2030-05-02T23:00"
     />,
@@ -327,6 +327,36 @@ it("renders explicit name/count/demonstrator/schedule errors without silently ac
   ])
     expect(screen.getByText(message)).toBeVisible();
   expect(screen.queryByRole("switch", { name: "Allow game proposals" })).toBeNull();
+});
+
+it("shows a guest demonstrator in the same editable identity row and removes only that draft assignment", async () => {
+  const onChange = vi.fn();
+  await render(
+    <EditorFixture
+      publicGroup
+      row={tableDraftFixture({ demonstratorGuestName: "Guest guide" })}
+      onChange={onChange}
+    />,
+  );
+  expect(screen.getByText("Guest guide")).toBeVisible();
+  await press("Remove demonstrator");
+  expect(onChange).toHaveBeenCalledExactlyOnceWith({
+    demonstratorUserId: undefined,
+    demonstratorGuestName: undefined,
+    demonstratorName: undefined,
+    demonstratorAvatarUrl: undefined,
+  });
+});
+it("reports a guest-name validation error on the demonstrator row", async () => {
+  await render(
+    <EditorFixture
+      publicGroup
+      row={tableDraftFixture({ demonstratorGuestName: "Guest guide" })}
+      fieldError={(path) => path === "demonstratorGuestName"}
+    />,
+  );
+  expect(screen.getByText("Enter a guest name between 1 and 80 characters.")).toBeVisible();
+  expect(screen.queryByText("Choose an available group demonstrator.")).toBeNull();
 });
 
 it("allows choosing and removing a public demonstrator without changing the remaining draft", async () => {
@@ -346,6 +376,7 @@ it("allows choosing and removing a public demonstrator without changing the rema
   await press("Remove demonstrator");
   expect(onChange).toHaveBeenLastCalledWith({
     demonstratorUserId: undefined,
+    demonstratorGuestName: undefined,
     demonstratorName: undefined,
     demonstratorAvatarUrl: undefined,
   });

@@ -22,13 +22,13 @@ appId: com.bgo.boardgameorganizer.dev
 - tapOn:
     id: "address-result-0"
 - scrollUntilVisible:
-    element: "Confirm location"
+    element: "Confirm Location"
     direction: DOWN
     timeout: 30000
 - assertVisible:
     id: "location-address-input"
     text: ".*(Roma|Rome).*"
-- tapOn: "Confirm location"
+- tapOn: "Confirm Location"
 - extendedWaitUntil:
     notVisible:
       id: "location-address-input"

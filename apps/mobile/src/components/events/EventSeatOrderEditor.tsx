@@ -21,6 +21,7 @@ import type { ReactNode } from "react";
 import { SectionList, View } from "react-native";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
@@ -107,17 +108,22 @@ export function EventSeatOrderEditor({
               </GroupedList>
             );
           const { row, index } = item;
+          const guest = row.kind === "GUEST";
+          const name = guest
+            ? (row.guestName ?? t("Guest"))
+            : formatUsername(row.username, row.name ?? t("Username unavailable"));
           const roles = tableUserRoles({
             ...row,
-            demonstrator: row.userId === demonstratorUserId,
+            demonstrator: !guest && row.userId === demonstratorUserId,
             position: row.seatIndex !== null ? "SEATED" : "WAITING",
           });
           return (
             <GroupedList>
               <UserListRow
                 testID={`seat-order-row-${row.id}`}
-                name={formatUsername(row.username, row.name ?? t("Username unavailable"))}
-                avatarUrl={row.avatarUrl}
+                name={name}
+                avatarUrl={guest ? null : row.avatarUrl}
+                avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
                 badgeContent={<UserRoleBadge roles={roles} />}
                 topBadgeContent={
                   row.seatIndex !== null ? (
@@ -131,7 +137,9 @@ export function EventSeatOrderEditor({
                     />
                   ) : undefined
                 }
-                secondary={roles[0] ? t(RECORD_USER_ROLES[roles[0]].message) : undefined}
+                secondary={
+                  guest ? t("Guest") : roles[0] ? t(RECORD_USER_ROLES[roles[0]].message) : undefined
+                }
                 actions={
                   <>
                     <Button

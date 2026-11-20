@@ -37,7 +37,7 @@ export type EventProposalResponse = Omit<EventProposal, "requestHash" | "payload
     status: EventProposal["status"];
   }[];
   game?: Pick<BggSearchItem, "id" | "name" | "imageUrl"> &
-    Partial<Pick<BggSearchItem, "year" | "average" | "rank" | "suggestedPlayers">>;
+    Partial<Omit<BggSearchItem, "id" | "name" | "imageUrl">>;
   gameSuggestions?: {
     id: string;
     userId: string;

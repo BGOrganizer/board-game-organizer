@@ -9,19 +9,18 @@ Its provider nesting is:
 Sentry.ErrorBoundary
   GestureHandlerRootView
     I18nProvider
-      HeroUINativeProvider
-        NavigationTheme
-          RootNavigator
-            ClerkProvider
-              MobileQueryProvider
-                Expo Router Stack and startup/push coordinators
+      ClerkProvider
+        MobileQueryProvider
+          HeroUINativeProvider
+            NavigationTheme
+              Expo Router Stack and startup/push coordinators
 ```
 
 Keep `index.tsx` authentication navigation declarative with `<Redirect>`; an effect-driven
 `router.replace` raced cold-start navigation.
 
-HeroUI's sibling portal host must inherit Lingui context, including search-help components inside
-Select overlays; preserve that context when changing the provider tree.
+HeroUI's sibling portal host inherits Lingui, Clerk and Query context. Preserve those providers when
+changing the nesting so portal content can display translated data for the active account.
 
 Use `heroui-native` and Uniwind classes; icons use `lucide-react-native` only. Use explicit React Native style
 objects for structural layout (`flex`, row direction, gaps, dimensions) because generated utility

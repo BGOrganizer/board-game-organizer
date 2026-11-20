@@ -14,6 +14,7 @@ import { Minus, Plus, Trash2, X } from "lucide-react-native";
 import { View } from "react-native";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { InputField } from "@/components/common/ui/InputField";
 import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
@@ -51,6 +52,9 @@ export function EventDraftTableEditor({
 }) {
   const t = useT();
   const { i18n } = useLingui();
+  const invalidGuest = fieldError("demonstratorGuestName");
+  const invalidDemonstrator = invalidGuest || fieldError("demonstratorUserId");
+  const guestName = row.demonstratorGuestName;
   const day = eventStartWall.slice(0, 10);
   const playerBounds = gamePlayerBounds(row.games);
   const bounds = publicTableTimeBounds(
@@ -213,21 +217,26 @@ export function EventDraftTableEditor({
             }
             onChange={(startsWall) => onChange({ startsWall })}
           />
-          <InputField invalid={fieldError("demonstratorUserId")} style={{ gap: 8 }}>
+          <InputField invalid={invalidDemonstrator} style={{ gap: 8 }}>
             <SearchHelpLabel
               label={t("Demonstrator")}
               helpTitle={helpTitle}
               help={t(
-                "Optionally assign an accepted group member to demonstrate this public table. Their other tables must not overlap.",
+                "Optionally assign a group member or a guest to demonstrate this table. Group members cannot demonstrate overlapping tables.",
               )}
             />
-            {row.demonstratorUserId ? (
+            {row.demonstratorUserId || guestName ? (
               <GroupedList>
                 <UserListRow
-                  name={row.demonstratorName ?? t("Unknown")}
+                  name={guestName ?? row.demonstratorName ?? t("Unknown")}
                   avatarUrl={row.demonstratorAvatarUrl}
+                  avatarContent={guestName ? <GuestAvatar name={guestName} /> : undefined}
                   onPress={onDemonstrator}
-                  accessibilityLabel={t("Choose demonstrator")}
+                  accessibilityLabel={
+                    guestName
+                      ? `${t("Choose demonstrator")}: ${guestName}`
+                      : t("Choose demonstrator")
+                  }
                   isDisabled={busy}
                   actions={
                     <Button
@@ -239,6 +248,7 @@ export function EventDraftTableEditor({
                       onPress={() =>
                         onChange({
                           demonstratorUserId: undefined,
+                          demonstratorGuestName: undefined,
                           demonstratorName: undefined,
                           demonstratorAvatarUrl: undefined,
                         })
@@ -256,9 +266,11 @@ export function EventDraftTableEditor({
                 isDisabled={busy}
               />
             )}
-            {fieldError("demonstratorUserId") ? (
+            {invalidDemonstrator ? (
               <Typography accessibilityRole="alert" className="text-sm text-danger">
-                {t("Choose an available group demonstrator.")}
+                {invalidGuest
+                  ? t("Enter a guest name between 1 and 80 characters.")
+                  : t("Choose an available group demonstrator.")}
               </Typography>
             ) : null}
           </InputField>
@@ -274,13 +286,10 @@ export function EventDraftTableEditor({
         <GroupedList>
           {row.games.map((game) => (
             <GameListRow
+              game={game}
               key={game.id}
               name={game.name}
               imageUrl={game.imageUrl}
-              year={game.year}
-              average={game.average}
-              rank={game.rank}
-              suggestedPlayers={game.suggestedPlayers}
               durationMinutes={eventGameDuration(game)}
               actions={
                 <Button

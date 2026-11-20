@@ -289,6 +289,7 @@ it("covers existing option changes, new/removed tables and standalone changes wi
     { minPlayers: 3 },
     { startsAt: "2027-01-03T19:00:00Z" },
     { demonstratorUserId: "demo" },
+    { demonstratorGuestName: "Arianna" },
     { rankingEnabled: true },
   ])
     expect(

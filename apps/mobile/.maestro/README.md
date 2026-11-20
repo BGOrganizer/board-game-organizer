@@ -330,6 +330,8 @@ JSON fields: `mask` (date=1, location=2, game=4; zero means all singleton), `mod
 `path` (`/events/<event UUID>/tables/<table UUID>`), and `name` (Table name). Native also requires
 `dates`, `locations`, `games`: exact arrays of one or two accessible option labels matching each
 mask bit. Date vote labels use local `YYYY-MM-DD HH:mm`; location/game labels use their names.
+For multiple games, also supply the authenticated actor's exact `username`; the flow opens the
+first game's vote sheet after consent and verifies the actor's named vote and the three categories.
 Names containing punctuation are escaped literally. Web verifies actual authorized API option
 counts, captures the real versioned request and checks singleton maps remain empty.
 
@@ -628,13 +630,13 @@ no sync, provider write, provisioning, reset or notification acknowledgment occu
 `COLLECTION_INPUT` to JSON:
 
 ```json
-{"owner":"owned-username","withoutExpansions":40,"withExpansions":45,"wishlist":7,"ratedGame":"Exact rated title","rating":8.5,"bestPlayers":"4-5","unratedGame":"Exact unrated title","laterGame":"Exact later-page title","laterOffset":30,"emptyQuery":"known-unmatched-filter"}
+{"owner":"owned-username","withoutExpansions":40,"withExpansions":45,"wishlist":7,"ratedGame":"Exact rated title","rating":8.5,"bestPlayers":[{"count":"4","percent":64},{"count":"5+","percent":52}],"gameYear":2024,"gameCategory":"Abstract Strategy","unratedGame":"Exact unrated title","laterGame":"Exact later-page title","laterOffset":30,"emptyQuery":"known-unmatched-filter"}
 ```
 
 Values must match the full published snapshot, not owned-only or filtered counts. Use distinct
 unambiguous rated/unrated titles, the expected displayed personal rating (at most two decimals),
-and a known title at source offset >=25 (zero-based name/id order).
-The flow verifies counters, personal rather than public rating, N/A, automatic filtering, empty
+a rated title with its actual publication year, at least one verified category and one or two displayed BGG Best vote shares, and a known title at source offset >=25 (zero-based name/id order).
+The flow verifies counters, personal rather than public rating, the catalog popover and Best vote shares, N/A, automatic filtering, empty
 results, clear and scrolling beyond the first API page. Run EN/IT, light/dark, normal/enlarged text
 and normal/tall viewports. Both few-result and empty-search screenshots must show input/chips above the actual keyboard,
 not a collapsed offscreen list; blur preserves text and clear preserves Wishlist. Also verify the
@@ -663,7 +665,9 @@ filter without a viewer snapshot and hidden Collection on the unsynced subject.
 
 Web read-only scenario: `bun run --filter web exec playwright test --config e2e/collection-filters.config.ts`
 uses the same JSON/fixture acknowledgment, plus `COLLECTION_THEME=light|dark`, `COLLECTION_API_URL`,
-explicit local/Preview `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and Development Clerk keys. It checks real
+explicit local/Preview `PLAYWRIGHT_BASE_URL`, `E2E_EMAIL` and Development Clerk keys. The web
+scenario also requires `metadataName` in the JSON. Use an exact, fully hydrated title in the subject's
+collection with at least one category and one BGG Best vote share. It checks the game information popover and real
 source filters at 390/1280 widths, counts/common scopes and absence of owner controls/writes. Fixture
 parsing/discovery is not authenticated runtime evidence. Canonical suites/jobs remain unchanged.
 
@@ -863,3 +867,14 @@ run competing clocks.
 This retained flow and VM/unit checks do not prove native rendering, frame timing, system settings
 reactivity or physical 64/96px contrast. Maestro/device execution is required for that evidence;
 this flow does not join the canonical 13-journey CI suite automatically.
+
+
+## Table guest acceptance
+
+`55-table-guests.yaml` and the web `e2e/table-guests.config.ts` exercise the real table roster.
+Use an admin or moderator account in Development and a disposable planning table in a private
+group or standalone event. The table needs one free seat and multiple game options.
+
+Set `TABLE_GUEST_ACK=owned-disposable-private-planning-table`, `TABLE_GUEST_LOCALE=en|it` and
+`TABLE_GUEST_INPUT` with `eventId`, `tableId`, a fresh guest `name` and the exact title of one
+`game`. Adding the guest and recording a vote both write to that fixture.

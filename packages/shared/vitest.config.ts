@@ -92,6 +92,12 @@ export default defineConfig({
           branches: 90,
           statements: 90,
         },
+        "src/games/gameDifficultyColor.ts": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
         "src/games/gameBestPlayers.ts": {
           lines: 90,
           functions: 90,

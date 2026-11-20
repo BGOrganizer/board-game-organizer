@@ -11,6 +11,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Minus, Plus, Trash2, UserRoundPen, X } from "lucide-react";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { TimePicker } from "@/components/common/ui/TimePicker";
@@ -43,6 +44,9 @@ export function EventDraftTableEditor({
   onDemonstrator: () => void;
 }) {
   const { t, i18n } = useLingui();
+  const invalidGuest = fieldError("demonstratorGuestName");
+  const invalidDemonstrator = invalidGuest || fieldError("demonstratorUserId");
+  const guestName = row.demonstratorGuestName;
   const day = eventStartWall.slice(0, 10);
   const playerBounds = gamePlayerBounds(row.games);
   const bounds = publicTableTimeBounds(
@@ -215,19 +219,20 @@ export function EventDraftTableEditor({
           </TimePicker>
           <div
             data-form-field
-            data-form-error={fieldError("demonstratorUserId") || undefined}
+            data-form-error={invalidDemonstrator || undefined}
             className="space-y-2"
           >
             <SearchHelpLabel
               label={t`Demonstrator`}
               helpTitle={helpTitle}
-              help={t`Optionally assign an accepted group member to demonstrate this public table. Their other tables must not overlap.`}
+              help={t`Optionally assign a group member or a guest to demonstrate this table. Group members cannot demonstrate overlapping tables.`}
             />
             <GroupedList>
-              {row.demonstratorUserId ? (
+              {row.demonstratorUserId || guestName ? (
                 <UserListRow
-                  name={row.demonstratorName ?? t`Unknown`}
+                  name={guestName ?? row.demonstratorName ?? t`Unknown`}
                   avatarUrl={row.demonstratorAvatarUrl}
+                  avatarContent={guestName ? <GuestAvatar name={guestName} /> : undefined}
                   actions={
                     <>
                       <Button
@@ -250,6 +255,7 @@ export function EventDraftTableEditor({
                         onPress={() =>
                           onChange({
                             demonstratorUserId: undefined,
+                            demonstratorGuestName: undefined,
                             demonstratorName: undefined,
                             demonstratorAvatarUrl: undefined,
                           })
@@ -268,11 +274,12 @@ export function EventDraftTableEditor({
                 />
               )}
             </GroupedList>
-            {fieldError("demonstratorUserId") ? (
-              <p
-                role="alert"
-                className="text-sm text-danger"
-              >{t`Choose an available group demonstrator.`}</p>
+            {invalidDemonstrator ? (
+              <p role="alert" className="text-sm text-danger">
+                {invalidGuest
+                  ? t`Enter a guest name between 1 and 80 characters.`
+                  : t`Choose an available group demonstrator.`}
+              </p>
             ) : null}
           </div>
         </>
@@ -291,13 +298,10 @@ export function EventDraftTableEditor({
         <GroupedList>
           {row.games.map((game) => (
             <GameListRow
+              game={game}
               key={game.id}
               name={game.name}
               imageUrl={game.imageUrl}
-              year={game.year}
-              average={game.average}
-              rank={game.rank}
-              suggestedPlayers={game.suggestedPlayers}
               durationMinutes={eventGameDuration(game)}
               actions={
                 <Button

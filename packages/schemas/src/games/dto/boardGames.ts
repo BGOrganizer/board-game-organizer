@@ -14,6 +14,7 @@ export const bggSearchItemSchema = z.object({
   minPlayMinutes: z.number().int().positive().nullable().optional(),
   suggestedPlayers: playerPollSchema.optional(),
   averageWeight: z.number().min(1).max(5).nullable().optional(),
+  categories: z.array(z.string().min(1)).optional(),
   maxPlayMinutes: z.number().int().positive().nullable().optional(),
 });
 export const bggSearchResponseSchema = z.object({ items: z.array(bggSearchItemSchema) });
@@ -21,3 +22,5 @@ export type BggSearchItem = z.infer<typeof bggSearchItemSchema>;
 export type BggSearchResponse = z.infer<typeof bggSearchResponseSchema>;
 export const bggThingResponseSchema = bggSearchItemSchema;
 export type BggThingResponse = z.infer<typeof bggThingResponseSchema>;
+export const bggThingBatchResponseSchema = z.object({ items: z.array(bggThingResponseSchema) });
+export type BggThingBatchResponse = z.infer<typeof bggThingBatchResponseSchema>;

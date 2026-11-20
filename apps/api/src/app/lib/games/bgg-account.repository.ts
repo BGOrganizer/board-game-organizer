@@ -368,6 +368,7 @@ export class BggAccountRepository {
           minPlayMinutes: stats?.minPlayMinutes ?? null,
           ...(stats?.suggestedPlayers ? { suggestedPlayers: stats.suggestedPlayers } : {}),
           averageWeight: stats?.averageWeight ?? null,
+          ...(stats?.categories !== undefined ? { categories: stats.categories } : {}),
           maxPlayMinutes: stats?.maxPlayMinutes ?? null,
         };
       }),

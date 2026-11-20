@@ -31,8 +31,8 @@ visibility with a current-network/time selection; no offline mode is enabled.
   identity/cover/catalog layout, replacing selection with the owner's personal BGG rating or `N/A`,
   never the public BGG average or GLOBAL OpenSkill. Collection covers prefer verified canonical catalog
   artwork, falling back to a valid snapshot image; missing/invalid artwork retains the semantic game
-  icon. Visible-page hydration remains batched, without per-row fetches. Game rows show available BGG
-  rank and Best player counts under the [catalog rules](development.md#boardgamegeek-catalog).
+  icon. Visible-page hydration remains batched. Each game has an information badge that shows
+  the available BGG details under the [catalog rules](development.md#boardgamegeek-catalog).
   Games and Expansions chips initially include
   both types (OR). Wishlist independently shows wished games AND expansions regardless of either type
   toggle; it preserves those toggles for when Wishlist is turned off. Name and In common still restrict

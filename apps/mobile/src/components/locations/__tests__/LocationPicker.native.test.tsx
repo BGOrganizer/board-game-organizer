@@ -242,7 +242,7 @@ async function choose(index = 0) {
   await userEvent.setup().press(result);
 }
 async function confirm() {
-  await userEvent.setup().press(screen.getByRole("button", { name: "Confirm location" }));
+  await userEvent.setup().press(screen.getByRole("button", { name: "Confirm Location" }));
 }
 async function mapReady() {
   await fireEvent(screen.getByTestId("native-map-boundary"), "didFinishLoadingStyle");
@@ -282,7 +282,7 @@ it("preserves the native map/form controls while searching and caps verified sou
   expect(screen.getByRole("button", { name: "Center map on my location" })).toBeVisible();
   expect(screen.getByLabelText("Location name")).toBeVisible();
   expect(screen.getByTestId("favorite-location-select")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Confirm location" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Confirm Location" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Map by MapTiler" })).toBeVisible();
 });
 

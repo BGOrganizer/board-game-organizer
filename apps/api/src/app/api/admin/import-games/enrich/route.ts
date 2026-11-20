@@ -29,11 +29,13 @@ export async function POST(request: Request) {
         row.minPlayMinutes &&
         row.maxPlayMinutes &&
         row.averageWeight &&
+        row.categories !== undefined &&
         row.suggestedPlayers &&
         [
           row.playerCountsCheckedAt,
           row.durationCheckedAt,
           row.weightCheckedAt,
+          row.categoriesCheckedAt,
           row.suggestedPlayers.fetchedAt,
         ].every((date) => date && Date.now() - Date.parse(date) < 7 * 86400000),
     );

@@ -19,12 +19,9 @@ export function EventProposalItem({
     <div data-testid={`event-proposal-${row.id}`}>
       {row.payload.kind === "game" ? (
         <GameListRow
+          game={row.game && { ...row.game, year: row.game.year ?? null }}
           name={row.game?.name ?? row.label}
           imageUrl={row.game?.imageUrl}
-          year={row.game?.year}
-          average={row.game?.average}
-          rank={row.game?.rank}
-          suggestedPlayers={row.game?.suggestedPlayers}
           actions={actions}
         >
           {children}

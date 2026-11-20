@@ -130,10 +130,11 @@ Both remote and direct import use the complete rankings CSV parser.
 User synchronization requests owned games (`own=1`) in separate base-game and expansion partitions;
 expansions are excluded from playable selection. Linking and synchronization require an API-side `BGG_TOKEN`.
 
-Reading a collection page also enriches that page's missing/stale catalog durations and average weight (difficulty) through BGG
-XML API2 (`thing?stats=1`), using the same shared one-request-per-five-seconds quota as search and game selection.
-Only the visible page is requested, including its verified collection IDs absent from the local
-catalog. A busy quota or unavailable provider keeps the cached page usable; there is no full-catalog
+Game metadata comes from BoardGameGeek XML API2 (`thing?stats=1`). Both clients batch requests for
+currently visible game rows with missing details. Collection page reads also enrich that page,
+including verified collection IDs absent from the catalog. Search, collection and game details share the same limit of one BGG request every five seconds. `categories` records BGG category links.
+An empty array means the provider returned the game without categories, and a missing field means
+the categories are unavailable. A busy quota or unavailable provider keeps the cached page usable; there is no full-catalog
 scan or provider request inside a transaction. HTTP 202/429 retain the shared one-minute backoff.
 `metadataAttemptedAt` records parsed metadata attempts and prevents retrying unavailable/partial
 metadata for five minutes. `weightCheckedAt` advances only for a finite BGG `averageweight` from 1 to 5; missing/zero
@@ -149,8 +150,8 @@ BGG player-count recommendations retain the complete `suggested_numplayers` poll
 `suggestedPlayers` (Best/Recommended/Not Recommended counts per exact or open-ended count,
 per-row samples, provider total and fetched timestamp). Classification uses a strict unique
 plurality; ties, absent rows and zero samples are unknown. These are community preferences,
-not replacements for hard min/max players. Game items display a player icon and at most the first
-two ascending distinct Best counts beside the BGG rank (for example `6`, `4-5` or `6+`). Unknown
+not replacements for hard min/max players. Game information shows at most the first two ascending
+distinct Best counts, with the share of samples for each count (for example `4 (68%)` or `6+ (75%)`). Unknown
 recommendations remain absent; do not infer Best from a range or player limit. Omitted/invalid polls
 preserve previous verified data and do not acquire a new success timestamp. The existing quota,
 retry and HTTP 202/429 backoff apply.

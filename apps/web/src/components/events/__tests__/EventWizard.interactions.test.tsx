@@ -146,8 +146,18 @@ it("uses real demonstrator and catalog pickers, preserves expanded table state a
     "true",
   );
   fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
+  const guestInput = screen.getByRole("textbox", { name: "Guest name" });
+  const addGuest = screen.getByRole("button", { name: "Add a guest" }) as HTMLButtonElement;
+  fireEvent.change(guestInput, { target: { value: "   " } });
+  expect(addGuest.disabled).toBe(true);
+  fireEvent.change(guestInput, { target: { value: "  Guest Guide  " } });
+  fireEvent.click(addGuest);
+  expect(screen.getByText("Guest Guide")).toBeTruthy();
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
   fireEvent.click(await screen.findByRole("button", { name: "Select user: Guide Player" }));
   expect(screen.getByText("Guide Player")).toBeTruthy();
+  expect(screen.queryByText("Guest Guide")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Remove demonstrator" }));
   expect(screen.queryByText("Guide Player")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
@@ -179,6 +189,7 @@ it("uses real demonstrator and catalog pickers, preserves expanded table state a
       }),
     ],
   });
+  expect(JSON.stringify(writes[0])).not.toContain("demonstratorGuestName");
   expect(navigation.replace).toHaveBeenCalledWith(`/events/${eventId}`);
   // Allow the full picker sequence to finish on the Raspberry's single test worker.
 }, 15_000);

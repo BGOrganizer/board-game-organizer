@@ -128,6 +128,14 @@ describe("participant proposals canonical edit", () => {
     ]);
     expect(result.input?.dates).toBe(event.dates);
     expect(
+      eventProposalEdit(
+        event,
+        [{ ...table, demonstratorUserId: undefined, demonstratorGuestName: "Arianna" }],
+        { kind: "game", tableId: tid, gameId: 3 },
+        id,
+      ).input?.tables[0].demonstratorGuestName,
+    ).toBe("Arianna");
+    expect(
       eventProposalEdit(event, [table], { kind: "game", tableId: tid, gameId: 1 }, id),
     ).toEqual({ input: null, optionId: "1" });
     expect(() =>

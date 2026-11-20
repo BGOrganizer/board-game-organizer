@@ -128,6 +128,7 @@ export function personalTableProjection(
         }
       : {}),
     demonstratorUserId: table.demonstratorUserId,
+    ...(table.demonstratorGuestName ? { demonstratorGuestName: table.demonstratorGuestName } : {}),
     demonstratorName: table.demonstratorName,
     demonstratorAvatarUrl: table.demonstratorAvatarUrl,
   };

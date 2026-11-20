@@ -8,6 +8,8 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { UserRoundPlus, UsersRound } from "lucide-react-native";
+import type { ReactNode } from "react";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { UserList } from "@/components/common/ui/UserList";
@@ -19,11 +21,13 @@ export function GroupMemberPicker({
   groupId,
   disabled = false,
   excludeIds = [],
+  children,
   onSelect,
 }: {
   groupId: string;
   disabled?: boolean;
   excludeIds?: readonly string[];
+  children?: ReactNode;
   onSelect: (person: { id: string; name: string; avatarUrl: string | null }) => void;
 }) {
   const t = useT(),
@@ -41,15 +45,18 @@ export function GroupMemberPicker({
       keyExtractor={(row) => row.userId}
       contentContainerStyle={{ padding: 20, flexGrow: 1, paddingBottom: insets.bottom + 24 }}
       header={
-        <ListSearch
-          query={f.query}
-          onQueryChange={f.setQuery}
-          label={t("Search members")}
-          placeholder={t("Search members")}
-          options={[]}
-          selected={[]}
-          onToggle={f.toggle}
-        />
+        <View style={{ gap: 12 }}>
+          {children}
+          <ListSearch
+            query={f.query}
+            onQueryChange={f.setQuery}
+            label={t("Search members")}
+            placeholder={t("Search members")}
+            options={[]}
+            selected={[]}
+            onToggle={f.toggle}
+          />
+        </View>
       }
       skeleton={<Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />}
       empty={t("No members found")}

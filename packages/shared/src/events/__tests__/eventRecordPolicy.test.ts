@@ -109,6 +109,13 @@ it("projects only included frozen schedules, selected-game duration and public d
   expect(eventTableSchedule({ ...input, eventStatus: "TERMINATED" })?.startsAt).toBe(
     input.confirmed.startsAt,
   );
+  const guest = { ...input, demonstratorUserId: undefined, demonstratorGuestName: "Arianna" };
+  const guestDisplay = { name: "Arianna", avatarUrl: null, guestName: "Arianna" };
+  expect(eventTableSchedule(guest)?.demonstrator).toEqual(guestDisplay);
+  expect(eventTableSchedule({ ...guest, groupType: null })?.demonstrator).toBeNull();
+  expect(
+    eventTableSchedule({ ...guest, groupType: null, personalAccessOnly: true })?.demonstrator,
+  ).toEqual(guestDisplay);
   expect(eventTableSchedule({ ...input, groupType: "PRIVATE" })?.demonstrator).toBeNull();
   expect(eventTableSchedule({ ...input, groupType: null })?.demonstrator).toBeNull();
   expect(eventTableSchedule({ ...input, demonstratorUserId: undefined })?.demonstrator).toBeNull();

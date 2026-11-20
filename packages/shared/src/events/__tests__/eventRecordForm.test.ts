@@ -470,6 +470,35 @@ describe("unified unsaved event drafts", () => {
       false,
     );
   });
+  it("round-trips a public table's guest demonstrator with validated input", () => {
+    const row = tableDraft({ ...table, demonstratorGuestName: "  Arianna  " }, event.timeZone);
+    const draft = {
+      ...eventDraft({
+        ...event,
+        endsAt: "2030-06-03T21:00:00Z",
+        bookingClosesAt: "2030-06-02T10:00:00Z",
+      }),
+      tables: [{ ...row, startsWall: "2030-06-03T20:01" }],
+    };
+    expect(row.demonstratorGuestName).toBe("  Arianna  ");
+    const payload = eventDraftInput(draft, true);
+    expect(payload.success).toBe(true);
+    if (payload.success) {
+      expect(payload.data.tables[0].demonstratorGuestName).toBe("Arianna");
+      expect(payload.data.tables[0].demonstratorUserId).toBeUndefined();
+    }
+    expect(
+      eventDraftStepIssues(
+        { ...draft, tables: [{ ...draft.tables[0], demonstratorGuestName: "   " }] },
+        true,
+        2,
+      ),
+    ).toContain("tables.0.demonstratorGuestName");
+    const privatePayload = eventDraftInput(draft, false);
+    expect(privatePayload.success).toBe(true);
+    if (privatePayload.success)
+      expect(privatePayload.data.tables[0].demonstratorGuestName).toBeUndefined();
+  });
   it("creates independent defaults and leaves optional demonstrators/durations absent", () => {
     const a = newTableDraft("one"),
       b = newTableDraft("two");

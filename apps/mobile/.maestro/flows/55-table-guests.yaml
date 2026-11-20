@@ -1,0 +1,55 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Manager adds an unregistered guest and edits their game vote
+# Explicit owned Development fixture only; real writes with no fake account or reset.
+# TABLE_GUEST_ACK=owned-disposable-private-planning-table; TABLE_GUEST_LOCALE=en|it
+# TABLE_GUEST_INPUT={eventId,tableId,name,game}. Admin already signed in, private PLANNING
+# table with at least one free seat and multiple games. Supply a fresh unique guest name.
+tags: [manual, tables, guests]
+---
+- runScript: ../helpers/table-guests-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.tableGuest.link}
+- runFlow: ../helpers/open-table-participants.yaml
+- scrollUntilVisible:
+    element:
+      text: ${output.tableGuest.place}
+      enabled: true
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: ${output.tableGuest.place}
+    enabled: true
+- tapOn: ${output.tableGuest.invite}
+- extendedWaitUntil:
+    visible: ${output.tableGuest.nameField}
+    timeout: 30000
+- tapOn: ${output.tableGuest.nameField}
+- inputText: ${output.tableGuest.name}
+- hideKeyboard
+- tapOn: ${output.tableGuest.add}
+- extendedWaitUntil:
+    notVisible: ${output.tableGuest.nameField}
+    timeout: 30000
+- scrollUntilVisible:
+    element: ${output.tableGuest.edit}
+    direction: DOWN
+    timeout: 30000
+- tapOn: ${output.tableGuest.edit}
+- extendedWaitUntil:
+    visible: ${output.tableGuest.editor}
+    timeout: 30000
+- scrollUntilVisible:
+    element: ${output.tableGuest.yes}
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    text: ${output.tableGuest.no}
+    enabled: false
+- tapOn: ${output.tableGuest.yes}
+- extendedWaitUntil:
+    visible:
+      text: ${output.tableGuest.yes}
+      selected: true
+    timeout: 30000
+- takeScreenshot: table-guest-proxy-ballot

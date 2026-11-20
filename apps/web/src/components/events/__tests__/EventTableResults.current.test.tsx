@@ -210,3 +210,40 @@ it.each([1, 2, null])(
     expect(await screen.findByRole("dialog", { name: "Position" })).toBeTruthy();
   },
 );
+
+it("shows a winning guest by name with the physical score, without a rating control", () => {
+  const { wrapper: Wrapper } = setup();
+  const guest = {
+    participantId: "guest:00000000-0000-4000-8000-000000000005",
+    name: "Ada",
+  } as const;
+  renderWithI18n(
+    <Wrapper>
+      <EventTableResults
+        table={{
+          ...table,
+          eventStatus: "TERMINATED",
+          confirmed: {
+            ...table.confirmed,
+            playerIds: [guest.participantId, "p00"],
+            guestPlayers: [guest],
+          },
+          results: {
+            lowerWins: false,
+            finalizedAt: table.createdAt,
+            tieBreaks: [],
+            entries: [
+              { userId: guest.participantId, score: "14", rank: 1 },
+              { userId: "p00", score: "10", rank: 2 },
+            ],
+          },
+        }}
+      />
+    </Wrapper>,
+  );
+  const guestRow = screen.getByText("Ada").closest("li");
+  expect(guestRow?.textContent).toContain("14");
+  expect(guestRow?.querySelector("button[aria-label='Position: #1']")).toBeTruthy();
+  expect(guestRow?.querySelectorAll("button")).toHaveLength(1);
+  expect(screen.queryByText(guest.participantId)).toBeNull();
+});

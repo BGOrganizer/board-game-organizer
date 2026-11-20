@@ -1,9 +1,9 @@
-import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { render, screen } from "@testing-library/react-native";
+import type { BggSearchItem, PlannedTableResponse } from "@board-game-organizer/schemas";
+import { render, screen, userEvent } from "@testing-library/react-native";
 import { createContext, useContext } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ScheduleOptionsPopover } from "@/components/common/ui/ScheduleOptionsPopover";
-import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
+import { GameListRow } from "@/components/games/GameListRow";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   installNativePopoverMeasurements,
@@ -133,7 +133,7 @@ it("keeps an unknown timezone loading, an unnamed public guide explicit and an u
       <EventTableScheduleCard
         table={{ ...frozen, demonstratorName: undefined, games: [{ gameId: 2 }] }}
       />
-      <GameCatalogMetadata />
+      <GameListRow name="Unknown game" />
     </NativeTestProviders>,
   );
   expect(screen.getByLabelText("Caricamento…", { includeHiddenElements: true })).toBeTruthy();
@@ -150,7 +150,7 @@ it.each([
   async ({ locale, minutes, label }) => {
     await render(
       <NativeTestProviders locale={locale}>
-        <GameCatalogMetadata durationMinutes={minutes} />
+        <GameListRow name="Chess" durationMinutes={minutes} />
       </NativeTestProviders>,
     );
     expect(screen.getByText(label)).toBeVisible();
@@ -305,45 +305,71 @@ it("omits confirmed schedule icons for a verified empty venue selection", async 
   expect(screen.queryByRole("button")).toBeNull();
 });
 
-it("renders all actual game rows with rank, Best-player count and selected game duration", async () => {
+const chess: BggSearchItem = {
+  id: 1,
+  name: "Chess",
+  imageUrl: null,
+  year: 2000,
+  rank: 42,
+  average: 7.5,
+  averageWeight: 3.25,
+  minPlayMinutes: 90,
+  maxPlayMinutes: 120,
+  categories: ["Abstract Strategy"],
+  suggestedPlayers: {
+    totalVotes: 12,
+    fetchedAt: "2030-06-01T00:00:00Z",
+    rows: [
+      {
+        players: 2,
+        orMore: false,
+        best: 10,
+        recommended: 2,
+        notRecommended: 0,
+        sampleCount: 12,
+      },
+    ],
+  },
+};
+
+it("keeps the table duration and game info trigger visible in the approved games popover", async () => {
   await render(
     <NativeTestProviders>
-      <EventTableGamesPopover
-        name="Game night"
-        games={[
-          {
-            id: 1,
-            name: "Chess",
-            imageUrl: null,
-            year: 2000,
-            rank: 42,
-            average: 7.5,
-            durationMinutes: 30,
-            suggestedPlayers: {
-              totalVotes: 12,
-              fetchedAt: "2030-06-01T00:00:00Z",
-              rows: [
-                {
-                  players: 2,
-                  orMore: false,
-                  best: 10,
-                  recommended: 2,
-                  notRecommended: 0,
-                  sampleCount: 12,
-                },
-              ],
-            },
-          },
-        ]}
-      />
+      <EventTableGamesPopover name="Game night" games={[{ ...chess, durationMinutes: 30 }]} />
     </NativeTestProviders>,
   );
   await pressMeasuredPopover(screen.getByRole("button", { name: "Board games: Game night" }));
   expect(screen.getByText("Chess")).toBeVisible();
   expect(screen.getByText("30 minutes")).toBeVisible();
-  expect(screen.getByLabelText("Rank: 42")).toBeVisible();
-  expect(screen.getByLabelText("Best BGG players: 2")).toBeVisible();
-  expect(screen.queryByRole("button", { name: /Chess/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Game information: Chess" })).toBeVisible();
+  expect(screen.queryByText("#42")).toBeNull();
+  expect(screen.queryByText("90–120 min")).toBeNull();
+  expect(screen.queryByText("Abstract Strategy")).toBeNull();
+});
+
+it("opens game data from an independent badge without selecting the game row", async () => {
+  const select = vi.fn();
+  await render(
+    <NativeTestProviders>
+      <GameListRow game={chess} name={chess.name} durationMinutes={30} onPress={select} />
+    </NativeTestProviders>,
+  );
+  expect(screen.getByText("30 minutes")).toBeVisible();
+  expect(screen.queryByText("#42")).toBeNull();
+  await userEvent.setup().press(screen.getByRole("button", { name: chess.name }));
+  expect(select).toHaveBeenCalledOnce();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Game information: Chess" }));
+  for (const fact of [
+    "2000",
+    "7.50",
+    "#42",
+    "90–120 min",
+    "2 (83%)",
+    "3.25/5",
+    "Abstract Strategy",
+  ])
+    expect(screen.getByText(fact)).toBeVisible();
+  expect(select).toHaveBeenCalledOnce();
 });
 
 it("keeps an empty game projection explicit without inventing an option", async () => {

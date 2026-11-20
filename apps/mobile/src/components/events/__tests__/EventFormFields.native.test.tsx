@@ -1,10 +1,15 @@
 import { URL } from "node:url";
-import { type GroupRecordResponse, MAX_EVENT_OPTIONS } from "@board-game-organizer/schemas";
+import {
+  type GroupRecordResponse,
+  locationFavoriteKey,
+  MAX_EVENT_OPTIONS,
+} from "@board-game-organizer/schemas";
 import {
   type EventRecordDraft,
   groupRecordKeys,
   groupRecordsPageQuery,
   useEventRecordForm,
+  useFavoriteLocations,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -70,11 +75,15 @@ let client: QueryClient;
 let groupCode: number;
 let pendingGroup: Promise<Response> | undefined;
 const reads: URL[] = [];
+let savedFavorite: boolean;
+const favoriteWrites: string[] = [];
 beforeEach(async () => {
   vi.clearAllMocks();
   groupCode = 200;
   pendingGroup = undefined;
   reads.length = 0;
+  savedFavorite = false;
+  favoriteWrites.length = 0;
   client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
@@ -85,9 +94,30 @@ beforeEach(async () => {
       const url = new URL(
         typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
       );
-      if (url.origin !== options.apiUrl || (init?.method ?? "GET") !== "GET")
-        throw new Error(`Unexpected field I/O: ${init?.method ?? "GET"} ${url.href}`);
+      const method = init?.method ?? "GET";
+      expect(url.origin).toBe(options.apiUrl);
       expect(new Headers(init?.headers).get("authorization")).toBe("Bearer native-fields-token");
+      if (url.pathname === "/api/locations/favorites") {
+        const location = plannedEvent.locations[0];
+        const key = locationFavoriteKey(location);
+        if (method === "POST") {
+          expect(JSON.parse(String(init?.body))).toEqual({ location });
+          favoriteWrites.push(method);
+          savedFavorite = true;
+          return Response.json({ item: { key, location } });
+        }
+        if (method === "DELETE") {
+          expect(JSON.parse(String(init?.body))).toEqual({ key });
+          favoriteWrites.push(method);
+          savedFavorite = false;
+        }
+        return Response.json(
+          url.searchParams.has("keys")
+            ? { keys: savedFavorite ? [key] : [] }
+            : { items: [], nextCursor: null },
+        );
+      }
+      if (method !== "GET") throw new Error(`Unexpected field I/O: ${method} ${url.href}`);
       reads.push(url);
       if (url.pathname === "/api/groups")
         return Response.json({ items: [groupRecord, publicGroup], nextCursor: null });
@@ -139,18 +169,28 @@ function Fields({
   busy?: boolean;
   locked?: boolean;
 }) {
+  const api = useCommunityApi();
   const form = useEventRecordForm(
-    useCommunityApi(),
+    api,
     undefined,
     locked ? (initial.groupId ?? undefined) : undefined,
     initial,
+  );
+  const favorites = useFavoriteLocations(
+    { ...api, userId: information ? undefined : api.userId },
+    form.draft.locations,
   );
   return (
     <>
       {information ? (
         <EventInformationFields form={form} busy={busy} />
       ) : (
-        <EventScheduleFields form={form} busy={busy} onLocation={boundary.location} />
+        <EventScheduleFields
+          form={form}
+          favorites={favorites}
+          busy={busy}
+          onLocation={boundary.location}
+        />
       )}
       <Button onPress={form.next}>
         <Button.Label>Validate current step</Button.Label>
@@ -511,4 +551,18 @@ it("uses single-option errors for a public event without creating private propos
   ).toBeVisible();
   expect(screen.getByText("Choose exactly one verified location.")).toBeVisible();
   expect(screen.queryByRole("switch", { name: "Allow date proposals" })).toBeNull();
+});
+
+it("toggles the saved venue favorite without changing the event draft", async () => {
+  await render(<Fixture initial={draft()} />);
+  const before = currentDraft();
+  const addFavorite = "Add location to favorites";
+  const removeFavorite = "Remove location from favorites";
+  await waitFor(() => expect(screen.getByRole("button", { name: addFavorite })).toBeEnabled());
+  await press(addFavorite);
+  await waitFor(() => expect(favoriteWrites).toEqual(["POST"]));
+  await waitFor(() => expect(screen.getByRole("button", { name: removeFavorite })).toBeEnabled());
+  await press(removeFavorite);
+  await waitFor(() => expect(favoriteWrites).toEqual(["POST", "DELETE"]));
+  expect(currentDraft()).toEqual(before);
 });

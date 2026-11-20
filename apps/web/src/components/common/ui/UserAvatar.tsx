@@ -7,6 +7,7 @@ import type { CSSProperties, ReactNode } from "react";
 export function UserAvatar({
   name,
   avatarUrl,
+  avatarContent,
   size = "sm",
   online,
   badge,
@@ -15,6 +16,7 @@ export function UserAvatar({
 }: {
   name: string;
   avatarUrl?: string | null;
+  avatarContent?: ReactNode;
   size?: "sm" | "md" | "lg";
   online?: boolean;
   badge?: ReactNode;
@@ -36,7 +38,7 @@ export function UserAvatar({
       }}
     >
       <Avatar size={size} className="z-0">
-        <Avatar.Image src={avatarUrl ?? undefined} alt="" />
+        {avatarContent ?? <Avatar.Image src={avatarUrl ?? undefined} alt="" />}
         <Avatar.Fallback>{name.replace(/^@/, "").slice(0, 2) || "?"}</Avatar.Fallback>
       </Avatar>
       {online !== undefined ? (

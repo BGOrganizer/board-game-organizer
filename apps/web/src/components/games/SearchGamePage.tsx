@@ -3,15 +3,17 @@
 import type { BggPickerItem, BggSearchItem } from "@board-game-organizer/schemas";
 import {
   type BggPickerTableScope,
+  bggGameMetadataQuery,
   bggPickerQuery,
   bggPickerUnavailable,
+  mergeBggGameMetadata,
   useBggAccount,
   useBggPicker,
   useGameListWindow,
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { hashKey } from "@tanstack/react-query";
+import { hashKey, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Gamepad2, LibraryBig, Plus, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -47,6 +49,7 @@ export function SearchGamePage({
   onClose,
 }: Props) {
   const { t } = useLingui();
+  const client = useQueryClient();
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [collection, setCollection] = useState(true);
@@ -98,7 +101,10 @@ export function SearchGamePage({
     if (scopeRef.current !== scope || denied || selected.current || excludeSet.has(item.id)) return;
     selected.current = true;
     // Preserve supplied catalog metadata; scheduling applies its own duration convention.
-    onSelect(item);
+    const details = client.getQueryData(
+      bggGameMetadataQuery(client, pickerOptions, item, false).queryKey,
+    );
+    onSelect(mergeBggGameMetadata(item, details));
   };
 
   const active = (search && debounced.length >= 4) || (collection && hasCollection) || participants;
@@ -184,12 +190,9 @@ export function SearchGamePage({
             onEndReached={endReached}
             renderItem={(item) => (
               <GameListCard
+                game={item}
                 name={item.name}
                 imageUrl={item.imageUrl}
-                year={item.year}
-                average={item.average}
-                rank={item.rank}
-                suggestedPlayers={item.suggestedPlayers}
                 onPress={() => select(item)}
                 actions={
                   <Button

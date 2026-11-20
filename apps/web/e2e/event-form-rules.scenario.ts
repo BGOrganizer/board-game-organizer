@@ -195,3 +195,60 @@ for (const width of [390, 1280])
     await enterDateTime(end, "18:00");
     // The entire journey leaves an unsaved draft; no event creation or provider writes.
   });
+
+test("adds and removes a named guest demonstrator in an owned planning draft", async ({ page }) => {
+  const eventId = required("FORM_RULES_PUBLIC_EVENT_ID");
+  const tableName = required("FORM_RULES_PUBLIC_TABLE");
+  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(eventId) || tableName.length > 30)
+    throw new Error("Owned Public group planning Event ID and exact table name required");
+
+  await setupClerkTestingToken({ page });
+  await page.goto("/");
+  await clerk.signIn({ page, emailAddress: required("E2E_EMAIL") });
+  await page.goto("/");
+  await completeMobileNumberIfNeeded(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (
+      /\/api\/events(?:\/|$)/.test(new URL(request.url()).pathname) &&
+      !["GET", "OPTIONS"].includes(request.method())
+    ) {
+      writes.push(request.method());
+    }
+  });
+  await page.goto(`/events/${eventId}/edit`);
+  const next = page.getByRole("button", { name: it ? "Avanti" : "Next", exact: true });
+  await next.click();
+  await next.click();
+  const table = page.getByRole("button", { name: tableName, exact: true });
+  if ((await table.getAttribute("aria-expanded")) !== "true") await table.click();
+  const choose = page.getByRole("button", {
+    name: it ? "Scegli dimostratore" : "Choose demonstrator",
+    exact: true,
+  });
+  await choose.click();
+  const input = page.getByRole("textbox", {
+    name: it ? "Nome dell’ospite" : "Guest name",
+    exact: true,
+  });
+  const add = page.getByRole("button", {
+    name: it ? "Aggiungi un ospite" : "Add a guest",
+    exact: true,
+  });
+  await expect(add).toBeDisabled();
+  await input.fill("  Guest Guide  ");
+  await add.click();
+  await expect(table).toHaveAttribute("aria-expanded", "true");
+  const guest = page.getByRole("listitem").filter({ hasText: "Guest Guide" });
+  await expect(guest.getByText("Guest Guide", { exact: true })).toBeVisible();
+  await expect(guest.locator('img[src^="data:image/svg+xml"]')).toBeVisible();
+  await guest
+    .getByRole("button", {
+      name: it ? "Rimuovi dimostratore" : "Remove demonstrator",
+      exact: true,
+    })
+    .click();
+  await expect(guest).toHaveCount(0);
+  await expect(choose).toBeVisible();
+  expect(writes).toEqual([]);
+});

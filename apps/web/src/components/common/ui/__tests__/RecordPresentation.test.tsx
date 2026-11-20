@@ -146,9 +146,7 @@ it("shows discovered game covers without losing metadata", () => {
     <GameListRow
       name="Chess"
       imageUrl="https://example.test/chess.jpg"
-      year={2000}
-      average={7}
-      rank={1}
+      game={{ id: 1, name: "Chess", imageUrl: null, year: 2000, average: 7, rank: 1 }}
     />,
   );
   expect(q.container.querySelector("img")?.getAttribute("src")).toBe(

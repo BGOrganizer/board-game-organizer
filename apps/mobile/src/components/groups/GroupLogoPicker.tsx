@@ -83,7 +83,7 @@ export function GroupLogoPicker({
         : ImagePicker.launchImageLibraryAsync)({
         mediaTypes: ["images"],
         allowsMultipleSelection: false,
-        allowsEditing: source === "camera",
+        allowsEditing: true,
         aspect: [1, 1],
         base64: true,
         quality: 1,

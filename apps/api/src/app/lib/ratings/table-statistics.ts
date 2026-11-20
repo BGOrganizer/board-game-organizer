@@ -16,23 +16,38 @@ export function tableStatisticsStages(
       },
     },
     {
-      $match: {
-        $expr: {
-          $gte: [
-            {
-              $size: {
-                $filter: {
-                  input: "$results.entries",
-                  as: "entry",
-                  cond: { $ne: ["$$entry.score", null] },
+      $set: {
+        "results.entries": {
+          $filter: {
+            input: "$results.entries",
+            as: "entry",
+            cond: {
+              $not: [
+                {
+                  $in: [
+                    "$$entry.userId",
+                    { $ifNull: ["$confirmed.guestPlayers.participantId", []] },
+                  ],
                 },
-              },
+              ],
             },
-            2,
-          ],
+          },
         },
       },
     },
+    {
+      $set: {
+        registeredFinishers: {
+          $filter: {
+            input: "$results.entries",
+            as: "entry",
+            cond: { $ne: ["$$entry.score", null] },
+          },
+        },
+      },
+    },
+    { $match: { $expr: { $gte: [{ $size: "$registeredFinishers" }, 2] } } },
+    { $set: { winningRegisteredRank: { $min: "$registeredFinishers.rank" } } },
     {
       $lookup: {
         from: COLLECTIONS.EVENTS,
@@ -62,7 +77,7 @@ export function tableStatisticsStages(
             $cond: [
               {
                 $and: [
-                  { $eq: ["$results.entries.rank", 1] },
+                  { $eq: ["$results.entries.rank", "$winningRegisteredRank"] },
                   { $ne: ["$results.entries.score", null] },
                 ],
               },

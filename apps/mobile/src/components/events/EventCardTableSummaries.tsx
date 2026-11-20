@@ -78,10 +78,12 @@ export function EventCardTableSummaries({
                 <Typography className="text-foreground" style={{ flexShrink: 1, minWidth: 0 }}>
                   {table.winners.length
                     ? table.winners
-                        .map((winner) =>
-                          winner.username
-                            ? `@${winner.username.replace(/^@/, "")}`
-                            : t("Username unavailable"),
+                        .map(
+                          (winner) =>
+                            winner.guestName ??
+                            (winner.username
+                              ? `@${winner.username.replace(/^@/, "")}`
+                              : t("Username unavailable")),
                         )
                         .join(", ")
                     : t("No winners.")}

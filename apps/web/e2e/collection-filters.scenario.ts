@@ -3,7 +3,7 @@ import type {
   BggCollectionResponse,
   ProfileView,
 } from "@board-game-organizer/schemas";
-import { gameBestPlayers, withProtectionBypass } from "@board-game-organizer/shared";
+import { gameBestPlayersWithPercentage, withProtectionBypass } from "@board-game-organizer/shared";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
@@ -28,6 +28,7 @@ const p = JSON.parse(required("COLLECTION_SHARED_INPUT")) as {
   unsyncedName: string;
   expansionName: string;
   wishlistName: string;
+  metadataName: string;
   emptyQuery: string;
   commonName: string;
   viewerSynced: boolean;
@@ -38,9 +39,14 @@ if (
   ![p.subjectId, p.unsyncedId].every(
     (v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(v),
   ) ||
-  ![p.subjectName, p.unsyncedName, p.expansionName, p.wishlistName, p.emptyQuery].every(
-    (v) => typeof v === "string" && v.trim().length > 0 && v.length <= 120,
-  ) ||
+  ![
+    p.subjectName,
+    p.unsyncedName,
+    p.expansionName,
+    p.wishlistName,
+    p.metadataName,
+    p.emptyQuery,
+  ].every((v) => typeof v === "string" && v.trim().length > 0 && v.length <= 120) ||
   typeof p.viewerSynced !== "boolean" ||
   (p.viewerSynced && (!p.commonName || p.commonName.length > 120))
 )
@@ -186,17 +192,69 @@ for (const width of [390, 1280])
       await expect(cover).toHaveAttribute("src", expansion.imageUrl);
       await expect(cover).toBeVisible();
     }
-    const bestPlayers = gameBestPlayers(expansion.suggestedPlayers);
-    const bestLabel = locale === "it" ? "Giocatori ideali BGG" : "Best BGG players";
-    if (bestPlayers)
-      await expect(
-        expansionRow.getByRole("img", { name: `${bestLabel}: ${bestPlayers}`, exact: true }),
-      ).toBeVisible();
-    else
-      await expect(
-        expansionRow.getByRole("img", { name: new RegExp(`^${bestLabel}:`) }),
-      ).toHaveCount(0);
     await button(l.games).click();
+    const metadata = (
+      await read<BggCollectionResponse>(
+        page,
+        `${root}&query=${encodeURIComponent(p.metadataName)}&limit=1`,
+      )
+    ).items[0];
+    const bestPlayers = gameBestPlayersWithPercentage(metadata?.suggestedPlayers);
+    if (
+      metadata?.name !== p.metadataName ||
+      !metadata.year ||
+      !metadata.average ||
+      !metadata.rank ||
+      !metadata.minPlayMinutes ||
+      !metadata.maxPlayMinutes ||
+      !metadata.averageWeight ||
+      !metadata.categories?.length ||
+      !bestPlayers.length
+    )
+      throw new Error("Fully hydrated collection metadata and a BGG Best vote share required");
+    await input.fill(p.metadataName);
+    const gameRow = collectionList.getByRole("listitem").filter({
+      has: page.getByText(p.metadataName, { exact: true }),
+    });
+    await expect(gameRow.getByText("Best BGG:", { exact: true })).toHaveCount(0);
+    await gameRow
+      .getByRole("button", {
+        name: `${it ? "Informazioni sul gioco" : "Game information"}: ${p.metadataName}`,
+        exact: true,
+      })
+      .click();
+    const info = page.getByRole("dialog", { name: p.metadataName, exact: true });
+    await expect(info).toBeVisible();
+    const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+    const rating = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const percent = new Intl.NumberFormat(locale, { style: "percent" });
+    const duration =
+      metadata.minPlayMinutes === metadata.maxPlayMinutes
+        ? number.format(metadata.minPlayMinutes)
+        : `${number.format(metadata.minPlayMinutes)}–${number.format(metadata.maxPlayMinutes)}`;
+    for (const [label, value] of [
+      [it ? "Anno" : "Year", String(metadata.year)],
+      [it ? "Voto" : "BGG rating", rating.format(metadata.average)],
+      ["Ranking", `#${number.format(metadata.rank)}`],
+      [it ? "Durata" : "Duration", `${duration} min`],
+      [
+        "Best BGG",
+        bestPlayers
+          .map(({ count, fraction }) => `${count} (${percent.format(fraction)})`)
+          .join(" – "),
+      ],
+      [it ? "Difficoltà" : "Difficulty", `${number.format(metadata.averageWeight)}/5`],
+    ]) {
+      const fact = info.getByRole("term").filter({ hasText: `${label}:` });
+      await expect(fact.locator("..").getByRole("definition")).toHaveText(value);
+    }
+    const categories = info.getByRole("list", { name: it ? "Categorie BGG" : "BGG categories" });
+    await expect(categories.getByRole("listitem")).toHaveText(metadata.categories);
+    await page.keyboard.press("Escape");
+    await expect(info).toBeHidden();
     await input.fill(p.wishlistName);
     await button(l.wishlist).click();
     await expect(panel.getByText(p.wishlistName, { exact: true })).toBeVisible();

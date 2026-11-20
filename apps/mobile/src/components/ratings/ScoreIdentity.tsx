@@ -4,6 +4,7 @@ import type { ScorePlayer } from "@board-game-organizer/shared";
 import { Typography } from "heroui-native/text";
 import { ListOrdered, Trophy } from "lucide-react-native";
 import { View } from "react-native";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserAvatar } from "@/components/common/ui/UserAvatar";
 import { useT } from "@/lib/i18n";
@@ -26,6 +27,7 @@ export function ScoreIdentity({
       <UserAvatar
         name={player.name || "?"}
         avatarUrl={player.avatarUrl}
+        avatarContent={player.guestName ? <GuestAvatar name={player.guestName} /> : undefined}
         badgeContent={
           rank != null ? (
             <IconBadge
@@ -46,11 +48,11 @@ export function ScoreIdentity({
         {rank != null ? (
           <Typography className="text-xs text-muted">{`${t("Position")}: #${rank}`}</Typography>
         ) : null}
-        {showGameRating ? (
+        {showGameRating && !player.guestName ? (
           <GameRating rating={gameRating} showDelta />
         ) : (
           <Typography className="text-xs text-muted" numberOfLines={1}>
-            {player.username ?? t("Username unavailable")}
+            {player.guestName ? t("Guest") : (player.username ?? t("Username unavailable"))}
           </Typography>
         )}
       </View>

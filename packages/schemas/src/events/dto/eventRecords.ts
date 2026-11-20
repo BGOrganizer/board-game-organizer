@@ -15,9 +15,11 @@ import {
   eventDateOptionSchema,
   eventTimeSchema,
   eventVoteSchema,
+  guestDisplayNameSchema,
   MAX_EVENT_OPTIONS,
   type TableRecord,
   type TableRegistration,
+  tableDemonstratorSchema,
   tableRegistrationSchema,
   tableResultDraftSchema,
 } from "../models/eventRecord";
@@ -40,8 +42,8 @@ const gameInputSchema = z
     manualDurationMinutes: z.number().int().positive().optional(),
   })
   .strict();
-export const plannedTableInputSchema = z
-  .object({
+export const plannedTableInputSchema = tableDemonstratorSchema
+  .safeExtend({
     id: z.uuid().optional(),
     name: resourceNameSchema,
     minPlayers: z.number().int().min(2),
@@ -56,7 +58,6 @@ export const plannedTableInputSchema = z
     rankingEnabled: z.boolean(),
     allowParticipantGames: z.boolean().optional(),
     startsAt: z.iso.datetime({ offset: true }).optional(),
-    demonstratorUserId: targetUserIdSchema.optional(),
   })
   .strict()
   .refine((table) => table.maxPlayers >= table.minPlayers, {
@@ -65,10 +66,20 @@ export const plannedTableInputSchema = z
   });
 export type PlannedTableInput = z.infer<typeof plannedTableInputSchema>;
 // Mutation receipt only: the parent epoch is captured in the same transaction, never stored on a registration.
-export const tableRegistrationReceiptSchema = tableRegistrationSchema.extend({
+export const tableRegistrationReceiptSchema = tableRegistrationSchema.safeExtend({
   eventVersion: z.number().int().min(1),
 });
 export type TableRegistrationReceipt = z.infer<typeof tableRegistrationReceiptSchema>;
+export const addTableGuestSchema = z
+  .object({ name: guestDisplayNameSchema, requestId: z.uuid() })
+  .strict();
+export type AddTableGuestInput = z.infer<typeof addTableGuestSchema>;
+export interface TableGuestVotes {
+  guestName: string;
+  gameVotes: Record<string, EventVote>;
+  dateVotes: Record<string, EventVote>;
+  locationVotes: Record<string, EventVote>;
+}
 export const createPlannedEventSchema = z
   .object({
     groupId: z.uuid().nullable(),
@@ -249,6 +260,14 @@ export const finalizeEventSchema = z
   .strict();
 export type FinalizeEventInput = z.infer<typeof finalizeEventSchema>;
 export type EventVoteCounts = Record<EventVote, number>;
+export type VoteVoter = {
+  userId: string;
+  guestName?: string;
+  name: string | null;
+  username: string | null;
+  avatarUrl: string | null;
+};
+export type GameVoteVoters = Record<Exclude<EventVote, "UNKNOWN">, VoteVoter[]>;
 export interface PlannedEventCapabilities {
   /** Safe Event/Table/result projection only; Group identity, drafts and rankings are absent. */
   sharedResultsOnly?: boolean;
@@ -295,7 +314,7 @@ export type TableCardSummary = {
   blockers: EventPlanningBlocker[];
   myParticipation: "CONFIRMED" | "EXCLUDED" | "NONE";
   exclusionReasons: EventExclusionReason[];
-  winners: Array<{ userId: string; username: string | null }>;
+  winners: Array<{ userId: string; username: string | null; guestName?: string }>;
 };
 export type EventCardSummary = { ready: boolean; tables: TableCardSummary[] };
 export type PlannedEventResponse = Omit<
@@ -439,10 +458,13 @@ export type PlannedTableResponse = Omit<TableRecord, "seatOrderVersion"> & {
   canInvite: boolean;
   gamesDetail: BggSearchItem[];
   gameVoteCounts?: Record<string, EventVoteCounts>;
+  /** Authorized Table detail only. Missing means unavailable, not that nobody voted. */
+  gameVoteVoters?: Record<string, GameVoteVoters>;
   ratingChanges: MatchGameRating[];
-  winners?: Array<{ userId: string; name: string; avatarUrl: string | null }>;
+  winners?: Array<{ userId: string; name: string; avatarUrl: string | null; guestName?: string }>;
   resultProfiles?: Array<{
     userId: string;
+    guestName?: string;
     name: string;
     username?: string | null;
     email: string | null;

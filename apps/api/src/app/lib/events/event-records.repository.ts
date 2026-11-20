@@ -341,7 +341,7 @@ export class EventRecordsRepository {
             },
           },
           { $unwind: "$users" },
-          { $match: { users: { $type: "string", $ne: "" } } },
+          { $match: { users: { $type: "string", $ne: "", $not: /^guest:/ } } },
           { $group: { _id: "$users", tableIds: { $addToSet: "$tableId" } } },
           ...(page.cursor ? [{ $match: { _id: { $gt: page.cursor } } }] : []),
           { $sort: { _id: 1 } },
@@ -505,7 +505,11 @@ export class EventRecordsRepository {
       .toArray();
   }
   acceptedTableUsers(tableId: string) {
-    return this.registrations.distinct("userId", { tableId, status: "ACCEPTED" }, this.opts);
+    return this.registrations.distinct(
+      "userId",
+      { tableId, status: "ACCEPTED", kind: { $ne: "GUEST" } },
+      this.opts,
+    );
   }
   userRegistrations(eventId: string, userId: string) {
     return this.registrations
@@ -525,13 +529,13 @@ export class EventRecordsRepository {
     );
   }
   async saveRegistration(row: TableRegistration) {
-    const previous =
-      row.status === "ACCEPTED" ? await this.userRegistration(row.tableId, row.userId) : null;
+    const recordsActivity = row.status === "ACCEPTED" && row.kind !== "GUEST";
+    const previous = recordsActivity ? await this.userRegistration(row.tableId, row.userId) : null;
     await this.registrations.replaceOne({ tableId: row.tableId, userId: row.userId }, row, {
       ...this.opts,
       upsert: true,
     });
-    if (row.status === "ACCEPTED" && previous?.status !== "ACCEPTED") {
+    if (recordsActivity && previous?.status !== "ACCEPTED") {
       const activities = new ProfileActivitiesRepository(this.db, this.opts.session);
       await activities.record({
         source: `registration:${row.id}:${row.version}`,

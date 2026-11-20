@@ -1,16 +1,18 @@
 import type { BggPickerItem, BggThingResponse } from "@board-game-organizer/schemas";
 import {
   type BggPickerTableScope,
+  bggGameMetadataQuery,
   bggPickerQuery,
   bggPickerUnavailable,
   GAME_PICKER_CHUNK_SIZE,
+  mergeBggGameMetadata,
   resolveApiUrl,
   useBggAccount,
   useBggPicker,
   useGameListWindow,
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { hashKey } from "@tanstack/react-query";
+import { hashKey, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -48,6 +50,7 @@ export default function GamePicker({
   onClose?: () => void;
 } = {}) {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
+  const client = useQueryClient();
   const t = useT();
   const [muted, accentForeground] = useThemeColor(["muted", "accent-foreground"]);
   const router = useRouter();
@@ -114,7 +117,10 @@ export default function GamePicker({
       if (scopeRef.current !== scope || denied || selected.current || excludedIds.has(item.id))
         return;
       selected.current = true;
-      if (onSelect) onSelect(item);
+      const details = client.getQueryData(
+        bggGameMetadataQuery(client, { apiUrl: apiUrl(), userId, getToken }, item, false).queryKey,
+      );
+      if (onSelect) onSelect(mergeBggGameMetadata(item, details));
       else {
         setPendingGame(slotId, {
           id: item.id,
@@ -127,7 +133,18 @@ export default function GamePicker({
         router.back();
       }
     },
-    [scope, denied, excludedIds, onSelect, setPendingGame, slotId, router],
+    [
+      client,
+      getToken,
+      userId,
+      scope,
+      denied,
+      excludedIds,
+      onSelect,
+      setPendingGame,
+      slotId,
+      router,
+    ],
   );
   const selectLabel = t("Select");
   const renderItem = useCallback(
@@ -275,12 +292,9 @@ const GamePickerRow = memo(function GamePickerRow({
 }) {
   return (
     <GameListCard
+      game={item}
       name={item.name}
       imageUrl={item.imageUrl}
-      year={item.year}
-      average={item.average}
-      rank={item.rank}
-      suggestedPlayers={item.suggestedPlayers}
       actions={
         <Button
           isIconOnly

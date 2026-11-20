@@ -34,13 +34,10 @@ export function EventTableGamesPopover({
         <GroupedList>
           {games.slice(page * 8, (page + 1) * 8).map((game) => (
             <GameListRow
+              game={game}
               key={game.id}
               name={game.name}
               imageUrl={game.imageUrl}
-              year={game.year}
-              average={game.average}
-              rank={game.rank}
-              suggestedPlayers={game.suggestedPlayers}
               durationMinutes={game.durationMinutes}
             />
           ))}

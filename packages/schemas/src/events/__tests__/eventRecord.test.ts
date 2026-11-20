@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addTableGuestSchema,
   changeEventStateSchema,
   changeEventVoteSchema,
   createPlannedEventSchema,
@@ -67,6 +68,66 @@ const input = {
   tables: [table],
 };
 const at = "2027-01-01T00:00:00Z";
+it("accepts one trimmed guest demonstrator or one registered member, never both", () => {
+  const row = { ...table, eventId: id, order: 0, createdAt: at, updatedAt: at };
+  for (const [schema, base] of [
+    [plannedTableInputSchema, table],
+    [tableRecordSchema, row],
+  ] as const) {
+    expect(schema.parse({ ...base, demonstratorGuestName: "  Arianna  " })).toMatchObject({
+      demonstratorGuestName: "Arianna",
+    });
+    expect(schema.safeParse({ ...base, demonstratorGuestName: "a".repeat(80) }).success).toBe(true);
+    for (const demonstratorGuestName of [null, "", "   ", "a".repeat(81)])
+      expect(schema.safeParse({ ...base, demonstratorGuestName }).success).toBe(false);
+    const conflict = schema.safeParse({
+      ...base,
+      demonstratorUserId: "user_demo",
+      demonstratorGuestName: "Arianna",
+    });
+    expect(conflict.success).toBe(false);
+    if (!conflict.success)
+      expect(conflict.error.issues[0]?.path).toEqual(["demonstratorGuestName"]);
+    expect(schema.safeParse({ ...base, demonstratorUserId: "user_demo" }).success).toBe(true);
+  }
+});
+it("accepts a strict idempotent guest request and a separate tagged registration identity", () => {
+  expect(addTableGuestSchema.parse({ requestId: other, name: "  Marie  " })).toEqual({
+    requestId: other,
+    name: "Marie",
+  });
+  for (const invalid of [
+    { requestId: "free text", name: "Marie" },
+    { requestId: other, name: "" },
+    { requestId: other, name: "Marie", userId: "old-user" },
+  ])
+    expect(addTableGuestSchema.safeParse(invalid).success).toBe(false);
+  const entry = {
+    id: other,
+    eventId: id,
+    tableId: id,
+    userId: `guest:${other}`,
+    kind: "GUEST",
+    guestName: "Marie",
+    status: "ACCEPTED",
+    priorityAt: at,
+    sequence: 1,
+    version: 1,
+    gameVotes: {},
+    createdAt: at,
+    updatedAt: at,
+  };
+  expect(tableRegistrationSchema.parse(entry)).toEqual(entry);
+  expect(tableRegistrationReceiptSchema.parse({ ...entry, eventVersion: 3 }).eventVersion).toBe(3);
+  for (const invalid of [
+    { ...entry, userId: "user_existing" },
+    { ...entry, userId: "guest:bad" },
+    { ...entry, kind: "SELF" },
+    { ...entry, status: "PENDING" },
+    { ...entry, guestName: undefined },
+  ])
+    expect(tableRegistrationSchema.safeParse(invalid).success).toBe(false);
+});
 describe("unified event request boundaries", () => {
   it.each(["abcde", "a".repeat(30)])(
     "accepts and trims boundary Event/Table name %s on creation and edits",

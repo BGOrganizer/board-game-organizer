@@ -3,6 +3,8 @@ name: Event name bounds, unavailable Public choice and undecorated Group selecto
 # Owned Development with a fresh local Event draft. No saves, resets, provisioning or API writes.
 # FORM_RULES_ACK=owned-development-groups; FORM_RULES_LOCALE=en|it
 # FORM_RULES_PUBLIC_GROUP=unique exact approved Public group name managed by the actor.
+# FORM_RULES_PUBLIC_EVENT_ID=owned PLANNING event in that group, with valid dates and location.
+# FORM_RULES_PUBLIC_TABLE=exact existing table name in that event.
 # Leaves an unsaved local draft. Run EN/IT and light/dark with a compatible Preview APK.
 tags: [manual, events, forms]
 ---
@@ -66,3 +68,35 @@ tags: [manual, events, forms]
     id: event-public-radio
     checked: true
 - takeScreenshot: event-form-rules-unsaved
+# Reuse another owned, valid planning draft for guest-demonstrator acceptance.
+- openLink: ${output.formRules.eventLink}
+- extendedWaitUntil:
+    visible: ${output.formRules.name}
+    timeout: 30000
+- tapOn: ${output.formRules.next}
+- tapOn: ${output.formRules.next}
+- scrollUntilVisible:
+    element: ${output.formRules.table}
+    direction: DOWN
+    timeout: 30000
+- tapOn: ${output.formRules.table}
+- scrollUntilVisible:
+    element: ${output.formRules.chooseDemonstrator}
+    direction: DOWN
+    timeout: 30000
+- tapOn: ${output.formRules.chooseDemonstrator}
+- assertVisible:
+    text: ${output.formRules.addGuest}
+    enabled: false
+- tapOn: ${output.formRules.guestName}
+- inputText: "Guest Guide"
+- hideKeyboard
+- tapOn: ${output.formRules.addGuest}
+- scrollUntilVisible:
+    element: ${output.formRules.guestSelected}
+    direction: DOWN
+    timeout: 30000
+- takeScreenshot: event-form-guest-demonstrator
+- tapOn: ${output.formRules.removeDemonstrator}
+- assertVisible: ${output.formRules.chooseDemonstrator}
+- assertNotVisible: ${output.formRules.guestSelected}

@@ -118,14 +118,18 @@ export function EventTableCardIndicators({ table }: { table: PlannedTableRespons
                   </div>
                 ))}
               </dl>
-              {table.demonstratorUserId ? (
+              {table.demonstratorGuestName || table.demonstratorUserId ? (
                 <div className="flex flex-wrap items-center gap-1">
                   {t`Demonstrator`}:{" "}
-                  {table.demonstratorName === undefined ? (
-                    <Skeleton aria-label={t`Loading…`} className="inline-block h-4 w-28 rounded" />
-                  ) : (
-                    table.demonstratorName || t`Unknown`
-                  )}
+                  {table.demonstratorGuestName ??
+                    (table.demonstratorName === undefined ? (
+                      <Skeleton
+                        aria-label={t`Loading…`}
+                        className="inline-block h-4 w-28 rounded"
+                      />
+                    ) : (
+                      table.demonstratorName || t`Unknown`
+                    ))}
                 </div>
               ) : null}
             </>

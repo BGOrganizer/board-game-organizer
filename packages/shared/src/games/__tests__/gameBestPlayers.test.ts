@@ -1,6 +1,6 @@
 import type { PlayerPoll } from "@board-game-organizer/schemas";
 import { describe, expect, it } from "vitest";
-import { gameBestPlayers } from "../gameBestPlayers";
+import { gameBestPlayers, gameBestPlayersWithPercentage } from "../gameBestPlayers";
 
 const row = (players: number, best = 3, recommended = 1, notRecommended = 0, orMore = false) => ({
   players,
@@ -39,5 +39,16 @@ describe("BGG Best player summary", () => {
   });
   it("preserves the provider open-ended suffix", () => {
     expect(gameBestPlayers(poll([row(6, 3, 1, 0, true)]))).toBe("6+");
+  });
+});
+
+describe("BGG Best with vote share", () => {
+  it("uses each exact/open-ended poll row denominator and excludes ties", () => {
+    const value = poll([row(6), row(3, 4, 3, 1, true), row(2, 3, 1), row(1, 2, 2)], 25);
+    expect(gameBestPlayersWithPercentage(value)).toEqual([
+      { count: "2", fraction: 0.75 },
+      { count: "3+", fraction: 0.5 },
+    ]);
+    expect(gameBestPlayersWithPercentage(null)).toEqual([]);
   });
 });

@@ -161,11 +161,8 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
                             const game = table.gamesDetail.find((row) => row.id === gameId);
                             return (
                               <GameListRow
+                                game={game}
                                 key={gameId}
-                                year={game?.year}
-                                average={game?.average}
-                                rank={game?.rank}
-                                suggestedPlayers={game?.suggestedPlayers}
                                 durationMinutes={durationMinutes}
                                 name={game?.name ?? t`Unknown`}
                                 imageUrl={game?.imageUrl}
@@ -253,12 +250,9 @@ function FixedSettings({
       {location ? <LocationListRow name={location.name} address={location.address} /> : null}
       {gameId !== undefined ? (
         <GameListRow
+          game={game}
           name={game?.name ?? t`Unknown`}
           imageUrl={game?.imageUrl}
-          year={game?.year}
-          average={game?.average}
-          rank={game?.rank}
-          suggestedPlayers={game?.suggestedPlayers}
           durationMinutes={table?.games[0]?.durationMinutes}
         />
       ) : null}

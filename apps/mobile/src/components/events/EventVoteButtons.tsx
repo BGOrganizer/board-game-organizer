@@ -1,12 +1,16 @@
-import type { EventVote } from "@board-game-organizer/schemas";
+import type { EventVote, PlannedTableResponse } from "@board-game-organizer/schemas";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import { Check, Minus, Vote, X } from "lucide-react-native";
+import { Check, Eye, Minus, Vote, X } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useT } from "@/lib/i18n";
+import { GameVoteVoters } from "./GameVoteVoters";
 export function EventVoteButtons({
   value = "UNKNOWN",
   label,
@@ -14,6 +18,8 @@ export function EventVoteButtons({
   onChange,
   inline = false,
   disabledVotes = [],
+  voters,
+  readOnly = false,
 }: {
   value?: EventVote;
   label: string;
@@ -21,9 +27,11 @@ export function EventVoteButtons({
   onChange: (vote: Exclude<EventVote, "UNKNOWN">) => void;
   inline?: boolean;
   disabledVotes?: readonly EventVote[];
+  voters?: NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
+  readOnly?: boolean;
 }) {
   const t = useT(),
-    [open, setOpen] = useState(false);
+    [panel, setPanel] = useState<"vote" | "voters" | null>(null);
   const [success, warning, danger, foreground, accentForeground] = useThemeColor([
     "success",
     "warning",
@@ -63,6 +71,7 @@ export function EventVoteButtons({
         ))}
       </View>
     );
+  const trigger = readOnly ? { Icon: Eye, text: t("Show votes"), color: foreground } : selected;
   return (
     <>
       <Button
@@ -70,19 +79,19 @@ export function EventVoteButtons({
         size="sm"
         variant="secondary"
         style={{ minWidth: 44, minHeight: 44 }}
-        accessibilityLabel={`${label}: ${selected.text}`}
-        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${label}: ${trigger.text}`}
+        accessibilityState={{ expanded: panel !== null }}
         isDisabled={busy}
-        onPress={() => setOpen(true)}
+        onPress={() => setPanel(readOnly ? "voters" : "vote")}
       >
-        <selected.Icon size={20} color={selected.color} />
+        <trigger.Icon size={20} color={trigger.color} />
       </Button>
-      {open ? (
+      {panel === "vote" ? (
         <ConfirmDialog
           title={t("Choose your vote")}
           description={label}
           busy={busy}
-          onCancel={() => setOpen(false)}
+          onCancel={() => setPanel(null)}
           actions={[]}
         >
           <View style={{ gap: 8 }}>
@@ -93,7 +102,7 @@ export function EventVoteButtons({
                 accessibilityState={{ selected: value === key }}
                 isDisabled={busy || disabledVotes.includes(key)}
                 onPress={() => {
-                  setOpen(false);
+                  setPanel(null);
                   onChange(key);
                 }}
               >
@@ -102,6 +111,12 @@ export function EventVoteButtons({
               </Button>
             ))}
           </View>
+          {voters ? (
+            <Button variant="ghost" style={{ minHeight: 44 }} onPress={() => setPanel("voters")}>
+              <Eye size={20} color={foreground} accessible={false} />
+              <Button.Label>{t("Show votes")}</Button.Label>
+            </Button>
+          ) : null}
           {disabledVotes.includes("NO") ? (
             <Typography className="text-sm text-muted">
               {t("Keep at least one Yes or If needed among the available options.")}
@@ -109,6 +124,57 @@ export function EventVoteButtons({
           ) : null}
         </ConfirmDialog>
       ) : null}
+      {voters && panel === "voters" ? (
+        <VoteResultSheet voters={voters} label={label} onClose={() => setPanel(null)} />
+      ) : null}
     </>
+  );
+}
+
+function VoteResultSheet({
+  voters,
+  label,
+  onClose,
+}: {
+  voters: NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
+  label: string;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const insets = useSafeAreaInsets();
+  return (
+    <BottomSheet
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <BottomSheet.Portal unstable_accessibilityContainerViewIsModal>
+        <BottomSheet.Overlay />
+        <BottomSheet.Content
+          snapPoints={["80%"]}
+          enableDynamicSizing={false}
+          enablePanDownToClose
+          contentContainerProps={{ style: { flex: 1 } }}
+        >
+          <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 4 }}>
+            <BottomSheet.Close
+              accessibilityLabel={t("Close")}
+              style={{ alignSelf: "flex-end", minWidth: 44, minHeight: 44 }}
+            />
+            <BottomSheet.Title>{t("Votes")}</BottomSheet.Title>
+            <BottomSheet.Description>{label}</BottomSheet.Description>
+          </View>
+          <BottomSheetScrollView
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingBottom: Math.max(insets.bottom, 20),
+            }}
+          >
+            <GameVoteVoters label={label} voters={voters} />
+          </BottomSheetScrollView>
+        </BottomSheet.Content>
+      </BottomSheet.Portal>
+    </BottomSheet>
   );
 }

@@ -24,6 +24,7 @@ import { mergeCreationIntents } from "../../common/clientMutation";
 import { useOptimisticCreations } from "../../common/hooks/useOptimisticCreations";
 import { optimisticBaseData } from "../../common/optimisticOperation";
 import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
+import { eventOptionsRequireVote } from "../eventJoinAvailability";
 import { isPersonalHistoryTable, personalEventSection, personalTableSection } from "../eventList";
 import {
   type ClientEventRecord,
@@ -340,10 +341,17 @@ export function useRecordTable(o: CommunityApiOptions, id: string, table: string
           }
     }
   }
+  const tableNeedsNamedVotes =
+    cached &&
+    !cached.row.readOnly &&
+    (cached.row.canManage || cached.row.myRegistration?.status === "ACCEPTED") &&
+    eventOptionsRequireVote(cached.row.games) &&
+    !cached.row.gameVoteVoters;
   const q = useQuery({
     ...recordTableQuery(o, id, table),
     ...(cached
       ? cached.row.gameVoteCounts &&
+        !tableNeedsNamedVotes &&
         (cached.row.eventStatus !== "TERMINATED" || cached.row.resultProfiles)
         ? {
             initialData: cached.row,

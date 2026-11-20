@@ -537,6 +537,35 @@ it("retains cached table fields while fetching missing vote totals instead of tr
   await waitFor(() => expect(q.result.current.isPlaceholderData).toBe(false));
   expect(q.result.current.data?.gameVoteCounts).toEqual(counts);
 });
+it("fetches named votes when an accepted player's list snapshot has only counts", async () => {
+  const { client, options, wrapper } = setup();
+  const cached = {
+    ...plannedTable,
+    games: [{ gameId: 1 }, { gameId: 2 }],
+    gameVoteCounts: { "1": { YES: 1, NO: 0, IF_NEEDED: 0, UNKNOWN: 0 } },
+    myRegistration: seat("owner"),
+  };
+  client.setQueryData(recordTablesQuery(options, eventId).queryKey, {
+    pages: [{ items: [cached], nextCursor: null }],
+    pageParams: [""],
+  });
+  const gameVoteVoters = {
+    "1": {
+      YES: [{ userId: "owner", name: "Owner", username: null, avatarUrl: null }],
+      IF_NEEDED: [],
+      NO: [],
+    },
+  };
+  const fetch = vi.fn(async () => Response.json({ ...cached, gameVoteVoters }));
+  vi.stubGlobal("fetch", fetch);
+  const view = renderHook(() => useRecordTable(options, eventId, tableId), { wrapper });
+  expect(view.result.current.data?.name).toBe(cached.name);
+  expect(view.result.current.isPlaceholderData).toBe(true);
+  await waitFor(() => expect(view.result.current.data?.gameVoteVoters).toEqual(gameVoteVoters));
+  expect(fetch).toHaveBeenCalledOnce();
+  view.unmount();
+  client.clear();
+});
 it("keeps paged accepted/pending seats distinct and filters optimistic cancellation without fabricating missing rows", async () => {
   const { options, wrapper } = setup();
   const accepted = seat("guest"),

@@ -6,7 +6,7 @@ import type {
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import { mapCommunityCache } from "../community/queryCache";
-import { changeEventVoteCounts } from "./eventVotes";
+import { changeEventVoteCounts, changeGameVoteVoters } from "./eventVotes";
 
 type Row = PlannedEventResponse | PlannedTableResponse | TableSeatResponse;
 function gameVote(
@@ -80,14 +80,24 @@ export function optimisticEventVote(
         registration?.status !== "ACCEPTED"
       )
         return row;
+      const gameId = String(input.gameId);
+      const voters = row.gameVoteVoters?.[gameId];
       return {
         ...row,
+        ...(voters
+          ? {
+              gameVoteVoters: {
+                ...row.gameVoteVoters,
+                [gameId]: changeGameVoteVoters(voters, registration, input.vote),
+              },
+            }
+          : {}),
         ...(row.gameVoteCounts
           ? {
               gameVoteCounts: changeEventVoteCounts(
                 row.gameVoteCounts,
-                String(input.gameId),
-                registration.gameVotes[input.gameId] ?? "UNKNOWN",
+                gameId,
+                registration.gameVotes[gameId] ?? "UNKNOWN",
                 input.vote,
               ),
             }

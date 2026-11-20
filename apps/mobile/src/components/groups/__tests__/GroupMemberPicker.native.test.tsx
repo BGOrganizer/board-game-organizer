@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { GuestNameRow } from "@/components/common/ui/GuestNameRow";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { GroupMemberPicker } from "../GroupMemberPicker";
 
@@ -255,4 +256,23 @@ it("does not show a previous group's cached members after changing the picker ta
   expect(screen.queryByText("Player one")).toBeNull();
   expect(await screen.findByText("Player other")).toBeVisible();
   expect(requests.at(-1)?.pathname).toBe("/api/groups/other-group/members");
+});
+
+it("offers the guest input with the member source and only adds a trimmed valid name", async () => {
+  const onAdd = vi.fn();
+  await render(
+    <Fixture>
+      <GuestNameRow maxLength={80} onAdd={onAdd} />
+    </Fixture>,
+  );
+  expect(await screen.findByText("Player one")).toBeVisible();
+  const guest = screen.getByLabelText("Guest name");
+  const add = screen.getByRole("button", { name: "Add a guest" });
+  expect(guest).toHaveProp("maxLength", 80);
+  expect(add).toBeDisabled();
+  await fireEvent.changeText(guest, "   ");
+  expect(add).toBeDisabled();
+  await fireEvent.changeText(guest, "  Guest Guide  ");
+  await userEvent.setup().press(add);
+  expect(onAdd).toHaveBeenCalledExactlyOnceWith("Guest Guide");
 });

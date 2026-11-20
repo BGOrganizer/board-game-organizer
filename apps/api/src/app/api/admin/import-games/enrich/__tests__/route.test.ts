@@ -105,6 +105,8 @@ function freshGame(id: number): BoardGame {
     minPlayMinutes: 30,
     maxPlayMinutes: 60,
     averageWeight: 2.5,
+    categories: [],
+    categoriesCheckedAt: checked,
     playerCountsCheckedAt: checked,
     durationCheckedAt: checked,
     weightCheckedAt: checked,
@@ -138,6 +140,8 @@ it("distinguishes complete fresh metadata from each missing metadata field and r
     "minPlayMinutes",
     "maxPlayMinutes",
     "averageWeight",
+    "categories",
+    "categoriesCheckedAt",
     "suggestedPlayers",
   ] as const;
   mocks.rows = [
@@ -157,10 +161,10 @@ it("distinguishes complete fresh metadata from each missing metadata field and r
   const response = await POST(request({ offset: 0 }));
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({
-    total: 8,
-    count: 8,
+    total: 10,
+    count: 10,
     skipped: 1,
-    recovered: 7,
+    recovered: 9,
     incomplete: 0,
     nextOffset: null,
     retryAfterMs: 60_000,

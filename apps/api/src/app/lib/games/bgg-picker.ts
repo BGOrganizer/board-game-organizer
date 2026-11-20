@@ -178,6 +178,8 @@ export async function bggPickerPage(
                 suggestedPlayers: 1,
                 averageWeight: 1,
                 weightCheckedAt: 1,
+                categories: 1,
+                categoriesCheckedAt: 1,
                 metadataAttemptedAt: 1,
                 imageCheckedAt: 1,
               },
@@ -202,6 +204,7 @@ export async function bggPickerPage(
         minPlayMinutes: game?.minPlayMinutes ?? null,
         ...(game?.suggestedPlayers ? { suggestedPlayers: game.suggestedPlayers } : {}),
         averageWeight: game?.averageWeight ?? null,
+        ...(game?.categories !== undefined ? { categories: game.categories } : {}),
         maxPlayMinutes: game?.maxPlayMinutes ?? null,
         source: "collection" as const,
       };

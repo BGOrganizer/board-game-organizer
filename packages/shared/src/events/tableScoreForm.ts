@@ -2,6 +2,7 @@ import type { FinalizeEventInput } from "@board-game-organizer/schemas";
 import { previewMatchResults, type ScoreDraftRow } from "../matches/matchResults";
 export type TableScoreInput = Omit<FinalizeEventInput["results"][number], "tableId">;
 export type ScorePlayer = {
+  guestName?: string;
   id: string;
   name: string;
   username?: string | null;

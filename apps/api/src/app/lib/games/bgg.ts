@@ -24,6 +24,8 @@ type GameRow = {
   durationCheckedAt?: string;
   averageWeight?: number | null;
   weightCheckedAt?: string;
+  categories?: string[];
+  categoriesCheckedAt?: string;
   metadataAttemptedAt?: string;
 };
 
@@ -64,6 +66,8 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
           (stale(game.suggestedPlayers?.fetchedAt, METADATA_RETENTION_MS) ||
             !(Number(game.averageWeight) >= 1 && Number(game.averageWeight) <= 5) ||
             stale(game.weightCheckedAt, METADATA_RETENTION_MS) ||
+            game.categories === undefined ||
+            stale(game.categoriesCheckedAt, METADATA_RETENTION_MS) ||
             !positiveInteger(game.minPlayMinutes) ||
             !positiveInteger(game.maxPlayMinutes) ||
             stale(game.durationCheckedAt, METADATA_RETENTION_MS) ||
@@ -117,6 +121,10 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
       {
         suggestedPlayers?: PlayerPoll;
         averageWeight: number | null;
+        categories: string[];
+        average: number | null;
+        rank: number | null;
+        yearPublished: number | null;
         image: string | null;
         min: number | null;
         max: number | null;
@@ -144,7 +152,29 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
       const weight = Number(
         item.getElementsByTagName("averageweight").item(0)?.getAttribute("value"),
       );
+      const categories = new Set<string>();
+      for (const link of Array.from(item.getElementsByTagName("link"))) {
+        if (link.getAttribute("type") !== "boardgamecategory") continue;
+        const category = link.getAttribute("value")?.trim();
+        if (category) categories.add(category);
+      }
+      const ratings = item.getElementsByTagName("ratings").item(0);
+      const average = Number(
+        ratings?.getElementsByTagName("average").item(0)?.getAttribute("value"),
+      );
+      const rankElement = Array.from(ratings?.getElementsByTagName("rank") ?? []).find(
+        (rank) =>
+          rank.getAttribute("type") === "subtype" && rank.getAttribute("name") === "boardgame",
+      );
+      const rank = Number(rankElement?.getAttribute("value"));
+      const yearPublished = Number(
+        item.getElementsByTagName("yearpublished").item(0)?.getAttribute("value"),
+      );
       found.set(id, {
+        yearPublished: Number.isSafeInteger(yearPublished) && yearPublished ? yearPublished : null,
+        categories: [...categories],
+        average: average > 0 && average <= 10 ? average : null,
+        rank: positiveInteger(rank) ? rank : null,
         suggestedPlayers: parsePlayerPoll(item, new Date().toISOString()),
         averageWeight: Number.isFinite(weight) && weight >= 1 && weight <= 5 ? weight : null,
         image: image ?? thumbnail,
@@ -164,6 +194,15 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
         ...(metadata?.suggestedPlayers ? { suggestedPlayers: metadata.suggestedPlayers } : {}),
         ...(metadata?.averageWeight != null
           ? { averageWeight: metadata.averageWeight, weightCheckedAt: checkedAt }
+          : {}),
+        ...(metadata ? { categories: metadata.categories, categoriesCheckedAt: checkedAt } : {}),
+        // The ranking CSV remains authoritative for existing valid scores and ranks.
+        ...(metadata?.average != null && !(Number(game.average) > 0)
+          ? { average: metadata.average }
+          : {}),
+        ...(metadata?.rank != null && !positiveInteger(game.rank) ? { rank: metadata.rank } : {}),
+        ...(metadata?.yearPublished != null && !game.yearPublished
+          ? { yearPublished: metadata.yearPublished }
           : {}),
         image: metadata?.image ?? cover(game.image),
         imageCheckedAt: checkedAt,
@@ -190,7 +229,9 @@ export async function hydrateGames(db: Db, games: GameRow[], durations = false):
             $setOnInsert: {
               id: game.id,
               name: game.name,
-              ...(game.yearPublished != null ? { yearPublished: game.yearPublished } : {}),
+              ...(game.yearPublished != null && updates[index].yearPublished === undefined
+                ? { yearPublished: game.yearPublished }
+                : {}),
               ...(game.isExpansion !== undefined ? { isExpansion: game.isExpansion } : {}),
             },
           },
@@ -241,6 +282,8 @@ export async function searchGames(
           suggestedPlayers: 1,
           averageWeight: 1,
           weightCheckedAt: 1,
+          categories: 1,
+          categoriesCheckedAt: 1,
           metadataAttemptedAt: 1,
         },
       },
@@ -250,7 +293,11 @@ export async function searchGames(
     .limit(limit)
     .toArray();
   await hydrateGames(db, rows, true);
-  return rows.map((row) => ({
+  return rows.map(toBggSearchItem);
+}
+
+function toBggSearchItem(row: GameRow): BggSearchItem {
+  return {
     id: row.id,
     name: row.name,
     year: row.yearPublished ?? null,
@@ -260,32 +307,31 @@ export async function searchGames(
     imageUrl: cover(row.image),
     ...(row.suggestedPlayers ? { suggestedPlayers: row.suggestedPlayers } : {}),
     ...(row.averageWeight != null ? { averageWeight: row.averageWeight } : {}),
+    ...(row.categories !== undefined ? { categories: row.categories } : {}),
     ...(row.minPlayers ? { minPlayers: row.minPlayers } : {}),
     ...(row.maxPlayers ? { maxPlayers: row.maxPlayers } : {}),
     ...(row.minPlayMinutes ? { minPlayMinutes: row.minPlayMinutes } : {}),
     ...(row.maxPlayMinutes ? { maxPlayMinutes: row.maxPlayMinutes } : {}),
-  }));
+  };
 }
 
 export async function gameDetails(db: Db, id: number): Promise<BggThingResponse> {
   const row = await db.collection<GameRow>(COLLECTIONS.BOARD_GAMES).findOne({ id });
   if (!row) throw new Error(`Game ${id} not found`);
   await hydrateGames(db, [row], true);
-  return {
-    id: row.id,
-    name: row.name,
-    imageUrl: cover(row.image),
-    year: row.yearPublished ?? null,
-    bayesAverage: row.bayesAverage ?? null,
-    average: row.average ?? null,
-    rank: row.rank ?? null,
-    ...(row.suggestedPlayers ? { suggestedPlayers: row.suggestedPlayers } : {}),
-    ...(row.averageWeight != null ? { averageWeight: row.averageWeight } : {}),
-    ...(row.minPlayers ? { minPlayers: row.minPlayers } : {}),
-    ...(row.maxPlayers ? { maxPlayers: row.maxPlayers } : {}),
-    ...(row.minPlayMinutes ? { minPlayMinutes: row.minPlayMinutes } : {}),
-    ...(row.maxPlayMinutes ? { maxPlayMinutes: row.maxPlayMinutes } : {}),
-  };
+  return toBggSearchItem(row);
+}
+
+export async function gameDetailsBatch(
+  db: Db,
+  ids: readonly number[],
+): Promise<BggThingResponse[]> {
+  const rows = await db
+    .collection<GameRow>(COLLECTIONS.BOARD_GAMES)
+    .find({ id: { $in: ids } })
+    .toArray();
+  await hydrateGames(db, rows, true);
+  return rows.map(toBggSearchItem);
 }
 
 export function gameThumbnail(url: string | null): string | null {

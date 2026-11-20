@@ -83,7 +83,7 @@ appId: com.bgo.boardgameorganizer.dev
       id: "location-address-input"
       text: ".*(Roma|Rome).*"
     timeout: 30000
-- assertVisible: "Confirm location"
+- assertVisible: "Confirm Location"
 - assertVisible: "Select location"
 - tapOn: "Clear search"
 - assertNotVisible: "Clear search"

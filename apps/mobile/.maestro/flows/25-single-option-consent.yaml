@@ -3,7 +3,8 @@ name: Explicit singleton and mixed-option Table consent
 # MUTATING, manual only. Already authenticated in selected EN/IT locale. Non-admin accepted
 # PRIVATE Group member; one owned disposable Event/Table, max=2, owner seated, no other own
 # registration. For accept, own invitation reserves remaining place. Run all masks 0..7
-# with fresh join/accept fixtures per locale/build. No provider mocks or automatic resets.
+# with fresh join/accept fixtures per locale/build. Multiple games require the actor username.
+# No provider mocks or automatic resets.
 tags: [manual, tables, consent]
 ---
 - runScript: ../helpers/single-option-inputs.js
@@ -87,3 +88,31 @@ tags: [manual, tables, consent]
     direction: DOWN
     timeout: 120000
 - takeScreenshot: single-option-explicit-consent-accepted
+- runFlow:
+    when:
+      true: ${output.single.namedVotes !== null}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: table-overview-tab
+          direction: UP
+          timeout: 30000
+      - tapOn:
+          id: table-overview-tab
+      - scrollUntilVisible:
+          element: ${output.single.categories[2].yes[0]}
+          direction: DOWN
+          timeout: 30000
+      - tapOn: ${output.single.categories[2].yes[0]}
+      - tapOn: ${output.single.namedVotes.show}
+      - extendedWaitUntil:
+          visible: ${output.single.namedVotes.title}
+          timeout: 30000
+      - assertVisible: ${output.single.namedVotes.yesHeading}
+      - assertVisible: ${output.single.namedVotes.username}
+      - assertVisible: ${output.single.namedVotes.neededHeading}
+      - assertVisible: ${output.single.namedVotes.noHeading}
+      - assertVisible: ${output.single.namedVotes.empty}
+      - takeScreenshot: table-game-named-votes
+      - tapOn: ${output.single.namedVotes.close}
+      - assertNotVisible: ${output.single.namedVotes.title}

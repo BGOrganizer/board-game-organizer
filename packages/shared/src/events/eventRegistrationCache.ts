@@ -3,6 +3,7 @@ import type {
   TableRegistration,
   TableSeatPosition,
 } from "@board-game-organizer/schemas";
+import { changeGameVoteVoters } from "./eventVotes";
 
 /** Reconcile acknowledged participation, never an inferred seat or permission grant. */
 export function acknowledgeTableRegistration(
@@ -33,9 +34,25 @@ export function acknowledgeTableRegistration(
       counts[gameId] = votes;
     }
   }
+  const { gameVoteVoters, ...previousTable } = table;
+  const myRegistration = { ...before, ...registration };
+  const voters =
+    gameVoteVoters && (accepted || table.canManage === true)
+      ? Object.fromEntries(
+          Object.entries(gameVoteVoters).map(([id, groups]) => [
+            id,
+            changeGameVoteVoters(
+              groups,
+              myRegistration,
+              accepted ? (registration.gameVotes[id] ?? "UNKNOWN") : "UNKNOWN",
+            ),
+          ]),
+        )
+      : undefined;
   return {
-    ...table,
-    myRegistration: { ...before, ...registration },
+    ...previousTable,
+    myRegistration,
+    ...(voters ? { gameVoteVoters: voters } : {}),
     ...(registration.position !== undefined
       ? { myPosition: registration.position }
       : table.eventStatus === "PLANNING" && registration.seatIndex !== undefined

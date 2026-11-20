@@ -13,6 +13,48 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+msgid "Add a guest"
+msgstr "Add a guest"
+
+msgid "Best BGG"
+msgstr "Best BGG"
+
+msgid "BGG categories"
+msgstr "BGG categories"
+
+msgid "BGG rating"
+msgstr "BGG rating"
+
+msgid "Could not add guest. Try again."
+msgstr "Could not add guest. Try again."
+
+msgid "Could not load game information"
+msgstr "Could not load game information"
+
+msgid "Could not load guest votes"
+msgstr "Could not load guest votes"
+
+msgid "Could not save guest vote. Try again."
+msgstr "Could not save guest vote. Try again."
+
+msgid "Difficulty"
+msgstr "Difficulty"
+
+msgid "Edit guest votes"
+msgstr "Edit guest votes"
+
+msgid "Enter a guest name between 1 and 80 characters."
+msgstr "Enter a guest name between 1 and 80 characters."
+
+msgid "Game information"
+msgstr "Game information"
+
+msgid "Guest"
+msgstr "Guest"
+
+msgid "Guest name"
+msgstr "Guest name"
+
 #. js-lingui-explicit-id
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "match.confirm.summary"
@@ -57,6 +99,12 @@ msgstr "Confirm {date} and {game}?"
 #. js-lingui-explicit-id
 #~ msgid "organization.action.cancel.leave"
 #~ msgstr "Leave organization"
+
+msgid "No votes"
+msgstr "No votes"
+
+msgid "Optionally assign a group member or a guest to demonstrate this table. Group members cannot demonstrate overlapping tables."
+msgstr "Optionally assign a group member or a guest to demonstrate this table. Group members cannot demonstrate overlapping tables."
 
 #. js-lingui-explicit-id
 msgid "organization.feedback.create_organization.success"
@@ -654,6 +702,9 @@ msgstr "{count, plural, one {# Member} other {# Members}}"
 msgid "event.card.tables"
 msgstr "{count, plural, one {# Table} other {# Tables}}"
 
+msgid "Show votes"
+msgstr "Show votes"
+
 #. js-lingui-explicit-id
 #: apps/mobile/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableCard.tsx
@@ -665,6 +716,12 @@ msgstr "{count, plural, one {#/{capacity} participant} other {#/{capacity} parti
 #: apps/web/src/components/games/GameCatalogMetadata.tsx
 msgid "game.duration.minutes"
 msgstr "{durationMinutes, plural, one {# minute} other {# minutes}}"
+
+msgid "Unknown game"
+msgstr "Unknown game"
+
+msgid "Year"
+msgstr "Year"
 
 #: apps/mobile/src/components/locations/LocationPicker.tsx
 msgid "© OpenStreetMap contributors"
@@ -1771,8 +1828,8 @@ msgid "Confirm event"
 msgstr "Confirm event"
 
 #: apps/web/src/components/locations/SearchLocationPage.tsx
-msgid "Confirm location"
-msgstr "Confirm location"
+msgid "Confirm Location"
+msgstr "Confirm Location"
 
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Confirm match"

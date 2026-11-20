@@ -4,6 +4,7 @@ export type EventTablePerson = {
   userId: string;
   name: string;
   email: string | null;
+  guestName?: string;
   username?: string | null;
   avatarUrl: string | null;
   profileLoaded: boolean;
@@ -23,14 +24,18 @@ export function eventTablePeople(
       .sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))
       .map((row) => {
         const p = table.resultProfiles?.find((p) => p.userId === row.userId);
+        const guestName =
+          p?.guestName ??
+          table.confirmed?.guestPlayers?.find((guest) => guest.participantId === row.userId)?.name;
         return {
           key: row.userId,
           userId: row.userId,
-          name: p?.name ?? row.userId,
+          name: guestName ?? p?.name ?? row.userId,
+          guestName,
           email: p?.email ?? null,
           username: p?.username ?? null,
           avatarUrl: p?.avatarUrl ?? null,
-          profileLoaded: Boolean(p),
+          profileLoaded: Boolean(p || guestName),
           rank: row.rank,
           score: row.score,
           delta: table.ratingChanges.find((p) => p.userId === row.userId)?.delta,
@@ -41,7 +46,8 @@ export function eventTablePeople(
   return seats.map((row) => ({
     key: row.id,
     userId: row.userId,
-    name: row.name ?? row.userId,
+    name: row.guestName ?? row.name ?? row.userId,
+    guestName: row.guestName,
     email: row.email ?? null,
     username: row.username ?? null,
     avatarUrl: row.avatarUrl,

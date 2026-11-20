@@ -118,6 +118,13 @@ function table(): PlannedTableResponse {
     pendingRegistrationCount: 5,
     allowParticipantGames: true,
     gameVoteCounts: {},
+    gameVoteVoters: {
+      "1": {
+        YES: [{ userId: "SECRET-VOTER", name: null, username: null, avatarUrl: null }],
+        IF_NEEDED: [],
+        NO: [],
+      },
+    },
     demonstratorUserId: "PRIVATE-GROUP-DUTY",
     demonstratorName: "Private demonstrator",
     bookingClosesAt: at,
@@ -178,6 +185,7 @@ it.each(["ACCEPTED", "PENDING", "DECLINED", "CANCELLED"] as const)(
     });
     expect(frozen).not.toHaveProperty("groupRatingChanges");
     expect(frozen).not.toHaveProperty("resultDraft");
+    expect(frozen).not.toHaveProperty("gameVoteVoters");
     expect(frozen.resultProfiles?.[0].email).toBeNull();
     const duty = { ...source, demonstratorUserId: "demo", demonstratorName: "Guide" };
     const waiting = personalTableProjection(duty, registration(status, "demo"), "demo");
@@ -333,7 +341,13 @@ it("shares only selected Event information and final physical rosters, never Gro
 });
 
 it("allowlists selected Table/result metadata and GLOBAL deltas, deeply removes private profile fields without mutating source", () => {
-  const source = Object.assign(table(), { futurePrivateField: "PRIVATE-ROOT" });
+  const source = {
+    ...table(),
+    demonstratorUserId: undefined,
+    demonstratorGuestName: "PRIVATE-GUEST",
+    demonstratorName: "PRIVATE-GUEST",
+    futurePrivateField: "PRIVATE-ROOT",
+  };
   Object.assign(source.resultProfiles![0], { phone: "PRIVATE-PHONE" });
   const before = structuredClone(source);
   const result = sharedTableResults(source);
@@ -371,15 +385,35 @@ it("allowlists selected Table/result metadata and GLOBAL deltas, deeply removes 
     "groupRatingChanges",
     "resultDraft",
     "demonstratorUserId",
+    "demonstratorGuestName",
     "demonstratorName",
     "bookingClosesAt",
     "gameVoteCounts",
+    "gameVoteVoters",
     "allowParticipantGames",
     "futurePrivateField",
   ])
     expect(result).not.toHaveProperty(key);
   expect(JSON.stringify(result)).not.toMatch(/SECRET|PRIVATE-|999/);
   expect(source).toEqual(before);
+});
+
+it("keeps the guest display label in personal frozen Table access without granting duty", () => {
+  const current = {
+    ...table(),
+    demonstratorUserId: undefined,
+    demonstratorGuestName: "Arianna",
+    demonstratorName: "Arianna",
+    demonstratorAvatarUrl: null,
+  };
+  const result = personalTableProjection(current, registration("ACCEPTED"), "a");
+  expect(result).toMatchObject({
+    personalAccessOnly: true,
+    demonstratorGuestName: "Arianna",
+    demonstratorName: "Arianna",
+    demonstratorAvatarUrl: null,
+  });
+  expect(result.demonstratorUserId).toBeUndefined();
 });
 
 it("never fabricates missing historical detail fields, profiles or roster membership", () => {

@@ -5,6 +5,7 @@ import type {
   ProfileActivityRecord,
   TableRecord,
 } from "@board-game-organizer/schemas";
+import { isGuestParticipantId } from "@board-game-organizer/schemas";
 import { profileWinMilestones } from "@board-game-organizer/shared";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "../db";
@@ -44,6 +45,7 @@ export class ProfileActivitiesRepository {
         ) ?? [];
       if (entries.length < 2) continue;
       for (const entry of entries) {
+        if (isGuestParticipantId(entry.userId)) continue;
         await this.record({
           source: `table:${table.id}`,
           userId: entry.userId,

@@ -1,10 +1,11 @@
 "use client";
-import type { EventVote } from "@board-game-organizer/schemas";
-import { Button, Fieldset } from "@heroui/react";
+import type { EventVote, PlannedTableResponse } from "@board-game-organizer/schemas";
+import { Button, Drawer, Fieldset } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, Minus, Vote, X } from "lucide-react";
+import { Check, Eye, Minus, Vote, X } from "lucide-react";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { GameVoteVoters } from "./GameVoteVoters";
 /** One status button; selecting a preference never accepts an invitation. */
 export function EventVoteButtons({
   value = "UNKNOWN",
@@ -13,6 +14,8 @@ export function EventVoteButtons({
   onChange,
   inline = false,
   disabledVotes = [],
+  voters,
+  readOnly = false,
   isInvalid = false,
 }: {
   value?: EventVote;
@@ -21,10 +24,12 @@ export function EventVoteButtons({
   onChange: (vote: Exclude<EventVote, "UNKNOWN">) => void;
   inline?: boolean;
   disabledVotes?: readonly EventVote[];
+  voters?: NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
+  readOnly?: boolean;
   isInvalid?: boolean;
 }) {
   const { t } = useLingui(),
-    [open, setOpen] = useState(false);
+    [panel, setPanel] = useState<"vote" | "voters" | null>(null);
   const options = [
     { key: "YES", text: t`Yes`, Icon: Check, color: "text-success" },
     { key: "IF_NEEDED", text: t`If needed`, Icon: Minus, color: "text-warning" },
@@ -61,6 +66,9 @@ export function EventVoteButtons({
         ))}
       </Fieldset>
     );
+  const trigger = readOnly
+    ? { Icon: Eye, text: t`Show votes`, color: "text-foreground/60" }
+    : selected;
   return (
     <>
       <Button
@@ -68,20 +76,20 @@ export function EventVoteButtons({
         size="sm"
         variant="secondary"
         className="min-h-11 min-w-11 shrink-0"
-        aria-label={`${label}: ${selected.text}`}
+        aria-label={`${label}: ${trigger.text}`}
         aria-haspopup="dialog"
-        aria-expanded={open}
+        aria-expanded={panel !== null}
         isDisabled={busy}
-        onPress={() => setOpen(true)}
+        onPress={() => setPanel(readOnly ? "voters" : "vote")}
       >
-        <selected.Icon className={`size-5 ${selected.color}`} aria-hidden />
+        <trigger.Icon className={`size-5 ${trigger.color}`} aria-hidden />
       </Button>
-      {open ? (
+      {panel === "vote" ? (
         <ContactConfirmDialog
           title={t`Choose your vote`}
           description={label}
           busy={busy}
-          onCancel={() => setOpen(false)}
+          onCancel={() => setPanel(null)}
           actions={[]}
         >
           <div className="flex flex-col gap-2">
@@ -92,7 +100,7 @@ export function EventVoteButtons({
                 aria-pressed={value === key}
                 isDisabled={busy || disabledVotes.includes(key)}
                 onPress={() => {
-                  setOpen(false);
+                  setPanel(null);
                   onChange(key);
                 }}
               >
@@ -101,10 +109,41 @@ export function EventVoteButtons({
               </Button>
             ))}
           </div>
+          {voters ? (
+            <Button variant="ghost" className="min-h-11" onPress={() => setPanel("voters")}>
+              <Eye className="size-5" aria-hidden />
+              {t`Show votes`}
+            </Button>
+          ) : null}
           {disabledVotes.includes("NO") ? (
             <p className="mt-3 text-sm text-muted">{t`Keep at least one Yes or If needed among the available options.`}</p>
           ) : null}
         </ContactConfirmDialog>
+      ) : null}
+      {voters ? (
+        <Drawer.Backdrop
+          isOpen={panel === "voters"}
+          onOpenChange={(open) => {
+            if (!open) setPanel(null);
+          }}
+        >
+          <Drawer.Content placement="bottom">
+            <Drawer.Dialog
+              className="mx-auto w-full max-w-lg"
+              style={{ maxHeight: "calc(var(--app-visible-height, 100dvh) * 0.85)" }}
+            >
+              <Drawer.Handle />
+              <Drawer.CloseTrigger aria-label={t`Close`} />
+              <Drawer.Header>
+                <Drawer.Heading>{t`Votes`}</Drawer.Heading>
+                <p className="text-sm text-muted">{label}</p>
+              </Drawer.Header>
+              <Drawer.Body className="overflow-y-auto">
+                <GameVoteVoters label={label} voters={voters} />
+              </Drawer.Body>
+            </Drawer.Dialog>
+          </Drawer.Content>
+        </Drawer.Backdrop>
       ) : null}
     </>
   );

@@ -155,12 +155,9 @@ export function ProfileCollection({
               const rating = item.userRating === null ? t`N/A` : number.format(item.userRating);
               return (
                 <GameListCard
+                  game={item}
                   name={item.name}
                   imageUrl={item.imageUrl}
-                  year={item.year}
-                  average={item.average}
-                  rank={item.rank}
-                  suggestedPlayers={item.suggestedPlayers}
                   actions={
                     <Chip
                       size="sm"

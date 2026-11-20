@@ -126,6 +126,7 @@ export function sharedTableResults(table: PlannedTableResponse): PlannedTableRes
       username: profile.username,
       avatarUrl: profile.avatarUrl,
       email: null,
+      ...(profile.guestName ? { guestName: profile.guestName } : {}),
     })),
   };
 }

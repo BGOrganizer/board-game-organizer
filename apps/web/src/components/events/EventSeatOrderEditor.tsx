@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { floatingActionPositionStyle } from "@/components/common/layout/floatingActionStyles";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
@@ -78,10 +79,14 @@ export function EventSeatOrderEditor({
                   </div>
                 );
               const { row, index } = item;
+              const guest = row.kind === "GUEST";
+              const name = guest
+                ? (row.guestName ?? t`Guest`)
+                : formatUsername(row.username, row.name ?? t`Username unavailable`);
               const seated = row.seatIndex !== null;
               const roles = tableUserRoles({
                 ...row,
-                demonstrator: row.userId === demonstratorUserId,
+                demonstrator: !guest && row.userId === demonstratorUserId,
                 position: seated ? "SEATED" : "WAITING",
               });
               return (
@@ -91,8 +96,9 @@ export function EventSeatOrderEditor({
                 >
                   <UserListRow
                     as="div"
-                    name={formatUsername(row.username, row.name ?? t`Username unavailable`)}
-                    avatarUrl={row.avatarUrl}
+                    name={name}
+                    avatarUrl={guest ? null : row.avatarUrl}
+                    avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
                     badge={<UserRoleBadge roles={roles} />}
                     topBadge={
                       seated ? (
@@ -105,7 +111,13 @@ export function EventSeatOrderEditor({
                         />
                       ) : undefined
                     }
-                    secondary={roles[0] ? i18n._(recordUserRoleMessages[roles[0]]) : undefined}
+                    secondary={
+                      guest
+                        ? t`Guest`
+                        : roles[0]
+                          ? i18n._(recordUserRoleMessages[roles[0]])
+                          : undefined
+                    }
                     actions={
                       <>
                         <Button

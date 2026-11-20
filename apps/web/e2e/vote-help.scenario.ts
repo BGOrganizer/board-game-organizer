@@ -63,6 +63,10 @@ const eventHelp = it
 const tableHelp = it
   ? "Puoi votare solo se partecipi a questo tavolo con iscrizione accettata."
   : "You can vote only if you are an accepted participant at this table.";
+const voteChoices = it ? ["Sì", "Se necessario", "No"] : ["Yes", "If needed", "No"];
+const chooseVote = it ? "Scegli il tuo voto" : "Choose your vote";
+const showVotes = it ? "Mostra voti" : "Show votes";
+const votes = it ? "Voti" : "Votes";
 
 for (const width of [390, 1280])
   test(`category voting help ${locale} at ${width}px`, async ({ page }) => {
@@ -103,13 +107,36 @@ for (const width of [390, 1280])
           popover.getByText(index === 2 ? tableHelp : eventHelp, { exact: true }),
         ).toBeVisible();
         await expect(popover.getByText(positive, { exact: true })).toBeVisible();
-        for (const vote of it ? ["Sì", "Se necessario", "No"] : ["Yes", "If needed", "No"])
+        for (const vote of voteChoices)
           await expect(popover.getByText(vote, { exact: true })).toBeVisible();
         await expect(
           popover.getByText(it ? "Guida al campo" : "Field help", { exact: true }),
         ).toHaveCount(0);
         await page.keyboard.press("Escape");
         await expect(popover).toHaveCount(0);
+        if (index === 2) {
+          const voteAction = page
+            .getByRole("region", { name: label, exact: true })
+            .getByRole("button", {
+              name: new RegExp(`: (${[showVotes, chooseVote, ...voteChoices].join("|")})$`),
+            })
+            .first();
+          await expect(voteAction).toBeVisible();
+          const opensVotesDirectly = (await voteAction.getAttribute("aria-label"))?.endsWith(
+            `: ${showVotes}`,
+          );
+          await voteAction.click();
+          if (!opensVotesDirectly)
+            await page
+              .getByRole("dialog", { name: chooseVote, exact: true })
+              .getByRole("button", { name: showVotes, exact: true })
+              .click();
+          const sheet = page.getByRole("dialog", { name: votes, exact: true });
+          for (const choice of voteChoices)
+            await expect(sheet.getByRole("heading", { name: choice, exact: true })).toBeVisible();
+          await sheet.getByRole("button", { name: it ? "Chiudi" : "Close", exact: true }).click();
+          await expect(sheet).toHaveCount(0);
+        }
       }
     }
   });

@@ -209,6 +209,39 @@ describe("field-scoped optimistic ballots", () => {
     expect(parent.voteCounts).toBe(event.voteCounts);
     expect(registration.gameVotes["1"]).toBe("YES");
   });
+  it("moves only the actor's existing identity between named voter groups", () => {
+    const actor = { userId: "owner", name: "Owner", username: "owner", avatarUrl: "avatar" };
+    const other = { userId: "other", name: "Other", username: null, avatarUrl: null };
+    const named = {
+      "1": { YES: [actor, other], IF_NEEDED: [], NO: [] },
+      "2": { YES: [other], IF_NEEDED: [], NO: [] },
+    };
+    const changed = optimisticEventVote(
+      { ...table, gameVoteVoters: named },
+      eventId,
+      "owner",
+      game,
+    ) as PlannedTableResponse;
+    expect(changed.gameVoteVoters?.["1"]).toEqual({ YES: [other], IF_NEEDED: [], NO: [actor] });
+    expect(changed.gameVoteVoters?.["2"]).toBe(named["2"]);
+    expect(named["1"].YES).toEqual([actor, other]);
+    const fresh = optimisticEventVote(
+      {
+        ...table,
+        myRegistration: { ...registration, name: null, username: null, avatarUrl: null },
+        gameVoteVoters: { "1": { ...named["1"], YES: [] } },
+      },
+      eventId,
+      "owner",
+      game,
+    ) as PlannedTableResponse;
+    expect(fresh.gameVoteVoters?.["1"].NO[0]).toMatchObject({
+      userId: actor.userId,
+      name: null,
+      username: null,
+      avatarUrl: null,
+    });
+  });
   it("ignores foreign, nonaccepted or no-longer-known Event game ballots", () => {
     for (const reg of [
       { ...registration, tableId: eventId },

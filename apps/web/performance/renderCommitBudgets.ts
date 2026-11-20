@@ -20,6 +20,7 @@ export const renderCommitBudgets: Readonly<Record<string, number>> = {
   "FilterChips: controlled role filter selection": 2,
   "FloatingActions: open the editor through the real button": 2,
   "GameCatalogMetadata: rating, rank and known duration": 1,
+  "GameCatalogMetadata: open BGG details": 4,
   "GameListCard: choose a game using its real row action": 2,
   "GameListRow: display-only game with supplied metadata": 1,
   "GameRating: provisional score and positive delta": 1,

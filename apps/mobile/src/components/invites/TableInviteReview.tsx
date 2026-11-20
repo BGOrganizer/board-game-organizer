@@ -180,12 +180,9 @@ export function TableInviteReview({
           const name = game?.name ?? t("Unknown");
           return (
             <GameListRow
+              game={game}
               name={name}
               imageUrl={game?.imageUrl}
-              year={game?.year}
-              average={game?.average}
-              rank={game?.rank}
-              suggestedPlayers={game?.suggestedPlayers}
               durationMinutes={item.value.durationMinutes}
               actions={voteButtons(item, String(item.value.gameId), name)}
             />

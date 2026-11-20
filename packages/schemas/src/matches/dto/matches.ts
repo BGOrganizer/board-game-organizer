@@ -244,11 +244,13 @@ export type RespondMatchInvitationInput = z.infer<typeof respondMatchInvitationS
 export type {
   BggSearchItem,
   BggSearchResponse,
+  BggThingBatchResponse,
   BggThingResponse,
 } from "../../games/dto/boardGames";
 export {
   bggSearchItemSchema,
   bggSearchResponseSchema,
+  bggThingBatchResponseSchema,
   bggThingResponseSchema,
 } from "../../games/dto/boardGames";
 

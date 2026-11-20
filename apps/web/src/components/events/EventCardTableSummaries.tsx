@@ -57,10 +57,12 @@ export function EventCardTableSummaries({
                       className="mr-1 inline size-4 align-text-bottom text-warning-soft-foreground"
                     />
                     {table.winners
-                      .map((winner) =>
-                        winner.username
-                          ? `@${winner.username.replace(/^@/, "")}`
-                          : t`Username unavailable`,
+                      .map(
+                        (winner) =>
+                          winner.guestName ??
+                          (winner.username
+                            ? `@${winner.username.replace(/^@/, "")}`
+                            : t`Username unavailable`),
                       )
                       .join(", ")}
                   </>

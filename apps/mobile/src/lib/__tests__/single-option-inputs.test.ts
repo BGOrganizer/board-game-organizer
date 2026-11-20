@@ -18,6 +18,7 @@ const settings = (mask: number, mode = "join", locale = "en") => ({
     mode,
     path,
     name: "Owned Table",
+    username: "actor.name",
     dates: Array.from({ length: mask & 1 ? 2 : 1 }, (_, i) => `2030-06-0${i + 3} 20:00`),
     locations: Array.from({ length: mask & 2 ? 2 : 1 }, (_, i) => `Club [${i}]`),
     games: Array.from({ length: mask & 4 ? 2 : 1 }, (_, i) => `Chess + (${i})`),
@@ -38,6 +39,7 @@ it.each(
       single: {
         mode: string;
         categories: Array<{ multiple: boolean; yes: string[]; no: string[] }>;
+        namedVotes: { username: string; show: string; empty: string } | null;
       };
     };
     expect(output.single.mode).toBe(mode);
@@ -46,6 +48,15 @@ it.each(
       Boolean(mask & 2),
       Boolean(mask & 4),
     ]);
+    if (mask & 4) {
+      const votes = output.single.namedVotes;
+      if (!votes) throw new Error("Expected real named-vote labels for a multiple-game fixture");
+      expect(votes.username).toBe("^@actor\\.name$");
+      expect(new RegExp(votes.show).test(locale === "it" ? "Mostra voti" : "Show votes")).toBe(
+        true,
+      );
+      expect(new RegExp(votes.empty).test(locale === "it" ? "Nessun voto" : "No votes")).toBe(true);
+    } else expect(output.single.namedVotes).toBeNull();
     const fixture = JSON.parse(context.SINGLE_OPTION_INPUT);
     for (const [index, key] of ["dates", "locations", "games"].entries()) {
       for (const [position, label] of fixture[key].entries()) {
@@ -93,3 +104,16 @@ it.each([
   expect(() => runInNewContext(source, context)).toThrow();
   expect(context.output).toEqual({});
 });
+
+it.each([undefined, "a b", "@@name"])(
+  "requires a verified username for multiple games: %j",
+  (username) => {
+    const context = settings(4);
+    context.SINGLE_OPTION_INPUT = JSON.stringify({
+      ...JSON.parse(context.SINGLE_OPTION_INPUT),
+      username,
+    });
+    expect(() => runInNewContext(source, context)).toThrow(/acting user's exact username/);
+    expect(context.output).toEqual({});
+  },
+);

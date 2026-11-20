@@ -1,0 +1,98 @@
+import type { TableGuestVotes } from "@board-game-organizer/schemas";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { afterEach, expect, it, vi } from "vitest";
+import { NativeTestProviders } from "@/test/NativeTestProviders";
+import { plannedEvent, plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
+import { EventGuestVoteEditor } from "../EventGuestVoteEditor";
+
+vi.mock("@/lib/useCommunityApi", () => ({
+  useCommunityApi: () => ({
+    apiUrl: "https://table-guests.test",
+    userId: "owner",
+    enabled: true,
+    getToken: async () => "fresh-manager-token",
+  }),
+}));
+
+const registrationId = "58246a08-f6cf-4ea8-a7cb-a571ae83dfba";
+const path = `/api/events/${plannedEvent.id}/tables/${plannedTable.id}/guests/${registrationId}`;
+const table = {
+  ...plannedTable,
+  canManage: true,
+  games: [...plannedTable.games, { gameId: 2 }],
+  gamesDetail: [...plannedTable.gamesDetail, { id: 2, name: "Azul", imageUrl: null, year: null }],
+};
+const close = vi.fn();
+const hidden = { includeHiddenElements: true };
+
+function fixture() {
+  return (
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <NativeTestProviders>
+        <EventGuestVoteEditor
+          name="Guest Alice"
+          registrationId={registrationId}
+          table={table}
+          onClose={close}
+        />
+      </NativeTestProviders>
+    </QueryClientProvider>
+  );
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  close.mockClear();
+});
+
+it("loads guest votes on demand and submits proxy ballots for the selected guest only", async () => {
+  const initial: TableGuestVotes = {
+    guestName: "Guest Alice",
+    dateVotes: {},
+    locationVotes: {},
+    gameVotes: {},
+  };
+  let votes = initial;
+  const calls: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (value: string, init?: RequestInit) => {
+      const url = new URL(value);
+      expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer fresh-manager-token");
+      if (url.pathname === path) return Response.json(votes);
+      if (url.pathname === `${path}/votes` && init?.method === "POST") {
+        const input = JSON.parse(String(init.body));
+        calls.push(input);
+        votes = { ...votes, gameVotes: { "1": "YES" } };
+        return Response.json(votes);
+      }
+      if (url.pathname === `/api/events/${plannedEvent.id}`)
+        return Response.json({ ...plannedEvent, canManage: true });
+      throw new Error(`Unexpected request: ${url.pathname}`);
+    }),
+  );
+  await render(fixture());
+  expect(await screen.findByText("Guest Alice", hidden)).toBeOnTheScreen();
+  const vote = await screen.findByRole("button", { name: "Chess: Yes", ...hidden });
+  expect(screen.getByRole("button", { name: "Chess: No", ...hidden })).toBeDisabled();
+  expect(screen.queryByText("Dates", hidden)).toBeNull();
+  await fireEvent.press(vote);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Chess: Yes", ...hidden })).toBeSelected(),
+  );
+  expect(screen.getByRole("button", { name: "Azul: No", ...hidden })).toBeEnabled();
+  expect(calls).toEqual([{ kind: "game", tableId: table.id, gameId: 1, vote: "YES" }]);
+  expect(close).not.toHaveBeenCalled();
+});
+
+it("stops at the current event authority check when guest proxy permission is revoked", async () => {
+  const fetch = vi.fn(async () => Response.json({ ...plannedEvent, canManage: false }));
+  vi.stubGlobal("fetch", fetch);
+  await render(fixture());
+  expect(await screen.findByText("Could not load guest votes", hidden)).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Chess: Yes", ...hidden })).toBeNull();
+  expect(fetch.mock.calls).toHaveLength(1);
+});

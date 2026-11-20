@@ -296,3 +296,64 @@ it.each([
     }
   },
 );
+
+it("adds a guest directly and retries an uncertain response with the same request ID", async () => {
+  const requests: Array<{ name: string; requestId: string }> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        expect(new URL(url).pathname).toBe(`/api/events/${eventId}/tables/${tableId}/guests`);
+        const input = JSON.parse(String(init.body));
+        expect(input).toEqual({
+          name: "Guest Alice",
+          requestId: expect.stringMatching(/^[a-f\d-]{36}$/),
+        });
+        requests.push(input);
+        if (requests.length === 1) return Response.json({}, { status: 503 });
+        return Response.json({
+          ...seat("guest:4a6bd36e-a27b-4b44-84df-8a4e36ee5f4e"),
+          kind: "GUEST",
+          guestName: input.name,
+          status: "ACCEPTED",
+          eventVersion: 2,
+        });
+      }
+      return Response.json(
+        url.includes("/invitations") ? { items: [], nextCursor: null } : plannedEvent,
+      );
+    }),
+  );
+  mount();
+  fireEvent.change(await screen.findByRole("textbox", { name: "Guest name" }), {
+    target: { value: "  Guest Alice  " },
+  });
+  const add = screen.getByRole("button", { name: "Add a guest" });
+  fireEvent.click(add);
+  await screen.findByText("Could not add guest. Try again.");
+  expect(m.back).not.toHaveBeenCalled();
+  fireEvent.click(add);
+  await waitFor(() => expect(m.back).toHaveBeenCalledOnce());
+  expect(requests).toHaveLength(2);
+  expect(requests[0]).toEqual(requests[1]);
+});
+
+it.each([
+  { status: "PLANNING", groupType: "PUBLIC" },
+  { status: "CONFIRMED", groupType: "PRIVATE" },
+] as const)("disallows adding guests outside private planning (%j)", async (context) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.includes("/invitations")
+          ? { items: [], nextCursor: null }
+          : { ...plannedEvent, ...context },
+      ),
+    ),
+  );
+  mount();
+  await screen.findByRole("searchbox", { name: "Search friends" });
+  expect(screen.queryByRole("textbox", { name: "Guest name" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add a guest" })).toBeNull();
+});

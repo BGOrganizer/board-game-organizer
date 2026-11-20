@@ -58,6 +58,32 @@ afterEach(() => {
 });
 
 describe("account-owned canonical persistence", () => {
+  it("retains Table details but never persists or restores the named ballot projection", () => {
+    const f = fixture();
+    const tableKey = ["events", owner.apiUrl, owner.userId, "table", "event", "table"];
+    const base = { id: "table", eventId: "event", gameVoteCounts: { "1": { YES: 1 } } };
+    const data = {
+      ...base,
+      gameVoteVoters: { "1": { YES: [{ userId: "sensitive-id" }], IF_NEEDED: [], NO: [] } },
+    };
+    f.client.setQueryData(tableKey, data);
+    f.client.setQueryData(
+      ["events", owner.apiUrl, owner.userId, "guest-votes", "event", "table", "registration"],
+      { guestName: "Private guest vote", gameVotes: { "1": "YES" } },
+    );
+    f.persister.flush();
+    expect(f.data.get("queries")).not.toContain("Private guest vote");
+    expect(f.data.get("queries")).not.toContain("sensitive-id");
+    expect(f.persister.restoreClient()?.clientState.queries[0].state.data).toEqual(base);
+    expect(f.client.getQueryData(tableKey)).toEqual(data);
+
+    const legacy = JSON.parse(f.data.get("queries")!);
+    legacy.clientState.queries[0].state.data = data;
+    expect(decodeCache(JSON.stringify(legacy), owner)?.clientState.queries[0].state.data).toEqual(
+      base,
+    );
+  });
+
   it("ignores transient query metadata while retaining data, errors and removal events", () => {
     const f = fixture();
     const query = f.client.getQueryCache().build(f.client, { queryKey: key });

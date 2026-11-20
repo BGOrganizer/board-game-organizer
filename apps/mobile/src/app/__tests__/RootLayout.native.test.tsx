@@ -1,5 +1,8 @@
 import { useAppStore } from "@board-game-organizer/store";
+import { useQueryClient } from "@tanstack/react-query";
 import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { Dialog } from "heroui-native/dialog";
+import { Text } from "react-native";
 import { Uniwind } from "uniwind";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 
@@ -13,7 +16,7 @@ const bootstrap = vi.hoisted(() => {
   return { error, sink };
 });
 
-import { RootFixture, rootSdk } from "./rootLayoutFixture";
+import { RootFixture, rootSdk, useFixtureAuth } from "./rootLayoutFixture";
 
 afterEach(() => {
   expect(fetch).not.toHaveBeenCalled();
@@ -116,3 +119,24 @@ it.each([
     expect(rootSdk.clerk).not.toHaveBeenCalled();
   },
 );
+
+function PortalSessionProbe() {
+  const { isLoaded } = useFixtureAuth();
+  const client = useQueryClient();
+  return <Text>{isLoaded && client ? "Portal session ready" : "Portal session missing"}</Text>;
+}
+
+it("makes the active Clerk and Query contexts available inside a real HeroUI portal", async () => {
+  rootSdk.portalProbe = (
+    <Dialog isOpen>
+      <Dialog.Portal>
+        <Dialog.Content>
+          <Dialog.Title>Session check</Dialog.Title>
+          <PortalSessionProbe />
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog>
+  );
+  await render(<RootFixture />);
+  expect(await screen.findByText("Portal session ready")).toBeVisible();
+});

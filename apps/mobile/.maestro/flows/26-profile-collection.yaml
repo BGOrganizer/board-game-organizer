@@ -46,8 +46,22 @@ tags: [manual, profile, bgg]
     direction: DOWN
     timeout: 120000
 - assertVisible: ${output.collection.rating}
-- assertVisible: ${output.collection.bestPlayers}
-- takeScreenshot: profile-collection-cover-best-players
+- assertNotVisible: ${output.collection.bestLabel}
+- tapOn: ${output.collection.gameInformation}
+- assertVisible: ${output.collection.yearLabel}
+- assertVisible: ${output.collection.gameYear}
+- scrollUntilVisible:
+    element: ${output.collection.bestPlayers}
+    direction: DOWN
+    timeout: 30000
+- assertVisible: ${output.collection.bestLabel}
+- scrollUntilVisible:
+    element: ${output.collection.gameCategory}
+    direction: DOWN
+    timeout: 30000
+- takeScreenshot: profile-collection-bgg-information
+- back
+- assertNotVisible: ${output.collection.bestLabel}
 - scrollUntilVisible:
     element:
       id: profile-collection-filter

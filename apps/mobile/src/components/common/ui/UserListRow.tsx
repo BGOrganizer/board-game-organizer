@@ -7,6 +7,7 @@ import { UserAvatar, type UserBadge } from "./UserAvatar";
 export function UserListRow({
   name,
   avatarUrl,
+  avatarContent,
   secondary,
   online,
   badge,
@@ -22,6 +23,7 @@ export function UserListRow({
 }: {
   name: string;
   avatarUrl?: string | null;
+  avatarContent?: ReactNode;
   secondary?: string | null;
   online?: boolean;
   badge?: UserBadge;
@@ -49,6 +51,7 @@ export function UserListRow({
         <UserAvatar
           name={name}
           avatarUrl={avatarUrl}
+          avatarContent={avatarContent}
           online={online}
           badge={badge}
           badgeContent={badgeContent}

@@ -68,6 +68,9 @@ export function eventProposalEdit(
           allowParticipantGames: table.allowParticipantGames,
           startsAt: table.startsAt,
           demonstratorUserId: table.demonstratorUserId,
+          ...(table.demonstratorGuestName
+            ? { demonstratorGuestName: table.demonstratorGuestName }
+            : {}),
           games: [
             ...table.games.map((g) => ({
               gameId: g.gameId,

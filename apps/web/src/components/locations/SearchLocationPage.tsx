@@ -223,7 +223,12 @@ export function SearchLocationPage({
   };
 
   return (
-    <div data-form-scope data-input-scope className="mx-auto max-w-3xl space-y-4 pb-24">
+    <div
+      data-form-scope
+      data-input-scope
+      data-location-picker
+      className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4"
+    >
       <div className="flex items-center gap-3">
         <Button isIconOnly variant="secondary" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft />
@@ -405,6 +410,7 @@ export function SearchLocationPage({
       <Button
         variant="primary"
         data-form-submit
+        className="mt-auto shrink-0"
         isDisabled={locating || !process.env.NEXT_PUBLIC_MAPTILER_API_KEY}
         onPress={() => {
           if (locating || !process.env.NEXT_PUBLIC_MAPTILER_API_KEY) return;
@@ -421,7 +427,7 @@ export function SearchLocationPage({
         }}
       >
         <Check aria-hidden="true" className="size-5" />
-        {t`Confirm location`}
+        {t`Confirm Location`}
       </Button>
     </div>
   );

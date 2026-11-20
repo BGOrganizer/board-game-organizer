@@ -1,5 +1,6 @@
 "use client";
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
+import { DEMONSTRATOR_GUEST_NAME_MAX_LENGTH } from "@board-game-organizer/schemas";
 import type { CreateEventVariables, EditEventVariables } from "@board-game-organizer/shared";
 import {
   communityAccessDenied,
@@ -32,6 +33,7 @@ import { useEffect, useRef, useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { GuestNameRow } from "@/components/common/ui/GuestNameRow";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
@@ -248,12 +250,26 @@ function Editor({
           onSelect={(person) => {
             form.patchTable(pick.key, {
               demonstratorUserId: person.id,
+              demonstratorGuestName: undefined,
               demonstratorName: person.name,
               demonstratorAvatarUrl: person.avatarUrl,
             });
             setPick(null);
           }}
-        />
+        >
+          <GuestNameRow
+            maxLength={DEMONSTRATOR_GUEST_NAME_MAX_LENGTH}
+            onAdd={(name) => {
+              form.patchTable(pick.key, {
+                demonstratorUserId: undefined,
+                demonstratorGuestName: name,
+                demonstratorName: undefined,
+                demonstratorAvatarUrl: undefined,
+              });
+              setPick(null);
+            }}
+          />
+        </GroupMemberPicker>
       </div>
     );
   return (
@@ -300,6 +316,7 @@ function Editor({
       ) : step === 1 ? (
         <EventScheduleFields
           form={form}
+          favorites={favorites}
           busy={submitting}
           dateTime={newDateTime}
           onDateTimeChange={setNewDateTime}
@@ -317,7 +334,7 @@ function Editor({
               <Accordion.Item
                 key={row.key}
                 id={row.key}
-                className="mb-3 overflow-hidden rounded-xl bg-default"
+                className="mb-3 overflow-hidden rounded-xl bg-accent-soft"
               >
                 <Accordion.Heading>
                   <Accordion.Trigger

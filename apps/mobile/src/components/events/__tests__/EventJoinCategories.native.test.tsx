@@ -7,6 +7,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { createContext, useContext } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { plannedEvent, plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
@@ -16,14 +17,18 @@ const API = "https://join-categories-native.test";
 const sdk = vi.hoisted(() => ({
   token: vi.fn(async () => "category-owner-token"),
 }));
+const ClerkContext = createContext(false);
 vi.mock("@clerk/expo", () => ({
-  useAuth: () => ({
-    userId: "owner",
-    sessionId: "owner-session",
-    isLoaded: true,
-    isSignedIn: true,
-    getToken: sdk.token,
-  }),
+  useAuth: () => {
+    if (!useContext(ClerkContext)) throw new Error("Missing Clerk session context");
+    return {
+      userId: "owner",
+      sessionId: "owner-session",
+      isLoaded: true,
+      isSignedIn: true,
+      getToken: sdk.token,
+    };
+  },
 }));
 vi.mock("expo-constants", () => ({
   default: {
@@ -208,12 +213,15 @@ it.each([
     await render(
       <QueryClientProvider client={client}>
         <NativeTestProviders>
-          <EventJoinSheet
-            eventId={event.id}
-            tableId={table.id}
-            registrationId={invitation ? registration.id : undefined}
-            onClose={close}
-          />
+          {/* Match the sheet portal mounted above the Clerk navigator. */}
+          <ClerkContext.Provider value>
+            <EventJoinSheet
+              eventId={event.id}
+              tableId={table.id}
+              registrationId={invitation ? registration.id : undefined}
+              onClose={close}
+            />
+          </ClerkContext.Provider>
         </NativeTestProviders>
       </QueryClientProvider>,
     );
@@ -306,7 +314,9 @@ it("keeps explicit cancellation available while current table facts are still lo
   await render(
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <EventJoinSheet eventId={event.id} tableId={table.id} onClose={close} />
+        <ClerkContext.Provider value>
+          <EventJoinSheet eventId={event.id} tableId={table.id} onClose={close} />
+        </ClerkContext.Provider>
       </NativeTestProviders>
     </QueryClientProvider>,
   );

@@ -258,6 +258,20 @@ describe("EventRecordsRepository actual table, registration and vote writes", ()
     },
   );
 
+  it("writes a guest seat without account or activity lookups", async () => {
+    const fixture = setup();
+    const row = {
+      ...registration,
+      kind: "GUEST" as const,
+      userId: `guest:${otherId}`,
+      status: "ACCEPTED" as const,
+      guestName: "Carla",
+    };
+    await expect(fixture.repo.saveRegistration(row)).resolves.toBe(row);
+    expect(fixture.get(COLLECTIONS.TABLE_REGISTRATIONS).findOne).not.toHaveBeenCalled();
+    expect(fixture.get(COLLECTIONS.PROFILE_ACTIVITIES).updateOne).not.toHaveBeenCalled();
+  });
+
   it("does not record a participation receipt after the registration write fails", async () => {
     const fixture = setup();
     const error = new Error("registration conflict");
@@ -292,7 +306,7 @@ describe("EventRecordsRepository actual table, registration and vote writes", ()
     await expect(fixture.repo.acceptedTableUsers(tableId)).resolves.toEqual(["user_player"]);
     expect(registrations.distinct).toHaveBeenCalledExactlyOnceWith(
       "userId",
-      { tableId, status: "ACCEPTED" },
+      { tableId, status: "ACCEPTED", kind: { $ne: "GUEST" } },
       {},
     );
   });
