@@ -151,6 +151,7 @@ test("merge gate requires every Internal/common result but never depends on Deve
   for (const name of [
     "deploy-development-api",
     "deploy-development-web",
+    "deploy-development-site",
     "build-mobile-development",
     "draft-release",
   ])

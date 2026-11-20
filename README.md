@@ -97,6 +97,7 @@ Run each command in its own terminal:
 | --- | --- | --- |
 | API | `bun run --filter api dev` | <http://localhost:4000> |
 | Web | `bun run --filter web dev` | <http://localhost:3000> |
+| Site | `bun run --filter site dev` | <http://localhost:3001> |
 | Mobile | `bun run --filter mobile dev` | Expo development-client server |
 
 `bun run dev` starts all workspace development tasks through Turborepo.
@@ -132,7 +133,8 @@ See [delivery details](docs/development.md#delivery) for CI policy and acceptanc
 
 | Path | Responsibility |
 | --- | --- |
-| `apps/web` | Next.js 16, React 19, HeroUI 3 and Tailwind CSS 4 |
+| `apps/web` | Authenticated application with Next.js 16, React 19, HeroUI 3 and Tailwind CSS 4 |
+| `apps/site` | Public informational site, APK download and application links |
 | `apps/mobile` | Expo SDK 57, React Native 0.86, HeroUI Native and Uniwind |
 | `apps/api` | Next.js route handlers, Clerk, MongoDB and zod |
 | `packages/shared` / `schemas` | Domain logic, Query hooks, models and DTOs |
@@ -161,6 +163,7 @@ or permission. Native cache retention, build requirements and implementation rul
 - [Groups, Events and Tables](docs/groups-events-refactor.md) | current behavior and permissions.
 - [Profiles and BGG collections](docs/profiles.md) and [Community](docs/community.md).
 - [Development reference](docs/development.md) | cache, responsiveness, BGG enrichment and delivery.
+- [Public Site](apps/site/README.md) | local preview, localization and Vercel delivery.
 - [Operations](docs/organizations-events-operations.md) | environment isolation, providers and deployment gates.
 - [Verification requirements](docs/implementation-progress.md) | required checks and evidence limits.
 - [Mascot and app artwork](docs/branding.md) | source assets and platform exports.

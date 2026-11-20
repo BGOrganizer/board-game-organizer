@@ -364,6 +364,25 @@ jobs:
       - name: 🏗️ Build Web
         run: bun run --filter web build
 
+  build-site:
+    name: Build Site
+    needs: [context]
+    if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-bun
+      - name: 🧪 Site unit tests and coverage
+        run: bun run --filter site test:coverage
+      - name: 🏗️ Build Site
+        run: bun run --filter site build
+
   # Compare against the last successful PR run; ignore unrelated web/API edits.
   # Reuse APK only when the artifact's own mobile inputs also match HEAD.
   build-mobile-internal:
@@ -1140,6 +1159,37 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ needs.deploy-development-api.outputs.url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
+  deploy-development-site:
+    name: Deploy Site (Development)
+    permissions:
+      contents: read
+      pull-requests: write
+    needs: [context, build-site, deploy-development-web]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: 🔗 Restore PR branch metadata
+        run: git switch -C "$GITHUB_HEAD_REF"
+
+      - name: 🚀 Deploy Site against Development Web
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: Site (Development)
+          app-path: apps/site
+          vercel-environment: preview
+          production: 'false'
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
+          extra-env: NEXT_PUBLIC_BGO_WEB_ORIGIN=${{ needs.deploy-development-web.outputs.url }}
+
   build-mobile-development:
     name: Build APK (Development)
     environment: development
@@ -1334,7 +1384,7 @@ jobs:
   ready:
     name: ${{ github.event_name == 'pull_request' && 'PR ready' || 'Branch checks' }}
     if: always() && (github.event_name == 'pull_request' || needs.context.outputs.mode == 'branch')
-    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api, build-web, deploy-preview-api, deploy-preview-web, build-mobile-internal, provision, sync-e2e-users, e2e-maestro, e2e-playwright, cleanup-e2e-user, cleanup-e2e-db]
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api, build-web, build-site, deploy-preview-api, deploy-preview-web, build-mobile-internal, provision, sync-e2e-users, e2e-maestro, e2e-playwright, cleanup-e2e-user, cleanup-e2e-db]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1351,5 +1401,5 @@ jobs:
           PR_E2E_ENABLED: ${{ needs.context.outputs.e2e-enabled }}
           # Statuses only: never serialize provisioning outputs/credentials into the gate.
           CI_RESULTS: >-
-            {"context":"${{ needs.context.result }}","commitlint":"${{ needs.commitlint.result }}","lint":"${{ needs.lint.result }}","typecheck":"${{ needs.typecheck.result }}","unit-tests":"${{ needs.unit-tests.result }}","integration-tests":"${{ needs.integration-tests.result }}","native-tooling":"${{ needs.native-tooling.result }}","build-api":"${{ needs.build-api.result }}","build-web":"${{ needs.build-web.result }}","deploy-preview-api":"${{ needs.deploy-preview-api.result }}","deploy-preview-web":"${{ needs.deploy-preview-web.result }}","build-mobile-internal":"${{ needs.build-mobile-internal.result }}","provision":"${{ needs.provision.result }}","sync-e2e-users":"${{ needs.sync-e2e-users.result }}","e2e-maestro":"${{ needs.e2e-maestro.result }}","e2e-playwright":"${{ needs.e2e-playwright.result }}","cleanup-e2e-user":"${{ needs.cleanup-e2e-user.result }}","cleanup-e2e-db":"${{ needs.cleanup-e2e-db.result }}"}
+            {"context":"${{ needs.context.result }}","commitlint":"${{ needs.commitlint.result }}","lint":"${{ needs.lint.result }}","typecheck":"${{ needs.typecheck.result }}","unit-tests":"${{ needs.unit-tests.result }}","integration-tests":"${{ needs.integration-tests.result }}","native-tooling":"${{ needs.native-tooling.result }}","build-api":"${{ needs.build-api.result }}","build-web":"${{ needs.build-web.result }}","build-site":"${{ needs.build-site.result }}","deploy-preview-api":"${{ needs.deploy-preview-api.result }}","deploy-preview-web":"${{ needs.deploy-preview-web.result }}","build-mobile-internal":"${{ needs.build-mobile-internal.result }}","provision":"${{ needs.provision.result }}","sync-e2e-users":"${{ needs.sync-e2e-users.result }}","e2e-maestro":"${{ needs.e2e-maestro.result }}","e2e-playwright":"${{ needs.e2e-playwright.result }}","cleanup-e2e-user":"${{ needs.cleanup-e2e-user.result }}","cleanup-e2e-db":"${{ needs.cleanup-e2e-db.result }}"}
         run: node .github/scripts/ci-gate.mjs

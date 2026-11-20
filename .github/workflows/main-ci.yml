@@ -243,6 +243,52 @@ jobs:
       - name: 🏗️ Verify app build
         run: bun run --filter ${{ matrix.app }} build
 
+  build-site:
+    name: Build Site
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-bun
+      - name: 🧪 Site unit tests and coverage
+        run: bun run --filter site test:coverage
+      - name: 🏗️ Build Site
+        run: bun run --filter site build
+
+  deploy-production-site:
+    name: Deploy Site (Production)
+    needs: [quality, build-site]
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production-site
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - name: 📥 Checkout merged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: 🚀 Deploy Site to Vercel (production)
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: Site
+          app-path: apps/site
+          vercel-environment: production
+          production: 'true'
+          status-context: vercel/site/production
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
+          extra-env: NEXT_PUBLIC_BGO_WEB_ORIGIN=https://app.board-game-organizer.com
+
   # Release bump/tag only after every merged-code quality, coverage and build gate succeeds.
   release:
     name: Prepare version and tag

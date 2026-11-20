@@ -8,6 +8,7 @@ export const qualityJobs = [
   "unit-tests",
   "integration-tests",
   "native-tooling",
+  "build-site",
 ];
 export const internalJobs = [
   "build-api",
