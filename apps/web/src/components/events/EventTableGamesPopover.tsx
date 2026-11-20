@@ -9,7 +9,7 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { GameListRow } from "@/components/games/GameListRow";
 
-/** Local presentation pages only: opening this popover never fetches or votes. */
+/** Pages through the supplied games locally. Visible rows can load missing BGG details. */
 export function EventTableGamesPopover({
   games,
   name,

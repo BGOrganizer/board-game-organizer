@@ -854,6 +854,12 @@ it("edits private category opt-ins through the real wizard and sends all three f
       if (String(url).includes("/groups/")) return Response.json(group);
       if (String(url).includes("/tables"))
         return Response.json({ items: [table], nextCursor: null });
+      if (String(url).includes("/api/locations/favorites"))
+        return Response.json(
+          new URL(String(url)).searchParams.has("keys")
+            ? { keys: [] }
+            : { items: [], nextCursor: null },
+        );
       return Response.json(event);
     }),
   );
