@@ -8,16 +8,19 @@ import { Label } from "heroui-native/label";
 import { Typography } from "heroui-native/text";
 import { TextField } from "heroui-native/text-field";
 import { AtSign, Mail, Plus, UserRound } from "lucide-react-native";
-import { useState } from "react";
-import { View } from "react-native";
+import { type ComponentRef, useEffect, useRef, useState } from "react";
+import { Keyboard, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FormInteractionScope } from "@/components/common/ui/FormInteractionScope";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { Input } from "@/components/common/ui/Input";
+import { InputField } from "@/components/common/ui/InputField";
 import { InputScrollView } from "@/components/common/ui/InputScrollView";
 import { useT } from "@/lib/i18n";
+
+type GuestField = "name" | "email";
 
 export function EventAddGuestRow({
   guest,
@@ -36,6 +39,9 @@ export function EventAddGuestRow({
     "accent-foreground",
   ]);
   const [open, setOpen] = useState(false);
+  const sheet = useRef<ComponentRef<typeof BottomSheet.Content>>(null);
+  const focusedField = useRef<GuestField | null>(null);
+  const restoreFrame = useRef<number | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
@@ -44,6 +50,32 @@ export function EventAddGuestRow({
     emailTouched &&
     !tableGuestDetailsSchema.shape.email.safeParse(email.trim() || undefined).success;
   const saving = guest.add.isPending;
+
+  useEffect(() => {
+    if (!open) return;
+    const hidden = Keyboard.addListener("keyboardDidHide", () => sheet.current?.collapse());
+    return () => {
+      hidden.remove();
+      if (restoreFrame.current !== null) cancelAnimationFrame(restoreFrame.current);
+      restoreFrame.current = null;
+      focusedField.current = null;
+    };
+  }, [open]);
+
+  function focusField(field: GuestField) {
+    focusedField.current = field;
+    sheet.current?.expand();
+  }
+  function blurField(field: GuestField) {
+    if (focusedField.current !== field) return;
+    focusedField.current = null;
+    if (restoreFrame.current !== null) cancelAnimationFrame(restoreFrame.current);
+    // A blur followed by another field taking focus should keep the sheet expanded.
+    restoreFrame.current = requestAnimationFrame(() => {
+      restoreFrame.current = null;
+      if (focusedField.current === null) sheet.current?.collapse();
+    });
+  }
 
   function close() {
     setOpen(false);
@@ -106,8 +138,10 @@ export function EventAddGuestRow({
             <BottomSheet.Portal unstable_accessibilityContainerViewIsModal>
               <BottomSheet.Overlay isCloseOnPress={!saving} />
               <BottomSheet.Content
+                ref={sheet}
+                snapPoints={["80%"]}
                 enablePanDownToClose={!saving}
-                keyboardBehavior="interactive"
+                keyboardBehavior="extend"
                 keyboardBlurBehavior="restore"
                 android_keyboardInputMode="adjustResize"
                 topInset={insets.top}
@@ -135,48 +169,58 @@ export function EventAddGuestRow({
                       style={{ minWidth: 44, minHeight: 44 }}
                     />
                   </View>
-                  <TextField isRequired isDisabled={saving}>
-                    <Label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <AtSign size={16} color={foreground} accessible={false} />
-                      <Label.Text>{t("Username")}</Label.Text>
-                    </Label>
-                    <Input
-                      accessibilityLabel={t("Username")}
-                      testID="table-guest-username"
-                      placeholder={t("Enter a username")}
-                      value={name}
-                      onChangeText={setName}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      maxLength={GUEST_NAME_MAX_LENGTH}
-                    />
-                  </TextField>
-                  <TextField isInvalid={invalidEmail} isDisabled={saving}>
-                    <Label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Mail size={16} color={foreground} accessible={false} />
-                      <Label.Text>{t("Email (optional)")}</Label.Text>
-                    </Label>
-                    <Input
-                      accessibilityLabel={t("Email (optional)")}
-                      testID="table-guest-email"
-                      placeholder={t("Enter an email address")}
-                      value={email}
-                      onChangeText={setEmail}
-                      onBlur={() => setEmailTouched(true)}
-                      isInvalid={invalidEmail}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      keyboardType="email-address"
-                      maxLength={320}
-                      returnKeyType="done"
-                      onSubmitEditing={add}
-                    />
-                    {invalidEmail ? (
-                      <Typography className="text-danger" accessibilityRole="alert">
-                        {t("Enter a valid email address.")}
-                      </Typography>
-                    ) : null}
-                  </TextField>
+                  <InputField>
+                    <TextField isRequired isDisabled={saving}>
+                      <Label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <AtSign size={16} color={foreground} accessible={false} />
+                        <Label.Text>{t("Username")}</Label.Text>
+                      </Label>
+                      <Input
+                        accessibilityLabel={t("Username")}
+                        testID="table-guest-username"
+                        placeholder={t("Enter a username")}
+                        value={name}
+                        onChangeText={setName}
+                        onFocus={() => focusField("name")}
+                        onBlur={() => blurField("name")}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        maxLength={GUEST_NAME_MAX_LENGTH}
+                      />
+                    </TextField>
+                  </InputField>
+                  <InputField>
+                    <TextField isInvalid={invalidEmail} isDisabled={saving}>
+                      <Label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Mail size={16} color={foreground} accessible={false} />
+                        <Label.Text>{t("Email (optional)")}</Label.Text>
+                      </Label>
+                      <Input
+                        accessibilityLabel={t("Email (optional)")}
+                        testID="table-guest-email"
+                        placeholder={t("Enter an email address")}
+                        value={email}
+                        onChangeText={setEmail}
+                        onFocus={() => focusField("email")}
+                        onBlur={() => {
+                          setEmailTouched(true);
+                          blurField("email");
+                        }}
+                        isInvalid={invalidEmail}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="email-address"
+                        maxLength={320}
+                        returnKeyType="done"
+                        onSubmitEditing={add}
+                      />
+                      {invalidEmail ? (
+                        <Typography className="text-danger" accessibilityRole="alert">
+                          {t("Enter a valid email address.")}
+                        </Typography>
+                      ) : null}
+                    </TextField>
+                  </InputField>
                   {guest.add.isError ? (
                     <Typography className="text-danger" accessibilityRole="alert">
                       {t("Could not add guest. Try again.")}

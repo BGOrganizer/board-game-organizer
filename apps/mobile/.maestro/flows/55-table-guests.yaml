@@ -35,10 +35,26 @@ tags: [manual, tables, guests]
 - assertVisible:
     id: table-guest-submit
     enabled: false
+- takeScreenshot: table-guest-keyboard-closed
 - tapOn:
     id: table-guest-username
 - inputText: ${output.tableGuest.name}
+- assertVisible:
+    id: table-guest-username
+    focused: true
+- takeScreenshot: table-guest-username-focused
+- tapOn:
+    id: table-guest-email
+- inputText: guest@example.test
+- assertVisible:
+    id: table-guest-email
+    focused: true
+- takeScreenshot: table-guest-email-focused
 - hideKeyboard
+- assertVisible:
+    id: table-guest-submit
+    enabled: true
+- takeScreenshot: table-guest-keyboard-restored
 - tapOn:
     id: table-guest-submit
 - extendedWaitUntil:

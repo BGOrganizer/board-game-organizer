@@ -557,10 +557,18 @@ it("returns to the table and clears the guest form only after the server accepts
   const email = screen.getByLabelText("Email (optional)");
   const add = screen.getByRole("button", { name: "Add" });
   expect(add).toBeDisabled();
+  await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
   await fireEvent.changeText(input, " Guest Alice ");
   expect(add).toBeEnabled();
+  await act(async () => {
+    await fireEvent(input, "blur", { nativeEvent: { target: 1 } });
+    await fireEvent(email, "focus", { nativeEvent: { target: 2 } });
+  });
   await fireEvent.changeText(email, "invalid");
-  await fireEvent(email, "blur", { nativeEvent: { target: 1 } });
+  await fireEvent(email, "blur", { nativeEvent: { target: 2 } });
+  expect(input).toHaveDisplayValue(" Guest Alice ");
+  expect(io.back).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(0);
   // Opening animation is handled by the native sheet; check the rendered validation state.
   expect(await screen.findByText("Enter a valid email address.")).toBeOnTheScreen();
   expect(add).toBeDisabled();
