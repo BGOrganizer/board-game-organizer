@@ -1,3 +1,26 @@
+## [1.8.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.7.0...v1.8.0) (2026-11-21)
+
+### ✨ Features
+
+* improve game details and support table guests ([ad272a3](https://github.com/BGOrganizer/board-game-organizer/commit/ad272a3ed509483b619dc30c9634ef808ef13694))
+
+### 🐛 Bug Fixes
+
+* apply semantic colors to game metadata icons ([e4c5e2a](https://github.com/BGOrganizer/board-game-organizer/commit/e4c5e2aa2d73cccf33f26f859060d6c97dc9e6d2))
+* compact vote summaries and polish guest labels ([43ae9bb](https://github.com/BGOrganizer/board-game-organizer/commit/43ae9bb30f09f62b830f4205851d00fb03b2225f))
+* **mobile:** keep guest inputs above the keyboard ([b2df5c6](https://github.com/BGOrganizer/board-game-organizer/commit/b2df5c6847239c3afeb97a8d4b9cf2bfcc4c3539))
+* refine guest controls and voting on planning options ([d495179](https://github.com/BGOrganizer/board-game-organizer/commit/d495179f3db224eb376ac0cf84e6da2d19031773))
+* refine table guest enrollment and voter popovers ([8595484](https://github.com/BGOrganizer/board-game-organizer/commit/8595484aba9cf36fc44cbc9e6ae42f7b00953d0b))
+* stage guest votes and refine voting controls ([2608d6d](https://github.com/BGOrganizer/board-game-organizer/commit/2608d6d0c97152b0f5bfe43d3c959b8433dee327))
+
+### 🧪 Tests
+
+* align game metadata and guest ranking assertions ([32a6c12](https://github.com/BGOrganizer/board-game-organizer/commit/32a6c12aafb9fb09adbf449a248c5007e1bf4b2d))
+* align score sheet keyboard contract ([b512d92](https://github.com/BGOrganizer/board-game-organizer/commit/b512d92d3bc0d0c1785ef15ab65812359704c3e4))
+* **mobile:** wait for updated voter permissions ([7ef1a6c](https://github.com/BGOrganizer/board-game-organizer/commit/7ef1a6c3e0ba532d92c07a00f04683b067c9000c))
+* stabilize the country search debounce check ([46b0d18](https://github.com/BGOrganizer/board-game-organizer/commit/46b0d18e66045603f4b2dc76702b4d90d354ad41))
+* verify native game popover list bounds ([f2815a0](https://github.com/BGOrganizer/board-game-organizer/commit/f2815a042b7f7d5837688fc946f71fbf6a56cb18))
+
 ## [1.7.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.6.2...v1.7.0) (2026-11-20)
 
 ### ✨ Features
