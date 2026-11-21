@@ -1,4 +1,5 @@
 import type { OptionVoteVoters as Voters } from "@board-game-organizer/schemas";
+import { formatUsername } from "@board-game-organizer/shared";
 import { BottomSheet } from "heroui-native/bottom-sheet";
 import { useThemeColor } from "heroui-native/hooks";
 import { Tabs } from "heroui-native/tabs";
@@ -37,8 +38,6 @@ export function VoteResultSheet({
     { id: "IF_NEEDED", text: t("If needed"), Icon: Minus, color: warning },
     { id: "NO", text: t("No"), Icon: X, color: danger },
   ] as const;
-  const displayName = ({ name, username, guestName }: Voters["YES"][number]) =>
-    guestName ?? name ?? (username ? `@${username}` : t("Unknown"));
   return (
     <BottomSheet
       isOpen
@@ -79,29 +78,30 @@ export function VoteResultSheet({
                     ListEmptyComponent={
                       <Typography className="p-3 text-sm text-muted">{t("No votes")}</Typography>
                     }
-                    renderItem={({ item: person }) => (
-                      <GroupedList>
-                        <GroupedRow>
-                          <UserAvatar
-                            name={displayName(person)}
-                            avatarUrl={person.avatarUrl}
-                            avatarContent={
-                              person.guestName ? <GuestAvatar name={person.guestName} /> : undefined
-                            }
-                          />
-                          <View style={{ flex: 1 }}>
-                            <Typography className="text-sm font-medium">
-                              {displayName(person)}
+                    renderItem={({ item: person }) => {
+                      const username = formatUsername(
+                        person.guestName ?? person.username,
+                        t("Username unavailable"),
+                      );
+                      return (
+                        <GroupedList>
+                          <GroupedRow>
+                            <UserAvatar
+                              name={username}
+                              avatarUrl={person.avatarUrl}
+                              avatarContent={
+                                person.guestName ? (
+                                  <GuestAvatar name={person.guestName} />
+                                ) : undefined
+                              }
+                            />
+                            <Typography className="text-sm font-medium" style={{ flex: 1 }}>
+                              {username}
                             </Typography>
-                            {person.name && person.username ? (
-                              <Typography className="text-xs text-muted">
-                                @{person.username}
-                              </Typography>
-                            ) : null}
-                          </View>
-                        </GroupedRow>
-                      </GroupedList>
-                    )}
+                          </GroupedRow>
+                        </GroupedList>
+                      );
+                    }}
                   />
                 </RetainedTabPanel>
               ))}

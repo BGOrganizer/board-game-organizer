@@ -610,12 +610,13 @@ it("shows named votes and the breakdown action only for each eligible Event cate
   const firstDate = event.dates[0].id;
   const firstVenue = event.locations[0].id;
   const named = { YES: [voter], IF_NEEDED: [], NO: [] };
+  const withHandle = { ...named, YES: [{ ...voter, username: "alice" }] };
   event = {
     ...event,
     canManage: true,
     canVote: false,
     dates: [...event.dates, { id: "other-date", day: "2030-06-05" }],
-    voteVoters: { dates: { [firstDate]: named }, locations: { [firstVenue]: named } },
+    voteVoters: { dates: { [firstDate]: named }, locations: { [firstVenue]: withHandle } },
   };
   await render(<Fixture />);
   await ready();
@@ -624,7 +625,8 @@ it("shows named votes and the breakdown action only for each eligible Event cate
   expect(screen.queryByRole("button", { name: "Club venue: Show votes" })).toBeNull();
   await press("2030-06-03 20:00: Show votes");
   const hidden = { includeHiddenElements: true };
-  expect(await screen.findByText("Voter Alice", hidden)).toBeOnTheScreen();
+  expect(await screen.findByText("Username unavailable", hidden)).toBeOnTheScreen();
+  expect(screen.queryByText("Voter Alice", hidden)).toBeNull();
   await userEvent.setup().press(screen.getByRole("button", { name: "Close", ...hidden }));
   await snapshot({
     ...event,
@@ -638,7 +640,8 @@ it("shows named votes and the breakdown action only for each eligible Event cate
   await userEvent
     .setup()
     .press(within(venueVotes).getByRole("button", { name: "Club venue: Show votes — Yes" }));
-  expect(await screen.findByText("Voter Alice", hidden)).toBeOnTheScreen();
+  expect(await screen.findByText("@alice", hidden)).toBeOnTheScreen();
+  expect(screen.queryByText("Voter Alice", hidden)).toBeNull();
   expect(screen.getByRole("tab", { name: "Yes", ...hidden })).toBeSelected();
   await snapshot({
     ...event,
@@ -650,7 +653,7 @@ it("shows named votes and the breakdown action only for each eligible Event cate
   });
   expect(screen.queryAllByLabelText(/^Votes:/, hidden)).toHaveLength(0);
   expect(screen.queryByRole("button", { name: /Show votes/, ...hidden })).toBeNull();
-  expect(screen.queryByText("Voter Alice", hidden)).toBeNull();
+  expect(screen.queryByText("@alice", hidden)).toBeNull();
   expect(screen.queryByRole("tab", { name: "Yes", ...hidden })).toBeNull();
 });
 

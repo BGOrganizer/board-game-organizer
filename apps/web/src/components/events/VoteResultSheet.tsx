@@ -1,6 +1,7 @@
 "use client";
 
 import type { OptionVoteVoters as Voters } from "@board-game-organizer/schemas";
+import { formatUsername } from "@board-game-organizer/shared";
 import { Drawer, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Minus, X } from "lucide-react";
@@ -28,8 +29,6 @@ export function VoteResultSheet({
     { id: "IF_NEEDED", text: t`If needed`, Icon: Minus, color: "text-warning" },
     { id: "NO", text: t`No`, Icon: X, color: "text-danger" },
   ] as const;
-  const displayName = ({ name, username, guestName }: Voters["YES"][number]) =>
-    guestName ?? name ?? (username ? `@${username}` : t`Unknown`);
   return (
     <Drawer.Backdrop
       isOpen
@@ -68,25 +67,26 @@ export function VoteResultSheet({
                         gap={0}
                         estimatedRowHeight={52}
                         onEndReached={() => {}}
-                        renderItem={(person) => (
-                          <GroupedRow as="div" className="py-1.5">
-                            <UserAvatar
-                              name={displayName(person)}
-                              avatarUrl={person.avatarUrl}
-                              avatarContent={
-                                person.guestName ? (
-                                  <GuestAvatar name={person.guestName} />
-                                ) : undefined
-                              }
-                            />
-                            <div className="min-w-0 text-sm break-words">
-                              <p className="font-medium">{displayName(person)}</p>
-                              {person.name && person.username ? (
-                                <p className="text-xs text-muted">@{person.username}</p>
-                              ) : null}
-                            </div>
-                          </GroupedRow>
-                        )}
+                        renderItem={(person) => {
+                          const username = formatUsername(
+                            person.guestName ?? person.username,
+                            t`Username unavailable`,
+                          );
+                          return (
+                            <GroupedRow as="div" className="py-1.5">
+                              <UserAvatar
+                                name={username}
+                                avatarUrl={person.avatarUrl}
+                                avatarContent={
+                                  person.guestName ? (
+                                    <GuestAvatar name={person.guestName} />
+                                  ) : undefined
+                                }
+                              />
+                              <p className="min-w-0 text-sm font-medium break-words">{username}</p>
+                            </GroupedRow>
+                          );
+                        }}
                       />
                     </div>
                   ) : (

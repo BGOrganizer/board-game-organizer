@@ -516,8 +516,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   per Event. Game ballots are visible to current managers and accepted players of that Table.
   Accepted players in the queue are included. The compact view uses decorative avatars overlapped by
   a quarter of their width, with a dot between populated preferences. Each populated preference
-  has a button that opens the read-only breakdown
-  on its corresponding tab. Ballots disclose only public identity and voting-context role fields
+  has a centered button that opens the read-only breakdown on its corresponding tab. The breakdown
+  shows each voter's avatar and handle. Ballots disclose only public identity and voting-context role fields
   and are omitted from list projections and persisted native snapshots. The breakdown never writes a
   ballot or opens during enrollment.
 - Guest proxy preferences remain local across tabs until the manager presses Vote. Only changed
