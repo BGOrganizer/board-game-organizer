@@ -30,32 +30,25 @@ export function OptionVoteVoters({ label, voters }: { label: string; voters: Vot
         >
           {groups.map(({ id, text, Icon, color }, index) => (
             <View key={id} style={{ flexDirection: "row", alignItems: "center", maxWidth: "100%" }}>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                accessibilityLabel={`${label}: ${t("Show votes")} — ${text}`}
-                style={{ width: 44, height: 44, paddingHorizontal: 2, justifyContent: "flex-end" }}
-                onPress={() => setSelection(id)}
-              >
-                <Icon size={16} color={color} accessible={false} />
-              </Button>
               {index > 0 ? (
                 <View
                   pointerEvents="none"
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
                   className="bg-muted"
-                  style={{
-                    position: "absolute",
-                    alignSelf: "center",
-                    start: 12,
-                    width: 3,
-                    height: 3,
-                    borderRadius: 2,
-                  }}
+                  style={{ marginStart: 2, width: 3, height: 3, borderRadius: 2 }}
                 />
               ) : null}
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                accessibilityLabel={`${label}: ${t("Show votes")} — ${text}`}
+                style={{ width: 28, height: 28, paddingHorizontal: 0, justifyContent: "center" }}
+                onPress={() => setSelection(id)}
+              >
+                <Icon size={16} color={color} accessible={false} />
+              </Button>
               <View
                 pointerEvents="none"
                 accessibilityElementsHidden
