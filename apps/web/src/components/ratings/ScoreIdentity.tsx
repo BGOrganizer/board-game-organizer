@@ -3,6 +3,7 @@ import type { ScorePlayer } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
 
 import { ListOrdered, Trophy } from "lucide-react";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { GameRating } from "./GameRating";
@@ -23,6 +24,7 @@ export function ScoreIdentity({
     <UserIdentity
       name={player.name}
       avatarUrl={player.avatarUrl}
+      avatarContent={player.guestName ? <GuestAvatar name={player.guestName} /> : undefined}
       badge={
         rank != null ? (
           <IconBadge
@@ -39,11 +41,11 @@ export function ScoreIdentity({
       {rank != null ? (
         <span className="block text-xs text-muted">{`${t`Position`}: #${rank}`}</span>
       ) : null}
-      {showGameRating ? (
+      {showGameRating && !player.guestName ? (
         <GameRating rating={gameRating} showDelta />
       ) : (
         <span className="block truncate text-xs text-muted">
-          {player.username ?? t`Username unavailable`}
+          {player.guestName ? t`Guest` : (player.username ?? t`Username unavailable`)}
         </span>
       )}
     </UserIdentity>

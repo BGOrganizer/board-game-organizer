@@ -32,6 +32,7 @@ import {
   projectProposalReview,
   revokeProposalReview,
 } from "../eventProposalCache";
+import { withoutEventVoteVoters } from "../eventVotes";
 import { eventRecordKeys } from "./useEventRecords";
 
 type ClientOwner = {
@@ -332,18 +333,21 @@ export function useEventProposalActions(
                 )
               : data,
           );
-        updateOptimisticBase(client, eventRecordKeys.detail(c.owner, c.owner.eventId), (data) =>
-          !data || (data as { version: number }).version <= saved.event.version
-            ? { ...(data as object), ...saved.event }
-            : data,
-        );
+        updateOptimisticBase(client, eventRecordKeys.detail(c.owner, c.owner.eventId), (data) => {
+          const current = data as ReviewEventProposalResponse["event"] | undefined;
+          if (!current) return saved.event;
+          return current.version <= saved.event.version
+            ? { ...withoutEventVoteVoters(current), ...saved.event }
+            : current;
+        });
+        const listItem = withoutEventVoteVoters(saved.event);
         for (const [key] of client.getQueriesData({
           queryKey: eventRecordKeys.root(c.owner),
           predicate: (q) => q.queryKey[3] === "list",
         }))
           updateOptimisticBase(client, key, (data) =>
             mapCommunityCache<ReviewEventProposalResponse["event"]>(data, (row) =>
-              row.id === c.owner.eventId && row.version <= saved.event.version ? saved.event : row,
+              row.id === c.owner.eventId && row.version <= saved.event.version ? listItem : row,
             ),
           );
         c.operation.commit((data, key) => optimisticBaseData(client, key));

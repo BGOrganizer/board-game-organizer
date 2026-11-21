@@ -497,7 +497,7 @@ async function chooseLocation(page: Page, label = "Choose a location") {
   await page.getByRole("textbox", { name: "Location name" }).fill(location.name);
   await page.getByRole("searchbox", { name: "Search address/place" }).fill("Via Roma Rome");
   await page.getByRole("button", { name: location.address, exact: true }).click();
-  await page.getByRole("button", { name: "Confirm location" }).click();
+  await page.getByRole("button", { name: "Confirm Location" }).click();
 }
 
 function communityAcceptance() {

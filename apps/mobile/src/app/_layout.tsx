@@ -123,8 +123,8 @@ function RootNavigator() {
     string | null | undefined
   >();
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <MobileQueryProvider startedAt={startupStartedAt}>
+    <HeroUINativeProvider>
+      <NavigationTheme>
         <ThemeSync />
         <PushNotificationRouter onInitialResponse={setInitialNotificationHref} />
         <Stack screenOptions={({ navigation }) => headerBackOptions(() => navigation.goBack())}>
@@ -193,8 +193,8 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
         <Startup startedAt={startupStartedAt} initialNotificationHref={initialNotificationHref} />
-      </MobileQueryProvider>
-    </ClerkProvider>
+      </NavigationTheme>
+    </HeroUINativeProvider>
   );
 }
 
@@ -203,11 +203,11 @@ export default function RootLayout() {
     <Sentry.ErrorBoundary fallback={sentryFallback}>
       <GestureHandlerRootView className="flex-1 bg-background">
         <I18nProvider i18n={defaultI18n}>
-          <HeroUINativeProvider>
-            <NavigationTheme>
+          <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+            <MobileQueryProvider startedAt={startupStartedAt}>
               <RootNavigator />
-            </NavigationTheme>
-          </HeroUINativeProvider>
+            </MobileQueryProvider>
+          </ClerkProvider>
         </I18nProvider>
       </GestureHandlerRootView>
     </Sentry.ErrorBoundary>

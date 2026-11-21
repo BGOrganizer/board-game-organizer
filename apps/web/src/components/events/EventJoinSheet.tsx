@@ -157,16 +157,12 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
                     {table && votingTabs.includes("games") ? (
                       <Tabs.Panel id="games">
                         <GroupedList>
-                          {table.games.map(({ gameId, durationMinutes }, index) => {
+                          {table.games.map(({ gameId }, index) => {
                             const game = table.gamesDetail.find((row) => row.id === gameId);
                             return (
                               <GameListRow
+                                game={game}
                                 key={gameId}
-                                year={game?.year}
-                                average={game?.average}
-                                rank={game?.rank}
-                                suggestedPlayers={game?.suggestedPlayers}
-                                durationMinutes={durationMinutes}
                                 name={game?.name ?? t`Unknown`}
                                 imageUrl={game?.imageUrl}
                                 actions={
@@ -252,15 +248,7 @@ function FixedSettings({
       ) : null}
       {location ? <LocationListRow name={location.name} address={location.address} /> : null}
       {gameId !== undefined ? (
-        <GameListRow
-          name={game?.name ?? t`Unknown`}
-          imageUrl={game?.imageUrl}
-          year={game?.year}
-          average={game?.average}
-          rank={game?.rank}
-          suggestedPlayers={game?.suggestedPlayers}
-          durationMinutes={table?.games[0]?.durationMinutes}
-        />
+        <GameListRow game={game} name={game?.name ?? t`Unknown`} imageUrl={game?.imageUrl} />
       ) : null}
     </GroupedList>
   );

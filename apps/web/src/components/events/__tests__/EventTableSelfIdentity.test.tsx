@@ -37,6 +37,12 @@ it("opens the manager reorder editor and hides ordinary roster actions until res
   clients.push(client);
   mocks.options = { apiUrl: "https://api.test", userId: actor, getToken: async () => "fresh" };
   const table = { ...plannedTable, canManage: true, eventVersion: 1 };
+  const guest = {
+    ...seat("guest:88888888-8888-4888-8888-888888888888"),
+    kind: "GUEST",
+    guestName: "Guest Alice",
+    seatIndex: 0,
+  };
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) =>
@@ -47,9 +53,9 @@ it("opens the manager reorder editor and hides ordinary roster actions until res
               allocationKey: "a".repeat(64),
               capacity: 4,
               seatedCount: 1,
-              registrations: [seat("player")],
+              registrations: [guest],
             }
-          : { items: [], nextCursor: null },
+          : { items: url.includes("pending=true") ? [] : [guest], nextCursor: null },
       ),
     ),
   );
@@ -58,8 +64,10 @@ it("opens the manager reorder editor and hides ordinary roster actions until res
       <EventTableSeats table={table} onRemove={vi.fn()} />
     </QueryClientProvider>,
   );
+  expect(await screen.findByText("@Guest Alice")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Reorder seats" }));
   expect(await screen.findByRole("region", { name: "Reorder seats" })).toBeTruthy();
+  expect(screen.getByText("@Guest Alice")).toBeVisible();
   expect(screen.queryByRole("button", { name: /Remove player/ })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Discard unsaved order" }));
   expect(await screen.findByRole("button", { name: "Reorder seats" })).toBeTruthy();

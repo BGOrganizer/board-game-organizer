@@ -484,6 +484,14 @@ exceptions retain their explicit authorization boundaries throughout this contra
   handoff while authorized roster metadata loads; missing self identity uses localized You, never a
   Clerk ID. This cache subscription starts no additional profile request and grants no participation
   or position. Other actors' cached profiles cannot supply self identity.
+- During planning, managers of a standalone or PRIVATE Group Event can enroll a named guest without
+  a user account. A guest occupies the ordinary seat or queue and may change position through the
+  same manager controls. Guests do not receive invitations or choose their own availability. A
+  manager may provide their date, place and game preferences after enrollment. A confirmed guest's
+  display name is frozen with the roster and remains part of the physical result. Ratings and
+  account-level rankings use only registered scorers. Guests do not appear in the Event account
+  roster, invitation candidates, profile search, or notification recipients. The optional guest
+  email stays in server-only contact storage and is omitted from registration receipts and reads.
 - Both clients show grouped games and places in Table details. Places start at the maximum capacity;
   occupied capacity retains an additional queue entry. A separate Waiting list section always follows
   Seats list, each with its own explanation popover. While primary places remain available, Waiting list
@@ -502,9 +510,18 @@ exceptions retain their explicit authorization boundaries throughout this contra
   retains at least one YES/IF_NEEDED among current options of its own dimension/Table. Positive states
   can interchange; NO is disabled when it would remove the final positive choice. The API enforces
   the same condition under the Event transaction lock, including concurrent game rejections. Removed
-  options and another Table's game votes never qualify. Aggregate totals include accepted players only
-  (once per Event for dates/locations), displaying only the three explicit meanings. Pending ballots
-  never contribute or imply consent; missing detail totals remain partial skeletons.
+  options and another Table's game votes never qualify. In planning, a category with multiple
+  options shows voter avatars under each option, grouped by explicit preference. Event date and
+  location ballots are visible to current managers and accepted Event participants, counted once
+  per Event. Game ballots are visible to current managers and accepted players of that Table.
+  Accepted players in the queue are included. The compact view uses decorative avatars overlapped by
+  a quarter of their width, with a dot between populated preferences. Each populated preference
+  has a button that opens the read-only breakdown
+  on its corresponding tab. Ballots disclose only public identity and voting-context role fields
+  and are omitted from list projections and persisted native snapshots. The breakdown never writes a
+  ballot or opens during enrollment.
+- Guest proxy preferences remain local across tabs until the manager presses Vote. Only changed
+  options are sent in one transaction. Closing the sheet discards the draft.
 - All PUBLIC Group Events, including PRIVATE-visibility Events, require an end and exact booking
   cutoff. Their tables have
   fixed starts and catalog-derived duration, with an automatic 120-minute fallback when metadata
@@ -514,7 +531,10 @@ exceptions retain their explicit authorization boundaries throughout this contra
   start and the latest start that fits the full duration by Event end. API rejects invalid intervals
   before writes. Native end/deadline/Table clocks use the installed system time picker; Android
   bounds are revalidated after selection because its native clock cannot disable individual times.
-  Demonstrators use the existing grouped player identity pattern. Public detail and wizard summary
+  Demonstrators use the existing grouped identity pattern. A manager may assign a current Group
+  member or enter a guest name of 1–80 characters. A guest is a display label only and has no user ID,
+  registration, account role or notification recipient. Registered demonstrators retain identity-based
+  overlap checks. Public detail and wizard summary
   use matching grouped Start Date and Time, End Date and Time and Registration Deadline Date and
   Time information items (Italian: `Date e ora Termine iscrizioni`).
   Planning uses the longest candidate duration; confirmation snapshots the selected game duration.

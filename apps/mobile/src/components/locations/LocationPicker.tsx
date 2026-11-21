@@ -300,7 +300,9 @@ export default function LocationPicker({
           contentInsetAdjustmentBehavior="never"
           // Keep the native map attached when its header scrolls out of view.
           removeClippedSubviews={false}
+          ListFooterComponentStyle={{ marginTop: "auto", paddingTop: 16 }}
           contentContainerStyle={{
+            flexGrow: 1,
             padding: 16,
             paddingBottom: Math.max(insets.bottom, 16) + 24,
             gap: 4,
@@ -520,7 +522,7 @@ export default function LocationPicker({
                   }}
                 >
                   <Check size={20} color={accentForeground} />
-                  <Button.Label>{t("Confirm location")}</Button.Label>
+                  <Button.Label>{t("Confirm Location")}</Button.Label>
                 </FormSubmitButton>
               </View>
             </View>

@@ -86,12 +86,12 @@ function expectCompactTrigger(
 // Fixed dimensions/native measurements establish public host styles and state,
 // not device text clipping, Yoga layout, physical touch or frame timing.
 it.each([
-  { width: 240, height: 400, expectedWidth: 208, expectedHeight: 200 },
-  { width: 320, height: 640, expectedWidth: 288, expectedHeight: 320 },
-  { width: 800, height: 1200, expectedWidth: 360, expectedHeight: 320 },
+  { width: 240, height: 400, gameCount: 10, expectedWidth: 208, expectedHeight: 200 },
+  { width: 320, height: 640, gameCount: 1, expectedWidth: 288, expectedHeight: 76 },
+  { width: 800, height: 1200, gameCount: 10, expectedWidth: 360, expectedHeight: 320 },
 ])(
-  "bounds the real games popover at $width×$height while retaining its native game rows",
-  async ({ width, height, expectedWidth, expectedHeight }) => {
+  "bounds the real games popover with $gameCount games at $width×$height",
+  async ({ width, height, gameCount, expectedWidth, expectedHeight }) => {
     await viewport(width, height);
     const palette = await renderHook(() => useThemeColor(["accent-soft-foreground", "default"]), {
       wrapper: NativeTestProviders,
@@ -99,7 +99,14 @@ it.each([
     await render(
       <EventTableGamesPopover
         name="Strategy table"
-        games={[{ id: 1, name: "Approved game", imageUrl: null, year: 2024, average: 8, rank: 2 }]}
+        games={Array.from({ length: gameCount }, (_, index) => ({
+          id: index + 1,
+          name: index === 0 ? "Approved game" : `Game ${index + 1}`,
+          imageUrl: null,
+          year: 2024,
+          average: 8,
+          rank: index + 2,
+        }))}
       />,
       { wrapper: NativeTestProviders },
     );
@@ -107,15 +114,21 @@ it.each([
     expectCompactTrigger(trigger, palette.result.current[0], palette.result.current[1]);
     expect(screen.queryByText("Approved game")).toBeNull();
     await pressMeasuredPopover(trigger);
-    expect(popoverContent()).toHaveStyle({ width: expectedWidth });
+    const popover = popoverContent();
+    expect(popover).toHaveStyle({ width: expectedWidth });
     expect(screen.getByRole("heading", { name: "Board games" })).toBeVisible();
     const game = screen.getByText("Approved game");
     expect(game).toBeVisible();
     let list: typeof game | null = game;
     while (list && typeof list.props.onScroll !== "function") list = list.parent;
     if (!list) throw new Error("Expected the actual game's native virtualized list host");
-    expect(list).toHaveStyle({ maxHeight: expectedHeight });
-    expect(screen.queryByRole("button", { name: /Approved game|Select|Vote/ })).toBeNull();
+    let frame = list.parent;
+    while (frame && frame !== popover && StyleSheet.flatten(frame.props.style)?.height == null)
+      frame = frame.parent;
+    expect(frame).not.toBe(popover);
+    expect(frame).toHaveStyle({ height: expectedHeight });
+    expect(screen.getByRole("button", { name: "Game information: Approved game" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^(Approved game|Select|Vote)/ })).toBeNull();
   },
 );
 

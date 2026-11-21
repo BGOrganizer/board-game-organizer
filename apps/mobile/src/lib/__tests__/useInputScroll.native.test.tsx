@@ -208,3 +208,36 @@ it("keeps the current focused field when an unrelated field blurs, and includes 
   expect(f.scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 344, animated: false });
   expect(f.current().minHeight).toBe(644);
 });
+
+it("enriches only rows intersecting the active viewport and unregisters after first sight", async () => {
+  const { current, unmount } = await fixture();
+  const owner = current();
+  const visible = vi.fn();
+  const cancelled = vi.fn();
+  let rowTop = 420;
+  const row = {
+    measureInWindow: (callback: Measured) => callback(0, rowTop, 44, 40),
+  };
+  const unsubscribe = owner.owner.observeVisibility?.(row, cancelled);
+  expect(unsubscribe).toBeTypeOf("function");
+  unsubscribe?.();
+  owner.owner.observeVisibility?.(row, visible);
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  });
+  expect(visible).not.toHaveBeenCalled();
+  expect(cancelled).not.toHaveBeenCalled();
+
+  rowTop = 380;
+  owner.contentChanged();
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  });
+  expect(visible).toHaveBeenCalledOnce();
+  owner.contentChanged();
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  });
+  expect(visible).toHaveBeenCalledOnce();
+  await unmount();
+});

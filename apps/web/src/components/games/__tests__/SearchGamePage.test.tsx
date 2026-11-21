@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { renderWithI18n } from "@/test-utils";
 
@@ -18,24 +17,6 @@ const suggestedPlayers = {
     sampleCount: 10,
   })),
 };
-it("shows only the first two BGG Best player counts beside rank, or hides unknown recommendations", () => {
-  const { rerender } = renderWithI18n(
-    <GameCatalogMetadata rank={42} suggestedPlayers={suggestedPlayers} />,
-  );
-  const rank = screen.getByRole("img", { name: "Rank: 42" });
-  const best = screen.getByRole("img", { name: "Best BGG players: 4-5" });
-  expect(rank.nextElementSibling).toBe(best);
-  expect(best.querySelector(".lucide-users-round")).not.toBeNull();
-  rerender(<GameCatalogMetadata suggestedPlayers={{ ...suggestedPlayers, totalVotes: 0 }} />);
-  expect(screen.queryByRole("img")).toBeNull();
-});
-
-it("shows unranked games and zero arithmetic average without a Bayesian fallback", () => {
-  renderWithI18n(<GameCatalogMetadata average={0} rank={0} />);
-  expect(screen.getByRole("img", { name: "Average: 0.00" })).toBeTruthy();
-  expect(screen.getByRole("img", { name: "Rank: Unranked" })).toBeTruthy();
-});
-
 it("hides selected games and uses an icon-only selection action", async () => {
   const fetchMock = vi
     .fn()
@@ -97,12 +78,8 @@ it("hides selected games and uses an icon-only selection action", async () => {
   expect(screen.getByRole("button", { name: "Clear search" })).toBeTruthy();
   expect(screen.queryByText("Already selected")).toBeNull();
   expect(screen.queryByText("Select")).toBeNull();
-  expect(screen.getByText("2021")).toBeTruthy();
-  expect(
-    screen.getByRole("img", { name: "Average: 7.83" }).querySelector("svg")?.getAttribute("class"),
-  ).toContain("fill-warning");
-  expect(screen.getByRole("img", { name: "Rank: 42" })).toBeTruthy();
-  expect(screen.getByRole("img", { name: "Best BGG players: 4-5" })).toBeTruthy();
+  expect(screen.queryByText("2021")).toBeNull();
+  expect(screen.getByRole("button", { name: "Game information: Cascadia" })).toBeTruthy();
   expect(document.querySelector("img")?.getAttribute("src")).toBe(
     "https://cf.geekdo-images.com/a/thumb.jpg",
   );

@@ -99,6 +99,12 @@ tags: [manual, groups, draft]
     timeout: 30000
 - tapOn: ${output.groupCreate.image}
 - extendedWaitUntil:
+    visible:
+      id: ".*:id/crop_image_menu_crop"
+    timeout: 30000
+- tapOn:
+    id: ".*:id/crop_image_menu_crop"
+- extendedWaitUntil:
     visible: ${output.groupCreate.change}
     timeout: 120000
 - assertVisible: ${output.groupCreate.remove}
@@ -113,6 +119,11 @@ tags: [manual, groups, draft]
 - tapOn: ${output.groupCreate.library}
 - extendedWaitUntil:
     visible: ${output.groupCreate.image}
+    timeout: 30000
+- tapOn: ${output.groupCreate.image}
+- extendedWaitUntil:
+    visible:
+      id: ".*:id/crop_image_menu_crop"
     timeout: 30000
 - back
 - extendedWaitUntil:

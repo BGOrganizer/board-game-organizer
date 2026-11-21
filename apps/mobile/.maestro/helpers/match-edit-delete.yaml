@@ -54,10 +54,10 @@ appId: com.bgo.boardgameorganizer.dev
     id: "favorite-location-0"
 - assertVisible: "Game cafe"
 - scrollUntilVisible:
-    element: "Confirm location"
+    element: "Confirm Location"
     direction: DOWN
     timeout: 30000
-- tapOn: "Confirm location"
+- tapOn: "Confirm Location"
 - extendedWaitUntil:
     visible: "Locations"
     timeout: 30000

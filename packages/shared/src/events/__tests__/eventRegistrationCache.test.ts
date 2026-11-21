@@ -75,6 +75,54 @@ describe("acknowledged Table participation", () => {
       expect(saved).toMatchObject({ myPosition: null, canLeave: false });
     },
   );
+  it("moves only the actor's named vote and drops the projection when the actor leaves", () => {
+    const guest = { userId: "guest", name: "Guest", username: null, avatarUrl: null };
+    const named = {
+      "1": { YES: [guest], IF_NEEDED: [], NO: [] },
+      "2": { YES: [], IF_NEEDED: [], NO: [] },
+    };
+    const waiting = {
+      ...table,
+      myRegistration: {
+        ...registration,
+        status: "PENDING" as const,
+        name: "hidden@example.test",
+        email: "hidden@example.test",
+        username: "organizer",
+        avatarUrl: "avatar",
+      },
+      gameVoteVoters: named,
+    };
+    const joined = acknowledgeTableRegistration(waiting, registration, "owner");
+    const actor = {
+      userId: "owner",
+      name: "organizer",
+      username: "organizer",
+      avatarUrl: "avatar",
+    };
+    expect(joined.gameVoteVoters).toEqual({
+      ...named,
+      "1": { ...named["1"], YES: [guest, actor] },
+    });
+    const updated = acknowledgeTableRegistration(
+      joined,
+      { ...registration, version: 3, gameVotes: { "1": "NO" } },
+      "owner",
+    );
+    expect(updated.gameVoteVoters?.["1"]).toEqual({ YES: [guest], IF_NEEDED: [], NO: [actor] });
+    const cancelled = { ...registration, version: 4, status: "CANCELLED" as const };
+    expect(
+      acknowledgeTableRegistration(updated, cancelled, "owner").gameVoteVoters,
+    ).toBeUndefined();
+    expect(
+      acknowledgeTableRegistration({ ...updated, canManage: true }, cancelled, "owner")
+        .gameVoteVoters,
+    ).toEqual(named);
+    expect(
+      acknowledgeTableRegistration({ ...waiting, gameVoteVoters: undefined }, registration, "owner")
+        .gameVoteVoters,
+    ).toBeUndefined();
+  });
   it("reconciles game-vote versions without double counting or dropping existing profile fields", () => {
     const before = acknowledgeTableRegistration(table, registration, "owner");
     const saved = acknowledgeTableRegistration(

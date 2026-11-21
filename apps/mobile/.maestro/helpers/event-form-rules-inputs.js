@@ -3,13 +3,19 @@ var ack = typeof FORM_RULES_ACK === "undefined" ? "" : FORM_RULES_ACK;
 var locale = typeof FORM_RULES_LOCALE === "undefined" ? "" : FORM_RULES_LOCALE;
 var group =
   typeof FORM_RULES_PUBLIC_GROUP === "undefined" ? "" : String(FORM_RULES_PUBLIC_GROUP).trim();
+var eventId = typeof FORM_RULES_PUBLIC_EVENT_ID === "undefined" ? "" : FORM_RULES_PUBLIC_EVENT_ID;
+var table =
+  typeof FORM_RULES_PUBLIC_TABLE === "undefined" ? "" : String(FORM_RULES_PUBLIC_TABLE).trim();
 if (
   ack !== "owned-development-groups" ||
   !["en", "it"].includes(locale) ||
   group.length < 5 ||
-  group.length > 120
+  group.length > 120 ||
+  !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(eventId) ||
+  table.length < 5 ||
+  table.length > 30
 )
-  throw new Error("FORM_RULES_ACK, FORM_RULES_LOCALE and exact FORM_RULES_PUBLIC_GROUP required");
+  throw new Error("Owned Public group, planning Event ID and exact table name required");
 function exact(value) {
   return "^" + value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
 }
@@ -32,4 +38,11 @@ output.formRules = {
   groupQuery: group,
   group: exact(group),
   admin: exact(it ? "Amministratore del gruppo" : "Group admin"),
+  eventLink: "bgo-dev:///event/wizard?eventId=" + eventId,
+  table: exact(table),
+  guestName: exact(it ? "Nome dell’ospite" : "Guest name"),
+  addGuest: exact(it ? "Aggiungi un ospite" : "Add a guest"),
+  chooseDemonstrator: exact(it ? "Scegli dimostratore" : "Choose demonstrator"),
+  guestSelected: exact((it ? "Scegli dimostratore" : "Choose demonstrator") + ": Guest Guide"),
+  removeDemonstrator: exact(it ? "Rimuovi dimostratore" : "Remove demonstrator"),
 };

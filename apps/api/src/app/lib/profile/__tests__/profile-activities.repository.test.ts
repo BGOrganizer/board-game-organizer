@@ -95,6 +95,22 @@ it("records one scored outcome per finisher, excludes ND/outsiders/all-ND/single
   );
   expect(rows.every((row) => !row.groupId && !row.milestone)).toBe(true);
 });
+it("never creates or locks a guest profile from a physical win", async () => {
+  const m = setup(4);
+  const row = table("with-guest");
+  const guest = "guest:44444444-4444-4444-8444-444444444444";
+  row.confirmed!.playerIds = [guest, "loser"];
+  row.confirmed!.guestPlayers = [{ participantId: guest, name: "Carla" }];
+  row.results!.entries = [
+    { userId: guest, score: "8", rank: 1 },
+    { userId: "loser", score: "3", rank: 2 },
+  ];
+  await new ProfileActivitiesRepository(m.db).finalized(event, [row]);
+  expect(m.writes.mock.calls.map((call) => call[1].$setOnInsert)).toEqual([
+    expect.objectContaining({ userId: "loser", kind: "played", outcome: "played" }),
+  ]);
+  expect(m.locks).not.toHaveBeenCalled();
+});
 it("pins crossed milestones to the actual physical win, not a later public table, using frozen start/order", async () => {
   const m = setup(11),
     repo = new ProfileActivitiesRepository(m.db),

@@ -1,6 +1,6 @@
 import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/schemas";
 import { beforeEach, expect, it, vi } from "vitest";
-import type { gameDetails, searchGames } from "@/app/lib/games/bgg";
+import type { gameDetails, gameDetailsBatch, searchGames } from "@/app/lib/games/bgg";
 import { GET as SEARCH, OPTIONS as SEARCH_OPTIONS } from "../search/route";
 import { GET as THING, OPTIONS as THING_OPTIONS } from "../thing/route";
 
@@ -10,12 +10,14 @@ const boundary = vi.hoisted(() => ({
   getDb: vi.fn(),
   search: vi.fn<typeof searchGames>(),
   details: vi.fn<typeof gameDetails>(),
+  batch: vi.fn<typeof gameDetailsBatch>(),
 }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: boundary.auth }));
 vi.mock("@/app/lib/db", () => ({ getDb: boundary.getDb }));
 vi.mock("@/app/lib/games/bgg", () => ({
   searchGames: boundary.search,
   gameDetails: boundary.details,
+  gameDetailsBatch: boundary.batch,
 }));
 const origin = "https://owned-web-preview.vercel.app";
 const item: BggSearchItem = {
@@ -44,6 +46,7 @@ beforeEach(() => {
   boundary.getDb.mockResolvedValue(boundary.database);
   boundary.search.mockResolvedValue([item]);
   boundary.details.mockResolvedValue(details);
+  boundary.batch.mockResolvedValue([details]);
 });
 
 it.each([
@@ -179,3 +182,32 @@ it.each([
     expect(boundary.getDb).not.toHaveBeenCalled();
   },
 );
+
+it.each([
+  "ids=",
+  "ids=1,",
+  "ids=1,0",
+  "ids=1,1e3",
+  "ids=9007199254740992",
+  "ids=1&id=2",
+  `ids=${Array.from({ length: 21 }, (_, i) => i + 1).join(",")}`,
+])("rejects invalid or excessive batch identities: %s", async (query) => {
+  const response = await THING(request("thing", query));
+  expect(response.status).toBe(400);
+  expect(boundary.batch).not.toHaveBeenCalled();
+  expect(boundary.getDb).not.toHaveBeenCalled();
+});
+
+it("requires authentication and uses one catalog read for deduplicated visible IDs", async () => {
+  boundary.auth.mockResolvedValueOnce({ userId: null });
+  let response = await THING(request("thing", "ids=42%2C43%2C42"));
+  expect(response.status).toBe(401);
+  expect(boundary.batch).not.toHaveBeenCalled();
+
+  response = await THING(request("thing", "ids=42%2C43%2C42&x-vercel-protection-bypass=fixture"));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ items: [details] });
+  expect(boundary.batch).toHaveBeenCalledExactlyOnceWith(boundary.database, [42, 43]);
+  expect(boundary.details).not.toHaveBeenCalled();
+  expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+});

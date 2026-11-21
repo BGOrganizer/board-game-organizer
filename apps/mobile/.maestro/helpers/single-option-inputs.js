@@ -41,6 +41,11 @@ for (let index = 0; index < 3; index++) {
     no: options.map((value) => literal(value + ": No")),
   });
 }
+if (
+  input.mask & 4 &&
+  (typeof input.username !== "string" || !/^@?[\w.-]{1,64}$/.test(input.username))
+)
+  throw new Error("Multiple-game fixtures require the acting user's exact username");
 output.single = {
   link: "bgo-dev:///event/table?eventId=" + path[1] + "&tableId=" + path[2],
   name: literal(String(input.name)),
@@ -59,4 +64,17 @@ output.single = {
   yes: it ? "Sì" : "Yes",
   no: "No",
   categories: categories,
+  namedVotes:
+    input.mask & 4
+      ? {
+          title: literal(it ? "Voti" : "Votes"),
+          show: literal(it ? "Mostra voti" : "Show votes"),
+          close: literal(it ? "Chiudi" : "Close"),
+          username: literal("@" + input.username.replace(/^@/, "")),
+          yesHeading: literal(it ? "Sì" : "Yes"),
+          neededHeading: literal(it ? "Se necessario" : "If needed"),
+          noHeading: "^No$",
+          empty: literal(it ? "Nessun voto" : "No votes"),
+        }
+      : null,
 };

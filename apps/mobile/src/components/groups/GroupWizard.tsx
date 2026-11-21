@@ -321,7 +321,7 @@ function Editor({
               <InputField invalid={fieldError("location")} style={{ gap: 8 }}>
                 <Typography className="font-bold text-foreground">
                   {t("Location")}
-                  {type === "PUBLIC" ? " *" : ""}
+                  {type === "PUBLIC" ? <Typography className="text-danger"> *</Typography> : null}
                 </Typography>
                 <GroupedList>
                   <LocationListRow

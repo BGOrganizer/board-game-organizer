@@ -20,7 +20,12 @@ export function SearchHelpLabel({
     <div className="flex min-w-0 items-center gap-1">
       <Label htmlFor={htmlFor} className="min-w-0 break-words font-bold">
         {label}
-        {required ? <span aria-hidden> *</span> : null}
+        {required ? (
+          <span aria-hidden className="text-danger">
+            {" "}
+            *
+          </span>
+        ) : null}
       </Label>
       <HelpPopover
         label={`${label}: ${helpTitle ?? t`Search help`}`}

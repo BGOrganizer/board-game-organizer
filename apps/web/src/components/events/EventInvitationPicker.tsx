@@ -4,6 +4,7 @@ import {
   communityAccessDenied,
   useEventRecord,
   useEventRecordActions,
+  useTableGuestActions,
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -13,21 +14,26 @@ import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventAddGuestRow } from "./EventAddGuestRow";
 import { TableInviteLinkRow } from "./TableInviteLinkRow";
+
 export function EventInvitationPicker({ eventId, tableId }: { eventId: string; tableId: string }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
     q = useEventRecord(o, eventId),
     a = useEventRecordActions(o, eventId),
+    guest = useTableGuestActions(o, eventId, tableId),
     router = useRouter(),
     event = communityAccessDenied(q.error) ? undefined : q.data;
+  const canAddGuest =
+    !q.isPlaceholderData && event?.status === "PLANNING" && event.groupType !== "PUBLIC";
   const pick = (person: {
     id: string;
     name: string;
     username?: string | null;
     avatarUrl: string | null;
   }) => {
-    if (a.blocking || a.isInviting(tableId, person.id)) return;
+    if (a.blocking || guest.add.isPending || a.isInviting(tableId, person.id)) return;
     a.invite.mutate({
       tableId,
       userId: person.id,
@@ -74,11 +80,14 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
         key={tableId}
         friendsOnly={!event.groupId}
         invitationTable={{ eventId, tableId }}
-        disabled={a.blocking}
+        disabled={a.blocking || guest.add.isPending}
         onSelect={pick}
       >
         {!q.isPlaceholderData && canGenerateTableInviteLink(event) ? (
           <TableInviteLinkRow tableId={tableId} disabled={a.blocking} />
+        ) : null}
+        {canAddGuest ? (
+          <EventAddGuestRow guest={guest} disabled={a.blocking} onSaved={() => router.back()} />
         ) : null}
       </PeoplePicker>
     </div>

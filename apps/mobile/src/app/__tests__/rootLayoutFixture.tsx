@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { useAppStore } from "@board-game-organizer/store";
 import { act } from "@testing-library/react-native";
-import type { ReactNode } from "react";
+import { createContext, type ReactNode, useContext } from "react";
 import { Linking, View } from "react-native";
 import { Uniwind } from "uniwind";
 import { afterAll, afterEach, beforeEach, vi } from "vitest";
@@ -14,6 +14,7 @@ type HeaderOptions = {
   headerTitle?: (props: { children: string }) => ReactNode;
   headerLeft?: (props: { canGoBack: boolean }) => ReactNode;
 };
+const Session = createContext(false);
 const rootSdk = vi.hoisted(() => ({
   init: vi.fn(),
   capture: vi.fn(),
@@ -25,6 +26,7 @@ const rootSdk = vi.hoisted(() => ({
   fault: undefined as unknown,
   clerk: vi.fn(),
   token: vi.fn(),
+  portalProbe: null as ReactNode,
   goBack: vi.fn(),
   screen: vi.fn(),
   stack: vi.fn(),
@@ -68,6 +70,16 @@ vi.mock("@sentry/react-native", () => ({
       ? children
       : fallback({ error: rootSdk.fault, componentStack: "Fixture root component stack" }),
 }));
+export function useFixtureAuth() {
+  if (!useContext(Session)) throw new Error("Missing Clerk provider");
+  return {
+    isLoaded: true,
+    isSignedIn: false,
+    userId: null,
+    sessionId: null,
+    getToken: rootSdk.token,
+  };
+}
 vi.mock("@clerk/expo", () => ({
   ClerkProvider: ({
     children,
@@ -78,15 +90,9 @@ vi.mock("@clerk/expo", () => ({
     tokenCache: unknown;
   }) => {
     rootSdk.clerk(config);
-    return children;
+    return <Session.Provider value={true}>{children}</Session.Provider>;
   },
-  useAuth: () => ({
-    isLoaded: true,
-    isSignedIn: false,
-    userId: null,
-    sessionId: null,
-    getToken: rootSdk.token,
-  }),
+  useAuth: useFixtureAuth,
   useUser: () => ({ isLoaded: true, user: null }),
 }));
 vi.mock("@clerk/expo/token-cache", () => ({ tokenCache: rootSdk.tokenCache }));
@@ -109,6 +115,7 @@ vi.mock("expo-router", () => {
     return (
       <View>
         {options.headerLeft?.({ canGoBack: true })}
+        {rootSdk.portalProbe}
         {children}
       </View>
     );
@@ -211,6 +218,7 @@ const originalTheme = Uniwind.currentTheme;
 const originalAdaptiveTheme = Uniwind.hasAdaptiveThemes;
 beforeEach(() => {
   rootSdk.fault = undefined;
+  rootSdk.portalProbe = null;
   rootSdk.capture.mockClear();
   rootSdk.captureMessage.mockClear();
   rootSdk.clerk.mockClear();

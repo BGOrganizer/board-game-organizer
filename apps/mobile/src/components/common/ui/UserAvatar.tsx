@@ -17,6 +17,7 @@ export type UserBadge = {
 export function UserAvatar({
   name,
   avatarUrl,
+  avatarContent,
   online,
   badge,
   badgeContent,
@@ -24,6 +25,7 @@ export function UserAvatar({
 }: {
   name: string;
   avatarUrl?: string | null;
+  avatarContent?: ReactNode;
   online?: boolean;
   badge?: UserBadge;
   badgeContent?: ReactNode;
@@ -50,8 +52,12 @@ export function UserAvatar({
       }}
     >
       <Avatar size="md" alt={name} style={{ zIndex: 0 }}>
-        {avatarUrl ? <Avatar.Image source={{ uri: avatarUrl }} /> : null}
-        <Avatar.Fallback>{name.replace(/^@/, "").charAt(0) || "?"}</Avatar.Fallback>
+        {avatarContent ?? (
+          <>
+            {avatarUrl ? <Avatar.Image source={{ uri: avatarUrl }} /> : null}
+            <Avatar.Fallback>{name.replace(/^@/, "").charAt(0) || "?"}</Avatar.Fallback>
+          </>
+        )}
       </Avatar>
       {online !== undefined ? (
         <View

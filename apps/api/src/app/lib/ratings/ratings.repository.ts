@@ -78,11 +78,30 @@ export class RatingsRepository {
   async applyTableResult(event: EventRecord, table: TableRecord, results: MatchResults) {
     if (event.status !== "CONFIRMED" || !table.confirmed || table.eventId !== event.id)
       throw new Error("Confirmed event table required");
+    const guests = new Set<string>(
+      table.confirmed.guestPlayers?.map((guest) => guest.participantId),
+    );
+    let ratedResults = results;
+    if (guests.size) {
+      const entries = results.entries.filter((entry) => !guests.has(entry.userId));
+      if (entries.filter((entry) => entry.score !== null).length < 2) return;
+      const physicalRanks = [
+        ...new Set(entries.flatMap(({ rank }) => (rank === null ? [] : [rank]))),
+      ].sort((a, b) => a - b);
+      const ranks = new Map(physicalRanks.map((rank, index) => [rank, index + 1]));
+      ratedResults = {
+        ...results,
+        entries: entries.map((entry) => ({
+          ...entry,
+          rank: entry.rank === null ? null : (ranks.get(entry.rank) ?? entry.rank),
+        })),
+      };
+    }
     return this.applyOutcome(
       { tableId: table.id, eventId: event.id },
       table.confirmed.gameId,
       event.groupId,
-      results,
+      ratedResults,
     );
   }
   private async applyOutcome(

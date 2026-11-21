@@ -156,12 +156,13 @@ export const EventTableCardIndicators = memo(function EventTableCardIndicators({
                   </View>
                 ))}
               </View>
-              {table.demonstratorUserId ? (
+              {table.demonstratorGuestName || table.demonstratorUserId ? (
                 <Typography className="text-foreground">
                   {t("Demonstrator")}:{" "}
-                  {table.demonstratorName === undefined
-                    ? t("Loading…")
-                    : table.demonstratorName || t("Unknown")}
+                  {table.demonstratorGuestName ??
+                    (table.demonstratorName === undefined
+                      ? t("Loading…")
+                      : table.demonstratorName || t("Unknown"))}
                 </Typography>
               ) : null}
             </>

@@ -144,6 +144,7 @@ describe("not-yet-sent consent versions", () => {
       { ...table, rankingEnabled: false },
       { ...table, startsAt: "2030-06-01T08:00:00Z" },
       { ...table, demonstratorUserId: "other" },
+      { ...table, demonstratorGuestName: "Arianna" },
       { ...table, eventStatus: "CONFIRMED" as const },
       { ...table, games: [table.games[1], table.games[0]] },
       { ...table, games: [{ gameId: 1, durationMinutes: 90, durationSource: "MANUAL" as const }] },

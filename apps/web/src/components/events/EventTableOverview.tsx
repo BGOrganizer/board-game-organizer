@@ -28,8 +28,8 @@ import { EventProposalSection } from "./EventProposalSection";
 import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
-import { EventVoteCounts } from "./EventVoteCounts";
 import { EventVoteLegend } from "./EventVoteLegend";
+import { OptionVoteVoters } from "./OptionVoteVoters";
 export function EventTableOverview({
   eventId,
   tableId,
@@ -90,7 +90,7 @@ export function EventTableOverview({
     setConfirm(null);
   };
   const gameVotes = table.myRegistration?.gameVotes ?? {};
-  const votableGames = eventOptionsRequireVote(table.games);
+  const votableGames = table.eventStatus === "PLANNING" && eventOptionsRequireVote(table.games);
   const canVote =
     votableGames &&
     table.eventStatus === "PLANNING" &&
@@ -146,39 +146,31 @@ export function EventTableOverview({
           <NotificationItem itemId={notificationItemId(table.id, "games")}>
             <div className="flex items-center gap-1">
               <h2 className="font-semibold">{t`Board games`}</h2>
-              {votableGames && table.eventStatus === "PLANNING" ? (
-                <EventVoteLegend label={t`Board games`} scope="table" />
-              ) : null}
+              {votableGames ? <EventVoteLegend label={t`Board games`} scope="table" /> : null}
             </div>
           </NotificationItem>
           <GroupedList>
-            {tableCardGames(table).map((game) => (
-              <GameListRow
-                key={game.id}
-                name={game.name}
-                imageUrl={game.imageUrl}
-                year={game.year}
-                titleAccessory={
-                  <NotificationItem itemId={notificationItemId(table.id, "game", game.id)} />
-                }
-                average={game.average}
-                rank={game.rank}
-                suggestedPlayers={game.suggestedPlayers}
-                durationMinutes={game.durationMinutes}
-                metadata={
-                  votableGames ? (
-                    <EventVoteCounts
-                      label={game.name}
-                      counts={table.gameVoteCounts?.[String(game.id)]}
-                    />
-                  ) : undefined
-                }
-                actions={
-                  <>
-                    {canVote ? (
+            {tableCardGames(table).map((game) => {
+              const voters = votableGames ? table.gameVoteVoters?.[String(game.id)] : undefined;
+              return (
+                <GameListRow
+                  game={game}
+                  key={game.id}
+                  name={game.name}
+                  imageUrl={game.imageUrl}
+                  titleAccessory={
+                    <NotificationItem itemId={notificationItemId(table.id, "game", game.id)} />
+                  }
+                  metadata={
+                    voters ? <OptionVoteVoters label={game.name} voters={voters} /> : undefined
+                  }
+                  actions={
+                    canVote || voters ? (
                       <EventVoteButtons
                         label={game.name}
                         value={gameVotes[String(game.id)]}
+                        voters={voters}
+                        readOnly={!canVote}
                         disabledVotes={
                           eventAvailabilityVoteIsAllowed(
                             table.games.map((row) => ({ id: String(row.gameId) })),
@@ -194,11 +186,11 @@ export function EventTableOverview({
                           a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
                         }
                       />
-                    ) : undefined}
-                  </>
-                }
-              />
-            ))}
+                    ) : undefined
+                  }
+                />
+              );
+            })}
           </GroupedList>
           {event.data ? (
             <EventProposalSection

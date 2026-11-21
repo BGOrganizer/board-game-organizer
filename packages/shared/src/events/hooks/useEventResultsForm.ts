@@ -74,6 +74,18 @@ export function useEventResultsForm(
       !communityAccessDenied(table.error),
   );
   const players = (table.data?.confirmed?.playerIds ?? []).flatMap((id) => {
+    const guest = table.data?.confirmed?.guestPlayers?.find((row) => row.participantId === id);
+    if (guest)
+      return [
+        {
+          id,
+          name: guest.name,
+          guestName: guest.name,
+          username: null,
+          email: null,
+          avatarUrl: null,
+        },
+      ];
     const person = seats.items.find((row) => row.userId === id);
     return person
       ? [

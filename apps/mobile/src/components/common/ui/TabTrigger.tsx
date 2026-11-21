@@ -5,10 +5,11 @@ import type { ComponentProps } from "react";
 
 export function TabTrigger({
   icon: Icon,
+  iconColor,
   children,
   style,
   ...props
-}: ComponentProps<typeof Tabs.Trigger> & { icon: LucideIcon }) {
+}: ComponentProps<typeof Tabs.Trigger> & { icon: LucideIcon; iconColor?: string }) {
   const [foreground, muted] = useThemeColor(["segment-foreground", "muted"]);
   return (
     <Tabs.Trigger
@@ -25,7 +26,11 @@ export function TabTrigger({
     >
       {(state) => (
         <>
-          <Icon size={16} color={state.isSelected ? foreground : muted} accessible={false} />
+          <Icon
+            size={16}
+            color={iconColor ?? (state.isSelected ? foreground : muted)}
+            accessible={false}
+          />
           {typeof children === "function" ? children(state) : children}
         </>
       )}

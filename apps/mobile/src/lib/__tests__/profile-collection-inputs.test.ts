@@ -14,7 +14,12 @@ const fixture = {
   wishlist: 5,
   ratedGame: "Rated [game]",
   rating: 8.5,
-  bestPlayers: "4-5",
+  bestPlayers: [
+    { count: "4", percent: 64 },
+    { count: "5+", percent: 52 },
+  ],
+  gameYear: 2024,
+  gameCategory: "Abstract Strategy",
   unratedGame: "Unrated",
   laterGame: "Later",
   laterOffset: 25,
@@ -44,11 +49,15 @@ describe("read-only real collection fixture inputs", () => {
         locale === "it" ? "Voto personale BGG: 8,5" : "Personal BGG rating: 8.5",
       ),
     ).toBe(true);
+    expect(new RegExp(result.bestPlayers).test("4 (64%) – 5+ (52%)")).toBe(true);
     expect(
-      new RegExp(result.bestPlayers).test(
-        locale === "it" ? "Giocatori ideali BGG: 4-5" : "Best BGG players: 4-5",
+      new RegExp(result.gameInformation).test(
+        (locale === "it" ? "Informazioni sul gioco: " : "Game information: ") + fixture.ratedGame,
       ),
     ).toBe(true);
+    expect(result.bestLabel).toBe("^Best BGG:$");
+    expect(result.gameYear).toBe("^2024$");
+    expect(result.gameCategory).toBe("^Abstract Strategy$");
     expect(result.unavailable).toContain("N/A");
     expect(result.later).toBe("^Later$");
   });
@@ -63,8 +72,12 @@ describe("read-only real collection fixture inputs", () => {
   it.each([
     { owner: "" },
     { bestPlayers: undefined },
-    { bestPlayers: "" },
-    { bestPlayers: "4-5-6" },
+    { bestPlayers: [] },
+    { bestPlayers: "4-5" },
+    { bestPlayers: [{ count: "4", percent: 101 }] },
+    { bestPlayers: [{ count: "five", percent: 52 }] },
+    { gameYear: 0 },
+    { gameCategory: "" },
     { ratedGame: "Unrated" },
     { rating: 0 },
     { rating: 11 },

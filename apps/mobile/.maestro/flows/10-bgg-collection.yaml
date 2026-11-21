@@ -44,10 +44,10 @@ tags: [ci, bgg]
     id: "location-address-input"
     text: ".*(Roma|Rome).*"
 - scrollUntilVisible:
-    element: "Confirm location"
+    element: "Confirm Location"
     direction: DOWN
     timeout: 30000
-- tapOn: "Confirm location"
+- tapOn: "Confirm Location"
 - extendedWaitUntil:
     visible: "Locations"
     timeout: 30000

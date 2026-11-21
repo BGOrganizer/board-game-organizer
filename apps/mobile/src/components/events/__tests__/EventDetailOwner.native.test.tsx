@@ -605,6 +605,55 @@ it.each(["date", "location"] as const)(
   },
 );
 
+it("shows named votes and the breakdown action only for each eligible Event category", async () => {
+  const voter = { userId: "voter", name: "Voter Alice", username: null, avatarUrl: null };
+  const firstDate = event.dates[0].id;
+  const firstVenue = event.locations[0].id;
+  const named = { YES: [voter], IF_NEEDED: [], NO: [] };
+  event = {
+    ...event,
+    canManage: true,
+    canVote: false,
+    dates: [...event.dates, { id: "other-date", day: "2030-06-05" }],
+    voteVoters: { dates: { [firstDate]: named }, locations: { [firstVenue]: named } },
+  };
+  await render(<Fixture />);
+  await ready();
+  expect(screen.getByLabelText("Votes: 2030-06-03 20:00")).toBeVisible();
+  expect(screen.queryByLabelText("Votes: Club venue")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Club venue: Show votes" })).toBeNull();
+  await press("2030-06-03 20:00: Show votes");
+  const hidden = { includeHiddenElements: true };
+  expect(await screen.findByText("Voter Alice", hidden)).toBeOnTheScreen();
+  await userEvent.setup().press(screen.getByRole("button", { name: "Close", ...hidden }));
+  await snapshot({
+    ...event,
+    locations: [
+      ...event.locations,
+      { ...event.locations[0], id: "other-place", name: "Second venue" },
+    ],
+  });
+  const venueVotes = await screen.findByLabelText("Votes: Club venue");
+  expect(venueVotes).toBeVisible();
+  await userEvent
+    .setup()
+    .press(within(venueVotes).getByRole("button", { name: "Club venue: Show votes — Yes" }));
+  expect(await screen.findByText("Voter Alice", hidden)).toBeOnTheScreen();
+  expect(screen.getByRole("tab", { name: "Yes", ...hidden })).toBeSelected();
+  await snapshot({
+    ...event,
+    name: "Event after voting eligibility was revoked",
+    version: event.version + 1,
+    canManage: false,
+    role: "invited",
+    myRegistrations: [],
+  });
+  expect(screen.queryAllByLabelText(/^Votes:/, hidden)).toHaveLength(0);
+  expect(screen.queryByRole("button", { name: /Show votes/, ...hidden })).toBeNull();
+  expect(screen.queryByText("Voter Alice", hidden)).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Yes", ...hidden })).toBeNull();
+});
+
 it("keeps independent notice badges and exact UTF-8 descriptions without acknowledging notices on visits", async () => {
   tabCounts = { details: 1, participants: 1, tables: 1, members: 0 };
   const reference = { notificationId: "000000000000000000000001", effectiveAt: asOf };

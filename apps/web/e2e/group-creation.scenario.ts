@@ -59,6 +59,8 @@ const it = locale === "it",
     name: it ? "Nome del gruppo" : "Group name",
     generate: it ? "Genera un nome casuale" : "Generate a random name",
     location: it ? "Scegli un luogo" : "Choose a location",
+    confirmLocation: it ? "Conferma Luogo" : "Confirm Location",
+    back: it ? "Indietro" : "Back",
     add: it ? "Aggiungi amico" : "Add friend",
     search: it ? "Cerca amici" : "Search friends",
     select: `${it ? "Seleziona utente" : "Select user"}: ${friend}`,
@@ -176,6 +178,17 @@ test(`owned Group creation draft ${locale}/${theme}`, async ({ page }) => {
   await page.getByRole("button", { name: l.submit, exact: true }).click();
   await expect(page.getByRole("button", { name: l.location, exact: true })).toBeFocused();
   expect(writes).toEqual([]); // A missing verified venue must not submit a Group.
+  await page.getByRole("button", { name: l.location, exact: true }).click();
+  const locationConfirm = page.getByRole("button", { name: l.confirmLocation, exact: true });
+  await expect(locationConfirm).toBeInViewport();
+  const confirmBottom = await locationConfirm.evaluate(
+    (button) =>
+      document.documentElement.scrollHeight -
+      (window.scrollY + button.getBoundingClientRect().bottom),
+  );
+  expect(confirmBottom).toBeGreaterThanOrEqual(0);
+  expect(confirmBottom).toBeLessThanOrEqual(32);
+  await page.getByRole("button", { name: l.back, exact: true }).click();
   const change = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: l.change, exact: true }).click();
   await (await change).setFiles([]);

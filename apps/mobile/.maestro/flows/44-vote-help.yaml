@@ -35,6 +35,30 @@ tags: [manual, events, voting]
             - assertNotVisible: ${output.voteHelp.obsolete}
             - takeScreenshot: vote-help-${output.voteHelp.index}
             - back
+            - tapOn:
+                text: ${output.voteHelp.voteAction}
+                below:
+                  text: ${output.voteHelp.current.heading}
+            - runFlow:
+                when:
+                  visible: ${output.voteHelp.choose}
+                commands:
+                  - tapOn: ${output.voteHelp.show}
+            - assertVisible: ${output.voteHelp.votes}
+            - assertVisible:
+                id: top-tab-YES
+                selected: true
+            - tapOn:
+                id: top-tab-IF_NEEDED
+            - assertVisible:
+                id: top-tab-IF_NEEDED
+                selected: true
+            - tapOn:
+                id: top-tab-NO
+            - assertVisible:
+                id: top-tab-NO
+                selected: true
+            - back
       - runFlow:
           when:
             true: ${!output.voteHelp.current.multiple}

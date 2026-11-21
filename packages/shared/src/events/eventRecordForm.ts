@@ -21,6 +21,7 @@ export type EventTableDraft = {
   allowParticipantGames?: boolean;
   startsWall: string;
   demonstratorUserId?: string;
+  demonstratorGuestName?: string;
   demonstratorName?: string | null;
   demonstratorAvatarUrl?: string | null;
   games: Array<BggSearchItem & { durationMinutes?: number; manualDurationMinutes?: number }>;
@@ -63,6 +64,7 @@ export function tableDraft(row: PlannedTableResponse, timeZone: string): EventTa
     allowParticipantGames: row.allowParticipantGames ?? false,
     startsWall: row.startsAt ? eventLocalDateTime(row.startsAt, timeZone) : "",
     demonstratorUserId: row.demonstratorUserId,
+    demonstratorGuestName: row.demonstratorGuestName,
     demonstratorName: row.demonstratorName,
     demonstratorAvatarUrl: row.demonstratorAvatarUrl,
     games: row.games.map((game) => ({
@@ -149,6 +151,9 @@ function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
         ? {
             startsAt: draftIso(row.startsWall, zone),
             ...(row.demonstratorUserId ? { demonstratorUserId: row.demonstratorUserId } : {}),
+            ...(row.demonstratorGuestName !== undefined
+              ? { demonstratorGuestName: row.demonstratorGuestName }
+              : {}),
           }
         : {}),
     })),

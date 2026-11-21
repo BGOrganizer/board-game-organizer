@@ -58,6 +58,52 @@ afterEach(() => {
 });
 
 describe("account-owned canonical persistence", () => {
+  it("retains Table details but never persists or restores the named ballot projection", () => {
+    const f = fixture();
+    const tableKey = ["events", owner.apiUrl, owner.userId, "table", "event", "table"];
+    const base = { id: "table", eventId: "event", gameVoteCounts: { "1": { YES: 1 } } };
+    const data = {
+      ...base,
+      gameVoteVoters: { "1": { YES: [{ userId: "sensitive-id" }], IF_NEEDED: [], NO: [] } },
+    };
+    f.client.setQueryData(tableKey, data);
+    f.client.setQueryData(
+      ["events", owner.apiUrl, owner.userId, "guest-votes", "event", "table", "registration"],
+      { guestName: "Private guest vote", gameVotes: { "1": "YES" } },
+    );
+    f.persister.flush();
+    expect(f.data.get("queries")).not.toContain("Private guest vote");
+    expect(f.data.get("queries")).not.toContain("sensitive-id");
+    expect(f.persister.restoreClient()?.clientState.queries[0].state.data).toEqual(base);
+    expect(f.client.getQueryData(tableKey)).toEqual(data);
+
+    const legacy = JSON.parse(f.data.get("queries")!);
+    legacy.clientState.queries[0].state.data = data;
+    expect(decodeCache(JSON.stringify(legacy), owner)?.clientState.queries[0].state.data).toEqual(
+      base,
+    );
+  });
+
+  it("persists a usable Event detail without the date and location voter identities", () => {
+    const f = fixture();
+    const eventKey = ["events", owner.apiUrl, owner.userId, "detail", "event"];
+    const base = { id: "event", name: "Planning event" };
+    const data = {
+      ...base,
+      voteVoters: { dates: { date: { YES: [{ userId: "named-voter" }] } }, locations: {} },
+    };
+    f.client.setQueryData(eventKey, data);
+    f.persister.flush();
+    expect(f.data.get("queries")).not.toContain("named-voter");
+    expect(f.client.getQueryData(eventKey)).toEqual(data);
+    expect(f.persister.restoreClient()?.clientState.queries[0].state.data).toEqual(base);
+    const snapshot = JSON.parse(f.data.get("queries")!);
+    snapshot.clientState.queries[0].state.data = data;
+    expect(decodeCache(JSON.stringify(snapshot), owner)?.clientState.queries[0].state.data).toEqual(
+      base,
+    );
+  });
+
   it("ignores transient query metadata while retaining data, errors and removal events", () => {
     const f = fixture();
     const query = f.client.getQueryCache().build(f.client, { queryKey: key });

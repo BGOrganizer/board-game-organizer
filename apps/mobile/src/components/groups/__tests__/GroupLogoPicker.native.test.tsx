@@ -203,7 +203,8 @@ it("uploads a selected PNG through the actual shared chunk protocol with fresh c
     expect.objectContaining({
       mediaTypes: ["images"],
       allowsMultipleSelection: false,
-      allowsEditing: false,
+      allowsEditing: true,
+      aspect: [1, 1],
       base64: true,
       exif: false,
     }),

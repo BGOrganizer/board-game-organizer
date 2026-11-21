@@ -268,6 +268,7 @@ it.each([
   "outside-player-bounds",
   "reused-table-id",
   "private-demonstrator",
+  "private-guest-demonstrator",
   "public-game-proposals",
 ] as const)(
   "validates current table/catalog authority before any create writes: %s",
@@ -280,12 +281,14 @@ it.each([
     if (reason === "reused-table-id")
       f.events.storedTable.mockResolvedValueOnce({ ...table(), eventId: uuid(90) });
     if (reason === "private-demonstrator") input.tables[0].demonstratorUserId = guest;
+    if (reason === "private-guest-demonstrator") input.tables[0].demonstratorGuestName = "Arianna";
     if (reason === "public-game-proposals") input.tables[0].allowParticipantGames = true;
     const codes = {
       "catalog-missing": "GAME_NOT_FOUND",
       "outside-player-bounds": "TABLE_GAME_PLAYER_LIMITS",
       "reused-table-id": "TABLE_ID_REUSED",
       "private-demonstrator": "DEMONSTRATOR_REQUIRES_PUBLIC_GROUP",
+      "private-guest-demonstrator": "DEMONSTRATOR_REQUIRES_PUBLIC_GROUP",
       "public-game-proposals": "PROPOSALS_PRIVATE_GROUP_ONLY",
     };
     await expect(

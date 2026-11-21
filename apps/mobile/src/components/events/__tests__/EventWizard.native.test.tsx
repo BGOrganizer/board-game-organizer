@@ -162,7 +162,8 @@ beforeEach(() => {
       if (url.pathname === "/api/groups") return json({ items: [group], nextCursor: null });
       if (url.pathname === "/api/events") return json({ items: [], nextCursor: null });
       if (url.pathname === "/api/bgg/account") return json({ active: null, pending: null });
-      if (url.pathname === "/api/locations/favorites") return json({ items: [], nextCursor: null });
+      if (url.pathname === "/api/locations/favorites")
+        return json(url.searchParams.has("keys") ? { keys: [] } : { items: [], nextCursor: null });
       throw new Error(`Unexpected fixture path: ${url.pathname}`);
     }),
   );

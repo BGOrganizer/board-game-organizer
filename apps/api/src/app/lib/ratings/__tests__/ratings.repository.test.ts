@@ -127,6 +127,71 @@ describe("RatingsRepository actual table outcomes and Mongo boundary", () => {
     },
   );
 
+  it("rates only the registered finishers, using their relative positions behind a winning guest", async () => {
+    const fixture = setup();
+    const guest = {
+      participantId: "guest:00000000-0000-4000-8000-000000000005",
+      name: "Ada",
+    } as const;
+    const resource: TableRecord = {
+      ...table,
+      confirmed: {
+        gameId: 42,
+        startsAt: at,
+        playerIds: [guest.participantId, "user_a", "user_b"],
+        guestPlayers: [guest],
+      },
+    };
+    const physical: MatchResults = {
+      ...results,
+      entries: [
+        { userId: guest.participantId, score: "8", rank: 1 },
+        { userId: "user_a", score: "4", rank: 2 },
+        { userId: "user_b", score: "2", rank: 3 },
+      ],
+    };
+    await fixture.repo.applyTableResult(event, resource, physical);
+    expect(fixture.find.mock.calls.map(([filter]) => filter.userId)).toEqual([
+      { $in: ["user_a", "user_b"] },
+      { $in: ["user_a", "user_b"] },
+    ]);
+    expect(fixture.insertOne.mock.calls.map(([row]) => [row.scope, row.userId, row.rank])).toEqual([
+      ["GLOBAL", "user_a", 1],
+      ["GLOBAL", "user_b", 2],
+      ["GROUP", "user_a", 1],
+      ["GROUP", "user_b", 2],
+    ]);
+    expect(physical.entries.map((entry) => entry.rank)).toEqual([1, 2, 3]);
+  });
+
+  it("performs no rating reads or writes when a guest and only one account finish", async () => {
+    const fixture = setup();
+    const guest = {
+      participantId: "guest:00000000-0000-4000-8000-000000000005",
+      name: "Ada",
+    } as const;
+    await fixture.repo.applyTableResult(
+      event,
+      {
+        ...table,
+        confirmed: {
+          gameId: 42,
+          startsAt: at,
+          playerIds: [guest.participantId, "user_a"],
+          guestPlayers: [guest],
+        },
+      },
+      {
+        ...results,
+        entries: [
+          { userId: guest.participantId, score: "8", rank: 1 },
+          { userId: "user_a", score: "4", rank: 2 },
+        ],
+      },
+    );
+    expect(fixture.db.collection).not.toHaveBeenCalled();
+  });
+
   it("keeps the retained Match entry guard without synthesizing a selected game", async () => {
     const fixture = setup();
     await expect(fixture.repo.applyMatch({ id } as Match, results)).rejects.toThrow(
@@ -379,25 +444,33 @@ describe("RatingsRepository actual table outcomes and Mongo boundary", () => {
           removedAt: { $exists: false },
         },
       });
-      expect(pipeline[1]).toEqual({
-        $match: {
-          $expr: {
-            $gte: [
-              {
-                $size: {
-                  $filter: {
-                    input: "$results.entries",
-                    as: "entry",
-                    cond: { $ne: ["$$entry.score", null] },
+      expect(pipeline).toContainEqual({
+        $set: {
+          "results.entries": {
+            $filter: {
+              input: "$results.entries",
+              as: "entry",
+              cond: {
+                $not: [
+                  {
+                    $in: [
+                      "$$entry.userId",
+                      { $ifNull: ["$confirmed.guestPlayers.participantId", []] },
+                    ],
                   },
-                },
+                ],
               },
-              2,
-            ],
+            },
           },
         },
       });
-      expect(pipeline[2].$lookup).toMatchObject({
+      expect(pipeline).toContainEqual({
+        $match: { $expr: { $gte: [{ $size: "$registeredFinishers" }, 2] } },
+      });
+      expect(pipeline).toContainEqual({
+        $set: { winningRegisteredRank: { $min: "$registeredFinishers.rank" } },
+      });
+      expect(pipeline.find((stage) => stage.$lookup)?.$lookup).toMatchObject({
         from: COLLECTIONS.EVENTS,
         pipeline: [
           {

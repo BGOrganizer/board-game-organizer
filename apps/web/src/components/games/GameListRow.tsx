@@ -1,25 +1,24 @@
 "use client";
 
+import type { BggSearchItem } from "@board-game-organizer/schemas";
+import { gameMetadataMissing } from "@board-game-organizer/shared";
 import { Button } from "@heroui/react";
 import { Gamepad2 } from "lucide-react";
-import { type ComponentProps, type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GameCatalogMetadata } from "./GameCatalogMetadata";
 
 export function GameListRow({
   name,
   imageUrl,
-  year,
-  average,
-  rank,
-  durationMinutes,
-  suggestedPlayers,
+  game,
   titleAccessory,
   actions,
   metadata,
   children,
   onPress,
-}: ComponentProps<typeof GameCatalogMetadata> & {
+}: {
+  game?: BggSearchItem;
   name: string;
   imageUrl?: string | null;
   titleAccessory?: ReactNode;
@@ -29,59 +28,87 @@ export function GameListRow({
   onPress?: () => void;
 }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
+  const cover = useRef<HTMLDivElement>(null);
+  const [visibleId, setVisibleId] = useState<number>();
+  const id = game?.id;
+  const needsMetadata = Boolean(game && gameMetadataMissing(game) && visibleId !== id);
+  useEffect(() => {
+    if (
+      !needsMetadata ||
+      id === undefined ||
+      !cover.current ||
+      typeof IntersectionObserver === "undefined"
+    )
+      return;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      setVisibleId(id);
+    });
+    observer.observe(cover.current);
+    return () => observer.disconnect();
+  }, [id, needsMetadata]);
+
+  const image = (
+    <div
+      ref={cover}
+      className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default"
+    >
+      {imageUrl && imageUrl !== failedImage ? (
+        // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+        <img
+          src={imageUrl}
+          alt=""
+          width={48}
+          height={48}
+          onError={() => setFailedImage(imageUrl)}
+          className="size-full object-contain"
+        />
+      ) : (
+        <Gamepad2 className="size-5 text-muted" aria-hidden />
+      )}
+    </div>
+  );
   const identity = (
-    <>
-      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default">
-        {imageUrl && imageUrl !== failedImage ? (
-          // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
-          <img
-            src={imageUrl}
-            alt=""
-            width={40}
-            height={40}
-            onError={() => setFailedImage(imageUrl)}
-            className="size-full object-contain"
-          />
-        ) : (
-          <Gamepad2 className="size-5 text-muted" aria-hidden />
-        )}
+    <div className="min-w-0 flex-1 text-left">
+      <div className="flex min-w-0 items-center gap-2">
+        <p className="min-w-0 max-w-[40ch] truncate text-sm font-medium" title={name}>
+          {name}
+        </p>
+        {titleAccessory}
       </div>
-      <div className="min-w-0 flex-1 text-left">
-        <div className="flex min-w-0 items-center gap-2">
-          <p className="min-w-0 max-w-[40ch] truncate text-sm font-medium" title={name}>
-            {name}
-          </p>
-          {titleAccessory}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <GameCatalogMetadata
-            year={year}
-            average={average}
-            rank={rank}
-            durationMinutes={durationMinutes}
-            suggestedPlayers={suggestedPlayers}
-          />
-          {metadata}
-        </div>
-        {children}
-      </div>
-    </>
+      {metadata ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">{metadata}</div>
+      ) : null}
+      {children}
+    </div>
   );
   return (
     <GroupedRow className="w-full flex-wrap">
-      {onPress ? (
-        <Button
-          data-form-control
-          variant="ghost"
-          aria-label={name}
-          className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-2 px-0"
-          onPress={onPress}
-        >
-          {identity}
-        </Button>
-      ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-2">{identity}</div>
-      )}
+      <div className="relative flex min-w-0 flex-1">
+        {onPress ? (
+          <Button
+            data-form-control
+            variant="ghost"
+            aria-label={name}
+            className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-2 px-0"
+            onPress={onPress}
+          >
+            {image}
+            {identity}
+          </Button>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {image}
+            {identity}
+          </div>
+        )}
+        {game ? (
+          <div className="absolute top-1/2 left-[26px] z-10 mt-0.5">
+            <GameCatalogMetadata name={name} game={game} visible={id === visibleId} />
+          </div>
+        ) : null}
+      </div>
       {actions}
     </GroupedRow>
   );

@@ -28,6 +28,9 @@ import * as result from "../[eventId]/results/route";
 import * as detail from "../[eventId]/route";
 import * as state from "../[eventId]/state/route";
 import * as oldBookings from "../[eventId]/tables/[tableId]/bookings/route";
+import * as guestReview from "../[eventId]/tables/[tableId]/guests/[registrationId]/route";
+import * as guestVote from "../[eventId]/tables/[tableId]/guests/[registrationId]/votes/route";
+import * as guests from "../[eventId]/tables/[tableId]/guests/route";
 import * as invitation from "../[eventId]/tables/[tableId]/invitations/route";
 import * as leaderboard from "../[eventId]/tables/[tableId]/leaderboard/route";
 import * as registration from "../[eventId]/tables/[tableId]/registrations/route";
@@ -75,6 +78,9 @@ const request = (method = "GET", body?: unknown, query = "") =>
   });
 const events = {
   list: vi.fn(),
+  addGuest: vi.fn(),
+  guestVotes: vi.fn(),
+  voteForGuest: vi.fn(),
   create: vi.fn(),
   detail: vi.fn(),
   update: vi.fn(),
@@ -440,6 +446,45 @@ it("emits one terminal invitation result even when MongoDB retries a consumed re
 it("keeps Table invitation candidate reads outside write diagnostics", async () => {
   expect((await invitation.GET(request(), context)).status).toBe(200);
   expect(console.info).not.toHaveBeenCalled();
+});
+it("validates accountless guest paths, scoped request IDs and strict vote payloads", async () => {
+  const body = { name: " Carla ", email: " carla@example.test ", requestId: id };
+  expect((await guests.POST(request("POST", body), context)).status).toBe(201);
+  expect(events.addGuest).toHaveBeenCalledExactlyOnceWith("actor", id, tableId, {
+    ...body,
+    name: "Carla",
+    email: "carla@example.test",
+  });
+  expect((await guestReview.GET(request(), context)).status).toBe(200);
+  expect(events.guestVotes).toHaveBeenCalledExactlyOnceWith("actor", id, tableId, id);
+  const vote = { kind: "game", tableId, gameId: 1, vote: "YES" };
+  expect((await guestVote.POST(request("POST", vote), context)).status).toBe(200);
+  expect(events.voteForGuest).toHaveBeenCalledExactlyOnceWith("actor", id, tableId, id, vote);
+  const batch = { votes: [vote, { kind: "date", optionId: id, vote: "IF_NEEDED" }] };
+  expect((await guestVote.POST(request("POST", batch), context)).status).toBe(200);
+  expect(events.voteForGuest).toHaveBeenLastCalledWith("actor", id, tableId, id, batch);
+  for (const votes of [[], [vote, vote], [{ ...vote, vote: "UNKNOWN" }]])
+    expect((await guestVote.POST(request("POST", { votes }), context)).status).toBe(400);
+  for (const invalid of [
+    { ...body, name: " " },
+    { ...body, email: "invalid-email" },
+    { ...body, requestId: "bad" },
+    { ...body, userId: "forged" },
+  ])
+    expect((await guests.POST(request("POST", invalid), context)).status).toBe(400);
+  expect(
+    (await guestVote.POST(request("POST", { ...vote, vote: "UNKNOWN" }), context)).status,
+  ).toBe(400);
+  expect((await guestReview.GET(request("GET", undefined, "?guest=forged"), context)).status).toBe(
+    400,
+  );
+  const invalid = { params: Promise.resolve({ eventId: id, tableId, registrationId: "bad" }) };
+  expect((await guestReview.GET(request(), invalid)).status).toBe(400);
+  mocks.auth.mockResolvedValueOnce({ userId: null });
+  expect((await guests.POST(request("POST", body), context)).status).toBe(401);
+  expect(events.addGuest).toHaveBeenCalledTimes(1);
+  expect(events.guestVotes).toHaveBeenCalledTimes(1);
+  expect(events.voteForGuest).toHaveBeenCalledTimes(2);
 });
 it("validates initial availability and game preferences, rejecting UNKNOWN in every write", async () => {
   const availability = {

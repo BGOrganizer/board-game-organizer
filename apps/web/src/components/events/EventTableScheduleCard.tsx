@@ -6,6 +6,7 @@ import { Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
@@ -44,6 +45,11 @@ export function EventTableScheduleCard({
               <UserListRow
                 name={schedule.demonstrator.name ?? t`Unknown`}
                 avatarUrl={schedule.demonstrator.avatarUrl}
+                avatarContent={
+                  schedule.demonstrator.guestName ? (
+                    <GuestAvatar name={schedule.demonstrator.guestName} />
+                  ) : undefined
+                }
                 badge={<UserRoleBadge roles={["demonstrator"]} />}
                 secondary={t`Demonstrator`}
               />

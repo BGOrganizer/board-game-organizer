@@ -185,6 +185,7 @@ describe("GroupRecordsRepository actual lifecycle and Mongo transaction boundary
         ...events.flatMap(({ id: eventId }) => [
           ...[
             COLLECTIONS.PROFILE_ACTIVITIES,
+            COLLECTIONS.TABLE_GUEST_CONTACTS,
             COLLECTIONS.TABLE_REGISTRATIONS,
             COLLECTIONS.EVENT_VOTES,
             COLLECTIONS.EVENT_PROPOSALS,

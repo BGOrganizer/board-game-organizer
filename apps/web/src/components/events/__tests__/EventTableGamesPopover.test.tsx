@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -39,8 +39,11 @@ it.each(["personal", "event"] as const)(
     fireEvent.click(trigger);
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toContain("Chess");
-    expect(dialog.textContent).toContain("2024");
-    expect(dialog.textContent).toContain("8.2");
+    expect(dialog.textContent).not.toContain("2024");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Game information: Chess" }));
+    const gameDetails = await screen.findByRole("dialog", { name: "Chess" });
+    expect(gameDetails.textContent).toContain("2024");
+    expect(gameDetails.textContent).toContain("8.20");
     expect(dialog.querySelector('img[src="https://example.test/cover.png"]')).not.toBeNull();
     expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Chess:/ })).toBeNull();

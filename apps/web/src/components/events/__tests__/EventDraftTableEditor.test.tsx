@@ -98,6 +98,7 @@ it("shows the selected demonstrator identity and clears its draft metadata expli
   fireEvent.click(within(item).getByRole("button", { name: "Remove demonstrator" }));
   expect(onChange).toHaveBeenCalledWith({
     demonstratorUserId: undefined,
+    demonstratorGuestName: undefined,
     demonstratorName: undefined,
     demonstratorAvatarUrl: undefined,
   });

@@ -66,8 +66,24 @@ export const tableResultDraftSchema = z
     tieBreaks: z.array(tieBreakSchema),
   })
   .strict();
-export const tableRecordSchema = z
+export const GUEST_NAME_MAX_LENGTH = 80;
+export const DEMONSTRATOR_GUEST_NAME_MAX_LENGTH = GUEST_NAME_MAX_LENGTH;
+export const guestDisplayNameSchema = z.string().trim().min(1).max(GUEST_NAME_MAX_LENGTH);
+const guestParticipantIdSchema = z.templateLiteral(["guest:", z.uuid()]);
+export function isGuestParticipantId(participantId: string): participantId is `guest:${string}` {
+  return participantId.startsWith("guest:");
+}
+export const tableDemonstratorSchema = z
   .object({
+    demonstratorUserId: targetUserIdSchema.optional(),
+    demonstratorGuestName: guestDisplayNameSchema.optional(),
+  })
+  .refine((table) => !table.demonstratorUserId || !table.demonstratorGuestName, {
+    path: ["demonstratorGuestName"],
+    message: "Assign either a registered or a guest demonstrator",
+  });
+export const tableRecordSchema = tableDemonstratorSchema
+  .safeExtend({
     id: z.uuid(),
     eventId: z.uuid(),
     name: z.string().trim().min(1).max(120),
@@ -82,11 +98,17 @@ export const tableRecordSchema = z
     rankingEnabled: z.boolean(),
     allowParticipantGames: z.boolean().optional(),
     startsAt: z.iso.datetime({ offset: true }).optional(),
-    demonstratorUserId: targetUserIdSchema.optional(),
     confirmed: z
       .object({
         gameId: z.number().int().positive(),
         playerIds: z.array(targetUserIdSchema).min(2),
+        guestPlayers: z
+          .array(
+            z
+              .object({ participantId: guestParticipantIdSchema, name: guestDisplayNameSchema })
+              .strict(),
+          )
+          .optional(),
         startsAt: z.iso.datetime({ offset: true }),
         endsAt: z.iso.datetime({ offset: true }).optional(),
       })
@@ -106,7 +128,8 @@ export const tableRegistrationSchema = z
     eventId: z.uuid(),
     tableId: z.uuid(),
     userId: targetUserIdSchema,
-    kind: z.enum(["INVITATION", "SELF"]),
+    kind: z.enum(["INVITATION", "SELF", "GUEST"]),
+    guestName: guestDisplayNameSchema.optional(),
     status: z.enum(["PENDING", "ACCEPTED", "DECLINED", "CANCELLED"]),
     priorityAt: z.iso.datetime({ offset: true }),
     sequence: z.number().int().nonnegative(),
@@ -118,7 +141,16 @@ export const tableRegistrationSchema = z
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
   })
-  .strict();
+  .strict()
+  .refine(
+    (row) =>
+      row.kind === "GUEST"
+        ? Boolean(row.guestName) &&
+          guestParticipantIdSchema.safeParse(row.userId).success &&
+          (row.status === "ACCEPTED" || row.status === "CANCELLED")
+        : row.guestName === undefined && !isGuestParticipantId(row.userId),
+    { path: ["guestName"], message: "Invalid guest registration" },
+  );
 export type TableRegistration = z.infer<typeof tableRegistrationSchema>;
 export const eventVoterSchema = z
   .object({

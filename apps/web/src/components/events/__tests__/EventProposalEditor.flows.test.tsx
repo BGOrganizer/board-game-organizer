@@ -308,7 +308,7 @@ it("uses the actual verified-location picker and sends only the final explicit c
     target: { value: candidate.name },
   });
   expect(writes).toHaveLength(0);
-  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0].payload).toMatchObject({
     kind: "location",

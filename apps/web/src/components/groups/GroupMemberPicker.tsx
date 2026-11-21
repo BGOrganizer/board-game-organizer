@@ -8,6 +8,7 @@ import {
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { UserRoundPlus, UsersRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -19,11 +20,13 @@ export function GroupMemberPicker({
   groupId,
   disabled = false,
   excludeIds = [],
+  children,
   onSelect,
 }: {
   groupId: string;
   disabled?: boolean;
   excludeIds?: readonly string[];
+  children?: ReactNode;
   onSelect: (person: { id: string; name: string; avatarUrl: string | null }) => void;
 }) {
   const { t } = useLingui(),
@@ -38,6 +41,7 @@ export function GroupMemberPicker({
     });
   return (
     <div className="space-y-3">
+      {children}
       <ListSearch
         query={f.query}
         onQueryChange={f.setQuery}

@@ -451,7 +451,7 @@ it("submits only a verified canonical location selected through the actual addre
   await fireEvent.changeText(screen.getByLabelText("Location name"), "Chosen club");
   await fireEvent.changeText(screen.getByTestId("location-address-input"), "Rome");
   await userEvent.setup().press(await screen.findByTestId("address-result-0"));
-  await press("Confirm location");
+  await press("Confirm Location");
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0].input.payload).toMatchObject({
     kind: "location",

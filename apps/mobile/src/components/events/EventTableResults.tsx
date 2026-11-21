@@ -16,6 +16,7 @@ import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { UserListRow } from "@/components/common/ui/UserListRow";
@@ -45,7 +46,9 @@ export function EventTableResults({
     table.eventId,
     table.id,
     table.confirmed?.gameId,
-    table.confirmed?.playerIds,
+    table.confirmed?.playerIds.filter(
+      (id) => !table.confirmed?.guestPlayers?.some((guest) => guest.participantId === id),
+    ),
   );
   const history = useMemo(
     () => (terminated ? eventTablePeople(table, []) : []),
@@ -152,6 +155,7 @@ export function EventTableResults({
             <UserListRow
               name={name}
               avatarUrl={item.avatarUrl}
+              avatarContent={item.guestName ? <GuestAvatar name={item.guestName} /> : undefined}
               badgeContent={
                 terminated ? (
                   <IconBadge
@@ -179,16 +183,18 @@ export function EventTableResults({
                 ) : undefined
               }
             >
-              <View style={{ alignSelf: "flex-start" }}>
-                <EventPlayerRatingPopover
-                  table={table}
-                  userId={item.userId}
-                  name={name}
-                  current={
-                    !terminated ? q.items.find((row) => row.userId === item.userId) : undefined
-                  }
-                />
-              </View>
+              {item.guestName ? null : (
+                <View style={{ alignSelf: "flex-start" }}>
+                  <EventPlayerRatingPopover
+                    table={table}
+                    userId={item.userId}
+                    name={name}
+                    current={
+                      !terminated ? q.items.find((row) => row.userId === item.userId) : undefined
+                    }
+                  />
+                </View>
+              )}
             </UserListRow>
           </GroupedList>
         );

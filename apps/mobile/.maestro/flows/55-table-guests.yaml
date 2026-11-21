@@ -1,0 +1,105 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Manager adds an unregistered guest and edits their game vote
+# Explicit owned Development fixture only; real writes with no fake account or reset.
+# TABLE_GUEST_ACK=owned-disposable-private-planning-table; TABLE_GUEST_LOCALE=en|it
+# TABLE_GUEST_INPUT={eventId,tableId,name,game}. Admin already signed in, private PLANNING
+# table with at least one free seat and multiple games. Supply a fresh unique guest name.
+tags: [manual, tables, guests]
+---
+- runScript: ../helpers/table-guests-inputs.js
+- launchApp:
+    clearState: false
+- openLink: ${output.tableGuest.link}
+- runFlow: ../helpers/open-table-participants.yaml
+- scrollUntilVisible:
+    element:
+      text: ${output.tableGuest.place}
+      enabled: true
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: ${output.tableGuest.place}
+    enabled: true
+- tapOn: ${output.tableGuest.invite}
+- extendedWaitUntil:
+    visible:
+      id: table-guest-open
+    timeout: 30000
+- tapOn: ${output.tableGuest.help}
+- assertVisible: ${output.tableGuest.helpText}
+- back
+- tapOn:
+    id: table-guest-open
+- assertVisible:
+    id: table-guest-email
+- assertVisible:
+    id: table-guest-submit
+    enabled: false
+- takeScreenshot: table-guest-keyboard-closed
+- tapOn:
+    id: table-guest-username
+- inputText: ${output.tableGuest.name}
+- assertVisible:
+    id: table-guest-username
+    focused: true
+- takeScreenshot: table-guest-username-focused
+- tapOn:
+    id: table-guest-email
+- inputText: guest@example.test
+- assertVisible:
+    id: table-guest-email
+    focused: true
+- takeScreenshot: table-guest-email-focused
+- hideKeyboard
+- assertVisible:
+    id: table-guest-submit
+    enabled: true
+- takeScreenshot: table-guest-keyboard-restored
+- tapOn:
+    id: table-guest-submit
+- extendedWaitUntil:
+    notVisible:
+      id: table-guest-open
+    timeout: 30000
+- scrollUntilVisible:
+    element: ${output.tableGuest.edit}
+    direction: DOWN
+    timeout: 30000
+- assertVisible: ${output.tableGuest.rosterName}
+- tapOn: ${output.tableGuest.edit}
+- extendedWaitUntil:
+    visible: ${output.tableGuest.editor}
+    timeout: 30000
+- tapOn:
+    id: top-tab-game
+- scrollUntilVisible:
+    element: ${output.tableGuest.yes}
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    text: ${output.tableGuest.no}
+    enabled: false
+- assertVisible:
+    text: ${output.tableGuest.submit}
+    enabled: false
+- tapOn: ${output.tableGuest.yes}
+- extendedWaitUntil:
+    visible:
+      text: ${output.tableGuest.yes}
+      selected: true
+    timeout: 30000
+- takeScreenshot: table-guest-proxy-ballot
+- tapOn: ${output.tableGuest.submit}
+- assertNotVisible: ${output.tableGuest.editor}
+- tapOn:
+    id: table-overview-tab
+- scrollUntilVisible:
+    element: ${output.tableGuest.breakdown}
+    direction: DOWN
+    timeout: 30000
+- tapOn: ${output.tableGuest.breakdown}
+- assertVisible: ${output.tableGuest.votesTitle}
+- assertVisible:
+    text: ${output.tableGuest.yesTab}
+    selected: true
+- assertVisible: ${output.tableGuest.name}

@@ -486,12 +486,12 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await page.getByRole("button", { name: "Select location" }).click();
   await expect(page.locator(".maplibregl-map")).toBeVisible();
   await page.getByRole("textbox", { name: "Location name" }).fill("Gam");
-  await expect(page.getByRole("button", { name: "Confirm location" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Confirm Location" })).toBeDisabled();
   await page.getByRole("searchbox", { name: "Search address" }).fill("Main St Rome");
   await page.getByRole("button", { name: "123 Main St, Rome, Italy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm location" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Confirm Location" })).toBeDisabled();
   await page.getByRole("textbox", { name: "Location name" }).fill("Game cafe");
-  await page.getByRole("button", { name: "Confirm location" }).click();
+  await page.getByRole("button", { name: "Confirm Location" }).click();
   await expect(page.getByText("Game cafe", { exact: true })).toBeVisible();
   await expect(page.getByText("123 Main St, Rome", { exact: true })).toBeVisible();
   const addFavorite = page.getByRole("button", { name: "Add location to favorites" });
@@ -732,7 +732,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(page.getByRole("searchbox", { name: "Search address" })).toHaveValue(
     "123 Main St, Rome, Italy",
   );
-  await page.getByRole("button", { name: "Confirm location" }).click();
+  await page.getByRole("button", { name: "Confirm Location" }).click();
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { name: "Players" })).toBeVisible();
   if (pickedFriendLabel) {

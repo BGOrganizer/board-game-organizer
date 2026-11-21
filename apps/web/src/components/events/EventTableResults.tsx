@@ -13,6 +13,7 @@ import { ListOrdered, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -30,7 +31,9 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
     table.eventId,
     table.id,
     table.confirmed?.gameId,
-    table.confirmed?.playerIds,
+    table.confirmed?.playerIds.filter(
+      (id) => !table.confirmed?.guestPlayers?.some((guest) => guest.participantId === id),
+    ),
   );
   const history = useMemo(
     () => (terminated ? eventTablePeople(table, []) : []),
@@ -79,6 +82,7 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
               key={row.key}
               name={name}
               avatarUrl={row.avatarUrl}
+              avatarContent={row.guestName ? <GuestAvatar name={row.guestName} /> : undefined}
               badge={
                 terminated ? (
                   <IconBadge
@@ -103,14 +107,16 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
                 ) : null
               }
             >
-              <EventPlayerRatingPopover
-                table={table}
-                userId={row.userId}
-                name={name}
-                current={
-                  !terminated ? q.items.find((item) => item.userId === row.userId) : undefined
-                }
-              />
+              {row.guestName ? null : (
+                <EventPlayerRatingPopover
+                  table={table}
+                  userId={row.userId}
+                  name={name}
+                  current={
+                    !terminated ? q.items.find((item) => item.userId === row.userId) : undefined
+                  }
+                />
+              )}
             </UserListRow>
           );
         })}

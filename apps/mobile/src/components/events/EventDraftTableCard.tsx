@@ -52,19 +52,20 @@ export function EventDraftTableCard({
               </Typography>
             </HelpPopover>
             <EventTableRatingInfo enabled={row.rankingEnabled} />
-            {publicGroup || row.demonstratorUserId ? (
+            {publicGroup || row.demonstratorUserId || row.demonstratorGuestName ? (
               <HelpPopover
                 size="compact"
                 label={`${t("Demonstrator")}: ${row.name}`}
                 title={t("Demonstrator")}
                 icon={Presentation}
-                tone={row.demonstratorUserId ? "accent" : "muted"}
+                tone={row.demonstratorUserId || row.demonstratorGuestName ? "accent" : "muted"}
                 triggerClassName="bg-default"
               >
                 <Typography className="text-foreground">
-                  {row.demonstratorUserId
-                    ? (row.demonstratorName ?? t("Unknown"))
-                    : t("No demonstrator")}
+                  {row.demonstratorGuestName ??
+                    (row.demonstratorUserId
+                      ? (row.demonstratorName ?? t("Unknown"))
+                      : t("No demonstrator"))}
                 </Typography>
               </HelpPopover>
             ) : null}

@@ -10,9 +10,9 @@ in Git history; this document is not a roadmap or a running test-count ledger.
 
 ## Automated verification
 
-- Run checks appropriate to the changed behavior and affected callers: scoped Biome/typecheck,
-  relevant unit/coverage and replica-set API integration tests, builds and applicable UI acceptance.
-  Preserve the required coverage thresholds and web/native acceptance paths.
+- Follow the [local test scope and CI coverage gate](../AGENTS.md#7-verification).
+  Local checks include scoped Biome, typechecking and new or changed tests. CI runs the complete
+  suite. Retain replica-set integration and web/native acceptance coverage for changed behavior.
 - Record the tested source revision, command, configuration, exit status and report location.
   Inspect failure, error and skip counts. A missing suite, intentional CI skip, interrupted process
   or successful test discovery does not establish a passing journey.

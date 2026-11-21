@@ -308,7 +308,12 @@ function Editor({
       <div data-form-error={fieldError("location") || undefined}>
         <p className="font-bold">
           {t`Location`}
-          {type === "PUBLIC" ? " *" : ""}
+          {type === "PUBLIC" ? (
+            <span aria-hidden className="text-danger">
+              {" "}
+              *
+            </span>
+          ) : null}
         </p>
         <GroupedList>
           <LocationListRow

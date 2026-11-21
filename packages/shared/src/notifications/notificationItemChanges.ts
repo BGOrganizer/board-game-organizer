@@ -101,6 +101,7 @@ export function eventNotificationItems(
       old.maxPlayers !== table.maxPlayers ||
       old.startsAt !== table.startsAt ||
       old.demonstratorUserId !== table.demonstratorUserId ||
+      old.demonstratorGuestName !== table.demonstratorGuestName ||
       old.rankingEnabled !== table.rankingEnabled
     )
       add(table.id, "overview", undefined, [table.id], "table");

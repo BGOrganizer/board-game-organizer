@@ -638,6 +638,13 @@ it("hides immutable deltas when Table ranking was disabled even if stale cache c
 });
 it("uses grouped games, name/settings help and an explicit ranking badge rather than repeating a table card", async () => {
   multipleGames();
+  table.gameVoteVoters = {
+    "1": {
+      YES: [{ userId: "owner", name: "Owner", username: null, avatarUrl: null }],
+      IF_NEEDED: [],
+      NO: [],
+    },
+  };
   mount();
   await screen.findByRole("heading", { name: "First table" });
   expect(screen.queryByRole("link", { name: "Open table: First table" })).toBeNull();
@@ -655,6 +662,18 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
   expect(screen.queryByText(/The minimum is required for agreement/)).toBeNull();
   expect(screen.getByText("Minimum players").parentElement?.textContent).toBe("Minimum players2");
   expect(screen.getByText("Maximum players").parentElement?.textContent).toBe("Maximum players4");
+});
+it("keeps another table's aggregate counts anonymous and exposes no ballot controls", async () => {
+  multipleGames();
+  m.actor = "onlooker";
+  acceptedElsewhere = true;
+  rows = [{ ...player("player"), gameVotes: { "1": "YES" } }];
+  table = { ...table, myRegistration: null, canManage: false, canInvite: false };
+  mount();
+  await screen.findByText("Chess");
+  expect(screen.queryByRole("list", { name: "Votes: Chess" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Chess: Show votes" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Chess: Choose your vote" })).toBeNull();
 });
 it("keeps a singleton game readable without voting buttons or totals for an accepted historical NO", async () => {
   rows = [{ ...rows[0], gameVotes: { "1": "NO" } }];
@@ -880,6 +899,8 @@ it("offers an invite-only modal when organizer already joined, routes to the exi
     within(screen.getByRole("dialog")).getByRole("button", { name: "Invite players" }),
   );
   expect(m.push).toHaveBeenCalledWith(`/events/${eventId}/tables/${tableId}/invite`);
+  expect(new URLSearchParams(window.location.search).get("tab")).toBe("participants");
+  window.history.replaceState(null, "", window.location.pathname);
 });
 it("always shows an empty, non-interactive waiting list after seats while places remain free", async () => {
   mount();

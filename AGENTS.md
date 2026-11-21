@@ -236,12 +236,10 @@ unjustified ignore hints, replacing the component under test, or treating source
 executed behavior. Test-only files, generated output, type declarations and third-party code are
 not application runtime sources; keep any such exclusions explicit and justified.
 
-Before **every commit and every push**, verify current, complete coverage reports for all affected
-workspaces and the entire project, including the required integration coverage, and confirm the
-90% minimum for each metric. The evidence must
-match the exact content being delivered. Partial, stale, skipped, failed or interrupted checks do
-not establish coverage and block commit/push. A commit may reuse an unchanged-source successful
-report for its subsequent push only after verifying that no source or test content changed.
+Before committing and pushing, run only new or modified test files locally, after scoped lint and
+typechecking. Select the files explicitly with the workspace's test command. Run unchanged test
+files and complete workspace coverage in CI on the pushed revision. The 90% coverage gate is
+verified by CI against that exact revision, including required API integration coverage.
 
 API integration tests use Testcontainers with MongoDB configured as a single-node replica set so
 transactions behave like production.
@@ -293,9 +291,9 @@ target.
 When extending `useContacts`, update every test mock. UI code reads pending state from each
 mutation; a missing mutation object crashes tests before assertions.
 
-Run scoped lint and typecheck first, then relevant unit/coverage and integration tests, followed by
-builds and applicable UI acceptance. Use the [command table](#3-workspace-and-commands) and app guides;
-do not run unrelated checks merely to duplicate evidence.
+Run scoped lint and typecheck first, then the new or modified tests. Use the
+[command table](#3-workspace-and-commands) and app guides for the affected workspaces and any
+applicable build or UI acceptance checks.
 
 E2E coverage requirements and CI enablement are separate. Retain/update required Playwright and Maestro
 paths and report what was actually executed. Read workflow files and the operational gates for CI
@@ -311,10 +309,10 @@ For each feature, fix, documentation change, dependency update, or CI change:
 
 1. honor the operator's selected branch and local-only/commit/push scope; otherwise start a new branch from current `main`;
 2. implement the complete task;
-3. run relevant checks, including the [entire-project 90% coverage gate](#7-verification);
-4. when authorized and that coverage gate passes, commit with a signed Conventional Commit;
-5. reverify that coverage gate before every authorized push with `git push origin <branch>` so
-   the unified branch/PR CI validates it;
+3. run the scoped checks in [Verification](#7-verification);
+4. when authorized and the scoped checks pass, commit with a signed Conventional Commit;
+5. when authorized, use `git push origin <branch>` so the unified branch/PR CI validates the
+   complete suite and coverage gate;
 6. open a PR only after the user explicitly requests it.
 
 Allowed commit types:

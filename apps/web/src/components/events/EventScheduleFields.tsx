@@ -4,6 +4,7 @@ import { MAX_EVENT_OPTIONS } from "@board-game-organizer/schemas";
 import {
   eventDateWall,
   eventLocalDateTime,
+  type FavoriteLocationsState,
   publicEventBounds,
   type useEventRecordForm,
 } from "@board-game-organizer/shared";
@@ -15,16 +16,19 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { TimePicker } from "@/components/common/ui/TimePicker";
+import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 
 export function EventScheduleFields({
   form,
+  favorites,
   busy,
   dateTime,
   onDateTimeChange,
   onLocation,
 }: {
   form: ReturnType<typeof useEventRecordForm>;
+  favorites: FavoriteLocationsState;
   busy: boolean;
   dateTime: string;
   onDateTimeChange: (value: string) => void;
@@ -230,6 +234,7 @@ export function EventScheduleFields({
               key={location.id}
               name={location.name}
               address={location.address}
+              leading={<LocationFavoriteButton location={location} favorites={favorites} />}
               actions={
                 <Button
                   isIconOnly
@@ -259,6 +264,9 @@ export function EventScheduleFields({
             ? t`Choose at least one verified location.`
             : t`Choose exactly one verified location.`,
         )}
+        {favorites.status.isError ? (
+          <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
+        ) : null}
         {draft.locations.length
           ? error("timeZone", t`Could not determine the location time zone. Choose a location.`)
           : null}

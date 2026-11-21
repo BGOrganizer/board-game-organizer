@@ -66,6 +66,7 @@ export function eventTableSchedule(
     | "games"
     | "groupType"
     | "demonstratorUserId"
+    | "demonstratorGuestName"
     | "demonstratorName"
     | "demonstratorAvatarUrl"
   >,
@@ -78,8 +79,16 @@ export function eventTableSchedule(
     durationMinutes:
       table.games.find((game) => game.gameId === confirmed.gameId)?.durationMinutes ?? null,
     demonstrator:
-      (table.groupType === "PUBLIC" || table.personalAccessOnly) && table.demonstratorUserId
-        ? { name: table.demonstratorName, avatarUrl: table.demonstratorAvatarUrl }
+      table.groupType === "PUBLIC" || table.personalAccessOnly
+        ? table.demonstratorGuestName
+          ? {
+              name: table.demonstratorGuestName,
+              avatarUrl: null,
+              guestName: table.demonstratorGuestName,
+            }
+          : table.demonstratorUserId
+            ? { name: table.demonstratorName, avatarUrl: table.demonstratorAvatarUrl }
+            : null
         : null,
   };
 }

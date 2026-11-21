@@ -8,7 +8,7 @@ import { render, renderHook, screen, userEvent, within } from "@testing-library/
 import { useThemeColor } from "heroui-native/hooks";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
+import { GameListRow } from "@/components/games/GameListRow";
 import { GroupCard } from "@/components/groups/GroupCard";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
@@ -87,7 +87,7 @@ it.each(["en", "it"] as const)(
           />
         </View>
         <View testID="unknown-game-metadata">
-          <GameCatalogMetadata />
+          <GameListRow name="Unknown game" />
         </View>
       </NativeTestProviders>
     );
@@ -139,7 +139,12 @@ it.each(["en", "it"] as const)(
       }),
     ).toBeOnTheScreen();
     expect(unknown.queryAll((node) => node.type.startsWith("RNSVG"))).toHaveLength(0);
-    expect(screen.getByTestId("unknown-game-metadata").children).toHaveLength(0);
+    const unknownGame = within(screen.getByTestId("unknown-game-metadata"));
+    expect(unknownGame.getByText("Unknown game")).toBeVisible();
+    expect(
+      unknownGame.queryByRole("button", { name: "Game information: Unknown game" }),
+    ).toBeNull();
+    expect(unknownGame.queryByText(/minutes|minuti/)).toBeNull();
     await view.rerender(fixture("event"));
     expect(tableRow.getByText(plannedTable.eventName)).toBeVisible();
     expect(tableRow.getByText(groupRecord.name)).toBeVisible();

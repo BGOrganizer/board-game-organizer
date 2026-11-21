@@ -68,3 +68,18 @@ it("preserves the existing game rating and delta when a rank is displayed", () =
   rerender(<ScoreIdentity player={player} showGameRating />);
   expect(screen.getByText("Not rated")).toBeTruthy();
 });
+
+it("shows a guest winner's rank and identity without an OpenSkill rating", () => {
+  renderWithI18n(
+    <ScoreIdentity
+      player={{ ...player, name: "Guest player", guestName: "Guest player" }}
+      rank={1}
+      showGameRating
+    />,
+  );
+  expect(screen.getByText("Guest player")).toBeVisible();
+  expect(screen.getByText("Guest")).toBeVisible();
+  expect(screen.getByText("Position: #1")).toBeVisible();
+  expect(screen.getByText("Gu")).toBeVisible();
+  expect(screen.queryByRole("img", { name: "Game rating" })).toBeNull();
+});

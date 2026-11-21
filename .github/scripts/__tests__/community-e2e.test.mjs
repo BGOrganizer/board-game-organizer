@@ -1379,13 +1379,10 @@ test("unified table scores retain native focus handlers and keyboard-relative po
   assert(focus.includes("sheet.onBlur(event)"));
   assert(focus.includes("onFocus?.(event)"));
   assert(focus.includes("onBlur?.(event)"));
-  assert(editor.includes('keyboardBehavior="extend"'));
-  assert(editor.includes('snapPoints={["80%"]}'));
+  assert(editor.includes('keyboardBehavior="interactive"'));
   assert(editor.includes('keyboardBlurBehavior="restore"'));
-  assert(editor.includes('android_keyboardInputMode="adjustResize"'));
-  assert(editor.includes("useBottomSheet"));
-  assert(editor.includes("onFocus={() =>"));
-  assert(editor.includes('snapToPosition("80%")'));
+  assert.match(editor, /<InputScrollView\s+sizing="content"/);
+  assert.doesNotMatch(editor, /snapPoints=|snapToPosition|enableDynamicSizing|onFocus=/);
   assert(editor.includes("topInset={insets.top}"));
   assert(editor.includes("ReduceMotion.System"));
   assert(!editor.includes("KeyboardAvoidingView"));

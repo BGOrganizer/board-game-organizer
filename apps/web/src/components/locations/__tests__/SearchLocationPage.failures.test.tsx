@@ -109,7 +109,7 @@ it("does not send an address request without a session and recovers with a fresh
   fireEvent.change(screen.getByRole("textbox", { name: "Location name" }), {
     target: { value: "Evening venue" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
   expect(props.onSelect).toHaveBeenCalledWith(
     expect.objectContaining({
       name: "Evening venue",
@@ -148,7 +148,7 @@ it("reports unavailable browser geolocation without inventing a verified point",
   const { props } = mount();
   fireEvent.click(screen.getByRole("button", { name: "Center map on my location" }));
   expect(screen.getByText("Location unavailable")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
   expect(screen.getByText("Choose a verified address.")).toBeTruthy();
   expect(props.onSelect).not.toHaveBeenCalled();
 });
@@ -168,7 +168,7 @@ it("surfaces current permission denial and restores controls without submitting 
   fireEvent.click(locate);
   expect((locate as HTMLButtonElement).disabled).toBe(true);
   expect(
-    (screen.getByRole("button", { name: "Confirm location" }) as HTMLButtonElement).disabled,
+    (screen.getByRole("button", { name: "Confirm Location" }) as HTMLButtonElement).disabled,
   ).toBe(true);
   await act(async () => {
     denied?.({
@@ -182,7 +182,7 @@ it("surfaces current permission denial and restores controls without submitting 
   expect(screen.getByText("Location permission denied")).toBeTruthy();
   expect((locate as HTMLButtonElement).disabled).toBe(false);
   expect(
-    (screen.getByRole("button", { name: "Confirm location" }) as HTMLButtonElement).disabled,
+    (screen.getByRole("button", { name: "Confirm Location" }) as HTMLButtonElement).disabled,
   ).toBe(false);
   expect(props.onSelect).not.toHaveBeenCalled();
 });

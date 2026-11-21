@@ -11,11 +11,13 @@ import { useFormInteraction } from "@/components/common/ui/FormInteractionScope"
 import type { InputScrollOwner, InputScrollTarget } from "./inputScrollContext";
 import { inputScrollOffset } from "./inputScrollOffset";
 import { useKeyboardHeight } from "./useKeyboardHeight";
+import { useScrollVisibility } from "./useScrollVisibility";
 
 type Scroller = { scrollTo: (options: { y: number; animated: boolean }) => void };
 /** One owner per native scroll surface; only the focused field is measured. */
 export function useInputScroll(getScroller: () => Scroller | null | undefined) {
   const viewport = useRef<View>(null);
+  const { checkVisibility, observeVisibility } = useScrollVisibility(viewport);
   const scroller = useRef(getScroller);
   scroller.current = getScroller;
   const focused = useRef<{ target: InputScrollTarget; anchor?: InputScrollTarget | null } | null>(
@@ -82,9 +84,10 @@ export function useInputScroll(getScroller: () => Scroller | null | undefined) {
   const onLayout = useCallback(
     (event: LayoutChangeEvent) => {
       setHeight(event.nativeEvent.layout.height);
+      checkVisibility();
       if (focused.current) reveal(focused.current.target, focused.current.anchor);
     },
-    [reveal],
+    [reveal, checkVisibility],
   );
   const touch = useCallback(() => form?.cancelErrorFocus(), [form]);
   const beginScroll = useCallback(() => {
@@ -93,18 +96,23 @@ export function useInputScroll(getScroller: () => Scroller | null | undefined) {
     touch();
   }, [touch]);
   const contentChanged = useCallback(() => {
+    checkVisibility();
     if (focused.current) reveal(focused.current.target, focused.current.anchor);
-  }, [reveal]);
-  const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    offset.current = event.nativeEvent.contentOffset.y;
-  }, []);
+  }, [reveal, checkVisibility]);
+  const onScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      offset.current = event.nativeEvent.contentOffset.y;
+      checkVisibility();
+    },
+    [checkVisibility],
+  );
   useEffect(() => {
     if (keyboardHeight >= 0 && focused.current)
       reveal(focused.current.target, focused.current.anchor);
   }, [keyboardHeight, reveal]);
   const owner = useMemo<InputScrollOwner>(
-    () => ({ reveal, blur, inSheet }),
-    [reveal, blur, inSheet],
+    () => ({ reveal, blur, inSheet, observeVisibility }),
+    [reveal, blur, inSheet, observeVisibility],
   );
   return {
     viewport,

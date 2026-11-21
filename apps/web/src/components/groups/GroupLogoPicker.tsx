@@ -72,7 +72,12 @@ export function GroupLogoPicker({
     <div className="space-y-2">
       <Label htmlFor="group-logo">
         {t`Group logo`}
-        {required ? " *" : ""}
+        {required ? (
+          <span aria-hidden className="text-danger">
+            {" "}
+            *
+          </span>
+        ) : null}
       </Label>
       <input
         ref={input}

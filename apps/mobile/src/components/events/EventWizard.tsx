@@ -1,4 +1,5 @@
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
+import { DEMONSTRATOR_GUEST_NAME_MAX_LENGTH } from "@board-game-organizer/schemas";
 import type { CreateEventVariables, EditEventVariables } from "@board-game-organizer/shared";
 import {
   communityAccessDenied,
@@ -11,6 +12,7 @@ import {
   useEventRecord,
   useEventRecordActions,
   useEventRecordForm,
+  useFavoriteLocations,
 } from "@board-game-organizer/shared";
 import { Stack, useRouter } from "expo-router";
 import { Accordion } from "heroui-native/accordion";
@@ -37,6 +39,7 @@ import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { FormInteractionScope } from "@/components/common/ui/FormInteractionScope";
 import { FormSubmitButton } from "@/components/common/ui/FormSubmitButton";
+import { GuestNameRow } from "@/components/common/ui/GuestNameRow";
 import { InputField } from "@/components/common/ui/InputField";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import GamePicker from "@/components/games/GamePicker";
@@ -151,6 +154,10 @@ function Editor({
   const submitted = useRef(false);
   const { draft, step } = form,
     publicGroup = form.publicGroup;
+  const favorites = useFavoriteLocations(
+    { ...o, userId: step === 1 && draft.locations.length ? o.userId : undefined },
+    draft.locations,
+  );
   useEffect(() => {
     if (step !== 2 || !form.validationAttempt) return;
     setExpandedTables((old) => {
@@ -271,12 +278,26 @@ function Editor({
           onSelect={(person) => {
             form.patchTable(pick.key, {
               demonstratorUserId: person.id,
+              demonstratorGuestName: undefined,
               demonstratorName: person.name,
               demonstratorAvatarUrl: person.avatarUrl,
             });
             setPick(null);
           }}
-        />
+        >
+          <GuestNameRow
+            maxLength={DEMONSTRATOR_GUEST_NAME_MAX_LENGTH}
+            onAdd={(name) => {
+              form.patchTable(pick.key, {
+                demonstratorUserId: undefined,
+                demonstratorGuestName: name,
+                demonstratorName: undefined,
+                demonstratorAvatarUrl: undefined,
+              });
+              setPick(null);
+            }}
+          />
+        </GroupMemberPicker>
       </View>
     );
   const header = (
@@ -294,7 +315,12 @@ function Editor({
       {step === 0 ? (
         <EventInformationFields form={form} busy={submitting} />
       ) : step === 1 ? (
-        <EventScheduleFields form={form} busy={submitting} onLocation={() => setPick("location")} />
+        <EventScheduleFields
+          form={form}
+          favorites={favorites}
+          busy={submitting}
+          onLocation={() => setPick("location")}
+        />
       ) : step === 2 ? (
         <InputField invalid={form.fieldError("tables") && !draft.tables.length} style={{ gap: 8 }}>
           {form.fieldError("tables") && !draft.tables.length ? (
@@ -371,7 +397,7 @@ function Editor({
           }
           renderItem={({ item: row, index }) =>
             step === 2 ? (
-              <Accordion.Item value={row.key} className="rounded-xl bg-default">
+              <Accordion.Item value={row.key} className="rounded-xl bg-accent-soft">
                 <Accordion.Trigger
                   testID={`event-draft-table-${row.key}`}
                   accessibilityLabel={row.name.trim() || `${t("Table")} #${index + 1}`}

@@ -83,7 +83,7 @@ export function GroupLogoPicker({
         : ImagePicker.launchImageLibraryAsync)({
         mediaTypes: ["images"],
         allowsMultipleSelection: false,
-        allowsEditing: source === "camera",
+        allowsEditing: true,
         aspect: [1, 1],
         base64: true,
         quality: 1,
@@ -128,7 +128,7 @@ export function GroupLogoPicker({
     <View style={{ gap: 8 }}>
       <Typography className="font-semibold text-foreground">
         {t("Group logo")}
-        {required ? " *" : ""}
+        {required ? <Typography className="text-danger"> *</Typography> : null}
       </Typography>
       <Card style={{ padding: 0 }}>
         <Card.Body style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12 }}>

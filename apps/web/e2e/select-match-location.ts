@@ -22,7 +22,7 @@ export async function selectMatchLocation(page: Page) {
   await page.getByRole("textbox", { name: "Location name" }).fill("Game cafe");
   await page.getByRole("searchbox", { name: "Search address" }).fill("Main St Rome");
   await page.getByRole("button", { name: "123 Main St, Rome, Italy", exact: true }).click();
-  await page.getByRole("button", { name: "Confirm location" }).click();
+  await page.getByRole("button", { name: "Confirm Location" }).click();
   await expect(page.getByText("Game cafe", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { name: "Players", exact: true })).toBeVisible();

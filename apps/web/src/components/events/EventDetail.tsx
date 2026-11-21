@@ -57,8 +57,8 @@ import { EventParticipants } from "./EventParticipants";
 import { EventProposalSection } from "./EventProposalSection";
 import { EventTables } from "./EventTables";
 import { EventVoteButtons } from "./EventVoteButtons";
-import { EventVoteCounts } from "./EventVoteCounts";
 import { EventVoteLegend } from "./EventVoteLegend";
+import { OptionVoteVoters } from "./OptionVoteVoters";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const { t, i18n } = useLingui(),
     o = useCommunityApi(),
@@ -121,8 +121,20 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         )}
       </div>
     );
-  const voteDates = event.groupType !== "PUBLIC" && eventOptionsRequireVote(event.dates);
-  const voteLocations = event.groupType !== "PUBLIC" && eventOptionsRequireVote(event.locations);
+  const voteDates =
+    event.status === "PLANNING" &&
+    event.groupType !== "PUBLIC" &&
+    eventOptionsRequireVote(event.dates);
+  const voteLocations =
+    event.status === "PLANNING" &&
+    event.groupType !== "PUBLIC" &&
+    eventOptionsRequireVote(event.locations);
+  const namedVotes =
+    !q.isPlaceholderData &&
+    !event.readOnly &&
+    (event.canManage === true || event.myRegistrations.some((row) => row.status === "ACCEPTED"))
+      ? event.voteVoters
+      : undefined;
   const hasFloatingActions =
     (canManageEvent(event, o.userId) && event.status === "CONFIRMED" && event.canReplan) ||
     (tab === "details" && event.status === "PLANNING" && event.canEdit);
@@ -274,9 +286,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                   <h2 className="font-semibold">
                     {event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Dates and times`}
                   </h2>
-                  {voteDates && event.status === "PLANNING" ? (
-                    <EventVoteLegend label={t`Dates and times`} />
-                  ) : null}
+                  {voteDates ? <EventVoteLegend label={t`Dates and times`} /> : null}
                 </div>
               </NotificationItem>
               <GroupedList>
@@ -287,45 +297,48 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                       !event.confirmed ||
                       row.id === event.confirmed.dateId,
                   )
-                  .map((row) => (
-                    <GroupedRow key={row.id} className="flex-wrap">
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <DateTimeInfo
-                            startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                            timeZone={event.timeZone}
-                          />
-                          <NotificationItem itemId={notificationItemId(event.id, "date", row.id)} />
+                  .map((row) => {
+                    const voters = voteDates ? namedVotes?.dates[row.id] : undefined;
+                    const label = eventDateWall(event, row).replace("T", " ");
+                    return (
+                      <GroupedRow key={row.id} className="flex-wrap">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <DateTimeInfo
+                              startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                              timeZone={event.timeZone}
+                            />
+                            <NotificationItem
+                              itemId={notificationItemId(event.id, "date", row.id)}
+                            />
+                          </div>
+                          {voters ? <OptionVoteVoters label={label} voters={voters} /> : null}
                         </div>
-                        {voteDates ? (
-                          <EventVoteCounts
-                            label={eventDateWall(event, row).replace("T", " ")}
-                            counts={event.voteCounts?.dates[row.id]}
+                        {(voteDates && event.canVote) || voters ? (
+                          <EventVoteButtons
+                            label={label}
+                            voters={voters}
+                            readOnly={!event.canVote}
+                            value={event.myVotes?.dateVotes[row.id]}
+                            disabledVotes={
+                              eventAvailabilityVoteIsAllowed(
+                                event.dates,
+                                event.myVotes?.dateVotes ?? {},
+                                row.id,
+                                "NO",
+                              )
+                                ? []
+                                : ["NO"]
+                            }
+                            busy={a.blocking || q.isPlaceholderData}
+                            onChange={(vote) =>
+                              a.vote.mutate({ kind: "date", optionId: row.id, vote })
+                            }
                           />
                         ) : null}
-                      </div>
-                      {voteDates && event.canVote ? (
-                        <EventVoteButtons
-                          label={eventDateWall(event, row).replace("T", " ")}
-                          value={event.myVotes?.dateVotes[row.id]}
-                          disabledVotes={
-                            eventAvailabilityVoteIsAllowed(
-                              event.dates,
-                              event.myVotes?.dateVotes ?? {},
-                              row.id,
-                              "NO",
-                            )
-                              ? []
-                              : ["NO"]
-                          }
-                          busy={a.blocking || q.isPlaceholderData}
-                          onChange={(vote) =>
-                            a.vote.mutate({ kind: "date", optionId: row.id, vote })
-                          }
-                        />
-                      ) : null}
-                    </GroupedRow>
-                  ))}
+                      </GroupedRow>
+                    );
+                  })}
               </GroupedList>
             </section>
             <EventProposalSection event={event} kind="date" disabled={q.isPlaceholderData} />
@@ -361,9 +374,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               <NotificationItem itemId={notificationItemId(event.id, "locations")}>
                 <div className="flex items-center gap-1">
                   <h2 className="font-semibold">{t`Locations`}</h2>
-                  {voteLocations && event.status === "PLANNING" ? (
-                    <EventVoteLegend label={t`Locations`} />
-                  ) : null}
+                  {voteLocations ? <EventVoteLegend label={t`Locations`} /> : null}
                 </div>
               </NotificationItem>
               <GroupedList>
@@ -374,20 +385,23 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                       !event.confirmed ||
                       row.id === event.confirmed.locationId,
                   )
-                  .map((row) => (
-                    <LocationListRow
-                      key={row.id}
-                      name={row.name}
-                      address={row.address}
-                      titleAccessory={
-                        <NotificationItem
-                          itemId={notificationItemId(event.id, "location", row.id)}
-                        />
-                      }
-                      actions={
-                        <>
-                          {voteLocations && event.canVote ? (
+                  .map((row) => {
+                    const voters = voteLocations ? namedVotes?.locations[row.id] : undefined;
+                    return (
+                      <LocationListRow
+                        key={row.id}
+                        name={row.name}
+                        address={row.address}
+                        titleAccessory={
+                          <NotificationItem
+                            itemId={notificationItemId(event.id, "location", row.id)}
+                          />
+                        }
+                        actions={
+                          (voteLocations && event.canVote) || voters ? (
                             <EventVoteButtons
+                              voters={voters}
+                              readOnly={!event.canVote}
                               label={row.name}
                               value={event.myVotes?.locationVotes[row.id]}
                               disabledVotes={
@@ -405,18 +419,13 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                                 a.vote.mutate({ kind: "location", optionId: row.id, vote })
                               }
                             />
-                          ) : undefined}
-                        </>
-                      }
-                    >
-                      {voteLocations ? (
-                        <EventVoteCounts
-                          label={row.name}
-                          counts={event.voteCounts?.locations[row.id]}
-                        />
-                      ) : null}
-                    </LocationListRow>
-                  ))}
+                          ) : undefined
+                        }
+                      >
+                        {voters ? <OptionVoteVoters label={row.name} voters={voters} /> : null}
+                      </LocationListRow>
+                    );
+                  })}
               </GroupedList>
               <EventProposalSection event={event} kind="location" disabled={q.isPlaceholderData} />
             </section>

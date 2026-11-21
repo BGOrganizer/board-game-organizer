@@ -34,7 +34,7 @@ function retiredQuery(key: QueryKey) {
 
 /** No credentials, raw address-book values, transient drafts, or licensed provider searches. */
 export function ownsPersistedQuery(key: QueryKey, owner: CacheOwner) {
-  if (retiredQuery(key)) return false;
+  if (retiredQuery(key) || (key[0] === "events" && key[3] === "guest-votes")) return false;
   if (key[0] === "contacts") return key[2] === owner.apiUrl && key[3] === owner.userId;
   return (
     [
@@ -79,6 +79,18 @@ export function configureMobileCache(client: QueryClient, owner?: CacheOwner) {
 
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+function persistableQueryData(key: QueryKey, data: unknown) {
+  if (key[0] !== "events" || !record(data)) return data;
+  if (key[3] === "table" && "gameVoteVoters" in data) {
+    const { gameVoteVoters: _privateBallots, ...rest } = data;
+    return rest;
+  }
+  if (key[3] === "detail" && "voteVoters" in data) {
+    const { voteVoters: _privateBallots, ...rest } = data;
+    return rest;
+  }
+  return data;
 }
 function storedState(data: unknown, updatedAt: number) {
   return {
@@ -137,7 +149,10 @@ export function decodeCache(
     queries.push({
       queryKey: value.queryKey,
       queryHash: hashKey(value.queryKey),
-      state: storedState(value.state.data, value.state.dataUpdatedAt),
+      state: storedState(
+        persistableQueryData(value.queryKey, value.state.data),
+        value.state.dataUpdatedAt,
+      ),
     });
   }
   return {
@@ -220,7 +235,10 @@ export function createSessionPersister(
                 queryKey: query.queryKey,
                 queryHash: query.queryHash,
                 // Preserve Query timestamps, but force revalidation; cache metadata is never an ACK.
-                state: storedState(data, query.state.dataUpdatedAt),
+                state: storedState(
+                  persistableQueryData(query.queryKey, data),
+                  query.state.dataUpdatedAt,
+                ),
               },
             ];
       });

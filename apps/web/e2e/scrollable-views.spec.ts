@@ -348,15 +348,15 @@ test("current location fills a verified address, handles failure and keeps confi
   fail = true;
   await page.getByRole("button", { name: "Center map on my location" }).click();
   await expect(page.getByText("Could not search addresses")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm location" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Confirm Location" })).toBeDisabled();
   fail = false;
   await page.getByRole("button", { name: "Center map on my location" }).click();
   await expect(page.getByRole("searchbox", { name: "Search address" })).toHaveValue(
     "Verified GPS address, Rome, Italy",
   );
   expect(queries).toEqual(["12.5000000,41.9000000", "12.5000000,41.9000000"]);
-  await expect(page.getByRole("button", { name: "Confirm location" })).toBeEnabled();
-  await page.getByRole("button", { name: "Confirm location" }).click();
+  await expect(page.getByRole("button", { name: "Confirm Location" })).toBeEnabled();
+  await page.getByRole("button", { name: "Confirm Location" }).click();
   await expect(page.getByText("GPS cafe", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Locations", exact: true })).toBeVisible();
 });

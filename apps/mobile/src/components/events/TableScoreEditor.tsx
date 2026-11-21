@@ -5,7 +5,6 @@ import {
   type ScorePlayer,
   type TableScoreInput,
 } from "@board-game-organizer/shared";
-import { useBottomSheet } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -34,8 +33,7 @@ function ScoreInput({
   attempted: boolean;
   onChange: (score: string) => void;
 }) {
-  const t = useT(),
-    { snapToPosition } = useBottomSheet();
+  const t = useT();
   return (
     <InputField style={{ gap: 8, flex: 1 }}>
       <Typography className="text-foreground">{t("Score")}</Typography>
@@ -53,10 +51,6 @@ function ScoreInput({
         }
         value={row.rawScore}
         onChangeText={onChange}
-        onFocus={() => {
-          // Expand even before Android delivers a keyboard/resize event.
-          snapToPosition("80%");
-        }}
       />
       {!row.notParticipated &&
       (attempted || row.rawScore !== "") &&
@@ -313,13 +307,15 @@ export function TableScoreEditor({
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
-            snapPoints={["80%"]}
-            keyboardBehavior="extend"
+            keyboardBehavior="interactive"
             keyboardBlurBehavior="restore"
             topInset={insets.top}
-            android_keyboardInputMode="adjustResize"
+            contentContainerProps={{ style: { padding: 0 } }}
           >
-            <InputScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+            <InputScrollView
+              sizing="content"
+              contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 20 }}
+            >
               <BottomSheet.Title>{active?.name ?? t("Score")}</BottomSheet.Title>
               {active && activeRow ? (
                 <>

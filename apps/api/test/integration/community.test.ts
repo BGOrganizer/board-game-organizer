@@ -5571,6 +5571,15 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(await services().eventRecords.userRegistration(tableId, GUEST)).toBeNull();
     expect(await services().eventRecords.voter(event.id, GUEST)).toBeNull();
     await transaction((s) => s.plannedEventService.join(GUEST, event.id, tableId, choices));
+    const namedVotes = (await services().plannedEventService.tableDetail(OWNER, event.id, tableId))
+      .gameVoteVoters;
+    expect(namedVotes?.["1"]).toEqual({
+      YES: [expect.objectContaining({ userId: GUEST, role: "acceptedParticipant" })],
+      IF_NEEDED: [],
+      NO: [],
+    });
+    expect(namedVotes?.["2"].IF_NEEDED).toEqual([expect.objectContaining({ userId: GUEST })]);
+    expect(namedVotes?.["1"].YES[0]).not.toHaveProperty("email");
     const results = await Promise.allSettled(
       [1, 2].map((gameId) =>
         transaction((s) =>
@@ -5591,6 +5600,48 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(
       Object.values(row!.gameVotes).filter((v) => v === "YES" || v === "IF_NEEDED"),
     ).toHaveLength(1);
+  });
+  it("commits the guest's proxy choices as one ballot and leaves all choices intact on validation failure", async () => {
+    const group = await privateGroup();
+    await db.collection(COLLECTIONS.BOARD_GAMES).insertOne({
+      id: 2,
+      name: "Second game",
+      isExpansion: false,
+    });
+    const input = plannedInput(group.id);
+    input.dates.push({ id: secondId, day: "2030-06-04" });
+    input.tables[0].games.push({ gameId: 2, manualDurationMinutes: 60 });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    const guest = await transaction((s) =>
+      s.plannedEventService.addGuest(OWNER, event.id, tableId, {
+        name: "Guest voter",
+        requestId: randomUUID(),
+      }),
+    );
+    const empty = { guestName: "Guest voter", gameVotes: {}, dateVotes: {}, locationVotes: {} };
+    const first = { kind: "game", tableId, gameId: 1, vote: "IF_NEEDED" } as const;
+    const date = { kind: "date", optionId: dateId, vote: "YES" } as const;
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.voteForGuest(OWNER, event.id, tableId, guest.id, {
+          votes: [first, { ...date, optionId: randomUUID() }],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_VOTE_OPTION" });
+    expect(
+      await services().plannedEventService.guestVotes(OWNER, event.id, tableId, guest.id),
+    ).toEqual(empty);
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.voteForGuest(OWNER, event.id, tableId, guest.id, {
+          votes: [first, date],
+        }),
+      ),
+    ).resolves.toEqual({
+      ...empty,
+      gameVotes: { "1": "IF_NEEDED" },
+      dateVotes: { [dateId]: "YES" },
+    });
   });
   it("keeps Event availability across additional PRIVATE joins and hides excluded personal Tables", async () => {
     const group = await privateGroup(),
@@ -5899,6 +5950,68 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       }),
     );
     expect(await services().eventRecords.allRegistrations(event.id)).toEqual(before);
+  });
+  it("keeps a guest's physical win while comparing only registered scorers in both rating scopes", async () => {
+    const group = await privateGroup();
+    const input = plannedInput(group.id);
+    input.tables[0] = { ...input.tables[0], minPlayers: 3, maxPlayers: 3 };
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const user of [OWNER, GUEST])
+      await transaction((s) => s.plannedEventService.register(user, event.id, tableId));
+    const guest = await transaction((s) =>
+      s.plannedEventService.addGuest(OWNER, event.id, tableId, {
+        name: "Invited friend",
+        email: "guest-player@example.test",
+        requestId: randomUUID(),
+      }),
+    );
+    const guestEmail = "guest-player@example.test";
+    expect(JSON.stringify(guest)).not.toContain(guestEmail);
+    expect(
+      await db.collection(COLLECTIONS.TABLE_GUEST_CONTACTS).findOne({ eventId: event.id }),
+    ).toMatchObject({
+      eventId: event.id,
+      tableId,
+      email: guestEmail,
+    });
+    const roster = await transaction((s) =>
+      s.plannedEventService.seats(OWNER, event.id, tableId, { limit: 20 }),
+    );
+    expect(roster.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ userId: guest.userId })]),
+    );
+    expect(JSON.stringify(roster)).not.toContain(guestEmail);
+    const confirmed = await confirm(event.id);
+    await transaction((s) =>
+      s.plannedEventService.finalize(OWNER, event.id, {
+        version: confirmed.version,
+        results: [
+          {
+            tableId,
+            lowerWins: false,
+            tieBreaks: [],
+            entries: [
+              { userId: guest.userId, score: "15" },
+              { userId: OWNER, score: "12" },
+              { userId: GUEST, score: "9" },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const finished = await services().plannedEventService.tableDetail(OWNER, event.id, tableId);
+    expect(finished.winners).toEqual([expect.objectContaining({ guestName: "Invited friend" })]);
+    for (const scope of [group.id, null]) {
+      const stats = await services().ratings.tableStats([OWNER, GUEST, guest.userId], 1, scope);
+      expect(stats.get(OWNER)).toMatchObject({ gamesPlayed: 1, gamesWon: 1 });
+      expect(stats.get(GUEST)).toMatchObject({ gamesPlayed: 1, gamesWon: 0 });
+      expect(stats.has(guest.userId)).toBe(false);
+    }
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ tableId })).toBe(4);
+    expect(
+      await db.collection(COLLECTIONS.PLAYER_RATINGS).countDocuments({ userId: guest.userId }),
+    ).toBe(0);
   });
   it("rolls back earlier table results/ratings when a later table is invalid; commits all-ND without statistics", async () => {
     const group = await privateGroup(),

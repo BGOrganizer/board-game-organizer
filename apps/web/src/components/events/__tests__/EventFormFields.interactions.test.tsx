@@ -1,13 +1,14 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
-import { MAX_EVENT_OPTIONS } from "@board-game-organizer/schemas";
+import { locationFavoriteKey, MAX_EVENT_OPTIONS } from "@board-game-organizer/schemas";
 import {
   clearSessionQueryCache,
   type EventRecordDraft,
   eventDraft,
   useEventRecordForm,
+  useFavoriteLocations,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { clearDateTime, enterDateTime, readDateTime } from "@/test-fixtures/dateTime";
@@ -49,11 +50,15 @@ const onLocation = vi.fn();
 let client: QueryClient;
 let groupStatus: number;
 let pendingGroup: Promise<Response> | undefined;
+let savedFavorite: boolean;
+const favoriteWrites: string[] = [];
 beforeEach(() => {
   vi.clearAllMocks();
   boundary.getToken.mockResolvedValue("fresh-form-token");
   groupStatus = 200;
   pendingGroup = undefined;
+  savedFavorite = false;
+  favoriteWrites.length = 0;
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -80,6 +85,27 @@ beforeEach(() => {
             { status: groupStatus },
           )
         );
+      if (url.pathname === "/api/locations/favorites") {
+        const method = init?.method ?? "GET";
+        const location = plannedEvent.locations[0];
+        const key = locationFavoriteKey(location);
+        if (method === "POST") {
+          expect(JSON.parse(String(init?.body))).toEqual({ location });
+          favoriteWrites.push(method);
+          savedFavorite = true;
+          return Response.json({ item: { key, location } });
+        }
+        if (method === "DELETE") {
+          expect(JSON.parse(String(init?.body))).toEqual({ key });
+          favoriteWrites.push(method);
+          savedFavorite = false;
+        }
+        return Response.json(
+          url.searchParams.has("keys")
+            ? { keys: savedFavorite ? [key] : [] }
+            : { items: [], nextCursor: null },
+        );
+      }
       throw new Error(`Unexpected form request: ${url.pathname}`);
     }),
   );
@@ -117,6 +143,10 @@ function Fixture({
     initial,
   );
   const [dateTime, setDateTime] = useState("");
+  const favorites = useFavoriteLocations(
+    { ...options, userId: information ? undefined : options.userId },
+    form.draft.locations,
+  );
   return (
     <>
       {information ? (
@@ -124,6 +154,7 @@ function Fixture({
       ) : (
         <EventScheduleFields
           form={form}
+          favorites={favorites}
           busy={busy}
           dateTime={dateTime}
           onDateTimeChange={setDateTime}
@@ -291,7 +322,14 @@ it("adds the popover's final date with Done, deduplicates it and retains the key
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(draft().dates).toHaveLength(3);
   expect(draft().dates[2]).toMatchObject({ day: "2030-06-06", startTime: "19:30" });
-  expect(fetch).not.toHaveBeenCalled();
+  const requests = vi.mocked(fetch).mock.calls;
+  expect(
+    requests.every(
+      ([url, init]) =>
+        new URL(String(url)).pathname === "/api/locations/favorites" &&
+        (init?.method ?? "GET") === "GET",
+    ),
+  ).toBe(true);
 });
 
 it("removes the add row after Done fills the date limit without saving the event", async () => {
@@ -308,7 +346,14 @@ it("removes the add row after Done fills the date limit without saving the event
   expect(draft().dates).toHaveLength(MAX_EVENT_OPTIONS);
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(screen.queryByRole("button", { name: "Add date" })).toBeNull();
-  expect(fetch).not.toHaveBeenCalled();
+  const requests = vi.mocked(fetch).mock.calls;
+  expect(
+    requests.every(
+      ([url, init]) =>
+        new URL(String(url)).pathname === "/api/locations/favorites" &&
+        (init?.method ?? "GET") === "GET",
+    ),
+  ).toBe(true);
 });
 
 it("blocks popover addition when the parent becomes busy", async () => {
@@ -404,4 +449,19 @@ it("reports public schedule validation errors without replacing the missing fiel
     screen.getByText("Choose a registration deadline on a day before the event."),
   ).toBeVisible();
   expect(screen.getByText("Choose exactly one verified location.")).toBeVisible();
+});
+
+it("toggles the saved venue favorite without changing the event draft", async () => {
+  mount();
+  const before = draft();
+  const addFavorite = () => screen.getByRole("button", { name: "Add location to favorites" });
+  const removeFavorite = () =>
+    screen.getByRole("button", { name: "Remove location from favorites" });
+  await waitFor(() => expect(addFavorite()).toBeEnabled());
+  fireEvent.click(addFavorite());
+  await waitFor(() => expect(favoriteWrites).toEqual(["POST"]));
+  await waitFor(() => expect(removeFavorite()).toBeEnabled());
+  fireEvent.click(removeFavorite());
+  await waitFor(() => expect(favoriteWrites).toEqual(["POST", "DELETE"]));
+  expect(draft()).toEqual(before);
 });

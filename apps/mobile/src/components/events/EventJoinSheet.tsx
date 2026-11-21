@@ -141,6 +141,14 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
                         table={table}
                         panel={panel}
                         active={tab === panel}
+                        validationScope={JSON.stringify([
+                          o.apiUrl,
+                          o.userId,
+                          event.id,
+                          table?.id,
+                          event.version,
+                          panel,
+                        ])}
                         header={fixedSettings}
                       />
                     </RetainedTabPanel>
@@ -215,6 +223,7 @@ function JoinVoteList({
   panel,
   active,
   header: fixedSettings,
+  validationScope,
 }: {
   form: ReturnType<typeof useEventJoinForm>;
   event: PlannedEventResponse;
@@ -222,17 +231,9 @@ function JoinVoteList({
   panel: "dates" | "locations" | "games";
   active: boolean;
   header: ReactElement | null;
+  validationScope: string;
 }) {
   const t = useT();
-  const o = useCommunityApi();
-  const validationScope = JSON.stringify([
-    o.apiUrl,
-    o.userId,
-    event.id,
-    table?.id,
-    event?.version,
-    panel,
-  ]);
   const validation = useValidationList({
     scope: validationScope,
     attempt: form.validationAttempt,
@@ -320,11 +321,7 @@ function JoinVoteList({
             className={invalidRow(index) ? "rounded-lg border border-danger" : undefined}
           >
             <GameListRow
-              year={game?.year}
-              average={game?.average}
-              rank={game?.rank}
-              suggestedPlayers={game?.suggestedPlayers}
-              durationMinutes={item.durationMinutes}
+              game={game}
               name={game?.name ?? t("Unknown")}
               imageUrl={game?.imageUrl}
               actions={
@@ -369,15 +366,7 @@ function FixedSettings({
       ) : null}
       {location ? <LocationListRow name={location.name} address={location.address} /> : null}
       {gameId !== undefined ? (
-        <GameListRow
-          name={game?.name ?? t("Unknown")}
-          imageUrl={game?.imageUrl}
-          year={game?.year}
-          average={game?.average}
-          rank={game?.rank}
-          suggestedPlayers={game?.suggestedPlayers}
-          durationMinutes={table?.games[0]?.durationMinutes}
-        />
+        <GameListRow game={game} name={game?.name ?? t("Unknown")} imageUrl={game?.imageUrl} />
       ) : null}
     </GroupedList>
   );

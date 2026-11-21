@@ -398,7 +398,7 @@ export default defineConfig({
           branches: 90,
           statements: 90,
         },
-        "src/components/events/{EventTableCardBody,EventTableCard,EventTableInvitationActions,EventTableRatingInfo,EventTableInfo,EventTableSeats,EventVoteButtons,EventVoteCounts,EventDetail}.tsx":
+        "src/components/events/{EventTableCardBody,EventTableCard,EventTableInvitationActions,EventTableRatingInfo,EventTableInfo,EventTableSeats,EventVoteButtons,OptionVoteVoters,VoteResultSheet,EventDetail}.tsx":
           {
             lines: 90,
             functions: 90,

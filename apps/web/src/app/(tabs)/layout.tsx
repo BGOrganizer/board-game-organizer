@@ -14,7 +14,7 @@ export default function TabsLayout({
         <Header />
         <main
           id="tab-content-scroll"
-          className="mx-auto w-full max-w-7xl flex-1 scroll-pb-28 px-3 pt-6 pb-28 sm:px-6 sm:pt-10 lg:px-8"
+          className="mx-auto w-full max-w-7xl flex-1 scroll-pb-28 px-3 pt-6 pb-28 sm:px-6 sm:pt-10 lg:px-8 has-[>[data-location-picker]]:flex has-[>[data-location-picker]]:flex-col has-[>[data-location-picker]]:pb-6"
         >
           {children}
         </main>

@@ -184,7 +184,7 @@ describe("EventRecordsRepository participant and invitation paging boundaries", 
       });
       expect(pipeline.slice(3)).toEqual([
         { $unwind: "$users" },
-        { $match: { users: { $type: "string", $ne: "" } } },
+        { $match: { users: { $type: "string", $ne: "", $not: /^guest:/ } } },
         { $group: { _id: "$users", tableIds: { $addToSet: "$tableId" } } },
         { $match: { _id: { $gt: "user_previous" } } },
         { $sort: { _id: 1 } },

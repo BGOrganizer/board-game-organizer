@@ -7,6 +7,7 @@ import { UserAvatar } from "./UserAvatar";
 export function UserIdentity({
   name,
   avatarUrl,
+  avatarContent,
   secondary,
   badge,
   topBadge,
@@ -19,6 +20,7 @@ export function UserIdentity({
 }: {
   name: string;
   avatarUrl?: string | null;
+  avatarContent?: ReactNode;
   secondary?: string | null;
   badge?: ReactNode;
   topBadge?: ReactNode;
@@ -36,6 +38,7 @@ export function UserIdentity({
         <UserAvatar
           name={name}
           avatarUrl={avatarUrl}
+          avatarContent={avatarContent}
           size="md"
           online={online}
           badge={badge}

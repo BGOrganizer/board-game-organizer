@@ -5,6 +5,7 @@ import {
   type TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import {
+  canEditTableGuestVotes,
   formatUsername,
   tableUserRoles,
   useEventCutoff,
@@ -14,7 +15,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX } from "lucide-react";
+import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX, Vote } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { floatingActionPositionStyle } from "@/components/common/layout/floatingActionStyles";
@@ -22,6 +23,7 @@ import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
@@ -29,6 +31,8 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { EventGuestBadge } from "./EventGuestBadge";
+import { EventGuestVoteEditor } from "./EventGuestVoteEditor";
 import { EventJoinSheet } from "./EventJoinSheet";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
@@ -54,7 +58,9 @@ export function EventTableSeats({
   const roster = useEventTableRoster(o, table),
     closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
   const [choose, setChoose] = useState(false),
-    [joining, setJoining] = useState(false);
+    [joining, setJoining] = useState(false),
+    [guestVote, setGuestVote] = useState<{ registrationId: string; name: string } | null>(null);
+  const editGuestVotes = canEditTableGuestVotes(table);
   const canAdd =
     ((!closed && table.canRegister) || table.canInvite) &&
     (table.groupType !== "PRIVATE" || hasJoinedEvent !== undefined);
@@ -150,16 +156,19 @@ export function EventTableSeats({
                   />
                 );
               }
-              const row = item.user,
-                own = row.userId === o.userId,
-                name = formatUsername(
-                  row.username,
-                  own && (!row.name || row.name === o.userId) ? t`You` : (row.name ?? row.userId),
-                );
+              const row = item.user;
+              const guest = row.kind === "GUEST";
+              const own = !guest && row.userId === o.userId;
+              const name = guest
+                ? (row.guestName ?? t`Guest`)
+                : formatUsername(
+                    row.username,
+                    own && (!row.name || row.name === o.userId) ? t`You` : (row.name ?? row.userId),
+                  );
               const pending = row.status === "PENDING";
               const roles = tableUserRoles({
                 ...row,
-                demonstrator: table.demonstratorUserId === row.userId,
+                demonstrator: !guest && table.demonstratorUserId === row.userId,
               });
               const primary = roles[0];
               const status = primary
@@ -180,10 +189,11 @@ export function EventTableSeats({
                       }
                     />
                   }
-                  name={name}
-                  avatarUrl={row.avatarUrl}
-                  secondary={status}
-                  badge={<UserRoleBadge roles={roles} />}
+                  name={guest ? formatUsername(row.guestName, name) : name}
+                  avatarUrl={guest ? null : row.avatarUrl}
+                  avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
+                  secondary={guest ? t`Guest` : status}
+                  badge={guest ? <EventGuestBadge /> : <UserRoleBadge roles={roles} />}
                   actions={
                     <>
                       {own && table.canRespond && pending && table.myRegistration ? (
@@ -191,6 +201,18 @@ export function EventTableSeats({
                           eventId={table.eventId}
                           registration={table.myRegistration}
                         />
+                      ) : null}
+                      {guest && editGuestVotes ? (
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="secondary"
+                          isDisabled={a.blocking}
+                          aria-label={`${t`Edit guest votes`}: ${name}`}
+                          onPress={() => setGuestVote({ registrationId: row.id, name })}
+                        >
+                          <Vote className="size-4" aria-hidden />
+                        </Button>
                       ) : null}
                       {(
                         own
@@ -263,6 +285,9 @@ export function EventTableSeats({
                     label: t`Invite players`,
                     onPress: () => {
                       setChoose(false);
+                      const current = new URL(window.location.href);
+                      current.searchParams.set("tab", "participants");
+                      window.history.replaceState(null, "", current);
                       router.push(`/events/${table.eventId}/tables/${table.id}/invite`);
                     },
                   },
@@ -270,6 +295,14 @@ export function EventTableSeats({
               : []),
           ]}
         ></ContactConfirmDialog>
+      ) : null}
+      {guestVote && editGuestVotes && active ? (
+        <EventGuestVoteEditor
+          table={table}
+          registrationId={guestVote.registrationId}
+          name={guestVote.name}
+          onClose={() => setGuestVote(null)}
+        />
       ) : null}
       {joining ? (
         <EventJoinSheet

@@ -33,6 +33,7 @@ type TablePlan = Pick<
   | "rankingEnabled"
   | "startsAt"
   | "demonstratorUserId"
+  | "demonstratorGuestName"
   | "games"
 >;
 export type EventConsentSnapshot = {
@@ -74,6 +75,7 @@ function plan(event: EventPlan, table: TablePlan) {
     table.rankingEnabled,
     table.startsAt ?? null,
     table.demonstratorUserId ?? null,
+    table.demonstratorGuestName ?? null,
     table.games.map((game) => [
       game.gameId,
       game.durationMinutes ?? null,

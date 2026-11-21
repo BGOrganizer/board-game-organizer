@@ -144,7 +144,7 @@ it("returns from the real venue picker without losing the name and permits remov
   fireEvent.click(screen.getByRole("button", { name: "Choose a location" }));
   fireEvent.click(await screen.findByRole("button", { name: /Favorite locations/ }));
   fireEvent.click(await screen.findByRole("option", { name: /Game cafe/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
   expect(screen.getByText("Game cafe")).toBeTruthy();
   expect((screen.getByRole("textbox", { name: "Group name" }) as HTMLInputElement).value).toBe(
     "Local game club",

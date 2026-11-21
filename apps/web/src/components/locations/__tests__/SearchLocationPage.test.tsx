@@ -106,7 +106,7 @@ it("switches map theme in place while preserving its verified selection and unsa
   });
   expect(mapMocks.setStyle).toHaveBeenCalledOnce();
   expect((name as HTMLInputElement).value).toBe("Preserved draft");
-  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
   expect(select).toHaveBeenCalledWith({ ...location, name: "Preserved draft" });
   expect(mapMocks.created).toHaveBeenCalledOnce();
   view.unmount();
@@ -176,7 +176,7 @@ it("requires a chosen address and four-character name, caps results and hides th
       onClose={vi.fn()}
     />,
   );
-  const confirm = screen.getByRole("button", { name: "Confirm location" });
+  const confirm = screen.getByRole("button", { name: "Confirm Location" });
   expect(confirm.hasAttribute("disabled")).toBe(false);
   fireEvent.click(confirm);
   expect(screen.getByText("Enter a location name between 4 and 120 characters.")).toBeTruthy();
@@ -239,11 +239,13 @@ it("preserves edited slot ID, puts map before fields and reuses a favorite", asy
   expect(container.querySelector('[role="img"]')?.compareDocumentPosition(name)).toBe(
     Node.DOCUMENT_POSITION_FOLLOWING,
   );
+  const confirm = screen.getByRole("button", { name: "Confirm Location" });
+  expect(container.querySelector("[data-location-picker]")?.lastElementChild).toBe(confirm);
   fireEvent.click(screen.getByRole("button", { name: /Favorite locations/ }));
   fireEvent.click(await screen.findByRole("option", { name: /Game cafe/ }));
   expect((name as HTMLInputElement).value).toBe(location.name);
   expect(mapMocks.flyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [12.5, 41.9] }));
-  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
   expect(onSelect).toHaveBeenCalledWith({ ...location, id: edited.id });
 });
 
@@ -331,13 +333,13 @@ it("pages favorites and fills the search field with the verified current-positio
   );
   expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer fresh");
   expect(onSelect).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
   expect(screen.getByText("Enter a location name between 4 and 120 characters.")).toBeTruthy();
   expect(onSelect).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole("textbox", { name: "Location name" }), {
     target: { value: "Game cafe" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
   expect(onSelect).toHaveBeenCalledWith(
     expect.objectContaining({
       name: "Game cafe",
@@ -379,7 +381,7 @@ it.each([502, 200])(
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toContain("Could not search addresses"),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
     expect(screen.getByText("Choose a verified address.")).toBeTruthy();
     expect(onSelect).not.toHaveBeenCalled();
     expect(
@@ -428,7 +430,7 @@ it("does not overwrite manual input with a late GPS lookup", async () => {
   );
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   expect(input.value).toBe("Manual address");
-  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
   expect(screen.getByText("Choose a verified address.")).toBeTruthy();
   expect(input.getAttribute("aria-invalid")).toBe("true");
 });

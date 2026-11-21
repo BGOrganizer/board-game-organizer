@@ -6,6 +6,7 @@ export type InputScrollOwner = {
   reveal: (target: InputScrollTarget, anchor?: InputScrollTarget | null) => void;
   blur: (target: InputScrollTarget) => void;
   inSheet: boolean;
+  observeVisibility?: (target: InputScrollTarget, appeared: () => void) => () => void;
 };
 export const InputScrollContext = createContext<InputScrollOwner | null>(null);
 export const InputFieldContext = createContext<RefObject<View | null> | null>(null);

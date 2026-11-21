@@ -38,6 +38,8 @@ export const boardGameModel = boardGameCsvModel.partial().extend({
   averageWeight: z.number().min(1).max(5).nullable().optional(),
   maxPlayMinutes: z.number().int().positive().nullable().optional(),
   weightCheckedAt: z.string().optional(),
+  categories: z.array(z.string().min(1)).optional(),
+  categoriesCheckedAt: z.string().optional(),
   durationCheckedAt: z.string().optional(),
   metadataAttemptedAt: z.string().optional(),
   updatedAt: z.string().optional(),

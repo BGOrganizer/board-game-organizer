@@ -2713,6 +2713,7 @@ describe("BGG covers on MongoDB replica set", () => {
           average: 7.81,
           rank: 83,
           imageUrl: "https://cf.geekdo-images.com/azul/full.jpg",
+          categories: [],
         },
       ]);
       expect(await gameDetails(db, 2)).toMatchObject({ id: 2, name: "Azul expansion" });
