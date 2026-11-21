@@ -97,7 +97,7 @@ export function EventSeatOrderEditor({
                 >
                   <UserListRow
                     as="div"
-                    name={name}
+                    name={guest ? formatUsername(row.guestName, name) : name}
                     avatarUrl={guest ? null : row.avatarUrl}
                     avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
                     badge={guest ? <EventGuestBadge /> : <UserRoleBadge roles={roles} />}

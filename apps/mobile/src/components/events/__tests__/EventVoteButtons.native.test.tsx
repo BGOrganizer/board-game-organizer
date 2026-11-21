@@ -10,10 +10,6 @@ import {
 import { StyleSheet } from "react-native";
 import { afterEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
-import {
-  installNativePopoverMeasurements,
-  pressMeasuredPopover,
-} from "@/test/nativePopoverGeometry";
 import { EventVoteButtons } from "../EventVoteButtons";
 import { OptionVoteVoters } from "../OptionVoteVoters";
 
@@ -122,69 +118,57 @@ it("keeps the standalone choice editable without exposing missing named vote dat
   expect(choose).toHaveBeenCalledExactlyOnceWith("NO");
 });
 
-it("uses compact avatars and leaves out zero-vote groups and empty summaries", async () => {
+it("shows overlapping decorative avatars and opens the corresponding read-only vote tab", async () => {
   const renderSummary = (data: Voters) => (
     <NativeTestProviders>
-      <OptionVoteVoters label="Azul" voters={data} compact />
+      <OptionVoteVoters label="Azul" voters={data} />
     </NativeTestProviders>
   );
-  await installNativePopoverMeasurements();
-  const username = "albar".repeat(20);
   const view = await render(
     renderSummary({
       ...voters,
       YES: [
-        { ...voters.YES[0], username, role: "waitingParticipant" },
-        {
-          userId: "player-teresa",
-          name: "Teresa",
-          username: "teresa",
-          avatarUrl: null,
-          role: "admin",
-        },
-        { userId: "player-verdi", name: "Bruno Verdi", username: null, avatarUrl: null },
+        ...voters.YES,
+        { userId: "verdi", name: "Bruno Verdi", username: null, avatarUrl: null },
       ],
     }),
   );
-  const summary = screen.getByLabelText("Votes: Azul");
-  const yes = within(summary).getByLabelText("Yes: Alba Rossi, Teresa, Bruno Verdi");
-  expect(within(summary).getByLabelText("If needed: @bosco")).toBeVisible();
-  expect(within(summary).queryByLabelText(/^No:/)).toBeNull();
-  const icons = yes.queryAll(
-    (node) => node.type.startsWith("RNSVG") && Number(node.props.bbWidth) === 16,
+  const compact = screen.getByLabelText("Votes: Azul");
+  const summary = within(compact);
+  expect(summary.getAllByRole("button")).toHaveLength(2);
+  const separators = compact.queryAll(
+    (node) =>
+      node.type === "RCTView" &&
+      node.props.accessibilityElementsHidden &&
+      StyleSheet.flatten(node.props.style)?.width === 3,
   );
-  expect(icons.length).toBeGreaterThan(0);
-  expect(within(yes).getByLabelText("Alba Rossi", hidden)).toBeOnTheScreen();
-  const compactAvatars = yes.queryAll((node) => {
-    const { width, height } = StyleSheet.flatten(node.props.style) ?? {};
-    return node.type === "RCTView" && width === 16 && height === 16;
-  });
+  expect(separators).toHaveLength(1);
+  expect(separators[0]).toHaveProp("pointerEvents", "none");
+  expect(summary.queryByRole("button", { name: /Show votes — No/ })).toBeNull();
+  expect(summary.queryByRole("button", { name: /Alba Rossi/ })).toBeNull();
+  const compactAvatars = compact.queryAll(
+    (node) => node.type === "RCTView" && StyleSheet.flatten(node.props.style)?.marginStart === -4,
+  );
   expect(compactAvatars).toHaveLength(3);
-  expect(compactAvatars.map((node) => StyleSheet.flatten(node.props.style).transform)).toEqual([
-    [{ translateX: 13 }],
-    [{ translateX: 0 }],
-    [{ translateX: -13 }],
-  ]);
-  expect(
-    yes.queryAll((node) => {
-      const style = StyleSheet.flatten(node.props.style) ?? {};
-      return node.type === "RCTView" && node.props.pointerEvents === "none" && style.left === 9;
-    }),
-  ).toHaveLength(1);
-  for (const name of ["Alba Rossi (Yes)", "Teresa (Yes)", "Bruno Verdi (Yes)"]) {
-    const target = within(yes).getByRole("button", { name });
-    expect(StyleSheet.flatten(target.props.style)).toMatchObject({ width: 44, height: 44 });
+  for (const avatar of compactAvatars) {
+    expect(StyleSheet.flatten(avatar.props.style)).toMatchObject({ width: 16, height: 16 });
+    expect(avatar.parent?.props.pointerEvents).toBe("none");
   }
-  expect(within(summary).queryByText(/^\d+$/)).toBeNull();
-  await pressMeasuredPopover(within(yes).getByRole("button", { name: "Alba Rossi (Yes)" }));
-  const popover = within(
-    screen.getByRole("dialog", { name: `@${username}, Participant on the waiting list` }),
-  );
-  expect(popover.getByText(`@${username}`)).toBeVisible();
-  expect(popover.getByText(`@${username}`).props.numberOfLines).toBeUndefined();
-  expect(popover.getByText("Participant on the waiting list")).toBeVisible();
-  expect(popover.queryByText("Alba Rossi")).toBeNull();
-  expect(popover.queryByRole("button")).toBeNull();
+  const trigger = summary.getByRole("button", { name: "Azul: Show votes — If needed" });
+  expect(StyleSheet.flatten(trigger.props.style)).toMatchObject({ width: 44, height: 44 });
+  await fireEvent.press(trigger);
+  expect(await screen.findByRole("tab", { name: "If needed", ...hidden })).toBeSelected();
+  expect(screen.getByText("@bosco", hidden)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("tab", { name: "No", ...hidden }));
+  expect(screen.getByText("No votes", hidden)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Close", ...hidden }));
+  await waitFor(() => expect(screen.queryByText("No votes", hidden)).toBeNull());
+  await fireEvent.press(summary.getByRole("button", { name: "Azul: Show votes — Yes" }));
+  expect(await screen.findByRole("tab", { name: "Yes", ...hidden })).toBeSelected();
+  expect(screen.getByText("Alba Rossi", hidden)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Close", ...hidden }));
+  await waitFor(() => expect(screen.queryByText("Alba Rossi", hidden)).toBeNull());
   await view.rerender(renderSummary({ YES: [], IF_NEEDED: [], NO: [] }));
   expect(screen.queryByLabelText("Votes: Azul")).toBeNull();
+  expect(screen.queryByText("Alba Rossi", hidden)).toBeNull();
 });

@@ -210,9 +210,7 @@ export function EventTableOverview({
               name={game.name}
               imageUrl={game.imageUrl}
               game={game}
-              metadata={
-                voters ? <OptionVoteVoters label={game.name} voters={voters} compact /> : undefined
-              }
+              metadata={voters ? <OptionVoteVoters label={game.name} voters={voters} /> : undefined}
               actions={
                 canVote || voters ? (
                   <EventVoteButtons

@@ -20,8 +20,8 @@ msgid "Add someone who does not have a Board Game Organizer account."
 msgstr "Add someone who does not have a Board Game Organizer account."
 
 #: apps/web/src/components/events/EventAddGuestRow.tsx
-msgid "Email (optional)"
-msgstr "Email (optional)"
+msgid "Email"
+msgstr "Email"
 
 #: apps/web/src/components/events/EventAddGuestRow.tsx
 msgid "Enter a username"

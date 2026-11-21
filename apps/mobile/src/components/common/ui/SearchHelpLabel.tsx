@@ -22,7 +22,7 @@ export function SearchHelpLabel({
     >
       <Typography className="font-bold text-foreground" style={{ flexShrink: 1 }}>
         {label}
-        {required ? " *" : ""}
+        {required ? <Typography className="text-danger"> *</Typography> : null}
       </Typography>
       <HelpPopover label={`${label}: ${title}`} title={title}>
         <Typography className="text-foreground" style={{ flexShrink: 1 }}>

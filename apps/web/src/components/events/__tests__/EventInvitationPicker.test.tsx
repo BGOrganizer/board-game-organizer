@@ -334,7 +334,7 @@ it("adds a guest directly and retries an uncertain response with the same reques
   fireEvent.keyDown(help, { key: "Escape" });
   fireEvent.click(open);
   const username = await screen.findByRole("textbox", { name: "Username" });
-  const email = screen.getByRole("textbox", { name: "Email (optional)" });
+  const email = screen.getByRole("textbox", { name: "Email" });
   const add = screen.getByRole("button", { name: "Add" });
   expect(username).toBeRequired();
   expect(email).not.toBeRequired();
@@ -355,7 +355,7 @@ it("adds a guest directly and retries an uncertain response with the same reques
   expect(screen.queryByRole("button", { name: "Select user: Guest Alice" })).toBeNull();
   fireEvent.click(open);
   expect(await screen.findByRole("textbox", { name: "Username" })).toHaveValue("");
-  expect(screen.getByRole("textbox", { name: "Email (optional)" })).toHaveValue("");
+  expect(screen.getByRole("textbox", { name: "Email" })).toHaveValue("");
   expect(requests).toHaveLength(2);
   expect(requests[0]).toEqual(requests[1]);
 });

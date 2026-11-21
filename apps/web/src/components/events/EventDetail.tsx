@@ -312,9 +312,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                               itemId={notificationItemId(event.id, "date", row.id)}
                             />
                           </div>
-                          {voters ? (
-                            <OptionVoteVoters label={label} voters={voters} compact />
-                          ) : null}
+                          {voters ? <OptionVoteVoters label={label} voters={voters} /> : null}
                         </div>
                         {(voteDates && event.canVote) || voters ? (
                           <EventVoteButtons
@@ -400,35 +398,31 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                           />
                         }
                         actions={
-                          <>
-                            {(voteLocations && event.canVote) || voters ? (
-                              <EventVoteButtons
-                                voters={voters}
-                                readOnly={!event.canVote}
-                                label={row.name}
-                                value={event.myVotes?.locationVotes[row.id]}
-                                disabledVotes={
-                                  eventAvailabilityVoteIsAllowed(
-                                    event.locations,
-                                    event.myVotes?.locationVotes ?? {},
-                                    row.id,
-                                    "NO",
-                                  )
-                                    ? []
-                                    : ["NO"]
-                                }
-                                busy={a.blocking || q.isPlaceholderData}
-                                onChange={(vote) =>
-                                  a.vote.mutate({ kind: "location", optionId: row.id, vote })
-                                }
-                              />
-                            ) : undefined}
-                          </>
+                          (voteLocations && event.canVote) || voters ? (
+                            <EventVoteButtons
+                              voters={voters}
+                              readOnly={!event.canVote}
+                              label={row.name}
+                              value={event.myVotes?.locationVotes[row.id]}
+                              disabledVotes={
+                                eventAvailabilityVoteIsAllowed(
+                                  event.locations,
+                                  event.myVotes?.locationVotes ?? {},
+                                  row.id,
+                                  "NO",
+                                )
+                                  ? []
+                                  : ["NO"]
+                              }
+                              busy={a.blocking || q.isPlaceholderData}
+                              onChange={(vote) =>
+                                a.vote.mutate({ kind: "location", optionId: row.id, vote })
+                              }
+                            />
+                          ) : undefined
                         }
                       >
-                        {voters ? (
-                          <OptionVoteVoters label={row.name} voters={voters} compact />
-                        ) : null}
+                        {voters ? <OptionVoteVoters label={row.name} voters={voters} /> : null}
                       </LocationListRow>
                     );
                   })}

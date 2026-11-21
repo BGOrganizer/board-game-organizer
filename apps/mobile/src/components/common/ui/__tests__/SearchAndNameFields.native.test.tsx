@@ -241,6 +241,7 @@ it("shows a required label and opens its contextual help through the actual popo
     wrapper: NativeTestProviders,
   });
   expect(screen.getByText("Choose games *")).toBeOnTheScreen();
+  expect(screen.getByText("*")).toHaveProp("className", expect.stringContaining("text-danger"));
   await pressMeasuredPopover(screen.getByRole("button", { name: "Choose games: Search help" }));
   expect(screen.getByRole("heading", { name: "Search help" })).toBeVisible();
   expect(screen.getByText("Choose at least one game.")).toBeVisible();

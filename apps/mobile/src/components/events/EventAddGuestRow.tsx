@@ -193,10 +193,10 @@ export function EventAddGuestRow({
                     <TextField isInvalid={invalidEmail} isDisabled={saving}>
                       <Label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                         <Mail size={16} color={foreground} accessible={false} />
-                        <Label.Text>{t("Email (optional)")}</Label.Text>
+                        <Label.Text>{t("Email")}</Label.Text>
                       </Label>
                       <Input
-                        accessibilityLabel={t("Email (optional)")}
+                        accessibilityLabel={t("Email")}
                         testID="table-guest-email"
                         placeholder={t("Enter an email address")}
                         value={email}

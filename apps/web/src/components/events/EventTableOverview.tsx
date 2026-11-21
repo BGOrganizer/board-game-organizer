@@ -162,35 +162,31 @@ export function EventTableOverview({
                     <NotificationItem itemId={notificationItemId(table.id, "game", game.id)} />
                   }
                   metadata={
-                    voters ? (
-                      <OptionVoteVoters label={game.name} voters={voters} compact />
-                    ) : undefined
+                    voters ? <OptionVoteVoters label={game.name} voters={voters} /> : undefined
                   }
                   actions={
-                    <>
-                      {canVote || voters ? (
-                        <EventVoteButtons
-                          label={game.name}
-                          value={gameVotes[String(game.id)]}
-                          voters={voters}
-                          readOnly={!canVote}
-                          disabledVotes={
-                            eventAvailabilityVoteIsAllowed(
-                              table.games.map((row) => ({ id: String(row.gameId) })),
-                              gameVotes,
-                              String(game.id),
-                              "NO",
-                            )
-                              ? []
-                              : ["NO"]
-                          }
-                          busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
-                          onChange={(vote) =>
-                            a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
-                          }
-                        />
-                      ) : undefined}
-                    </>
+                    canVote || voters ? (
+                      <EventVoteButtons
+                        label={game.name}
+                        value={gameVotes[String(game.id)]}
+                        voters={voters}
+                        readOnly={!canVote}
+                        disabledVotes={
+                          eventAvailabilityVoteIsAllowed(
+                            table.games.map((row) => ({ id: String(row.gameId) })),
+                            gameVotes,
+                            String(game.id),
+                            "NO",
+                          )
+                            ? []
+                            : ["NO"]
+                        }
+                        busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
+                        onChange={(vote) =>
+                          a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
+                        }
+                      />
+                    ) : undefined
                   }
                 />
               );

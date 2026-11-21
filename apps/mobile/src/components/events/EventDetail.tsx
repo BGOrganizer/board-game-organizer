@@ -286,7 +286,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                       </View>
                       <NotificationItem itemId={notificationItemId(event.id, "date", row.id)} />
                     </View>
-                    {voters ? <OptionVoteVoters label={label} voters={voters} compact /> : null}
+                    {voters ? <OptionVoteVoters label={label} voters={voters} /> : null}
                   </View>
                   {(voteDates && event.canVote) || voters ? (
                     <EventVoteButtons
@@ -395,7 +395,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                   ) : undefined
                 }
               >
-                {voters ? <OptionVoteVoters label={row.name} voters={voters} compact /> : null}
+                {voters ? <OptionVoteVoters label={row.name} voters={voters} /> : null}
               </LocationListRow>
             );
           })}

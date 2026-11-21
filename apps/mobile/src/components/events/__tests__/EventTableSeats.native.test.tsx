@@ -290,6 +290,20 @@ it("renders accepted, pending and queued players with current actions and keeps 
   expect(remove).toHaveBeenLastCalledWith(expect.objectContaining({ userId: "bob" }), false);
 });
 
+it("shows a single at-sign for a seated guest in the roster and reorder editor", async () => {
+  const guest = registration(
+    "guest:88888888-8888-4888-8888-888888888888",
+    "88888888-8888-4888-8888-888888888888",
+    { kind: "GUEST", guestName: "@Guest Alice", seatIndex: 3 },
+  );
+  accepted.push(guest);
+  snapshot.registrations.push(guest);
+  await render(<Fixture />);
+  expect(await screen.findByText("@Guest Alice")).toBeVisible();
+  await startOrder();
+  expect(screen.getByText("@Guest Alice")).toBeVisible();
+});
+
 it("requires a known private-event participation context before enabling a free place", async () => {
   table = { ...table, groupType: "PRIVATE" };
   const view = await render(<Fixture />);

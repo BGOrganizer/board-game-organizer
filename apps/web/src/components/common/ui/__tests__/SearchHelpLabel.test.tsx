@@ -27,11 +27,13 @@ describe("SearchHelpLabel", () => {
           help="Choose a unique name"
           helpTitle="Field help"
           htmlFor="organization-name"
+          required
         />
         <input id="organization-name" />
       </>,
     );
     expect(screen.getByRole("textbox", { name: "Organization name" })).toBeTruthy();
+    expect(screen.getByText("*")).toHaveClass("text-danger");
     const label = screen.getByText("Organization name");
     expect(label.className).toContain("min-w-0 break-words");
     expect(label.parentElement?.className).toContain("min-w-0");

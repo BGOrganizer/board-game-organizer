@@ -65,6 +65,7 @@ tags: [manual, tables, guests]
     element: ${output.tableGuest.edit}
     direction: DOWN
     timeout: 30000
+- assertVisible: ${output.tableGuest.rosterName}
 - tapOn: ${output.tableGuest.edit}
 - extendedWaitUntil:
     visible: ${output.tableGuest.editor}
@@ -93,12 +94,12 @@ tags: [manual, tables, guests]
 - tapOn:
     id: table-overview-tab
 - scrollUntilVisible:
-    element: ${output.tableGuest.voter}
+    element: ${output.tableGuest.breakdown}
     direction: DOWN
     timeout: 30000
-- tapOn: ${output.tableGuest.voter}
+- tapOn: ${output.tableGuest.breakdown}
+- assertVisible: ${output.tableGuest.votesTitle}
 - assertVisible:
-    id: vote-voter-popover
-- assertVisible:
-    id: vote-voter-popover
-    text: ${output.tableGuest.voterDetails}
+    text: ${output.tableGuest.yesTab}
+    selected: true
+- assertVisible: ${output.tableGuest.name}

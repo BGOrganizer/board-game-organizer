@@ -1,155 +1,78 @@
 "use client";
 
-import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { Avatar, Button, Popover, Tabs } from "@heroui/react";
+import type { OptionVoteVoters as Voters } from "@board-game-organizer/schemas";
+import { Avatar, Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Minus, X } from "lucide-react";
-import type { CSSProperties } from "react";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { useState } from "react";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
-import { TabBar } from "@/components/common/ui/TabBar";
-import { TabTrigger } from "@/components/common/ui/TabTrigger";
-import { UserAvatar } from "@/components/common/ui/UserAvatar";
-import { WindowedList } from "@/components/common/ui/WindowedList";
-import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
+import { VoteResultSheet } from "./VoteResultSheet";
 
-type Voters = NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
-
-export function OptionVoteVoters({
-  label,
-  voters,
-  compact = false,
-}: {
-  label: string;
-  voters: Voters;
-  compact?: boolean;
-}) {
-  const { i18n, t } = useLingui();
+export function OptionVoteVoters({ label, voters }: { label: string; voters: Voters }) {
+  const { t } = useLingui();
+  const [selection, setSelection] = useState<keyof Voters | null>(null);
   const choices = [
     { id: "YES", text: t`Yes`, Icon: Check, color: "text-success" },
     { id: "IF_NEEDED", text: t`If needed`, Icon: Minus, color: "text-warning" },
     { id: "NO", text: t`No`, Icon: X, color: "text-danger" },
   ] as const;
+  const groups = choices.filter(({ id }) => voters[id].length);
   const displayName = ({ name, username, guestName }: Voters["YES"][number]) =>
     guestName ?? name ?? (username ? `@${username}` : t`Unknown`);
-  if (compact) {
-    const groups = choices.filter(({ id }) => voters[id].length);
-    if (!groups.length) return null;
-    return (
-      <ul
-        aria-label={`${t`Votes`}: ${label}`}
-        className="flex flex-wrap items-center gap-x-1 gap-y-1"
-      >
-        {groups.map(({ id, text, Icon, color }) => {
-          const group = voters[id];
-          return (
+
+  return (
+    <>
+      {groups.length ? (
+        <ul aria-label={`${t`Votes`}: ${label}`} className="flex flex-wrap items-center">
+          {groups.map(({ id, text, Icon, color }, index) => (
             <li
               key={id}
               aria-label={`${text}: ${voters[id].map(displayName).join(", ")}`}
-              className="relative flex flex-wrap items-center gap-0.5 pointer-coarse:gap-0"
+              className="relative flex min-w-0 max-w-full items-center"
             >
-              <Icon
-                size={16}
-                className={`${color} pointer-events-none pointer-coarse:absolute pointer-coarse:start-[9px] pointer-coarse:top-3.5 pointer-coarse:z-10`}
-                aria-hidden
-              />
-              {group.map((person, index) => {
-                const name = displayName(person);
-                const identity =
-                  person.guestName ?? (person.username ? `@${person.username}` : t`Unknown`);
-                const role =
-                  person.role === "guest" || person.guestName
-                    ? t`Guest`
-                    : person.role
-                      ? i18n._(recordUserRoleMessages[person.role])
-                      : t`Participant`;
-                const offset = 13 - (26 * index) / Math.max(1, group.length - 1);
-                const guestAvatar = person.guestName ? (
-                  <GuestAvatar name={person.guestName} />
-                ) : undefined;
-                return (
-                  <Popover key={person.userId}>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="ghost"
-                      aria-label={`${name} (${text})`}
-                      className="size-11 min-h-11 min-w-11 transform-none rounded-full bg-transparent p-0 pointer-fine:size-4 pointer-fine:min-h-4 pointer-fine:min-w-4"
-                    >
-                      <Avatar
-                        className="size-4 pointer-coarse:translate-x-(--vote-avatar-offset)"
-                        style={{ "--vote-avatar-offset": `${offset}px` } as CSSProperties}
-                        aria-hidden
-                      >
-                        {guestAvatar ?? <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />}
-                        <Avatar.Fallback className="text-[10px]">
-                          {name.replace(/^@/, "").charAt(0)}
-                        </Avatar.Fallback>
-                      </Avatar>
-                    </Button>
-                    <Popover.Content placement="bottom" className="w-max max-w-[calc(100vw-2rem)]">
-                      <Popover.Dialog
-                        aria-label={identity}
-                        className="wrap-anywhere whitespace-normal"
-                      >
-                        <p className="font-medium">{identity}</p>
-                        <p className="text-muted">{role}</p>
-                      </Popover.Dialog>
-                    </Popover.Content>
-                  </Popover>
-                );
-              })}
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label={`${label}: ${t`Show votes`} — ${text}`}
+                aria-haspopup="dialog"
+                className="size-11 min-h-11 min-w-11 shrink-0 justify-end p-0 pe-0.5 pointer-fine:size-5 pointer-fine:min-h-5 pointer-fine:min-w-5 pointer-fine:pe-0"
+                onPress={() => setSelection(id)}
+              >
+                <Icon size={16} className={color} aria-hidden />
+              </Button>
+              {index > 0 ? (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute start-3 top-1/2 size-[3px] -translate-y-1/2 rounded-full bg-muted pointer-fine:start-px pointer-fine:size-0.5"
+                />
+              ) : null}
+              <div aria-hidden className="pointer-events-none flex min-w-0 flex-wrap ps-1">
+                {voters[id].map((person) => (
+                  <Avatar key={person.userId} className="-ms-1 size-4 shrink-0">
+                    {person.guestName ? (
+                      <GuestAvatar name={person.guestName} />
+                    ) : (
+                      <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
+                    )}
+                    <Avatar.Fallback className="text-[10px]">
+                      {displayName(person).replace(/^@/, "").charAt(0)}
+                    </Avatar.Fallback>
+                  </Avatar>
+                ))}
+              </div>
             </li>
-          );
-        })}
-      </ul>
-    );
-  }
-
-  return (
-    <Tabs className="flex min-h-0 flex-col" defaultSelectedKey="YES">
-      <TabBar label={t`Votes`}>
-        {choices.map(({ id, text, Icon, color }) => (
-          <TabTrigger key={id} id={id} icon={Icon} iconClassName={color}>
-            {text}
-          </TabTrigger>
-        ))}
-      </TabBar>
-      {choices.map(({ id, text }) => (
-        <Tabs.Panel key={id} id={id} className="min-h-0 overflow-y-auto">
-          {voters[id].length ? (
-            <div className="rounded-xl bg-surface">
-              <WindowedList
-                items={voters[id]}
-                label={text}
-                itemKey={(person) => person.userId}
-                gap={0}
-                estimatedRowHeight={52}
-                onEndReached={() => {}}
-                renderItem={(person) => (
-                  <GroupedRow as="div" className="py-1.5">
-                    <UserAvatar
-                      name={displayName(person)}
-                      avatarUrl={person.avatarUrl}
-                      avatarContent={
-                        person.guestName ? <GuestAvatar name={person.guestName} /> : undefined
-                      }
-                    />
-                    <div className="min-w-0 text-sm break-words">
-                      <p className="font-medium">{displayName(person)}</p>
-                      {person.name && person.username ? (
-                        <p className="text-xs text-muted">@{person.username}</p>
-                      ) : null}
-                    </div>
-                  </GroupedRow>
-                )}
-              />
-            </div>
-          ) : (
-            <p className="p-3 text-sm text-muted">{t`No votes`}</p>
-          )}
-        </Tabs.Panel>
-      ))}
-    </Tabs>
+          ))}
+        </ul>
+      ) : null}
+      {selection ? (
+        <VoteResultSheet
+          label={label}
+          voters={voters}
+          initialVote={selection}
+          onClose={() => setSelection(null)}
+        />
+      ) : null}
+    </>
   );
 }

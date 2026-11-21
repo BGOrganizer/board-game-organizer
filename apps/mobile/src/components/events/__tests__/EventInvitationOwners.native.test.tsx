@@ -554,7 +554,7 @@ it("returns to the table and clears the guest form only after the server accepts
   expect(screen.queryByLabelText("Username")).toBeNull();
   await userEvent.setup().press(open);
   const input = await screen.findByLabelText("Username");
-  const email = screen.getByLabelText("Email (optional)");
+  const email = screen.getByLabelText("Email");
   const add = screen.getByRole("button", { name: "Add" });
   expect(add).toBeDisabled();
   await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
@@ -584,7 +584,7 @@ it("returns to the table and clears the guest form only after the server accepts
   expect(screen.queryByRole("button", { name: "Select user: Guest Alice" })).toBeNull();
   await userEvent.setup().press(screen.getByRole("button", { name: "Add a guest" }));
   expect(await screen.findByLabelText("Username")).toHaveProp("value", "");
-  expect(screen.getByLabelText("Email (optional)")).toHaveProp("value", "");
+  expect(screen.getByLabelText("Email")).toHaveProp("value", "");
 });
 
 it.each(["write", "target"] as const)(

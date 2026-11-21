@@ -1,15 +1,13 @@
 import type { EventVote, PlannedTableResponse } from "@board-game-organizer/schemas";
-import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { Check, Eye, Minus, Vote, X } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useT } from "@/lib/i18n";
-import { OptionVoteVoters } from "./OptionVoteVoters";
+import { VoteResultSheet } from "./VoteResultSheet";
 export function EventVoteButtons({
   value = "UNKNOWN",
   label,
@@ -127,48 +125,5 @@ export function EventVoteButtons({
         <VoteResultSheet voters={voters} label={label} onClose={() => setPanel(null)} />
       ) : null}
     </>
-  );
-}
-
-function VoteResultSheet({
-  voters,
-  label,
-  onClose,
-}: {
-  voters: NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
-  label: string;
-  onClose: () => void;
-}) {
-  const t = useT();
-  const insets = useSafeAreaInsets();
-  return (
-    <BottomSheet
-      isOpen
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <BottomSheet.Portal unstable_accessibilityContainerViewIsModal>
-        <BottomSheet.Overlay />
-        <BottomSheet.Content
-          snapPoints={["80%"]}
-          enableDynamicSizing={false}
-          enablePanDownToClose
-          contentContainerProps={{ style: { flex: 1 } }}
-        >
-          <View style={{ paddingHorizontal: 20, paddingBottom: 12, gap: 4 }}>
-            <BottomSheet.Close
-              accessibilityLabel={t("Close")}
-              style={{ alignSelf: "flex-end", minWidth: 44, minHeight: 44 }}
-            />
-            <BottomSheet.Title>{t("Votes")}</BottomSheet.Title>
-            <BottomSheet.Description>{label}</BottomSheet.Description>
-          </View>
-          <View style={{ flex: 1, paddingHorizontal: 20, paddingBottom: insets.bottom }}>
-            <OptionVoteVoters label={label} voters={voters} />
-          </View>
-        </BottomSheet.Content>
-      </BottomSheet.Portal>
-    </BottomSheet>
   );
 }

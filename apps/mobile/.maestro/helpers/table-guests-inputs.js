@@ -16,12 +16,13 @@ if (
     "Owned disposable private planning fixture, EN/IT locale, unique guest name and exact game name required",
   );
 function literal(value) {
-  return "^" + value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
+  return `^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`;
 }
 var italian = locale === "it";
 var edit = italian ? "Modifica voti dell’ospite" : "Edit guest votes";
 output.tableGuest = {
   name: input.name,
+  rosterName: literal(`@${input.name.trim().replace(/^@+/, "")}`),
   help: literal(italian ? "Come funzionano gli ospiti" : "About guests"),
   helpText: literal(
     italian
@@ -30,12 +31,13 @@ output.tableGuest = {
   ),
   invite: literal(italian ? "Invita giocatori" : "Invite players"),
   place: literal(italian ? "Posto libero" : "Free place"),
-  link: "bgo-dev:///event/table?eventId=" + input.eventId + "&tableId=" + input.tableId,
+  link: `bgo-dev:///event/table?eventId=${input.eventId}&tableId=${input.tableId}`,
   editor: literal(edit),
-  edit: literal(edit + ": " + input.name),
-  yes: literal(input.game + ": " + (italian ? "Sì" : "Yes")),
-  voter: literal(input.name + " (" + (italian ? "Sì" : "Yes") + ")"),
-  voterDetails: literal(input.name + ", " + (italian ? "Ospite" : "Guest")),
-  no: literal(input.game + ": No"),
+  edit: literal(`${edit}: ${input.name}`),
+  yes: literal(`${input.game}: ${italian ? "Sì" : "Yes"}`),
+  breakdown: literal(`${input.game}: ${italian ? "Mostra voti — Sì" : "Show votes — Yes"}`),
+  votesTitle: literal(italian ? "Voti" : "Votes"),
+  yesTab: literal(italian ? "Sì" : "Yes"),
+  no: literal(`${input.game}: No`),
   submit: literal(italian ? "Vota" : "Vote"),
 };

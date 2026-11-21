@@ -635,8 +635,11 @@ it("shows named votes and the breakdown action only for each eligible Event cate
   });
   const venueVotes = await screen.findByLabelText("Votes: Club venue");
   expect(venueVotes).toBeVisible();
-  await pressMeasuredPopover(within(venueVotes).getByRole("button", { name: "Voter Alice (Yes)" }));
-  expect(screen.getByTestId("vote-voter-popover")).toBeVisible();
+  await userEvent
+    .setup()
+    .press(within(venueVotes).getByRole("button", { name: "Club venue: Show votes — Yes" }));
+  expect(await screen.findByText("Voter Alice", hidden)).toBeOnTheScreen();
+  expect(screen.getByRole("tab", { name: "Yes", ...hidden })).toBeSelected();
   await snapshot({
     ...event,
     name: "Event after voting eligibility was revoked",
@@ -647,7 +650,8 @@ it("shows named votes and the breakdown action only for each eligible Event cate
   });
   expect(screen.queryAllByLabelText(/^Votes:/, hidden)).toHaveLength(0);
   expect(screen.queryByRole("button", { name: /Show votes/, ...hidden })).toBeNull();
-  expect(screen.queryByTestId("vote-voter-popover", hidden)).toBeNull();
+  expect(screen.queryByText("Voter Alice", hidden)).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Yes", ...hidden })).toBeNull();
 });
 
 it("keeps independent notice badges and exact UTF-8 descriptions without acknowledging notices on visits", async () => {

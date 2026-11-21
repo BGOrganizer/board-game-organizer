@@ -189,7 +189,7 @@ export function EventTableSeats({
                       }
                     />
                   }
-                  name={name}
+                  name={guest ? formatUsername(row.guestName, name) : name}
                   avatarUrl={guest ? null : row.avatarUrl}
                   avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
                   secondary={guest ? t`Guest` : status}

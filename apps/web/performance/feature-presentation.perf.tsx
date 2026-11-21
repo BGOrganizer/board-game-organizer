@@ -214,7 +214,6 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
     name: "OptionVoteVoters: compact named ballots",
     element: (
       <OptionVoteVoters
-        compact
         label="Friday evening"
         voters={{
           YES: [{ userId: "alice", name: "Alice", username: null, avatarUrl: null }],

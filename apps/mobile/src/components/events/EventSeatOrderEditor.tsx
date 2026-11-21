@@ -122,7 +122,7 @@ export function EventSeatOrderEditor({
             <GroupedList>
               <UserListRow
                 testID={`seat-order-row-${row.id}`}
-                name={name}
+                name={guest ? formatUsername(row.guestName, name) : name}
                 avatarUrl={guest ? null : row.avatarUrl}
                 avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
                 badgeContent={guest ? <EventGuestBadge /> : <UserRoleBadge roles={roles} />}

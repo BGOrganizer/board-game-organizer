@@ -120,7 +120,7 @@ export function EventAddGuestRow({
                 >
                   <Label className="flex items-center gap-2">
                     <Mail className="size-4" aria-hidden />
-                    {t`Email (optional)`}
+                    {t`Email`}
                   </Label>
                   <Input
                     placeholder={t`Enter an email address`}
