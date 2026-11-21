@@ -725,7 +725,8 @@ it.each(["dates", "locations", "both"] as const)(
         const sheet = await screen.findByRole("dialog", { name: "Votes" });
         if (option === "Club venue")
           fireEvent.click(within(sheet).getByRole("tab", { name: "If needed" }));
-        expect(within(sheet).getByText("Alice Becker")).toBeVisible();
+        expect(within(sheet).getByText("@alice")).toBeVisible();
+        expect(within(sheet).queryByText("Alice Becker")).toBeNull();
         fireEvent.click(within(sheet).getByRole("button", { name: "Close" }));
       }
     }
