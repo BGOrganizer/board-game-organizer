@@ -1,3 +1,13 @@
+## [1.8.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.8.0...v1.8.1) (2026-11-21)
+
+### 🐛 Bug Fixes
+
+* show vote handles and center compact triggers ([a3a51df](https://github.com/BGOrganizer/board-game-organizer/commit/a3a51df911b3754db916fccd7a23ac7e23225347))
+
+### 🧪 Tests
+
+* verify voter handles in event vote sheets ([167696f](https://github.com/BGOrganizer/board-game-organizer/commit/167696f16fb945640855ac7203d73824d52823ec))
+
 ## [1.8.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.7.0...v1.8.0) (2026-11-21)
 
 ### ✨ Features
