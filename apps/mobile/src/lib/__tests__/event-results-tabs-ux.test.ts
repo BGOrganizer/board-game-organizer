@@ -79,8 +79,8 @@ it("edits one server-backed Table result with a singular header and no Event fin
   expect(card).toContain('"success"');
 });
 it("gives Group ranking the same horizontal inset as other native Group destinations", () => {
-  expect(source("groups", "GroupDetail")).toContain(
-    "<GroupLeaderboard groupId={group.id} header={detailHeader}",
+  expect(source("groups", "GroupDetail")).toMatch(
+    /<Leaderboard\s+[^>]*groupId=\{group.id\}[^>]*header=\{detailHeader\}/s,
   );
-  expect(source("groups", "GroupLeaderboard")).toContain("padding: 20");
+  expect(source("ratings", "Leaderboard")).toContain("padding: 20");
 });

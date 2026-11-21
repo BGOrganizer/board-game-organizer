@@ -15,13 +15,17 @@ export interface UiSlice {
   communityViews: Partial<
     Record<
       string,
-      { tab: "activity" | "market"; network: "all" | "friends" | "following"; activityKind: string }
+      {
+        tab: "activity" | "market" | "ranking";
+        network: "all" | "friends" | "following";
+        activityKind: string;
+      }
     >
   >;
   setCommunityView: (
     key: string,
     patch: Partial<{
-      tab: "activity" | "market";
+      tab: "activity" | "market" | "ranking";
       network: "all" | "friends" | "following";
       activityKind: string;
     }>,

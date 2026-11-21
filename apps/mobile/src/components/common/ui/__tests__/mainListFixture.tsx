@@ -208,6 +208,8 @@ beforeEach(() => {
       if (suspended) return suspended;
       const query = (url.searchParams.get("query") ?? "").toLowerCase();
       const next = url.searchParams.has("cursor");
+      if (url.pathname === "/api/community/leaderboard")
+        return listJson({ games: [], players: [], nextCursor: null });
       if (url.pathname === "/api/community/activities") {
         const activities = next ? listFixture.nextActivities : listFixture.activities;
         return listJson({

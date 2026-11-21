@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { renderWithI18n } from "@/test-utils";
-import { GroupLeaderboard } from "../GroupLeaderboard";
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ userId: "owner", getToken: async () => "fresh-token" }),
@@ -26,7 +26,7 @@ it("keeps the exact focused search input mounted through each debounced game-que
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = renderWithI18n(
     <QueryClientProvider client={client}>
-      <GroupLeaderboard groupId="11111111-1111-4111-8111-111111111111" />
+      <Leaderboard groupId="11111111-1111-4111-8111-111111111111" />
     </QueryClientProvider>,
   );
   try {

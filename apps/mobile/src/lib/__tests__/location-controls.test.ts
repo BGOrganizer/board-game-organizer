@@ -141,7 +141,7 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
   expect(group).toContain("<GroupMembers");
   expect(group).toContain("<Events");
   const leaderboard = readFileSync(
-    new URL("../../components/groups/GroupLeaderboard.tsx", import.meta.url),
+    new URL("../../components/ratings/Leaderboard.tsx", import.meta.url),
     "utf8",
   );
   expect(leaderboard).toContain("<FlatList");

@@ -5069,9 +5069,9 @@ msgstr "In pianificazione"
 msgid "Planning mode"
 msgstr "Modalità di pianificazione"
 
-#: apps/web/src/components/profile/Profile.tsx
-#~ msgid "Played"
-#~ msgstr "Giocate"
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Played"
+msgstr "Giocate"
 
 #: apps/web/src/components/groups/GroupLeaderboard.tsx
 #: apps/web/src/components/profile/Profile.tsx
@@ -7523,3 +7523,67 @@ msgstr "Proponi giochi da fare votare ai partecipanti."
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data."
 msgstr "Scegli il numero minimo e massimo di giocatori. L'intervallo è limitato dai giochi scelti, secondo i dati di BGG."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Choose a game to see the leaderboard"
+msgstr "Scegli un gioco per vedere la classifica"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Global"
+msgstr "Globale"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Global leaderboard"
+msgstr "Classifica globale"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "How OpenSkill works"
+msgstr "Come funziona OpenSkill"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "No leaderboard for this game yet"
+msgstr "Non c’è ancora una classifica per questo gioco"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "No rated tables played yet"
+msgstr "Non ci sono ancora tavoli con rating"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "OpenSkill estimates your skill separately for each game. After a rated match, it uses your finish and the other players’ ratings to update your score. The displayed score accounts for uncertainty, which decreases as you play."
+msgstr "OpenSkill stima la tua abilità per ogni gioco. Dopo ogni partita classificata aggiorna il tuo punteggio in base al piazzamento e al rating degli altri giocatori. Il punteggio tiene conto dell’incertezza, che diminuisce man mano che giochi."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "OpenSkill position {0}"
+msgstr "Posizione OpenSkill {0}"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort ascending"
+msgstr "Ordina in ordine crescente"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort by"
+msgstr "Ordina per"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort by {0}"
+msgstr "Ordina per {0}"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort descending"
+msgstr "Ordina in ordine decrescente"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "The clock marks a provisional rating until you have five rated results. ND means you did not finish and is counted separately from completed games."
+msgstr "L’orologio indica un rating provvisorio fino al quinto risultato classificato. ND indica una partita non terminata e viene conteggiato a parte."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "The global ranking combines rated results across Board Game Organizer. It shows totals and ratings without revealing individual results or private groups."
+msgstr "La classifica globale riunisce i risultati classificati di Board Game Organizer. Mostra i totali e i rating, mantenendo riservati i singoli risultati e i gruppi privati."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "This ranking uses rated results from this group."
+msgstr "Questa classifica usa i risultati classificati del gruppo."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Wins"
+msgstr "Vinte"

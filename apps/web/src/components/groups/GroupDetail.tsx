@@ -39,12 +39,12 @@ import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupIdentityCard } from "./GroupIdentityCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
 import { GroupJoinRequest } from "./GroupJoinRequest";
-import { GroupLeaderboard } from "./GroupLeaderboard";
 import { GroupMembers } from "./GroupMembers";
 export function GroupDetail({
   groupId,
@@ -251,7 +251,7 @@ export function GroupDetail({
           ) : null}
           {group.canViewRankings ? (
             <Tabs.Panel id="rankings" className="px-4 pt-0 sm:px-5">
-              <GroupLeaderboard groupId={group.id} />
+              <Leaderboard key={group.id} groupId={group.id} groupName={group.name} />
             </Tabs.Panel>
           ) : null}
         </Tabs>

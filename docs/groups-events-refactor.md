@@ -121,6 +121,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   never historical statistics or an incomplete roster cache; former/pending members receive no role
   badge. Older cached responses without role metadata remain unbadged until refreshed. Only enabled
   physical tables with at least two scoring finishers contribute games, wins, withdrawals and rating statistics.
+  Group Rankings share the sorting controls and OpenSkill rank display described in
+  [Community](community.md#global-rankings), using the Group's authorized standings and GROUP rating.
 
 ## Events and Tables
 

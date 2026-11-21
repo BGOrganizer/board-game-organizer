@@ -9,7 +9,7 @@ const source = (path: string) =>
   readFileSync(new URL(`../../components/${path}.tsx`, import.meta.url), "utf8");
 
 it.each([
-  ["groups/GroupDetail", "GroupIdentityCard", "<GroupMembers", "<GroupLeaderboard"],
+  ["groups/GroupDetail", "GroupIdentityCard", "<GroupMembers", "<Leaderboard"],
   ["events/EventDetail", "EventDetailsCard", "<EventParticipants", "ListHeaderComponent="],
   ["events/EventTable", "EventTableInfo", "<EventTableResults", "<EventTableOverview"],
 ])("places the %s identity and tab bar in the active scroll header", (path, card, ...consumers) => {
@@ -116,7 +116,7 @@ it("isolates each retained Group panel's tab measurements and scopes its identit
     ["info", "ScreenScrollView"],
     ["members", "GroupMembers"],
     ["events", "Events"],
-    ["rankings", "GroupLeaderboard"],
+    ["rankings", "Leaderboard"],
   ]);
   const seen = new Set<string>();
   for (const panel of h.panels) {

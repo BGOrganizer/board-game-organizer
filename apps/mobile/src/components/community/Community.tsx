@@ -1,10 +1,11 @@
 import { useAppStore } from "@board-game-organizer/store";
 import { Tabs } from "heroui-native/tabs";
-import { Activity, Store } from "lucide-react-native";
+import { Activity, Medal, Store } from "lucide-react-native";
 import { View } from "react-native";
 import { MainTabBar } from "@/components/common/ui/MainTabBar";
 import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { CommunityActivities } from "./CommunityActivities";
@@ -23,17 +24,24 @@ export function Community() {
         value={tab}
         style={{ flex: 1 }}
         onValueChange={(value) => {
-          if (value === "activity" || value === "market") setView(key, { tab: value });
+          if (value === "activity" || value === "market" || value === "ranking")
+            setView(key, { tab: value });
         }}
       >
         <MainTabBar>
-          <TabTrigger icon={Activity} value="activity" style={tabStyle}>
-            <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
-          </TabTrigger>
           <TabTrigger icon={Store} value="market" style={tabStyle}>
             <Tabs.Label numberOfLines={1}>{t("Marketplace")}</Tabs.Label>
           </TabTrigger>
+          <TabTrigger icon={Medal} value="ranking" style={tabStyle} testID="community-tab-ranking">
+            <Tabs.Label numberOfLines={1}>{t("Rankings")}</Tabs.Label>
+          </TabTrigger>
+          <TabTrigger icon={Activity} value="activity" style={tabStyle}>
+            <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
+          </TabTrigger>
         </MainTabBar>
+        <RetainedTabPanel key={JSON.stringify([key, "ranking"])} active={tab === "ranking"}>
+          <Leaderboard />
+        </RetainedTabPanel>
         <RetainedTabPanel
           key={JSON.stringify([o.apiUrl, o.userId, "activity"])}
           active={tab === "activity"}

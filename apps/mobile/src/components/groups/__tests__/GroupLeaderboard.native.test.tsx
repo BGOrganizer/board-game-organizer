@@ -2,15 +2,15 @@ import type { GroupLeaderboardResponse } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import type { ReactNode } from "react";
-import { Text } from "react-native";
+import { Dimensions, StyleSheet, Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { ListActivityContext } from "@/lib/listActivity";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import { installNativePopoverMeasurements } from "@/test/nativePopoverGeometry";
 import { positionMeasuredSelect } from "@/test/nativeSelectGeometry";
-import { GroupLeaderboard } from "../GroupLeaderboard";
 
 const API = "https://leaderboard-fixtures.test";
 const boundary = vi.hoisted(() => ({
@@ -109,7 +109,7 @@ beforeEach(async () => {
       );
       if (
         ![API, "https://other-leaderboard-fixtures.test"].includes(url.origin) ||
-        !/^\/api\/groups\/[^/]+\/leaderboard$/.test(url.pathname)
+        !/^\/api\/(groups\/[^/]+|community)\/leaderboard$/.test(url.pathname)
       )
         throw new Error(`Unexpected fixture request: ${url.origin}${url.pathname}`);
       reads.push(url);
@@ -145,8 +145,10 @@ function Fixture({
   header = <Text>Canonical group header</Text>,
   active = true,
   retained = false,
+  global = false,
 }: {
   groupId?: string;
+  global?: boolean;
   header?: ReactNode;
   active?: boolean;
   retained?: boolean;
@@ -157,10 +159,10 @@ function Fixture({
         <ListActivityContext value={{ current: active }}>
           {retained ? (
             <RetainedTabPanel active={active}>
-              <GroupLeaderboard groupId={groupId} header={header} />
+              <Leaderboard groupId={global ? undefined : groupId} header={header} />
             </RetainedTabPanel>
           ) : (
-            <GroupLeaderboard groupId={groupId} header={header} />
+            <Leaderboard groupId={global ? undefined : groupId} header={header} />
           )}
         </ListActivityContext>
       </NativeTestProviders>
@@ -199,7 +201,7 @@ it("renders canonical role, former-member, provisional and statistical player fa
   expect(screen.getByRole("image", { name: "Provisional rating" })).toBeVisible();
   expect(screen.getByLabelText("Loading…")).toBeOnTheScreen();
   const admin = within(screen.getByTestId("group-ranking-player-admin"));
-  for (const value of ["Games played", "Games won", "ND", "6", "2", "1", "25.50"])
+  for (const value of ["OpenSkill", "ND", "5", "2", "1", "25.50"])
     expect(admin.getByText(value)).toBeVisible();
   expect(screen.getByTestId("group-ranking-player-former")).toHaveStyle({ opacity: 0.55 });
   const avatar = screen
@@ -284,7 +286,7 @@ it("scopes authoritative player facts to the new account, API and group instead 
 });
 
 it("reveals retained player pages progressively without modifying or refetching canonical data", async () => {
-  const key = ["groups", API, "owner", "rankings", "group-one", "players", 1];
+  const key = ["groups", API, "owner", "rankings", "group-one", "players", 1, "rating", "desc"];
   const cached = {
     pages: [
       { games: [], players: [player("first")], nextCursor: 25 },
@@ -350,16 +352,19 @@ it("renders current canonical rating updates while keeping the user's selected g
   await chooseGame();
   await screen.findByText("@admin");
   await act(() =>
-    client.setQueryData(["groups", API, "owner", "rankings", "group-one", "players", 1], {
-      pages: [
-        {
-          games: [],
-          players: [player("admin", { rating: 35.25, groupRole: "MEMBER" })],
-          nextCursor: null,
-        },
-      ],
-      pageParams: [0],
-    }),
+    client.setQueryData(
+      ["groups", API, "owner", "rankings", "group-one", "players", 1, "rating", "desc"],
+      {
+        pages: [
+          {
+            games: [],
+            players: [player("admin", { rating: 35.25, groupRole: "MEMBER" })],
+            nextCursor: null,
+          },
+        ],
+        pageParams: [0],
+      },
+    ),
   );
   expect(await screen.findByText("35.25")).toBeVisible();
   expect(screen.getByTestId("rating-game-select-trigger")).toHaveAccessibleName(
@@ -445,7 +450,7 @@ it("retains the actual scroll header through pending, error, empty and unselecte
 });
 
 it("resets a genuinely retained ranking window on hide and requires a new active drag without changing canonical pages", async () => {
-  const key = ["groups", API, "owner", "rankings", "group-one", "players", 1];
+  const key = ["groups", API, "owner", "rankings", "group-one", "players", 1, "rating", "desc"];
   const cached = client.setQueryData(key, {
     pages: [
       { games: [], players: [player("first")], nextCursor: 25 },
@@ -495,7 +500,17 @@ it("resets a genuinely retained ranking window on hide and requires a new active
 
 it("keeps a new game's pending page isolated when an older game's request completes", async () => {
   games = { ...games, games: [...games.games, ...searchedGames.games] };
-  const key = (id: number) => ["groups", API, "owner", "rankings", "group-one", "players", id];
+  const key = (id: number) => [
+    "groups",
+    API,
+    "owner",
+    "rankings",
+    "group-one",
+    "players",
+    id,
+    "rating",
+    "desc",
+  ];
   for (const id of [1, 2])
     client.setQueryData(key(id), {
       pages: [{ games: [], players: [player(`game-${id}-first`)], nextCursor: 25 }],
@@ -538,4 +553,53 @@ it("keeps a new game's pending page isolated when an older game's request comple
   expect(screen.getByTestId("rating-game-select-trigger")).toHaveAccessibleName(
     "Board game: Chess game",
   );
+});
+
+it("uses native menu and direction controls to order the global leaderboard at the source", async () => {
+  players = {
+    ...players,
+    players: [player("global-player", { groupRole: undefined, position: 1 })],
+  };
+  await render(<Fixture global />);
+  expect(await screen.findByText("Choose a game to see the leaderboard")).toBeVisible();
+  await chooseGame();
+  expect(await screen.findByText("@global-player")).toBeVisible();
+  expect(screen.queryByText("Accepted member")).toBeNull();
+  const playerReads = () => reads.filter((url) => url.searchParams.has("gameId"));
+  expect(playerReads()[0].pathname).toBe("/api/community/leaderboard");
+  expect(playerReads()[0].searchParams.get("sort")).toBe("rating");
+  await fireEvent.press(screen.getByTestId("ranking-sort-metric"));
+  const menus = () =>
+    screen.container.queryAll(
+      (node) => node.props.role === "menu" && typeof node.props.onLayout === "function",
+    );
+  await waitFor(() => expect(menus()).toHaveLength(1));
+  const [menu] = menus();
+  // RN's test renderer has no Yoga layout. Deliver the real HeroUI menu's two layout passes.
+  for (let pass = 0; pass < 2; pass++) {
+    const style = StyleSheet.flatten(menu.props.style);
+    const x = typeof style?.left === "number" ? style.left : 0;
+    const y = typeof style?.top === "number" ? style.top : Dimensions.get("screen").height;
+    await fireEvent.layout(menu, { x, y, width: 220, height: 180 });
+  }
+  expect(menu.props.pointerEvents).not.toBe("none");
+  const won = await screen.findByRole("menuitem", {
+    name: "Games won",
+    includeHiddenElements: true,
+  });
+  await fireEvent.press(won);
+  await waitFor(() => {
+    expect(playerReads().at(-1)?.searchParams.get("sort")).toBe("gamesWon");
+    expect(playerReads().at(-1)?.searchParams.get("direction")).toBe("desc");
+  });
+  expect(await screen.findByText("#1")).toBeVisible();
+  await fireEvent.press(screen.getByTestId("ranking-sort-direction"));
+  await waitFor(() => {
+    expect(playerReads().at(-1)?.searchParams.get("sort")).toBe("gamesWon");
+    expect(playerReads().at(-1)?.searchParams.get("direction")).toBe("asc");
+  });
+  expect(await screen.findByText("#1")).toBeVisible();
+  await fireEvent.press(screen.getByRole("button", { name: "Clear board game selection" }));
+  expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
+  expect(screen.queryByText("@global-player")).toBeNull();
 });

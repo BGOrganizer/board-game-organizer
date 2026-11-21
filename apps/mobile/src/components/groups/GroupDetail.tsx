@@ -37,13 +37,13 @@ import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupIdentityCard } from "./GroupIdentityCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
 import { GroupJoinRequest } from "./GroupJoinRequest";
-import { GroupLeaderboard } from "./GroupLeaderboard";
 import { GroupMembers } from "./GroupMembers";
 export function GroupDetail({
   groupId,
@@ -230,7 +230,9 @@ export function GroupDetail({
       canCreate={isGroupManagerRole(group.role) && group.canInvite}
     />
   );
-  const rankingsContent = <GroupLeaderboard groupId={group.id} header={detailHeader} />;
+  const rankingsContent = (
+    <Leaderboard key={group.id} groupId={group.id} groupName={group.name} header={detailHeader} />
+  );
   const detailsContent = <GroupDetailsCard group={group} identity={null} />;
   return (
     <NotificationAttentionScope

@@ -55,12 +55,19 @@ it.each(["ADMIN", "MODERATOR", "MEMBER", null, undefined] as const)(
           left: groupRole == null,
           groupRole,
           rating: groupRole ? { conservativeScore: 12, gamesPlayed: 4 } : undefined,
+          position: groupRole ? 2 : null,
         },
       ],
       nextCursor: 50,
     } as never);
-    const page = await h.service.rankings("viewer", "group", { gameId: 42, cursor: 25, limit: 25 });
-    expect(h.players).toHaveBeenCalledWith("group", 42, 25, 25);
+    const order = { sort: "nd", direction: "asc" } as const;
+    const page = await h.service.rankings("viewer", "group", {
+      gameId: 42,
+      cursor: 25,
+      limit: 25,
+      ...order,
+    });
+    expect(h.players).toHaveBeenCalledWith("group", 42, 25, 25, order);
     expect(page.players).toEqual([
       {
         userId: "player",
@@ -73,6 +80,7 @@ it.each(["ADMIN", "MODERATOR", "MEMBER", null, undefined] as const)(
         left: groupRole == null,
         groupRole: groupRole ?? null,
         rating: groupRole ? 512 : null,
+        position: groupRole ? 2 : null,
         provisional: Boolean(groupRole),
       },
     ]);

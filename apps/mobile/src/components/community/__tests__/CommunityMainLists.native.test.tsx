@@ -1,7 +1,7 @@
 import { communityActivitiesQuery } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { ListActivityContext } from "@/lib/listActivity";
 import { installNativePopoverMeasurements } from "@/test/nativePopoverGeometry";
 import { positionMeasuredSelect } from "@/test/nativeSelectGeometry";
@@ -21,6 +21,10 @@ import {
 import { Community } from "../Community";
 import { CommunityActivities } from "../CommunityActivities";
 
+vi.mock("expo-constants", () => ({
+  default: { expoConfig: { extra: { apiUrl: "https://main-list-fixtures.test" } } },
+}));
+
 function activityList() {
   let node: ReturnType<typeof screen.getByText> | null = screen.getByText(
     "Your network's activities",
@@ -30,7 +34,7 @@ function activityList() {
   return node;
 }
 
-it("retains the actual activity list across the marketplace tab and preserves normal tab semantics", async () => {
+it("retains the actual activity list across the marketplace and global rankings tabs", async () => {
   await render(
     <MainListFixture>
       <Community />
@@ -41,6 +45,14 @@ it("retains the actual activity list across the marketplace tab and preserves no
   await listTab("market");
   expect(screen.getByText("Coming soon")).toBeVisible();
   expect(screen.queryByText("First activity table")).toBeNull();
+  expect(listFixture.reads.some(({ pathname }) => pathname === "/api/community/leaderboard")).toBe(
+    false,
+  );
+  await fireEvent.press(screen.getByTestId("community-tab-ranking"));
+  expect(await screen.findByText("No rated tables played yet")).toBeVisible();
+  expect(useAppStore.getState().communityViews[JSON.stringify([listApi, "owner"])]?.tab).toBe(
+    "ranking",
+  );
   await listTab("activity");
   expect(activityList()).toBe(list);
   expect(screen.getByText("First activity table")).toBeVisible();

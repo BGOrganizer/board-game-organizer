@@ -2,9 +2,10 @@
 import { useAppStore } from "@board-game-organizer/store";
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Activity, Store } from "lucide-react";
+import { Activity, Medal, Store } from "lucide-react";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { CommunityActivities } from "./CommunityActivities";
 import { CommunityMarketplace } from "./CommunityMarketplace";
@@ -21,19 +22,26 @@ export function Community() {
       <Tabs
         selectedKey={tab}
         onSelectionChange={(value) => {
-          if (value === "activity" || value === "market") setView(key, { tab: value });
+          if (value === "activity" || value === "market" || value === "ranking")
+            setView(key, { tab: value });
         }}
       >
         <TabBar label={t`Community navigation`}>
-          <TabTrigger icon={Activity} id="activity">
-            {t`Activities`}
-          </TabTrigger>
           <TabTrigger icon={Store} id="market">
             {t`Marketplace`}
+          </TabTrigger>
+          <TabTrigger icon={Medal} id="ranking">
+            {t`Rankings`}
+          </TabTrigger>
+          <TabTrigger icon={Activity} id="activity">
+            {t`Activities`}
           </TabTrigger>
         </TabBar>
         <Tabs.Panel id="activity" className="pt-0">
           <CommunityActivities />
+        </Tabs.Panel>
+        <Tabs.Panel id="ranking" className="pt-0">
+          <Leaderboard key={key} />
         </Tabs.Panel>
         <Tabs.Panel id="market" className="pt-0">
           <CommunityMarketplace />

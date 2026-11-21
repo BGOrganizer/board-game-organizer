@@ -18,6 +18,7 @@ import {
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
 import { useRecordListWindow } from "../../events/hooks/useRecordListWindow";
+import { globalLeaderboardKey } from "../../groups/hooks/useLeaderboard";
 import { contactRelationshipIds } from "../contactRelationshipIds";
 import { contactRequestContext } from "../contactRequestContext";
 import {
@@ -477,6 +478,9 @@ export function useContactActions(
       if (operation?.signal.aborted) return;
       void queryClient.invalidateQueries({ queryKey: ["contacts"], refetchType: "none" });
       void queryClient.invalidateQueries({ queryKey: ["profile", apiUrl, currentUserId] });
+      const rankings = { queryKey: globalLeaderboardKey(apiUrl, currentUserId) };
+      if (!_error && action === "block") void queryClient.resetQueries(rankings);
+      if (!_error && action === "unblock") void queryClient.invalidateQueries(rankings);
       // Friendship/block changes revalidate only the new friend-results audience, not unrelated Events.
       void queryClient.invalidateQueries({
         queryKey: ["events", apiUrl, currentUserId],

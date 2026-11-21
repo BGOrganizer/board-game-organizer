@@ -12,6 +12,7 @@ import {
   type GroupRecord,
   type GroupRecordResponse,
   groupRecordSchema,
+  type LeaderboardQuery,
   type NotificationItem,
   notificationItemId,
 } from "@board-game-organizer/schemas";
@@ -31,9 +32,9 @@ import { verifyCommunityLocation } from "../locations/community-location";
 import { locationTimeZone } from "../locations/location-time-zone";
 import type { NotificationsRepository } from "../notifications/notifications.repository";
 import { requireBgoModerator } from "../organizations/community-role";
+import { type LeaderboardRepository, leaderboardPlayer } from "../ratings/leaderboard.repository";
 import type { UsersRepository } from "../users/users.repository";
 import type { GroupAssetsRepository } from "./group-assets.repository";
-import type { GroupLeaderboardRepository } from "./group-leaderboard.repository";
 import type { GroupRecordPage, GroupRecordsRepository } from "./group-records.repository";
 
 export class GroupRecordsService {
@@ -44,7 +45,7 @@ export class GroupRecordsService {
     private relationships: RelationshipRepository,
     private notifications: NotificationsRepository,
     private departure: (groupId: string, userId: string, reason: "BAN" | "LEFT") => Promise<void>,
-    private leaderboards: GroupLeaderboardRepository,
+    private leaderboards: LeaderboardRepository,
   ) {}
   private async required(id: string, lock = false) {
     const group = lock ? await this.groups.lock(id) : await this.groups.find(id);
@@ -135,11 +136,7 @@ export class GroupRecordsService {
       eventCount: capabilities.canViewEvents ? await this.groups.countEvents(group.id) : null,
     };
   }
-  async rankings(
-    userId: string,
-    id: string,
-    page: { gameId?: number; cursor: number; limit: number; query?: string },
-  ) {
+  async rankings(userId: string, id: string, page: LeaderboardQuery) {
     const group = await this.detail(userId, id);
     if (!group.canViewRankings) throw new CommunityError(403, "GROUP_MEMBER_REQUIRED");
     if (!page.gameId) {
@@ -151,22 +148,11 @@ export class GroupRecordsService {
       page.gameId,
       page.cursor,
       page.limit,
+      { sort: page.sort, direction: page.direction },
     );
     return {
       games: [],
-      players: rows.map((row) => ({
-        userId: row._id,
-        name: row.name,
-        username: row.username,
-        avatarUrl: row.avatarUrl,
-        gamesPlayed: row.gamesPlayed,
-        gamesWon: row.gamesWon,
-        nd: row.nd,
-        rating: row.rating ? 500 + row.rating.conservativeScore : null,
-        provisional: row.rating ? row.rating.gamesPlayed < 5 : false,
-        left: row.left,
-        groupRole: row.groupRole ?? null,
-      })),
+      players: rows.map(leaderboardPlayer),
       nextCursor,
     };
   }

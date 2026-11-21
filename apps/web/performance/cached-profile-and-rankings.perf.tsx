@@ -18,9 +18,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterAll, afterEach, beforeEach, expect, test, vi } from "vitest";
-import { GroupLeaderboard } from "@/components/groups/GroupLeaderboard";
 import { ProfileActivities } from "@/components/profile/ProfileActivities";
 import { ProfilePlayer } from "@/components/profile/ProfilePlayer";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { renderWithI18n } from "@/test-utils";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
 
@@ -120,7 +120,15 @@ const rankingPages = {
   pageParams: [0, 25],
 };
 const ratingKey = [...profileViewKeys.root(options), "rating", subjectId, 1];
-const rankingKey = [...groupRecordKeys.root(options), "rankings", groupId, "players", 1];
+const rankingKey = [
+  ...groupRecordKeys.root(options),
+  "rankings",
+  groupId,
+  "players",
+  1,
+  "rating",
+  "desc",
+];
 const activityQuery = profileActivitiesQuery(options, subjectId, undefined, 10);
 
 let activeClient: QueryClient | undefined;
@@ -268,7 +276,7 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
   },
   {
     name: "GroupLeaderboard: cached game selection and clear retains real ranked rows",
-    element: <GroupLeaderboard groupId={groupId} />,
+    element: <Leaderboard groupId={groupId} />,
     scenario: async () => {
       await chooseChess();
       expect(screen.getByRole("grid", { name: "Group leaderboard" })).toBeVisible();
@@ -283,7 +291,7 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
   },
   {
     name: "GroupLeaderboard: authoritative cached ranking refresh keeps selected game",
-    element: <GroupLeaderboard groupId={groupId} />,
+    element: <Leaderboard groupId={groupId} />,
     scenario: async () => {
       await chooseChess();
       const first = screen.getByText("@ranker-1");
@@ -310,7 +318,7 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
   },
   {
     name: "GroupLeaderboard: reveal retained ranking page without refetching canonical data",
-    element: <GroupLeaderboard groupId={groupId} />,
+    element: <Leaderboard groupId={groupId} />,
     scenario: async () => {
       await chooseChess();
       expect(screen.queryByText("@ranker-11")).toBeNull();

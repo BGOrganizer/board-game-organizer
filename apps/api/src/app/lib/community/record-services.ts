@@ -1,3 +1,4 @@
+import type { LeaderboardQuery } from "@board-game-organizer/schemas";
 import type { ClientSession, Db, ObjectId } from "mongodb";
 import { RelationshipRepository } from "../contacts/relationship.repository";
 import { EventRecordsRepository } from "../events/event-records.repository";
@@ -5,12 +6,12 @@ import { EventRecordsService } from "../events/event-records.service";
 import { BoardGamesRepository } from "../games/boardGames.repository";
 import { GroupAssetsRepository } from "../groups/group-assets.repository";
 import { GroupAssetsService } from "../groups/group-assets.service";
-import { GroupLeaderboardRepository } from "../groups/group-leaderboard.repository";
 import { GroupRecordsRepository } from "../groups/group-records.repository";
 import { GroupRecordsService } from "../groups/group-records.service";
 import { TableInvitesService } from "../invites/table-invites.service";
 import { FavoriteLocationsRepository } from "../locations/favorite-locations.repository";
 import { NotificationsRepository } from "../notifications/notifications.repository";
+import { LeaderboardRepository } from "../ratings/leaderboard.repository";
 import { RatingsRepository } from "../ratings/ratings.repository";
 import { UsersRepository } from "../users/users.repository";
 /** One transaction/session for membership, agreement, results and notification writes. */
@@ -21,6 +22,7 @@ export function recordServices(db: Db, session?: ClientSession, notificationIds?
   const groupRecords = new GroupRecordsRepository(db, session),
     groupAssets = new GroupAssetsRepository(db, session),
     eventRecords = new EventRecordsRepository(db, session),
+    leaderboards = new LeaderboardRepository(db, session),
     ratings = new RatingsRepository(db, session);
   const events = new EventRecordsService(
     eventRecords,
@@ -38,11 +40,13 @@ export function recordServices(db: Db, session?: ClientSession, notificationIds?
     relationships,
     notifications,
     (id, user, reason) => events.membershipDeparted(id, user, reason),
-    new GroupLeaderboardRepository(db, session),
+    leaderboards,
   );
   return {
     groups,
     events,
+    globalLeaderboard: async (actor: string, page: LeaderboardQuery) =>
+      leaderboards.global(page, await relationships.getBlockedUserIds(actor)),
     invites: new TableInvitesService(db, session, groups, events, notifications),
     assets: new GroupAssetsService(groupAssets, groupRecords, users),
     ratings,

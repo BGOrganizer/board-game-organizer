@@ -19,6 +19,12 @@ export default defineConfig({
         "json-summary",
       ],
       thresholds: {
+        "src/groups/dto/groupLeaderboard.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/common/dto/common.ts": {
           lines: 90,
           functions: 90,

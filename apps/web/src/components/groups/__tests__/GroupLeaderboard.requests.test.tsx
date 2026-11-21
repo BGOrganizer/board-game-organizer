@@ -2,8 +2,8 @@ import type { GroupLeaderboardResponse } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { renderWithI18n } from "@/test-utils";
-import { GroupLeaderboard } from "../GroupLeaderboard";
 
 const boundary = vi.hoisted(() => ({ getToken: vi.fn() }));
 vi.mock("@clerk/nextjs", () => ({
@@ -45,7 +45,7 @@ beforeEach(() => {
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
       const url = new URL(input);
-      expect(url.pathname).toBe(`/api/groups/${groupId}/leaderboard`);
+      expect(url.pathname).toMatch(new RegExp(`^/api/(groups/${groupId}|community)/leaderboard$`));
       expect(new Headers(init?.headers).get("authorization")).toBe("Bearer fresh-ranking-token");
       expect(init?.signal).toBeInstanceOf(AbortSignal);
       reads.push(url);
@@ -82,10 +82,10 @@ afterEach(() => {
   client.clear();
   vi.unstubAllGlobals();
 });
-function mount() {
+function mount(scope: { groupId?: string; groupName?: string } = { groupId }) {
   return renderWithI18n(
     <QueryClientProvider client={client}>
-      <GroupLeaderboard groupId={groupId} />
+      <Leaderboard {...scope} />
     </QueryClientProvider>,
   );
 }
@@ -245,4 +245,74 @@ it("pages from the browser intersection boundary only at the end and coalesces a
   expect(await screen.findByText("@next-player")).toBeVisible();
   expect(playerReads()).toHaveLength(2);
   expect(boundary.getToken).toHaveBeenCalledTimes(reads.length);
+});
+
+it.each([
+  ["Games played", "gamesPlayed"],
+  ["Games won", "gamesWon"],
+  ["ND", "nd"],
+])(
+  "orders the selected group game by %s on the server and keeps rating positions stable",
+  async (label, sort) => {
+    players = {
+      ...players,
+      players: [{ ...player, rating: 515, position: 2 }],
+    };
+    mount({ groupId, groupName: "Game night" });
+    expect(await screen.findByText("Game night")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "How OpenSkill works" }));
+    expect(await screen.findByRole("dialog", { name: "How OpenSkill works" })).toBeVisible();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await chooseGame();
+    expect(await screen.findByText("#2")).toBeVisible();
+    expect(playerReads()[0].searchParams.get("sort")).toBe("rating");
+    expect(playerReads()[0].searchParams.get("direction")).toBe("desc");
+    fireEvent.click(screen.getByRole("button", { name: /^Sort by/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: label }));
+    await waitFor(() => {
+      const search = playerReads().at(-1)?.searchParams;
+      expect(search?.get("sort")).toBe(sort);
+      expect(search?.get("direction")).toBe("desc");
+    });
+    expect(await screen.findByText("#2")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Sort ascending" }));
+    await waitFor(() => {
+      const search = playerReads().at(-1)?.searchParams;
+      expect(search?.get("sort")).toBe(sort);
+      expect(search?.get("direction")).toBe("asc");
+      expect(search?.get("cursor")).toBe("0");
+    });
+    expect(await screen.findByText("#2")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear board game selection" }));
+    expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
+    expect(screen.queryByRole("grid")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sort descending" })).toBeNull();
+  },
+);
+
+it("loads a separate global game catalog and ranked players without using group authority", async () => {
+  players = {
+    ...players,
+    players: [{ ...player, groupRole: undefined, rating: 515, position: 1 }],
+  };
+  mount({});
+  expect(await screen.findByText("Choose a game to see the leaderboard")).toBeVisible();
+  expect(playerReads()).toHaveLength(0);
+  await chooseGame();
+  expect(await screen.findByRole("grid", { name: "Global leaderboard" })).toBeVisible();
+  expect(screen.getByText("@player-one")).toBeVisible();
+  expect(screen.queryByText("Accepted member")).toBeNull();
+  expect(screen.queryByText("Private full name")).toBeNull();
+  expect(reads.map((url) => url.pathname)).toEqual([
+    "/api/community/leaderboard",
+    "/api/community/leaderboard",
+  ]);
+});
+
+it("keeps a truly empty global leaderboard distinct from an unselected game", async () => {
+  games = { ...games, games: [] };
+  mount({});
+  expect(await screen.findByText("No rated tables played yet")).toBeVisible();
+  expect(screen.queryByText("Choose a game to see the leaderboard")).toBeNull();
+  expect(playerReads()).toHaveLength(0);
 });

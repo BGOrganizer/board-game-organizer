@@ -5,8 +5,8 @@ import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/rea
 import { createRef, type ReactNode, type Ref, useImperativeHandle, useState } from "react";
 import { AppState, Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { GroupLeaderboard } from "@/components/groups/GroupLeaderboard";
 import { GroupLogoPicker } from "@/components/groups/GroupLogoPicker";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import { installNativePopoverMeasurements } from "@/test/nativePopoverGeometry";
@@ -289,7 +289,7 @@ it("GroupLogoPicker: failed completion preserves the current logo until an expli
 
 it("GroupLeaderboard: failed next page retains current players and requires one explicit retry after duplicate pending gestures", async () => {
   const result = await measureRenders(
-    <GroupLeaderboard groupId="perf-group" header={<Text>Benchmark group header</Text>} />,
+    <Leaderboard groupId="perf-group" header={<Text>Benchmark group header</Text>} />,
     {
       wrapper: QueryProviders,
       beforeEach: () => resetRun(),

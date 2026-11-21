@@ -58,4 +58,12 @@ output.groupRanking = {
           : "Accepted member",
   ),
   roles: literal(it ? "Ruoli e partecipazione" : "Roles and participation"),
+  help: literal(it ? "Come funziona OpenSkill" : "How OpenSkill works"),
+  gamesWon: literal(it ? "Partite vinte" : "Games won"),
+  ascending: literal(it ? "Ordina in ordine crescente" : "Sort ascending"),
+  descending: literal(it ? "Ordina in ordine decrescente" : "Sort descending"),
+  chooseGame: literal(
+    it ? "Scegli un gioco per vedere la classifica" : "Choose a game to see the leaderboard",
+  ),
+  clear: literal(it ? "Deseleziona gioco" : "Clear board game selection"),
 };

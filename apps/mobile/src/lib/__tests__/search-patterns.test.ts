@@ -10,7 +10,7 @@ it.each([
   "app/(tabs)/contacts.tsx",
   "app/mobile-number.tsx",
   "components/games/GamePicker.tsx",
-  "components/groups/GroupLeaderboard.tsx",
+  "components/ratings/Leaderboard.tsx",
   "components/locations/LocationPicker.tsx",
   "components/common/ui/ListSearch.tsx",
 ])("composes the shared search input without another SDK search-field tree: %s", (path) => {
