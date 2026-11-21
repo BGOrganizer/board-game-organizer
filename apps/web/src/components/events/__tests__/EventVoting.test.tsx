@@ -111,6 +111,7 @@ it("overlaps decorative avatars and separates only the choices that have votes",
   fireEvent.click(avatars[0]);
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(within(yes).getAllByRole("button")).toHaveLength(1);
+  expect(within(yes).getByRole("button")).toHaveClass("size-7", "justify-center", "p-0");
   expect(within(summary).getAllByRole("listitem")).toHaveLength(2);
   expect(yes.querySelector(":scope > span[aria-hidden]")).toBeNull();
   const no = within(summary).getByRole("listitem", { name: "No: Unknown" });
@@ -121,9 +122,9 @@ it("overlaps decorative avatars and separates only the choices that have votes",
 });
 
 it.each([
-  ["Yes", "Ella Reed"],
-  ["If needed", "Guest Carla"],
-  ["No", "Unknown"],
+  ["Yes", "@ella"],
+  ["If needed", "@Guest Carla"],
+  ["No", "Username unavailable"],
 ])(
   "opens the existing breakdown directly on %s and resets to that choice on reopen",
   async (choice, voter) => {
@@ -176,7 +177,7 @@ it("opens the bottom drawer from the Ghost action without casting a vote", async
   expect(drawer.closest(".drawer__content--bottom")).not.toBeNull();
   expect(screen.queryByRole("dialog", { name: "Choose your vote" })).toBeNull();
   const yes = within(drawer).getByRole("tabpanel", { name: "Yes" });
-  expect(within(yes).getByText("Ella Reed")).toBeVisible();
+  expect(within(yes).queryByText("Ella Reed")).toBeNull();
   expect(within(yes).getByText("@ella")).toBeVisible();
   expect(within(yes).getByText("@jon")).toBeVisible();
   expect(
@@ -186,13 +187,13 @@ it("opens the bottom drawer from the Ghost action without casting a vote", async
   expect(ifNeededTab.querySelector("svg")).toHaveClass("text-warning");
   fireEvent.click(ifNeededTab);
   const ifNeeded = within(drawer).getByRole("tabpanel", { name: "If needed" });
-  expect(within(drawer).queryByText("Ella Reed")).toBeNull();
+  expect(within(drawer).queryByText("@ella")).toBeNull();
   expect(within(ifNeeded).getByText("No votes")).toBeVisible();
   const noTab = within(drawer).getByRole("tab", { name: "No" });
   expect(noTab.querySelector("svg")).toHaveClass("text-danger");
   fireEvent.click(noTab);
   expect(
-    within(within(drawer).getByRole("tabpanel", { name: "No" })).getByText("Unknown"),
+    within(within(drawer).getByRole("tabpanel", { name: "No" })).getByText("Username unavailable"),
   ).toBeVisible();
   expect(change).not.toHaveBeenCalled();
 

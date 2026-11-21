@@ -102,4 +102,4 @@ tags: [manual, tables, guests]
 - assertVisible:
     text: ${output.tableGuest.yesTab}
     selected: true
-- assertVisible: ${output.tableGuest.name}
+- assertVisible: ${output.tableGuest.rosterName}
