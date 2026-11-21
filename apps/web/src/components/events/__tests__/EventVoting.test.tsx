@@ -1,10 +1,9 @@
-import type { EventVote, GameVoteVoters } from "@board-game-organizer/schemas";
+import type { EventVote, OptionVoteVoters } from "@board-game-organizer/schemas";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { EventVoteButtons } from "../EventVoteButtons";
-import { EventVoteCounts } from "../EventVoteCounts";
-import { GameVoteVoters as VoterList } from "../GameVoteVoters";
+import { OptionVoteVoters as VoterList } from "../OptionVoteVoters";
 
 it.each([
   ["YES", "Yes", "text-success"],
@@ -83,22 +82,7 @@ it("disables last-positive rejection but not switching between positive choices"
   );
   expect(screen.getAllByRole("button")).toHaveLength(3);
 });
-it("shows three authoritative totals, hides UNKNOWN and skeletons only missing totals", () => {
-  const view = renderWithI18n(<EventVoteCounts label="Game" />);
-  expect(view.container.querySelector(".skeleton")).not.toBeNull();
-  view.rerender(
-    <EventVoteCounts label="Game" counts={{ YES: 2, NO: 1, IF_NEEDED: 3, UNKNOWN: 4 }} />,
-  );
-  const counts = screen.getByLabelText("Votes: Game");
-  expect(counts.tagName).toBe("DL");
-  expect(within(counts).getByText("If needed")).not.toBeNull();
-  expect(within(counts).getByText("2")).not.toBeNull();
-  expect(within(counts).queryByText("4")).toBeNull();
-  expect(within(counts).queryByText("Unknown")).toBeNull();
-  expect(counts.querySelectorAll("dd")).toHaveLength(3);
-});
-
-const voters: GameVoteVoters = {
+const voters: OptionVoteVoters = {
   YES: [
     { userId: "ella", name: "Ella Reed", username: "ella", avatarUrl: null },
     { userId: "jon", name: null, username: "jon", avatarUrl: null },
@@ -111,9 +95,9 @@ it("shows compact voter avatars at the vote-icon size and omits empty choices", 
   const view = renderWithI18n(<VoterList label="Game" voters={voters} compact />);
   const summary = screen.getByRole("list", { name: "Votes: Game" });
   const yes = within(summary).getByRole("listitem", { name: "Yes: Ella Reed, @jon" });
-  expect(yes.querySelector("svg")).toHaveAttribute("width", "12");
-  expect(yes.querySelector("svg")).toHaveAttribute("height", "12");
-  expect(yes.querySelectorAll(".avatar.size-3")).toHaveLength(2);
+  expect(yes.querySelector("svg")).toHaveAttribute("width", "16");
+  expect(yes.querySelector("svg")).toHaveAttribute("height", "16");
+  expect(yes.querySelectorAll(".avatar.size-4")).toHaveLength(2);
   expect(within(summary).getByRole("listitem", { name: "No: Unknown" })).toBeVisible();
   expect(within(summary).getAllByRole("listitem")).toHaveLength(2);
   expect(within(summary).queryByRole("listitem", { name: /If needed/ })).toBeNull();
@@ -136,14 +120,24 @@ it("opens the bottom drawer from the Ghost action without casting a vote", async
   const drawer = await screen.findByRole("dialog", { name: "Votes" });
   expect(drawer.closest(".drawer__content--bottom")).not.toBeNull();
   expect(screen.queryByRole("dialog", { name: "Choose your vote" })).toBeNull();
-  const yes = within(drawer).getByRole("region", { name: "Yes" });
+  const yes = within(drawer).getByRole("tabpanel", { name: "Yes" });
   expect(within(yes).getByText("Ella Reed")).toBeVisible();
   expect(within(yes).getByText("@ella")).toBeVisible();
   expect(within(yes).getByText("@jon")).toBeVisible();
-  const ifNeeded = within(drawer).getByRole("region", { name: "If needed" });
-  expect(within(ifNeeded).getByText("No votes")).toBeVisible();
   expect(
-    within(within(drawer).getByRole("region", { name: "No" })).getByText("Unknown"),
+    within(drawer).getByRole("tab", { name: "Yes", selected: true }).querySelector("svg"),
+  ).toHaveClass("text-success");
+  const ifNeededTab = within(drawer).getByRole("tab", { name: "If needed" });
+  expect(ifNeededTab.querySelector("svg")).toHaveClass("text-warning");
+  fireEvent.click(ifNeededTab);
+  const ifNeeded = within(drawer).getByRole("tabpanel", { name: "If needed" });
+  expect(within(drawer).queryByText("Ella Reed")).toBeNull();
+  expect(within(ifNeeded).getByText("No votes")).toBeVisible();
+  const noTab = within(drawer).getByRole("tab", { name: "No" });
+  expect(noTab.querySelector("svg")).toHaveClass("text-danger");
+  fireEvent.click(noTab);
+  expect(
+    within(within(drawer).getByRole("tabpanel", { name: "No" })).getByText("Unknown"),
   ).toBeVisible();
   expect(change).not.toHaveBeenCalled();
 
@@ -161,7 +155,7 @@ it("shows a read-only breakdown without a ballot action", async () => {
   );
   fireEvent.click(screen.getByRole("button", { name: "Game: Show votes" }));
   const drawer = await screen.findByRole("dialog", { name: "Votes" });
-  expect(within(drawer).getAllByRole("region")).toHaveLength(3);
+  expect(within(drawer).getAllByRole("tab")).toHaveLength(3);
   expect(within(drawer).queryByRole("button", { name: "Yes" })).toBeNull();
   expect(screen.queryByRole("dialog", { name: "Choose your vote" })).toBeNull();
   fireEvent.click(within(drawer).getByRole("button", { name: "Close" }));

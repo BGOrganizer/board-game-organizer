@@ -1,14 +1,15 @@
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
-import { Label } from "heroui-native/label";
+import { Typography } from "heroui-native/text";
 import { TextField } from "heroui-native/text-field";
-import { UserPlus, UserRoundPlus } from "lucide-react-native";
+import { Plus, UserRound } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { GroupedList } from "./GroupedList";
 import { GroupedRow } from "./GroupedRow";
+import { HelpPopover } from "./HelpPopover";
 
 export function GuestNameRow({
   maxLength,
@@ -17,7 +18,7 @@ export function GuestNameRow({
 }: {
   maxLength: number;
   isDisabled?: boolean;
-  onAdd: (name: string) => void;
+  onAdd: (name: string, reset: () => void) => void;
 }) {
   const t = useT();
   const [value, setValue] = useState("");
@@ -25,28 +26,26 @@ export function GuestNameRow({
   const name = value.trim();
   const valid = !isDisabled && name.length > 0 && name.length <= maxLength;
   function add() {
-    if (valid) onAdd(name);
+    if (valid) onAdd(name, () => setValue(""));
   }
   return (
-    <GroupedList>
-      <GroupedRow>
-        <View style={{ flex: 1, flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
-          <View
-            className="bg-default"
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <UserRoundPlus size={20} color={muted} accessible={false} />
-          </View>
+    <View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <UserRound size={16} color={muted} accessible={false} />
+        <Typography className="font-semibold text-foreground">{t("Guest")}</Typography>
+        <HelpPopover label={t("About guests")} title={t("Guest")} size="compact">
+          <Typography className="text-foreground">
+            {t("Add someone who does not have a Board Game Organizer account.")}
+          </Typography>
+        </HelpPopover>
+      </View>
+      <GroupedList>
+        <GroupedRow>
           <TextField isDisabled={isDisabled} style={{ flex: 1, minWidth: 0 }}>
-            <Label>{t("Guest name")}</Label>
             <Input
               accessibilityLabel={t("Guest name")}
+              className="text-sm"
+              style={{ minHeight: 40, paddingVertical: 4 }}
               placeholder={t("Add a guest")}
               value={value}
               onChangeText={setValue}
@@ -64,10 +63,10 @@ export function GuestNameRow({
             onPress={add}
             style={{ minWidth: 44, minHeight: 44 }}
           >
-            <UserPlus size={18} color={foreground} accessible={false} />
+            <Plus size={18} color={foreground} accessible={false} />
           </Button>
-        </View>
-      </GroupedRow>
-    </GroupedList>
+        </GroupedRow>
+      </GroupedList>
+    </View>
   );
 }

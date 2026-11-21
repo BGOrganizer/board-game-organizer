@@ -45,6 +45,7 @@ import { useT } from "@/lib/i18n";
 import { useListActivity } from "@/lib/listActivity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
+import { EventGuestBadge } from "./EventGuestBadge";
 import { EventGuestVoteEditor } from "./EventGuestVoteEditor";
 import { EventJoinSheet } from "./EventJoinSheet";
 import { EventSeatListHeading } from "./EventSeatListHeading";
@@ -252,7 +253,7 @@ export function EventTableSeats({
                         avatarUrl={guest ? null : row.avatarUrl}
                         avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
                         secondary={guest ? t("Guest") : status}
-                        badgeContent={<UserRoleBadge roles={roles} />}
+                        badgeContent={guest ? <EventGuestBadge /> : <UserRoleBadge roles={roles} />}
                         actions={
                           <>
                             {own && table.canRespond && pending && table.myRegistration ? (

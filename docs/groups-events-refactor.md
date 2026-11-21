@@ -509,12 +509,13 @@ exceptions retain their explicit authorization boundaries throughout this contra
   retains at least one YES/IF_NEEDED among current options of its own dimension/Table. Positive states
   can interchange; NO is disabled when it would remove the final positive choice. The API enforces
   the same condition under the Event transaction lock, including concurrent game rejections. Removed
-  options and another Table's game votes never qualify. Aggregate totals include accepted players only
-  (once per Event for dates/locations), displaying only the three explicit meanings. Pending ballots
-  never contribute or imply consent; missing detail totals remain partial skeletons. Named game
-  ballots are available in Table details to current managers and accepted players of that Table,
-  including the queue. Ballots disclose public identity fields only and are omitted from persisted
-  native snapshots. A vote breakdown is read-only and never writes a ballot or opens during enrollment.
+  options and another Table's game votes never qualify. In planning, a category with multiple
+  options shows voter avatars under each option, grouped by explicit preference. Event date and
+  location ballots are visible to current managers and accepted Event participants, counted once
+  per Event. Game ballots are visible to current managers and accepted players of that Table.
+  Accepted players in the queue are included. Ballots disclose public identity fields only and
+  are omitted from list projections and persisted native snapshots. The read-only breakdown has
+  one tab per preference and never writes a ballot or opens during enrollment.
 - All PUBLIC Group Events, including PRIVATE-visibility Events, require an end and exact booking
   cutoff. Their tables have
   fixed starts and catalog-derived duration, with an automatic 120-minute fallback when metadata

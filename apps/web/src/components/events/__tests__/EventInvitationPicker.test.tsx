@@ -329,11 +329,16 @@ it("adds a guest directly and retries an uncertain response with the same reques
     target: { value: "  Guest Alice  " },
   });
   const add = screen.getByRole("button", { name: "Add a guest" });
+  fireEvent.click(screen.getByRole("button", { name: "About guests" }));
+  const help = screen.getByRole("dialog", { name: "Guest" });
+  expect(help).toHaveTextContent("Add someone who does not have a Board Game Organizer account.");
+  fireEvent.keyDown(help, { key: "Escape" });
   fireEvent.click(add);
   await screen.findByText("Could not add guest. Try again.");
   expect(m.back).not.toHaveBeenCalled();
   fireEvent.click(add);
   await waitFor(() => expect(m.back).toHaveBeenCalledOnce());
+  expect(screen.getByRole("textbox", { name: "Guest name" })).toHaveValue("");
   expect(requests).toHaveLength(2);
   expect(requests[0]).toEqual(requests[1]);
 });

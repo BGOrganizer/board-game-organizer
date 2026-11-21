@@ -1,5 +1,4 @@
 import type { EventVote, PlannedTableResponse } from "@board-game-organizer/schemas";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -10,7 +9,7 @@ import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useT } from "@/lib/i18n";
-import { GameVoteVoters } from "./GameVoteVoters";
+import { OptionVoteVoters } from "./OptionVoteVoters";
 export function EventVoteButtons({
   value = "UNKNOWN",
   label,
@@ -165,14 +164,9 @@ function VoteResultSheet({
             <BottomSheet.Title>{t("Votes")}</BottomSheet.Title>
             <BottomSheet.Description>{label}</BottomSheet.Description>
           </View>
-          <BottomSheetScrollView
-            contentContainerStyle={{
-              paddingHorizontal: 20,
-              paddingBottom: Math.max(insets.bottom, 20),
-            }}
-          >
-            <GameVoteVoters label={label} voters={voters} />
-          </BottomSheetScrollView>
+          <View style={{ flex: 1, paddingHorizontal: 20, paddingBottom: insets.bottom }}>
+            <OptionVoteVoters label={label} voters={voters} />
+          </View>
         </BottomSheet.Content>
       </BottomSheet.Portal>
     </BottomSheet>

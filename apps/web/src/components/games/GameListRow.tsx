@@ -3,8 +3,7 @@
 import type { BggSearchItem } from "@board-game-organizer/schemas";
 import { gameMetadataMissing } from "@board-game-organizer/shared";
 import { Button } from "@heroui/react";
-import { Plural } from "@lingui/react/macro";
-import { Clock, Gamepad2 } from "lucide-react";
+import { Gamepad2 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GameCatalogMetadata } from "./GameCatalogMetadata";
@@ -13,7 +12,6 @@ export function GameListRow({
   name,
   imageUrl,
   game,
-  durationMinutes,
   titleAccessory,
   actions,
   metadata,
@@ -21,7 +19,6 @@ export function GameListRow({
   onPress,
 }: {
   game?: BggSearchItem;
-  durationMinutes?: number;
   name: string;
   imageUrl?: string | null;
   titleAccessory?: ReactNode;
@@ -55,15 +52,15 @@ export function GameListRow({
   const image = (
     <div
       ref={cover}
-      className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default"
+      className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default"
     >
       {imageUrl && imageUrl !== failedImage ? (
         // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
         <img
           src={imageUrl}
           alt=""
-          width={40}
-          height={40}
+          width={48}
+          height={48}
           onError={() => setFailedImage(imageUrl)}
           className="size-full object-contain"
         />
@@ -80,21 +77,8 @@ export function GameListRow({
         </p>
         {titleAccessory}
       </div>
-      {durationMinutes !== undefined || metadata ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {durationMinutes !== undefined ? (
-            <p className="inline-flex items-center gap-1 text-xs text-muted">
-              <Clock size={12} aria-hidden />
-              <Plural
-                id="game.duration.minutes"
-                value={durationMinutes}
-                one="# minute"
-                other="# minutes"
-              />
-            </p>
-          ) : null}
-          {metadata}
-        </div>
+      {metadata ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">{metadata}</div>
       ) : null}
       {children}
     </div>
@@ -120,7 +104,7 @@ export function GameListRow({
           </div>
         )}
         {game ? (
-          <div className="absolute top-[calc(50%-8px)] left-3 z-10">
+          <div className="absolute top-1/2 left-[26px] z-10 mt-0.5">
             <GameCatalogMetadata name={name} game={game} visible={id === visibleId} />
           </div>
         ) : null}

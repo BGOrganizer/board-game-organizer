@@ -16,12 +16,13 @@ import type {
   EventProposalResponse,
   EventProposalsResponse,
   EventRecord,
+  EventVote,
   FinalizeEventInput,
   FinalizeSavedEventInput,
-  GameVoteVoters,
   GroupRecord,
   JoinTableInput,
   NotificationItem,
+  OptionVoteVoters,
   PlannedEventResponse,
   PlannedTableInput,
   PlannedTableResponse,
@@ -38,6 +39,7 @@ import type {
   TableSeatOrderInput,
   TableSeatOrderSnapshot,
   TableSeatResponse,
+  User,
 } from "@board-game-organizer/schemas";
 import {
   isGuestParticipantId,
@@ -97,6 +99,31 @@ import { eventCardSummary, tableCardSummary } from "./event-card-summary";
 import { personalEventProjection, personalTableProjection } from "./event-personal-projection";
 import type { EventRecordPage, EventRecordsRepository } from "./event-records.repository";
 import { sharedEventResults, sharedTableResults } from "./event-results-projection";
+
+function namedOptionVotes(
+  ids: readonly string[],
+  voters: readonly { userId: string; guestName?: string; votes: Record<string, EventVote> }[],
+  profiles: ReadonlyMap<string, User>,
+): Record<string, OptionVoteVoters> {
+  return Object.fromEntries(
+    ids.map((id) => {
+      const groups: OptionVoteVoters = { YES: [], IF_NEEDED: [], NO: [] };
+      for (const { userId, guestName, votes } of voters) {
+        const vote = votes[id];
+        if (vote !== "YES" && vote !== "IF_NEEDED" && vote !== "NO") continue;
+        const profile = profiles.get(userId);
+        groups[vote].push({
+          userId,
+          ...(guestName ? { guestName } : {}),
+          name: guestName ?? (publicUserName(profile) || null),
+          username: profile?.username ?? null,
+          avatarUrl: profile?.avatarUrl ?? null,
+        });
+      }
+      return [id, groups];
+    }),
+  );
+}
 
 export class EventRecordsService {
   constructor(
@@ -501,25 +528,69 @@ export class EventRecordsService {
           undefined,
       };
     });
+    const canManage = !readOnly && (await this.manager(event, group, userId));
+    const acceptedViewer = own.some((row) => row.status === "ACCEPTED");
     let voteCounts: PlannedEventResponse["voteCounts"];
-    if (detail) {
+    let voteVoters: PlannedEventResponse["voteVoters"];
+    if (detail && !readOnly) {
       const voters = await this.events.allVotes(event.id);
-      const ids = [
-        ...new Set(
-          registrations.filter((row) => row.status === "ACCEPTED").map((row) => row.userId),
-        ),
-      ];
+      const accepted = new Map(
+        registrations.filter((row) => row.status === "ACCEPTED").map((row) => [row.userId, row]),
+      );
+      const ids = [...accepted.keys()];
       const byUser = new Map(voters.map((row) => [row.userId, row]));
+      const dates = event.dates.map((row) => row.id);
+      const locations = event.locations.map((row) => row.id);
       voteCounts = {
         dates: eventVoteCounts(
-          event.dates.map((row) => row.id),
+          dates,
           ids.map((id) => byUser.get(id)?.dateVotes ?? {}),
         ),
         locations: eventVoteCounts(
-          event.locations.map((row) => row.id),
+          locations,
           ids.map((id) => byUser.get(id)?.locationVotes ?? {}),
         ),
       };
+      if (
+        event.status === "PLANNING" &&
+        group?.type !== "PUBLIC" &&
+        (canManage || acceptedViewer) &&
+        (dates.length > 1 || locations.length > 1)
+      ) {
+        const cast = voters.filter(
+          (row) =>
+            accepted.has(row.userId) &&
+            ((dates.length > 1 &&
+              dates.some((id) => row.dateVotes[id] && row.dateVotes[id] !== "UNKNOWN")) ||
+              (locations.length > 1 &&
+                locations.some(
+                  (id) => row.locationVotes[id] && row.locationVotes[id] !== "UNKNOWN",
+                ))),
+        );
+        const profileIds = cast.map((row) => row.userId).filter((id) => !isGuestParticipantId(id));
+        const profiles = new Map(
+          (profileIds.length ? await this.users.findByIds(profileIds) : []).map((row) => [
+            row.clerkId,
+            row,
+          ]),
+        );
+        const groupVotes = (optionIds: string[], field: "dateVotes" | "locationVotes") =>
+          optionIds.length > 1
+            ? namedOptionVotes(
+                optionIds,
+                cast.map((row) => ({
+                  userId: row.userId,
+                  guestName: accepted.get(row.userId)?.guestName,
+                  votes: row[field],
+                })),
+                profiles,
+              )
+            : {};
+        voteVoters = {
+          dates: groupVotes(dates, "dateVotes"),
+          locations: groupVotes(locations, "locationVotes"),
+        };
+      }
     }
     const {
       lastNotifiedSituation: _situation,
@@ -532,10 +603,9 @@ export class EventRecordsService {
         table.demonstratorUserId === userId &&
         (event.status === "PLANNING" || Boolean(table.confirmed)),
     );
-    const canManage = !readOnly && (await this.manager(event, group, userId));
     const role: PlannedEventResponse["role"] = canManage
       ? "admin"
-      : own.some((row) => row.status === "ACCEPTED")
+      : acceptedViewer
         ? "participant"
         : myDemonstrator
           ? "demonstrator"
@@ -616,6 +686,7 @@ export class EventRecordsService {
       ...(detail && !readOnly
         ? {
             voteCounts,
+            ...(voteVoters ? { voteVoters } : {}),
             myVotes: {
               dateVotes: myVotes?.dateVotes ?? {},
               locationVotes: myVotes?.locationVotes ?? {},
@@ -1791,23 +1862,14 @@ export class EventRecordsService {
         : undefined;
     const voterProfiles = new Map(winnerProfiles.map((row) => [row.clerkId, row]));
     const gameVoteVoters = namedVotes
-      ? Object.fromEntries(
-          gameIds.map((id) => {
-            const groups: GameVoteVoters = { YES: [], IF_NEEDED: [], NO: [] };
-            for (const row of voters) {
-              const vote = row.gameVotes[id];
-              if (vote !== "YES" && vote !== "IF_NEEDED" && vote !== "NO") continue;
-              const profile = voterProfiles.get(row.userId);
-              groups[vote].push({
-                userId: row.userId,
-                ...(row.guestName ? { guestName: row.guestName } : {}),
-                name: row.guestName ?? (publicUserName(profile) || null),
-                username: profile?.username ?? null,
-                avatarUrl: profile?.avatarUrl ?? null,
-              });
-            }
-            return [id, groups];
-          }),
+      ? namedOptionVotes(
+          gameIds,
+          voters.map((row) => ({
+            userId: row.userId,
+            guestName: row.guestName,
+            votes: row.gameVotes,
+          })),
+          voterProfiles,
         )
       : undefined;
     const { resultDraft, seatOrderVersion: _seatOrderVersion, ...visibleTable } = table;

@@ -80,11 +80,17 @@ export function configureMobileCache(client: QueryClient, owner?: CacheOwner) {
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
-function storedTableData(key: QueryKey, data: unknown) {
-  if (key[0] !== "events" || key[3] !== "table" || !record(data) || !("gameVoteVoters" in data))
-    return data;
-  const { gameVoteVoters: _privateBallots, ...rest } = data;
-  return rest;
+function persistableQueryData(key: QueryKey, data: unknown) {
+  if (key[0] !== "events" || !record(data)) return data;
+  if (key[3] === "table" && "gameVoteVoters" in data) {
+    const { gameVoteVoters: _privateBallots, ...rest } = data;
+    return rest;
+  }
+  if (key[3] === "detail" && "voteVoters" in data) {
+    const { voteVoters: _privateBallots, ...rest } = data;
+    return rest;
+  }
+  return data;
 }
 function storedState(data: unknown, updatedAt: number) {
   return {
@@ -144,7 +150,7 @@ export function decodeCache(
       queryKey: value.queryKey,
       queryHash: hashKey(value.queryKey),
       state: storedState(
-        storedTableData(value.queryKey, value.state.data),
+        persistableQueryData(value.queryKey, value.state.data),
         value.state.dataUpdatedAt,
       ),
     });
@@ -230,7 +236,7 @@ export function createSessionPersister(
                 queryHash: query.queryHash,
                 // Preserve Query timestamps, but force revalidation; cache metadata is never an ACK.
                 state: storedState(
-                  storedTableData(query.queryKey, data),
+                  persistableQueryData(query.queryKey, data),
                   query.state.dataUpdatedAt,
                 ),
               },

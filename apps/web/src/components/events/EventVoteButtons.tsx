@@ -5,7 +5,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Check, Eye, Minus, Vote, X } from "lucide-react";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
-import { GameVoteVoters } from "./GameVoteVoters";
+import { OptionVoteVoters } from "./OptionVoteVoters";
 /** One status button; selecting a preference never accepts an invitation. */
 export function EventVoteButtons({
   value = "UNKNOWN",
@@ -138,8 +138,8 @@ export function EventVoteButtons({
                 <Drawer.Heading>{t`Votes`}</Drawer.Heading>
                 <p className="text-sm text-muted">{label}</p>
               </Drawer.Header>
-              <Drawer.Body className="overflow-y-auto">
-                <GameVoteVoters label={label} voters={voters} />
+              <Drawer.Body className="flex min-h-0 flex-col overflow-hidden">
+                <OptionVoteVoters label={label} voters={voters} />
               </Drawer.Body>
             </Drawer.Dialog>
           </Drawer.Content>

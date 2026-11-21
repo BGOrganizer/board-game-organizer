@@ -69,6 +69,7 @@ import { optimisticEventVote } from "../eventOptimisticVote";
 import { projectEventParticipantRemoval } from "../eventParticipantCache";
 import { revokeProposalReview } from "../eventProposalCache";
 import { acknowledgeTableRegistration } from "../eventRegistrationCache";
+import { withoutEventVoteVoters } from "../eventVotes";
 import { normalizeSeatOrder } from "../tableSeatOrderDraft";
 import { eventRecordKeys, eventRecordQuery, eventRecordsQuery } from "./useEventRecords";
 
@@ -211,10 +212,13 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         return row;
       });
     context.receipt = saved;
+    const listItem = withoutEventVoteVoters(saved);
     notifyManager.batch(() => {
       updateOptimisticBase(client, eventRecordKeys.detail(context.owner, saved.id), (current) => {
         const previous = current as PlannedEventResponse | undefined;
-        return previous?.version === saved.version ? { ...previous, ...saved } : saved;
+        return previous?.version === saved.version
+          ? { ...withoutEventVoteVoters(previous), ...saved }
+          : saved;
       });
       for (const [key] of client.getQueriesData({
         queryKey: eventRecordKeys.root(context.owner),
@@ -222,7 +226,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       }))
         updateOptimisticBase(client, key, (current) =>
           mapCommunityCache<PlannedEventResponse>(current, (row) =>
-            row.id === saved.id ? saved : row,
+            row.id === saved.id ? listItem : row,
           ),
         );
       for (const [key] of client.getQueriesData({

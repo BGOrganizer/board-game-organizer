@@ -170,6 +170,17 @@ async function http(input: RequestInfo | URL, init?: RequestInit) {
     await pauseWrite;
     if (writeStatus !== 200)
       return Response.json({ error: "REGISTRATION_CHANGED" }, { status: writeStatus });
+    if (method === "POST" && url.pathname === `/api/events/${event.id}/tables/${table.id}/guests`) {
+      return Response.json({
+        ...registration,
+        id: body.requestId,
+        userId: "guest:88888888-8888-4888-8888-888888888888",
+        kind: "GUEST",
+        guestName: body.name,
+        status: "ACCEPTED",
+        eventVersion: event.version + 1,
+      });
+    }
     if (method === "PATCH" && url.pathname.startsWith("/api/table-registrations/")) {
       const id = url.pathname.split("/").at(-1);
       const previous = id === other.id ? other : registration;
@@ -533,6 +544,22 @@ it("invites the chosen canonical candidate, navigates Back once and leaves accep
   });
   expect(io.back).toHaveBeenCalledExactlyOnceWith();
   expect(writes.some((write) => write.path.startsWith("/api/table-registrations/"))).toBe(false);
+});
+
+it("returns to the table and clears the guest form only after the server accepts it", async () => {
+  const { promise, resolve } = deferred();
+  pauseWrite = promise;
+  await render(<Fixture picker />);
+  const input = await screen.findByLabelText("Guest name");
+  expect(screen.queryByText("Guest name")).toBeNull();
+  await fireEvent.changeText(input, " Guest Alice ");
+  await userEvent.setup().press(screen.getByRole("button", { name: "Add a guest" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].body).toMatchObject({ name: "Guest Alice" });
+  expect(io.back).not.toHaveBeenCalled();
+  await act(() => resolve());
+  await waitFor(() => expect(io.back).toHaveBeenCalledOnce());
+  expect(screen.getByLabelText("Guest name")).toHaveProp("value", "");
 });
 
 it.each(["write", "target"] as const)(

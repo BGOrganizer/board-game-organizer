@@ -687,23 +687,59 @@ async function selectVote(label: string) {
     }),
   );
 }
-it("places aggregate votes beneath date/time and location identities without enabling pending participants", async () => {
-  event = {
-    ...event,
-    canVote: false,
-    voteCounts: {
-      dates: { [event.dates[0].id]: { YES: 2, NO: 0, IF_NEEDED: 1, UNKNOWN: 1 } },
-      locations: { [event.locations[0].id]: { YES: 1, NO: 1, IF_NEEDED: 0, UNKNOWN: 2 } },
-    },
-  };
-  multipleSchedule();
-  mount();
-  const date = await screen.findByLabelText("Votes: 2030-06-03 20:00"),
-    location = screen.getByLabelText("Votes: Club venue");
-  expect(date.closest("li")?.querySelector("time")).not.toBeNull();
-  expect(location.closest("li")?.textContent).toContain("Club venue");
-  expect(screen.queryByRole("button", { name: "Club venue: Choose your vote" })).toBeNull();
-});
+it.each(["dates", "locations", "both"] as const)(
+  "shows avatars and vote breakdowns only for the multiple categories (%s)",
+  async (category) => {
+    multipleSchedule();
+    const voter = {
+      userId: "registered",
+      name: "Alice Becker",
+      username: "alice",
+      avatarUrl: null,
+    };
+    const firstDate = event.dates[0].id;
+    const firstLocation = event.locations[0].id;
+    event = {
+      ...event,
+      canManage: true,
+      canVote: false,
+      dates: category === "locations" ? event.dates.slice(0, 1) : event.dates,
+      locations: category === "dates" ? event.locations.slice(0, 1) : event.locations,
+      voteVoters: {
+        dates: { [firstDate]: { YES: [voter], IF_NEEDED: [], NO: [] } },
+        locations: { [firstLocation]: { YES: [], IF_NEEDED: [voter], NO: [] } },
+      },
+    };
+    const client = mount();
+    await screen.findByText("Club venue");
+    const date = "2030-06-03 20:00";
+    for (const [option, visible] of [
+      [date, category !== "locations"],
+      ["Club venue", category !== "dates"],
+    ] as const) {
+      expect(Boolean(screen.queryByRole("list", { name: `Votes: ${option}` }))).toBe(visible);
+      const show = screen.queryByRole("button", { name: `${option}: Show votes` });
+      expect(Boolean(show)).toBe(visible);
+      if (show) {
+        fireEvent.click(show);
+        const sheet = await screen.findByRole("dialog", { name: "Votes" });
+        if (option === "Club venue")
+          fireEvent.click(within(sheet).getByRole("tab", { name: "If needed" }));
+        expect(within(sheet).getByText("Alice Becker")).toBeVisible();
+        fireEvent.click(within(sheet).getByRole("button", { name: "Close" }));
+      }
+    }
+    event = { ...event, canManage: false, role: "invited", myRegistrations: [] };
+    act(() =>
+      client.setQueryData(
+        eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+        event,
+      ),
+    );
+    await waitFor(() => expect(screen.queryByRole("list", { name: /^Votes:/ })).toBeNull());
+    expect(screen.queryByRole("button", { name: /Show votes/ })).toBeNull();
+  },
+);
 it("keeps terminated events read-only when no planning agreement is returned", async () => {
   event = {
     ...event,

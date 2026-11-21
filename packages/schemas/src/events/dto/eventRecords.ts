@@ -267,7 +267,7 @@ export type VoteVoter = {
   username: string | null;
   avatarUrl: string | null;
 };
-export type GameVoteVoters = Record<Exclude<EventVote, "UNKNOWN">, VoteVoter[]>;
+export type OptionVoteVoters = Record<Exclude<EventVote, "UNKNOWN">, VoteVoter[]>;
 export interface PlannedEventCapabilities {
   /** Safe Event/Table/result projection only; Group identity, drafts and rankings are absent. */
   sharedResultsOnly?: boolean;
@@ -335,6 +335,11 @@ export type PlannedEventResponse = Omit<
     voteCounts?: {
       dates: Record<string, EventVoteCounts>;
       locations: Record<string, EventVoteCounts>;
+    };
+    /** Named ballots are restricted to authorized viewers of the live Event detail. */
+    voteVoters?: {
+      dates: Record<string, OptionVoteVoters>;
+      locations: Record<string, OptionVoteVoters>;
     };
     agreement?: {
       agreed: boolean;
@@ -459,7 +464,7 @@ export type PlannedTableResponse = Omit<TableRecord, "seatOrderVersion"> & {
   gamesDetail: BggSearchItem[];
   gameVoteCounts?: Record<string, EventVoteCounts>;
   /** Authorized Table detail only. Missing means unavailable, not that nobody voted. */
-  gameVoteVoters?: Record<string, GameVoteVoters>;
+  gameVoteVoters?: Record<string, OptionVoteVoters>;
   ratingChanges: MatchGameRating[];
   winners?: Array<{ userId: string; name: string; avatarUrl: string | null; guestName?: string }>;
   resultProfiles?: Array<{

@@ -6,10 +6,11 @@ import type { ComponentProps } from "react";
 
 export function TabTrigger({
   icon: Icon,
+  iconClassName,
   children,
   className,
   ...props
-}: ComponentProps<typeof Tabs.Tab> & { icon: LucideIcon }) {
+}: ComponentProps<typeof Tabs.Tab> & { icon: LucideIcon; iconClassName?: string }) {
   return (
     <Tabs.Tab
       {...props}
@@ -17,7 +18,10 @@ export function TabTrigger({
     >
       {(state) => (
         <>
-          <Icon className="size-4 shrink-0" aria-hidden />
+          <Icon
+            className={["size-4 shrink-0", iconClassName].filter(Boolean).join(" ")}
+            aria-hidden
+          />
           {typeof children === "function" ? children(state) : children}
           <Tabs.Indicator />
         </>

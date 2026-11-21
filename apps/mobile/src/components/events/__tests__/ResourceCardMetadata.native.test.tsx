@@ -141,27 +141,6 @@ it("keeps an unknown timezone loading, an unnamed public guide explicit and an u
   expect(screen.queryByText(/2030|Durata:|minuti/)).toBeNull();
 });
 
-it.each([
-  { locale: "en", minutes: 30, label: "30 minutes" },
-  { locale: "it", minutes: 30, label: "30 minuti" },
-  { locale: "it", minutes: 1, label: "1 minuto" },
-] as const)(
-  "localizes actual game duration metadata as $label without exposing source fields",
-  async ({ locale, minutes, label }) => {
-    await render(
-      <NativeTestProviders locale={locale}>
-        <GameListRow name="Chess" durationMinutes={minutes} />
-      </NativeTestProviders>,
-    );
-    expect(screen.getByText(label)).toBeVisible();
-    const icons = screen.container.queryAll(
-      (node) => node.type.startsWith("RNSVG") && Number(node.props.bbWidth) === 12,
-    );
-    expect(icons.length).toBeGreaterThan(0);
-    expect(screen.queryByText(/BGG|MANUAL|DEFAULT|Duration:|Durata:/)).toBeNull();
-  },
-);
-
 it.each(["en", "it"] as const)(
   "preserves wall-time proposals rather than shifting either %s schedule date to the device timezone",
   async (locale) => {
@@ -332,7 +311,7 @@ const chess: BggSearchItem = {
   },
 };
 
-it("keeps the table duration and game info trigger visible in the approved games popover", async () => {
+it("keeps duration in the game information badge in the approved games popover", async () => {
   await render(
     <NativeTestProviders>
       <EventTableGamesPopover name="Game night" games={[{ ...chess, durationMinutes: 30 }]} />
@@ -340,7 +319,7 @@ it("keeps the table duration and game info trigger visible in the approved games
   );
   await pressMeasuredPopover(screen.getByRole("button", { name: "Board games: Game night" }));
   expect(screen.getByText("Chess")).toBeVisible();
-  expect(screen.getByText("30 minutes")).toBeVisible();
+  expect(screen.queryByText("30 minutes")).toBeNull();
   expect(screen.getByRole("button", { name: "Game information: Chess" })).toBeVisible();
   expect(screen.queryByText("#42")).toBeNull();
   expect(screen.queryByText("90–120 min")).toBeNull();
@@ -351,10 +330,10 @@ it("opens game data from an independent badge without selecting the game row", a
   const select = vi.fn();
   await render(
     <NativeTestProviders>
-      <GameListRow game={chess} name={chess.name} durationMinutes={30} onPress={select} />
+      <GameListRow game={chess} name={chess.name} onPress={select} />
     </NativeTestProviders>,
   );
-  expect(screen.getByText("30 minutes")).toBeVisible();
+  expect(screen.queryByText("30 minutes")).toBeNull();
   expect(screen.queryByText("#42")).toBeNull();
   await userEvent.setup().press(screen.getByRole("button", { name: chess.name }));
   expect(select).toHaveBeenCalledOnce();

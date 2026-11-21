@@ -30,17 +30,12 @@ export function EventTableGamesPopover({
       <InputFlatList
         data={games}
         keyExtractor={(game) => String(game.id)}
-        style={{ height: Math.min(320, height * 0.5, Math.max(60, games.length * 70)) }}
+        style={{ height: Math.min(320, height * 0.5, Math.max(60, games.length * 76)) }}
         initialNumToRender={8}
         maxToRenderPerBatch={6}
         windowSize={7}
         renderItem={({ item }) => (
-          <GameListRow
-            game={item}
-            name={item.name}
-            imageUrl={item.imageUrl}
-            durationMinutes={item.durationMinutes}
-          />
+          <GameListRow game={item} name={item.name} imageUrl={item.imageUrl} />
         )}
         ListEmptyComponent={<Typography className="text-muted">{t("No games found")}</Typography>}
       />

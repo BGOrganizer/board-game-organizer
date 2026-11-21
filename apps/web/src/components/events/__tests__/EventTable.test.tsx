@@ -899,6 +899,8 @@ it("offers an invite-only modal when organizer already joined, routes to the exi
     within(screen.getByRole("dialog")).getByRole("button", { name: "Invite players" }),
   );
   expect(m.push).toHaveBeenCalledWith(`/events/${eventId}/tables/${tableId}/invite`);
+  expect(new URLSearchParams(window.location.search).get("tab")).toBe("participants");
+  window.history.replaceState(null, "", window.location.pathname);
 });
 it("always shows an empty, non-interactive waiting list after seats while places remain free", async () => {
   mount();

@@ -322,7 +322,6 @@ function JoinVoteList({
           >
             <GameListRow
               game={game}
-              durationMinutes={item.durationMinutes}
               name={game?.name ?? t("Unknown")}
               imageUrl={game?.imageUrl}
               actions={
@@ -367,12 +366,7 @@ function FixedSettings({
       ) : null}
       {location ? <LocationListRow name={location.name} address={location.address} /> : null}
       {gameId !== undefined ? (
-        <GameListRow
-          game={game}
-          name={game?.name ?? t("Unknown")}
-          imageUrl={game?.imageUrl}
-          durationMinutes={table?.games[0]?.durationMinutes}
-        />
+        <GameListRow game={game} name={game?.name ?? t("Unknown")} imageUrl={game?.imageUrl} />
       ) : null}
     </GroupedList>
   );

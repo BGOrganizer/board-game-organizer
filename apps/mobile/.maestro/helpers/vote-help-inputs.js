@@ -43,6 +43,15 @@ output.voteHelp = {
   yes: exact(it ? "Sì" : "Yes"),
   needed: exact(it ? "Se necessario" : "If needed"),
   no: "^No$",
+  voteAction:
+    ".+: (" +
+    (it
+      ? "Mostra voti|Scegli il tuo voto|Sì|Se necessario|No"
+      : "Show votes|Choose your vote|Yes|If needed|No") +
+    ")$",
+  choose: exact(it ? "Scegli il tuo voto" : "Choose your vote"),
+  show: exact(it ? "Mostra voti" : "Show votes"),
+  votes: exact(it ? "Voti" : "Votes"),
   obsolete: exact(it ? "Guida al campo" : "Field help"),
 };
 fixtures.forEach((f) => {

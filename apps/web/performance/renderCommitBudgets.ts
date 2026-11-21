@@ -15,7 +15,7 @@ export const renderCommitBudgets: Readonly<Record<string, number>> = {
   "EventTableCardIndicators: open real rating explanation": 4,
   "EventTableGamesPopover: page nine real game rows": 6,
   "EventTableRatingInfo: open finalized-result explanation": 4,
-  "EventVoteCounts: authoritative category totals": 1,
+  "OptionVoteVoters: compact named ballots": 1,
   "EventVoteLegend: open table voting rules": 4,
   "FilterChips: controlled role filter selection": 2,
   "FloatingActions: open the editor through the real button": 2,

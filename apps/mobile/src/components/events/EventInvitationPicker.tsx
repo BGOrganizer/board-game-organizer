@@ -78,7 +78,12 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
             <GuestNameRow
               maxLength={GUEST_NAME_MAX_LENGTH}
               isDisabled={a.blocking || guest.add.isPending}
-              onAdd={(name) => guest.addGuest(name, () => router.back())}
+              onAdd={(name, reset) =>
+                guest.addGuest(name, () => {
+                  reset();
+                  router.back();
+                })
+              }
             />
             {guest.add.isError ? (
               <GroupedRow>

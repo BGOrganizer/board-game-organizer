@@ -1,9 +1,17 @@
 import type {
   EventVote,
   EventVoteCounts,
-  GameVoteVoters,
+  OptionVoteVoters,
+  PlannedEventResponse,
   PlannedTableResponse,
 } from "@board-game-organizer/schemas";
+
+export function withoutEventVoteVoters({
+  voteVoters: _privateBallots,
+  ...event
+}: PlannedEventResponse) {
+  return event;
+}
 /** Ballots must already be restricted to distinct, accepted eligible participants. */
 export function eventVoteCounts(
   options: readonly string[],
@@ -35,10 +43,10 @@ const visibleVotes = ["YES", "IF_NEEDED", "NO"] as const;
 
 /** Update only the current actor in a previously authorized voter projection. */
 export function changeGameVoteVoters(
-  groups: GameVoteVoters,
+  groups: OptionVoteVoters,
   actor: NonNullable<PlannedTableResponse["myRegistration"]>,
   vote: EventVote,
-): GameVoteVoters {
+): OptionVoteVoters {
   const previous = visibleVotes.find((key) =>
     groups[key].some((row) => row.userId === actor.userId),
   );

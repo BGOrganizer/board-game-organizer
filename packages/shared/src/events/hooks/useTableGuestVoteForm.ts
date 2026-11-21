@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  BggSearchItem,
   ChangeEventVoteInput,
   EventVote,
   PlannedEventResponse,
@@ -8,6 +9,7 @@ import type {
   TableGuestVotes,
 } from "@board-game-organizer/schemas";
 import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
+import { eventLocalToIso } from "../eventForm";
 import { eventAvailabilityVoteIsAllowed, eventOptionsRequireVote } from "../eventJoinAvailability";
 import { eventDateWall } from "../eventRecordPolicy";
 import { useEventRecord } from "./useEventRecords";
@@ -20,7 +22,11 @@ type VoteChoice = {
   value: EventVote | undefined;
   allowNo: boolean;
   change: (vote: Vote) => ChangeEventVoteInput;
-};
+} & (
+  | { kind: "date"; startsAt: string; timeZone: string }
+  | { kind: "location"; address: string }
+  | { kind: "game"; game?: BggSearchItem }
+);
 
 export function canEditTableGuestVotes(table: PlannedTableResponse) {
   return (
@@ -36,26 +42,37 @@ export function canEditTableGuestVotes(table: PlannedTableResponse) {
 
 function groups(event: PlannedEventResponse, table: PlannedTableResponse, votes: TableGuestVotes) {
   const games = table.games.map(({ gameId }) => ({ id: String(gameId) }));
-  return [
+  const sections: { kind: VoteChoice["kind"]; rows: VoteChoice[] }[] = [
     {
       kind: "date",
       rows: eventOptionsRequireVote(event.dates)
-        ? event.dates.map(
-            ({ id, ...option }): VoteChoice => ({
-              key: `date:${id}`,
-              label: eventDateWall(event, { id, ...option }).replace("T", " "),
-              value: votes.dateVotes[id],
-              allowNo: eventAvailabilityVoteIsAllowed(event.dates, votes.dateVotes, id, "NO"),
-              change: (vote) => ({ kind: "date", optionId: id, vote }),
-            }),
-          )
+        ? event.dates.map((option): VoteChoice => {
+            const wall = eventDateWall(event, option);
+            return {
+              kind: "date",
+              startsAt: eventLocalToIso(wall, event.timeZone),
+              timeZone: event.timeZone,
+              key: `date:${option.id}`,
+              label: wall.replace("T", " "),
+              value: votes.dateVotes[option.id],
+              allowNo: eventAvailabilityVoteIsAllowed(
+                event.dates,
+                votes.dateVotes,
+                option.id,
+                "NO",
+              ),
+              change: (vote) => ({ kind: "date", optionId: option.id, vote }),
+            };
+          })
         : [],
     },
     {
       kind: "location",
       rows: eventOptionsRequireVote(event.locations)
         ? event.locations.map(
-            ({ id, name }): VoteChoice => ({
+            ({ id, name, address }): VoteChoice => ({
+              kind: "location",
+              address,
               key: `location:${id}`,
               label: name,
               value: votes.locationVotes[id],
@@ -73,18 +90,22 @@ function groups(event: PlannedEventResponse, table: PlannedTableResponse, votes:
     {
       kind: "game",
       rows: eventOptionsRequireVote(table.games)
-        ? table.games.map(
-            ({ gameId }): VoteChoice => ({
+        ? table.games.map(({ gameId }): VoteChoice => {
+            const game = table.gamesDetail.find(({ id }) => id === gameId);
+            return {
+              kind: "game",
+              game,
               key: `game:${gameId}`,
-              label: table.gamesDetail.find(({ id }) => id === gameId)?.name ?? "",
+              label: game?.name ?? "",
               value: votes.gameVotes[String(gameId)],
               allowNo: eventAvailabilityVoteIsAllowed(games, votes.gameVotes, String(gameId), "NO"),
               change: (vote) => ({ kind: "game", tableId: table.id, gameId, vote }),
-            }),
-          )
+            };
+          })
         : [],
     },
-  ].filter(({ rows }) => rows.length);
+  ];
+  return sections.filter(({ rows }) => rows.length);
 }
 
 export function useTableGuestVoteForm(

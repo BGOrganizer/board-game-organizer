@@ -1,18 +1,24 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import { Avatar } from "heroui-native/avatar";
 import { useThemeColor } from "heroui-native/hooks";
+import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
 import { Check, Minus, X } from "lucide-react-native";
+import { useState } from "react";
 import { View } from "react-native";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
+import { InputFlatList } from "@/components/common/ui/InputFlatList";
+import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
+import { TabBar } from "@/components/common/ui/TabBar";
+import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { UserAvatar } from "@/components/common/ui/UserAvatar";
 import { useT } from "@/lib/i18n";
 
 type Voters = NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
 
-export function GameVoteVoters({
+export function OptionVoteVoters({
   label,
   voters,
   compact = false,
@@ -45,13 +51,13 @@ export function GameVoteVoters({
             accessibilityLabel={`${text}: ${voters[id].map(displayName).join(", ")}`}
             style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 2 }}
           >
-            <Icon size={12} color={color} accessible={false} />
+            <Icon size={16} color={color} accessible={false} />
             {voters[id].map((person) => (
               <Avatar
                 key={person.userId}
                 alt={displayName(person)}
                 accessible={false}
-                style={{ width: 12, height: 12 }}
+                style={{ width: 16, height: 16 }}
               >
                 {person.guestName ? (
                   <GuestAvatar name={person.guestName} />
@@ -59,7 +65,7 @@ export function GameVoteVoters({
                   <>
                     {person.avatarUrl ? <Avatar.Image source={{ uri: person.avatarUrl }} /> : null}
                     <Avatar.Fallback>
-                      <Typography className="text-foreground" style={{ fontSize: 8 }}>
+                      <Typography className="text-foreground" style={{ fontSize: 10 }}>
                         {displayName(person).replace(/^@/, "").charAt(0)}
                       </Typography>
                     </Avatar.Fallback>
@@ -73,20 +79,40 @@ export function GameVoteVoters({
     );
   }
 
+  return <VoterTabs voters={voters} choices={choices} displayName={displayName} />;
+}
+
+function VoterTabs({
+  voters,
+  choices,
+  displayName,
+}: {
+  voters: Voters;
+  choices: readonly { id: keyof Voters; text: string; Icon: typeof Check; color: string }[];
+  displayName: (person: Voters["YES"][number]) => string;
+}) {
+  const t = useT();
+  const [selection, setSelection] = useState("YES");
   return (
-    <View style={{ gap: 16 }}>
-      {choices.map(({ id, text, Icon, color }) => (
-        <View key={id} style={{ gap: 8 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Icon size={18} color={color} accessible={false} />
-            <Typography accessible accessibilityRole="header" className="text-sm font-semibold">
-              {text}
-            </Typography>
-          </View>
-          {voters[id].length ? (
-            <GroupedList>
-              {voters[id].map((person) => (
-                <GroupedRow key={person.userId}>
+    <Tabs value={selection} onValueChange={setSelection} style={{ flex: 1 }}>
+      <TabBar>
+        {choices.map(({ id, text, Icon, color }) => (
+          <TabTrigger key={id} value={id} icon={Icon} iconColor={color}>
+            <Tabs.Label>{text}</Tabs.Label>
+          </TabTrigger>
+        ))}
+      </TabBar>
+      {choices.map(({ id }) => (
+        <RetainedTabPanel key={id} active={id === selection}>
+          <InputFlatList
+            data={voters[id]}
+            keyExtractor={(person) => person.userId}
+            ListEmptyComponent={
+              <Typography className="p-3 text-sm text-muted">{t("No votes")}</Typography>
+            }
+            renderItem={({ item: person }) => (
+              <GroupedList>
+                <GroupedRow>
                   <UserAvatar
                     name={displayName(person)}
                     avatarUrl={person.avatarUrl}
@@ -101,15 +127,11 @@ export function GameVoteVoters({
                     ) : null}
                   </View>
                 </GroupedRow>
-              ))}
-            </GroupedList>
-          ) : (
-            <Typography className="text-sm text-muted" style={{ paddingLeft: 26 }}>
-              {t("No votes")}
-            </Typography>
-          )}
-        </View>
+              </GroupedList>
+            )}
+          />
+        </RetainedTabPanel>
       ))}
-    </View>
+    </Tabs>
   );
 }

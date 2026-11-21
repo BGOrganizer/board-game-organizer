@@ -31,6 +31,7 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { EventGuestBadge } from "./EventGuestBadge";
 import { EventGuestVoteEditor } from "./EventGuestVoteEditor";
 import { EventJoinSheet } from "./EventJoinSheet";
 import { EventSeatListHeading } from "./EventSeatListHeading";
@@ -192,7 +193,7 @@ export function EventTableSeats({
                   avatarUrl={guest ? null : row.avatarUrl}
                   avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
                   secondary={guest ? t`Guest` : status}
-                  badge={<UserRoleBadge roles={roles} />}
+                  badge={guest ? <EventGuestBadge /> : <UserRoleBadge roles={roles} />}
                   actions={
                     <>
                       {own && table.canRespond && pending && table.myRegistration ? (
@@ -284,6 +285,9 @@ export function EventTableSeats({
                     label: t`Invite players`,
                     onPress: () => {
                       setChoose(false);
+                      const current = new URL(window.location.href);
+                      current.searchParams.set("tab", "participants");
+                      window.history.replaceState(null, "", current);
                       router.push(`/events/${table.eventId}/tables/${table.id}/invite`);
                     },
                   },

@@ -24,6 +24,12 @@ output.tableGuest = {
   name: input.name,
   nameField: literal(italian ? "Nome dell’ospite" : "Guest name"),
   add: literal(italian ? "Aggiungi un ospite" : "Add a guest"),
+  help: literal(italian ? "Come funzionano gli ospiti" : "About guests"),
+  helpText: literal(
+    italian
+      ? "Aggiungi una persona senza account su Board Game Organizer."
+      : "Add someone who does not have a Board Game Organizer account.",
+  ),
   invite: literal(italian ? "Invita giocatori" : "Invite players"),
   place: literal(italian ? "Posto libero" : "Free place"),
   link: "bgo-dev:///event/table?eventId=" + input.eventId + "&tableId=" + input.tableId,
@@ -31,4 +37,5 @@ output.tableGuest = {
   edit: literal(edit + ": " + input.name),
   yes: literal(input.game + ": " + (italian ? "Sì" : "Yes")),
   no: literal(input.game + ": No"),
+  done: literal(italian ? "Fine" : "Done"),
 };

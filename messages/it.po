@@ -13,6 +13,15 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+msgid "About guests"
+msgstr "Come funzionano gli ospiti"
+
+msgid "Add someone who does not have a Board Game Organizer account."
+msgstr "Aggiungi una persona senza account su Board Game Organizer."
+
+msgid "This player is a guest. An organizer can vote on their behalf."
+msgstr "Questo giocatore è un ospite. Un organizzatore può votare per lui."
+
 msgid "Add a guest"
 msgstr "Aggiungi un ospite"
 

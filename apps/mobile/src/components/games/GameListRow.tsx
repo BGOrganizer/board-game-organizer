@@ -1,9 +1,8 @@
 import type { BggSearchItem } from "@board-game-organizer/schemas";
 import { gameMetadataMissing } from "@board-game-organizer/shared";
-import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import { Clock, Gamepad2 } from "lucide-react-native";
+import { Gamepad2 } from "lucide-react-native";
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { Image, Pressable, useWindowDimensions, View } from "react-native";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -14,7 +13,6 @@ export function GameListRow({
   name,
   imageUrl,
   game,
-  durationMinutes,
   titleAccessory,
   onPress,
   actions,
@@ -22,7 +20,6 @@ export function GameListRow({
   children,
 }: {
   game?: BggSearchItem;
-  durationMinutes?: number;
   name: string;
   imageUrl?: string | null;
   titleAccessory?: ReactNode;
@@ -32,7 +29,6 @@ export function GameListRow({
   children?: ReactNode;
 }) {
   const muted = useThemeColor("muted");
-  const { i18n } = useLingui();
   const viewport = useContext(InputScrollContext);
   const { height } = useWindowDimensions();
   const cover = useRef<View>(null);
@@ -74,13 +70,13 @@ export function GameListRow({
                   }
                 : undefined
             }
-            style={{ width: 40, height: 40, zIndex: 1, overflow: "visible" }}
+            style={{ width: 48, height: 48, zIndex: 1, overflow: "visible" }}
           >
             <View
               className="bg-muted/20"
               style={{
-                width: 40,
-                height: 40,
+                width: 48,
+                height: 48,
                 borderRadius: 8,
                 overflow: "hidden",
                 alignItems: "center",
@@ -93,10 +89,10 @@ export function GameListRow({
                   onError={() => setFailedImage(imageUrl)}
                   accessible={false}
                   resizeMode="contain"
-                  style={{ width: 40, height: 40 }}
+                  style={{ width: 48, height: 48 }}
                 />
               ) : (
-                <Gamepad2 size={18} color={muted} accessible={false} />
+                <Gamepad2 size={20} color={muted} accessible={false} />
               )}
             </View>
           </View>
@@ -111,18 +107,10 @@ export function GameListRow({
               </Typography>
               {titleAccessory}
             </View>
-            {durationMinutes !== undefined || metadata ? (
+            {metadata ? (
               <View
                 style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}
               >
-                {durationMinutes !== undefined ? (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <Clock size={12} color={muted} accessible={false} />
-                    <Typography className="text-xs text-muted">
-                      {i18n.t("game.duration.minutes", { durationMinutes })}
-                    </Typography>
-                  </View>
-                ) : null}
                 {metadata}
               </View>
             ) : null}
@@ -132,7 +120,7 @@ export function GameListRow({
         {game ? (
           <View
             pointerEvents="box-none"
-            style={{ position: "absolute", left: 12, top: "50%", marginTop: -8, zIndex: 2 }}
+            style={{ position: "absolute", left: 26, top: "50%", marginTop: 2, zIndex: 2 }}
           >
             <GameCatalogMetadata name={name} game={game} visible={id === visibleId} />
           </View>

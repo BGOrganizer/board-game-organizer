@@ -57,7 +57,7 @@ vi.mock("@/lib/useCommunityApi", () => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 
-it("shows BGG facts in the badge and keeps the table duration and separate actions", () => {
+it("shows BGG facts in the badge and keeps row actions separate", () => {
   const selected = vi.fn();
   const trailing = vi.fn();
   renderWithI18n(
@@ -65,7 +65,6 @@ it("shows BGG facts in the badge and keeps the table duration and separate actio
       name={game.name}
       game={game}
       onPress={selected}
-      durationMinutes={60}
       titleAccessory={<span>Owned</span>}
       metadata={<span>Collection copy</span>}
       actions={
@@ -80,7 +79,7 @@ it("shows BGG facts in the badge and keeps the table duration and separate actio
   expect(screen.getByText("Owned")).toBeTruthy();
   expect(screen.getByText("Collection copy")).toBeTruthy();
   expect(screen.getByText("Suggested for tonight")).toBeTruthy();
-  expect(screen.getByText("60 minutes")).toBeTruthy();
+  expect(screen.queryByText(/min$/)).toBeNull();
   expect(screen.queryByText("2021")).toBeNull();
 
   fireEvent.click(screen.getByRole("button", { name: "Game information: Cascadia" }));
@@ -151,13 +150,3 @@ it("requests missing facts on first intersection and preserves known facts while
   expect(within(popover).getByText("7.83")).toBeTruthy();
   expect(popover.querySelector(".skeleton")).toBeNull();
 });
-
-it.each([0, 1, 60])(
-  "shows an explicitly provided table duration of %s minutes",
-  (durationMinutes) => {
-    renderWithI18n(<GameListCard name="Cascadia" durationMinutes={durationMinutes} />);
-    expect(
-      screen.getByText(`${durationMinutes} ${durationMinutes === 1 ? "minute" : "minutes"}`),
-    ).toBeTruthy();
-  },
-);

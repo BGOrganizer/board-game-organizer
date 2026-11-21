@@ -1,4 +1,4 @@
-import type { GameVoteVoters as Voters } from "@board-game-organizer/schemas";
+import type { OptionVoteVoters as Voters } from "@board-game-organizer/schemas";
 import {
   fireEvent,
   render,
@@ -11,7 +11,7 @@ import { StyleSheet } from "react-native";
 import { expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { EventVoteButtons } from "../EventVoteButtons";
-import { GameVoteVoters } from "../GameVoteVoters";
+import { OptionVoteVoters } from "../OptionVoteVoters";
 
 const voters: Voters = {
   YES: [
@@ -48,11 +48,14 @@ it("opens the named votes sheet from the preference dialog without casting a vot
   // the snap point offscreen, so check content and callbacks including hidden nodes.
   expect(await screen.findByText("Votes", hidden)).toBeOnTheScreen();
   for (const heading of ["Yes", "If needed", "No"])
-    expect(screen.getByRole("header", { name: heading, ...hidden })).toBeOnTheScreen();
+    expect(screen.getByRole("tab", { name: heading, ...hidden })).toBeOnTheScreen();
   expect(screen.getByText("Alba Rossi", hidden)).toBeOnTheScreen();
   expect(screen.getByText("@albar", hidden)).toBeOnTheScreen();
+  expect(screen.queryByText("@bosco", hidden)).toBeNull();
+  await fireEvent.press(screen.getByRole("tab", { name: "If needed", ...hidden }));
   expect(screen.getByText("@bosco", hidden)).toBeOnTheScreen();
-  expect(screen.getAllByText("No votes", hidden)).toHaveLength(1);
+  await fireEvent.press(screen.getByRole("tab", { name: "No", ...hidden }));
+  expect(screen.getByText("No votes", hidden)).toBeOnTheScreen();
   expect(choose).not.toHaveBeenCalled();
 
   await fireEvent.press(screen.getByRole("button", { name: "Close", ...hidden }));
@@ -116,7 +119,7 @@ it("keeps the standalone choice editable without exposing missing named vote dat
 it("uses compact avatars and leaves out zero-vote groups and empty summaries", async () => {
   const renderSummary = (data: Voters) => (
     <NativeTestProviders>
-      <GameVoteVoters label="Azul" voters={data} compact />
+      <OptionVoteVoters label="Azul" voters={data} compact />
     </NativeTestProviders>
   );
   const view = await render(renderSummary(voters));
@@ -125,13 +128,13 @@ it("uses compact avatars and leaves out zero-vote groups and empty summaries", a
   expect(within(summary).getByLabelText("If needed: @bosco")).toBeVisible();
   expect(within(summary).queryByLabelText(/^No:/)).toBeNull();
   const icons = yes.queryAll(
-    (node) => node.type.startsWith("RNSVG") && Number(node.props.bbWidth) === 12,
+    (node) => node.type.startsWith("RNSVG") && Number(node.props.bbWidth) === 16,
   );
   expect(icons.length).toBeGreaterThan(0);
   expect(within(yes).getByLabelText("Alba Rossi", hidden)).toBeOnTheScreen();
   const compactAvatars = yes.queryAll((node) => {
     const { width, height } = StyleSheet.flatten(node.props.style) ?? {};
-    return node.type === "RCTView" && width === 12 && height === 12;
+    return node.type === "RCTView" && width === 16 && height === 16;
   });
   expect(compactAvatars).toHaveLength(1);
   expect(within(summary).queryByText(/^\d+$/)).toBeNull();

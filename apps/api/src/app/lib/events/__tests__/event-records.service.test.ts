@@ -2224,6 +2224,15 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     const detail = await f.service.detail(owner, event.id);
     expect(detail.voteCounts?.dates[id]).toEqual({ YES: 1, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 });
     expect(detail.voteCounts?.locations[id]).toEqual({ YES: 1, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 });
+    for (const viewer of [detail, await f.service.detail(guest, event.id)]) {
+      for (const group of [viewer.voteVoters?.dates[id], viewer.voteVoters?.locations[id]]) {
+        expect(group?.YES).toHaveLength(1);
+        expect(group?.YES[0]).toMatchObject({ userId: owner });
+        expect(group?.YES[0]).not.toHaveProperty("email");
+        expect(group?.NO).toEqual([]);
+      }
+    }
+    expect((await f.service.detail(waiter, event.id)).voteVoters).toBeUndefined();
     expect((await f.service.tableDetail(owner, event.id, id)).gameVoteCounts?.["1"]).toEqual({
       YES: 1,
       NO: 0,
@@ -2234,6 +2243,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       (await f.service.tableDetail(owner, event.id, other)).gameVoteCounts?.["1"].UNKNOWN,
     ).toBe(1);
     expect((await f.service.list(owner, { limit: 20 })).items[0].voteCounts).toBeUndefined();
+    expect((await f.service.list(owner, { limit: 20 })).items[0].voteVoters).toBeUndefined();
     expect(
       (await f.service.tables(owner, event.id, { limit: 20 })).items[0].gameVoteCounts,
     ).toBeUndefined();

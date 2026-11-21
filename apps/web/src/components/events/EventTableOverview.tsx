@@ -29,7 +29,7 @@ import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteLegend } from "./EventVoteLegend";
-import { GameVoteVoters } from "./GameVoteVoters";
+import { OptionVoteVoters } from "./OptionVoteVoters";
 export function EventTableOverview({
   eventId,
   tableId,
@@ -90,7 +90,7 @@ export function EventTableOverview({
     setConfirm(null);
   };
   const gameVotes = table.myRegistration?.gameVotes ?? {};
-  const votableGames = eventOptionsRequireVote(table.games);
+  const votableGames = table.eventStatus === "PLANNING" && eventOptionsRequireVote(table.games);
   const canVote =
     votableGames &&
     table.eventStatus === "PLANNING" &&
@@ -146,9 +146,7 @@ export function EventTableOverview({
           <NotificationItem itemId={notificationItemId(table.id, "games")}>
             <div className="flex items-center gap-1">
               <h2 className="font-semibold">{t`Board games`}</h2>
-              {votableGames && table.eventStatus === "PLANNING" ? (
-                <EventVoteLegend label={t`Board games`} scope="table" />
-              ) : null}
+              {votableGames ? <EventVoteLegend label={t`Board games`} scope="table" /> : null}
             </div>
           </NotificationItem>
           <GroupedList>
@@ -163,10 +161,9 @@ export function EventTableOverview({
                   titleAccessory={
                     <NotificationItem itemId={notificationItemId(table.id, "game", game.id)} />
                   }
-                  durationMinutes={game.durationMinutes}
                   metadata={
                     voters ? (
-                      <GameVoteVoters label={game.name} voters={voters} compact />
+                      <OptionVoteVoters label={game.name} voters={voters} compact />
                     ) : undefined
                   }
                   actions={

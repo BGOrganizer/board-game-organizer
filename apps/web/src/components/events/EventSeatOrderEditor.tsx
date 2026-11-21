@@ -23,6 +23,7 @@ import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { WindowedList } from "@/components/common/ui/WindowedList";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
+import { EventGuestBadge } from "./EventGuestBadge";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 export function EventSeatOrderEditor({
   model,
@@ -99,7 +100,7 @@ export function EventSeatOrderEditor({
                     name={name}
                     avatarUrl={guest ? null : row.avatarUrl}
                     avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
-                    badge={<UserRoleBadge roles={roles} />}
+                    badge={guest ? <EventGuestBadge /> : <UserRoleBadge roles={roles} />}
                     topBadge={
                       seated ? (
                         <IconBadge

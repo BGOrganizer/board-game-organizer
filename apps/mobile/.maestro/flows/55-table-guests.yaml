@@ -24,6 +24,9 @@ tags: [manual, tables, guests]
 - extendedWaitUntil:
     visible: ${output.tableGuest.nameField}
     timeout: 30000
+- tapOn: ${output.tableGuest.help}
+- assertVisible: ${output.tableGuest.helpText}
+- back
 - tapOn: ${output.tableGuest.nameField}
 - inputText: ${output.tableGuest.name}
 - hideKeyboard
@@ -39,6 +42,8 @@ tags: [manual, tables, guests]
 - extendedWaitUntil:
     visible: ${output.tableGuest.editor}
     timeout: 30000
+- tapOn:
+    id: top-tab-game
 - scrollUntilVisible:
     element: ${output.tableGuest.yes}
     direction: DOWN
@@ -53,3 +58,5 @@ tags: [manual, tables, guests]
       selected: true
     timeout: 30000
 - takeScreenshot: table-guest-proxy-ballot
+- tapOn: ${output.tableGuest.done}
+- assertNotVisible: ${output.tableGuest.editor}

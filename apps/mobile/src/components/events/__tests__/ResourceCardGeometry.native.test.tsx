@@ -87,7 +87,7 @@ function expectCompactTrigger(
 // not device text clipping, Yoga layout, physical touch or frame timing.
 it.each([
   { width: 240, height: 400, gameCount: 10, expectedWidth: 208, expectedHeight: 200 },
-  { width: 320, height: 640, gameCount: 1, expectedWidth: 288, expectedHeight: 70 },
+  { width: 320, height: 640, gameCount: 1, expectedWidth: 288, expectedHeight: 76 },
   { width: 800, height: 1200, gameCount: 10, expectedWidth: 360, expectedHeight: 320 },
 ])(
   "bounds the real games popover with $gameCount games at $width×$height",

@@ -84,6 +84,26 @@ describe("account-owned canonical persistence", () => {
     );
   });
 
+  it("persists a usable Event detail without the date and location voter identities", () => {
+    const f = fixture();
+    const eventKey = ["events", owner.apiUrl, owner.userId, "detail", "event"];
+    const base = { id: "event", name: "Planning event" };
+    const data = {
+      ...base,
+      voteVoters: { dates: { date: { YES: [{ userId: "named-voter" }] } }, locations: {} },
+    };
+    f.client.setQueryData(eventKey, data);
+    f.persister.flush();
+    expect(f.data.get("queries")).not.toContain("named-voter");
+    expect(f.client.getQueryData(eventKey)).toEqual(data);
+    expect(f.persister.restoreClient()?.clientState.queries[0].state.data).toEqual(base);
+    const snapshot = JSON.parse(f.data.get("queries")!);
+    snapshot.clientState.queries[0].state.data = data;
+    expect(decodeCache(JSON.stringify(snapshot), owner)?.clientState.queries[0].state.data).toEqual(
+      base,
+    );
+  });
+
   it("ignores transient query metadata while retaining data, errors and removal events", () => {
     const f = fixture();
     const query = f.client.getQueryCache().build(f.client, { queryKey: key });

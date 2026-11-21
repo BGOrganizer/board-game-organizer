@@ -78,7 +78,7 @@ it("loads guest votes on demand and submits proxy ballots for the selected guest
   expect(await screen.findByText("Guest Alice", hidden)).toBeOnTheScreen();
   const vote = await screen.findByRole("button", { name: "Chess: Yes", ...hidden });
   expect(screen.getByRole("button", { name: "Chess: No", ...hidden })).toBeDisabled();
-  expect(screen.queryByText("Dates", hidden)).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Dates", ...hidden })).toBeNull();
   await fireEvent.press(vote);
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Chess: Yes", ...hidden })).toBeSelected(),
@@ -86,6 +86,8 @@ it("loads guest votes on demand and submits proxy ballots for the selected guest
   expect(screen.getByRole("button", { name: "Azul: No", ...hidden })).toBeEnabled();
   expect(calls).toEqual([{ kind: "game", tableId: table.id, gameId: 1, vote: "YES" }]);
   expect(close).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Done", ...hidden }));
+  expect(close).toHaveBeenCalledOnce();
 });
 
 it("stops at the current event authority check when guest proxy permission is revoked", async () => {
@@ -95,4 +97,34 @@ it("stops at the current event authority check when guest proxy permission is re
   expect(await screen.findByText("Could not load guest votes", hidden)).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Chess: Yes", ...hidden })).toBeNull();
   expect(fetch.mock.calls).toHaveLength(1);
+});
+
+it("switches between top tabs for dates, locations and games without requiring or writing a vote", async () => {
+  const event = {
+    ...plannedEvent,
+    canManage: true,
+    dates: [...plannedEvent.dates, { ...plannedEvent.dates[0], id: "date-two", day: "2030-06-06" }],
+    locations: [
+      ...plannedEvent.locations,
+      { ...plannedEvent.locations[0], id: "place-two", name: "Another venue" },
+    ],
+  };
+  const fetcher = vi.fn(async (value: string) => {
+    const url = new URL(value);
+    return Response.json(
+      url.pathname === path
+        ? { guestName: "Guest Alice", dateVotes: {}, locationVotes: {}, gameVotes: {} }
+        : event,
+    );
+  });
+  vi.stubGlobal("fetch", fetcher);
+  await render(fixture());
+  expect(await screen.findByRole("tab", { name: "Dates", ...hidden })).toBeSelected();
+  await fireEvent.press(screen.getByRole("tab", { name: "Locations", ...hidden }));
+  expect(screen.getByText("Another venue", hidden)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("tab", { name: "Games", ...hidden }));
+  expect(screen.getByRole("button", { name: "Chess: Yes", ...hidden })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Done", ...hidden }));
+  expect(close).toHaveBeenCalledOnce();
+  expect(fetcher.mock.calls).toHaveLength(2);
 });

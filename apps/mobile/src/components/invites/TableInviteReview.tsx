@@ -183,7 +183,6 @@ export function TableInviteReview({
               game={game}
               name={name}
               imageUrl={game?.imageUrl}
-              durationMinutes={item.value.durationMinutes}
               actions={voteButtons(item, String(item.value.gameId), name)}
             />
           );

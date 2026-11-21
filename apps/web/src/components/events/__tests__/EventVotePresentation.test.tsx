@@ -3,25 +3,7 @@ import { expect, it } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { EventSeatListHeading } from "../EventSeatListHeading";
 import { EventTableRatingInfo } from "../EventTableRatingInfo";
-import { EventVoteCounts } from "../EventVoteCounts";
 import { EventVoteLegend } from "../EventVoteLegend";
-
-it("shows pending vote counts as unavailable and updates to authoritative totals", () => {
-  const view = renderWithI18n(<EventVoteCounts label="Friday evening" />);
-  expect(view.container.querySelector("dl")).toBeNull();
-  view.rerender(
-    <EventVoteCounts label="Friday evening" counts={{ YES: 4, IF_NEEDED: 2, NO: 1, UNKNOWN: 0 }} />,
-  );
-  const counts = screen.getByLabelText("Votes: Friday evening");
-  expect(within(counts).getByText("Yes")).toBeTruthy();
-  expect(within(counts).getByText("If needed")).toBeTruthy();
-  expect(within(counts).getByText("No")).toBeTruthy();
-  expect([...counts.querySelectorAll("dd")].map((value) => value.textContent)).toEqual([
-    "4",
-    "2",
-    "1",
-  ]);
-});
 
 it.each(["event", "table"] as const)(
   "explains %s voting eligibility and a required positive preference",

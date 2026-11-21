@@ -5,8 +5,8 @@ import { test } from "vitest";
 import { EventSeatListHeading } from "@/components/events/EventSeatListHeading";
 import { EventTableGamesPopover } from "@/components/events/EventTableGamesPopover";
 import { EventTableRatingInfo } from "@/components/events/EventTableRatingInfo";
-import { EventVoteCounts } from "@/components/events/EventVoteCounts";
 import { EventVoteLegend } from "@/components/events/EventVoteLegend";
+import { OptionVoteVoters } from "@/components/events/OptionVoteVoters";
 import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
 import { GameListCard } from "@/components/games/GameListCard";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -39,7 +39,6 @@ function SelectGame() {
       <GameListCard
         name="Cascadia"
         game={{ id: 1, name: "Cascadia", imageUrl: null, year: 2021, average: 7.83, rank: 42 }}
-        durationMinutes={60}
         onPress={() => setSelected(true)}
       />
       {selected ? <p>Game selected</p> : null}
@@ -212,16 +211,21 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
     },
   },
   {
-    name: "EventVoteCounts: authoritative category totals",
+    name: "OptionVoteVoters: compact named ballots",
     element: (
-      <EventVoteCounts
+      <OptionVoteVoters
+        compact
         label="Friday evening"
-        counts={{ YES: 4, IF_NEEDED: 2, NO: 1, UNKNOWN: 0 }}
+        voters={{
+          YES: [{ userId: "alice", name: "Alice", username: null, avatarUrl: null }],
+          IF_NEEDED: [{ userId: "bob", name: "Bob", username: null, avatarUrl: null }],
+          NO: [],
+        }}
       />
     ),
     scenario: async () => {
       screen.getByLabelText("Votes: Friday evening");
-      screen.getByText("If needed");
+      screen.getByRole("listitem", { name: "If needed: Bob" });
     },
   },
   {

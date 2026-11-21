@@ -13,6 +13,15 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+msgid "About guests"
+msgstr "About guests"
+
+msgid "Add someone who does not have a Board Game Organizer account."
+msgstr "Add someone who does not have a Board Game Organizer account."
+
+msgid "This player is a guest. An organizer can vote on their behalf."
+msgstr "This player is a guest. An organizer can vote on their behalf."
+
 msgid "Add a guest"
 msgstr "Add a guest"
 

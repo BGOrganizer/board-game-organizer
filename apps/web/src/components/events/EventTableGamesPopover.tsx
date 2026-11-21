@@ -33,13 +33,7 @@ export function EventTableGamesPopover({
       <div className="max-h-[50vh] overflow-y-auto overscroll-contain">
         <GroupedList>
           {games.slice(page * 8, (page + 1) * 8).map((game) => (
-            <GameListRow
-              game={game}
-              key={game.id}
-              name={game.name}
-              imageUrl={game.imageUrl}
-              durationMinutes={game.durationMinutes}
-            />
+            <GameListRow game={game} key={game.id} name={game.name} imageUrl={game.imageUrl} />
           ))}
         </GroupedList>
         {!games.length ? <p className="text-muted">{t`No games found`}</p> : null}

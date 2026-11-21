@@ -302,7 +302,6 @@ export function EventDraftTableEditor({
               key={game.id}
               name={game.name}
               imageUrl={game.imageUrl}
-              durationMinutes={eventGameDuration(game)}
               actions={
                 <Button
                   isIconOnly
