@@ -20,6 +20,7 @@ vi.mock("@clerk/nextjs", () => ({ useUser: () => mocks.clerk }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: mocks.replace }) }));
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -131,23 +132,26 @@ describe("MobileNumberPage", () => {
   });
 
   it("selects a country by name and stores its prefix with the national number", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     renderWithI18n(<MobileNumberPage />);
     fireEvent.click(screen.getByRole("button", { name: /Country calling code/ }));
     const search = screen.getByRole("searchbox", { name: "Search countries" });
     fireEvent.change(search, { target: { value: "zzzz" } });
-    expect(await screen.findByText("No countries found")).toBeTruthy();
+    await act(() => vi.advanceTimersByTimeAsync(299));
+    expect(screen.queryByText("No countries found")).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(screen.getByText("No countries found")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
     fireEvent.change(search, { target: { value: "ital" } });
-    const italy = await screen.findByRole("option", { name: /Italy/ });
+    await act(() => vi.advanceTimersByTimeAsync(300));
+    const italy = screen.getByRole("option", { name: /Italy/ });
     expect(italy.textContent).toContain("+39");
     fireEvent.click(italy);
     fireEvent.change(screen.getByLabelText("Mobile number"), { target: { value: "333 1234567" } });
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    await waitFor(() =>
-      expect(mocks.update).toHaveBeenCalledWith({
-        unsafeMetadata: { existing: true, mobileNumber: "+39 333 1234567" },
-      }),
-    );
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Continue" })));
+    expect(mocks.update).toHaveBeenCalledWith({
+      unsafeMetadata: { existing: true, mobileNumber: "+39 333 1234567" },
+    });
   });
 
   it("selects a non-Italian prefix from the full country list", async () => {
