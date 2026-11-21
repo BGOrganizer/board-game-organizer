@@ -1,6 +1,8 @@
 import type { BggSearchItem, PlannedTableResponse } from "@board-game-organizer/schemas";
-import { render, screen, userEvent } from "@testing-library/react-native";
+import { render, renderHook, screen, userEvent } from "@testing-library/react-native";
+import { useThemeColor } from "heroui-native/hooks";
 import { createContext, useContext } from "react";
+import { processColor } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ScheduleOptionsPopover } from "@/components/common/ui/ScheduleOptionsPopover";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -328,6 +330,9 @@ it("keeps duration in the game information badge in the approved games popover",
 
 it("opens game data from an independent badge without selecting the game row", async () => {
   const select = vi.fn();
+  const palette = await renderHook(() => useThemeColor(["accent", "warning"]), {
+    wrapper: NativeTestProviders,
+  });
   await render(
     <NativeTestProviders>
       <GameListRow game={chess} name={chess.name} onPress={select} />
@@ -348,6 +353,22 @@ it("opens game data from an independent badge without selecting the game row", a
     "Abstract Strategy",
   ])
     expect(screen.getByText(fact)).toBeVisible();
+  const accent = processColor(palette.result.current[0]);
+  expect(typeof accent).toBe("number");
+  for (const label of ["Year", "Duration", "Best BGG", "Difficulty"]) {
+    const paths = screen
+      .getByText(`${label}:`)
+      .parent?.queryAll((node) => node.type === "RNSVGPath");
+    expect(paths?.length).toBeGreaterThan(0);
+    for (const path of paths ?? []) {
+      expect(path.props.fill).toBeNull();
+      expect(path.props.stroke).toEqual({ type: 0, payload: accent });
+    }
+  }
+  const star = screen
+    .getByText("BGG rating:")
+    .parent?.queryAll((node) => node.type === "RNSVGPath")[0];
+  expect(star?.props.fill).toEqual({ type: 0, payload: processColor(palette.result.current[1]) });
   expect(select).toHaveBeenCalledOnce();
 });
 

@@ -68,7 +68,7 @@ function GameMetadataBadge({
   const t = useT();
   const { i18n } = useLingui();
   const { height } = useWindowDimensions();
-  const [muted, warning, separator] = useThemeColor(["muted", "warning", "separator"]);
+  const [accent, warning, separator] = useThemeColor(["accent", "warning", "separator"]);
   const weightColor = useThemeColor(gameDifficultyColor(game.averageWeight) ?? "muted");
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
   const rating = new Intl.NumberFormat(i18n.locale, {
@@ -128,7 +128,7 @@ function GameMetadataBadge({
       >
         {rows.map(({ Icon, label, value, color, fill }) => (
           <View key={label} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Icon size={15} color={color ?? muted} fill={fill} accessible={false} />
+            <Icon size={15} color={color ?? accent} fill={fill ?? "none"} accessible={false} />
             <Typography className="text-sm font-semibold text-foreground">{label}:</Typography>
             {value == null && loading ? (
               <Skeleton style={{ width: 64, height: 16, borderRadius: 4 }} />

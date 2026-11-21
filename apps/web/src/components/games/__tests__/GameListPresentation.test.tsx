@@ -90,9 +90,11 @@ it("shows BGG facts in the badge and keeps row actions separate", () => {
   expect(popover.getByText("30–45 min")).toBeTruthy();
   expect(popover.getByText("2 (80%) – 3 (80%)")).toBeTruthy();
   expect(popover.getByText("3.5/5")).toBeTruthy();
-  expect(
-    popover.getByText("Difficulty:").querySelector("svg")?.classList.contains("text-accent"),
-  ).toBe(true);
+  for (const label of ["Year", "Duration", "Best BGG", "Difficulty"]) {
+    const icon = popover.getByText(`${label}:`).closest("dt")?.querySelector("svg");
+    expect(icon).toHaveClass("text-accent");
+    expect(icon).toHaveAttribute("fill", "none");
+  }
   expect(popover.getByText("Animals")).toBeTruthy();
   expect(popover.queryByText("60 minutes")).toBeNull();
   expect(selected).not.toHaveBeenCalled();

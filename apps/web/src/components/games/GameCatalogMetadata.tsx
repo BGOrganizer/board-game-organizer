@@ -107,7 +107,7 @@ function GameMetadataBadge({
       Icon: Gauge,
       label: t`Difficulty`,
       value: game.averageWeight == null ? undefined : `${number.format(game.averageWeight)}/5`,
-      color: color ? difficultyClasses[color] : undefined,
+      color: color ? difficultyClasses[color] : "text-muted",
     },
   ];
   return (
@@ -116,9 +116,9 @@ function GameMetadataBadge({
         <dl className="mt-2 space-y-2">
           {rows.map(({ Icon, label, value, color }) => (
             <div key={label} className="flex items-start gap-2">
-              <dt className="flex shrink-0 items-center gap-2 font-semibold">
-                <Icon size={15} aria-hidden className={color ?? "text-muted"} />
-                {label}:
+              <dt className="flex shrink-0 items-center gap-2">
+                <Icon size={15} aria-hidden className={color ?? "text-accent"} />
+                <span className="font-semibold">{label}:</span>
               </dt>
               <dd className="min-w-0">
                 {value ?? (loading ? <Skeleton className="h-4 w-16 rounded" /> : t`N/A`)}
