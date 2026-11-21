@@ -22,8 +22,6 @@ var italian = locale === "it";
 var edit = italian ? "Modifica voti dell’ospite" : "Edit guest votes";
 output.tableGuest = {
   name: input.name,
-  nameField: literal(italian ? "Nome dell’ospite" : "Guest name"),
-  add: literal(italian ? "Aggiungi un ospite" : "Add a guest"),
   help: literal(italian ? "Come funzionano gli ospiti" : "About guests"),
   helpText: literal(
     italian
@@ -36,6 +34,7 @@ output.tableGuest = {
   editor: literal(edit),
   edit: literal(edit + ": " + input.name),
   yes: literal(input.game + ": " + (italian ? "Sì" : "Yes")),
+  voter: literal(input.name + " (" + (italian ? "Sì" : "Yes") + ")"),
   no: literal(input.game + ": No"),
   done: literal(italian ? "Fine" : "Done"),
 };

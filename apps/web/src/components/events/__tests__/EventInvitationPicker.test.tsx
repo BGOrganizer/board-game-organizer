@@ -298,7 +298,7 @@ it.each([
 );
 
 it("adds a guest directly and retries an uncertain response with the same request ID", async () => {
-  const requests: Array<{ name: string; requestId: string }> = [];
+  const requests: Array<{ name: string; email?: string; requestId: string }> = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
@@ -307,6 +307,7 @@ it("adds a guest directly and retries an uncertain response with the same reques
         const input = JSON.parse(String(init.body));
         expect(input).toEqual({
           name: "Guest Alice",
+          email: "alice@example.test",
           requestId: expect.stringMatching(/^[a-f\d-]{36}$/),
         });
         requests.push(input);
@@ -325,20 +326,36 @@ it("adds a guest directly and retries an uncertain response with the same reques
     }),
   );
   mount();
-  fireEvent.change(await screen.findByRole("textbox", { name: "Guest name" }), {
-    target: { value: "  Guest Alice  " },
-  });
-  const add = screen.getByRole("button", { name: "Add a guest" });
+  const open = await screen.findByRole("button", { name: "Add a guest" });
+  expect(screen.queryByRole("textbox", { name: "Username" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "About guests" }));
   const help = screen.getByRole("dialog", { name: "Guest" });
   expect(help).toHaveTextContent("Add someone who does not have a Board Game Organizer account.");
   fireEvent.keyDown(help, { key: "Escape" });
+  fireEvent.click(open);
+  const username = await screen.findByRole("textbox", { name: "Username" });
+  const email = screen.getByRole("textbox", { name: "Email (optional)" });
+  const add = screen.getByRole("button", { name: "Add" });
+  expect(username).toBeRequired();
+  expect(email).not.toBeRequired();
+  expect(add).toBeDisabled();
+  fireEvent.change(username, { target: { value: "  Guest Alice  " } });
+  expect(add).toBeEnabled();
+  fireEvent.change(email, { target: { value: "invalid" } });
+  fireEvent.blur(email);
+  expect(await screen.findByText("Enter a valid email address.")).toBeVisible();
+  expect(add).toBeDisabled();
+  fireEvent.change(email, { target: { value: "alice@example.test" } });
   fireEvent.click(add);
   await screen.findByText("Could not add guest. Try again.");
   expect(m.back).not.toHaveBeenCalled();
   fireEvent.click(add);
   await waitFor(() => expect(m.back).toHaveBeenCalledOnce());
-  expect(screen.getByRole("textbox", { name: "Guest name" })).toHaveValue("");
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: "Select user: Guest Alice" })).toBeNull();
+  fireEvent.click(open);
+  expect(await screen.findByRole("textbox", { name: "Username" })).toHaveValue("");
+  expect(screen.getByRole("textbox", { name: "Email (optional)" })).toHaveValue("");
   expect(requests).toHaveLength(2);
   expect(requests[0]).toEqual(requests[1]);
 });
@@ -359,6 +376,6 @@ it.each([
   );
   mount();
   await screen.findByRole("searchbox", { name: "Search friends" });
-  expect(screen.queryByRole("textbox", { name: "Guest name" })).toBeNull();
+  expect(screen.queryByRole("textbox", { name: "Username" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Add a guest" })).toBeNull();
 });

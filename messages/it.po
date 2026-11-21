@@ -19,6 +19,22 @@ msgstr "Come funzionano gli ospiti"
 msgid "Add someone who does not have a Board Game Organizer account."
 msgstr "Aggiungi una persona senza account su Board Game Organizer."
 
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Email (optional)"
+msgstr "Email (facoltativa)"
+
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Enter a username"
+msgstr "Inserisci uno username"
+
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Enter a valid email address."
+msgstr "Inserisci un indirizzo email valido."
+
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Enter an email address"
+msgstr "Inserisci un indirizzo email"
+
 msgid "This player is a guest. An organizer can vote on their behalf."
 msgstr "Questo giocatore è un ospite. Un organizzatore può votare per lui."
 
@@ -728,6 +744,10 @@ msgstr "{durationMinutes, plural, one {# minuto} other {# minuti}}"
 
 msgid "Unknown game"
 msgstr "Gioco sconosciuto"
+
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Username"
+msgstr "Username"
 
 msgid "Year"
 msgstr "Anno"

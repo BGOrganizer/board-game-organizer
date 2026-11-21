@@ -3,6 +3,7 @@ import type {
   TableInviteesPageResponse,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
+import { isGuestParticipantId } from "@board-game-organizer/schemas";
 
 export type TableInviteeIntent = {
   mutationId: number;
@@ -33,6 +34,7 @@ export function tableInviteeItems(
   const released: TableInviteeResponse[] = [];
   for (const intent of [...intents].sort((a, b) => b.mutationId - a.mutationId)) {
     if (
+      isGuestParticipantId(intent.userId) ||
       intent.aborted ||
       intent.status === "idle" ||
       seen.has(intent.userId) ||
@@ -82,7 +84,9 @@ export function tableInviteeItems(
       invitationBlockReason: null,
     });
   }
-  const items = canonical.filter((row) => !row.optimisticInvited && !excluded.has(row.id));
+  const items = canonical.filter(
+    (row) => !isGuestParticipantId(row.id) && !row.optimisticInvited && !excluded.has(row.id),
+  );
   const known = new Set(items.map((row) => row.id));
   return [...released.filter((row) => !known.has(row.id)), ...items];
 }

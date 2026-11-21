@@ -3,6 +3,7 @@
 import type {
   AddTableGuestInput,
   ChangeEventVoteInput,
+  TableGuestDetails,
   TableGuestVotes,
   TableRegistrationReceipt,
 } from "@board-game-organizer/schemas";
@@ -105,6 +106,7 @@ export function useTableGuestActions(
   const addition = useMutation({
     ...writes,
     mutationKey: [...mutationKey, "add-guest"],
+    gcTime: 0,
     mutationFn: async (input: AddTableGuestInput, context) => {
       const signal = await optimisticMutationSignal(client, context.mutationKey, input);
       const receipt = await communityRequest<TableRegistrationReceipt>(
@@ -142,15 +144,18 @@ export function useTableGuestActions(
   return {
     add: addition,
     vote,
-    addGuest(name: string, onSaved: () => void) {
+    addGuest(details: TableGuestDetails, onSaved: () => void) {
       if (adding.current) return;
-      const value = name.trim();
       const owner = JSON.stringify([scope.id, tableId]);
-      if (request.current?.scope !== owner || request.current.input.name !== value)
+      if (
+        request.current?.scope !== owner ||
+        request.current.input.name !== details.name ||
+        request.current.input.email !== details.email
+      )
         request.current = {
           scope: owner,
           input: {
-            name: value,
+            ...details,
             requestId: withClientRequestId({ clientRequestId: "" }).clientRequestId,
           },
         };

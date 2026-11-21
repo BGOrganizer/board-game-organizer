@@ -61,6 +61,22 @@ describe("Table candidate release intent", () => {
     expect(tableInviteeItems([], [removal()], [], "other")).toEqual([]);
     expect(tableInviteeItems([], [], [], "")).toEqual([]);
   });
+  it("excludes accountless guests from cached pages and optimistic release candidates", () => {
+    const userId = "guest:00000000-0000-4000-8000-000000000000";
+    const guest = { ...person, userId };
+    const rows = [candidate, { ...candidate, id: userId }];
+    expect(tableInviteeItems(rows, [removal({ userId, person: guest })], [], "")).toEqual([
+      candidate,
+    ]);
+    expect(
+      tableInviteeItems(
+        [],
+        [removal({ userId, person: guest, status: "success", acknowledgedVersion: 2 })],
+        [],
+        "",
+      ),
+    ).toEqual([]);
+  });
   it("keeps canonical identity/conflict reasons and cursors authoritative", () => {
     const pages = snapshot(2, [candidate], "cursor");
     expect(

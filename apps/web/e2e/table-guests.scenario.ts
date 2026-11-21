@@ -40,9 +40,12 @@ if (
 
 const it = locale === "it";
 const labels = {
-  name: it ? "Nome dell’ospite" : "Guest name",
-  add: it ? "Aggiungi un ospite" : "Add a guest",
+  name: "Username",
+  email: it ? "Email (facoltativa)" : "Email (optional)",
+  addGuest: it ? "Aggiungi un ospite" : "Add a guest",
+  add: it ? "Aggiungi" : "Add",
   participants: it ? "Partecipanti" : "Participants",
+  details: it ? "Dettagli" : "Details",
   place: it ? "Posto libero" : "Free place",
   invite: it ? "Invita giocatori" : "Invite players",
   guest: it ? "Ospite" : "Guest",
@@ -71,16 +74,27 @@ test("manager adds an unregistered guest and later records a ballot without a pr
   await page.getByRole("button", { name: labels.help }).click();
   await expect(page.getByRole("dialog", { name: labels.guest })).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("textbox", { name: labels.name }).fill(input.name);
+  await page.getByRole("button", { name: labels.addGuest, exact: true }).click();
+  const guestForm = page.getByRole("dialog", { name: labels.addGuest });
+  const save = guestForm.getByRole("button", { name: labels.add, exact: true });
+  await expect(save).toBeDisabled();
+  await guestForm.getByRole("textbox", { name: labels.name }).fill(input.name);
+  const email = guestForm.getByRole("textbox", { name: labels.email });
+  await email.fill("invalid-email");
+  await email.press("Tab");
+  await expect(save).toBeDisabled();
+  await email.fill("guest@example.test");
   const created = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname === `/api${path}/guests`,
   );
-  await page.getByRole("button", { name: labels.add }).click();
+  await save.click();
   const result = await created;
   expect(result.ok()).toBeTruthy();
-  expect(await result.json()).toMatchObject({
+  const receipt = await result.json();
+  expect(JSON.stringify(receipt)).not.toContain("guest@example.test");
+  expect(receipt).toMatchObject({
     kind: "GUEST",
     guestName: input.name,
     status: "ACCEPTED",
@@ -107,6 +121,19 @@ test("manager adds an unregistered guest and later records a ballot without a pr
   await expect(yes).toHaveAttribute("aria-pressed", "true");
   await dialog.getByRole("button", { name: labels.done }).click();
   await expect(dialog).toBeHidden();
+  await page.getByRole("tab", { name: labels.details, exact: true }).click();
+  await page
+    .getByRole("list", { name: `${it ? "Voti" : "Votes"}: ${input.game}` })
+    .getByRole("button", { name: `${input.name} (${labels.yes})`, exact: true })
+    .click();
+  const voter = page.getByRole("dialog", { name: input.name, exact: true });
+  await expect(voter.getByText(input.name, { exact: true })).toBeVisible();
+  await expect(voter.getByRole("button")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(voter).toBeHidden();
   await page.goto(`${path}/invite`);
-  await expect(page.getByRole("textbox", { name: labels.name })).toHaveValue("");
+  await expect(page.getByText(input.name, { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: labels.addGuest, exact: true }).click();
+  await expect(guestForm.getByRole("textbox", { name: labels.name })).toHaveValue("");
+  await expect(guestForm.getByRole("textbox", { name: labels.email })).toHaveValue("");
 });

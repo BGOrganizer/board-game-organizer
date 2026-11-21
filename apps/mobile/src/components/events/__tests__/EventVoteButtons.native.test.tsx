@@ -8,8 +8,12 @@ import {
   within,
 } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
+import {
+  installNativePopoverMeasurements,
+  pressMeasuredPopover,
+} from "@/test/nativePopoverGeometry";
 import { EventVoteButtons } from "../EventVoteButtons";
 import { OptionVoteVoters } from "../OptionVoteVoters";
 
@@ -27,6 +31,8 @@ const voters: Voters = {
 };
 
 const hidden = { includeHiddenElements: true };
+
+afterEach(() => vi.restoreAllMocks());
 
 it("opens the named votes sheet from the preference dialog without casting a vote", async () => {
   const choose = vi.fn();
@@ -122,9 +128,18 @@ it("uses compact avatars and leaves out zero-vote groups and empty summaries", a
       <OptionVoteVoters label="Azul" voters={data} compact />
     </NativeTestProviders>
   );
-  const view = await render(renderSummary(voters));
+  await installNativePopoverMeasurements();
+  const view = await render(
+    renderSummary({
+      ...voters,
+      YES: [
+        ...voters.YES,
+        { userId: "player-verdi", name: "Bruno Verdi", username: null, avatarUrl: null },
+      ],
+    }),
+  );
   const summary = screen.getByLabelText("Votes: Azul");
-  const yes = within(summary).getByLabelText("Yes: Alba Rossi");
+  const yes = within(summary).getByLabelText("Yes: Alba Rossi, Bruno Verdi");
   expect(within(summary).getByLabelText("If needed: @bosco")).toBeVisible();
   expect(within(summary).queryByLabelText(/^No:/)).toBeNull();
   const icons = yes.queryAll(
@@ -136,8 +151,21 @@ it("uses compact avatars and leaves out zero-vote groups and empty summaries", a
     const { width, height } = StyleSheet.flatten(node.props.style) ?? {};
     return node.type === "RCTView" && width === 16 && height === 16;
   });
-  expect(compactAvatars).toHaveLength(1);
+  expect(compactAvatars).toHaveLength(2);
+  expect(compactAvatars.map((node) => StyleSheet.flatten(node.props.style).transform)).toEqual([
+    [{ translateX: 12 }],
+    [{ translateX: -12 }],
+  ]);
+  for (const name of ["Alba Rossi (Yes)", "Bruno Verdi (Yes)"]) {
+    const target = within(yes).getByRole("button", { name });
+    expect(StyleSheet.flatten(target.props.style)).toMatchObject({ width: 44, height: 44 });
+  }
   expect(within(summary).queryByText(/^\d+$/)).toBeNull();
+  await pressMeasuredPopover(within(yes).getByRole("button", { name: "Alba Rossi (Yes)" }));
+  const popover = within(screen.getByRole("dialog", { name: "Alba Rossi, @albar" }));
+  expect(popover.getByText("Alba Rossi")).toBeVisible();
+  expect(popover.getByText("@albar")).toBeVisible();
+  expect(popover.queryByRole("button")).toBeNull();
   await view.rerender(renderSummary({ YES: [], IF_NEEDED: [], NO: [] }));
   expect(screen.queryByLabelText("Votes: Azul")).toBeNull();
 });

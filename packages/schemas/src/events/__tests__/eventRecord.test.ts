@@ -96,7 +96,15 @@ it("accepts a strict idempotent guest request and a separate tagged registration
     requestId: other,
     name: "Marie",
   });
+  expect(
+    addTableGuestSchema.parse({
+      requestId: other,
+      name: "Marie",
+      email: "  marie@example.test ",
+    }),
+  ).toEqual({ requestId: other, name: "Marie", email: "marie@example.test" });
   for (const invalid of [
+    { requestId: other, name: "Marie", email: "invalid" },
     { requestId: "free text", name: "Marie" },
     { requestId: other, name: "" },
     { requestId: other, name: "Marie", userId: "old-user" },
@@ -125,6 +133,7 @@ it("accepts a strict idempotent guest request and a separate tagged registration
     { ...entry, kind: "SELF" },
     { ...entry, status: "PENDING" },
     { ...entry, guestName: undefined },
+    { ...entry, email: "marie@example.test" },
   ])
     expect(tableRegistrationSchema.safeParse(invalid).success).toBe(false);
 });

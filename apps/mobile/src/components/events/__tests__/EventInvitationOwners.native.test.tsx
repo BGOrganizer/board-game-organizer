@@ -550,16 +550,33 @@ it("returns to the table and clears the guest form only after the server accepts
   const { promise, resolve } = deferred();
   pauseWrite = promise;
   await render(<Fixture picker />);
-  const input = await screen.findByLabelText("Guest name");
-  expect(screen.queryByText("Guest name")).toBeNull();
+  const open = await screen.findByRole("button", { name: "Add a guest" });
+  expect(screen.queryByLabelText("Username")).toBeNull();
+  await userEvent.setup().press(open);
+  const input = await screen.findByLabelText("Username");
+  const email = screen.getByLabelText("Email (optional)");
+  const add = screen.getByRole("button", { name: "Add" });
+  expect(add).toBeDisabled();
   await fireEvent.changeText(input, " Guest Alice ");
-  await userEvent.setup().press(screen.getByRole("button", { name: "Add a guest" }));
+  expect(add).toBeEnabled();
+  await fireEvent.changeText(email, "invalid");
+  await fireEvent(email, "blur", { nativeEvent: { target: 1 } });
+  // Opening animation is handled by the native sheet; check the rendered validation state.
+  expect(await screen.findByText("Enter a valid email address.")).toBeOnTheScreen();
+  expect(add).toBeDisabled();
+  await fireEvent.changeText(email, "");
+  await userEvent.setup().press(add);
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0].body).toMatchObject({ name: "Guest Alice" });
   expect(io.back).not.toHaveBeenCalled();
   await act(() => resolve());
   await waitFor(() => expect(io.back).toHaveBeenCalledOnce());
-  expect(screen.getByLabelText("Guest name")).toHaveProp("value", "");
+  expect(writes[0].body).not.toHaveProperty("email");
+  expect(screen.queryByLabelText("Username")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Select user: Guest Alice" })).toBeNull();
+  await userEvent.setup().press(screen.getByRole("button", { name: "Add a guest" }));
+  expect(await screen.findByLabelText("Username")).toHaveProp("value", "");
+  expect(screen.getByLabelText("Email (optional)")).toHaveProp("value", "");
 });
 
 it.each(["write", "target"] as const)(

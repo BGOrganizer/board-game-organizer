@@ -1,5 +1,4 @@
 "use client";
-import { GUEST_NAME_MAX_LENGTH } from "@board-game-organizer/schemas";
 import {
   canGenerateTableInviteLink,
   communityAccessDenied,
@@ -13,11 +12,11 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { GuestNameRow } from "@/components/common/ui/GuestNameRow";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventAddGuestRow } from "./EventAddGuestRow";
 import { TableInviteLinkRow } from "./TableInviteLinkRow";
+
 export function EventInvitationPicker({ eventId, tableId }: { eventId: string; tableId: string }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -88,25 +87,7 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
           <TableInviteLinkRow tableId={tableId} disabled={a.blocking} />
         ) : null}
         {canAddGuest ? (
-          <>
-            <li className="list-none">
-              <GuestNameRow
-                maxLength={GUEST_NAME_MAX_LENGTH}
-                isDisabled={a.blocking || guest.add.isPending}
-                onAdd={(name, reset) =>
-                  guest.addGuest(name, () => {
-                    reset();
-                    router.back();
-                  })
-                }
-              />
-            </li>
-            {guest.add.isError ? (
-              <GroupedRow>
-                <p className="text-danger" role="alert">{t`Could not add guest. Try again.`}</p>
-              </GroupedRow>
-            ) : null}
-          </>
+          <EventAddGuestRow guest={guest} disabled={a.blocking} onSaved={() => router.back()} />
         ) : null}
       </PeoplePicker>
     </div>

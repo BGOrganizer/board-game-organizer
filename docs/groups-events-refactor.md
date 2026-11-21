@@ -490,7 +490,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   manager may provide their date, place and game preferences after enrollment. A confirmed guest's
   display name is frozen with the roster and remains part of the physical result. Ratings and
   account-level rankings use only registered scorers. Guests do not appear in the Event account
-  roster, profile search, or notification recipients.
+  roster, invitation candidates, profile search, or notification recipients. The optional guest
+  email stays in server-only contact storage and is omitted from registration receipts and reads.
 - Both clients show grouped games and places in Table details. Places start at the maximum capacity;
   occupied capacity retains an additional queue entry. A separate Waiting list section always follows
   Seats list, each with its own explanation popover. While primary places remain available, Waiting list

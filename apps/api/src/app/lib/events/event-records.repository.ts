@@ -30,6 +30,8 @@ export class EventRecordsRepository {
   private events;
   private tables;
   private registrations;
+  // Separate private storage keeps contact details out of registration reads on older deployments.
+  private guestContacts;
   private votes;
   private opts;
   constructor(
@@ -39,6 +41,12 @@ export class EventRecordsRepository {
     this.events = db.collection<EventRecord & { transactionLock?: number }>(COLLECTIONS.EVENTS);
     this.tables = db.collection<TableRecord>(COLLECTIONS.EVENT_TABLES);
     this.registrations = db.collection<TableRegistration>(COLLECTIONS.TABLE_REGISTRATIONS);
+    this.guestContacts = db.collection<{
+      _id: string;
+      eventId: string;
+      tableId: string;
+      email: string;
+    }>(COLLECTIONS.TABLE_GUEST_CONTACTS);
     this.votes = db.collection<EventVoter>(COLLECTIONS.EVENT_VOTES);
     this.opts = session ? { session } : {};
   }
@@ -77,6 +85,7 @@ export class EventRecordsRepository {
   async remove(id: string) {
     await this.db.collection(COLLECTIONS.PROFILE_ACTIVITIES).deleteMany({ eventId: id }, this.opts);
     for (const collection of [
+      COLLECTIONS.TABLE_GUEST_CONTACTS,
       COLLECTIONS.TABLE_REGISTRATIONS,
       COLLECTIONS.EVENT_VOTES,
       COLLECTIONS.EVENT_PROPOSALS,
@@ -119,6 +128,7 @@ export class EventRecordsRepository {
       { $set: { removedAt: at, updatedAt: at } },
       this.opts,
     );
+    await this.guestContacts.deleteMany({ tableId: id }, this.opts);
     await this.registrations.updateMany(
       { tableId: id, status: { $in: ["PENDING", "ACCEPTED"] } },
       { $set: { status: "CANCELLED", updatedAt: at }, $inc: { version: 1 } },
@@ -528,13 +538,19 @@ export class EventRecordsRepository {
       { ...this.opts, projection: { _id: 0 } },
     );
   }
-  async saveRegistration(row: TableRegistration) {
+  async saveRegistration(row: TableRegistration, guestEmail?: string) {
     const recordsActivity = row.status === "ACCEPTED" && row.kind !== "GUEST";
     const previous = recordsActivity ? await this.userRegistration(row.tableId, row.userId) : null;
     await this.registrations.replaceOne({ tableId: row.tableId, userId: row.userId }, row, {
       ...this.opts,
       upsert: true,
     });
+    if (row.kind === "GUEST" && guestEmail) {
+      await this.guestContacts.insertOne(
+        { _id: row.id, eventId: row.eventId, tableId: row.tableId, email: guestEmail },
+        this.opts,
+      );
+    }
     if (recordsActivity && previous?.status !== "ACCEPTED") {
       const activities = new ProfileActivitiesRepository(this.db, this.opts.session);
       await activities.record({

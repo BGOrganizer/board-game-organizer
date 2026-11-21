@@ -19,6 +19,22 @@ msgstr "About guests"
 msgid "Add someone who does not have a Board Game Organizer account."
 msgstr "Add someone who does not have a Board Game Organizer account."
 
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Email (optional)"
+msgstr "Email (optional)"
+
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Enter a username"
+msgstr "Enter a username"
+
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Enter a valid email address."
+msgstr "Enter a valid email address."
+
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Enter an email address"
+msgstr "Enter an email address"
+
 msgid "This player is a guest. An organizer can vote on their behalf."
 msgstr "This player is a guest. An organizer can vote on their behalf."
 
@@ -728,6 +744,10 @@ msgstr "{durationMinutes, plural, one {# minute} other {# minutes}}"
 
 msgid "Unknown game"
 msgstr "Unknown game"
+
+#: apps/web/src/components/events/EventAddGuestRow.tsx
+msgid "Username"
+msgstr "Username"
 
 msgid "Year"
 msgstr "Year"

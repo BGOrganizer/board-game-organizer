@@ -70,9 +70,12 @@ export const tableRegistrationReceiptSchema = tableRegistrationSchema.safeExtend
   eventVersion: z.number().int().min(1),
 });
 export type TableRegistrationReceipt = z.infer<typeof tableRegistrationReceiptSchema>;
-export const addTableGuestSchema = z
-  .object({ name: guestDisplayNameSchema, requestId: z.uuid() })
-  .strict();
+export const tableGuestDetailsSchema = z.strictObject({
+  name: guestDisplayNameSchema,
+  email: z.string().trim().email().max(320).optional(),
+});
+export type TableGuestDetails = z.infer<typeof tableGuestDetailsSchema>;
+export const addTableGuestSchema = tableGuestDetailsSchema.extend({ requestId: z.uuid() });
 export type AddTableGuestInput = z.infer<typeof addTableGuestSchema>;
 export interface TableGuestVotes {
   guestName: string;

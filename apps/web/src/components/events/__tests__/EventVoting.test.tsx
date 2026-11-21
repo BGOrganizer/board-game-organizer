@@ -97,12 +97,28 @@ it("shows compact voter avatars at the vote-icon size and omits empty choices", 
   const yes = within(summary).getByRole("listitem", { name: "Yes: Ella Reed, @jon" });
   expect(yes.querySelector("svg")).toHaveAttribute("width", "16");
   expect(yes.querySelector("svg")).toHaveAttribute("height", "16");
-  expect(yes.querySelectorAll(".avatar.size-4")).toHaveLength(2);
+  const avatars = yes.querySelectorAll(".avatar.size-4");
+  expect(avatars).toHaveLength(2);
+  expect(avatars[0]).toHaveClass("pointer-coarse:translate-x-3");
+  expect(avatars[1]).toHaveClass("pointer-coarse:-translate-x-3");
   expect(within(summary).getByRole("listitem", { name: "No: Unknown" })).toBeVisible();
   expect(within(summary).getAllByRole("listitem")).toHaveLength(2);
   expect(within(summary).queryByRole("listitem", { name: /If needed/ })).toBeNull();
   view.rerender(<VoterList label="Game" voters={{ YES: [], IF_NEEDED: [], NO: [] }} compact />);
   expect(screen.queryByRole("list", { name: "Votes: Game" })).toBeNull();
+});
+
+it("opens a read-only identity row from a voter avatar and dismisses it with Escape", async () => {
+  renderWithI18n(<VoterList label="Game" voters={voters} compact />);
+  const avatar = screen.getByRole("button", { name: "Ella Reed (Yes)" });
+  fireEvent.click(avatar);
+  const dialog = await screen.findByRole("dialog", { name: "Ella Reed" });
+  expect(within(dialog).getByText("Ella Reed")).toBeVisible();
+  expect(within(dialog).getByText("@ella")).toBeVisible();
+  expect(within(dialog).queryByRole("button")).toBeNull();
+  expect(within(dialog).queryByRole("link")).toBeNull();
+  fireEvent.keyDown(dialog, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 
 it("opens the bottom drawer from the Ghost action without casting a vote", async () => {

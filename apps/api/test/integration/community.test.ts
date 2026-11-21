@@ -5919,9 +5919,26 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     const guest = await transaction((s) =>
       s.plannedEventService.addGuest(OWNER, event.id, tableId, {
         name: "Invited friend",
+        email: "guest-player@example.test",
         requestId: randomUUID(),
       }),
     );
+    const guestEmail = "guest-player@example.test";
+    expect(JSON.stringify(guest)).not.toContain(guestEmail);
+    expect(
+      await db.collection(COLLECTIONS.TABLE_GUEST_CONTACTS).findOne({ eventId: event.id }),
+    ).toMatchObject({
+      eventId: event.id,
+      tableId,
+      email: guestEmail,
+    });
+    const roster = await transaction((s) =>
+      s.plannedEventService.seats(OWNER, event.id, tableId, { limit: 20 }),
+    );
+    expect(roster.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ userId: guest.userId })]),
+    );
+    expect(JSON.stringify(roster)).not.toContain(guestEmail);
     const confirmed = await confirm(event.id);
     await transaction((s) =>
       s.plannedEventService.finalize(OWNER, event.id, {

@@ -22,17 +22,28 @@ tags: [manual, tables, guests]
     enabled: true
 - tapOn: ${output.tableGuest.invite}
 - extendedWaitUntil:
-    visible: ${output.tableGuest.nameField}
+    visible:
+      id: table-guest-open
     timeout: 30000
 - tapOn: ${output.tableGuest.help}
 - assertVisible: ${output.tableGuest.helpText}
 - back
-- tapOn: ${output.tableGuest.nameField}
+- tapOn:
+    id: table-guest-open
+- assertVisible:
+    id: table-guest-email
+- assertVisible:
+    id: table-guest-submit
+    enabled: false
+- tapOn:
+    id: table-guest-username
 - inputText: ${output.tableGuest.name}
 - hideKeyboard
-- tapOn: ${output.tableGuest.add}
+- tapOn:
+    id: table-guest-submit
 - extendedWaitUntil:
-    notVisible: ${output.tableGuest.nameField}
+    notVisible:
+      id: table-guest-open
     timeout: 30000
 - scrollUntilVisible:
     element: ${output.tableGuest.edit}
@@ -60,3 +71,13 @@ tags: [manual, tables, guests]
 - takeScreenshot: table-guest-proxy-ballot
 - tapOn: ${output.tableGuest.done}
 - assertNotVisible: ${output.tableGuest.editor}
+- tapOn:
+    id: table-overview-tab
+- scrollUntilVisible:
+    element: ${output.tableGuest.voter}
+    direction: DOWN
+    timeout: 30000
+- tapOn: ${output.tableGuest.voter}
+- assertVisible:
+    id: vote-voter-popover
+- assertVisible: ${output.tableGuest.name}

@@ -91,6 +91,7 @@ function collection() {
     distinct: vi.fn(
       async (_field: string, _filter: Document, _options: Document): Promise<unknown[]> => [],
     ),
+    deleteMany: vi.fn(async (_filter: Document, _options: Document) => ({ deletedCount: 1 })),
     insertOne: vi.fn(async (_row: Document, _options: Document) => ({ acknowledged: true })),
     replaceOne: vi.fn(async (_filter: Document, _row: Document, _options: Document) => ({
       modifiedCount: 1,
@@ -182,6 +183,9 @@ describe("EventRecordsRepository actual table, registration and vote writes", ()
     const session = {} as ClientSession;
     const fixture = setup(session);
     await fixture.repo.removeTable(tableId, at);
+    expect(
+      fixture.get(COLLECTIONS.TABLE_GUEST_CONTACTS).deleteMany,
+    ).toHaveBeenCalledExactlyOnceWith({ tableId }, { session });
     expect(fixture.get(COLLECTIONS.EVENT_TABLES).updateOne).toHaveBeenCalledExactlyOnceWith(
       { id: tableId, results: { $exists: false } },
       { $set: { removedAt: at, updatedAt: at } },
@@ -258,8 +262,9 @@ describe("EventRecordsRepository actual table, registration and vote writes", ()
     },
   );
 
-  it("writes a guest seat without account or activity lookups", async () => {
-    const fixture = setup();
+  it("keeps guest contact details in the same transaction and outside the roster", async () => {
+    const session = {} as ClientSession;
+    const fixture = setup(session);
     const row = {
       ...registration,
       kind: "GUEST" as const,
@@ -267,8 +272,22 @@ describe("EventRecordsRepository actual table, registration and vote writes", ()
       status: "ACCEPTED" as const,
       guestName: "Carla",
     };
-    await expect(fixture.repo.saveRegistration(row)).resolves.toBe(row);
-    expect(fixture.get(COLLECTIONS.TABLE_REGISTRATIONS).findOne).not.toHaveBeenCalled();
+    const email = "carla@example.test";
+    const roster = fixture.get(COLLECTIONS.TABLE_REGISTRATIONS);
+    const contacts = fixture.get(COLLECTIONS.TABLE_GUEST_CONTACTS);
+    await expect(fixture.repo.saveRegistration(row, email)).resolves.toBe(row);
+    expect(roster.replaceOne).toHaveBeenCalledExactlyOnceWith(
+      { tableId, userId: row.userId },
+      row,
+      { session, upsert: true },
+    );
+    expect(contacts.insertOne).toHaveBeenCalledExactlyOnceWith(
+      { _id: row.id, eventId: row.eventId, tableId, email },
+      { session },
+    );
+    await fixture.repo.saveRegistration({ ...row, version: 4 });
+    expect(contacts.insertOne).toHaveBeenCalledOnce();
+    expect(roster.findOne).not.toHaveBeenCalled();
     expect(fixture.get(COLLECTIONS.PROFILE_ACTIVITIES).updateOne).not.toHaveBeenCalled();
   });
 

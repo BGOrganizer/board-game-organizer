@@ -1,6 +1,7 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import { Avatar } from "heroui-native/avatar";
 import { useThemeColor } from "heroui-native/hooks";
+import { Popover } from "heroui-native/popover";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
 import { Check, Minus, X } from "lucide-react-native";
@@ -14,6 +15,7 @@ import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { UserAvatar } from "@/components/common/ui/UserAvatar";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 
 type Voters = NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
@@ -44,37 +46,84 @@ export function OptionVoteVoters({
         accessibilityLabel={`${t("Votes")}: ${label}`}
         style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
       >
-        {groups.map(({ id, text, Icon, color }) => (
-          <View
-            key={id}
-            accessible
-            accessibilityLabel={`${text}: ${voters[id].map(displayName).join(", ")}`}
-            style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 2 }}
-          >
-            <Icon size={16} color={color} accessible={false} />
-            {voters[id].map((person) => (
-              <Avatar
-                key={person.userId}
-                alt={displayName(person)}
-                accessible={false}
-                style={{ width: 16, height: 16 }}
+        {groups.map(({ id, text, Icon, color }) => {
+          const paired = voters[id].length === 2;
+          return (
+            <View
+              key={id}
+              accessibilityLabel={`${text}: ${voters[id].map(displayName).join(", ")}`}
+              style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 2 }}
+            >
+              <View
+                pointerEvents="none"
+                style={paired ? { zIndex: 1, transform: [{ translateX: 20 }] } : undefined}
               >
-                {person.guestName ? (
+                <Icon size={16} color={color} accessible={false} />
+              </View>
+              {voters[id].map((person, index) => {
+                const name = displayName(person);
+                const username = person.name && person.username ? `@${person.username}` : undefined;
+                const guestAvatar = person.guestName ? (
                   <GuestAvatar name={person.guestName} />
-                ) : (
-                  <>
-                    {person.avatarUrl ? <Avatar.Image source={{ uri: person.avatarUrl }} /> : null}
-                    <Avatar.Fallback>
-                      <Typography className="text-foreground" style={{ fontSize: 10 }}>
-                        {displayName(person).replace(/^@/, "").charAt(0)}
-                      </Typography>
-                    </Avatar.Fallback>
-                  </>
-                )}
-              </Avatar>
-            ))}
-          </View>
-        ))}
+                ) : undefined;
+                return (
+                  <Popover key={person.userId}>
+                    <Popover.Trigger
+                      accessibilityLabel={`${name} (${text})`}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Avatar
+                        alt={name}
+                        accessible={false}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          transform: paired ? [{ translateX: index === 0 ? 12 : -12 }] : undefined,
+                        }}
+                      >
+                        {guestAvatar ?? (
+                          <>
+                            {person.avatarUrl ? (
+                              <Avatar.Image source={{ uri: person.avatarUrl }} />
+                            ) : null}
+                            <Avatar.Fallback>
+                              <Typography className="text-foreground" style={{ fontSize: 10 }}>
+                                {name.replace(/^@/, "").charAt(0)}
+                              </Typography>
+                            </Avatar.Fallback>
+                          </>
+                        )}
+                      </Avatar>
+                    </Popover.Trigger>
+                    <Popover.Portal unstable_accessibilityContainerViewIsModal>
+                      <Popover.Overlay />
+                      <Popover.Content
+                        presentation="popover"
+                        placement="bottom"
+                        width={260}
+                        testID="vote-voter-popover"
+                        accessible
+                        accessibilityLabel={username ? `${name}, ${username}` : name}
+                      >
+                        <UserListRow
+                          name={name}
+                          avatarUrl={person.avatarUrl}
+                          avatarContent={guestAvatar}
+                          secondary={username}
+                        />
+                      </Popover.Content>
+                    </Popover.Portal>
+                  </Popover>
+                );
+              })}
+            </View>
+          );
+        })}
       </View>
     );
   }

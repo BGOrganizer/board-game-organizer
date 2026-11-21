@@ -2426,7 +2426,7 @@ export class EventRecordsService {
       updatedAt: at,
     };
     try {
-      await this.events.saveRegistration(row);
+      await this.events.saveRegistration(row, input.email);
     } catch (error) {
       if (error instanceof MongoServerError && error.code === 11000)
         throw new CommunityError(409, "GUEST_REQUEST_CONFLICT");

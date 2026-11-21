@@ -318,7 +318,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
       ),
     ),
     registration: vi.fn(async (key: string) => clone(registrations.get(key) ?? null)),
-    saveRegistration: vi.fn(async (row: TableRegistration) => {
+    saveRegistration: vi.fn(async (row: TableRegistration, _guestEmail?: string) => {
       for (const old of registrations.values())
         if (old.tableId === row.tableId && old.userId === row.userId) registrations.delete(old.id);
       registrations.set(row.id, clone(row));
@@ -2860,7 +2860,11 @@ describe("accountless Table guests", () => {
         owner,
         event.id,
         id,
-        addTableGuestSchema.parse({ name: "  Carla  ", requestId: other }),
+        addTableGuestSchema.parse({
+          name: "  Carla  ",
+          email: "carla@example.test",
+          requestId: other,
+        }),
       );
       expect(added).toMatchObject({
         id: other,
@@ -2871,6 +2875,8 @@ describe("accountless Table guests", () => {
         seatIndex: 0,
       });
       expect(added.userId).toMatch(/^guest:[a-f\d-]{36}$/);
+      expect(added).not.toHaveProperty("email");
+      expect(f.repo.saveRegistration.mock.lastCall?.[1]).toBe("carla@example.test");
       const writes = f.repo.saveRegistration.mock.calls.length;
       expect(
         await f.service.addGuest(owner, event.id, id, { name: "Carla", requestId: other }),

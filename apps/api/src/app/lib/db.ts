@@ -53,6 +53,7 @@ export const COLLECTIONS = {
   ORGANIZATION_ASSETS: "organizationAssets",
   EVENTS: "events",
   EVENT_TABLES: "eventTables",
+  TABLE_GUEST_CONTACTS: "tableGuestContacts",
   TABLE_REGISTRATIONS: "tableRegistrations",
   EVENT_VOTES: "eventVotes",
   EVENT_PROPOSALS: "eventProposals",

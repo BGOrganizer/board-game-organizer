@@ -448,11 +448,12 @@ it("keeps Table invitation candidate reads outside write diagnostics", async () 
   expect(console.info).not.toHaveBeenCalled();
 });
 it("validates accountless guest paths, scoped request IDs and strict vote payloads", async () => {
-  const body = { name: " Carla ", requestId: id };
+  const body = { name: " Carla ", email: " carla@example.test ", requestId: id };
   expect((await guests.POST(request("POST", body), context)).status).toBe(201);
   expect(events.addGuest).toHaveBeenCalledExactlyOnceWith("actor", id, tableId, {
     ...body,
     name: "Carla",
+    email: "carla@example.test",
   });
   expect((await guestReview.GET(request(), context)).status).toBe(200);
   expect(events.guestVotes).toHaveBeenCalledExactlyOnceWith("actor", id, tableId, id);
@@ -461,6 +462,7 @@ it("validates accountless guest paths, scoped request IDs and strict vote payloa
   expect(events.voteForGuest).toHaveBeenCalledExactlyOnceWith("actor", id, tableId, id, vote);
   for (const invalid of [
     { ...body, name: " " },
+    { ...body, email: "invalid-email" },
     { ...body, requestId: "bad" },
     { ...body, userId: "forged" },
   ])
