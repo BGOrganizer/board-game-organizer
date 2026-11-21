@@ -87,7 +87,7 @@ export function EventGuestVoteEditor({
                             value={row.value}
                             disabledVotes={row.allowNo ? [] : ["NO"]}
                             busy={form.saving}
-                            onChange={(vote) => form.save(row, vote)}
+                            onChange={(vote) => form.choose(row, vote)}
                           />
                         );
                         switch (row.kind) {
@@ -126,7 +126,9 @@ export function EventGuestVoteEditor({
             ) : null}
           </Drawer.Body>
           <Drawer.Footer>
-            <Button onPress={onClose} isDisabled={form.saving}>{t`Done`}</Button>
+            <Button onPress={() => form.submit(onClose)} isDisabled={!form.canSubmit}>
+              {t({ id: "Vote", message: "Vote" })}
+            </Button>
           </Drawer.Footer>
         </Drawer.Dialog>
       </Drawer.Content>

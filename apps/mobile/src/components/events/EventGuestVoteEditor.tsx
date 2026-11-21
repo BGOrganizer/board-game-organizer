@@ -59,7 +59,20 @@ export function EventGuestVoteEditor({
             enablePanDownToClose={!form.saving}
             contentContainerProps={{ style: { height: height * 0.8, padding: 20, gap: 12 } }}
           >
-            <BottomSheet.Title>{t("Edit guest votes")}</BottomSheet.Title>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <BottomSheet.Title>{t("Edit guest votes")}</BottomSheet.Title>
+              <BottomSheet.Close
+                accessibilityLabel={t("Close")}
+                isDisabled={form.saving}
+                style={{ minWidth: 44, minHeight: 44 }}
+              />
+            </View>
             <BottomSheet.Description>{name}</BottomSheet.Description>
             {form.loading ? (
               <Skeleton style={{ height: 80, width: "100%", borderRadius: 12 }} />
@@ -104,7 +117,7 @@ export function EventGuestVoteEditor({
                             value={row.value}
                             disabledVotes={row.allowNo ? [] : ["NO"]}
                             busy={form.saving}
-                            onChange={(vote) => form.save(row, vote)}
+                            onChange={(vote) => form.choose(row, vote)}
                           />
                         );
                         const content =
@@ -135,11 +148,11 @@ export function EventGuestVoteEditor({
               <View style={{ flex: 1 }} />
             )}
             <Button
-              onPress={onClose}
-              isDisabled={form.saving}
+              onPress={() => form.submit(onClose)}
+              isDisabled={!form.canSubmit}
               style={{ marginBottom: insets.bottom }}
             >
-              <Button.Label>{t("Done")}</Button.Label>
+              <Button.Label>{t("Vote")}</Button.Label>
             </Button>
           </BottomSheet.Content>
         </BottomSheet.Portal>

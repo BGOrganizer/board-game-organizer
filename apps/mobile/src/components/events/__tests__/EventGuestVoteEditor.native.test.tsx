@@ -48,7 +48,7 @@ afterEach(() => {
   close.mockClear();
 });
 
-it("loads guest votes on demand and submits proxy ballots for the selected guest only", async () => {
+it("loads guest votes and submits the changed ballots only on Vote for the selected guest", async () => {
   const initial: TableGuestVotes = {
     guestName: "Guest Alice",
     dateVotes: {},
@@ -77,6 +77,8 @@ it("loads guest votes on demand and submits proxy ballots for the selected guest
   await render(fixture());
   expect(await screen.findByText("Guest Alice", hidden)).toBeOnTheScreen();
   const vote = await screen.findByRole("button", { name: "Chess: Yes", ...hidden });
+  const submit = screen.getByRole("button", { name: "Vote", ...hidden });
+  expect(submit).toBeDisabled();
   expect(screen.getByRole("button", { name: "Chess: No", ...hidden })).toBeDisabled();
   expect(screen.queryByRole("tab", { name: "Dates", ...hidden })).toBeNull();
   await fireEvent.press(vote);
@@ -84,10 +86,11 @@ it("loads guest votes on demand and submits proxy ballots for the selected guest
     expect(screen.getByRole("button", { name: "Chess: Yes", ...hidden })).toBeSelected(),
   );
   expect(screen.getByRole("button", { name: "Azul: No", ...hidden })).toBeEnabled();
-  expect(calls).toEqual([{ kind: "game", tableId: table.id, gameId: 1, vote: "YES" }]);
+  expect(calls).toEqual([]);
   expect(close).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Done", ...hidden }));
-  expect(close).toHaveBeenCalledOnce();
+  await fireEvent.press(submit);
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(calls).toEqual([{ votes: [{ kind: "game", tableId: table.id, gameId: 1, vote: "YES" }] }]);
 });
 
 it("stops at the current event authority check when guest proxy permission is revoked", async () => {
@@ -99,7 +102,7 @@ it("stops at the current event authority check when guest proxy permission is re
   expect(fetch.mock.calls).toHaveLength(1);
 });
 
-it("switches between top tabs for dates, locations and games without requiring or writing a vote", async () => {
+it("discards unanswered and staged votes on closing after switching between top tabs", async () => {
   const event = {
     ...plannedEvent,
     canManage: true,
@@ -123,8 +126,9 @@ it("switches between top tabs for dates, locations and games without requiring o
   await fireEvent.press(screen.getByRole("tab", { name: "Locations", ...hidden }));
   expect(screen.getByText("Another venue", hidden)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("tab", { name: "Games", ...hidden }));
-  expect(screen.getByRole("button", { name: "Chess: Yes", ...hidden })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Done", ...hidden }));
+  await fireEvent.press(screen.getByRole("button", { name: "Chess: Yes", ...hidden }));
+  expect(screen.getByRole("button", { name: "Chess: Yes", ...hidden })).toBeSelected();
+  await fireEvent.press(screen.getByRole("button", { name: "Close", ...hidden }));
   expect(close).toHaveBeenCalledOnce();
   expect(fetcher.mock.calls).toHaveLength(2);
 });

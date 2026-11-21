@@ -4,13 +4,14 @@ import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import { Avatar, Button, Popover, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Minus, X } from "lucide-react";
+import type { CSSProperties } from "react";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { UserAvatar } from "@/components/common/ui/UserAvatar";
-import { UserListRow } from "@/components/common/ui/UserListRow";
 import { WindowedList } from "@/components/common/ui/WindowedList";
+import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 
 type Voters = NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
 
@@ -23,7 +24,7 @@ export function OptionVoteVoters({
   voters: Voters;
   compact?: boolean;
 }) {
-  const { t } = useLingui();
+  const { i18n, t } = useLingui();
   const choices = [
     { id: "YES", text: t`Yes`, Icon: Check, color: "text-success" },
     { id: "IF_NEEDED", text: t`If needed`, Icon: Minus, color: "text-warning" },
@@ -37,27 +38,32 @@ export function OptionVoteVoters({
     return (
       <ul
         aria-label={`${t`Votes`}: ${label}`}
-        className="flex flex-wrap items-center gap-x-2 gap-y-1"
+        className="flex flex-wrap items-center gap-x-1 gap-y-1"
       >
         {groups.map(({ id, text, Icon, color }) => {
-          const paired = voters[id].length === 2;
+          const group = voters[id];
           return (
             <li
               key={id}
               aria-label={`${text}: ${voters[id].map(displayName).join(", ")}`}
-              className="flex flex-wrap items-center gap-0.5"
+              className="relative flex flex-wrap items-center gap-0.5 pointer-coarse:gap-0"
             >
               <Icon
                 size={16}
-                className={
-                  paired
-                    ? `${color} pointer-events-none pointer-coarse:z-10 pointer-coarse:translate-x-5`
-                    : color
-                }
+                className={`${color} pointer-events-none pointer-coarse:absolute pointer-coarse:start-[9px] pointer-coarse:top-3.5 pointer-coarse:z-10`}
                 aria-hidden
               />
-              {voters[id].map((person, index) => {
+              {group.map((person, index) => {
                 const name = displayName(person);
+                const identity =
+                  person.guestName ?? (person.username ? `@${person.username}` : t`Unknown`);
+                const role =
+                  person.role === "guest" || person.guestName
+                    ? t`Guest`
+                    : person.role
+                      ? i18n._(recordUserRoleMessages[person.role])
+                      : t`Participant`;
+                const offset = 13 - (26 * index) / Math.max(1, group.length - 1);
                 const guestAvatar = person.guestName ? (
                   <GuestAvatar name={person.guestName} />
                 ) : undefined;
@@ -71,11 +77,8 @@ export function OptionVoteVoters({
                       className="size-11 min-h-11 min-w-11 transform-none rounded-full bg-transparent p-0 pointer-fine:size-4 pointer-fine:min-h-4 pointer-fine:min-w-4"
                     >
                       <Avatar
-                        className={
-                          paired
-                            ? `size-4 ${index === 0 ? "pointer-coarse:translate-x-3" : "pointer-coarse:-translate-x-3"}`
-                            : "size-4"
-                        }
+                        className="size-4 pointer-coarse:translate-x-(--vote-avatar-offset)"
+                        style={{ "--vote-avatar-offset": `${offset}px` } as CSSProperties}
                         aria-hidden
                       >
                         {guestAvatar ?? <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />}
@@ -84,17 +87,13 @@ export function OptionVoteVoters({
                         </Avatar.Fallback>
                       </Avatar>
                     </Button>
-                    <Popover.Content placement="bottom" className="w-64 max-w-[calc(100vw-2rem)]">
-                      <Popover.Dialog aria-label={name}>
-                        <UserListRow
-                          as="div"
-                          name={name}
-                          avatarUrl={person.avatarUrl}
-                          avatarContent={guestAvatar}
-                          secondary={
-                            person.name && person.username ? `@${person.username}` : undefined
-                          }
-                        />
+                    <Popover.Content placement="bottom" className="w-max max-w-[calc(100vw-2rem)]">
+                      <Popover.Dialog
+                        aria-label={identity}
+                        className="wrap-anywhere whitespace-normal"
+                      >
+                        <p className="font-medium">{identity}</p>
+                        <p className="text-muted">{role}</p>
                       </Popover.Dialog>
                     </Popover.Content>
                   </Popover>

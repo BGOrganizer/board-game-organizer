@@ -460,6 +460,11 @@ it("validates accountless guest paths, scoped request IDs and strict vote payloa
   const vote = { kind: "game", tableId, gameId: 1, vote: "YES" };
   expect((await guestVote.POST(request("POST", vote), context)).status).toBe(200);
   expect(events.voteForGuest).toHaveBeenCalledExactlyOnceWith("actor", id, tableId, id, vote);
+  const batch = { votes: [vote, { kind: "date", optionId: id, vote: "IF_NEEDED" }] };
+  expect((await guestVote.POST(request("POST", batch), context)).status).toBe(200);
+  expect(events.voteForGuest).toHaveBeenLastCalledWith("actor", id, tableId, id, batch);
+  for (const votes of [[], [vote, vote], [{ ...vote, vote: "UNKNOWN" }]])
+    expect((await guestVote.POST(request("POST", { votes }), context)).status).toBe(400);
   for (const invalid of [
     { ...body, name: " " },
     { ...body, email: "invalid-email" },
@@ -479,7 +484,7 @@ it("validates accountless guest paths, scoped request IDs and strict vote payloa
   expect((await guests.POST(request("POST", body), context)).status).toBe(401);
   expect(events.addGuest).toHaveBeenCalledTimes(1);
   expect(events.guestVotes).toHaveBeenCalledTimes(1);
-  expect(events.voteForGuest).toHaveBeenCalledTimes(1);
+  expect(events.voteForGuest).toHaveBeenCalledTimes(2);
 });
 it("validates initial availability and game preferences, rejecting UNKNOWN in every write", async () => {
   const availability = {

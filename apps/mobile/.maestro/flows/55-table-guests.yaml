@@ -78,6 +78,9 @@ tags: [manual, tables, guests]
 - assertVisible:
     text: ${output.tableGuest.no}
     enabled: false
+- assertVisible:
+    text: ${output.tableGuest.submit}
+    enabled: false
 - tapOn: ${output.tableGuest.yes}
 - extendedWaitUntil:
     visible:
@@ -85,7 +88,7 @@ tags: [manual, tables, guests]
       selected: true
     timeout: 30000
 - takeScreenshot: table-guest-proxy-ballot
-- tapOn: ${output.tableGuest.done}
+- tapOn: ${output.tableGuest.submit}
 - assertNotVisible: ${output.tableGuest.editor}
 - tapOn:
     id: table-overview-tab
@@ -96,4 +99,6 @@ tags: [manual, tables, guests]
 - tapOn: ${output.tableGuest.voter}
 - assertVisible:
     id: vote-voter-popover
-- assertVisible: ${output.tableGuest.name}
+- assertVisible:
+    id: vote-voter-popover
+    text: ${output.tableGuest.voterDetails}

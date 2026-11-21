@@ -514,9 +514,13 @@ exceptions retain their explicit authorization boundaries throughout this contra
   options shows voter avatars under each option, grouped by explicit preference. Event date and
   location ballots are visible to current managers and accepted Event participants, counted once
   per Event. Game ballots are visible to current managers and accepted players of that Table.
-  Accepted players in the queue are included. Ballots disclose public identity fields only and
-  are omitted from list projections and persisted native snapshots. The read-only breakdown has
-  one tab per preference and never writes a ballot or opens during enrollment.
+  Accepted players in the queue are included. Compact voter popovers show the username and the
+  voter's current role, with an accepted seat at any Table taking precedence over an Event-level
+  queue position. Guest ballots show the guest name and role. Ballots disclose only public identity
+  and voting-context role fields and are omitted from list projections and persisted native snapshots.
+  The read-only breakdown has one tab per preference and never writes a ballot or opens during enrollment.
+- Guest proxy preferences remain local across tabs until the manager presses Vote. Only changed
+  options are sent in one transaction. Closing the sheet discards the draft.
 - All PUBLIC Group Events, including PRIVATE-visibility Events, require an end and exact booking
   cutoff. Their tables have
   fixed starts and catalog-derived duration, with an automatic 120-minute fallback when metadata

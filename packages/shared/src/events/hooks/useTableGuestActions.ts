@@ -2,7 +2,7 @@
 
 import type {
   AddTableGuestInput,
-  ChangeEventVoteInput,
+  SaveTableGuestVotesInput,
   TableGuestDetails,
   TableGuestVotes,
   TableRegistrationReceipt,
@@ -131,14 +131,18 @@ export function useTableGuestActions(
   const vote = useMutation({
     ...writes,
     mutationKey: [...mutationKey, "vote-guest"],
-    mutationFn: async (input: { registrationId: string; vote: ChangeEventVoteInput }, context) =>
-      communityRequest<TableGuestVotes>(
+    mutationFn: async (input: SaveTableGuestVotesInput & { registrationId: string }, context) => {
+      const signal = await optimisticMutationSignal(client, context.mutationKey, input);
+      const receipt = await communityRequest<TableGuestVotes>(
         options,
         `${path}/${encodeURIComponent(input.registrationId)}/votes`,
         "POST",
-        input.vote,
-        await optimisticMutationSignal(client, context.mutationKey, input),
-      ),
+        { votes: input.votes },
+        signal,
+      );
+      if (signal.aborted) throw new Error("MUTATION_OWNER_CHANGED");
+      return receipt;
+    },
     onSettled: (_data, error, _input, context) => finish(error, context),
   });
   return {

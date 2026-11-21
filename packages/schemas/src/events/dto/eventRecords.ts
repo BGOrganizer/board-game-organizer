@@ -221,6 +221,21 @@ export const changeEventVoteSchema = z.discriminatedUnion("kind", [
     .strict(),
 ]);
 export type ChangeEventVoteInput = z.infer<typeof changeEventVoteSchema>;
+export const saveTableGuestVotesSchema = z.strictObject({
+  votes: z
+    .array(changeEventVoteSchema)
+    .min(1)
+    .refine(
+      (votes) =>
+        new Set(
+          votes.map((vote) =>
+            vote.kind === "game" ? `game:${vote.gameId}` : `${vote.kind}:${vote.optionId}`,
+          ),
+        ).size === votes.length,
+      "Vote options must be unique",
+    ),
+});
+export type SaveTableGuestVotesInput = z.infer<typeof saveTableGuestVotesSchema>;
 export const inviteTablePlayerSchema = z.object({ userId: targetUserIdSchema }).strict();
 export const decideTableRegistrationSchema = z.discriminatedUnion("action", [
   z
@@ -266,6 +281,14 @@ export type EventVoteCounts = Record<EventVote, number>;
 export type VoteVoter = {
   userId: string;
   guestName?: string;
+  /** Absent on older responses and provisional client ballots. */
+  role?:
+    | "admin"
+    | "moderator"
+    | "demonstrator"
+    | "acceptedParticipant"
+    | "waitingParticipant"
+    | "guest";
   name: string | null;
   username: string | null;
   avatarUrl: string | null;

@@ -35,6 +35,7 @@ output.tableGuest = {
   edit: literal(edit + ": " + input.name),
   yes: literal(input.game + ": " + (italian ? "Sì" : "Yes")),
   voter: literal(input.name + " (" + (italian ? "Sì" : "Yes") + ")"),
+  voterDetails: literal(input.name + ", " + (italian ? "Ospite" : "Guest")),
   no: literal(input.game + ": No"),
-  done: literal(italian ? "Fine" : "Done"),
+  submit: literal(italian ? "Vota" : "Vote"),
 };

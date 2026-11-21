@@ -17,6 +17,7 @@ import type {
   EventProposalsResponse,
   EventRecord,
   EventVote,
+  EventVoter,
   FinalizeEventInput,
   FinalizeSavedEventInput,
   GroupRecord,
@@ -28,6 +29,7 @@ import type {
   PlannedTableResponse,
   ReviewEventProposalInput,
   ReviewEventProposalResponse,
+  SaveTableGuestVotesInput,
   SaveTableResultInput,
   SubmitEventProposalInput,
   TableGuestVotes,
@@ -40,6 +42,7 @@ import type {
   TableSeatOrderSnapshot,
   TableSeatResponse,
   User,
+  VoteVoter,
 } from "@board-game-organizer/schemas";
 import {
   isGuestParticipantId,
@@ -100,21 +103,38 @@ import { personalEventProjection, personalTableProjection } from "./event-person
 import type { EventRecordPage, EventRecordsRepository } from "./event-records.repository";
 import { sharedEventResults, sharedTableResults } from "./event-results-projection";
 
+function voterRole(
+  userId: string,
+  adminId: string,
+  managers: ReadonlySet<string>,
+  demonstrators: ReadonlySet<string>,
+  seated: ReadonlySet<string>,
+): NonNullable<VoteVoter["role"]> {
+  if (isGuestParticipantId(userId)) return "guest";
+  if (managers.has(userId)) return userId === adminId ? "admin" : "moderator";
+  if (demonstrators.has(userId)) return "demonstrator";
+  return seated.has(userId) ? "acceptedParticipant" : "waitingParticipant";
+}
+
 function namedOptionVotes(
   ids: readonly string[],
-  voters: readonly { userId: string; guestName?: string; votes: Record<string, EventVote> }[],
+  voters: readonly (Pick<VoteVoter, "userId" | "guestName"> & {
+    role: NonNullable<VoteVoter["role"]>;
+    votes: Record<string, EventVote>;
+  })[],
   profiles: ReadonlyMap<string, User>,
 ): Record<string, OptionVoteVoters> {
   return Object.fromEntries(
     ids.map((id) => {
       const groups: OptionVoteVoters = { YES: [], IF_NEEDED: [], NO: [] };
-      for (const { userId, guestName, votes } of voters) {
+      for (const { userId, guestName, role, votes } of voters) {
         const vote = votes[id];
         if (vote !== "YES" && vote !== "IF_NEEDED" && vote !== "NO") continue;
         const profile = profiles.get(userId);
         groups[vote].push({
           userId,
           ...(guestName ? { guestName } : {}),
+          role,
           name: guestName ?? (publicUserName(profile) || null),
           username: profile?.username ?? null,
           avatarUrl: profile?.avatarUrl ?? null,
@@ -500,27 +520,26 @@ export class EventRecordsService {
         ),
       ),
     );
-    const positioned = own.map((row) => {
-      const table = tables.find((table) => table.id === row.tableId);
-      if (!table) return row;
+    const projectedSeats = new Map<string, ReturnType<typeof projectReservedPlaces>["seated"]>();
+    const seatsAt = (table: TableRecord) => {
+      const cached = projectedSeats.get(table.id);
+      if (cached) return cached;
       const selected = plan?.agreed
         ? plan.includedTables.find((entry) => entry.tableId === table.id)?.participantIds
         : undefined;
-      const seats =
-        event.status === "PLANNING"
-          ? projectReservedPlaces(
-              registrations
-                .filter((entry) => entry.tableId === table.id)
-                .map((entry) => ({
-                  ...entry,
-                  status:
-                    entry.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
-                })),
-              planningSeatCapacity(table, event.planningMode),
-              selected,
-              this.preserveSeatOrder(event, table),
-            ).seated.map((entry) => entry.id)
-          : [];
+      const seats = projectReservedPlaces(
+        planningInput?.registrations.filter((entry) => entry.tableId === table.id) ?? [],
+        planningSeatCapacity(table, event.planningMode),
+        selected,
+        this.preserveSeatOrder(event, table),
+      ).seated;
+      projectedSeats.set(table.id, seats);
+      return seats;
+    };
+    const positioned = own.map((row) => {
+      const table = tables.find((table) => table.id === row.tableId);
+      if (!table) return row;
+      const seats = event.status === "PLANNING" ? seatsAt(table).map((entry) => entry.id) : [];
       return {
         ...row,
         position:
@@ -574,15 +593,32 @@ export class EventRecordsService {
             row,
           ]),
         );
+        const adminId = group?.adminUserId ?? event.adminUserId;
+        const managers = new Set(
+          group && profileIds.length ? await this.groups.managerIds(group) : [adminId],
+        );
+        const demonstrators = new Set(
+          tables.flatMap((table) => (table.demonstratorUserId ? [table.demonstratorUserId] : [])),
+        );
+        const seated = new Set(
+          profileIds.length
+            ? tables.flatMap((table) =>
+                seatsAt(table)
+                  .filter((row) => row.status === "ACCEPTED")
+                  .map((row) => row.userId),
+              )
+            : [],
+        );
+        const namedVoters = cast.map((row) => ({
+          ...row,
+          guestName: accepted.get(row.userId)?.guestName,
+          role: voterRole(row.userId, adminId, managers, demonstrators, seated),
+        }));
         const groupVotes = (optionIds: string[], field: "dateVotes" | "locationVotes") =>
           optionIds.length > 1
             ? namedOptionVotes(
                 optionIds,
-                cast.map((row) => ({
-                  userId: row.userId,
-                  guestName: accepted.get(row.userId)?.guestName,
-                  votes: row[field],
-                })),
+                namedVoters.map((row) => ({ ...row, votes: row[field] })),
                 profiles,
               )
             : {};
@@ -1860,18 +1896,31 @@ export class EventRecordsService {
       !readOnly
         ? await this.events.voter(event.id, userId)
         : undefined;
-    const voterProfiles = new Map(winnerProfiles.map((row) => [row.clerkId, row]));
-    const gameVoteVoters = namedVotes
-      ? namedOptionVotes(
-          gameIds,
-          voters.map((row) => ({
-            userId: row.userId,
-            guestName: row.guestName,
-            votes: row.gameVotes,
-          })),
-          voterProfiles,
-        )
-      : undefined;
+    let gameVoteVoters: PlannedTableResponse["gameVoteVoters"];
+    if (namedVotes) {
+      const adminId = group?.adminUserId ?? event.adminUserId;
+      const managers = new Set(
+        group && voters.some((row) => !isGuestParticipantId(row.userId))
+          ? await this.groups.managerIds(group)
+          : [adminId],
+      );
+      const demonstrators = new Set(table.demonstratorUserId ? [table.demonstratorUserId] : []);
+      const seated = new Set(
+        event.status === "PLANNING"
+          ? base.seated.map((row) => row.userId)
+          : table.confirmed?.playerIds,
+      );
+      gameVoteVoters = namedOptionVotes(
+        gameIds,
+        voters.map((row) => ({
+          userId: row.userId,
+          guestName: row.guestName,
+          role: voterRole(row.userId, adminId, managers, demonstrators, seated),
+          votes: row.gameVotes,
+        })),
+        new Map(winnerProfiles.map((row) => [row.clerkId, row])),
+      );
+    }
     const { resultDraft, seatOrderVersion: _seatOrderVersion, ...visibleTable } = table;
     return {
       ...visibleTable,
@@ -2468,13 +2517,14 @@ export class EventRecordsService {
     eventId: string,
     tableId: string,
     registrationId: string,
-    input: ChangeEventVoteInput,
+    input: ChangeEventVoteInput | SaveTableGuestVotesInput,
   ) {
     const { event, group } = await this.guestTable(userId, eventId, tableId, true);
     const guest = await this.tableGuest(eventId, tableId, registrationId);
-    if (input.kind === "game" && input.tableId !== tableId)
+    const votes = "votes" in input ? input.votes : [input];
+    if (votes.some((vote) => vote.kind === "game" && vote.tableId !== tableId))
       throw new CommunityError(400, "INVALID_VOTE_OPTION");
-    await this.recordVote(event, group, userId, guest.userId, [guest], input);
+    await this.recordVotes(event, group, userId, guest.userId, [guest], votes);
     return this.currentGuestVotes(await this.tableGuest(eventId, tableId, registrationId));
   }
 
@@ -2592,7 +2642,7 @@ export class EventRecordsService {
     this.open(event, group);
     if (!own.some((row) => row.status === "ACCEPTED"))
       throw new CommunityError(403, "ACCEPTED_REGISTRATION_REQUIRED");
-    await this.recordVote(event, group, userId, userId, own, input);
+    await this.recordVotes(event, group, userId, userId, own, [input]);
     return this.response(
       event,
       group,
@@ -2601,64 +2651,81 @@ export class EventRecordsService {
       true,
     );
   }
-  private async recordVote(
+  private async recordVotes(
     event: EventRecord,
     group: GroupRecord | null,
     actor: string,
     participantId: string,
     registrations: TableRegistration[],
-    input: ChangeEventVoteInput,
+    votes: readonly ChangeEventVoteInput[],
   ) {
     const id = event.id;
     const at = new Date().toISOString();
-    if ((input.vote as string) === "UNKNOWN") throw new CommunityError(400, "INVALID_VOTE");
-    if (input.kind === "game") {
-      const table = await this.events.table(input.tableId),
-        registration = registrations.find(
-          (row) => row.tableId === input.tableId && row.status === "ACCEPTED",
-        );
-      if (!table || table.eventId !== id || !registration)
-        throw new CommunityError(403, "ACCEPTED_REGISTRATION_REQUIRED");
-      if (!table.games.some((row) => row.gameId === input.gameId))
-        throw new CommunityError(400, "INVALID_VOTE_OPTION");
-      if (!eventOptionsRequireVote(table.games)) throw new CommunityError(409, "FIXED_OPTION");
-      if (
-        !eventAvailabilityVoteIsAllowed(
-          table.games.map((game) => ({ id: String(game.gameId) })),
-          registration.gameVotes,
-          String(input.gameId),
-          input.vote,
+    let table: TableRecord | null = null;
+    let gameRegistration: TableRegistration | undefined;
+    let availability: EventVoter | undefined;
+    // Establish replacement positive choices before withdrawing the previous ones.
+    const ordered = [
+      ...votes.filter((vote) => vote.vote !== "NO"),
+      ...votes.filter((vote) => vote.vote === "NO"),
+    ];
+    for (const input of ordered) {
+      if ((input.vote as string) === "UNKNOWN") throw new CommunityError(400, "INVALID_VOTE");
+      if (input.kind === "game") {
+        if (!table) {
+          table = await this.events.table(input.tableId);
+          const current = registrations.find(
+            (row) => row.tableId === input.tableId && row.status === "ACCEPTED",
+          );
+          if (current) {
+            gameRegistration = {
+              ...current,
+              gameVotes: { ...current.gameVotes },
+              version: current.version + 1,
+              updatedAt: at,
+            };
+          }
+        }
+        if (!table || table.eventId !== id || table.id !== input.tableId || !gameRegistration)
+          throw new CommunityError(403, "ACCEPTED_REGISTRATION_REQUIRED");
+        if (!table.games.some((row) => row.gameId === input.gameId))
+          throw new CommunityError(400, "INVALID_VOTE_OPTION");
+        if (!eventOptionsRequireVote(table.games)) throw new CommunityError(409, "FIXED_OPTION");
+        if (
+          !eventAvailabilityVoteIsAllowed(
+            table.games.map((game) => ({ id: String(game.gameId) })),
+            gameRegistration.gameVotes,
+            String(input.gameId),
+            input.vote,
+          )
         )
-      )
-        throw new CommunityError(409, "GAME_POSITIVE_AVAILABILITY_REQUIRED");
-      await this.events.saveRegistration({
-        ...registration,
-        gameVotes: { ...registration.gameVotes, [input.gameId]: input.vote },
-        version: registration.version + 1,
-        updatedAt: at,
-      });
-    } else {
-      if (group?.type === "PUBLIC") throw new CommunityError(409, "FIXED_OPTION");
-      const options = input.kind === "date" ? event.dates : event.locations;
-      if (!options.some((row) => row.id === input.optionId))
-        throw new CommunityError(400, "INVALID_VOTE_OPTION");
-      if (!eventOptionsRequireVote(options)) throw new CommunityError(409, "FIXED_OPTION");
-      const current = (await this.events.voter(id, participantId)) ?? {
-        eventId: id,
-        userId: participantId,
-        dateVotes: {},
-        locationVotes: {},
-        updatedAt: at,
-      };
-      const key = input.kind === "date" ? "dateVotes" : "locationVotes";
-      if (!eventAvailabilityVoteIsAllowed(options, current[key], input.optionId, input.vote))
-        throw new CommunityError(409, "EVENT_POSITIVE_AVAILABILITY_REQUIRED");
-      await this.events.saveVoter({
-        ...current,
-        [key]: { ...current[key], [input.optionId]: input.vote },
-        updatedAt: at,
-      });
+          throw new CommunityError(409, "GAME_POSITIVE_AVAILABILITY_REQUIRED");
+        gameRegistration.gameVotes[input.gameId] = input.vote;
+      } else {
+        if (group?.type === "PUBLIC") throw new CommunityError(409, "FIXED_OPTION");
+        const options = input.kind === "date" ? event.dates : event.locations;
+        if (!options.some((row) => row.id === input.optionId))
+          throw new CommunityError(400, "INVALID_VOTE_OPTION");
+        if (!eventOptionsRequireVote(options)) throw new CommunityError(409, "FIXED_OPTION");
+        availability ??= (await this.events.voter(id, participantId)) ?? {
+          eventId: id,
+          userId: participantId,
+          dateVotes: {},
+          locationVotes: {},
+          updatedAt: at,
+        };
+        const key = input.kind === "date" ? "dateVotes" : "locationVotes";
+        if (!eventAvailabilityVoteIsAllowed(options, availability[key], input.optionId, input.vote))
+          throw new CommunityError(409, "EVENT_POSITIVE_AVAILABILITY_REQUIRED");
+        availability = {
+          ...availability,
+          [key]: { ...availability[key], [input.optionId]: input.vote },
+          updatedAt: at,
+        };
+      }
     }
+    if (gameRegistration) await this.events.saveRegistration(gameRegistration);
+    if (availability) await this.events.saveVoter(availability);
     event.version++;
     event.updatedAt = at;
     await this.events.save(event);

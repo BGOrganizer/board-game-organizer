@@ -498,6 +498,11 @@ msgid "Done"
 msgstr "Fine"
 
 #. js-lingui-explicit-id
+#: apps/web/src/components/events/EventGuestVoteEditor.tsx
+msgid "Vote"
+msgstr "Vota"
+
+#. js-lingui-explicit-id
 msgid "Choose"
 msgstr "Scegli"
 

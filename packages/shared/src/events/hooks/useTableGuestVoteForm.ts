@@ -8,6 +8,7 @@ import type {
   PlannedTableResponse,
   TableGuestVotes,
 } from "@board-game-organizer/schemas";
+import { useRef, useState } from "react";
 import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
 import { eventLocalToIso } from "../eventForm";
 import { eventAvailabilityVoteIsAllowed, eventOptionsRequireVote } from "../eventJoinAvailability";
@@ -16,6 +17,7 @@ import { useEventRecord } from "./useEventRecords";
 import { useTableGuestActions, useTableGuestVotes } from "./useTableGuestActions";
 
 type Vote = Exclude<EventVote, "UNKNOWN">;
+const voteFields = { date: "dateVotes", location: "locationVotes", game: "gameVotes" } as const;
 type VoteChoice = {
   key: string;
   label: string;
@@ -113,6 +115,8 @@ export function useTableGuestVoteForm(
   table: PlannedTableResponse,
   registrationId: string,
 ) {
+  const [draft, setDraft] = useState<Record<string, ChangeEventVoteInput>>({});
+  const submitting = useRef(false);
   const allowed = canEditTableGuestVotes(table);
   const event = useEventRecord(
     { ...options, enabled: allowed && options.enabled !== false },
@@ -136,8 +140,25 @@ export function useTableGuestVoteForm(
     (!!event.data && !event.isPlaceholderData && !canVote) ||
     communityAccessDenied(load.error);
   const blocked = unavailable || event.isError || load.isError;
+  const saved = load.data;
+  const changes: ChangeEventVoteInput[] = [];
+  const displayed = saved && {
+    ...saved,
+    dateVotes: { ...saved.dateVotes },
+    locationVotes: { ...saved.locationVotes },
+    gameVotes: { ...saved.gameVotes },
+  };
+  if (saved && displayed) {
+    for (const input of Object.values(draft)) {
+      const field = voteFields[input.kind];
+      const key = input.kind === "game" ? String(input.gameId) : input.optionId;
+      if (saved[field][key] !== input.vote) changes.push(input);
+      displayed[field][key] = input.vote;
+    }
+  }
   const sections =
-    canVote && !blocked && event.data && load.data ? groups(event.data, table, load.data) : [];
+    canVote && !blocked && event.data && displayed ? groups(event.data, table, displayed) : [];
+  const canSubmit = canVote && !blocked && changes.length > 0 && !actions.vote.isPending;
   return {
     sections,
     loading: !blocked && (!canVote || load.isPending),
@@ -145,19 +166,33 @@ export function useTableGuestVoteForm(
     unavailable,
     saving: actions.vote.isPending,
     failed: actions.vote.isError,
+    canSubmit,
     refresh() {
       if (canVote) void load.refetch();
       else if (allowed) void event.refetch();
     },
-    save(option: VoteChoice, vote: Vote) {
+    choose(option: VoteChoice, vote: Vote) {
       if (
         canVote &&
         !blocked &&
-        !actions.vote.isPending &&
+        !submitting.current &&
         option.value !== vote &&
         (vote !== "NO" || option.allowNo)
       )
-        actions.vote.mutate({ registrationId, vote: option.change(vote) });
+        setDraft((current) => ({ ...current, [option.key]: option.change(vote) }));
+    },
+    submit(onSaved: () => void) {
+      if (!canSubmit || submitting.current) return;
+      submitting.current = true;
+      actions.vote.mutate(
+        { registrationId, votes: changes },
+        {
+          onSuccess: onSaved,
+          onSettled: () => {
+            submitting.current = false;
+          },
+        },
+      );
     },
   };
 }

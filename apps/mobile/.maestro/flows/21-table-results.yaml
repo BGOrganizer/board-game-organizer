@@ -32,7 +32,11 @@ tags: [manual, tables, results]
     id: ${output.results.input1}
 - eraseText: 120
 - inputText: "2"
+- assertVisible:
+    id: ${output.results.input1}
+    text: "2"
 - hideKeyboard
+- assertVisible: ${output.results.done}
 - tapOn: ${output.results.done}
 - tapOn:
     id: ${output.results.open2}

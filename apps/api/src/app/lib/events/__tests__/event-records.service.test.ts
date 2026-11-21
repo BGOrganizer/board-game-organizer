@@ -2227,7 +2227,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     for (const viewer of [detail, await f.service.detail(guest, event.id)]) {
       for (const group of [viewer.voteVoters?.dates[id], viewer.voteVoters?.locations[id]]) {
         expect(group?.YES).toHaveLength(1);
-        expect(group?.YES[0]).toMatchObject({ userId: owner });
+        expect(group?.YES[0]).toMatchObject({ userId: owner, role: "admin" });
         expect(group?.YES[0]).not.toHaveProperty("email");
         expect(group?.NO).toEqual([]);
       }
@@ -2293,8 +2293,15 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       name: "player",
       username: "player",
       avatarUrl: "https://images.example.test/player.png",
+      role: "acceptedParticipant",
     };
-    const queuedIdentity = { userId: waiter, name: null, username: null, avatarUrl: null };
+    const queuedIdentity = {
+      userId: waiter,
+      name: null,
+      username: null,
+      avatarUrl: null,
+      role: "waitingParticipant",
+    };
     const breakdown = {
       "1": { YES: [firstIdentity], IF_NEEDED: [queuedIdentity], NO: [] },
       "2": { YES: [], IF_NEEDED: [], NO: [firstIdentity] },
@@ -2338,6 +2345,35 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       NO: [],
     });
     expect(changed?.IF_NEEDED).toHaveLength(2);
+
+    // An Event ballot sees a seat at any of its Tables. The game ballot stays Table-specific.
+    await f.yes(event.id, guest);
+    await f.yes(event.id, waiter);
+    const optionsBefore = (await f.service.detail(owner, event.id)).voteVoters;
+    for (const tally of [optionsBefore?.dates[id], optionsBefore?.locations[id]])
+      expect(tally?.YES).toEqual(expect.arrayContaining([firstIdentity, queuedIdentity]));
+    await f.service.register(waiter, event.id, other);
+    const optionsAfter = (await f.service.detail(owner, event.id)).voteVoters;
+    expect(optionsAfter?.dates[id].YES).toContainEqual({
+      ...queuedIdentity,
+      role: "acceptedParticipant",
+    });
+    expect(
+      (await f.service.tableDetail(owner, event.id, id)).gameVoteVoters?.["1"].YES,
+    ).toContainEqual(queuedIdentity);
+
+    f.groups.managerIds.mockResolvedValue([owner, waiter]);
+    expect(
+      (await f.service.tableDetail(owner, event.id, id)).gameVoteVoters?.["1"].YES,
+    ).toContainEqual({ ...queuedIdentity, role: "moderator" });
+    f.groups.managerIds.mockResolvedValue([owner]);
+    const table = f.tables.get(id);
+    if (!table) throw new Error("Missing fixture table");
+    f.tables.set(id, { ...table, demonstratorUserId: waiter });
+    expect(
+      (await f.service.tableDetail(owner, event.id, id)).gameVoteVoters?.["1"].YES,
+    ).toContainEqual({ ...queuedIdentity, role: "demonstrator" });
+
     f.groups.membership.mockResolvedValue({ status: "ACCEPTED", role: "MEMBER" });
     expect((await f.service.tableDetail("mod", event.id, id)).gameVoteVoters).toBeUndefined();
   });
@@ -2931,6 +2967,7 @@ describe("accountless Table guests", () => {
         name: "Carla",
         guestName: "Carla",
         userId: added.userId,
+        role: "guest",
         username: null,
         avatarUrl: null,
       });
@@ -2983,6 +3020,44 @@ describe("accountless Table guests", () => {
       ]);
     },
   );
+
+  it("saves a guest's changed categories together and validates every option before writing", async () => {
+    const f = setup("PRIVATE");
+    const input = privateBody();
+    input.tables[0].games.push({ gameId: 2 });
+    const event = await f.service.create(owner, input);
+    const row = await f.service.addGuest(owner, event.id, id, { name: "Carla", requestId: other });
+    const game = { kind: "game", tableId: id, gameId: 1, vote: "YES" } as const;
+    const date = { kind: "date", optionId: id, vote: "YES" } as const;
+    const first = await f.service.voteForGuest(owner, event.id, id, row.id, {
+      votes: [date, game],
+    });
+    expect(first).toMatchObject({ gameVotes: { "1": "YES" }, dateVotes: { [id]: "YES" } });
+    const epoch = (await f.service.detail(owner, event.id)).version;
+    const replacement = [
+      { ...game, vote: "NO" },
+      { ...game, gameId: 2, vote: "IF_NEEDED" },
+      { ...date, vote: "NO" },
+      { ...date, optionId: other },
+      { kind: "location", optionId: id, vote: "YES" },
+    ] as const;
+    await expect(
+      f.service.voteForGuest(owner, event.id, id, row.id, {
+        votes: [...replacement, { ...date, optionId: randomUUID() }],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_VOTE_OPTION" });
+    expect(await f.service.guestVotes(owner, event.id, id, row.id)).toEqual(first);
+    expect((await f.service.detail(owner, event.id)).version).toBe(epoch);
+    expect(
+      await f.service.voteForGuest(owner, event.id, id, row.id, { votes: [...replacement] }),
+    ).toEqual({
+      guestName: "Carla",
+      gameVotes: { "1": "NO", "2": "IF_NEEDED" },
+      dateVotes: { [id]: "NO", [other]: "YES" },
+      locationVotes: { [id]: "YES" },
+    });
+    expect((await f.service.detail(owner, event.id)).version).toBe(epoch + 1);
+  });
 
   it("scopes guest creation/read/vote to managers and never accepts a normal registration as a guest", async () => {
     const pub = setup("PUBLIC"),

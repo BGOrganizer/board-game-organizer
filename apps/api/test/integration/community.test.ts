@@ -5574,7 +5574,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     const namedVotes = (await services().plannedEventService.tableDetail(OWNER, event.id, tableId))
       .gameVoteVoters;
     expect(namedVotes?.["1"]).toEqual({
-      YES: [expect.objectContaining({ userId: GUEST })],
+      YES: [expect.objectContaining({ userId: GUEST, role: "acceptedParticipant" })],
       IF_NEEDED: [],
       NO: [],
     });
@@ -5600,6 +5600,48 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(
       Object.values(row!.gameVotes).filter((v) => v === "YES" || v === "IF_NEEDED"),
     ).toHaveLength(1);
+  });
+  it("commits the guest's proxy choices as one ballot and leaves all choices intact on validation failure", async () => {
+    const group = await privateGroup();
+    await db.collection(COLLECTIONS.BOARD_GAMES).insertOne({
+      id: 2,
+      name: "Second game",
+      isExpansion: false,
+    });
+    const input = plannedInput(group.id);
+    input.dates.push({ id: secondId, day: "2030-06-04" });
+    input.tables[0].games.push({ gameId: 2, manualDurationMinutes: 60 });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    const guest = await transaction((s) =>
+      s.plannedEventService.addGuest(OWNER, event.id, tableId, {
+        name: "Guest voter",
+        requestId: randomUUID(),
+      }),
+    );
+    const empty = { guestName: "Guest voter", gameVotes: {}, dateVotes: {}, locationVotes: {} };
+    const first = { kind: "game", tableId, gameId: 1, vote: "IF_NEEDED" } as const;
+    const date = { kind: "date", optionId: dateId, vote: "YES" } as const;
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.voteForGuest(OWNER, event.id, tableId, guest.id, {
+          votes: [first, { ...date, optionId: randomUUID() }],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_VOTE_OPTION" });
+    expect(
+      await services().plannedEventService.guestVotes(OWNER, event.id, tableId, guest.id),
+    ).toEqual(empty);
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.voteForGuest(OWNER, event.id, tableId, guest.id, {
+          votes: [first, date],
+        }),
+      ),
+    ).resolves.toEqual({
+      ...empty,
+      gameVotes: { "1": "IF_NEEDED" },
+      dateVotes: { [dateId]: "YES" },
+    });
   });
   it("keeps Event availability across additional PRIVATE joins and hides excluded personal Tables", async () => {
     const group = await privateGroup(),

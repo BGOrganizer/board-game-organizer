@@ -84,7 +84,13 @@ it("disables last-positive rejection but not switching between positive choices"
 });
 const voters: OptionVoteVoters = {
   YES: [
-    { userId: "ella", name: "Ella Reed", username: "ella", avatarUrl: null },
+    {
+      userId: "ella",
+      name: "Ella Reed",
+      username: "ella",
+      avatarUrl: null,
+      role: "acceptedParticipant",
+    },
     { userId: "jon", name: null, username: "jon", avatarUrl: null },
   ],
   IF_NEEDED: [],
@@ -99,8 +105,10 @@ it("shows compact voter avatars at the vote-icon size and omits empty choices", 
   expect(yes.querySelector("svg")).toHaveAttribute("height", "16");
   const avatars = yes.querySelectorAll(".avatar.size-4");
   expect(avatars).toHaveLength(2);
-  expect(avatars[0]).toHaveClass("pointer-coarse:translate-x-3");
-  expect(avatars[1]).toHaveClass("pointer-coarse:-translate-x-3");
+  expect(avatars[0]).toHaveStyle("--vote-avatar-offset: 13px");
+  expect(avatars[1]).toHaveStyle("--vote-avatar-offset: -13px");
+  expect(yes.querySelector("svg")).toHaveClass("pointer-events-none", "pointer-coarse:absolute");
+  expect(yes).toHaveClass("pointer-coarse:gap-0");
   expect(within(summary).getByRole("listitem", { name: "No: Unknown" })).toBeVisible();
   expect(within(summary).getAllByRole("listitem")).toHaveLength(2);
   expect(within(summary).queryByRole("listitem", { name: /If needed/ })).toBeNull();
@@ -108,17 +116,32 @@ it("shows compact voter avatars at the vote-icon size and omits empty choices", 
   expect(screen.queryByRole("list", { name: "Votes: Game" })).toBeNull();
 });
 
-it("opens a read-only identity row from a voter avatar and dismisses it with Escape", async () => {
-  renderWithI18n(<VoterList label="Game" voters={voters} compact />);
-  const avatar = screen.getByRole("button", { name: "Ella Reed (Yes)" });
-  fireEvent.click(avatar);
-  const dialog = await screen.findByRole("dialog", { name: "Ella Reed" });
-  expect(within(dialog).getByText("Ella Reed")).toBeVisible();
-  expect(within(dialog).getByText("@ella")).toBeVisible();
+it("shows only the full username and role in a voter popover and dismisses it with Escape", async () => {
+  const username = "ella".repeat(24);
+  renderWithI18n(
+    <VoterList
+      label="Game"
+      voters={{ ...voters, YES: [{ ...voters.YES[0], username }] }}
+      compact
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Ella Reed (Yes)" }));
+  const dialog = await screen.findByRole("dialog", { name: `@${username}` });
+  expect(dialog).toHaveClass("wrap-anywhere", "whitespace-normal");
+  expect(Array.from(dialog.querySelectorAll("p"), (row) => row.textContent)).toEqual([
+    `@${username}`,
+    "Accepted participant",
+  ]);
+  expect(within(dialog).getByText(`@${username}`)).toBeVisible();
+  expect(within(dialog).queryByText("Ella Reed")).toBeNull();
   expect(within(dialog).queryByRole("button")).toBeNull();
   expect(within(dialog).queryByRole("link")).toBeNull();
   fireEvent.keyDown(dialog, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Unknown (No)" }));
+  const legacy = await screen.findByRole("dialog", { name: "Unknown" });
+  expect(within(legacy).getByText("Participant")).toBeVisible();
 });
 
 it("opens the bottom drawer from the Ghost action without casting a vote", async () => {

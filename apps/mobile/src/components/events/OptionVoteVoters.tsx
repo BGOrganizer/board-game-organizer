@@ -1,4 +1,5 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
+import { RECORD_USER_ROLES } from "@board-game-organizer/shared";
 import { Avatar } from "heroui-native/avatar";
 import { useThemeColor } from "heroui-native/hooks";
 import { Popover } from "heroui-native/popover";
@@ -6,7 +7,7 @@ import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
 import { Check, Minus, X } from "lucide-react-native";
 import { useState } from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
@@ -15,7 +16,6 @@ import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { UserAvatar } from "@/components/common/ui/UserAvatar";
-import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 
 type Voters = NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
@@ -30,6 +30,7 @@ export function OptionVoteVoters({
   compact?: boolean;
 }) {
   const t = useT();
+  const { width } = useWindowDimensions();
   const [success, warning, danger] = useThemeColor(["success", "warning", "danger"]);
   const choices = [
     { id: "YES", text: t("Yes"), Icon: Check, color: success },
@@ -44,25 +45,34 @@ export function OptionVoteVoters({
     return (
       <View
         accessibilityLabel={`${t("Votes")}: ${label}`}
-        style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+        style={{ flexDirection: "row", flexWrap: "wrap", columnGap: 4 }}
       >
         {groups.map(({ id, text, Icon, color }) => {
-          const paired = voters[id].length === 2;
+          const group = voters[id];
           return (
             <View
               key={id}
               accessibilityLabel={`${text}: ${voters[id].map(displayName).join(", ")}`}
-              style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 2 }}
+              style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center" }}
             >
               <View
                 pointerEvents="none"
-                style={paired ? { zIndex: 1, transform: [{ translateX: 20 }] } : undefined}
+                style={{ position: "absolute", left: 9, top: 14, zIndex: 1 }}
               >
                 <Icon size={16} color={color} accessible={false} />
               </View>
-              {voters[id].map((person, index) => {
+              {group.map((person, index) => {
                 const name = displayName(person);
-                const username = person.name && person.username ? `@${person.username}` : undefined;
+                const identity =
+                  person.guestName ?? (person.username ? `@${person.username}` : t("Unknown"));
+                const role =
+                  person.role === "guest" || person.guestName
+                    ? t("Guest")
+                    : person.role
+                      ? t(RECORD_USER_ROLES[person.role].message)
+                      : t("Participant");
+                // Move the artwork inside each independent 44 dp target.
+                const offset = 13 - (26 * index) / Math.max(1, group.length - 1);
                 const guestAvatar = person.guestName ? (
                   <GuestAvatar name={person.guestName} />
                 ) : undefined;
@@ -83,7 +93,7 @@ export function OptionVoteVoters({
                         style={{
                           width: 16,
                           height: 16,
-                          transform: paired ? [{ translateX: index === 0 ? 12 : -12 }] : undefined,
+                          transform: [{ translateX: offset }],
                         }}
                       >
                         {guestAvatar ?? (
@@ -105,17 +115,13 @@ export function OptionVoteVoters({
                       <Popover.Content
                         presentation="popover"
                         placement="bottom"
-                        width={260}
+                        style={{ maxWidth: width - 32 }}
                         testID="vote-voter-popover"
                         accessible
-                        accessibilityLabel={username ? `${name}, ${username}` : name}
+                        accessibilityLabel={`${identity}, ${role}`}
                       >
-                        <UserListRow
-                          name={name}
-                          avatarUrl={person.avatarUrl}
-                          avatarContent={guestAvatar}
-                          secondary={username}
-                        />
+                        <Typography className="text-foreground font-medium">{identity}</Typography>
+                        <Typography className="text-muted">{role}</Typography>
                       </Popover.Content>
                     </Popover.Portal>
                   </Popover>

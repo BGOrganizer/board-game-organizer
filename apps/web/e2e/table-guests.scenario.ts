@@ -51,7 +51,7 @@ const labels = {
   guest: it ? "Ospite" : "Guest",
   help: it ? "Come funzionano gli ospiti" : "About guests",
   games: it ? "Giochi" : "Games",
-  done: it ? "Fine" : "Done",
+  vote: it ? "Vota" : "Vote",
   edit: it ? "Modifica voti dell’ospite" : "Edit guest votes",
   yes: it ? "Sì" : "Yes",
   no: "No",
@@ -117,10 +117,22 @@ test("manager adds an unregistered guest and later records a ballot without a pr
   const yes = dialog.getByRole("button", { name: `${input.game}: ${labels.yes}` });
   await expect(yes).toHaveAttribute("aria-pressed", "false");
   await expect(dialog.getByRole("button", { name: `${input.game}: ${labels.no}` })).toBeDisabled();
+  const optionSubmit = dialog.getByRole("button", { name: labels.vote, exact: true });
+  await expect(optionSubmit).toBeDisabled();
+  let voteRequests = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      /\/guests\/[^/]+\/votes$/.test(new URL(request.url()).pathname)
+    )
+      voteRequests++;
+  });
   await yes.click();
   await expect(yes).toHaveAttribute("aria-pressed", "true");
-  await dialog.getByRole("button", { name: labels.done }).click();
+  expect(voteRequests).toBe(0);
+  await optionSubmit.click();
   await expect(dialog).toBeHidden();
+  expect(voteRequests).toBe(1);
   await page.getByRole("tab", { name: labels.details, exact: true }).click();
   await page
     .getByRole("list", { name: `${it ? "Voti" : "Votes"}: ${input.game}` })
@@ -128,6 +140,7 @@ test("manager adds an unregistered guest and later records a ballot without a pr
     .click();
   const voter = page.getByRole("dialog", { name: input.name, exact: true });
   await expect(voter.getByText(input.name, { exact: true })).toBeVisible();
+  await expect(voter.getByText(it ? "Ospite" : "Guest", { exact: true })).toBeVisible();
   await expect(voter.getByRole("button")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(voter).toBeHidden();
