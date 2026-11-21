@@ -3707,14 +3707,12 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
   it("publishes only visible aggregate rankings from private and standalone results", async () => {
     const other = "user_other";
     const players = [ACTOR, other, TARGET, THIRD, FOURTH];
-    await db.collection(COLLECTIONS.USERS).insertMany(
-      players.slice(0, -1).map((clerkId) => ({
-        clerkId,
-        username: clerkId,
-        name: `${clerkId}@example.invalid`,
-        email: `${clerkId}@example.invalid`,
-      })),
-    );
+    await db.collection(COLLECTIONS.USERS).insertOne({
+      clerkId: other,
+      username: other,
+      name: `${other}@example.invalid`,
+      email: `${other}@example.invalid`,
+    });
     await relationships.block(ACTOR, TARGET);
     await relationships.block(THIRD, ACTOR);
     const privateEvent = "3f454adb-43e3-47ad-8c29-57b97a55a250";
