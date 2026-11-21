@@ -633,10 +633,21 @@ it("shows named votes and the breakdown action only for each eligible Event cate
       { ...event.locations[0], id: "other-place", name: "Second venue" },
     ],
   });
-  expect(screen.getByLabelText("Votes: Club venue")).toBeVisible();
-  await snapshot({ ...event, canManage: false, role: "invited", myRegistrations: [] });
-  expect(screen.queryAllByLabelText(/^Votes:/)).toHaveLength(0);
-  expect(screen.queryByRole("button", { name: /Show votes/ })).toBeNull();
+  const venueVotes = await screen.findByLabelText("Votes: Club venue");
+  expect(venueVotes).toBeVisible();
+  await pressMeasuredPopover(within(venueVotes).getByRole("button", { name: "Voter Alice (Yes)" }));
+  expect(screen.getByTestId("vote-voter-popover")).toBeVisible();
+  await snapshot({
+    ...event,
+    name: "Event after voting eligibility was revoked",
+    version: event.version + 1,
+    canManage: false,
+    role: "invited",
+    myRegistrations: [],
+  });
+  expect(screen.queryAllByLabelText(/^Votes:/, hidden)).toHaveLength(0);
+  expect(screen.queryByRole("button", { name: /Show votes/, ...hidden })).toBeNull();
+  expect(screen.queryByTestId("vote-voter-popover", hidden)).toBeNull();
 });
 
 it("keeps independent notice badges and exact UTF-8 descriptions without acknowledging notices on visits", async () => {
