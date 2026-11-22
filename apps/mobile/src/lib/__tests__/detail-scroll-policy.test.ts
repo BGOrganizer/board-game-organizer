@@ -21,17 +21,27 @@ it.each([
     true,
     ts.ScriptKind.TSX,
   );
-  let header = "";
+  let header = "",
+    participantsHeader = "";
   const visit = (node: ts.Node) => {
-    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "detailHeader")
-      header = node.initializer?.getText(ast) ?? "";
+    if (ts.isVariableDeclaration(node)) {
+      const name = node.name.getText(ast);
+      if (name === "detailHeader") header = node.initializer?.getText(ast) ?? "";
+      if (name === "participantsHeader") participantsHeader = node.initializer?.getText(ast) ?? "";
+    }
     ts.forEachChild(node, visit);
   };
   visit(ast);
   expect(header).toContain(`<${card}`);
   expect(header).toContain("<TabBar");
   for (const consumer of consumers) expect(text).toContain(consumer);
-  expect(text).toContain("header={detailHeader}");
+  if (path === "events/EventDetail") {
+    expect(participantsHeader).toContain("{detailHeader}");
+    expect(participantsHeader).toContain("<EventSectionHeader");
+    expect(text).toContain("header={participantsHeader}");
+  } else {
+    expect(text).toContain("header={detailHeader}");
+  }
   expect(text).not.toMatch(/stickyHeaderIndices|nestedScrollEnabled|scrollEnabled=\{false\}/);
 });
 

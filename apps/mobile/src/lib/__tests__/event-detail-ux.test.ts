@@ -6,19 +6,19 @@ const source = (file: string) =>
   readFileSync(new URL(`../../components/events/${file}.tsx`, import.meta.url), "utf8");
 it("owns date/location votes on event and game votes only on accepted table registrations", () => {
   const event = source("EventDetail"),
-    table = source("EventTableOverview");
+    table = source("EventTableOverview"),
+    legend = source("EventVoteLegendContent");
   expect(event).toMatch(/kind:\s*"date"/);
   expect(event).toMatch(/kind:\s*"location"/);
   expect(event).toContain("<EventDetailsCard");
   expect(event).toContain("<EventVoteLegend");
   expect(source("EventDetailsCard")).toContain("background=");
-  expect(source("EventVoteLegend")).toContain(
+  expect(legend).toContain(
     "You can vote only if you are an accepted participant in at least one table in the event.",
   );
-  expect(source("EventVoteLegend")).toContain(
-    "You can vote only if you are an accepted participant at this table.",
-  );
-  expect(source("EventVoteLegend")).toContain('Choose at least one "Yes" or "If needed"');
+  expect(legend).toContain("You can vote only if you are an accepted participant at this table.");
+  expect(legend).toContain('Choose at least one "Yes" or "If needed"');
+  expect(table).toContain('<EventVoteLegendContent scope="table"');
   expect(table).toMatch(/kind:\s*"game"/);
   expect(table).toMatch(/myRegistration\?\.status\s*===\s*"ACCEPTED"/);
   expect(event).not.toContain("useMatch");
