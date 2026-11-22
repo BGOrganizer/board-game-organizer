@@ -666,6 +666,7 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
   expect(action).toHaveClass("button--sm");
   expect(screen.queryByRole("list", { name: "Votes: Chess" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Game information: Chess" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Game information: Second game" })).toBeVisible();
   expect(screen.getAllByRole("button", { name: /^Vote summary:/ })).toEqual([summary]);
   fireEvent.click(summary);
   const tally = screen.getByRole("list", { name: "Votes: Chess" });

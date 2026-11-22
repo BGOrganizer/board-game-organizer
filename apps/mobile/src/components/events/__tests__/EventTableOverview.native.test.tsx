@@ -405,6 +405,7 @@ it("opens one game-vote dialog for an accepted participant and prevents removal 
   await ready();
   expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
   expect(screen.queryByRole("button", { name: "Game information: Chess" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Game information: Strategy game" })).toBeVisible();
   const summary = screen.getByRole("button", { name: "Vote summary: Chess" });
   expect(within(summary).getByText("Votes")).toBeVisible();
   expect(screen.getByRole("button", { name: "Chess: Yes" })).toHaveStyle({ width: 40, height: 40 });

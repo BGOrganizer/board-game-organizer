@@ -150,7 +150,14 @@ it.each([false, true])(
       </QueryClientProvider>,
     );
     expect(observer.observe).toHaveBeenCalledOnce();
+    await act(() => {
+      seen?.(
+        [{ isIntersecting: false } as IntersectionObserverEntry],
+        observer as unknown as IntersectionObserver,
+      );
+    });
     expect(fetchApi).not.toHaveBeenCalled();
+    expect(observer.disconnect).not.toHaveBeenCalled();
     await act(() => {
       seen?.(
         [{ isIntersecting: true } as IntersectionObserverEntry],
