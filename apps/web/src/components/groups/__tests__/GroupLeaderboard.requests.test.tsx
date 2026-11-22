@@ -1,6 +1,6 @@
 import type { GroupLeaderboardResponse } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { renderWithI18n } from "@/test-utils";
@@ -261,10 +261,22 @@ it.each([
     mount({ groupId, groupName: "Game night" });
     expect(await screen.findByText("Game night")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "How OpenSkill works" }));
-    expect(await screen.findByRole("dialog", { name: "How OpenSkill works" })).toBeVisible();
-    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    const help = await screen.findByRole("dialog", { name: "How OpenSkill works" });
+    expect(help).toBeVisible();
+    expect(help).toHaveTextContent(
+      "This leaderboard only includes rated results from this group’s events.",
+    );
+    expect(
+      within(help)
+        .getByRole("heading", { name: "How OpenSkill works" })
+        .querySelector(".lucide-chart-no-axes-column-increasing"),
+    ).not.toBeNull();
+    expect(help.querySelector(".lucide-clock-3 + p")).toHaveTextContent(
+      "The clock marks a provisional rating",
+    );
+    fireEvent.keyDown(help, { key: "Escape" });
     await chooseGame();
-    expect(await screen.findByText("#2")).toBeVisible();
+    expect(await screen.findByRole("img", { name: "Position: #2" })).toBeVisible();
     expect(playerReads()[0].searchParams.get("sort")).toBe("rating");
     expect(playerReads()[0].searchParams.get("direction")).toBe("desc");
     fireEvent.click(screen.getByRole("button", { name: /^Sort by/ }));
@@ -274,7 +286,7 @@ it.each([
       expect(search?.get("sort")).toBe(sort);
       expect(search?.get("direction")).toBe("desc");
     });
-    expect(await screen.findByText("#2")).toBeVisible();
+    expect(await screen.findByRole("img", { name: "Position: #2" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Sort ascending" }));
     await waitFor(() => {
       const search = playerReads().at(-1)?.searchParams;
@@ -282,7 +294,7 @@ it.each([
       expect(search?.get("direction")).toBe("asc");
       expect(search?.get("cursor")).toBe("0");
     });
-    expect(await screen.findByText("#2")).toBeVisible();
+    expect(await screen.findByRole("img", { name: "Position: #2" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear board game selection" }));
     expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
     expect(screen.queryByRole("grid")).toBeNull();
@@ -298,6 +310,12 @@ it("loads a separate global game catalog and ranked players without using group 
   mount({});
   expect(await screen.findByText("Choose a game to see the leaderboard")).toBeVisible();
   expect(playerReads()).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "How OpenSkill works" }));
+  const help = await screen.findByRole("dialog", { name: "How OpenSkill works" });
+  expect(help).toHaveTextContent(
+    "For each game, the global leaderboard includes all rated matches from private and public events.",
+  );
+  fireEvent.keyDown(help, { key: "Escape" });
   await chooseGame();
   expect(await screen.findByRole("grid", { name: "Global leaderboard" })).toBeVisible();
   expect(screen.getByText("@player-one")).toBeVisible();

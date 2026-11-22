@@ -116,7 +116,7 @@ it("pending members can read permitted information and accepted members, never e
   expect(strip?.classList.contains("self-center")).toBe(true);
   expect(strip?.classList.contains("mt-2")).toBe(true);
   expect(screen.queryByRole("tab", { name: "Events" })).toBeNull();
-  expect(screen.queryByRole("tab", { name: "Ranking" })).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Rankings" })).toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Members" }));
   expect(await screen.findByText("Owner")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Delete group" })).toBeNull();
@@ -332,7 +332,7 @@ it("keeps public request/pending cancellation centered after Overview and permit
   expect(reason.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(cancel.querySelector("svg.lucide-x")).not.toBeNull();
   expect(screen.queryByRole("tab", { name: "Events" })).toBeNull();
-  expect(screen.queryByRole("tab", { name: "Ranking" })).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Rankings" })).toBeNull();
   fireEvent.click(cancel);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
   await screen.findByRole("button", { name: "Request membership" });

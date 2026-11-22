@@ -131,6 +131,9 @@ tags: [manual, events, privacy]
           timeout: 120000
       - takeScreenshot: event-background-card
       - tapOn: ${output.access.tables}
+      - tapOn: ${output.access.tablesHelp}
+      - assertVisible: ${output.access.confirmedSeatsRule}
+      - back
       - extendedWaitUntil:
           visible: ${output.access.gamesHelp}
           timeout: 120000

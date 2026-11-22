@@ -176,6 +176,15 @@ beforeEach(() => {
             tableStatus,
           )
         );
+      if (path.endsWith("/proposals"))
+        return json({
+          eventId: event.id,
+          groupId: event.groupId,
+          eventVersion: event.version,
+          mode: "mine",
+          items: [],
+          nextCursor: null,
+        });
       if (path.endsWith("/seats/order"))
         return json({
           version: 1,
@@ -233,6 +242,46 @@ it("renders the canonical parent event, singleton game and preserved detail head
   expect(screen.queryByRole("button", { name: "Board games: Voting legend" })).toBeNull();
   expect(writes).toHaveLength(0);
 });
+
+it("moves the games legend and allowed proposals to Details and ends with the parent event", async () => {
+  multipleGames();
+  table.allowParticipantGames = true;
+  await installNativePopoverMeasurements();
+  await render(<Fixture />);
+  await ready();
+  await screen.findByText("Proposed games");
+  const labels = screen
+    .getAllByText(/^(Board games|Proposed games|Event)$/)
+    .map((node) => node.props.children);
+  expect(labels).toEqual(["Board games", "Proposed games", "Event"]);
+  expect(screen.queryByRole("button", { name: "Board games: Voting legend" })).toBeNull();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Table details help" }));
+  expect(
+    screen.getByText("You can vote only if you are an accepted participant at this table."),
+  ).toBeVisible();
+  expect(screen.getByText(/can propose other games for a manager to approve/)).toBeVisible();
+});
+
+it.each(["PLANNING", "CONFIRMED"] as const)(
+  "explains Table participation during %s",
+  async (status) => {
+    table.eventStatus = status;
+    await installNativePopoverMeasurements();
+    await render(<Fixture section="participants" />);
+    await pressMeasuredPopover(
+      await screen.findByRole("button", { name: "Table participants help" }),
+    );
+    if (status === "PLANNING") {
+      expect(screen.getByText(/select a free place or the waiting list/)).toBeVisible();
+      expect(screen.getByText(/Accepted players on the waiting list can vote/)).toBeVisible();
+    } else {
+      expect(
+        screen.getByText("Only players with a confirmed seat take part at this table."),
+      ).toBeVisible();
+      expect(screen.queryByText(/select a free place or the waiting list/)).toBeNull();
+    }
+  },
+);
 
 it("keeps context-local table details concise without rendering a second parent-event card", async () => {
   await render(<Fixture context="event" />);

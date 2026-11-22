@@ -246,7 +246,7 @@ it("dismisses the native keyboard only for an actual Group destination change, n
   }
 });
 
-it("retains real group Members/Events/Ranking panels while independent native headers stay reactive", async () => {
+it("retains real group Members, Events and Rankings panels while independent native headers stay reactive", async () => {
   await mount();
   expect(screen.getByRole("button", { name: "Edit group" })).toBeEnabled();
   await select("Members");
@@ -259,7 +259,7 @@ it("retains real group Members/Events/Ranking panels while independent native he
   expect(screen.getByText("@group-player")).toBe(person);
   await select("Events");
   expect(screen.getByText("Group games evening")).toBe(event);
-  await select("Ranking");
+  await select("Rankings");
   expect(await screen.findByTestId("rating-game-select-trigger")).toBeOnTheScreen();
   await select("Details");
   expect(screen.getByRole("button", { name: "Edit group" })).toBeEnabled();

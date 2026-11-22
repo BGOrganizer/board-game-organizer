@@ -358,8 +358,13 @@ exceptions retain their explicit authorization boundaries throughout this contra
   retain explicit consent and source-complete request attention. Public/Private has its own icon/help;
   only PUBLIC Groups show approval/review status, retaining rejection reasons and the distinction
   between pending changes and an already approved revision. Local drafts do not fabricate server roles.
-- Parent Group references in Event detail reuse the actual `GroupCard`; parent Event references in
-  personal-entry Table Overview reuse the actual `EventCard`. They consume existing owner-scoped
+- Event Details, Participants and Tables use the same section Card as leaderboards. Their help
+  explains registration and roster eligibility during planning, and confirmed seats after
+  confirmation. Details also explains the active planning mode, player-count priority and enabled
+  date/time and location voting and proposal options. Table Details uses the same Card for game
+  voting and enabled proposals, while Table Participants explains registration and the waiting list.
+- Parent Group references follow the schedule and locations in Event Details and reuse the actual `GroupCard`; parent Event references in
+  personal-entry Table Overview reuse the actual `EventCard` after the games and proposals. They consume existing owner-scoped
   detail/cache reads, not per-card network readers. Missing fields keep known identity with partial
   skeletons and explicit retry; authorization loss never retains forbidden metadata. Matching Group/
   Event entry context still omits the redundant parent section; Back, shared-results guards and
@@ -950,9 +955,10 @@ there are no repeated identical notifications or player reminders to change vote
   Shared final access exposes Details/Results only, with no private roster or GROUP ranking scope.
   Confirmed Results rows show avatar, one @username/known fallback and a popover per current rating
   scope, with no final standings or scores. Terminated Results identify the frozen game when known
-  and preserve immutable classified order, shared ties, bottom-right #n avatar badges, unranked ND
-  and exact far-right scores. Each account player's row expands to show recorded before → after and
-  delta, with semantic direction icons. GLOBAL uses a Globe/accent glyph. Authorized GROUP uses
+  and preserve immutable classified order, shared ties, bottom-right position badges, unranked ND
+  and exact far-right scores. The podium uses a warning trophy, an accent medal and a default
+  medal in order. Other ranked positions use #n. Each account player's row expands to show recorded
+  before → after and delta, with semantic direction icons. GLOBAL uses a Globe/accent glyph. Authorized GROUP uses
   UsersRound/success and is absent for personal/shared-final access. Guest rows show physical results.
   Disabled/all-ND/fewer-than-two-finisher outcomes say Ranking not updated; genuinely missing history
   says Historical ranking unavailable. Current authenticated source paging uses genuine frozen-player

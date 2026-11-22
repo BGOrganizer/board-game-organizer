@@ -221,7 +221,9 @@ for (const width of [390, 1280])
     await expect(
       page.getByRole("tab", { name: it ? "Dettagli" : "Details", exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Ranking", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: it ? "Classifiche" : "Rankings", exact: true }),
+    ).toBeVisible();
     await page.getByRole("tab", { name: it ? "Membri" : "Members", exact: true }).click();
     const groupPerson = page.getByText(handle, { exact: true });
     await expect(groupPerson).toBeVisible();

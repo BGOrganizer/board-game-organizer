@@ -49,6 +49,14 @@ output.voteHelp = {
       ? "Mostra voti|Scegli il tuo voto|Sì|Se necessario|No"
       : "Show votes|Choose your vote|Yes|If needed|No") +
     ")$",
+  tableParticipantsHelp: exact(it ? "Aiuto sui partecipanti al tavolo" : "Table participants help"),
+  queueRule: exact(
+    it
+      ? "Se tutti i posti sono occupati, i nuovi giocatori entrano in lista d’attesa."
+      : "If all seats are taken, new players join the waiting list.",
+  ),
+  eventDetailsHelp: exact(it ? "Aiuto sui dettagli dell’evento" : "Event details help"),
+  combined: exact(it ? "Date, orari e luoghi" : "Dates, times and locations"),
   choose: exact(it ? "Scegli il tuo voto" : "Choose your vote"),
   show: exact(it ? "Mostra voti" : "Show votes"),
   votes: exact(it ? "Voti" : "Votes"),
@@ -63,7 +71,16 @@ fixtures.forEach((f) => {
           : "bgo-dev:///event/" + f.eventId,
       name: exact(index === 2 ? f.tableName : f.eventName),
       heading: exact(label),
-      trigger: exact(label + ": " + (it ? "Legenda voti" : "Voting legend")),
+      table: index === 2,
+      dates: index === 0,
+      oldTrigger: exact(label + ": " + (it ? "Legenda voti" : "Voting legend")),
+      trigger: exact(
+        index === 2
+          ? it
+            ? "Aiuto sui dettagli del tavolo"
+            : "Table details help"
+          : label + ": " + (it ? "Legenda voti" : "Voting legend"),
+      ),
       multiple: f.multiple,
       participation: exact(
         index === 2

@@ -9,7 +9,10 @@ import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { ListActivityContext } from "@/lib/listActivity";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
-import { installNativePopoverMeasurements } from "@/test/nativePopoverGeometry";
+import {
+  installNativePopoverMeasurements,
+  pressMeasuredPopover,
+} from "@/test/nativePopoverGeometry";
 import { positionMeasuredSelect } from "@/test/nativeSelectGeometry";
 
 const API = "https://leaderboard-fixtures.test";
@@ -190,6 +193,28 @@ async function endPlayers(height = 1200) {
   await scrollNativeListToEnd(listHost(), height);
 }
 
+it.each([
+  {
+    global: false,
+    copy: "This leaderboard only includes rated results from this group’s events.",
+  },
+  {
+    global: true,
+    copy: "For each game, the global leaderboard includes all rated matches from private and public events.",
+  },
+])("explains the scope of the OpenSkill leaderboard (global=$global)", async ({ global, copy }) => {
+  await render(<Fixture global={global} />);
+  const content = listHost().children.find(
+    (node) => typeof node !== "string" && typeof node.props.onLayout === "function",
+  );
+  if (!content || typeof content === "string") throw new Error("Expected native list content");
+  expect(content).toHaveStyle({ padding: 20, paddingTop: global ? 20 : 0 });
+  await pressMeasuredPopover(screen.getByRole("button", { name: "How OpenSkill works" }));
+  expect(screen.getByRole("heading", { name: "How OpenSkill works" })).toBeVisible();
+  expect(screen.getByText(copy)).toBeVisible();
+  expect(screen.getByText(/^The clock marks a provisional rating/)).toBeVisible();
+});
+
 it("renders canonical role, former-member, provisional and statistical player facts after explicit game selection", async () => {
   await render(<Fixture />);
   await chooseGame();
@@ -201,8 +226,18 @@ it("renders canonical role, former-member, provisional and statistical player fa
   expect(screen.getByRole("image", { name: "Provisional rating" })).toBeVisible();
   expect(screen.getByLabelText("Loading…")).toBeOnTheScreen();
   const admin = within(screen.getByTestId("group-ranking-player-admin"));
-  for (const value of ["OpenSkill", "ND", "5", "2", "1", "25.50"])
-    expect(admin.getByText(value)).toBeVisible();
+  for (const value of ["OpenSkill", "25.50"]) expect(admin.getByText(value)).toBeVisible();
+  const details = admin.getByRole("button", { name: "@admin, OpenSkill 25.50", expanded: false });
+  expect(admin.queryByTestId("ranking-player-statistics")).toBeNull();
+  await fireEvent.press(details);
+  expect(
+    admin.getByRole("button", { name: "@admin, OpenSkill 25.50", expanded: true }),
+  ).toBeVisible();
+  for (const label of ["Games played: 5", "Games won: 2", "ND: 1"]) {
+    expect(admin.getByLabelText(label)).toBeVisible();
+  }
+  await fireEvent.press(details);
+  expect(admin.queryByTestId("ranking-player-statistics")).toBeNull();
   expect(screen.getByTestId("group-ranking-player-former")).toHaveStyle({ opacity: 0.55 });
   const avatar = screen
     .getByTestId("group-ranking-player-admin")
@@ -398,7 +433,9 @@ it("normalizes public handles and preserves every authoritative role boundary wi
       expect(row.getByText(labels[index])).toBeVisible();
       expect(row.getByRole("button", { name: labels[index] })).toBeEnabled();
     } else {
-      expect(row.queryAllByRole("button")).toEqual([]);
+      expect(row.getAllByRole("button")).toEqual([
+        row.getByTestId("ranking-player-statistics-toggle"),
+      ]);
       if (role === undefined) expect(row.getByLabelText("Loading…")).toBeOnTheScreen();
       else expect(row.queryByLabelText("Loading…")).toBeNull();
     }
@@ -565,6 +602,14 @@ it("uses native menu and direction controls to order the global leaderboard at t
   await chooseGame();
   expect(await screen.findByText("@global-player")).toBeVisible();
   expect(screen.queryByText("Accepted member")).toBeNull();
+  const globalPlayer = within(screen.getByTestId("group-ranking-player-global-player"));
+  expect(globalPlayer.getByRole("image", { name: "Position: #1" })).toBeVisible();
+  const statistics = globalPlayer.getByTestId("ranking-player-statistics-toggle");
+  expect(globalPlayer.queryByText("ND")).toBeNull();
+  await fireEvent.press(statistics);
+  expect(globalPlayer.getByText("ND")).toBeVisible();
+  await fireEvent.press(statistics);
+  expect(globalPlayer.queryByText("ND")).toBeNull();
   const playerReads = () => reads.filter((url) => url.searchParams.has("gameId"));
   expect(playerReads()[0].pathname).toBe("/api/community/leaderboard");
   expect(playerReads()[0].searchParams.get("sort")).toBe("rating");
@@ -592,13 +637,13 @@ it("uses native menu and direction controls to order the global leaderboard at t
     expect(playerReads().at(-1)?.searchParams.get("sort")).toBe("gamesWon");
     expect(playerReads().at(-1)?.searchParams.get("direction")).toBe("desc");
   });
-  expect(await screen.findByText("#1")).toBeVisible();
+  expect(await screen.findByRole("image", { name: "Position: #1" })).toBeVisible();
   await fireEvent.press(screen.getByTestId("ranking-sort-direction"));
   await waitFor(() => {
     expect(playerReads().at(-1)?.searchParams.get("sort")).toBe("gamesWon");
     expect(playerReads().at(-1)?.searchParams.get("direction")).toBe("asc");
   });
-  expect(await screen.findByText("#1")).toBeVisible();
+  expect(await screen.findByRole("image", { name: "Position: #1" })).toBeVisible();
   await fireEvent.press(screen.getByRole("button", { name: "Clear board game selection" }));
   expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
   expect(screen.queryByText("@global-player")).toBeNull();

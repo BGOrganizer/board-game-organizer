@@ -15,7 +15,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX, Vote } from "lucide-react";
+import { ArrowUpDown, Clock3, LogOut, Mail, UserRoundX, UsersRound, Vote } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { floatingActionPositionStyle } from "@/components/common/layout/floatingActionStyles";
@@ -36,6 +36,7 @@ import { EventGuestVoteEditor } from "./EventGuestVoteEditor";
 import { EventJoinSheet } from "./EventJoinSheet";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
+import { EventSectionCard } from "./EventSectionCard";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
 export function EventTableSeats({
   table,
@@ -87,6 +88,21 @@ export function EventTableSeats({
   return (
     <div className="space-y-3" hidden={!active}>
       {header}
+      <EventSectionCard
+        title={t`Participants`}
+        label={t`Table participants help`}
+        icon={UsersRound}
+      >
+        {table.eventStatus === "PLANNING" ? (
+          <>
+            <p>{t`When registration is open, select a free place or the waiting list, complete any required votes and confirm.`}</p>
+            <p>{t`If all seats are taken, new players join the waiting list.`}</p>
+            <p>{t`Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.`}</p>
+          </>
+        ) : (
+          <p>{t`Only players with a confirmed seat take part at this table.`}</p>
+        )}
+      </EventSectionCard>
       {table.canManage && table.eventStatus === "PLANNING" ? (
         <Button
           isIconOnly

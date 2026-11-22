@@ -7,18 +7,11 @@ import { Chip } from "heroui-native/chip";
 import { useThemeColor } from "heroui-native/hooks";
 import { Separator } from "heroui-native/separator";
 import { Typography } from "heroui-native/text";
-import {
-  Clock3,
-  Globe,
-  Minus,
-  TrendingDown,
-  TrendingUp,
-  Trophy,
-  UsersRound,
-} from "lucide-react-native";
+import { Clock3, Globe, Minus, TrendingDown, TrendingUp, UsersRound } from "lucide-react-native";
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
+import { RankPositionBadge } from "@/components/common/ui/RankPositionBadge";
 import { UserAvatar } from "@/components/common/ui/UserAvatar";
 import { useT } from "@/lib/i18n";
 
@@ -32,7 +25,7 @@ export const EventFinishedPlayerResult = memo(function EventFinishedPlayerResult
   name: string;
 }) {
   const t = useT();
-  const [muted, warning] = useThemeColor(["muted", "warning-soft-foreground"]);
+  const muted = useThemeColor("muted");
   const rank = player.rank == null ? t("ND") : `#${player.rank}`;
   const score = player.score ?? t("ND");
   const positionLabel = `${t("Position")}: ${rank}`;
@@ -44,23 +37,8 @@ export const EventFinishedPlayerResult = memo(function EventFinishedPlayerResult
         avatarUrl={player.avatarUrl}
         avatarContent={player.guestName ? <GuestAvatar name={player.guestName} /> : undefined}
         badgeContent={
-          <View
-            accessible
-            accessibilityRole="image"
-            accessibilityLabel={positionLabel}
-            pointerEvents="none"
-            style={styles.positionSlot}
-          >
-            <Chip
-              size="sm"
-              variant="secondary"
-              color={player.rank === 1 ? "warning" : "default"}
-              disabled
-              accessible={false}
-              style={styles.position}
-            >
-              <Chip.Label>{rank}</Chip.Label>
-            </Chip>
+          <View pointerEvents="none" style={styles.positionSlot}>
+            <RankPositionBadge rank={player.rank ?? null} />
           </View>
         }
       />
@@ -69,10 +47,7 @@ export const EventFinishedPlayerResult = memo(function EventFinishedPlayerResult
           {name}
         </Typography>
         {player.rank === 1 ? (
-          <View style={styles.winner}>
-            <Trophy size={12} color={warning} accessible={false} />
-            <Typography className="text-xs text-warning-soft-foreground">{t("Winner")}</Typography>
-          </View>
+          <Typography className="text-xs text-warning-soft-foreground">{t("Winner")}</Typography>
         ) : null}
         {player.guestName ? (
           <Typography className="text-xs text-muted">{t("Guest")}</Typography>
@@ -85,7 +60,7 @@ export const EventFinishedPlayerResult = memo(function EventFinishedPlayerResult
     </>
   );
   return (
-    <Card variant="secondary" style={styles.card}>
+    <Card style={styles.card}>
       {player.guestName ? (
         <View style={styles.heading}>{heading}</View>
       ) : (
@@ -134,26 +109,13 @@ function RatingBreakdown({ table, userId }: { table: PlannedTableResponse; userI
       return (
         <View key={row.scope} style={styles.rating}>
           <View style={styles.scope}>
-            <View>
-              <Scope size={14} color={group ? success : accent} accessible={false} />
-              {row.provisional ? (
-                <View
-                  className="bg-surface-secondary"
-                  style={styles.provisional}
-                  accessible
-                  accessibilityRole="image"
-                  accessibilityLabel={t("Provisional rating")}
-                >
-                  <Clock3 size={10} color={warning} accessible={false} />
-                </View>
-              ) : null}
-            </View>
-            <Typography className="text-xs text-muted">
+            <Scope size={16} color={group ? success : accent} accessible={false} />
+            <Typography className="text-sm text-muted">
               {group ? t("Group") : t("Global")}
             </Typography>
           </View>
           {before === undefined || after === undefined || delta === undefined ? (
-            <Typography className="text-xs text-muted" style={styles.message}>
+            <Typography className="text-sm text-muted" style={styles.message}>
               {row.state === "notUpdated"
                 ? t("Ranking not updated")
                 : t("Historical ranking unavailable")}
@@ -161,20 +123,29 @@ function RatingBreakdown({ table, userId }: { table: PlannedTableResponse; userI
           ) : (
             <View style={styles.values}>
               <Typography
-                className="text-xs text-muted"
+                className="text-sm text-muted"
                 accessibilityLabel={`${t("Rating before")}: ${format(before)}`}
               >
                 {format(before)}
               </Typography>
-              <Typography className="text-xs text-muted" accessible={false}>
+              <Typography className="text-sm text-muted" accessible={false}>
                 →
               </Typography>
               <Typography
-                className="text-xs font-semibold text-foreground"
+                className="text-sm font-semibold text-foreground"
                 accessibilityLabel={`${t("Rating after")}: ${format(after)}`}
               >
                 {format(after)}
               </Typography>
+              {row.provisional ? (
+                <View
+                  accessible
+                  accessibilityRole="image"
+                  accessibilityLabel={t("Provisional rating")}
+                >
+                  <Clock3 size={16} color={warning} accessible={false} />
+                </View>
+              ) : null}
               <RatingDelta
                 delta={delta}
                 format={format}
@@ -214,11 +185,11 @@ function RatingDelta({
         style={styles.delta}
       >
         <Icon
-          size={12}
+          size={16}
           color={positive ? colors.success : negative ? colors.danger : colors.muted}
           accessible={false}
         />
-        <Chip.Label>{change}</Chip.Label>
+        <Chip.Label className="text-sm">{change}</Chip.Label>
       </Chip>
     </View>
   );
@@ -234,16 +205,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  positionSlot: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  position: {
-    minHeight: 18,
-    minWidth: 21,
-    paddingHorizontal: 3,
-    paddingVertical: 0,
-    justifyContent: "center",
-  },
   identity: { flex: 1, minWidth: 0, gap: 2 },
-  winner: { flexDirection: "row", alignItems: "center", gap: 2 },
+  positionSlot: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   score: { alignItems: "flex-end", maxWidth: "40%" },
   panel: { paddingHorizontal: 10, paddingTop: 0, paddingBottom: 8, gap: 4 },
   rating: {
@@ -255,11 +218,11 @@ const styles = StyleSheet.create({
     minHeight: 24,
   },
   scope: { flexDirection: "row", gap: 4, alignItems: "center" },
-  provisional: { position: "absolute", right: -2, bottom: -2, borderRadius: 5 },
   message: { flexShrink: 1, textAlign: "right" },
   values: {
     flexDirection: "row",
     flexWrap: "wrap",
+    maxWidth: "100%",
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 3,

@@ -171,9 +171,15 @@ it("uses stable non-mutating roster cache identity and supports the legacy facto
   expect(data.pages[0].items[0].userId).toBe("alpha");
 });
 
-it.each([1, 2, null])(
-  "keeps historical position %s on the avatar without another control",
-  (rank) => {
+it.each([
+  { rank: 1, icon: "trophy", tone: "warning" },
+  { rank: 2, icon: "medal", tone: "accent" },
+  { rank: 3, icon: "medal", tone: "default" },
+  { rank: 4, icon: null, tone: "default" },
+  { rank: null, icon: null, tone: "default" },
+])(
+  "keeps historical position $rank on the avatar without another control",
+  ({ rank, icon, tone }) => {
     const { wrapper: Wrapper } = setup();
     renderWithI18n(
       <Wrapper>
@@ -202,12 +208,15 @@ it.each([1, 2, null])(
     );
     const label = `Position: ${rank === null ? "ND" : `#${rank}`}`;
     expect(screen.queryByText(label)).toBeNull();
-    expect(screen.getByRole("img", { name: label }).textContent).toBe(
-      rank === null ? "ND" : `#${rank}`,
-    );
+    const badge = screen.getByRole("img", { name: label });
+    const chip = badge.matches(".chip") ? badge : badge.querySelector(".chip");
+    expect(chip).toHaveClass(`chip--${tone}`);
+    if (icon) expect(badge.querySelector(`.lucide-${icon}`)).not.toBeNull();
+    else expect(badge.textContent).toBe(rank === null ? "ND" : `#${rank}`);
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(Boolean(screen.queryByText("Winner"))).toBe(rank === 1);
-    expect(screen.getByText("Chess")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Chess" }).closest(".card")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "How OpenSkill works" })).toBeNull();
   },
 );
 

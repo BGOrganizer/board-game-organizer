@@ -39,7 +39,6 @@ if (
   throw new Error("Development Clerk keys required");
 const it = locale === "it",
   labels = {
-    ranking: "Ranking",
     rankings: it ? "Classifiche" : "Rankings",
     marketplace: it ? "Mercatino" : "Marketplace",
     activities: it ? "Attività" : "Activities",
@@ -224,8 +223,13 @@ for (const colorScheme of ["light", "dark"] as const) {
         "Owned Group-ranking fixture requires a currently accepted ranked player on the first source page and the current role-projecting API",
       );
     await page.goto(`/groups/${groupId}`);
-    await page.getByRole("tab", { name: labels.ranking, exact: true }).click();
+    await page.getByRole("tab", { name: labels.rankings, exact: true }).click();
     await page.getByRole("button", { name: labels.howOpenSkillWorks, exact: true }).click();
+    await expect(page.getByRole("dialog")).toContainText(
+      it
+        ? "Questa classifica usa solo i risultati classificati degli eventi del gruppo."
+        : "This leaderboard only includes rated results from this group’s events.",
+    );
     await expect(page.getByRole("dialog")).toContainText("OpenSkill");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -250,6 +254,21 @@ for (const colorScheme of ["light", "dark"] as const) {
       )
       .toBe(true);
     await option.click();
+    const assertPlayerStatistics = async (row: ReturnType<typeof page.locator>) => {
+      const statistics = row.getByRole("button", {
+        name: it ? /^Statistiche di gioco:/ : /^Game statistics:/,
+      });
+      const nd = row.getByText("ND", { exact: true });
+      await expect(statistics).toHaveAttribute("aria-expanded", "false");
+      await expect(nd).toHaveCount(0);
+      await statistics.click();
+      await expect(statistics).toHaveAttribute("aria-expanded", "true");
+      await expect(row.getByText(it ? "Giocate" : "Played", { exact: true })).toBeVisible();
+      await expect(row.getByText(it ? "Vinte" : "Wins", { exact: true })).toBeVisible();
+      await expect(nd).toBeVisible();
+      await statistics.press("Enter");
+      await expect(nd).toHaveCount(0);
+    };
     const captions = {
       ADMIN: it ? "Amministratore" : "Admin",
       MODERATOR: it ? "Moderatore" : "Moderator",
@@ -259,6 +278,11 @@ for (const colorScheme of ["light", "dark"] as const) {
       const handle = formatUsername(player.username, "Username unavailable");
       const row = page.locator(`[data-testid="group-ranking-player-${player.userId}"]:visible`);
       await expect(row.getByText(handle, { exact: true })).toBeVisible();
+      if (player.position != null) {
+        await expect(
+          row.getByRole("img", { name: `${it ? "Posizione" : "Position"}: #${player.position}` }),
+        ).toBeVisible();
+      }
       if (!player.groupRole) throw new Error("Fixture player needs a current Group role");
       const caption = captions[player.groupRole];
       await expect(row.getByText(caption, { exact: true })).toBeVisible();
@@ -267,6 +291,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(popup.getByText(caption, { exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(popup).toHaveCount(0);
+      await assertPlayerStatistics(row);
     }
     await assertWinOrdering(page, `groups/${groupId}/leaderboard`, game.id);
     await page.getByRole("button", { name: labels.clearGame, exact: true }).click();
@@ -274,13 +299,18 @@ for (const colorScheme of ["light", "dark"] as const) {
 
     await page.goto("/community");
     const tabs = page.getByRole("tab");
-    await expect(tabs).toHaveText([labels.marketplace, labels.rankings, labels.activities]);
+    await expect(tabs).toHaveText([labels.activities, labels.rankings, labels.marketplace]);
     await page.getByRole("tab", { name: labels.rankings, exact: true }).click();
     await expect(page.getByTestId("ranking-sort-metric")).toBeHidden();
     await page.getByRole("button", { name: labels.howOpenSkillWorks, exact: true }).click();
-    await expect(page.getByRole("dialog")).toContainText("OpenSkill");
+    await expect(page.getByRole("dialog")).toContainText(
+      it
+        ? "Per ogni gioco, la classifica globale conta tutte le partite classificate, sia negli eventi privati sia in quelli pubblici."
+        : "For each game, the global leaderboard includes all rated matches from private and public events.",
+    );
     await page.keyboard.press("Escape");
     await (await chooseRatedGame(page, game)).click();
+    await assertPlayerStatistics(page.getByTestId(/^group-ranking-player-/).first());
     await assertWinOrdering(page, "community/leaderboard", game.id);
     await page.getByRole("button", { name: labels.clearGame, exact: true }).click();
     await expect(page.getByTestId("ranking-sort-metric")).toBeHidden();

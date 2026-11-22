@@ -93,7 +93,7 @@ output.cardTableStatus =
   "$";
 output.cardMembersTab = italian ? "^Membri$" : "^Members$";
 output.cardParticipantsTab = italian ? "^Partecipanti$" : "^Participants$";
-output.cardRankingTab = "^Ranking$";
+output.cardRankingTab = italian ? "^Classifiche$" : "^Rankings$";
 output.cardUnconfirmed = italian ? "^Giocatori non confermati$" : "^Unconfirmed players$";
 
 output.cardRoles = italian ? "^Ruoli e partecipazione$" : "^Roles and participation$";

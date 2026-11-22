@@ -223,6 +223,9 @@ test("owned admin saves editable scores across reloads; excluded Tables never bl
   const rated = await read<PlannedTableResponse>(page, `events/${eventId}/tables/${tableId}`);
   const globalRating = rated.ratingChanges?.find((row) => row.userId === first.userId);
   if (!globalRating) throw new Error("Expected a recorded global rating for the first finisher");
+  const rank = rated.results?.entries.find((row) => row.userId === first.userId)?.rank;
+  if (rank == null) throw new Error("Expected a recorded position for the first finisher");
+  await expect(resultRow.getByRole("img", { name: `${position}: #${rank}` })).toBeVisible();
   const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
   const globalRow = global.locator("..");
   await expect(globalRow).toContainText(number.format(globalRating.score - globalRating.delta));

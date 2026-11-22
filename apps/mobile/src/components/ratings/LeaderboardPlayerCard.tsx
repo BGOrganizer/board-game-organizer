@@ -4,8 +4,8 @@ import {
   groupLeaderboardRoles,
   RECORD_USER_ROLES,
 } from "@board-game-organizer/shared";
+import { Accordion } from "heroui-native/accordion";
 import { Card } from "heroui-native/card";
-import { Chip } from "heroui-native/chip";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
@@ -18,6 +18,7 @@ import {
 } from "lucide-react-native";
 import { memo } from "react";
 import { View } from "react-native";
+import { RankPositionBadge } from "@/components/common/ui/RankPositionBadge";
 import { UserAvatar } from "@/components/common/ui/UserAvatar";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { useT } from "@/lib/i18n";
@@ -36,6 +37,7 @@ export const LeaderboardPlayerCard = memo(function LeaderboardPlayerCard({
   const t = useT();
   const [warning, muted, accent] = useThemeColor(["warning", "muted", "accent"]);
   const name = formatUsername(player.username, t("Username unavailable"));
+  const rating = player.rating === null ? t("Not rated") : format.format(player.rating);
   const roles = groupLeaderboardRoles(player);
   const primary = roles[0];
   const secondary = player.left
@@ -64,98 +66,119 @@ export const LeaderboardPlayerCard = memo(function LeaderboardPlayerCard({
   ];
   return (
     <Card
-      variant="secondary"
       testID={`group-ranking-player-${player.userId}`}
-      style={{ opacity: player.left ? 0.55 : 1, padding: 8, gap: 5 }}
+      style={{ opacity: player.left ? 0.55 : 1, padding: 0 }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <UserAvatar
-          name={name}
-          avatarUrl={player.avatarUrl}
-          badgeContent={roles.length ? <UserRoleBadge roles={roles} /> : undefined}
-        />
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-            <Typography
-              className="text-sm font-semibold text-foreground"
-              numberOfLines={1}
-              style={{ flexShrink: 1 }}
-            >
-              {name}
-            </Typography>
-            {player.position != null ? (
-              <Chip
-                size="sm"
-                variant="secondary"
-                accessibilityLabel={`${t("Position")} #${player.position}`}
-              >
-                <Chip.Label>#{player.position}</Chip.Label>
-              </Chip>
-            ) : null}
-          </View>
-          {secondary ? (
-            <Typography className="text-xs text-muted" numberOfLines={1}>
-              {secondary}
-            </Typography>
-          ) : null}
-          {group && !player.left && player.groupRole === undefined ? (
-            <Skeleton
-              accessibilityLabel={t("Loading…")}
-              style={{ width: 68, height: 14, borderRadius: 4 }}
-            />
-          ) : null}
-        </View>
-        <View style={{ alignItems: "flex-end" }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <ChartNoAxesColumnIncreasing size={12} color={accent} accessible={false} />
-            <Typography className="text-xs text-muted">OpenSkill</Typography>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            {player.provisional ? (
-              <View
-                accessible
-                accessibilityRole="image"
-                accessibilityLabel={t("Provisional rating")}
-              >
-                <Clock3 size={14} color={warning} />
-              </View>
-            ) : null}
-            <Typography
-              className={
-                player.rating === null ? "text-xs text-muted" : "font-semibold text-foreground"
-              }
-            >
-              {player.rating === null ? t("Not rated") : format.format(player.rating)}
-            </Typography>
-          </View>
-        </View>
-      </View>
-      <View
-        className="border-separator border-t"
-        style={{ flexDirection: "row", gap: 6, paddingTop: 4 }}
-      >
-        {stats.map(({ label, full, value, icon: Icon, color, flex }) => (
+      <Accordion hideSeparator>
+        <Accordion.Item value={player.userId}>
           <View
-            key={full}
-            accessible
-            accessibilityLabel={`${full}: ${value}`}
             style={{
-              flex,
               flexDirection: "row",
-              justifyContent: "space-between",
               alignItems: "center",
-              flexWrap: "wrap",
-              columnGap: 2,
+              gap: 8,
+              paddingStart: 8,
+              paddingBottom: roles.length ? 8 : 0,
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-              <Icon size={12} color={color} accessible={false} />
-              <Typography className="text-xs text-muted">{label}</Typography>
+            <View style={{ minWidth: 24, alignItems: "center" }}>
+              {player.position != null ? <RankPositionBadge rank={player.position} /> : null}
             </View>
-            <Typography className="text-sm font-semibold text-foreground">{value}</Typography>
+            <UserAvatar
+              name={name}
+              avatarUrl={player.avatarUrl}
+              badgeContent={roles.length ? <UserRoleBadge roles={roles} /> : undefined}
+            />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Typography className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                {name}
+              </Typography>
+              {secondary ? (
+                <Typography className="text-xs text-muted" numberOfLines={1}>
+                  {secondary}
+                </Typography>
+              ) : null}
+              {group && !player.left && player.groupRole === undefined ? (
+                <Skeleton
+                  accessibilityLabel={t("Loading…")}
+                  style={{ width: 68, height: 14, borderRadius: 4 }}
+                />
+              ) : null}
+            </View>
+            <Accordion.Trigger
+              testID="ranking-player-statistics-toggle"
+              accessibilityLabel={`${name}, OpenSkill ${rating}`}
+              accessibilityHint={t("Game statistics")}
+              style={{
+                minHeight: 48,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingVertical: 8,
+                paddingEnd: 8,
+              }}
+            >
+              <View style={{ alignItems: "flex-end" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <ChartNoAxesColumnIncreasing size={12} color={accent} accessible={false} />
+                  <Typography className="text-xs text-muted">OpenSkill</Typography>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  {player.provisional ? (
+                    <View
+                      accessible
+                      accessibilityRole="image"
+                      accessibilityLabel={t("Provisional rating")}
+                    >
+                      <Clock3 size={14} color={warning} />
+                    </View>
+                  ) : null}
+                  <Typography
+                    className={
+                      player.rating === null
+                        ? "text-xs text-muted"
+                        : "font-semibold text-foreground"
+                    }
+                  >
+                    {rating}
+                  </Typography>
+                </View>
+              </View>
+              <Accordion.Indicator iconProps={{ size: 16, color: muted }} />
+            </Accordion.Trigger>
           </View>
-        ))}
-      </View>
+          <Accordion.Content style={{ paddingHorizontal: 8, paddingTop: 0, paddingBottom: 8 }}>
+            <View
+              testID="ranking-player-statistics"
+              className="border-separator border-t"
+              style={{ flexDirection: "row", gap: 6, paddingTop: 8 }}
+            >
+              {stats.map(({ label, full, value, icon: Icon, color, flex }) => (
+                <View
+                  key={full}
+                  accessible
+                  accessibilityLabel={`${full}: ${value}`}
+                  style={{
+                    flex,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    columnGap: 2,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                    <Icon size={16} color={color} accessible={false} />
+                    <Typography className="text-sm text-muted">{label}</Typography>
+                  </View>
+                  <Typography className="text-base font-semibold text-foreground">
+                    {value}
+                  </Typography>
+                </View>
+              ))}
+            </View>
+          </Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
     </Card>
   );
 });

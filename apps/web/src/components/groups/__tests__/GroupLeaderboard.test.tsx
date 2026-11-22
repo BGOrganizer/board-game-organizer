@@ -35,6 +35,7 @@ beforeEach(() => {
                 gamesWon: 1,
                 nd: 1,
                 rating: 510.4,
+                position: 4,
                 provisional: true,
                 left: true,
               },
@@ -226,7 +227,7 @@ it("keeps the selected game label when closing search restores an option window 
   expect(screen.queryByText("Unknown")).toBeNull();
 });
 
-it("uses compact HeroUI player cards on narrow screens without hiding ranking metrics or controls", async () => {
+it("expands compact player statistics while keeping rank and sorting controls visible", async () => {
   vi.stubGlobal("matchMedia", (query: string) => ({
     media: query,
     matches: query === "(max-width: 639px)",
@@ -243,9 +244,21 @@ it("uses compact HeroUI player cards on narrow screens without hiding ranking me
     expect(within(card).getByText("@grace")).toBeVisible();
     expect(within(card).getByText("Former group member")).toBeVisible();
     expect(within(card).getByText("OpenSkill")).toBeVisible();
-    expect(within(card).getByText("Played")).toBeVisible();
-    expect(within(card).getByText("Wins")).toBeVisible();
-    expect(within(card).getByText("ND")).toBeVisible();
+    const row = within(card);
+    const position = row.getByRole("img", { name: "Position: #4" });
+    expect(position).toHaveTextContent("#4");
+    expect(position.compareDocumentPosition(row.getByText("@grace"))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    const statistics = row.getByRole("button", { name: /Game statistics: @grace/ });
+    expect(statistics).toHaveAttribute("aria-expanded", "false");
+    for (const label of ["Played", "Wins", "ND"]) expect(row.queryByText(label)).toBeNull();
+    fireEvent.click(statistics);
+    expect(statistics).toHaveAttribute("aria-expanded", "true");
+    for (const label of ["Played", "Wins", "ND"]) expect(row.getByText(label)).toBeVisible();
+    fireEvent.click(statistics);
+    expect(statistics).toHaveAttribute("aria-expanded", "false");
+    expect(row.queryByText("ND")).toBeNull();
     expect(screen.queryByRole("grid")).toBeNull();
     expect(screen.getByTestId("ranking-sort-metric")).toBeVisible();
     expect(screen.getByTestId("ranking-sort-direction")).toBeVisible();

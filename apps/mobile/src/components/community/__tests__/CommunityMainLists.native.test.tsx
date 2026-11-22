@@ -41,6 +41,12 @@ it("retains the actual activity list across the marketplace and global rankings 
     </MainListFixture>,
   );
   expect(await screen.findByText("First activity table")).toBeVisible();
+  expect(screen.getAllByRole("tab")).toEqual([
+    screen.getByTestId("top-tab-activity"),
+    screen.getByTestId("community-tab-ranking"),
+    screen.getByTestId("top-tab-market"),
+  ]);
+  expect(screen.getByTestId("top-tab-activity")).toBeSelected();
   const list = activityList();
   await listTab("market");
   expect(screen.getByText("Coming soon")).toBeVisible();

@@ -27,14 +27,14 @@ export function Community() {
         }}
       >
         <TabBar label={t`Community navigation`}>
-          <TabTrigger icon={Store} id="market">
-            {t`Marketplace`}
+          <TabTrigger icon={Activity} id="activity">
+            {t`Activities`}
           </TabTrigger>
           <TabTrigger icon={Medal} id="ranking">
             {t`Rankings`}
           </TabTrigger>
-          <TabTrigger icon={Activity} id="activity">
-            {t`Activities`}
+          <TabTrigger icon={Store} id="market">
+            {t`Marketplace`}
           </TabTrigger>
         </TabBar>
         <Tabs.Panel id="activity" className="pt-0">

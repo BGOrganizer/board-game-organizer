@@ -7,7 +7,6 @@ import { communityAccessDenied, resolveApiUrl, useLeaderboard } from "@board-gam
 import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { Button } from "heroui-native/button";
-import { Card } from "heroui-native/card";
 import { useThemeColor } from "heroui-native/hooks";
 import { Menu } from "heroui-native/menu";
 import { Skeleton } from "heroui-native/skeleton";
@@ -16,6 +15,7 @@ import {
   ArrowDown,
   ArrowUp,
   ChartNoAxesColumnIncreasing,
+  Clock3,
   Dices,
   Medal,
   Trophy,
@@ -27,6 +27,7 @@ import { EmptyList } from "@/components/common/ui/EmptyList";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { useT } from "@/lib/i18n";
 import { useListActivity } from "@/lib/listActivity";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -190,9 +191,9 @@ export function Leaderboard({
   };
   const renderPlayer = useCallback(
     ({ item }: ListRenderItemInfo<Player>) => (
-      <LeaderboardPlayerCard player={item} group={Boolean(groupId)} format={format} />
+      <LeaderboardPlayerCard key={gameId} player={item} group={Boolean(groupId)} format={format} />
     ),
-    [format, groupId],
+    [format, gameId, groupId],
   );
   const hasGames = choices.length > 0 || debouncedSearch.length > 0;
   const hasErrors =
@@ -216,50 +217,58 @@ export function Leaderboard({
           {header === undefined || header === null || header === false ? null : (
             <View>{header}</View>
           )}
-          <Card style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 10 }}>
-            <View
-              className="bg-accent-soft"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Medal size={20} color={iconAccent} accessible={false} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Card.Title accessibilityRole="header">{t("Rankings")}</Card.Title>
-              <Card.Description>{groupId ? groupName : t("Global")}</Card.Description>
-            </View>
-            <HelpPopover
-              label={t("How OpenSkill works")}
-              title={t("How OpenSkill works")}
-              size="compact"
-              align="end"
-            >
-              <View style={{ gap: 8 }}>
-                <Typography className="text-sm text-foreground">
-                  {t(
-                    "OpenSkill estimates your skill separately for each game. After a rated match, it uses your finish and the other players’ ratings to update your score. The displayed score accounts for uncertainty, which decreases as you play.",
-                  )}
-                </Typography>
-                <Typography className="text-sm text-foreground">
-                  {t(
-                    "The clock marks a provisional rating until you have five rated results. ND means you did not finish and is counted separately from completed games.",
-                  )}
-                </Typography>
-                <Typography className="text-sm text-foreground">
-                  {groupId
-                    ? t("This ranking uses rated results from this group.")
-                    : t(
-                        "The global ranking combines rated results across Board Game Organizer. It shows totals and ratings without revealing individual results or private groups.",
-                      )}
-                </Typography>
+          <SectionHeaderCard
+            title={t("Rankings")}
+            description={groupId ? groupName : t("Global")}
+            leading={
+              <View
+                className="bg-accent-soft"
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Medal size={20} color={iconAccent} accessible={false} />
               </View>
-            </HelpPopover>
-          </Card>
+            }
+            action={
+              <HelpPopover
+                label={t("How OpenSkill works")}
+                title={t("How OpenSkill works")}
+                titleIcon={
+                  <ChartNoAxesColumnIncreasing size={16} color={accent} accessible={false} />
+                }
+                size="compact"
+                align="end"
+              >
+                <View style={{ gap: 8 }}>
+                  <Typography className="text-sm text-foreground">
+                    {t(
+                      "OpenSkill estimates your skill separately for each game. After a rated match, it uses your finish and the other players’ ratings to update your score. The displayed score accounts for uncertainty, which decreases as you play.",
+                    )}
+                  </Typography>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+                    <Clock3 size={16} color={warning} accessible={false} />
+                    <Typography className="text-sm text-foreground" style={{ flex: 1 }}>
+                      {t(
+                        "The clock marks a provisional rating until you have five rated results. ND means you did not finish and is counted separately from completed games.",
+                      )}
+                    </Typography>
+                  </View>
+                  <Typography className="text-sm text-foreground">
+                    {groupId
+                      ? t("This leaderboard only includes rated results from this group’s events.")
+                      : t(
+                          "For each game, the global leaderboard includes all rated matches from private and public events.",
+                        )}
+                  </Typography>
+                </View>
+              </HelpPopover>
+            }
+          />
           {games.isPending ? (
             <Skeleton style={{ width: "100%", height: 60, borderRadius: 12 }} />
           ) : games.isError ? (
@@ -434,7 +443,12 @@ export function Leaderboard({
           <Skeleton style={{ width: "100%", height: 48, borderRadius: 12 }} />
         ) : null
       }
-      contentContainerStyle={{ padding: 20, paddingTop: 0, gap: 8, paddingBottom: 110 }}
+      contentContainerStyle={{
+        padding: 20,
+        paddingTop: groupId ? 0 : 20,
+        gap: 8,
+        paddingBottom: 110,
+      }}
       renderItem={renderPlayer}
     />
   );

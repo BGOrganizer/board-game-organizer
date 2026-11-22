@@ -207,7 +207,7 @@ export function GroupDetail({
               </TabTrigger>
             ) : null}
             {group.canViewRankings ? (
-              <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Ranking`}</TabTrigger>
+              <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Rankings`}</TabTrigger>
             ) : null}
           </TabBar>
 

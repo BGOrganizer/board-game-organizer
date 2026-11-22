@@ -64,6 +64,65 @@ function mount(
   );
   return client;
 }
+it("introduces the event sections and places its group after the schedule", async () => {
+  event = {
+    ...event,
+    groupId: groupRecord.id,
+    groupName: groupRecord.name,
+    planningMode: "MANUAL",
+    playerPreference: "BEST",
+    allowBestReduction: true,
+  };
+  mount();
+  const dates = await screen.findByRole("heading", { name: "Dates and times" });
+  const locations = screen.getByRole("heading", { name: "Locations" });
+  const group = screen.getByRole("heading", { name: "Group" });
+  expect(dates.compareDocumentPosition(locations) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(locations.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+  for (const [tab, label, help] of [
+    [
+      "Details",
+      "Event details help",
+      "To join the event, open Tables, choose a table and sign up.",
+    ],
+    [
+      "Participants",
+      "Event participants help",
+      "Players with a seat or a waiting-list place at one or more event tables appear here.",
+    ],
+    ["Tables", "Event tables help", "To take part in the event, register for at least one table."],
+  ]) {
+    fireEvent.click(screen.getByRole("tab", { name: tab }));
+    expect(screen.getByRole("heading", { name: tab })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    const popover = await screen.findByRole("dialog");
+    expect(within(popover).getByText(help)).toBeVisible();
+    if (tab === "Details") {
+      expect(within(popover).getByText("Manual")).toBeVisible();
+      expect(within(popover).getByText("BGG Best")).toBeVisible();
+      expect(popover.textContent).not.toContain("may seat fewer players");
+    } else {
+      expect(within(popover).queryByText("Settings")).toBeNull();
+    }
+    fireEvent.keyDown(popover, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  }
+});
+
+it("explains final eligibility in the Italian sections of a shared event", async () => {
+  event = { ...event, status: "TERMINATED", readOnly: true, sharedResultsOnly: true };
+  mount(undefined, "it");
+  fireEvent.click(await screen.findByRole("button", { name: "Aiuto sui dettagli dell’evento" }));
+  const popover = await screen.findByRole("dialog");
+  expect(
+    within(popover).getByText(
+      "Partecipa solo chi ha un posto confermato a un tavolo che ha raggiunto il minimo di giocatori e soddisfatto le condizioni dell’evento.",
+    ),
+  ).toBeVisible();
+  expect(within(popover).queryByText("Impostazioni")).toBeNull();
+});
+
 it.each([
   [false, false],
   [true, false],
@@ -75,7 +134,7 @@ it.each([
   if (!locations) event = { ...event, locations: event.locations.slice(0, 1) };
   mount();
   await screen.findByRole("heading", { name: "Dates and times" });
-  expect(screen.queryByRole("heading", { name: "Details" })).toBeNull();
+  expect(screen.getByRole("heading", { name: "Details" })).toBeVisible();
   for (const [label, multiple] of [
     ["Dates and times", dates],
     ["Locations", locations],
@@ -101,6 +160,38 @@ it.each([
     }
   }
 });
+it.each([
+  { dates: true, locations: false, category: "Dates and times" },
+  { dates: false, locations: true, category: "Locations" },
+  { dates: true, locations: true, category: "Dates, times and locations" },
+  { dates: false, locations: false, category: null },
+])(
+  "describes only applicable Event Details voting and proposals ($dates, $locations)",
+  async ({ dates, locations, category }) => {
+    multipleSchedule();
+    event = {
+      ...event,
+      dates: dates ? event.dates : event.dates.slice(0, 1),
+      locations: locations ? event.locations : event.locations.slice(0, 1),
+      allowParticipantDates: dates,
+      allowParticipantLocations: locations,
+    };
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Event details help" }));
+    const help = within(await screen.findByRole("dialog"));
+    if (category) expect(help.getByText(category)).toBeVisible();
+    expect(
+      Boolean(
+        help.queryByText(
+          "You can vote only if you are an accepted participant in at least one table in the event.",
+        ),
+      ),
+    ).toBe(Boolean(category));
+    expect(Boolean(help.queryByText(/can propose other dates and times/))).toBe(dates);
+    expect(Boolean(help.queryByText(/can propose other locations/))).toBe(locations);
+  },
+);
+
 it("hides voting help after confirmation when only the final date and location remain", async () => {
   multipleSchedule();
   event = {

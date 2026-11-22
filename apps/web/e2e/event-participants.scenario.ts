@@ -139,9 +139,36 @@ test("real Event removal-only menus and separately confirmed Group-context bans"
   });
   await page.goto(`/events/${input.eventId}`);
   await expect(page.getByRole("link", { name: labels.edit, exact: true })).toBeVisible();
+  const expectSectionHelp = async (title: string, label: string, copy: string) => {
+    await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect(page.getByRole("dialog", { name: title }).getByText(copy)).toBeVisible();
+    await page.keyboard.press("Escape");
+  };
+  await expectSectionHelp(
+    labels.details,
+    it ? "Aiuto sui dettagli dell’evento" : "Event details help",
+    it
+      ? "Per partecipare all’evento, apri Tavoli, scegli un tavolo e iscriviti."
+      : "To join the event, open Tables, choose a table and sign up.",
+  );
   await page.getByRole("tab", { name: labels.tables, exact: true }).click();
+  await expectSectionHelp(
+    labels.tables,
+    it ? "Aiuto sui tavoli dell’evento" : "Event tables help",
+    it
+      ? "Per partecipare all’evento, iscriviti ad almeno un tavolo."
+      : "To take part in the event, register for at least one table.",
+  );
   await expect(page.getByRole("link", { name: labels.edit, exact: true })).toHaveCount(0);
   await page.getByRole("tab", { name: labels.people, exact: true }).click();
+  await expectSectionHelp(
+    labels.people,
+    it ? "Aiuto sui partecipanti all’evento" : "Event participants help",
+    it
+      ? "Qui trovi chi ha un posto o è in lista d’attesa in almeno un tavolo dell’evento."
+      : "Players with a seat or a waiting-list place at one or more event tables appear here.",
+  );
   await expect(page.getByRole("link", { name: labels.edit, exact: true })).toHaveCount(0);
   for (let n = 0; n < Math.floor(input.targetOffset / 20); n++) {
     const next = page.waitForResponse(

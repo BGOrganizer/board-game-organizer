@@ -198,13 +198,14 @@ it.each(["PLANNING", "CONFIRMED"] as const)(
 it("renders immutable completed standings from their frozen profiles without calling the current leaderboard", async () => {
   record = history();
   await render(<Fixture table={record} />);
-  expect(screen.getByText("Chess")).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Chess" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "How OpenSkill works" })).toBeNull();
   expect(screen.getByText("@owner")).toBeVisible();
   expect(screen.getByText("@guest")).toBeVisible();
   expect(screen.getByLabelText("Score: 12.5")).toBeVisible();
   expect(screen.getByLabelText("Score: 10")).toBeVisible();
-  expect(screen.getByText("#1")).toBeVisible();
-  expect(screen.getByText("#2")).toBeVisible();
+  expect(screen.getByRole("image", { name: "Position: #1" })).toBeVisible();
+  expect(screen.getByRole("image", { name: "Position: #2" })).toBeVisible();
   expect(
     screen.getByRole("button", { name: "@owner, Position: #1, Score: 12.5", expanded: false }),
   ).toBeVisible();
@@ -233,7 +234,8 @@ it("keeps tied winners, ranked players and ND results distinct without duplicati
     },
   });
   await render(<Fixture table={record} />);
-  expect(screen.getAllByText("#1")).toHaveLength(2);
+  expect(screen.getAllByRole("image", { name: "Position: #1" })).toHaveLength(2);
+  expect(screen.getByRole("image", { name: "Position: ND" })).toBeVisible();
   expect(
     screen.getByRole("button", { name: "Username unavailable, Position: ND, Score: ND" }),
   ).toBeVisible();

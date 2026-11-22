@@ -57,6 +57,7 @@ import { EventFinalizeAction } from "./EventFinalizeAction";
 import { EventGroupLink } from "./EventGroupLink";
 import { EventParticipants } from "./EventParticipants";
 import { EventProposalSection } from "./EventProposalSection";
+import { EventSectionHeader } from "./EventSectionHeader";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteLegend } from "./EventVoteLegend";
@@ -239,6 +240,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   };
   const header = (
     <View style={{ gap: 12 }}>
+      <EventSectionHeader
+        event={event}
+        section="details"
+        voteDates={voteDates}
+        voteLocations={voteLocations}
+      />
       <View style={{ gap: 8 }}>
         <NotificationItem itemId={notificationItemId(event.id, "overview")} />
         {event.readOnly ? (
@@ -251,9 +258,6 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           </Typography>
         ) : null}
       </View>
-      {event.groupId && fromGroup !== event.groupId ? (
-        <EventGroupLink groupId={event.groupId} name={event.groupName} />
-      ) : null}
       <View style={{ gap: 8 }}>
         <NotificationItem itemId={notificationItemId(event.id, "dates")}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -401,6 +405,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           })}
       </GroupedList>
       <EventProposalSection event={event} kind="location" disabled={q.isPlaceholderData} />
+      {event.groupId && fromGroup !== event.groupId ? (
+        <EventGroupLink groupId={event.groupId} name={event.groupName} />
+      ) : null}
     </View>
   );
   const detailHeader = (
@@ -448,6 +455,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       </Tabs>
     </View>
   );
+  const participantsHeader = (
+    <View style={{ gap: 12 }}>
+      {detailHeader}
+      <EventSectionHeader event={event} section="participants" />
+    </View>
+  );
   return (
     <NotificationAttentionScope
       options={o}
@@ -479,7 +492,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               {panel === "participants" ? (
                 event.readOnly ? (
                   <ScreenScrollView hasFloatingActions={hasFloatingActions}>
-                    <View>{detailHeader}</View>
+                    {participantsHeader}
                     <Typography className="text-muted">
                       {t("Public event. Group membership is not required to participate.")}
                     </Typography>
@@ -489,7 +502,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     event={event}
                     actions={a}
                     disabled={q.isPlaceholderData}
-                    header={detailHeader}
+                    header={participantsHeader}
                     hasFloatingActions={hasFloatingActions}
                   />
                 )
@@ -520,7 +533,10 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                         {panel === "details" ? (
                           header
                         ) : (
-                          <NotificationItem itemId={notificationItemId(event.id, "tables")} />
+                          <>
+                            <EventSectionHeader event={event} section="tables" />
+                            <NotificationItem itemId={notificationItemId(event.id, "tables")} />
+                          </>
                         )}
                       </View>
                     }

@@ -29,24 +29,24 @@ export function Community() {
         }}
       >
         <MainTabBar>
-          <TabTrigger icon={Store} value="market" style={tabStyle}>
-            <Tabs.Label numberOfLines={1}>{t("Marketplace")}</Tabs.Label>
+          <TabTrigger icon={Activity} value="activity" style={tabStyle}>
+            <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
           </TabTrigger>
           <TabTrigger icon={Medal} value="ranking" style={tabStyle} testID="community-tab-ranking">
             <Tabs.Label numberOfLines={1}>{t("Rankings")}</Tabs.Label>
           </TabTrigger>
-          <TabTrigger icon={Activity} value="activity" style={tabStyle}>
-            <Tabs.Label numberOfLines={1}>{t("Activities")}</Tabs.Label>
+          <TabTrigger icon={Store} value="market" style={tabStyle}>
+            <Tabs.Label numberOfLines={1}>{t("Marketplace")}</Tabs.Label>
           </TabTrigger>
         </MainTabBar>
-        <RetainedTabPanel key={JSON.stringify([key, "ranking"])} active={tab === "ranking"}>
-          <Leaderboard />
-        </RetainedTabPanel>
         <RetainedTabPanel
           key={JSON.stringify([o.apiUrl, o.userId, "activity"])}
           active={tab === "activity"}
         >
           <CommunityActivities />
+        </RetainedTabPanel>
+        <RetainedTabPanel key={JSON.stringify([key, "ranking"])} active={tab === "ranking"}>
+          <Leaderboard />
         </RetainedTabPanel>
         <RetainedTabPanel
           key={JSON.stringify([o.apiUrl, o.userId, "market"])}

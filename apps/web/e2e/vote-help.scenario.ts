@@ -90,13 +90,67 @@ for (const width of [390, 1280])
           }),
         ).toBeVisible();
         await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
-        await expect(
-          page.getByRole("heading", { name: it ? "Dettagli" : "Details", exact: true }),
-        ).toHaveCount(0);
-        const trigger = page.getByRole("button", {
+        const details = it ? "Dettagli" : "Details";
+        await expect(page.getByRole("heading", { name: details, exact: true })).toBeVisible();
+        const categoryTrigger = page.getByRole("button", {
           name: `${label}: ${it ? "Legenda voti" : "Voting legend"}`,
           exact: true,
         });
+        const detailsTrigger = page.getByRole("button", {
+          name:
+            index === 2
+              ? it
+                ? "Aiuto sui dettagli del tavolo"
+                : "Table details help"
+              : it
+                ? "Aiuto sui dettagli dell’evento"
+                : "Event details help",
+          exact: true,
+        });
+        const popup = page.getByRole("dialog");
+        if (index === 0) {
+          await detailsTrigger.click();
+          await expect(popup.getByText(eventHelp, { exact: true })).toHaveCount(
+            fixture.multiple ? 1 : 0,
+          );
+          if (fixture.multiple)
+            await expect(
+              popup.getByText(
+                it
+                  ? 'Scegli almeno un’opzione "Sì" o "Se necessario" per ogni categoria.'
+                  : 'Choose at least one "Yes" or "If needed" option in each category.',
+                { exact: true },
+              ),
+            ).toBeVisible();
+          await page.keyboard.press("Escape");
+          await expect(popup).toHaveCount(0);
+        }
+        if (index === 2) {
+          await expect(categoryTrigger).toHaveCount(0);
+          const participants = it ? "Partecipanti" : "Participants";
+          await page.getByRole("tab", { name: participants, exact: true }).click();
+          await expect(
+            page.getByRole("heading", { name: participants, exact: true }),
+          ).toBeVisible();
+          await page
+            .getByRole("button", {
+              name: it ? "Aiuto sui partecipanti al tavolo" : "Table participants help",
+              exact: true,
+            })
+            .click();
+          await expect(
+            popup.getByText(
+              it
+                ? "Se tutti i posti sono occupati, i nuovi giocatori entrano in lista d’attesa."
+                : "If all seats are taken, new players join the waiting list.",
+              { exact: true },
+            ),
+          ).toBeVisible();
+          await page.keyboard.press("Escape");
+          await expect(popup).toHaveCount(0);
+          await page.getByRole("tab", { name: details, exact: true }).click();
+        }
+        const trigger = index === 2 ? detailsTrigger : categoryTrigger;
         const voteAction = page
           .getByRole("region", { name: label, exact: true })
           .getByRole("button", {
@@ -104,7 +158,14 @@ for (const width of [390, 1280])
           })
           .first();
         if (!fixture.multiple) {
-          await expect(trigger).toHaveCount(0);
+          if (index === 2) {
+            await trigger.click();
+            await expect(popup.getByText(tableHelp, { exact: true })).toHaveCount(0);
+            await page.keyboard.press("Escape");
+            await expect(popup).toHaveCount(0);
+          } else {
+            await expect(trigger).toHaveCount(0);
+          }
           await expect(voteAction).toHaveCount(0);
           continue;
         }

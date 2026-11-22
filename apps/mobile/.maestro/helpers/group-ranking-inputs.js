@@ -38,7 +38,7 @@ var it = locale === "it";
 output.groupRanking = {
   link: "bgo-dev:///group/" + groupId,
   group: literal(group),
-  ranking: "^Ranking$",
+  ranking: literal(it ? "Classifiche" : "Rankings"),
   game: literal(game),
   query: game.slice(0, 4),
   search: literal(it ? "Cerca giochi da tavolo" : "Search board games"),
@@ -59,6 +59,16 @@ output.groupRanking = {
   ),
   roles: literal(it ? "Ruoli e partecipazione" : "Roles and participation"),
   help: literal(it ? "Come funziona OpenSkill" : "How OpenSkill works"),
+  groupHelp: literal(
+    it
+      ? "Questa classifica usa solo i risultati classificati degli eventi del gruppo."
+      : "This leaderboard only includes rated results from this group’s events.",
+  ),
+  globalHelp: literal(
+    it
+      ? "Per ogni gioco, la classifica globale conta tutte le partite classificate, sia negli eventi privati sia in quelli pubblici."
+      : "For each game, the global leaderboard includes all rated matches from private and public events.",
+  ),
   gamesWon: literal(it ? "Partite vinte" : "Games won"),
   ascending: literal(it ? "Ordina in ordine crescente" : "Sort ascending"),
   descending: literal(it ? "Ordina in ordine decrescente" : "Sort descending"),

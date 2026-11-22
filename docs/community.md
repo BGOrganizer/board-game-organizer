@@ -1,8 +1,8 @@
 # Community and public activity visibility
 
-Community sits between Groups and Contacts on web and native mobile. Its HeroUI Rankings tab sits
-between Marketplace and Activities. Profile remains separate. Marketplace is a localized Coming
-soon placeholder.
+Community sits between Groups and Contacts on web and native mobile. Its HeroUI tabs are
+Activities, Rankings and Marketplace, in that order. Profile remains separate. Marketplace is a
+localized Coming soon placeholder.
 
 ## Global rankings
 
@@ -11,8 +11,11 @@ and sorting as Group Rankings. It returns eligible games when no game is selecte
 for the selected game. The picker starts empty, searches on the server and can be cleared.
 OpenSkill is the initial sort, highest first. Players can also sort by completed games, wins or
 ND in either direction. ND means an unfinished game and is counted separately from completed
-games. Rank badges use descending OpenSkill position in the visible scope while alternate sorts
-change row order. A missing rating has no rank and sorts last when ordering by OpenSkill.
+games. Rank badges sit before the avatar and reflect descending OpenSkill position in the visible
+scope while alternate sorts change row order. A missing rating has no rank and sorts last when
+ordering by OpenSkill.
+On native mobile and compact web layouts, each player's row expands to show completed games, wins
+and ND. Desktop web shows those three metrics as sortable columns.
 
 Global ratings and aggregates follow the [Profile privacy contract](profiles.md#aggregate-and-rating-rules).
 Counts use surviving ranked unified Tables with at least two registered finishers. Existing GLOBAL

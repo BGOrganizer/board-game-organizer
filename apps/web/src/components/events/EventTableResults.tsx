@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
+import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventFinalResultRow } from "./EventFinalResultRow";
@@ -101,15 +102,17 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
   return (
     <section aria-label={t`Results`} className="space-y-3">
       {game && (
-        <div className="flex min-w-0 items-center gap-2">
-          <Avatar size="md" className="shrink-0 rounded-xl">
-            <Avatar.Image src={game.imageUrl ?? undefined} alt="" />
-            <Avatar.Fallback>
-              <Dices aria-hidden className="size-4" />
-            </Avatar.Fallback>
-          </Avatar>
-          <span className="min-w-0 break-words font-medium">{game.name}</span>
-        </div>
+        <SectionHeaderCard
+          title={game.name}
+          leading={
+            <Avatar size="md" className="shrink-0 rounded-xl">
+              <Avatar.Image src={game.imageUrl ?? undefined} alt="" />
+              <Avatar.Fallback>
+                <Dices aria-hidden className="size-4" />
+              </Avatar.Fallback>
+            </Avatar>
+          }
+        />
       )}
       {terminated ? (
         visibleRows.length > 0 && (

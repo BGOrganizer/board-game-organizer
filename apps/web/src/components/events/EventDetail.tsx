@@ -55,6 +55,7 @@ import { EventFinalizeAction } from "./EventFinalizeAction";
 import { EventGroupLink } from "./EventGroupLink";
 import { EventParticipants } from "./EventParticipants";
 import { EventProposalSection } from "./EventProposalSection";
+import { EventSectionHeader } from "./EventSectionHeader";
 import { EventTables } from "./EventTables";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteLegend } from "./EventVoteLegend";
@@ -262,6 +263,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
 
         {tab === "details" ? (
           <>
+            <EventSectionHeader
+              event={event}
+              section="details"
+              voteDates={voteDates}
+              voteLocations={voteLocations}
+            />
             <NotificationItem itemId={notificationItemId(event.id, "overview")} />
             {event.readOnly ? (
               <p className="text-sm text-muted">
@@ -271,9 +278,6 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     ? t`Shared finalized results. Group details are hidden.`
                     : t`Public event. Group membership is not required to participate.`}
               </p>
-            ) : null}
-            {event.groupId && fromGroup !== event.groupId ? (
-              <EventGroupLink groupId={event.groupId} name={event.groupName} />
             ) : null}
             <section
               aria-label={
@@ -429,17 +433,24 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               </GroupedList>
               <EventProposalSection event={event} kind="location" disabled={q.isPlaceholderData} />
             </section>
+            {event.groupId && fromGroup !== event.groupId ? (
+              <EventGroupLink groupId={event.groupId} name={event.groupName} />
+            ) : null}
           </>
         ) : null}
         {tab === "participants" ? (
-          event.readOnly ? (
-            <p className="text-muted">{t`Public event. Group membership is not required to participate.`}</p>
-          ) : (
-            <EventParticipants event={event} actions={a} disabled={q.isPlaceholderData} />
-          )
+          <>
+            <EventSectionHeader event={event} section="participants" />
+            {event.readOnly ? (
+              <p className="text-muted">{t`Public event. Group membership is not required to participate.`}</p>
+            ) : (
+              <EventParticipants event={event} actions={a} disabled={q.isPlaceholderData} />
+            )}
+          </>
         ) : null}
         {tab === "tables" ? (
           <section aria-label={t`Table list`} className="space-y-3">
+            <EventSectionHeader event={event} section="tables" />
             <NotificationItem itemId={notificationItemId(event.id, "tables")} />
             <EventTables query={tables} />
           </section>

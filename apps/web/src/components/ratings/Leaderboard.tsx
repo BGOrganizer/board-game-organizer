@@ -14,7 +14,7 @@ import {
   useRecordListWindow,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Button, Card, Chip, Dropdown, Label, Skeleton, Table } from "@heroui/react";
+import { Accordion, Button, Card, Dropdown, Label, Skeleton, Table } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   ArrowDown,
@@ -29,8 +29,10 @@ import {
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { RankPositionBadge } from "@/components/common/ui/RankPositionBadge";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
+import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { UserRoleBadge } from "@/components/common/ui/UserRoleBadge";
 import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
@@ -49,13 +51,13 @@ function subscribeToWidth(change: () => void) {
   media?.addEventListener?.("change", change);
   return () => media?.removeEventListener?.("change", change);
 }
-const usesCards = () => window.matchMedia?.(narrowQuery)?.matches ?? false;
-const serverUsesCards = () => false;
+const usesAccordion = () => window.matchMedia?.(narrowQuery)?.matches ?? false;
+const serverUsesAccordion = () => false;
 
 export function Leaderboard({ groupId, groupName }: { groupId?: string; groupName?: string }) {
   const { getToken, userId } = useAuth();
   const { t, i18n } = useLingui();
-  const compact = useSyncExternalStore(subscribeToWidth, usesCards, serverUsesCards);
+  const compact = useSyncExternalStore(subscribeToWidth, usesAccordion, serverUsesAccordion);
   const [sort, setSort] = useState<LeaderboardSort>("rating");
   const [direction, setDirection] = useState<LeaderboardDirection>("desc");
   const [gameId, setGameId] = useState<number | null>(null);
@@ -132,22 +134,14 @@ export function Leaderboard({ groupId, groupName }: { groupId?: string; groupNam
         : null;
     return (
       <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="inline-flex min-w-6 shrink-0 justify-center">
+          {player.position != null ? <RankPositionBadge rank={player.position} /> : null}
+        </span>
         <UserIdentity
           name={name}
           avatarUrl={player.avatarUrl}
           secondary={secondary}
           badge={roles.length ? <UserRoleBadge roles={roles} /> : undefined}
-          titleAccessory={
-            player.position != null ? (
-              <Chip
-                size="sm"
-                variant="secondary"
-                aria-label={t`OpenSkill position ${player.position}`}
-              >
-                #{player.position}
-              </Chip>
-            ) : undefined
-          }
         >
           {groupId && !player.left && player.groupRole === undefined ? (
             <Skeleton aria-label={t`Loading…`} className="mt-1 h-4 w-22 rounded" />
@@ -198,37 +192,42 @@ export function Leaderboard({ groupId, groupName }: { groupId?: string; groupNam
     playerWindow.fetchNextPage,
   ]);
 
-  const heading = (
-    <div className="flex items-center gap-3">
-      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-soft-foreground">
-        <Medal className="size-5" aria-hidden="true" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <h2 className="font-semibold">{t`Rankings`}</h2>
-        <p className="break-words text-sm text-muted">{groupId ? groupName : t`Global`}</p>
-      </div>
-      <HelpPopover
-        label={t`How OpenSkill works`}
-        title={t`How OpenSkill works`}
-        size="compact"
-        placement="bottom end"
-        className="max-w-80"
-      >
-        <div className="mt-2 space-y-2">
-          <p>{t`OpenSkill estimates your skill separately for each game. After a rated match, it uses your finish and the other players’ ratings to update your score. The displayed score accounts for uncertainty, which decreases as you play.`}</p>
+  const help = (
+    <HelpPopover
+      label={t`How OpenSkill works`}
+      title={t`How OpenSkill works`}
+      titleIcon={
+        <ChartNoAxesColumnIncreasing className="size-4 shrink-0 text-accent" aria-hidden />
+      }
+      size="compact"
+      placement="bottom end"
+      className="max-w-80"
+    >
+      <div className="mt-2 space-y-2">
+        <p>{t`OpenSkill estimates your skill separately for each game. After a rated match, it uses your finish and the other players’ ratings to update your score. The displayed score accounts for uncertainty, which decreases as you play.`}</p>
+        <div className="flex items-start gap-2">
+          <Clock3 className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
           <p>{t`The clock marks a provisional rating until you have five rated results. ND means you did not finish and is counted separately from completed games.`}</p>
-          <p>
-            {groupId
-              ? t`This ranking uses rated results from this group.`
-              : t`The global ranking combines rated results across Board Game Organizer. It shows totals and ratings without revealing individual results or private groups.`}
-          </p>
         </div>
-      </HelpPopover>
-    </div>
+        <p>
+          {groupId
+            ? t`This leaderboard only includes rated results from this group’s events.`
+            : t`For each game, the global leaderboard includes all rated matches from private and public events.`}
+        </p>
+      </div>
+    </HelpPopover>
   );
   return (
-    <Card className="gap-3 p-3 sm:p-4">
-      {heading}
+    <SectionHeaderCard
+      title={t`Rankings`}
+      description={groupId ? groupName : t`Global`}
+      leading={
+        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-soft-foreground">
+          <Medal className="size-5" aria-hidden />
+        </span>
+      }
+      action={help}
+    >
       {games.isPending ? (
         <Skeleton className="h-16 w-full rounded-xl" />
       ) : games.isError ? (
@@ -359,53 +358,88 @@ export function Leaderboard({ groupId, groupName }: { groupId?: string; groupNam
               ) : (
                 <>
                   {compact ? (
-                    <ul aria-label={label} className="space-y-2">
+                    <ul aria-label={label} key={gameId} className="space-y-2">
                       {rows.map((player) => (
                         <li
                           key={player.userId}
                           data-testid={`group-ranking-player-${player.userId}`}
                         >
-                          <Card
-                            variant="secondary"
-                            className={`gap-1 p-2 ${player.left ? "opacity-60" : ""}`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              {identity(player)}
-                              <div className="shrink-0 text-right">
-                                <span className="inline-flex items-center gap-1 text-xs text-muted">
-                                  <ChartNoAxesColumnIncreasing
-                                    className="size-3 text-accent"
-                                    aria-hidden="true"
-                                  />
-                                  OpenSkill
-                                </span>
-                                {rating(player)}
-                              </div>
-                            </div>
-                            <dl className="grid grid-cols-[1.2fr_1fr_0.8fr] gap-1 border-separator border-t pt-1">
-                              {(["gamesPlayed", "gamesWon", "nd"] as const).map((metric) => {
-                                const { icon: Icon, short, color } = metricLabels[metric];
-                                return (
-                                  <div
-                                    key={metric}
-                                    className="flex flex-wrap items-center justify-between gap-x-1"
-                                  >
-                                    <dt className="flex items-center gap-0.5 text-xs text-muted">
-                                      <Icon
-                                        className={`size-3 shrink-0 ${color}`}
-                                        aria-hidden="true"
-                                      />
-                                      {short}
-                                    </dt>
-                                    <dd className="text-sm font-semibold tabular-nums">
-                                      {metric === "gamesPlayed"
-                                        ? Math.max(0, player.gamesPlayed - player.nd)
-                                        : player[metric]}
-                                    </dd>
-                                  </div>
-                                );
-                              })}
-                            </dl>
+                          <Card className={`gap-0 p-0 ${player.left ? "opacity-60" : ""}`}>
+                            <Accordion hideSeparator>
+                              <Accordion.Item id={player.userId}>
+                                {({ isExpanded }) => (
+                                  <>
+                                    <div className="flex items-center gap-1 ps-2">
+                                      {identity(player)}
+                                      <Accordion.Heading className="shrink-0">
+                                        <Accordion.Trigger className="min-h-11 gap-1.5 px-2 py-1">
+                                          <span className="sr-only">
+                                            {t`Game statistics`}:{" "}
+                                            {formatUsername(
+                                              player.username,
+                                              t`Username unavailable`,
+                                            )}
+                                          </span>
+                                          <span className="shrink-0 text-right">
+                                            <span className="inline-flex items-center gap-1 text-xs text-muted">
+                                              <ChartNoAxesColumnIncreasing
+                                                className="size-3 text-accent"
+                                                aria-hidden
+                                              />
+                                              OpenSkill
+                                            </span>
+                                            {rating(player)}
+                                          </span>
+                                          <Accordion.Indicator
+                                            aria-hidden
+                                            className="ml-0 size-4 shrink-0 text-muted"
+                                          />
+                                        </Accordion.Trigger>
+                                      </Accordion.Heading>
+                                    </div>
+                                    <Accordion.Panel>
+                                      {isExpanded ? (
+                                        <Accordion.Body className="px-2 pt-0 pb-2">
+                                          <dl className="grid grid-cols-3 gap-2 border-separator border-t pt-2">
+                                            {(["gamesPlayed", "gamesWon", "nd"] as const).map(
+                                              (metric) => {
+                                                const {
+                                                  icon: Icon,
+                                                  short,
+                                                  color,
+                                                } = metricLabels[metric];
+                                                return (
+                                                  <div
+                                                    key={metric}
+                                                    className="flex flex-wrap items-center justify-between gap-x-1"
+                                                  >
+                                                    <dt className="flex items-center gap-1 text-sm text-muted">
+                                                      <Icon
+                                                        className={`size-4 shrink-0 ${color}`}
+                                                        aria-hidden
+                                                      />
+                                                      {short}
+                                                    </dt>
+                                                    <dd className="text-base font-semibold tabular-nums">
+                                                      {metric === "gamesPlayed"
+                                                        ? Math.max(
+                                                            0,
+                                                            player.gamesPlayed - player.nd,
+                                                          )
+                                                        : player[metric]}
+                                                    </dd>
+                                                  </div>
+                                                );
+                                              },
+                                            )}
+                                          </dl>
+                                        </Accordion.Body>
+                                      ) : null}
+                                    </Accordion.Panel>
+                                  </>
+                                )}
+                              </Accordion.Item>
+                            </Accordion>
                           </Card>
                         </li>
                       ))}
@@ -427,11 +461,18 @@ export function Leaderboard({ groupId, groupName }: { groupId?: string; groupNam
                           }}
                         >
                           <Table.Header>
-                            <Table.Column isRowHeader>{t`Player`}</Table.Column>
+                            <Table.Column isRowHeader className="bg-surface">
+                              {t`Player`}
+                            </Table.Column>
                             {metrics.map((metric) => {
                               const { icon: Icon, short, color } = metricLabels[metric];
                               return (
-                                <Table.Column id={metric} key={metric} allowsSorting>
+                                <Table.Column
+                                  id={metric}
+                                  key={metric}
+                                  allowsSorting
+                                  className="bg-surface"
+                                >
                                   <Table.SortableColumnHeader className="justify-end gap-1">
                                     <Icon
                                       className={`size-3.5 shrink-0 ${color}`}
@@ -486,6 +527,6 @@ export function Leaderboard({ groupId, groupName }: { groupId?: string; groupNam
           )}
         </>
       )}
-    </Card>
+    </SectionHeaderCard>
   );
 }

@@ -68,13 +68,13 @@ beforeEach(() => {
     isFetchNextPageError: false,
   };
 });
-it("places Rankings between Marketplace and Activities and retains the activity filter", async () => {
+it("orders Activities, Rankings and Marketplace and retains the activity filter", async () => {
   renderWithI18n(<Community />);
   expect(screen.getByRole("heading", { name: "Community" })).toBeTruthy();
   expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-    "Marketplace",
-    "Rankings",
     "Activities",
+    "Rankings",
+    "Marketplace",
   ]);
   for (const tab of screen.getAllByRole("tab")) {
     expect(tab.className).toContain("flex-row");

@@ -14,13 +14,22 @@ tags: [manual, events, participants]
     visible: ${output.eventPeople.event}
     timeout: 120000
 - assertVisible: ${output.eventPeople.edit}
+- tapOn: ${output.eventPeople.detailsHelp}
+- assertVisible: ${output.eventPeople.detailsRule}
+- back
 - tapOn: ${output.eventPeople.tables}
+- tapOn: ${output.eventPeople.tablesHelp}
+- assertVisible: ${output.eventPeople.tablesRule}
+- back
 - assertNotVisible: ${output.eventPeople.edit}
 - scrollUntilVisible:
     element: ${output.eventPeople.table}
     direction: DOWN
     timeout: 120000
 - tapOn: ${output.eventPeople.people}
+- tapOn: ${output.eventPeople.peopleHelp}
+- assertVisible: ${output.eventPeople.peopleRule}
+- back
 - assertNotVisible: ${output.eventPeople.edit}
 - scrollUntilVisible:
     element: ${output.eventPeople.eventManage}

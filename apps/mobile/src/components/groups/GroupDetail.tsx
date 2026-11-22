@@ -170,7 +170,7 @@ export function GroupDetail({
               ["info", t("Details"), Info],
               ["members", t("Members"), UsersRound],
               ["events", t("Events"), CalendarDays],
-              ["rankings", t("Ranking"), ChartNoAxesCombined],
+              ["rankings", t("Rankings"), ChartNoAxesCombined],
             ] as const
           )
             .filter(

@@ -21,6 +21,7 @@ tags: [manual, groups, rankings]
 - assertVisible: ${output.groupRanking.chooseGame}
 - tapOn: ${output.groupRanking.help}
 - assertVisible: "^OpenSkill .+"
+- assertVisible: ${output.groupRanking.groupHelp}
 - back
 - tapOn:
     id: rating-game-select-trigger
@@ -75,6 +76,22 @@ tags: [manual, groups, rankings]
 - assertVisible: ${output.groupRanking.role}
 - takeScreenshot: group-ranking-current-role-explanation
 - back
+- assertNotVisible:
+    id: ranking-player-statistics
+- tapOn:
+    id: ranking-player-statistics-toggle
+    childOf:
+      id: ${output.groupRanking.row}
+- assertVisible:
+    id: ranking-player-statistics
+    childOf:
+      id: ${output.groupRanking.row}
+- tapOn:
+    id: ranking-player-statistics-toggle
+    childOf:
+      id: ${output.groupRanking.row}
+- assertNotVisible:
+    id: ranking-player-statistics
 - scrollUntilVisible:
     element:
       text: ${output.groupRanking.clear}
@@ -94,6 +111,9 @@ tags: [manual, groups, rankings]
 - extendedWaitUntil:
     visible: ${output.groupRanking.chooseGame}
     timeout: 120000
+- tapOn: ${output.groupRanking.help}
+- assertVisible: ${output.groupRanking.globalHelp}
+- back
 - tapOn:
     id: rating-game-select-trigger
 - tapOn: ${output.groupRanking.search}

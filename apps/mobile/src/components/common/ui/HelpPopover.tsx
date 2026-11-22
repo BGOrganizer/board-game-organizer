@@ -8,6 +8,7 @@ import { View, type ViewStyle } from "react-native";
 export function HelpPopover({
   label,
   title,
+  titleIcon,
   width = 260,
   align,
   onOpenChange,
@@ -22,6 +23,7 @@ export function HelpPopover({
 }: {
   label: string;
   title?: string;
+  titleIcon?: ReactNode;
   icon?: LucideIcon;
   tone?: "muted" | "warning" | "success" | "accent" | "danger";
   size?: "default" | "compact";
@@ -62,6 +64,16 @@ export function HelpPopover({
       {indicator}
     </>
   );
+  const heading = title ? (
+    <Popover.Title
+      accessible
+      accessibilityRole="header"
+      importantForAccessibility="yes"
+      style={titleIcon ? { flexShrink: 1 } : undefined}
+    >
+      {title}
+    </Popover.Title>
+  ) : null;
   return (
     <Popover onOpenChange={onOpenChange}>
       <Popover.Trigger asChild>
@@ -108,11 +120,14 @@ export function HelpPopover({
           accessibilityLabel={title ? undefined : label}
           style={contentStyle}
         >
-          {title ? (
-            <Popover.Title accessible accessibilityRole="header" importantForAccessibility="yes">
-              {title}
-            </Popover.Title>
-          ) : null}
+          {heading && titleIcon ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {titleIcon}
+              {heading}
+            </View>
+          ) : (
+            heading
+          )}
           {children}
         </Popover.Content>
       </Popover.Portal>

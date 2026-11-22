@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
+import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 import { useListActivity } from "@/lib/listActivity";
@@ -101,17 +102,17 @@ export function EventTableResults({
           <View style={{ gap: 8 }}>
             {header}
             {game ? (
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Avatar size="md" alt={game.name} accessible={false} className="rounded-lg">
-                  {game.imageUrl ? <Avatar.Image source={{ uri: game.imageUrl }} /> : null}
-                  <Avatar.Fallback>
-                    <Dices size={18} color={muted} accessible={false} />
-                  </Avatar.Fallback>
-                </Avatar>
-                <Typography className="font-semibold text-foreground" style={{ flexShrink: 1 }}>
-                  {game.name}
-                </Typography>
-              </View>
+              <SectionHeaderCard
+                title={game.name}
+                leading={
+                  <Avatar size="md" alt={game.name} accessible={false} className="rounded-lg">
+                    {game.imageUrl ? <Avatar.Image source={{ uri: game.imageUrl }} /> : null}
+                    <Avatar.Fallback>
+                      <Dices size={18} color={muted} accessible={false} />
+                    </Avatar.Fallback>
+                  </Avatar>
+                }
+              />
             ) : null}
           </View>
         ) : null

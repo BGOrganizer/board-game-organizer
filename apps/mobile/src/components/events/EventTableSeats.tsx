@@ -50,6 +50,7 @@ import { EventGuestVoteEditor } from "./EventGuestVoteEditor";
 import { EventJoinSheet } from "./EventJoinSheet";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
+import { EventSectionCard } from "./EventSectionCard";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
 export function EventTableSeats({
   table,
@@ -154,7 +155,36 @@ export function EventTableSeats({
                 keyboardShouldPersistTaps="handled"
                 ListHeaderComponent={
                   <View>
-                    <View style={{ gap: 16, paddingBottom: 8 }}>{header}</View>
+                    <View style={{ gap: 16, paddingBottom: 8 }}>
+                      {header}
+                      <EventSectionCard
+                        title={t("Participants")}
+                        label={t("Table participants help")}
+                        icon={UsersRound}
+                      >
+                        {table.eventStatus === "PLANNING" ? (
+                          <>
+                            <Typography className="text-foreground">
+                              {t(
+                                "When registration is open, select a free place or the waiting list, complete any required votes and confirm.",
+                              )}
+                            </Typography>
+                            <Typography className="text-foreground">
+                              {t("If all seats are taken, new players join the waiting list.")}
+                            </Typography>
+                            <Typography className="text-foreground">
+                              {t(
+                                "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
+                              )}
+                            </Typography>
+                          </>
+                        ) : (
+                          <Typography className="text-foreground">
+                            {t("Only players with a confirmed seat take part at this table.")}
+                          </Typography>
+                        )}
+                      </EventSectionCard>
+                    </View>
                   </View>
                 }
                 renderSectionHeader={({ section }) => (

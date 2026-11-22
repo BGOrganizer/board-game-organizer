@@ -216,6 +216,19 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
       .click();
     await assertBackground(input.eventName);
     await page.getByRole("tab", { name: l.tables, exact: true }).click();
+    await page
+      .getByRole("button", { name: it ? "Aiuto sui tavoli dell’evento" : "Event tables help" })
+      .click();
+    await expect(
+      page
+        .getByRole("dialog", { name: l.tables })
+        .getByText(
+          it
+            ? "Partecipa solo chi ha un posto confermato a un tavolo che ha raggiunto il minimo di giocatori e soddisfatto le condizioni dell’evento."
+            : "Only players with confirmed seats at tables that reached the minimum player count and met the event requirements take part.",
+        ),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     const open = page.getByRole("link", {
       name: `${it ? "Apri tavolo" : "Open table"}: ${input.tableName}`,
       exact: true,
