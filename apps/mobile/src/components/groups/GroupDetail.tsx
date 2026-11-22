@@ -45,6 +45,7 @@ import { GroupIdentityCard } from "./GroupIdentityCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
 import { GroupJoinRequest } from "./GroupJoinRequest";
 import { GroupMembers } from "./GroupMembers";
+import { GroupSectionHeader } from "./GroupSectionHeader";
 export function GroupDetail({
   groupId,
   initialTab = "info",
@@ -222,18 +223,33 @@ export function GroupDetail({
       </View>
     </View>
   );
-  const membersContent = <GroupMembers group={group} header={detailHeader} />;
+  const membersContent = (
+    <GroupMembers
+      group={group}
+      header={
+        <View style={{ gap: 12 }}>
+          {detailHeader}
+          <GroupSectionHeader group={group} section="members" />
+        </View>
+      }
+    />
+  );
   const eventsContent = (
     <Events
       groupId={group.id}
-      header={detailHeader}
+      header={
+        <View style={{ gap: 12 }}>
+          {detailHeader}
+          <GroupSectionHeader group={group} section="events" />
+        </View>
+      }
       canCreate={isGroupManagerRole(group.role) && group.canInvite}
     />
   );
   const rankingsContent = (
     <Leaderboard key={group.id} groupId={group.id} groupName={group.name} header={detailHeader} />
   );
-  const detailsContent = <GroupDetailsCard group={group} identity={null} />;
+  const detailsContent = <GroupDetailsCard group={group} identity={null} venueHelp={false} />;
   return (
     <NotificationAttentionScope
       options={o}
@@ -265,6 +281,7 @@ export function GroupDetail({
                       contentContainerStyle={{ paddingTop: 0 }}
                     >
                       <View>{detailHeader}</View>
+                      <GroupSectionHeader group={group} section="info" />
                       {detailsContent}
                       {bodyActions.length ? (
                         <GroupJoinRequest

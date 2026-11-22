@@ -21,6 +21,7 @@ import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
@@ -30,7 +31,6 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventCard } from "./EventCard";
 import { EventProposalSection } from "./EventProposalSection";
-import { EventSectionCard } from "./EventSectionCard";
 import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
@@ -134,7 +134,7 @@ export function EventTableOverview({
   ) : null;
   const header = (
     <View style={{ gap: 16 }}>
-      <EventSectionCard title={t("Details")} label={t("Table details help")} icon={Info}>
+      <HelpSectionCard title={t("Details")} label={t("Table details help")} icon={Info}>
         {votableGames ? <EventVoteLegendContent scope="table" /> : null}
         {canExplainGameProposals ? (
           <Typography className="text-foreground">
@@ -146,7 +146,7 @@ export function EventTableOverview({
             {t("See the schedule and board games for this table below.")}
           </Typography>
         ) : null}
-      </EventSectionCard>
+      </HelpSectionCard>
       <EventTableScheduleCard
         table={table}
         timeZone={event.data?.timeZone ?? table.eventSchedule?.location?.timeZone}

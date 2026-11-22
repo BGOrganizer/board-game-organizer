@@ -56,23 +56,29 @@ for (const width of [390, 1280])
       }),
     ).toBeVisible();
     await expect(waiting.getByRole("list")).toHaveCount(0);
-    await expect(waiting.getByRole("button")).toHaveCount(1); // Dedicated help, no queue action.
-    await main
-      .getByRole("button", {
-        name: it ? "Lista posti: Guida al campo" : "Seats list: Field help",
-        exact: true,
-      })
-      .click();
+    await expect(waiting.getByRole("button")).toHaveCount(0);
+    const participantsHelp = main.getByRole("button", {
+      name: it ? "Aiuto sui partecipanti al tavolo" : "Table participants help",
+      exact: true,
+    });
+    await expect(participantsHelp).toHaveCount(1);
+    await participantsHelp.click();
     const seatsHelp = page.getByRole("dialog");
     for (const label of it
       ? [
           "Giocatore accettato",
           "Invito in attesa",
+          "Giocatore in lista d'attesa",
+          "Dimostratore",
+          "Ospite",
           "Gli inviti in attesa non contano per l'accordo.",
         ]
       : [
           "Accepted player",
           "Invitation pending",
+          "Player on the waiting list",
+          "Demonstrator",
+          "Guest",
           "Pending invitations do not count toward agreement.",
         ])
       await expect(seatsHelp.getByText(label, { exact: true })).toBeVisible();
@@ -87,12 +93,13 @@ for (const width of [390, 1280])
         exact: true,
       }),
     ).toBeVisible();
-    await waiting.getByRole("button", { name: /Field help|Guida al campo/ }).click();
+    await expect(waiting.getByRole("button", { name: /Field help|Guida al campo/ })).toHaveCount(0);
+    await participantsHelp.click();
     await expect(
       page.getByText(
         it
-          ? "I giocatori accettati in lista d'attesa possono votare. Possono partecipare se l'amministratore o l'app li seleziona secondo le regole del tavolo."
-          : "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
+          ? "I giocatori accettati in lista d’attesa possono votare. Un organizzatore o l’app può assegnare loro un posto secondo le regole del tavolo."
+          : "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules.",
         { exact: true },
       ),
     ).toBeVisible();

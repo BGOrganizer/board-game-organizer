@@ -7668,3 +7668,103 @@ msgstr "Only players with a confirmed seat take part at this table."
 #: apps/web/src/components/events/EventVoteLegendContent.tsx
 msgid "Choose at least one \"Yes\" or \"If needed\" option in each category."
 msgstr "Choose at least one \"Yes\" or \"If needed\" option in each category."
+
+#: apps/web/src/components/events/EventTableParticipantsHelp.tsx
+msgid "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules."
+msgstr "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group details help"
+msgstr "Group details help"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group members help"
+msgstr "Group members help"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group events help"
+msgstr "Group events help"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Approved public groups accept membership requests."
+msgstr "Approved public groups accept membership requests."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "See who belongs to the group and what role each person has."
+msgstr "See who belongs to the group and what role each person has."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Public events are open to everyone with an account. Private events are for group members."
+msgstr "Public events are open to everyone with an account. Private events are for group members."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Events in a private group are for its members."
+msgstr "Events in a private group are for its members."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group managers can invite people and review membership requests."
+msgstr "Group managers can invite people and review membership requests."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group managers can invite people."
+msgstr "Group managers can invite people."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "To take part, choose an event that is accepting registrations and join at least one table."
+msgstr "To take part, choose an event that is accepting registrations and join at least one table."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Scheduled events help"
+msgstr "Scheduled events help"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Available events help"
+msgstr "Available events help"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Terminated events help"
+msgstr "Terminated events help"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included."
+msgstr "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too."
+msgstr "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Finished events where you played or demonstrated at a confirmed table, or that you still manage."
+msgstr "Finished events where you played or demonstrated at a confirmed table, or that you still manage."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Group search help"
+msgstr "Group search help"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Private groups help"
+msgstr "Private groups help"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Public groups help"
+msgstr "Public groups help"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Search for approved public groups by name. Enter at least four characters."
+msgstr "Search for approved public groups by name. Enter at least four characters."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Private groups you manage, belong to or have a pending invitation to join."
+msgstr "Private groups you manage, belong to or have a pending invitation to join."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
+msgstr "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
+
+#: apps/web/src/components/events/TableList.tsx
+msgid "Table history help"
+msgstr "Table history help"
+
+#: apps/web/src/components/events/TableList.tsx
+msgid "Confirmed tables from finished events where you played, were a demonstrator or are still a manager."
+msgstr "Confirmed tables from finished events where you played, were a demonstrator or are still a manager."

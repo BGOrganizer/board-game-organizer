@@ -920,8 +920,8 @@ it("always shows an empty, non-interactive waiting list after seats while places
   expect(empty.parentElement?.className).toContain("items-center");
   expect(empty.parentElement?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
   expect(within(waiting).queryByRole("list")).toBeNull();
-  expect(within(waiting).getAllByRole("button")).toHaveLength(1);
-  expect(within(waiting).getByRole("button", { name: "Waiting list: Field help" })).not.toBeNull();
+  expect(within(waiting).queryByRole("button")).toBeNull();
+  expect(screen.getAllByRole("button", { name: "Table participants help" })).toHaveLength(1);
   expect(screen.queryByRole("button", { name: "Join waiting list" })).toBeNull();
   expect(within(seats).getAllByRole("button", { name: "Free place" }).length).toBeGreaterThan(0);
 });
@@ -969,7 +969,7 @@ it("retains a queue entry beyond capacity and shows pending, accepted and waitin
   expect(screen.getAllByRole("button", { name: "Confirmed player" })).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Roles and participation" })).not.toBeNull();
   expect(screen.getByRole("button", { name: "Join waiting list" })).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Seats list: Field help" }));
+  fireEvent.click(screen.getByRole("button", { name: "Table participants help" }));
   expect(
     await screen.findByText("Pending invitations do not count toward agreement."),
   ).not.toBeNull();

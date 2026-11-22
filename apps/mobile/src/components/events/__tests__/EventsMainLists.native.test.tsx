@@ -3,6 +3,10 @@ import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-lib
 import { Text } from "react-native";
 import { expect, it } from "vitest";
 import {
+  installNativePopoverMeasurements,
+  pressMeasuredPopover,
+} from "@/test/nativePopoverGeometry";
+import {
   listApi,
   listBoundary,
   listEvent,
@@ -226,3 +230,23 @@ it("pages through explicit user intent, retains existing cards after a page erro
       ?.searchParams.get("cursor"),
   ).toBe("next-events");
 });
+
+it.each([
+  ["mine", "Scheduled", "Scheduled events help", /Waiting-list places and pending invitations/],
+  ["available", "Available", "Available events help", /Private events require group membership/],
+  ["terminated", "Terminated events", "Terminated events help", /Finished events where you played/],
+] as const)(
+  "describes the %s Events list in the section popover",
+  async (initialSection, title, label, description) => {
+    await installNativePopoverMeasurements();
+    await render(
+      <MainListFixture>
+        <Events initialSection={initialSection} />
+      </MainListFixture>,
+    );
+    expect(screen.getByRole("heading", { name: title })).toBeVisible();
+    expect(screen.queryByText(description)).toBeNull();
+    await pressMeasuredPopover(screen.getByRole("button", { name: label }));
+    expect(screen.getByText(description)).toBeVisible();
+  },
+);

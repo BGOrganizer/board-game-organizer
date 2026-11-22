@@ -19,6 +19,7 @@ import { useState } from "react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -26,7 +27,6 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventCard } from "./EventCard";
 import { EventProposalSection } from "./EventProposalSection";
-import { EventSectionCard } from "./EventSectionCard";
 import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
@@ -109,7 +109,7 @@ export function EventTableOverview({
   return (
     <div className="mx-auto max-w-4xl space-y-5 pb-24">
       <div hidden={section === "participants"} className="space-y-5">
-        <EventSectionCard title={t`Details`} label={t`Table details help`} icon={Info}>
+        <HelpSectionCard title={t`Details`} label={t`Table details help`} icon={Info}>
           {votableGames ? <EventVoteLegendContent scope="table" /> : null}
           {canExplainGameProposals ? (
             <p>{t`Players seated at this table can propose other games for a manager to approve.`}</p>
@@ -117,7 +117,7 @@ export function EventTableOverview({
           {!votableGames && !canExplainGameProposals ? (
             <p>{t`See the schedule and board games for this table below.`}</p>
           ) : null}
-        </EventSectionCard>
+        </HelpSectionCard>
         <EventTableScheduleCard
           table={table}
           timeZone={event.data?.timeZone ?? table.eventSchedule?.location?.timeZone}

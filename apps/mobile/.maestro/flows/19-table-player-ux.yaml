@@ -11,13 +11,20 @@ tags: [manual, tables, profile]
 - openLink: ${output.ux.free}
 - runFlow: ../helpers/open-table-participants.yaml
 - scrollUntilVisible:
-    element: ${output.ux.seatsHelp}
+    element: ${output.ux.participantsHelp}
     direction: DOWN
     timeout: 20000
-- tapOn: ${output.ux.seatsHelp}
-- assertVisible: ${output.ux.seatsText}
+- assertNotVisible: ${output.ux.seatsHelp}
+- tapOn: ${output.ux.participantsHelp}
 - assertVisible: ${output.ux.acceptedLegend}
 - assertVisible: ${output.ux.pendingLegend}
+- assertVisible: ${output.ux.waitingLegend}
+- assertVisible: ${output.ux.demonstratorLegend}
+- assertVisible: ${output.ux.guestLegend}
+- scrollUntilVisible:
+    element: ${output.ux.seatsText}
+    direction: DOWN
+    timeout: 20000
 - back
 - scrollUntilVisible:
     element: ${output.ux.empty}
@@ -31,8 +38,16 @@ tags: [manual, tables, profile]
     element: ${output.ux.join}
     direction: DOWN
     timeout: 120000
-- tapOn: ${output.ux.waitingHelp}
-- assertVisible: ${output.ux.waitingText}
+- assertNotVisible: ${output.ux.waitingHelp}
+- scrollUntilVisible:
+    element: ${output.ux.participantsHelp}
+    direction: UP
+    timeout: 20000
+- tapOn: ${output.ux.participantsHelp}
+- scrollUntilVisible:
+    element: ${output.ux.waitingText}
+    direction: DOWN
+    timeout: 20000
 - back
 - openLink: ${output.ux.fullEvent}
 - tapOn: ${output.ux.tablesTab}

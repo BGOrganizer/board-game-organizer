@@ -36,6 +36,31 @@ output.cardGroupEvents = italian ? "^[0-9]+ Event[oi]$" : "^[0-9]+ Events?$";
 output.cardGroupTitle = "^" + escaped(output.cardGroupName) + "$";
 output.cardEventTitle = "^" + escaped(output.cardEventName) + "$";
 output.cardTableTitle = "^" + escaped(output.cardTableName) + "$";
+output.groupPrivateListHelp = italian ? "^Aiuto sui gruppi privati$" : "^Private groups help$";
+output.groupPublicListHelp = italian ? "^Aiuto sui gruppi pubblici$" : "^Public groups help$";
+output.groupSearchPrompt = italian
+  ? "^Inserisci almeno 4 caratteri per cercare$"
+  : "^Enter at least 4 characters to search$";
+output.groupSearchFieldHelp = italian
+  ? "^Cerca gruppi: Aiuto ricerca$"
+  : "^Search groups: Search help$";
+output.groupSearchListHelp = italian ? "^Aiuto sulla ricerca dei gruppi$" : "^Group search help$";
+output.groupSearchListRule = italian
+  ? "^Cerca per nome i gruppi pubblici approvati\\. Digita almeno quattro caratteri\\.$"
+  : "^Search for approved public groups by name\\. Enter at least four characters\\.$";
+output.groupDetailsHelp = italian ? "^Aiuto sui dettagli del gruppo$" : "^Group details help$";
+output.groupDetailsHelpText = italian
+  ? "^Nei gruppi privati si entra solo su invito\\.$"
+  : "^Private groups are invitation-only\\.$";
+output.groupEventsTab = italian ? "^Eventi$" : "^Events$";
+output.groupEventsHelp = italian ? "^Aiuto sugli eventi del gruppo$" : "^Group events help$";
+output.groupEventsHelpText = italian
+  ? "^Gli eventi di un gruppo privato sono riservati ai suoi membri\\.$"
+  : "^Events in a private group are for its members\\.$";
+output.groupMembersHelp = italian ? "^Aiuto sui membri del gruppo$" : "^Group members help$";
+output.groupMembersHelpText = italian
+  ? "^Qui trovi i membri del gruppo e i loro ruoli\\.$"
+  : "^See who belongs to the group and what role each person has\\.$";
 output.cardOverview = italian ? "^Dettagli$" : "^Details$";
 output.cardDateCount = italian ? "2 date proposte" : "2 proposed dates";
 output.cardLocationCount = italian ? "2 luoghi proposti" : "2 proposed locations";

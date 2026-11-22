@@ -9,7 +9,7 @@ it("uses consent responses and queue/seat states, never approval actions on spon
     table =
       source("events/EventTableOverview") +
       source("events/EventTableSeats") +
-      source("events/EventSeatListHeading");
+      source("events/EventTableParticipantsHelp");
   expect(card).toContain("setAccepting(true)");
   expect(card).toContain("<EventJoinSheet");
   expect(card).toContain("registrationId={registration.id}");
@@ -29,7 +29,7 @@ it("keeps leave/removal destructive, confirmed and target-pending-disabled; view
   const table =
     source("events/EventTableOverview") +
     source("events/EventTableSeats") +
-    source("events/EventSeatListHeading");
+    source("events/EventTableParticipantsHelp");
   for (const token of [
     "canLeave",
     "canInvite",
@@ -58,7 +58,9 @@ it("uses grouped games, virtualized user places, avatar badges and one explicit 
   expect(roster).toContain("badge={{");
   expect(roster).toContain('t("Seats list")');
   expect(roster).toContain("<EventSeatListHeading");
-  expect(source("events/EventSeatListHeading")).toContain("<IconLegend");
+  expect(source("events/EventSeatListHeading")).not.toContain("<HelpPopover");
+  expect(roster).toContain("<EventTableParticipantsHelp");
+  expect(source("events/EventTableParticipantsHelp")).toContain("<IconLegend");
   expect(vote).toContain('variant="secondary"');
   expect(vote).toContain("<ConfirmDialog");
   expect(vote).toContain('"success"');

@@ -13,10 +13,12 @@ export function GroupDetailsCard({
   group,
   children,
   identity,
+  venueHelp = true,
 }: {
   group: GroupRecordResponse;
   children?: ReactNode;
   identity?: ReactNode;
+  venueHelp?: boolean;
 }) {
   const { t, i18n } = useLingui();
   const numbers = new Intl.NumberFormat(i18n.locale),
@@ -65,8 +67,8 @@ export function GroupDetailsCard({
       {group.location ? (
         <InfoSection
           label={t`Group venue`}
-          helpLabel={t`Group venue help`}
-          help={t`The group's verified venue and full address.`}
+          helpLabel={venueHelp ? t`Group venue help` : undefined}
+          help={venueHelp ? t`The group's verified venue and full address.` : undefined}
           icon={MapPin}
         >
           <LocationListRow name={group.location.name} address={group.location.address} />

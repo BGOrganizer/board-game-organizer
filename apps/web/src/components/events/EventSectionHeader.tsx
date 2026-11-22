@@ -3,9 +3,8 @@
 import type { ClientEventRecord } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
 import { Dices, Info, UsersRound } from "lucide-react";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { EventPlanningSettingsSummary } from "./EventPlanningSettingsSummary";
-
-import { EventSectionCard } from "./EventSectionCard";
 import { EventVoteLegendContent } from "./EventVoteLegendContent";
 
 export function EventSectionHeader({
@@ -47,7 +46,7 @@ export function EventSectionHeader({
     event.groupType !== "PUBLIC" &&
     !event.readOnly;
   return (
-    <EventSectionCard title={title} label={label} icon={Icon}>
+    <HelpSectionCard title={title} label={label} icon={Icon}>
       <p>
         {event.status === "PLANNING"
           ? help
@@ -77,6 +76,6 @@ export function EventSectionHeader({
       {canExplainProposals && event.allowParticipantLocations ? (
         <p>{t`Players seated at an event table can propose other locations for a manager to approve.`}</p>
       ) : null}
-    </EventSectionCard>
+    </HelpSectionCard>
   );
 }

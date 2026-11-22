@@ -7667,3 +7667,103 @@ msgstr "A questo tavolo gioca solo chi ha un posto confermato."
 #: apps/web/src/components/events/EventVoteLegendContent.tsx
 msgid "Choose at least one \"Yes\" or \"If needed\" option in each category."
 msgstr "Scegli almeno un’opzione \"Sì\" o \"Se necessario\" per ogni categoria."
+
+#: apps/web/src/components/events/EventTableParticipantsHelp.tsx
+msgid "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules."
+msgstr "I giocatori accettati in lista d’attesa possono votare. Un organizzatore o l’app può assegnare loro un posto secondo le regole del tavolo."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group details help"
+msgstr "Aiuto sui dettagli del gruppo"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group members help"
+msgstr "Aiuto sui membri del gruppo"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group events help"
+msgstr "Aiuto sugli eventi del gruppo"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Approved public groups accept membership requests."
+msgstr "I gruppi pubblici approvati accettano richieste di iscrizione."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "See who belongs to the group and what role each person has."
+msgstr "Qui trovi i membri del gruppo e i loro ruoli."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Public events are open to everyone with an account. Private events are for group members."
+msgstr "Gli eventi pubblici sono aperti a chi ha un account. Quelli privati sono riservati ai membri del gruppo."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Events in a private group are for its members."
+msgstr "Gli eventi di un gruppo privato sono riservati ai suoi membri."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group managers can invite people and review membership requests."
+msgstr "Chi gestisce il gruppo può invitare persone e valutare le richieste di iscrizione."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group managers can invite people."
+msgstr "Chi gestisce il gruppo può invitare persone."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "To take part, choose an event that is accepting registrations and join at least one table."
+msgstr "Per partecipare, scegli un evento con le iscrizioni aperte e iscriviti ad almeno un tavolo."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Scheduled events help"
+msgstr "Aiuto sugli eventi schedulati"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Available events help"
+msgstr "Aiuto sugli eventi disponibili"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Terminated events help"
+msgstr "Aiuto sugli eventi terminati"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included."
+msgstr "Eventi in pianificazione o confermati che gestisci, a cui sei iscritto come giocatore o in cui fai da dimostratore. Sono inclusi i posti in lista d’attesa e gli inviti in sospeso."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too."
+msgstr "Eventi di gruppo in pianificazione a cui puoi iscriverti. Per quelli privati serve essere membri del gruppo. Quelli pubblici sono aperti anche a chi non è membro."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Finished events where you played or demonstrated at a confirmed table, or that you still manage."
+msgstr "Eventi conclusi in cui hai giocato o fatto da dimostratore a un tavolo confermato, oppure che gestisci ancora."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Group search help"
+msgstr "Aiuto sulla ricerca dei gruppi"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Private groups help"
+msgstr "Aiuto sui gruppi privati"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Public groups help"
+msgstr "Aiuto sui gruppi pubblici"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Search for approved public groups by name. Enter at least four characters."
+msgstr "Cerca per nome i gruppi pubblici approvati. Digita almeno quattro caratteri."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Private groups you manage, belong to or have a pending invitation to join."
+msgstr "Gruppi privati che gestisci, di cui sei membro o per i quali hai un invito in sospeso."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
+msgstr "Gruppi pubblici che gestisci, di cui sei membro o per i quali hai un invito in sospeso. I gruppi che gestisci possono anche essere in attesa di approvazione."
+
+#: apps/web/src/components/events/TableList.tsx
+msgid "Table history help"
+msgstr "Aiuto sullo storico dei tavoli"
+
+#: apps/web/src/components/events/TableList.tsx
+msgid "Confirmed tables from finished events where you played, were a demonstrator or are still a manager."
+msgstr "Tavoli confermati di eventi terminati in cui hai giocato o fatto da dimostratore, oppure che gestisci ancora."

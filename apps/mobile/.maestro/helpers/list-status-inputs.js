@@ -64,6 +64,30 @@ output.status = {
   emptyTables: literal(it ? "Nessun tavolo trovato" : "No tables found"),
   failedEvents: literal(it ? "Impossibile caricare gli eventi" : "Could not load events"),
   failedTables: literal(it ? "Impossibile caricare i tavoli" : "Could not load tables"),
+  scheduledHelp: literal(it ? "Aiuto sugli eventi schedulati" : "Scheduled events help"),
+  availableHelp: literal(it ? "Aiuto sugli eventi disponibili" : "Available events help"),
+  terminatedHelp: literal(it ? "Aiuto sugli eventi terminati" : "Terminated events help"),
+  historyHelp: literal(it ? "Aiuto sullo storico dei tavoli" : "Table history help"),
+  scheduledRule: literal(
+    it
+      ? "Eventi in pianificazione o confermati che gestisci, a cui sei iscritto come giocatore o in cui fai da dimostratore. Sono inclusi i posti in lista d’attesa e gli inviti in sospeso."
+      : "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included.",
+  ),
+  availableRule: literal(
+    it
+      ? "Eventi di gruppo in pianificazione a cui puoi iscriverti. Per quelli privati serve essere membri del gruppo. Quelli pubblici sono aperti anche a chi non è membro."
+      : "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too.",
+  ),
+  terminatedRule: literal(
+    it
+      ? "Eventi conclusi in cui hai giocato o fatto da dimostratore a un tavolo confermato, oppure che gestisci ancora."
+      : "Finished events where you played or demonstrated at a confirmed table, or that you still manage.",
+  ),
+  historyRule: literal(
+    it
+      ? "Tavoli confermati di eventi terminati in cui hai giocato o fatto da dimostratore, oppure che gestisci ancora."
+      : "Confirmed tables from finished events where you played, were a demonstrator or are still a manager.",
+  ),
   names: input,
   scheduledCard: literal(`${eventPrefix}: ${input.scheduled.name}`),
   availableCard: literal(`${eventPrefix}: ${input.available.name}`),

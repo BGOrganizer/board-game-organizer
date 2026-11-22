@@ -2,7 +2,7 @@ import { groupRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { groupRecord } from "@/test-fixtures/eventRecords";
+import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { GroupDetail } from "../GroupDetail";
 
@@ -47,6 +47,44 @@ function mount(initialTab: "info" | "members" | "events" = "info") {
   );
   return client;
 }
+it("explains the three authorized group sections and moves the venue help into Details", async () => {
+  const group = { ...groupRecord, type: "PUBLIC", location: plannedEvent.locations[0] };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const contacts = contactReadResponse(url, init);
+      if (contacts) return contacts;
+      const path = new URL(url).pathname;
+      return Response.json(path.endsWith(group.id) ? group : { items: [], nextCursor: null });
+    }),
+  );
+  mount();
+  expect(await screen.findByRole("heading", { name: "Group venue" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Group venue help" })).toBeNull();
+  for (const [tab, button, description] of [
+    ["Details", "Group details help", "The group's verified venue and full address."],
+    [
+      "Members",
+      "Group members help",
+      "Group managers can invite people and review membership requests.",
+    ],
+    [
+      "Events",
+      "Group events help",
+      "Public events are open to everyone with an account. Private events are for group members.",
+    ],
+  ]) {
+    fireEvent.click(screen.getByRole("tab", { name: tab }));
+    expect(screen.getByRole("heading", { name: tab })).toBeVisible();
+    expect(screen.queryByText(description)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: button }));
+    const help = await screen.findByRole("dialog");
+    expect(within(help).getByText(description)).toBeVisible();
+    fireEvent.keyDown(help, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  }
+});
+
 it("pending members can read permitted information and accepted members, never events/rankings/social actions", async () => {
   const invited = {
     ...groupRecord,

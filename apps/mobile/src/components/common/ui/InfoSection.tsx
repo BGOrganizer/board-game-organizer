@@ -16,8 +16,8 @@ export function InfoSection({
   children,
 }: {
   label: string;
-  helpLabel: string;
-  help: string;
+  helpLabel?: string;
+  help?: string;
   icon: LucideIcon;
   headerAccessory?: ReactNode;
   children: ReactNode;
@@ -34,9 +34,11 @@ export function InfoSection({
         >
           {label}
         </Typography>
-        <HelpPopover label={helpLabel} title={label}>
-          <Popover.Description>{help}</Popover.Description>
-        </HelpPopover>
+        {help && helpLabel ? (
+          <HelpPopover label={helpLabel} title={label}>
+            <Popover.Description>{help}</Popover.Description>
+          </HelpPopover>
+        ) : null}
         {headerAccessory ? <View style={{ marginLeft: "auto" }}>{headerAccessory}</View> : null}
       </View>
       <GroupedList>{children}</GroupedList>

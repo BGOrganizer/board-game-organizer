@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { renderWithI18n } from "@/test-utils";
-import { EventSeatListHeading } from "../EventSeatListHeading";
+import { EventTableParticipantsHelp } from "../EventTableParticipantsHelp";
 import { EventTableRatingInfo } from "../EventTableRatingInfo";
 import { EventVoteLegend } from "../EventVoteLegend";
 
@@ -26,25 +26,30 @@ it.each(["event", "table"] as const)(
   },
 );
 
-it.each([false, true])(
-  "describes accepted and waiting participation without granting consent, waiting=%s",
-  async (waiting) => {
-    const title = waiting ? "Waiting list" : "Seats list";
-    renderWithI18n(<EventSeatListHeading waiting={waiting} />);
-    expect(screen.getByRole("heading", { name: title })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: `${title}: Field help` }));
-    if (waiting) {
-      expect(
-        await screen.findByText(
-          "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
-        ),
-      ).toBeTruthy();
+it.each([true, false])(
+  "describes participation in the shared help (planning=%s)",
+  async (planning) => {
+    renderWithI18n(<EventTableParticipantsHelp planning={planning} />);
+    expect(screen.getByRole("heading", { name: "Participants" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Table participants help" }));
+    const help = within(await screen.findByRole("dialog"));
+    for (const label of [
+      "Accepted player",
+      "Invitation pending",
+      "Player on the waiting list",
+      "Demonstrator",
+      "Guest",
+    ]) {
+      expect(help.getByText(label).closest("li")?.querySelector("svg")).not.toBeNull();
+    }
+    if (planning) {
+      expect(help.getByText("Pending invitations do not count toward agreement.")).toBeVisible();
+      expect(help.getByText(/can assign them a seat under the table's rules/)).toBeVisible();
     } else {
       expect(
-        await screen.findByText("Pending invitations do not count toward agreement."),
-      ).toBeTruthy();
-      expect(screen.getByText("Accepted player")).toBeTruthy();
-      expect(screen.getByText("Invitation pending")).toBeTruthy();
+        help.getByText("Only players with a confirmed seat take part at this table."),
+      ).toBeVisible();
+      expect(help.queryByText(/can assign them a seat/)).toBeNull();
     }
   },
 );

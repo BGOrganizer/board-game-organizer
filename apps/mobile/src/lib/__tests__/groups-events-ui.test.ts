@@ -12,7 +12,7 @@ it("owns three top Group tabs, limits owned lists to member roles, and confines 
   expect(tabs.indexOf('value="private"')).toBeLessThan(tabs.indexOf('value="public"'));
   expect(tabs.indexOf('value="public"')).toBeLessThan(tabs.indexOf('value="search"'));
   expect(source("groups", "GroupList")).toContain(
-    'useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4)',
+    "useListSearch(groupRecordMemberRoles, minimumLength)",
   );
   expect(source("groups", "GroupList")).toContain('key: "invited"');
   expect(tabs).toContain('value="search"');

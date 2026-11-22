@@ -268,12 +268,22 @@ it.each(["PLANNING", "CONFIRMED"] as const)(
     table.eventStatus = status;
     await installNativePopoverMeasurements();
     await render(<Fixture section="participants" />);
-    await pressMeasuredPopover(
-      await screen.findByRole("button", { name: "Table participants help" }),
-    );
+    const trigger = await screen.findByRole("button", { name: "Table participants help" });
+    expect(screen.queryByRole("button", { name: "Waiting list: Field help" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Seats list: Field help" })).toBeNull();
+    await pressMeasuredPopover(trigger);
+    for (const label of [
+      "Accepted player",
+      "Invitation pending",
+      "Player on the waiting list",
+      "Demonstrator",
+      "Guest",
+    ])
+      expect(screen.getByText(label)).toBeVisible();
     if (status === "PLANNING") {
       expect(screen.getByText(/select a free place or the waiting list/)).toBeVisible();
       expect(screen.getByText(/Accepted players on the waiting list can vote/)).toBeVisible();
+      expect(screen.getByText("Pending invitations do not count toward agreement.")).toBeVisible();
     } else {
       expect(
         screen.getByText("Only players with a confirmed seat take part at this table."),

@@ -8,6 +8,23 @@ tags: [manual, cards]
 - launchApp:
     clearState: false
 - openLink: bgo-dev:///groups
+- tapOn:
+    id: top-tab-private
+- tapOn: ${output.groupPrivateListHelp}
+- back
+- tapOn:
+    id: top-tab-public
+- tapOn: ${output.groupPublicListHelp}
+- back
+- tapOn:
+    id: top-tab-search
+- assertVisible: ${output.groupSearchPrompt}
+- assertNotVisible: ${output.groupSearchFieldHelp}
+- tapOn: ${output.groupSearchListHelp}
+- assertVisible: ${output.groupSearchListRule}
+- back
+- tapOn:
+    id: top-tab-private
 - extendedWaitUntil:
     visible:
       id: "list-search-input"
@@ -32,7 +49,17 @@ tags: [manual, cards]
 - takeScreenshot: card-group-background-identity
 - assertVisible: ${output.cardOverview}
 - assertVisible: ${output.cardRankingTab}
+- tapOn: ${output.groupDetailsHelp}
+- assertVisible: ${output.groupDetailsHelpText}
+- back
+- tapOn: ${output.groupEventsTab}
+- tapOn: ${output.groupEventsHelp}
+- assertVisible: ${output.groupEventsHelpText}
+- back
 - tapOn: ${output.cardMembersTab}
+- tapOn: ${output.groupMembersHelp}
+- assertVisible: ${output.groupMembersHelpText}
+- back
 - scrollUntilVisible:
     element:
       text: ${output.cardPerson}

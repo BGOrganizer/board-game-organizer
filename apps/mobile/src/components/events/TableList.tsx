@@ -7,11 +7,12 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Dices } from "lucide-react-native";
+import { Dices, History } from "lucide-react-native";
 import { useCallback } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -52,6 +53,13 @@ export function TableList() {
         }}
         ListHeaderComponent={
           <View style={{ gap: 12 }}>
+            <HelpSectionCard title={t("History")} label={t("Table history help")} icon={History}>
+              <Typography className="text-foreground">
+                {t(
+                  "Confirmed tables from finished events where you played, were a demonstrator or are still a manager.",
+                )}
+              </Typography>
+            </HelpSectionCard>
             <ListSearch
               query={f.query}
               onQueryChange={f.setQuery}

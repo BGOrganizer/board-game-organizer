@@ -10,11 +10,20 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CalendarCheck2, CalendarClock, CalendarDays, Flag, Plus } from "lucide-react-native";
+import {
+  CalendarCheck,
+  CalendarCheck2,
+  CalendarClock,
+  CalendarDays,
+  CalendarSearch,
+  Flag,
+  Plus,
+} from "lucide-react-native";
 import { type ReactNode, useCallback } from "react";
 import { View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -68,6 +77,32 @@ export function EventList({
     ),
     [groupId, list.isFetching, verify],
   );
+  const sectionHelp = {
+    mine: {
+      title: t("Scheduled"),
+      label: t("Scheduled events help"),
+      icon: CalendarCheck,
+      description: t(
+        "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included.",
+      ),
+    },
+    available: {
+      title: t("Available"),
+      label: t("Available events help"),
+      icon: CalendarSearch,
+      description: t(
+        "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too.",
+      ),
+    },
+    terminated: {
+      title: t("Terminated events"),
+      label: t("Terminated events help"),
+      icon: Flag,
+      description: t(
+        "Finished events where you played or demonstrated at a confirmed table, or that you still manage.",
+      ),
+    },
+  }[section];
   return (
     <NotificationAttentionScope
       options={o}
@@ -94,6 +129,15 @@ export function EventList({
             <View style={{ gap: 12 }}>
               {header === undefined || header === null || header === false ? null : (
                 <View>{header}</View>
+              )}
+              {groupId ? null : (
+                <HelpSectionCard
+                  title={sectionHelp.title}
+                  label={sectionHelp.label}
+                  icon={sectionHelp.icon}
+                >
+                  <Typography className="text-foreground">{sectionHelp.description}</Typography>
+                </HelpSectionCard>
               )}
               <ListSearch
                 query={filters.query}

@@ -46,6 +46,7 @@ import { GroupIdentityCard } from "./GroupIdentityCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
 import { GroupJoinRequest } from "./GroupJoinRequest";
 import { GroupMembers } from "./GroupMembers";
+import { GroupSectionHeader } from "./GroupSectionHeader";
 export function GroupDetail({
   groupId,
   initialTab = "info",
@@ -211,8 +212,9 @@ export function GroupDetail({
             ) : null}
           </TabBar>
 
-          <Tabs.Panel id="info" className="pt-0">
-            <GroupDetailsCard group={group} identity={null} />
+          <Tabs.Panel id="info" className="space-y-4 pt-0">
+            <GroupSectionHeader group={group} section="info" />
+            <GroupDetailsCard group={group} identity={null} venueHelp={false} />
             {bodyActions.length ? (
               <GroupJoinRequest
                 pending={group.role === "requested"}
@@ -237,12 +239,14 @@ export function GroupDetail({
             ) : null}
           </Tabs.Panel>
           {group.canViewMembers ? (
-            <Tabs.Panel id="members" className="pt-0">
+            <Tabs.Panel id="members" className="space-y-4 pt-0">
+              <GroupSectionHeader group={group} section="members" />
               <GroupMembers group={group} />
             </Tabs.Panel>
           ) : null}
           {group.canViewEvents ? (
-            <Tabs.Panel id="events" className="pt-0">
+            <Tabs.Panel id="events" className="space-y-4 pt-0">
+              <GroupSectionHeader group={group} section="events" />
               <Events
                 groupId={group.id}
                 canCreate={isGroupManagerRole(group.role) && group.canInvite}

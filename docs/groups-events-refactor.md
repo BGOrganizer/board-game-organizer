@@ -151,11 +151,14 @@ exceptions retain their explicit authorization boundaries throughout this contra
   or current authorized manager. Excluded Tables never enter History, even for managers; they remain in
   their parent Event. Loss of management preserves only actual player/demonstrator history. Legacy explicit
   mine/waiting API sections retain their existing behavior and distinct caches.
-- Main Events' three sections and History have no state-filter chips. Their Filter / Filtra inputs retain
-  clear actions, no character minimum and 300 ms debounce. Escaped name filtering and section eligibility
-  run before source pagination. Group-context Events remain one contextual list with Confirmed / Planning /
-  Terminated chips, initially all enabled; owned Private/Public Groups retain their existing filters.
-  Group Search remains separate discovery with its four-character minimum. Current lifecycle comes from
+- Main Event, Group and History lists use section Cards with help that explains what each list
+  contains. Main Events' three sections and History have no state-filter chips. Name filters have an
+  accessible label, a clear action, no character minimum and a 300 ms debounce. Escaped name
+  filtering and section eligibility run before source pagination. Group-context Events have
+  Confirmed / Planning / Terminated chips, initially all enabled. Owned Private/Public Groups have
+  role filters.
+  Group Search uses a four-character minimum, with centered prompts before searching and when the
+  results are empty. Its guidance lives in the section Card. Current lifecycle comes from
   persisted Event state, never guessed from dates. Legacy API period parameters remain supported.
   Retained Query pages remain authoritative while local presentation reveals bounded pages progressively.
   Main Event/Group tab strips and Group detail contents retain compact platform-owned spacing and a single
@@ -363,6 +366,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   confirmation. Details also explains the active planning mode, player-count priority and enabled
   date/time and location voting and proposal options. Table Details uses the same Card for game
   voting and enabled proposals, while Table Participants explains registration and the waiting list.
+- Group Details, Members and Events use the same help Card. Details includes the venue help when a
+  verified venue is present, while Members and Events explain the actions relevant to the group.
 - Parent Group references follow the schedule and locations in Event Details and reuse the actual `GroupCard`; parent Event references in
   personal-entry Table Overview reuse the actual `EventCard` after the games and proposals. They consume existing owner-scoped
   detail/cache reads, not per-card network readers. Missing fields keep known identity with partial
@@ -501,7 +506,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   email stays in server-only contact storage and is omitted from registration receipts and reads.
 - Both clients show grouped games and places in Table details. Places start at the maximum capacity;
   occupied capacity retains an additional queue entry. A separate Waiting list section always follows
-  Seats list, each with its own explanation popover. While primary places remain available, Waiting list
+  Seats list. The Participants section Card contains their shared icon legend and help, also
+  available while editing seats. While primary places remain available, Waiting list
   shows a centered non-interactive empty state; its existing queue action appears only at full capacity.
   Anonymous/unloaded primary
   reservations precede queued people too, including across render pages. Local saving intent is never

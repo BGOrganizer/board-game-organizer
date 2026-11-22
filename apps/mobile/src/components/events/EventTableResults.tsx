@@ -99,7 +99,7 @@ export function EventTableResults({
     <FlatList
       ListHeaderComponent={
         header || game ? (
-          <View style={{ gap: 8 }}>
+          <View style={{ gap: 16 }}>
             {header}
             {game ? (
               <SectionHeaderCard

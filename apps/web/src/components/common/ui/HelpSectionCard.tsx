@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 
-export function EventSectionCard({
+export function HelpSectionCard({
   title,
   label,
   icon: Icon,

@@ -2,8 +2,8 @@ import { configure, measureRenders } from "@callstack/reassure-measure";
 import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { type ReactElement, useState } from "react";
 import { test } from "vitest";
-import { EventSeatListHeading } from "@/components/events/EventSeatListHeading";
 import { EventTableGamesPopover } from "@/components/events/EventTableGamesPopover";
+import { EventTableParticipantsHelp } from "@/components/events/EventTableParticipantsHelp";
 import { EventTableRatingInfo } from "@/components/events/EventTableRatingInfo";
 import { EventVoteLegend } from "@/components/events/EventVoteLegend";
 import { OptionVoteVoters } from "@/components/events/OptionVoteVoters";
@@ -238,12 +238,12 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
     },
   },
   {
-    name: "EventSeatListHeading: open waiting-list explanation",
-    element: <EventSeatListHeading waiting />,
+    name: "EventTableParticipantsHelp: open participant legend",
+    element: <EventTableParticipantsHelp planning />,
     scenario: async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Waiting list: Field help" }));
+      fireEvent.click(screen.getByRole("button", { name: "Table participants help" }));
       await screen.findByText(
-        "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
+        "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules.",
       );
     },
   },

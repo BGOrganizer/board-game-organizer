@@ -5,7 +5,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import { tableLeaderboardQuery } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { act, render, screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
 import { Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -198,7 +198,10 @@ it.each(["PLANNING", "CONFIRMED"] as const)(
 it("renders immutable completed standings from their frozen profiles without calling the current leaderboard", async () => {
   record = history();
   await render(<Fixture table={record} />);
-  expect(screen.getByRole("heading", { name: "Chess" })).toBeVisible();
+  const header = screen.getByText("Results header").parent;
+  if (!header) throw new Error("Expected the table results header");
+  expect(header).toHaveStyle({ gap: 16 });
+  expect(within(header).getByRole("heading", { name: "Chess" })).toBeVisible();
   expect(screen.queryByRole("button", { name: "How OpenSkill works" })).toBeNull();
   expect(screen.getByText("@owner")).toBeVisible();
   expect(screen.getByText("@guest")).toBeVisible();

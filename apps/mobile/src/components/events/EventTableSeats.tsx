@@ -50,8 +50,8 @@ import { EventGuestVoteEditor } from "./EventGuestVoteEditor";
 import { EventJoinSheet } from "./EventJoinSheet";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
-import { EventSectionCard } from "./EventSectionCard";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
+import { EventTableParticipantsHelp } from "./EventTableParticipantsHelp";
 export function EventTableSeats({
   table,
   header,
@@ -99,6 +99,12 @@ export function EventTableSeats({
     setChoose(false);
     setJoining(true);
   };
+  const participantsHeader = (
+    <View style={{ gap: 16, paddingBottom: 8 }}>
+      {header}
+      <EventTableParticipantsHelp planning={table.eventStatus === "PLANNING"} />
+    </View>
+  );
   return (
     <View style={{ flex: 1 }}>
       <RetainedTabPanel
@@ -132,7 +138,7 @@ export function EventTableSeats({
             {order.editing ? (
               <EventSeatOrderEditor
                 model={order}
-                header={header}
+                header={participantsHeader}
                 demonstratorUserId={table.demonstratorUserId}
               />
             ) : (
@@ -153,40 +159,7 @@ export function EventTableSeats({
                   paddingBottom: layout.paddingBottom,
                 }}
                 keyboardShouldPersistTaps="handled"
-                ListHeaderComponent={
-                  <View>
-                    <View style={{ gap: 16, paddingBottom: 8 }}>
-                      {header}
-                      <EventSectionCard
-                        title={t("Participants")}
-                        label={t("Table participants help")}
-                        icon={UsersRound}
-                      >
-                        {table.eventStatus === "PLANNING" ? (
-                          <>
-                            <Typography className="text-foreground">
-                              {t(
-                                "When registration is open, select a free place or the waiting list, complete any required votes and confirm.",
-                              )}
-                            </Typography>
-                            <Typography className="text-foreground">
-                              {t("If all seats are taken, new players join the waiting list.")}
-                            </Typography>
-                            <Typography className="text-foreground">
-                              {t(
-                                "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
-                              )}
-                            </Typography>
-                          </>
-                        ) : (
-                          <Typography className="text-foreground">
-                            {t("Only players with a confirmed seat take part at this table.")}
-                          </Typography>
-                        )}
-                      </EventSectionCard>
-                    </View>
-                  </View>
-                }
+                ListHeaderComponent={participantsHeader}
                 renderSectionHeader={({ section }) => (
                   <EventSeatListHeading waiting={section.key === "waiting"} />
                 )}

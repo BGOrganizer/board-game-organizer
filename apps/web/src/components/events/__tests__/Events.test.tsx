@@ -6,6 +6,7 @@ import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventGroupSelect } from "../EventGroupSelect";
 import { Events } from "../Events";
+import { TableList } from "../TableList";
 
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
@@ -113,14 +114,50 @@ it("filters its own source list from one character after debounce, never a disco
   });
   expect(search.getAttribute("placeholder")).toBe("Filter events");
   expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Filter: Filter help" }));
-  expect(await screen.findByText("Filter this list by name. No minimum length.")).toBeTruthy();
-  fireEvent.click(screen.getAllByRole("button", { name: "Dismiss" })[0]);
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(screen.getByRole("searchbox", { name: "Filter" })).toBe(search);
+  expect(screen.queryByRole("button", { name: "Filter: Filter help" })).toBeNull();
   expect(fetch.mock.calls.filter(([url]) => String(url).includes("/groups?")).length).toBe(1);
   fireEvent.change(search, { target: { value: "friday" } });
   await waitFor(() =>
     expect(fetch.mock.calls.some(([url]) => String(url).includes("query=friday"))).toBe(true),
   );
   expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
+});
+
+it.each([
+  ["mine", "Scheduled", "Scheduled events help", /Waiting-list places and pending invitations/],
+  ["available", "Available", "Available events help", /Private events require group membership/],
+  ["terminated", "Terminated events", "Terminated events help", /Finished events where you played/],
+] as const)(
+  "describes the %s Events list in the section popover",
+  async (initialSection, title, button, description) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+    );
+    render({ initialSection, canCreate: false });
+    expect(screen.getByRole("heading", { name: title })).toBeVisible();
+    expect(screen.queryByText(description)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: button }));
+    expect(within(await screen.findByRole("dialog")).getByText(description)).toBeVisible();
+  },
+);
+
+it("describes the finished tables included in History from its section popover", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+  );
+  renderWithI18n(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <TableList />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole("heading", { name: "History" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Table history help" }));
+  expect(
+    within(await screen.findByRole("dialog")).getByText(/Confirmed tables from finished events/),
+  ).toBeVisible();
 });

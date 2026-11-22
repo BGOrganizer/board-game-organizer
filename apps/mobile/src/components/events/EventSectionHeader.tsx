@@ -2,10 +2,9 @@ import type { ClientEventRecord } from "@board-game-organizer/shared";
 import { Typography } from "heroui-native/text";
 import { Dices, Info, UsersRound } from "lucide-react-native";
 import { View } from "react-native";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { useT } from "@/lib/i18n";
 import { EventPlanningSettingsSummary } from "./EventPlanningSettingsSummary";
-
-import { EventSectionCard } from "./EventSectionCard";
 import { EventVoteLegendContent } from "./EventVoteLegendContent";
 
 export function EventSectionHeader({
@@ -49,7 +48,7 @@ export function EventSectionHeader({
     event.groupType !== "PUBLIC" &&
     !event.readOnly;
   return (
-    <EventSectionCard title={title} label={label} icon={Icon}>
+    <HelpSectionCard title={title} label={label} icon={Icon}>
       <Typography className="text-foreground">
         {event.status === "PLANNING"
           ? help
@@ -89,6 +88,6 @@ export function EventSectionHeader({
           )}
         </Typography>
       ) : null}
-    </EventSectionCard>
+    </HelpSectionCard>
   );
 }

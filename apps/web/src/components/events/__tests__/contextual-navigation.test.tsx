@@ -229,10 +229,11 @@ it.each([false, true])(
       primary.compareDocumentPosition(waiting) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(within(waiting).getByRole("button", { name: "Join waiting list" })).toBeTruthy();
-    fireEvent.click(within(waiting).getByRole("button", { name: "Waiting list: Field help" }));
+    expect(within(waiting).queryByRole("button", { name: "Waiting list: Field help" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Table participants help" }));
     expect(
       await screen.findByText(
-        "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
+        "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules.",
       ),
     ).toBeTruthy();
   },
