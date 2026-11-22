@@ -111,8 +111,18 @@ tags: [manual, tables, results]
     id: table-register-result
 - tapOn: ${output.results.results}
 - assertNotVisible: "^Ranking$"
+- scrollUntilVisible:
+    element:
+      id: ${output.results.ratingTrigger1}
+    direction: DOWN
+    timeout: 120000
+- assertNotVisible:
+    id: ${output.results.ratingPanel1}
 - tapOn:
-    text: "^(Global ranking|Ranking globale): .*$"
-    index: 0
-- assertVisible: "^(Global ranking|Ranking globale)$"
+    id: ${output.results.ratingTrigger1}
+- assertVisible: ${output.results.global}
 - takeScreenshot: table-results-immutable-after-finalization
+- tapOn:
+    id: ${output.results.ratingTrigger1}
+- assertNotVisible:
+    id: ${output.results.ratingPanel1}

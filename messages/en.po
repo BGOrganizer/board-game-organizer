@@ -5410,6 +5410,10 @@ msgstr "Rating change"
 msgid "Rating decreased"
 msgstr "Rating decreased"
 
+#: apps/web/src/components/events/EventFinalResultRow.tsx
+msgid "Rating details"
+msgstr "Rating details"
+
 #: apps/web/src/components/events/EventTableRatingInfo.tsx
 msgid "Rating disabled"
 msgstr "Rating disabled"

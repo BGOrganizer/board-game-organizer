@@ -948,12 +948,12 @@ there are no repeated identical notifications or player reminders to change vote
   The same roster reader stays mounted across Details/Participants; hidden UI never advances paging.
   Exact invitation-attention links start on Participants without accepting or reading invitations.
   Shared final access exposes Details/Results only, with no private roster or GROUP ranking scope.
-  Results rows contain avatar, one @username/known fallback and adjacent, nonwrapping ranking icons:
-  GLOBAL uses a Globe/accent glyph; authorized GROUP uses UsersRound/success and is absent for
-  personal/shared-final access. Each opens only its own scope's complete details. Confirmed rows
-  expose current ratings without inventing final standings or scores. Terminated rows preserve immutable classified
-  order, shared ties, bottom-right #n avatar badges, unranked ND and exact far-right scores. Popups
-  use recorded before/after/delta, semantic direction icons and scope labels, never live replacement.
+  Confirmed Results rows show avatar, one @username/known fallback and a popover per current rating
+  scope, with no final standings or scores. Terminated Results identify the frozen game when known
+  and preserve immutable classified order, shared ties, bottom-right #n avatar badges, unranked ND
+  and exact far-right scores. Each account player's row expands to show recorded before → after and
+  delta, with semantic direction icons. GLOBAL uses a Globe/accent glyph. Authorized GROUP uses
+  UsersRound/success and is absent for personal/shared-final access. Guest rows show physical results.
   Disabled/all-ND/fewer-than-two-finisher outcomes say Ranking not updated; genuinely missing history
   says Historical ranking unavailable. Current authenticated source paging uses genuine frozen-player
   snapshots/statistics; pending players and management-only actors never gain seats. Cache identity

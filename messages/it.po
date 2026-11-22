@@ -5409,6 +5409,10 @@ msgstr "Variazione ranking"
 msgid "Rating decreased"
 msgstr "Rating diminuito"
 
+#: apps/web/src/components/events/EventFinalResultRow.tsx
+msgid "Rating details"
+msgstr "Dettagli del rating"
+
 #: apps/web/src/components/events/EventTableRatingInfo.tsx
 msgid "Rating disabled"
 msgstr "Classifica disattivata"

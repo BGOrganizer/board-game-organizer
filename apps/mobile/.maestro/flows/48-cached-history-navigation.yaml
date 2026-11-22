@@ -27,7 +27,7 @@ tags: [manual, performance, history]
       - assertVisible:
           id: table-results-tab
           selected: true
-      - assertVisible: ${output.history.winner}
+      - assertVisible: ${output.history.resultWinner}
       - tapOn:
           id: table-participants-tab
           waitToSettleTimeoutMs: 500
@@ -73,7 +73,7 @@ tags: [manual, performance, history]
 - tapOn:
     id: table-results-tab
     waitToSettleTimeoutMs: 500
-- assertVisible: ${output.history.winner}
+- assertVisible: ${output.history.resultWinner}
 - back
 - assertVisible: ${output.history.eventName}
 - back

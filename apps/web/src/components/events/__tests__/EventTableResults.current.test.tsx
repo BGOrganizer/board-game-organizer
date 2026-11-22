@@ -172,8 +172,8 @@ it("uses stable non-mutating roster cache identity and supports the legacy facto
 });
 
 it.each([1, 2, null])(
-  "keeps historical position %s visible and opens its avatar explanation",
-  async (rank) => {
+  "keeps historical position %s on the avatar without another control",
+  (rank) => {
     const { wrapper: Wrapper } = setup();
     renderWithI18n(
       <Wrapper>
@@ -202,12 +202,12 @@ it.each([1, 2, null])(
     );
     const label = `Position: ${rank === null ? "ND" : `#${rank}`}`;
     expect(screen.queryByText(label)).toBeNull();
-    const badge = screen.getByRole("button", { name: label });
-    expect(
-      badge.querySelector(rank === 1 ? ".lucide-trophy" : ".lucide-list-ordered"),
-    ).toBeTruthy();
-    fireEvent.click(badge);
-    expect(await screen.findByRole("dialog", { name: "Position" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: label }).textContent).toBe(
+      rank === null ? "ND" : `#${rank}`,
+    );
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(Boolean(screen.queryByText("Winner"))).toBe(rank === 1);
+    expect(screen.getByText("Chess")).toBeTruthy();
   },
 );
 
@@ -243,7 +243,7 @@ it("shows a winning guest by name with the physical score, without a rating cont
   );
   const guestRow = screen.getByText("Ada").closest("li");
   expect(guestRow?.textContent).toContain("14");
-  expect(guestRow?.querySelector("button[aria-label='Position: #1']")).toBeTruthy();
-  expect(guestRow?.querySelectorAll("button")).toHaveLength(1);
+  expect(guestRow?.querySelector("[role='img'][aria-label='Position: #1']")).toBeTruthy();
+  expect(guestRow?.querySelectorAll("button")).toHaveLength(0);
   expect(screen.queryByText(guest.participantId)).toBeNull();
 });

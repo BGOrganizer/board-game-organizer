@@ -172,6 +172,11 @@ tags: [manual, events, privacy]
           element: ${output.access.player}
           direction: DOWN
           timeout: 120000
+      - tapOn: ${output.access.player}
+      - assertVisible: ${output.access.globalRatingScope}
+      - assertNotVisible: ${output.access.groupRatingScope}
+      - tapOn: ${output.access.player}
+      - assertNotVisible: ${output.access.globalRatingScope}
       - scrollUntilVisible:
           element: ${output.access.nd}
           direction: DOWN

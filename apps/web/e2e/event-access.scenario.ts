@@ -353,10 +353,20 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
     await page.goto(`/${tablePath}`);
     await expect(page.getByRole("tab", { name: l.ranking, exact: true })).toHaveCount(0);
     await page.getByRole("tab", { name: l.results, exact: true }).click();
-    for (const name of [input.playerName, input.ndName]) {
-      if (!name) throw new Error("Played and ND fixture usernames required");
+    const { playerName, ndName } = input;
+    if (!playerName || !ndName) throw new Error("Played and ND fixture usernames required");
+    for (const name of [playerName, ndName]) {
       await expect(page.getByText(name, { exact: true })).toBeVisible();
     }
+    const sharedResults = page.getByRole("region", { name: l.results, exact: true });
+    const playerResult = sharedResults.getByRole("listitem").filter({
+      has: page.getByText(playerName, { exact: true }),
+    });
+    const details = playerResult.getByRole("button");
+    await expect(details).toHaveAttribute("aria-expanded", "false");
+    await details.click();
+    await expect(playerResult.getByText(it ? "Globale" : "Global", { exact: true })).toBeVisible();
+    await expect(playerResult.getByText(it ? "Gruppo" : "Group", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: l.join, exact: true })).toHaveCount(0);
   } else if (mode === "enroll") {
     expect(event).toMatchObject({ visibility: "PUBLIC", groupType: "PUBLIC", readOnly: true });

@@ -28,14 +28,18 @@ it("owns confirmed/terminated Table top tabs with platform-specific virtualized 
   }
   const results = source("events", "EventTableResults");
   expect(results).toContain("<EventPlayerRatingPopover");
+  expect(results).toContain("<EventFinishedPlayerResult");
   expect(results).toContain('table.eventStatus === "CONFIRMED"');
   expect(results).toContain("!table.sharedResultsOnly");
   expect(results).toContain("table.confirmed?.playerIds");
   const rating = source("events", "EventPlayerRatingPopover");
   expect(rating).toContain('t("Group ranking")');
   expect(rating).toContain('t("Global ranking")');
-  expect(rating).toContain('t("Rating before")');
-  expect(rating).toContain('t("Historical ranking unavailable")');
+  const finished = source("events", "EventFinishedPlayerResult");
+  expect(finished).toContain("<Accordion.Trigger");
+  expect(finished).toContain("<Accordion.Content");
+  expect(finished).toContain('t("Rating before")');
+  expect(finished).toContain('t("Historical ranking unavailable")');
 });
 it("places admin result registration on included confirmed Tables and finalization in the Event header", () => {
   const detail = source("events", "EventDetail"),
