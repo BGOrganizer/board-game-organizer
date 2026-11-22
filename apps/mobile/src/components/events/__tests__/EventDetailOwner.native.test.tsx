@@ -273,7 +273,7 @@ async function select(name: "Details" | "Tables" | "Participants") {
   await userEvent.setup().press(await screen.findByRole("tab", { name: tabName(name) }));
   expect(screen.getByRole("tab", { name: tabName(name) })).toBeSelected();
 }
-async function press(name: string) {
+async function press(name: string | RegExp) {
   await userEvent.setup().press(await screen.findByRole("button", { name }));
 }
 async function dialog(name: string) {
@@ -631,6 +631,7 @@ it("shows named votes and the breakdown action only for each eligible Event cate
   expect(await screen.findByText("Username unavailable", hidden)).toBeOnTheScreen();
   expect(screen.queryByText("Voter Alice", hidden)).toBeNull();
   await userEvent.setup().press(screen.getByRole("button", { name: "Close", ...hidden }));
+  await waitFor(() => expect(screen.queryByText("Username unavailable", hidden)).toBeNull());
   await snapshot({
     ...event,
     locations: [
@@ -638,7 +639,7 @@ it("shows named votes and the breakdown action only for each eligible Event cate
       { ...event.locations[0], id: "other-place", name: "Second venue" },
     ],
   });
-  await userEvent.setup().press(screen.getByRole("button", { name: /^Vote summary: Club venue,/ }));
+  await press(/^Vote summary: Club venue,/);
   const venueVotes = await screen.findByLabelText("Votes: Club venue");
   expect(venueVotes).toBeVisible();
   await userEvent
