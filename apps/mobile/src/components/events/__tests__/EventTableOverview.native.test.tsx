@@ -403,6 +403,8 @@ it("opens one game-vote dialog for an accepted participant and prevents removal 
   await render(<Fixture />);
   await ready();
   expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
+  const summary = screen.getByRole("button", { name: "Vote summary: Chess" });
+  expect(within(summary).getByText("Votes")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Vote summary: Strategy game" })).toBeNull();
   await press("Vote summary: Chess");
   expect(screen.getByLabelText("Votes: Chess")).toBeVisible();

@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { type ReactNode, useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Contacts } from "@/components/contacts/Contacts";
@@ -283,7 +283,7 @@ describe("Contacts tabs", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("shows one empty connections state and search guidance before typing", () => {
+  it("shows one empty connections state and search guidance before typing", async () => {
     mocks.following = false;
     renderWithI18n(<Contacts />);
     expect(screen.getByText("No connections yet")).toBeTruthy();
@@ -310,6 +310,14 @@ describe("Contacts tabs", () => {
     expect(screen.queryByRole("heading", { name: "Search results" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Device Contacts" })).toBeNull();
     expect(screen.getByText("Type at least 4 characters to search")).toBeTruthy();
+    const searchGuide =
+      "Find people on Board Game Organizer by entering their name or email address.";
+    expect(screen.queryByText(searchGuide)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Contact search help" }));
+    const popover = await screen.findByRole("dialog");
+    expect(within(popover).getByText(searchGuide)).toBeVisible();
+    fireEvent.keyDown(popover, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByText(searchGuide)).toBeNull());
     fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
     expect(screen.getByText("Section guide")).toBeVisible();
     expect(screen.getByRole("button", { name: "Contacts help" })).toBeVisible();

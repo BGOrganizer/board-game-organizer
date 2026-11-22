@@ -462,7 +462,7 @@ export function Contacts() {
 
           <Tabs.Panel id="search" className="space-y-3 pt-4">
             <HelpSectionCard title={t`Search`} icon={Search} label={t`Contact search help`}>
-              <p>{t`Search users by name or email`}</p>
+              <p>{t`Find people on Board Game Organizer by entering their name or email address.`}</p>
               <p>{t`Type at least 4 characters to search`}</p>
             </HelpSectionCard>
             <SearchInput

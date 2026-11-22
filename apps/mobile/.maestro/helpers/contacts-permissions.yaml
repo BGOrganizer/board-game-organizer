@@ -10,11 +10,11 @@ appId: com.bgo.boardgameorganizer.dev
 - assertVisible: "Section guide"
 - tapOn: "Contact search help"
 - extendedWaitUntil:
-    visible: "Search users by name or email"
+    visible: "Find people on Board Game Organizer by entering their name or email address."
     timeout: 30000
 - assertVisible: "Type at least 4 characters to search"
 - back
-- assertNotVisible: "Search users by name or email: Search help"
+- assertNotVisible: "Find people on Board Game Organizer by entering their name or email address."
 - openLink: bgo-dev:///contacts?tab=device
 - assertVisible: "Section guide"
 - tapOn: "Contacts help"

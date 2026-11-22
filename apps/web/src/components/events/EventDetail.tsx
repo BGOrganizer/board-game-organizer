@@ -346,6 +346,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                         actions={voteAction}
                         disclosure={{
                           label: `${t`Vote summary`}: ${label}`,
+                          indicatorLabel: t`Votes`,
                           content: <OptionVoteVoters label={label} voters={voters} />,
                         }}
                       />
@@ -413,6 +414,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                           hasOptionVoters(voters)
                             ? {
                                 label: `${t`Vote summary`}: ${row.name}`,
+                                indicatorLabel: t`Votes`,
                                 content: <OptionVoteVoters label={row.name} voters={voters} />,
                               }
                             : undefined

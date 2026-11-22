@@ -1,10 +1,11 @@
 import { Accordion } from "heroui-native/accordion";
 import { useThemeColor } from "heroui-native/hooks";
+import { Typography } from "heroui-native/text";
 import type { ReactNode } from "react";
 import { View } from "react-native";
 import { GroupedRow } from "./GroupedRow";
 
-export type GroupedRowDisclosure = { label: string; content: ReactNode };
+export type GroupedRowDisclosure = { label: string; indicatorLabel: string; content: ReactNode };
 
 export function ExpandableGroupedRow({
   disclosure,
@@ -28,7 +29,10 @@ export function ExpandableGroupedRow({
               style={{ minHeight: 44, gap: 8, padding: 0 }}
             >
               {summary}
-              <Accordion.Indicator iconProps={{ size: 16, color: muted }} />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Typography className="text-xs text-muted">{disclosure.indicatorLabel}</Typography>
+                <Accordion.Indicator iconProps={{ size: 16, color: muted }} />
+              </View>
             </Accordion.Trigger>
             {overlay}
           </View>

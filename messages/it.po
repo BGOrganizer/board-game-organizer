@@ -7786,6 +7786,10 @@ msgid "Contact search help"
 msgstr "Aiuto sulla ricerca dei contatti"
 
 #: apps/web/src/components/contacts/Contacts.tsx
+msgid "Find people on Board Game Organizer by entering their name or email address."
+msgstr "Trova persone su Board Game Organizer inserendo il loro nome o indirizzo email."
+
+#: apps/web/src/components/contacts/Contacts.tsx
 msgid "Send a friend request to connect with a contact who already uses Board Game Organizer."
 msgstr "Invia una richiesta di amicizia a chi usa già Board Game Organizer."
 

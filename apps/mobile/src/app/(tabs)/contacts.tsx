@@ -900,7 +900,9 @@ function ContactsContent() {
                       label={t("Contact search help")}
                     >
                       <Typography className="text-foreground">
-                        {t("Search users by name or email")}
+                        {t(
+                          "Find people on Board Game Organizer by entering their name or email address.",
+                        )}
                       </Typography>
                       <Typography className="text-foreground">
                         {t("Type at least 4 characters to search")}
