@@ -191,6 +191,7 @@ export function EventTableOverview({
               actions={
                 canVote || voters ? (
                   <EventVoteButtons
+                    compact
                     label={game.name}
                     value={gameVotes[String(game.id)]}
                     voters={voters}

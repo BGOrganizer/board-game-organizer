@@ -122,29 +122,42 @@ export function GameListRow({
       </View>
     </Identity>
   );
-  const gameInfo = game ? (
-    <View
-      pointerEvents="box-none"
-      style={{ position: "absolute", left: 26, top: "50%", marginTop: 2, zIndex: 2 }}
-    >
-      <GameCatalogMetadata name={name} game={game} visible={id === visibleId} />
-    </View>
-  ) : null;
   if (disclosure) {
-    return (
+    const renderRow = (badge?: ReactNode) => (
       <ExpandableGroupedRow
-        disclosure={disclosure}
+        disclosure={{
+          ...disclosure,
+          content: badge ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              {badge}
+              <View style={{ flex: 1, minWidth: 0 }}>{disclosure.content}</View>
+            </View>
+          ) : (
+            disclosure.content
+          ),
+        }}
         summary={identity}
-        overlay={gameInfo}
         actions={actions}
       />
+    );
+    return game ? (
+      <GameCatalogMetadata name={name} game={game} visible={id === visibleId} render={renderRow} />
+    ) : (
+      renderRow()
     );
   }
   return (
     <GroupedRow>
       <View style={{ position: "relative", flex: 1, minWidth: 0 }}>
         {identity}
-        {gameInfo}
+        {game ? (
+          <View
+            pointerEvents="box-none"
+            style={{ position: "absolute", left: 26, top: "50%", marginTop: 2, zIndex: 2 }}
+          >
+            <GameCatalogMetadata name={name} game={game} visible={id === visibleId} />
+          </View>
+        ) : null}
       </View>
       {actions}
     </GroupedRow>

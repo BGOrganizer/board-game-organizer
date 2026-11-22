@@ -389,6 +389,7 @@ it("removes cached game/roster details after server authorization is revoked", a
 
 it("opens one game-vote dialog for an accepted participant and prevents removal of its last positive preference", async () => {
   multipleGames();
+  await installNativePopoverMeasurements();
   table = {
     ...table,
     gameVoteVoters: {
@@ -403,8 +404,10 @@ it("opens one game-vote dialog for an accepted participant and prevents removal 
   await render(<Fixture />);
   await ready();
   expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Game information: Chess" })).toBeNull();
   const summary = screen.getByRole("button", { name: "Vote summary: Chess" });
   expect(within(summary).getByText("Votes")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Chess: Yes" })).toHaveStyle({ width: 40, height: 40 });
   expect(screen.queryByRole("button", { name: "Vote summary: Strategy game" })).toBeNull();
   await press("Vote summary: Chess");
   expect(screen.getByLabelText("Votes: Chess")).toBeVisible();
@@ -420,6 +423,11 @@ it("opens one game-vote dialog for an accepted participant and prevents removal 
     path: `/api/events/${event.id}/votes`,
     input: { kind: "game", tableId: table.id, gameId: 1, vote: "IF_NEEDED" },
   });
+  await press("Vote summary: Chess");
+  const gameInfo = screen.getByRole("button", { name: "Game information: Chess" });
+  expect(gameInfo).toHaveStyle({ width: 28, height: 28 });
+  await pressMeasuredPopover(gameInfo);
+  expect(screen.getByText("BGG rating:")).toBeVisible();
 });
 
 it.each(["pending", "cannot-vote", "event-confirmed", "table-confirmed"] as const)(

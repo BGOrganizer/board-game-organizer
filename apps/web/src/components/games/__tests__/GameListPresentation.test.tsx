@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { GroupedList } from "@/components/common/ui/GroupedList";
 import { renderWithI18n } from "@/test-utils";
 import { GameListCard } from "../GameListCard";
+import { GameListRow } from "../GameListRow";
 
 it("renders a non-actionable game row and recovers an image only after its URL changes", () => {
   const view = renderWithI18n(
@@ -105,50 +107,68 @@ it("shows BGG facts in the badge and keeps row actions separate", () => {
   expect(selected).toHaveBeenCalledOnce();
 });
 
-it("requests missing facts on first intersection and preserves known facts while loading", async () => {
-  let seen: IntersectionObserverCallback | undefined;
-  const observer = { observe: vi.fn(), disconnect: vi.fn() };
-  vi.stubGlobal(
-    "IntersectionObserver",
-    class {
-      constructor(callback: IntersectionObserverCallback) {
-        seen = callback;
-      }
-      observe = observer.observe;
-      disconnect = observer.disconnect;
-    },
-  );
-  let reply: (value: Response) => void = () => {};
-  const fetchApi = vi.fn(
-    () =>
-      new Promise<Response>((resolve) => {
-        reply = resolve;
-      }),
-  );
-  vi.stubGlobal("fetch", fetchApi);
-  renderWithI18n(
-    <QueryClientProvider client={new QueryClient()}>
-      <GameListCard
-        name={game.name}
-        game={{ ...game, average: undefined, categories: undefined }}
-      />
-    </QueryClientProvider>,
-  );
-  expect(observer.observe).toHaveBeenCalledOnce();
-  expect(fetchApi).not.toHaveBeenCalled();
-  await act(() => {
-    seen?.(
-      [{ isIntersecting: true } as IntersectionObserverEntry],
-      observer as unknown as IntersectionObserver,
+it.each([false, true])(
+  "requests missing facts on first intersection (accordion=%s)",
+  async (accordion) => {
+    let seen: IntersectionObserverCallback | undefined;
+    const observer = { observe: vi.fn(), disconnect: vi.fn() };
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          seen = callback;
+        }
+        observe = observer.observe;
+        disconnect = observer.disconnect;
+      },
     );
-  });
-  await waitFor(() => expect(fetchApi).toHaveBeenCalledOnce());
-  fireEvent.click(screen.getByRole("button", { name: "Game information: Cascadia" }));
-  const popover = screen.getByRole("dialog", { name: "Cascadia" });
-  expect(within(popover).getByText("2021")).toBeTruthy();
-  expect(popover.querySelectorAll(".skeleton").length).toBe(2);
-  reply(Response.json({ items: [game] }));
-  expect(await within(popover).findByText("Animals")).toBeTruthy();
-  expect(within(popover).getByText("7.83")).toBeTruthy();
-  expect(popover.querySelector(".skeleton")).toBeNull();
-});
+    let reply: (value: Response) => void = () => {};
+    const fetchApi = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          reply = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchApi);
+    const props = { name: game.name, game: { ...game, average: undefined, categories: undefined } };
+    renderWithI18n(
+      <QueryClientProvider client={new QueryClient()}>
+        {accordion ? (
+          <GroupedList>
+            <GameListRow
+              {...props}
+              disclosure={{
+                label: "Vote summary: Cascadia",
+                indicatorLabel: "Votes",
+                content: "Vote tally",
+              }}
+            />
+          </GroupedList>
+        ) : (
+          <GameListCard {...props} />
+        )}
+      </QueryClientProvider>,
+    );
+    expect(observer.observe).toHaveBeenCalledOnce();
+    expect(fetchApi).not.toHaveBeenCalled();
+    await act(() => {
+      seen?.(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        observer as unknown as IntersectionObserver,
+      );
+    });
+    await waitFor(() => expect(fetchApi).toHaveBeenCalledOnce());
+    if (accordion) {
+      expect(screen.queryByRole("button", { name: "Game information: Cascadia" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Vote summary: Cascadia" }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Game information: Cascadia" }));
+    const popover = screen.getByRole("dialog", { name: "Cascadia" });
+    expect(within(popover).getByText("2021")).toBeTruthy();
+    expect(popover.querySelectorAll(".skeleton").length).toBe(2);
+    reply(Response.json({ items: [game] }));
+    expect(await within(popover).findByText("Animals")).toBeTruthy();
+    expect(within(popover).getByText("7.83")).toBeTruthy();
+    expect(popover.querySelector(".skeleton")).toBeNull();
+  },
+);

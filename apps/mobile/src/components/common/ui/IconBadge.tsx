@@ -10,6 +10,7 @@ type Props = {
   label: string;
   color?: "default" | "accent" | "success" | "warning" | "danger";
   multiple?: boolean;
+  size?: "sm" | "md";
   testID?: string;
 } & (
   | { onPress: () => void; isDisabled?: boolean; title?: never; children?: never }
@@ -22,6 +23,7 @@ export function IconBadge({
   label,
   color = "default",
   multiple,
+  size = "sm",
   testID,
   onPress,
   isDisabled,
@@ -33,6 +35,7 @@ export function IconBadge({
     "default",
   ]);
   const interactive = Boolean(onPress || title);
+  const diameter = size === "md" ? 28 : 22;
   const chip = (
     <Chip
       color={color}
@@ -45,7 +48,7 @@ export function IconBadge({
       disabled={!interactive || isDisabled}
       pointerEvents={interactive ? "auto" : "none"}
       importantForAccessibility={interactive ? "yes" : "no-hide-descendants"}
-      hitSlop={interactive ? 11 : undefined}
+      hitSlop={interactive ? (44 - diameter) / 2 : undefined}
       onPress={
         interactive
           ? (event) => {
@@ -55,18 +58,23 @@ export function IconBadge({
           : undefined
       }
       style={{
-        width: 22,
-        height: 22,
+        width: diameter,
+        height: diameter,
         minHeight: 0,
         padding: 0,
-        borderRadius: 11,
+        borderRadius: diameter / 2,
         overflow: "hidden",
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: background,
       }}
     >
-      <Icon size={13} color={foreground} opacity={isDisabled ? 0.5 : 1} accessible={false} />
+      <Icon
+        size={size === "md" ? 16 : 13}
+        color={foreground}
+        opacity={isDisabled ? 0.5 : 1}
+        accessible={false}
+      />
       {multiple ? (
         <View
           style={{

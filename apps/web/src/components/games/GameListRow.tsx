@@ -91,24 +91,33 @@ export function GameListRow({
       {children}
     </div>
   );
-  const gameInfo = game ? (
-    <div className="absolute top-1/2 left-[26px] z-10 mt-0.5">
-      <GameCatalogMetadata name={name} game={game} visible={id === visibleId} />
-    </div>
-  ) : null;
   if (disclosure) {
-    return (
+    const renderRow = (badge?: ReactNode) => (
       <ExpandableGroupedRow
-        disclosure={disclosure}
+        disclosure={{
+          ...disclosure,
+          content: badge ? (
+            <div className="flex items-center gap-2">
+              {badge}
+              <div className="min-w-0 flex-1">{disclosure.content}</div>
+            </div>
+          ) : (
+            disclosure.content
+          ),
+        }}
         summary={
           <>
             {image}
             {identity}
           </>
         }
-        overlay={gameInfo}
         actions={actions}
       />
+    );
+    return game ? (
+      <GameCatalogMetadata name={name} game={game} visible={id === visibleId} render={renderRow} />
+    ) : (
+      renderRow()
     );
   }
   return (
@@ -131,7 +140,11 @@ export function GameListRow({
             {identity}
           </div>
         )}
-        {gameInfo}
+        {game ? (
+          <div className="absolute top-1/2 left-[26px] z-10 mt-0.5">
+            <GameCatalogMetadata name={name} game={game} visible={id === visibleId} />
+          </div>
+        ) : null}
       </div>
       {actions}
     </GroupedRow>

@@ -13,6 +13,7 @@ export function EventVoteButtons({
   busy,
   onChange,
   inline = false,
+  compact = false,
   disabledVotes = [],
   voters,
   readOnly = false,
@@ -23,6 +24,7 @@ export function EventVoteButtons({
   busy: boolean;
   onChange: (vote: Exclude<EventVote, "UNKNOWN">) => void;
   inline?: boolean;
+  compact?: boolean;
   disabledVotes?: readonly EventVote[];
   voters?: NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
   readOnly?: boolean;
@@ -75,7 +77,11 @@ export function EventVoteButtons({
         isIconOnly
         size="sm"
         variant="secondary"
-        className="min-h-11 min-w-11 shrink-0"
+        className={
+          compact
+            ? "my-1 shrink-0 after:absolute after:inset-[-4px] md:my-1.5 md:after:inset-[-6px] pointer-fine:my-0 pointer-fine:after:hidden"
+            : "min-h-11 min-w-11 shrink-0"
+        }
         aria-label={`${label}: ${trigger.text}`}
         aria-haspopup="dialog"
         aria-expanded={panel !== null}

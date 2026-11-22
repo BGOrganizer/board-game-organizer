@@ -147,11 +147,11 @@ it("shows overlapping decorative avatars and opens the corresponding read-only v
   expect(summary.queryByRole("button", { name: /Show votes — No/ })).toBeNull();
   expect(summary.queryByRole("button", { name: /Alba Rossi/ })).toBeNull();
   const compactAvatars = compact.queryAll(
-    (node) => node.type === "RCTView" && StyleSheet.flatten(node.props.style)?.marginStart === -4,
+    (node) => node.type === "RCTView" && StyleSheet.flatten(node.props.style)?.marginStart === -5,
   );
   expect(compactAvatars).toHaveLength(3);
   for (const avatar of compactAvatars) {
-    expect(StyleSheet.flatten(avatar.props.style)).toMatchObject({ width: 16, height: 16 });
+    expect(StyleSheet.flatten(avatar.props.style)).toMatchObject({ width: 20, height: 20 });
     expect(avatar.parent?.props.pointerEvents).toBe("none");
   }
   const trigger = summary.getByRole("button", { name: "Azul: Show votes — If needed" });

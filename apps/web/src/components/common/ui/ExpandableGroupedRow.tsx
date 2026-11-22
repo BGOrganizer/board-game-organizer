@@ -9,12 +9,10 @@ export type GroupedRowDisclosure = { label: string; indicatorLabel: string; cont
 export function ExpandableGroupedRow({
   disclosure,
   summary,
-  overlay,
   actions,
 }: {
   disclosure: GroupedRowDisclosure;
   summary: ReactNode;
-  overlay?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
@@ -23,23 +21,20 @@ export function ExpandableGroupedRow({
         <Accordion.Item>
           {({ isExpanded }) => (
             <>
-              <GroupedRow as="div" className="flex-wrap">
-                <div className="relative min-w-0 flex-1">
+              <GroupedRow as="div">
+                <div className="flex min-w-0 flex-1 items-center gap-2">{summary}</div>
+                <div className="flex shrink-0 flex-col items-center gap-1">
                   <Accordion.Heading>
                     <Accordion.Trigger
                       aria-label={disclosure.label}
-                      className="min-h-11 gap-2 p-0 text-left text-foreground"
+                      className="min-h-11 justify-center gap-1.5 p-0 text-xs text-muted pointer-fine:min-h-6"
                     >
-                      {summary}
-                      <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted">
-                        {disclosure.indicatorLabel}
-                        <Accordion.Indicator aria-hidden className="ml-0 size-4 shrink-0" />
-                      </span>
+                      <span>{disclosure.indicatorLabel}</span>
+                      <Accordion.Indicator aria-hidden className="ml-0 size-4 shrink-0" />
                     </Accordion.Trigger>
                   </Accordion.Heading>
-                  {overlay}
+                  {actions}
                 </div>
-                {actions}
               </GroupedRow>
               <Accordion.Panel>
                 {isExpanded ? (

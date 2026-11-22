@@ -10,12 +10,10 @@ export type GroupedRowDisclosure = { label: string; indicatorLabel: string; cont
 export function ExpandableGroupedRow({
   disclosure,
   summary,
-  overlay,
   actions,
 }: {
   disclosure: GroupedRowDisclosure;
   summary: ReactNode;
-  overlay?: ReactNode;
   actions?: ReactNode;
 }) {
   const muted = useThemeColor("muted");
@@ -23,20 +21,21 @@ export function ExpandableGroupedRow({
     <Accordion hideSeparator>
       <Accordion.Item value="details">
         <GroupedRow>
-          <View style={{ flex: 1, minWidth: 0 }}>
+          <View
+            style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}
+          >
+            {summary}
+          </View>
+          <View style={{ alignItems: "center", gap: 4 }}>
             <Accordion.Trigger
               accessibilityLabel={disclosure.label}
-              style={{ minHeight: 44, gap: 8, padding: 0 }}
+              style={{ minHeight: 44, minWidth: 44, justifyContent: "center", gap: 6, padding: 0 }}
             >
-              {summary}
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Typography className="text-xs text-muted">{disclosure.indicatorLabel}</Typography>
-                <Accordion.Indicator iconProps={{ size: 16, color: muted }} />
-              </View>
+              <Typography className="text-xs text-muted">{disclosure.indicatorLabel}</Typography>
+              <Accordion.Indicator iconProps={{ size: 16, color: muted }} />
             </Accordion.Trigger>
-            {overlay}
+            {actions}
           </View>
-          {actions}
         </GroupedRow>
         <Accordion.Content style={{ paddingTop: 0, paddingRight: 12, paddingLeft: 16 }}>
           {disclosure.content}

@@ -11,6 +11,7 @@ import {
 import { Button, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarDays, Clock, Gauge, Info, ListOrdered, Star, UsersRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -18,28 +19,42 @@ export function GameCatalogMetadata({
   game,
   name,
   visible,
+  render,
 }: {
   game: BggSearchItem;
   name: string;
   visible: boolean;
+  render?: (badge: ReactNode) => ReactNode;
 }) {
-  return visible && gameMetadataMissing(game) ? (
-    <GameMetadataLookup game={game} name={name} />
+  return render || (visible && gameMetadataMissing(game)) ? (
+    <GameMetadataLookup game={game} name={name} visible={visible} render={render} />
   ) : (
     <GameMetadataBadge game={game} name={name} loading={gameMetadataMissing(game)} />
   );
 }
 
-function GameMetadataLookup({ game, name }: { game: BggSearchItem; name: string }) {
-  const query = useBggGameMetadata(useCommunityApi(), game, true);
-  return (
+function GameMetadataLookup({
+  game,
+  name,
+  visible,
+  render,
+}: {
+  game: BggSearchItem;
+  name: string;
+  visible: boolean;
+  render?: (badge: ReactNode) => ReactNode;
+}) {
+  const query = useBggGameMetadata(useCommunityApi(), game, visible);
+  const badge = (
     <GameMetadataBadge
       game={mergeBggGameMetadata(game, query.data)}
       name={name}
-      loading={query.isFetching}
+      loading={query.isFetching || (!visible && gameMetadataMissing(game))}
       retry={query.isError ? () => void query.refetch() : undefined}
+      size={render ? "md" : "sm"}
     />
   );
+  return render ? render(badge) : badge;
 }
 
 const difficultyClasses = {
@@ -54,11 +69,13 @@ function GameMetadataBadge({
   name,
   loading,
   retry,
+  size,
 }: {
   game: BggSearchItem;
   name: string;
   loading: boolean;
   retry?: () => void;
+  size?: "sm" | "md";
 }) {
   const { t, i18n } = useLingui();
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 });
@@ -111,7 +128,13 @@ function GameMetadataBadge({
     },
   ];
   return (
-    <IconBadge icon={Info} color="accent" label={`${t`Game information`}: ${name}`} title={name}>
+    <IconBadge
+      icon={Info}
+      color="accent"
+      size={size}
+      label={`${t`Game information`}: ${name}`}
+      title={name}
+    >
       <div className="max-h-[60dvh] overflow-y-auto" aria-busy={loading || undefined}>
         <dl className="mt-2 space-y-2">
           {rows.map(({ Icon, label, value, color }) => (

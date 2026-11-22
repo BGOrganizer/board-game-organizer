@@ -298,6 +298,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 (voteDates && event.canVote) || voters ? (
                   <EventVoteButtons
                     key="vote"
+                    compact
                     label={label}
                     voters={voters}
                     readOnly={!event.canVote}
@@ -405,6 +406,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 actions={
                   (voteLocations && event.canVote) || voters ? (
                     <EventVoteButtons
+                      compact
                       voters={voters}
                       readOnly={!event.canVote}
                       label={row.name}

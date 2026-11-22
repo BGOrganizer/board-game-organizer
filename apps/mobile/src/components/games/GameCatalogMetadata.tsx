@@ -21,6 +21,7 @@ import {
   Star,
   UsersRound,
 } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { useT } from "@/lib/i18n";
@@ -30,28 +31,42 @@ export function GameCatalogMetadata({
   game,
   name,
   visible,
+  render,
 }: {
   game: BggSearchItem;
   name: string;
   visible: boolean;
+  render?: (badge: ReactNode) => ReactNode;
 }) {
-  return visible && gameMetadataMissing(game) ? (
-    <GameMetadataLookup game={game} name={name} />
+  return render || (visible && gameMetadataMissing(game)) ? (
+    <GameMetadataLookup game={game} name={name} visible={visible} render={render} />
   ) : (
     <GameMetadataBadge game={game} name={name} loading={gameMetadataMissing(game)} />
   );
 }
 
-function GameMetadataLookup({ game, name }: { game: BggSearchItem; name: string }) {
-  const query = useBggGameMetadata(useCommunityApi(), game, true);
-  return (
+function GameMetadataLookup({
+  game,
+  name,
+  visible,
+  render,
+}: {
+  game: BggSearchItem;
+  name: string;
+  visible: boolean;
+  render?: (badge: ReactNode) => ReactNode;
+}) {
+  const query = useBggGameMetadata(useCommunityApi(), game, visible);
+  const badge = (
     <GameMetadataBadge
       game={mergeBggGameMetadata(game, query.data)}
       name={name}
-      loading={query.isFetching}
+      loading={query.isFetching || (!visible && gameMetadataMissing(game))}
       retry={query.isError ? () => void query.refetch() : undefined}
+      size={render ? "md" : "sm"}
     />
   );
+  return render ? render(badge) : badge;
 }
 
 function GameMetadataBadge({
@@ -59,11 +74,13 @@ function GameMetadataBadge({
   name,
   loading,
   retry,
+  size,
 }: {
   game: BggSearchItem;
   name: string;
   loading: boolean;
   retry?: () => void;
+  size?: "sm" | "md";
 }) {
   const t = useT();
   const { i18n } = useLingui();
@@ -120,7 +137,13 @@ function GameMetadataBadge({
     },
   ];
   return (
-    <IconBadge icon={Info} color="accent" label={`${t("Game information")}: ${name}`} title={name}>
+    <IconBadge
+      icon={Info}
+      color="accent"
+      size={size}
+      label={`${t("Game information")}: ${name}`}
+      title={name}
+    >
       <ScrollView
         style={{ maxHeight: height * 0.6 }}
         contentContainerStyle={{ gap: 8, paddingTop: 8 }}
