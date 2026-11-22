@@ -28,25 +28,22 @@ export function OptionVoteVoters({ label, voters }: { label: string; voters: Vot
             <li
               key={id}
               aria-label={`${text}: ${voters[id].map(displayName).join(", ")}`}
-              className="relative flex min-w-0 max-w-full items-center"
+              className="flex min-w-0 max-w-full items-center"
             >
+              {index > 0 ? (
+                <span aria-hidden className="ms-0.5 size-[3px] shrink-0 rounded-full bg-muted" />
+              ) : null}
               <Button
                 isIconOnly
                 size="sm"
                 variant="ghost"
                 aria-label={`${label}: ${t`Show votes`} — ${text}`}
                 aria-haspopup="dialog"
-                className="size-11 min-h-11 min-w-11 shrink-0 justify-end p-0 pe-0.5 pointer-fine:size-5 pointer-fine:min-h-5 pointer-fine:min-w-5 pointer-fine:pe-0"
+                className="size-7 min-h-7 min-w-7 shrink-0 justify-center p-0 pointer-fine:size-5 pointer-fine:min-h-5 pointer-fine:min-w-5"
                 onPress={() => setSelection(id)}
               >
                 <Icon size={16} className={color} aria-hidden />
               </Button>
-              {index > 0 ? (
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute start-3 top-1/2 size-[3px] -translate-y-1/2 rounded-full bg-muted pointer-fine:start-px pointer-fine:size-0.5"
-                />
-              ) : null}
               <div aria-hidden className="pointer-events-none flex min-w-0 flex-wrap ps-1">
                 {voters[id].map((person) => (
                   <Avatar key={person.userId} className="-ms-1 size-4 shrink-0">

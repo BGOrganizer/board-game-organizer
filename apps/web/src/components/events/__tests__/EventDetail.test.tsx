@@ -826,7 +826,8 @@ it.each(["dates", "locations", "both"] as const)(
         );
         const sheet = await screen.findByRole("dialog", { name: "Votes" });
         expect(within(sheet).getByRole("tab", { name: choice, selected: true })).toBeVisible();
-        expect(within(sheet).getByText("Alice Becker")).toBeVisible();
+        expect(within(sheet).getByText("@alice")).toBeVisible();
+        expect(within(sheet).queryByText("Alice Becker")).toBeNull();
         fireEvent.click(within(sheet).getByRole("button", { name: "Close" }));
         fireEvent.click(summary);
         expect(summary).toHaveAttribute("aria-expanded", "false");

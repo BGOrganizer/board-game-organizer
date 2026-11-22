@@ -105,9 +105,8 @@ test("manager adds an unregistered guest and later records a ballot without a pr
   const roster = page.getByRole("listitem").filter({
     has: page.getByRole("button", { name: `${labels.edit}: ${input.name}` }),
   });
-  await expect(
-    roster.getByText(`@${input.name.trim().replace(/^@+/, "")}`, { exact: true }),
-  ).toBeVisible();
+  const guestUsername = `@${input.name.trim().replace(/^@+/, "")}`;
+  await expect(roster.getByText(guestUsername, { exact: true })).toBeVisible();
   await expect(roster.getByText(labels.guest, { exact: true })).toBeVisible();
   await roster.getByRole("button", { name: labels.guest, exact: true }).click();
   await expect(page.getByRole("dialog", { name: labels.guest })).toBeVisible();
@@ -159,7 +158,7 @@ test("manager adds an unregistered guest and later records a ballot without a pr
   await expect(
     breakdown
       .getByRole("tabpanel", { name: labels.yes, exact: true })
-      .getByText(input.name, { exact: true }),
+      .getByText(guestUsername, { exact: true }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(breakdown).toBeHidden();

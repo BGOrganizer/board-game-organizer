@@ -51,7 +51,7 @@ it("opens the named votes sheet from the preference dialog without casting a vot
   expect(await screen.findByText("Votes", hidden)).toBeOnTheScreen();
   for (const heading of ["Yes", "If needed", "No"])
     expect(screen.getByRole("tab", { name: heading, ...hidden })).toBeOnTheScreen();
-  expect(screen.getByText("Alba Rossi", hidden)).toBeOnTheScreen();
+  expect(screen.queryByText("Alba Rossi", hidden)).toBeNull();
   expect(screen.getByText("@albar", hidden)).toBeOnTheScreen();
   expect(screen.queryByText("@bosco", hidden)).toBeNull();
   await fireEvent.press(screen.getByRole("tab", { name: "If needed", ...hidden }));
@@ -155,7 +155,12 @@ it("shows overlapping decorative avatars and opens the corresponding read-only v
     expect(avatar.parent?.props.pointerEvents).toBe("none");
   }
   const trigger = summary.getByRole("button", { name: "Azul: Show votes — If needed" });
-  expect(StyleSheet.flatten(trigger.props.style)).toMatchObject({ width: 44, height: 44 });
+  expect(StyleSheet.flatten(trigger.props.style)).toMatchObject({
+    width: 28,
+    height: 28,
+    paddingHorizontal: 0,
+    justifyContent: "center",
+  });
   await fireEvent.press(trigger);
   expect(await screen.findByRole("tab", { name: "If needed", ...hidden })).toBeSelected();
   expect(screen.getByText("@bosco", hidden)).toBeOnTheScreen();
@@ -165,10 +170,10 @@ it("shows overlapping decorative avatars and opens the corresponding read-only v
   await waitFor(() => expect(screen.queryByText("No votes", hidden)).toBeNull());
   await fireEvent.press(summary.getByRole("button", { name: "Azul: Show votes — Yes" }));
   expect(await screen.findByRole("tab", { name: "Yes", ...hidden })).toBeSelected();
-  expect(screen.getByText("Alba Rossi", hidden)).toBeOnTheScreen();
+  expect(screen.getByText("@albar", hidden)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Close", ...hidden }));
-  await waitFor(() => expect(screen.queryByText("Alba Rossi", hidden)).toBeNull());
+  await waitFor(() => expect(screen.queryByText("@albar", hidden)).toBeNull());
   await view.rerender(renderSummary({ YES: [], IF_NEEDED: [], NO: [] }));
   expect(screen.queryByLabelText("Votes: Azul")).toBeNull();
-  expect(screen.queryByText("Alba Rossi", hidden)).toBeNull();
+  expect(screen.queryByText("@albar", hidden)).toBeNull();
 });
