@@ -139,6 +139,7 @@ it.each([false, true])(
               {...props}
               disclosure={{
                 label: "Vote summary: Cascadia",
+                triggerText: "Votes",
                 content: "Vote tally",
               }}
             />
