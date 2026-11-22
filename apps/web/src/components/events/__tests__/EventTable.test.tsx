@@ -660,9 +660,10 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
   expect(screen.getByText("Chess").closest("li")?.parentElement?.tagName).toBe("UL");
   expect(screen.getByRole("button", { name: "Rating enabled" })).not.toBeNull();
   const summary = screen.getByRole("button", { name: "Vote summary: Chess" });
-  expect(within(summary).getByText("Votes")).toBeVisible();
+  expect(within(summary).queryByText("Votes")).toBeNull();
   const action = screen.getByRole("button", { name: /^Chess: (Yes|Choose your vote|Show votes)$/ });
-  expect(summary.closest(".flex-col")).toContainElement(action);
+  expect(summary.closest(".flex.shrink-0.items-center")).toContainElement(action);
+  expect(action.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(action).toHaveClass("button--sm");
   expect(screen.queryByRole("list", { name: "Votes: Chess" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Game information: Chess" })).toBeNull();

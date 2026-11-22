@@ -139,7 +139,6 @@ it.each([false, true])(
               {...props}
               disclosure={{
                 label: "Vote summary: Cascadia",
-                indicatorLabel: "Votes",
                 content: "Vote tally",
               }}
             />

@@ -407,8 +407,12 @@ it("opens one game-vote dialog for an accepted participant and prevents removal 
   expect(screen.queryByRole("button", { name: "Game information: Chess" })).toBeNull();
   expect(screen.getByRole("button", { name: "Game information: Strategy game" })).toBeVisible();
   const summary = screen.getByRole("button", { name: "Vote summary: Chess" });
-  expect(within(summary).getByText("Votes")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Chess: Yes" })).toHaveStyle({ width: 40, height: 40 });
+  expect(within(summary).queryByText("Votes")).toBeNull();
+  expect(summary).toHaveStyle({ width: 44, height: 44, justifyContent: "center" });
+  const vote = screen.getByRole("button", { name: "Chess: Yes" });
+  expect(vote).toHaveStyle({ width: 40, height: 40 });
+  const buttons = screen.getAllByRole("button");
+  expect(buttons.indexOf(vote)).toBeLessThan(buttons.indexOf(summary));
   expect(screen.queryByRole("button", { name: "Vote summary: Strategy game" })).toBeNull();
   await press("Vote summary: Chess");
   expect(screen.getByLabelText("Votes: Chess")).toBeVisible();

@@ -4,7 +4,7 @@ import { Accordion } from "@heroui/react";
 import type { ReactNode } from "react";
 import { GroupedRow } from "./GroupedRow";
 
-export type GroupedRowDisclosure = { label: string; indicatorLabel: string; content: ReactNode };
+export type GroupedRowDisclosure = { label: string; content: ReactNode };
 
 export function ExpandableGroupedRow({
   disclosure,
@@ -23,17 +23,16 @@ export function ExpandableGroupedRow({
             <>
               <GroupedRow as="div">
                 <div className="flex min-w-0 flex-1 items-center gap-2">{summary}</div>
-                <div className="flex shrink-0 flex-col items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {actions}
                   <Accordion.Heading>
                     <Accordion.Trigger
                       aria-label={disclosure.label}
-                      className="min-h-11 justify-center gap-1.5 p-0 text-xs text-muted pointer-fine:min-h-6"
+                      className="size-11 justify-center p-0 text-muted pointer-fine:size-6"
                     >
-                      <span>{disclosure.indicatorLabel}</span>
-                      <Accordion.Indicator aria-hidden className="ml-0 size-4 shrink-0" />
+                      <Accordion.Indicator aria-hidden className="ms-0 size-4 shrink-0" />
                     </Accordion.Trigger>
                   </Accordion.Heading>
-                  {actions}
                 </div>
               </GroupedRow>
               <Accordion.Panel>

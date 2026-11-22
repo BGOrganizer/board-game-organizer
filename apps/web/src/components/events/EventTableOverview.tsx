@@ -149,7 +149,6 @@ export function EventTableOverview({
                     hasOptionVoters(voters)
                       ? {
                           label: `${t`Vote summary`}: ${game.name}`,
-                          indicatorLabel: t`Votes`,
                           content: <OptionVoteVoters label={game.name} voters={voters} />,
                         }
                       : undefined
