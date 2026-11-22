@@ -60,6 +60,7 @@ output.status = {
   available: literal(it ? "Disponibili" : "Available"),
   terminated: literal(it ? "Terminati" : "Terminated events"),
   history: literal(it ? "Storico" : "History"),
+  sectionGuide: literal(it ? "Guida alla sezione" : "Section guide"),
   emptyEvents: literal(it ? "Nessun evento trovato" : "No events found"),
   emptyTables: literal(it ? "Nessun tavolo trovato" : "No tables found"),
   failedEvents: literal(it ? "Impossibile caricare gli eventi" : "Could not load events"),

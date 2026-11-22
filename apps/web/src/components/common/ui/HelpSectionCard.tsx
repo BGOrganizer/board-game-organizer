@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
@@ -14,9 +15,11 @@ export function HelpSectionCard({
   icon: LucideIcon;
   children: ReactNode;
 }) {
+  const { t } = useLingui();
   return (
     <SectionHeaderCard
       title={title}
+      description={t`Section guide`}
       leading={
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-soft-foreground">
           <Icon className="size-5" aria-hidden />

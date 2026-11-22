@@ -297,11 +297,22 @@ describe("Contacts tabs", () => {
       screen.getByRole("tab", { name: "Contacts" }).querySelector("svg.lucide-book-user"),
     ).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "Friends" })).toBeNull();
+    expect(screen.getByText("Section guide")).toBeVisible();
+    fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
+    expect(screen.getByText("Section guide")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Requests: Icon legend" })).toBeVisible();
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+    expect(screen.getByText("Section guide")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Search users by name or email: Search help" }),
+    ).toBeNull();
+    expect(screen.getByRole("searchbox", { name: "Search users by name or email" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Search results" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Device Contacts" })).toBeNull();
     expect(screen.getByText("Type at least 4 characters to search")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
+    expect(screen.getByText("Section guide")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Contacts help" })).toBeVisible();
     expect(screen.getByText("No contacts to invite")).toBeTruthy();
   });
 
@@ -312,7 +323,7 @@ describe("Contacts tabs", () => {
 
     expect(screen.queryByRole("heading", { name: "Contacts on BGO" })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
-    const device = screen.getByRole("heading", { name: "Device Contacts" }).closest("section");
+    const device = screen.getByRole("region", { name: "Device Contacts" });
     expect(device).not.toBeNull();
     expect(within(device as HTMLElement).getByText("Target User")).toBeTruthy();
     expect(within(device as HTMLElement).getByText("@target-player")).toBeTruthy();

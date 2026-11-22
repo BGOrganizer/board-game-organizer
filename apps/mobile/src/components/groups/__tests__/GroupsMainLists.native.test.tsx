@@ -1,5 +1,13 @@
 import { groupRecordsPageQuery } from "@board-game-organizer/shared";
-import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import { expect, it } from "vitest";
 import {
   installNativePopoverMeasurements,
@@ -238,7 +246,9 @@ it.each([
         <Groups initialSection={initialSection} />
       </MainListFixture>,
     );
-    expect(screen.getByRole("heading", { name: title })).toBeVisible();
+    const heading = screen.getByRole("heading", { name: title });
+    expect(heading).toBeVisible();
+    expect(within(heading.parent!).getByText("Section guide")).toBeVisible();
     expect(screen.queryByText(description)).toBeNull();
     await pressMeasuredPopover(screen.getByRole("button", { name: label }));
     expect(screen.getByText(description)).toBeVisible();

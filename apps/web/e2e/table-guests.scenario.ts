@@ -138,6 +138,13 @@ test("manager adds an unregistered guest and later records a ballot without a pr
   await page.getByRole("tab", { name: labels.details, exact: true }).click();
   const title = it ? "Voti" : "Votes";
   const tally = page.getByRole("list", { name: `${title}: ${input.game}` });
+  await expect(tally).toHaveCount(0);
+  await page
+    .getByRole("button", {
+      name: `${it ? "Riepilogo voti" : "Vote summary"}: ${input.game}`,
+      exact: true,
+    })
+    .click();
   await expect(tally.getByRole("button", { name: `${input.name} (${labels.yes})` })).toHaveCount(0);
   await tally
     .getByRole("button", {

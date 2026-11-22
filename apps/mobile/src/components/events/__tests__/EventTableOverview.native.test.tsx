@@ -389,8 +389,25 @@ it("removes cached game/roster details after server authorization is revoked", a
 
 it("opens one game-vote dialog for an accepted participant and prevents removal of its last positive preference", async () => {
   multipleGames();
+  table = {
+    ...table,
+    gameVoteVoters: {
+      "1": {
+        YES: [{ userId: "owner", name: "Owner", username: null, avatarUrl: null }],
+        IF_NEEDED: [],
+        NO: [],
+      },
+      "2": { YES: [], IF_NEEDED: [], NO: [] },
+    },
+  };
   await render(<Fixture />);
   await ready();
+  expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Vote summary: Strategy game" })).toBeNull();
+  await press("Vote summary: Chess");
+  expect(screen.getByLabelText("Votes: Chess")).toBeVisible();
+  await press("Vote summary: Chess");
+  expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
   await press("Chess: Yes");
   const dialog = within(screen.getByTestId("confirmation-dialog"));
   expect(dialog.getByRole("button", { name: "No" })).toBeDisabled();

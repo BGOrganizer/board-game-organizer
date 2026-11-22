@@ -41,6 +41,10 @@ export function changeEventVoteCounts(
 
 const visibleVotes = ["YES", "IF_NEEDED", "NO"] as const;
 
+export function hasOptionVoters(voters: OptionVoteVoters | undefined): voters is OptionVoteVoters {
+  return voters !== undefined && visibleVotes.some((vote) => voters[vote].length > 0);
+}
+
 /** Update only the current actor in a previously authorized voter projection. */
 export function changeGameVoteVoters(
   groups: OptionVoteVoters,

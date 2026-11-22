@@ -808,16 +808,27 @@ it.each(["dates", "locations", "both"] as const)(
       [date, category !== "locations"],
       ["Club venue", category !== "dates"],
     ] as const) {
-      expect(Boolean(screen.queryByRole("list", { name: `Votes: ${option}` }))).toBe(visible);
+      const summary = screen.queryByRole("button", { name: `Vote summary: ${option}` });
+      expect(Boolean(summary)).toBe(visible);
+      expect(screen.queryByRole("list", { name: `Votes: ${option}` })).toBeNull();
+      const choice = option === "Club venue" ? "If needed" : "Yes";
       const show = screen.queryByRole("button", { name: `${option}: Show votes` });
       expect(Boolean(show)).toBe(visible);
-      if (show) {
-        fireEvent.click(show);
+      if (summary) {
+        expect(summary).toHaveAttribute("aria-expanded", "false");
+        fireEvent.click(summary);
+        expect(summary).toHaveAttribute("aria-expanded", "true");
+        const voters = screen.getByRole("list", { name: `Votes: ${option}` });
+        fireEvent.click(
+          within(voters).getByRole("button", { name: `${option}: Show votes — ${choice}` }),
+        );
         const sheet = await screen.findByRole("dialog", { name: "Votes" });
-        if (option === "Club venue")
-          fireEvent.click(within(sheet).getByRole("tab", { name: "If needed" }));
+        expect(within(sheet).getByRole("tab", { name: choice, selected: true })).toBeVisible();
         expect(within(sheet).getByText("Alice Becker")).toBeVisible();
         fireEvent.click(within(sheet).getByRole("button", { name: "Close" }));
+        fireEvent.click(summary);
+        expect(summary).toHaveAttribute("aria-expanded", "false");
+        expect(screen.queryByRole("list", { name: `Votes: ${option}` })).toBeNull();
       }
     }
     event = { ...event, canManage: false, role: "invited", myRegistrations: [] };
@@ -828,6 +839,7 @@ it.each(["dates", "locations", "both"] as const)(
       ),
     );
     await waitFor(() => expect(screen.queryByRole("list", { name: /^Votes:/ })).toBeNull());
+    expect(screen.queryByRole("button", { name: /^Vote summary:/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Show votes/ })).toBeNull();
   },
 );

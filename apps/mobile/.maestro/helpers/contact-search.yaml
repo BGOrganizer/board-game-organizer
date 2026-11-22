@@ -20,7 +20,7 @@ appId: com.bgo.boardgameorganizer.dev
     text: ${output.contactEmailPattern}
 - hideKeyboard
 # Search now owns only remote results; the address book is in its separate tab.
-- assertNotVisible: "Device Contacts"
+- assertNotVisible: "Contacts help"
 - extendedWaitUntil:
     visible: ${CONTACT_ACTIONS}
     timeout: 90000

@@ -6250,8 +6250,8 @@ msgid "Sync with BoardGameGeek"
 msgstr "Sync with BoardGameGeek"
 
 #: apps/web/src/components/contacts/Contacts.tsx
-#~ msgid "Sync your address book from the mobile app to see friend suggestions here."
-#~ msgstr "Sync your address book from the mobile app to see friend suggestions here."
+msgid "Sync your address book from the mobile app to see friend suggestions here."
+msgstr "Sync your address book from the mobile app to see friend suggestions here."
 
 #: apps/web/src/components/profile/ProfileBggCard.tsx
 msgid "Synced collection games will be removed from your profile. Existing matches remain unchanged."
@@ -7768,3 +7768,30 @@ msgstr "Table history help"
 #: apps/web/src/components/events/TableList.tsx
 msgid "Confirmed tables from finished events where you played, were a demonstrator or are still a manager."
 msgstr "Confirmed tables from finished events where you played, were a demonstrator or are still a manager."
+
+#: apps/web/src/components/common/ui/HelpSectionCard.tsx
+msgid "Section guide"
+msgstr "Section guide"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Vote summary"
+msgstr "Vote summary"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Contacts help"
+msgstr "Contacts help"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Contact search help"
+msgstr "Contact search help"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Send a friend request to connect with a contact who already uses Board Game Organizer."
+msgstr "Send a friend request to connect with a contact who already uses Board Game Organizer."
+
+msgid "After you allow address book access, this tab shows your matched contacts and people you can invite."
+msgstr "After you allow address book access, this tab shows your matched contacts and people you can invite."
+
+msgid "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."
+msgstr "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."

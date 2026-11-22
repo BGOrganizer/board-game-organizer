@@ -252,7 +252,7 @@ it.each(["contacts", "inbox"] as const)(
               await userEvent.setup().press(screen.getByTestId("top-tab-requests"));
               const requestHost = await screen.findByText("@bob");
               await userEvent.setup().press(screen.getByTestId("top-tab-device"));
-              expect(await screen.findByText("Device Contacts")).toBeVisible();
+              expect(await screen.findByRole("button", { name: "Contacts help" })).toBeVisible();
               await userEvent.setup().press(screen.getByTestId("top-tab-search"));
               const search = screen.getByPlaceholderText("Search users");
               await fireEvent.changeText(search, "Alice");

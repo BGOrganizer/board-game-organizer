@@ -220,6 +220,9 @@ for (const width of [390, 1280])
       await expect(
         main.getByRole("heading", { name: labels[current.section], exact: true }),
       ).toBeVisible();
+      await expect(
+        main.getByText(it ? "Guida alla sezione" : "Section guide", { exact: true }),
+      ).toBeVisible();
       await main.getByRole("button", { name: sectionHelp[current.section], exact: true }).click();
       const sectionPopover = page.getByRole("dialog");
       await expect(sectionPopover.locator("p")).toBeVisible();

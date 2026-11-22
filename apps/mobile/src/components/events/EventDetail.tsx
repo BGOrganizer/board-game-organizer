@@ -7,6 +7,7 @@ import {
   eventItemTargets,
   eventLocalToIso,
   eventOptionsRequireVote,
+  hasOptionVoters,
   useEventRecord,
   useEventRecordActions,
   useNotificationChanges,
@@ -34,6 +35,7 @@ import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { EmptyList } from "@/components/common/ui/EmptyList";
+import { ExpandableGroupedRow } from "@/components/common/ui/ExpandableGroupedRow";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -278,40 +280,56 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             .map((row) => {
               const voters = voteDates ? namedVotes?.dates[row.id] : undefined;
               const label = eventDateWall(event, row).replace("T", " ");
-              return (
-                <GroupedRow key={row.id}>
-                  <View style={{ flex: 1, gap: 8 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <View style={{ flexShrink: 1 }}>
-                        <DateTimeInfo
-                          startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                          timeZone={event.timeZone}
-                        />
-                      </View>
-                      <NotificationItem itemId={notificationItemId(event.id, "date", row.id)} />
-                    </View>
-                    {voters ? <OptionVoteVoters label={label} voters={voters} /> : null}
-                  </View>
-                  {(voteDates && event.canVote) || voters ? (
-                    <EventVoteButtons
-                      label={label}
-                      voters={voters}
-                      readOnly={!event.canVote}
-                      value={event.myVotes?.dateVotes[row.id]}
-                      disabledVotes={
-                        eventAvailabilityVoteIsAllowed(
-                          event.dates,
-                          event.myVotes?.dateVotes ?? {},
-                          row.id,
-                          "NO",
-                        )
-                          ? []
-                          : ["NO"]
-                      }
-                      busy={a.blocking || q.isPlaceholderData}
-                      onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
+              const schedule = (
+                <View
+                  key="schedule"
+                  style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
+                  <View style={{ flexShrink: 1 }}>
+                    <DateTimeInfo
+                      startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                      timeZone={event.timeZone}
                     />
-                  ) : null}
+                  </View>
+                  <NotificationItem itemId={notificationItemId(event.id, "date", row.id)} />
+                </View>
+              );
+              const voteAction =
+                (voteDates && event.canVote) || voters ? (
+                  <EventVoteButtons
+                    key="vote"
+                    label={label}
+                    voters={voters}
+                    readOnly={!event.canVote}
+                    value={event.myVotes?.dateVotes[row.id]}
+                    disabledVotes={
+                      eventAvailabilityVoteIsAllowed(
+                        event.dates,
+                        event.myVotes?.dateVotes ?? {},
+                        row.id,
+                        "NO",
+                      )
+                        ? []
+                        : ["NO"]
+                    }
+                    busy={a.blocking || q.isPlaceholderData}
+                    onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
+                  />
+                ) : null;
+              return hasOptionVoters(voters) ? (
+                <ExpandableGroupedRow
+                  key={row.id}
+                  summary={schedule}
+                  actions={voteAction}
+                  disclosure={{
+                    label: `${t("Vote summary")}: ${label}`,
+                    content: <OptionVoteVoters label={label} voters={voters} />,
+                  }}
+                />
+              ) : (
+                <GroupedRow key={row.id}>
+                  {schedule}
+                  {voteAction}
                 </GroupedRow>
               );
             })}
@@ -374,6 +392,14 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 }
                 name={row.name}
                 address={row.address}
+                disclosure={
+                  hasOptionVoters(voters)
+                    ? {
+                        label: `${t("Vote summary")}: ${row.name}`,
+                        content: <OptionVoteVoters label={row.name} voters={voters} />,
+                      }
+                    : undefined
+                }
                 actions={
                   (voteLocations && event.canVote) || voters ? (
                     <EventVoteButtons
@@ -398,9 +424,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     />
                   ) : undefined
                 }
-              >
-                {voters ? <OptionVoteVoters label={row.name} voters={voters} /> : null}
-              </LocationListRow>
+              />
             );
           })}
       </GroupedList>

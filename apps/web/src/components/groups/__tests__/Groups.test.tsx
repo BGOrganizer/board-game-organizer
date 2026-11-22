@@ -215,7 +215,9 @@ it.each([
       vi.fn(async () => Response.json({ items: [], nextCursor: null })),
     );
     renderGroups(section);
-    expect(screen.getByRole("heading", { name: title })).toBeVisible();
+    const heading = screen.getByRole("heading", { name: title });
+    expect(heading).toBeVisible();
+    expect(heading.nextElementSibling).toHaveTextContent("Section guide");
     expect(screen.queryByText(description)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: button }));
     expect(within(await screen.findByRole("dialog")).getByText(description)).toBeVisible();

@@ -3,6 +3,7 @@ import {
   communityAccessDenied,
   eventAvailabilityVoteIsAllowed,
   eventOptionsRequireVote,
+  hasOptionVoters,
   hasOtherAcceptedTable,
   tableCardGames,
   useEventCutoff,
@@ -178,7 +179,14 @@ export function EventTableOverview({
               name={game.name}
               imageUrl={game.imageUrl}
               game={game}
-              metadata={voters ? <OptionVoteVoters label={game.name} voters={voters} /> : undefined}
+              disclosure={
+                hasOptionVoters(voters)
+                  ? {
+                      label: `${t("Vote summary")}: ${game.name}`,
+                      content: <OptionVoteVoters label={game.name} voters={voters} />,
+                    }
+                  : undefined
+              }
               actions={
                 canVote || voters ? (
                   <EventVoteButtons

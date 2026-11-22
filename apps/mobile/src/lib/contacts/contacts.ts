@@ -24,7 +24,6 @@ export function contactDeviceRows(
   unregistered: Array<{ id: string; name: string }>,
 ) {
   return [
-    { kind: "device-header" as const, id: "device-header" },
     ...registered.map((user) => ({ kind: "bgo" as const, id: `bgo:${user.id}`, user })),
     ...unregistered.map((contact) => ({
       kind: "device" as const,

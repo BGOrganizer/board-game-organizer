@@ -1,5 +1,15 @@
 import { expect, it } from "vitest";
-import { changeEventVoteCounts, eventVoteCounts } from "../eventVotes";
+import { changeEventVoteCounts, eventVoteCounts, hasOptionVoters } from "../eventVotes";
+
+it("shows a vote summary only when authorized data contains an explicit preference", () => {
+  const empty = { YES: [], IF_NEEDED: [], NO: [] };
+  const voter = { userId: "alice", name: "Alice", username: "alice", avatarUrl: null };
+  expect(hasOptionVoters(undefined)).toBe(false);
+  expect(hasOptionVoters(empty)).toBe(false);
+  for (const vote of ["YES", "IF_NEEDED", "NO"]) {
+    expect(hasOptionVoters({ ...empty, [vote]: [voter] })).toBe(true);
+  }
+});
 
 it("counts accepted supplied ballots per option, including missing preferences as UNKNOWN", () => {
   const ballots = [{ a: "YES", b: "IF_NEEDED" }, { a: "NO" }, { a: "UNKNOWN", b: "YES" }] as const;

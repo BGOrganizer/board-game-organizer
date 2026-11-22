@@ -651,6 +651,7 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
       IF_NEEDED: [],
       NO: [],
     },
+    "2": { YES: [], IF_NEEDED: [], NO: [] },
   };
   mount();
   await screen.findByRole("heading", { name: "First table" });
@@ -658,9 +659,17 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
   expect(screen.queryByRole("link", { name: "Back to event" })).toBeNull();
   expect(screen.getByText("Chess").closest("li")?.parentElement?.tagName).toBe("UL");
   expect(screen.getByRole("button", { name: "Rating enabled" })).not.toBeNull();
-  expect(screen.getByLabelText("Votes: Chess").closest("li")).toBe(
-    screen.getByText("Chess").closest("li"),
-  );
+  const summary = screen.getByRole("button", { name: "Vote summary: Chess" });
+  expect(screen.queryByRole("list", { name: "Votes: Chess" })).toBeNull();
+  expect(screen.getAllByRole("button", { name: /^Vote summary:/ })).toEqual([summary]);
+  fireEvent.click(summary);
+  const tally = screen.getByRole("list", { name: "Votes: Chess" });
+  expect(tally.closest("li")).toBe(screen.getByText("Chess").closest("li"));
+  fireEvent.click(within(tally).getByRole("button", { name: "Chess: Show votes — Yes" }));
+  const voters = await screen.findByRole("dialog", { name: "Votes" });
+  expect(within(voters).getByRole("tab", { name: "Yes", selected: true })).toBeVisible();
+  fireEvent.click(within(voters).getByRole("button", { name: "Close" }));
+  expect(summary).toHaveAttribute("aria-expanded", "true");
   fireEvent.click(
     within(screen.getByRole("region", { name: "Settings" })).getByRole("button", {
       name: "Planning",

@@ -48,7 +48,7 @@ it("uses grouped games, virtualized user places, avatar badges and one explicit 
     vote = source("events/EventVoteButtons");
   expect(table).not.toContain("<EventTableCard");
   expect(table).toMatch(/<GroupedList>[\s\S]*<GameListRow/);
-  expect(table).toContain("metadata=");
+  expect(table).toContain("disclosure=");
   expect(table).toContain("<OptionVoteVoters");
   expect(roster).toContain("<SectionList");
   expect(roster).toContain("stickySectionHeadersEnabled={false}");

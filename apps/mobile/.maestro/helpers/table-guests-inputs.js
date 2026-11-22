@@ -35,6 +35,7 @@ output.tableGuest = {
   editor: literal(edit),
   edit: literal(`${edit}: ${input.name}`),
   yes: literal(`${input.game}: ${italian ? "Sì" : "Yes"}`),
+  summary: literal(`${italian ? "Riepilogo voti" : "Vote summary"}: ${input.game}`),
   breakdown: literal(`${input.game}: ${italian ? "Mostra voti — Sì" : "Show votes — Yes"}`),
   votesTitle: literal(italian ? "Voti" : "Votes"),
   yesTab: literal(italian ? "Sì" : "Yes"),

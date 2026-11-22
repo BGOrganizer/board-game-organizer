@@ -20,6 +20,7 @@ onFlowComplete:
 - assertVisible: ${output.status.terminated}
 - tapOn:
     id: top-tab-mine
+- assertVisible: ${output.status.sectionGuide}
 - tapOn: ${output.status.scheduledHelp}
 - assertVisible: ${output.status.scheduledRule}
 - back
@@ -37,6 +38,7 @@ onFlowComplete:
     timeout: 120000
 - tapOn:
     id: top-tab-available
+- assertVisible: ${output.status.sectionGuide}
 - tapOn: ${output.status.availableHelp}
 - assertVisible: ${output.status.availableRule}
 - back
@@ -54,6 +56,7 @@ onFlowComplete:
     timeout: 120000
 - tapOn:
     id: top-tab-terminated
+- assertVisible: ${output.status.sectionGuide}
 - tapOn: ${output.status.terminatedHelp}
 - assertVisible: ${output.status.terminatedRule}
 - back
@@ -87,6 +90,7 @@ onFlowComplete:
     visible: ${output.status.filter}
     timeout: 120000
 - assertVisible: ${output.status.history}
+- assertVisible: ${output.status.sectionGuide}
 - tapOn: ${output.status.historyHelp}
 - assertVisible: ${output.status.historyRule}
 - back

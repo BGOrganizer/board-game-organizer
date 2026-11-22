@@ -4,6 +4,10 @@ import { formatLocationAddress } from "@board-game-organizer/shared";
 import { Button } from "@heroui/react";
 import { MapPin } from "lucide-react";
 import type { ReactNode } from "react";
+import {
+  ExpandableGroupedRow,
+  type GroupedRowDisclosure,
+} from "@/components/common/ui/ExpandableGroupedRow";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 
 export function LocationListRow({
@@ -15,6 +19,7 @@ export function LocationListRow({
   children,
   onPress,
   label,
+  disclosure,
 }: {
   name: string;
   address?: string;
@@ -24,6 +29,7 @@ export function LocationListRow({
   children?: ReactNode;
   onPress?: () => void;
   label?: string;
+  disclosure?: GroupedRowDisclosure;
 }) {
   const identity = (
     <div className="min-w-0 flex-1 text-left">
@@ -41,9 +47,24 @@ export function LocationListRow({
       {children}
     </div>
   );
+  const marker = leading ?? <MapPin className="size-5 shrink-0 text-muted" aria-hidden />;
+  if (disclosure) {
+    return (
+      <ExpandableGroupedRow
+        disclosure={disclosure}
+        summary={
+          <>
+            {marker}
+            {identity}
+          </>
+        }
+        actions={actions}
+      />
+    );
+  }
   return (
     <GroupedRow className="flex-wrap">
-      {leading ?? <MapPin className="size-5 shrink-0 text-muted" aria-hidden />}
+      {marker}
       {onPress ? (
         <Button
           data-form-control

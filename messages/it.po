@@ -6249,8 +6249,8 @@ msgid "Sync with BoardGameGeek"
 msgstr "Sincronizza con BoardGameGeek"
 
 #: apps/web/src/components/contacts/Contacts.tsx
-#~ msgid "Sync your address book from the mobile app to see friend suggestions here."
-#~ msgstr "Sincronizza la rubrica dall'app mobile per vedere suggerimenti di amici qui."
+msgid "Sync your address book from the mobile app to see friend suggestions here."
+msgstr "Sincronizza la rubrica dall’app mobile per trovare qui i tuoi contatti già iscritti."
 
 #: apps/web/src/components/profile/ProfileBggCard.tsx
 msgid "Synced collection games will be removed from your profile. Existing matches remain unchanged."
@@ -7767,3 +7767,30 @@ msgstr "Aiuto sullo storico dei tavoli"
 #: apps/web/src/components/events/TableList.tsx
 msgid "Confirmed tables from finished events where you played, were a demonstrator or are still a manager."
 msgstr "Tavoli confermati di eventi terminati in cui hai giocato o fatto da dimostratore, oppure che gestisci ancora."
+
+#: apps/web/src/components/common/ui/HelpSectionCard.tsx
+msgid "Section guide"
+msgstr "Guida alla sezione"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Vote summary"
+msgstr "Riepilogo voti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Contacts help"
+msgstr "Aiuto sui contatti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Contact search help"
+msgstr "Aiuto sulla ricerca dei contatti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Send a friend request to connect with a contact who already uses Board Game Organizer."
+msgstr "Invia una richiesta di amicizia a chi usa già Board Game Organizer."
+
+msgid "After you allow address book access, this tab shows your matched contacts and people you can invite."
+msgstr "Dopo aver consentito l’accesso alla rubrica, qui trovi i contatti già iscritti e quelli che puoi invitare."
+
+msgid "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."
+msgstr "Invia una richiesta di amicizia a chi usa Board Game Organizer o condividi un invito con chi non è ancora iscritto."

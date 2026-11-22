@@ -524,8 +524,9 @@ exceptions retain their explicit authorization boundaries throughout this contra
   can interchange; NO is disabled when it would remove the final positive choice. The API enforces
   the same condition under the Event transaction lock, including concurrent game rejections. Removed
   options and another Table's game votes never qualify. In planning, a category with multiple
-  options shows voter avatars under each option, grouped by explicit preference. Event date and
-  location ballots are visible to current managers and accepted Event participants, counted once
+  options shows voter avatars grouped by explicit preference in an initially collapsed accordion
+  for each option with recorded votes. The vote action remains separate from the accordion
+  trigger. Event date and location ballots are visible to current managers and accepted Event participants, counted once
   per Event. Game ballots are visible to current managers and accepted players of that Table.
   Accepted players in the queue are included. The compact view uses decorative avatars overlapped by
   a quarter of their width, with a dot between populated preferences. Each populated preference
@@ -1106,6 +1107,8 @@ Contacts navigation is Connections / Requests / Contacts / Search. Contacts owns
 including existing social connections, local unregistered rows, permission/synchronization feedback and paging.
 Web shows the authenticated synced registered contacts available to that client; it does not request a browser
 address book. Search owns only its query and remote results, initially empty and cleared below four characters.
+Each tab has a section guide card. The guide includes the connection or request legend, address
+book guidance, or the search rules for that tab.
 Registered-user rows show the real @username below the display name in every Contacts section.
 Unregistered address-book rows have no invented handle. Contacts derives attention from its loaded actor
 rows without inventing a server read subsection.
