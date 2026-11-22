@@ -808,7 +808,9 @@ it.each(["dates", "locations", "both"] as const)(
       [date, category !== "locations"],
       ["Club venue", category !== "dates"],
     ] as const) {
-      const summary = screen.queryByRole("button", { name: `Vote summary: ${option}` });
+      const summary = screen.queryByRole("button", {
+        name: option === "Club venue" ? /^Vote summary: Club venue,/ : `Vote summary: ${option}`,
+      });
       expect(Boolean(summary)).toBe(visible);
       expect(screen.queryByRole("list", { name: `Votes: ${option}` })).toBeNull();
       const choice = option === "Club venue" ? "If needed" : "Yes";

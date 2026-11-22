@@ -51,7 +51,12 @@ export function LocationListRow({
   if (disclosure) {
     return (
       <ExpandableGroupedRow
-        disclosure={disclosure}
+        disclosure={{
+          ...disclosure,
+          label: address
+            ? `${disclosure.label}, ${formatLocationAddress(address)}`
+            : disclosure.label,
+        }}
         summary={
           <>
             {marker}

@@ -623,7 +623,7 @@ it("shows named votes and the breakdown action only for each eligible Event cate
   await press("Vote summary: 2030-06-03 20:00");
   expect(screen.getByLabelText("Votes: 2030-06-03 20:00")).toBeVisible();
   expect(screen.queryByLabelText("Votes: Club venue")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Vote summary: Club venue" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Vote summary: Club venue/ })).toBeNull();
   expect(screen.queryByRole("button", { name: "Club venue: Show votes" })).toBeNull();
   await press("2030-06-03 20:00: Show votes");
   const hidden = { includeHiddenElements: true };
@@ -636,7 +636,7 @@ it("shows named votes and the breakdown action only for each eligible Event cate
       { ...event.locations[0], id: "other-place", name: "Second venue" },
     ],
   });
-  await press("Vote summary: Club venue");
+  await userEvent.setup().press(screen.getByRole("button", { name: /^Vote summary: Club venue,/ }));
   const venueVotes = await screen.findByLabelText("Votes: Club venue");
   expect(venueVotes).toBeVisible();
   await userEvent
