@@ -45,6 +45,10 @@ inputs:
   api-preview-url:
     description: Immutable Development API URL embedded in this APK and Web
     required: true
+  package-mcp:
+    description: Package the MCP connector for the PR selected by the public Development gateway
+    required: false
+    default: 'false'
 outputs:
   release_url:
     description: Stable public PR prerelease page URL
@@ -75,4 +79,5 @@ runs:
         EAS_BUILD_URL: ${{ inputs.eas-build-url }}
         DEVELOPMENT_WEB_URL: ${{ inputs.web-preview-url }}
         DEVELOPMENT_API_URL: ${{ inputs.api-preview-url }}
+        PACKAGE_MCP: ${{ inputs.package-mcp }}
       run: node .github/scripts/publish-pr-draft.mjs

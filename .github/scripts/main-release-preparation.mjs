@@ -5,7 +5,12 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
 const stable = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-const manifests = ["apps/api/package.json", "apps/mobile/package.json", "apps/web/package.json"];
+const manifests = [
+  "apps/api/package.json",
+  "apps/mobile/package.json",
+  "apps/web/package.json",
+  "apps/mcp/package.json",
+];
 const config = "apps/mobile/app.config.js";
 const files = [...manifests, config, "CHANGELOG.md"].sort();
 

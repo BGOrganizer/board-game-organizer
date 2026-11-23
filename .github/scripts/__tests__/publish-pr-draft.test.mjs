@@ -123,6 +123,21 @@ function github(options = {}) {
         return Response.json(release, { status: 201 });
       if (/\/releases\/10\/assets\?/.test(url) && method === "GET") return Response.json(old);
       if (url.startsWith("https://uploads.github.com/")) {
+        const name = new URL(url).searchParams.get("name");
+        if (name?.endsWith(".zip")) {
+          assert.equal(init.headers["Content-Type"], "application/zip");
+          const archive = Buffer.from(await init.body.arrayBuffer());
+          assert.equal(archive.readUInt32LE(), 0x04034b50);
+          return Response.json({
+            id: 31,
+            name,
+            state: "uploaded",
+            size: archive.length,
+            digest: options.badMcpReceipt
+              ? digest
+              : `sha256:${createHash("sha256").update(archive).digest("hex")}`,
+          });
+        }
         assert.equal(Buffer.from(await init.body.arrayBuffer()).toString(), bytes.toString());
         return Response.json(asset, { status: 201 });
       }
@@ -132,6 +147,33 @@ function github(options = {}) {
     },
   };
 }
+
+test("publishes only a verified Development MCP ZIP and prunes the previous package for that PR", async () => {
+  const older = { id: 37, name: "board-game-organizer-mcp-1.3.1-dev.pr.22.sha-aaaaaaaaaaaa.zip" };
+  const unrelated = {
+    id: 38,
+    name: "board-game-organizer-mcp-1.3.1-dev.pr.27.sha-aaaaaaaaaaaa.zip",
+  };
+  const fake = github({ assets: [older, unrelated] });
+  await publishDevelopmentDraft({ ...input, packageMcp: true }, fake.request);
+  const plugin = "board-game-organizer-mcp-1.3.2-dev.pr.22.sha-cccccccccccc.zip";
+  const patch = fake.writes.find((call) => call.method === "PATCH");
+  assert(patch.body.body.includes(plugin));
+  assert(fake.calls.some((call) => call.method === "HEAD" && call.url.endsWith(plugin)));
+  assert.deepEqual(
+    fake.writes
+      .filter((call) => call.method === "DELETE")
+      .map((call) => call.url.split("/").at(-1)),
+    ["37"],
+  );
+
+  const failed = github({ badMcpReceipt: true });
+  await assert.rejects(
+    publishDevelopmentDraft({ ...input, packageMcp: true }, failed.request),
+    /MCP package checksum/,
+  );
+  assert(!failed.writes.some((call) => call.method === "PATCH"));
+});
 test("Development release uploads verified revision first, links only Development, then removes only captured owned APKs", async () => {
   const fake = github();
   const result = await publishDevelopmentDraft(input, fake.request);

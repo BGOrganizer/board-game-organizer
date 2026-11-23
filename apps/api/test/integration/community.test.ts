@@ -1332,11 +1332,20 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       (
         await services().plannedEventService.personalTables(OTHER, {
           limit: 20,
-          query: "first",
+          query: "table #1",
           section: "waiting",
         })
       ).items.map((row) => row.id),
     ).toEqual([tableId]);
+    expect(
+      (
+        await services().plannedEventService.personalTables(OTHER, {
+          limit: 20,
+          query: "first",
+          section: "waiting",
+        })
+      ).items,
+    ).toEqual([]);
     expect(
       (await services().plannedEventService.personalTables(DEMO, { limit: 20 })).items,
     ).toEqual([]);

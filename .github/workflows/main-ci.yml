@@ -567,7 +567,7 @@ jobs:
           bun add --global eas-cli@27.7.2
           node ../../.github/scripts/eas-upload.mjs "$APK"
 
-      - name: 📦 Stage release notes and verified APK before OTA
+      - name: 📦 Stage release notes, verified APK and MCP package before OTA
         id: prepare
         env:
           GH_TOKEN: ${{ github.token }}

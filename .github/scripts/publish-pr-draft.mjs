@@ -4,6 +4,7 @@ import { appendFileSync, createReadStream, openAsBlob, statSync, writeFileSync }
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { mcpReleaseAsset } from "../../scripts/release/mcp-release-asset.mjs";
 import {
   isDevelopmentReleaseName,
   releaseBody,
@@ -94,6 +95,12 @@ export async function publishDevelopmentDraft(
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(input.apkPath)) hash.update(chunk);
   const digest = hash.digest("hex");
+  const mcp = input.packageMcp
+    ? mcpReleaseAsset(
+        "development",
+        `${input.version}-dev.pr.${input.number}.sha-${input.sourceSha.slice(0, 12)}`,
+      )
+    : null;
   const current = () => requireCurrentPr(input, request);
   await current();
   const api = `https://api.github.com/repos/${input.repository}`;
@@ -108,7 +115,7 @@ export async function publishDevelopmentDraft(
         ...(body
           ? {
               "Content-Type": upload
-                ? "application/vnd.android.package-archive"
+                ? body.type || "application/vnd.android.package-archive"
                 : "application/json",
             }
           : {}),
@@ -172,6 +179,29 @@ export async function publishDevelopmentDraft(
   https(asset.browser_download_url, "github.com");
   // Draft upload receipts can retain an untagged URL after the release becomes public.
   const apkUrl = `https://github.com/${input.repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`;
+  let mcpUrl;
+  if (mcp) {
+    let uploaded = oldAssets.find((item) => item.name === mcp.name);
+    if (!uploaded) {
+      await current();
+      uploaded = await call(
+        `https://uploads.github.com/repos/${input.repository}/releases/${release.id}/assets?name=${encodeURIComponent(mcp.name)}`,
+        "POST",
+        mcp.body,
+        true,
+      );
+    }
+    if (
+      !Number.isSafeInteger(uploaded.id) ||
+      uploaded.id < 1 ||
+      uploaded.state !== "uploaded" ||
+      uploaded.name !== mcp.name ||
+      uploaded.size !== mcp.size ||
+      uploaded.digest !== mcp.digest
+    )
+      throw new Error("Uploaded Development MCP package checksum/size receipt mismatch");
+    mcpUrl = `https://github.com/${input.repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(mcp.name)}`;
+  }
   await publishTag(tag, input.headSha, current, Boolean(managed));
   await current();
   const body = releaseBody({
@@ -181,6 +211,7 @@ export async function publishDevelopmentDraft(
     apkSourceSha,
     checksum: digest,
     apkUrl,
+    mcpUrl,
     webUrl: web,
     apiUrl,
     easUrl: eas,
@@ -204,7 +235,7 @@ export async function publishDevelopmentDraft(
     throw new Error("Invalid public Development release receipt");
   const releaseUrl = https(published.html_url, "github.com");
   // Anonymous requests deliberately carry no GitHub token, including after redirects.
-  for (const url of [releaseUrl, apkUrl]) {
+  for (const url of [releaseUrl, apkUrl, ...(mcpUrl ? [mcpUrl] : [])]) {
     for (let attempt = 0; ; attempt++) {
       const response = await request(url, {
         method: "HEAD",
@@ -227,6 +258,15 @@ export async function publishDevelopmentDraft(
       previousName.endsWith(".apk") &&
       previousName.startsWith(ownedStem)
     ) {
+      await current();
+      await call(`${api}/releases/assets/${old.id}`, "DELETE");
+    }
+  }
+  const ownedMcp = new RegExp(
+    `^board-game-organizer-mcp-\\d+\\.\\d+\\.\\d+-dev\\.pr\\.${input.number}\\.sha-[a-f0-9]{12}\\.zip$`,
+  );
+  for (const old of oldAssets) {
+    if (old.name !== mcp?.name && ownedMcp.test(old.name)) {
       await current();
       await call(`${api}/releases/assets/${old.id}`, "DELETE");
     }
@@ -269,6 +309,7 @@ async function main() {
     webUrl: e.DEVELOPMENT_WEB_URL,
     apiUrl: e.DEVELOPMENT_API_URL,
     easUrl: e.EAS_BUILD_URL,
+    packageMcp: e.PACKAGE_MCP === "true",
     changelog,
   });
   for (const [key, value] of Object.entries(result))

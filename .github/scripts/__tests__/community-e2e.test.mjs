@@ -642,7 +642,9 @@ test("native community acceptance follows confirmed counts and table-only legend
   assert(!contains(organization, "assertVisible", "Approved members: 1"));
   assert(contains(table, "assertNotVisible", "Table location help"));
   assert(!contains(table, "tapOn", "Table location help"));
-  assert(contains(table, "tapOn", "Table name help"));
+  assert(contains(table, "assertVisible", "Table #1"));
+  assert(contains(table, "assertNotVisible", "Table name"));
+  assert(!contains(table, "tapOn", "Table name help"));
   for (const legend of [
     "Confirmed players.",
     "Maximum seats here; free places in Seats.",

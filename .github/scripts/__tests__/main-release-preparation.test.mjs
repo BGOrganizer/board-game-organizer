@@ -11,7 +11,12 @@ import { inspectMainRelease } from "../main-release-preparation.mjs";
 
 const helper = resolve(".github/scripts/main-release-preparation.mjs"),
   bump = resolve("scripts/release/bump-versions.mjs");
-const paths = ["apps/api/package.json", "apps/mobile/package.json", "apps/web/package.json"];
+const paths = [
+  "apps/api/package.json",
+  "apps/mobile/package.json",
+  "apps/web/package.json",
+  "apps/mcp/package.json",
+];
 function fixture(options = {}) {
   const dir = mkdtempSync(join(tmpdir(), "bgo-main-prepare-")),
     remote = join(dir, "remote.git"),

@@ -62,6 +62,18 @@ scopes. Ordinary BGO session tokens remain confined to the existing REST clients
 host-mediated tool calls. It never receives or forwards OAuth credentials. The existing API handlers
 continue to enforce group roles, private data visibility, consent and validation for every tool call.
 
+## GitHub release packages
+
+The Production GitHub release includes a portable MCP plugin ZIP with the semantic-release
+version and Production endpoint. The Development prerelease for the PR selected by
+`BGO_MCP_GATEWAY_PR_NUMBER` includes a ZIP named for that PR and its verified preview commit.
+Both archives include the BGO logo and the public OAuth connection configuration. The server
+and interactive widget are delivered by the API deployment.
+
+Use the Production ZIP to start a [ChatGPT and Codex directory submission](https://developers.openai.com/plugins/deploy/submission).
+Provide the published privacy policy and terms in the OpenAI submission portal. For the
+[Claude directory](https://claude.ai/directory/manage), submit the Production endpoint as an MCP connector.
+
 ## Try the tools in Codex
 
 Use the public gateway URL with `/mcp` appended. Register that exact URL in Clerk and set the

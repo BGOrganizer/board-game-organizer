@@ -482,7 +482,7 @@ it("source-pages the current network since its live edge, deduplicates friendshi
   expect(all[0]).toMatchObject({
     kind: "table_join",
     eventContext: "Public linked Event",
-    context: "Public linked Table",
+    context: "Table #1",
   });
   expect(
     all.every(

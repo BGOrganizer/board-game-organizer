@@ -67,6 +67,9 @@ export function releaseBody(input) {
   ].join("\n\n");
   const downloads = [
     `- **APK:** [Download APK](${releaseUrl(input.apkUrl, "github.com")})`,
+    ...(input.mcpUrl
+      ? [`- **MCP:** [Download MCP plugin ZIP](${releaseUrl(input.mcpUrl, "github.com")})`]
+      : []),
     `- **Web:** [Open web app](${releaseUrl(input.webUrl)})`,
     `- **API:** [API endpoint](${releaseUrl(input.apiUrl)})`,
     ...(input.easUrl

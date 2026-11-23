@@ -1439,6 +1439,7 @@ jobs:
           eas-build-url: ${{ steps.eas.outputs.url }}
           web-preview-url: ${{ needs.deploy-development-web.outputs.url }}
           api-preview-url: ${{ needs.deploy-development-api.outputs.branch-url }}
+          package-mcp: ${{ vars.VERCEL_MCP_GATEWAY_PROJECT_ID != '' && vars.BGO_MCP_GATEWAY_PR_NUMBER == format('{0}', github.event.pull_request.number) }}
 
       - name: 🔒 Verify current head before Telegram
         env:
