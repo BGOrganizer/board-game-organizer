@@ -1,3 +1,43 @@
+## [1.10.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.9.0...v1.10.0) (2026-11-23)
+
+### ✨ Features
+
+* add BGO MCP tools and interactive widgets ([75a2a18](https://github.com/BGOrganizer/board-game-organizer/commit/75a2a18a261f3ffe5b95772902e3abc127cae269))
+* **mcp:** expose the protected development preview through a dedicated gateway ([c4f63ad](https://github.com/BGOrganizer/board-game-organizer/commit/c4f63ad19d3d5f4ac8cf5eecfe149e277ede7126))
+* **mcp:** navigate BGO views inside the chat widget ([b0816c9](https://github.com/BGOrganizer/board-game-organizer/commit/b0816c9469b4e3621e834c6efe70bf7c56ba7531))
+* **mcp:** show BGO detail tabs in chat ([f68e2e4](https://github.com/BGOrganizer/board-game-organizer/commit/f68e2e440ec0fb729e0c910962003d6a6559e14d))
+* **tables:** generate titles from table order and game ([8802521](https://github.com/BGOrganizer/board-game-organizer/commit/88025216206181d15324e21afd20b50d18a17720))
+
+### 🐛 Bug Fixes
+
+* **ci:** attest staged gateways with Vercel deployment metadata ([a0041de](https://github.com/BGOrganizer/board-game-organizer/commit/a0041de04e141b7387c498efbc7be1f95cc6b5d3))
+* **ci:** include MCP in the workflow contracts ([451f5f4](https://github.com/BGOrganizer/board-game-organizer/commit/451f5f4bd064b3407930b38bf535f75ad3be710a))
+* **ci:** pass the reserved Vercel gateway project ID ([b54154c](https://github.com/BGOrganizer/board-game-organizer/commit/b54154ca3dececb37d1b3c34fb5facef151c9f47))
+* **ci:** retry the current PR guard before gateway promotion ([4caa6e7](https://github.com/BGOrganizer/board-game-organizer/commit/4caa6e7a5fa87276f556ed6111ff0e170ca84e0a))
+* **events:** clean up proposals and reopen changed option votes ([b69513c](https://github.com/BGOrganizer/board-game-organizer/commit/b69513c372dc5d21d97b9f879f729ca734055c57))
+* **mcp:** advertise OAuth to unauthenticated GET probes ([e5a82c7](https://github.com/BGOrganizer/board-game-organizer/commit/e5a82c75ed7dec2d9d7f061d16ce8629da41f2bf))
+* **mcp:** handle preview redirects and isolate gateway targets ([a1e48be](https://github.com/BGOrganizer/board-game-organizer/commit/a1e48bef18325e201b72fcdd9961ed16af73066e))
+
+### 🎨 Style
+
+* **web:** format event vote conditions ([5f6c499](https://github.com/BGOrganizer/board-game-organizer/commit/5f6c49979deeec66dde7476de343fbddbd9cc235))
+
+### 🧪 Tests
+
+* **mcp:** wait for the game popover to close ([1b881ea](https://github.com/BGOrganizer/board-game-organizer/commit/1b881eaec05a7470b1ffb7e7654126ef0ccc9763))
+* **mobile:** follow the current table help panels ([4872aec](https://github.com/BGOrganizer/board-game-organizer/commit/4872aeca3bba36ab79d6bc98ebc1d25184080017))
+* **mobile:** verify generated titles and proposal outcomes ([44da204](https://github.com/BGOrganizer/board-game-organizer/commit/44da204f3f820792450d05aa9733c3536a318a2c))
+
+### 🔧 CI/CD
+
+* **mcp:** deploy gateways separately in PR and main ([df8278f](https://github.com/BGOrganizer/board-game-organizer/commit/df8278f83e4a7d789fad3c4c292bb56d46e8306d))
+* **mobile:** reuse verified development APKs ([1cf0ce6](https://github.com/BGOrganizer/board-game-organizer/commit/1cf0ce6ecd10a9001198d7c0386cbfac40ff7e6c))
+* **release:** publish environment-specific MCP packages ([61d5b25](https://github.com/BGOrganizer/board-game-organizer/commit/61d5b2551fa62a22696c6d5a008bc3895ec1d195))
+
+### 📦 Build
+
+* **mcp:** align version with product releases ([929a3c5](https://github.com/BGOrganizer/board-game-organizer/commit/929a3c56e2e877d9798426cfdc65abba950e0c42))
+
 ## [1.9.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.8.1...v1.9.0) (2026-11-23)
 
 ### ✨ Features
