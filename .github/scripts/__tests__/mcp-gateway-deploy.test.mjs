@@ -139,13 +139,21 @@ test("promotion checks source twice, verifies the linked Vercel project, and pin
       vercel() {
         printf '%s\n' "$1" >> "$STAGE/calls"
         case "$1" in
-          api) printf '{"id": "%s", "accountId": "%s", "name": "%s"}' "$PROJECT_ID" "$VERCEL_ORG_ID" "$REMOTE_NAME" ;;
+          api)
+            case "$2" in
+              /v9/projects/*) printf '{"id": "%s", "accountId": "%s", "name": "%s"}' "$PROJECT_ID" "$VERCEL_ORG_ID" "$REMOTE_NAME" ;;
+              "/v6/deployments?projectId=$PROJECT_ID&meta-bgoGatewayRun=72-3&limit=2")
+                printf '{"deployments": [{"url":"gateway-fixture.vercel.app","projectId":"%s","target":"production","readyState":"READY","meta":{"bgoGatewaySourceSha":"%s","bgoGatewayRun":"%s"}}]}' "$PROJECT_ID" "$REMOTE_SOURCE" "$REMOTE_RUN" ;;
+              *) return 32 ;;
+            esac
+            ;;
           deploy)
             [[ "$VERCEL_PROJECT_ID" == "$PROJECT_ID" ]] || return 32
-            [[ " $* " == *' --prebuilt --prod --skip-domain --yes --json '* ]] || return 32
+            [[ " $* " == *' --prebuilt --prod --skip-domain --yes '* ]] || return 32
+            [[ " $* " != *' --json '* ]] || return 32
             [[ " $* " == *" --meta bgoGatewaySourceSha=$GITHUB_SHA "* ]] || return 32
+            [[ " $* " == *' --meta bgoGatewayRun=72-3 '* ]] || return 32
             [[ " $* " == *" --env BGO_MCP_UPSTREAM_URL=$EXPECTED_UPSTREAM "* ]] || return 32
-            echo '{"status":"ok","deployment":{"url":"https://gateway-fixture.vercel.app","readyState":"READY"}}'
             ;;
           promote) test "$2" = 'https://gateway-fixture.vercel.app' ;;
         esac
@@ -159,6 +167,8 @@ test("promotion checks source twice, verifies the linked Vercel project, and pin
           ...process.env,
           TARGET: "development",
           GITHUB_SHA: source,
+          GITHUB_RUN_ID: "72",
+          GITHUB_RUN_ATTEMPT: "3",
           STAGE: stage,
           PROJECT_ID: projectId,
           VERCEL_ORG_ID: owner,
@@ -167,6 +177,8 @@ test("promotion checks source twice, verifies the linked Vercel project, and pin
           PR_HEAD_SHA: head,
           CHECKOUT_HEAD: head,
           REMOTE_NAME: "bgo-mcp-development",
+          REMOTE_SOURCE: source,
+          REMOTE_RUN: "72-3",
           EXPECTED_UPSTREAM:
             "https://api-development-pr-33-board-game-organizers-projects.vercel.app",
           STALE: "0",
@@ -192,15 +204,26 @@ test("promotion checks source twice, verifies the linked Vercel project, and pin
       REMOTE_NAME: "bgo-mcp-production",
       EXPECTED_UPSTREAM: "https://api.board-game-organizer.com",
     };
-    const success = [0, ["api", "verify", "deploy", "verify", "promote"]];
+    const success = [0, ["api", "verify", "deploy", "api", "verify", "promote"]];
     assert.deepEqual(run("development"), success);
     assert.deepEqual(run("production", production), success);
     assert.deepEqual(run("wrong-project", { REMOTE_NAME: "bgo-api" }), [1, ["api"]]);
     assert.deepEqual(run("wrong-head", { CHECKOUT_HEAD: base }), [1, ["api"]]);
-    assert.deepEqual(run("stale-pr", { STALE: "2" }), [1, ["api", "verify", "deploy", "verify"]]);
+    assert.deepEqual(run("wrong-artifact", { REMOTE_SOURCE: base }), [
+      1,
+      ["api", "verify", "deploy", "api"],
+    ]);
+    assert.deepEqual(run("wrong-attempt", { REMOTE_RUN: "72-2" }), [
+      1,
+      ["api", "verify", "deploy", "api"],
+    ]);
+    assert.deepEqual(run("stale-pr", { STALE: "2" }), [
+      1,
+      ["api", "verify", "deploy", "api", "verify"],
+    ]);
     assert.deepEqual(run("stale-main", { ...production, STALE: "2", STALE_CODE: "3" }), [
       0,
-      ["api", "verify", "deploy", "verify"],
+      ["api", "verify", "deploy", "api", "verify"],
     ]);
   } finally {
     rmSync(folder, { recursive: true, force: true });

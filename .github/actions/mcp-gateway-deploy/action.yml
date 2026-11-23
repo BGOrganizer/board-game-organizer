@@ -137,10 +137,23 @@ runs:
         else
           upstream=https://api.board-game-organizer.com
         fi
+        [[ "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ && "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+        deployment_key="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
         require_current_source
-        url=$(cd "$STAGE" && vercel deploy --prebuilt --prod --skip-domain --yes --json \
-          --meta "bgoGatewaySourceSha=$GITHUB_SHA" --env "BGO_MCP_UPSTREAM_URL=$upstream" \
-          "${provider[@]}" | jq -er '.deployment.url')
-        [[ "$url" =~ ^https://[a-zA-Z0-9-]+\.vercel\.app$ ]]
+        (cd "$STAGE" && vercel deploy --prebuilt --prod --skip-domain --yes \
+          --meta "bgoGatewaySourceSha=$GITHUB_SHA" --meta "bgoGatewayRun=$deployment_key" \
+          --env "BGO_MCP_UPSTREAM_URL=$upstream" "${provider[@]}") >/dev/null
+
+        # The CLI can omit the URL on stdout for staged deploys in CI.
+        deployment_path="/v6/deployments?projectId=$PROJECT_ID&meta-bgoGatewayRun=$deployment_key&limit=2"
+        url=$(vercel api "$deployment_path" --raw "${provider[@]}" \
+          | jq -er --arg project "$PROJECT_ID" --arg source "$GITHUB_SHA" --arg run "$deployment_key" \
+            '.deployments | if length == 1 then .[0] else empty end
+            | select(.projectId == $project and .target == "production" and .readyState == "READY"
+                and .meta.bgoGatewaySourceSha == $source and .meta.bgoGatewayRun == $run) | .url') || {
+          echo 'No unique READY gateway matches this run and source.' >&2
+          exit 1
+        }
+        [[ "$url" =~ ^[a-zA-Z0-9-]+\.vercel\.app$ ]]
         require_current_source
-        vercel promote "$url" --yes "${provider[@]}"
+        vercel promote "https://$url" --yes "${provider[@]}"
