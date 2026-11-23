@@ -8,6 +8,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { messages } from "../../../../messages/en.js";
 import { PeopleResults, supportsPeopleResult } from "./PeopleResults";
+import type { ToolOutput } from "./protocol";
+import { WidgetNavigation } from "./WidgetNavigation";
 
 const handle = "user_same";
 const date = "2026-11-22T20:08:00.000Z";
@@ -20,6 +22,11 @@ const one = {
   username: "avery",
   avatarUrl: null,
   email: "invisible@example.test",
+};
+const visibleProfile = {
+  ...one,
+  social: { friends: 2, following: 3, followers: 4 },
+  player: { gamesPlayed: 1, gamesWon: 0, winRate: 0 },
 };
 const game = { id: 391, name: "A game", imageUrl: null };
 const services = { callServerTool: vi.fn(), openLink: vi.fn() };
@@ -70,17 +77,212 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function open(operation: string, data: unknown, input?: unknown) {
+function open(operation: string, data: unknown, input?: unknown, navigation = false) {
   const i18n = setupI18n({ locale: "en", messages: { en: messages } });
-  const query = new QueryClient({ defaultOptions: { queries: { gcTime: 0, retry: false } } });
+  const query = new QueryClient({
+    defaultOptions: { queries: { ...(navigation ? {} : { gcTime: 0 }), retry: false } },
+  });
+  const output = { operation, data, viewerUserId: "user_current" };
+  const renderPeople = (destination: ToolOutput, destinationInput: unknown) => (
+    <PeopleResults app={app} {...destination} input={destinationInput} />
+  );
   return render(
     <QueryClientProvider client={query}>
       <I18nProvider i18n={i18n}>
-        <PeopleResults app={app} operation={operation} data={data} input={input} />
+        {navigation ? (
+          <WidgetNavigation app={app} output={output} input={input} render={renderPeople} />
+        ) : (
+          renderPeople(output, input)
+        )}
       </I18nProvider>
     </QueryClientProvider>,
   );
 }
+
+it("opens a contact in the widget and can return before changing to another contact list", async () => {
+  services.callServerTool
+    .mockResolvedValueOnce(result("get_user_profile", visibleProfile))
+    .mockResolvedValueOnce(result("list_relationships", { rows: [], nextCursor: null }));
+  open("list_friends", { rows: [{ profile: one }], nextCursor: null }, undefined, true);
+
+  fireEvent.click(screen.getByRole("button", { name: "Avery" }));
+  expect(await screen.findByRole("heading", { name: "Profile" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(await screen.findByRole("button", { name: "Avery" })).toBeVisible();
+
+  fireEvent.click(screen.getByRole("button", { name: "Friends" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Following" }));
+  expect(await screen.findByRole("button", { name: "Following" })).toBeVisible();
+  expect(services.callServerTool.mock.calls.map(([input]) => input)).toEqual([
+    { name: "get_user_profile", arguments: { params: { userId: handle } } },
+    { name: "list_relationships", arguments: { query: { type: "following" } } },
+  ]);
+  expect(services.openLink).not.toHaveBeenCalled();
+});
+
+it("navigates through a profile's activities, ratings, and published collection without leaving the widget", async () => {
+  services.callServerTool
+    .mockResolvedValueOnce(result("list_profile_activity", { items: [], nextCursor: null }))
+    .mockResolvedValueOnce(result("list_profile_games", { items: [game], nextCursor: null }))
+    .mockResolvedValueOnce(result("list_bgg_collection", { items: [], nextCursor: null }));
+  open(
+    "get_user_profile",
+    { ...visibleProfile, collection: { snapshot: "published" } },
+    undefined,
+    true,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Activities" }));
+  expect(await screen.findByText("No activities yet")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  fireEvent.click(await screen.findByRole("button", { name: "OpenSkill statistics" }));
+  expect(await screen.findByRole("heading", { name: "OpenSkill statistics" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Collection" }));
+
+  await waitFor(() =>
+    expect(services.callServerTool.mock.calls.map(([input]) => input)).toEqual([
+      { name: "list_profile_activity", arguments: { params: { userId: handle } } },
+      { name: "list_profile_games", arguments: { params: { userId: handle } } },
+      {
+        name: "list_bgg_collection",
+        arguments: { query: { subjectId: handle, snapshot: "published" } },
+      },
+    ]),
+  );
+  expect(services.openLink).not.toHaveBeenCalled();
+});
+
+it("keeps a Community activity's links and global rankings within the widget", async () => {
+  services.callServerTool
+    .mockResolvedValueOnce(result("get_user_profile", visibleProfile))
+    .mockResolvedValueOnce(result("list_global_leaderboard", { games: [] }));
+  open(
+    "list_community_activity",
+    {
+      items: [
+        {
+          id: "activity",
+          kind: "group_join",
+          occurredAt: date,
+          context: "Friendly games",
+          href: `/groups/${groupId}`,
+          author: one,
+        },
+      ],
+      nextCursor: null,
+    },
+    undefined,
+    true,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "avery" }));
+  expect(await screen.findByRole("heading", { name: "Profile" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Rankings" }));
+  await waitFor(() =>
+    expect(services.callServerTool.mock.calls.map(([input]) => input)).toEqual([
+      { name: "get_user_profile", arguments: { params: { userId: handle } } },
+      { name: "list_global_leaderboard", arguments: {} },
+    ]),
+  );
+  expect(services.openLink).not.toHaveBeenCalled();
+});
+
+it.each([false, true])("reads an eligible notice after navigation (retry: %s)", async (retry) => {
+  if (retry) services.callServerTool.mockResolvedValueOnce({ isError: true });
+  const loadFollowers = { name: "list_relationships", arguments: { query: { type: "followers" } } };
+  services.callServerTool
+    .mockResolvedValueOnce(
+      result("list_relationships", { rows: [{ profile: one }], nextCursor: null }),
+    )
+    .mockResolvedValueOnce(result("mark_notification_read", { success: true }))
+    .mockResolvedValueOnce(
+      result("list_notifications", {
+        notifications: [{ ...notification, readAt: date }],
+        unreadCount: 0,
+        nextCursor: null,
+      }),
+    );
+  open(
+    "list_notifications",
+    { notifications: [notification], unreadCount: 1, nextCursor: null },
+    undefined,
+    true,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: /Game night/ }));
+  if (retry) {
+    expect(await screen.findByRole("alert")).toHaveTextContent("Something went wrong");
+    expect(services.callServerTool.mock.calls.map(([input]) => input)).toEqual([loadFollowers]);
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  }
+  expect(await screen.findByRole("button", { name: "Followers" })).toBeVisible();
+  await waitFor(() =>
+    expect(services.callServerTool.mock.calls.map(([input]) => input)).toEqual([
+      ...(retry ? [loadFollowers] : []),
+      loadFollowers,
+      { name: "mark_notification_read", arguments: { params: { notificationId: first } } },
+      { name: "list_notifications", arguments: {} },
+    ]),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(await screen.findByText("Game night")).toBeVisible();
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Mark as read" })).toBeNull());
+  expect(services.openLink).not.toHaveBeenCalled();
+});
+
+it("opens a group invitation in the widget without reading it or answering on the user's behalf", async () => {
+  services.callServerTool.mockResolvedValueOnce(result("get_group", { id: groupId }));
+  open(
+    "list_notifications",
+    {
+      notifications: [{ ...notification, kind: "group_invitation", href: `/groups/${groupId}` }],
+      unreadCount: 1,
+      nextCursor: null,
+    },
+    undefined,
+    true,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: /Game night/ }));
+  await waitFor(() =>
+    expect(services.callServerTool).toHaveBeenCalledWith(
+      { name: "get_group", arguments: { params: { groupId } } },
+      { signal: expect.any(AbortSignal) },
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(await screen.findByText("Game night")).toBeVisible();
+  expect(services.callServerTool).toHaveBeenCalledTimes(1);
+  expect(services.openLink).not.toHaveBeenCalled();
+});
+
+it("opens registered roster profiles inside the widget and leaves guests as plain identities", async () => {
+  services.callServerTool.mockResolvedValueOnce(result("get_user_profile", visibleProfile));
+  open(
+    "list_table_seats",
+    {
+      items: [
+        { id: "seat-one", userId: handle, name: "Avery", username: "avery", kind: "REGISTERED" },
+        { id: "seat-guest", userId: "guest", name: "Casey", guestName: "casey", kind: "GUEST" },
+      ],
+      nextCursor: null,
+    },
+    undefined,
+    true,
+  );
+
+  expect(screen.getByText("@casey")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "@casey" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "@avery" }));
+  expect(await screen.findByRole("heading", { name: "Profile" })).toBeVisible();
+  expect(services.callServerTool).toHaveBeenCalledWith(
+    { name: "get_user_profile", arguments: { params: { userId: handle } } },
+    { signal: expect.any(AbortSignal) },
+  );
+  expect(services.openLink).not.toHaveBeenCalled();
+});
 
 it("registers the people tool outputs and leaves unrelated operations to their own views", () => {
   expect(supportsPeopleResult("list_table_seats")).toBe(true);

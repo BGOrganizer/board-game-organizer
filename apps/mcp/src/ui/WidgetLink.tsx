@@ -1,10 +1,9 @@
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { App } from "@modelcontextprotocol/ext-apps";
-import { ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { openWeb } from "./protocol";
+import { useWidgetNavigation } from "./WidgetNavigation";
 
 export function WidgetLink({
   app,
@@ -17,10 +16,12 @@ export function WidgetLink({
 }) {
   const { t } = useLingui();
   const [failed, setFailed] = useState(false);
+  const { canOpenPath, openPath } = useWidgetNavigation(app);
 
   async function open() {
     try {
-      setFailed(!(await openWeb(app, path)));
+      const opened = await openPath(path);
+      if (!canOpenPath(path)) setFailed(!opened);
     } catch {
       setFailed(true);
     }
@@ -29,7 +30,6 @@ export function WidgetLink({
   return (
     <>
       <Button variant="secondary" size="sm" onPress={() => void open()}>
-        <ExternalLink className="size-4" aria-hidden />
         {children}
       </Button>
       {failed ? (

@@ -24,8 +24,9 @@ import { EventTableCardIndicatorView } from "@/components/events/EventTableCardI
 import { EventTableCardView } from "@/components/events/EventTableCardView";
 import { EventTableGamesPopoverView } from "@/components/events/EventTableGamesPopoverView";
 import { GroupCardView } from "@/components/groups/GroupCardView";
-import { openWeb, RejectedToolCall, record } from "./protocol";
+import { RejectedToolCall, record } from "./protocol";
 import { useToolPages } from "./useToolPages";
+import { useWidgetNavigation } from "./WidgetNavigation";
 
 const listKinds = {
   list_events: "event",
@@ -151,6 +152,7 @@ export function RecordResults({
   renderGameRow: (game: BggSearchItem) => ReactNode;
 }) {
   const { t } = useLingui();
+  const { canOpenPath, openPath, openTool } = useWidgetNavigation(app);
   const listKind = recordKind(operation, listKinds);
   const kind = listKind ?? recordKind(operation, detailKinds);
   const initial = useMemo(
@@ -211,23 +213,57 @@ export function RecordResults({
 
   async function navigate(href: string) {
     try {
-      setLinkError(!(await openWeb(app, href)));
+      const opened = await openPath(href);
+      if (!canOpenPath(href)) setLinkError(!opened);
     } catch {
       setLinkError(true);
     }
   }
 
-  const renderNavigation: CardNavigation = ({ href, label, description, disabled }) => (
-    <Button
-      type="button"
-      variant="ghost"
-      aria-label={label}
-      aria-description={description}
-      isDisabled={disabled}
-      onPress={() => void navigate(href)}
-      className={`${cardNavigationClassName} h-full w-full p-0`}
-    />
-  );
+  const renderNavigation: CardNavigation = ({ href, label, description, disabled }) =>
+    detail && openTool ? null : (
+      <Button
+        type="button"
+        variant="ghost"
+        aria-label={label}
+        aria-description={description}
+        isDisabled={disabled}
+        onPress={() => void navigate(href)}
+        className={`${cardNavigationClassName} h-full w-full p-0`}
+      />
+    );
+
+  const links: { path: string; label: string }[] = [];
+  if (detail?.kind === "event") {
+    links.push(
+      { path: `/events/${detail.data.id}?tab=tables`, label: t`Tables` },
+      { path: `/events/${detail.data.id}?tab=participants`, label: t`Participants` },
+    );
+    if (detail.data.groupId)
+      links.push({ path: `/groups/${detail.data.groupId}`, label: t`Group` });
+  }
+  if (detail?.kind === "table") {
+    links.push(
+      { path: `/events/${detail.data.eventId}`, label: t`Event` },
+      {
+        path: `/events/${detail.data.eventId}/tables/${detail.data.id}?tab=participants`,
+        label: t`Participants`,
+      },
+    );
+    if (detail.data.groupId)
+      links.push({ path: `/groups/${detail.data.groupId}`, label: t`Group` });
+  }
+  if (detail?.kind === "group") {
+    if (detail.data.canViewMembers)
+      links.push({ path: `/groups/${detail.data.id}?tab=members`, label: t`Members` });
+    if (detail.data.canViewEvents) {
+      links.push(
+        { path: `/groups/${detail.data.id}?tab=events`, label: t`Events` },
+        { path: `/groups/${detail.data.id}?tab=leaderboard`, label: t`Rankings` },
+      );
+    }
+  }
+  const description = record(detail?.data)?.description;
 
   return (
     <section aria-label={label} className="space-y-3">
@@ -272,6 +308,24 @@ export function RecordResults({
           />
         );
       })}
+      {typeof description === "string" && description ? (
+        <p className="whitespace-pre-wrap break-words text-sm text-muted">{description}</p>
+      ) : null}
+      {openTool && links.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {links.map(({ path, label }) => (
+            <Button
+              key={path}
+              type="button"
+              size="sm"
+              variant="secondary"
+              onPress={() => void navigate(path)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      ) : null}
       {items && !items.length ? (
         <EmptyList icon={<Icon className="size-8" />}>{empty[kind]}</EmptyList>
       ) : null}

@@ -21,6 +21,7 @@ export default defineConfig({
         statements: 90,
         "src/developmentGateway.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/server.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/ui/widgetRoutes.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
       },
     },
   },

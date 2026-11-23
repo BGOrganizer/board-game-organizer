@@ -8,13 +8,28 @@ import type { App } from "@modelcontextprotocol/ext-apps";
 import { GameListRowView } from "@/components/games/GameListRowView";
 import { GameMetadataBadge } from "@/components/games/GameMetadataBadge";
 import { callTool } from "./protocol";
+import { useWidgetNavigation } from "./WidgetNavigation";
 
-export function McpGameListRow({ app, game }: { game: BggSearchItem; app: App }) {
+export function McpGameListRow({
+  app,
+  game,
+  navigable = true,
+}: {
+  game: BggSearchItem;
+  app: App;
+  navigable?: boolean;
+}) {
+  const { openTool } = useWidgetNavigation(app);
   return (
     <GameListRowView
       game={game}
       name={game.name}
       imageUrl={game.imageUrl}
+      onPress={
+        navigable && openTool
+          ? () => void openTool("get_bgg_games", { query: { ids: String(game.id) } })
+          : undefined
+      }
       renderMetadata={({ visible }) => <McpGameMetadata app={app} game={game} visible={visible} />}
     />
   );

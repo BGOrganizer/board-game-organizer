@@ -54,7 +54,12 @@ export function CatalogResults({
       {games.length ? (
         <GroupedList>
           {[...distinct.values()].map((game) => (
-            <McpGameListRow key={game.id} app={app} game={game} />
+            <McpGameListRow
+              key={game.id}
+              app={app}
+              game={game}
+              navigable={operation !== "get_bgg_games"}
+            />
           ))}
         </GroupedList>
       ) : initial ? (

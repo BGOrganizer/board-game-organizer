@@ -7,6 +7,7 @@ import {
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
 import { UsersRound } from "lucide-react";
+import { useState } from "react";
 import { z } from "zod";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -18,6 +19,7 @@ import { EventGuestBadge } from "@/components/events/EventGuestBadge";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
 import { PeopleMoreButton } from "./PeopleMoreButton";
 import { type PeopleResultProps, usePeoplePages } from "./usePeoplePages";
+import { useWidgetNavigation } from "./WidgetNavigation";
 
 const rosterPage = z.object({
   items: z
@@ -49,6 +51,8 @@ const rosterPage = z.object({
 
 export function RosterResults(props: PeopleResultProps) {
   const { t, i18n } = useLingui();
+  const { canOpenPath, openPath } = useWidgetNavigation(props.app);
+  const [openError, setOpenError] = useState(false);
   const { pages, invalid } = usePeoplePages(props, rosterPage);
   const rows = new Map(
     pages.data?.pages.flatMap((page) =>
@@ -64,12 +68,14 @@ export function RosterResults(props: PeopleResultProps) {
       {invalid || pages.isError ? (
         <p role="alert" className="text-danger">{t`Could not load participants`}</p>
       ) : null}
+      {openError ? <p role="alert" className="text-danger">{t`Could not load profile`}</p> : null}
       {!invalid && !pages.isError && !rows.size ? (
         <EmptyList icon={<UsersRound className="size-7" />}>{t`No participants yet`}</EmptyList>
       ) : null}
       <GroupedList>
         {Array.from(rows, ([key, item]) => {
           const guest = item.kind === "GUEST";
+          const userId = item.userId ?? item.id;
           const roles =
             props.operation === "list_group_members"
               ? groupUserRoles({ isAdmin: Boolean(item.isAdmin), membership: item.membership })
@@ -86,6 +92,18 @@ export function RosterResults(props: PeopleResultProps) {
               name={formatUsername(guest ? item.guestName : item.username, name)}
               avatarUrl={guest ? null : item.avatarUrl}
               avatarContent={guest ? <GuestAvatar name={name} /> : undefined}
+              onPress={
+                !guest && userId && userId !== props.viewerUserId
+                  ? () => {
+                      setOpenError(false);
+                      const path = `/profiles/${encodeURIComponent(userId)}`;
+                      void openPath(path).then(
+                        (opened) => setOpenError(!opened && !canOpenPath(path)),
+                        () => setOpenError(true),
+                      );
+                    }
+                  : undefined
+              }
               secondary={
                 guest ? t`Guest` : primary ? i18n._(recordUserRoleMessages[primary]) : undefined
               }

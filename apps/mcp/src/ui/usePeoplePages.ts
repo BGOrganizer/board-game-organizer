@@ -9,6 +9,7 @@ export type PeopleResultProps = {
   operation: string;
   data: unknown;
   input?: unknown;
+  viewerUserId?: string;
 };
 
 type Cursor = string | number | undefined;

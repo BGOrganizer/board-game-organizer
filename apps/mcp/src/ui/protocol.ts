@@ -32,7 +32,7 @@ export class RejectedToolCall extends Error {
   }
 }
 
-export async function callTool(
+export async function callToolResult(
   app: App,
   name: string,
   args: Record<string, unknown>,
@@ -50,7 +50,16 @@ export async function callTool(
   }
   const result = toolOutput(response);
   if (!result || result.operation !== name) throw new Error("Invalid tool response");
-  return result.data;
+  return result;
+}
+
+export async function callTool(
+  app: App,
+  name: string,
+  args: Record<string, unknown>,
+  signal?: AbortSignal,
+) {
+  return (await callToolResult(app, name, args, signal)).data;
 }
 
 export async function openWeb(app: App, path: string) {

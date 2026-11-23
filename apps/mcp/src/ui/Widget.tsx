@@ -4,7 +4,7 @@ import { I18nProvider } from "@lingui/react";
 import { useLingui } from "@lingui/react/macro";
 import { App, type McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { InviteCardView } from "@/components/invites/InviteCardView";
 import { messages as en } from "../../../../messages/en.js";
 import { messages as it } from "../../../../messages/it.js";
@@ -19,6 +19,7 @@ import { record, type ToolOutput, toolOutput } from "./protocol";
 import { RankingResults } from "./RankingResults";
 import { isRecordResultOperation, RecordResults } from "./RecordResults";
 import { TableFinalResults } from "./TableFinalResults";
+import { WidgetNavigation } from "./WidgetNavigation";
 
 const i18n = setupI18n({ locale: "en", messages: { en, it } });
 
@@ -29,7 +30,13 @@ export function Widget() {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { retry: false, refetchOnWindowFocus: false, refetchOnReconnect: false },
+          // Hidden views release their observers, so retain their paged data for Back.
+          queries: {
+            gcTime: Infinity,
+            retry: false,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+          },
         },
       }),
   );
@@ -48,12 +55,12 @@ function WidgetResponse() {
   const [app] = useState(() => new App({ name: "Board Game Organizer", version: "1.0.0" }));
   const [response, setResponse] = useState<Response>();
   const [failed, setFailed] = useState(false);
+  const viewer = useRef<string>(undefined);
 
   useEffect(() => {
     let live = true;
     let input: unknown;
     let sequence = 0;
-    let viewerUserId: string | undefined;
 
     function updateHost(context: McpUiHostContext | undefined) {
       if (context?.locale) {
@@ -75,8 +82,8 @@ function WidgetResponse() {
       if (!live) return;
       const output = toolOutput(result);
       if (output?.viewerUserId) {
-        if (viewerUserId && viewerUserId !== output.viewerUserId) queryClient.clear();
-        viewerUserId = output.viewerUserId;
+        if (viewer.current && viewer.current !== output.viewerUserId) queryClient.clear();
+        viewer.current = output.viewerUserId;
       }
       setFailed(false);
       setResponse({ output, input, sequence: sequence++ });
@@ -111,6 +118,21 @@ function WidgetResponse() {
   }
 
   const { output, input, sequence } = response;
+  return (
+    <WidgetNavigation
+      key={sequence}
+      app={app}
+      output={output}
+      input={input}
+      render={(next, nextInput) => <WidgetFrame app={app} output={next} input={nextInput} />}
+      onViewerChange={(viewerUserId) => {
+        viewer.current = viewerUserId;
+      }}
+    />
+  );
+}
+
+function WidgetFrame({ app, output, input }: { app: App; output: ToolOutput; input: unknown }) {
   if (isRecordResultOperation(output.operation)) {
     const table =
       output.operation === "get_table"
@@ -119,7 +141,7 @@ function WidgetResponse() {
           ? record(output.data)?.table
           : undefined;
     return (
-      <section key={sequence} className="space-y-3">
+      <section className="space-y-3">
         <RecordResults
           app={app}
           operation={output.operation}
@@ -138,17 +160,11 @@ function WidgetResponse() {
     output.operation === "list_table_leaderboard"
   ) {
     return (
-      <RankingResults
-        key={sequence}
-        app={app}
-        operation={output.operation}
-        data={output.data}
-        input={input}
-      />
+      <RankingResults app={app} operation={output.operation} data={output.data} input={input} />
     );
   }
   if (output.operation === "prepare_group_creation") {
-    return <GroupCreation key={sequence} app={app} data={output.data} />;
+    return <GroupCreation app={app} data={output.data} />;
   }
   if (output.operation === "create_group") {
     const saved = groupResult.safeParse(output.data).data;
@@ -157,23 +173,17 @@ function WidgetResponse() {
   if (supportsPeopleResult(output.operation)) {
     return (
       <PeopleResults
-        key={sequence}
         app={app}
         operation={output.operation}
         data={output.data}
         input={input}
+        viewerUserId={output.viewerUserId}
       />
     );
   }
   if (supportsCatalogResult(output.operation)) {
     return (
-      <CatalogResults
-        key={sequence}
-        app={app}
-        operation={output.operation}
-        data={output.data}
-        input={input}
-      />
+      <CatalogResults app={app} operation={output.operation} data={output.data} input={input} />
     );
   }
   if (
@@ -183,18 +193,12 @@ function WidgetResponse() {
     !Array.isArray(record(output.data)?.keys)
   ) {
     return (
-      <LocationResults
-        key={sequence}
-        app={app}
-        operation={output.operation}
-        data={output.data}
-        input={input}
-      />
+      <LocationResults app={app} operation={output.operation} data={output.data} input={input} />
     );
   }
   if (output.operation === "create_invite") {
     const link = record(output.data)?.link;
-    if (typeof link === "string") return <InviteCardView key={sequence} link={link} />;
+    if (typeof link === "string") return <InviteCardView link={link} />;
   }
-  return <OperationResult key={sequence} data={output.data} operation={output.operation} />;
+  return <OperationResult data={output.data} operation={output.operation} />;
 }

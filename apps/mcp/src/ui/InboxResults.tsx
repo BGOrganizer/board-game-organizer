@@ -20,8 +20,9 @@ import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { NotificationCard } from "@/components/notifications/NotificationCard";
 import { NotificationChangeDescription } from "@/components/notifications/NotificationChangeDescription";
 import { PeopleMoreButton } from "./PeopleMoreButton";
-import { callTool, openWeb } from "./protocol";
+import { callTool } from "./protocol";
 import { internalBgoPath, type PeopleResultProps, usePeoplePages } from "./usePeoplePages";
+import { useWidgetNavigation } from "./WidgetNavigation";
 
 const date = z.iso.datetime({ offset: true });
 const notificationSchema = z.object({
@@ -46,6 +47,7 @@ const notificationPage = z.object({
 type Write = { kind: "read" | "delete"; id?: string };
 export function InboxResults(props: PeopleResultProps) {
   const { t } = useLingui();
+  const { canOpenPath, openPath, openTool } = useWidgetNavigation(props.app);
   const { pages, invalid } = usePeoplePages(props, notificationPage);
   const [deleting, setDeleting] = useState<Write | null>(null);
   const [openError, setOpenError] = useState(false);
@@ -113,6 +115,13 @@ export function InboxResults(props: PeopleResultProps) {
       ) : null}
       {Array.from(notifications.values(), (notification) => {
         const href = notificationWebHref(notification);
+        const contactList =
+          href === "/contacts" &&
+          (notification.kind === "follow"
+            ? "followers"
+            : notification.kind === "friend_request"
+              ? "pending"
+              : undefined);
         return (
           <NotificationCard
             key={notification.id}
@@ -128,11 +137,21 @@ export function InboxResults(props: PeopleResultProps) {
                   disabled={busy}
                   onClick={async () => {
                     setOpenError(false);
-                    try {
-                      if (!(await openWeb(props.app, href)))
-                        throw new Error("The host could not open the notification");
+                    const inWidget = Boolean(openTool && contactList) || canOpenPath(href);
+                    function acknowledge() {
                       if (!notification.readAt && shouldReadOnNotificationOpen(notification))
                         mutation.mutate({ kind: "read", id: notification.id });
+                    }
+                    try {
+                      const opened =
+                        openTool && contactList
+                          ? await openTool(
+                              "list_relationships",
+                              { query: { type: contactList } },
+                              acknowledge,
+                            )
+                          : await openPath(href, acknowledge);
+                      if (!opened) setOpenError(!inWidget);
                     } catch {
                       setOpenError(true);
                     }

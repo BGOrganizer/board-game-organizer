@@ -2,6 +2,7 @@
 @import "@heroui/styles";
 
 @source ".";
+@source "../../../web/src/components/common/layout";
 @source "../../../web/src/components/common/ui";
 @source "../../../web/src/components/activities";
 @source "../../../web/src/components/contacts";
@@ -20,6 +21,6 @@
   }
 
   #root {
-    @apply mx-auto max-w-3xl p-3 sm:p-4;
+    @apply mx-auto max-w-3xl px-3 pb-3 pt-6 sm:px-4 sm:pb-4 sm:pt-7;
   }
 }

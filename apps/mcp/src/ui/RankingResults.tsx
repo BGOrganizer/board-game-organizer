@@ -5,6 +5,7 @@ import {
   leaderboardQuerySchema,
 } from "@board-game-organizer/schemas";
 import { useRecordListWindow } from "@board-game-organizer/shared";
+import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { App } from "@modelcontextprotocol/ext-apps";
 import { type InfiniteData, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +13,7 @@ import { useEffect, useId, useState } from "react";
 import { z } from "zod";
 import { LeaderboardView } from "@/components/ratings/LeaderboardView";
 import { callTool, RejectedToolCall } from "./protocol";
+import { useWidgetNavigation } from "./WidgetNavigation";
 
 const groupParams = z.object({ groupId: z.uuid() });
 const tableParams = z.object({ eventId: z.uuid(), tableId: z.uuid() });
@@ -58,11 +60,25 @@ export function RankingResults({
   data: unknown;
   input: unknown;
 }) {
+  const { t } = useLingui();
+  const { openTool } = useWidgetNavigation(app);
   if (operation === "list_table_leaderboard") {
     const args = tableInput.safeParse({ query: {}, ...recordArgs(input) });
     const page = tablePage.safeParse(data);
     return args.success && page.success ? (
-      <TableRanking app={app} args={args.data} initial={page.data} />
+      <section className="space-y-3">
+        {openTool ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onPress={() => void openTool("get_table", { params: args.data.params })}
+          >
+            {t`Open table`}
+          </Button>
+        ) : null}
+        <TableRanking app={app} args={args.data} initial={page.data} />
+      </section>
     ) : (
       <RankingError />
     );
@@ -78,13 +94,29 @@ export function RankingResults({
   }
 
   return (
-    <GameRanking
-      app={app}
-      operation={operation}
-      params={operation === "list_group_leaderboard" ? args.data.params : undefined}
-      initialQuery={args.data.query}
-      initial={page.data}
-    />
+    <section className="space-y-3">
+      {openTool ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onPress={() =>
+            void (operation === "list_group_leaderboard"
+              ? openTool("get_group", { params: args.data.params })
+              : openTool("list_community_activity", {}))
+          }
+        >
+          {operation === "list_group_leaderboard" ? t`Open group` : t`Activities`}
+        </Button>
+      ) : null}
+      <GameRanking
+        app={app}
+        operation={operation}
+        params={operation === "list_group_leaderboard" ? args.data.params : undefined}
+        initialQuery={args.data.query}
+        initial={page.data}
+      />
+    </section>
   );
 }
 

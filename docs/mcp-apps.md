@@ -23,6 +23,10 @@ pickers with verified venues and staged logo uploads. Tools return structured in
 chatbot, including operations that use a compact action receipt instead of a domain view. MCP clients without
 widget support can still use the tools and their structured responses.
 
+BGO resource links in the widget open the corresponding detail or list within the chat. The Back
+action returns to the previous widget view and preserves its loaded results. External links, such
+as BoardGameGeek, still use the host's link-opening flow.
+
 ## Hosting and authentication
 
 1. Set `MCP_RESOURCE_URL` to the exact public endpoint for the environment, for example

@@ -3,7 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { plannedTable } from "@/test-fixtures/eventRecords";
+import { groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { Widget } from "./Widget";
 
 const host = vi.hoisted(() => {
@@ -73,23 +73,19 @@ async function open(operation: string, data: unknown, input?: unknown) {
   return view;
 }
 
-it("renders real BGO history cards, pages by the original filter and opens a canonical table link", async () => {
+it("browses a table inside the widget and returns to the same filtered, paged history", async () => {
   const first = { ...historyTable(firstTableId, "Hegemony"), groupName: "Dice Club", groupId };
   const query = { section: "mine", query: "night", limit: 10 };
   const second = historyTable(secondTableId, "Ark Nova");
-  host.callServerTool.mockResolvedValue(
-    response("list_table_history", { items: [first, second], nextCursor: null }),
-  );
+  host.callServerTool
+    .mockResolvedValueOnce(
+      response("list_table_history", { items: [first, second], nextCursor: null }),
+    )
+    .mockResolvedValueOnce(response("get_table", first));
   await open("list_table_history", { items: [first], nextCursor: "cursor" }, { query });
   expect(screen.getByText("Hegemony")).toBeTruthy();
   expect(screen.getByText("Dice Club")).toBeVisible();
   expect(screen.getByRole("heading", { name: "Tables" })).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Open table: Hegemony" }));
-  await waitFor(() =>
-    expect(host.openLink).toHaveBeenCalledWith({
-      url: expect.stringMatching(new RegExp(`/events/${eventId}/tables/${firstTableId}$`)),
-    }),
-  );
   fireEvent.click(screen.getByRole("button", { name: "Load more tables" }));
   expect(await screen.findByText("Ark Nova")).toBeTruthy();
   expect(screen.getAllByText("Hegemony")).toHaveLength(1);
@@ -98,6 +94,49 @@ it("renders real BGO history cards, pages by the original filter and opens a can
     { signal: expect.any(AbortSignal) },
   );
   expect(screen.queryByRole("button", { name: "Load more tables" })).toBeNull();
+  const trigger = screen.getByRole("button", { name: "Open table: Hegemony" });
+  trigger.focus();
+  fireEvent.click(trigger);
+  expect(await screen.findByRole("heading", { name: "Table" })).toBeVisible();
+  expect(screen.getByText("Ark Nova")).not.toBeVisible();
+  expect(host.callServerTool).toHaveBeenLastCalledWith(
+    { name: "get_table", arguments: { params: { eventId, tableId: firstTableId } } },
+    { signal: expect.any(AbortSignal) },
+  );
+  expect(host.openLink).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByText("Ark Nova")).toBeVisible();
+  expect(trigger).toHaveFocus();
+  expect(host.callServerTool).toHaveBeenCalledTimes(2);
+});
+
+it("follows an event to its tables and their group, keeping every section in the widget", async () => {
+  const event = { ...plannedEvent, id: eventId, groupId, groupName: "Dice Club" };
+  const table = { ...historyTable(firstTableId, "Hegemony"), groupId, groupName: "Dice Club" };
+  host.callServerTool
+    .mockResolvedValueOnce(response("get_event", event))
+    .mockResolvedValueOnce(response("list_event_tables", { items: [table], nextCursor: null }))
+    .mockResolvedValueOnce(response("get_table", table))
+    .mockResolvedValueOnce(response("get_group", { ...groupRecord, id: groupId }));
+  await open("list_events", { items: [event], nextCursor: null });
+  fireEvent.click(screen.getByRole("button", { name: `Open event: ${event.name}` }));
+  fireEvent.click(await screen.findByRole("button", { name: "Tables" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Open table: Hegemony" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Group" }));
+  expect(await screen.findByRole("heading", { name: "Group" })).toBeVisible();
+  expect(host.callServerTool.mock.calls.map(([call]) => call)).toEqual([
+    { name: "get_event", arguments: { params: { eventId } } },
+    { name: "list_event_tables", arguments: { params: { eventId } } },
+    { name: "get_table", arguments: { params: { eventId, tableId: firstTableId } } },
+    { name: "get_group", arguments: { params: { groupId } } },
+  ]);
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("heading", { name: "Table" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("heading", { name: "Tables" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("heading", { name: "Event" })).toBeVisible();
+  expect(host.openLink).not.toHaveBeenCalled();
 });
 
 it("shows an empty history, then applies the host language and theme", async () => {
@@ -248,15 +287,53 @@ it("retries an interrupted history page and stops when the cursor no longer adva
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
-it("renders an error for a rejected link and keeps the history card available", async () => {
-  host.openLink.mockRejectedValueOnce(new Error("host blocked link"));
+it("keeps the history reusable after the user backs out of an unsuccessful table read", async () => {
+  host.callServerTool.mockResolvedValueOnce({ isError: true, structuredContent: { status: 403 } });
   await open("list_table_history", {
     items: [historyTable(firstTableId, "Hegemony")],
     nextCursor: null,
   });
   fireEvent.click(screen.getByRole("button", { name: "Open table: Hegemony" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Something went wrong");
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByText("Hegemony")).toBeVisible();
+});
+
+it("cancels a pending destination on Back and ignores a late tool response", async () => {
+  const { promise, resolve } = Promise.withResolvers<ReturnType<typeof response>>();
+  host.callServerTool.mockReturnValueOnce(promise);
+  await open("list_table_history", {
+    items: [historyTable(firstTableId, "Hegemony")],
+    nextCursor: null,
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Open table: Hegemony" }));
+  expect(screen.getByLabelText("Loading…")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(host.callServerTool.mock.calls[0][1].signal.aborted).toBe(true);
+  await act(async () => resolve(response("get_table", historyTable(firstTableId, "Hegemony"))));
+  expect(screen.getByRole("heading", { name: "History" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Table" })).toBeNull();
+});
+
+it("drops prior views if navigation returns data from a different viewer", async () => {
+  await open("list_table_history", { items: [], nextCursor: null });
+  act(() =>
+    host.ontoolresult({
+      ...response("list_table_history", {
+        items: [historyTable(firstTableId, "Private table")],
+        nextCursor: null,
+      }),
+      _meta: { viewerUserId: "user_old" },
+    }),
+  );
+  host.callServerTool.mockResolvedValueOnce({
+    ...response("get_table", historyTable(firstTableId, "Authorized table")),
+    _meta: { viewerUserId: "user_new" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Open table: Private table" }));
+  expect(await screen.findByText("Authorized table")).toBeVisible();
+  expect(screen.queryByText("Private table")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
 });
 
 it("shows a cancelled tool error instead of leaving the widget on its loading state", async () => {
@@ -506,17 +583,20 @@ it("reports an unavailable BoardGameGeek link without hiding the search result",
   expect(screen.getByText("Azul")).toBeVisible();
 });
 
-it("uses the saved group link through the host and recovers from an unsuccessful open", async () => {
-  host.openLink.mockResolvedValueOnce({ isError: true });
+it("opens the saved group inside the widget after retrying an unsuccessful read", async () => {
+  host.callServerTool
+    .mockResolvedValueOnce({ isError: true })
+    .mockResolvedValueOnce(
+      response("get_group", { ...groupRecord, id: groupId, name: "Dice Club" }),
+    );
   await open("create_group", { id: groupId, name: "Dice Club" });
-  const link = screen.getByRole("button", { name: "Open group" });
-  fireEvent.click(link);
+  fireEvent.click(screen.getByRole("button", { name: "Open group" }));
   expect(await screen.findByRole("alert")).toBeVisible();
-  fireEvent.click(link);
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await screen.findByRole("heading", { name: "Group" });
   await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
-  expect(host.openLink).toHaveBeenLastCalledWith({
-    url: expect.stringMatching(new RegExp(`/groups/${groupId}$`)),
-  });
+  expect(host.callServerTool).toHaveBeenCalledTimes(2);
+  expect(host.openLink).not.toHaveBeenCalled();
 });
 
 it("replaces an account's result when the host switches viewer and stops processing after teardown", async () => {

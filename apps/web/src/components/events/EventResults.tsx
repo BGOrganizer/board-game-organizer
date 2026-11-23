@@ -2,10 +2,9 @@
 import { communityAccessDenied, useEventResultsForm } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
-import { headerButtonProps } from "@/components/common/layout/headerStyles";
+import { HeaderBackButton } from "@/components/common/layout/HeaderBackButton";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { TableScoreEditor } from "./TableScoreEditor";
 export function EventResults({ eventId, tableId }: { eventId: string; tableId: string }) {
@@ -18,17 +17,7 @@ export function EventResults({ eventId, tableId }: { eventId: string; tableId: s
   return (
     <div className="mx-auto max-w-4xl space-y-3 pb-28">
       <HeaderActions
-        back={
-          <Button
-            {...headerButtonProps}
-            variant="ghost"
-            aria-label={t`Back`}
-            isDisabled={f.actions.busy}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft className="size-5" aria-hidden />
-          </Button>
-        }
+        back={<HeaderBackButton isDisabled={f.actions.busy} onPress={() => router.back()} />}
       />
       <h1 className="min-w-0 truncate text-base font-semibold">{t`Register result`}</h1>
       {!denied && f.table.data ? <h2 className="font-semibold">{f.table.data.name}</h2> : null}

@@ -14,8 +14,9 @@ import { ProfileRatingSummary } from "@/components/profile/ProfileRatingSummary"
 import { ProfileStats } from "@/components/profile/ProfileStats";
 import { RatingGameSelect } from "@/components/ratings/RatingGameSelect";
 import { PeopleMoreButton } from "./PeopleMoreButton";
-import { callTool, openWeb, RejectedToolCall, record } from "./protocol";
+import { callTool, RejectedToolCall, record } from "./protocol";
 import { internalBgoPath, type PeopleResultProps, usePeoplePages } from "./usePeoplePages";
+import { useWidgetNavigation } from "./WidgetNavigation";
 
 const identity = z.object({
   id: z.string(),
@@ -31,6 +32,7 @@ const player = z.object({
 const profile = identity.extend({
   social: z.object({ followers: z.number(), following: z.number(), friends: z.number() }),
   player,
+  collection: z.object({ snapshot: z.string().min(1).max(100) }).nullish(),
 });
 const activities = z.object({
   items: z
@@ -68,12 +70,14 @@ const ratingHistory = z.object({
   nextCursor: z.number().nullable(),
 });
 
-export function ProfileResults({ data }: { data: unknown }) {
+export function ProfileResults({ app, data, operation }: PeopleResultProps) {
   const { t, i18n } = useLingui();
+  const { openTool } = useWidgetNavigation(app);
   const model = profile.safeParse(data);
   if (!model.success)
     return <p role="alert" className="text-danger">{t`Could not load profile`}</p>;
-  const { social, player: stats } = model.data;
+  const { id, collection, social, player: stats } = model.data;
+  const params = { userId: id };
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 });
   return (
     <section className="space-y-3">
@@ -88,6 +92,42 @@ export function ProfileResults({ data }: { data: unknown }) {
           avatarUrl={model.data.avatarUrl}
         />
       </GroupedList>
+      {openTool ? (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() => void openTool("list_profile_activity", { params })}
+          >
+            {t`Activities`}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() => void openTool("list_profile_games", { params })}
+          >
+            {t`OpenSkill statistics`}
+          </Button>
+          {collection ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() =>
+                void openTool("list_bgg_collection", {
+                  query: { subjectId: id, snapshot: collection.snapshot },
+                })
+              }
+            >
+              {t`Collection`}
+            </Button>
+          ) : null}
+          {operation === "get_my_profile" ? (
+            <Button size="sm" variant="secondary" onPress={() => void openTool("list_friends", {})}>
+              {t`Contacts`}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <ProfileStats
         items={[
           { label: t`Friends`, value: number.format(social.friends) },
@@ -107,8 +147,11 @@ export function ProfileResults({ data }: { data: unknown }) {
 
 export function ActivityResults(props: PeopleResultProps) {
   const { t } = useLingui();
+  const { canOpenPath, openPath, openTool } = useWidgetNavigation(props.app);
   const { pages, invalid } = usePeoplePages(props, activities);
   const [openError, setOpenError] = useState(false);
+  const community = props.operation === "list_community_activity";
+  const userId = record(record(props.input)?.params)?.userId;
   const items = new Map(
     pages.data?.pages.flatMap((page) => page.items.map((item) => [item.id, item] as const)),
   );
@@ -117,6 +160,21 @@ export function ActivityResults(props: PeopleResultProps) {
       <SectionHeaderCard
         title={t`Activities`}
         leading={<Activity className="size-5 text-accent" aria-hidden />}
+        action={
+          openTool && (community || typeof userId === "string") ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() =>
+                void (community
+                  ? openTool("list_global_leaderboard", {})
+                  : openTool("get_user_profile", { params: { userId } }))
+              }
+            >
+              {community ? t`Rankings` : t`Profile`}
+            </Button>
+          ) : undefined
+        }
       />
       {invalid || pages.isError ? (
         <p role="alert" className="text-danger">{t`Could not load activities`}</p>
@@ -130,18 +188,20 @@ export function ActivityResults(props: PeopleResultProps) {
           <ActivityRowContent
             key={item.id}
             item={item}
+            viewerId={props.viewerUserId}
             renderLink={(href, name, key) =>
               internalBgoPath(href) ? (
                 <button
                   key={key}
                   type="button"
                   className="rounded font-medium text-link focus-visible:outline-2 focus-visible:outline-accent"
-                  onClick={() =>
-                    void openWeb(props.app, href).then(
-                      (opened) => setOpenError(!opened),
+                  onClick={() => {
+                    setOpenError(false);
+                    void openPath(href).then(
+                      (opened) => setOpenError(!opened && !canOpenPath(href)),
                       () => setOpenError(true),
-                    )
-                  }
+                    );
+                  }}
                 >
                   {name}
                 </button>

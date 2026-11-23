@@ -3,10 +3,10 @@ import { communityAccessDenied, useBggAccount, useProfileView } from "@board-gam
 import { useAppStore } from "@board-game-organizer/store";
 import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Gamepad2, LibraryBig, UsersRound } from "lucide-react";
+import { Gamepad2, LibraryBig, UsersRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
-import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
+import { HeaderBackButton } from "@/components/common/layout/HeaderBackButton";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
@@ -45,20 +45,7 @@ export function Profile({ userId }: { userId?: string }) {
   const number = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 });
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 p-5 pb-24">
-      {userId ? (
-        <HeaderActions
-          back={
-            <Button
-              {...headerButtonProps}
-              variant="ghost"
-              aria-label={t`Back`}
-              onPress={() => router.back()}
-            >
-              <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
-            </Button>
-          }
-        />
-      ) : null}
+      {userId ? <HeaderActions back={<HeaderBackButton onPress={() => router.back()} />} /> : null}
       <h1 className="sr-only">{t`Profile`}</h1>
       {q.isPending && !data ? <Skeleton className="h-16 w-full rounded-xl" /> : null}
       {q.isError ? (

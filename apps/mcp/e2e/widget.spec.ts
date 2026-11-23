@@ -4,6 +4,14 @@ import { plannedEvent, plannedTable } from "../../web/src/test-fixtures/eventRec
 
 const origin = "https://mcp-host.example.test";
 const groupId = "70f48c08-821b-4e1a-9ee6-9efa2e3afe19";
+const profile = {
+  id: "user_avery",
+  name: "Avery",
+  username: "avery",
+  avatarUrl: null,
+  social: { friends: 2, following: 3, followers: 4 },
+  player: { gamesPlayed: 1, gamesWon: 0, winRate: 0 },
+};
 const history = {
   items: [
     {
@@ -64,6 +72,18 @@ async function openWidget(page: Page, operation: string, data: unknown) {
               operation: 'create_group', data: { id: '${groupId}', name: body.name },
             } } });
           }
+          if (message.method === 'tools/call' && message.params.name === 'get_table') {
+            document.body.dataset.table = message.params.arguments.params.tableId;
+            send({ id: message.id, result: { content: [], structuredContent: {
+              operation: 'get_table', data: ${JSON.stringify(history.items[0])},
+            } } });
+          }
+          if (message.method === 'tools/call' && message.params.name === 'get_user_profile') {
+            document.body.dataset.profile = message.params.arguments.params.userId;
+            send({ id: message.id, result: { content: [], structuredContent: {
+              operation: 'get_user_profile', data: ${JSON.stringify(profile)},
+            } } });
+          }
           if (message.method === 'ui/open-link') {
             document.body.dataset.opened = message.params.url;
             send({ id: message.id, result: {} });
@@ -77,17 +97,19 @@ async function openWidget(page: Page, operation: string, data: unknown) {
   return { frame: page.frameLocator('iframe[title="Board Game Organizer"]'), errors };
 }
 
-test("renders the packaged history in a sandbox and opens a table through the host", async ({
-  page,
-}) => {
+test("navigates from history to a table and back inside the sandboxed widget", async ({ page }) => {
   const { frame, errors } = await openWidget(page, "list_table_history", history);
   await expect(frame.getByRole("heading", { name: "History" })).toBeVisible();
+  await expect(frame.locator("#root")).toHaveCSS("padding-top", "24px");
   await expect(frame.getByText("Hegemony")).toBeVisible();
   await frame.getByRole("button", { name: "Open table: Hegemony" }).click();
-  await expect(page.locator("body")).toHaveAttribute(
-    "data-opened",
-    /\/events\/.*\/tables\/46d59b46/,
-  );
+  await expect(page.locator("body")).toHaveAttribute("data-table", history.items[0].id);
+  await expect(frame.getByRole("heading", { name: "Table", exact: true })).toBeVisible();
+  await expect(frame.getByRole("heading", { name: "History" })).toBeHidden();
+  await expect(page.locator("body")).not.toHaveAttribute("data-opened", /./);
+  await frame.getByRole("button", { name: "Back" }).click();
+  await expect(frame.getByRole("heading", { name: "History" })).toBeVisible();
+  await expect(frame.getByRole("button", { name: "Open table: Hegemony" })).toBeFocused();
   expect(errors).toEqual([]);
 });
 
@@ -104,6 +126,40 @@ test("requires an explicit form submission before calling the create group tool"
   await expect(page.locator("body")).toHaveAttribute("data-group", /"name":"Friday games"/);
   expect(errors).toEqual([]);
 });
+
+for (const [operation, label, data] of [
+  ["list_friends", "Avery", { rows: [{ profile }], nextCursor: null }],
+  [
+    "list_community_activity",
+    "avery",
+    {
+      items: [
+        {
+          id: "friendly-games",
+          kind: "group_join",
+          occurredAt: "2026-11-22T20:08:00.000Z",
+          context: "Friendly games",
+          href: `/groups/${groupId}`,
+          author: profile,
+        },
+      ],
+      nextCursor: null,
+    },
+  ],
+] as const) {
+  test(`opens a profile from ${operation} and returns without opening an external link`, async ({
+    page,
+  }) => {
+    const { frame, errors } = await openWidget(page, operation, data);
+    await frame.getByRole("button", { name: label, exact: true }).click();
+    await expect(page.locator("body")).toHaveAttribute("data-profile", profile.id);
+    await expect(frame.getByRole("heading", { name: "Profile" })).toBeVisible();
+    await frame.getByRole("button", { name: "Back" }).click();
+    await expect(frame.getByRole("button", { name: label, exact: true })).toBeFocused();
+    await expect(page.locator("body")).not.toHaveAttribute("data-opened", /./);
+    expect(errors).toEqual([]);
+  });
+}
 
 test("renders the existing BGO event artwork and interactive visibility popover", async ({
   page,
