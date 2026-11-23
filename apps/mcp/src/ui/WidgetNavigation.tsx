@@ -1,7 +1,8 @@
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import type { App } from "@modelcontextprotocol/ext-apps";
+import type { App, McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import { useQueryClient } from "@tanstack/react-query";
+import { Maximize2, Minimize2 } from "lucide-react";
 import {
   Activity,
   createContext,
@@ -49,12 +50,18 @@ export function WidgetNavigation({
   app,
   output,
   input,
+  displayMode,
+  displayModes,
+  onDisplayModeChange,
   render,
   onViewerChange,
 }: {
   app: App;
   output: ToolOutput;
   input: unknown;
+  displayMode?: McpUiHostContext["displayMode"];
+  displayModes?: McpUiHostContext["availableDisplayModes"];
+  onDisplayModeChange?: (mode: NonNullable<McpUiHostContext["displayMode"]>) => void;
   render: (output: ToolOutput, input: unknown, detailTab?: string) => ReactNode;
   onViewerChange?: (viewerUserId: string) => void;
 }) {
@@ -70,6 +77,13 @@ export function WidgetNavigation({
   const backButton = useRef<HTMLButtonElement>(null);
   const restoreFocus = useRef(false);
   const openedFullscreen = useRef(false);
+
+  function changeDisplayMode(mode: "inline" | "fullscreen") {
+    void app.requestDisplayMode({ mode }).then(
+      (result) => onDisplayModeChange?.(result.mode),
+      () => undefined,
+    );
+  }
 
   useEffect(
     () => () => {
@@ -112,7 +126,7 @@ export function WidgetNavigation({
       display.availableDisplayModes?.includes("fullscreen")
     ) {
       openedFullscreen.current = true;
-      void app.requestDisplayMode({ mode: "fullscreen" }).catch(() => undefined);
+      changeDisplayMode("fullscreen");
     }
     let opened = false;
     try {
@@ -155,7 +169,7 @@ export function WidgetNavigation({
       ((frames.length === 2 && !pending && !failed) || (frames.length === 1 && (pending || failed)))
     ) {
       openedFullscreen.current = false;
-      void app.requestDisplayMode({ mode: "inline" }).catch(() => undefined);
+      changeDisplayMode("inline");
     }
     if (pending || failed) {
       request.current?.abort();
@@ -168,10 +182,34 @@ export function WidgetNavigation({
   }
 
   const canGoBack = frames.length > 1 || pending || failed;
+  const fullscreen = displayMode === "fullscreen";
+  const displayTarget = fullscreen ? "inline" : "fullscreen";
+  const displayLabel = fullscreen ? t`Exit full screen` : t`Full screen`;
+  const DisplayIcon = fullscreen ? Minimize2 : Maximize2;
+  const canChangeDisplay = displayModes?.includes(displayTarget);
   return (
     <Navigation.Provider value={openTool}>
       <div className="space-y-3">
-        {canGoBack ? <HeaderBackButton ref={backButton} onPress={back} /> : null}
+        {canGoBack || canChangeDisplay ? (
+          <div className="flex items-center justify-between gap-2">
+            {canGoBack ? <HeaderBackButton ref={backButton} onPress={back} /> : null}
+            {canChangeDisplay ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="ml-auto"
+                aria-label={displayLabel}
+                onPress={() => {
+                  openedFullscreen.current = false;
+                  changeDisplayMode(displayTarget);
+                }}
+              >
+                <DisplayIcon className="size-5" aria-hidden />
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         {pending ? <Skeleton aria-label={t`Loading…`} className="h-20 w-full rounded-xl" /> : null}
         {failed ? (
           <div className="space-y-2">

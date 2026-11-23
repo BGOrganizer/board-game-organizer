@@ -11,14 +11,18 @@ export default defineConfig({
     exclude: [...configDefaults.exclude, "e2e/**"],
     coverage: {
       provider: "v8",
-      reporter: ["lcov", "text", "json-summary"],
+      reporter: [
+        ["lcov", { projectRoot: fileURLToPath(new URL("../..", import.meta.url)) }],
+        "text",
+        "json-summary",
+      ],
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["**/__tests__/**", "**/*.test.{ts,tsx}", "**/*.d.ts"],
       thresholds: {
-        lines: 90,
-        functions: 90,
-        branches: 90,
-        statements: 90,
+        lines: 93,
+        functions: 93,
+        branches: 93,
+        statements: 93,
         "src/developmentGateway.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/server.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/ui/widgetRoutes.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },

@@ -21,6 +21,15 @@
   }
 
   #root {
-    @apply mx-auto max-w-3xl px-3 py-8 sm:px-4;
+    @apply mx-auto max-w-3xl;
+    padding-block: max(1rem, var(--mcp-inset-top, 0px)) max(1.25rem, var(--mcp-inset-bottom, 0px));
+    padding-inline: max(0.75rem, var(--mcp-inset-left, 0px))
+      max(0.75rem, var(--mcp-inset-right, 0px));
+  }
+
+  @media (min-width: 640px) {
+    #root {
+      padding-inline: max(1rem, var(--mcp-inset-left, 0px)) max(1rem, var(--mcp-inset-right, 0px));
+    }
   }
 }

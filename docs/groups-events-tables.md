@@ -1,33 +1,19 @@
-# Unified Groups, Events and Tables
+# Groups, Events and Tables
 
-This contract describes implemented Groups, Events and Tables behavior across web, native mobile
-and their shared API. Deployment and runtime acceptance require separate
-[verification evidence](implementation-progress.md); source documentation alone establishes neither.
-Retired contracts are available in Git history, not current implementation instructions.
-The [Community extension](community.md) and approved Event-access extension below separate Event
-visibility from immutable Group type. PUBLIC Events permit explicit voluntary enrollment without
-Group membership; approved private final-result sharing grants only Event/Table/result reads, never
-Group information. Private activities otherwise remain excluded from both feeds. These explicit
-exceptions retain their explicit authorization boundaries throughout this contract.
+This contract describes Groups, Events and Tables across Web, native mobile and their shared API.
+Group type stays fixed while event visibility controls access to enrollment. PUBLIC Events permit
+voluntary enrollment without Group membership. Approved private result sharing grants access to the
+Event, Table and result only. See [Community visibility](community.md) and
+[verification and acceptance](verification-and-acceptance.md).
 
-## Delivery and database scope
+## Navigation and API compatibility
 
-- Web and native navigation: Tables / Events / Groups / Community / Contacts. Contacts retain their own social
+- Web and native navigation: History / Events / Groups / Community / Contacts. Contacts retain their own social
   workflows. Profile and BGO moderation remain separate destinations.
-- No database cancellation, reset, collection deletion, account recreation or provider mutation is
-  authorized. Existing legacy documents remain intact. Unified Group/Event readers and locks reject
-  legacy shapes; source-level list filters exclude them.
-- Legacy Match/Organization/invitation/booking/asset writers return authenticated `410
-  LEGACY_DOMAIN_RETIRED` (unauthenticated callers still receive `401`). Old client URLs redirect to
-  unified sections without reinterpreting old resource IDs.
-- Legacy Inngest automatic writers are unregistered. All event confirmation is manual, with exact
-  server cutoff enforcement. No old read path may create table-backed Match rows.
-- Older immutable deployments are not revoked by these source changes. Do not describe this as a
-  deployed isolation/migration operation. Environment separation still follows
-  [operational gates](organizations-events-operations.md#infisical-and-deployment-isolation).
-- Preserve required web/native acceptance paths. Workflow files and
-  [operational gates](organizations-events-operations.md) govern CI enablement. Unit, source-contract,
-  build and isolated-Mongo results are not Playwright/Maestro or production acceptance.
+- Group and Event readers accept current record shapes. The separate Match/Organization routes
+  respond with `410 LEGACY_DOMAIN_RETIRED` to authenticated write requests and `401` without auth.
+  Compatibility page URLs redirect to their current sections without resolving retired IDs.
+- Event confirmation requires an authorized manager action and observes the server's exact cutoff.
 
 ## Groups
 
@@ -410,12 +396,12 @@ exceptions retain their explicit authorization boundaries throughout this contra
   provenance. Valid saved historical durations remain authoritative; final API validation is mandatory.
 - Accepting a Table invitation opens the existing availability sheet on both clients, without
   changing participation. Accepting explicitly accepts the current Event and Table configuration.
-  Each category with one date, location or game is read-only, has no voting tab/buttons/totals and
-  requires no ballot. PRIVATE Group invitations require YES/IF_NEEDED/NO for every option only in
-  categories with multiple choices, including when another Table is accepted, with at least one
-  YES/IF_NEEDED per such category. PUBLIC/standalone schedules remain read-only; Table game voting
-  appears only for multiple games. If every category is singleton, the review has no voting tabs,
-  but still requires the explicit Accept action.
+  An unchanged singleton is read-only and requires no ballot. A singleton that a manager replaces
+  during planning with accepted registrations present requires an explicit YES/IF_NEEDED during
+  acceptance. Multiple selectable options require a ballot for each option and at least one positive
+  choice per category. PUBLIC Group Events keep their date and venue fixed once registrations exist.
+  A replaced single game can still require a vote. A review with no voting categories still requires
+  the explicit Accept action.
   Final confirmation PATCHes the existing registration with its version and `participation`
   (current Event version, game votes and PRIVATE availability). Consent and choices commit in one
   transaction; invalid/stale choices or a storage failure leave the invitation pending. Cancellation
@@ -432,7 +418,7 @@ exceptions retain their explicit authorization boundaries throughout this contra
   compatibility. Canonical links remain on their creating API; an optional stable link is advertised
   only after public association and managed-publication readiness are verified without credentials.
   Its browser fallback requires fresh public publication proof and is restricted to the same token
-  on the exact published non-CI Development alias; [operational gates](organizations-events-operations.md)
+  on the exact published non-CI Development alias; [operational gates](deployment-operations.md)
   define proof validation and alias retention. Before public deployment,
   generation keeps the original Preview link; existing Preview links retain the explicit app action.
   A fresh APK and public association deployment are required for automatic routing. iOS uses the
@@ -499,7 +485,10 @@ exceptions retain their explicit authorization boundaries throughout this contra
   Clerk ID. This cache subscription starts no additional profile request and grants no participation
   or position. Other actors' cached profiles cannot supply self identity.
 - During planning, managers of a standalone or PRIVATE Group Event can enroll a named guest without
-  a user account. A guest occupies the ordinary seat or queue and may change position through the
+  a user account. Add a guest opens a Web drawer or Mobile bottom sheet with a required handle and an
+  optional email. A successful add returns to the Table and the next invitation visit starts with an
+  empty form. On mobile, the focused field stays above the keyboard and the sheet restores its
+  position on blur. A guest occupies the ordinary seat or queue and may change position through the
   same manager controls. Guests do not receive invitations or choose their own availability. A
   manager may provide their date, place and game preferences after enrollment. A confirmed guest's
   display name is frozen with the roster and remains part of the physical result. Ratings and
@@ -520,13 +509,13 @@ exceptions retain their explicit authorization boundaries throughout this contra
 - Detail preference controls offer only YES/IF_NEEDED/NO for dates, locations and games. UNKNOWN remains
   an internal readable missing/historical state, never a selectable choice, displayed total or legend
   item; an uncast ballot shows a neutral choice prompt, not a fabricated YES/NO. Event date/location
-  voting requires accepted participation; game voting requires acceptance at that Table. Singleton
-  categories reject direct votes with `FIXED_OPTION`, even from an accepted player. Each edit
-  retains at least one YES/IF_NEEDED among current options of its own dimension/Table. Positive states
-  can interchange; NO is disabled when it would remove the final positive choice. The API enforces
-  the same condition under the Event transaction lock, including concurrent game rejections. Removed
-  options and another Table's game votes never qualify. In planning, a category with multiple
-  options shows voter avatars grouped by explicit preference in an initially collapsed accordion
+  voting requires accepted participation; game voting requires acceptance at that Table. An unchanged
+  singleton rejects direct votes with `FIXED_OPTION`. An accepted player can vote NO on a changed
+  singleton and stay registered. A seated player's NO or missing vote blocks the relevant agreement.
+  For multiple options, each edit retains at least one YES/IF_NEEDED among the current options of its
+  category and Table. The API enforces that rule under the Event transaction lock. In planning, a
+  category with multiple options or a changed singleton shows voter avatars grouped by preference in
+  an initially collapsed accordion
   for each option with recorded votes. The vote action remains separate from the accordion
   trigger. Event date and location ballots are visible to current managers and accepted Event participants, counted once
   per Event. Game ballots are visible to current managers and accepted players of that Table.
@@ -561,13 +550,10 @@ exceptions retain their explicit authorization boundaries throughout this contra
   readable and are not migrated; an explicit planning edit must satisfy current rules. Player and
   demonstrator duties cannot overlap; half-open boundaries permit adjacent tables. Other modes do
   not restrict overlaps.
-- Accepted registration supplies implicit compatibility independently for every singleton category,
-  including historical singleton NO/UNKNOWN ballots; those obsolete ballots neither block agreement
-  nor contribute invented YES preferences. Pending registrations still reserve capacity only.
-  New joins/acceptances store empty maps for singleton categories. Positive singleton payloads from
-  older clients remain readable inputs but normalize to empty maps; NO/UNKNOWN/foreign keys are
-  rejected. Multiple-option ballots remain complete and explicit. No historical data is rewritten.
-  Event/registration versions, authority, exact cutoffs and immutable frozen rosters remain unchanged.
+- Accepted registration supplies implicit compatibility for unchanged singletons and explicit
+  preferences for replaced singletons. Pending registrations reserve capacity only. Join and
+  acceptance save empty ballot maps for unchanged singletons. The API validates each changed
+  singleton and every option in multiple-option ballots against the current event version.
   After a PUBLIC Group cutoff, SELF enrollment/queue entry and voluntary departure are closed for
   everyone, including managers. Authorized PLANNING management, accepted-player votes and a
   recipient's acceptance/decline of a PENDING invitation remain available. Declining an already
@@ -737,8 +723,8 @@ must not make that submit control unpressable; busy/upload/permission/conflict g
 API/user/source changes and manual navigation cancel stale deferred focus. Local page/list/overlay
 owners accommodate the real keyboard/viewport without hiding components or duplicating avoidance.
 This does not replace Clerk AuthView or promise an internal-input callback its public SDK lacks.
-Native camera logo capture opens the
-existing square crop editor; cancellation retains current permission/upload/owner guards.
+Native logo selection opens a square crop editor for both camera and gallery images. Cancel retains
+the current logo. Gallery selection uses the system picker without broad library permission.
 
 ### Participant option proposals
 
@@ -815,7 +801,7 @@ clears manager-only pages, observers and review writers even when ordinary membe
 proposals and unrelated/foreign caches survive. Restore alone never enables a review action. Source
 failures remain observable, stale confirmations remain cancelable, and no proposal UI reads Group-member
 attention. Assess authenticated web/native runtime acceptance with the
-[verification requirements](implementation-progress.md), separately from source/unit checks.
+[verification requirements](verification-and-acceptance.md), separately from source/unit checks.
 
 ## Location time zones
 
@@ -831,6 +817,8 @@ Old immutable instants are never reinterpreted, and legacy planning clocks chang
 explicit edit. The time-zone change never migrates or deletes historical documents.
 
 ## Notification attention
+
+See [Notifications](notifications.md) for current types, messages, icons and inbox destinations.
 
 - Bell alone retains its numerical unread count and `99+`; navigation retains accessible 8px
   numberless dots. All unread dots use stock HeroUI `danger`, never accent. Card/item dots remain
@@ -914,7 +902,7 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   Explicit informational Mark as read/Mark all as read skip actionable pending invitations and never
   vote, accept invitations or change domain state. Existing explicit confirmed deletion keeps its
   separate policy; pending invitation and missing-vote states remain independently visible.
-- Contacts retains Connections / Requests / Search. Entering main Contacts reads nothing in bulk;
+- Contacts has Connections / Requests / Contacts / Search. Entering main Contacts reads nothing in bulk;
   explicit inner selection reads only that subsection. Follows and accepted friendship notices
   belong to Connections; incoming friend requests belong to Requests. Contact rows aggregate their
   actor's unread social notices. Contact top tabs additionally reflect source-backed unread markers
@@ -1007,12 +995,10 @@ there are no repeated identical notifications or player reminders to change vote
   direct requests enforce the same authorization. Finalization reads saved scores on the server,
   not a client-supplied whole-event score bundle, and commits all included Tables atomically.
   Finalization and its confirmation share a terminal-state icon. Back belongs only to the app header
-  (and native hardware Back), not a duplicate editor/body button. Score inputs have a localized
-  placeholder on both clients. Native score-input focus first registers the keyboard target, then explicitly
-  calls the sheet's public `snapToPosition("80%")` method. A provided 80% snap point and `extend`
-  keep keyboard events on that detent instead of `fillParent` forcing full height. `restore` handles
-  keyboard dismissal, and the top safe-area inset bounds expansion. Android keeps its existing resize mode. Local drafts and automatic content sizing stay
-  intact, without a second keyboard-avoidance layer or manual keyboard listeners.
+  (and native hardware Back). Score inputs use localized placeholders. Web rows open a score popover
+  with a local draft. Native uses a content-sized score sheet with interactive keyboard adjustment,
+  input reveal above the keyboard and position restoration on blur. The top safe-area inset bounds
+  expansion.
 - Finalization is one atomic operation over every included table's complete frozen roster. Exact
   signed decimal scores, ND, lower-wins and explicit tie-break ordering retain their existing
   semantics. Results/profiles and immutable GLOBAL/GROUP deltas are available on table detail.

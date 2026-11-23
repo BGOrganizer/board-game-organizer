@@ -89,6 +89,25 @@ it.each(["game", "location"])(
   },
 );
 
+it("can open a place vote breakdown using its label when there is no address", () => {
+  renderWithI18n(
+    <LocationListRow
+      name="Game café"
+      titleAccessory={<NotificationItem itemId="source-item" />}
+      disclosure={{
+        label: "Votes for Game café",
+        triggerText: "Votes",
+        content: "Avery voted yes",
+      }}
+    />,
+  );
+  const trigger = screen.getByRole("button", { name: "Votes for Game café" });
+  expect(screen.queryByText("Avery voted yes")).toBeNull();
+  fireEvent.click(trigger);
+  expect(screen.getByText("Avery voted yes")).toBeTruthy();
+  expect(state.read).not.toHaveBeenCalled();
+});
+
 it("retains an actionable admin request after unread state is cleared, and opening help never reads or decides", async () => {
   const group = { ...groupRecord, role: "admin" as const, pendingRequestCount: 2 };
   const view = renderWithI18n(<GroupCard group={group} />);

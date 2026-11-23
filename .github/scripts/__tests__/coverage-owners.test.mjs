@@ -11,6 +11,7 @@ import { loadConfigFromFile } from "vite";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const require = createRequire(import.meta.url);
 const metrics = ["lines", "functions", "branches", "statements"];
+const minimumCoverage = 93;
 const configs = {};
 for (const [owner, directory, filename = "vitest.config.ts"] of [
   ["shared", "packages/shared"],
@@ -19,6 +20,8 @@ for (const [owner, directory, filename = "vitest.config.ts"] of [
   ["api", "apps/api"],
   ["api-integration", "apps/api", "vitest.integration.config.ts"],
   ["schemas", "packages/schemas"],
+  ["mcp", "apps/mcp"],
+  ["site", "apps/site"],
 ]) {
   const loaded = await loadConfigFromFile(
     { command: "serve", mode: "test" },
@@ -27,6 +30,15 @@ for (const [owner, directory, filename = "vitest.config.ts"] of [
   assert(loaded, `Expected the actual ${owner} coverage configuration`);
   configs[owner] = { directory: resolve(root, directory), coverage: loaded.config.test.coverage };
 }
+
+test("every workspace coverage job enforces the 93% minimum on all four metrics", () => {
+  for (const [name, { coverage }] of Object.entries(configs)) {
+    if (name === "api-integration") continue;
+    for (const metric of metrics) {
+      assert.equal(coverage.thresholds[metric], minimumCoverage, `${name} ${metric}`);
+    }
+  }
+});
 
 // Synthetic Istanbul fragments exercise the installed provider's actual gate.
 // They are never application execution evidence or reported app coverage.
@@ -57,7 +69,8 @@ for (const [workspace, pattern, uncovered, large] of [
 ]) {
   test(`actual ${workspace} gate ${pattern} rejects a missed owner despite passing global coverage`, async () => {
     const { directory, coverage } = configs[workspace];
-    for (const metric of metrics) assert.equal(coverage.thresholds[pattern]?.[metric], 90);
+    for (const metric of metrics)
+      assert.equal(coverage.thresholds[pattern]?.[metric], minimumCoverage);
     const provider = await v8.getProvider();
     assert.equal(provider.version, require("vitest/package.json").version);
     const errors = [];
@@ -74,12 +87,15 @@ for (const [workspace, pattern, uncovered, large] of [
     const groups = provider.resolveThresholds(map);
     const owner = groups.find((group) => group.name === pattern);
     assert(owner.coverageMap.files().includes(missed), "The configured owner glob must match");
-    for (const metric of metrics) assert(map.getCoverageSummary().data[metric].pct >= 90);
+    for (const metric of metrics)
+      assert(map.getCoverageSummary().data[metric].pct >= minimumCoverage);
     const previousExitCode = process.exitCode;
     try {
       provider.checkThresholds(groups);
       assert.equal(process.exitCode, 1, "A masked owner must fail the actual provider gate");
-      assert(errors.some((error) => error.includes(`"${pattern}" threshold (90%)`)));
+      assert(
+        errors.some((error) => error.includes(`"${pattern}" threshold (${minimumCoverage}%)`)),
+      );
       assert(errors.every((error) => !error.includes("global threshold")));
     } finally {
       process.exitCode = previousExitCode;
@@ -101,6 +117,8 @@ test("actual Vitest LCOV reporters preserve repository-relative application and 
       "packages/store/src/index.ts",
     ],
     schemas: ["packages/schemas/src/index.ts"],
+    mcp: ["apps/mcp/src/server.ts"],
+    site: ["apps/site/src/lib/links.ts"],
   };
   const identities = new Set();
   for (const [workspace, paths] of Object.entries(expectedSources)) {
@@ -138,7 +156,7 @@ test("actual Vitest LCOV reporters preserve repository-relative application and 
     for (const source of sources) identities.add(source);
   }
   // API unit and integration reports intentionally merge the same resource; other owners stay distinct.
-  assert.equal(identities.size, 7);
+  assert.equal(identities.size, 9);
 });
 
 test("actual uncovered-source collector excludes unexecuted test support without dropping runtime owners", async (t) => {

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -10,12 +11,16 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/__tests__/**"],
-      reporter: ["text", "json-summary", "lcov"],
+      reporter: [
+        "text",
+        "json-summary",
+        ["lcov", { projectRoot: fileURLToPath(new URL("../..", import.meta.url)) }],
+      ],
       thresholds: {
-        lines: 90,
-        functions: 90,
-        branches: 90,
-        statements: 90,
+        lines: 93,
+        functions: 93,
+        branches: 93,
+        statements: 93,
         "src/lib/links.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
       },
     },

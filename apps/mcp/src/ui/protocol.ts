@@ -11,7 +11,14 @@ export function record(value: unknown): Record<string, unknown> | undefined {
   }
 }
 
-export function toolOutput(result: ToolResponse) {
+export type ToolOutput = {
+  operation: string;
+  data: unknown;
+  widgetView?: unknown;
+  viewerUserId?: string;
+};
+
+export function toolOutput(result: ToolResponse): ToolOutput | undefined {
   if (result.isError) return undefined;
   const content = record(result.structuredContent);
   if (typeof content?.operation === "string" && Object.hasOwn(content, "data")) {
@@ -19,12 +26,11 @@ export function toolOutput(result: ToolResponse) {
     return {
       operation: content.operation,
       data: content.data,
+      widgetView: result._meta?.widgetView,
       viewerUserId: typeof viewerUserId === "string" ? viewerUserId : undefined,
     };
   }
 }
-
-export type ToolOutput = NonNullable<ReturnType<typeof toolOutput>>;
 
 export class RejectedToolCall extends Error {
   constructor(readonly status: number) {

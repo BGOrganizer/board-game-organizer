@@ -19,12 +19,8 @@ import {
   cardNavigationClassName,
 } from "@/components/common/ui/LinkedListCardLayout";
 import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
-import { EventCardView } from "@/components/events/EventCardView";
-import { EventTableCardIndicatorView } from "@/components/events/EventTableCardIndicatorView";
-import { EventTableCardView } from "@/components/events/EventTableCardView";
-import { EventTableGamesPopoverView } from "@/components/events/EventTableGamesPopoverView";
-import { GroupCardView } from "@/components/groups/GroupCardView";
 import { RejectedToolCall, record } from "./protocol";
+import { RecordResultCard } from "./RecordResultCard";
 import { useToolPages } from "./useToolPages";
 import { useWidgetNavigation } from "./WidgetNavigation";
 
@@ -114,6 +110,17 @@ function readRow(kind: Kind, data: unknown): RecordResultRow | undefined {
     return { kind, data: data as PlannedTableResponse };
   if (kind === "group" && groupCard.safeParse(data).success)
     return { kind, data: data as GroupRecordResponse };
+}
+
+export function readSelectedRecord(value: unknown) {
+  const row = record(value);
+  if (row?.kind === "group" || row?.kind === "event" || row?.kind === "table") {
+    return readRow(row.kind, row.data);
+  }
+}
+
+export function isRecordListOperation(operation: string) {
+  return Object.hasOwn(listKinds, operation);
 }
 
 export function readRecordDetail(operation: string, data: unknown) {
@@ -280,43 +287,18 @@ export function RecordResults({
           leading={<Icon className="size-5 text-accent" aria-hidden />}
         />
       )}
-      {items?.map((item) => {
-        if (item.kind === "event")
-          return (
-            <EventCardView
-              key={item.data.id}
-              event={item.data}
-              context={query?.groupId ? "group" : "personal"}
-              renderNavigation={renderNavigation}
-            />
-          );
-        if (item.kind === "table")
-          return (
-            <EventTableCardView
-              key={item.data.id}
-              table={item.data}
-              context={operation === "list_event_tables" ? "event" : "personal"}
-              renderNavigation={renderNavigation}
-              indicators={
-                <EventTableCardIndicatorView
-                  table={item.data}
-                  userId={viewerUserId}
-                  renderGames={(props) => (
-                    <EventTableGamesPopoverView {...props} renderGameRow={renderGameRow} />
-                  )}
-                />
-              }
-            />
-          );
-        return (
-          <GroupCardView
-            key={item.data.id}
-            group={item.data}
-            href={moderation ? `/moderation/${item.data.id}` : undefined}
-            renderNavigation={renderNavigation}
-          />
-        );
-      })}
+      {items?.map((item) => (
+        <RecordResultCard
+          key={item.data.id}
+          row={item}
+          renderNavigation={renderNavigation}
+          renderGameRow={renderGameRow}
+          viewerUserId={viewerUserId}
+          groupContext={Boolean(query?.groupId)}
+          eventContext={operation === "list_event_tables"}
+          moderation={moderation}
+        />
+      ))}
       {typeof description === "string" && description ? (
         <p className="whitespace-pre-wrap break-words text-sm text-muted">{description}</p>
       ) : null}

@@ -1,6 +1,18 @@
 {
   "version": 2,
   "skills": {
+    "add-app-to-server": {
+      "source": "modelcontextprotocol/ext-apps",
+      "sourceType": "github",
+      "skillPath": "plugins/mcp-apps/skills/add-app-to-server/SKILL.md",
+      "computedHash": "0c2ca7c8f70693f4574802c78c5f0c6de3f9d1096a5230735d6204305ded8fee"
+    },
+    "chatgpt-apps": {
+      "source": "openai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/.curated/chatgpt-apps/SKILL.md",
+      "computedHash": "5135c59cb882574a624aeb1ccd2ae310a43a126110788fc5b2dd22bad2f41ae0"
+    },
     "clerk": {
       "source": "clerk/skills",
       "ref": "f17ee71965e4b525727551ad4f5aa06d7f7d2392",
@@ -77,6 +89,12 @@
       "sourceType": "github",
       "skillPath": "skills/clerk-webhooks/SKILL.md",
       "computedHash": "b50cef6155462607f633da76c99f761a80eeae52819c6ba0b4ce0293561f165f"
+    },
+    "convert-web-app": {
+      "source": "modelcontextprotocol/ext-apps",
+      "sourceType": "github",
+      "skillPath": "plugins/mcp-apps/skills/convert-web-app/SKILL.md",
+      "computedHash": "b73508dd0eb573f70f0cf41773be997b8057d3a446b73fb129c2d8d21c02f76e"
     },
     "create-agentsmd": {
       "source": "github/awesome-copilot",

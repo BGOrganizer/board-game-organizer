@@ -6,7 +6,7 @@ Read the [root instructions](../../AGENTS.md) first. These rules apply to `apps/
 interactive state or browser APIs. Auth middleware leaves `/`, sign-in, and sign-up public and
 protects application routes.
 
-Navigation and list eligibility follow the [unified contract](../../docs/groups-events-refactor.md#results-lists-and-transport)
+Navigation and list eligibility follow the [unified contract](../../docs/groups-events-tables.md#results-lists-and-transport)
 and [Community](../../docs/community.md). Do not repeat page titles inside tab content.
 
 Use `@heroui/react` and Tailwind CSS; icons use `lucide-react` only. Browser-owned components
@@ -26,7 +26,10 @@ HeroUI v3 uses React Aria composition:
 - Attach `onAction` to each `Dropdown.Item`; menu-level `onAction` is not reliable here.
 - `Dropdown.Trigger` renders an interactive button; do not nest another Button inside it.
 - Reuse `src/components/common/ui/ContactConfirmDialog.tsx` for controlled confirmations;
-  replacing it with the HeroUI composite modal previously left orphaned overlays.
+  its native dialog traps focus, cancels with Close or Escape when idle, and restores focus when closed.
+- Reuse `src/components/common/ui/DateTimePicker.tsx` for combined date/time fields. It preserves
+  venue-local wall time. Date/time add rows use Done to add a valid calendar selection and keep an
+  explicit add button for keyboard entry.
 - Check installed `.d.ts` files before introducing a HeroUI component API not already used.
 
 HeroUI dark mode is class-based. `ThemeScript` bootstraps before hydration, then synchronizes the

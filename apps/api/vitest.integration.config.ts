@@ -21,7 +21,7 @@ export default defineConfig({
       provider: "v8",
       reportOnFailure: true,
       include: ["src/**/*.{js,cjs,mjs,ts,cts,mts,tsx,jsx}"],
-      // API-hosted invitation UI is exercised and 90%-gated by the web jsdom suite.
+      // API-hosted invitation UI is exercised and 93%-gated by the web jsdom suite.
       // An unexecuted Node report otherwise invents misses for erased types/imports.
       // Test-only modules and fixtures stay excluded even when selective runs do not execute them.
       exclude: [

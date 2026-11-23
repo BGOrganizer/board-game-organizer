@@ -10,16 +10,20 @@ import { act, render, screen, userEvent, waitFor } from "@testing-library/react-
 import { createContext, type ReactNode, useContext } from "react";
 import { Keyboard, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import GroupDetailScreen from "@/app/group/[groupId]";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   installNativePopoverMeasurements,
   pressMeasuredPopover,
 } from "@/test/nativePopoverGeometry";
 import { groupRecord, plannedEvent } from "../../../../../web/src/test-fixtures/eventRecords";
-import { GroupDetail } from "../GroupDetail";
 
 const API = "https://group-detail-fixtures.test";
-const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+const navigation = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+  params: {} as { groupId?: string; tab?: string },
+}));
 const options = {
   apiUrl: API,
   userId: "owner",
@@ -44,7 +48,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => navigation,
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => navigation.params,
   Stack: {
     Screen: ({ options: config }: { options: { headerRight?: () => ReactNode } }) => (
       <View>{config.headerRight?.()}</View>
@@ -214,13 +218,14 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function mount(seed = true, initialTab?: "info" | "members" | "events") {
+async function mount(seed = true, initialTab?: string) {
   if (seed) client.setQueryData(groupRecordDetailQuery(options, group.id).queryKey, group);
+  navigation.params = { groupId: group.id, tab: initialTab };
   return render(
     <QueryClientProvider client={client}>
       <NativeTestProviders>
         <Api value={options}>
-          <GroupDetail groupId={group.id} initialTab={initialTab} />
+          <GroupDetailScreen />
         </Api>
       </NativeTestProviders>
     </QueryClientProvider>,
@@ -249,6 +254,13 @@ it.each([
     expect(writes).toEqual([]);
   },
 );
+
+it("falls back to the visible details tab for an unknown deep-linked section", async () => {
+  await mount(true, "unknown");
+  expect(screen.getByRole("tab", { name: "Details" })).toBeSelected();
+  expect(screen.getByRole("heading", { name: "Details" })).toBeVisible();
+  expect(writes).toEqual([]);
+});
 
 it("dismisses the native keyboard only for an actual Group destination change, never reselection", async () => {
   const dismiss = vi.spyOn(Keyboard, "dismiss").mockImplementation(() => {});

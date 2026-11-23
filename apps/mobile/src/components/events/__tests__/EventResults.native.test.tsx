@@ -13,17 +13,19 @@ import { act, render, screen, userEvent, waitFor, within } from "@testing-librar
 import { type ReactNode, useEffect } from "react";
 import { BackHandler, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventResultsScreen from "@/app/event/results";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   plannedEvent,
   plannedTable,
   seat,
 } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventResults } from "../EventResults";
 
 const boundary = vi.hoisted(() => ({
   back: vi.fn(),
   dismissTo: vi.fn(),
+  redirect: vi.fn<(props: unknown) => null>(() => null),
+  params: {} as { eventId?: string; tableId?: string },
   getToken: vi.fn(async () => "results-native-token"),
 }));
 vi.mock("@clerk/expo", () => ({
@@ -41,7 +43,9 @@ vi.mock("expo-constants", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => ({ back: boundary.back, dismissTo: boundary.dismissTo }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+  useLocalSearchParams: () => boundary.params,
   useFocusEffect: (effect: () => undefined | (() => void)) => useEffect(effect, [effect]),
+  Redirect: boundary.redirect,
   Stack: {
     Screen: ({ options }: { options: { headerLeft?: () => ReactNode } }) => (
       <View>{options.headerLeft?.()}</View>
@@ -112,6 +116,7 @@ beforeEach(() => {
       tieBreaks: [],
     },
   };
+  boundary.params = { eventId: event.id, tableId: table.id };
   people = {
     items: [person("owner", 1), person("guest", 2), person("waiting", 3)],
     nextCursor: null,
@@ -189,7 +194,7 @@ function Fixture() {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <EventResults eventId={event.id} tableId={table.id} />
+        <EventResultsScreen />
       </NativeTestProviders>
     </QueryClientProvider>
   );
@@ -208,6 +213,20 @@ async function ready() {
   );
 }
 const denied = "Only an authorized organizer can record results for an included confirmed table.";
+
+it.each([plannedEvent.id, undefined])(
+  "returns an incomplete results link to the event route instead of opening a score editor",
+  async (eventId) => {
+    boundary.params = { eventId };
+    await mount(false);
+    expect(boundary.redirect.mock.calls[0]?.[0]).toEqual({
+      href: { pathname: "/event/[eventId]", params: { eventId: eventId ?? "" } },
+    });
+    expect(screen.queryByRole("button", { name: "Score: Owner Player" })).toBeNull();
+    expect(reads).toEqual([]);
+    expect(writes).toEqual([]);
+  },
+);
 
 it("renders only frozen participants and the saved draft while preserving cached waiting users", async () => {
   await mount();

@@ -2,13 +2,28 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { CommunityError } from "@/app/lib/community.error";
 import { GET, POST } from "@/app/mcp/route";
 import { authenticateMcp, BGO_READ_SCOPE, BGO_WRITE_SCOPE } from "../auth";
+import { operations } from "../operations";
 
-const { locationSearch, saveGroup, history, globalLeaderboard, createInvite } = vi.hoisted(() => ({
+const {
+  locationSearch,
+  saveGroup,
+  history,
+  globalLeaderboard,
+  createInvite,
+  groupDetail,
+  listGroups,
+  eventDetail,
+  tableDetail,
+} = vi.hoisted(() => ({
   locationSearch: vi.fn(),
   saveGroup: vi.fn(),
   history: vi.fn(),
   globalLeaderboard: vi.fn(),
   createInvite: vi.fn(),
+  groupDetail: vi.fn(),
+  listGroups: vi.fn(),
+  eventDetail: vi.fn(),
+  tableDetail: vi.fn(),
 }));
 vi.mock("@/app/lib/db", () => ({
   getDb: async () => ({}),
@@ -19,8 +34,8 @@ vi.mock("@/app/api/invites/route", () => ({ POST: createInvite }));
 vi.mock("@/app/lib/community/record-services", () => ({
   recordServices: () => ({
     globalLeaderboard,
-    groups: { save: saveGroup },
-    events: { personalTables: history },
+    groups: { save: saveGroup, detail: groupDetail, list: listGroups },
+    events: { personalTables: history, detail: eventDetail, tableDetail },
   }),
 }));
 vi.mock("@/app/lib/games/record-game-covers", () => ({ enrichRecordGameCovers: async () => {} }));
@@ -43,6 +58,10 @@ beforeEach(() => {
   saveGroup.mockReset();
   history.mockReset();
   globalLeaderboard.mockReset();
+  listGroups.mockReset();
+  groupDetail.mockReset();
+  eventDetail.mockReset();
+  tableDetail.mockReset();
 });
 
 function request(method: string, params?: object, headers?: Record<string, string>) {
@@ -65,8 +84,15 @@ it("serves discovery, returns a protected-resource challenge and blocks a foreig
     result: { tools },
   } = await discovery.json();
   expect(tools).toEqual(
-    expect.arrayContaining([expect.objectContaining({ name: "create_group" })]),
+    expect.arrayContaining(operations.map(({ name }) => expect.objectContaining({ name }))),
   );
+  const metadata = (name: string) =>
+    tools.find((tool: { name: string }) => tool.name === name)?._meta;
+  expect(metadata("list_events").ui).toBeUndefined();
+  expect(metadata("delete_event").ui).toBeUndefined();
+  expect(metadata("show_bgo_records").ui.resourceUri).toMatch(/^ui:\/\//);
+  expect(metadata("list_table_history").ui.resourceUri).toMatch(/^ui:\/\//);
+  expect(metadata("sync_contacts").ui).toEqual({ visibility: ["app"] });
   const call = await POST(
     request("tools/call", { name: "search_locations", arguments: { query: { query: "Bologna" } } }),
   );
@@ -77,6 +103,110 @@ it("serves discovery, returns a protected-resource challenge and blocks a foreig
   expect(
     (await POST(request("tools/list", {}, { Origin: "https://other.example.test" }))).status,
   ).toBe(403);
+});
+
+const groupId = "70f48c08-821b-4e1a-9ee6-9efa2e3afe19";
+const eventId = "fd82f631-a33c-49db-adba-dc63526ecaf6";
+const tableId = "46d59b46-969b-4b03-99a8-525d1e96d222";
+const selection = {
+  mode: "selection",
+  records: [
+    { kind: "event", id: eventId },
+    { kind: "table", id: tableId, eventId },
+    { kind: "group", id: groupId },
+    { kind: "event", id: eventId },
+  ],
+};
+async function renderRecords(args: object) {
+  const response = await POST(
+    request(
+      "tools/call",
+      { name: "show_bgo_records", arguments: args },
+      { Authorization: "Bearer scoped" },
+    ),
+  );
+  return (await response.json()).result;
+}
+
+it("renders mixed records in selection order under the caller's identity", async () => {
+  vi.mocked(authenticateMcp).mockResolvedValue({ userId: "user_mcp", scopes: [BGO_READ_SCOPE] });
+  const event = { id: eventId, name: "Open night" };
+  const table = { id: tableId, name: "Game night" };
+  const group = { id: groupId, name: "Friday Club" };
+  eventDetail.mockResolvedValueOnce(event);
+  tableDetail.mockResolvedValueOnce(table);
+  groupDetail.mockResolvedValueOnce(group);
+  const result = await renderRecords(selection);
+  expect(result.structuredContent).toEqual({
+    operation: "show_bgo_records",
+    data: { count: 3, hasMore: false },
+  });
+  expect(result._meta).toEqual({
+    viewerUserId: "user_mcp",
+    widgetView: {
+      mode: "selection",
+      rows: [
+        { kind: "event", data: event },
+        { kind: "table", data: table },
+        { kind: "group", data: group },
+      ],
+    },
+  });
+  expect(eventDetail).toHaveBeenCalledExactlyOnceWith("user_mcp", eventId);
+  expect(tableDetail).toHaveBeenCalledExactlyOnceWith("user_mcp", eventId, tableId);
+  expect(groupDetail).toHaveBeenCalledExactlyOnceWith("user_mcp", groupId);
+});
+
+it("checks read scope, validates selection inputs and preserves a canonical access denial", async () => {
+  vi.mocked(authenticateMcp).mockResolvedValueOnce({
+    userId: "user_mcp",
+    scopes: [BGO_WRITE_SCOPE],
+  });
+  await expect(renderRecords(selection)).resolves.toMatchObject({
+    isError: true,
+    _meta: { "mcp/www_authenticate": [expect.stringContaining(`scope="${BGO_READ_SCOPE}"`)] },
+  });
+  vi.mocked(authenticateMcp).mockResolvedValue({ userId: "user_mcp", scopes: [BGO_READ_SCOPE] });
+  await expect(
+    renderRecords({ mode: "selection", records: [{ kind: "event", id: "../../unsafe" }] }),
+  ).resolves.toMatchObject({ isError: true, structuredContent: { status: 400 } });
+  expect(eventDetail).not.toHaveBeenCalled();
+  eventDetail.mockResolvedValueOnce({ id: eventId, name: "Open night" });
+  tableDetail.mockRejectedValueOnce(new CommunityError(403, "TABLE_FORBIDDEN"));
+  const rejected = await renderRecords(selection);
+  expect(rejected).toMatchObject({
+    isError: true,
+    structuredContent: { status: 403, error: "TABLE_FORBIDDEN" },
+  });
+  expect(rejected._meta).toBeUndefined();
+  expect(groupDetail).not.toHaveBeenCalled();
+});
+
+it("hands the canonical page and original query to the browse widget", async () => {
+  vi.mocked(authenticateMcp).mockResolvedValue({ userId: "user_mcp", scopes: [BGO_READ_SCOPE] });
+  const page = { items: [{ id: groupId, name: "Friday Club" }], nextCursor: "cursor" };
+  listGroups.mockResolvedValueOnce(page);
+  const query = { limit: "2", roles: "admin,accepted" };
+  const result = await renderRecords({ mode: "browse", list: { source: "list_groups", query } });
+  expect(listGroups).toHaveBeenCalledWith(
+    "user_mcp",
+    "mine",
+    expect.objectContaining({ limit: 2, roles: ["admin", "accepted"] }),
+  );
+  expect(result.structuredContent).toEqual({
+    operation: "show_bgo_records",
+    data: { count: 1, hasMore: true },
+  });
+  expect(result._meta.widgetView).toEqual({
+    mode: "browse",
+    operation: "list_groups",
+    input: { query },
+    page,
+  });
+  listGroups.mockRejectedValueOnce(new CommunityError(403, "GROUP_FORBIDDEN"));
+  await expect(
+    renderRecords({ mode: "browse", list: { source: "list_groups", query } }),
+  ).resolves.toMatchObject({ isError: true, structuredContent: { status: 403 } });
 });
 
 it("returns HTTP 401 when a provided OAuth token cannot be authenticated", async () => {

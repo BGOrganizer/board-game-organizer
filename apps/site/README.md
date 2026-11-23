@@ -8,7 +8,9 @@ bun run --filter site test:coverage
 bun run --filter site build
 ```
 
-Local development is available at <http://localhost:3001>. Set `NEXT_PUBLIC_BGO_WEB_ORIGIN` if you want the sign-in links to point to a different HTTPS Web origin. A local run without it links to the existing live Web app. Vercel builds require the configured origin.
+Local development is available at <http://localhost:3001>. Set `NEXT_PUBLIC_BGO_WEB_ORIGIN` to the
+target HTTPS Web origin, such as `https://app.board-game-organizer.com`. Vercel builds require this
+setting. When it is unset locally, the code defaults to the root domain.
 
 For public browser acceptance, start the built app with `bun run --filter site start`, then run `bun run --filter site test:e2e` with Playwright Chromium installed. `PLAYWRIGHT_BASE_URL` can select a deployed Site. Set `NEXT_PUBLIC_BGO_WEB_ORIGIN` in the test process to the matching Web target. These tests check language navigation, artwork controls, information popovers and the OpenSkill demo without authenticating or editing any product data.
 
@@ -19,7 +21,9 @@ For public browser acceptance, start the built app with `bun run --filter site s
 3. If the Site project has no deployments, initialize it with a temporary static deployment on its default Vercel hostname. For example, run `vercel deploy --project <site-project-name> --prod` from a temporary directory containing only an `index.html`. Vercel classifies the first deployment as Production. The Site build checks Vercel's reported environment to prevent a Preview build from publishing with Development links to the Production alias. Keep Vercel's system environment variables enabled. [Vercel first-deployment behavior](https://vercel.com/docs/cli/deploy#prod)
 4. Open a trusted PR to build a Site preview. Its **Accedi** and **Apri l’app Web** links use the exact Development Web deployment produced by that PR run. Main deploys Site independently of the product APK, OTA and release version, with Web sign-in on `https://app.board-game-organizer.com`.
 
-Prepare the Web subdomain and verify Clerk sign-in, API CORS, and Web Push under that origin before switching the root domain. Leave `board-game-organizer.com` assigned to Web until the cutover. Verify the Site on its Vercel URL first. The domain switch also needs old Web path redirects and updates to the Web URL used in Production smoke checks, GitHub releases and Telegram.
+Production serves the [public site](https://board-game-organizer.com) on the root domain and the
+[Web application](https://app.board-game-organizer.com) on the `app` subdomain. The Site links to the
+latest GitHub release for Android APK downloads.
 
 ## Assets and localization
 

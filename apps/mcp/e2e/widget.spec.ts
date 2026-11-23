@@ -34,7 +34,7 @@ const linkedEvent = {
   groupName: linkedGroup.name,
 };
 
-async function openWidget(page: Page, operation: string, data: unknown) {
+async function openWidget(page: Page, operation: string, data: unknown, widgetView?: unknown) {
   const html = await readFile(new URL("../dist/widget.html", import.meta.url), "utf8");
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -56,6 +56,7 @@ async function openWidget(page: Page, operation: string, data: unknown) {
       <script>
         const iframe = document.querySelector('iframe');
         const input = ${JSON.stringify({ operation, data })};
+        const meta = ${JSON.stringify(widgetView ? { widgetView, viewerUserId: "user_test" } : {})};
         addEventListener('message', (event) => {
           if (event.source !== iframe.contentWindow || event.data?.jsonrpc !== '2.0') return;
           const message = event.data;
@@ -74,7 +75,7 @@ async function openWidget(page: Page, operation: string, data: unknown) {
             } });
           }
           if (message.method === 'ui/notifications/initialized') {
-            send({ method: 'ui/notifications/tool-result', params: { content: [], structuredContent: input } });
+            send({ method: 'ui/notifications/tool-result', params: { content: [], structuredContent: input, _meta: meta } });
           }
           if (message.method === 'tools/call' && message.params.name === 'create_group') {
             const body = message.params.arguments.body;
@@ -104,6 +105,7 @@ async function openWidget(page: Page, operation: string, data: unknown) {
           if (message.method === 'ui/request-display-mode') {
             document.body.dataset.mode = message.params.mode;
             send({ id: message.id, result: { mode: message.params.mode } });
+            send({ method: 'ui/notifications/host-context-changed', params: { displayMode: message.params.mode } });
           }
           if (message.method === 'tools/call' && message.params.name === 'get_user_profile') {
             document.body.dataset.profile = message.params.arguments.params.userId;
@@ -127,8 +129,8 @@ async function openWidget(page: Page, operation: string, data: unknown) {
 test("navigates from history to a table and back inside the sandboxed widget", async ({ page }) => {
   const { frame, errors } = await openWidget(page, "list_table_history", history);
   await expect(frame.getByRole("heading", { name: "History" })).toBeVisible();
-  await expect(frame.locator("#root")).toHaveCSS("padding-top", "32px");
-  await expect(frame.locator("#root")).toHaveCSS("padding-bottom", "32px");
+  await expect(frame.locator("#root")).toHaveCSS("padding-top", "16px");
+  await expect(frame.locator("#root")).toHaveCSS("padding-bottom", "20px");
   await expect(frame.getByText("Hegemony")).toBeVisible();
   await frame.getByRole("button", { name: "Open table: Hegemony" }).click();
   await expect(page.locator("body")).toHaveAttribute("data-table", history.items[0].id);
@@ -226,5 +228,37 @@ test("renders the existing BGO event artwork and interactive visibility popover"
   await expect(
     frame.getByText("Participation is limited to authorized group members or invited users."),
   ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("shows a mixed shortlist, expands in the host and opens a BGO detail", async ({ page }) => {
+  const { frame, errors } = await openWidget(
+    page,
+    "show_bgo_records",
+    { count: 3, hasMore: false },
+    {
+      mode: "selection",
+      rows: [
+        { kind: "event", data: linkedEvent },
+        { kind: "table", data: history.items[0] },
+        { kind: "group", data: linkedGroup },
+      ],
+    },
+  );
+  await expect(frame.getByRole("region", { name: "Results" })).toBeVisible();
+  await expect(
+    frame.getByRole("button", { name: `Open event: ${linkedEvent.name}` }),
+  ).toBeVisible();
+  await expect(frame.getByRole("button", { name: "Open table: Hegemony" })).toBeVisible();
+  await expect(frame.getByRole("button", { name: "Load more" })).toHaveCount(0);
+  await frame.getByRole("button", { name: "Full screen" }).click();
+  await expect(page.locator("body")).toHaveAttribute("data-mode", "fullscreen");
+  await frame.getByRole("button", { name: "Exit full screen" }).click();
+  await expect(page.locator("body")).toHaveAttribute("data-mode", "inline");
+  const group = frame.getByRole("button", { name: `Open group: ${linkedGroup.name}` });
+  await group.click();
+  await expect(frame.getByRole("tablist", { name: "Group sections" })).toBeVisible();
+  await frame.getByRole("button", { name: "Back" }).click();
+  await expect(group).toBeFocused();
   expect(errors).toEqual([]);
 });

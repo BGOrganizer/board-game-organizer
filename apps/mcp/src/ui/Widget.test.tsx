@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { Widget } from "./Widget";
@@ -169,6 +169,111 @@ it("follows an event to its tables and their group, keeping every section in the
   expect(host.openLink).not.toHaveBeenCalled();
 }, 15_000);
 
+it("pages a browse widget through its authorized data tool using the original query", async () => {
+  const query = { section: "mine", query: "night", limit: 2 };
+  const event = { ...plannedEvent, id: eventId, name: "One game night" };
+  host.callServerTool.mockResolvedValueOnce(
+    response("list_events", { items: [], nextCursor: null }),
+  );
+  render(<Widget />);
+  act(() =>
+    host.ontoolresult({
+      ...response("show_bgo_records", { count: 1, hasMore: true }),
+      _meta: {
+        viewerUserId: "user_viewer",
+        widgetView: {
+          mode: "browse",
+          operation: "list_events",
+          input: { query },
+          page: { items: [event], nextCursor: "next" },
+        },
+      },
+    }),
+  );
+  expect(await screen.findByText(event.name)).toBeVisible();
+  const more = screen.getByRole("button", { name: "Load more" });
+  fireEvent.click(more);
+  await waitFor(() => expect(more).not.toBeInTheDocument());
+  expect(host.callServerTool).toHaveBeenCalledExactlyOnceWith(
+    { name: "list_events", arguments: { query: { ...query, cursor: "next" } } },
+    { signal: expect.any(AbortSignal) },
+  );
+});
+
+it("renders a mixed shortlist in order and preserves it when returning from a table", async () => {
+  const event = { ...plannedEvent, id: eventId };
+  const table = historyTable(firstTableId, "Hegemony");
+  const group = { ...groupRecord, id: groupId };
+  host.callServerTool.mockResolvedValueOnce(response("get_table", table));
+  render(<Widget />);
+  act(() =>
+    host.ontoolresult({
+      ...response("show_bgo_records", { count: 3, hasMore: false }),
+      _meta: {
+        widgetView: {
+          mode: "selection",
+          rows: [
+            { kind: "table", data: table },
+            { kind: "group", data: group },
+            { kind: "event", data: event },
+          ],
+        },
+      },
+    }),
+  );
+  const cards = screen.getAllByRole("button", { name: /^Open (table|group|event):/ });
+  expect(cards.map((card) => card.getAttribute("aria-label"))).toEqual([
+    "Open table: Hegemony",
+    `Open group: ${group.name}`,
+    `Open event: ${event.name}`,
+  ]);
+  fireEvent.click(screen.getByRole("button", { name: /^Board games:/ }));
+  const games = await screen.findByRole("dialog");
+  expect(within(games).getByText("Chess")).toBeVisible();
+  fireEvent.keyDown(games, { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(games).not.toBeInTheDocument());
+  cards[0].focus();
+  fireEvent.click(cards[0]);
+  expect(await screen.findByRole("tab", { name: "Results" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(cards[0]).toHaveFocus();
+  expect(screen.getByRole("button", { name: `Open event: ${event.name}` })).toBeVisible();
+  expect(screen.queryByRole("button", { name: /^Load more/ })).toBeNull();
+});
+
+it.each([
+  undefined,
+  { mode: "selection", rows: [{ kind: "group", data: {} }] },
+  { mode: "selection", rows: [{ kind: "contact", data: { id: "user_other" } }] },
+])("shows an error for an unusable widget payload (%j)", async (widgetView) => {
+  render(<Widget />);
+  act(() =>
+    host.ontoolresult({
+      ...response("show_bgo_records", { count: 1, hasMore: false }),
+      _meta: { widgetView },
+    }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Something went wrong");
+});
+
+it("follows the host display mode and exposes a control to expand or collapse the widget", async () => {
+  await open("list_events", { items: [], nextCursor: null });
+  expect(screen.queryByRole("button", { name: "Full screen" })).toBeNull();
+  act(() =>
+    host.onhostcontextchanged({
+      displayMode: "inline",
+      availableDisplayModes: ["inline", "fullscreen"],
+      safeAreaInsets: { top: 10, right: 11, bottom: 12, left: 13 },
+    }),
+  );
+  expect(document.documentElement.style.getPropertyValue("--mcp-inset-right")).toBe("11px");
+  fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+  expect(host.requestDisplayMode).toHaveBeenLastCalledWith({ mode: "fullscreen" });
+  act(() => host.onhostcontextchanged({ displayMode: "fullscreen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Exit full screen" }));
+  expect(host.requestDisplayMode).toHaveBeenLastCalledWith({ mode: "inline" });
+});
+
 it("loads permitted group tabs on demand and retries a failed panel without leaving the detail", async () => {
   host.callServerTool
     .mockResolvedValueOnce({ isError: true, structuredContent: { status: 403 } })
@@ -196,7 +301,47 @@ it("loads permitted group tabs on demand and retries a failed panel without leav
       { signal: expect.any(AbortSignal) },
     ),
   );
+  expect(await screen.findByText("No rated tables played in this group yet")).toBeVisible();
   expect(screen.getByRole("heading", { name: groupRecord.name })).toBeVisible();
+});
+
+it("isolates group events when the authenticated viewer changes mid-read", async () => {
+  const group = { ...groupRecord, id: groupId, canViewEvents: true };
+  const event = { ...plannedEvent, id: eventId, groupId, name: "Group game night" };
+  const scoped = response("list_events", { items: [event], nextCursor: null });
+  host.callServerTool
+    .mockResolvedValueOnce({ ...scoped, _meta: { viewerUserId: "user_other" } })
+    .mockResolvedValueOnce({ ...scoped, _meta: { viewerUserId: "user_viewer" } });
+  render(<Widget />);
+  act(() =>
+    host.ontoolresult({ ...response("get_group", group), _meta: { viewerUserId: "user_viewer" } }),
+  );
+  fireEvent.click(screen.getByRole("tab", { name: "Events" }));
+  expect(await screen.findByRole("alert")).toBeVisible();
+  expect(screen.queryByText(event.name)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText(event.name)).toBeVisible();
+  expect(host.callServerTool).toHaveBeenLastCalledWith(
+    { name: "list_events", arguments: { query: { groupId } } },
+    { signal: expect.any(AbortSignal) },
+  );
+});
+
+it("opens Participants from the receipt for a created event", async () => {
+  const event = { ...plannedEvent, id: eventId, groupId, description: "Bring a snack" };
+  host.callServerTool
+    .mockResolvedValueOnce(response("get_event", event))
+    .mockResolvedValueOnce(response("list_event_participants", { items: [], nextCursor: null }));
+  await open("create_event", event);
+  expect(screen.getByText(event.description)).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Participants" }));
+  expect(await screen.findByText("No participants yet")).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Participants" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByText(event.description)).toBeVisible();
 });
 
 it("loads event participants for the current view and keeps private projections scoped", async () => {

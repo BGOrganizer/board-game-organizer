@@ -14,9 +14,8 @@ Do not retain a token snapshot for later network calls.
 Group social controls reuse the canonical Contacts mutations without mounting relationship-list or
 search observers; the Contacts screen retains its own paginated reads.
 
-Paginated contact lists and suggestions use their shared canonical keys across screens, warmup
-and mutations. Their cache identity is distinct from retired flat snapshots so an infinite-query
-observer never consumes an incompatible restored value.
+Paginated contact lists and suggestions share canonical keys across screens, warmup and mutations.
+Infinite queries accept only compatible paginated snapshots.
 
 On an ordinary authenticated mobile launch, prioritize the first pages of History, Groups, Scheduled Events
 and the profile with three warmup workers; only those four datasets gate early splash release.
@@ -91,7 +90,7 @@ inactive query.
 
 Every relationship mutation must mark the `['contacts']` prefix stale; if search is active,
 `useContacts` must rerun the last query so action state updates without manual refresh. Event/Table/registration
-mutations reconcile the affected `['events']` and `['groups']` scopes, not retired Match caches.
+mutations reconcile the affected `['events']` and `['groups']` scopes.
 Optimistic feedback is the project-wide default for explicit remote mutations on both clients,
 not a screen-by-screen opt-in. Reuse the existing scoped journal/intent layer: update owned Query
 caches when cached state exists, cancel conflicting requests first, then reconcile from the server
@@ -109,7 +108,7 @@ Notification reads never grant consent. Pending invitations remain unread until 
 container entry, time, focus, scrolling and successful votes never acknowledge information.
 Reads/decision acknowledgments reconcile related active and inactive caches immediately, preserving
 later/unshown changes and selective rollback. The source-backed selection, dots, resource popovers, inbox and
-partial-read rules live in [Notification attention](groups-events-refactor.md#notification-attention).
+partial-read rules live in [Notification attention](groups-events-tables.md#notification-attention).
 
 ## Zustand
 

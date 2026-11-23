@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { scanContactIdentifiers, warmRegisteredContacts } from "../registeredContacts";
+import {
+  pendingRegisteredContacts,
+  scanContactIdentifiers,
+  warmRegisteredContacts,
+} from "../registeredContacts";
 
 const mocks = vi.hoisted(() => ({
   permission: vi.fn(),
@@ -79,11 +83,39 @@ describe("registered contacts startup sync", () => {
       return offset < 1200
         ? Array.from({ length: 200 }, (_, index) => ({
             emails: [{ address: `friend${offset + index}@example.com` }],
+            phones: [{ number: `+447700${String(offset + index).padStart(6, "0")}` }],
           }))
         : [];
     });
     const identifiers = await scanContactIdentifiers();
     expect(identifiers.emails).toHaveLength(1000);
+    expect(identifiers.phoneNumbers).toHaveLength(1000);
+    expect(identifiers.phoneNumbers.at(0)).toBe("447700000000");
+    expect(identifiers.phoneNumbers.at(-1)).toBe("447700000999");
     expect(mocks.page).toHaveBeenCalledTimes(7);
+  });
+
+  it("clears a failed scan so the same account can retry", async () => {
+    mocks.page.mockRejectedValueOnce(new Error("Address book unavailable"));
+    const scan = () =>
+      warmRegisteredContacts(
+        "retry",
+        "https://api.test",
+        async () => "jwt",
+        () => true,
+      );
+    const failedScan = scan();
+    expect(pendingRegisteredContacts("retry")).toBe(failedScan);
+    await expect(failedScan).rejects.toThrow("Address book unavailable");
+    expect(mocks.sync).not.toHaveBeenCalled();
+    expect(pendingRegisteredContacts("retry")).toBeUndefined();
+    await expect(scan()).resolves.toMatchObject({ registered: { emails: ["friend@example.com"] } });
+    expect(mocks.sync).toHaveBeenCalledExactlyOnceWith(
+      "https://api.test",
+      ["friend@example.com"],
+      [],
+      null,
+      expect.any(Function),
+    );
   });
 });

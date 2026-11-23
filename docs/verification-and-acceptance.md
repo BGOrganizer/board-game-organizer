@@ -1,12 +1,11 @@
 # Verification and runtime acceptance
 
 This guide defines how to assess an implementation. Current behavior belongs in the
-[domain contract](groups-events-refactor.md), [Profiles](profiles.md), [Community](community.md)
+[domain contract](groups-events-tables.md), [Profiles](profiles.md), [Community](community.md)
 and [state/cache guide](state-and-cache.md). Commands and delivery requirements belong in
 [AGENTS.md](../AGENTS.md#7-verification), [development](development.md) and
-[operational gates](organizations-events-operations.md). Read current source and workflow files
-before using older reports. Historical implementation journals and their superseded designs remain
-in Git history; this document is not a roadmap or a running test-count ledger.
+[operational gates](deployment-operations.md). Use the current source and workflow files to interpret
+each verification result.
 
 ## Automated verification
 
@@ -33,6 +32,10 @@ both clients, including authorization, invitations, cutoff rules, immutable resu
 EN/IT and light/dark behavior where applicable. Follow each scenario's documented fixture contract.
 Do not silently skip missing authenticated configuration or report controlled responses as live
 API/provider evidence.
+
+MCP widget Playwright tests exercise the compiled widget inside a sandboxed iframe with a simulated
+host. Authenticated host acceptance also requires OAuth in the target environment and a real tool call
+with a permitted BGO account. See [MCP local checks](mcp-apps.md#local-checks).
 
 Native checks use a compatible binary and its actual API/environment. JavaScript-only changes may
 use a compatible OTA; native dependency, permission or configuration changes require a fresh binary.

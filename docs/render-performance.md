@@ -4,12 +4,9 @@ Web and mobile have separate Vitest rendering suites using React Testing Library
 Testing Library respectively, with `@callstack/reassure-measure`, Reassure's measurement module.
 There is no Jest runner. Versions are locked in the app manifests and `bun.lock`.
 
-**Reassure measurements are paused locally and in CI by explicit operator request.** Both workflow
-job definitions, fixtures and comparison tools remain retained, but the jobs are disabled and are
-not active publication, readiness or watchdog gates. Ordinary component/unit tests, all five
-workspaces' 90% coverage gates, real MongoDB integration and native tooling checks remain active.
-The comparator and paired-helper unit tests still run as ordinary tests. Paused measurements are
-not passing performance evidence; do not start another benchmark run without explicit resumption.
+**Reassure measurement jobs are disabled.** The six-workspace coverage matrix, separate Site
+checks, MongoDB integration and native tooling still run. Comparator and paired-helper tests are
+part of ordinary suites. Run a local measurement only when explicitly requested.
 
 For explicit resumption, the retained commands use the Node.js and Bun versions required by
 [AGENTS.md](../AGENTS.md), from the repository root:
@@ -244,6 +241,6 @@ render-commit budgets and the paired statistical policy when explicitly resumed.
 is paused, PR/Main do not run or require these measurements; no full-suite performance success is
 attested. The initial no-harness bootstrap is explicitly unpaired.
 These checks do not establish native latency or E2E acceptance. Native acceptance and profiling remain defined in
-[verification](implementation-progress.md), [native profiling](native-performance.md) and
+[verification](verification-and-acceptance.md), [native profiling](native-performance.md) and
 [the Maestro guide](../apps/mobile/.maestro/README.md). Report executed scenarios and their limits;
 installed tooling and written tests are not evidence that every component has been measured.

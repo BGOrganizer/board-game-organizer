@@ -10,6 +10,7 @@ import {
   finalizeSavedEventSchema,
   joinTableSchema,
   plannedTableInputSchema,
+  saveTableGuestVotesSchema,
   tableRegistrationReceiptSchema,
   tableSeatOrderSchema,
 } from "../dto/eventRecords";
@@ -21,6 +22,22 @@ import {
 
 const id = "11111111-1111-4111-8111-111111111111",
   other = "22222222-2222-4222-8222-222222222222";
+
+it("accepts a mixed guest ballot and rejects two answers to the same option", () => {
+  const date = { kind: "date", optionId: id, vote: "YES" };
+  const venue = { kind: "location", optionId: id, vote: "IF_NEEDED" };
+  const game = { kind: "game", tableId: other, gameId: 42, vote: "NO" };
+  expect(saveTableGuestVotesSchema.safeParse({ votes: [date, venue, game] }).success).toBe(true);
+  const duplicate = saveTableGuestVotesSchema.safeParse({
+    votes: [date, game, { ...game, vote: "YES" }],
+  });
+  expect(duplicate.success).toBe(false);
+  expect(duplicate.error?.issues).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ path: ["votes"], message: "Vote options must be unique" }),
+    ]),
+  );
+});
 it("accepts sparse/queued seat order indices and legacy omissions, rejecting malformed positions", () => {
   const base = {
     version: 1,

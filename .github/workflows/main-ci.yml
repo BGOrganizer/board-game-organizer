@@ -29,7 +29,7 @@ jobs:
 
       - name: 🔒 CI isolation contract
         if: ${{ !cancelled() }}
-        run: node --test --experimental-test-coverage --test-coverage-include='scripts/release/*format.mjs' --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=90 .github/scripts/__tests__/*.test.mjs
+        run: node --test --experimental-test-coverage --test-coverage-include='scripts/release/*format.mjs' --test-coverage-lines=93 --test-coverage-functions=93 --test-coverage-branches=93 .github/scripts/__tests__/*.test.mjs
 
   coverage:
     name: Unit tests and coverage (${{ matrix.app }})

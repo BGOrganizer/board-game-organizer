@@ -1,9 +1,9 @@
 # Profiles, statistics and activities
 
 Profiles share implemented identity, statistics, activities and collection behavior across web and
-native mobile. [Verification requirements](implementation-progress.md) distinguish source checks
+native mobile. [Verification requirements](verification-and-acceptance.md) distinguish source checks
 from authenticated browser/device acceptance.
-The [unified domain](groups-events-refactor.md) remains authoritative for source access, consent,
+The [unified domain](groups-events-tables.md) remains authoritative for source access, consent,
 physical results, deletion and OpenSkill. [Community](community.md) reuses these activities and source
 visibility with a current-network/time selection; no offline mode is enabled.
 
@@ -94,8 +94,7 @@ visibility with a current-network/time selection; no offline mode is enabled.
 
 ## Durable activities and privacy
 
-- Recording starts with the new backend writers; there is no historical backfill or notification-copy
-  migration. Successful follows, new friendships, accepted Group membership/creation, accepted Table
+- Successful follows, friendships, accepted Group membership/creation, accepted Table
   participation and CONFIRMED-to-TERMINATED finalization append domain receipts in their source
   transaction. Pending invitations/requests are not participation.
 - One played activity contains its outcome; there is no duplicate ordinary victory record. Milestones
@@ -108,7 +107,7 @@ visibility with a current-network/time selection; no offline mode is enabled.
 - Stored receipts contain source identifiers, not display names or reusable public authorization.
   Each feed read resolves current source access. Private activities remain omitted except explicitly
   shared immutable final played/milestone results, authorized through current friends of final frozen
-  players (including ND), with no Group identity. See [Event access and sharing](groups-events-refactor.md#event-access-and-shared-final-results).
+  players (including ND), with no Group identity. See [Event access and sharing](groups-events-tables.md#event-access-and-shared-final-results).
   Approved PUBLIC Group/PUBLIC Event reads remain authenticated and block/ban/source-aware. Reading
   never implies consent or Group membership; explicit PUBLIC SELF enrollment is separate. Standalone
   sources retain existing access. See the [Community visibility contract](community.md).
@@ -156,7 +155,7 @@ action. Existing linked Powered by BGG artwork uses a HeroUI light surface scope
 The API migration maintains profile-activity receipt/paging/source indexes and a per-player
 Table-outcome index. Migration requires explicit scope and the intended replica-set target;
 ordinary validation uses only ephemeral Testcontainers databases. Deployment isolation and
-[operational gates](organizations-events-operations.md) apply; documentation authorizes no database
+[operational gates](deployment-operations.md) apply; documentation authorizes no database
 reset, provider provisioning or real BGG operation.
 
 ## Acceptance

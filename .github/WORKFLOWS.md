@@ -6,12 +6,13 @@
 | --- | --- | --- |
 | [pr-ci.yml](workflows/pr-ci.yml) | CI | Route branch/PR events, run shared checks, then independent isolated CI and Development publication lanes. |
 | [main-ci.yml](workflows/main-ci.yml) | Release | Verify every merge, serialize version preparation, build the pinned APK, deploy and publish the verified release. |
+| [mobile-debug.yml](workflows/mobile-debug.yml) | Android debug APK | Validate the selected Development API and build an APK for native performance diagnosis. |
 | [pr-ci-fail-fast.yml](workflows/pr-ci-fail-fast.yml) | CI watchdog | Wait for all mandatory test suites before cancelling remaining work after shared-quality failures; keep lane-specific failures isolated. |
 | [pr-ci-cleanup.yml](workflows/pr-ci-cleanup.yml) | CI cleanup | Recover resources after an unsuccessful PR run, using trusted default-branch code. |
 | [e2e-user-cleanup.yml](workflows/e2e-user-cleanup.yml) | Test users | Hourly/manual orphan cleanup after verifying the owning run has completed. |
 
 Trigger, permission, publication and controller activation contracts live in
-[operational gates](../docs/organizations-events-operations.md). PR E2E remains explicitly disabled;
+[operational gates](../docs/deployment-operations.md). PR E2E remains explicitly disabled;
 green source tests do not establish authenticated browser/native acceptance.
 
 ## Actions and script boundaries
@@ -34,6 +35,9 @@ credential scope; scripts implement routing, provenance, publication and recover
 - Site has its own coverage and build job. A trusted PR deploys a Site preview linked to that run's
   Development Web. Main deploys Site independently of the app release. See the
   [Site Vercel setup](../apps/site/README.md#vercel-and-github-actions).
+- `deploy-development-mcp-gateway` and `deploy-production-mcp-gateway` are separate jobs from the
+  API producers. The designated Development PR publishes its matching MCP package. Production
+  releases include the versioned MCP package. See [MCP deployment](../docs/mcp-apps.md#gateway-deployment).
 - Explicit-ID/run cleanup never performs an age sweep. Orphan cleanup only deletes marked, old users
   with a recognized completed owner; live Clerk keys, active reruns and unverifiable ownership are rejected or retained.
 
@@ -61,10 +65,10 @@ They do not dispatch workflows, create/delete provider users or publish builds.
 Validate workflow expressions with `actionlint`; check changed Bash scripts with `bash -n`.
 Run Biome on changed JavaScript. Keep workflow contract tests aligned with script behavior,
 including negative paths, without weakening required checks or mocking E2E acceptance.
-Both CI lanes enforce 90% line, function and branch coverage for the shared release/Telegram
+Both CI lanes enforce 93% line, function and branch coverage for the shared release/Telegram
 formatters through Node's test coverage flags on the same contract suite.
 Branch, PR and Main unit jobs use each workspace's `test:coverage` command, enforcing at least
-90% lines, functions, branches and statements through the same Vitest configuration used locally.
+93% lines, functions, branches and statements through the same Vitest configuration used locally.
 The API coverage command includes its unit and MongoDB integration projects in one report;
 the separate integration job remains an independent required check.
 Reassure measurements are paused by explicit operator request. Both complete web/mobile job
@@ -73,7 +77,7 @@ but are absent from active deployment/release/readiness dependencies and watchdo
 No skipped benchmark is reported as a passing performance measurement. Comparator, paired-helper
 and other tooling unit tests remain active within ordinary tests.
 
-The existing five-workspace 90% coverage matrix, real MongoDB integration, lint, typecheck, builds,
+The six-workspace 93% coverage matrix, separate Site checks, real MongoDB integration, lint, typecheck, builds,
 native tooling, release provenance and cleanup gates remain active. The retained rendering jobs
 preserve same-runner sequencing, approved refs, strict samples/count caps and the documented
 initial-main bootstrap policy for explicit resumption; see

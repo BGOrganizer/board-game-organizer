@@ -111,7 +111,7 @@ not alter the device binding. Run `NativeHorizontalScrollAdapter.native.test.tsx
 
 Native MapLibre and MMKV/Nitro require a native build, not Expo Go or a JavaScript-only update.
 Use the mobile package's `android` or `ios` script for local builds with the appropriate native toolchain.
-Assess native performance and runtime acceptance with the [verification requirements](implementation-progress.md).
+Assess native performance and runtime acceptance with the [verification requirements](verification-and-acceptance.md).
 
 ## BoardGameGeek catalog
 
@@ -123,8 +123,6 @@ Every container start repeats the import before becoming healthy. `docker compos
 Remote imports use [the import CLI](../apps/api/scripts/import-boardgames.mjs). The direct database alternative is
 [import-boardgames-direct.ts](../apps/api/scripts/import-boardgames-direct.ts).
 These are operator tasks with explicit environment/credential checks, not application startup steps.
-The manual BGG import and standalone mobile-build GitHub workflows have been removed;
-mobile delivery remains in the PR/main pipelines.
 Both remote and direct import use the complete rankings CSV parser.
 
 User synchronization requests owned games (`own=1`) in separate base-game and expansion partitions;
@@ -146,6 +144,12 @@ responses. Missing minutes are eligible even with a legacy fresh success timesta
 complete metadata retains the existing seven-day freshness policy. Refresh happens on a subsequent
 API read, not by polling or by automatically scanning later pages.
 
+Game rows show an information badge on the cover. The popover shows publication year, BGG rating
+and ranking, BGG playing time, Best BGG player counts, difficulty out of five and category chips.
+The difficulty icon uses the HeroUI success token through 1.5, warning through 3, accent through 4,
+and danger above 4. Missing fields show individual loading placeholders while enrichment runs and
+an unavailable state when BGG has no usable value. Table scheduling uses its own effective duration.
+
 BGG player-count recommendations retain the complete `suggested_numplayers` poll as
 `suggestedPlayers` (Best/Recommended/Not Recommended counts per exact or open-ended count,
 per-row samples, provider total and fetched timestamp). Classification uses a strict unique
@@ -162,17 +166,17 @@ Each API request hydrates at most 20 IDs under the shared quota; orchestration s
 Partial CSV runs do not start enrichment. Fresh records are skipped; incomplete batches report
 counts and fail explicitly without rolling back the usable CSV. Rerunning resumes through the
 metadata cache; other catalog games remain lazily enriched. No import is performed merely by
-installing or testing this code. See [Event planning](groups-events-refactor.md#event-planning-settings-and-seat-order).
+installing or testing this code. See [Event planning](groups-events-tables.md#event-planning-settings-and-seat-order).
 
 ## Delivery
 
 [Branch/PR CI](../.github/workflows/pr-ci.yml) runs quality, unit and MongoDB integration checks.
 Without an open main-targeting PR it stops at branch checks. With one, the PR event owns the full pipeline;
 the push run routes without duplicating it. Internal validation and Development publication have distinct dependencies.
-PR browser/native E2E jobs are retained but explicitly disabled by current policy; a green CI does not prove E2E acceptance.
-Main and manual mobile E2E workflow gates have been removed; local suites remain available.
+Browser and native E2E run as separate acceptance suites. PR and Main delivery currently use source,
+build and smoke gates without those suites. See [verification and acceptance](verification-and-acceptance.md).
 
-[Main CI](../.github/workflows/main-ci.yml) and [operational gates](organizations-events-operations.md) define actual deployment, isolation and release requirements.
+[Main CI](../.github/workflows/main-ci.yml) and [operational gates](deployment-operations.md) define actual deployment, isolation and release requirements.
 Infisical is the deployment configuration source of truth. Keep test/production Clerk instances and runtime databases isolated.
 Use signed Conventional Commits; open a PR only when requested.
 
@@ -197,7 +201,7 @@ GitHub emits these events; the main workflow does not call the controllers with 
 The workflow-run controllers use trusted default-branch code. Keeping recovery outside the
 source run allows it to execute after that run is cancelled; putting it solely in the cancelled
 run would lose that independence. Scheduled orphan cleanup also needs to run when no PR runs.
-See [controller activation](organizations-events-operations.md#trusted-controllers-and-activation)
+See [controller activation](deployment-operations.md#trusted-controllers-and-activation)
 before treating branch edits as live protection.
 
 ## Bun installation and runtime
@@ -245,7 +249,7 @@ After any dependency update, run lint, typecheck, unit tests, builds, and releva
 tests.
 
 Native dependency changes also require a fresh APK and applicable Maestro acceptance. CI enablement
-follows the workflow files and [operational gates](organizations-events-operations.md).
+follows the workflow files and [operational gates](deployment-operations.md).
 
 ## Environment configuration
 
@@ -259,7 +263,7 @@ Copy examples; never commit generated environment files.
 
 The tracked per-app `.env.example` files define variable names and placeholders. Infisical is the
 configuration source of truth for deployments. Build/runtime database isolation is documented in
-[operational gates](organizations-events-operations.md#infisical-and-deployment-isolation);
+[operational gates](deployment-operations.md#infisical-and-deployment-isolation);
 never copy private values into documentation, Git, logs, or a different environment.
 
 `MONGODB_URI` is mandatory. Transactions require a replica set.
@@ -347,7 +351,7 @@ unchanged; Production never implicitly loads Preview variables through the share
 
 PR Development and Main Production publication automatically publish an Android OTA after their
 quality, deployment, smoke and current-source gates. Isolated `ci-pr-N` builds do not publish OTA.
-See [operational gates](organizations-events-operations.md) for artifact/runtime checks and ordering.
+See [operational gates](deployment-operations.md) for artifact/runtime checks and ordering.
 For an explicitly authorized manual publication, use the EAS CLI's `update --channel <channel>
 --environment <environment> --platform android --message <message>` from `apps/mobile`.
 SDK 57 requires the EAS environment flag. Supply the same `APP_VARIANT`, `EXPO_UPDATE_CHANNEL`,
@@ -386,10 +390,14 @@ Keep `EXPO_TOKEN` server-side. Local EAS setup may read this single value from I
 Before Production publication, validate a compatible owned Development update and its recovery
 behavior. Manual native acceptance is documented in the [Maestro guide](../apps/mobile/.maestro/README.md#manual-ota-startup).
 
-Production endpoints:
+| Production surface | Origin |
+| --- | --- |
+| Public Site | `https://board-game-organizer.com` |
+| Web application | `https://app.board-game-organizer.com` |
+| API and MCP | `https://api.board-game-organizer.com` |
 
-- Web: `https://board-game-organizer.com`
-- API: `https://api.board-game-organizer.com`
+The [Main workflow](../.github/workflows/main-ci.yml) currently uses the public Site URL for its
+Web smoke request and Telegram Web link. The Site sign-in action targets the application origin.
 
 Preview web builds use the immutable API Preview URL; PR mobile APKs use a verified moving per-PR
 alias. No E2E job falls back to a development or production API URL.

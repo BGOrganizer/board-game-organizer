@@ -47,9 +47,7 @@ notification bell requests it directly; do not add a second enable button.
 HeroUI Native Skeleton has no intrinsic size. Give each skeleton explicit width, height, and border
 radius, and keep parent rows stretched to full width.
 
-Do not add a custom mobile Babel configuration. React Native's Babel/runtime combination and
-worklets previously caused release builds to crash at launch. Mobile localization intentionally uses
-runtime helpers instead of Lingui Babel macros.
+Keep the Expo-managed mobile Babel configuration. Mobile localization uses Lingui runtime helpers.
 
 ## State, environment and native builds
 
