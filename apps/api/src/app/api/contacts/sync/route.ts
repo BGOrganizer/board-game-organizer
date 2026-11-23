@@ -4,11 +4,11 @@ import {
   syncContactsSchema,
   type User,
 } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { CommunityError } from "@/app/lib/community.error";
 import { ContactLinksRepository } from "@/app/lib/contacts/contacts.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb, withTransaction } from "@/app/lib/db";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { UsersRepository } from "@/app/lib/users/users.repository";
 
 /**
@@ -23,7 +23,7 @@ export function OPTIONS(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   const parsed = syncContactsSchema.safeParse(await request.json().catch(() => null));

@@ -26,6 +26,8 @@ type GameMetadata = Partial<
   >
 > & { id: number };
 
+type ReadGameMetadata = (ids: number[], signal: AbortSignal) => Promise<unknown>;
+
 type PendingGame = {
   id: number;
   signal: AbortSignal;
@@ -37,7 +39,7 @@ type PendingGame = {
 const pending = new WeakMap<QueryClient, Map<string, PendingGame[]>>();
 const aborted = () => Object.assign(new Error("Aborted"), { name: "AbortError" });
 
-async function fetchBatch(options: CommunityApiOptions, entries: PendingGame[]) {
+async function fetchBatch(read: ReadGameMetadata, entries: PendingGame[]) {
   const active = entries.filter(({ signal, reject }) => {
     if (!signal.aborted) return true;
     reject(aborted());
@@ -52,14 +54,7 @@ async function fetchBatch(options: CommunityApiOptions, entries: PendingGame[]) 
   for (const { signal } of active) signal.addEventListener("abort", abort);
   try {
     const ids = new Set(active.map(({ id }) => id));
-    const params = new URLSearchParams({ ids: [...ids].join(",") });
-    const raw = await communityRequest<unknown>(
-      options,
-      `bgg/thing?${params}`,
-      "GET",
-      undefined,
-      controller.signal,
-    );
+    const raw = await read([...ids], controller.signal);
     const { items } = bggThingBatchResponseSchema.parse(raw);
     const byId = new Map(items.map((game) => [game.id, game]));
     for (const { id, signal, resolve, reject } of active) {
@@ -77,7 +72,8 @@ async function fetchBatch(options: CommunityApiOptions, entries: PendingGame[]) 
 
 function requestGame(
   client: QueryClient,
-  options: CommunityApiOptions,
+  scope: string,
+  read: ReadGameMetadata,
   id: number,
   signal: AbortSignal,
 ) {
@@ -87,14 +83,13 @@ function requestGame(
     pending.set(client, scopes);
   }
   const batches = scopes;
-  const scope = JSON.stringify([options.apiUrl, options.userId, options.protectionBypass]);
   const queue = batches.get(scope) ?? [];
   if (!batches.has(scope)) {
     batches.set(scope, queue);
     // Native viewability and IntersectionObserver may enable rows in different callbacks.
     setTimeout(() => {
       batches.delete(scope);
-      for (let i = 0; i < queue.length; i += 20) void fetchBatch(options, queue.slice(i, i + 20));
+      for (let i = 0; i < queue.length; i += 20) void fetchBatch(read, queue.slice(i, i + 20));
     }, 40);
   }
   return new Promise<BggThingResponse>((resolve, reject) => {
@@ -143,7 +138,21 @@ export function bggGameMetadataQuery(
         game?.id &&
         gameMetadataMissing(game),
     ),
-    queryFn: ({ signal }) => requestGame(client, options, id as number, signal),
+    queryFn: ({ signal }) =>
+      requestGame(
+        client,
+        JSON.stringify([options.apiUrl, options.userId, options.protectionBypass]),
+        (ids, batchSignal) =>
+          communityRequest(
+            options,
+            `bgg/thing?${new URLSearchParams({ ids: ids.join(",") })}`,
+            "GET",
+            undefined,
+            batchSignal,
+          ),
+        id as number,
+        signal,
+      ),
     staleTime: 5 * 60_000,
     retry: false,
   });
@@ -155,4 +164,20 @@ export function useBggGameMetadata(
   visible: boolean,
 ) {
   return useQuery(bggGameMetadataQuery(useQueryClient(), options, game, visible));
+}
+
+/** Use this with an isolated QueryClient when transport is supplied by a connected host. */
+export function useWidgetBggGameMetadata(
+  read: ReadGameMetadata,
+  game: BggSearchItem,
+  visible: boolean,
+) {
+  const client = useQueryClient();
+  return useQuery({
+    queryKey: ["bgg-game-metadata", "mcp", game.id],
+    enabled: visible && gameMetadataMissing(game),
+    queryFn: ({ signal }) => requestGame(client, "mcp", read, game.id, signal),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 }

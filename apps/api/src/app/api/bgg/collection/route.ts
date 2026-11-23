@@ -1,14 +1,14 @@
 import { bggCollectionQuerySchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { CommunityError } from "@/app/lib/community.error";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
 import { BggAccountRepository } from "@/app/lib/games/bgg-account.repository";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { ProfileService } from "@/app/lib/profile/profile.service";
 
 export const OPTIONS = corsOptions;
 export async function GET(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   const parsed = bggCollectionQuerySchema.safeParse(
     Object.fromEntries(new URL(request.url).searchParams),

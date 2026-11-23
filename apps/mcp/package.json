@@ -1,0 +1,55 @@
+{
+  "name": "@board-game-organizer/mcp",
+  "version": "1.8.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "build": "node widget-build.mts",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@board-game-organizer/schemas": "workspace:*",
+    "@board-game-organizer/shared": "workspace:*",
+    "@dicebear/core": "^10.7.0",
+    "@dicebear/styles": "^10.6.0",
+    "@heroui/react": "^3.2.4",
+    "@heroui/styles": "^3.2.4",
+    "@lingui/core": "^6.6.0",
+    "@lingui/react": "^6.6.0",
+    "@modelcontextprotocol/ext-apps": "2.0.4",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@tanstack/react-query": "^5.102.8",
+    "lucide-react": "^1.41.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@board-game-organizer/biome-config": "workspace:*",
+    "@board-game-organizer/typescript-config": "workspace:*",
+    "@lingui/babel-plugin-lingui-macro": "^6.6.0",
+    "@lingui/vite-plugin": "^6.6.0",
+    "@playwright/test": "^1.62.1",
+    "@rolldown/plugin-babel": "^0.2.3",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitest/coverage-v8": "4.1.12",
+    "jsdom": "^30.0.1",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "8.2.2",
+    "vitest": "4.1.12"
+  }
+}

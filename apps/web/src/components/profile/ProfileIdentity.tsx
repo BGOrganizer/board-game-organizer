@@ -3,31 +3,17 @@
 import { useUser } from "@clerk/nextjs";
 import { Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import type { ComponentProps } from "react";
+import { ProfileIdentityRow } from "./ProfileIdentityRow";
 
 export function ProfileIdentity({
-  name,
-  username,
-  avatarUrl,
   ownerId,
-}: {
-  name: string;
-  username?: string | null;
-  avatarUrl?: string | null;
-  ownerId?: string;
-}) {
+  ...identity
+}: Omit<ComponentProps<typeof ProfileIdentityRow>, "children"> & { ownerId?: string }) {
   return (
-    <GroupedRow className="flex-col items-start">
-      <div className="flex w-full min-w-0 items-center gap-2">
-        <UserIdentity
-          name={name}
-          avatarUrl={avatarUrl}
-          secondary={username ? `@${username}` : undefined}
-        />
-      </div>
+    <ProfileIdentityRow {...identity}>
       {ownerId ? <JoinedAt ownerId={ownerId} /> : null}
-    </GroupedRow>
+    </ProfileIdentityRow>
   );
 }
 

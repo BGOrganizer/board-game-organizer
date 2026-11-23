@@ -1,6 +1,5 @@
 "use client";
 
-import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import {
   type EventTablePerson,
   type TablePlayerRatingRow,
@@ -75,7 +74,7 @@ export function EventFinalResultRow({
   player,
   name,
 }: {
-  table: PlannedTableResponse;
+  table: Parameters<typeof tablePlayerRatingRows>[0];
   player: EventTablePerson;
   name: string;
 }) {

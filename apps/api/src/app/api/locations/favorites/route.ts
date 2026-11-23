@@ -3,7 +3,6 @@ import {
   removeFavoriteLocationSchema,
   saveFavoriteLocationSchema,
 } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { runRecordOperation } from "@/app/lib/community/record-http";
 import {
@@ -22,6 +21,7 @@ import {
 import { FavoriteLocationsRepository } from "@/app/lib/locations/favorite-locations.repository";
 import { GeocodingError } from "@/app/lib/locations/geocoding";
 import { locationTimeZone } from "@/app/lib/locations/location-time-zone";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 
 const querySchema = z
   .object({
@@ -49,7 +49,7 @@ export function OPTIONS(request: Request) {
 }
 export async function GET(request: Request) {
   const trace = createRequestDiagnostics("location.favorites.list");
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) {
     trace("rejected", "auth", 401, "UNAUTHORIZED");
     return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
@@ -136,7 +136,7 @@ export async function POST(request: Request) {
 }
 export async function DELETE(request: Request) {
   const trace = createRequestDiagnostics("location.favorites.remove");
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) {
     trace("rejected", "auth", 401, "UNAUTHORIZED");
     return corsJson({ error: "Unauthorized" }, { status: 401 }, request);

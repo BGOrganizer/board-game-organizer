@@ -26,7 +26,10 @@ if (ciDatabase) {
 const nextConfig: NextConfig = {
   serverExternalPackages: ["geo-tz"],
   outputFileTracingRoot: fileURLToPath(new URL("../../", import.meta.url)),
-  outputFileTracingIncludes: { "/*": ["../../node_modules/geo-tz/data/timezones-1970.*"] },
+  outputFileTracingIncludes: {
+    "/*": ["../../node_modules/geo-tz/data/timezones-1970.*"],
+    "/mcp": ["../mcp/dist/widget.html"],
+  },
   // Only the default post-1970 lookup is used; omit the other two geographic datasets.
   outputFileTracingExcludes: {
     "/*": ["../../node_modules/geo-tz/data/{timezones-now,timezones}.geojson.*"],

@@ -7798,3 +7798,23 @@ msgstr "Dopo aver consentito l’accesso alla rubrica, qui trovi i contatti già
 
 msgid "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."
 msgstr "Invia una richiesta di amicizia a chi usa Board Game Organizer o condividi un invito con chi non è ancora iscritto."
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Description"
+msgstr "Descrizione"
+
+#: apps/mcp/src/ui/GroupCreation.tsx
+msgid "Group creation may have completed. Check your groups before trying again."
+msgstr "La creazione del gruppo potrebbe essere riuscita. Controlla i tuoi gruppi prima di riprovare."
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Operation completed"
+msgstr "Operazione completata"
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Status"
+msgstr "Stato"
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Total"
+msgstr "Totale"

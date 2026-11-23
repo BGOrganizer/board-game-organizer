@@ -7799,3 +7799,23 @@ msgstr "After you allow address book access, this tab shows your matched contact
 
 msgid "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."
 msgstr "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Description"
+msgstr "Description"
+
+#: apps/mcp/src/ui/GroupCreation.tsx
+msgid "Group creation may have completed. Check your groups before trying again."
+msgstr "Group creation may have completed. Check your groups before trying again."
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Operation completed"
+msgstr "Operation completed"
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Status"
+msgstr "Status"
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Total"
+msgstr "Total"

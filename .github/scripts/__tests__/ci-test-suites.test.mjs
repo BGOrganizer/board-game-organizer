@@ -9,13 +9,13 @@ const pr = parse(read(".github/workflows/pr-ci.yml"));
 const main = parse(read(".github/workflows/main-ci.yml"));
 const find = (job, name) => job.steps.find((step) => step.name === name);
 
-test("both pipelines run all five coverage workspaces without cancelling matrix siblings", () => {
+test("both pipelines run all coverage workspaces without cancelling matrix siblings", () => {
   for (const [workflow, id] of [
     [pr, "unit-tests"],
     [main, "coverage"],
   ]) {
     const job = workflow.jobs[id];
-    assert.deepEqual(job.strategy.matrix.app, ["mobile", "web", "api", "schemas", "shared"]);
+    assert.deepEqual(job.strategy.matrix.app, ["mobile", "web", "api", "schemas", "shared", "mcp"]);
     assert.equal(job.strategy["fail-fast"], false);
     assert(job.steps.some((step) => step.run === 'bun run --filter "$WORKSPACE" test:coverage'));
     assert.equal(workflow.on.push.paths, undefined);
@@ -23,7 +23,7 @@ test("both pipelines run all five coverage workspaces without cancelling matrix 
   }
   assert.match(pr.jobs["unit-tests"].if, /mode == 'branch'.*mode == 'pr'/);
   assert.equal(main.jobs.coverage.if, undefined);
-  for (const app of ["mobile", "web", "api", "schemas", "shared"]) {
+  for (const app of ["mobile", "web", "api", "schemas", "shared", "mcp"]) {
     const directory = ["schemas", "shared"].includes(app) ? `packages/${app}` : `apps/${app}`;
     assert.equal(
       JSON.parse(read(`${directory}/package.json`)).scripts["test:coverage"],

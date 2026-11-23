@@ -11,7 +11,16 @@ export type TablePlayerRatingRow = {
 
 /** Current reads never replace the immutable history of a finished physical Table. */
 export function tablePlayerRatingRows(
-  table: PlannedTableResponse,
+  table: Pick<
+    PlannedTableResponse,
+    | "eventStatus"
+    | "groupId"
+    | "sharedResultsOnly"
+    | "rankingEnabled"
+    | "results"
+    | "ratingChanges"
+    | "groupRatingChanges"
+  >,
   userId: string,
   current?: TableLeaderboardPlayer,
 ): TablePlayerRatingRow[] {

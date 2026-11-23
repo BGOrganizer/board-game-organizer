@@ -126,11 +126,11 @@ jobs:
     if: needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'
     runs-on: ubuntu-latest
     env:
-      WORKSPACE: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('@board-game-organizer/{0}', matrix.app) || matrix.app }}
+      WORKSPACE: ${{ (matrix.app == 'schemas' || matrix.app == 'shared' || matrix.app == 'mcp') && format('@board-game-organizer/{0}', matrix.app) || matrix.app }}
     strategy:
       fail-fast: false
       matrix:
-        app: [mobile, web, api, schemas, shared]
+        app: [mobile, web, api, schemas, shared, mcp]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4

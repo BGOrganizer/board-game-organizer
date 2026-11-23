@@ -17,8 +17,8 @@ import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
-import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { NotificationCard } from "./NotificationCard";
 
 export function NotificationsPage() {
   const router = useRouter();
@@ -147,70 +147,29 @@ export function NotificationsPage() {
         className={`flex flex-col gap-3 ${notifications.notifications.length ? "min-h-36" : ""}`}
       >
         {notifications.notifications.map((notification) => (
-          <article
+          <NotificationCard
             key={notification.id}
-            className={`relative rounded-xl border bg-surface transition-colors hover:bg-default ${
-              notification.readAt ? "border-border" : "border-accent/50"
-            }`}
-          >
-            <Link
-              href={notificationWebHref(notification)}
-              onClick={() => {
-                if (
-                  shouldReadOnNotificationOpen(notification) &&
-                  !notifications.isBusy(notification.id)
-                )
-                  notifications.markRead.mutate(notification.id);
-              }}
-              className="block rounded-xl p-4 pe-12"
-            >
-              <span className="flex items-start gap-3">
-                <NotificationKindIcon
-                  kind={notification.kind}
-                  className="mt-0.5 size-5 shrink-0 text-muted"
-                />
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2 font-medium">
-                    {notification.title}
-                    {!notification.readAt && (
-                      <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-                    )}
-                  </span>
-                  <span className="mt-1 block text-sm text-muted">{notification.description}</span>
-                  <span className="mt-2 block text-xs text-muted">
-                    {new Intl.DateTimeFormat(i18n.locale, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }).format(new Date(notification.createdAt))}
-                  </span>
-                </span>
-              </span>
-            </Link>
-            {!notification.readAt ? (
-              <Button
-                isIconOnly
-                size="sm"
-                variant="secondary"
-                className="absolute end-3 top-3"
-                aria-label={t`Mark as read`}
-                isDisabled={notifications.isBusy(notification.id)}
-                onPress={() => notifications.markRead.mutate(notification.id)}
+            notification={notification}
+            busy={notifications.isBusy(notification.id)}
+            onRead={() => notifications.markRead.mutate(notification.id)}
+            onDelete={() => setDeletion({ owner, id: notification.id })}
+            renderDestination={(content, className) => (
+              <Link
+                href={notificationWebHref(notification)}
+                onClick={() => {
+                  if (
+                    shouldReadOnNotificationOpen(notification) &&
+                    !notifications.isBusy(notification.id)
+                  ) {
+                    notifications.markRead.mutate(notification.id);
+                  }
+                }}
+                className={className}
               >
-                <CheckCheck className="size-4" aria-hidden />
-              </Button>
-            ) : null}
-            <Button
-              isIconOnly
-              size="sm"
-              variant="danger-soft"
-              aria-label={t`Delete notification`}
-              className="absolute end-3 bottom-3"
-              isDisabled={notifications.isBusy(notification.id)}
-              onPress={() => setDeletion({ owner, id: notification.id })}
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-            </Button>
-          </article>
+                {content}
+              </Link>
+            )}
+          />
         ))}
       </div>
 

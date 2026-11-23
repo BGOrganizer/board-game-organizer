@@ -22,6 +22,7 @@ const config: LinguiConfig = {
         "apps/web/src",
         "apps/mobile/src",
         "apps/api/src/app/invite",
+        "apps/mcp/src/ui",
         "packages/schemas/src",
       ],
     },

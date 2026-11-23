@@ -3,11 +3,11 @@ import {
   notificationNavigationQuerySchema,
   readNotificationChangesSchema,
 } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { communityBody } from "@/app/lib/community/record-http";
 import { recordQuery } from "@/app/lib/community/record-query";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { NotificationChangesRepository } from "@/app/lib/notifications/notification-changes.repository";
 import { notificationNavigationReply } from "@/app/lib/notifications/notification-navigation-transport";
 
@@ -16,7 +16,7 @@ function reply(request: Request, data: unknown, status = 200) {
   return corsJson(data, { status, headers: { "Cache-Control": "private, no-store" } }, request);
 }
 export async function GET(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return reply(request, { error: "Unauthorized" }, 401);
   try {
     const params = new URL(request.url).searchParams;
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   }
 }
 export async function PATCH(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return reply(request, { error: "Unauthorized" }, 401);
   try {
     const query = recordQuery(request, notificationNavigationQuerySchema);

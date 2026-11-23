@@ -1,14 +1,14 @@
 import { bggPickerQuerySchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { CommunityError } from "@/app/lib/community.error";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
 import { bggPickerPage } from "@/app/lib/games/bgg-picker";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 
 export const OPTIONS = corsOptions;
 
 export async function GET(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   const parsed = bggPickerQuerySchema.safeParse(
     Object.fromEntries(new URL(request.url).searchParams),

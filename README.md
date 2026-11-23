@@ -164,6 +164,7 @@ or permission. Native cache retention, build requirements and implementation rul
 - [Profiles and BGG collections](docs/profiles.md) and [Community](docs/community.md).
 - [Development reference](docs/development.md) | cache, responsiveness, BGG enrichment and delivery.
 - [Public Site](apps/site/README.md) | local preview, localization and Vercel delivery.
+- [MCP Apps](docs/mcp-apps.md) | OAuth, API tools and HeroUI widgets for compatible chatbots.
 - [Operations](docs/organizations-events-operations.md) | environment isolation, providers and deployment gates.
 - [Verification requirements](docs/implementation-progress.md) | required checks and evidence limits.
 - [Mascot and app artwork](docs/branding.md) | source assets and platform exports.

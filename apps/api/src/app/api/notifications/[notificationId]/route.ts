@@ -1,7 +1,7 @@
 import { notificationIdSchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
 
 export const OPTIONS = corsOptions;
@@ -13,7 +13,7 @@ async function handle(
   context: NotificationRouteContext,
   method: "PATCH" | "DELETE",
 ) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   const id = notificationIdSchema.safeParse((await context.params).notificationId);
   const params = new URL(request.url).searchParams;

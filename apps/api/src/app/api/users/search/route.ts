@@ -1,9 +1,9 @@
 import type { User } from "@board-game-organizer/schemas";
 import { searchContactsParamsSchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { getBlockedByUserIds, getBlockedUserIds } from "@/app/lib/contacts/blocks";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { pruneRateLimitBuckets, rateLimit } from "@/app/lib/rateLimit";
 
 /** Escape regex metacharacters so user input can't widen the query. */
@@ -31,7 +31,7 @@ export function OPTIONS(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   pruneRateLimitBuckets();

@@ -1,4 +1,3 @@
-import { auth } from "@clerk/nextjs/server";
 import type { ClientSession, Db, ObjectId } from "mongodb";
 import { after } from "next/server";
 import { z } from "zod";
@@ -12,6 +11,7 @@ import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
 import { enrichRelationshipsWithUsers } from "@/app/lib/enrichUsers";
 import { ensureCurrentUser } from "@/app/lib/ensureCurrentUser";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
 import { dispatchNotifications } from "@/app/lib/notifications/push";
 
@@ -106,7 +106,7 @@ export async function runRelationshipOperation<T>(
   operation: (context: RelationshipContext) => Promise<T>,
   status = 200,
 ) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   try {

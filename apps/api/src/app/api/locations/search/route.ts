@@ -1,8 +1,8 @@
-import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { createRequestDiagnostics } from "@/app/lib/community/request-diagnostics";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { GeocodingError, geocodeAddresses } from "@/app/lib/locations/geocoding";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 
 const querySchema = z.string().trim().min(4).max(200);
 export function OPTIONS(request: Request) {
@@ -10,7 +10,7 @@ export function OPTIONS(request: Request) {
 }
 export async function GET(request: Request) {
   const trace = createRequestDiagnostics("location.search");
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) {
     trace("rejected", "auth", 401, "UNAUTHORIZED");
     return corsJson({ error: "Unauthorized" }, { status: 401 }, request);

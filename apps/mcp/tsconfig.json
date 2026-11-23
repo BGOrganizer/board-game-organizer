@@ -1,0 +1,9 @@
+{
+  "extends": "@board-game-organizer/typescript-config/next.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "paths": { "@/*": ["../web/src/*"] }
+  },
+  "include": ["**/*.ts", "**/*.tsx", "**/*.mts"],
+  "exclude": ["node_modules", "dist"]
+}

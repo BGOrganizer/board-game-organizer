@@ -1,15 +1,15 @@
 import { updatePreferredLanguageSchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
 import { enrichSingleUser } from "@/app/lib/clerk";
 import { corsJson, corsOptions, getCorsHeaders } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
 import { ensureCurrentUser } from "@/app/lib/ensureCurrentUser";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { ProfileRepository } from "@/app/lib/profile/profile.repository";
 import { UsersRepository } from "@/app/lib/users/users.repository";
 
 export async function GET(request: NextRequest) {
-  const { isAuthenticated, userId } = await auth();
+  const { isAuthenticated, userId } = await bgoAuth();
   const corsHeaders = { ...getCorsHeaders(request), "Cache-Control": "private, no-store" };
 
   if (!isAuthenticated || !userId) {
@@ -59,7 +59,7 @@ export const OPTIONS = corsOptions;
 
 /** Sync only the authenticated caller's app preference, even when push is denied. */
 export async function PATCH(request: Request) {
-  const { isAuthenticated, userId } = await auth();
+  const { isAuthenticated, userId } = await bgoAuth();
   const init = { headers: { "Cache-Control": "private, no-store" } };
   if (!isAuthenticated || !userId)
     return corsJson({ error: "Unauthorized" }, { ...init, status: 401 }, request);

@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import type { ObjectId } from "mongodb";
 import { after } from "next/server";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { CommunityError } from "../community.error";
 import { corsJson } from "../cors";
 import { getDb, withTransaction } from "../db";
@@ -35,7 +36,7 @@ export async function runRecordOperation<T>(
   let stage: "auth" | "services" | "user_sync" | "transaction" = "auth";
   let userId: string | null;
   try {
-    ({ userId } = await auth());
+    ({ userId } = await bgoAuth());
   } catch (error) {
     trace("failed", stage, 500, "AUTHENTICATION_ERROR");
     throw error;

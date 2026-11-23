@@ -1,11 +1,11 @@
 import type { User } from "@board-game-organizer/schemas";
 import { claimInviteParamsSchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { runRecordOperation } from "@/app/lib/community/record-http";
 import { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb, withTransaction } from "@/app/lib/db";
 import { InvitesRepository } from "@/app/lib/invites/invites.repository";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 
 /**
  * POST /api/invites/claim — claim an invite link by token.
@@ -20,7 +20,7 @@ export function OPTIONS() {
 }
 
 export async function POST(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   const body = await request.json().catch(() => null);
