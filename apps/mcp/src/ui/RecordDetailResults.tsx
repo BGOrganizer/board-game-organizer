@@ -168,7 +168,7 @@ function TableDetail({
   const { t } = useLingui();
   const [requested, setTab] = useState(initialTab ?? "overview");
   const planning = table.eventStatus === "PLANNING";
-  const votedGames = planning && eventOptionsRequireVote(table.games);
+  const votedGames = planning && eventOptionsRequireVote(table.games, table.gameVoteRequired);
   const proposals = planning && !table.readOnly && table.allowParticipantGames === true;
   const tab =
     (requested === "results" && !planning) ||
@@ -201,7 +201,12 @@ function TableDetail({
       details={
         <section className="space-y-4">
           <HelpSectionCard title={t`Details`} label={t`Table details help`} icon={Info}>
-            {votedGames ? <EventVoteLegendContent scope="table" /> : null}
+            {votedGames ? (
+              <EventVoteLegendContent
+                scope="table"
+                singleOption={table.gameVoteRequired ? "only" : undefined}
+              />
+            ) : null}
             {proposals ? (
               <p>{t`Players seated at this table can propose other games for a manager to approve.`}</p>
             ) : null}

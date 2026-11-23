@@ -451,6 +451,9 @@ export class EventRecordsRepository {
               members: { $push: "$$ROOT" },
             },
           },
+          ...(kind === "game"
+            ? [{ $match: { "representative.status": { $ne: "ACCEPTED" } } }]
+            : []),
           ...(at
             ? [
                 {
@@ -497,6 +500,7 @@ export class EventRecordsRepository {
           ...(userId !== null ? { userId } : {}),
           ...(page.tableId ? { "payload.tableId": page.tableId } : {}),
           ...(page.clientRequestId ? { clientRequestId: page.clientRequestId } : {}),
+          ...(page.kind === "game" && !page.clientRequestId ? { status: { $ne: "ACCEPTED" } } : {}),
           ...(at ? { $or: [{ createdAt: { $lt: at } }, { createdAt: at, id: { $lt: id } }] } : {}),
         },
         { ...this.opts, projection: { _id: 0 } },
@@ -575,6 +579,18 @@ export class EventRecordsRepository {
     await this.registrations.updateMany(
       { eventId, userId, status: { $in: ["PENDING", "ACCEPTED"] } },
       { $set: { status: "CANCELLED", updatedAt: at }, $inc: { version: 1 } },
+      this.opts,
+    );
+    await this.removePendingProposals(eventId, userId);
+  }
+  async removePendingProposals(eventId: string, userId: string, tableId?: string) {
+    await this.db.collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS).deleteMany(
+      {
+        eventId,
+        userId,
+        status: "PENDING",
+        ...(tableId ? { "payload.kind": "game", "payload.tableId": tableId } : {}),
+      },
       this.opts,
     );
   }

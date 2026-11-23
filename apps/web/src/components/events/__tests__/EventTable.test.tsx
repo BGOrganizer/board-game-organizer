@@ -717,6 +717,27 @@ it("keeps a singleton game readable without voting buttons or totals for an acce
   expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
 });
+it("accepts No on the changed singleton game of a public group's table", async () => {
+  table = {
+    ...table,
+    groupType: "PUBLIC",
+    gameVoteRequired: true,
+    myRegistration: { ...seat("owner"), gameVotes: {} },
+  };
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Chess: Choose your vote" }));
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
+      name: "No",
+    }),
+  );
+  await screen.findByRole("button", { name: "Chess: No" });
+  expect(
+    fetcher.mock.calls
+      .filter(([url, init]) => String(url).endsWith("/votes") && init?.method === "PATCH")
+      .map(([, init]) => JSON.parse(String(init?.body))),
+  ).toEqual([{ kind: "game", tableId: table.id, gameId: 1, vote: "NO" }]);
+});
 it("allows a negative game vote only while another current game remains positive", async () => {
   table = {
     ...table,

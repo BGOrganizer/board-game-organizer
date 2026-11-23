@@ -12,6 +12,7 @@ import {
   allocateReservedPlaces,
   type EventAgreement,
   type EventAgreementInput,
+  eventOptionsRequireVote,
   planningSeatCapacity,
 } from "@board-game-organizer/shared";
 import { tableTitleProjection } from "./table-title";
@@ -29,15 +30,21 @@ function personalExclusionReasons(
   if (registration.status === "PENDING") return ["PENDING_INVITATION"];
   const reasons: EventExclusionReason[] = [];
   if (availability !== undefined && event.confirmed) {
-    if (event.dates.length > 1 && !positive(availability?.dateVotes[event.confirmed.dateId]))
+    if (
+      eventOptionsRequireVote(event.dates, event.dateVoteRequired) &&
+      !positive(availability?.dateVotes[event.confirmed.dateId])
+    )
       reasons.push("DATE_AGREEMENT");
     if (
-      event.locations.length > 1 &&
+      eventOptionsRequireVote(event.locations, event.locationVoteRequired) &&
       !positive(availability?.locationVotes[event.confirmed.locationId])
     )
       reasons.push("LOCATION_AGREEMENT");
   }
-  if (table.games.length > 1 && !positive(registration.gameVotes[String(table.confirmed.gameId)]))
+  if (
+    eventOptionsRequireVote(table.games, table.gameVoteRequired) &&
+    !positive(registration.gameVotes[String(table.confirmed.gameId)])
+  )
     reasons.push("GAME_AGREEMENT");
   return reasons.length ? reasons : ["NOT_SELECTED"];
 }
@@ -76,22 +83,39 @@ export function tablePlanningBlockers(
   const agrees = (
     ids: readonly (string | number)[],
     vote: (userId: string, id: string) => string | undefined,
+    requiresSingleVote?: boolean,
   ) =>
-    ids.length === 1 ||
+    (ids.length === 1 && !requiresSingleVote) ||
     ids.some((id) => {
       const eligible = candidates.filter((row) => positive(vote(row.userId, String(id))));
       return (
         eligible.length >= minimum &&
-        accepted.every((row) => !(manual || row.locked) || eligible.includes(row))
+        accepted.every(
+          (row) => !(manual || row.locked || requiresSingleVote) || eligible.includes(row),
+        )
       );
     });
   if (!input.fixedDateAndLocation) {
-    if (!agrees(input.dateIds, (userId, id) => input.dateVotes[userId]?.[id]))
+    if (
+      !agrees(input.dateIds, (userId, id) => input.dateVotes[userId]?.[id], input.dateVoteRequired)
+    )
       blockers.push("DATE_AGREEMENT");
-    if (!agrees(input.locationIds, (userId, id) => input.locationVotes[userId]?.[id]))
+    if (
+      !agrees(
+        input.locationIds,
+        (userId, id) => input.locationVotes[userId]?.[id],
+        input.locationVoteRequired,
+      )
+    )
       blockers.push("LOCATION_AGREEMENT");
   }
-  if (!agrees(table.gameIds, (userId, id) => input.gameVotes[tableId]?.[userId]?.[id]))
+  if (
+    !agrees(
+      table.gameIds,
+      (userId, id) => input.gameVotes[tableId]?.[userId]?.[id],
+      table.gameVoteRequired,
+    )
+  )
     blockers.push("GAME_AGREEMENT");
   return blockers.length ? blockers : ["COMBINED_AGREEMENT"];
 }

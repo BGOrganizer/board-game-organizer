@@ -3103,14 +3103,9 @@ describe("unified groups/events on the real MongoDB replica set", () => {
           version: 1,
         }),
       ),
-    ).rejects.toMatchObject({ message: "PROPOSAL_SEAT_REQUIRED" });
-    await transaction((s) =>
-      s.plannedEventService.reviewProposal(OWNER, event.id, pending.id, {
-        action: "reject",
-        eventVersion: afterLeave.version,
-        version: 1,
-      }),
-    );
+    ).rejects.toMatchObject({ message: "PROPOSAL_NOT_FOUND" });
+    expect(await services().eventRecords.proposal(pending.id)).toBeNull();
+    expect((await services().eventRecords.proposal(rows[0].id))?.status).toBe("ACCEPTED");
     await transaction((s) =>
       s.plannedEventService.removeTable(OWNER, event.id, tableId, { version: afterLeave.version }),
     );
@@ -3721,6 +3716,17 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       ),
     ).toHaveLength(1);
     const guest = target.gameSuggestions!.find((p) => p.userId === GUEST)!;
+    for (const [actor, mode, acceptedId] of [
+      [OWNER, "review", target.id],
+      [GUEST, "mine", guest.id],
+    ] as const) {
+      const remaining = await transaction((s) =>
+        s.plannedEventService.proposals(actor, event.id, { mode, kind: "game", tableId, limit: 5 }),
+      );
+      expect(remaining.items).toHaveLength(5);
+      expect(remaining.items).not.toContainEqual(expect.objectContaining({ id: acceptedId }));
+      expect(remaining.nextCursor).toBeNull();
+    }
     expect(
       (await transaction((s) => s.plannedEventService.proposalDetail(GUEST, event.id, guest.id)))
         .proposals,
@@ -3735,6 +3741,56 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       ),
     ).toEqual(expect.arrayContaining([200, 201, 202, 203, 204, 205]));
   });
+  it("renews changed singleton votes atomically without cancelling the participant", async () => {
+    const group = await privateGroup();
+    const { groupId: _group, ...fields } = plannedInput(group.id);
+    await db.collection(COLLECTIONS.BOARD_GAMES).insertOne({ id: 2, name: "Replacement game" });
+    const event = await transaction((s) =>
+      s.plannedEventService.create(OWNER, { ...fields, groupId: group.id }),
+    );
+    for (const user of [OWNER, GUEST]) {
+      const choices = await participation(event.id, tableId);
+      await transaction((s) => s.plannedEventService.join(user, event.id, tableId, choices));
+    }
+    const previous = (await services().eventRecords.find(event.id))!;
+    const nextDateId = randomUUID();
+    const proposed = await transaction((s) =>
+      s.plannedEventService.update(OWNER, event.id, {
+        ...fields,
+        dates: [{ id: nextDateId, day: previous.dates[0].day, startTime: "20:00" }],
+        tables: [{ ...fields.tables[0], games: [{ gameId: 2 }] }],
+        version: previous.version,
+        removedTableIds: [],
+      }),
+    );
+    expect(proposed.dateVoteRequired).toBe(true);
+    expect(proposed.locationVoteRequired).toBeUndefined();
+    expect((await services().eventRecords.table(tableId))?.gameVoteRequired).toBe(true);
+    expect(proposed.agreement?.agreed).toBe(false);
+    for (const user of [OWNER, GUEST])
+      await transaction((s) =>
+        s.plannedEventService.vote(user, event.id, {
+          kind: "date",
+          optionId: nextDateId,
+          vote: "YES",
+        }),
+      );
+    const game = { kind: "game", tableId, gameId: 2 } as const;
+    await transaction((s) => s.plannedEventService.vote(OWNER, event.id, { ...game, vote: "YES" }));
+    const no = await transaction((s) =>
+      s.plannedEventService.vote(GUEST, event.id, { ...game, vote: "NO" }),
+    );
+    expect(no.agreement?.agreed).toBe(false);
+    expect(await services().eventRecords.userRegistration(tableId, GUEST)).toMatchObject({
+      status: "ACCEPTED",
+      gameVotes: { 2: "NO" },
+    });
+    const yes = await transaction((s) =>
+      s.plannedEventService.vote(GUEST, event.id, { ...game, vote: "IF_NEEDED" }),
+    );
+    expect(yes.agreement?.agreed).toBe(true);
+  });
+
   it("serializes proposal submit/accept races, retains singleton consent and rolls private/configuration/notices back together", async () => {
     const group = await privateGroup(),
       input = plannedInput(group.id);

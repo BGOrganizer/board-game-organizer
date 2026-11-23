@@ -93,7 +93,9 @@ export function EventTableOverview({
     setConfirm(null);
   };
   const gameVotes = table.myRegistration?.gameVotes ?? {};
-  const votableGames = table.eventStatus === "PLANNING" && eventOptionsRequireVote(table.games);
+  const votableGames =
+    table.eventStatus === "PLANNING" &&
+    eventOptionsRequireVote(table.games, table.gameVoteRequired);
   const canExplainGameProposals =
     table.eventStatus === "PLANNING" &&
     table.allowParticipantGames === true &&
@@ -111,7 +113,12 @@ export function EventTableOverview({
     <div className="mx-auto max-w-4xl space-y-5 pb-24">
       <div hidden={section === "participants"} className="space-y-5">
         <HelpSectionCard title={t`Details`} label={t`Table details help`} icon={Info}>
-          {votableGames ? <EventVoteLegendContent scope="table" /> : null}
+          {votableGames ? (
+            <EventVoteLegendContent
+              scope="table"
+              singleOption={table.gameVoteRequired ? "only" : undefined}
+            />
+          ) : null}
           {canExplainGameProposals ? (
             <p>{t`Players seated at this table can propose other games for a manager to approve.`}</p>
           ) : null}
@@ -168,6 +175,7 @@ export function EventTableOverview({
                             gameVotes,
                             String(game.id),
                             "NO",
+                            table.gameVoteRequired,
                           )
                             ? []
                             : ["NO"]

@@ -18,7 +18,7 @@ it("owns date/location votes on event and game votes only on accepted table regi
   );
   expect(legend).toContain("You can vote only if you are an accepted participant at this table.");
   expect(legend).toContain('Choose at least one "Yes" or "If needed"');
-  expect(table).toContain('<EventVoteLegendContent scope="table"');
+  expect(table).toMatch(/<EventVoteLegendContent\s+scope="table"/);
   expect(table).toMatch(/kind:\s*"game"/);
   expect(table).toMatch(/myRegistration\?\.status\s*===\s*"ACCEPTED"/);
   expect(event).not.toContain("useMatch");

@@ -50,8 +50,8 @@ export function EventOverview({
   const { t } = useLingui();
   const canVote = event.canVote && Boolean(onVote);
   const voting = event.status === "PLANNING" && event.groupType !== "PUBLIC";
-  const voteDates = voting && eventOptionsRequireVote(event.dates);
-  const voteLocations = voting && eventOptionsRequireVote(event.locations);
+  const voteDates = voting && eventOptionsRequireVote(event.dates, event.dateVoteRequired);
+  const voteLocations = voting && eventOptionsRequireVote(event.locations, event.locationVoteRequired);
   return (
     <>
       <EventSectionHeader
@@ -79,7 +79,9 @@ export function EventOverview({
             <h2 className="font-semibold">
               {event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Dates and times`}
             </h2>
-            {voteDates ? <EventVoteLegend label={t`Dates and times`} /> : null}
+            {voteDates ? (
+              <EventVoteLegend label={t`Dates and times`} singleOption={event.dateVoteRequired} />
+            ) : null}
           </div>
         </NotificationItem>
         <GroupedList>
@@ -117,6 +119,7 @@ export function EventOverview({
                         event.myVotes?.dateVotes ?? {},
                         row.id,
                         "NO",
+                        event.dateVoteRequired,
                       )
                         ? []
                         : ["NO"]
@@ -178,7 +181,9 @@ export function EventOverview({
         <NotificationItem itemId={notificationItemId(event.id, "locations")}>
           <div className="flex items-center gap-1">
             <h2 className="font-semibold">{t`Locations`}</h2>
-            {voteLocations ? <EventVoteLegend label={t`Locations`} /> : null}
+            {voteLocations ? (
+              <EventVoteLegend label={t`Locations`} singleOption={event.locationVoteRequired} />
+            ) : null}
           </div>
         </NotificationItem>
         <GroupedList>
@@ -222,6 +227,7 @@ export function EventOverview({
                             event.myVotes?.locationVotes ?? {},
                             row.id,
                             "NO",
+                            event.locationVoteRequired,
                           )
                             ? []
                             : ["NO"]

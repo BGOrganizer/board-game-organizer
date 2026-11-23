@@ -160,6 +160,20 @@ it("presents fixed singleton facts without ballots and submits one explicit cons
   expect(close).toHaveBeenCalledOnce();
 });
 
+it("requires an explicit positive answer to the changed singleton game before joining", async () => {
+  table = { ...table, gameVoteRequired: true };
+  await render(<Fixture />);
+  await ready();
+  await screen.findByRole("tab", { name: "Games" });
+  await vote("Chess", "No");
+  await press("Join table");
+  expect(writes).toHaveLength(0);
+  await vote("Chess", "If needed");
+  await press("Join table");
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].input).toMatchObject({ gameVotes: { "1": "IF_NEEDED" } });
+});
+
 it("cancels consent without granting membership, submitting votes or registering a seat", async () => {
   const close = vi.fn();
   await render(<Fixture onClose={close} />);

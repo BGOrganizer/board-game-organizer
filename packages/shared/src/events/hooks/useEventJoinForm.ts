@@ -59,15 +59,32 @@ export function useEventJoinForm(
     gamesOnly = isInvitation && event?.groupType === "PUBLIC";
   const dates = event?.dates ?? emptyOptions,
     locations = event?.locations ?? emptyOptions;
+  const dateVoteRequired = event?.dateVoteRequired,
+    locationVoteRequired = event?.locationVoteRequired,
+    gameVoteRequired = table?.gameVoteRequired;
   const votingTabs = useMemo<JoinTab[]>(
     () => [
-      ...(requiresAvailability && eventOptionsRequireVote(dates) ? ["dates" as const] : []),
-      ...(requiresAvailability && eventOptionsRequireVote(locations) ? ["locations" as const] : []),
-      ...(!tableQuery.isPlaceholderData && eventOptionsRequireVote(table?.games ?? [])
+      ...(requiresAvailability && eventOptionsRequireVote(dates, dateVoteRequired)
+        ? ["dates" as const]
+        : []),
+      ...(requiresAvailability && eventOptionsRequireVote(locations, locationVoteRequired)
+        ? ["locations" as const]
+        : []),
+      ...(!tableQuery.isPlaceholderData &&
+      eventOptionsRequireVote(table?.games ?? [], gameVoteRequired)
         ? ["games" as const]
         : []),
     ],
-    [requiresAvailability, dates, locations, table?.games, tableQuery.isPlaceholderData],
+    [
+      requiresAvailability,
+      dates,
+      locations,
+      table?.games,
+      tableQuery.isPlaceholderData,
+      dateVoteRequired,
+      locationVoteRequired,
+      gameVoteRequired,
+    ],
   );
   const ready = Boolean(
     sameOwner && event && !q.isPlaceholderData && event.myRegistrations !== undefined,
@@ -129,14 +146,17 @@ export function useEventJoinForm(
     recovery,
     votingTabs,
   ]);
-  const current = (options: readonly { id: string }[], choices: Choices): Choices =>
-    sameOwner ? eventVotingChoices(options, choices) : {};
+  const current = (
+    options: readonly { id: string }[],
+    choices: Choices,
+    requireSingleVote?: boolean,
+  ): Choices => (sameOwner ? eventVotingChoices(options, choices, requireSingleVote) : {});
   const gameOptions = (table?.games ?? []).map((game) => ({ id: String(game.gameId) }));
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   const votes = {
-    dateVotes: current(dates, dateVotes),
-    locationVotes: current(locations, locationVotes),
-    gameVotes: current(gameOptions, gameVotes),
+    dateVotes: current(dates, dateVotes, dateVoteRequired),
+    locationVotes: current(locations, locationVotes, locationVoteRequired),
+    gameVotes: current(gameOptions, gameVotes, gameVoteRequired),
   };
   const checking = intent?.phase === "verifying";
   const canAttempt = Boolean(
@@ -165,15 +185,15 @@ export function useEventJoinForm(
     canAttempt &&
       event &&
       (!requiresAvailability || eventJoinAvailabilityIsComplete(event, votes)) &&
-      eventOptionVotesAreComplete(gameOptions, votes.gameVotes),
+      eventOptionVotesAreComplete(gameOptions, votes.gameVotes, gameVoteRequired),
   );
   const invalidChoice = votingTabs.flatMap((tab) => {
     const index =
       tab === "dates"
-        ? eventFirstInvalidVote(dates, votes.dateVotes)
+        ? eventFirstInvalidVote(dates, votes.dateVotes, dateVoteRequired)
         : tab === "locations"
-          ? eventFirstInvalidVote(locations, votes.locationVotes)
-          : eventFirstInvalidVote(gameOptions, votes.gameVotes);
+          ? eventFirstInvalidVote(locations, votes.locationVotes, locationVoteRequired)
+          : eventFirstInvalidVote(gameOptions, votes.gameVotes, gameVoteRequired);
     return index === undefined ? [] : [{ tab, index }];
   })[0];
   const choose = (kind: "date" | "location" | "game", id: string, vote: EventVote) => {
@@ -183,7 +203,13 @@ export function useEventJoinForm(
         : kind === "date"
           ? (event?.dates ?? [])
           : (event?.locations ?? []);
-    if (sameOwner && eventOptionsRequireVote(options) && vote !== "UNKNOWN")
+    const requireSingleVote =
+      kind === "game"
+        ? gameVoteRequired
+        : kind === "date"
+          ? dateVoteRequired
+          : locationVoteRequired;
+    if (sameOwner && eventOptionsRequireVote(options, requireSingleVote) && vote !== "UNKNOWN")
       (kind === "date" ? setDates : kind === "location" ? setLocations : setGames)((previous) => ({
         ...previous,
         [id]: vote,

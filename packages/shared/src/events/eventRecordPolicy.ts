@@ -31,7 +31,14 @@ export function eventRecordPreviewDate(
 export function eventRecordSchedulePreview(
   event: Pick<
     EventRecord,
-    "dates" | "locations" | "startTime" | "status" | "confirmed" | "timeZone"
+    | "dates"
+    | "locations"
+    | "startTime"
+    | "status"
+    | "confirmed"
+    | "timeZone"
+    | "dateVoteRequired"
+    | "locationVoteRequired"
   >,
 ): EventSchedulePreview {
   const date = eventRecordPreviewDate(event);
@@ -45,6 +52,9 @@ export function eventRecordSchedulePreview(
     // Keep the existing total-proposals +n convention; frozen Events expose only their choice.
     dateCount: event.status === "PLANNING" ? event.dates.length : Number(Boolean(date)),
     locationCount: event.status === "PLANNING" ? event.locations.length : Number(Boolean(location)),
+    ...(event.status === "PLANNING" && event.dateVoteRequired && { dateVoteRequired: true }),
+    ...(event.status === "PLANNING" &&
+      event.locationVoteRequired && { locationVoteRequired: true }),
     timeZone: event.timeZone,
     dates: (event.status === "PLANNING"
       ? event.dates

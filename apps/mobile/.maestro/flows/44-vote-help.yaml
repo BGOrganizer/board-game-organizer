@@ -5,6 +5,8 @@ name: Details voting and Table participation help
 # VOTE_HELP_FIXTURES=[{eventId,tableId,eventName,tableName,multiple:false},
 #                     {eventId,tableId,eventName,tableName,multiple:true}]
 # Fixtures are PRIVATE PLANNING; all three categories must match `multiple`.
+# Add {eventId,tableId,eventName,tableName,multiple:false,repoll:true} to also
+# cover a changed singleton in each category with an accepted participant.
 tags: [manual, events, voting]
 ---
 - runScript: ../helpers/vote-help-inputs.js
@@ -96,12 +98,37 @@ tags: [manual, events, voting]
             - back
       - runFlow:
           when:
-            true: ${!output.voteHelp.current.multiple && !output.voteHelp.current.table}
+            true: ${output.voteHelp.current.repoll}
+          commands:
+            - scrollUntilVisible:
+                element: ${output.voteHelp.current.trigger}
+                direction: UP
+                timeout: 20000
+            - tapOn: ${output.voteHelp.current.trigger}
+            - assertVisible: ${output.voteHelp.revote}
+            - assertNotVisible: ${output.voteHelp.positive}
+            - back
+            - scrollUntilVisible:
+                element: ${output.voteHelp.current.heading}
+                direction: DOWN
+                timeout: 20000
+            - tapOn:
+                text: ${output.voteHelp.revoteAction}
+                below:
+                  text: ${output.voteHelp.current.heading}
+            - assertVisible: ${output.voteHelp.choose}
+            - assertVisible:
+                text: ${output.voteHelp.no}
+                enabled: true
+            - back
+      - runFlow:
+          when:
+            true: ${!output.voteHelp.current.multiple && !output.voteHelp.current.repoll && !output.voteHelp.current.table}
           commands:
             - assertNotVisible: ${output.voteHelp.current.trigger}
       - runFlow:
           when:
-            true: ${!output.voteHelp.current.multiple && output.voteHelp.current.table}
+            true: ${!output.voteHelp.current.multiple && !output.voteHelp.current.repoll && output.voteHelp.current.table}
           commands:
             - scrollUntilVisible:
                 element: ${output.voteHelp.current.trigger}

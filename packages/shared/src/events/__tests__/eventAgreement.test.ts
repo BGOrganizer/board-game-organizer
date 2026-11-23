@@ -294,6 +294,89 @@ it.each(
   },
 );
 
+describe.each(["MANUAL", "ASSISTED"] as const)(
+  "%s agreement after changing a sole option",
+  (mode) => {
+    it.each(["date", "location", "game"] as const)(
+      "requires every seated player's response for the changed %s",
+      (kind) => {
+        const input = fixture(["a", "b", "c"], 2);
+        input.planningMode = mode;
+        if (kind === "date") {
+          input.dateIds = ["d"];
+          input.dateVoteRequired = true;
+        } else if (kind === "location") {
+          input.locationIds = ["l"];
+          input.locationVoteRequired = true;
+        } else {
+          input.tables[0].gameIds = [1];
+          input.tables[0].gameVoteRequired = true;
+        }
+        const withVote = (base: EventAgreementInput, userId: string, vote: AgreementVote) =>
+          kind === "game"
+            ? game(base, userId, vote)
+            : votes(base, kind === "date" ? "dateVotes" : "locationVotes", userId, vote);
+        for (const vote of ["NO", "UNKNOWN"] as const) {
+          const result = calculateEventAgreement(withVote(input, "b", vote));
+          expect(result).toMatchObject({
+            agreed: false,
+            tables: [{ phase: "BLOCKED", initialSeatedIds: ["a", "b"], consideredWaitingIds: [] }],
+          });
+        }
+        const compatible = withVote(withVote(input, "b", "IF_NEEDED"), "c", "NO");
+        const result = calculateEventAgreement(compatible);
+        expect(result.agreed && result.includedTables[0]).toMatchObject({
+          participantIds: ["a", "b"],
+          waitingIds: ["c"],
+        });
+        expect(result.agreed && result.yesDateLocationVotes).toBe(kind === "game" ? 4 : 3);
+        expect(result.agreed && result.yesGameVotes).toBe(kind === "game" ? 1 : 2);
+      },
+    );
+  },
+);
+
+it("still requires a changed sole game vote when another date excludes the seated player", () => {
+  const input = fixture(["a", "b", "c"], 3);
+  input.planningMode = "ASSISTED";
+  input.tables = [{ ...input.tables[0], gameIds: [1], gameVoteRequired: true }];
+  input.dateVotes = { a: { "d-other": "YES" }, b: { d: "YES" }, c: { "d-other": "YES" } };
+  expect(calculateEventAgreement(game(input, "b", "NO"))).toMatchObject({
+    agreed: false,
+    tables: [{ phase: "BLOCKED", reason: "GAME_DISAGREEMENT" }],
+  });
+});
+
+it("blocks the whole Event for changed date or venue disagreement and only the affected Table for games", () => {
+  const input = fixture(["a", "b", "c", "d"], 2);
+  input.planningMode = "ASSISTED";
+  input.tables = [input.tables[0], { ...input.tables[0], id: "u" }];
+  input.registrations = input.registrations.map((row, index) =>
+    index < 2 ? row : { ...row, tableId: "u" },
+  );
+  input.gameVotes = { ...input.gameVotes, u: input.gameVotes.t };
+  for (const choice of ["date", "location"] as const) {
+    const event =
+      choice === "date"
+        ? { ...input, dateIds: ["d"], dateVoteRequired: true }
+        : { ...input, locationIds: ["l"], locationVoteRequired: true };
+    const declined = votes(event, choice === "date" ? "dateVotes" : "locationVotes", "b", "NO");
+    expect(calculateEventAgreement(declined)).toMatchObject({
+      agreed: false,
+      tables: [
+        { tableId: "t", phase: "BLOCKED" },
+        { tableId: "u", phase: "SEATED" },
+      ],
+    });
+  }
+  input.tables = [{ ...input.tables[0], gameIds: [1], gameVoteRequired: true }, input.tables[1]];
+  input.gameVotes = { ...input.gameVotes, t: { ...input.gameVotes.t, b: { "1": "NO" } } };
+  expect(calculateEventAgreement(input)).toMatchObject({
+    agreed: true,
+    includedTables: [{ tableId: "u", participantIds: ["c", "d"] }],
+  });
+});
+
 it("maximizes attendance before YES preferences", () => {
   const base = fixture(["a", "b", "c", "d"], 4);
   const input: EventAgreementInput = {

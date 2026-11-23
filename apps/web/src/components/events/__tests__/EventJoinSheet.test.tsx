@@ -803,6 +803,22 @@ it.each(Array.from({ length: 8 }, (_, mask) => mask))(
     view.client.clear();
   },
 );
+it("requires an explicit positive choice before joining a changed singleton game", async () => {
+  table = { ...table, gameVoteRequired: true };
+  const view = mount();
+  const join = await screen.findByRole("button", { name: "Join table" });
+  await screen.findByRole("tab", { name: "Games" });
+  fireEvent.click(screen.getByRole("button", { name: "Chess: No" }));
+  fireEvent.click(join);
+  expect(posts()).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Chess: If needed" }));
+  fireEvent.click(join);
+  await waitFor(() => expect(posts()).toHaveLength(1));
+  expect(JSON.parse(String(posts()[0][1].body)).gameVotes).toEqual({ "1": "IF_NEEDED" });
+  view.unmount();
+  view.client.clear();
+});
+
 it("never re-registers an already active Table and does not convert old UNKNOWN ballots", async () => {
   table = {
     ...table,

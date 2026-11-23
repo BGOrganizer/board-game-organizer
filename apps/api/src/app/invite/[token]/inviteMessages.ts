@@ -49,7 +49,7 @@ export const inviteMessages = {
   voteHint: {
     id: "invite.voteHint",
     message:
-      "Joining accepts single options. For sections with multiple options, answer every option and choose at least one Yes or If needed.",
+      "For each section with voting, answer every option and choose at least one Yes or If needed.",
   },
   validation: {
     id: "invite.validation",

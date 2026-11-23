@@ -20,6 +20,8 @@ type EventPlan = Pick<
   | "bookingClosesAt"
   | "dates"
   | "locations"
+  | "dateVoteRequired"
+  | "locationVoteRequired"
   | "version"
 >;
 type TablePlan = Pick<
@@ -34,6 +36,7 @@ type TablePlan = Pick<
   | "demonstratorUserId"
   | "demonstratorGuestName"
   | "games"
+  | "gameVoteRequired"
 >;
 export type EventConsentSnapshot = {
   eventId: string;
@@ -56,6 +59,8 @@ function plan(event: EventPlan, table: TablePlan) {
     event.startTime,
     event.endsAt ?? null,
     event.bookingClosesAt ?? null,
+    event.dateVoteRequired === true,
+    event.locationVoteRequired === true,
     event.dates.map((date) => [date.id, date.day, date.startTime ?? event.startTime]),
     event.locations.map((location) => [
       location.id,
@@ -74,6 +79,7 @@ function plan(event: EventPlan, table: TablePlan) {
     table.startsAt ?? null,
     table.demonstratorUserId ?? null,
     table.demonstratorGuestName ?? null,
+    table.gameVoteRequired === true,
     table.games.map((game) => [
       game.gameId,
       game.durationMinutes ?? null,

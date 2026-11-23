@@ -7350,7 +7350,7 @@ msgstr "Your existing event availability will be kept."
 
 #. js-lingui-explicit-id
 msgid "invite.voteHint"
-msgstr "Joining accepts single options. For sections with multiple options, answer every option and choose at least one Yes or If needed."
+msgstr "For each section with voting, answer every option and choose at least one Yes or If needed."
 
 #. js-lingui-explicit-id
 msgid "invite.validation"
@@ -7823,3 +7823,12 @@ msgstr "Status"
 #: apps/mcp/src/ui/OperationResult.tsx
 msgid "Total"
 msgstr "Total"
+
+msgid "Vote again on the changed option. A No keeps you registered and blocks agreement if you have a seat."
+msgstr "Vote again on the changed option. A No keeps you registered and blocks agreement if you have a seat."
+
+msgid "For a category with several options, choose at least one Yes or If needed."
+msgstr "For a category with several options, choose at least one Yes or If needed."
+
+msgid "Review the event and table settings, then vote in the sections shown."
+msgstr "Review the event and table settings, then vote in the sections shown."

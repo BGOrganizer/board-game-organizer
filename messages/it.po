@@ -7349,7 +7349,7 @@ msgstr "La tua disponibilità già espressa per l’evento sarà mantenuta."
 
 #. js-lingui-explicit-id
 msgid "invite.voteHint"
-msgstr "La partecipazione accetta le opzioni singole. Nelle sezioni con più opzioni, rispondi a tutte e scegli almeno un Sì o Se necessario."
+msgstr "Nelle sezioni con votazione, rispondi a tutte le opzioni e scegli almeno un Sì o Se necessario."
 
 #. js-lingui-explicit-id
 msgid "invite.validation"
@@ -7822,3 +7822,12 @@ msgstr "Stato"
 #: apps/mcp/src/ui/OperationResult.tsx
 msgid "Total"
 msgstr "Totale"
+
+msgid "Vote again on the changed option. A No keeps you registered and blocks agreement if you have a seat."
+msgstr "Vota di nuovo sull’opzione modificata. Il No ti lascia iscritto e, se hai un posto al tavolo, blocca l’accordo."
+
+msgid "For a category with several options, choose at least one Yes or If needed."
+msgstr "Se una categoria ha più opzioni, scegli almeno un Sì o Se necessario."
+
+msgid "Review the event and table settings, then vote in the sections shown."
+msgstr "Controlla le impostazioni dell’evento e del tavolo, poi vota nelle sezioni mostrate."

@@ -447,6 +447,8 @@ export type EventSchedulePreview = {
   location: EventRecord["locations"][number] | null;
   dateCount: number;
   locationCount: number;
+  dateVoteRequired?: boolean;
+  locationVoteRequired?: boolean;
   /** Complete authorized options; absent on older cache entries. Frozen Events expose choices only. */
   dates?: Array<{ id: string; localStartsAt: string }>;
   locations?: EventRecord["locations"];

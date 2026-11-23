@@ -605,6 +605,29 @@ it.each(["date", "location"] as const)(
   },
 );
 
+it.each(["date", "location"] as const)(
+  "offers No on a changed singleton %s and saves the explicit preference",
+  async (kind) => {
+    const option = kind === "date" ? event.dates[0] : event.locations[0];
+    const label = kind === "date" ? "2030-06-03 20:00" : "Club venue";
+    event = {
+      ...event,
+      canVote: true,
+      myRegistrations: [seat("owner")],
+      [`${kind}VoteRequired`]: true,
+    };
+    await render(<Fixture />);
+    await press(`${label}: Choose your vote`);
+    const button = within(screen.getByTestId("confirmation-dialog")).getByRole("button", {
+      name: "No",
+    });
+    expect(button).toBeEnabled();
+    await userEvent.setup().press(button);
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0].input).toEqual({ kind, optionId: option.id, vote: "NO" });
+  },
+);
+
 it("shows named votes and the breakdown action only for each eligible Event category", async () => {
   const voter = { userId: "voter", name: "Voter Alice", username: null, avatarUrl: null };
   const firstDate = event.dates[0].id;

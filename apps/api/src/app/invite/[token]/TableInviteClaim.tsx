@@ -47,6 +47,9 @@ export function TableInviteClaim({
     setLocations,
     setGames,
     alreadyAccepted,
+    canVoteDates,
+    canVoteLocations,
+    canVoteGames,
     complete,
     settingsReady,
     submit,
@@ -119,7 +122,7 @@ export function TableInviteClaim({
           ),
         }))}
         choices={dateVotes}
-        editable={!alreadyAccepted && review.requiresAvailability}
+        editable={canVoteDates}
         disabled={busy || disabled}
         onChange={(id, vote) => setDates((old) => ({ ...old, [id]: vote }))}
       />
@@ -131,7 +134,7 @@ export function TableInviteClaim({
           description: location.address,
         }))}
         choices={locationVotes}
-        editable={!alreadyAccepted && review.requiresAvailability}
+        editable={canVoteLocations}
         disabled={busy || disabled}
         onChange={(id, vote) => setLocations((old) => ({ ...old, [id]: vote }))}
       />
@@ -144,7 +147,7 @@ export function TableInviteClaim({
             i18n._(messages.unknown),
         }))}
         choices={gameVotes}
-        editable={!alreadyAccepted}
+        editable={canVoteGames}
         disabled={busy || disabled}
         onChange={(id, vote) => setGames((old) => ({ ...old, [id]: vote }))}
       />

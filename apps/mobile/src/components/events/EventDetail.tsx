@@ -214,11 +214,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const voteDates =
     event.status === "PLANNING" &&
     event.groupType !== "PUBLIC" &&
-    eventOptionsRequireVote(event.dates);
+    eventOptionsRequireVote(event.dates, event.dateVoteRequired);
   const voteLocations =
     event.status === "PLANNING" &&
     event.groupType !== "PUBLIC" &&
-    eventOptionsRequireVote(event.locations);
+    eventOptionsRequireVote(event.locations, event.locationVoteRequired);
   const namedVotes =
     !q.isPlaceholderData &&
     !event.readOnly &&
@@ -268,7 +268,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <Typography className="font-semibold text-foreground">
               {event.groupType === "PUBLIC" ? t("Start Date and Time") : t("Dates and times")}
             </Typography>
-            {voteDates ? <EventVoteLegend label={t("Dates and times")} /> : null}
+            {voteDates ? (
+              <EventVoteLegend label={t("Dates and times")} singleOption={event.dateVoteRequired} />
+            ) : null}
           </View>
         </NotificationItem>
         <GroupedList>
@@ -311,6 +313,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                         event.myVotes?.dateVotes ?? {},
                         row.id,
                         "NO",
+                        event.dateVoteRequired,
                       )
                         ? []
                         : ["NO"]
@@ -375,7 +378,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       <NotificationItem itemId={notificationItemId(event.id, "locations")}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
           <Typography className="font-semibold text-foreground">{t("Locations")}</Typography>
-          {voteLocations ? <EventVoteLegend label={t("Locations")} /> : null}
+          {voteLocations ? (
+            <EventVoteLegend label={t("Locations")} singleOption={event.locationVoteRequired} />
+          ) : null}
         </View>
       </NotificationItem>
       <GroupedList>
@@ -419,6 +424,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                           event.myVotes?.locationVotes ?? {},
                           row.id,
                           "NO",
+                          event.locationVoteRequired,
                         )
                           ? []
                           : ["NO"]

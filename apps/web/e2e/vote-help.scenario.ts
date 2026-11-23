@@ -27,26 +27,29 @@ const fixtures = JSON.parse(required("VOTE_HELP_FIXTURES")) as {
   eventName: string;
   tableName: string;
   multiple: boolean;
+  repoll?: boolean;
 }[];
 const uuid = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 if (
   !Array.isArray(fixtures) ||
-  fixtures.length !== 2 ||
+  (fixtures.length !== 2 && fixtures.length !== 3) ||
   !fixtures.every(
     (f) =>
       f &&
       uuid.test(f.eventId) &&
       uuid.test(f.tableId) &&
       typeof f.multiple === "boolean" &&
+      (f.repoll === undefined || (f.repoll === true && !f.multiple)) &&
       [f.eventName, f.tableName].every(
         (name) => typeof name === "string" && name.trim().length > 0 && name.length <= 120,
       ),
   ) ||
   !fixtures.some((f) => f.multiple) ||
-  !fixtures.some((f) => !f.multiple)
+  !fixtures.some((f) => !f.multiple && !f.repoll) ||
+  (fixtures.length === 3) !== fixtures.some((f) => f.repoll === true)
 )
   throw new Error(
-    "Provide two owned PLANNING fixtures: single and multiple dates, locations and games",
+    "Provide owned PLANNING single and multiple fixtures, optionally a third changed-singleton fixture with repoll:true",
   );
 const it = locale === "it";
 const labels = [
@@ -57,6 +60,9 @@ const labels = [
 const positive = it
   ? 'Scegli almeno un\'opzione "Sì" o "Se necessario" in questa categoria.'
   : 'Choose at least one "Yes" or "If needed" option in this category.';
+const revote = it
+  ? "Vota di nuovo sull’opzione modificata. Il No ti lascia iscritto e, se hai un posto al tavolo, blocca l’accordo."
+  : "Vote again on the changed option. A No keeps you registered and blocks agreement if you have a seat.";
 const eventHelp = it
   ? "Puoi votare solo se partecipi ad almeno un tavolo dell'evento con iscrizione accettata."
   : "You can vote only if you are an accepted participant in at least one table in the event.";
@@ -111,7 +117,7 @@ for (const width of [390, 1280])
         if (index === 0) {
           await detailsTrigger.click();
           await expect(popup.getByText(eventHelp, { exact: true })).toHaveCount(
-            fixture.multiple ? 1 : 0,
+            fixture.multiple || fixture.repoll ? 1 : 0,
           );
           if (fixture.multiple)
             await expect(
@@ -151,8 +157,25 @@ for (const width of [390, 1280])
           await page.getByRole("tab", { name: details, exact: true }).click();
         }
         const trigger = index === 2 ? detailsTrigger : categoryTrigger;
-        const voteAction = page
-          .getByRole("region", { name: label, exact: true })
+        const category = page.getByRole("region", { name: label, exact: true });
+        if (fixture.repoll) {
+          await trigger.click();
+          await expect(popup.getByText(revote, { exact: true })).toBeVisible();
+          await expect(popup.getByText(positive, { exact: true })).toHaveCount(0);
+          await page.keyboard.press("Escape");
+          await expect(popup).toHaveCount(0);
+          await category
+            .getByRole("button", {
+              name: new RegExp(`: (${[chooseVote, ...voteChoices].join("|")})$`),
+            })
+            .click();
+          const ballot = page.getByRole("dialog", { name: chooseVote, exact: true });
+          await expect(ballot.getByRole("button", { name: "No", exact: true })).toBeEnabled();
+          await page.keyboard.press("Escape");
+          await expect(ballot).toHaveCount(0);
+          continue;
+        }
+        const voteAction = category
           .getByRole("button", {
             name: new RegExp(`: (${[showVotes, chooseVote, ...voteChoices].join("|")})$`),
           })

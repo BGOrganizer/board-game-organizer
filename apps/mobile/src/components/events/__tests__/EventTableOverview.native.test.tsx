@@ -243,6 +243,25 @@ it("renders the canonical parent event, singleton game and preserved detail head
   expect(writes).toHaveLength(0);
 });
 
+it("offers No for a changed singleton game in a public group", async () => {
+  event = { ...event, groupType: "PUBLIC" };
+  table = {
+    ...table,
+    groupType: "PUBLIC",
+    gameVoteRequired: true,
+    myRegistration: { ...roster[0], gameVotes: {} },
+  };
+  await render(<Fixture />);
+  await press("Chess: Choose your vote");
+  const button = within(screen.getByTestId("confirmation-dialog")).getByRole("button", {
+    name: "No",
+  });
+  expect(button).toBeEnabled();
+  await userEvent.setup().press(button);
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].input).toEqual({ kind: "game", tableId: table.id, gameId: 1, vote: "NO" });
+});
+
 it("moves the games legend and allowed proposals to Details and ends with the parent event", async () => {
   multipleGames();
   table.allowParticipantGames = true;

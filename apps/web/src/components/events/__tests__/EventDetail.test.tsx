@@ -551,6 +551,27 @@ it("keeps singleton dates and venues read-only without totals, even for accepted
   expect(screen.queryAllByLabelText(/^Votes:/)).toHaveLength(0);
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
 });
+it.each(["date", "location"] as const)(
+  "opens a ballot that accepts No after the only %s changed",
+  async (kind) => {
+    const option = kind === "date" ? event.dates[0] : event.locations[0];
+    const label = kind === "date" ? "2030-06-03 20:00" : "Club venue";
+    event = { ...event, canVote: true, [`${kind}VoteRequired`]: true };
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: `${label}: Choose your vote` }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
+        name: "No",
+      }),
+    );
+    await screen.findByRole("button", { name: `${label}: No` });
+    expect(
+      fetcher.mock.calls
+        .filter(([url, init]) => String(url).endsWith("/votes") && init?.method === "PATCH")
+        .map(([, init]) => JSON.parse(String(init?.body))),
+    ).toEqual([{ kind, optionId: option.id, vote: "NO" }]);
+  },
+);
 it("allows No only when another current location stays usable, independent of the date votes", async () => {
   const second = "77777777-7777-4777-8777-777777777777",
     first = event.locations[0].id;

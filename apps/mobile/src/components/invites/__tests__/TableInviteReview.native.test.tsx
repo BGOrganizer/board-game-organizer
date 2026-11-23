@@ -89,6 +89,24 @@ it("submits only one consent for singleton settings, without fabricating ballot 
   });
 });
 
+it("collects an explicit answer to a changed singleton game before accepting", async () => {
+  const review = tableInviteReview();
+  review.table.gameVoteRequired = true;
+  await render(<Fixture review={review} />);
+  const accept = screen.getByTestId("table-link-consent-submit");
+  expect(accept).toBeDisabled();
+  await vote("Chess", "If needed");
+  await press("Accept invitation");
+  expect(claim).toHaveBeenCalledWith({
+    consent: true,
+    participation: {
+      version: 1,
+      gameVotes: { "1": "IF_NEEDED" },
+      availability: { version: 1, dateVotes: {}, locationVotes: {} },
+    },
+  });
+});
+
 it("requires every multi-option category to have all answers and at least one positive preference", async () => {
   const review = multipleInviteOptions();
   await render(<Fixture review={review} />);

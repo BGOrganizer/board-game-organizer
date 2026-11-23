@@ -224,6 +224,13 @@ it("loads event participants for the current view and keeps private projections 
   ).toBeVisible();
 });
 
+it("explains the vote also when a table's only game has changed", async () => {
+  await open("get_table", { ...plannedTable, gameVoteRequired: true });
+  fireEvent.click(screen.getByRole("button", { name: "Table details help" }));
+  expect(await screen.findByText(/Vote again on the changed option/)).toBeVisible();
+  expect(screen.queryByText("See the schedule and board games for this table below.")).toBeNull();
+});
+
 it("switches between a table's authorized participants and confirmed results", async () => {
   const table = { ...historyTable(firstTableId, "Hegemony"), eventStatus: "CONFIRMED" };
   host.callServerTool

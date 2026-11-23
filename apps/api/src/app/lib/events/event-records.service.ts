@@ -384,6 +384,8 @@ export class EventRecordsService {
       allowBestReduction: event.allowBestReduction ?? false,
       dateIds: event.dates.map((row) => row.id),
       locationIds: event.locations.map((row) => row.id),
+      dateVoteRequired: event.dateVoteRequired,
+      locationVoteRequired: event.locationVoteRequired,
       fixedDateAndLocation: group?.type === "PUBLIC",
       tables: selectedTables.map((table) => ({
         id: table.id,
@@ -392,6 +394,7 @@ export class EventRecordsService {
         seatedCapacity: table.seatedCapacity,
         preserveSeatAllocation: this.preserveSeatOrder(event, table),
         gameIds: table.games.map((game) => game.gameId),
+        gameVoteRequired: table.gameVoteRequired,
         gamePlayerBounds: playerBounds,
         gamePolls: Object.fromEntries(
           catalog.flatMap((game) =>
@@ -576,6 +579,8 @@ export class EventRecordsService {
       const byUser = new Map(voters.map((row) => [row.userId, row]));
       const dates = event.dates.map((row) => row.id);
       const locations = event.locations.map((row) => row.id);
+      const voteOnDates = eventOptionsRequireVote(dates, event.dateVoteRequired);
+      const voteOnLocations = eventOptionsRequireVote(locations, event.locationVoteRequired);
       voteCounts = {
         dates: eventVoteCounts(
           dates,
@@ -590,14 +595,14 @@ export class EventRecordsService {
         event.status === "PLANNING" &&
         group?.type !== "PUBLIC" &&
         (canManage || acceptedViewer) &&
-        (dates.length > 1 || locations.length > 1)
+        (voteOnDates || voteOnLocations)
       ) {
         const cast = voters.filter(
           (row) =>
             accepted.has(row.userId) &&
-            ((dates.length > 1 &&
+            ((voteOnDates &&
               dates.some((id) => row.dateVotes[id] && row.dateVotes[id] !== "UNKNOWN")) ||
-              (locations.length > 1 &&
+              (voteOnLocations &&
                 locations.some(
                   (id) => row.locationVotes[id] && row.locationVotes[id] !== "UNKNOWN",
                 ))),
@@ -630,8 +635,12 @@ export class EventRecordsService {
           guestName: accepted.get(row.userId)?.guestName,
           role: voterRole(row.userId, adminId, managers, demonstrators, seated),
         }));
-        const groupVotes = (optionIds: string[], field: "dateVotes" | "locationVotes") =>
-          optionIds.length > 1
+        const groupVotes = (
+          optionIds: string[],
+          field: "dateVotes" | "locationVotes",
+          enabled: boolean,
+        ) =>
+          enabled
             ? namedOptionVotes(
                 optionIds,
                 namedVoters.map((row) => ({ ...row, votes: row[field] })),
@@ -639,8 +648,8 @@ export class EventRecordsService {
               )
             : {};
         voteVoters = {
-          dates: groupVotes(dates, "dateVotes"),
-          locations: groupVotes(locations, "locationVotes"),
+          dates: groupVotes(dates, "dateVotes", voteOnDates),
+          locations: groupVotes(locations, "locationVotes", voteOnLocations),
         };
       }
     }
@@ -1713,6 +1722,38 @@ export class EventRecordsService {
     }
     if (!merged.length || merged.length > 20) throw new CommunityError(400, "EVENT_TABLE_LIMIT");
     const active = registrations.filter((row) => merged.some((table) => table.id === row.tableId));
+    const hasAccepted = active.some((row) => row.status === "ACCEPTED");
+    const dateReplaced =
+      event.dates.length === 1 &&
+      next.dates.length === 1 &&
+      eventDateWall(event, event.dates[0]) !== eventDateWall(next, next.dates[0]);
+    const oldVenue = event.locations[0];
+    const newVenue = next.locations[0];
+    const locationReplaced =
+      event.locations.length === 1 &&
+      next.locations.length === 1 &&
+      (oldVenue.address !== newVenue.address ||
+        oldVenue.latitude !== newVenue.latitude ||
+        oldVenue.longitude !== newVenue.longitude);
+    if (group?.type === "PUBLIC" || next.dates.length !== 1) delete next.dateVoteRequired;
+    else if (hasAccepted && dateReplaced) next.dateVoteRequired = true;
+    if (group?.type === "PUBLIC" || next.locations.length !== 1) delete next.locationVoteRequired;
+    else if (hasAccepted && locationReplaced) next.locationVoteRequired = true;
+
+    const replacedSingletonGames = new Set<string>();
+    for (const table of edits) {
+      const previous = currentTables.find((row) => row.id === table.id);
+      if (!previous || table.games.length !== 1) continue;
+      if (previous.games.length === 1 && previous.games[0].gameId !== table.games[0].gameId)
+        replacedSingletonGames.add(table.id);
+      const replacesGame = replacedSingletonGames.has(table.id);
+      if (
+        previous.gameVoteRequired ||
+        (replacesGame &&
+          active.some((row) => row.tableId === table.id && row.status === "ACCEPTED"))
+      )
+        table.gameVoteRequired = true;
+    }
     if (group?.type === "PUBLIC" && active.length) {
       const changed =
         eventDateWall(event, event.dates[0]) !== eventDateWall(next, next.dates[0]) ||
@@ -1727,9 +1768,10 @@ export class EventRecordsService {
           b = this.tableInterval(next, table, "PUBLIC");
         if (
           a.startsAt !== b.startsAt ||
-          a.endsAt !== b.endsAt ||
-          ((old.games.length === 1 || table.games.length === 1) &&
-            old.games[0].gameId !== table.games[0].gameId)
+          (!replacedSingletonGames.has(table.id) &&
+            (a.endsAt !== b.endsAt ||
+              ((old.games.length === 1 || table.games.length === 1) &&
+                old.games[0].gameId !== table.games[0].gameId)))
         )
           throw new CommunityError(409, "PUBLIC_SCHEDULE_HAS_REGISTRATIONS");
       }
@@ -1754,13 +1796,13 @@ export class EventRecordsService {
       await this.events.saveTable(table);
       await this.events.retainGameVotes(
         table.id,
-        table.games.map((game) => game.gameId),
+        replacedSingletonGames.has(table.id) ? [] : table.games.map((game) => game.gameId),
       );
     }
     await this.events.retainChoiceVotes(
       id,
-      next.dates.map((row) => row.id),
-      next.locations.map((row) => row.id),
+      dateReplaced ? [] : next.dates.map((row) => row.id),
+      locationReplaced ? [] : next.locations.map((row) => row.id),
     );
     await this.events.save(next);
     await this.notifications.retargetItems(
@@ -1843,7 +1885,7 @@ export class EventRecordsService {
     const namedVotes =
       includeGameVoteVoters &&
       !readOnly &&
-      eventOptionsRequireVote(table.games) &&
+      eventOptionsRequireVote(table.games, table.gameVoteRequired) &&
       (canManage || my?.status === "ACCEPTED");
     const voters = namedVotes
       ? accepted.filter((row) =>
@@ -2349,6 +2391,7 @@ export class EventRecordsService {
       !eventOptionVotesAreComplete(
         table.games.map((game) => ({ id: String(game.gameId) })),
         input.gameVotes ?? {},
+        table.gameVoteRequired,
       )
     )
       throw new CommunityError(400, "INVALID_JOIN_GAME_VOTES");
@@ -2404,6 +2447,7 @@ export class EventRecordsService {
         ? eventVotingChoices(
             table.games.map((game) => ({ id: String(game.gameId) })),
             input.gameVotes,
+            table.gameVoteRequired,
           )
         : {},
       createdAt: at,
@@ -2414,8 +2458,12 @@ export class EventRecordsService {
       await this.events.saveVoter({
         eventId,
         userId,
-        dateVotes: eventVotingChoices(event.dates, availability.dateVotes),
-        locationVotes: eventVotingChoices(event.locations, availability.locationVotes),
+        dateVotes: eventVotingChoices(event.dates, availability.dateVotes, event.dateVoteRequired),
+        locationVotes: eventVotingChoices(
+          event.locations,
+          availability.locationVotes,
+          event.locationVoteRequired,
+        ),
         updatedAt: at,
       });
     event.version++;
@@ -2598,6 +2646,7 @@ export class EventRecordsService {
         acceptedGameVotes = eventVotingChoices(
           table.games.map((game) => ({ id: String(game.gameId) })),
           participation.gameVotes,
+          table.gameVoteRequired,
         );
         if (
           group?.type === "PUBLIC" &&
@@ -2632,6 +2681,14 @@ export class EventRecordsService {
       ...(input.action === "accept" ? { gameVotes: acceptedGameVotes } : {}),
     };
     await this.events.saveRegistration(next);
+    if (status === "CANCELLED" && row.status === "ACCEPTED") {
+      const remaining = await this.events.userRegistrations(event.id, row.userId);
+      await this.events.removePendingProposals(
+        event.id,
+        row.userId,
+        remaining.some((entry) => entry.status === "ACCEPTED") ? row.tableId : undefined,
+      );
+    }
     if (own && (input.action === "accept" || input.action === "decline"))
       await this.notifications.acknowledgeItems(
         userId,
@@ -2643,10 +2700,15 @@ export class EventRecordsService {
       await this.events.saveVoter({
         eventId: event.id,
         userId,
-        dateVotes: eventVotingChoices(event.dates, input.participation.availability.dateVotes),
+        dateVotes: eventVotingChoices(
+          event.dates,
+          input.participation.availability.dateVotes,
+          event.dateVoteRequired,
+        ),
         locationVotes: eventVotingChoices(
           event.locations,
           input.participation.availability.locationVotes,
+          event.locationVoteRequired,
         ),
         updatedAt: next.updatedAt,
       });
@@ -2721,13 +2783,15 @@ export class EventRecordsService {
           throw new CommunityError(403, "ACCEPTED_REGISTRATION_REQUIRED");
         if (!table.games.some((row) => row.gameId === input.gameId))
           throw new CommunityError(400, "INVALID_VOTE_OPTION");
-        if (!eventOptionsRequireVote(table.games)) throw new CommunityError(409, "FIXED_OPTION");
+        if (!eventOptionsRequireVote(table.games, table.gameVoteRequired))
+          throw new CommunityError(409, "FIXED_OPTION");
         if (
           !eventAvailabilityVoteIsAllowed(
             table.games.map((game) => ({ id: String(game.gameId) })),
             gameRegistration.gameVotes,
             String(input.gameId),
             input.vote,
+            table.gameVoteRequired,
           )
         )
           throw new CommunityError(409, "GAME_POSITIVE_AVAILABILITY_REQUIRED");
@@ -2737,7 +2801,10 @@ export class EventRecordsService {
         const options = input.kind === "date" ? event.dates : event.locations;
         if (!options.some((row) => row.id === input.optionId))
           throw new CommunityError(400, "INVALID_VOTE_OPTION");
-        if (!eventOptionsRequireVote(options)) throw new CommunityError(409, "FIXED_OPTION");
+        const requiresSingleVote =
+          input.kind === "date" ? event.dateVoteRequired : event.locationVoteRequired;
+        if (!eventOptionsRequireVote(options, requiresSingleVote))
+          throw new CommunityError(409, "FIXED_OPTION");
         availability ??= (await this.events.voter(id, participantId)) ?? {
           eventId: id,
           userId: participantId,
@@ -2746,7 +2813,15 @@ export class EventRecordsService {
           updatedAt: at,
         };
         const key = input.kind === "date" ? "dateVotes" : "locationVotes";
-        if (!eventAvailabilityVoteIsAllowed(options, availability[key], input.optionId, input.vote))
+        if (
+          !eventAvailabilityVoteIsAllowed(
+            options,
+            availability[key],
+            input.optionId,
+            input.vote,
+            requiresSingleVote,
+          )
+        )
           throw new CommunityError(409, "EVENT_POSITIVE_AVAILABILITY_REQUIRED");
         availability = {
           ...availability,

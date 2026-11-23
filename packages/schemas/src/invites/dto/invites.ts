@@ -49,11 +49,16 @@ export type TableInviteReviewResponse = {
     | "startTime"
     | "dates"
     | "locations"
+    | "dateVoteRequired"
+    | "locationVoteRequired"
     | "planningMode"
     | "playerPreference"
     | "allowBestReduction"
   >;
-  table: Pick<TableRecord, "id" | "games" | "minPlayers" | "maxPlayers" | "rankingEnabled"> & {
+  table: Pick<
+    TableRecord,
+    "id" | "games" | "minPlayers" | "maxPlayers" | "rankingEnabled" | "gameVoteRequired"
+  > & {
     name: string;
     order?: number;
     gamesDetail: BggSearchItem[];

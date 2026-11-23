@@ -61,14 +61,13 @@ export function TableInviteReview({
     [event.dates, event.locations, table.games],
   );
   const voteButtons = (row: Row, id: string, label: string) => {
-    const options =
-      row.kind === "game" ? table.games : row.kind === "date" ? event.dates : event.locations;
-    if (
-      form.alreadyAccepted ||
-      options.length < 2 ||
-      (row.kind !== "game" && !review.requiresAvailability)
-    )
-      return undefined;
+    const canVote =
+      row.kind === "game"
+        ? form.canVoteGames
+        : row.kind === "date"
+          ? form.canVoteDates
+          : form.canVoteLocations;
+    if (!canVote) return undefined;
     const votes =
       row.kind === "game"
         ? form.gameVotes
@@ -147,7 +146,7 @@ export function TableInviteReview({
               {t(
                 form.alreadyAccepted
                   ? "You already participate at this table. Your place and choices will be kept."
-                  : "Joining accepts single options. For sections with multiple options, answer every option and choose at least one Yes or If needed.",
+                  : "For each section with voting, answer every option and choose at least one Yes or If needed.",
               )}
             </Typography>
             {!form.alreadyAccepted && !review.requiresAvailability ? (
