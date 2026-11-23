@@ -6,6 +6,7 @@ import { Dices } from "lucide-react";
 import type { ReactNode } from "react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { RecordIdentityCard } from "@/components/common/ui/RecordIdentityCard";
+import { useTableTitle } from "@/lib/useTableTitle";
 
 export function EventTableInfoView({
   table,
@@ -13,16 +14,17 @@ export function EventTableInfoView({
   titleAction,
   titleAccessory,
 }: {
-  table: Pick<PlannedTableResponse, "id" | "name">;
+  table: PlannedTableResponse;
   indicators: ReactNode;
   titleAction?: ReactNode;
   titleAccessory?: ReactNode;
 }) {
   const { t } = useLingui();
+  const { getTableTitle } = useTableTitle();
   return (
     <section aria-label={t`Settings`}>
       <RecordIdentityCard
-        title={table.name}
+        title={getTableTitle(table)}
         icon={Dices}
         titleAction={titleAction}
         titleAccessory={titleAccessory}

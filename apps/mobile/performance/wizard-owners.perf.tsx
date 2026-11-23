@@ -295,13 +295,11 @@ it.each(["group", "event"] as const)(
               await userEvent
                 .setup()
                 .press(await screen.findByTestId(`event-draft-table-${table.id}`));
-              await fireEvent.changeText(screen.getByLabelText("Table name"), "Unsaved table name");
+              await press("Increase: Minimum players");
               await press("Choose demonstrator");
               expect(await screen.findByText("Demo Player")).toBeVisible();
               await act(() => DeviceEventEmitter.emit("hardwareBackPress"));
-              expect(await screen.findByLabelText("Table name")).toHaveDisplayValue(
-                "Unsaved table name",
-              );
+              expect(await screen.findByLabelText("Minimum players: 3")).toBeVisible();
               await press("Choose demonstrator");
               await userEvent
                 .setup()
@@ -312,7 +310,7 @@ it.each(["group", "event"] as const)(
               expect(screen.getByLabelText("Event name")).toHaveDisplayValue("Unsaved event name");
               await press("Next");
               await press("Next");
-              expect(screen.getByLabelText("Table name")).toHaveDisplayValue("Unsaved table name");
+              expect(screen.getByLabelText("Minimum players: 3")).toBeVisible();
               expect(screen.getByText("Demo Player")).toBeVisible();
               await act(() =>
                 client.setQueryData(eventRecordQuery(options, event.id).queryKey, {
@@ -328,7 +326,7 @@ it.each(["group", "event"] as const)(
               ).toBeVisible();
               expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
               await press("Next");
-              expect(screen.getByLabelText("Table name")).toHaveDisplayValue("Unsaved table name");
+              expect(screen.getByLabelText("Minimum players: 3")).toBeVisible();
               expect(screen.getByText("Demo Player")).toBeVisible();
               expect(boundary.back).not.toHaveBeenCalled();
             }

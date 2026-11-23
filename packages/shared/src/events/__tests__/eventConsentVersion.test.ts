@@ -138,7 +138,6 @@ describe("not-yet-sent consent versions", () => {
     ])
       expect(rebaseEventConsent(input, snapshot, changed, table, 2)).toBe(input);
     for (const changed of [
-      { ...table, name: "Changed table" },
       { ...table, minPlayers: 3 },
       { ...table, maxPlayers: 3 },
       { ...table, rankingEnabled: false },
@@ -150,5 +149,7 @@ describe("not-yet-sent consent versions", () => {
       { ...table, games: [{ gameId: 1, durationMinutes: 90, durationSource: "MANUAL" as const }] },
     ])
       expect(rebaseEventConsent(input, snapshot, current, changed, 2)).toBe(input);
+    const renamed = { ...table, name: "Ignored display name" };
+    expect(rebaseEventConsent(input, snapshot, current, renamed, 2)).not.toBe(input);
   });
 });

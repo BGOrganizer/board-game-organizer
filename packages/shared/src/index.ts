@@ -63,6 +63,7 @@ export * from "./events/hooks/useTableLeaderboard";
 export * from "./events/hooks/useTableSeatOrder";
 export * from "./events/tablePlayerRating";
 export * from "./events/tableScoreForm";
+export * from "./events/tableTitle";
 export * from "./games/gameBestPlayers";
 export * from "./games/gameDifficultyColor";
 export * from "./games/gamePickerWindow";

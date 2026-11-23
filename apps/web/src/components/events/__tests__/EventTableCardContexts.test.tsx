@@ -1,5 +1,5 @@
 import { createResourceArtwork } from "@board-game-organizer/shared/artwork";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { groupRecord, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -141,9 +141,9 @@ it.each([1, 2])(
         }}
       />,
     );
-    expect(screen.queryByText("Chess")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
-    expect(await screen.findByText("Chess")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Open table: Chess" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Board games: Chess" }));
+    expect(await within(await screen.findByRole("dialog")).findByText("Chess")).not.toBeNull();
     for (const row of extra) expect(screen.queryByText(row.name)).toBeNull();
   },
 );
@@ -182,8 +182,10 @@ it("retains selected game, joint winners and disabled Rating in their informatio
     />,
   );
   expect(screen.getByRole("button", { name: "Roles and participation" })).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
-  expect(await screen.findByText("Selected game")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Board games: Selected game" }));
+  expect(
+    await within(await screen.findByRole("dialog")).findByText("Selected game"),
+  ).not.toBeNull();
   expect(screen.queryByText("Chess")).toBeNull();
   await closePopover();
   fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
@@ -215,7 +217,7 @@ it.each(["CONFIRMED", "TERMINATED"] as const)(
     fireEvent.click(screen.getByRole("button", { name: "Table excluded" }));
     expect(await screen.findByText("The table was excluded from confirmation.")).not.toBeNull();
     await closePopover();
-    expect(screen.queryByRole("button", { name: "Board games: First table" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Board games:/ })).toBeNull();
     expect(screen.queryByText("Chess")).toBeNull();
   },
 );

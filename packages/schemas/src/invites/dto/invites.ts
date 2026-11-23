@@ -53,10 +53,11 @@ export type TableInviteReviewResponse = {
     | "playerPreference"
     | "allowBestReduction"
   >;
-  table: Pick<
-    TableRecord,
-    "id" | "name" | "games" | "minPlayers" | "maxPlayers" | "rankingEnabled"
-  > & { gamesDetail: BggSearchItem[] };
+  table: Pick<TableRecord, "id" | "games" | "minPlayers" | "maxPlayers" | "rankingEnabled"> & {
+    name: string;
+    order?: number;
+    gamesDetail: BggSearchItem[];
+  };
   requiresAvailability: boolean;
   ownAvailability: Pick<EventVoter, "dateVotes" | "locationVotes"> | null;
   ownRegistration: Pick<

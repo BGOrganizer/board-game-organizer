@@ -101,7 +101,7 @@ it.each(["en", "it"] as const)(
     expect(eventRow.getByText(event.name)).toBeVisible();
     expect(eventRow.getByText(groupRecord.name)).toBeVisible();
     expect(eventRow.getByText(locale === "it" ? "1 Tavolo" : "1 Table")).toBeVisible();
-    expect(tableRow.getByText(table.name)).toBeVisible();
+    expect(tableRow.getByText(locale === "it" ? "Tavolo #1" : "Table #1")).toBeVisible();
     expect(tableRow.getByText(plannedTable.eventName)).toBeVisible();
     expect(tableRow.getByText(groupRecord.name)).toBeVisible();
     expect(

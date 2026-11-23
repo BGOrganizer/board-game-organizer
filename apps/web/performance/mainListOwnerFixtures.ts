@@ -90,6 +90,7 @@ export function seedMainListOwners(client: QueryClient, options: CommunityApiOpt
     ...plannedTable,
     id: id(200),
     name: "Cached history table",
+    confirmedGameName: "Cached history table",
     eventStatus: "TERMINATED",
     canManage: true,
     confirmed: {
@@ -102,6 +103,7 @@ export function seedMainListOwners(client: QueryClient, options: CommunityApiOpt
     ...table,
     id: id(201),
     name: "Retained history table",
+    confirmedGameName: "Retained history table",
   };
   const activity: CommunityActivity = {
     id: id(300),
@@ -227,7 +229,10 @@ export function seedMainListOwners(client: QueryClient, options: CommunityApiOpt
       secondGroup,
     ),
     events: pages({ ...scheduled, name: "Updated scheduled event", version: 2 }, secondEvent),
-    history: pages({ ...table, name: "Updated history table" }, secondTable),
+    history: pages(
+      { ...table, name: "Updated history table", confirmedGameName: "Updated history table" },
+      secondTable,
+    ),
     community: pages({ ...activity, context: "Updated activity table" }, secondActivity),
   };
   return {

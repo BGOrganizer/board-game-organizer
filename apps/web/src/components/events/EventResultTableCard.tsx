@@ -7,6 +7,7 @@ import { useId } from "react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
+import { useTableTitle } from "@/lib/useTableTitle";
 export function EventResultTableCard({
   table,
   ready,
@@ -19,6 +20,8 @@ export function EventResultTableCard({
   onPress: () => void;
 }) {
   const { t, i18n } = useLingui();
+  const { getTableTitle } = useTableTitle();
+  const title = getTableTitle(table);
   const statusId = useId();
   return (
     <ListCard>
@@ -26,7 +29,7 @@ export function EventResultTableCard({
         variant="ghost"
         isDisabled={busy}
         onPress={onPress}
-        aria-label={`${t`Edit scores`}: ${table.name}`}
+        aria-label={`${t`Edit scores`}: ${title}`}
         aria-describedby={ready ? statusId : undefined}
         className="h-auto w-full items-start justify-start gap-3 rounded-xl p-3 text-left whitespace-normal"
       >
@@ -44,14 +47,7 @@ export function EventResultTableCard({
             </span>
           ) : null}
         </span>
-        <ListCardBody
-          title={table.name}
-          titleIcon={<Dices className="size-4 shrink-0" aria-hidden />}
-        >
-          <span className="block text-sm">
-            {table.gamesDetail.find((game) => game.id === table.confirmed?.gameId)?.name ??
-              t`Unknown`}
-          </span>
+        <ListCardBody title={title} titleIcon={<Dices className="size-4 shrink-0" aria-hidden />}>
           <span className="inline-flex items-center gap-1 text-sm">
             <UserRoundCheck className="size-4" aria-hidden />
             <span className="sr-only">{t`Players`}: </span>

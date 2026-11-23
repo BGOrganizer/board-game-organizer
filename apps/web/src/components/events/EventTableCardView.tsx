@@ -12,6 +12,7 @@ import {
   LinkedListCardLayout,
 } from "@/components/common/ui/LinkedListCardLayout";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
+import { useTableTitle } from "@/lib/useTableTitle";
 
 /** One horizontal card in both feeds. The context hint changes Back, never authority. */
 export function EventTableCardView({
@@ -26,6 +27,8 @@ export function EventTableCardView({
   renderNavigation: CardNavigation;
 }) {
   const { t, i18n } = useLingui();
+  const { getTableTitle } = useTableTitle();
+  const title = getTableTitle(table);
   const attention = useNotificationAttentionContext();
   const count = attention?.get({ kind: "table", id: table.id })?.count;
   return (
@@ -33,13 +36,13 @@ export function EventTableCardView({
       renderNavigation={renderNavigation}
       heading={
         <ListCardBody
-          title={table.name}
+          title={title}
           unread={Boolean(count)}
           titleIcon={<Dices className="size-4 shrink-0 text-muted" aria-hidden />}
         />
       }
       href={`/events/${table.eventId}/tables/${table.id}${context === "event" ? `?fromEvent=${encodeURIComponent(table.eventId)}` : ""}`}
-      label={`${t`Open table`}: ${table.name}`}
+      label={`${t`Open table`}: ${title}`}
       notificationCount={count}
       artworkLayout="cover"
       artwork={<AnimatedDicebearArtwork seed={table.id} variant="tables" presentation="cover" />}

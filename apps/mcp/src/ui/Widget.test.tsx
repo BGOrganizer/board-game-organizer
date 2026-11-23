@@ -38,11 +38,12 @@ const firstTableId = "46d59b46-969b-4b03-99a8-525d1e96d222";
 const secondTableId = "8d8015c1-2797-4188-a8d1-5358faa9c9d1";
 const eventId = "fd82f631-a33c-49db-adba-dc63526ecaf6";
 const groupId = "70f48c08-821b-4e1a-9ee6-9efa2e3afe19";
-const historyTable = (id: string, name: string) => ({
+const historyTable = (id: string, confirmedGameName: string) => ({
   ...plannedTable,
   id,
   eventId,
-  name,
+  name: "Legacy table title",
+  confirmedGameName,
   eventName: "Game night",
   eventStatus: "TERMINATED" as const,
   confirmed: { gameId: 1, startsAt: "2026-11-23T02:00:00.000Z", playerIds: ["owner", "player"] },
@@ -99,6 +100,7 @@ it("browses a table inside the widget and returns to the same filtered, paged hi
     .mockResolvedValueOnce(response("get_table", first));
   await open("list_table_history", { items: [first], nextCursor: "cursor" }, { query });
   expect(screen.getByText("Hegemony")).toBeTruthy();
+  expect(screen.queryByText("Legacy table title")).toBeNull();
   expect(screen.getByText("Dice Club")).toBeVisible();
   expect(screen.getByRole("heading", { name: "Tables" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Load more tables" }));

@@ -61,7 +61,6 @@ export function eventProposalEdit(
       tables: [
         {
           id: table.id,
-          name: table.name,
           minPlayers: table.minPlayers,
           maxPlayers: table.maxPlayers,
           rankingEnabled: table.rankingEnabled,

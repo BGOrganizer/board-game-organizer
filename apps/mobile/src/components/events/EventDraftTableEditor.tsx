@@ -16,7 +16,6 @@ import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { InputField } from "@/components/common/ui/InputField";
-import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -68,28 +67,6 @@ export function EventDraftTableEditor({
   const helpTitle = t("Field help");
   const information = (
     <>
-      <InputField style={{ gap: 6 }}>
-        <SearchHelpLabel
-          required
-          label={t("Table name")}
-          helpTitle={helpTitle}
-          help={t("Name this table so players can recognize it. Use between 5 and 30 characters.")}
-        />
-        <NameInput
-          category="tavolo"
-          accessibilityLabel={t("Table name")}
-          placeholder={t("Strategy table")}
-          value={row.name}
-          onChangeText={(name) => onChange({ name })}
-          editable={!busy}
-          isInvalid={fieldError("name")}
-        />
-        {fieldError("name") ? (
-          <Typography accessibilityRole="alert" className="text-sm text-danger">
-            {t("Enter a table name between 5 and 30 characters.")}
-          </Typography>
-        ) : null}
-      </InputField>
       <InputField invalid={fieldError("minPlayers") || fieldError("maxPlayers")} style={{ gap: 8 }}>
         <SearchHelpLabel
           required

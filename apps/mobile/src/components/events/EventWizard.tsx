@@ -4,6 +4,7 @@ import type { CreateEventVariables, EditEventVariables } from "@board-game-organ
 import {
   communityAccessDenied,
   creationState,
+  draftTableNumber,
   eventDateWall,
   eventRecordKeys,
   isGroupManagerRole,
@@ -45,6 +46,7 @@ import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import GamePicker from "@/components/games/GamePicker";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
 import LocationPicker from "@/components/locations/LocationPicker";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useValidationList } from "@/lib/useValidationList";
@@ -123,6 +125,7 @@ function Editor({
   fromGroup?: string;
 }) {
   const t = useT(),
+    titleForTable = useTableTitle(),
     o = useCommunityApi(),
     router = useRouter(),
     insets = useSafeAreaInsets(),
@@ -395,12 +398,16 @@ function Editor({
               <View>{header}</View>
             </>
           }
-          renderItem={({ item: row, index }) =>
-            step === 2 ? (
+          renderItem={({ item: row, index }) => {
+            const number = draftTableNumber(draft.tables, row.key, event?.nextTableOrder);
+            const title = titleForTable({
+              order: number === undefined ? undefined : number - 1,
+            });
+            return step === 2 ? (
               <Accordion.Item value={row.key} className="rounded-xl bg-accent-soft">
                 <Accordion.Trigger
                   testID={`event-draft-table-${row.key}`}
-                  accessibilityLabel={row.name.trim() || `${t("Table")} #${index + 1}`}
+                  accessibilityLabel={title}
                   isDisabled={submitting}
                   style={{ minHeight: 44 }}
                 >
@@ -409,7 +416,7 @@ function Editor({
                     className="font-semibold text-foreground"
                     style={{ flex: 1, minWidth: 0 }}
                   >
-                    {row.name.trim() || `${t("Table")} #${index + 1}`}
+                    {title}
                   </Typography>
                   <Accordion.Indicator />
                 </Accordion.Trigger>
@@ -431,9 +438,9 @@ function Editor({
                 </Accordion.Content>
               </Accordion.Item>
             ) : (
-              <EventDraftTableCard row={row} publicGroup={publicGroup} />
-            )
-          }
+              <EventDraftTableCard row={row} title={title} publicGroup={publicGroup} />
+            );
+          }}
           ListFooterComponent={
             <View style={{ gap: 12 }}>
               {step === 2 ? (

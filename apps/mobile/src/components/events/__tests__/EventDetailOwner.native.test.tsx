@@ -316,13 +316,13 @@ it("retains actual details, tables and participant rows on reentry while server 
   await ready();
   const dates = screen.getByText("Dates and times");
   await select("Tables");
-  const tableName = await screen.findByText(plannedTable.name);
+  const tableName = await screen.findByText("Table #1");
   await select("Participants");
   const guest = await screen.findByText("@guest");
   await select("Details");
   expect(screen.getByText("Dates and times")).toBe(dates);
   await select("Tables");
-  expect(screen.getByText(plannedTable.name)).toBe(tableName);
+  expect(screen.getByText("Table #1")).toBe(tableName);
   await select("Participants");
   expect(screen.getByText("@guest")).toBe(guest);
   const source = reads.filter(({ pathname }) => pathname.endsWith("/participants")).length;
@@ -385,14 +385,14 @@ it("keeps failed tables distinct from emptiness and retries only that source on 
   expect(screen.queryByText("No tables found")).toBeNull();
   tablesCode = 200;
   await press("Try again");
-  expect(await screen.findByText(plannedTable.name)).toBeVisible();
+  expect(await screen.findByText("Table #1")).toBeVisible();
 });
 
 it("reveals cached tables by explicit paging and resets only presentation on departure while preserving authoritative pages", async () => {
   const second = {
     ...tables[0],
     id: "55555555-5555-4555-8555-555555555555",
-    name: "Second cached table",
+    order: 1,
   };
   const key = recordTablesQuery(options(), event.id).queryKey;
   const cache = {
@@ -406,14 +406,14 @@ it("reveals cached tables by explicit paging and resets only presentation on dep
   await render(<Fixture />);
   await ready();
   await select("Tables");
-  expect(screen.getByText(plannedTable.name)).toBeVisible();
-  expect(screen.queryByText(second.name)).toBeNull();
+  expect(screen.getByText("Table #1")).toBeVisible();
+  expect(screen.queryByText("Table #2")).toBeNull();
   await press("Load more");
-  expect(await screen.findByText(second.name)).toBeVisible();
+  expect(await screen.findByText("Table #2")).toBeVisible();
   await select("Details");
   await select("Tables");
-  expect(screen.queryByText(second.name)).toBeNull();
-  expect(screen.getByText(plannedTable.name)).toBeVisible();
+  expect(screen.queryByText("Table #2")).toBeNull();
+  expect(screen.getByText("Table #1")).toBeVisible();
   expect(client.getQueryData(key)).toBe(cache);
   expect(reads.some(({ searchParams }) => searchParams.has("cursor"))).toBe(false);
 });

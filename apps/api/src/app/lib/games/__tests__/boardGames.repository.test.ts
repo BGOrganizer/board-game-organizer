@@ -22,6 +22,16 @@ beforeEach(() => {
 });
 
 describe("BoardGamesRepository", () => {
+  it("reads only canonical names without hydrating provider metadata", async () => {
+    const session = { id: "transaction" };
+    await new BoardGamesRepository(dbMock as never, session as never).namesByIds([342942]);
+    expect(colMock.find).toHaveBeenCalledExactlyOnceWith(
+      { id: { $in: [342942] } },
+      { projection: { _id: 0, id: 1, name: 1 }, session },
+    );
+    expect(hydration.run).not.toHaveBeenCalled();
+  });
+
   it("hydrates metadata using the existing public catalog policy only outside transactions", async () => {
     hydration.run.mockImplementationOnce(async (_db: unknown, games: { image?: string }[]) => {
       games[0].image = "https://cf.geekdo-images.com/known.jpg";

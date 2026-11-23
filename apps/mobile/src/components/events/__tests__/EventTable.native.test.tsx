@@ -298,7 +298,7 @@ it("loads the actual planning owner with complete detail artwork, real tabs and 
   await render(<Fixture />);
   await ready();
   expect(screen.getByTestId("table-overview-tab")).toBeSelected();
-  expect(screen.getByRole("header", { name: table.name })).toBeVisible();
+  expect(screen.getByRole("header", { name: "Table #1" })).toBeVisible();
   expect(screen.getByText("Chess")).toBeVisible();
   expect(screen.getByTestId("table-participants-tab")).toBe(
     screen.getByRole("tab", { name: "Participants" }),
@@ -359,7 +359,7 @@ it("updates a retained hidden overview and roster from fresh authoritative serve
   await act(() => {
     client.setQueryData(eventRecordKeys.table(options(), event.id, table.id), {
       ...table,
-      name: "Current server table",
+      name: "Current server legacy name",
       gamesDetail: [{ ...table.gamesDetail[0], name: "Current server game" }],
     });
     client.setQueryData(seatsKey, {
@@ -374,7 +374,8 @@ it("updates a retained hidden overview and roster from fresh authoritative serve
       pageParams: [""],
     });
   });
-  expect(await screen.findByRole("header", { name: "Current server table" })).toBeVisible();
+  expect(await screen.findByRole("header", { name: "Table #1" })).toBeVisible();
+  expect(screen.queryByText("Current server legacy name")).toBeNull();
   expect(screen.getByText("Current server game")).toBeVisible();
   await select("participants");
   expect(await screen.findByText("@new-guest-handle")).toBeVisible();

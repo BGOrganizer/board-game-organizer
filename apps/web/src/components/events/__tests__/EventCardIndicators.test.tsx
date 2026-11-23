@@ -43,6 +43,7 @@ vi.mock("../EventTableGamesPopover", () => ({ EventTableGamesPopover: () => <spa
 const tableSummary = (patch: Partial<TableCardSummary> = {}): TableCardSummary => ({
   tableId: plannedTable.id,
   name: plannedTable.name,
+  order: 0,
   confirmed: false,
   ready: false,
   blockers: ["MIN_PLAYERS"],
@@ -200,13 +201,14 @@ it("keeps mixed participation green, lists each confirmed Table and explains oth
             tableSummary({ confirmed: true, myParticipation: "CONFIRMED" }),
             tableSummary({
               tableId: "second",
-              name: "Second confirmed table",
+              confirmedGameName: "Cascadia",
+              order: 1,
               confirmed: true,
               myParticipation: "CONFIRMED",
             }),
             tableSummary({
               tableId: "other",
-              name: "Other table",
+              order: 2,
               myParticipation: "EXCLUDED",
               exclusionReasons: ["TABLE_EXCLUDED"],
             }),
@@ -219,12 +221,10 @@ it("keeps mixed participation green, lists each confirmed Table and explains oth
     "success",
   );
   const heading = screen.getByText("Tables where you are confirmed:");
-  expect(heading.nextElementSibling?.textContent).toBe(
-    `${plannedTable.name}Second confirmed table`,
-  );
+  expect(heading.nextElementSibling?.textContent).toBe("Table #1Cascadia");
   expect(heading.nextElementSibling?.children).toHaveLength(2);
   expect(screen.getByText("The table was excluded from confirmation.")).not.toBeNull();
-  expect(screen.getByText("Other table")).not.toBeNull();
+  expect(screen.getByText("Table #3")).not.toBeNull();
   expect(screen.getByText("event-dates")).not.toBeNull();
 });
 it("does not invent a confirmed Table count for a legacy frozen card", () => {
@@ -444,7 +444,7 @@ it.each([true, false])(
       winners.querySelector(".lucide-trophy")?.classList.contains("text-warning-soft-foreground"),
     ).toBe(true);
     expect(winners.querySelector(".font-semibold")?.textContent).toBe(
-      showNames ? tableSummary().name : undefined,
+      showNames ? "Table #1" : undefined,
     );
     expect(winners.textContent).not.toContain("@undefined");
   },
@@ -466,8 +466,8 @@ it("renders confirmed table names only, with one item per table and no result or
     <EventCardTableSummaries
       mode="confirmed"
       tables={[
-        tableSummary({ name: "First" }),
-        tableSummary({ tableId: "second", name: "Second" }),
+        tableSummary({ confirmedGameName: "First" }),
+        tableSummary({ tableId: "second", confirmedGameName: "Second" }),
       ]}
     />,
   );
@@ -484,19 +484,19 @@ it("keeps no-winner Tables explicit", () => {
 });
 it("pages a long Event's Tables locally, clamps shrinking data, and preserves boundary focus", () => {
   const rows = Array.from({ length: 10 }, (_, n) =>
-    tableSummary({ tableId: String(n), name: `Table ${n}`, ready: true }),
+    tableSummary({ tableId: String(n), order: n, ready: true }),
   );
   const view = renderWithI18n(<EventCardTableSummaries mode="planning" tables={rows} />);
-  expect(screen.queryByText("Table 8")).toBeNull();
+  expect(screen.queryByText("Table #9")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
   fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-  expect(screen.getByText("Table 8")).not.toBeNull();
+  expect(screen.getByText("Table #9")).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Next page" }));
   fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
-  expect(screen.queryByText("Table 8")).toBeNull();
+  expect(screen.queryByText("Table #9")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Next page" }));
   view.rerender(<EventCardTableSummaries mode="planning" tables={rows.slice(0, 1)} />);
-  expect(screen.getByText("Table 0")).not.toBeNull();
+  expect(screen.getByText("Table #1")).not.toBeNull();
 });
 
 it.each(Object.entries(CARD_PLANNING_MESSAGES))(

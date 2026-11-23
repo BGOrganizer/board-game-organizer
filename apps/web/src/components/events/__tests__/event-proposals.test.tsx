@@ -873,7 +873,7 @@ it("edits private category opt-ins through the real wizard and sends all three f
   fireEvent.click(screen.getByRole("switch", { name: "Allow location proposals" }));
   expect(writes).toEqual([]);
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
-  fireEvent.click(await screen.findByRole("button", { name: table.name }));
+  fireEvent.click(await screen.findByRole("button", { name: "Table #1" }));
   fireEvent.click(await screen.findByRole("switch", { name: "Allow game proposals" }));
   expect(writes).toEqual([]);
   fireEvent.click(screen.getByRole("button", { name: "Next" }));

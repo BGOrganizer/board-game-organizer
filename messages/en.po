@@ -7324,6 +7324,10 @@ msgid "invite.retry"
 msgstr "Try again"
 
 #. js-lingui-explicit-id
+msgid "invite.tableLabel"
+msgstr "Table"
+
+#. js-lingui-explicit-id
 msgid "invite.tableTitle"
 msgstr "Review table invitation"
 

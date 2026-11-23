@@ -75,8 +75,8 @@ it("reuses the event artwork, facts and control popovers with only the host hand
 });
 
 it("preserves event parameters and filters while fetching and merging authored table pages", async () => {
-  const updated = { ...plannedTable, name: "Updated table" };
-  const other = { ...plannedTable, id: optionId, name: "Second table" };
+  const updated = { ...plannedTable, name: "Updated table", seatedCount: 1 };
+  const other = { ...plannedTable, id: optionId, name: "Second table", order: 1 };
   callServerTool.mockResolvedValue({
     structuredContent: {
       operation: "list_event_tables",
@@ -89,7 +89,8 @@ it("preserves event parameters and filters while fetching and merging authored t
   });
   expect(screen.getByText("0/4 participants")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Load more tables" }));
-  expect(await screen.findByRole("button", { name: "Open table: Second table" })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: "Open table: Table #2" })).toBeTruthy();
+  expect(screen.getByText("1/4 participant")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Open table: First table" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Load more tables" })).toBeNull();
   expect(callServerTool).toHaveBeenCalledWith(
@@ -99,7 +100,7 @@ it("preserves event parameters and filters while fetching and merging authored t
     },
     { signal: expect.any(AbortSignal) },
   );
-  fireEvent.click(screen.getByRole("button", { name: "Open table: Updated table" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open table: Table #1" }));
   await waitFor(() =>
     expect(openLink).toHaveBeenCalledWith({
       url: expect.stringMatching(
@@ -121,7 +122,7 @@ it("renders complete saved table receipts and identifies the viewer without Cler
   expect(await screen.findByText("Demonstrator")).toBeTruthy();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+  fireEvent.click(screen.getByRole("button", { name: "Board games: Chess" }));
   expect(await screen.findByText("Chess")).toBeTruthy();
 });
 

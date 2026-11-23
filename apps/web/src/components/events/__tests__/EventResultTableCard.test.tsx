@@ -12,6 +12,7 @@ it.each([false, true])(
       <EventResultTableCard
         table={{
           ...plannedTable,
+          eventStatus: "CONFIRMED",
           confirmed: { gameId: 1, playerIds: ["one", "two"], startsAt: plannedTable.createdAt },
         }}
         ready={ready}
@@ -19,7 +20,7 @@ it.each([false, true])(
         onPress={press}
       />,
     );
-    const button = screen.getByRole("button", { name: "Edit scores: First table" });
+    const button = screen.getByRole("button", { name: "Edit scores: Chess" });
     expect(button.querySelector("img")?.getAttribute("alt")).toBe("");
     expect(screen.getByText("Chess")).not.toBeNull();
     expect(screen.getByText("Players:").parentElement?.textContent).toBe("Players: 2");
@@ -43,13 +44,13 @@ it("keeps unknown legacy game data safe and disables repeat entry while finalizi
   const press = vi.fn();
   renderWithI18n(
     <EventResultTableCard
-      table={{ ...plannedTable, gamesDetail: [] }}
+      table={{ ...plannedTable, eventStatus: "CONFIRMED", gamesDetail: [] }}
       ready={false}
       busy
       onPress={press}
     />,
   );
-  expect(screen.getByText("Unknown")).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Edit scores: First table" }));
+  expect(screen.getByText("Table #1")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Edit scores: Table #1" }));
   expect(press).not.toHaveBeenCalled();
 });

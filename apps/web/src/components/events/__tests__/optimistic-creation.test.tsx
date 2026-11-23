@@ -110,9 +110,6 @@ function review(ui: ReturnType<typeof renderWithI18n>, name: string) {
   fireEvent.click(ui.getByRole("button", { name: "Choose verified location" }));
   fireEvent.click(ui.getByRole("button", { name: "Next" }));
   fireEvent.click(ui.getByRole("button", { name: "Add table" }));
-  fireEvent.change(ui.getByRole("textbox", { name: "Table name" }), {
-    target: { value: "First table" },
-  });
   fireEvent.click(ui.getByRole("button", { name: "Choose a game" }));
   fireEvent.click(ui.getByRole("button", { name: "Choose catalog game" }));
   fireEvent.click(ui.getByRole("button", { name: "Next" }));
@@ -260,10 +257,8 @@ it("retains a rejected raw draft after immediate navigation, restores all editor
   expect(recovered.getByRole("button", { name: "Remove location: Club venue" })).toBeDefined();
   expect(recovered.getByRole("button", { name: "Remove date: 2030-06-03 20:00" })).toBeDefined();
   fireEvent.click(recovered.getByRole("button", { name: "Next" }));
-  fireEvent.click(recovered.getByRole("button", { name: "First table" }));
-  expect((recovered.getByRole("textbox", { name: "Table name" }) as HTMLInputElement).value).toBe(
-    "First table",
-  );
+  fireEvent.click(recovered.getByRole("button", { name: "Table #1" }));
+  expect(recovered.queryByRole("textbox", { name: "Table name" })).toBeNull();
   expect(recovered.getByRole("button", { name: "Remove game: Chess" })).toBeDefined();
   fireEvent.click(recovered.getByRole("button", { name: "Next" }));
   expect(posts).toHaveLength(1);

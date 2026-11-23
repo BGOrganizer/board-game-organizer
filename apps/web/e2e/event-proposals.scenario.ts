@@ -150,7 +150,9 @@ test("detail proposal sections follow each category opt-in", async ({ page }) =>
     else await expect(section).toBeHidden();
   }
   await page.goto(`/events/${input.eventId}/tables/${input.tableId}`);
-  await expect(page.getByText(table.name, { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText(`${it ? "Tavolo" : "Table"} #${table.order + 1}`, { exact: true }).first(),
+  ).toBeVisible();
   const games = page.getByRole("region", { name: labels.own, exact: true });
   if (table.allowParticipantGames === true) await expect(games).toBeVisible();
   else await expect(games).toBeHidden();

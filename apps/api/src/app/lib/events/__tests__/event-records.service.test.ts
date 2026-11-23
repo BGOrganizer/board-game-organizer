@@ -405,6 +405,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     ban: vi.fn<(_groupId: string, _userId: string) => Promise<GroupBan | null>>(async () => null),
   };
   const games = {
+    namesByIds: vi.fn(async (ids: number[]) => ids.map((id) => ({ id, name: `Game ${id}` }))),
     findByIds: vi.fn(async (ids: number[]) =>
       ids.map((value) => ({ id: value, name: `Game ${value}`, maxPlayMinutes: 60 })),
     ),
@@ -521,6 +522,91 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     confirm,
   };
 }
+describe("automatic table titles", () => {
+  it("uses event order before confirmation, preserves old names and keeps gaps after removal", async () => {
+    const f = setup("PRIVATE");
+    const input = { ...body(), groupId: other };
+    const { name: _legacyInput, ...table } = input.tables[0];
+    input.tables = [table, { ...table, id: other, name: "Ignored old-client input" }];
+    const created = await f.service.create(owner, input);
+    expect(created.nextTableOrder).toBe(2);
+    expect(f.tables.get(id)).not.toHaveProperty("name");
+    expect(f.tables.get(other)).not.toHaveProperty("name");
+
+    const original = f.tables.get(id);
+    if (!original) throw new Error("Missing original table");
+    f.tables.set(id, { ...original, name: "Historical title" });
+    const { groupId: _groupId, ...editable } = input;
+    const addedId = randomUUID();
+    const edited = await f.service.update(owner, created.id, {
+      ...editable,
+      version: created.version,
+      removedTableIds: [other],
+      tables: [
+        { ...table, id: addedId },
+        { ...table, name: "Ignored rename" },
+      ],
+    });
+    expect(edited.nextTableOrder).toBe(3);
+    expect(f.tables.get(id)?.name).toBe("Historical title");
+    expect(f.tables.get(other)).toHaveProperty("removedAt");
+    expect(f.tables.get(addedId)).not.toHaveProperty("name");
+    expect(edited.cardSummary?.tables).toMatchObject([
+      { tableId: id, name: "Table #1", order: 0 },
+      { tableId: addedId, name: "Table #3", order: 2 },
+    ]);
+    const first = await f.service.tables(owner, edited.id, { limit: 1, query: "tavolo" });
+    expect(first).toMatchObject({ items: [{ id, name: "Table #1" }], nextCursor: "0" });
+    const second = await f.service.tables(owner, edited.id, {
+      limit: 1,
+      cursor: first.nextCursor ?? undefined,
+      query: "Table #3",
+    });
+    expect(second).toMatchObject({ items: [{ id: addedId, name: "Table #3" }], nextCursor: null });
+    expect(
+      await f.service.tables(owner, edited.id, { limit: 1, query: "Historical title" }),
+    ).toEqual({ items: [], nextCursor: null });
+  });
+
+  it("uses the confirmed catalog title and restores the numbered title on replan", async () => {
+    const f = setup("PRIVATE");
+    const event = await f.service.create(owner, { ...body(), groupId: other });
+    await f.service.register(owner, event.id, id);
+    await f.accept(await f.service.register(owner, event.id, id, guest));
+    const confirmed = await f.confirm(event.id);
+    expect(confirmed.cardSummary?.tables).toMatchObject([
+      { name: "Game 1", order: 0, confirmedGameName: "Game 1" },
+    ]);
+    expect(confirmed).not.toHaveProperty("nextTableOrder");
+    expect(await f.service.tableDetail(owner, event.id, id)).toMatchObject({
+      name: "Game 1",
+      confirmedGameName: "Game 1",
+    });
+    expect(await f.service.tables(owner, event.id, { limit: 1, query: "game 1" })).toMatchObject({
+      items: [{ id, name: "Game 1" }],
+      nextCursor: null,
+    });
+    expect(await f.service.activityResource(owner, event.id, id)).toMatchObject({
+      name: "Game 1",
+      eventContext: event.name,
+    });
+
+    await f.service.transition(owner, event.id, { action: "replan", version: confirmed.version });
+    expect(f.tables.get(id)?.confirmed?.gameId).toBe(1);
+    const planned = await f.service.tableDetail(owner, event.id, id);
+    expect(planned.name).toBe("Table #1");
+    expect(planned).not.toHaveProperty("confirmedGameName");
+    expect(await f.service.tables(owner, event.id, { limit: 1, query: "game 1" })).toEqual({
+      items: [],
+      nextCursor: null,
+    });
+    expect(await f.service.activityResource(owner, event.id, id)).toMatchObject({
+      name: "Table #1",
+      tableOrder: 0,
+    });
+  });
+});
+
 describe("Event participant source and event-only removal", () => {
   it("keeps an administrator-only Event empty until explicit accepted attendance exists", async () => {
     const f = setup("PRIVATE"),

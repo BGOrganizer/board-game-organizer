@@ -102,6 +102,7 @@ import { eventCardSummary, tableCardSummary } from "./event-card-summary";
 import { personalEventProjection, personalTableProjection } from "./event-personal-projection";
 import type { EventRecordPage, EventRecordsRepository } from "./event-records.repository";
 import { sharedEventResults, sharedTableResults } from "./event-results-projection";
+import { confirmedTableGameId, tableTitleProjection } from "./table-title";
 
 function voterRole(
   userId: string,
@@ -155,6 +156,15 @@ export class EventRecordsService {
     private notifications: NotificationsRepository,
     private ratings: RatingsRepository,
   ) {}
+  private async confirmedGameNames(event: EventRecord, tables: readonly TableRecord[]) {
+    const gameIds = new Set<number>();
+    for (const table of tables) {
+      const gameId = confirmedTableGameId(event.status, table);
+      if (gameId !== undefined) gameIds.add(gameId);
+    }
+    const games = gameIds.size ? await this.games.namesByIds([...gameIds]) : [];
+    return new Map(games.map((game) => [game.id, game.name]));
+  }
   private async group(id: string, lock = false) {
     const group = lock ? await this.groups.lock(id) : await this.groups.find(id);
     if (!group?.approved) throw new CommunityError(404, "GROUP_NOT_FOUND");
@@ -297,8 +307,12 @@ export class EventRecordsService {
       (personalOnly && !isFrozenTableParticipant(table, userId))
     )
       throw new CommunityError(404, "TABLE_NOT_FOUND");
+    const gameId = confirmedTableGameId(event.status, table);
+    const gameName =
+      gameId === undefined ? undefined : (await this.games.namesByIds([gameId]))[0]?.name;
     return {
-      name: table.name,
+      name: tableTitleProjection(table.order, gameName).name,
+      ...(!gameName ? { tableOrder: table.order } : {}),
       eventContext: event.name,
       href: `/events/${eventId}/tables/${tableId}`,
       ...(privateFeed || sharedResultsOnly
@@ -493,6 +507,7 @@ export class EventRecordsService {
         ))
         ? await this.events.voter(event.id, userId)
         : undefined;
+    const confirmedGameNames = await this.confirmedGameNames(event, tables);
     const summary = eventCardSummary(
       plan?.agreed ?? Boolean(event.confirmed),
       tables.map((table) =>
@@ -517,6 +532,7 @@ export class EventRecordsService {
           ),
           planningInput && plan ? { input: planningInput, agreement: plan } : undefined,
           myVotes,
+          confirmedGameNames.get(table.confirmed?.gameId ?? 0),
         ),
       ),
     );
@@ -631,7 +647,7 @@ export class EventRecordsService {
     const {
       lastNotifiedSituation: _situation,
       nextPriority: _priority,
-      nextTableOrder: _order,
+      nextTableOrder,
       ...visible
     } = event;
     const myDemonstrator = tables.some(
@@ -650,6 +666,7 @@ export class EventRecordsService {
             : "member";
     return {
       ...visible,
+      ...(detail && canManage && event.status === "PLANNING" ? { nextTableOrder } : {}),
       cardSummary: summary,
       visibility: eventRecordVisibility(event, group?.type ?? null),
       locations: visible.locations.map((location) => ({
@@ -1379,7 +1396,7 @@ export class EventRecordsService {
       const row: TableRecord = {
         id: current?.id ?? table.id ?? randomUUID(),
         eventId: event.id,
-        name: table.name,
+        ...(current?.name !== undefined ? { name: current.name } : {}),
         order: current?.order ?? event.nextTableOrder++,
         minPlayers: table.minPlayers,
         maxPlayers: table.maxPlayers,
@@ -1922,8 +1939,11 @@ export class EventRecordsService {
       );
     }
     const { resultDraft, seatOrderVersion: _seatOrderVersion, ...visibleTable } = table;
+    const confirmedGameId = confirmedTableGameId(event.status, table);
+    const confirmedGameName = games.find((game) => game.id === confirmedGameId)?.name;
     return {
       ...visibleTable,
+      ...tableTitleProjection(table.order, confirmedGameName),
       cardSummary: tableCardSummary(
         event,
         table,
@@ -1939,6 +1959,7 @@ export class EventRecordsService {
         }),
         cardPlanningInput && plan ? { input: cardPlanningInput, agreement: plan } : undefined,
         ownAvailability,
+        confirmedGameName,
       ),
       canManage,
       managementRole: canManage
@@ -2191,12 +2212,22 @@ export class EventRecordsService {
       false,
       true,
     );
-    const rows = (await this.events.allTables(eventId)).filter(
+    const eligible = (await this.events.allTables(eventId)).filter(
       (table) =>
         (!sharedResultsOnly || (table.confirmed && table.results)) &&
-        (!personalOnly || isFrozenTableParticipant(table, userId)) &&
-        (!page.query || table.name.toLocaleLowerCase().includes(page.query.toLocaleLowerCase())),
+        (!personalOnly || isFrozenTableParticipant(table, userId)),
     );
+    const query = page.query?.toLocaleLowerCase();
+    const gameNames = query ? await this.confirmedGameNames(event, eligible) : undefined;
+    const rows = query
+      ? eligible.filter((table) => {
+          const gameName = gameNames?.get(table.confirmed?.gameId ?? 0);
+          const title = tableTitleProjection(table.order, gameName).name.toLocaleLowerCase();
+          return (
+            title.includes(query) || (!gameName && `tavolo #${table.order + 1}`.includes(query))
+          );
+        })
+      : eligible;
     const after = page.cursor ? rows.filter((row) => row.order > Number(page.cursor)) : rows;
     const items: PlannedTableResponse[] = [];
     const preparedPlanning =

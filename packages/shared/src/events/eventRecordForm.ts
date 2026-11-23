@@ -14,7 +14,9 @@ import { publicEventEndIsValid } from "./eventSchedule";
 export type EventTableDraft = {
   key: string;
   id?: string;
-  name: string;
+  order?: number;
+  /** Restored drafts may still contain this retired input. */
+  name?: string;
   minPlayers: number;
   maxPlayers: number;
   rankingEnabled: boolean;
@@ -57,7 +59,7 @@ export function tableDraft(row: PlannedTableResponse, timeZone: string): EventTa
   return {
     key: row.id,
     id: row.id,
-    name: row.name,
+    order: row.order,
     minPlayers: row.minPlayers,
     maxPlayers: row.maxPlayers,
     rankingEnabled: row.rankingEnabled,
@@ -141,7 +143,6 @@ function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
       : {}),
     tables: draft.tables.map((row) => ({
       ...(row.id ? { id: row.id } : {}),
-      name: row.name,
       minPlayers: row.minPlayers,
       maxPlayers: row.maxPlayers,
       rankingEnabled: row.rankingEnabled,
@@ -349,11 +350,24 @@ export function patchTableDraft(
 export function newTableDraft(key: string): EventTableDraft {
   return {
     key,
-    name: "",
     minPlayers: 2,
     maxPlayers: 4,
     rankingEnabled: true,
     startsWall: "",
     games: [],
   };
+}
+
+export function draftTableNumber(
+  tables: readonly Pick<EventTableDraft, "key" | "id" | "order">[],
+  key: string,
+  nextTableOrder = 0,
+): number | undefined {
+  const index = tables.findIndex((table) => table.key === key);
+  const table = tables[index];
+  if (!table) return undefined;
+  if (table.order !== undefined) return table.order + 1;
+  if (table.id) return undefined;
+  const start = Math.max(nextTableOrder, ...tables.map((row) => (row.order ?? -1) + 1));
+  return start + tables.slice(0, index).filter((row) => !row.id).length + 1;
 }

@@ -138,6 +138,7 @@ beforeEach(() => {
     id: "table",
     eventId: "event",
     name: "Table",
+    order: 0,
     games: [{ gameId: 1 }],
     minPlayers: 2,
     maxPlayers: 4,
@@ -206,6 +207,7 @@ it("returns only the token-authorized review and the authenticated recipient's o
   expect(review).toMatchObject({
     inviter: { id: sender, name: "Sender", username: "sender", avatarUrl: null },
     group: { id: "group", name: "Private group" },
+    table: { name: "Table #1", order: 0 },
     requiresAvailability: true,
     ownAvailability: null,
     ownRegistration: null,

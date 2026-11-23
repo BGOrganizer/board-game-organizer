@@ -66,6 +66,15 @@ export class BoardGamesRepository {
     return games.map((game) => game.id);
   }
 
+  namesByIds(ids: number[]) {
+    return this.col
+      .find<Pick<BoardGame, "id" | "name">>(
+        { id: { $in: ids } },
+        { projection: { _id: 0, id: 1, name: 1 }, ...this.opts },
+      )
+      .toArray();
+  }
+
   async findByIds(ids: number[]): Promise<BoardGame[]> {
     const games = await this.col
       .find({ id: { $in: ids } }, { projection: { _id: 0 }, ...this.opts })

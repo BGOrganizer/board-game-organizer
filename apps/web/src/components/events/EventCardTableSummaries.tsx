@@ -6,6 +6,7 @@ import { useLingui } from "@lingui/react/macro";
 import { ChevronLeft, ChevronRight, Trophy } from "lucide-react";
 import { useState } from "react";
 import { cardExclusionMessages, cardPlanningMessages } from "@/lib/eventCardMessages";
+import { useTableTitle } from "@/lib/useTableTitle";
 
 /** Bounded local pages of the card's authorized projection; never loads another Table detail. */
 export function EventCardTableSummaries({
@@ -18,6 +19,9 @@ export function EventCardTableSummaries({
   showNames?: boolean;
 }) {
   const { t, i18n } = useLingui();
+  const { getTableTitle } = useTableTitle();
+  const eventStatus =
+    mode === "planning" ? "PLANNING" : mode === "results" ? "TERMINATED" : "CONFIRMED";
   const [requestedPage, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(tables.length / 8));
   const page = Math.min(requestedPage, pageCount - 1);
@@ -26,7 +30,9 @@ export function EventCardTableSummaries({
       <ul className="min-w-0 space-y-3">
         {tables.slice(page * 8, (page + 1) * 8).map((table) => (
           <li key={table.tableId}>
-            {showNames && mode !== "results" ? <p className="font-semibold">{table.name}</p> : null}
+            {showNames && mode !== "results" ? (
+              <p className="font-semibold">{getTableTitle({ ...table, eventStatus })}</p>
+            ) : null}
             {mode === "planning" ? (
               table.ready ? (
                 <p>{t`This table is ready for confirmation.`}</p>
@@ -47,7 +53,9 @@ export function EventCardTableSummaries({
               <p className="break-words">
                 {showNames ? (
                   <>
-                    <span className="font-semibold">{table.name}</span>{" "}
+                    <span className="font-semibold">
+                      {getTableTitle({ ...table, eventStatus })}
+                    </span>{" "}
                   </>
                 ) : null}
                 {table.winners.length ? (

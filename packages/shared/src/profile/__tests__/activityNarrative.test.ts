@@ -14,6 +14,11 @@ const base: ProfileActivity = {
   href: "/tables/table",
   author,
 };
+it("uses the numbered table in translated sentences and keeps its link", () => {
+  const item = { ...base, tableOrder: 0 };
+  const story = activityNarrative(item, undefined, "Unknown", "Missing");
+  expect(story.target).toEqual({ name: "#1", href: item.href });
+});
 it.each([
   ["played", "played at table", "ha giocato al tavolo"],
   ["friendship", "became friends with", "ha stretto amicizia con"],

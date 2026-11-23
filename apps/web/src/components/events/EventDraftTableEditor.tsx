@@ -6,13 +6,12 @@ import {
   gamePlayerBounds,
   publicTableTimeBounds,
 } from "@board-game-organizer/shared";
-import { Button, Switch, TextField } from "@heroui/react";
+import { Button, Switch } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Minus, Plus, Trash2, UserRoundPen, X } from "lucide-react";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
-import { NameInput } from "@/components/common/ui/NameInput";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { TimePicker } from "@/components/common/ui/TimePicker";
 import { UserListRow } from "@/components/common/ui/UserListRow";
@@ -59,32 +58,6 @@ export function EventDraftTableEditor({
   const helpTitle = t`Field help`;
   const information = (
     <>
-      <TextField
-        value={row.name}
-        onChange={(name) => onChange({ name })}
-        isRequired
-        isDisabled={busy}
-        isInvalid={fieldError("name")}
-      >
-        <SearchHelpLabel
-          required
-          label={t`Table name`}
-          helpTitle={helpTitle}
-          help={t`Name this table so players can recognize it. Use between 5 and 30 characters.`}
-        />
-        <NameInput
-          category="tavolo"
-          onGenerate={(name) => onChange({ name })}
-          isDisabled={busy}
-          placeholder={t`Strategy table`}
-        />
-        {fieldError("name") ? (
-          <p
-            role="alert"
-            className="text-sm text-danger"
-          >{t`Enter a table name between 5 and 30 characters.`}</p>
-        ) : null}
-      </TextField>
       <fieldset
         data-form-field
         data-form-error={fieldError("minPlayers") || fieldError("maxPlayers") || undefined}

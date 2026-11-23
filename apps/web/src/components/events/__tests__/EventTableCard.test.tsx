@@ -66,7 +66,7 @@ it("hides Planning game proposals and discloses only the frozen game and tied wi
       table={{ ...plannedTable, gamesDetail, myRegistration: seat("owner"), myPosition: "SEATED" }}
     />,
   );
-  expect(screen.queryByRole("button", { name: "Board games: First table" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Board games:/ })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
   expect(await screen.findByText("Confirmed player")).not.toBeNull();
   await closePopover();
@@ -76,8 +76,8 @@ it("hides Planning game proposals and discloses only the frozen game and tied wi
       table={{ ...plannedTable, eventStatus: "CONFIRMED", confirmed, gamesDetail }}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
-  expect(await screen.findByText("Chess")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Board games: Chess" }));
+  expect(await within(await screen.findByRole("dialog")).findByText("Chess")).not.toBeNull();
   expect(screen.queryByText("Second game")).toBeNull();
   await closePopover();
   q.rerender(
@@ -107,7 +107,7 @@ it("hides Planning game proposals and discloses only the frozen game and tied wi
       table={{ ...plannedTable, eventStatus: "TERMINATED", confirmed, gamesDetail: [] }}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+  fireEvent.click(screen.getByRole("button", { name: "Board games: Table #1" }));
   expect(await screen.findByText("No games found")).not.toBeNull();
 });
 
@@ -333,7 +333,7 @@ it("offers navigation but no consent controls on Group or Table invitation cards
     </>,
   );
   expect(screen.getByRole("link", { name: `Open group: ${groupRecord.name}` })).not.toBeNull();
-  expect(screen.getByRole("link", { name: `Open table: ${plannedTable.name}` })).not.toBeNull();
+  expect(screen.getByRole("link", { name: "Open table: Table #1" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
 });

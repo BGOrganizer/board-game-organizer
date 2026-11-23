@@ -171,7 +171,7 @@ it.each([true, false])(
   "retains Table state, rating=%s and all list option controls in detail",
   async (enabled) => {
     renderWithI18n(<EventTableInfo table={{ ...plannedTable, rankingEnabled: enabled }} />);
-    const heading = screen.getByRole("heading", { name: plannedTable.name }),
+    const heading = screen.getByRole("heading", { name: "Table #1" }),
       card = heading.closest(".card") as HTMLElement;
     expect(card.querySelector(".bg-surface\\/95")).toBeNull();
     expect(

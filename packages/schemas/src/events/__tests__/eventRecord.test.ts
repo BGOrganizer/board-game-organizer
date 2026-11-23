@@ -565,6 +565,11 @@ it("keeps historical Event and Table names readable without accepting them in na
       }).name,
     ).toBe(name);
   }
+  const { name: _legacyName, ...nameless } = table;
+  expect(plannedTableInputSchema.parse(nameless)).not.toHaveProperty("name");
+  expect(
+    tableRecordSchema.parse({ ...nameless, eventId: id, order: 0, createdAt: at, updatedAt: at }),
+  ).not.toHaveProperty("name");
   for (const length of [1, 4, 31, 120]) {
     const name = "a".repeat(length);
     expect(

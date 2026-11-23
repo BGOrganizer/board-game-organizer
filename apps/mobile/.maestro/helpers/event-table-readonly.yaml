@@ -4,12 +4,11 @@ appId: com.bgo.boardgameorganizer.dev
     id: "event-tab-tables"
 - assertVisible:
     id: "edit-event-fab"
-- assertNotVisible: "Edit table: Cascadia event table"
-- assertNotVisible: "Remove table: Cascadia event table"
-- tapOn: "Open table: Cascadia event table"
-- assertVisible: "Table details"
-- assertVisible: "Table name"
-- assertVisible: "Cascadia event table"
+- assertNotVisible: "Edit table: Table #1"
+- assertNotVisible: "Remove table: Table #1"
+- tapOn: "Open table: Table #1"
+- assertVisible: "Table #1"
+- assertNotVisible: "Table name"
 - assertVisible: "Date and time"
 - assertNotVisible: "Table location help"
 - assertVisible: "Board games"
@@ -21,14 +20,6 @@ appId: com.bgo.boardgameorganizer.dev
     timeout: 30000
 - back
 - assertNotVisible: "The event day and this table's start and end times are fixed. There is no voting."
-- tapOn: "Table name help"
-- extendedWaitUntil:
-    visible: "Confirmed players."
-    timeout: 30000
-- assertVisible: "Maximum seats here; free places in Seats."
-- assertVisible: "Reserved places, including pending requests."
-- back
-- assertNotVisible: "Confirmed players."
 - tapOn: "Table game help"
 - extendedWaitUntil:
     visible: "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."

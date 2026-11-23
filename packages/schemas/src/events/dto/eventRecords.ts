@@ -45,7 +45,8 @@ const gameInputSchema = z
 export const plannedTableInputSchema = tableDemonstratorSchema
   .safeExtend({
     id: z.uuid().optional(),
-    name: resourceNameSchema,
+    /** Accepted for existing clients; the server ignores it. */
+    name: resourceNameSchema.optional(),
     minPlayers: z.number().int().min(2),
     maxPlayers: z.number().int().min(2),
     games: z
@@ -335,6 +336,9 @@ export type EventExclusionReason =
 export type TableCardSummary = {
   tableId: string;
   name: string;
+  /** Zero-based event order. Optional for cached responses from older releases. */
+  order?: number;
+  confirmedGameName?: string;
   confirmed: boolean;
   ready: boolean;
   blockers: EventPlanningBlocker[];
@@ -349,6 +353,8 @@ export type PlannedEventResponse = Omit<
 > &
   PlannedEventCapabilities & {
     cardSummary?: EventCardSummary;
+    /** Zero-based order available to managers editing a planning event. */
+    nextTableOrder?: number;
     groupName: string | null;
     groupType: "PRIVATE" | "PUBLIC" | null;
     role: "admin" | "participant" | "invited" | "member" | "demonstrator" | "viewer";
@@ -446,7 +452,10 @@ export type EventSchedulePreview = {
   locations?: EventRecord["locations"];
   timeZone?: string;
 };
-export type PlannedTableResponse = Omit<TableRecord, "seatOrderVersion"> & {
+export type PlannedTableResponse = Omit<TableRecord, "name" | "seatOrderVersion"> & {
+  /** Compatibility display title. Use order to localize a numbered title. */
+  name: string;
+  confirmedGameName?: string;
   /** Anonymous occupied slots, including undisclosed pending reservations; absent in older caches. */
   occupiedSeatIndices?: number[];
   cardSummary?: TableCardSummary;

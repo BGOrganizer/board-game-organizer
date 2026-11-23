@@ -86,7 +86,8 @@ export const tableRecordSchema = tableDemonstratorSchema
   .safeExtend({
     id: z.uuid(),
     eventId: z.uuid(),
-    name: z.string().trim().min(1).max(120),
+    /** Retained on historical records. Table titles are projected from order and the confirmed game. */
+    name: z.string().trim().min(1).max(120).optional(),
     order: z.number().int().nonnegative(),
     minPlayers: z.number().int().min(2),
     maxPlayers: z.number().int().min(2),

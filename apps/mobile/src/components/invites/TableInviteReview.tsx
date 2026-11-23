@@ -21,6 +21,7 @@ import { InputSectionList } from "@/components/common/ui/InputSectionList";
 import { EventVoteButtons } from "@/components/events/EventVoteButtons";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 
 type Review = Extract<InviteReviewResponse, { kind: "TABLE" }>;
@@ -50,6 +51,7 @@ export function TableInviteReview({
   const insets = useSafeAreaInsets();
   const form = useTableInviteForm(review, disabled, onClaim);
   const { event, table } = review;
+  const title = useTableTitle()(table);
   const sections = useMemo<{ title: string; data: Row[] }[]>(
     () => [
       { title: "Dates", data: event.dates.map((value) => ({ kind: "date", value })) },
@@ -100,7 +102,7 @@ export function TableInviteReview({
         contentContainerStyle={{ padding: 20, gap: 12 }}
         ListHeaderComponent={
           <View style={{ gap: 12, paddingBottom: 12 }}>
-            <InvitationIdentity name={table.name} icon={Dices} heading />
+            <InvitationIdentity name={title} icon={Dices} heading />
             <InvitationIdentity name={event.name} icon={CalendarDays} />
             <InvitationIdentity name={review.group.name} icon={UsersRound} />
             <Typography>
@@ -111,7 +113,7 @@ export function TableInviteReview({
                 values: {
                   inviter: formatUsername(review.inviter.username, review.inviter.name),
                   group: review.group.name,
-                  table: table.name,
+                  table: title,
                 },
               })}
             </Typography>

@@ -64,11 +64,21 @@ export function useEventRecordForm(
   useEffect(() => {
     if (!existingId) return;
     setDraft((old) => {
+      const tablesWithOrder = old.tables.map((row) => {
+        const order =
+          row.id && row.order === undefined
+            ? loadedTables.find((loaded) => loaded.id === row.id)?.order
+            : undefined;
+        return order === undefined ? row : { ...row, order };
+      });
       const added = loadedTables.filter(
         (row) => !old.tables.some((t) => t.id === row.id) && !old.removedTableIds.includes(row.id),
       );
-      return added.length
-        ? { ...old, tables: [...old.tables, ...added.map((row) => tableDraft(row, old.timeZone))] }
+      return added.length || tablesWithOrder.some((row, index) => row !== old.tables[index])
+        ? {
+            ...old,
+            tables: [...tablesWithOrder, ...added.map((row) => tableDraft(row, old.timeZone))],
+          }
         : old;
     });
   }, [existingId, loadedTables]);

@@ -29,6 +29,7 @@ import { NotificationChangesPopover } from "@/components/notifications/Notificat
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useTableTitle } from "@/lib/useTableTitle";
 
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailView } from "./EventDetailView";
@@ -47,6 +48,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     [confirm, setConfirm] = useState<"confirm" | "replan" | null>(null),
     [error, setError] = useState(false),
     event = communityAccessDenied(q.error) ? undefined : q.data;
+  const { getTableTitle, numberedTableTitle } = useTableTitle();
   const [requestedTab, setTab] = useState("details");
   const transitionVersion = useRef<number | null>(null);
   const tab =
@@ -158,16 +160,19 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 >
                   <div className="space-y-2">
                     <p>{confirmationHint}</p>
-                    {event.agreement?.reasons.map((reason) => (
-                      <p key={reason.tableId}>
-                        {tables.items.find((row) => row.id === reason.tableId)?.name ?? t`Table`}:{" "}
-                        {reason.code === "PENDING_RESERVATIONS"
-                          ? t`Pending invitations still reserve places.`
-                          : reason.code === "GAME_DISAGREEMENT"
-                            ? t`Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.`
-                            : t`No compatible accepted players for this table.`}
-                      </p>
-                    ))}
+                    {event.agreement?.reasons.map((reason) => {
+                      const table = tables.items.find((row) => row.id === reason.tableId);
+                      return (
+                        <p key={reason.tableId}>
+                          {table ? getTableTitle(table) : numberedTableTitle()}:{" "}
+                          {reason.code === "PENDING_RESERVATIONS"
+                            ? t`Pending invitations still reserve places.`
+                            : reason.code === "GAME_DISAGREEMENT"
+                              ? t`Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.`
+                              : t`No compatible accepted players for this table.`}
+                        </p>
+                      );
+                    })}
                   </div>
                 </HelpPopover>
               ) : (

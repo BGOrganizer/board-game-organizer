@@ -159,6 +159,7 @@ it("History shows terminated player, demonstrator and currently managed tables w
       ...base,
       id: "player",
       name: "Played table",
+      confirmedGameName: "Hegemony",
       myRegistration: seat("owner"),
       myPosition: "FROZEN",
     },
@@ -166,6 +167,7 @@ it("History shows terminated player, demonstrator and currently managed tables w
       ...base,
       id: "demo",
       name: "Demonstrated table",
+      confirmedGameName: "Ark Nova",
       confirmed: { ...base.confirmed, playerIds: ["guest"] },
       demonstratorUserId: "owner",
     },
@@ -173,6 +175,7 @@ it("History shows terminated player, demonstrator and currently managed tables w
       ...base,
       id: "admin",
       name: "Managed table",
+      confirmedGameName: "Azul",
       confirmed: { ...base.confirmed, playerIds: ["guest"] },
       canManage: true,
     },
@@ -183,8 +186,9 @@ it("History shows terminated player, demonstrator and currently managed tables w
   );
   vi.stubGlobal("fetch", fetcher);
   render(<Tables />);
-  for (const name of ["Played table", "Demonstrated table", "Managed table"])
+  for (const name of ["Hegemony", "Ark Nova", "Azul"])
     await screen.findByRole("link", { name: `Open table: ${name}` });
+  expect(screen.queryByText("Played table")).not.toBeInTheDocument();
   expect(screen.getByRole("list", { name: "History" })).toBeTruthy();
   expect(screen.queryByRole("tablist")).toBeNull();
   expect(screen.queryByRole("button", { name: "Table legend" })).toBeNull();
@@ -244,7 +248,7 @@ it.each([false, true])(
     expect(screen.queryByText(history ? "No tables found" : "No events found")).toBeNull();
     fireEvent.click(more);
     await screen.findByRole("link", {
-      name: history ? "Open table: Visible table" : "Open event: Visible event",
+      name: history ? "Open table: Chess" : "Open event: Visible event",
     });
   },
 );
@@ -311,6 +315,7 @@ it.each(["mine", "available", "terminated", "history"] as const)(
             ...plannedTable,
             id: second ? "second" : "first",
             name: second ? "Second table" : "First table",
+            confirmedGameName: second ? "Cascadia" : "Chess",
             eventStatus: "TERMINATED",
             confirmed: {
               gameId: 1,
@@ -346,11 +351,11 @@ it.each(["mine", "available", "terminated", "history"] as const)(
     fail = false;
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await screen.findByRole("link", {
-      name: history ? "Open table: First table" : "Open event: First event",
+      name: history ? "Open table: Chess" : "Open event: First event",
     });
     fireEvent.click(screen.getByRole("button", { name: "Load more" }));
     await screen.findByRole("link", {
-      name: history ? "Open table: Second table" : "Open event: Second event",
+      name: history ? "Open table: Cascadia" : "Open event: Second event",
     });
     expect(
       fetcher.mock.calls.some(([url]) => {

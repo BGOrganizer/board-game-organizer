@@ -2288,6 +2288,12 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       "confirmed",
       "planning",
     ];
+    const historyGameId = 42;
+    await db.collection(COLLECTIONS.BOARD_GAMES).insertOne({
+      id: historyGameId,
+      name: "History catalog game",
+      isExpansion: false,
+    });
     for (const [index, kind] of kinds.entries()) {
       const eventId = randomUUID(),
         id = randomUUID();
@@ -2311,11 +2317,13 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         eventId,
         name: `History fixture ${kind}`,
         createdAt,
+        games: tableBase.games.map((game) => ({ ...game, gameId: historyGameId })),
         ...(status === "PLANNING"
           ? {}
           : {
               confirmed: {
                 ...originalConfirmed,
+                gameId: historyGameId,
                 playerIds:
                   kind === "player" || kind === "confirmed" ? [OWNER, GUEST] : [OWNER, OTHER],
               },
@@ -2375,15 +2383,22 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       ids(["player", "demonstrator"]),
     );
     expect(await list("available")).toEqual([]);
+    expect(
+      await services().plannedEventService.personalTables(GUEST, {
+        limit: 1,
+        query: "History fixture",
+      }),
+    ).toEqual({ items: [], nextCursor: null });
     const history = async () => {
       const rows: string[] = [];
       let cursor: string | undefined;
       do {
         const page = await services().plannedEventService.personalTables(GUEST, {
           limit: 1,
-          query: "History fixture",
+          query: "History catalog game",
           cursor,
         });
+        expect(page.items.every((row) => row.name === "History catalog game")).toBe(true);
         rows.push(...page.items.map((row) => row.id));
         cursor = page.nextCursor ?? undefined;
       } while (cursor);
@@ -4572,7 +4587,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         const page = await read({
           limit: 1,
           statuses: ["CONFIRMED", "TERMINATED"],
-          query: "Alpha",
+          query: index === 1 ? "Test game" : "Alpha",
           cursor,
         });
         expect(page.items).toHaveLength(1);
@@ -4593,6 +4608,11 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         items: [],
         nextCursor: null,
       });
+      if (index === 1)
+        expect(await read({ limit: 1, statuses: ["TERMINATED"], query: ".*" })).toEqual({
+          items: [],
+          nextCursor: null,
+        });
       expect((await read({ limit: 20, statuses: ["PLANNING"] })).items).toHaveLength(
         index === 2 ? 2 : index === 1 ? 0 : 1,
       );

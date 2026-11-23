@@ -1,10 +1,10 @@
 appId: com.bgo.boardgameorganizer.dev
-name: Event name bounds, unavailable Public choice and undecorated Group selector
+name: Event name bounds, Public choice, and automatic table titles
 # Owned Development with a fresh local Event draft. No saves, resets, provisioning or API writes.
 # FORM_RULES_ACK=owned-development-groups; FORM_RULES_LOCALE=en|it
 # FORM_RULES_PUBLIC_GROUP=unique exact approved Public group name managed by the actor.
 # FORM_RULES_PUBLIC_EVENT_ID=owned PLANNING event in that group, with valid dates and location.
-# FORM_RULES_PUBLIC_TABLE=exact existing table name in that event.
+# FORM_RULES_PUBLIC_TABLE_NUMBER=positive display number of an existing table in that event.
 # Leaves an unsaved local draft. Run EN/IT and light/dark with a compatible Preview APK.
 tags: [manual, events, forms]
 ---
@@ -80,6 +80,8 @@ tags: [manual, events, forms]
     direction: DOWN
     timeout: 30000
 - tapOn: ${output.formRules.table}
+- assertVisible: ${output.formRules.table}
+- assertNotVisible: ${output.formRules.tableNameField}
 - scrollUntilVisible:
     element: ${output.formRules.chooseDemonstrator}
     direction: DOWN

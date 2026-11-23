@@ -78,7 +78,7 @@ it.each(["personal", "event"] as const)(
     );
     await userEvent.setup().press(
       screen.getByRole("button", {
-        name: `Open table: ${plannedTable.name}`,
+        name: "Open table: Table #1",
       }),
     );
     expect(sdk.push).toHaveBeenCalledExactlyOnceWith({

@@ -1121,12 +1121,62 @@ export class EventRecordsRepository {
         : []),
       ...eventPeriodStages(page.periods, Date.now(), "event."),
     ];
-    if (page.query)
-      pipeline.push({
-        $match: {
-          name: { $regex: page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" },
+    if (page.query) {
+      const regex = page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // Match the projected name after access checks and before cursor/limit, including both app locales.
+      const number = { $toString: { $add: ["$order", 1] } };
+      pipeline.push(
+        {
+          $set: {
+            _confirmedTitleGameId: {
+              $cond: [{ $eq: ["$event.status", "PLANNING"] }, null, "$confirmed.gameId"],
+            },
+          },
         },
-      });
+        {
+          $lookup: {
+            from: COLLECTIONS.BOARD_GAMES,
+            localField: "_confirmedTitleGameId",
+            foreignField: "id",
+            pipeline: [{ $project: { _id: 0, name: 1 } }],
+            as: "_titleGames",
+          },
+        },
+        {
+          $match: {
+            $expr: {
+              $let: {
+                vars: { game: { $ifNull: [{ $arrayElemAt: ["$_titleGames.name", 0] }, ""] } },
+                in: {
+                  $cond: [
+                    { $ne: ["$$game", ""] },
+                    { $regexMatch: { input: "$$game", regex, options: "i" } },
+                    {
+                      $or: [
+                        {
+                          $regexMatch: {
+                            input: { $concat: ["Table #", number] },
+                            regex,
+                            options: "i",
+                          },
+                        },
+                        {
+                          $regexMatch: {
+                            input: { $concat: ["Tavolo #", number] },
+                            regex,
+                            options: "i",
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      );
+    }
     if (page.cursor) {
       const [createdAt, id] = page.cursor.split("|");
       pipeline.push({

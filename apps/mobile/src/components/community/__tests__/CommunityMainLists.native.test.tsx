@@ -152,6 +152,20 @@ it("keeps unread notifications unrelated to the feed and uses the real linked na
   );
 });
 
+it("links the table number directly in the narrative without showing a legacy name", async () => {
+  listFixture.activities = [{ ...listActivity(), tableOrder: 2 }];
+  await render(
+    <MainListFixture>
+      <Community />
+    </MainListFixture>,
+  );
+  await fireEvent.press(await screen.findByRole("link", { name: "#3" }));
+  expect(listBoundary.push).toHaveBeenLastCalledWith(
+    `/event/table?eventId=${listId(100)}&tableId=${listId(200)}`,
+  );
+  expect(screen.queryByText("First activity table")).toBeNull();
+});
+
 it("distinguishes initial loading, a failed read and an exhausted empty network with a deliberate retry", async () => {
   let finish: (response: Response) => void = () => {};
   listFixture.pending.set(

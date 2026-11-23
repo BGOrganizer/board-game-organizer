@@ -27,7 +27,6 @@ type TablePlan = Pick<
   | "id"
   | "eventId"
   | "eventStatus"
-  | "name"
   | "minPlayers"
   | "maxPlayers"
   | "rankingEnabled"
@@ -69,7 +68,6 @@ function plan(event: EventPlan, table: TablePlan) {
     table.id,
     table.eventId,
     table.eventStatus,
-    table.name,
     table.minPlayers,
     table.maxPlayers,
     table.rankingEnabled,

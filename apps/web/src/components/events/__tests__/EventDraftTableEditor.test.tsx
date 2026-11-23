@@ -57,8 +57,8 @@ it("uses one player-count label and help while retaining both accessible bounded
   expect(screen.getAllByText("Number of players")).toHaveLength(1);
   expect(screen.queryByText("Minimum players")).toBeNull();
   expect(screen.queryByText("Maximum players")).toBeNull();
-  expect(screen.getByRole("textbox", { name: "Table name" })).not.toBeNull();
-  expect(screen.getByRole("button", { name: "Table name: Field help" })).not.toBeNull();
+  expect(screen.queryByRole("textbox", { name: "Table name" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Table name: Field help" })).toBeNull();
   expect(
     (screen.getByRole("button", { name: "Decrease Minimum players" }) as HTMLButtonElement)
       .disabled,

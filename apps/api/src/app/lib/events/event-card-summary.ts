@@ -14,6 +14,7 @@ import {
   type EventAgreementInput,
   planningSeatCapacity,
 } from "@board-game-organizer/shared";
+import { tableTitleProjection } from "./table-title";
 
 const positive = (vote: string | undefined) => vote === "YES" || vote === "IF_NEEDED";
 
@@ -103,6 +104,7 @@ export function tableCardSummary(
   winners: TableCardSummary["winners"],
   planning?: { input: EventAgreementInput; agreement: EventAgreement },
   availability?: Pick<EventVoter, "dateVotes" | "locationVotes"> | null,
+  confirmedGameName?: string,
 ): TableCardSummary {
   const confirmed = Boolean(table.confirmed);
   const participated = Boolean(table.confirmed?.playerIds.includes(userId));
@@ -112,7 +114,8 @@ export function tableCardSummary(
     (registration?.status === "PENDING" || registration?.status === "ACCEPTED");
   return {
     tableId: table.id,
-    name: table.name,
+    order: table.order,
+    ...tableTitleProjection(table.order, confirmedGameName),
     confirmed,
     ready: planning
       ? planning.agreement.agreed &&

@@ -27,6 +27,7 @@ export const inviteMessages = {
   unavailable: { id: "invite.unavailable", message: "Invitation unavailable" },
   readFailure: { id: "invite.readFailure", message: "Could not load this invitation." },
   retry: { id: "invite.retry", message: "Try again" },
+  tableLabel: { id: "invite.tableLabel", message: "Table" },
   tableTitle: { id: "invite.tableTitle", message: "Review table invitation" },
   tableConsent: {
     id: "invite.tableConsent",

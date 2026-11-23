@@ -7323,6 +7323,10 @@ msgid "invite.retry"
 msgstr "Riprova"
 
 #. js-lingui-explicit-id
+msgid "invite.tableLabel"
+msgstr "Tavolo"
+
+#. js-lingui-explicit-id
 msgid "invite.tableTitle"
 msgstr "Rivedi l’invito al tavolo"
 

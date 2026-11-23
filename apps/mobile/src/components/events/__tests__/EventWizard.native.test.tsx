@@ -283,6 +283,7 @@ it("retains recovered typed drafts across real steps and submits only after expl
     },
   });
   expect(writes[0].input).not.toHaveProperty("clientDraft");
+  expect((writes[0].input.tables as Record<string, unknown>[])[0]).not.toHaveProperty("name");
   expect(boundary.dismissTo).toHaveBeenCalledWith({
     pathname: "/(tabs)/events",
     params: { section: "mine" },
@@ -400,10 +401,24 @@ it("requires an actual table, expands invalid table fields and accepts no fabric
   await press("Next");
   expect(screen.getByText("Add at least one table.")).toBeVisible();
   await press("Add table");
-  expect(await screen.findByLabelText("Table name")).toHaveDisplayValue("");
+  expect(await screen.findByText("Table #1")).toBeVisible();
+  expect(screen.queryByLabelText("Table name")).toBeNull();
   await press("Next");
-  expect(screen.getByText("Enter a table name between 5 and 30 characters.")).toBeVisible();
   expect(screen.getByText("Choose at least one game.")).toBeVisible();
+  expect(writes).toHaveLength(0);
+});
+
+it("keeps saved table numbers and uses the event's next number for new drafts", async () => {
+  event = { ...event, nextTableOrder: 7 };
+  table = { ...table, order: 3 };
+  await render(<Fixture eventId={event.id} />);
+  await screen.findByLabelText("Event name");
+  await tablesStep();
+  expect(await screen.findByText("Table #4")).toBeVisible();
+  await press("Add table");
+  expect(await screen.findByText("Table #8")).toBeVisible();
+  expect(screen.getByText("Table #4")).toBeVisible();
+  expect(screen.queryByLabelText("Table name")).toBeNull();
   expect(writes).toHaveLength(0);
 });
 
@@ -435,12 +450,13 @@ it("opens the actual inline game picker and restores the table form on Android B
   await recovered();
   await tablesStep();
   await userEvent.setup().press(screen.getByTestId("event-draft-table-local-table-key"));
-  await fireEvent.changeText(screen.getByLabelText("Table name"), "Keep edited table");
+  await press("Increase: Minimum players");
+  expect(screen.getByLabelText("Minimum players: 3")).toBeVisible();
   await press("Choose a game");
   expect(screen.getByTestId("game-search-input")).toBeVisible();
-  expect(screen.queryByLabelText("Table name")).toBeNull();
+  expect(screen.queryByText("Table #1")).toBeNull();
   await act(() => DeviceEventEmitter.emit("hardwareBackPress"));
-  expect(await screen.findByLabelText("Table name")).toHaveDisplayValue("Keep edited table");
+  expect(await screen.findByLabelText("Minimum players: 3")).toBeVisible();
   expect(writes).toHaveLength(0);
 });
 

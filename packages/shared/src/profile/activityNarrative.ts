@@ -28,8 +28,10 @@ export function activityNarrative(
   };
   const resource = {
     name:
-      item.context ||
-      (item.kind === "follower" || item.kind === "friendship" ? unknownUser : unknownSource),
+      item.tableOrder === undefined
+        ? item.context ||
+          (item.kind === "follower" || item.kind === "friendship" ? unknownUser : unknownSource)
+        : `#${item.tableOrder + 1}`,
     href: item.href,
   };
   const key =

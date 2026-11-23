@@ -366,7 +366,7 @@ it.each(["group", "event", "table"] as const)(
         scenario: async () => {
           expect(
             await screen.findByRole("header", {
-              name: kind === "group" ? group.name : kind === "event" ? event.name : table.name,
+              name: kind === "group" ? group.name : kind === "event" ? event.name : "Table #1",
             }),
           ).toBeVisible();
           if (kind === "group") {
@@ -409,13 +409,13 @@ it.each(["group", "event", "table"] as const)(
           } else if (kind === "event") {
             const dates = screen.getByText("Dates and times");
             await select("Tables");
-            const tableName = await screen.findByText(table.name);
+            const tableName = await screen.findByText("Table #1");
             await select("Participants");
             const member = await screen.findByText("@member-5");
             await select("Details");
             expect(screen.getByText("Dates and times")).toBe(dates);
             await select("Tables");
-            expect(screen.getByText(table.name)).toBe(tableName);
+            expect(screen.getByText("Table #1")).toBe(tableName);
             await select("Participants");
             expect(screen.getByText("@member-5")).toBe(member);
             const header = screen.getByRole("header", { name: event.name });
@@ -452,7 +452,7 @@ it.each(["group", "event", "table"] as const)(
             expect(screen.getByText("Chess")).toBeVisible();
             await select("Participants");
             expect(screen.getByText("@guest")).toBe(guest);
-            const header = screen.getByRole("header", { name: table.name });
+            const header = screen.getByRole("header", { name: "Table #1" });
             await act(() => {
               client.setQueryData(eventRecordQuery(options, event.id).queryKey, {
                 ...event,
@@ -460,7 +460,7 @@ it.each(["group", "event", "table"] as const)(
               });
               client.setQueryData(recordTableQuery(options, event.id, table.id).queryKey, {
                 ...table,
-                name: "Updated first table",
+                name: "Legacy table name",
                 eventVersion: 2,
               });
               client.setQueryData(
@@ -474,7 +474,7 @@ it.each(["group", "event", "table"] as const)(
                 ),
               );
             });
-            expect(await screen.findByRole("header", { name: "Updated first table" })).toBe(header);
+            expect(await screen.findByRole("header", { name: "Table #1" })).toBe(header);
             expect(await screen.findByText("@updated-guest")).toBe(guest);
           }
           await waitFor(() => expect(client.isFetching()).toBe(0));

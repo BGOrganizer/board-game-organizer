@@ -23,6 +23,7 @@ import type { ReactNode } from "react";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { cardStateMessages } from "@/lib/eventCardMessages";
 import { recordUserRoleMessages } from "@/lib/recordUserRoleMessages";
+import { useTableTitle } from "@/lib/useTableTitle";
 import { EventCardTableSummaries } from "./EventCardTableSummaries";
 import { EventRolePopover } from "./EventRolePopover";
 import { EventTableRatingInfo } from "./EventTableRatingInfo";
@@ -38,6 +39,7 @@ export function EventTableCardIndicatorView({
   renderGames: (props: { name: string; games: readonly BggSearchItem[] }) => ReactNode;
 }) {
   const { t, i18n } = useLingui();
+  const { getTableTitle } = useTableTitle();
   const roles = tableCardRoles(table, userId);
   const state = tableCardState(table, userId);
   const summary = table.cardSummary;
@@ -146,7 +148,7 @@ export function EventTableCardIndicatorView({
         <>
           <EventTableSchedulePopover table={table} kind="locations" />
           <EventTableSchedulePopover table={table} kind="dates" />
-          {renderGames({ games: tableCardGames(table), name: table.name })}
+          {renderGames({ games: tableCardGames(table), name: getTableTitle(table) })}
         </>
       ) : null}
     </>

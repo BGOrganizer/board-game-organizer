@@ -429,7 +429,10 @@ describe("unified unsaved event drafts", () => {
       false,
     );
     expect(created.success).toBe(true);
-    if (created.success) expect("id" in created.data.tables[0]).toBe(false);
+    if (created.success) {
+      expect("id" in created.data.tables[0]).toBe(false);
+      expect("name" in created.data.tables[0]).toBe(false);
+    }
   });
   it("reads historical overnight instants but only writes same-day public ends, and rejects DST gaps/invalid zones", () => {
     const draft = {
@@ -526,7 +529,7 @@ describe("location-owned schedule and staged validation", () => {
     tables: [{ ...tableDraft(table, event.timeZone), startsWall: "2030-06-03T20:01" }],
   });
   it.each([undefined, 2])(
-    "requires 5–30-character Event/Table names in staged and final draft validation at version %s",
+    "validates Event names and discards restored Table names at version %s",
     (version) => {
       for (const publicGroup of [false, true]) {
         const draft = { ...valid(), version };
@@ -542,7 +545,7 @@ describe("location-owned schedule and staged validation", () => {
           expect(result.success).toBe(true);
           if (result.success) {
             expect(result.data.name).toBe(name);
-            expect(result.data.tables[0].name).toBe(name);
+            expect(result.data.tables[0]).not.toHaveProperty("name");
           }
         }
         for (const name of ["", "   ", "abcd", " abcd ", "a".repeat(31)]) {
@@ -550,8 +553,8 @@ describe("location-owned schedule and staged validation", () => {
           expect(eventDraftStepIssues(namedEvent, publicGroup, 0)).toContain("name");
           expect(eventDraftInput(namedEvent, publicGroup).success).toBe(false);
           const namedTable = { ...draft, tables: [{ ...draft.tables[0], name }] };
-          expect(eventDraftStepIssues(namedTable, publicGroup, 2)).toContain("tables.0.name");
-          expect(eventDraftInput(namedTable, publicGroup).success).toBe(false);
+          expect(eventDraftStepIssues(namedTable, publicGroup, 2)).toEqual([]);
+          expect(eventDraftInput(namedTable, publicGroup).success).toBe(true);
         }
       }
     },
@@ -576,18 +579,13 @@ describe("location-owned schedule and staged validation", () => {
       eventDraftStepIssues(
         {
           ...draft,
-          tables: [{ ...draft.tables[0], name: "", minPlayers: 1, maxPlayers: 1, games: [] }],
+          tables: [{ ...draft.tables[0], minPlayers: 1, maxPlayers: 1, games: [] }],
         },
         false,
         2,
       ),
     ).toEqual(
-      expect.arrayContaining([
-        "tables.0.name",
-        "tables.0.minPlayers",
-        "tables.0.maxPlayers",
-        "tables.0.games",
-      ]),
+      expect.arrayContaining(["tables.0.minPlayers", "tables.0.maxPlayers", "tables.0.games"]),
     );
     expect(
       eventDraftStepIssues(
