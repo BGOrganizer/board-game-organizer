@@ -117,10 +117,15 @@ runs:
           fi
         }
         function require_current_source() {
-          local status=0
-          check_current_source || status=$?
-          if [ "$status" = 3 ]; then exit 0; fi
-          return "$status"
+          local attempt status
+          for attempt in {1..6}; do
+            status=0
+            check_current_source || status=$?
+            if [ "$status" = 0 ]; then return 0; fi
+            if [ "$status" = 3 ]; then exit 0; fi
+            if [ "$TARGET" != development ] || [ "$attempt" = 6 ]; then return "$status"; fi
+            sleep 5
+          done
         }
 
         project_name="bgo-mcp-$TARGET"

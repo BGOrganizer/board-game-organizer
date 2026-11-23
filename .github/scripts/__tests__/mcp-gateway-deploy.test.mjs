@@ -132,9 +132,12 @@ test("promotion checks source twice, verifies the linked Vercel project, and pin
         "-c",
         `
       git() { echo "$CHECKOUT_HEAD"; }
+      sleep() { :; }
       node() {
         printf 'verify\n' >> "$STAGE/calls"
-        if [[ "$STALE" == $(grep -c '^verify$' "$STAGE/calls") ]]; then return "$STALE_CODE"; fi
+        local checked=$(grep -c '^verify$' "$STAGE/calls")
+        if [[ "$RETRY_ONCE" == "$checked" ]]; then return 1; fi
+        if [[ "$STALE" != 0 && "$checked" -ge "$STALE" ]]; then return "$STALE_CODE"; fi
       }
       vercel() {
         printf '%s\n' "$1" >> "$STAGE/calls"
@@ -183,6 +186,7 @@ test("promotion checks source twice, verifies the linked Vercel project, and pin
             "https://api-development-pr-33-board-game-organizers-projects.vercel.app",
           STALE: "0",
           STALE_CODE: "1",
+          RETRY_ONCE: "0",
           ...overrides,
         },
       },
@@ -217,9 +221,13 @@ test("promotion checks source twice, verifies the linked Vercel project, and pin
       1,
       ["api", "verify", "deploy", "api"],
     ]);
+    assert.deepEqual(run("transient-pr", { RETRY_ONCE: "2" }), [
+      0,
+      ["api", "verify", "deploy", "api", "verify", "verify", "promote"],
+    ]);
     assert.deepEqual(run("stale-pr", { STALE: "2" }), [
       1,
-      ["api", "verify", "deploy", "api", "verify"],
+      ["api", "verify", "deploy", "api", ...Array(6).fill("verify")],
     ]);
     assert.deepEqual(run("stale-main", { ...production, STALE: "2", STALE_CODE: "3" }), [
       0,
