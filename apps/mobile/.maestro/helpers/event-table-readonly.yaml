@@ -9,23 +9,17 @@ appId: com.bgo.boardgameorganizer.dev
 - tapOn: "Open table: Table #1"
 - assertVisible: "Table #1"
 - assertNotVisible: "Table name"
-- assertVisible: "Date and time"
+- assertVisible: "Table schedule"
 - assertNotVisible: "Table location help"
 - assertVisible: "Board games"
 - assertVisible: "Cascadia"
 - assertNotVisible: "Open event table"
-- tapOn: "Date and time help"
+- tapOn: "Table details help"
 - extendedWaitUntil:
-    visible: "The event day and this table's start and end times are fixed. There is no voting."
+    visible: "See the schedule and board games for this table below."
     timeout: 30000
 - back
-- assertNotVisible: "The event day and this table's start and end times are fixed. There is no voting."
-- tapOn: "Table game help"
-- extendedWaitUntil:
-    visible: "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
-    timeout: 30000
-- back
-- assertNotVisible: "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
+- assertNotVisible: "See the schedule and board games for this table below."
 - assertVisible:
     id: "edit-event-table-fab"
 - tapOn:
@@ -39,8 +33,15 @@ appId: com.bgo.boardgameorganizer.dev
 - assertVisible:
     id: "event-table-players"
 - assertVisible: "Empty place"
-- assertVisible: "Minimum players"
-- assertVisible: "Maximum players"
+- assertVisible: "Seats list"
+- tapOn: "Table participants help"
+- extendedWaitUntil:
+    visible: "Accepted player"
+    timeout: 30000
+- assertVisible: "Invitation pending"
+- assertVisible: "Player on the waiting list"
+- back
+- assertNotVisible: "Player on the waiting list"
 - assertNotVisible: "Invite organization members"
 - assertNotVisible: "Request a place"
 - back
