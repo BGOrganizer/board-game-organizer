@@ -368,7 +368,8 @@ test("PR deployment, auth, build and publication secrets use the development Git
       JSON.stringify(job),
     ),
   );
-  assert.equal(consumers.length, 13);
+  assert.equal(consumers.length, 14);
+  assert(consumers.some(([name]) => name === "deploy-development-mcp-gateway"));
   for (const [name, job] of consumers) assert.equal(job.environment, "development", name);
 });
 

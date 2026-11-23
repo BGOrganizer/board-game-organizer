@@ -289,6 +289,33 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
           extra-env: NEXT_PUBLIC_BGO_WEB_ORIGIN=https://app.board-game-organizer.com
 
+  deploy-production-mcp-gateway:
+    name: Deploy MCP gateway (Production)
+    needs: [quality, coverage]
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production-mcp-gateway
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - name: 📥 Checkout verified Main source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: 🚀 Deploy Production gateway
+        uses: ./.github/actions/mcp-gateway-deploy
+        with:
+          target: production
+          project-id: ${{ vars.VERCEL_MCP_GATEWAY_PROJECT_ID }}
+          base-sha: ${{ github.event.before }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+
   # Release bump/tag only after every merged-code quality, coverage and build gate succeeds.
   release:
     name: Prepare version and tag

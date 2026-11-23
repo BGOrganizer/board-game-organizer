@@ -1067,6 +1067,34 @@ jobs:
 
   # Non-CI Preview runs after quality gates, in parallel with isolated CI Preview.
   # Development publication never waits for Internal/E2E or its cleanup.
+  deploy-development-mcp-gateway:
+    name: Deploy MCP gateway (Development)
+    needs: [context, commitlint, lint, typecheck, unit-tests]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    steps:
+      - name: 📥 Checkout verified PR merge
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: 🚀 Deploy Development gateway
+        uses: ./.github/actions/mcp-gateway-deploy
+        with:
+          target: development
+          project-id: ${{ vars.VERCEL_MCP_GATEWAY_PROJECT_ID }}
+          development-pr: ${{ vars.BGO_MCP_GATEWAY_PR_NUMBER }}
+          base-sha: ${{ github.event.pull_request.base.sha }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+
   deploy-development-api:
     name: Deploy API (Development)
     permissions:

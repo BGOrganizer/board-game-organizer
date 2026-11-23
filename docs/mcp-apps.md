@@ -82,13 +82,24 @@ the local browser and the emulated MCP host. Those tests exercise UI interaction
 the Clerk login and production data.
 [Connect and test your plugin](https://developers.openai.com/plugins/deploy/connect-chatgpt#add-the-mcp-server)
 
-## Gateway for protected Development previews
+## Gateway deployment
 
-Build with `bun apps/mcp/gateway-build.mts <project-directory>/.vercel/output` and deploy that
-directory to a dedicated Vercel project with `vercel deploy --prebuilt --prod`. Set
-`BGO_MCP_UPSTREAM_URL` to the verified, stable Development API alias for the selected PR. Add
-`VERCEL_PROTECTION_BYPASS` to the gateway as a server-side secret. Keep the bypass out of the public
-MCP URL and OAuth metadata. The gateway accepts only `POST /mcp` and `GET` or `OPTIONS` on
+The PR and main workflows deploy the gateway in jobs separate from the API and APK. The gateway
+jobs are opt-in and deploy when the gateway source or its deployment action changes. Set
+`VERCEL_MCP_GATEWAY_PROJECT_ID` in the corresponding GitHub environment. Use the dedicated Vercel
+project `bgo-mcp-development` for Development and `bgo-mcp-production` for Production. Set
+`BGO_MCP_GATEWAY_PR_NUMBER` in Development to the PR selected for that gateway.
+
+Keep `VERCEL_PROTECTION_BYPASS` as a sensitive server-side variable in the Development gateway's
+Vercel project. The Development build targets the verified PR API alias. The Production build
+targets `https://api.board-game-organizer.com` and rejects a configured Preview bypass. Use separate
+Clerk instances and exact `MCP_RESOURCE_URL` values for the two environments.
+
+For a manual build, run
+`bun apps/mcp/gateway-build.mts <project-directory>/.vercel/output <development|production>`.
+Deploy the prebuilt output to the matching dedicated Vercel project and set `BGO_MCP_UPSTREAM_URL`
+to the API origin for that target. The gateway forwards `POST /mcp` for tool calls and `GET /mcp`
+for OAuth discovery probes. It also forwards `GET` and `OPTIONS` on
 `/.well-known/oauth-protected-resource/mcp`. API deployment protection and Clerk authorization still
 apply. Run-scoped CI databases do not expose the MCP resource.
 
