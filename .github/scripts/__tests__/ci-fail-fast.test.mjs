@@ -22,7 +22,7 @@ test("watchdog cancels shared failures only, preserving the opposite lane", () =
     "🐳 API integration tests (testcontainers)",
     "🏗️ Build API",
     "🏗️ Build Web",
-    ...["mobile", "web", "api", "schemas", "shared"].flatMap((app) => [
+    ...["mobile", "web", "api", "schemas", "shared", "mcp"].flatMap((app) => [
       `Unit tests (${app})`,
       `🧪 Unit tests (${app})`,
       `🧪 Unit tests (${app}) + coverage`,

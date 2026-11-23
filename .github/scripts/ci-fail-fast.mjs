@@ -25,7 +25,7 @@ export const mandatoryTestJobs = [
   "Lint and CI contracts",
   "Integration tests (API)",
   "Native tooling and flow syntax",
-  ...["mobile", "web", "api", "schemas", "shared"].map((app) => `Unit tests (${app})`),
+  ...["mobile", "web", "api", "schemas", "shared", "mcp"].map((app) => `Unit tests (${app})`),
 ];
 export function allTestJobsCompleted(jobs) {
   return (
@@ -39,7 +39,9 @@ export function sharedQualityFailed(jobs) {
     (job) =>
       ["failure", "timed_out", "startup_failure"].includes(job.conclusion) &&
       (shared.has(job.name) ||
-        /^(?:🧪 )?Unit tests \((mobile|web|api|schemas|shared)\)( \+ coverage)?$/.test(job.name)),
+        /^(?:🧪 )?Unit tests \((mobile|web|api|schemas|shared|mcp)\)( \+ coverage)?$/.test(
+          job.name,
+        )),
   );
 }
 async function main() {
