@@ -1,4 +1,5 @@
 import { classifyPlayerCount, type PlayerPoll } from "@board-game-organizer/schemas";
+import { eventOptionsRequireVote } from "./eventJoinAvailability";
 import { allocateReservedPlaces, reservationPriority as priority } from "./eventSeatAllocation";
 
 export { allocateReservedPlaces, reservedSeatIndex } from "./eventSeatAllocation";
@@ -22,8 +23,9 @@ export interface AgreementTable {
   preserveSeatAllocation?: boolean;
   gameIds: readonly number[];
   gamePlayerBounds?: Readonly<Record<number, { minPlayers: number; maxPlayers: number }>>;
-  /** Legacy hint; implicit compatibility depends on the actual singleton game count. */
+  /** Legacy hint; implicit compatibility uses the game count and any required revote. */
   fixedGame: boolean;
+  gameVoteRequired?: boolean;
   gamePolls?: Readonly<Record<number, PlayerPoll>>;
 }
 export interface EventAgreementInput {
@@ -32,6 +34,8 @@ export interface EventAgreementInput {
   allowBestReduction?: boolean;
   dateIds: readonly string[];
   locationIds: readonly string[];
+  dateVoteRequired?: boolean;
+  locationVoteRequired?: boolean;
   fixedDateAndLocation: boolean;
   tables: readonly AgreementTable[];
   registrations: readonly AgreementRegistration[];
@@ -84,6 +88,7 @@ interface Prepared {
   accepted: AgreementRegistration[];
   candidates: Candidate[];
   state: TableAgreementState;
+  eventAvailabilityBlocked: boolean;
 }
 
 /** Manual remembers an explicit allocation boundary; Assisted uses physical capacity. */
@@ -121,20 +126,45 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
   };
   // Encode lexicographic BGG quality across all Tables: Best, Recommended, fewer Not Recommended.
   const qualityScale = input.tables.length + 1;
-  const result: Prepared = { table, accepted: [...accepted, ...queued], candidates: [], state };
+  const dateRequiresVote =
+    !input.fixedDateAndLocation && eventOptionsRequireVote(input.dateIds, input.dateVoteRequired);
+  const locationRequiresVote =
+    !input.fixedDateAndLocation &&
+    eventOptionsRequireVote(input.locationIds, input.locationVoteRequired);
+  const gameRequiresVote = eventOptionsRequireVote(table.gameIds, table.gameVoteRequired);
+  // A changed sole option needs each seated player's consent before applying Assisted substitutions.
+  const dateRevote = dateRequiresVote && input.dateIds.length === 1;
+  const locationRevote = locationRequiresVote && input.locationIds.length === 1;
+  const gameRevote = gameRequiresVote && table.gameIds.length === 1;
+  const eventAvailabilityBlocked =
+    (dateRevote || locationRevote) &&
+    accepted.some(
+      (row) =>
+        (dateRevote && !positive(input.dateVotes[row.userId]?.[input.dateIds[0]])) ||
+        (locationRevote && !positive(input.locationVotes[row.userId]?.[input.locationIds[0]])),
+    );
+  const result: Prepared = {
+    table,
+    accepted: [...accepted, ...queued],
+    candidates: [],
+    state,
+    eventAvailabilityBlocked,
+  };
   if (capacity < table.minPlayers) {
     state.reason = "PENDING_RESERVATIONS";
     return result;
   }
+  if (eventAvailabilityBlocked) return result;
   const dateLocation = (row: AgreementRegistration, d: string, l: string) =>
-    input.fixedDateAndLocation ||
-    ((input.dateIds.length === 1 || positive(input.dateVotes[row.userId]?.[d])) &&
-      (input.locationIds.length === 1 || positive(input.locationVotes[row.userId]?.[l])));
+    (!dateRequiresVote || positive(input.dateVotes[row.userId]?.[d])) &&
+    (!locationRequiresVote || positive(input.locationVotes[row.userId]?.[l]));
   const gameVote = (row: AgreementRegistration, game: number): AgreementVote | undefined =>
     // Implicit singleton consent grants eligibility, never an invented YES preference.
-    table.gameIds.length === 1
-      ? "IF_NEEDED"
-      : input.gameVotes[table.id]?.[row.userId]?.[String(game)];
+    gameRequiresVote ? input.gameVotes[table.id]?.[row.userId]?.[String(game)] : "IF_NEEDED";
+  if (gameRevote && accepted.some((row) => !positive(gameVote(row, table.gameIds[0])))) {
+    state.reason = "GAME_DISAGREEMENT";
+    return result;
+  }
   let seatedDateLocation = false;
   const options: Array<Candidate & { firstPrefix: number; waiting: AgreementRegistration[] }> = [];
   for (const [dateIndex, date] of input.dateIds.entries()) {
@@ -386,6 +416,13 @@ export function calculateEventAgreement(
       : 0;
   if (preparationWork + reductionWork > 1_000_000) throw new Error("AGREEMENT_COMPLEXITY_LIMIT");
   const prepared = input.tables.map((table) => prepare(input, table));
+  const tables = prepared.map((item) => item.state);
+  const withoutAgreement = (): EventAgreement => ({
+    agreed: false,
+    tables,
+    situationKey: JSON.stringify(tables.map(({ tableId, reason }) => ({ tableId, reason }))),
+  });
+  if (prepared.some((item) => item.eventAvailabilityBlocked)) return withoutAgreement();
   let winner: Selection | undefined;
   let searched = 0;
   for (const [dateIndex, dateId] of input.dateIds.entries()) {
@@ -402,9 +439,13 @@ export function calculateEventAgreement(
       const dateLocationYes = (userId: string) =>
         input.fixedDateAndLocation
           ? 0
-          : Number(input.dateIds.length > 1 && input.dateVotes[userId]?.[dateId] === "YES") +
+          : Number(
+              eventOptionsRequireVote(input.dateIds, input.dateVoteRequired) &&
+                input.dateVotes[userId]?.[dateId] === "YES",
+            ) +
             Number(
-              input.locationIds.length > 1 && input.locationVotes[userId]?.[locationId] === "YES",
+              eventOptionsRequireVote(input.locationIds, input.locationVoteRequired) &&
+                input.locationVotes[userId]?.[locationId] === "YES",
             );
       const score = (users: Set<string>) =>
         [...users].reduce((sum, id) => sum + dateLocationYes(id), 0);
@@ -473,13 +514,7 @@ export function calculateEventAgreement(
       visit(0, [], new Set(), 0);
     }
   }
-  const tables = prepared.map((item) => item.state);
-  if (!winner)
-    return {
-      agreed: false,
-      tables,
-      situationKey: JSON.stringify(tables.map(({ tableId, reason }) => ({ tableId, reason }))),
-    };
+  if (!winner) return withoutAgreement();
   const includedTables = winner.choices.map(({ prepared: item, candidate }) => {
     const selected = new Set(candidate.people.map((row) => row.userId));
     return {

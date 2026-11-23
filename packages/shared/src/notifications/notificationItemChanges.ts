@@ -96,7 +96,6 @@ export function eventNotificationItems(
       add(table.id, "games", undefined, [table.id]);
     if (
       !old ||
-      old.name !== table.name ||
       old.minPlayers !== table.minPlayers ||
       old.maxPlayers !== table.maxPlayers ||
       old.startsAt !== table.startsAt ||

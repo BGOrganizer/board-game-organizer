@@ -52,6 +52,7 @@ var it = locale === "it",
   action = p.mode === "accept" ? (it ? "Accetta" : "Accept") : it ? "Rifiuta" : "Reject";
 output.eventProposal = {
   submitting: p.mode === "submit-game",
+  accepting: p.mode === "accept",
   pages: Math.floor(p.proposalOffset / 5),
   link: "bgo-dev:///event/table?eventId=" + p.eventId + "&tableId=" + p.tableId,
   own: exact(it ? "Giochi Proposti" : "Proposed games"),
@@ -74,7 +75,5 @@ output.eventProposal = {
   action: exact(action),
   actionId: p.mode === "reject" ? "confirmation-action-1" : "confirmation-action-0",
   authors: p.mode === "submit-game" ? [] : (p.proposerNames || [p.proposerName]).map(exact),
-  result: exact(
-    p.mode === "accept" ? (it ? "Accettato" : "Accepted") : it ? "Rifiutata" : "Rejected",
-  ),
+  result: exact(it ? "Rifiutata" : "Rejected"),
 };

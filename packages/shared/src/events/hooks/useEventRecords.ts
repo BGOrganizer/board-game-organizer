@@ -345,7 +345,7 @@ export function useRecordTable(o: CommunityApiOptions, id: string, table: string
     cached &&
     !cached.row.readOnly &&
     (cached.row.canManage || cached.row.myRegistration?.status === "ACCEPTED") &&
-    eventOptionsRequireVote(cached.row.games) &&
+    eventOptionsRequireVote(cached.row.games, cached.row.gameVoteRequired) &&
     !cached.row.gameVoteVoters;
   const q = useQuery({
     ...recordTableQuery(o, id, table),

@@ -213,6 +213,12 @@ export default defineConfig({
           branches: 90,
           statements: 90,
         },
+        "src/events/tableTitle.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/{common/optimisticOperation,common/clientMutation,notifications/notificationOptimistic,contacts/hooks/contactOptimistic}.ts":
           {
             lines: 90,

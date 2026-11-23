@@ -46,7 +46,8 @@ function Fixture({
 function summary(patch: Partial<TableCardSummary> = {}): TableCardSummary {
   return {
     tableId: plannedTable.id,
-    name: "Chess table",
+    name: "Legacy table name",
+    order: 0,
     confirmed: false,
     ready: false,
     blockers: [],
@@ -270,7 +271,7 @@ it.each(["event", "table"] as const)(
       "No combination of date, location and game satisfies the same players.",
     ])
       expect(screen.getByText(message)).toBeVisible();
-    expect(screen.queryByText("Chess table") != null).toBe(kind === "event");
+    expect(screen.queryByText("Table #1") != null).toBe(kind === "event");
     expect(screen.queryByRole("button", { name: /Board games:/ })).toBeNull();
   },
 );
@@ -316,20 +317,21 @@ it.each(["event", "table"] as const)(
 
 it("lists only the viewer's confirmed tables and retains each relevant exclusion explanation", async () => {
   const tables = [
-    summary({ name: "My first table", myParticipation: "CONFIRMED", confirmed: true }),
+    summary({ confirmedGameName: "Chess", myParticipation: "CONFIRMED", confirmed: true }),
     summary({
       tableId: "second",
-      name: "My second table",
+      confirmedGameName: "Backgammon",
+      order: 1,
       myParticipation: "CONFIRMED",
       confirmed: true,
     }),
     summary({
       tableId: "excluded",
-      name: "Excluded table",
+      order: 2,
       myParticipation: "EXCLUDED",
       exclusionReasons: ["GAME_AGREEMENT"],
     }),
-    summary({ tableId: "other", name: "Other people's table" }),
+    summary({ tableId: "other", order: 3 }),
   ];
   await render(
     <Fixture>
@@ -342,13 +344,13 @@ it("lists only the viewer's confirmed tables and retains each relevant exclusion
   for (const label of [
     "The event has been confirmed.",
     "Tables where you are confirmed:",
-    "My first table",
-    "My second table",
-    "Excluded table",
+    "Chess",
+    "Backgammon",
+    "Table #3",
     "Your votes do not agree with the chosen game.",
   ])
     expect(screen.getByText(label)).toBeVisible();
-  expect(screen.queryByText("Other people's table")).toBeNull();
+  expect(screen.queryByText("Table #4")).toBeNull();
 });
 
 it.each(["event", "table"] as const)(
@@ -476,7 +478,7 @@ it("keeps old confirmed event projections pending until authoritative participat
     </Fixture>,
   );
   expect(screen.getByText("Tables where you are confirmed:")).toBeVisible();
-  expect(screen.getByText("Chess table")).toBeVisible();
+  expect(screen.getByText("Table #1")).toBeVisible();
 });
 
 it("distinguishes an excluded table from an excluded person and does not render an unconfirmed schedule", async () => {
@@ -526,12 +528,12 @@ it("shows confirmed personal table counts and reconciles current names without r
   expect(screen.getByText("Demonstrator: Current guide")).toBeVisible();
   expect(
     screen.getByRole("button", {
-      name: `Dates and times: ${first.name}`,
+      name: "Dates and times: Chess",
       includeHiddenElements: true,
     }),
   ).toBeTruthy();
   expect(
-    screen.getByRole("button", { name: `Board games: ${first.name}`, includeHiddenElements: true }),
+    screen.getByRole("button", { name: "Board games: Chess", includeHiddenElements: true }),
   ).toBeTruthy();
 });
 
@@ -589,11 +591,11 @@ it.each(["event", "table"] as const)(
     expect(screen.queryByText("@excluded")).toBeNull();
     expect(screen.queryByText("Accepted players")).toBeNull();
     if (kind === "event") {
-      const name = screen.getByText("Chess table");
+      const name = screen.getByText("Table #1");
       expect(name).toBeVisible();
       expect(winners.parent?.parent).toBe(name.parent);
       expect(name.parent).toHaveStyle({ flexDirection: "row", flexWrap: "wrap" });
-    } else expect(screen.queryByText("Chess table")).toBeNull();
+    } else expect(screen.queryByText("Table #1")).toBeNull();
     const glyph = nativeGlyphs(winners.parent ?? undefined)[0];
     expect(glyph).toHaveStyle({ flexShrink: 0 });
     nativeStroke(glyph);
@@ -646,7 +648,7 @@ it("keeps a confirmed table without winner names explicit", async () => {
       <EventCardTableSummaries tables={[summary({ confirmed: true })]} mode="results" />
     </Fixture>,
   );
-  expect(screen.getByText("Chess table")).toBeVisible();
+  expect(screen.getByText("Table #1")).toBeVisible();
   expect(screen.getByText("No winners.")).toBeVisible();
   expect(nativeGlyphs()).toHaveLength(0);
 });

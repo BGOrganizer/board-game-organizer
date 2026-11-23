@@ -138,7 +138,6 @@ describe("not-yet-sent consent versions", () => {
     ])
       expect(rebaseEventConsent(input, snapshot, changed, table, 2)).toBe(input);
     for (const changed of [
-      { ...table, name: "Changed table" },
       { ...table, minPlayers: 3 },
       { ...table, maxPlayers: 3 },
       { ...table, rankingEnabled: false },
@@ -150,5 +149,30 @@ describe("not-yet-sent consent versions", () => {
       { ...table, games: [{ gameId: 1, durationMinutes: 90, durationSource: "MANUAL" as const }] },
     ])
       expect(rebaseEventConsent(input, snapshot, current, changed, 2)).toBe(input);
+    const renamed = { ...table, name: "Ignored display name" };
+    expect(rebaseEventConsent(input, snapshot, current, renamed, 2)).not.toBe(input);
+  });
+  it("does not rebase when a once-fixed option now needs a ballot", () => {
+    const fixed = {
+      ...event,
+      dates: event.dates.slice(0, 1),
+      locations: event.locations.slice(0, 1),
+    };
+    const singleGame = { ...table, games: table.games.slice(0, 1) };
+    const consent = {
+      version: 1,
+      gameVotes: {},
+      availability: { version: 1, dateVotes: {}, locationVotes: {} },
+    };
+    const snapshot = captureEventConsent(consent, fixed, singleGame);
+    const current = { ...fixed, version: 2 };
+    for (const changed of [
+      { ...current, dateVoteRequired: true },
+      { ...current, locationVoteRequired: true },
+    ])
+      expect(rebaseEventConsent(consent, snapshot, changed, singleGame, 2)).toBe(consent);
+    expect(
+      rebaseEventConsent(consent, snapshot, current, { ...singleGame, gameVoteRequired: true }, 2),
+    ).toBe(consent);
   });
 });

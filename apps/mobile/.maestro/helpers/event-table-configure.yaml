@@ -3,11 +3,8 @@ appId: com.bgo.boardgameorganizer.dev
 - tapOn: "Add table"
 - assertVisible:
     id: "event-table-header-back"
-- tapOn: "Table name"
-- eraseText: 100
-- inputText: "Cascadia event table"
-- assertVisible: "Cascadia event table"
-- hideKeyboard
+- assertVisible: "Table #1"
+- assertNotVisible: "Table name"
 - tapOn:
     id: "event-table-startsAt-calendar"
 - runFlow:
@@ -54,10 +51,10 @@ appId: com.bgo.boardgameorganizer.dev
     timeout: 30000
 - tapOn: "Save table"
 - extendedWaitUntil:
-    visible: "Edit table: Cascadia event table"
+    visible: "Edit table: Table #1"
     timeout: 30000
-- assertVisible: "Cascadia event table"
-- tapOn: "Edit table: Cascadia event table"
+- assertVisible: "Table #1"
+- tapOn: "Edit table: Table #1"
 - scrollUntilVisible:
     element: "Global ratings enabled"
     direction: DOWN
@@ -67,4 +64,4 @@ appId: com.bgo.boardgameorganizer.dev
     checked: true
 - tapOn:
     id: "event-table-header-back"
-- assertVisible: "Cascadia event table"
+- assertVisible: "Table #1"

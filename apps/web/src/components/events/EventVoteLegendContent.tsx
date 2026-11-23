@@ -5,9 +5,11 @@ import { Check, Minus, X } from "lucide-react";
 export function EventVoteLegendContent({
   scope,
   multipleCategories = false,
+  singleOption,
 }: {
   scope: "event" | "table";
   multipleCategories?: boolean;
+  singleOption?: "only" | "mixed";
 }) {
   const { t } = useLingui();
   return (
@@ -27,11 +29,20 @@ export function EventVoteLegendContent({
           ? t`You can vote only if you are an accepted participant at this table.`
           : t`You can vote only if you are an accepted participant in at least one table in the event.`}
       </p>
-      <p className="text-sm text-muted">
-        {multipleCategories
-          ? t`Choose at least one "Yes" or "If needed" option in each category.`
-          : t`Choose at least one "Yes" or "If needed" option in this category.`}
-      </p>
+      {singleOption ? (
+        <p className="text-sm text-muted">
+          {t`Vote again on the changed option. A No keeps you registered and blocks agreement if you have a seat.`}
+        </p>
+      ) : null}
+      {singleOption !== "only" ? (
+        <p className="text-sm text-muted">
+          {singleOption === "mixed"
+            ? t`For a category with several options, choose at least one Yes or If needed.`
+            : multipleCategories
+              ? t`Choose at least one "Yes" or "If needed" option in each category.`
+              : t`Choose at least one "Yes" or "If needed" option in this category.`}
+        </p>
+      ) : null}
     </div>
   );
 }

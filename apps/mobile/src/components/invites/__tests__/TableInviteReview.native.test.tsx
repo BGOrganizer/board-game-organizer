@@ -44,7 +44,7 @@ async function vote(label: string, choice = "Yes") {
     .press(within(screen.getByTestId("confirmation-dialog")).getByRole("button", { name: choice }));
 }
 async function revealChoices() {
-  let list = screen.getByText("First table");
+  let list = screen.getByText("Table #1");
   while (list.parent && typeof list.props.onScroll !== "function") list = list.parent;
   // Node supplies no Yoga. Keep the real cell/window calculation and scroll
   // handling; provide host measurements before entering the later Games section.
@@ -57,7 +57,12 @@ it.each(["en", "it"] as const)(
   "discloses explicit friendship, private group and table consent with category labels in %s",
   async (locale) => {
     await render(<Fixture locale={locale} />);
-    for (const text of ["First table", "Friday games", "Private games group", "Chess"])
+    for (const text of [
+      locale === "it" ? "Tavolo #1" : "Table #1",
+      "Friday games",
+      "Private games group",
+      "Chess",
+    ])
       expect(screen.getByText(text)).toBeVisible();
     expect(screen.getByText(/@inviter/)).toBeVisible();
     for (const title of locale === "it"
@@ -79,6 +84,24 @@ it("submits only one consent for singleton settings, without fabricating ballot 
     participation: {
       version: 1,
       gameVotes: {},
+      availability: { version: 1, dateVotes: {}, locationVotes: {} },
+    },
+  });
+});
+
+it("collects an explicit answer to a changed singleton game before accepting", async () => {
+  const review = tableInviteReview();
+  review.table.gameVoteRequired = true;
+  await render(<Fixture review={review} />);
+  const accept = screen.getByTestId("table-link-consent-submit");
+  expect(accept).toBeDisabled();
+  await vote("Chess", "If needed");
+  await press("Accept invitation");
+  expect(claim).toHaveBeenCalledWith({
+    consent: true,
+    participation: {
+      version: 1,
+      gameVotes: { "1": "IF_NEEDED" },
       availability: { version: 1, dateVotes: {}, locationVotes: {} },
     },
   });

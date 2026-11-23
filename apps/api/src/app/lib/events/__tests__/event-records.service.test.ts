@@ -87,7 +87,20 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
         approved: { name: "Club group", location },
       } as GroupRecord)
     : null;
+  const removePendingProposals = vi.fn(
+    async (eventId: string, userId: string, tableId?: string) => {
+      for (const row of proposals.values())
+        if (
+          row.eventId === eventId &&
+          row.userId === userId &&
+          row.status === "PENDING" &&
+          (!tableId || (row.payload.kind === "game" && row.payload.tableId === tableId))
+        )
+          proposals.delete(row.id);
+    },
+  );
   const repo = {
+    removePendingProposals,
     proposal: vi.fn(async (key: string) => clone(proposals.get(key) ?? null)),
     proposalRequest: vi.fn(async (eventId: string, userId: string, clientRequestId: string) =>
       clone(
@@ -194,8 +207,9 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
             }))
             .filter(
               (r) =>
-                !page.cursor ||
-                `${r.representative.createdAt}|${r.representative.id}` < page.cursor,
+                r.representative.status !== "ACCEPTED" &&
+                (!page.cursor ||
+                  `${r.representative.createdAt}|${r.representative.id}` < page.cursor),
             )
             .sort((a, b) =>
               `${b.representative.createdAt}|${b.representative.id}`.localeCompare(
@@ -232,6 +246,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
                 (!page.tableId ||
                   (p.payload.kind === "game" && p.payload.tableId === page.tableId)) &&
                 (!page.clientRequestId || p.clientRequestId === page.clientRequestId) &&
+                (page.kind !== "game" || page.clientRequestId || p.status !== "ACCEPTED") &&
                 (!page.cursor || `${p.createdAt}|${p.id}` < page.cursor),
             )
             .sort((a, b) => `${b.createdAt}|${b.id}`.localeCompare(`${a.createdAt}|${a.id}`))
@@ -353,6 +368,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
             version: row.version + 1,
             updatedAt: at,
           });
+      await removePendingProposals(eventId, userId);
     }),
     cancelPending: vi.fn(async (eventId: string) => {
       for (const row of active(eventId))
@@ -405,6 +421,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     ban: vi.fn<(_groupId: string, _userId: string) => Promise<GroupBan | null>>(async () => null),
   };
   const games = {
+    namesByIds: vi.fn(async (ids: number[]) => ids.map((id) => ({ id, name: `Game ${id}` }))),
     findByIds: vi.fn(async (ids: number[]) =>
       ids.map((value) => ({ id: value, name: `Game ${value}`, maxPlayMinutes: 60 })),
     ),
@@ -521,6 +538,91 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     confirm,
   };
 }
+describe("automatic table titles", () => {
+  it("uses event order before confirmation, preserves old names and keeps gaps after removal", async () => {
+    const f = setup("PRIVATE");
+    const input = { ...body(), groupId: other };
+    const { name: _legacyInput, ...table } = input.tables[0];
+    input.tables = [table, { ...table, id: other, name: "Ignored old-client input" }];
+    const created = await f.service.create(owner, input);
+    expect(created.nextTableOrder).toBe(2);
+    expect(f.tables.get(id)).not.toHaveProperty("name");
+    expect(f.tables.get(other)).not.toHaveProperty("name");
+
+    const original = f.tables.get(id);
+    if (!original) throw new Error("Missing original table");
+    f.tables.set(id, { ...original, name: "Historical title" });
+    const { groupId: _groupId, ...editable } = input;
+    const addedId = randomUUID();
+    const edited = await f.service.update(owner, created.id, {
+      ...editable,
+      version: created.version,
+      removedTableIds: [other],
+      tables: [
+        { ...table, id: addedId },
+        { ...table, name: "Ignored rename" },
+      ],
+    });
+    expect(edited.nextTableOrder).toBe(3);
+    expect(f.tables.get(id)?.name).toBe("Historical title");
+    expect(f.tables.get(other)).toHaveProperty("removedAt");
+    expect(f.tables.get(addedId)).not.toHaveProperty("name");
+    expect(edited.cardSummary?.tables).toMatchObject([
+      { tableId: id, name: "Table #1", order: 0 },
+      { tableId: addedId, name: "Table #3", order: 2 },
+    ]);
+    const first = await f.service.tables(owner, edited.id, { limit: 1, query: "tavolo" });
+    expect(first).toMatchObject({ items: [{ id, name: "Table #1" }], nextCursor: "0" });
+    const second = await f.service.tables(owner, edited.id, {
+      limit: 1,
+      cursor: first.nextCursor ?? undefined,
+      query: "Table #3",
+    });
+    expect(second).toMatchObject({ items: [{ id: addedId, name: "Table #3" }], nextCursor: null });
+    expect(
+      await f.service.tables(owner, edited.id, { limit: 1, query: "Historical title" }),
+    ).toEqual({ items: [], nextCursor: null });
+  });
+
+  it("uses the confirmed catalog title and restores the numbered title on replan", async () => {
+    const f = setup("PRIVATE");
+    const event = await f.service.create(owner, { ...body(), groupId: other });
+    await f.service.register(owner, event.id, id);
+    await f.accept(await f.service.register(owner, event.id, id, guest));
+    const confirmed = await f.confirm(event.id);
+    expect(confirmed.cardSummary?.tables).toMatchObject([
+      { name: "Game 1", order: 0, confirmedGameName: "Game 1" },
+    ]);
+    expect(confirmed).not.toHaveProperty("nextTableOrder");
+    expect(await f.service.tableDetail(owner, event.id, id)).toMatchObject({
+      name: "Game 1",
+      confirmedGameName: "Game 1",
+    });
+    expect(await f.service.tables(owner, event.id, { limit: 1, query: "game 1" })).toMatchObject({
+      items: [{ id, name: "Game 1" }],
+      nextCursor: null,
+    });
+    expect(await f.service.activityResource(owner, event.id, id)).toMatchObject({
+      name: "Game 1",
+      eventContext: event.name,
+    });
+
+    await f.service.transition(owner, event.id, { action: "replan", version: confirmed.version });
+    expect(f.tables.get(id)?.confirmed?.gameId).toBe(1);
+    const planned = await f.service.tableDetail(owner, event.id, id);
+    expect(planned.name).toBe("Table #1");
+    expect(planned).not.toHaveProperty("confirmedGameName");
+    expect(await f.service.tables(owner, event.id, { limit: 1, query: "game 1" })).toEqual({
+      items: [],
+      nextCursor: null,
+    });
+    expect(await f.service.activityResource(owner, event.id, id)).toMatchObject({
+      name: "Table #1",
+      tableOrder: 0,
+    });
+  });
+});
+
 describe("Event participant source and event-only removal", () => {
   it("keeps an administrator-only Event empty until explicit accepted attendance exists", async () => {
     const f = setup("PRIVATE"),
@@ -2804,6 +2906,95 @@ describe("public scheduling, deadline and membership consequences", () => {
   );
 });
 describe("singleton consent", () => {
+  it.each([null, "PRIVATE"] as const)(
+    "requires new votes only on replaced singleton choices in %s events with participants",
+    async (type) => {
+      const f = setup(type);
+      const initial = await f.create();
+      await f.service.join(owner, initial.id, id, f.participation(initial.id, id));
+      await f.accept(await f.service.register(owner, initial.id, id, guest));
+      const { groupId: _group, ...fields } = body();
+      const before = f.events.get(initial.id)!;
+      const planning = await f.service.update(owner, initial.id, {
+        ...fields,
+        version: before.version,
+        dates: [{ id: other, day: before.dates[0].day, startTime: "10:00" }],
+        locations: [{ ...location, id: other, address: "Via Roma 2, Roma, Italia" }],
+        tables: [{ ...fields.tables[0], games: [{ gameId: 2 }] }],
+        removedTableIds: [],
+      });
+      expect(planning).toMatchObject({ dateVoteRequired: true, locationVoteRequired: true });
+      expect((await f.service.tableDetail(owner, initial.id, id)).gameVoteRequired).toBe(true);
+      expect(planning.agreement?.agreed).toBe(false);
+      expect(f.repo.retainChoiceVotes).toHaveBeenLastCalledWith(initial.id, [], []);
+      expect(f.repo.retainGameVotes).toHaveBeenLastCalledWith(id, []);
+      const poll = [
+        { kind: "date", optionId: other },
+        { kind: "location", optionId: other },
+        { kind: "game", gameId: 2, tableId: id },
+      ] as const;
+      for (const [index, option] of poll.entries()) {
+        await f.service.vote(owner, initial.id, { ...option, vote: "YES" });
+        await f.service.vote(guest, initial.id, { ...option, vote: "NO" });
+        const current = await f.service.detail(guest, initial.id);
+        expect(current.myRegistrations[0]?.status).toBe("ACCEPTED");
+        expect(current.agreement?.agreed).toBe(false);
+        expect(
+          (await f.service.tableDetail(owner, initial.id, id)).cardSummary?.blockers,
+        ).toContain(["DATE_AGREEMENT", "LOCATION_AGREEMENT", "GAME_AGREEMENT"][index]);
+        await f.service.vote(guest, initial.id, { ...option, vote: "IF_NEEDED" });
+      }
+      expect((await f.service.detail(owner, initial.id)).agreement?.agreed).toBe(true);
+      expect((await f.service.detail(owner, initial.id)).voteVoters?.dates[other].YES).toHaveLength(
+        1,
+      );
+      expect(
+        (await f.service.tableDetail(owner, initial.id, id)).gameVoteVoters?.["2"].IF_NEEDED,
+      ).toHaveLength(1);
+    },
+  );
+
+  it("allows a public singleton game replacement with a valid duration while keeping the schedule fixed", async () => {
+    const f = setup("PUBLIC");
+    const event = await f.create();
+    await f.service.join(owner, event.id, id, f.participation(event.id, id));
+    await f.service.join(guest, event.id, id, f.participation(event.id, id));
+    f.games.findByIds.mockImplementation(async (ids) =>
+      ids.map((value) => ({
+        id: value,
+        name: `Game ${value}`,
+        maxPlayMinutes: value === 2 ? 90 : 60,
+      })),
+    );
+    const { groupId: _group, ...fields } = body();
+    const previous = f.events.get(event.id)!;
+    const changed = await f.service.update(owner, event.id, {
+      ...fields,
+      endsAt: previous.endsAt,
+      bookingClosesAt: previous.bookingClosesAt,
+      version: previous.version,
+      tables: [{ ...fields.tables[0], games: [{ gameId: 2 }] }],
+      removedTableIds: [],
+    });
+    expect(changed.dateVoteRequired).toBeUndefined();
+    expect(changed.locationVoteRequired).toBeUndefined();
+    expect(changed.agreement?.agreed).toBe(false);
+    expect((await f.service.tableDetail(owner, event.id, id)).gameVoteRequired).toBe(true);
+    const vote = { kind: "game", tableId: id, gameId: 2 } as const;
+    await f.service.vote(owner, event.id, { ...vote, vote: "YES" });
+    const no = await f.service.vote(guest, event.id, { ...vote, vote: "NO" });
+    expect(no.myRegistrations[0]?.status).toBe("ACCEPTED");
+    expect(no.agreement?.agreed).toBe(false);
+    await f.service.vote(guest, event.id, { ...vote, vote: "YES" });
+    expect((await f.service.detail(owner, event.id)).agreement?.agreed).toBe(true);
+    const join = f.participation(event.id, id);
+    await expect(f.service.join(waiter, event.id, id, join)).rejects.toMatchObject({
+      code: "INVALID_JOIN_GAME_VOTES",
+    });
+    const joined = await f.service.join(waiter, event.id, id, { ...join, gameVotes: { 2: "YES" } });
+    expect(joined.gameVotes).toEqual({ 2: "YES" });
+  });
+
   it.each(Array.from({ length: 8 }, (_, mask) => mask))(
     "requires ballots only for multiple options, for join and invitation acceptance: %s",
     async (mask) => {
@@ -3864,7 +4055,7 @@ describe("private participant proposals", () => {
     ).toBe("PENDING");
     expect(f.proposals.get(row.id)?.status).toBe("PENDING");
   });
-  it("rechecks current manager, proposer membership and effective seat before approval; rejection remains possible", async () => {
+  it("rechecks management and membership and deletes the pending proposal on departure", async () => {
     const f = await prepared();
     const registration = await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id)),
       row = await f.submit(guest, date());
@@ -3896,20 +4087,37 @@ describe("private participant proposals", () => {
         version: 1,
         action: "accept",
       }),
-    ).rejects.toMatchObject({ code: "PROPOSAL_SEAT_REQUIRED" });
+    ).rejects.toMatchObject({ code: "PROPOSAL_NOT_FOUND" });
     expect(
-      (await f.service.proposals(guest, f.e.id, { kind: "date", mode: "mine", limit: 20 })).items[0]
-        .status,
-    ).toBe("PENDING");
-    expect(
-      (
-        await f.service.reviewProposal(owner, f.e.id, row.id, {
-          eventVersion: f.version(),
-          version: 1,
-          action: "reject",
-        })
-      ).proposal.status,
-    ).toBe("REJECTED");
+      (await f.service.proposals(guest, f.e.id, { kind: "date", mode: "mine", limit: 20 })).items,
+    ).toEqual([]);
+  });
+  it("preserves event and other-table proposals until a player leaves their last table", async () => {
+    const f = await prepared();
+    const { groupId: _group, ...fields } = body();
+    await f.service.update(owner, f.e.id, {
+      ...fields,
+      version: f.version(),
+      tables: [{ ...fields.tables[0], id: other, allowParticipantGames: true }],
+      removedTableIds: [],
+    });
+    const first = await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const second = await f.service.join(guest, f.e.id, other, f.participation(f.e.id, other));
+    const when = await f.submit(guest, date());
+    const onFirst = await f.submit(guest, { kind: "game", tableId: id, gameId: 2 });
+    const onSecond = await f.submit(guest, { kind: "game", tableId: other, gameId: 2 });
+    await f.service.registrationAction(guest, first.id, {
+      action: "cancel",
+      version: first.version,
+    });
+    expect(f.proposals.has(onFirst.id)).toBe(false);
+    expect(f.proposals.get(onSecond.id)?.status).toBe("PENDING");
+    expect(f.proposals.get(when.id)?.status).toBe("PENDING");
+    await f.service.registrationAction(owner, second.id, {
+      action: "remove",
+      version: second.version,
+    });
+    expect(f.proposals.size).toBe(0);
   });
   it("restricts games to own seated Table and preserves existing durations on canonical approval", async () => {
     const f = await prepared();
@@ -3949,8 +4157,9 @@ describe("private participant proposals", () => {
           mode: "mine",
           limit: 20,
         })
-      ).items[0].id,
-    ).toBe(row.id);
+      ).items,
+    ).toEqual([]);
+    expect((await f.service.proposalDetail(guest, e.id, row.id)).proposal.status).toBe("ACCEPTED");
     await expect(
       f.service.proposals(owner, e.id, {
         kind: "game",

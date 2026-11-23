@@ -49,14 +49,20 @@ export type TableInviteReviewResponse = {
     | "startTime"
     | "dates"
     | "locations"
+    | "dateVoteRequired"
+    | "locationVoteRequired"
     | "planningMode"
     | "playerPreference"
     | "allowBestReduction"
   >;
   table: Pick<
     TableRecord,
-    "id" | "name" | "games" | "minPlayers" | "maxPlayers" | "rankingEnabled"
-  > & { gamesDetail: BggSearchItem[] };
+    "id" | "games" | "minPlayers" | "maxPlayers" | "rankingEnabled" | "gameVoteRequired"
+  > & {
+    name: string;
+    order?: number;
+    gamesDetail: BggSearchItem[];
+  };
   requiresAvailability: boolean;
   ownAvailability: Pick<EventVoter, "dateVotes" | "locationVotes"> | null;
   ownRegistration: Pick<

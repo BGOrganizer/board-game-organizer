@@ -6,11 +6,13 @@ import { Typography } from "heroui-native/text";
 import { useCallback } from "react";
 import { BackHandler, View } from "react-native";
 import { HeaderBackButton, headerBackOptions } from "@/components/common/layout/HeaderBackButton";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { TableScoreEditor } from "./TableScoreEditor";
 export function EventResults({ eventId, tableId }: { eventId: string; tableId: string }) {
   const t = useT(),
+    titleForTable = useTableTitle(),
     o = useCommunityApi(),
     router = useRouter(),
     f = useEventResultsForm(o, eventId, tableId);
@@ -40,7 +42,7 @@ export function EventResults({ eventId, tableId }: { eventId: string; tableId: s
       <View style={{ gap: 12, padding: 20 }}>
         {!denied && f.table.data ? (
           <Typography accessibilityRole="header" className="font-semibold text-foreground">
-            {f.table.data.name}
+            {titleForTable(f.table.data)}
           </Typography>
         ) : null}
         {f.event.isError || f.table.isError ? (

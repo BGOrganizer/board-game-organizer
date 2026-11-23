@@ -455,7 +455,7 @@ it("does not retain forbidden cached Table cards or submit their IDs for attenti
   );
   const client = mount();
   fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
-  await screen.findByRole("link", { name: `Open table: ${plannedTable.name}` });
+  await screen.findByRole("link", { name: "Open table: Table #1" });
   denied = true;
   await act(async () => {
     await client.refetchQueries({
@@ -463,7 +463,7 @@ it("does not retain forbidden cached Table cards or submit their IDs for attenti
     });
   });
   await waitFor(() =>
-    expect(screen.queryByRole("link", { name: `Open table: ${plannedTable.name}` })).toBeNull(),
+    expect(screen.queryByRole("link", { name: "Open table: Table #1" })).toBeNull(),
   );
   expect(screen.getByText("Could not load tables")).toBeTruthy();
   client.clear();
@@ -551,6 +551,27 @@ it("keeps singleton dates and venues read-only without totals, even for accepted
   expect(screen.queryAllByLabelText(/^Votes:/)).toHaveLength(0);
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
 });
+it.each(["date", "location"] as const)(
+  "opens a ballot that accepts No after the only %s changed",
+  async (kind) => {
+    const option = kind === "date" ? event.dates[0] : event.locations[0];
+    const label = kind === "date" ? "2030-06-03 20:00" : "Club venue";
+    event = { ...event, canVote: true, [`${kind}VoteRequired`]: true };
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: `${label}: Choose your vote` }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
+        name: "No",
+      }),
+    );
+    await screen.findByRole("button", { name: `${label}: No` });
+    expect(
+      fetcher.mock.calls
+        .filter(([url, init]) => String(url).endsWith("/votes") && init?.method === "PATCH")
+        .map(([, init]) => JSON.parse(String(init?.body))),
+    ).toEqual([{ kind, optionId: option.id, vote: "NO" }]);
+  },
+);
 it("allows No only when another current location stays usable, independent of the date votes", async () => {
   const second = "77777777-7777-4777-8777-777777777777",
     first = event.locations[0].id;
@@ -907,7 +928,7 @@ it("hydrates missing agreement/table fields from a canonical list summary withou
   await waitFor(() => expect(release).toBeTypeOf("function"));
   await act(async () => release());
   fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
-  expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
+  expect(await screen.findByRole("link", { name: "Open table: Table #1" })).not.toBeNull();
   expect(screen.queryByRole("heading", { name: "Table list" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Table legend" })).toBeNull();
 });
@@ -923,7 +944,7 @@ it("retries uncached event and table failures instead of turning them into empty
     name: "Try again",
   });
   if (retry) fireEvent.click(retry);
-  expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
+  expect(await screen.findByRole("link", { name: "Open table: Table #1" })).not.toBeNull();
 });
 it("honors a results-only capability without showing an unavailable planning action", async () => {
   event = { ...event, status: "CONFIRMED", canReplan: false, canFinalize: true };
@@ -1015,6 +1036,7 @@ it("renders pending/unavailable agreements, location votes, paging and manual co
                     ...plannedTable,
                     id: "77777777-7777-4777-8777-777777777777",
                     name: "Second table",
+                    order: 1,
                   },
                 ],
                 nextCursor: null,
@@ -1033,7 +1055,7 @@ it("renders pending/unavailable agreements, location votes, paging and manual co
   expect(screen.queryByText(/No compatible accepted players/)).toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Tables" }));
   fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-  expect(await screen.findByRole("link", { name: "Open table: Second table" })).not.toBeNull();
+  expect(await screen.findByRole("link", { name: "Open table: Table #2" })).not.toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Details" }));
   await selectVote(plannedEvent.locations[0].name);
   await waitFor(() =>
@@ -1056,7 +1078,7 @@ it("opens unified event/table routes, category-scoped voting legends and guarded
     `/events/${eventId}/edit`,
   );
   fireEvent.click(screen.getByRole("tab", { name: "Tables" }));
-  expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
+  expect(await screen.findByRole("link", { name: "Open table: Table #1" })).not.toBeNull();
   expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
   expect(screen.getByRole("button", { name: "Delete event" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Confirm event" }));
@@ -1124,7 +1146,7 @@ it("keeps a missing agreement disabled even if an inconsistent capability says c
   };
   mount();
   fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
-  await screen.findByRole("link", { name: "Open table: First table" });
+  await screen.findByRole("link", { name: "Open table: Table #1" });
   const confirmation = screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement;
   expect(confirmation.hasAttribute("disabled")).toBe(false);
   expect(confirmation.className).toContain("button--sm");
@@ -1134,7 +1156,7 @@ it("keeps a missing agreement disabled even if an inconsistent capability says c
   expect(screen.queryByText(/Pending invitations still reserve places/)).toBeNull();
   fireEvent.click(confirmation);
   expect(fetcher.mock.calls.some(([url]) => url.endsWith("/state"))).toBe(false);
-  expect(await screen.findByText(/First table: Pending invitations/)).not.toBeNull();
+  expect(await screen.findByText(/Table #1: Pending invitations/)).not.toBeNull();
   expect(screen.getByText(/Seated players agree on date and location/)).not.toBeNull();
   expect(screen.getByText(/No compatible accepted players/)).not.toBeNull();
 });

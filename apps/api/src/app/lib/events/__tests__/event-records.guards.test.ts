@@ -169,6 +169,7 @@ function setup(value = event(), approved: GroupRecord | null = null) {
     membership: vi.fn(async (_id: string, _user: string): Promise<GroupMembership | null> => null),
   };
   const games = {
+    namesByIds: vi.fn(async () => [{ id: 1, name: "Known game" }]),
     findByIds: vi.fn(
       async (_ids: number[]): Promise<BoardGame[]> => [
         boardGameModel.parse({

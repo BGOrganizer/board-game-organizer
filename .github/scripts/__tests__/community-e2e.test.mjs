@@ -642,12 +642,11 @@ test("native community acceptance follows confirmed counts and table-only legend
   assert(!contains(organization, "assertVisible", "Approved members: 1"));
   assert(contains(table, "assertNotVisible", "Table location help"));
   assert(!contains(table, "tapOn", "Table location help"));
-  assert(contains(table, "tapOn", "Table name help"));
-  for (const legend of [
-    "Confirmed players.",
-    "Maximum seats here; free places in Seats.",
-    "Reserved places, including pending requests.",
-  ])
+  assert(contains(table, "assertVisible", "Table #1"));
+  assert(contains(table, "assertNotVisible", "Table name"));
+  assert(!contains(table, "tapOn", "Table name help"));
+  assert(contains(table, "tapOn", "Table participants help"));
+  for (const legend of ["Accepted player", "Invitation pending", "Player on the waiting list"])
     assert(
       contains(table, "assertVisible", legend) ||
         contains(table, "extendedWaitUntil", { visible: legend, timeout: 30000 }),

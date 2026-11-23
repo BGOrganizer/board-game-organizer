@@ -24,6 +24,7 @@ export function tableInviteReview(
     table: {
       id: plannedTable.id,
       name: plannedTable.name,
+      order: plannedTable.order,
       minPlayers: 2,
       maxPlayers: 4,
       games: plannedTable.games,

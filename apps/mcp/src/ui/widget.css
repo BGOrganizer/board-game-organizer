@@ -1,0 +1,26 @@
+@import "tailwindcss" source(none);
+@import "@heroui/styles";
+
+@source ".";
+@source "../../../web/src/components/common/layout";
+@source "../../../web/src/components/common/ui";
+@source "../../../web/src/components/activities";
+@source "../../../web/src/components/contacts";
+@source "../../../web/src/components/events";
+@source "../../../web/src/components/games";
+@source "../../../web/src/components/groups";
+@source "../../../web/src/components/invites";
+@source "../../../web/src/components/locations";
+@source "../../../web/src/components/notifications";
+@source "../../../web/src/components/profile";
+@source "../../../web/src/components/ratings";
+
+@layer base {
+  body {
+    @apply m-0 bg-background text-foreground;
+  }
+
+  #root {
+    @apply mx-auto max-w-3xl px-3 py-8 sm:px-4;
+  }
+}

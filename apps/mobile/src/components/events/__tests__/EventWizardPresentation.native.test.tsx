@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, userEvent } from "@testing-library/react-native";
+import { act, render, screen, userEvent } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -111,19 +111,19 @@ it("keeps summary rows authoritative after a draft update and supports empty opt
 });
 
 it.each([
-  { label: "Players: Strategy table", title: "Players", text: "Minimum players: 2" },
+  { label: "Players: Table #1", title: "Players", text: "Minimum players: 2" },
   { label: "Rating disabled", title: "Rating", text: "This table does not update player ratings." },
-  { label: "Board games: Strategy table", title: "Board games", text: "First strategy game" },
+  { label: "Board games: Table #1", title: "Board games", text: "First strategy game" },
 ])(
   "opens factual draft card information through the real $title popover",
   async ({ label, title, text }) => {
     await render(
       <NativeTestProviders>
-        <EventDraftTableCard row={tableDraftFixture()} />
+        <EventDraftTableCard row={tableDraftFixture()} title="Table #1" />
       </NativeTestProviders>,
     );
-    expect(screen.getByText("Strategy table")).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Demonstrator: Strategy table" })).toBeNull();
+    expect(screen.getByText("Table #1")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Demonstrator: Table #1" })).toBeNull();
     expect(screen.queryByText("Confirmed")).toBeNull();
     await pressMeasuredPopover(screen.getByRole("button", { name: label }));
     expect(screen.getByRole("heading", { name: title })).toBeVisible();
@@ -146,10 +146,10 @@ it.each([
 ])("shows only the local draft demonstrator facts ($text)", async ({ publicGroup, row, text }) => {
   await render(
     <NativeTestProviders>
-      <EventDraftTableCard row={row} publicGroup={publicGroup} />
+      <EventDraftTableCard row={row} title="Table #1" publicGroup={publicGroup} />
     </NativeTestProviders>,
   );
-  await pressMeasuredPopover(screen.getByRole("button", { name: "Demonstrator: Strategy table" }));
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Demonstrator: Table #1" }));
   expect(screen.getByRole("heading", { name: "Demonstrator" })).toBeVisible();
   expect(screen.getByText(text)).toBeVisible();
 });
@@ -157,16 +157,17 @@ it.each([
 it("keeps draft game information empty when no game is selected and explains enabled ratings", async () => {
   const view = await render(
     <NativeTestProviders>
-      <EventDraftTableCard row={tableDraftFixture({ games: [] })} />
+      <EventDraftTableCard row={tableDraftFixture({ games: [] })} title="Table #1" />
     </NativeTestProviders>,
   );
-  await pressMeasuredPopover(screen.getByRole("button", { name: "Board games: Strategy table" }));
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Board games: Table #1" }));
   expect(screen.getByText("No games found")).toBeVisible();
   await view.unmount();
   await render(
     <NativeTestProviders>
       <EventDraftTableCard
         row={tableDraftFixture({ rankingEnabled: true, id: "persisted-table" })}
+        title="Table #1"
       />
     </NativeTestProviders>,
   );
@@ -208,16 +209,16 @@ function EditorFixture({
 }
 const press = async (name: string) => userEvent.setup().press(screen.getByRole("button", { name }));
 
-it("edits local names and dispatches only the requested game/table actions", async () => {
+it("keeps the automatic name read-only and dispatches only requested game/table actions", async () => {
   const onChange = vi.fn(),
     onRemove = vi.fn(),
     onGame = vi.fn();
   await render(<EditorFixture onChange={onChange} onRemove={onRemove} onGame={onGame} />);
-  await fireEvent.changeText(screen.getByLabelText("Table name"), "Changed table");
-  expect(onChange).toHaveBeenLastCalledWith({ name: "Changed table" });
-  expect(screen.getByLabelText("Table name")).toHaveDisplayValue("Changed table");
+  expect(screen.queryByLabelText("Table name")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Generate a random name" })).toBeNull();
   await press("Choose a game");
   expect(onGame).toHaveBeenCalledOnce();
+  expect(onChange).not.toHaveBeenCalled();
   expect(onRemove).not.toHaveBeenCalled();
   await press("Remove table");
   expect(onRemove).toHaveBeenCalledOnce();
@@ -274,9 +275,7 @@ it("blocks editing actions while busy instead of dispatching callbacks from disa
       eventEndWall="2030-05-02T23:00"
     />,
   );
-  expect(screen.getByLabelText("Table name")).toHaveProp("editable", false);
   for (const name of [
-    "Generate a random name",
     "Increase: Minimum players",
     "Decrease: Maximum players",
     "Remove game: First strategy game",
@@ -309,7 +308,7 @@ it("removes a selected game through its row action and updates the visible valid
   expect(screen.getByRole("button", { name: "Choose a game" })).toBeEnabled();
 });
 
-it("renders explicit name/count/demonstrator/schedule errors without silently accepting invalid drafts", async () => {
+it("renders explicit count/demonstrator/schedule errors without silently accepting invalid drafts", async () => {
   await render(
     <EditorFixture
       publicGroup
@@ -319,7 +318,6 @@ it("renders explicit name/count/demonstrator/schedule errors without silently ac
     />,
   );
   for (const message of [
-    "Enter a table name between 5 and 30 characters.",
     "Choose valid player counts within the limits of the selected games.",
     "Choose a table start and duration within the event.",
     "Choose an available group demonstrator.",

@@ -95,6 +95,7 @@ export function listTable(
     ...plannedTable,
     id: listId(200),
     name,
+    confirmedGameName: name,
     eventStatus: "TERMINATED",
     canManage: true,
     confirmed: {

@@ -142,10 +142,10 @@ it("retains actual Event content and headers across tab switches while rejecting
   const detailHeader = screen.getByRole("header", { name: plannedEvent.name });
   const detailsScroll = nativeScrollHost(detailsName);
   expect(detailsName).toBeVisible();
-  expect(screen.queryByText(plannedTable.name)).toBeNull();
+  expect(screen.queryByText("Table #1")).toBeNull();
   await changeTab("Tables", detailsScroll);
   expect(screen.getByRole("heading", { name: "Tables" })).toBeVisible();
-  const tableName = screen.getByText(plannedTable.name);
+  const tableName = screen.getByText("Table #1");
   const tablesScroll = nativeScrollHost(tableName);
   const tableHeader = screen.getByRole("header", { name: plannedEvent.name });
   expect(tableHeader).not.toBe(detailHeader);
@@ -166,11 +166,11 @@ it("retains actual Event content and headers across tab switches while rejecting
       expect(screen.getByText("Dates and times")).toBe(detailsName);
       expect(nativeScrollHost(screen.getByText("Dates and times"))).toBe(detailsScroll);
       expect(screen.getByRole("header", { name: plannedEvent.name })).toBe(detailHeader);
-      expect(screen.queryByText(plannedTable.name)).toBeNull();
+      expect(screen.queryByText("Table #1")).toBeNull();
       await act(() => previousScroll(bottomScroll));
     } else {
-      expect(screen.getByText(plannedTable.name)).toBe(tableName);
-      expect(nativeScrollHost(screen.getByText(plannedTable.name))).toBe(tablesScroll);
+      expect(screen.getByText("Table #1")).toBe(tableName);
+      expect(nativeScrollHost(screen.getByText("Table #1"))).toBe(tablesScroll);
       expect(screen.getByRole("header", { name: plannedEvent.name })).toBe(tableHeader);
     }
   }
@@ -187,15 +187,17 @@ it("retains actual Event content and headers across tab switches while rejecting
 it("updates a retained native table viewport when the authoritative record changes", async () => {
   await render(<Fixture />);
   await fireEvent.press(screen.getByRole("tab", { name: "Tables" }));
-  const tableName = screen.getByText(plannedTable.name);
+  const tableName = screen.getByText("Table #1");
   const tablesScroll = nativeScrollHost(tableName);
   await fireEvent.press(screen.getByRole("tab", { name: "Details" }));
-  boundary.tables = [{ ...plannedTable, name: "Updated authoritative table" }];
+  boundary.tables = [
+    { ...plannedTable, eventStatus: "CONFIRMED", confirmedGameName: "Updated authoritative game" },
+  ];
   await screen.rerender(<Fixture />);
   await fireEvent.press(screen.getByRole("tab", { name: "Tables" }));
-  expect(screen.getByText("Updated authoritative table")).toBe(tableName);
-  expect(nativeScrollHost(screen.getByText("Updated authoritative table"))).toBe(tablesScroll);
-  expect(screen.queryByText(plannedTable.name)).toBeNull();
+  expect(screen.getByText("Updated authoritative game")).toBe(tableName);
+  expect(nativeScrollHost(screen.getByText("Updated authoritative game"))).toBe(tablesScroll);
+  expect(screen.queryByText("Table #1")).toBeNull();
   expect(boundary.getToken).not.toHaveBeenCalled();
 });
 

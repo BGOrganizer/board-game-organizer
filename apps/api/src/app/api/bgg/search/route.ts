@@ -1,8 +1,8 @@
-import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
 import { searchGames } from "@/app/lib/games/bgg";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 
 const searchSchema = z.object({
   query: z.string().trim().min(4),
@@ -21,7 +21,7 @@ export function OPTIONS(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   const url = new URL(request.url);

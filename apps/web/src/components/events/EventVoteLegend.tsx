@@ -5,14 +5,16 @@ import { EventVoteLegendContent } from "./EventVoteLegendContent";
 export function EventVoteLegend({
   label,
   scope = "event",
+  singleOption = false,
 }: {
   label: string;
   scope?: "event" | "table";
+  singleOption?: boolean;
 }) {
   const { t } = useLingui();
   return (
     <HelpPopover label={`${label}: ${t`Voting legend`}`} title={label}>
-      <EventVoteLegendContent scope={scope} />
+      <EventVoteLegendContent scope={scope} singleOption={singleOption ? "only" : undefined} />
     </HelpPopover>
   );
 }

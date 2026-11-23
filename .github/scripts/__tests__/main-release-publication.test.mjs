@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { mcpReleaseAsset } from "../../../scripts/release/mcp-release-asset.mjs";
 import {
   findTriggerPullRequest,
   publishProductionRelease as publish,
@@ -18,6 +19,7 @@ const sha = "a".repeat(40),
 const bytes = Buffer.from("owned-verified-production-apk"),
   digest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const apkName = "board-game-organizer-1.4.0-internal.apk";
+const mcp = mcpReleaseAsset("production", "1.4.0");
 const url = `https://github.com/${repository}/releases/tag/${tag}`;
 function fixture() {
   const artifactDir = mkdtempSync(join(tmpdir(), "bgo-production-publish-"));
@@ -115,12 +117,19 @@ function server(options = {}) {
     }
     if (path.endsWith("/releases/10/assets") && method === "GET") return Response.json(s.assets);
     if (addressUrl.hostname === "uploads.github.com" && method === "POST") {
-      assert.deepEqual(Buffer.from(await init.body.arrayBuffer()), bytes);
+      const name = addressUrl.searchParams.get("name");
+      const zip = name === mcp.name;
+      assert.equal(
+        init.headers["Content-Type"],
+        zip ? "application/zip" : "application/vnd.android.package-archive",
+      );
+      const uploaded = Buffer.from(await init.body.arrayBuffer());
+      assert.deepEqual(uploaded, zip ? Buffer.from(await mcp.body.arrayBuffer()) : bytes);
       const value = {
-        id: 20,
-        name: addressUrl.searchParams.get("name"),
-        size: bytes.length,
-        digest: s.badDigest ? "sha256:wrong" : digest,
+        id: zip ? 21 : 20,
+        name,
+        size: uploaded.length,
+        digest: s.badDigest ? "sha256:wrong" : zip ? mcp.digest : digest,
         state: "uploaded",
       };
       s.assets.push(value);
@@ -144,7 +153,7 @@ function ownedAsset(extra = {}) {
   return { id: 20, name: apkName, size: bytes.length, digest, state: "uploaded", ...extra };
 }
 
-test("stages notes, links and checksummed APK privately; publish and retries reuse the same release", async () => {
+test("stages notes and verified assets privately; publish and retries reuse the same release", async () => {
   const f = fixture(),
     github = server();
   try {
@@ -153,9 +162,10 @@ test("stages notes, links and checksummed APK privately; publish and retries reu
     assert.equal(github.state.release.draft, true);
     assert.match(github.state.release.body, /Verified notes/);
     assert.match(github.state.release.body, /EAS.*Build details/);
+    assert.match(github.state.release.body, /Download MCP plugin ZIP/);
     assert.deepEqual(
       github.writes.map((row) => row.method),
-      ["POST", "POST"],
+      ["POST", "POST", "POST"],
     );
     const before = github.writes.length;
     assert.deepEqual(await stage(f.input, github.request), prepared);
@@ -186,7 +196,7 @@ test("recovers an owned interrupted private draft and replaces only its mismatch
     await stage(f.input, github.request);
     assert.deepEqual(
       github.writes.map((row) => row.method),
-      ["DELETE", "POST", "PATCH"],
+      ["DELETE", "POST", "POST", "PATCH"],
     );
     assert.equal(github.state.release.draft, true);
     assert.equal(github.state.assets.find((row) => row.id === 99)?.name, "unrelated.txt");
@@ -197,7 +207,15 @@ test("recovers an owned interrupted private draft and replaces only its mismatch
 });
 test("finds owned drafts beyond the first page and accepts an annotated matching tag", async () => {
   const f = fixture(),
-    github = server({ release: {}, assets: [ownedAsset()], paginated: true, annotated: true });
+    github = server({
+      release: {},
+      assets: [
+        ownedAsset(),
+        { id: 21, name: mcp.name, size: mcp.size, digest: mcp.digest, state: "uploaded" },
+      ],
+      paginated: true,
+      annotated: true,
+    });
   try {
     await stage(f.input, github.request);
     assert(github.calls.some((row) => row.address.includes("page=2")));
@@ -263,7 +281,8 @@ test("failed upload receipts keep the release private and an explicit retry can 
     github.state.badDigest = false;
     const prepared = await stage(f.input, github.request);
     assert.equal(prepared.already_published, false);
-    github.state.assets[0].digest = "sha256:tampered";
+    const plugin = github.state.assets.find((asset) => asset.name === mcp.name);
+    plugin.digest = "sha256:tampered";
     await assert.rejects(publish(f.input, prepared, github.request), /incomplete/);
     assert.equal(github.state.release.draft, true);
   } finally {

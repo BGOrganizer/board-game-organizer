@@ -277,7 +277,7 @@ it.each(["personal", "event"] as const)(
     expect(back.closest("[data-page-toolbar]")?.firstElementChild?.contains(back)).toBe(true);
     expect(back.closest("[data-page-toolbar]")?.parentElement).toHaveClass("space-y-4");
     back.focus();
-    await screen.findByRole("heading", { name: table.name });
+    await screen.findByRole("heading", { name: "Table #1" });
     expect(screen.getByRole("link", { name: "Back" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Back" })).toHaveFocus();
     expect(back.closest("[data-page-toolbar]")?.parentElement).toHaveClass("space-y-4");
@@ -297,7 +297,7 @@ it.each([
   async (canManage, eventStatus) => {
     table = { ...table, canManage, eventStatus };
     const client = mount();
-    const page = (await screen.findByRole("heading", { name: table.name })).closest<HTMLElement>(
+    const page = (await screen.findByRole("heading", { name: "Table #1" })).closest<HTMLElement>(
       ".mx-auto.w-full.max-w-4xl",
     );
     expect(page?.style.paddingBottom).toBe("");
@@ -314,7 +314,7 @@ it.each([
 );
 it("requests Table notification copy in Italian", async () => {
   const client = mount(undefined, "it");
-  await screen.findByRole("heading", { name: table.name });
+  await screen.findByRole("heading", { name: "Tavolo #1" });
   await waitFor(() =>
     expect(
       fetcher.mock.calls.some(
@@ -328,7 +328,7 @@ it("requests Table notification copy in Italian", async () => {
 });
 it("separates Participants while retaining one roster reader and the same initial data requests across tab switches", async () => {
   const client = mount();
-  await screen.findByRole("heading", { name: table.name });
+  await screen.findByRole("heading", { name: "Table #1" });
   await waitFor(() =>
     expect(fetcher.mock.calls.some(([url]) => url.includes("/seats?"))).toBe(true),
   );
@@ -449,7 +449,9 @@ it.each([
       pageParams: [""],
     });
   mount(client);
-  await screen.findByRole("heading", { name: "First table" });
+  await screen.findByRole("heading", {
+    name: kind === "excluded" || status === "PLANNING" ? "Table #1" : "Chess",
+  });
   if (kind === "owner" || kind === "cached") {
     const link = await screen.findByRole("link", { name: "Register result" });
     expect(
@@ -481,7 +483,7 @@ it.each([403, 503])("keeps uncached table errors observable (%s) and retries", a
   await screen.findByText("Could not load table");
   broken = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByRole("heading", { name: "First table" })).not.toBeNull();
+  expect(await screen.findByRole("heading", { name: "Table #1" })).not.toBeNull();
 });
 it.each([
   ["CONFIRMED", true],
@@ -612,7 +614,7 @@ it("retries incomplete cached overview details without replacing usable identity
   );
   mount(client);
   await screen.findByText("Could not load complete table details");
-  expect(screen.getByRole("heading", { name: table.name })).not.toBeNull();
+  expect(screen.getByRole("heading", { name: "Table #1" })).not.toBeNull();
   broken = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await waitFor(() =>
@@ -654,8 +656,8 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
     "2": { YES: [], IF_NEEDED: [], NO: [] },
   };
   mount();
-  await screen.findByRole("heading", { name: "First table" });
-  expect(screen.queryByRole("link", { name: "Open table: First table" })).toBeNull();
+  await screen.findByRole("heading", { name: "Table #1" });
+  expect(screen.queryByRole("link", { name: "Open table: Table #1" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Back to event" })).toBeNull();
   expect(screen.getByText("Chess").closest("li")?.parentElement?.tagName).toBe("UL");
   expect(screen.getByRole("button", { name: "Rating enabled" })).not.toBeNull();
@@ -714,6 +716,27 @@ it("keeps a singleton game readable without voting buttons or totals for an acce
   expect(screen.queryByRole("button", { name: /^Chess:/ })).toBeNull();
   expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+});
+it("accepts No on the changed singleton game of a public group's table", async () => {
+  table = {
+    ...table,
+    groupType: "PUBLIC",
+    gameVoteRequired: true,
+    myRegistration: { ...seat("owner"), gameVotes: {} },
+  };
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Chess: Choose your vote" }));
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
+      name: "No",
+    }),
+  );
+  await screen.findByRole("button", { name: "Chess: No" });
+  expect(
+    fetcher.mock.calls
+      .filter(([url, init]) => String(url).endsWith("/votes") && init?.method === "PATCH")
+      .map(([, init]) => JSON.parse(String(init?.body))),
+  ).toEqual([{ kind: "game", tableId: table.id, gameId: 1, vote: "NO" }]);
 });
 it("allows a negative game vote only while another current game remains positive", async () => {
   table = {
@@ -1200,7 +1223,7 @@ it("does not present an excluded table as confirmed or show all candidate games 
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Table excluded" }));
   expect(await screen.findByText("The table was excluded from confirmation.")).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Board games: First table" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Board games: Table #1" })).toBeNull();
 });
 it("retains immutable exact scores, ND, profiles and both rating scopes, including missing profiles and retries", async () => {
   table = {
@@ -1298,7 +1321,7 @@ it.each([false, true])(
         : {}),
     };
     mount();
-    await screen.findByRole("heading", { name: table.name, level: 1 });
+    await screen.findByRole("heading", { name: "Table #1", level: 1 });
     if (missing) {
       expect(await screen.findByRole("region", { name: "Table schedule" })).toBeTruthy();
       expect(screen.queryByText(/^Duration:/)).toBeNull();
@@ -1419,7 +1442,7 @@ it("rechecks public cutoff and fixed game rules rather than showing stale action
     myRegistration: { ...player("owner"), status: "PENDING" },
   };
   mount();
-  await screen.findByRole("heading", { name: "First table" });
+  await screen.findByRole("heading", { name: "Table #1" });
   for (const name of ["Join table", "Leave table", "Accept invitation", "Decline invitation"])
     expect(screen.queryByRole("button", { name })).toBeNull();
   expect(screen.queryByRole("button", { name: /Chess:/ })).toBeNull();

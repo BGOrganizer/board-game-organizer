@@ -13,9 +13,11 @@ import { EventTableRatingInfo } from "./EventTableRatingInfo";
 /** Unsaved local facts only: no persisted status, attendance, navigation or fake IDs. */
 export function EventDraftTableCard({
   row,
+  title,
   publicGroup = false,
 }: {
   row: EventTableDraft;
+  title: string;
   publicGroup?: boolean;
 }) {
   const { t, i18n } = useLingui();
@@ -24,7 +26,7 @@ export function EventDraftTableCard({
       <ListCardCoverContent
         heading={
           <ListCardBody
-            title={row.name}
+            title={title}
             titleIcon={<Dices className="size-4 shrink-0 text-muted" aria-hidden />}
           />
         }
@@ -35,7 +37,7 @@ export function EventDraftTableCard({
           <>
             <HelpPopover
               size="compact"
-              label={`${t`Players`}: ${row.name}`}
+              label={`${t`Players`}: ${title}`}
               title={t`Players`}
               icon={UsersRound}
               triggerClassName="bg-default"
@@ -51,7 +53,7 @@ export function EventDraftTableCard({
             {publicGroup || row.demonstratorUserId || row.demonstratorGuestName ? (
               <HelpPopover
                 size="compact"
-                label={`${t`Demonstrator`}: ${row.name}`}
+                label={`${t`Demonstrator`}: ${title}`}
                 title={t`Demonstrator`}
                 icon={Presentation}
                 tone={row.demonstratorUserId || row.demonstratorGuestName ? "accent" : "muted"}
@@ -66,7 +68,7 @@ export function EventDraftTableCard({
               </HelpPopover>
             ) : null}
             <EventTableGamesPopover
-              name={row.name}
+              name={title}
               games={row.games.map((game) => ({
                 ...game,
                 durationMinutes: eventGameDuration(game),

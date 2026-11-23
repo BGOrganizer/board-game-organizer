@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "jsonc-parser";
+import { parse as parseYaml } from "yaml";
 
 const mobilePackages = [
   "apps/mobile",
@@ -45,6 +46,14 @@ export function mobileBuildJob(workflow) {
       /^ {2}build-mobile-internal:[^\n]*\n[\s\S]*?(?=^ {2}[\w-]+:|(?![\s\S]))/m,
     )?.[0] ?? ""
   );
+}
+
+function developmentBuildRecipe(workflow) {
+  const job = parseYaml(workflow).jobs?.["build-mobile-development"];
+  const builds = job?.steps?.filter((step) => step.uses === "./.github/actions/mobile-build");
+  if (builds?.length !== 1) throw new Error("One Development APK build recipe required");
+  const { uses, with: inputs, env, run } = builds[0];
+  return JSON.stringify({ runner: job["runs-on"], jobEnv: job.env, uses, inputs, env, run });
 }
 
 export function mobileLockGraph(text) {
@@ -112,15 +121,16 @@ export function mobileLockGraph(text) {
   );
 }
 
-export function mobileBuildChanged(base, head, cwd = process.cwd()) {
+export function mobileBuildChanged(base, head, cwd = process.cwd(), target = "internal") {
   const files = git(cwd, "diff", "--no-renames", "--name-only", "-z", base, head)
     .split("\0")
     .filter(Boolean);
   if (files.some(sourceAffectsMobile)) return true;
   if (files.includes(".github/workflows/pr-ci.yml")) {
+    const recipe = target === "development" ? developmentBuildRecipe : mobileBuildJob;
     if (
-      mobileBuildJob(git(cwd, "show", `${base}:.github/workflows/pr-ci.yml`)) !==
-      mobileBuildJob(git(cwd, "show", `${head}:.github/workflows/pr-ci.yml`))
+      recipe(git(cwd, "show", `${base}:.github/workflows/pr-ci.yml`)) !==
+      recipe(git(cwd, "show", `${head}:.github/workflows/pr-ci.yml`))
     )
       return true;
   }

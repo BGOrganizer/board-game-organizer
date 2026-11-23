@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { requireCurrentPr } from "./ci-current-pr.mjs";
 import { requireClerkTarget } from "./clerk-target.mjs";
 import { developmentApiUrl } from "./development-api-alias.mjs";
+import { requireEquivalentDevelopmentApk } from "./development-apk-reuse.mjs";
 import { withProductionBuildEnvironment } from "./mobile-build-environment.mjs";
 import { mobileBuildInputs } from "./mobile-build-inputs.mjs";
 
@@ -46,18 +47,27 @@ export async function publishMobileUpdate(env, options = {}) {
 
 async function publishPreparedMobileUpdate(
   env,
-  { root = process.cwd(), run = command, merged = false, current } = {},
+  {
+    root = process.cwd(),
+    run = command,
+    merged = false,
+    current,
+    requireEquivalent = requireEquivalentDevelopmentApk,
+  } = {},
 ) {
   const production = env.APP_VARIANT === "production";
   const channel = env.EXPO_UPDATE_CHANNEL;
   const source = env.OTA_SOURCE_SHA;
+  const apkSource = env.OTA_APK_SOURCE_SHA || source;
   if (
     !["production", "development"].includes(env.APP_VARIANT) ||
     !/^[a-f0-9]{40}$/.test(source ?? "") ||
+    !/^[a-f0-9]{40}$/.test(apkSource ?? "") ||
     !env.EXPO_TOKEN ||
     env.MOBILE_BUILD_PROFILE !== "internal" ||
     (production
       ? channel !== "production" ||
+        apkSource !== source ||
         env.EXPO_PUBLIC_API_URL !== "https://api.board-game-organizer.com"
       : channel !== "development" || env.EXPO_PUBLIC_API_URL !== developmentApiUrl(env.PR_NUMBER))
   )
@@ -77,12 +87,13 @@ async function publishPreparedMobileUpdate(
     names.length !== 1 ||
     !checksum ||
     checksum[2] !== names[0] ||
-    text("source-head.txt") !== source ||
+    text("source-head.txt") !== apkSource ||
     text("api-url.txt") !== env.EXPO_PUBLIC_API_URL ||
     text("update-channel.txt") !== channel ||
     text("build-inputs.sha256") !== mobileBuildInputs(env)
   )
     throw new Error("OTA APK provenance/configuration mismatch");
+  if (apkSource !== source) requireEquivalent(apkSource, source, root);
   const apk = join(artifact, names[0]);
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(apk)) hash.update(chunk);

@@ -2,8 +2,11 @@ name: Verified Android OTA
 description: Publish a Hermes update only after its APK, configuration, runtime and source pass checks.
 inputs:
   source-sha:
-    description: Exact checked-out source commit of the verified APK
+    description: Exact checked-out source commit of the OTA export
     required: true
+  apk-source-sha:
+    description: Development APK build source after artifact verification; defaults to the OTA source
+    required: false
   app-environment:
     description: development or production
     required: true
@@ -41,6 +44,7 @@ runs:
       shell: bash
       env:
         OTA_SOURCE_SHA: ${{ inputs.source-sha }}
+        OTA_APK_SOURCE_SHA: ${{ inputs.apk-source-sha }}
         OTA_ARTIFACT_DIR: ${{ github.workspace }}/apk
         APP_VARIANT: ${{ inputs.app-environment }}
         EXPO_UPDATE_CHANNEL: ${{ inputs.update-channel }}

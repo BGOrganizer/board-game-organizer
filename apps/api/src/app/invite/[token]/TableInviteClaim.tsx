@@ -6,6 +6,7 @@ import {
   eventDateWall,
   eventLocalToIso,
   formatUsername,
+  tableTitle,
   useTableInviteForm,
 } from "@board-game-organizer/shared";
 import { Button } from "@heroui/react";
@@ -34,6 +35,10 @@ export function TableInviteClaim({
 }) {
   const { i18n } = useLingui();
   const { event, table } = review;
+  const tableName = tableTitle(table, (number) => {
+    const label = i18n._(messages.tableLabel);
+    return number === undefined ? label : `${label} #${number}`;
+  });
   const {
     dateVotes,
     locationVotes,
@@ -42,6 +47,9 @@ export function TableInviteClaim({
     setLocations,
     setGames,
     alreadyAccepted,
+    canVoteDates,
+    canVoteLocations,
+    canVoteGames,
     complete,
     settingsReady,
     submit,
@@ -59,7 +67,7 @@ export function TableInviteClaim({
     <InviteShell title={i18n._(messages.tableTitle)}>
       <div style={{ display: "grid", gap: 8 }}>
         {[
-          { id: "table", name: table.name, Icon: Dices },
+          { id: "table", name: tableName, Icon: Dices },
           { id: "event", name: event.name, Icon: CalendarDays },
           { id: "group", name: review.group.name, Icon: UsersRound },
         ].map(({ id, name, Icon }) => (
@@ -75,7 +83,7 @@ export function TableInviteClaim({
           values: {
             inviter: formatUsername(review.inviter.username, review.inviter.name),
             group: review.group.name,
-            table: table.name,
+            table: tableName,
           },
         })}
       </p>
@@ -114,7 +122,7 @@ export function TableInviteClaim({
           ),
         }))}
         choices={dateVotes}
-        editable={!alreadyAccepted && review.requiresAvailability}
+        editable={canVoteDates}
         disabled={busy || disabled}
         onChange={(id, vote) => setDates((old) => ({ ...old, [id]: vote }))}
       />
@@ -126,7 +134,7 @@ export function TableInviteClaim({
           description: location.address,
         }))}
         choices={locationVotes}
-        editable={!alreadyAccepted && review.requiresAvailability}
+        editable={canVoteLocations}
         disabled={busy || disabled}
         onChange={(id, vote) => setLocations((old) => ({ ...old, [id]: vote }))}
       />
@@ -139,7 +147,7 @@ export function TableInviteClaim({
             i18n._(messages.unknown),
         }))}
         choices={gameVotes}
-        editable={!alreadyAccepted}
+        editable={canVoteGames}
         disabled={busy || disabled}
         onChange={(id, vote) => setGames((old) => ({ ...old, [id]: vote }))}
       />

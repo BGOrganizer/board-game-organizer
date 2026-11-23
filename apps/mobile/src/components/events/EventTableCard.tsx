@@ -11,6 +11,7 @@ import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 import { EventTableCardIndicators } from "./EventTableCardIndicators";
 
@@ -31,6 +32,7 @@ const EventTableCardContent = memo(function EventTableCardContent({
   notificationCount: count,
 }: Props & { notificationCount?: number }) {
   const t = useT();
+  const title = useTableTitle()(table);
   const { i18n } = useLingui();
   const router = useRouter();
   const muted = useThemeColor("muted");
@@ -38,12 +40,12 @@ const EventTableCardContent = memo(function EventTableCardContent({
     <LinkedListCard
       heading={
         <ListCardBody
-          title={table.name}
+          title={title}
           unread={Boolean(count)}
           titleIcon={<Dices size={16} color={muted} accessible={false} />}
         />
       }
-      label={`${t("Open table")}: ${table.name}`}
+      label={`${t("Open table")}: ${title}`}
       notificationCount={count}
       onPress={() =>
         router.push({

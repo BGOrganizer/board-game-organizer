@@ -64,9 +64,13 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
           <Drawer.Header>
             <Drawer.Heading>{t`Review table settings`}</Drawer.Heading>
             <p className="text-sm text-muted">
-              {form.isInvitation
-                ? t`Accepting this invitation accepts the current event and table settings. Vote only where multiple options are available.`
-                : t`Joining accepts the current event and table settings. Vote only where multiple options are available.`}
+              {(event?.dateVoteRequired && votingTabs.includes("dates")) ||
+              (event?.locationVoteRequired && votingTabs.includes("locations")) ||
+              (table?.gameVoteRequired && votingTabs.includes("games"))
+                ? t`Review the event and table settings, then vote in the sections shown.`
+                : form.isInvitation
+                  ? t`Accepting this invitation accepts the current event and table settings. Vote only where multiple options are available.`
+                  : t`Joining accepts the current event and table settings. Vote only where multiple options are available.`}
             </p>
           </Drawer.Header>
           <Drawer.Body className="overflow-y-auto">
@@ -83,6 +87,7 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
                 <FixedSettings
                   event={event}
                   table={form.tableQuery.isPlaceholderData ? undefined : table}
+                  votingTabs={votingTabs}
                 />
                 {!table || form.tableQuery.isPlaceholderData ? (
                   <Skeleton className="h-24 w-full rounded-xl" />
@@ -226,14 +231,21 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
 function FixedSettings({
   event,
   table,
+  votingTabs,
 }: {
   event: PlannedEventResponse;
   table: PlannedTableResponse | undefined;
+  votingTabs: readonly string[];
 }) {
   const { t } = useLingui();
-  const date = event.dates.length === 1 ? event.dates[0] : undefined;
-  const location = event.locations.length === 1 ? event.locations[0] : undefined;
-  const gameId = table?.games.length === 1 ? table.games[0].gameId : undefined;
+  const date =
+    event.dates.length === 1 && !votingTabs.includes("dates") ? event.dates[0] : undefined;
+  const location =
+    event.locations.length === 1 && !votingTabs.includes("locations")
+      ? event.locations[0]
+      : undefined;
+  const gameId =
+    table?.games.length === 1 && !votingTabs.includes("games") ? table.games[0].gameId : undefined;
   const game = table?.gamesDetail.find((row) => row.id === gameId);
   if (!date && !location && gameId === undefined) return null;
   return (

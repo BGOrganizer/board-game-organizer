@@ -1,9 +1,9 @@
 import type { User } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { ContactLinksRepository } from "@/app/lib/contacts/contacts.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 
 /**
  * GET /api/users/suggestions
@@ -24,7 +24,7 @@ export function OPTIONS(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   const params = new URL(request.url).searchParams;
   if (

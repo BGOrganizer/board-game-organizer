@@ -15,6 +15,7 @@ import { CommunityError } from "../community.error";
 import { RelationshipRepository } from "../contacts/relationship.repository";
 import { EventRecordsRepository } from "../events/event-records.repository";
 import type { EventRecordsService } from "../events/event-records.service";
+import { numberedTableTitle } from "../events/table-title";
 import { BoardGamesRepository } from "../games/boardGames.repository";
 import { GroupRecordsRepository } from "../groups/group-records.repository";
 import type { GroupRecordsService } from "../groups/group-records.service";
@@ -144,14 +145,18 @@ export class TableInvitesService {
         startTime: event.startTime,
         dates: event.dates,
         locations: event.locations,
+        ...(event.dateVoteRequired ? { dateVoteRequired: true } : {}),
+        ...(event.locationVoteRequired ? { locationVoteRequired: true } : {}),
         planningMode: event.planningMode,
         playerPreference: event.playerPreference,
         allowBestReduction: event.allowBestReduction,
       },
       table: {
         id: table.id,
-        name: table.name,
+        name: numberedTableTitle(table.order),
+        order: table.order,
         games: table.games,
+        ...(table.gameVoteRequired ? { gameVoteRequired: true } : {}),
         minPlayers: table.minPlayers,
         maxPlayers: table.maxPlayers,
         rankingEnabled: table.rankingEnabled,

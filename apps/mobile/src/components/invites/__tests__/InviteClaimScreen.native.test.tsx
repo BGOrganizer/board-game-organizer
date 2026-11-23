@@ -194,7 +194,7 @@ it.each(["SEATED", "WAITING"] as const)(
     review = tableInviteReview();
     receipt = tableClaimReceipt(position);
     await render(<Fixture />);
-    expect(await screen.findByText("First table")).toBeVisible();
+    expect(await screen.findByText("Table #1")).toBeVisible();
     await press("Accept invitation");
     await waitFor(() =>
       expect(screen.getByTestId("router-redirect")).toHaveTextContent(
@@ -343,7 +343,7 @@ it("hides a previously reviewed table after HTTP 404 and requires an explicit su
   );
   expect(await screen.findByText("Invitation unavailable")).toBeVisible();
   expect(screen.queryByText("Private games group", { includeHiddenElements: true })).toBeNull();
-  expect(screen.queryByText("First table", { includeHiddenElements: true })).toBeNull();
+  expect(screen.queryByText("Table #1", { includeHiddenElements: true })).toBeNull();
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   expect(screen.queryByTestId("router-redirect")).toBeNull();
   expect(writes).toEqual([]);
@@ -366,7 +366,7 @@ it("keeps HTTP 500 review failures distinct from unavailable tokens and enables 
   expect(writes).toEqual([]);
   readCode = 200;
   await press("Try again");
-  expect(await screen.findByText("First table")).toBeVisible();
+  expect(await screen.findByText("Table #1")).toBeVisible();
   expect(screen.getByRole("button", { name: "Accept invitation" })).toBeEnabled();
   expect(screen.queryByText("Could not load this invitation.")).toBeNull();
   expect(reads).toHaveLength(2);

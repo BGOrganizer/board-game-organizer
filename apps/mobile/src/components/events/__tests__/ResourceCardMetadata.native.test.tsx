@@ -229,7 +229,7 @@ it("does not mistake a stale multi-venue planning preview for a chosen confirmed
       <EventTableSchedulePopover table={candidate} kind="locations" />
     </NativeTestProviders>,
   );
-  await pressMeasuredPopover(screen.getByRole("button", { name: `Locations: ${candidate.name}` }));
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Locations: Table #1" }));
   expect(screen.getByLabelText("Loading…", { includeHiddenElements: true })).toBeTruthy();
   expect(screen.queryByText("Via Roma 1")).toBeNull();
 });
@@ -241,9 +241,7 @@ it("keeps a confirmed table date unknown until its cached timezone arrives", asy
       <EventTableSchedulePopover table={candidate} kind="dates" />
     </NativeTestProviders>,
   );
-  await pressMeasuredPopover(
-    screen.getByRole("button", { name: `Dates and times: ${candidate.name}` }),
-  );
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Dates and times: Table #1" }));
   expect(screen.getByLabelText("Loading…", { includeHiddenElements: true })).toBeTruthy();
   await view.rerender(
     <NativeTestProviders>

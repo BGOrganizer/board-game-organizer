@@ -213,9 +213,10 @@ it("renders only frozen participants and the saved draft while preserving cached
   await mount();
   await ready();
   // This is in-content native Typography, not the navigation header slot.
-  const title = screen.getByText(table.name);
+  const title = screen.getByText("Chess");
   expect(title).toBeVisible();
   expect(title).toHaveProp("accessibilityRole", "header");
+  expect(screen.queryByText(table.name)).toBeNull();
   expect(screen.getByRole("button", { name: "Score: Guest Player" })).toBeEnabled();
   expect(screen.queryByRole("button", { name: "Score: Waiting Player" })).toBeNull();
   expect(
@@ -295,7 +296,7 @@ it.each(["event", "table"] as const)(
     else tableCode = 403;
     await mount();
     expect(await screen.findByText("Could not load table")).toBeVisible();
-    expect(screen.queryByText(table.name)).toBeNull();
+    expect(screen.queryByText("Chess")).toBeNull();
     expect(screen.queryByRole("button", { name: "Save result" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Score: / })).toBeNull();
     expect(writes).toEqual([]);

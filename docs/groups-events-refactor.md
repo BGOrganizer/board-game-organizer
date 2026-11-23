@@ -478,16 +478,18 @@ exceptions retain their explicit authorization boundaries throughout this contra
   directly; SELF registration is ACCEPTED even when queued, without any Group membership write or
   extra booking-approval workflow. Every voluntary join
   opens a platform HeroUI review sheet. Joining explicitly accepts the current Event and Table
-  configuration; singleton settings are shown read-only without voting tabs. Only multiple PRIVATE
-  dates/locations and multiple Table games expose their corresponding tabs. PUBLIC Group Events
+  configuration. A singleton is read-only unless a manager replaced it during planning with
+  accepted registrations present. Multiple PRIVATE dates/locations, multiple Table games and
+  replaced singleton choices requiring a vote expose their corresponding tabs. PUBLIC Group Events
   prefer Games initially; other Events prefer Dates without another ACCEPTED Table, otherwise Games.
   If that category has no vote, use the first available voting tab; with none, show only settings.
   Known settings remain visible while missing Table metadata loads, but submission requires complete
   authorized metadata. The default never overrides a later manual selection of an available tab;
   if its category becomes singleton, fall back to an available category. Pending/declined/cancelled
   registrations do not qualify as prior participation. Stored PRIVATE preferences are prefilled and
-  editable only for multiple-option categories. Every current votable option needs YES/IF_NEEDED/NO,
-  with at least one YES/IF_NEEDED per multiple-option dimension. Final confirmation pins the Event version and saves registration,
+  editable only for the current voting categories. Joining or accepting an invitation requires an
+  explicit YES/IF_NEEDED for every changed singleton and at least one positive vote per
+  multiple-option dimension. Final confirmation pins the Event version and saves registration,
   this Table's game ballots and complete PRIVATE Event preferences in one transaction. Missing/stale/
   incomplete/foreign choices fail before writes. Invitation consent stays separate; pending invitations
   never receive manufactured votes. Opening, editing and canceling the sheet write nothing. Owned
@@ -715,11 +717,13 @@ to fit another game. Historical shapes stay readable.
 All top HeroUI tabs use relevant selected-accent Lucide icons; bottom navigation stays unchanged.
 Required-field stars follow actual conditional validation. Group name inputs have the localized
 Group name placeholder on both clients. Group create/edit reuse the same type Cards; both remain
-visible but disabled in edit because type is immutable. Group/Event/Table name fields expose an
-input limit of 30 characters. Create/edit commands trim names and require 5–30 characters, also
-for every submitted Table in an Event edit. Historical names remain readable; saving an out-of-range
-name requires renaming it, while omitted Tables and unrelated actions retain their historical data.
-Name fields expose an
+visible but disabled in edit because type is immutable. Group and Event name fields expose an
+input limit of 30 characters. Create/edit commands trim names and require 5–30 characters.
+Tables display their immutable per-Event creation number while planning. Deleting a Table does not
+renumber the remaining Tables. A confirmed Table displays its selected game's title, including in
+finished results. Excluded Tables and Tables without a catalog title display their number.
+Reopening an Event restores the numbered title. Historical custom Table names stay in storage.
+Group and Event name fields expose an
 explicit dice action using the single supplied EN/IT dictionary source and unique-names-generator;
 it changes only the unsaved name in the active locale, never autosaves or regenerates during render.
 Table invitations use a normalized handle as primary identity without a secondary line; Group
@@ -768,6 +772,10 @@ idempotency and lost-response readback; only current managers can read other aut
 `GET /events/:id/proposals/:proposalId` returns an authorized own/current-manager receipt; bounded
 own correlation reads also serialize with writes so lost responses are verified, not replayed.
 Group/Event locks serialize submissions, approval, confirmation, role changes and removals.
+Cancelling a player's last accepted Table registration deletes their pending proposals for that
+Event in the same transaction. Leaving one of several Tables deletes only their pending game
+proposals for the departed Table. Game-proposal lists omit accepted decisions before paging;
+individual receipts remain available under their existing authorization.
 
 Approval rechecks current management, proposer membership/seat, target, catalog and configuration,
 then reuses the canonical atomic Event edit. Existing IDs/votes remain; no consent, ballot, seat,
@@ -933,9 +941,15 @@ A/B/C is evaluated per table, against one common event date/time and location:
    stopping at the earliest prefix enabling full agreement in Assisted mode. Preserve higher-priority eligible
    players, capacity and pending reservations; displaced users remain waiting.
 
-The same eligible people must support every multiple-option dimension with YES/IF_NEEDED; UNKNOWN
-is not positive there. Accepted registration supplies compatibility for each singleton independently,
-without a persisted or counted YES preference. Event planning settings determine the objective
+The same eligible people must support every voting dimension with YES/IF_NEEDED. Unchanged
+singletons rely on the accepted registration for compatibility without a recorded preference.
+Replacing the only date/time or venue in a standalone/PRIVATE Group Event opens a fresh vote for
+that choice. Replacing the only game opens a fresh vote for that Table, including PUBLIC Group
+Events. Public date/time, venue and table start remain fixed while registrations exist; a changed
+game's duration must fit the event and remain compatible with the other bookings. Existing
+registrations and unaffected ballots survive the edit. A seated player's NO or missing vote on a
+changed singleton blocks agreement for the Event (date/venue) or Table (game), even in Assisted
+mode. Voting NO leaves the player registered. Event planning settings determine the objective
 before YES preferences; see [Event planning settings](#event-planning-settings-and-seat-order).
 One person across multiple tables counts once, with original option order as the final tie-break. Only considered players' votes count. Bounded exact search fails closed
 with `AGREEMENT_COMPLEXITY_LIMIT`, never with an approximate fabricated agreement. Confirmation

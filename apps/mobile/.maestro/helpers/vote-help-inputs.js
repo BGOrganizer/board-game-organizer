@@ -8,22 +8,24 @@ var fixtures = JSON.parse(raw);
 var uuid = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 if (
   !Array.isArray(fixtures) ||
-  fixtures.length !== 2 ||
+  (fixtures.length !== 2 && fixtures.length !== 3) ||
   !fixtures.every(
     (f) =>
       f &&
       uuid.test(f.eventId) &&
       uuid.test(f.tableId) &&
       typeof f.multiple === "boolean" &&
+      (f.repoll === undefined || (f.repoll === true && !f.multiple)) &&
       [f.eventName, f.tableName].every(
         (s) => typeof s === "string" && s.trim().length > 0 && s.length <= 120,
       ),
   ) ||
   !fixtures.some((f) => f.multiple) ||
-  !fixtures.some((f) => !f.multiple)
+  !fixtures.some((f) => !f.multiple && !f.repoll) ||
+  (fixtures.length === 3) !== fixtures.some((f) => f.repoll === true)
 )
   throw new Error(
-    "Two real PLANNING fixtures with eventId, tableId, eventName, tableName, multiple required",
+    "Real PLANNING single and multiple fixtures are required. A third changed singleton fixture can use repoll:true.",
   );
 function exact(value) {
   return "^" + value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
@@ -40,6 +42,15 @@ output.voteHelp = {
       ? 'Scegli almeno un\'opzione "Sì" o "Se necessario" in questa categoria.'
       : 'Choose at least one "Yes" or "If needed" option in this category.',
   ),
+  revote: exact(
+    it
+      ? "Vota di nuovo sull’opzione modificata. Il No ti lascia iscritto e, se hai un posto al tavolo, blocca l’accordo."
+      : "Vote again on the changed option. A No keeps you registered and blocks agreement if you have a seat.",
+  ),
+  revoteAction:
+    ".+: (" +
+    (it ? "Scegli il tuo voto|Sì|Se necessario|No" : "Choose your vote|Yes|If needed|No") +
+    ")$",
   yes: exact(it ? "Sì" : "Yes"),
   needed: exact(it ? "Se necessario" : "If needed"),
   no: "^No$",
@@ -82,6 +93,7 @@ fixtures.forEach((f) => {
           : label + ": " + (it ? "Legenda voti" : "Voting legend"),
       ),
       multiple: f.multiple,
+      repoll: f.repoll === true,
       participation: exact(
         index === 2
           ? it

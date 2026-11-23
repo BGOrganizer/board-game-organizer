@@ -136,7 +136,7 @@ it("InviteClaimScreen: explicit table ballots and pending single consent reach t
         });
       },
       scenario: async () => {
-        const title = await screen.findByText(base.table.name);
+        const title = await screen.findByText("Table #1");
         expect(title).toBeVisible();
         expect(screen.getByText(base.group.name)).toBeVisible();
         expect(screen.getByTestId("table-link-consent-submit")).toBeDisabled();

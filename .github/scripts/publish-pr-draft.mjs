@@ -4,6 +4,7 @@ import { appendFileSync, createReadStream, openAsBlob, statSync, writeFileSync }
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { mcpReleaseAsset } from "../../scripts/release/mcp-release-asset.mjs";
 import {
   isDevelopmentReleaseName,
   releaseBody,
@@ -36,7 +37,9 @@ export async function promotePreviewTag(
   const ref = `refs/tags/${tag}`;
   let existing;
   try {
-    existing = execute("git", ["ls-remote", "--tags", "origin", ref], { encoding: "utf8" }).trim();
+    existing = execute("git", ["ls-remote", "--tags", "origin", ref], {
+      encoding: "utf8",
+    }).trim();
   } catch {
     throw new Error("Cannot inspect the Development tag");
   }
@@ -68,6 +71,7 @@ export async function publishDevelopmentDraft(
   request = fetch,
   publishTag = promotePreviewTag,
 ) {
+  const apkSourceSha = input.apkSourceSha ?? input.sourceSha;
   if (
     !/^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/.test(input.version) ||
     !/^[\w.-]+\.apk$/.test(input.apkName) ||
@@ -77,7 +81,8 @@ export async function publishDevelopmentDraft(
     typeof input.title !== "string" ||
     !input.title.trim() ||
     input.title.length > 256 ||
-    !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(input.sourceSha ?? "")
+    !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(input.sourceSha ?? "") ||
+    !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(apkSourceSha ?? "")
   )
     throw new Error("Invalid Development release identity");
   const web = https(input.webUrl),
@@ -90,6 +95,12 @@ export async function publishDevelopmentDraft(
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(input.apkPath)) hash.update(chunk);
   const digest = hash.digest("hex");
+  const mcp = input.packageMcp
+    ? mcpReleaseAsset(
+        "development",
+        `${input.version}-dev.pr.${input.number}.sha-${input.sourceSha.slice(0, 12)}`,
+      )
+    : null;
   const current = () => requireCurrentPr(input, request);
   await current();
   const api = `https://api.github.com/repos/${input.repository}`;
@@ -104,7 +115,7 @@ export async function publishDevelopmentDraft(
         ...(body
           ? {
               "Content-Type": upload
-                ? "application/vnd.android.package-archive"
+                ? body.type || "application/vnd.android.package-archive"
                 : "application/json",
             }
           : {}),
@@ -153,7 +164,8 @@ export async function publishDevelopmentDraft(
   if (!Number.isSafeInteger(release.id) || release.id < 1)
     throw new Error("Invalid draft release receipt");
   const oldAssets = await call(`${api}/releases/${release.id}/assets?per_page=100`);
-  const assetName = `${input.apkName.slice(0, -4)}-${input.headSha.slice(0, 12)}-${input.runId}-${input.attempt}.apk`;
+  const apkRevision = apkSourceSha === input.sourceSha ? input.headSha : apkSourceSha;
+  const assetName = `${input.apkName.slice(0, -4)}-${apkRevision.slice(0, 12)}-${input.runId}-${input.attempt}.apk`;
   let asset = oldAssets.find((item) => item.name === assetName);
   if (!asset)
     asset = await call(
@@ -167,14 +179,39 @@ export async function publishDevelopmentDraft(
   https(asset.browser_download_url, "github.com");
   // Draft upload receipts can retain an untagged URL after the release becomes public.
   const apkUrl = `https://github.com/${input.repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`;
+  let mcpUrl;
+  if (mcp) {
+    let uploaded = oldAssets.find((item) => item.name === mcp.name);
+    if (!uploaded) {
+      await current();
+      uploaded = await call(
+        `https://uploads.github.com/repos/${input.repository}/releases/${release.id}/assets?name=${encodeURIComponent(mcp.name)}`,
+        "POST",
+        mcp.body,
+        true,
+      );
+    }
+    if (
+      !Number.isSafeInteger(uploaded.id) ||
+      uploaded.id < 1 ||
+      uploaded.state !== "uploaded" ||
+      uploaded.name !== mcp.name ||
+      uploaded.size !== mcp.size ||
+      uploaded.digest !== mcp.digest
+    )
+      throw new Error("Uploaded Development MCP package checksum/size receipt mismatch");
+    mcpUrl = `https://github.com/${input.repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(mcp.name)}`;
+  }
   await publishTag(tag, input.headSha, current, Boolean(managed));
   await current();
   const body = releaseBody({
     ...input,
     environment: "development",
     sha: input.sourceSha,
+    apkSourceSha,
     checksum: digest,
     apkUrl,
+    mcpUrl,
     webUrl: web,
     apiUrl,
     easUrl: eas,
@@ -198,7 +235,7 @@ export async function publishDevelopmentDraft(
     throw new Error("Invalid public Development release receipt");
   const releaseUrl = https(published.html_url, "github.com");
   // Anonymous requests deliberately carry no GitHub token, including after redirects.
-  for (const url of [releaseUrl, apkUrl]) {
+  for (const url of [releaseUrl, apkUrl, ...(mcpUrl ? [mcpUrl] : [])]) {
     for (let attempt = 0; ; attempt++) {
       const response = await request(url, {
         method: "HEAD",
@@ -225,6 +262,15 @@ export async function publishDevelopmentDraft(
       await call(`${api}/releases/assets/${old.id}`, "DELETE");
     }
   }
+  const ownedMcp = new RegExp(
+    `^board-game-organizer-mcp-\\d+\\.\\d+\\.\\d+-dev\\.pr\\.${input.number}\\.sha-[a-f0-9]{12}\\.zip$`,
+  );
+  for (const old of oldAssets) {
+    if (old.name !== mcp?.name && ownedMcp.test(old.name)) {
+      await current();
+      await call(`${api}/releases/assets/${old.id}`, "DELETE");
+    }
+  }
   return {
     release_url: releaseUrl,
     release_id: release.id,
@@ -234,6 +280,7 @@ export async function publishDevelopmentDraft(
 
 async function main() {
   const e = process.env;
+  const sourceSha = e.PREVIEW_SOURCE_SHA || e.APK_SOURCE_SHA;
   if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/i.test(e.PR_BASE_SHA))
     throw new Error("Verified changelog base required");
   const identity = {
@@ -254,13 +301,15 @@ async function main() {
   const result = await publishDevelopmentDraft({
     ...identity,
     title: e.PR_TITLE,
-    sourceSha: e.APK_SOURCE_SHA,
+    sourceSha,
+    apkSourceSha: e.APK_SOURCE_SHA || sourceSha,
     version: e.APP_VERSION,
     apkName: e.APK_NAME,
     apkPath: e.APK_PATH,
     webUrl: e.DEVELOPMENT_WEB_URL,
     apiUrl: e.DEVELOPMENT_API_URL,
     easUrl: e.EAS_BUILD_URL,
+    packageMcp: e.PACKAGE_MCP === "true",
     changelog,
   });
   for (const [key, value] of Object.entries(result))

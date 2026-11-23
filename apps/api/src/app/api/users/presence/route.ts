@@ -1,8 +1,8 @@
 import type { User } from "@board-game-organizer/schemas";
 import { presenceUpdateParamsSchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 
 /**
  * POST /api/users/presence
@@ -17,7 +17,7 @@ export function OPTIONS(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   const body = await request.json().catch(() => null);

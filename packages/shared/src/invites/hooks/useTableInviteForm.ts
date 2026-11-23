@@ -7,6 +7,8 @@ import type {
 } from "@board-game-organizer/schemas";
 import { useMemo, useRef, useState } from "react";
 import {
+  eventJoinAvailabilityIsComplete,
+  eventOptionsRequireVote,
   eventOptionVotesAreComplete,
   eventVotingChoices,
 } from "../../events/eventJoinAvailability";
@@ -33,22 +35,43 @@ export function useTableInviteForm(
     [table.games],
   );
   const [dateVotes, setDates] = useState<Choices>(() =>
-    eventVotingChoices(event.dates, explicitVotes(review.ownAvailability?.dateVotes)),
+    eventVotingChoices(
+      event.dates,
+      explicitVotes(review.ownAvailability?.dateVotes),
+      event.dateVoteRequired,
+    ),
   );
   const [locationVotes, setLocations] = useState<Choices>(() =>
-    eventVotingChoices(event.locations, explicitVotes(review.ownAvailability?.locationVotes)),
+    eventVotingChoices(
+      event.locations,
+      explicitVotes(review.ownAvailability?.locationVotes),
+      event.locationVoteRequired,
+    ),
   );
   const [gameVotes, setGames] = useState<Choices>(() =>
-    eventVotingChoices(gameOptions, explicitVotes(review.ownRegistration?.gameVotes)),
+    eventVotingChoices(
+      gameOptions,
+      explicitVotes(review.ownRegistration?.gameVotes),
+      table.gameVoteRequired,
+    ),
   );
   const inFlight = useRef(false);
   const alreadyAccepted = review.ownRegistration?.status === "ACCEPTED";
+  const canVoteDates =
+    !alreadyAccepted &&
+    review.requiresAvailability &&
+    eventOptionsRequireVote(event.dates, event.dateVoteRequired);
+  const canVoteLocations =
+    !alreadyAccepted &&
+    review.requiresAvailability &&
+    eventOptionsRequireVote(event.locations, event.locationVoteRequired);
+  const canVoteGames =
+    !alreadyAccepted && eventOptionsRequireVote(gameOptions, table.gameVoteRequired);
   const complete =
     alreadyAccepted ||
     ((!review.requiresAvailability ||
-      (eventOptionVotesAreComplete(event.dates, dateVotes) &&
-        eventOptionVotesAreComplete(event.locations, locationVotes))) &&
-      eventOptionVotesAreComplete(gameOptions, gameVotes));
+      eventJoinAvailabilityIsComplete(event, { dateVotes, locationVotes })) &&
+      eventOptionVotesAreComplete(gameOptions, gameVotes, table.gameVoteRequired));
   const settingsReady =
     alreadyAccepted ||
     (event.dates.length > 0 && event.locations.length > 0 && table.games.length > 0);
@@ -63,13 +86,21 @@ export function useTableInviteForm(
           : {
               participation: {
                 version: event.version,
-                gameVotes: eventVotingChoices(gameOptions, gameVotes),
+                gameVotes: eventVotingChoices(gameOptions, gameVotes, table.gameVoteRequired),
                 ...(review.requiresAvailability
                   ? {
                       availability: {
                         version: event.version,
-                        dateVotes: eventVotingChoices(event.dates, dateVotes),
-                        locationVotes: eventVotingChoices(event.locations, locationVotes),
+                        dateVotes: eventVotingChoices(
+                          event.dates,
+                          dateVotes,
+                          event.dateVoteRequired,
+                        ),
+                        locationVotes: eventVotingChoices(
+                          event.locations,
+                          locationVotes,
+                          event.locationVoteRequired,
+                        ),
                       },
                     }
                   : {}),
@@ -90,6 +121,9 @@ export function useTableInviteForm(
     setLocations,
     setGames,
     alreadyAccepted,
+    canVoteDates,
+    canVoteLocations,
+    canVoteGames,
     complete,
     settingsReady,
     submit,

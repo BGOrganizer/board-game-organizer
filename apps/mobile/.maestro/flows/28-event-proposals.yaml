@@ -110,10 +110,22 @@ tags: [manual, events, proposals]
       - assertVisible: ${output.eventProposal.action}
       - tapOn:
           id: ${output.eventProposal.actionId}
-      - extendedWaitUntil:
-          visible:
-            text: ${output.eventProposal.result}
-            childOf:
-              id: ${output.eventProposal.rowId}
-          timeout: 120000
+      - runFlow:
+          when:
+            true: ${output.eventProposal.accepting}
+          commands:
+            - extendedWaitUntil:
+                notVisible:
+                  id: ${output.eventProposal.rowId}
+                timeout: 120000
+      - runFlow:
+          when:
+            true: ${!output.eventProposal.accepting}
+          commands:
+            - extendedWaitUntil:
+                visible:
+                  text: ${output.eventProposal.result}
+                  childOf:
+                    id: ${output.eventProposal.rowId}
+                timeout: 120000
 - takeScreenshot: event-proposal-outcome

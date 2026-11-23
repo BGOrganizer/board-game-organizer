@@ -23,6 +23,7 @@ import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -40,6 +41,7 @@ export function EventTable({
 }) {
   const { i18n } = useLingui();
   const t = useT(),
+    titleForTable = useTableTitle(),
     o = useCommunityApi(),
     q = useRecordTable(o, eventId, tableId),
     event = useEventRecord(o, eventId),
@@ -82,7 +84,7 @@ export function EventTable({
   const header = (
     <Stack.Screen
       options={{
-        title: table?.name ?? t("Table details"),
+        title: table ? titleForTable(table) : t("Table details"),
         headerRight: () =>
           table && event.data ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>

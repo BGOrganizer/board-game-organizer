@@ -277,6 +277,18 @@ it("projects one Event schedule for cards without exposing an unchosen proposal 
   expect(eventRecordSchedulePreview({ ...chosen, status: "PLANNING" })).toEqual(
     eventRecordSchedulePreview(proposed),
   );
+  const changed = {
+    ...event,
+    dateVoteRequired: true,
+    locationVoteRequired: true,
+  };
+  expect(eventRecordSchedulePreview(changed)).toMatchObject({
+    dateVoteRequired: true,
+    locationVoteRequired: true,
+  });
+  expect(eventRecordSchedulePreview({ ...changed, status: "CONFIRMED" })).not.toHaveProperty(
+    "dateVoteRequired",
+  );
   expect(eventRecordSchedulePreview({ ...chosen, confirmed: undefined })).toMatchObject({
     localStartsAt: "2027-01-02T09:00",
     location: event.locations[0],

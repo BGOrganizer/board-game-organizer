@@ -3,29 +3,15 @@ import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   canManageEvent,
   communityAccessDenied,
-  eventAvailabilityVoteIsAllowed,
-  eventDateWall,
   eventItemTargets,
-  eventLocalToIso,
-  eventOptionsRequireVote,
-  hasOptionVoters,
   useEventRecord,
   useEventRecordActions,
   useNotificationChanges,
   useRecordTables,
 } from "@board-game-organizer/shared";
-import { Button, Skeleton, Tabs } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import {
-  ArrowLeft,
-  CalendarCheck,
-  Check,
-  Dices,
-  Info,
-  Pencil,
-  RotateCcw,
-  UsersRound,
-} from "lucide-react";
+import { ArrowLeft, CalendarCheck, Check, Pencil, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { floatingActionContentStyle } from "@/components/common/layout/floatingActionStyles";
@@ -36,32 +22,23 @@ import {
   headerControlClassName,
 } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
-import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
-import { ExpandableGroupedRow } from "@/components/common/ui/ExpandableGroupedRow";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
-import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
-import { TabBar } from "@/components/common/ui/TabBar";
-import { TabTrigger } from "@/components/common/ui/TabTrigger";
-import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useTableTitle } from "@/lib/useTableTitle";
 
 import { EventDeleteAction } from "./EventDeleteAction";
-import { EventDetailsCard } from "./EventDetailsCard";
+import { EventDetailView } from "./EventDetailView";
 import { EventFinalizeAction } from "./EventFinalizeAction";
 import { EventGroupLink } from "./EventGroupLink";
+import { EventOverview } from "./EventOverview";
 import { EventParticipants } from "./EventParticipants";
 import { EventProposalSection } from "./EventProposalSection";
-import { EventSectionHeader } from "./EventSectionHeader";
 import { EventTables } from "./EventTables";
-import { EventVoteButtons } from "./EventVoteButtons";
-import { EventVoteLegend } from "./EventVoteLegend";
-import { OptionVoteVoters } from "./OptionVoteVoters";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const { t, i18n } = useLingui(),
     o = useCommunityApi(),
@@ -71,6 +48,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     [confirm, setConfirm] = useState<"confirm" | "replan" | null>(null),
     [error, setError] = useState(false),
     event = communityAccessDenied(q.error) ? undefined : q.data;
+  const { getTableTitle, numberedTableTitle } = useTableTitle();
   const [requestedTab, setTab] = useState("details");
   const transitionVersion = useRef<number | null>(null);
   const tab =
@@ -124,14 +102,6 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         )}
       </div>
     );
-  const voteDates =
-    event.status === "PLANNING" &&
-    event.groupType !== "PUBLIC" &&
-    eventOptionsRequireVote(event.dates);
-  const voteLocations =
-    event.status === "PLANNING" &&
-    event.groupType !== "PUBLIC" &&
-    eventOptionsRequireVote(event.locations);
   const namedVotes =
     !q.isPlaceholderData &&
     !event.readOnly &&
@@ -190,16 +160,19 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 >
                   <div className="space-y-2">
                     <p>{confirmationHint}</p>
-                    {event.agreement?.reasons.map((reason) => (
-                      <p key={reason.tableId}>
-                        {tables.items.find((row) => row.id === reason.tableId)?.name ?? t`Table`}:{" "}
-                        {reason.code === "PENDING_RESERVATIONS"
-                          ? t`Pending invitations still reserve places.`
-                          : reason.code === "GAME_DISAGREEMENT"
-                            ? t`Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.`
-                            : t`No compatible accepted players for this table.`}
-                      </p>
-                    ))}
+                    {event.agreement?.reasons.map((reason) => {
+                      const table = tables.items.find((row) => row.id === reason.tableId);
+                      return (
+                        <p key={reason.tableId}>
+                          {table ? getTableTitle(table) : numberedTableTitle()}:{" "}
+                          {reason.code === "PENDING_RESERVATIONS"
+                            ? t`Pending invitations still reserve places.`
+                            : reason.code === "GAME_DISAGREEMENT"
+                              ? t`Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.`
+                              : t`No compatible accepted players for this table.`}
+                        </p>
+                      );
+                    })}
                   </div>
                 </HelpPopover>
               ) : (
@@ -223,261 +196,70 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
           ) : null}
         </HeaderActions>
-        <EventDetailsCard
+        <EventDetailView
           event={event}
+          selectedKey={tab}
+          onSelectionChange={setTab}
           titleAction={
             !event.readOnly && !event.personalAccessOnly && !event.sharedResultsOnly ? (
               <NotificationChangesPopover model={changes} />
             ) : undefined
           }
-        />
-        <Tabs
-          selectedKey={tab}
-          onSelectionChange={(value) => setTab(String(value))}
-          className="flex flex-col"
-        >
-          <TabBar label={t`Event details`}>
-            <TabTrigger icon={Info} id="details">
-              {t`Details`}
-              <NotificationTabBadge
-                target={{ kind: "event", id: eventId }}
-                count={changes.tabCounts.details}
-              />
-            </TabTrigger>
-            {!event.sharedResultsOnly && !event.personalAccessOnly ? (
-              <TabTrigger icon={UsersRound} id="participants">
-                {t`Participants`}
-                <NotificationTabBadge
-                  target={{ kind: "event", id: eventId }}
-                  count={changes.tabCounts.participants}
-                />
-              </TabTrigger>
-            ) : null}
-            <TabTrigger icon={Dices} id="tables">
-              {t`Tables`}
-              <NotificationTabBadge
-                target={{ kind: "event", id: eventId }}
-                count={changes.tabCounts.tables}
-              />
-            </TabTrigger>
-          </TabBar>
-        </Tabs>
-
-        {tab === "details" ? (
-          <>
-            <EventSectionHeader
-              event={event}
-              section="details"
-              voteDates={voteDates}
-              voteLocations={voteLocations}
+          detailsBadge={
+            <NotificationTabBadge
+              target={{ kind: "event", id: eventId }}
+              count={changes.tabCounts.details}
             />
-            <NotificationItem itemId={notificationItemId(event.id, "overview")} />
-            {event.readOnly ? (
-              <p className="text-sm text-muted">
-                {event.personalAccessOnly
-                  ? t`Personal access to your table. Group details are hidden.`
-                  : event.sharedResultsOnly
-                    ? t`Shared finalized results. Group details are hidden.`
-                    : t`Public event. Group membership is not required to participate.`}
-              </p>
-            ) : null}
-            <section
-              aria-label={
-                event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Dates and times`
+          }
+          participantsBadge={
+            <NotificationTabBadge
+              target={{ kind: "event", id: eventId }}
+              count={changes.tabCounts.participants}
+            />
+          }
+          tablesBadge={
+            <NotificationTabBadge
+              target={{ kind: "event", id: eventId }}
+              count={changes.tabCounts.tables}
+            />
+          }
+          details={
+            <EventOverview
+              event={event}
+              namedVotes={namedVotes}
+              busy={a.blocking || q.isPlaceholderData}
+              onVote={(kind, optionId, vote) => a.vote.mutate({ kind, optionId, vote })}
+              dateProposals={
+                <EventProposalSection event={event} kind="date" disabled={q.isPlaceholderData} />
               }
-              className="space-y-3"
-            >
-              <NotificationItem itemId={notificationItemId(event.id, "dates")}>
-                <div className="flex items-center gap-1">
-                  <h2 className="font-semibold">
-                    {event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Dates and times`}
-                  </h2>
-                  {voteDates ? <EventVoteLegend label={t`Dates and times`} /> : null}
-                </div>
-              </NotificationItem>
-              <GroupedList>
-                {event.dates
-                  .filter(
-                    (row) =>
-                      event.status === "PLANNING" ||
-                      !event.confirmed ||
-                      row.id === event.confirmed.dateId,
-                  )
-                  .map((row) => {
-                    const voters = voteDates ? namedVotes?.dates[row.id] : undefined;
-                    const label = eventDateWall(event, row).replace("T", " ");
-                    const schedule = (
-                      <div key="schedule" className="flex min-w-0 flex-1 items-center gap-2">
-                        <DateTimeInfo
-                          startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                          timeZone={event.timeZone}
-                        />
-                        <NotificationItem itemId={notificationItemId(event.id, "date", row.id)} />
-                      </div>
-                    );
-                    const voteAction =
-                      (voteDates && event.canVote) || voters ? (
-                        <EventVoteButtons
-                          key="vote"
-                          compact
-                          label={label}
-                          voters={voters}
-                          readOnly={!event.canVote}
-                          value={event.myVotes?.dateVotes[row.id]}
-                          disabledVotes={
-                            eventAvailabilityVoteIsAllowed(
-                              event.dates,
-                              event.myVotes?.dateVotes ?? {},
-                              row.id,
-                              "NO",
-                            )
-                              ? []
-                              : ["NO"]
-                          }
-                          busy={a.blocking || q.isPlaceholderData}
-                          onChange={(vote) =>
-                            a.vote.mutate({ kind: "date", optionId: row.id, vote })
-                          }
-                        />
-                      ) : null;
-                    return hasOptionVoters(voters) ? (
-                      <ExpandableGroupedRow
-                        key={row.id}
-                        summary={schedule}
-                        actions={voteAction}
-                        disclosure={{
-                          label: `${t`Vote summary`}: ${label}`,
-                          triggerText: t`Votes`,
-                          content: <OptionVoteVoters label={label} voters={voters} />,
-                        }}
-                      />
-                    ) : (
-                      <GroupedRow key={row.id} className="flex-wrap">
-                        {schedule}
-                        {voteAction}
-                      </GroupedRow>
-                    );
-                  })}
-              </GroupedList>
-            </section>
-            <EventProposalSection event={event} kind="date" disabled={q.isPlaceholderData} />
-            {event.endsAt ? (
-              <section aria-label={t`End Date and Time`} className="space-y-3">
-                <h2 className="font-semibold">{t`End Date and Time`}</h2>
-                <GroupedList>
-                  <GroupedRow>
-                    <DateTimeInfo
-                      startsAt={event.endsAt}
-                      timeZone={event.timeZone}
-                      timeLabel={t`End time`}
-                    />
-                  </GroupedRow>
-                </GroupedList>
-              </section>
-            ) : null}
-            {event.bookingClosesAt ? (
-              <section aria-label={t`Registration Deadline Date and Time`} className="space-y-3">
-                <h2 className="font-semibold">{t`Registration Deadline Date and Time`}</h2>
-                <GroupedList>
-                  <GroupedRow>
-                    <DateTimeInfo
-                      startsAt={event.bookingClosesAt}
-                      timeZone={event.timeZone}
-                      timeLabel={t`Registration Deadline Date and Time`}
-                    />
-                  </GroupedRow>
-                </GroupedList>
-              </section>
-            ) : null}
-            <section aria-label={t`Locations`} className="space-y-3">
-              <NotificationItem itemId={notificationItemId(event.id, "locations")}>
-                <div className="flex items-center gap-1">
-                  <h2 className="font-semibold">{t`Locations`}</h2>
-                  {voteLocations ? <EventVoteLegend label={t`Locations`} /> : null}
-                </div>
-              </NotificationItem>
-              <GroupedList>
-                {event.locations
-                  .filter(
-                    (row) =>
-                      event.status === "PLANNING" ||
-                      !event.confirmed ||
-                      row.id === event.confirmed.locationId,
-                  )
-                  .map((row) => {
-                    const voters = voteLocations ? namedVotes?.locations[row.id] : undefined;
-                    return (
-                      <LocationListRow
-                        key={row.id}
-                        name={row.name}
-                        address={row.address}
-                        disclosure={
-                          hasOptionVoters(voters)
-                            ? {
-                                label: `${t`Vote summary`}: ${row.name}`,
-                                triggerText: t`Votes`,
-                                content: <OptionVoteVoters label={row.name} voters={voters} />,
-                              }
-                            : undefined
-                        }
-                        titleAccessory={
-                          <NotificationItem
-                            itemId={notificationItemId(event.id, "location", row.id)}
-                          />
-                        }
-                        actions={
-                          (voteLocations && event.canVote) || voters ? (
-                            <EventVoteButtons
-                              compact
-                              voters={voters}
-                              readOnly={!event.canVote}
-                              label={row.name}
-                              value={event.myVotes?.locationVotes[row.id]}
-                              disabledVotes={
-                                eventAvailabilityVoteIsAllowed(
-                                  event.locations,
-                                  event.myVotes?.locationVotes ?? {},
-                                  row.id,
-                                  "NO",
-                                )
-                                  ? []
-                                  : ["NO"]
-                              }
-                              busy={a.blocking || q.isPlaceholderData}
-                              onChange={(vote) =>
-                                a.vote.mutate({ kind: "location", optionId: row.id, vote })
-                              }
-                            />
-                          ) : undefined
-                        }
-                      />
-                    );
-                  })}
-              </GroupedList>
-              <EventProposalSection event={event} kind="location" disabled={q.isPlaceholderData} />
-            </section>
-            {event.groupId && fromGroup !== event.groupId ? (
-              <EventGroupLink groupId={event.groupId} name={event.groupName} />
-            ) : null}
-          </>
-        ) : null}
-        {tab === "participants" ? (
-          <>
-            <EventSectionHeader event={event} section="participants" />
-            {event.readOnly ? (
+              locationProposals={
+                <EventProposalSection
+                  event={event}
+                  kind="location"
+                  disabled={q.isPlaceholderData}
+                />
+              }
+              group={
+                event.groupId && fromGroup !== event.groupId ? (
+                  <EventGroupLink groupId={event.groupId} name={event.groupName} />
+                ) : null
+              }
+            />
+          }
+          participants={
+            event.readOnly ? (
               <p className="text-muted">{t`Public event. Group membership is not required to participate.`}</p>
             ) : (
               <EventParticipants event={event} actions={a} disabled={q.isPlaceholderData} />
-            )}
-          </>
-        ) : null}
-        {tab === "tables" ? (
-          <section aria-label={t`Table list`} className="space-y-3">
-            <EventSectionHeader event={event} section="tables" />
-            <NotificationItem itemId={notificationItemId(event.id, "tables")} />
-            <EventTables query={tables} />
-          </section>
-        ) : null}
+            )
+          }
+          tables={
+            <>
+              <NotificationItem itemId={notificationItemId(event.id, "tables")} />
+              <EventTables query={tables} />
+            </>
+          }
+        />
         {canManageEvent(event, o.userId) && event.status === "CONFIRMED" && event.canReplan ? (
           <FloatingActions
             label={t`Reopen planning`}

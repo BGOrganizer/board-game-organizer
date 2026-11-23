@@ -269,7 +269,15 @@ for (const width of [390, 1280])
           await expect(heading).toBeVisible();
           await expect(
             heading.locator("xpath=following-sibling::ul[1]").getByRole("listitem"),
-          ).toHaveText(confirmed.slice(0, 8).map((table) => table.name));
+          ).toHaveText(
+            confirmed
+              .slice(0, 8)
+              .map(
+                (table) =>
+                  table.confirmedGameName ??
+                  `${it ? "Tavolo" : "Table"} #${(table.order ?? 0) + 1}`,
+              ),
+          );
           await page.keyboard.press("Escape");
         }
       }
@@ -287,7 +295,9 @@ for (const width of [390, 1280])
         const summary = rows.items.find((row) => row.id === current.fixture.id)?.cardSummary;
         if (!summary) throw new Error("Actual terminated Event summary required");
         for (const table of summary.tables.filter((table) => table.confirmed).slice(0, 8)) {
-          const line = popup.getByText(table.name, { exact: true }).locator("..");
+          const title =
+            table.confirmedGameName ?? `${it ? "Tavolo" : "Table"} #${(table.order ?? 0) + 1}`;
+          const line = popup.getByText(title, { exact: true }).locator("..");
           const winners = table.winners
             .map((winner) =>
               winner.username
@@ -298,7 +308,7 @@ for (const width of [390, 1280])
             )
             .join(", ");
           await expect(line).toHaveText(
-            `${table.name} ${winners || (it ? "Nessun vincitore." : "No winners.")}`,
+            `${title} ${winners || (it ? "Nessun vincitore." : "No winners.")}`,
           );
           if (table.winners.length)
             await expect(line.locator(".lucide-trophy.text-warning-soft-foreground")).toBeVisible();

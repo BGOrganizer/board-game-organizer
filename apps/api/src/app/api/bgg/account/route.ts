@@ -1,21 +1,21 @@
 import { bggUsernameSchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
 import { BggAccountRepository } from "@/app/lib/games/bgg-account.repository";
 import { BggRemoteError, fetchBggUser } from "@/app/lib/games/bgg-collection";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 
 export const OPTIONS = corsOptions;
 
 export async function GET(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   return corsJson(await new BggAccountRepository(await getDb()).get(userId), {}, request);
 }
 
 export async function POST(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   let body: unknown;
   try {
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   await withTransaction(async (session, db) => {
     await new BggAccountRepository(db).unlink(userId, session);

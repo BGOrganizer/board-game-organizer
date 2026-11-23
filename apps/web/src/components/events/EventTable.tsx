@@ -8,22 +8,21 @@ import {
   useNotificationChanges,
   useRecordTable,
 } from "@board-game-organizer/shared";
-import { Button, Tabs } from "@heroui/react";
+import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, ClipboardPenLine, Info, Trophy, UsersRound } from "lucide-react";
+import { ArrowLeft, ClipboardPenLine } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { floatingActionContentStyle } from "@/components/common/layout/floatingActionStyles";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { HEADER_ICON_CLASS, headerControlClassName } from "@/components/common/layout/headerStyles";
-import { TabBar } from "@/components/common/ui/TabBar";
-import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
+import { EventTableDetailView } from "./EventTableDetailView";
 import { EventTableInfo } from "./EventTableInfo";
 import { EventTableOverview } from "./EventTableOverview";
 import { EventTableResults } from "./EventTableResults";
@@ -139,50 +138,43 @@ export function EventTable({
         }
       >
         {header}
-        <EventTableInfo
+        <EventTableDetailView
           table={table}
-          titleAction={
-            !readOnly && !table.sharedResultsOnly ? (
-              <NotificationChangesPopover model={changes} />
-            ) : undefined
+          info={
+            <EventTableInfo
+              table={table}
+              titleAction={
+                !readOnly && !table.sharedResultsOnly ? (
+                  <NotificationChangesPopover model={changes} />
+                ) : undefined
+              }
+            />
           }
+          selectedKey={selected}
+          onSelectionChange={setTab}
+          detailsBadge={
+            <NotificationTabBadge
+              target={{ kind: "table", id: tableId }}
+              count={changes.tabCounts.details}
+            />
+          }
+          participantsBadge={
+            <NotificationTabBadge
+              target={{ kind: "item", id: invitationItem }}
+              count={changes.tabCounts.participants}
+            />
+          }
+          details={<EventTableOverview eventId={eventId} tableId={tableId} context={context} />}
+          participants={
+            <EventTableOverview
+              eventId={eventId}
+              tableId={tableId}
+              context={context}
+              section="participants"
+            />
+          }
+          results={<EventTableResults table={table} />}
         />
-        <Tabs selectedKey={selected} onSelectionChange={(key) => setTab(String(key))}>
-          <TabBar label={t`Table sections`}>
-            <TabTrigger icon={Info} id="overview">
-              {t`Details`}
-              <NotificationTabBadge
-                target={{ kind: "table", id: tableId }}
-                count={changes.tabCounts.details}
-              />
-            </TabTrigger>
-            {!table.sharedResultsOnly ? (
-              <TabTrigger icon={UsersRound} id="participants">
-                {t`Participants`}
-                <NotificationTabBadge
-                  target={{ kind: "item", id: invitationItem }}
-                  count={changes.tabCounts.participants}
-                />
-              </TabTrigger>
-            ) : null}
-            {table.eventStatus !== "PLANNING" ? (
-              <TabTrigger icon={Trophy} id="results">{t`Results`}</TabTrigger>
-            ) : null}
-          </TabBar>
-
-          <Tabs.Panel id={selected}>
-            {selected === "results" ? (
-              <EventTableResults table={table} />
-            ) : (
-              <EventTableOverview
-                eventId={eventId}
-                tableId={tableId}
-                context={context}
-                section={selected === "participants" ? "participants" : "overview"}
-              />
-            )}
-          </Tabs.Panel>
-        </Tabs>
         {q.isError && selected !== "overview" ? (
           <div role="alert">
             <p>{t`Could not load complete table details`}</p>

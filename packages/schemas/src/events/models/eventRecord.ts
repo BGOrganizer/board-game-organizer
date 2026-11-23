@@ -28,6 +28,8 @@ export const eventRecordSchema = z
     bookingClosesAt: z.iso.datetime({ offset: true }).optional(),
     dates: z.array(eventDateOptionSchema).min(1),
     locations: z.array(verifiedLocationSchema).min(1),
+    dateVoteRequired: z.boolean().optional(),
+    locationVoteRequired: z.boolean().optional(),
     status: eventStateSchema,
     version: z.number().int().positive(),
     planningGeneration: z.number().int().positive(),
@@ -86,7 +88,8 @@ export const tableRecordSchema = tableDemonstratorSchema
   .safeExtend({
     id: z.uuid(),
     eventId: z.uuid(),
-    name: z.string().trim().min(1).max(120),
+    /** Retained on historical records. Table titles are projected from order and the confirmed game. */
+    name: z.string().trim().min(1).max(120).optional(),
     order: z.number().int().nonnegative(),
     minPlayers: z.number().int().min(2),
     maxPlayers: z.number().int().min(2),
@@ -95,6 +98,7 @@ export const tableRecordSchema = tableDemonstratorSchema
     /** Server-owned revision of an explicit manager allocation; never a public setting. */
     seatOrderVersion: z.number().int().positive().optional(),
     games: z.array(tableGameOptionSchema).min(1),
+    gameVoteRequired: z.boolean().optional(),
     rankingEnabled: z.boolean(),
     allowParticipantGames: z.boolean().optional(),
     startsAt: z.iso.datetime({ offset: true }).optional(),

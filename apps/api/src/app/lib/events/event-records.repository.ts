@@ -451,6 +451,9 @@ export class EventRecordsRepository {
               members: { $push: "$$ROOT" },
             },
           },
+          ...(kind === "game"
+            ? [{ $match: { "representative.status": { $ne: "ACCEPTED" } } }]
+            : []),
           ...(at
             ? [
                 {
@@ -497,6 +500,7 @@ export class EventRecordsRepository {
           ...(userId !== null ? { userId } : {}),
           ...(page.tableId ? { "payload.tableId": page.tableId } : {}),
           ...(page.clientRequestId ? { clientRequestId: page.clientRequestId } : {}),
+          ...(page.kind === "game" && !page.clientRequestId ? { status: { $ne: "ACCEPTED" } } : {}),
           ...(at ? { $or: [{ createdAt: { $lt: at } }, { createdAt: at, id: { $lt: id } }] } : {}),
         },
         { ...this.opts, projection: { _id: 0 } },
@@ -575,6 +579,18 @@ export class EventRecordsRepository {
     await this.registrations.updateMany(
       { eventId, userId, status: { $in: ["PENDING", "ACCEPTED"] } },
       { $set: { status: "CANCELLED", updatedAt: at }, $inc: { version: 1 } },
+      this.opts,
+    );
+    await this.removePendingProposals(eventId, userId);
+  }
+  async removePendingProposals(eventId: string, userId: string, tableId?: string) {
+    await this.db.collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS).deleteMany(
+      {
+        eventId,
+        userId,
+        status: "PENDING",
+        ...(tableId ? { "payload.kind": "game", "payload.tableId": tableId } : {}),
+      },
       this.opts,
     );
   }
@@ -1121,12 +1137,62 @@ export class EventRecordsRepository {
         : []),
       ...eventPeriodStages(page.periods, Date.now(), "event."),
     ];
-    if (page.query)
-      pipeline.push({
-        $match: {
-          name: { $regex: page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" },
+    if (page.query) {
+      const regex = page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // Match the projected name after access checks and before cursor/limit, including both app locales.
+      const number = { $toString: { $add: ["$order", 1] } };
+      pipeline.push(
+        {
+          $set: {
+            _confirmedTitleGameId: {
+              $cond: [{ $eq: ["$event.status", "PLANNING"] }, null, "$confirmed.gameId"],
+            },
+          },
         },
-      });
+        {
+          $lookup: {
+            from: COLLECTIONS.BOARD_GAMES,
+            localField: "_confirmedTitleGameId",
+            foreignField: "id",
+            pipeline: [{ $project: { _id: 0, name: 1 } }],
+            as: "_titleGames",
+          },
+        },
+        {
+          $match: {
+            $expr: {
+              $let: {
+                vars: { game: { $ifNull: [{ $arrayElemAt: ["$_titleGames.name", 0] }, ""] } },
+                in: {
+                  $cond: [
+                    { $ne: ["$$game", ""] },
+                    { $regexMatch: { input: "$$game", regex, options: "i" } },
+                    {
+                      $or: [
+                        {
+                          $regexMatch: {
+                            input: { $concat: ["Table #", number] },
+                            regex,
+                            options: "i",
+                          },
+                        },
+                        {
+                          $regexMatch: {
+                            input: { $concat: ["Tavolo #", number] },
+                            regex,
+                            options: "i",
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      );
+    }
     if (page.cursor) {
       const [createdAt, id] = page.cursor.split("|");
       pipeline.push({

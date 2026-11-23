@@ -8,6 +8,7 @@ import { Bell, CheckCheck, RotateCcw } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
+import { NotificationChangeDescription } from "./NotificationChangeDescription";
 
 type Model = ReturnType<typeof useNotificationChanges>;
 /** The body grows naturally; the overlay's actual placement determines its scroll limit. */
@@ -131,10 +132,7 @@ export function NotificationChangesPopover({ model }: { model: Model }) {
                       textValue={label(row)}
                       className="whitespace-normal px-0 py-1.5 text-sm text-foreground [overflow-wrap:anywhere]"
                     >
-                      <div className="space-y-1">
-                        <p className="font-semibold">{row.title}</p>
-                        <p>{row.description}</p>
-                      </div>
+                      <NotificationChangeDescription change={row} />
                     </ListBox.Item>
                   )}
                 </Collection>

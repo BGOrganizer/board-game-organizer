@@ -148,6 +148,7 @@ test("every main merge runs all non-E2E gates once in parallel before preparing 
     "api",
     "schemas",
     "shared",
+    "mcp",
   ]);
   assert.deepEqual(jobs.build.strategy.matrix.app, ["api", "web"]);
   for (const gate of ["quality", "coverage", "integration-tests", "native-tooling", "build"]) {
@@ -302,5 +303,8 @@ test("PR keeps independent Development publication and isolated Internal cleanup
     ],
     "${{ needs.deploy-development-api.outputs.branch-url }}",
   );
-  assert.equal(find("draft-release", "📥 Download development APK").with.name, "apk-development");
+  assert.equal(
+    find("draft-release", "📥 Download development APK").with.name,
+    `\${{ needs.build-mobile-development.outputs.artifact-name }}`,
+  );
 });

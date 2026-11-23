@@ -172,11 +172,16 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   ) {
     if (context?.operation.signal.aborted) return;
     const owner = context?.owner ?? o;
+    const eventId = context?.eventId ?? id;
+    const removesParticipant =
+      context?.action === "leave_table" || context?.action === "remove_event_player";
     // These refreshes are not part of the write and must never turn a committed write into failure.
     void client.invalidateQueries(
       {
         queryKey: eventRecordKeys.root(owner),
-        predicate: (q) => affected(q.queryKey, context?.eventId ?? id),
+        predicate: (q) =>
+          affected(q.queryKey, eventId) ||
+          (removesParticipant && q.queryKey[3] === "proposals" && q.queryKey[4] === eventId),
       },
       { cancelRefetch: false },
     );

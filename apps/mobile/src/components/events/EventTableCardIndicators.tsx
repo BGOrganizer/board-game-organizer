@@ -26,6 +26,7 @@ import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { cardStateMessages } from "@/lib/eventCardMessages";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 import { EventCardTableSummaries } from "./EventCardTableSummaries";
 import { EventRolePopover } from "./EventRolePopover";
@@ -39,6 +40,7 @@ export const EventTableCardIndicators = memo(function EventTableCardIndicators({
   table: PlannedTableResponse;
 }) {
   const t = useT();
+  const title = useTableTitle()(table);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { i18n } = useLingui();
@@ -173,7 +175,7 @@ export const EventTableCardIndicators = memo(function EventTableCardIndicators({
         <>
           <EventTableSchedulePopover table={table} kind="locations" />
           <EventTableSchedulePopover table={table} kind="dates" />
-          <EventTableGamesPopover games={tableCardGames(table)} name={table.name} />
+          <EventTableGamesPopover games={tableCardGames(table)} name={title} />
         </>
       ) : null}
     </>

@@ -243,6 +243,20 @@ verified by CI against that exact revision, including required API integration c
 
 API integration tests use Testcontainers with MongoDB configured as a single-node replica set so
 transactions behave like production.
+
+On Raspberry Pi 4, use the configured **OpenSandbox MCP** runner for real MongoDB tests. Package
+the current worktree with `/opt/bgo/snapshot.mjs` (`createSnapshot` accepts a custom worktree and
+output directory). Create the sandbox with `sandbox_create`, image `bgo-local/test-runner:1.0`,
+entrypoint `["sleep", "infinity"]`, one CPU and 2 GiB RAM. The stack injects
+`BGO_TEST_MONGODB_IMAGE` for its installed, verified Pi 4-compatible MongoDB 7 build, along with
+the Docker test network and Testcontainers settings.
+Use `command_run` to run `node /opt/bgo/run-tests.mjs integration` for the
+standard snapshot. For a scoped test or isolated snapshot, keep the runner's sanitized environment,
+locked Bun install and single-worker settings. Collect the exit status and report, then always
+call `sandbox_kill`. This runner shares the Pi with the coding container and counts toward its
+heavy-job limit. See `docker/raspberry/README.md` in the Raspberry's primary checkout (`/workspace`),
+which also covers the configuration shared by linked worktrees.
+
 The API's `test:coverage` combines its unit and integration projects into one source-wide report;
 Docker is required. Its ordinary `test` command selects the unit project only. Do not treat either
 partial API report as the complete 90% gate or replace real repository tests with mock-only coverage.

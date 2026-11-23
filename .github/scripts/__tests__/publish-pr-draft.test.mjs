@@ -106,19 +106,38 @@ function github(options = {}) {
           body: typeof init.body === "string" ? JSON.parse(init.body) : init.body,
         });
       if (options.fail === method)
-        return new Response("private-token-must-not-be-logged", { status: 500 });
+        return new Response("private-token-must-not-be-logged", {
+          status: 500,
+        });
       if (/\/releases\?/.test(url))
         return Response.json(
           options.absent
             ? []
             : options.pages && url.endsWith("page=1")
-              ? Array.from({ length: 100 }, (_, id) => ({ name: `other-${id}` }))
+              ? Array.from({ length: 100 }, (_, id) => ({
+                  name: `other-${id}`,
+                }))
               : [release],
         );
       if (url.endsWith("/releases") && method === "POST")
         return Response.json(release, { status: 201 });
       if (/\/releases\/10\/assets\?/.test(url) && method === "GET") return Response.json(old);
       if (url.startsWith("https://uploads.github.com/")) {
+        const name = new URL(url).searchParams.get("name");
+        if (name?.endsWith(".zip")) {
+          assert.equal(init.headers["Content-Type"], "application/zip");
+          const archive = Buffer.from(await init.body.arrayBuffer());
+          assert.equal(archive.readUInt32LE(), 0x04034b50);
+          return Response.json({
+            id: 31,
+            name,
+            state: "uploaded",
+            size: archive.length,
+            digest: options.badMcpReceipt
+              ? digest
+              : `sha256:${createHash("sha256").update(archive).digest("hex")}`,
+          });
+        }
         assert.equal(Buffer.from(await init.body.arrayBuffer()).toString(), bytes.toString());
         return Response.json(asset, { status: 201 });
       }
@@ -128,6 +147,33 @@ function github(options = {}) {
     },
   };
 }
+
+test("publishes only a verified Development MCP ZIP and prunes the previous package for that PR", async () => {
+  const older = { id: 37, name: "board-game-organizer-mcp-1.3.1-dev.pr.22.sha-aaaaaaaaaaaa.zip" };
+  const unrelated = {
+    id: 38,
+    name: "board-game-organizer-mcp-1.3.1-dev.pr.27.sha-aaaaaaaaaaaa.zip",
+  };
+  const fake = github({ assets: [older, unrelated] });
+  await publishDevelopmentDraft({ ...input, packageMcp: true }, fake.request);
+  const plugin = "board-game-organizer-mcp-1.3.2-dev.pr.22.sha-cccccccccccc.zip";
+  const patch = fake.writes.find((call) => call.method === "PATCH");
+  assert(patch.body.body.includes(plugin));
+  assert(fake.calls.some((call) => call.method === "HEAD" && call.url.endsWith(plugin)));
+  assert.deepEqual(
+    fake.writes
+      .filter((call) => call.method === "DELETE")
+      .map((call) => call.url.split("/").at(-1)),
+    ["37"],
+  );
+
+  const failed = github({ badMcpReceipt: true });
+  await assert.rejects(
+    publishDevelopmentDraft({ ...input, packageMcp: true }, failed.request),
+    /MCP package checksum/,
+  );
+  assert(!failed.writes.some((call) => call.method === "PATCH"));
+});
 test("Development release uploads verified revision first, links only Development, then removes only captured owned APKs", async () => {
   const fake = github();
   const result = await publishDevelopmentDraft(input, fake.request);
@@ -175,6 +221,21 @@ test("first publication uses the final tag and verified APK name instead of the 
     [releaseUrl, apkUrl],
   );
 });
+test("reused APK publication preserves the original build source and the current preview revision", async () => {
+  const apkSourceSha = "b".repeat(40);
+  const name = `bgo-development-${apkSourceSha.slice(0, 12)}-100-2.apk`;
+  const fake = github({ asset: { name } });
+  const result = await publishDevelopmentDraft({ ...input, apkSourceSha }, fake.request);
+  const upload = fake.writes.find((entry) => entry.url.startsWith("https://uploads.github.com"));
+  assert.equal(new URL(upload.url).searchParams.get("name"), name);
+  assert(result.apk_url.endsWith(`/${name}`));
+  const published = fake.writes.find((entry) => entry.method === "PATCH").body;
+  assert.equal(published.target_commitish, input.headSha);
+  assert(published.body.includes("**Source commit:** [ccccccc]"));
+  assert(published.body.includes("**APK source commit:** [bbbbbbb]"));
+  assert(published.body.includes(`https://github.com/${repository}/commit/${apkSourceSha}`));
+  assert(published.body.includes("(reused APK)"));
+});
 test("creates a missing draft and includes a valid optional EAS URL", async () => {
   const fake = github({ absent: true });
   await publishDevelopmentDraft(
@@ -220,12 +281,18 @@ test("handles release pagination, validates new release receipts, and retires pr
   const fake = github({
     pages: true,
     assets: [
-      { id: 9, name: "board-game-organizer-1.3.2-20260101000000-development.apk" },
+      {
+        id: 9,
+        name: "board-game-organizer-1.3.2-20260101000000-development.apk",
+      },
       { id: 7, name: "manual.apk" },
     ],
   });
   await publishDevelopmentDraft(
-    { ...input, apkName: "board-game-organizer-1.3.2-20260201000000-development.apk" },
+    {
+      ...input,
+      apkName: "board-game-organizer-1.3.2-20260201000000-development.apk",
+    },
     fake.request,
   );
   assert(fake.calls.some((r) => r.url.endsWith("page=2")));
@@ -264,6 +331,7 @@ test("rejects invalid identities, URLs and empty artifacts before mutating GitHu
     { version: "bad" },
     { apkName: "../unsafe.apk" },
     { apkName: `${"a".repeat(181)}.apk` },
+    { apkSourceSha: "not-a-commit" },
     { runId: 0 },
     { attempt: 0 },
     { title: "" },

@@ -228,15 +228,22 @@ for (const theme of ["light", "dark"] as const)
       );
       await page.screenshot({ path: test.info().outputPath(`event-${theme}-${width}.png`) });
       await page.getByRole("tab", { name: it ? "Tavoli" : "Tables", exact: true }).click();
+      const tableTitle =
+        table.confirmedGameName ??
+        (table.order === undefined
+          ? it
+            ? "Tavolo"
+            : "Table"
+          : `${it ? "Tavolo" : "Table"} #${table.order + 1}`);
       const tableCard = page.locator(".card").filter({
         has: page.getByRole("link", {
-          name: `${it ? "Apri tavolo" : "Open table"}: ${table.name}`,
+          name: `${it ? "Apri tavolo" : "Open table"}: ${tableTitle}`,
           exact: true,
         }),
       });
       await inspectArtwork(tableCard.locator('[data-slot="resource-artwork"]'), "tables", table.id);
       await page.goto(`/events/${event.id}/tables/${table.id}`);
-      await expect(page.getByRole("heading", { name: table.name, exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: tableTitle, exact: true })).toBeVisible();
       await inspectArtwork(
         page.locator('[data-artwork-kind="tables"]').first(),
         "tables",

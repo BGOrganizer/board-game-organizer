@@ -130,28 +130,12 @@ for (const width of [390, 1280])
     ).toHaveAttribute("maxlength", "30");
     await main.getByRole("button", { name: it ? "Avanti" : "Next", exact: true }).click();
     await main.getByRole("button", { name: it ? "Avanti" : "Next", exact: true }).click();
-    await main.getByTestId(`event-draft-table-${free.split("/tables/")[1]}`).click();
+    const table = main.getByTestId(`event-draft-table-${free.split("/tables/")[1]}`);
+    await expect(table).toHaveAccessibleName(it ? /^Tavolo #\d+$/ : /^Table #\d+$/);
+    if ((await table.getAttribute("aria-expanded")) !== "true") await table.click();
     await expect(
-      main.getByRole("textbox", { name: it ? "Nome tavolo" : "Table name", exact: true }).first(),
-    ).toBeVisible();
-    await expect(
-      main.getByRole("textbox", { name: it ? "Nome tavolo" : "Table name", exact: true }).first(),
-    ).toHaveAttribute("maxlength", "30");
-    await main
-      .getByRole("button", {
-        name: it ? "Nome tavolo: Guida al campo" : "Table name: Field help",
-        exact: true,
-      })
-      .click();
-    await expect(
-      page.getByText(
-        it
-          ? "Scegli un nome riconoscibile per il tavolo, da 5 a 30 caratteri."
-          : "Name this table so players can recognize it. Use between 5 and 30 characters.",
-        { exact: true },
-      ),
-    ).toBeVisible();
-    await page.keyboard.press("Escape");
+      main.getByRole("textbox", { name: it ? "Nome tavolo" : "Table name", exact: true }),
+    ).toHaveCount(0);
     const counts = main
       .getByRole("group", { name: it ? "Numero giocatori" : "Number of players", exact: true })
       .first();

@@ -390,8 +390,35 @@ describe("EventRecordsRepository main-list and historical-table source guards", 
         expect(authority.$match.$or[2].$expr.$and[1].$or).toContainEqual({
           $in: ["MODERATOR", "$groupMembership.role"],
         });
-      expect(pipeline.slice(-6)).toEqual([
-        { $match: { name: { $regex: escapedQuery, $options: "i" } } },
+      expect(pipeline.slice(-8, -6)).toEqual([
+        {
+          $set: {
+            _confirmedTitleGameId: {
+              $cond: [{ $eq: ["$event.status", "PLANNING"] }, null, "$confirmed.gameId"],
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: COLLECTIONS.BOARD_GAMES,
+            localField: "_confirmedTitleGameId",
+            foreignField: "id",
+            pipeline: [{ $project: { _id: 0, name: 1 } }],
+            as: "_titleGames",
+          },
+        },
+      ]);
+      const titleAlternatives = pipeline.at(-6)?.$match.$expr.$let.in.$cond;
+      expect(titleAlternatives[1].$regexMatch).toEqual({
+        input: "$$game",
+        regex: escapedQuery,
+        options: "i",
+      });
+      expect(titleAlternatives[2].$or.map((entry: Document) => entry.$regexMatch.input)).toEqual([
+        { $concat: ["Table #", { $toString: { $add: ["$order", 1] } }] },
+        { $concat: ["Tavolo #", { $toString: { $add: ["$order", 1] } }] },
+      ]);
+      expect(pipeline.slice(-5)).toEqual([
         { $match: { $or: [{ createdAt: { $lt: now } }, { createdAt: now, id: { $lt: id } }] } },
         { $sort: { createdAt: -1, id: -1 } },
         { $limit: 9 },

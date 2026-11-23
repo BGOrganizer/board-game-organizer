@@ -58,3 +58,16 @@ it("uses the real follower as actor when the viewer is the followee", () => {
   expect(view.container.querySelector("li p")?.textContent).toBe("Caio ha iniziato a seguirti.");
   expect(screen.getAllByRole("link")).toHaveLength(1);
 });
+
+it("uses the localized table number even when the activity caches an old table name", () => {
+  const i18n = setupI18n({ locale: "it", messages: { it: itMessages } });
+  renderWithI18n(
+    <I18nProvider i18n={i18n}>
+      <GroupedList>
+        <ActivityRow item={{ ...item, kind: "table_join", tableOrder: 2 }} viewerId="viewer" />
+      </GroupedList>
+    </I18nProvider>,
+  );
+  expect(screen.getByRole("link", { name: "#3" })).toHaveAttribute("href", item.href);
+  expect(screen.queryByText("<Table>")).toBeNull();
+});

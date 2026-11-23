@@ -101,6 +101,7 @@ export class ProfileService {
       href: string;
       groupId?: string;
       eventContext?: string;
+      tableOrder?: number;
       sharedResultsOnly?: boolean;
     };
     const resources = new Map<string, Promise<Resource | null>>();
@@ -180,6 +181,7 @@ export class ProfileService {
           visibility: target.groupId ? "public-group" : "authorized",
           ...(target.groupId ? { groupId: target.groupId } : {}),
           ...(target.eventContext ? { eventContext: target.eventContext } : {}),
+          ...(target.tableOrder === undefined ? {} : { tableOrder: target.tableOrder }),
           ...(row.otherUserId ? { otherUserId: row.otherUserId } : {}),
           author: identity,
           ...(row.outcome ? { outcome: row.outcome } : {}),

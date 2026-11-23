@@ -45,6 +45,10 @@ export function EventSectionHeader({
     event.status === "PLANNING" &&
     event.groupType !== "PUBLIC" &&
     !event.readOnly;
+  const singleOptionVotes =
+    Number(voteDates && event.dateVoteRequired === true) +
+    Number(voteLocations && event.locationVoteRequired === true);
+  const votingCategories = Number(voteDates) + Number(voteLocations);
   return (
     <HelpSectionCard title={title} label={label} icon={Icon}>
       <p>
@@ -67,7 +71,17 @@ export function EventSectionHeader({
                 ? t`Dates and times`
                 : t`Locations`}
           </p>
-          <EventVoteLegendContent scope="event" multipleCategories={voteDates && voteLocations} />
+          <EventVoteLegendContent
+            scope="event"
+            multipleCategories={votingCategories > 1}
+            singleOption={
+              singleOptionVotes === 0
+                ? undefined
+                : singleOptionVotes === votingCategories
+                  ? "only"
+                  : "mixed"
+            }
+          />
         </div>
       ) : null}
       {canExplainProposals && event.allowParticipantDates ? (

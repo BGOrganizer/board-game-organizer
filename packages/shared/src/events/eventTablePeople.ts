@@ -15,7 +15,15 @@ export type EventTablePerson = {
   registration?: TableSeatResponse;
 };
 export function eventTablePeople(
-  table: PlannedTableResponse,
+  table: Pick<
+    PlannedTableResponse,
+    | "eventStatus"
+    | "results"
+    | "resultProfiles"
+    | "confirmed"
+    | "ratingChanges"
+    | "groupRatingChanges"
+  >,
   seats: TableSeatResponse[],
 ): EventTablePerson[] {
   if (table.eventStatus === "TERMINATED")

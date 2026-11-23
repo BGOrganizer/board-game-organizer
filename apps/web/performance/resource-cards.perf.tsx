@@ -63,7 +63,7 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
     name: "EventTableCard: actual planning-table card and indicators",
     element: <EventTableCard table={plannedTable} />,
     scenario: async () => {
-      screen.getByRole("link", { name: "Open table: First table" });
+      screen.getByRole("link", { name: "Open table: Table #1" });
       screen.getByText("Friday games");
     },
   },

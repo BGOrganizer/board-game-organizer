@@ -129,6 +129,31 @@ const scope = {
   mode: "review" as const,
 };
 const clients: QueryClient[] = [];
+it.each(["mine", "review"] as const)(
+  "omits accepted games in the %s proposal list even when the cached source includes them",
+  async (mode) => {
+    const f = setup();
+    const game = { ...row(), payload: { kind: "game" as const, gameId: 2, tableId: table.id } };
+    const accepted = { ...game, status: "ACCEPTED" as const, version: 2 };
+    const rejected = {
+      ...game,
+      id: table.id,
+      status: "REJECTED" as const,
+      version: 2,
+      payload: { ...game.payload, gameId: 3 },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(page([accepted, rejected], mode))),
+    );
+    const { result } = renderHook(
+      () => useEventProposals(o, { ...scope, kind: "game", tableId: table.id, mode }),
+      { wrapper: f.wrapper },
+    );
+    await waitFor(() => expect(result.current.items).toEqual([rejected]));
+  },
+);
+
 function setup(asParticipant = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
@@ -873,7 +898,7 @@ it("edits private category opt-ins through the real wizard and sends all three f
   fireEvent.click(screen.getByRole("switch", { name: "Allow location proposals" }));
   expect(writes).toEqual([]);
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
-  fireEvent.click(await screen.findByRole("button", { name: table.name }));
+  fireEvent.click(await screen.findByRole("button", { name: "Table #1" }));
   fireEvent.click(await screen.findByRole("switch", { name: "Allow game proposals" }));
   expect(writes).toEqual([]);
   fireEvent.click(screen.getByRole("button", { name: "Next" }));

@@ -70,6 +70,7 @@ export function sharedTableResults(table: PlannedTableResponse): PlannedTableRes
     eventId: table.eventId,
     name: table.name,
     order: table.order,
+    ...(table.confirmedGameName ? { confirmedGameName: table.confirmedGameName } : {}),
     minPlayers: table.minPlayers,
     maxPlayers: table.maxPlayers,
     games: table.games.filter((game) => game.gameId === table.confirmed?.gameId),

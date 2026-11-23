@@ -21,6 +21,10 @@ test("only trusted Development publication and pinned Production release publish
     assert.equal(job.environment, variant);
     assert.equal(step.with["app-environment"], variant);
     assert.equal(step.with["source-sha"], source);
+    assert.equal(
+      step.with["apk-source-sha"],
+      variant === "development" ? expression("steps.verify-apk.outputs.source-sha") : undefined,
+    );
     const binary = build.steps.find((step) => step.uses === "./.github/actions/mobile-build");
     for (const key of [
       "update-channel",
@@ -62,6 +66,39 @@ test("only trusted Development publication and pinned Production release publish
     position(prod, "📦 Stage release notes and verified APK before OTA") <
       position(prod, "📡 Publish verified Production OTA"),
   );
+});
+
+test("Development reuse stays within the same verified PR and preserves APK provenance", () => {
+  const apk = pr.jobs["build-mobile-development"];
+  const findReuse = apk.steps.find((step) => step.id === "reuse");
+  const download = apk.steps.find((step) => step.id === "previous-apk");
+  const verify = apk.steps.find((step) => step.id === "verify-reuse");
+  const build = apk.steps.find((step) => step.uses === "./.github/actions/mobile-build");
+  assert.match(apk.if, /mode == 'pr'.*trusted == 'true'/);
+  assert.equal(apk.permissions.actions, "read");
+  assert.match(findReuse.run, /development-apk-reuse\.mjs find/);
+  assert.equal(download.with["run-id"], expression("steps.reuse.outputs.run-id"));
+  assert.equal(download.with.name, "apk-development");
+  assert.equal(download["continue-on-error"], true);
+  assert.equal(verify.if, "steps.previous-apk.outcome == 'success'");
+  assert.match(verify.run, /development-apk-reuse\.mjs verify/);
+  assert.equal(build.if, "steps.verify-reuse.outputs.source-sha == ''");
+  assert.match(apk.outputs["artifact-name"], /'apk-development-reused' \|\| 'apk-development'/);
+  const release = pr.jobs["draft-release"].steps;
+  const proof = release.find((step) => step.id === "verify-apk");
+  const prerelease = release.find(
+    (step) => step.uses === "./.github/actions/publish-draft-release",
+  );
+  assert.equal(
+    proof.env.EXPECTED_APK_SHA,
+    expression("needs.build-mobile-development.outputs.source-sha"),
+  );
+  assert.match(proof.run, /sha256sum --check apk\.sha256/);
+  assert.equal(
+    prerelease.with["apk-source-sha"],
+    expression("steps.verify-apk.outputs.source-sha"),
+  );
+  assert.equal(update.runs.steps[0].env.OTA_APK_SOURCE_SHA, expression("inputs.apk-source-sha"));
 });
 
 test("Development APK uses its gated alias while web uses the ready immutable non-CI API", () => {
@@ -152,8 +189,8 @@ test("Development checkout and APK provenance identify the actual merge SHA sepa
     /git rev-parse HEAD > apps\/mobile\/build-output\/source-head\.txt/,
   );
   assert.equal(
-    find(pr.jobs["draft-release"], "🔒 Verify APK development API URL").env.EXPECTED_HEAD_SHA,
-    expression("github.sha"),
+    find(pr.jobs["draft-release"], "🔒 Verify APK development API URL").env.EXPECTED_APK_SHA,
+    expression("needs.build-mobile-development.outputs.source-sha"),
   );
   assert.equal(
     find(pr.jobs["draft-release"], "🔒 Refuse stale Development publication").env.PR_HEAD_SHA,

@@ -175,6 +175,9 @@ describe("EventRecordsRepository actual proposal persistence and paging", () => 
               members: { $push: "$$ROOT" },
             },
           },
+          ...(kind === "game"
+            ? [{ $match: { "representative.status": { $ne: "ACCEPTED" } } }]
+            : []),
           {
             $match: {
               $or: [
@@ -199,11 +202,12 @@ describe("EventRecordsRepository actual proposal persistence and paging", () => 
     expect(pipeline[0]).toEqual({
       $match: { eventId: id, "payload.kind": "game", "payload.tableId": tableId },
     });
-    expect(pipeline.slice(-2)).toEqual([
+    expect(pipeline.slice(-3)).toEqual([
+      { $match: { "representative.status": { $ne: "ACCEPTED" } } },
       { $sort: { "representative.createdAt": -1, "representative.id": -1 } },
       { $limit: 3 },
     ]);
-    expect(pipeline).toHaveLength(7);
+    expect(pipeline).toHaveLength(8);
   });
 
   it("pages an owner's exact kind/table/request before fetching extra rows for the next cursor", async () => {

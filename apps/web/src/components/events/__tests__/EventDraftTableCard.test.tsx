@@ -21,7 +21,7 @@ async function closePopover() {
 
 it("keeps an unsaved table's existing local key as its temporary artwork seed", () => {
   const row = { ...tableDraft(plannedTable, plannedEvent.timeZone), id: undefined };
-  const view = renderWithI18n(<EventDraftTableCard row={row} />);
+  const view = renderWithI18n(<EventDraftTableCard row={row} title="Table #1" />);
   expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
     `data:image/svg+xml,${encodeURIComponent(createResourceArtwork("tables", row.key).svg)}`,
   );
@@ -53,8 +53,8 @@ it.each([
   "shows local facts in readonly informational popovers: $badge / $person",
   async ({ badge, person, ...fields }) => {
     const row = { ...tableDraft(plannedTable, plannedEvent.timeZone), ...fields };
-    const view = renderWithI18n(<EventDraftTableCard row={row} publicGroup />);
-    const card = screen.getByText(row.name).closest(".card");
+    const view = renderWithI18n(<EventDraftTableCard row={row} title="Table #1" publicGroup />);
+    const card = screen.getByText("Table #1").closest(".card");
     expect(card?.querySelector(".size-24")).not.toBeNull();
     expect(card?.querySelector(".min-h-56")).toBeNull();
     expect(card?.querySelector(".bg-background\\/80")).toBeNull();
@@ -64,12 +64,12 @@ it.each([
     fireEvent.click(screen.getByRole("button", { name: badge }));
     expect(await screen.findByText("Rating")).toBeTruthy();
     await closePopover();
-    fireEvent.click(screen.getByRole("button", { name: `Players: ${row.name}` }));
+    fireEvent.click(screen.getByRole("button", { name: "Players: Table #1" }));
     const players = within(screen.getByRole("dialog"));
     expect(players.getByText(/Minimum players/).textContent).toContain(String(row.minPlayers));
     expect(players.getByText(/Maximum players/).textContent).toContain(String(row.maxPlayers));
     await closePopover();
-    fireEvent.click(screen.getByRole("button", { name: `Demonstrator: ${row.name}` }));
+    fireEvent.click(screen.getByRole("button", { name: "Demonstrator: Table #1" }));
     expect(await screen.findByText(person)).toBeTruthy();
     await closePopover();
     expect(document.querySelector("img")?.getAttribute("src")).toMatch(/^data:image\/svg\+xml,/);
@@ -104,10 +104,10 @@ it.each([0, 1, 2])(
         name: `Hidden game ${index}`,
       })),
     );
-    renderWithI18n(<EventDraftTableCard row={row} />);
+    renderWithI18n(<EventDraftTableCard row={row} title="Table #1" />);
     expect(screen.queryByText("Chess")).toBeNull();
     expect(screen.queryByText(/Hidden game/)).toBeNull();
-    const games = screen.getByRole("button", { name: `Board games: ${row.name}` });
+    const games = screen.getByRole("button", { name: "Board games: Table #1" });
     expect(games.querySelector("svg.lucide-dices")).not.toBeNull();
     fireEvent.click(games);
     expect(await screen.findByText("Chess")).toBeTruthy();
@@ -118,17 +118,17 @@ it.each([0, 1, 2])(
 );
 it("does not fabricate a game or an additional count for an empty draft", async () => {
   const row = { ...tableDraft(plannedTable, plannedEvent.timeZone), games: [] };
-  renderWithI18n(<EventDraftTableCard row={row} />);
-  fireEvent.click(screen.getByRole("button", { name: `Board games: ${row.name}` }));
+  renderWithI18n(<EventDraftTableCard row={row} title="Table #1" />);
+  fireEvent.click(screen.getByRole("button", { name: "Board games: Table #1" }));
   expect(await screen.findByText("No games found")).toBeTruthy();
   expect(screen.queryByText("Unknown")).toBeNull();
   expect(screen.queryByText(/^\+\d/)).toBeNull();
 });
 it("does not show an unavailable demonstrator field in private/standalone review cards", async () => {
   const row = tableDraft(plannedTable, plannedEvent.timeZone);
-  renderWithI18n(<EventDraftTableCard row={row} />);
+  renderWithI18n(<EventDraftTableCard row={row} title="Table #1" />);
   expect(screen.queryByRole("button", { name: /^Demonstrator:/ })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: `Board games: ${row.name}` }));
+  fireEvent.click(screen.getByRole("button", { name: "Board games: Table #1" }));
   expect(await screen.findByText("Chess")).toBeTruthy();
 });
 it.each([false, true])("reviews manual Best settings and reduction=%s", (allowBestReduction) => {

@@ -32,7 +32,7 @@ it.each(["personal", "event"] as const)(
         }}
       />,
     );
-    const trigger = screen.getByRole("button", { name: "Board games: First table" });
+    const trigger = screen.getByRole("button", { name: "Board games: Chess" });
     expect(trigger.closest("a")).toBeNull();
     const navigation = vi.fn();
     screen.getByRole("link").addEventListener("click", navigation);
@@ -65,7 +65,7 @@ it("shows only the frozen game after confirmation, never planning alternatives o
       }}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
+  fireEvent.click(screen.getByRole("button", { name: "Board games: Chess" }));
   await screen.findByRole("dialog");
   expect(screen.queryByText("Planning alternative")).toBeNull();
   expect(screen.queryByLabelText("Votes: Chess")).toBeNull();

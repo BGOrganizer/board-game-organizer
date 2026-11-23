@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0 --port 4000",
-    "build": "next build",
+    "build": "bun run --filter @board-game-organizer/mcp build && next build",
     "start": "next start -H 0.0.0.0 --port 4000",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
@@ -16,6 +16,7 @@
     "backfill:users": "tsx scripts/backfill-users.ts"
   },
   "dependencies": {
+    "@board-game-organizer/mcp": "workspace:*",
     "@board-game-organizer/query": "workspace:*",
     "@board-game-organizer/schemas": "workspace:*",
     "@board-game-organizer/shared": "workspace:*",

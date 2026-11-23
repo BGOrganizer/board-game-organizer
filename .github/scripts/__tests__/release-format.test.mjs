@@ -92,6 +92,26 @@ test("titles and version stripping preserve categories, empty notes and escaped 
   assert(!isDevelopmentReleaseName(undefined, 24));
 });
 
+test("APK source metadata distinguishes reused Development binaries and keeps Production exact", () => {
+  const apkSourceSha = "b".repeat(40);
+  const body = releaseBody({ ...input, apkSourceSha });
+  assert(body.includes(`**Source commit:** [aaaaaaa](${github}/commit/${sha})`));
+  assert(
+    body.includes(
+      `**APK source commit:** [bbbbbbb](${github}/commit/${apkSourceSha}) (reused APK)`,
+    ),
+  );
+  assert(!releaseBody({ ...input, apkSourceSha: sha }).includes("APK source commit"));
+  assert.throws(
+    () => releaseBody({ ...input, apkSourceSha: "invalid" }),
+    /Verified release metadata/,
+  );
+  assert.throws(
+    () => releaseBody({ ...input, environment: "production", apkSourceSha }),
+    /Verified release metadata/,
+  );
+});
+
 test("invalid identities and credential-bearing or insecure URLs are refused", () => {
   for (const extra of [
     { environment: "staging" },
@@ -123,7 +143,11 @@ test("invalid identities and credential-bearing or insecure URLs are refused", (
 
 test("Telegram sends the same English groups and commit links with direct PR/APK/Web/Release links", () => {
   for (const environment of ["development", "production"]) {
-    const text = telegramMessage({ ...input, environment, notes: `## version\n\n${notes}` });
+    const text = telegramMessage({
+      ...input,
+      environment,
+      notes: `## version\n\n${notes}`,
+    });
     assert(text.includes(`${github}/pull/24`));
     assert(text.includes(`href="${input.apkUrl}"`));
     assert(text.includes(`href="${input.releaseUrl}"`));
@@ -131,7 +155,11 @@ test("Telegram sends the same English groups and commit links with direct PR/APK
     assert(text.includes(`<a href="${github}/commit/${sha}">aaaaaaa</a>`));
     assert.doesNotMatch(text, /api-dev|API endpoint|EAS|version<\/b>/);
   }
-  const direct = telegramMessage({ ...input, environment: "production", number: undefined });
+  const direct = telegramMessage({
+    ...input,
+    environment: "production",
+    number: undefined,
+  });
   assert.doesNotMatch(direct, /\/pull\/|PR #/);
   assert.match(telegramMessage({ ...input, notes: "" }), /<i>No changes detected\.<\/i>/);
 });

@@ -4,6 +4,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { Trophy } from "lucide-react-native";
 import { FlatList, View } from "react-native";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 
 export function EventCardTableSummaries({
@@ -16,6 +17,7 @@ export function EventCardTableSummaries({
   showNames?: boolean;
 }) {
   const t = useT();
+  const titleForTable = useTableTitle();
   const warning = useThemeColor("warning-soft-foreground");
   return (
     <FlatList
@@ -29,7 +31,9 @@ export function EventCardTableSummaries({
       renderItem={({ item: table }) => (
         <View style={{ gap: 4 }}>
           {showNames && mode !== "results" ? (
-            <Typography className="font-semibold text-foreground">{table.name}</Typography>
+            <Typography className="font-semibold text-foreground">
+              {titleForTable(table)}
+            </Typography>
           ) : null}
           {mode === "planning" ? (
             table.ready ? (
@@ -55,7 +59,7 @@ export function EventCardTableSummaries({
             >
               {showNames ? (
                 <Typography className="font-semibold text-foreground" style={{ flexShrink: 1 }}>
-                  {table.name}
+                  {titleForTable(table)}
                 </Typography>
               ) : null}
               <View

@@ -116,7 +116,6 @@ describe("participant proposals canonical edit", () => {
     expect(result.input?.tables).toEqual([
       {
         id: tid,
-        name: table.name,
         minPlayers: 2,
         maxPlayers: 4,
         rankingEnabled: false,

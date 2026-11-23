@@ -140,7 +140,7 @@ function openSchedule() {
 async function expandExistingTable() {
   if (screen.queryByRole("group", { name: "Date and time" }))
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-  const trigger = await screen.findByRole("button", { name: plannedTable.name });
+  const trigger = await screen.findByRole("button", { name: "Table #1" });
   if (trigger.getAttribute("aria-expanded") !== "true") fireEvent.click(trigger);
 }
 it("changes Group inline through Select, preserves the draft and permits explicit no-group", async () => {
@@ -300,13 +300,11 @@ it("keeps private add slots, independent same-day clocks, location choices and p
   expect(screen.getByRole("button", { name: "Choose a location" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(screen.getByRole("button", { name: "Add table" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Table name" }), {
-    target: { value: "Private table" },
-  });
   fireEvent.click(screen.getByRole("button", { name: "Choose a game" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose catalog game" }));
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   expect(screen.queryByRole("button", { name: "Add date" })).toBeNull();
+  expect(screen.getByText("Table #1")).not.toBeNull();
   expect(screen.getByText("Second venue")).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Create event" }));
   await waitFor(() => expect(m.replace).toHaveBeenCalledWith(`/groups/${optionId}?tab=events`));
@@ -345,9 +343,6 @@ it("submits one complete event only on final review, with no server draft or imp
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(screen.getByRole("button", { name: "Add table" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Table name" }), {
-    target: { value: "First table" },
-  });
   fireEvent.click(screen.getByRole("button", { name: "Choose a game" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose catalog game" }));
   expect(fetch.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
@@ -370,8 +365,9 @@ it("submits one complete event only on final review, with no server draft or imp
   expect(body).toMatchObject({
     groupId: null,
     name: "Friday games",
-    tables: [{ name: "First table", games: [{ gameId: 1 }] }],
+    tables: [{ games: [{ gameId: 1 }] }],
   });
+  expect(body.tables[0]).not.toHaveProperty("name");
   expect(body.status).toBeUndefined();
   expect(body.playerIds).toBeUndefined();
 });
@@ -462,7 +458,7 @@ it("requires explicit table removal and sends only loaded upserts plus removed I
   fireEvent.click(await screen.findByRole("button", { name: "Remove table" }));
   expect(fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove table" }));
-  expect(screen.queryByRole("textbox", { name: "Table name" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Table #1" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(screen.getByRole("button", { name: "Save event" }));
   await waitFor(() => expect(m.replace).toHaveBeenCalled());
@@ -604,7 +600,7 @@ it("uses bounded primary player counters and keeps the empty game slot after sel
   await screen.findByRole("textbox", { name: "Event name" });
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   await expandExistingTable();
-  await screen.findByPlaceholderText("Strategy table");
+  expect(screen.queryByRole("textbox", { name: "Table name" })).toBeNull();
   expect(screen.queryByRole("textbox", { name: "Minimum players" })).toBeNull();
   expect(
     (screen.getByRole("button", { name: "Decrease Minimum players" }) as HTMLButtonElement)
@@ -662,9 +658,6 @@ it("leaves final review immediately but retains the complete failed draft for ex
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(screen.getByRole("button", { name: "Add table" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Table name" }), {
-    target: { value: "First table" },
-  });
   fireEvent.click(screen.getByRole("button", { name: "Choose a game" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose catalog game" }));
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -683,7 +676,7 @@ it("leaves final review immediately but retains the complete failed draft for ex
   const variables = failed?.state.variables as CreateEventVariables | undefined;
   expect(variables?.clientDraft).toMatchObject({
     name: "Friday games",
-    tables: [{ name: "First table", games: [{ id: 1, name: "Chess" }] }],
+    tables: [{ games: [{ id: 1, name: "Chess" }] }],
     locations: [{ name: "Club venue" }],
   });
   expect(m.feedback.onOptimisticUpdate).toHaveBeenCalledWith("create_event");
@@ -845,35 +838,32 @@ it("keeps several table panels open, expands new and invalid tables, and preserv
   openSchedule();
   await expandExistingTable();
   fireEvent.click(screen.getByRole("button", { name: "Add table" }));
-  const tableNames = screen.getAllByRole("textbox", { name: "Table name" });
-  expect(tableNames).toHaveLength(2);
-  fireEvent.change(tableNames[1], { target: { value: "Second table" } });
-  const first = screen.getByRole("button", { name: "First table" });
-  const second = screen.getByRole("button", { name: "Second table" });
+  const first = screen.getByRole("button", { name: "Table #1" });
+  const second = screen.getByRole("button", { name: "Table #2" });
   expect(first.getAttribute("aria-expanded")).toBe("true");
   expect(second.getAttribute("aria-expanded")).toBe("true");
   fireEvent.click(screen.getAllByRole("button", { name: "Choose a game" })[0]);
   fireEvent.click(screen.getByRole("button", { name: "Cancel game picker" }));
-  expect(screen.getAllByRole("textbox", { name: "Table name" })).toHaveLength(2);
+  expect(screen.getAllByRole("button", { name: /^Table #/ })).toHaveLength(2);
   fireEvent.click(screen.getByRole("button", { name: "Remove game: Chess" }));
-  fireEvent.click(screen.getByRole("button", { name: "First table" }));
-  expect(screen.getByRole("button", { name: "First table" }).getAttribute("aria-expanded")).toBe(
+  fireEvent.click(screen.getByRole("button", { name: "Table #1" }));
+  expect(screen.getByRole("button", { name: "Table #1" }).getAttribute("aria-expanded")).toBe(
     "false",
   );
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "First table" }).getAttribute("aria-expanded")).toBe(
+    expect(screen.getByRole("button", { name: "Table #1" }).getAttribute("aria-expanded")).toBe(
       "true",
     ),
   );
-  expect(screen.getByRole("button", { name: "Second table" }).getAttribute("aria-expanded")).toBe(
+  expect(screen.getByRole("button", { name: "Table #2" }).getAttribute("aria-expanded")).toBe(
     "true",
   );
   expect(screen.getAllByText("Choose at least one game.")).toHaveLength(2);
   fireEvent.click(screen.getAllByRole("button", { name: "Choose a game" })[0]);
   fireEvent.click(screen.getByRole("button", { name: "Choose catalog game" }));
-  expect(screen.getAllByRole("textbox", { name: "Table name" })).toHaveLength(2);
-  expect(screen.getByRole("button", { name: "Second table" }).getAttribute("aria-expanded")).toBe(
+  expect(screen.getAllByRole("button", { name: /^Table #/ })).toHaveLength(2);
+  expect(screen.getByRole("button", { name: "Table #2" }).getAttribute("aria-expanded")).toBe(
     "true",
   );
 });

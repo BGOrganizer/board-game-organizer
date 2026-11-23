@@ -1,7 +1,7 @@
 import { notificationListQuerySchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { NotificationAttentionRepository } from "@/app/lib/notifications/notification-attention.repository";
 import { notificationNavigationReply } from "@/app/lib/notifications/notification-navigation-transport";
 import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
@@ -9,7 +9,7 @@ import { NotificationsRepository } from "@/app/lib/notifications/notifications.r
 export const OPTIONS = corsOptions;
 
 export async function GET(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   const params = new URL(request.url).searchParams;
   const parsed = notificationListQuerySchema.safeParse(Object.fromEntries(params));
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
 }
 
 async function updateAll(request: Request, action: "read" | "delete") {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   const params = new URL(request.url).searchParams;
   if (

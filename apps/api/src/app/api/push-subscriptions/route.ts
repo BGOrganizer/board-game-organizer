@@ -2,10 +2,10 @@ import {
   pushSubscriptionSchema,
   removePushSubscriptionSchema,
 } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import type { z } from "zod";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { PushSubscriptionsRepository } from "@/app/lib/notifications/push-subscriptions.repository";
 
 export const OPTIONS = corsOptions;
@@ -31,7 +31,7 @@ async function parseBody<T>(request: Request, schema: z.ZodType<T>) {
 }
 
 export async function POST(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   if (!validQuery(request)) return corsJson({ error: "Invalid query" }, { status: 400 }, request);
   const body = await parseBody(request, pushSubscriptionSchema);
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { userId } = await auth();
+  const { userId } = await bgoAuth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   if (!validQuery(request)) return corsJson({ error: "Invalid query" }, { status: 400 }, request);
   const body = await parseBody(request, removePushSubscriptionSchema);

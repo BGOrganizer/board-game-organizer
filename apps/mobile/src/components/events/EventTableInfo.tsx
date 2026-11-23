@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { RecordIdentityCard } from "@/components/common/ui/RecordIdentityCard";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { EventTableCardIndicators } from "./EventTableCardIndicators";
 
 export function EventTableInfo({
@@ -13,10 +14,11 @@ export function EventTableInfo({
   table: PlannedTableResponse;
   titleAction?: ReactNode;
 }) {
+  const title = useTableTitle()(table);
   return (
     <RecordIdentityCard
       titleAction={titleAction}
-      title={table.name}
+      title={title}
       icon={Dices}
       background={
         <AnimatedDicebearArtwork seed={table.id} variant="tables" presentation="background" />

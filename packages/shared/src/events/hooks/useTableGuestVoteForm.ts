@@ -36,9 +36,11 @@ export function canEditTableGuestVotes(table: PlannedTableResponse) {
     !table.readOnly &&
     table.eventStatus === "PLANNING" &&
     table.groupType !== "PUBLIC" &&
-    (eventOptionsRequireVote(table.games) ||
+    (eventOptionsRequireVote(table.games, table.gameVoteRequired) ||
       (table.eventSchedule?.dateCount ?? 0) > 1 ||
-      (table.eventSchedule?.locationCount ?? 0) > 1)
+      (table.eventSchedule?.locationCount ?? 0) > 1 ||
+      table.eventSchedule?.dateVoteRequired === true ||
+      table.eventSchedule?.locationVoteRequired === true)
   );
 }
 
@@ -47,7 +49,7 @@ function groups(event: PlannedEventResponse, table: PlannedTableResponse, votes:
   const sections: { kind: VoteChoice["kind"]; rows: VoteChoice[] }[] = [
     {
       kind: "date",
-      rows: eventOptionsRequireVote(event.dates)
+      rows: eventOptionsRequireVote(event.dates, event.dateVoteRequired)
         ? event.dates.map((option): VoteChoice => {
             const wall = eventDateWall(event, option);
             return {
@@ -62,6 +64,7 @@ function groups(event: PlannedEventResponse, table: PlannedTableResponse, votes:
                 votes.dateVotes,
                 option.id,
                 "NO",
+                event.dateVoteRequired,
               ),
               change: (vote) => ({ kind: "date", optionId: option.id, vote }),
             };
@@ -70,7 +73,7 @@ function groups(event: PlannedEventResponse, table: PlannedTableResponse, votes:
     },
     {
       kind: "location",
-      rows: eventOptionsRequireVote(event.locations)
+      rows: eventOptionsRequireVote(event.locations, event.locationVoteRequired)
         ? event.locations.map(
             ({ id, name, address }): VoteChoice => ({
               kind: "location",
@@ -83,6 +86,7 @@ function groups(event: PlannedEventResponse, table: PlannedTableResponse, votes:
                 votes.locationVotes,
                 id,
                 "NO",
+                event.locationVoteRequired,
               ),
               change: (vote) => ({ kind: "location", optionId: id, vote }),
             }),
@@ -91,7 +95,7 @@ function groups(event: PlannedEventResponse, table: PlannedTableResponse, votes:
     },
     {
       kind: "game",
-      rows: eventOptionsRequireVote(table.games)
+      rows: eventOptionsRequireVote(table.games, table.gameVoteRequired)
         ? table.games.map(({ gameId }): VoteChoice => {
             const game = table.gamesDetail.find(({ id }) => id === gameId);
             return {
@@ -100,7 +104,13 @@ function groups(event: PlannedEventResponse, table: PlannedTableResponse, votes:
               key: `game:${gameId}`,
               label: game?.name ?? "",
               value: votes.gameVotes[String(gameId)],
-              allowNo: eventAvailabilityVoteIsAllowed(games, votes.gameVotes, String(gameId), "NO"),
+              allowNo: eventAvailabilityVoteIsAllowed(
+                games,
+                votes.gameVotes,
+                String(gameId),
+                "NO",
+                table.gameVoteRequired,
+              ),
               change: (vote) => ({ kind: "game", tableId: table.id, gameId, vote }),
             };
           })

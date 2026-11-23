@@ -71,7 +71,7 @@ it("shows admin, demonstrator, pending and queue icons together, with smaller fr
   const roles = await screen.findByRole("dialog");
   for (const label of ["Admin", "Demonstrator", "Player on the waiting list"])
     expect(within(roles).getByText(label)).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Board games: First table" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Board games:/ })).toBeNull();
   await close();
   expect(nav).not.toHaveBeenCalled();
   expect(fetcher).not.toHaveBeenCalled();
@@ -167,20 +167,22 @@ it.each(["CONFIRMED", "TERMINATED"] as const)(
         }}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Dates and times: First table" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dates and times: Selected game" }));
     let dialog = await screen.findByRole("dialog");
     expect(dialog.querySelectorAll("li")).toHaveLength(1);
     expect(dialog.querySelector(`time[datetime="${start}"]`)).not.toBeNull();
     expect(dialog.querySelector('time[datetime="2030-06-03T20:00Z"]')).toBeNull();
     await close();
-    fireEvent.click(screen.getByRole("button", { name: "Locations: First table" }));
+    fireEvent.click(screen.getByRole("button", { name: "Locations: Selected game" }));
     dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(b.address)).not.toBeNull();
     expect(within(dialog).queryByText(a.address)).toBeNull();
     expect(within(dialog).queryByText(b.name)).toBeNull();
     await close();
-    fireEvent.click(screen.getByRole("button", { name: "Board games: First table" }));
-    expect(await screen.findByText("Selected game")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Board games: Selected game" }));
+    expect(
+      await within(await screen.findByRole("dialog")).findByText("Selected game"),
+    ).not.toBeNull();
     expect(screen.queryByText("Chess")).toBeNull();
   },
 );

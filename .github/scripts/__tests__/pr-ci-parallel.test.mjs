@@ -322,6 +322,8 @@ test("PR publishes the verified development APK to EAS and keeps GitHub and Tele
   const action = parse(readFileSync(".github/actions/publish-draft-release/action.yml", "utf8"));
   assert.equal(action.inputs["eas-build-url"].required, false);
   assert.equal(action.inputs["eas-build-url"].default, "");
+  assert.match(publish.with["package-mcp"], /BGO_MCP_GATEWAY_PR_NUMBER.*pull_request\.number/);
+  assert.equal(action.runs.steps[0].env.PACKAGE_MCP, `\${{ inputs.package-mcp }}`);
   assert.match(action.runs.steps[0].run, /publish-pr-draft\.mjs/);
   assert.equal(publish.with["web-preview-url"], `\${{ needs.deploy-development-web.outputs.url }}`);
   assert(steps.some((step) => step.name === "🔒 Verify current head before Telegram"));
@@ -368,7 +370,8 @@ test("PR deployment, auth, build and publication secrets use the development Git
       JSON.stringify(job),
     ),
   );
-  assert.equal(consumers.length, 13);
+  assert.equal(consumers.length, 14);
+  assert(consumers.some(([name]) => name === "deploy-development-mcp-gateway"));
   for (const [name, job] of consumers) assert.equal(job.environment, "development", name);
 });
 

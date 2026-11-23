@@ -118,7 +118,7 @@ it("places static unread dots after card titles inside navigation, including per
   for (const [name, count] of [
     [`Open group: ${groupRecord.name}`, 4],
     [`Open event: ${plannedEvent.name}`, 3],
-    [`Open table: ${plannedTable.name}`, 2],
+    ["Open table: Table #1", 2],
   ] as const) {
     const link = screen.getByRole("link", { name }),
       badge = within(link.closest(".card") as HTMLElement).getByRole("img", {
@@ -230,7 +230,7 @@ it("opens canonical cards without acknowledging their items or accepting an invi
     </QueryClientProvider>,
   );
   for (const name of [
-    `Open table: ${plannedTable.name}`,
+    "Open table: Table #1",
     `Open event: ${plannedEvent.name}`,
     `Open group: ${groupRecord.name}`,
   ])

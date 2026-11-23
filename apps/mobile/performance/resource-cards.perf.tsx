@@ -88,10 +88,8 @@ const scenarios: Scenario[] = [
     name: "EventTableCard: rated table information and navigation",
     ui: <EventTableCard table={plannedTable} />,
     assert: async () => {
-      expect(screen.getByText(plannedTable.name)).toBeTruthy();
-      await userEvent
-        .setup()
-        .press(screen.getByRole("button", { name: `Open table: ${plannedTable.name}` }));
+      expect(screen.getByText("Table #1")).toBeTruthy();
+      await userEvent.setup().press(screen.getByRole("button", { name: "Open table: Table #1" }));
       expect(boundary.push).toHaveBeenCalledWith({
         pathname: "/event/table",
         params: { eventId: plannedTable.eventId, tableId: plannedTable.id },
@@ -120,7 +118,7 @@ const scenarios: Scenario[] = [
     name: "EventTableInfo: detail artwork and rating information",
     ui: <EventTableInfo table={plannedTable} />,
     assert: async () => {
-      expect(screen.getByText(plannedTable.name)).toBeTruthy();
+      expect(screen.getByText("Table #1")).toBeTruthy();
       await pressMeasuredPopover(screen.getByRole("button", { name: "Rating enabled" }));
       expect(await screen.findByRole("heading", { name: "Rating" })).toBeVisible();
     },

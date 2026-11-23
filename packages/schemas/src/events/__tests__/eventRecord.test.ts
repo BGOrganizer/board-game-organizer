@@ -68,6 +68,40 @@ const input = {
   tables: [table],
 };
 const at = "2027-01-01T00:00:00Z";
+it("accepts voting flags only on stored records and rejects client-authored flags", () => {
+  const { tables: _tables, ...fields } = input;
+  const flags = { dateVoteRequired: true, locationVoteRequired: true };
+  const event = {
+    ...fields,
+    ...flags,
+    id,
+    adminUserId: "user_owner",
+    status: "PLANNING",
+    version: 1,
+    planningGeneration: 1,
+    nextPriority: 0,
+    nextTableOrder: 1,
+    createdAt: at,
+    updatedAt: at,
+  };
+  const row = {
+    ...table,
+    gameVoteRequired: true,
+    eventId: id,
+    order: 0,
+    createdAt: at,
+    updatedAt: at,
+  };
+  expect(eventRecordSchema.parse(event)).toMatchObject(flags);
+  expect(tableRecordSchema.parse(row).gameVoteRequired).toBe(true);
+  expect(eventRecordSchema.safeParse({ ...event, dateVoteRequired: "yes" }).success).toBe(false);
+  expect(tableRecordSchema.safeParse({ ...row, gameVoteRequired: 1 }).success).toBe(false);
+  for (const flag of [{ dateVoteRequired: true }, { locationVoteRequired: true }])
+    expect(createPlannedEventSchema.safeParse({ ...input, ...flag }).success).toBe(false);
+  expect(plannedTableInputSchema.safeParse({ ...table, gameVoteRequired: true }).success).toBe(
+    false,
+  );
+});
 it("accepts one trimmed guest demonstrator or one registered member, never both", () => {
   const row = { ...table, eventId: id, order: 0, createdAt: at, updatedAt: at };
   for (const [schema, base] of [
@@ -565,6 +599,11 @@ it("keeps historical Event and Table names readable without accepting them in na
       }).name,
     ).toBe(name);
   }
+  const { name: _legacyName, ...nameless } = table;
+  expect(plannedTableInputSchema.parse(nameless)).not.toHaveProperty("name");
+  expect(
+    tableRecordSchema.parse({ ...nameless, eventId: id, order: 0, createdAt: at, updatedAt: at }),
+  ).not.toHaveProperty("name");
   for (const length of [1, 4, 31, 120]) {
     const name = "a".repeat(length);
     expect(

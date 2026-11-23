@@ -21,6 +21,7 @@ import { InputSectionList } from "@/components/common/ui/InputSectionList";
 import { EventVoteButtons } from "@/components/events/EventVoteButtons";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 
 type Review = Extract<InviteReviewResponse, { kind: "TABLE" }>;
@@ -50,6 +51,7 @@ export function TableInviteReview({
   const insets = useSafeAreaInsets();
   const form = useTableInviteForm(review, disabled, onClaim);
   const { event, table } = review;
+  const title = useTableTitle()(table);
   const sections = useMemo<{ title: string; data: Row[] }[]>(
     () => [
       { title: "Dates", data: event.dates.map((value) => ({ kind: "date", value })) },
@@ -59,14 +61,13 @@ export function TableInviteReview({
     [event.dates, event.locations, table.games],
   );
   const voteButtons = (row: Row, id: string, label: string) => {
-    const options =
-      row.kind === "game" ? table.games : row.kind === "date" ? event.dates : event.locations;
-    if (
-      form.alreadyAccepted ||
-      options.length < 2 ||
-      (row.kind !== "game" && !review.requiresAvailability)
-    )
-      return undefined;
+    const canVote =
+      row.kind === "game"
+        ? form.canVoteGames
+        : row.kind === "date"
+          ? form.canVoteDates
+          : form.canVoteLocations;
+    if (!canVote) return undefined;
     const votes =
       row.kind === "game"
         ? form.gameVotes
@@ -100,7 +101,7 @@ export function TableInviteReview({
         contentContainerStyle={{ padding: 20, gap: 12 }}
         ListHeaderComponent={
           <View style={{ gap: 12, paddingBottom: 12 }}>
-            <InvitationIdentity name={table.name} icon={Dices} heading />
+            <InvitationIdentity name={title} icon={Dices} heading />
             <InvitationIdentity name={event.name} icon={CalendarDays} />
             <InvitationIdentity name={review.group.name} icon={UsersRound} />
             <Typography>
@@ -111,7 +112,7 @@ export function TableInviteReview({
                 values: {
                   inviter: formatUsername(review.inviter.username, review.inviter.name),
                   group: review.group.name,
-                  table: table.name,
+                  table: title,
                 },
               })}
             </Typography>
@@ -145,7 +146,7 @@ export function TableInviteReview({
               {t(
                 form.alreadyAccepted
                   ? "You already participate at this table. Your place and choices will be kept."
-                  : "Joining accepts single options. For sections with multiple options, answer every option and choose at least one Yes or If needed.",
+                  : "For each section with voting, answer every option and choose at least one Yes or If needed.",
               )}
             </Typography>
             {!form.alreadyAccepted && !review.requiresAvailability ? (

@@ -75,6 +75,8 @@ export type ProfileActivity = Pick<
   author?: ActivityAuthor;
   groupId?: string;
   eventContext?: string;
+  /** Zero-based order when the activity refers to a numbered table. */
+  tableOrder?: number;
   otherUserId?: string;
   visibility?: "public-group" | "authorized";
 };

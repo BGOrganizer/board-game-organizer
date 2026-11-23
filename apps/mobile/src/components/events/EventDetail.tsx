@@ -50,6 +50,7 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
@@ -67,6 +68,7 @@ import { OptionVoteVoters } from "./OptionVoteVoters";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const { i18n } = useLingui();
   const t = useT(),
+    titleForTable = useTableTitle(),
     o = useCommunityApi(),
     router = useRouter(),
     q = useEventRecord(o, eventId),
@@ -155,7 +157,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                   <Typography className="text-foreground">{confirmationHint}</Typography>
                   {event.agreement?.reasons.map((reason) => (
                     <Typography key={reason.tableId} className="text-muted">
-                      {tables.items.find((row) => row.id === reason.tableId)?.name ?? t("Table")}:{" "}
+                      {titleForTable(tables.items.find((row) => row.id === reason.tableId) ?? {})}:{" "}
                       {reason.code === "PENDING_RESERVATIONS"
                         ? t("Pending invitations still reserve places.")
                         : reason.code === "GAME_DISAGREEMENT"
@@ -212,11 +214,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const voteDates =
     event.status === "PLANNING" &&
     event.groupType !== "PUBLIC" &&
-    eventOptionsRequireVote(event.dates);
+    eventOptionsRequireVote(event.dates, event.dateVoteRequired);
   const voteLocations =
     event.status === "PLANNING" &&
     event.groupType !== "PUBLIC" &&
-    eventOptionsRequireVote(event.locations);
+    eventOptionsRequireVote(event.locations, event.locationVoteRequired);
   const namedVotes =
     !q.isPlaceholderData &&
     !event.readOnly &&
@@ -266,7 +268,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             <Typography className="font-semibold text-foreground">
               {event.groupType === "PUBLIC" ? t("Start Date and Time") : t("Dates and times")}
             </Typography>
-            {voteDates ? <EventVoteLegend label={t("Dates and times")} /> : null}
+            {voteDates ? (
+              <EventVoteLegend label={t("Dates and times")} singleOption={event.dateVoteRequired} />
+            ) : null}
           </View>
         </NotificationItem>
         <GroupedList>
@@ -309,6 +313,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                         event.myVotes?.dateVotes ?? {},
                         row.id,
                         "NO",
+                        event.dateVoteRequired,
                       )
                         ? []
                         : ["NO"]
@@ -373,7 +378,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       <NotificationItem itemId={notificationItemId(event.id, "locations")}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
           <Typography className="font-semibold text-foreground">{t("Locations")}</Typography>
-          {voteLocations ? <EventVoteLegend label={t("Locations")} /> : null}
+          {voteLocations ? (
+            <EventVoteLegend label={t("Locations")} singleOption={event.locationVoteRequired} />
+          ) : null}
         </View>
       </NotificationItem>
       <GroupedList>
@@ -417,6 +424,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                           event.myVotes?.locationVotes ?? {},
                           row.id,
                           "NO",
+                          event.locationVoteRequired,
                         )
                           ? []
                           : ["NO"]

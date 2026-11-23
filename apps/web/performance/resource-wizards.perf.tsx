@@ -284,17 +284,18 @@ test(editEventScenario, async () => {
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
       await screen.findByLabelText(/^Event date \*$/);
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
-      const trigger = await screen.findByRole("button", { name: "First table" });
+      const trigger = await screen.findByRole("button", { name: "Table #1" });
       if (trigger.getAttribute("aria-expanded") !== "true") fireEvent.click(trigger);
-      fireEvent.change(screen.getByRole("textbox", { name: "Table name" }), {
-        target: { value: "Unsubmitted table" },
-      });
+      fireEvent.click(screen.getByRole("button", { name: "Increase Maximum players" }));
       fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
       expect(
         await screen.findByRole("button", { name: "Select user: Guide Player" }),
       ).toBeVisible();
       fireEvent.click(screen.getByRole("button", { name: "Back" }));
-      expect(screen.getByRole("textbox", { name: "Table name" })).toHaveValue("Unsubmitted table");
+      expect(screen.getByRole("button", { name: "Table #1" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
       fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
       fireEvent.click(await screen.findByRole("button", { name: "Select user: Guide Player" }));
       expect(screen.getByText("Guide Player")).toBeVisible();
@@ -304,9 +305,12 @@ test(editEventScenario, async () => {
       );
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
-      const retained = await screen.findByRole("button", { name: "Unsubmitted table" });
+      const retained = await screen.findByRole("button", { name: "Table #1" });
       if (retained.getAttribute("aria-expanded") !== "true") fireEvent.click(retained);
-      expect(screen.getByRole("textbox", { name: "Table name" })).toHaveValue("Unsubmitted table");
+      expect(screen.getByRole("button", { name: "Table #1" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
       expect(screen.getByText("Guide Player")).toBeVisible();
       expect(currentClient().getQueryData(recordTablesQuery(options, event.id).queryKey)).toBe(
         tables,

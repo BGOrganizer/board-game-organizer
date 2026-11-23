@@ -119,7 +119,7 @@ async function openTables() {
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
 }
 async function expandFirst() {
-  const trigger = await screen.findByRole("button", { name: "First table" });
+  const trigger = await screen.findByRole("button", { name: "Table #1" });
   if (trigger.getAttribute("aria-expanded") !== "true") fireEvent.click(trigger);
   return trigger;
 }
@@ -142,7 +142,7 @@ it("uses real demonstrator and catalog pickers, preserves expanded table state a
   fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
   await screen.findByRole("button", { name: "Select user: Guide Player" });
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  expect(screen.getByRole("button", { name: "First table" }).getAttribute("aria-expanded")).toBe(
+  expect(screen.getByRole("button", { name: "Table #1" }).getAttribute("aria-expanded")).toBe(
     "true",
   );
   fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
@@ -165,7 +165,7 @@ it("uses real demonstrator and catalog pickers, preserves expanded table state a
   fireEvent.click(screen.getByRole("button", { name: "Choose a game" }));
   await screen.findByRole("heading", { name: "Select a board game" });
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  expect(screen.getByRole("textbox", { name: "Table name" })).toBeTruthy();
+  expect(screen.queryByRole("textbox", { name: "Table name" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Choose a game" }));
   fireEvent.change(screen.getByRole("searchbox", { name: "Search board games" }), {
     target: { value: "Cascadia" },
@@ -203,11 +203,11 @@ it("cancels a table removal before applying it and keeps unsaved removals local 
   fireEvent.click(screen.getByRole("button", { name: "Remove table" }));
   let confirmation = await screen.findByRole("dialog", { name: "Remove table" });
   fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
-  expect(screen.getByRole("button", { name: "First table" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Table #1" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Remove table" }));
   confirmation = await screen.findByRole("dialog", { name: "Remove table" });
   fireEvent.click(within(confirmation).getByRole("button", { name: "Remove table" }));
-  expect(screen.queryByRole("button", { name: "First table" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Table #1" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   expect(screen.getByText("Add at least one table.")).toBeTruthy();
   expect(navigation.replace).not.toHaveBeenCalled();
@@ -250,9 +250,9 @@ it("retries unavailable table pages and explicitly loads the remaining authorize
   expect(await screen.findByText("Could not load tables")).toBeTruthy();
   failed = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await screen.findByRole("button", { name: "First table" });
+  await screen.findByRole("button", { name: "Table #1" });
   fireEvent.click(screen.getByRole("button", { name: "Load more tables" }));
-  expect(await screen.findByRole("button", { name: "Second table" })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: "Table #2" })).toBeTruthy();
   expect(cursors).toEqual([null, "next-table"]);
   expect(navigation.replace).not.toHaveBeenCalled();
 });
@@ -336,7 +336,7 @@ it("blocks first-step exit while an Event edit is still saving after reentry", a
   });
   const view = mount({ eventId }, cache);
   await openTables();
-  await screen.findByRole("button", { name: "First table" });
+  await screen.findByRole("button", { name: "Table #1" });
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
   fireEvent.click(await screen.findByRole("button", { name: "Save event" }));
   await waitFor(() => expect(finish).toBeDefined());

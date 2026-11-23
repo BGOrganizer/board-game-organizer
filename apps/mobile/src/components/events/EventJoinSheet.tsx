@@ -58,7 +58,11 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
   }, [form.validationAttempt, form.invalidChoice]);
   const fixedSettings = event ? (
     <View style={{ gap: 12 }}>
-      <FixedSettings event={event} table={form.tableQuery.isPlaceholderData ? undefined : table} />
+      <FixedSettings
+        event={event}
+        table={form.tableQuery.isPlaceholderData ? undefined : table}
+        votingTabs={votingTabs}
+      />
       {!table || form.tableQuery.isPlaceholderData ? (
         <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
       ) : null}
@@ -82,13 +86,17 @@ function JoinContent({ eventId, tableId, onClose, registrationId }: Props) {
         >
           <BottomSheet.Title>{t("Review table settings")}</BottomSheet.Title>
           <BottomSheet.Description>
-            {form.isInvitation
-              ? t(
-                  "Accepting this invitation accepts the current event and table settings. Vote only where multiple options are available.",
-                )
-              : t(
-                  "Joining accepts the current event and table settings. Vote only where multiple options are available.",
-                )}
+            {(event?.dateVoteRequired && votingTabs.includes("dates")) ||
+            (event?.locationVoteRequired && votingTabs.includes("locations")) ||
+            (table?.gameVoteRequired && votingTabs.includes("games"))
+              ? t("Review the event and table settings, then vote in the sections shown.")
+              : form.isInvitation
+                ? t(
+                    "Accepting this invitation accepts the current event and table settings. Vote only where multiple options are available.",
+                  )
+                : t(
+                    "Joining accepts the current event and table settings. Vote only where multiple options are available.",
+                  )}
           </BottomSheet.Description>
           {form.q.isError || form.tableQuery.isError ? (
             <View style={{ gap: 8 }}>
@@ -344,14 +352,21 @@ function JoinVoteList({
 function FixedSettings({
   event,
   table,
+  votingTabs,
 }: {
   event: PlannedEventResponse;
   table: PlannedTableResponse | undefined;
+  votingTabs: readonly string[];
 }) {
   const t = useT();
-  const date = event.dates.length === 1 ? event.dates[0] : undefined;
-  const location = event.locations.length === 1 ? event.locations[0] : undefined;
-  const gameId = table?.games.length === 1 ? table.games[0].gameId : undefined;
+  const date =
+    event.dates.length === 1 && !votingTabs.includes("dates") ? event.dates[0] : undefined;
+  const location =
+    event.locations.length === 1 && !votingTabs.includes("locations")
+      ? event.locations[0]
+      : undefined;
+  const gameId =
+    table?.games.length === 1 && !votingTabs.includes("games") ? table.games[0].gameId : undefined;
   const game = table?.gamesDetail.find((row) => row.id === gameId);
   if (!date && !location && gameId === undefined) return null;
   return (

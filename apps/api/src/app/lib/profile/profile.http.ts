@@ -1,6 +1,6 @@
 import { targetUserIdSchema } from "@board-game-organizer/schemas";
-import { auth } from "@clerk/nextjs/server";
 import { ZodError } from "zod";
+import { bgoAuth } from "@/app/lib/mcp/actor";
 import { CommunityError } from "../community.error";
 import { corsJson } from "../cors";
 import { getDb } from "../db";
@@ -12,7 +12,7 @@ export async function profileRead(
   subject: string | undefined,
   read: (viewer: string, userId: string, service: ProfileService) => Promise<unknown>,
 ) {
-  const { userId, isAuthenticated } = await auth();
+  const { userId, isAuthenticated } = await bgoAuth();
   const headers = { "Cache-Control": "private, no-store" };
   if (!isAuthenticated || !userId)
     return corsJson({ error: "Unauthorized" }, { status: 401, headers }, request);

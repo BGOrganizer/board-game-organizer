@@ -273,6 +273,11 @@ PR base. Mobile code, related workspace packages, compiled localization and chan
 lockfile dependency graph trigger APK rebuilds. Web/API-only, Maestro-only, unit-test-only and
 unrelated lockfile changes do not. Compare each reusable artifact's own source commit with the PR
 head, and verify its checksum/size and matching API/environment inputs before reuse.
+The distributed Development workflow reuses a fresh-build artifact from the same trusted PR.
+It compares the original build merge tree with the current merge, including base-branch changes,
+and checks the original producer head, APK checksum, API URL, channel and configuration digest.
+When there is no eligible artifact, the workflow builds a fresh APK. The release records the
+original APK commit when it differs from the current preview commit.
 
 OTA-enabled APKs also bind a validated channel to the binary: isolated `ci-pr-N`, distributed
 `development` shared by all PRs, or `production`. The channel participates in the configuration
@@ -280,8 +285,10 @@ digest and is recorded in `update-channel.txt`. Keep `internal.channel` absent i
 override the app's dynamic native header. Expo runtime compatibility uses its own fingerprint,
 not this provenance digest. Development publication and pinned Main release publication export
 and publish Android Hermes updates after their quality/deployment/smoke checks. The shared publisher
-verifies the APK checksum, exact source, embedded project/channel and configuration digest, then
-compares the SDK runtime and Hermes bytecode versions before uploading. A fresh PR/current-main
+verifies the APK checksum, build source, embedded project/channel and configuration digest, then
+compares the SDK runtime and Hermes bytecode versions before uploading. A reused Development
+binary must have equivalent mobile inputs, and the OTA export uses the current verified source.
+A fresh PR/current-main
 check follows export. OTA errors remain blocking; the EAS build-registration quota exception does
 not apply. EAS environment configuration must remain unchanged during the publication step: the
 public CLI rereads it after the local preflight. See [OTA configuration](development.md#mobile-ota-updates).
@@ -304,8 +311,9 @@ from the CI `api-pr-N` alias. The deploy job only computes its URL; the publicat
 after smoke, non-CI database attestation and current-PR checks, then verifies the exact ready
 deployment target.
 Immutable deployment URLs remain the source of deployment attestation. Development producers and
-publisher use the same pinned merge SHA; `source-head.txt` records the actual checkout, while the
-PR-head guard independently rejects stale/closed/untrusted PRs. Never redirect E2E
+publisher use the same pinned merge SHA for current code. `source-head.txt` records the actual APK
+build checkout, including on reuse. The PR-head guard independently rejects stale/closed/untrusted PRs.
+Never redirect E2E
 at Development or Production. Preview protection bypass remains a secret query parameter.
 There is no cross-PR API alias: each published OTA manifest carries that PR's verified API URL.
 

@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { mcpReleaseAsset } from "../../scripts/release/mcp-release-asset.mjs";
 import { releaseBody, releaseTitle } from "../../scripts/release/release-format.mjs";
 
 async function publication(input, request) {
@@ -31,12 +32,15 @@ async function publication(input, request) {
   const tag = `v${input.version}`,
     owner = `<!-- bgo:production=${input.sha};version=${input.version} -->`;
   const apk = await artifact(input);
-  const apkUrl = `https://github.com/${input.repository}/releases/download/${tag}/${apk.name}`;
+  const mcp = mcpReleaseAsset("production", input.version);
+  const download = `https://github.com/${input.repository}/releases/download/${tag}`;
+  const apkUrl = `${download}/${apk.name}`;
   const title = releaseTitle({ ...input, environment: "production" });
   const body = releaseBody({
     ...input,
     environment: "production",
     apkUrl,
+    mcpUrl: `${download}/${mcp.name}`,
     checksum: apk.digest.slice(7),
     webUrl: "https://board-game-organizer.com",
     apiUrl: "https://api.board-game-organizer.com",
@@ -52,7 +56,7 @@ async function publication(input, request) {
         ...(value
           ? {
               "Content-Type": upload
-                ? "application/vnd.android.package-archive"
+                ? value.type || "application/vnd.android.package-archive"
                 : "application/json",
             }
           : {}),
@@ -92,7 +96,7 @@ async function publication(input, request) {
       throw new Error("Invalid Production release URL");
     return expected;
   };
-  return { api, tag, owner, title, body, apk, apkUrl, call, current, owned, url };
+  return { api, tag, owner, title, body, artifacts: [apk, mcp], apkUrl, call, current, owned, url };
 }
 
 async function artifact(input) {
@@ -135,10 +139,9 @@ function sameNotes(release, expected) {
   );
 }
 
-/** Keep this release private until its owned APK, notes and links are verified, before OTA. */
+/** Keep this release private until its assets, notes and links are verified, before OTA. */
 export async function stageProductionRelease(input, request = fetch) {
-  const p = await publication(input, request),
-    apk = p.apk;
+  const p = await publication(input, request);
   await p.current();
   let release;
   for (let page = 1; !release; page++) {
@@ -162,9 +165,11 @@ export async function stageProductionRelease(input, request = fetch) {
     if (!release.draft) throw new Error("Production staging must stay private");
   }
   const assets = await p.call(`/releases/${release.id}/assets?per_page=100`);
-  let asset = assets.find((row) => row.name === apk.name);
   if (!release.draft) {
-    if (!matches(asset, apk) || !sameNotes(release, p.body))
+    if (
+      !p.artifacts.every((expected) => assets.some((asset) => matches(asset, expected))) ||
+      !sameNotes(release, p.body)
+    )
       throw new Error("Published Production release differs from this verified artifact");
     return {
       release_id: release.id,
@@ -174,22 +179,24 @@ export async function stageProductionRelease(input, request = fetch) {
       already_published: true,
     };
   }
-  if (asset && !matches(asset, apk)) {
-    if (!Number.isSafeInteger(asset.id) || asset.id < 1) throw new Error("Invalid owned draft APK");
+  for (const expected of p.artifacts) {
+    const existing = assets.find((row) => row.name === expected.name);
+    if (matches(existing, expected)) continue;
+    if (existing) {
+      if (!Number.isSafeInteger(existing.id) || existing.id < 1)
+        throw new Error("Invalid owned draft asset");
+      await p.current();
+      await p.call(`/releases/assets/${existing.id}`, "DELETE");
+    }
     await p.current();
-    await p.call(`/releases/assets/${asset.id}`, "DELETE");
-    asset = undefined;
-  }
-  if (!asset) {
-    await p.current();
-    asset = await p.call(
-      `https://uploads.github.com/repos/${input.repository}/releases/${release.id}/assets?name=${encodeURIComponent(apk.name)}`,
+    const uploaded = await p.call(
+      `https://uploads.github.com/repos/${input.repository}/releases/${release.id}/assets?name=${encodeURIComponent(expected.name)}`,
       "POST",
-      await openAsBlob(apk.path),
+      expected.body ?? (await openAsBlob(expected.path)),
       true,
     );
+    if (!matches(uploaded, expected)) throw new Error("Uploaded Production asset receipt mismatch");
   }
-  if (!matches(asset, apk)) throw new Error("Uploaded Production APK receipt mismatch");
   if (release.body !== p.body) {
     await p.current();
     release = p.owned(await p.call(`/releases/${release.id}`, "PATCH", { body: p.body }));
@@ -207,18 +214,14 @@ export async function stageProductionRelease(input, request = fetch) {
 
 /** Publish only the same fully staged release after the verified Production OTA succeeds. */
 export async function publishProductionRelease(input, staged, request = fetch) {
-  const p = await publication(input, request),
-    apk = p.apk;
+  const p = await publication(input, request);
   if (!Number.isSafeInteger(staged?.release_id) || staged.release_id < 1)
     throw new Error("Verified private release required");
   await p.current();
   let release = p.owned(await p.call(`/releases/${staged.release_id}`));
   const assets = await p.call(`/releases/${release.id}/assets?per_page=100`);
   if (
-    !matches(
-      assets.find((row) => row.name === apk.name),
-      apk,
-    ) ||
+    !p.artifacts.every((expected) => assets.some((asset) => matches(asset, expected))) ||
     !sameNotes(release, p.body)
   )
     throw new Error("Production staging is incomplete");
@@ -323,7 +326,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     await runProductionRelease(process.argv[2]);
   } catch {
     console.error(
-      "Production release refused: current source, private staging and APK must remain verified.",
+      "Production release refused: current source, private staging and release assets must remain verified.",
     );
     process.exitCode = 1;
   }

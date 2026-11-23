@@ -73,6 +73,10 @@ export function useEventProposals(o: CommunityApiOptions, scope: EventProposalSc
   const cursor = cursors.at(-1) ?? "";
   const q = useQuery(eventProposalsPageQuery(o, scope, cursor));
   const current = q.data as ClientProposalPage | undefined;
+  const visible =
+    scope.kind === "game"
+      ? current?.items.filter((row) => row.status !== "ACCEPTED")
+      : current?.items;
   return {
     ...q,
     hasVerifiedBase:
@@ -81,7 +85,7 @@ export function useEventProposals(o: CommunityApiOptions, scope: EventProposalSc
       !communityAccessDenied(q.error),
     items: communityAccessDenied(q.error)
       ? []
-      : (current?.items.slice(0, EVENT_PROPOSAL_PAGE_SIZE) ?? []),
+      : (visible?.slice(0, EVENT_PROPOSAL_PAGE_SIZE) ?? []),
     page: cursors.length,
     canPrevious: cursors.length > 1,
     previous: () => {

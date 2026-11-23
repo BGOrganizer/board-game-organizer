@@ -285,7 +285,6 @@ it("covers existing option changes, new/removed tables and standalone changes wi
       ).map((row) => row.id),
     ).toEqual([notificationItemId(other, "game", 1)]);
   for (const patch of [
-    { name: "Changed" },
     { minPlayers: 3 },
     { startsAt: "2027-01-03T19:00:00Z" },
     { demonstratorUserId: "demo" },
@@ -295,6 +294,9 @@ it("covers existing option changes, new/removed tables and standalone changes wi
     expect(
       eventNotificationItems(event, event, [table], [{ ...table, ...patch }]).map((row) => row.id),
     ).toEqual([notificationItemId(other, "overview", undefined, "table")]);
+  expect(eventNotificationItems(event, event, [table], [{ ...table, name: "Old label" }])).toEqual(
+    [],
+  );
   for (const patch of [{ name: "New title" }, { bookingClosesAt: "2027-01-02T19:00:00Z" }])
     expect(
       eventNotificationItems(event, { ...event, ...patch }, [table], [table]).map((row) => row.id),

@@ -60,7 +60,7 @@ it.each(["en", "it"] as const)(
     ).not.toBeNull();
     fireEvent.click(
       screen.getByRole("button", {
-        name: `${locale === "it" ? "Date e Orari" : "Dates and times"}: First table`,
+        name: `${locale === "it" ? "Date e Orari" : "Dates and times"}: Chess`,
       }),
     );
     const dialog = await screen.findByRole("dialog");
@@ -86,7 +86,7 @@ it.each(["en", "it"] as const)(
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     fireEvent.click(
       screen.getByRole("button", {
-        name: `${locale === "it" ? "Luoghi" : "Locations"}: First table`,
+        name: `${locale === "it" ? "Luoghi" : "Locations"}: Chess`,
       }),
     );
     expect(await screen.findByText("Via Roma 1")).not.toBeNull();
@@ -108,7 +108,7 @@ it("shares Group/Event/Table title typography and keeps Group metadata at the sa
       <EventTableCard table={plannedTable} />
     </>,
   );
-  const titles = [group.name, plannedEvent.name, plannedTable.name].map(
+  const titles = [group.name, plannedEvent.name, "Table #1"].map(
     (name) => screen.getAllByText(name).find((e) => e.className.includes("font-semibold"))!,
   );
   expect(new Set(titles.map((title) => title.className)).size).toBe(1);

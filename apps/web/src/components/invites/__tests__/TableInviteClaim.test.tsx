@@ -98,6 +98,34 @@ it("requires a final explicit acceptance and discloses friendship, private membe
     },
   });
 });
+it("collects explicit answers for changed singleton options in the hosted invitation", async () => {
+  const value = review();
+  value.event.dateVoteRequired = true;
+  value.event.locationVoteRequired = true;
+  value.table.gameVoteRequired = true;
+  const { onClaim } = mount(value);
+  const accept = screen.getByRole("button", { name: "Accept invitation" });
+  expect(accept.hasAttribute("disabled")).toBe(true);
+  for (const button of screen.getAllByRole("button", { name: /: Yes$/ })) {
+    fireEvent.click(button);
+  }
+  fireEvent.click(accept);
+  await waitFor(() =>
+    expect(onClaim).toHaveBeenCalledWith({
+      consent: true,
+      participation: {
+        version: 7,
+        gameVotes: { "1": "YES" },
+        availability: {
+          version: 7,
+          dateVotes: { [optionId]: "YES" },
+          locationVotes: { [optionId]: "YES" },
+        },
+      },
+    }),
+  );
+});
+
 it("never invents votes: every multiple-choice option needs an explicit answer and each category needs a positive choice", async () => {
   const { onClaim } = mount(multiple());
   const accept = screen.getByRole("button", { name: "Accept invitation" });

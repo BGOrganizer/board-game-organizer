@@ -5,6 +5,7 @@ import type { CreateEventVariables, EditEventVariables } from "@board-game-organ
 import {
   communityAccessDenied,
   creationState,
+  draftTableNumber,
   eventDateWall,
   eventRecordKeys,
   isGroupManagerRole,
@@ -38,6 +39,7 @@ import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useTableTitle } from "@/lib/useTableTitle";
 import { EventDraftTableCard } from "./EventDraftTableCard";
 import { EventDraftTableEditor } from "./EventDraftTableEditor";
 import { EventInformationFields } from "./EventInformationFields";
@@ -161,6 +163,9 @@ function Editor({
   const favorites = useFavoriteLocations(o, form.draft.locations);
   const { draft, step } = form,
     publicGroup = form.publicGroup;
+  const { numberedTableTitle } = useTableTitle();
+  const getDraftTableTitle = (key: string) =>
+    numberedTableTitle(draftTableNumber(draft.tables, key, event?.nextTableOrder));
   useEffect(() => {
     if (step !== 2 || !form.validationAttempt) return;
     setExpandedTables((old) => {
@@ -343,7 +348,7 @@ function Editor({
                   >
                     <Table2 className="me-2 size-5 shrink-0 text-muted" aria-hidden />
                     <span className="min-w-0 flex-1 break-words">
-                      {row.name.trim() || `${t`Table`} #${index + 1}`}
+                      {getDraftTableTitle(row.key)}
                     </span>
                     <Accordion.Indicator />
                   </Accordion.Trigger>
@@ -395,7 +400,12 @@ function Editor({
           />
           <div className="space-y-3">
             {draft.tables.map((row) => (
-              <EventDraftTableCard key={row.key} row={row} publicGroup={publicGroup} />
+              <EventDraftTableCard
+                key={row.key}
+                row={row}
+                title={getDraftTableTitle(row.key)}
+                publicGroup={publicGroup}
+              />
             ))}
           </div>
           <p className="flex items-start gap-2">

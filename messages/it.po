@@ -7323,6 +7323,10 @@ msgid "invite.retry"
 msgstr "Riprova"
 
 #. js-lingui-explicit-id
+msgid "invite.tableLabel"
+msgstr "Tavolo"
+
+#. js-lingui-explicit-id
 msgid "invite.tableTitle"
 msgstr "Rivedi l’invito al tavolo"
 
@@ -7345,7 +7349,7 @@ msgstr "La tua disponibilità già espressa per l’evento sarà mantenuta."
 
 #. js-lingui-explicit-id
 msgid "invite.voteHint"
-msgstr "La partecipazione accetta le opzioni singole. Nelle sezioni con più opzioni, rispondi a tutte e scegli almeno un Sì o Se necessario."
+msgstr "Nelle sezioni con votazione, rispondi a tutte le opzioni e scegli almeno un Sì o Se necessario."
 
 #. js-lingui-explicit-id
 msgid "invite.validation"
@@ -7798,3 +7802,32 @@ msgstr "Dopo aver consentito l’accesso alla rubrica, qui trovi i contatti già
 
 msgid "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."
 msgstr "Invia una richiesta di amicizia a chi usa Board Game Organizer o condividi un invito con chi non è ancora iscritto."
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Description"
+msgstr "Descrizione"
+
+#: apps/mcp/src/ui/GroupCreation.tsx
+msgid "Group creation may have completed. Check your groups before trying again."
+msgstr "La creazione del gruppo potrebbe essere riuscita. Controlla i tuoi gruppi prima di riprovare."
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Operation completed"
+msgstr "Operazione completata"
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Status"
+msgstr "Stato"
+
+#: apps/mcp/src/ui/OperationResult.tsx
+msgid "Total"
+msgstr "Totale"
+
+msgid "Vote again on the changed option. A No keeps you registered and blocks agreement if you have a seat."
+msgstr "Vota di nuovo sull’opzione modificata. Il No ti lascia iscritto e, se hai un posto al tavolo, blocca l’accordo."
+
+msgid "For a category with several options, choose at least one Yes or If needed."
+msgstr "Se una categoria ha più opzioni, scegli almeno un Sì o Se necessario."
+
+msgid "Review the event and table settings, then vote in the sections shown."
+msgstr "Controlla le impostazioni dell’evento e del tavolo, poi vota nelle sezioni mostrate."

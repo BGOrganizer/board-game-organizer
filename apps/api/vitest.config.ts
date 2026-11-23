@@ -45,6 +45,12 @@ export default defineConfig({
         "json-summary",
       ],
       thresholds: {
+        "src/app/lib/mcp/{auth,actor,operation}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/lib/invites/development-invite-publication.ts": {
           lines: 90,
           functions: 90,
@@ -210,6 +216,12 @@ export default defineConfig({
             statements: 90,
           },
         "src/app/lib/ratings/table-statistics.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/events/table-title.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

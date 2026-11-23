@@ -2,36 +2,29 @@
 import { communityAccessDenied, useEventResultsForm } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
-import { headerButtonProps } from "@/components/common/layout/headerStyles";
+import { HeaderBackButton } from "@/components/common/layout/HeaderBackButton";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useTableTitle } from "@/lib/useTableTitle";
 import { TableScoreEditor } from "./TableScoreEditor";
 export function EventResults({ eventId, tableId }: { eventId: string; tableId: string }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
     router = useRouter(),
     f = useEventResultsForm(o, eventId, tableId);
+  const { getTableTitle } = useTableTitle();
   const denied = communityAccessDenied(f.event.error) || communityAccessDenied(f.table.error);
   const busy = f.actions.busy || f.checking;
   return (
     <div className="mx-auto max-w-4xl space-y-3 pb-28">
       <HeaderActions
-        back={
-          <Button
-            {...headerButtonProps}
-            variant="ghost"
-            aria-label={t`Back`}
-            isDisabled={f.actions.busy}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft className="size-5" aria-hidden />
-          </Button>
-        }
+        back={<HeaderBackButton isDisabled={f.actions.busy} onPress={() => router.back()} />}
       />
       <h1 className="min-w-0 truncate text-base font-semibold">{t`Register result`}</h1>
-      {!denied && f.table.data ? <h2 className="font-semibold">{f.table.data.name}</h2> : null}
+      {!denied && f.table.data ? (
+        <h2 className="font-semibold">{getTableTitle(f.table.data)}</h2>
+      ) : null}
       {f.event.isError || f.table.isError ? (
         <div role="alert">
           <p className="text-danger">{t`Could not load table`}</p>

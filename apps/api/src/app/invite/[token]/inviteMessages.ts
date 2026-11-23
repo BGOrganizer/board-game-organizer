@@ -27,6 +27,7 @@ export const inviteMessages = {
   unavailable: { id: "invite.unavailable", message: "Invitation unavailable" },
   readFailure: { id: "invite.readFailure", message: "Could not load this invitation." },
   retry: { id: "invite.retry", message: "Try again" },
+  tableLabel: { id: "invite.tableLabel", message: "Table" },
   tableTitle: { id: "invite.tableTitle", message: "Review table invitation" },
   tableConsent: {
     id: "invite.tableConsent",
@@ -48,7 +49,7 @@ export const inviteMessages = {
   voteHint: {
     id: "invite.voteHint",
     message:
-      "Joining accepts single options. For sections with multiple options, answer every option and choose at least one Yes or If needed.",
+      "For each section with voting, answer every option and choose at least one Yes or If needed.",
   },
   validation: {
     id: "invite.validation",

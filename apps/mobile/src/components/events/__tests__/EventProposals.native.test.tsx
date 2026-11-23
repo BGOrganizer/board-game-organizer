@@ -286,7 +286,11 @@ it.each(["accept", "reject"] as const)(
       input: { action, version: 1, eventVersion: 1, groupRevision: "a".repeat(64) },
     });
     await waitFor(() => expect(screen.queryByTestId("confirmation-dialog")).toBeNull());
-    expect(await screen.findByText(action === "accept" ? "Accepted" : "Rejected")).toBeVisible();
+    if (action === "accept") {
+      await waitFor(() => expect(screen.queryByTestId(`event-proposal-${rows[0].id}`)).toBeNull());
+    } else {
+      expect(await screen.findByText("Rejected")).toBeVisible();
+    }
   },
 );
 

@@ -144,6 +144,7 @@ const otherTable: PlannedTableResponse = {
   ...table,
   id: "55555555-5555-4555-8555-555555555555",
   name: "Second table",
+  order: 1,
   myRegistration: null,
   myPosition: null,
 };
@@ -385,31 +386,30 @@ const cases: {
       await selectTab("Participants");
       expect(await screen.findByText("@member-5")).toBeVisible();
       await selectTab("Tables");
-      expect(
-        await screen.findByRole("link", { name: `Open table: ${otherTable.name}` }),
-      ).toBeVisible();
+      expect(await screen.findByRole("link", { name: "Open table: Table #2" })).toBeVisible();
       await selectTab("Details");
       expect(screen.getByRole("heading", { name: "Dates and times" })).toBeVisible();
       await selectTab("Participants");
       expect(await screen.findByText("@member-1")).toBeVisible();
       await selectTab("Tables");
-      expect(await screen.findByRole("link", { name: `Open table: ${table.name}` })).toBeVisible();
+      expect(await screen.findByRole("link", { name: "Open table: Table #1" })).toBeVisible();
       expect(screen.getByRole("heading", { name: event.name })).toBe(header);
     },
   },
   {
-    name: "EventDetail: table reentry displays the new authoritative event and table names",
+    name: "EventDetail: table reentry displays the new authoritative event name and numbered table title",
     element: <EventDetail eventId={event.id} fromGroup={group.id} />,
     scenario: async () => {
       const header = screen.getByRole("heading", { name: event.name });
       await selectTab("Tables");
-      await screen.findByRole("link", { name: `Open table: ${table.name}` });
+      await screen.findByRole("link", { name: "Open table: Table #1" });
       await selectTab("Participants");
       await screen.findByText("@member-1");
       act(() => {
         const changedTable = {
           ...table,
           name: "Refreshed first table",
+          order: 2,
           eventName: "Refreshed Friday games",
           eventVersion: 2,
         };
@@ -437,10 +437,8 @@ const cases: {
       });
       expect(await screen.findByRole("heading", { name: "Refreshed Friday games" })).toBe(header);
       await selectTab("Tables");
-      expect(
-        await screen.findByRole("link", { name: "Open table: Refreshed first table" }),
-      ).toBeVisible();
-      expect(screen.queryByRole("link", { name: `Open table: ${table.name}` })).toBeNull();
+      expect(await screen.findByRole("link", { name: "Open table: Table #3" })).toBeVisible();
+      expect(screen.queryByRole("link", { name: "Open table: Table #1" })).toBeNull();
       expect(table.name).toBe(plannedTable.name);
     },
   },
@@ -448,7 +446,7 @@ const cases: {
     name: "EventTable: cached Participants reentry retains the hidden actual seats and common header",
     element: <EventTable eventId={event.id} tableId={table.id} />,
     scenario: async () => {
-      const header = screen.getByRole("heading", { name: table.name });
+      const header = screen.getByRole("heading", { name: "Table #1" });
       expect(
         within(screen.getByRole("region", { name: "Board games" })).getByText("Chess"),
       ).toBeVisible();
@@ -461,14 +459,14 @@ const cases: {
       await selectTab("Participants");
       expect(screen.getByText("@member-1")).toBe(person);
       expect(person).toBeVisible();
-      expect(screen.getByRole("heading", { name: table.name })).toBe(header);
+      expect(screen.getByRole("heading", { name: "Table #1" })).toBe(header);
     },
   },
   {
     name: "EventTable: hidden roster remains reactive to authoritative player and table updates",
     element: <EventTable eventId={event.id} tableId={table.id} />,
     scenario: async () => {
-      const header = screen.getByRole("heading", { name: table.name });
+      const header = screen.getByRole("heading", { name: "Table #1" });
       await selectTab("Participants");
       const person = await screen.findByText("@member-1");
       await selectTab("Details");

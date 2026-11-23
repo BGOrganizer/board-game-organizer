@@ -150,7 +150,9 @@ test("detail proposal sections follow each category opt-in", async ({ page }) =>
     else await expect(section).toBeHidden();
   }
   await page.goto(`/events/${input.eventId}/tables/${input.tableId}`);
-  await expect(page.getByText(table.name, { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText(`${it ? "Tavolo" : "Table"} #${table.order + 1}`, { exact: true }).first(),
+  ).toBeVisible();
   const games = page.getByRole("region", { name: labels.own, exact: true });
   if (table.allowParticipantGames === true) await expect(games).toBeVisible();
   else await expect(games).toBeHidden();
@@ -436,9 +438,9 @@ test("real private proposal or current-manager decision; cancel writes nothing",
       .getByRole("button", { name: labels.action, exact: true })
       .click();
     expect((await posted).status()).toBe(200);
-    await expect(
-      page.getByTestId(`event-proposal-${gameInput.proposalId}`).getByRole("status"),
-    ).toHaveText(labels.result);
+    const proposalRow = page.getByTestId(`event-proposal-${gameInput.proposalId}`);
+    if (input.mode === "accept") await expect(proposalRow).toHaveCount(0);
+    else await expect(proposalRow.getByRole("status")).toHaveText(labels.result);
     const receipt = await read<ReviewEventProposalResponse>(
       page,
       `events/${input.eventId}/proposals/${gameInput.proposalId}`,

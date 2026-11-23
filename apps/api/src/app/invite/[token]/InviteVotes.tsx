@@ -30,7 +30,7 @@ export function InviteVotes({
           {option.description ? (
             <p style={{ color: "var(--muted)", fontSize: 14 }}>{option.description}</p>
           ) : null}
-          {editable && options.length > 1 ? (
+          {editable ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 8 }}>
               {(
                 [

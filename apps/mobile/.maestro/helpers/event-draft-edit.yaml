@@ -5,8 +5,8 @@ appId: com.bgo.boardgameorganizer.dev
 - assertVisible: "Event detail"
 - tapOn:
     id: "event-next-fab"
-- tapOn: "Remove table: Cascadia event table"
-- assertNotVisible: "Cascadia event table"
+- tapOn: "Remove table: Table #1"
+- assertNotVisible: "Table #1"
 - tapOn:
     id: "event-next-fab"
 - tapOn: "Save draft"

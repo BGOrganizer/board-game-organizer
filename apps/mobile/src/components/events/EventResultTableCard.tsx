@@ -7,6 +7,7 @@ import { Pressable, View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
+import { useTableTitle } from "@/lib/events/useTableTitle";
 import { useT } from "@/lib/i18n";
 export function EventResultTableCard({
   table,
@@ -22,11 +23,12 @@ export function EventResultTableCard({
   const t = useT(),
     { i18n } = useLingui(),
     [muted, success] = useThemeColor(["muted", "success"]);
+  const title = useTableTitle()(table);
   return (
     <ListCard>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${t("Edit scores")}: ${table.name}`}
+        accessibilityLabel={`${t("Edit scores")}: ${title}`}
         accessibilityHint={ready ? t("Scores ready") : undefined}
         accessibilityState={{ disabled: busy }}
         disabled={busy}
@@ -54,13 +56,9 @@ export function EventResultTableCard({
           ) : null}
         </View>
         <ListCardBody
-          title={table.name}
+          title={title}
           titleIcon={<Dices size={16} color={muted} accessible={false} />}
         >
-          <Typography className="text-sm text-foreground">
-            {table.gamesDetail.find((game) => game.id === table.confirmed?.gameId)?.name ??
-              t("Unknown")}
-          </Typography>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <UserRoundCheck size={16} color={muted} accessible={false} />
             <Typography className="text-sm text-foreground">
