@@ -51,7 +51,8 @@ export function EventOverview({
   const canVote = event.canVote && Boolean(onVote);
   const voting = event.status === "PLANNING" && event.groupType !== "PUBLIC";
   const voteDates = voting && eventOptionsRequireVote(event.dates, event.dateVoteRequired);
-  const voteLocations = voting && eventOptionsRequireVote(event.locations, event.locationVoteRequired);
+  const voteLocations =
+    voting && eventOptionsRequireVote(event.locations, event.locationVoteRequired);
   return (
     <>
       <EventSectionHeader
