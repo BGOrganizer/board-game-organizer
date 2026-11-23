@@ -21,6 +21,6 @@
   }
 
   #root {
-    @apply mx-auto max-w-3xl px-3 pb-3 pt-6 sm:px-4 sm:pb-4 sm:pt-7;
+    @apply mx-auto max-w-3xl px-3 py-8 sm:px-4;
   }
 }

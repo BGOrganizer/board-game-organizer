@@ -54,11 +54,13 @@ export function RankingResults({
   operation,
   data,
   input,
+  embedded = false,
 }: {
   app: App;
   operation: "list_global_leaderboard" | "list_group_leaderboard" | "list_table_leaderboard";
   data: unknown;
   input: unknown;
+  embedded?: boolean;
 }) {
   const { t } = useLingui();
   const { openTool } = useWidgetNavigation(app);
@@ -67,7 +69,7 @@ export function RankingResults({
     const page = tablePage.safeParse(data);
     return args.success && page.success ? (
       <section className="space-y-3">
-        {openTool ? (
+        {openTool && !embedded ? (
           <Button
             type="button"
             size="sm"
@@ -95,7 +97,7 @@ export function RankingResults({
 
   return (
     <section className="space-y-3">
-      {openTool ? (
+      {openTool && !embedded ? (
         <Button
           type="button"
           size="sm"

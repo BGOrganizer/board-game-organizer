@@ -19,6 +19,7 @@ type OpenTool = (
   operation: string,
   args: Record<string, unknown>,
   onOpened?: () => void,
+  detailTab?: string,
 ) => Promise<boolean>;
 const Navigation = createContext<OpenTool | undefined>(undefined);
 
@@ -30,7 +31,8 @@ export function useWidgetNavigation(app: App) {
     },
     async openPath(path: string, onOpened?: () => void) {
       const target = widgetTarget(path);
-      if (openTool && target) return openTool(target.operation, target.args, onOpened);
+      if (openTool && target)
+        return openTool(target.operation, target.args, onOpened, target.detailTab);
       const opened = await openWeb(app, path);
       if (opened) onOpened?.();
       return opened;
@@ -39,8 +41,9 @@ export function useWidgetNavigation(app: App) {
   };
 }
 
-type Frame = { key: number; output: ToolOutput; input: unknown };
+type Frame = { key: number; output: ToolOutput; input: unknown; detailTab?: string };
 type Destination = Parameters<OpenTool>;
+const detailedOperations = new Set(["get_event", "get_group", "get_table"]);
 
 export function WidgetNavigation({
   app,
@@ -52,7 +55,7 @@ export function WidgetNavigation({
   app: App;
   output: ToolOutput;
   input: unknown;
-  render: (output: ToolOutput, input: unknown) => ReactNode;
+  render: (output: ToolOutput, input: unknown, detailTab?: string) => ReactNode;
   onViewerChange?: (viewerUserId: string) => void;
 }) {
   const { t } = useLingui();
@@ -66,6 +69,7 @@ export function WidgetNavigation({
   const triggers = useRef(new Map<number, HTMLElement>());
   const backButton = useRef<HTMLButtonElement>(null);
   const restoreFocus = useRef(false);
+  const openedFullscreen = useRef(false);
 
   useEffect(
     () => () => {
@@ -86,7 +90,7 @@ export function WidgetNavigation({
     trigger?.focus({ preventScroll: true });
   }, [current.key, pending, failed]);
 
-  const openTool: OpenTool = async (operation, args, onOpened) => {
+  const openTool: OpenTool = async (operation, args, onOpened, detailTab) => {
     if (request.current) return false;
     const controller = new AbortController();
     request.current = controller;
@@ -101,6 +105,15 @@ export function WidgetNavigation({
     }
     setPending(true);
     setFailed(undefined);
+    const display = detailedOperations.has(operation) ? app.getHostContext() : undefined;
+    if (
+      !openedFullscreen.current &&
+      display?.displayMode === "inline" &&
+      display.availableDisplayModes?.includes("fullscreen")
+    ) {
+      openedFullscreen.current = true;
+      void app.requestDisplayMode({ mode: "fullscreen" }).catch(() => undefined);
+    }
     let opened = false;
     try {
       const result = await callToolResult(app, operation, args, controller.signal);
@@ -112,12 +125,14 @@ export function WidgetNavigation({
       if (accountChanged) {
         triggers.current.clear();
         queryClient.clear();
+        openedFullscreen.current = false;
       }
       if (result.viewerUserId) onViewerChange?.(result.viewerUserId);
       const frame = {
         key: nextKey.current++,
         output: { ...result, viewerUserId: result.viewerUserId ?? viewer },
         input: args,
+        detailTab,
       };
       setFrames(accountChanged ? [frame] : [...frames, frame]);
       opened = !accountChanged;
@@ -135,6 +150,13 @@ export function WidgetNavigation({
 
   function back() {
     restoreFocus.current = true;
+    if (
+      openedFullscreen.current &&
+      ((frames.length === 2 && !pending && !failed) || (frames.length === 1 && (pending || failed)))
+    ) {
+      openedFullscreen.current = false;
+      void app.requestDisplayMode({ mode: "inline" }).catch(() => undefined);
+    }
     if (pending || failed) {
       request.current?.abort();
       request.current = undefined;
@@ -169,7 +191,7 @@ export function WidgetNavigation({
             key={frame.key}
             mode={frame === current && !pending && !failed ? "visible" : "hidden"}
           >
-            {render(frame.output, frame.input)}
+            {render(frame.output, frame.input, frame.detailTab)}
           </Activity>
         ))}
       </div>

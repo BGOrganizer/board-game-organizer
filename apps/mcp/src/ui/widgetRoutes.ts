@@ -1,4 +1,4 @@
-type Target = { operation: string; args: Record<string, unknown> };
+type Target = { operation: string; args: Record<string, unknown>; detailTab?: string };
 
 const rootOperations = new Map([
   ["/events", "list_events"],
@@ -19,25 +19,28 @@ export function widgetTarget(path: string): Target | undefined {
   const tab = url.searchParams.get("tab");
   const match = (pattern: RegExp) => pathname.match(pattern);
 
-  const table = match(/^\/events\/([^/]+)\/tables\/([^/]+)(?:\/results)?$/);
+  const table = match(/^\/events\/([^/]+)\/tables\/([^/]+)(\/results)?$/);
   if (table) {
-    const [, eventId, tableId] = table;
+    const [, eventId, tableId, results] = table;
     return {
-      operation: tab === "participants" ? "list_table_seats" : "get_table",
+      operation: "get_table",
       args: { params: { eventId, tableId } },
+      ...(results || tab === "results"
+        ? { detailTab: "results" }
+        : tab === "participants"
+          ? { detailTab: "participants" }
+          : {}),
     };
   }
 
   const event = match(/^\/events\/([^/]+)$/);
   if (event && event[1] !== "new") {
     const [, eventId] = event;
-    const operation =
-      tab === "tables"
-        ? "list_event_tables"
-        : tab === "participants"
-          ? "list_event_participants"
-          : "get_event";
-    return { operation, args: { params: { eventId } } };
+    return {
+      operation: "get_event",
+      args: { params: { eventId } },
+      ...(tab === "tables" || tab === "participants" ? { detailTab: tab } : {}),
+    };
   }
 
   const group = match(/^\/(groups|moderation)\/([^/]+)$/);
@@ -45,14 +48,15 @@ export function widgetTarget(path: string): Target | undefined {
     const [, section, groupId] = group;
     if (section === "moderation")
       return { operation: "get_group_moderation_review", args: { params: { groupId } } };
-    if (tab === "events") return { operation: "list_events", args: { query: { groupId } } };
-    const operation =
-      tab === "members"
-        ? "list_group_members"
+    return {
+      operation: "get_group",
+      args: { params: { groupId } },
+      ...(tab === "events" || tab === "members"
+        ? { detailTab: tab }
         : tab === "leaderboard"
-          ? "list_group_leaderboard"
-          : "get_group";
-    return { operation, args: { params: { groupId } } };
+          ? { detailTab: "rankings" }
+          : {}),
+    };
   }
 
   const profile = match(/^\/profiles\/([^/]+)$/);

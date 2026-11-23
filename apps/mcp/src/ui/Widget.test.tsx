@@ -16,7 +16,13 @@ const host = vi.hoisted(() => {
     connect: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
     openLink: vi.fn(async () => ({})),
-    getHostContext: vi.fn(() => ({ locale: "en", theme: "light" })),
+    getHostContext: vi.fn(() => ({
+      locale: "en",
+      theme: "light",
+      displayMode: "inline",
+      availableDisplayModes: ["inline"],
+    })),
+    requestDisplayMode: vi.fn(async () => ({ mode: "fullscreen" })),
     callServerTool: vi.fn(),
   };
   return bridge;
@@ -44,6 +50,15 @@ const historyTable = (id: string, name: string) => ({
 const response = (operation: string, data: unknown) => ({ structuredContent: { operation, data } });
 
 beforeEach(() => {
+  Element.prototype.getAnimations ??= () => [];
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   vi.stubGlobal(
     "matchMedia",
     vi.fn(() => ({
@@ -95,9 +110,17 @@ it("browses a table inside the widget and returns to the same filtered, paged hi
   );
   expect(screen.queryByRole("button", { name: "Load more tables" })).toBeNull();
   const trigger = screen.getByRole("button", { name: "Open table: Hegemony" });
+  host.getHostContext.mockReturnValueOnce({
+    locale: "en",
+    theme: "light",
+    displayMode: "inline",
+    availableDisplayModes: ["inline", "fullscreen"],
+  });
   trigger.focus();
   fireEvent.click(trigger);
-  expect(await screen.findByRole("heading", { name: "Table" })).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "Hegemony" })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Results" })).toBeVisible();
+  expect(host.requestDisplayMode).toHaveBeenNthCalledWith(1, { mode: "fullscreen" });
   expect(screen.getByText("Ark Nova")).not.toBeVisible();
   expect(host.callServerTool).toHaveBeenLastCalledWith(
     { name: "get_table", arguments: { params: { eventId, tableId: firstTableId } } },
@@ -107,6 +130,7 @@ it("browses a table inside the widget and returns to the same filtered, paged hi
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByText("Ark Nova")).toBeVisible();
   expect(trigger).toHaveFocus();
+  expect(host.requestDisplayMode).toHaveBeenNthCalledWith(2, { mode: "inline" });
   expect(host.callServerTool).toHaveBeenCalledTimes(2);
 });
 
@@ -120,10 +144,13 @@ it("follows an event to its tables and their group, keeping every section in the
     .mockResolvedValueOnce(response("get_group", { ...groupRecord, id: groupId }));
   await open("list_events", { items: [event], nextCursor: null });
   fireEvent.click(screen.getByRole("button", { name: `Open event: ${event.name}` }));
-  fireEvent.click(await screen.findByRole("button", { name: "Tables" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Open table: Hegemony" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Group" }));
-  expect(await screen.findByRole("heading", { name: "Group" })).toBeVisible();
+  fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
+  const openTable = await screen.findByRole("button", { name: "Open table: Hegemony" });
+  openTable.focus();
+  fireEvent.click(openTable);
+  fireEvent.click(await screen.findByRole("button", { name: "Dice Club" }));
+  expect(await screen.findByRole("heading", { name: groupRecord.name })).toBeVisible();
+  expect(screen.getByRole("tablist", { name: "Group sections" })).toBeVisible();
   expect(host.callServerTool.mock.calls.map(([call]) => call)).toEqual([
     { name: "get_event", arguments: { params: { eventId } } },
     { name: "list_event_tables", arguments: { params: { eventId } } },
@@ -131,12 +158,100 @@ it("follows an event to its tables and their group, keeping every section in the
     { name: "get_group", arguments: { params: { groupId } } },
   ]);
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  expect(screen.getByRole("heading", { name: "Table" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Hegemony" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  expect(screen.getByRole("heading", { name: "Tables" })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Tables" })).toHaveAttribute("aria-selected", "true");
+  expect(openTable).toHaveFocus();
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  expect(screen.getByRole("heading", { name: "Event" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Events" })).toBeVisible();
   expect(host.openLink).not.toHaveBeenCalled();
+}, 15_000);
+
+it("loads permitted group tabs on demand and retries a failed panel without leaving the detail", async () => {
+  host.callServerTool
+    .mockResolvedValueOnce({ isError: true, structuredContent: { status: 403 } })
+    .mockResolvedValueOnce(response("list_group_members", { items: [], nextCursor: null }))
+    .mockResolvedValueOnce(
+      response("list_group_leaderboard", { games: [], players: [], nextCursor: null }),
+    );
+  await open("get_group", {
+    ...groupRecord,
+    id: groupId,
+    canViewMembers: true,
+    canViewEvents: false,
+    canViewRankings: true,
+  });
+  expect(host.callServerTool).not.toHaveBeenCalled();
+  expect(screen.queryByRole("tab", { name: "Events" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("tab", { name: "Members" }));
+  expect(await screen.findByRole("alert")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("No participants yet")).toBeVisible();
+  fireEvent.click(screen.getByRole("tab", { name: "Rankings" }));
+  await waitFor(() =>
+    expect(host.callServerTool).toHaveBeenLastCalledWith(
+      { name: "list_group_leaderboard", arguments: { params: { groupId } } },
+      { signal: expect.any(AbortSignal) },
+    ),
+  );
+  expect(screen.getByRole("heading", { name: groupRecord.name })).toBeVisible();
+});
+
+it("loads event participants for the current view and keeps private projections scoped", async () => {
+  host.callServerTool.mockResolvedValueOnce(
+    response("list_event_participants", { items: [], nextCursor: null }),
+  );
+  await open("get_event", { ...plannedEvent, id: eventId, canManage: true });
+  fireEvent.click(screen.getByRole("tab", { name: "Participants" }));
+  expect(await screen.findByText("No participants yet")).toBeVisible();
+  expect(host.callServerTool).toHaveBeenCalledWith(
+    {
+      name: "list_event_participants",
+      arguments: { params: { eventId }, query: { view: "review" } },
+    },
+    { signal: expect.any(AbortSignal) },
+  );
+  act(() =>
+    host.ontoolresult(
+      response("get_event", { ...plannedEvent, personalAccessOnly: true, readOnly: true }),
+    ),
+  );
+  expect(screen.queryByRole("tab", { name: "Participants" })).not.toBeInTheDocument();
+  expect(
+    screen.getByText("Personal access to your table. Group details are hidden."),
+  ).toBeVisible();
+});
+
+it("switches between a table's authorized participants and confirmed results", async () => {
+  const table = { ...historyTable(firstTableId, "Hegemony"), eventStatus: "CONFIRMED" };
+  host.callServerTool
+    .mockResolvedValueOnce(response("list_table_seats", { items: [], nextCursor: null }))
+    .mockResolvedValueOnce(
+      response("list_table_leaderboard", {
+        gameId: 1,
+        scope: "GLOBAL",
+        items: [],
+        nextCursor: null,
+      }),
+    );
+  await open("get_table", table);
+  fireEvent.click(screen.getByRole("tab", { name: "Participants" }));
+  expect(await screen.findByText("No participants yet")).toBeVisible();
+  fireEvent.click(screen.getByRole("tab", { name: "Results" }));
+  await waitFor(() =>
+    expect(host.callServerTool).toHaveBeenLastCalledWith(
+      { name: "list_table_leaderboard", arguments: { params: { eventId, tableId: firstTableId } } },
+      { signal: expect.any(AbortSignal) },
+    ),
+  );
+  act(() =>
+    host.ontoolresult(
+      response("get_table", { ...table, eventStatus: "TERMINATED", sharedResultsOnly: true }),
+    ),
+  );
+  expect(screen.queryByRole("tab", { name: "Participants" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("tab", { name: "Results" }));
+  expect(await screen.findByRole("heading", { name: "Chess" })).toBeVisible();
 });
 
 it("shows an empty history, then applies the host language and theme", async () => {
@@ -312,7 +427,7 @@ it("cancels a pending destination on Back and ignores a late tool response", asy
   expect(host.callServerTool.mock.calls[0][1].signal.aborted).toBe(true);
   await act(async () => resolve(response("get_table", historyTable(firstTableId, "Hegemony"))));
   expect(screen.getByRole("heading", { name: "History" })).toBeVisible();
-  expect(screen.queryByRole("heading", { name: "Table" })).toBeNull();
+  expect(screen.queryByRole("tablist", { name: "Table sections" })).toBeNull();
 });
 
 it("drops prior views if navigation returns data from a different viewer", async () => {
@@ -593,7 +708,7 @@ it("opens the saved group inside the widget after retrying an unsuccessful read"
   fireEvent.click(screen.getByRole("button", { name: "Open group" }));
   expect(await screen.findByRole("alert")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await screen.findByRole("heading", { name: "Group" });
+  await screen.findByRole("heading", { name: "Dice Club" });
   await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   expect(host.callServerTool).toHaveBeenCalledTimes(2);
   expect(host.openLink).not.toHaveBeenCalled();

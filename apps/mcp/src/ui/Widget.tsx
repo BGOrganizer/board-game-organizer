@@ -17,7 +17,8 @@ import { OperationResult } from "./OperationResult";
 import { PeopleResults, supportsPeopleResult } from "./PeopleResults";
 import { record, type ToolOutput, toolOutput } from "./protocol";
 import { RankingResults } from "./RankingResults";
-import { isRecordResultOperation, RecordResults } from "./RecordResults";
+import { RecordDetailResults } from "./RecordDetailResults";
+import { isRecordResultOperation, RecordResults, readRecordDetail } from "./RecordResults";
 import { TableFinalResults } from "./TableFinalResults";
 import { WidgetNavigation } from "./WidgetNavigation";
 
@@ -52,7 +53,13 @@ export function Widget() {
 function WidgetResponse() {
   const { t } = useLingui();
   const queryClient = useQueryClient();
-  const [app] = useState(() => new App({ name: "Board Game Organizer", version: "1.0.0" }));
+  const [app] = useState(
+    () =>
+      new App(
+        { name: "Board Game Organizer", version: "1.0.0" },
+        { availableDisplayModes: ["inline", "fullscreen"] },
+      ),
+  );
   const [response, setResponse] = useState<Response>();
   const [failed, setFailed] = useState(false);
   const viewer = useRef<string>(undefined);
@@ -124,7 +131,9 @@ function WidgetResponse() {
       app={app}
       output={output}
       input={input}
-      render={(next, nextInput) => <WidgetFrame app={app} output={next} input={nextInput} />}
+      render={(next, nextInput, detailTab) => (
+        <WidgetFrame app={app} output={next} input={nextInput} detailTab={detailTab} />
+      )}
       onViewerChange={(viewerUserId) => {
         viewer.current = viewerUserId;
       }}
@@ -132,14 +141,31 @@ function WidgetResponse() {
   );
 }
 
-function WidgetFrame({ app, output, input }: { app: App; output: ToolOutput; input: unknown }) {
+function WidgetFrame({
+  app,
+  output,
+  input,
+  detailTab,
+}: {
+  app: App;
+  output: ToolOutput;
+  input: unknown;
+  detailTab?: string;
+}) {
+  if (["get_event", "get_group", "get_table"].includes(output.operation)) {
+    const recordDetail = readRecordDetail(output.operation, output.data);
+    if (recordDetail)
+      return (
+        <RecordDetailResults
+          app={app}
+          row={recordDetail}
+          initialTab={detailTab}
+          viewerUserId={output.viewerUserId}
+        />
+      );
+  }
   if (isRecordResultOperation(output.operation)) {
-    const table =
-      output.operation === "get_table"
-        ? output.data
-        : output.operation === "save_table_result"
-          ? record(output.data)?.table
-          : undefined;
+    const table = output.operation === "save_table_result" ? record(output.data)?.table : undefined;
     return (
       <section className="space-y-3">
         <RecordResults

@@ -24,7 +24,10 @@ chatbot, including operations that use a compact action receipt instead of a dom
 widget support can still use the tools and their structured responses.
 
 BGO resource links in the widget open the corresponding detail or list within the chat. The Back
-action returns to the previous widget view and preserves its loaded results. External links, such
+action returns to the previous widget view and preserves its loaded results and selected tab.
+Group, Event and Table details share the Web identity cards and tab interfaces. The widget
+requests fullscreen when the host offers it and loads each authorized tab on demand through MCP.
+External links, such
 as BoardGameGeek, still use the host's link-opening flow.
 
 ## Hosting and authentication

@@ -8,19 +8,9 @@ import {
   useGroupRecordActions,
   useNotificationChanges,
 } from "@board-game-organizer/shared";
-import { Button, Skeleton, Tabs } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import {
-  ArrowLeft,
-  CalendarDays,
-  ChartNoAxesCombined,
-  Info,
-  LogOut,
-  Pencil,
-  Trash2,
-  UserRoundPlus,
-  UsersRound,
-} from "lucide-react";
+import { ArrowLeft, LogOut, Pencil, Trash2, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -33,20 +23,16 @@ import {
 } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
-import { TabBar } from "@/components/common/ui/TabBar";
-import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { GroupDetailsCard } from "./GroupDetailsCard";
-import { GroupIdentityCard } from "./GroupIdentityCard";
+import { GroupDetailView } from "./GroupDetailView";
 import { GroupInvitationCard } from "./GroupInvitationCard";
 import { GroupJoinRequest } from "./GroupJoinRequest";
 import { GroupMembers } from "./GroupMembers";
-import { GroupSectionHeader } from "./GroupSectionHeader";
 export function GroupDetail({
   groupId,
   initialTab = "info",
@@ -63,10 +49,6 @@ export function GroupDetail({
     [confirm, setConfirm] = useState<"decline" | "cancel" | "delete" | null>(null),
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
-  const selectedTab =
-    (tab === "members" && !group?.canViewMembers) || (tab === "events" && !group?.canViewEvents)
-      ? "info"
-      : tab;
   const changes = useNotificationChanges(
     {
       ...o,
@@ -105,7 +87,10 @@ export function GroupDetail({
   const run = (action: "request" | "accept" | "decline" | "cancel" | "delete") => {
     if (action === "delete") {
       if (!canDelete || a.isBusy(group.id)) return;
-      a.remove.mutate({ id: group.id, input: { version: group.version, deleteEvents: true } });
+      a.remove.mutate({
+        id: group.id,
+        input: { version: group.version, deleteEvents: true },
+      });
       setConfirm(null);
       router.replace("/groups");
       return;
@@ -134,7 +119,10 @@ export function GroupDetail({
         ...(group.canViewEvents ? [{ kind: "event-list" as const, id: group.id }] : []),
         { kind: "item", id: notificationItemId(group.id, "invitation") },
         { kind: "item", id: notificationItemId(group.id, "members") },
-        { kind: "item", id: notificationItemId(group.id, "overview", undefined, "group") },
+        {
+          kind: "item",
+          id: notificationItemId(group.id, "overview", undefined, "group"),
+        },
       ]}
     >
       <div
@@ -166,14 +154,13 @@ export function GroupDetail({
             {failure}
           </p>
         ) : null}
-        <GroupIdentityCard
+        <GroupDetailView
           group={group}
+          selectedKey={tab}
+          onSelectionChange={setTab}
           titleAction={<NotificationChangesPopover model={changes} />}
-        />
-        <Tabs selectedKey={selectedTab} onSelectionChange={(key) => setTab(String(key))}>
-          <TabBar label={t`Group sections`}>
-            <TabTrigger icon={Info} id="info">
-              {t`Details`}
+          tabAdornments={{
+            info: (
               <NotificationTabBadge
                 target={{ kind: "group", id: group.id }}
                 count={changes.tabCounts.details}
@@ -182,12 +169,14 @@ export function GroupDetail({
                   notificationItemId(group.id, "overview", undefined, "group"),
                 ]}
               />
-            </TabTrigger>
-            {group.canViewMembers ? (
-              <TabTrigger icon={UsersRound} id="members">
-                {t`Members`}
+            ),
+            members: (
+              <>
                 <NotificationTabBadge
-                  target={{ kind: "item", id: notificationItemId(group.id, "members") }}
+                  target={{
+                    kind: "item",
+                    id: notificationItemId(group.id, "members"),
+                  }}
                   count={changes.tabCounts.members}
                 />
                 {isGroupManagerRole(group.role) && (group.pendingRequestCount ?? 0) > 0 ? (
@@ -199,66 +188,45 @@ export function GroupDetail({
                     <UserRoundPlus className="size-4" aria-hidden />
                   </span>
                 ) : null}
-              </TabTrigger>
-            ) : null}
-            {group.canViewEvents ? (
-              <TabTrigger icon={CalendarDays} id="events">
-                {t`Events`}
-                <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />
-              </TabTrigger>
-            ) : null}
-            {group.canViewRankings ? (
-              <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Rankings`}</TabTrigger>
-            ) : null}
-          </TabBar>
-
-          <Tabs.Panel id="info" className="space-y-4 pt-0">
-            <GroupSectionHeader group={group} section="info" />
-            <GroupDetailsCard group={group} identity={null} venueHelp={false} />
-            {bodyActions.length ? (
-              <GroupJoinRequest
-                pending={group.role === "requested"}
-                busy={ownBusy}
-                onRequest={() => void run("request")}
-                onCancel={() => {
-                  setError(false);
-                  setConfirm("cancel");
-                }}
-              />
-            ) : null}
-            {group.role === "invited" ? (
-              <GroupInvitationCard
-                groupId={group.id}
-                busy={ownBusy}
-                onAccept={() => void run("accept")}
-                onDecline={() => {
-                  setError(false);
-                  setConfirm("decline");
-                }}
-              />
-            ) : null}
-          </Tabs.Panel>
-          {group.canViewMembers ? (
-            <Tabs.Panel id="members" className="space-y-4 pt-0">
-              <GroupSectionHeader group={group} section="members" />
-              <GroupMembers group={group} />
-            </Tabs.Panel>
-          ) : null}
-          {group.canViewEvents ? (
-            <Tabs.Panel id="events" className="space-y-4 pt-0">
-              <GroupSectionHeader group={group} section="events" />
-              <Events
-                groupId={group.id}
-                canCreate={isGroupManagerRole(group.role) && group.canInvite}
-              />
-            </Tabs.Panel>
-          ) : null}
-          {group.canViewRankings ? (
-            <Tabs.Panel id="rankings" className="px-4 pt-0 sm:px-5">
-              <Leaderboard key={group.id} groupId={group.id} groupName={group.name} />
-            </Tabs.Panel>
-          ) : null}
-        </Tabs>
+              </>
+            ),
+            events: <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />,
+          }}
+          infoActions={
+            <>
+              {bodyActions.length ? (
+                <GroupJoinRequest
+                  pending={group.role === "requested"}
+                  busy={ownBusy}
+                  onRequest={() => void run("request")}
+                  onCancel={() => {
+                    setError(false);
+                    setConfirm("cancel");
+                  }}
+                />
+              ) : null}
+              {group.role === "invited" ? (
+                <GroupInvitationCard
+                  groupId={group.id}
+                  busy={ownBusy}
+                  onAccept={() => void run("accept")}
+                  onDecline={() => {
+                    setError(false);
+                    setConfirm("decline");
+                  }}
+                />
+              ) : null}
+            </>
+          }
+          members={<GroupMembers group={group} />}
+          events={
+            <Events
+              groupId={group.id}
+              canCreate={isGroupManagerRole(group.role) && group.canInvite}
+            />
+          }
+          rankings={<Leaderboard key={group.id} groupId={group.id} groupName={group.name} />}
+        />
         {group.canEdit && tab === "info" ? (
           <FloatingActions
             href={`/groups/${group.id}/edit`}

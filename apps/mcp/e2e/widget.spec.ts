@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
-import { plannedEvent, plannedTable } from "../../web/src/test-fixtures/eventRecords";
+import { groupRecord, plannedEvent, plannedTable } from "../../web/src/test-fixtures/eventRecords";
 
 const origin = "https://mcp-host.example.test";
 const groupId = "70f48c08-821b-4e1a-9ee6-9efa2e3afe19";
@@ -24,6 +24,13 @@ const history = {
     },
   ],
   nextCursor: null,
+};
+const linkedGroup = { ...groupRecord, id: groupId, canViewMembers: true, canViewEvents: true };
+const linkedEvent = {
+  ...plannedEvent,
+  id: history.items[0].eventId,
+  groupId,
+  groupName: linkedGroup.name,
 };
 
 async function openWidget(page: Page, operation: string, data: unknown) {
@@ -59,7 +66,10 @@ async function openWidget(page: Page, operation: string, data: unknown) {
               protocolVersion: message.params.protocolVersion,
               hostInfo: { name: 'BGO test host', version: '1' },
               hostCapabilities: { serverTools: {}, openLinks: {} },
-              hostContext: { locale: 'en', theme: 'dark' },
+              hostContext: {
+                locale: 'en', theme: 'dark', displayMode: 'inline',
+                availableDisplayModes: message.params.appCapabilities?.availableDisplayModes ?? ['inline'],
+              },
             } });
           }
           if (message.method === 'ui/notifications/initialized') {
@@ -77,6 +87,22 @@ async function openWidget(page: Page, operation: string, data: unknown) {
             send({ id: message.id, result: { content: [], structuredContent: {
               operation: 'get_table', data: ${JSON.stringify(history.items[0])},
             } } });
+          }
+          const reads = {
+            get_group: ${JSON.stringify(linkedGroup)},
+            get_event: ${JSON.stringify(linkedEvent)},
+            list_events: ${JSON.stringify({ items: [linkedEvent], nextCursor: null })},
+            list_event_tables: ${JSON.stringify(history)},
+            list_group_members: ${JSON.stringify({ items: [profile], nextCursor: null })},
+          };
+          if (message.method === 'tools/call' && Object.hasOwn(reads, message.params.name)) {
+            send({ id: message.id, result: { content: [], structuredContent: {
+              operation: message.params.name, data: reads[message.params.name],
+            } } });
+          }
+          if (message.method === 'ui/request-display-mode') {
+            document.body.dataset.mode = message.params.mode;
+            send({ id: message.id, result: { mode: message.params.mode } });
           }
           if (message.method === 'tools/call' && message.params.name === 'get_user_profile') {
             document.body.dataset.profile = message.params.arguments.params.userId;
@@ -100,16 +126,42 @@ async function openWidget(page: Page, operation: string, data: unknown) {
 test("navigates from history to a table and back inside the sandboxed widget", async ({ page }) => {
   const { frame, errors } = await openWidget(page, "list_table_history", history);
   await expect(frame.getByRole("heading", { name: "History" })).toBeVisible();
-  await expect(frame.locator("#root")).toHaveCSS("padding-top", "24px");
+  await expect(frame.locator("#root")).toHaveCSS("padding-top", "32px");
+  await expect(frame.locator("#root")).toHaveCSS("padding-bottom", "32px");
   await expect(frame.getByText("Hegemony")).toBeVisible();
   await frame.getByRole("button", { name: "Open table: Hegemony" }).click();
   await expect(page.locator("body")).toHaveAttribute("data-table", history.items[0].id);
-  await expect(frame.getByRole("heading", { name: "Table", exact: true })).toBeVisible();
+  await expect(frame.getByRole("heading", { name: "Hegemony", exact: true })).toBeVisible();
+  await expect(frame.getByRole("tab", { name: "Results" })).toBeVisible();
+  await expect(page.locator("body")).toHaveAttribute("data-mode", "fullscreen");
   await expect(frame.getByRole("heading", { name: "History" })).toBeHidden();
   await expect(page.locator("body")).not.toHaveAttribute("data-opened", /./);
   await frame.getByRole("button", { name: "Back" }).click();
   await expect(frame.getByRole("heading", { name: "History" })).toBeVisible();
+  await expect(page.locator("body")).toHaveAttribute("data-mode", "inline");
   await expect(frame.getByRole("button", { name: "Open table: Hegemony" })).toBeFocused();
+  expect(errors).toEqual([]);
+});
+
+test("opens BGO group and event details, with local tab switching and Back", async ({ page }) => {
+  const { frame, errors } = await openWidget(page, "list_groups", {
+    items: [linkedGroup],
+    nextCursor: null,
+  });
+  await frame.getByRole("button", { name: `Open group: ${linkedGroup.name}` }).click();
+  await expect(frame.getByRole("tablist", { name: "Group sections" })).toBeVisible();
+  await frame.getByRole("tab", { name: "Members" }).click();
+  await expect(frame.getByText("@avery")).toBeVisible();
+  await frame.getByRole("tab", { name: "Events" }).click();
+  await frame.getByRole("button", { name: `Open event: ${linkedEvent.name}` }).click();
+  await frame.getByRole("tab", { name: "Tables" }).click();
+  await frame.getByRole("button", { name: "Open table: Hegemony" }).click();
+  await expect(frame.getByRole("tablist", { name: "Table sections" })).toBeVisible();
+  await frame.getByRole("button", { name: "Back" }).click();
+  await expect(frame.getByRole("tab", { name: "Tables" })).toHaveAttribute("aria-selected", "true");
+  await frame.getByRole("button", { name: "Back" }).click();
+  await expect(frame.getByRole("tab", { name: "Events" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("body")).not.toHaveAttribute("data-opened", /./);
   expect(errors).toEqual([]);
 });
 

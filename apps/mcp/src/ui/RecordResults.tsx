@@ -53,7 +53,7 @@ const detailKinds = {
 } as const;
 
 type Kind = (typeof listKinds)[keyof typeof listKinds];
-type Row =
+export type RecordResultRow =
   | { kind: "event"; data: PlannedEventResponse }
   | { kind: "table"; data: PlannedTableResponse }
   | { kind: "group"; data: GroupRecordResponse };
@@ -106,7 +106,7 @@ const groupCard = z.object({
 
 const pageShape = z.object({ items: z.array(z.unknown()), nextCursor: z.string().nullable() });
 
-function readRow(kind: Kind, data: unknown): Row | undefined {
+function readRow(kind: Kind, data: unknown): RecordResultRow | undefined {
   // Validate the card boundary, keeping the complete authorized DTO for its Web indicators.
   if (kind === "event" && eventCard.safeParse(data).success)
     return { kind, data: data as PlannedEventResponse };
@@ -116,10 +116,15 @@ function readRow(kind: Kind, data: unknown): Row | undefined {
     return { kind, data: data as GroupRecordResponse };
 }
 
+export function readRecordDetail(operation: string, data: unknown) {
+  const kind = recordKind(operation, detailKinds);
+  return kind && readRow(kind, data);
+}
+
 function readPage(kind: Kind, data: unknown) {
   const page = pageShape.safeParse(data);
   if (!page.success) return;
-  const items: Row[] = [];
+  const items: RecordResultRow[] = [];
   for (const value of page.data.items) {
     const row = readRow(kind, value);
     if (!row) return;
@@ -143,6 +148,7 @@ export function RecordResults({
   input,
   viewerUserId,
   renderGameRow,
+  embedded = false,
 }: {
   app: App;
   operation: string;
@@ -150,6 +156,7 @@ export function RecordResults({
   input?: unknown;
   viewerUserId?: string;
   renderGameRow: (game: BggSearchItem) => ReactNode;
+  embedded?: boolean;
 }) {
   const { t } = useLingui();
   const { canOpenPath, openPath, openTool } = useWidgetNavigation(app);
@@ -267,10 +274,12 @@ export function RecordResults({
 
   return (
     <section aria-label={label} className="space-y-3">
-      <SectionHeaderCard
-        title={label}
-        leading={<Icon className="size-5 text-accent" aria-hidden />}
-      />
+      {embedded ? null : (
+        <SectionHeaderCard
+          title={label}
+          leading={<Icon className="size-5 text-accent" aria-hidden />}
+        />
+      )}
       {items?.map((item) => {
         if (item.kind === "event")
           return (

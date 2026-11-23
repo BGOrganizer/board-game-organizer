@@ -49,7 +49,7 @@ const rosterPage = z.object({
   nextCursor: z.string().nullable(),
 });
 
-export function RosterResults(props: PeopleResultProps) {
+export function RosterResults(props: PeopleResultProps & { embedded?: boolean }) {
   const { t, i18n } = useLingui();
   const { canOpenPath, openPath } = useWidgetNavigation(props.app);
   const [openError, setOpenError] = useState(false);
@@ -61,10 +61,12 @@ export function RosterResults(props: PeopleResultProps) {
   );
   return (
     <section className="space-y-3">
-      <SectionHeaderCard
-        title={props.operation === "list_group_members" ? t`Members` : t`Participants`}
-        leading={<UsersRound className="size-5 text-accent" aria-hidden />}
-      />
+      {props.embedded ? null : (
+        <SectionHeaderCard
+          title={props.operation === "list_group_members" ? t`Members` : t`Participants`}
+          leading={<UsersRound className="size-5 text-accent" aria-hidden />}
+        />
+      )}
       {invalid || pages.isError ? (
         <p role="alert" className="text-danger">{t`Could not load participants`}</p>
       ) : null}

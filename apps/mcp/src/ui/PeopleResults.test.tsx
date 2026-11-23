@@ -29,7 +29,7 @@ const visibleProfile = {
   player: { gamesPlayed: 1, gamesWon: 0, winRate: 0 },
 };
 const game = { id: 391, name: "A game", imageUrl: null };
-const services = { callServerTool: vi.fn(), openLink: vi.fn() };
+const services = { callServerTool: vi.fn(), openLink: vi.fn(), getHostContext: () => undefined };
 const app = services as unknown as App;
 const result = (operation: string, data: unknown) => ({ structuredContent: { operation, data } });
 const notification = {

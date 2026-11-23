@@ -5,8 +5,13 @@ describe("BGO widget destinations", () => {
   it.each([
     ["/events/", "list_events", {}],
     ["/events/event?fromGroup=group", "get_event", { params: { eventId: "event" } }],
-    ["/events/event?tab=tables", "list_event_tables", { params: { eventId: "event" } }],
-    ["/events/event?tab=participants", "list_event_participants", { params: { eventId: "event" } }],
+    ["/events/event?tab=tables", "get_event", { params: { eventId: "event" } }, "tables"],
+    [
+      "/events/event?tab=participants",
+      "get_event",
+      { params: { eventId: "event" } },
+      "participants",
+    ],
     [
       "/events/event/tables/table?fromEvent=event",
       "get_table",
@@ -16,22 +21,31 @@ describe("BGO widget destinations", () => {
       "/events/event/tables/table/results",
       "get_table",
       { params: { eventId: "event", tableId: "table" } },
+      "results",
+    ],
+    [
+      "/events/event/tables/table?tab=results",
+      "get_table",
+      { params: { eventId: "event", tableId: "table" } },
+      "results",
     ],
     [
       "/events/event/tables/table?tab=participants",
-      "list_table_seats",
+      "get_table",
       { params: { eventId: "event", tableId: "table" } },
+      "participants",
     ],
     ["/groups", "list_groups", {}],
     ["/groups/new", "prepare_group_creation", {}],
     ["/groups/grp", "get_group", { params: { groupId: "grp" } }],
     [
       "/groups/grp?tab=members#attention-target",
-      "list_group_members",
+      "get_group",
       { params: { groupId: "grp" } },
+      "members",
     ],
-    ["/groups/grp?tab=events", "list_events", { query: { groupId: "grp" } }],
-    ["/groups/grp?tab=leaderboard", "list_group_leaderboard", { params: { groupId: "grp" } }],
+    ["/groups/grp?tab=events", "get_group", { params: { groupId: "grp" } }, "events"],
+    ["/groups/grp?tab=leaderboard", "get_group", { params: { groupId: "grp" } }, "rankings"],
     ["/moderation", "list_groups", { query: { scope: "moderation" } }],
     ["/moderation/grp", "get_group_moderation_review", { params: { groupId: "grp" } }],
     ["/tables", "list_table_history", {}],
@@ -48,9 +62,12 @@ describe("BGO widget destinations", () => {
       { params: { userId: "user_alice" } },
     ],
     ["/profiles/user_alice?tab=games", "list_profile_games", { params: { userId: "user_alice" } }],
-  ])("maps %s to the authorized tool and arguments", (path, operation, args) => {
-    expect(widgetTarget(path)).toEqual({ operation, args });
-  });
+  ])(
+    "maps %s to the authorized tool and the initial tab, where relevant",
+    (path, operation, args, detailTab?: string) => {
+      expect(widgetTarget(path)).toEqual({ operation, args, ...(detailTab ? { detailTab } : {}) });
+    },
+  );
 
   it.each([
     "/events/new",
