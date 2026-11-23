@@ -4,7 +4,7 @@ export const MCP_PATH = "/mcp";
 export const MCP_METADATA_PATH = "/.well-known/oauth-protected-resource/mcp";
 
 const allowedMethods = new Map([
-  [MCP_PATH, ["POST"]],
+  [MCP_PATH, ["GET", "POST"]],
   [MCP_METADATA_PATH, ["GET", "OPTIONS"]],
 ]);
 const requestHeaders = [

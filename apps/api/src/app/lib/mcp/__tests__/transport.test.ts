@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { CommunityError } from "@/app/lib/community.error";
-import { POST } from "@/app/mcp/route";
+import { GET, POST } from "@/app/mcp/route";
 import { authenticateMcp, BGO_READ_SCOPE, BGO_WRITE_SCOPE } from "../auth";
 
 const { locationSearch, saveGroup, history, globalLeaderboard, createInvite } = vi.hoisted(() => ({
@@ -38,7 +38,7 @@ const url = "https://api.example.test/mcp";
 beforeEach(() => {
   vi.stubEnv("MCP_RESOURCE_URL", url);
   vi.stubEnv("MCP_CLERK_ISSUER", "https://id.example.test");
-  vi.mocked(authenticateMcp).mockResolvedValue(null);
+  vi.mocked(authenticateMcp).mockReset().mockResolvedValue(null);
   locationSearch.mockReset();
   saveGroup.mockReset();
   history.mockReset();
@@ -83,6 +83,27 @@ it("returns HTTP 401 when a provided OAuth token cannot be authenticated", async
   const result = await POST(request("tools/list", {}, { Authorization: "Bearer invalid" }));
   expect(result.status).toBe(401);
   expect(result.headers.get("www-authenticate")).toContain('error="invalid_token"');
+});
+
+it("advertises OAuth to unauthenticated GET probes without opening an event stream", async () => {
+  const discovery = await GET(new Request(url));
+  expect(discovery.status).toBe(401);
+  expect(discovery.headers.get("www-authenticate")).toBe(
+    `Bearer resource_metadata="https://api.example.test/.well-known/oauth-protected-resource/mcp", scope="${BGO_READ_SCOPE}"`,
+  );
+  expect(authenticateMcp).not.toHaveBeenCalled();
+
+  const forbidden = await GET(new Request(url, { headers: { Origin: "https://other.test" } }));
+  expect(forbidden.status).toBe(403);
+  const authorizedRequest = new Request(url, { headers: { Authorization: "Bearer scoped" } });
+  const invalid = await GET(authorizedRequest);
+  expect(invalid.status).toBe(401);
+  expect(invalid.headers.get("www-authenticate")).toContain('error="invalid_token"');
+
+  vi.mocked(authenticateMcp).mockResolvedValue({ userId: "user_mcp", scopes: [BGO_READ_SCOPE] });
+  const supportedMethods = await GET(authorizedRequest);
+  expect(supportedMethods.status).toBe(405);
+  expect(supportedMethods.headers.get("allow")).toBe("POST");
 });
 
 it("uses the Development API origin for invite links and the gateway origin for OAuth", async () => {
@@ -167,6 +188,7 @@ it("opens a group draft without invoking a write and validates its preset fields
 it("keeps the endpoint disabled until OAuth is configured", async () => {
   vi.stubEnv("MCP_RESOURCE_URL", "");
   expect((await POST(request("tools/list"))).status).toBe(404);
+  expect((await GET(new Request(url))).status).toBe(404);
 });
 
 it("keeps the endpoint disabled on a run-scoped CI database", async () => {

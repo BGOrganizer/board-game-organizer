@@ -19,9 +19,13 @@ describe("the public MCP gateway", () => {
 
   it("allows only the transport and metadata methods", async () => {
     const send = vi.fn();
-    const result = await forwardMcpGateway(new Request(gateway + MCP_PATH), development, send);
+    const result = await forwardMcpGateway(
+      new Request(gateway + MCP_PATH, { method: "DELETE" }),
+      development,
+      send,
+    );
     expect(result.status).toBe(405);
-    expect(result.headers.get("allow")).toBe("POST");
+    expect(result.headers.get("allow")).toBe("GET, POST");
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -135,11 +139,9 @@ describe("the public MCP gateway", () => {
     expect(send.mock.calls[0][1]?.body).toBeUndefined();
     vi.stubGlobal("fetch", send);
     try {
-      const result = await forwardMcpGateway(
-        new Request(gateway + MCP_PATH, { method: "POST" }),
-        development,
-      );
+      const result = await forwardMcpGateway(new Request(gateway + MCP_PATH), development);
       expect(result.status).toBe(401);
+      expect(send.mock.lastCall?.[1]?.method).toBe("GET");
       expect(result.headers.get("www-authenticate")).toContain(`${gateway}${MCP_METADATA_PATH}`);
     } finally {
       vi.unstubAllGlobals();

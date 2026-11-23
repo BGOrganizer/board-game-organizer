@@ -8,6 +8,7 @@ import {
   authenticateMcp,
   BGO_READ_SCOPE,
   BGO_WRITE_SCOPE,
+  type McpConfiguration,
   mcpAuthenticationChallenge,
   readMcpConfiguration,
 } from "@/app/lib/mcp/auth";
@@ -30,13 +31,44 @@ const prepareGroupCreation = {
 const tools = [prepareGroupCreation, ...operations];
 const operationsByName = new Map(operations.map((operation) => [operation.name, operation]));
 
+function allowedOrigin(request: Request, config: McpConfiguration): boolean {
+  const origin = request.headers.get("Origin");
+  return !origin || origin === new URL(config.resourceUrl).origin;
+}
+
+export async function GET(request: Request): Promise<Response> {
+  const config = readMcpConfiguration();
+  if (!config) return new Response(null, { status: 404 });
+  if (!allowedOrigin(request, config)) return new Response(null, { status: 403 });
+
+  const hasAuthorization = request.headers.has("Authorization");
+  const identity = hasAuthorization ? await authenticateMcp(request, config) : null;
+  if (!identity) {
+    return new Response(null, {
+      status: 401,
+      headers: {
+        "Cache-Control": "private, no-store",
+        "WWW-Authenticate": mcpAuthenticationChallenge(
+          config,
+          BGO_READ_SCOPE,
+          hasAuthorization ? "invalid_token" : undefined,
+        ),
+      },
+    });
+  }
+
+  // The server handles requests over POST and does not open an unsolicited SSE stream.
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "POST", "Cache-Control": "private, no-store" },
+  });
+}
+
 export async function POST(request: Request): Promise<Response> {
   const config = readMcpConfiguration();
   if (!config) return new Response(null, { status: 404 });
-  const origin = new URL(config.resourceUrl).origin;
+  if (!allowedOrigin(request, config)) return new Response(null, { status: 403 });
   const apiOrigin = new URL(request.url).origin;
-  const suppliedOrigin = request.headers.get("Origin");
-  if (suppliedOrigin && suppliedOrigin !== origin) return new Response(null, { status: 403 });
 
   const hasAuthorization = request.headers.has("Authorization");
   const identity = hasAuthorization ? await authenticateMcp(request, config) : null;
