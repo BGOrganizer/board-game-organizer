@@ -36,7 +36,9 @@ export async function promotePreviewTag(
   const ref = `refs/tags/${tag}`;
   let existing;
   try {
-    existing = execute("git", ["ls-remote", "--tags", "origin", ref], { encoding: "utf8" }).trim();
+    existing = execute("git", ["ls-remote", "--tags", "origin", ref], {
+      encoding: "utf8",
+    }).trim();
   } catch {
     throw new Error("Cannot inspect the Development tag");
   }
@@ -68,6 +70,7 @@ export async function publishDevelopmentDraft(
   request = fetch,
   publishTag = promotePreviewTag,
 ) {
+  const apkSourceSha = input.apkSourceSha ?? input.sourceSha;
   if (
     !/^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/.test(input.version) ||
     !/^[\w.-]+\.apk$/.test(input.apkName) ||
@@ -77,7 +80,8 @@ export async function publishDevelopmentDraft(
     typeof input.title !== "string" ||
     !input.title.trim() ||
     input.title.length > 256 ||
-    !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(input.sourceSha ?? "")
+    !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(input.sourceSha ?? "") ||
+    !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(apkSourceSha ?? "")
   )
     throw new Error("Invalid Development release identity");
   const web = https(input.webUrl),
@@ -153,7 +157,8 @@ export async function publishDevelopmentDraft(
   if (!Number.isSafeInteger(release.id) || release.id < 1)
     throw new Error("Invalid draft release receipt");
   const oldAssets = await call(`${api}/releases/${release.id}/assets?per_page=100`);
-  const assetName = `${input.apkName.slice(0, -4)}-${input.headSha.slice(0, 12)}-${input.runId}-${input.attempt}.apk`;
+  const apkRevision = apkSourceSha === input.sourceSha ? input.headSha : apkSourceSha;
+  const assetName = `${input.apkName.slice(0, -4)}-${apkRevision.slice(0, 12)}-${input.runId}-${input.attempt}.apk`;
   let asset = oldAssets.find((item) => item.name === assetName);
   if (!asset)
     asset = await call(
@@ -173,6 +178,7 @@ export async function publishDevelopmentDraft(
     ...input,
     environment: "development",
     sha: input.sourceSha,
+    apkSourceSha,
     checksum: digest,
     apkUrl,
     webUrl: web,
@@ -234,6 +240,7 @@ export async function publishDevelopmentDraft(
 
 async function main() {
   const e = process.env;
+  const sourceSha = e.PREVIEW_SOURCE_SHA || e.APK_SOURCE_SHA;
   if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/i.test(e.PR_BASE_SHA))
     throw new Error("Verified changelog base required");
   const identity = {
@@ -254,7 +261,8 @@ async function main() {
   const result = await publishDevelopmentDraft({
     ...identity,
     title: e.PR_TITLE,
-    sourceSha: e.APK_SOURCE_SHA,
+    sourceSha,
+    apkSourceSha: e.APK_SOURCE_SHA || sourceSha,
     version: e.APP_VERSION,
     apkName: e.APK_NAME,
     apkPath: e.APK_PATH,

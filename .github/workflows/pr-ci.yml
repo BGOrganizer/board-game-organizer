@@ -1225,13 +1225,58 @@ jobs:
     if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      artifact-name: ${{ steps.verify-reuse.outputs.source-sha != '' && 'apk-development-reused' || 'apk-development' }}
+      source-sha: ${{ steps.verify-reuse.outputs.source-sha || github.sha }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: 🧰 Setup workspace for APK verification
+        uses: ./.github/actions/setup-bun
+
+      - name: ♻️ Find Development APK built by this PR
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/development-apk-reuse.mjs find
+
+      - name: 📥 Download previous Development APK
+        id: previous-apk
+        if: steps.reuse.outputs.run-id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-development
+          path: ${{ runner.temp }}/previous-development-apk
+          run-id: ${{ steps.reuse.outputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: 🔎 Verify prior Development APK against this merge
+        id: verify-reuse
+        if: steps.previous-apk.outcome == 'success'
+        env:
+          APK_PRODUCER_HEAD: ${{ steps.reuse.outputs.producer-head }}
+          APP_VARIANT: development
+          EXPO_UPDATE_CHANNEL: development
+          MOBILE_BUILD_PROFILE: internal
+          EXPO_PUBLIC_API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_MAPTILER_API_KEY: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          GOOGLE_SERVICES_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: node .github/scripts/development-apk-reuse.mjs verify "$RUNNER_TEMP/previous-development-apk"
 
       - name: 🏗️ Build internal APK against development Preview
+        if: steps.verify-reuse.outputs.source-sha == ''
         uses: ./.github/actions/mobile-build
         with:
           profile: internal
@@ -1246,6 +1291,7 @@ jobs:
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
       - name: 🏷️ Record development API URL in APK artifact
+        if: steps.verify-reuse.outputs.source-sha == ''
         env:
           API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
         run: |
@@ -1255,8 +1301,8 @@ jobs:
       - name: 📤 Upload development APK
         uses: actions/upload-artifact@v4
         with:
-          name: apk-development
-          path: apps/mobile/build-output/
+          name: ${{ steps.verify-reuse.outputs.source-sha != '' && 'apk-development-reused' || 'apk-development' }}
+          path: ${{ steps.verify-reuse.outputs.source-sha != '' && format('{0}/previous-development-apk', runner.temp) || 'apps/mobile/build-output/' }}
           retention-days: 7
 
   draft-release:
@@ -1299,18 +1345,21 @@ jobs:
       - name: 📥 Download development APK
         uses: actions/download-artifact@v4
         with:
-          name: apk-development
+          name: ${{ needs.build-mobile-development.outputs.artifact-name }}
           path: apk
 
       - name: 🔒 Verify APK development API URL
+        id: verify-apk
         env:
           EXPECTED_API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
-          EXPECTED_HEAD_SHA: ${{ github.sha }}
+          EXPECTED_APK_SHA: ${{ needs.build-mobile-development.outputs.source-sha }}
         run: |
           set -euo pipefail
+          [[ "$EXPECTED_APK_SHA" =~ ^[a-f0-9]{40}$ ]]
           test -n "$EXPECTED_API_URL" && test "$(cat apk/api-url.txt)" = "$EXPECTED_API_URL"
-          test "$(cat apk/source-head.txt)" = "$EXPECTED_HEAD_SHA"
+          test "$(cat apk/source-head.txt)" = "$EXPECTED_APK_SHA"
           (cd apk && sha256sum --check apk.sha256)
+          printf 'source-sha=%s\n' "$EXPECTED_APK_SHA" >> "$GITHUB_OUTPUT"
 
       - name: 🔒 Refuse stale Development publication
         env:
@@ -1362,6 +1411,7 @@ jobs:
         uses: ./.github/actions/mobile-update
         with:
           source-sha: ${{ github.sha }}
+          apk-source-sha: ${{ steps.verify-apk.outputs.source-sha }}
           app-environment: development
           update-channel: development
           expo-token: ${{ secrets.EXPO_TOKEN }}
@@ -1383,6 +1433,7 @@ jobs:
           base-sha: ${{ github.event.pull_request.base.sha }}
           head-sha: ${{ github.event.pull_request.head.sha }}
           source-sha: ${{ github.sha }}
+          apk-source-sha: ${{ steps.verify-apk.outputs.source-sha }}
           apk-path: ${{ steps.meta.outputs.apk-path }}
           apk-name: ${{ steps.meta.outputs.apk-name }}
           eas-build-url: ${{ steps.eas.outputs.url }}

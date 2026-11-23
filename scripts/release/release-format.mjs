@@ -34,9 +34,12 @@ function markdownText(value) {
 
 export function releaseBody(input) {
   const title = releaseTitle(input);
+  const apkSourceSha = input.apkSourceSha ?? input.sha;
   if (
     !/^[\w.-]+\/[\w.-]+$/.test(input.repository ?? "") ||
     !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(input.sha ?? "") ||
+    !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(apkSourceSha ?? "") ||
+    (input.environment === "production" && apkSourceSha !== input.sha) ||
     !/^[a-f0-9]{64}$/.test(input.checksum ?? "") ||
     (input.runId !== undefined && !/^[1-9]\d*$/.test(String(input.runId)))
   )
@@ -55,6 +58,11 @@ export function releaseBody(input) {
         ]
       : []),
     `**Source commit:** [${input.sha.slice(0, 7)}](${github}/commit/${input.sha})`,
+    ...(apkSourceSha !== input.sha
+      ? [
+          `**APK source commit:** [${apkSourceSha.slice(0, 7)}](${github}/commit/${apkSourceSha}) (reused APK)`,
+        ]
+      : []),
     ...(input.runId ? [`**CI:** [Verification run](${github}/actions/runs/${input.runId})`] : []),
   ].join("\n\n");
   const downloads = [

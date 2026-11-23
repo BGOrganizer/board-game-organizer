@@ -303,5 +303,8 @@ test("PR keeps independent Development publication and isolated Internal cleanup
     ],
     "${{ needs.deploy-development-api.outputs.branch-url }}",
   );
-  assert.equal(find("draft-release", "📥 Download development APK").with.name, "apk-development");
+  assert.equal(
+    find("draft-release", "📥 Download development APK").with.name,
+    `\${{ needs.build-mobile-development.outputs.artifact-name }}`,
+  );
 });

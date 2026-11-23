@@ -20,6 +20,49 @@ import { publishMobileUpdate } from "../publish-mobile-update.mjs";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const source = "a".repeat(40);
 const runtime = "b".repeat(40);
+
+test("publishes a current Development OTA against a verified equivalent APK from an older merge", async (t) => {
+  const f = fixture();
+  t.after(() => rmSync(f.folder, { recursive: true, force: true }));
+  const apkSource = "d".repeat(40);
+  writeFileSync(join(f.folder, "source-head.txt"), apkSource);
+  f.env.OTA_APK_SOURCE_SHA = apkSource;
+  const options = {
+    root: f.root,
+    run: f.run,
+    merged: true,
+    current: () => f.calls.push({ tool: "current" }),
+  };
+  await assert.rejects(
+    publishMobileUpdate(f.env, {
+      ...options,
+      requireEquivalent() {
+        throw new Error("Development APK build inputs changed");
+      },
+    }),
+    /inputs changed/,
+  );
+  assert(!f.calls.some(({ tool, args }) => tool === "eas" && args[0] === "update"));
+  await publishMobileUpdate(f.env, {
+    ...options,
+    requireEquivalent(...args) {
+      assert.deepEqual(args, [apkSource, source, f.root]);
+    },
+  });
+  assert.equal(f.calls.at(-1).args[f.calls.at(-1).args.indexOf("--message") + 1], `CI ${source}`);
+});
+
+test("Production cannot supply a different APK source", async (t) => {
+  const f = fixture(true);
+  t.after(() => rmSync(f.folder, { recursive: true, force: true }));
+  f.env.OTA_APK_SOURCE_SHA = "d".repeat(40);
+  await assert.rejects(
+    publishMobileUpdate(f.env, { root: f.root, run: f.run }),
+    /verified OTA publication target/i,
+  );
+  assert.deepEqual(f.calls, []);
+});
+
 function hbc(version = 98) {
   const data = Buffer.alloc(20);
   Buffer.from("c61fbc03c103191f", "hex").copy(data);
