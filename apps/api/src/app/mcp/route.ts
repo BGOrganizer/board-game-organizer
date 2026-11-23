@@ -34,6 +34,7 @@ export async function POST(request: Request): Promise<Response> {
   const config = readMcpConfiguration();
   if (!config) return new Response(null, { status: 404 });
   const origin = new URL(config.resourceUrl).origin;
+  const apiOrigin = new URL(request.url).origin;
   const suppliedOrigin = request.headers.get("Origin");
   if (suppliedOrigin && suppliedOrigin !== origin) return new Response(null, { status: 403 });
 
@@ -73,14 +74,14 @@ export async function POST(request: Request): Promise<Response> {
       }
       const operation = operationsByName.get(tool.name);
       if (!operation) return Promise.resolve(new Response(null, { status: 404 }));
-      return withMcpActor(identity.userId, () => operation.run(origin, args, signal));
+      return withMcpActor(identity.userId, () => operation.run(apiOrigin, args, signal));
     },
     readWidget: () =>
       readFile(resolve(process.cwd(), "../mcp/dist/widget.html"), "utf8").catch(() =>
         readFile(resolve(process.cwd(), "apps/mcp/dist/widget.html"), "utf8"),
       ),
     resourceDomains: [
-      origin,
+      apiOrigin,
       "https://cf.geekdo-images.com",
       "https://images.boardgamegeek.com",
       "https://img.clerk.com",

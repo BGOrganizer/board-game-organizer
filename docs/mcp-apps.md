@@ -2,7 +2,8 @@
 
 The [`apps/mcp`](../apps/mcp) workspace implements a remote MCP server and a HeroUI widget for hosts
 that support MCP Apps, including ChatGPT. The existing API deployment serves the server at `/mcp`.
-The API build compiles and includes the widget. There is no additional deployment or database.
+The API build compiles and includes the widget. A small public gateway can connect MCP clients to
+a protected Development API without exposing the rest of the Preview.
 
 ## Capabilities
 
@@ -53,12 +54,10 @@ continue to enforce group roles, private data visibility, consent and validation
 
 ## Try the tools in Codex
 
-Use the HTTPS origin of the Development **API** deployment shown in the PR's deployment checks or
-release links, with `/mcp` appended. Choose a URL that the MCP host can reach and that still points
-to the same environment after a redeploy. Register that exact URL in Clerk and set the API's
-`MCP_RESOURCE_URL` to it. `BGO_DEV_MCP_URL` is a local shell variable holding the same value for the
-commands below. If Codex runs on the same machine as a locally configured API, it can also connect
-directly over loopback with matching OAuth configuration.
+Use the public gateway URL with `/mcp` appended. Register that exact URL in Clerk and set the
+protected API deployment's `MCP_RESOURCE_URL` to it. `BGO_DEV_MCP_URL` is a local shell variable
+holding the same value for the commands below. If Codex runs on the same machine as a locally
+configured API, it can also connect directly over loopback with matching OAuth configuration.
 
 ```bash
 codex mcp add bgo-dev --url "$BGO_DEV_MCP_URL" --oauth-resource "$BGO_DEV_MCP_URL"
@@ -82,6 +81,16 @@ permissions govern access to custom servers. Codex can also run the Playwright w
 the local browser and the emulated MCP host. Those tests exercise UI interaction separately from
 the Clerk login and production data.
 [Connect and test your plugin](https://developers.openai.com/plugins/deploy/connect-chatgpt#add-the-mcp-server)
+
+## Gateway for protected Development previews
+
+Build with `bun apps/mcp/gateway-build.mts <project-directory>/.vercel/output` and deploy that
+directory to a dedicated Vercel project with `vercel deploy --prebuilt --prod`. Set
+`BGO_MCP_UPSTREAM_URL` to the verified, stable Development API alias for the selected PR. Add
+`VERCEL_PROTECTION_BYPASS` to the gateway as a server-side secret. Keep the bypass out of the public
+MCP URL and OAuth metadata. The gateway accepts only `POST /mcp` and `GET` or `OPTIONS` on
+`/.well-known/oauth-protected-resource/mcp`. API deployment protection and Clerk authorization still
+apply. Run-scoped CI databases do not expose the MCP resource.
 
 ## Example flows
 

@@ -3,17 +3,19 @@ import { CommunityError } from "@/app/lib/community.error";
 import { POST } from "@/app/mcp/route";
 import { authenticateMcp, BGO_READ_SCOPE, BGO_WRITE_SCOPE } from "../auth";
 
-const { locationSearch, saveGroup, history, globalLeaderboard } = vi.hoisted(() => ({
+const { locationSearch, saveGroup, history, globalLeaderboard, createInvite } = vi.hoisted(() => ({
   locationSearch: vi.fn(),
   saveGroup: vi.fn(),
   history: vi.fn(),
   globalLeaderboard: vi.fn(),
+  createInvite: vi.fn(),
 }));
 vi.mock("@/app/lib/db", () => ({
   getDb: async () => ({}),
   withTransaction: (run: (session: object, db: object) => Promise<unknown>) => run({}, {}),
 }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: async () => {} }));
+vi.mock("@/app/api/invites/route", () => ({ POST: createInvite }));
 vi.mock("@/app/lib/community/record-services", () => ({
   recordServices: () => ({
     globalLeaderboard,
@@ -83,6 +85,29 @@ it("returns HTTP 401 when a provided OAuth token cannot be authenticated", async
   expect(result.headers.get("www-authenticate")).toContain('error="invalid_token"');
 });
 
+it("uses the Development API origin for invite links and the gateway origin for OAuth", async () => {
+  const apiOrigin = "https://api-preview.example.test";
+  vi.mocked(authenticateMcp).mockResolvedValue({ userId: "user_mcp", scopes: [BGO_WRITE_SCOPE] });
+  createInvite.mockImplementationOnce((incoming: Request) =>
+    Response.json({ link: `${new URL(incoming.url).origin}/invite/example` }, { status: 201 }),
+  );
+  const call = await POST(
+    new Request(
+      `${apiOrigin}/mcp`,
+      request(
+        "tools/call",
+        { name: "create_invite", arguments: {} },
+        { Authorization: "Bearer scoped", Origin: new URL(url).origin },
+      ),
+    ),
+  );
+  expect(call.status).toBe(200);
+  expect(vi.mocked(authenticateMcp).mock.lastCall?.[1].resourceUrl).toBe(url);
+  expect((await call.json()).result.structuredContent).toMatchObject({
+    data: { link: `${apiOrigin}/invite/example` },
+  });
+});
+
 it("blocks a write unless the OAuth token has the write scope", async () => {
   vi.mocked(authenticateMcp).mockResolvedValue({ userId: "user_mcp", scopes: [BGO_READ_SCOPE] });
   const call = await POST(
@@ -142,6 +167,15 @@ it("opens a group draft without invoking a write and validates its preset fields
 it("keeps the endpoint disabled until OAuth is configured", async () => {
   vi.stubEnv("MCP_RESOURCE_URL", "");
   expect((await POST(request("tools/list"))).status).toBe(404);
+});
+
+it("keeps the endpoint disabled on a run-scoped CI database", async () => {
+  vi.stubEnv("MONGODB_DB_NAME", "bgo_ci_123_1");
+  try {
+    expect((await POST(request("tools/list"))).status).toBe(404);
+  } finally {
+    vi.stubEnv("MONGODB_DB_NAME", undefined);
+  }
 });
 
 it("uses the canonical history and group handlers with their BGO actor and route validation", async () => {

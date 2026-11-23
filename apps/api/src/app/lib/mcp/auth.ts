@@ -27,6 +27,7 @@ const accessTokenClaims = z.object({
 const accessTokenScopes = z.array(z.string());
 
 export function readMcpConfiguration(): McpConfiguration | undefined {
+  if (process.env.MONGODB_DB_NAME?.startsWith("bgo_ci_")) return;
   const resourceUrl = process.env.MCP_RESOURCE_URL?.trim();
   const issuer = process.env.MCP_CLERK_ISSUER?.trim();
   if (!resourceUrl || !issuer) return;
