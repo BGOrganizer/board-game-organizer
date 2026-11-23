@@ -557,10 +557,11 @@ it("uses BGO game rows, metadata popovers and attribution for collection results
   );
   await open("list_bgg_collection", { items: [game], nextCursor: "more" }, args);
   fireEvent.click(screen.getByRole("button", { name: "Game information: Hegemony" }));
-  expect(await screen.findByText("Economic")).toBeVisible();
+  const category = await screen.findByText("Economic");
+  expect(category).toBeVisible();
   expect(screen.getByText("#12")).toBeVisible();
-  fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
-  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  fireEvent.keyDown(category, { key: "Escape" });
+  fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
   expect(await screen.findByText("Ark Nova")).toBeVisible();
   expect(host.callServerTool).toHaveBeenLastCalledWith(
     { name: "list_bgg_collection", arguments: { query: { ...args.query, cursor: "more" } } },
