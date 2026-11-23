@@ -4,7 +4,7 @@ import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import type { App } from "@modelcontextprotocol/ext-apps";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   eventId,
@@ -123,7 +123,7 @@ it("renders complete saved table receipts and identifies the viewer without Cler
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   fireEvent.click(screen.getByRole("button", { name: "Board games: Chess" }));
-  expect(await screen.findByText("Chess")).toBeTruthy();
+  expect(await within(await screen.findByRole("dialog")).findByText("Chess")).toBeTruthy();
 });
 
 it("presents the actual group card and its BGO moderation path", async () => {

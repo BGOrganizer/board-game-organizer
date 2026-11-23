@@ -82,6 +82,7 @@ export default {
           "apps/api/package.json",
           "apps/web/package.json",
           "apps/mobile/package.json",
+          "apps/mcp/package.json",
           "apps/mobile/app.config.js",
         ],
         // biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release runtime placeholder

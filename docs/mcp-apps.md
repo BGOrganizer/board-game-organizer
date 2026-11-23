@@ -4,6 +4,9 @@ The [`apps/mcp`](../apps/mcp) workspace implements a remote MCP server and a Her
 that support MCP Apps, including ChatGPT. The existing API deployment serves the server at `/mcp`.
 The API build compiles and includes the widget. A small public gateway can connect MCP clients to
 a protected Development API without exposing the rest of the Preview.
+Semantic-release writes the BGO release version to the MCP workspace along with the API, Web and
+Mobile versions. The MCP server and the widget both report that version. The public endpoint and
+widget resource URI stay stable across releases.
 
 ## Capabilities
 

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import manifest from "../../package.json" with { type: "json" };
 import { handleMcp } from "../server";
 
 function request(method: string, params?: object) {
@@ -52,7 +53,10 @@ describe("Board Game Organizer MCP protocol", () => {
       capabilities: {},
       clientInfo: { name: "test", version: "1" },
     });
-    expect(initialized.result.serverInfo.name).toBe("board-game-organizer");
+    expect(initialized.result.serverInfo).toMatchObject({
+      name: "board-game-organizer",
+      version: manifest.version,
+    });
     const listing = await send("tools/list");
     expect(listing.result.tools).toMatchObject([
       {

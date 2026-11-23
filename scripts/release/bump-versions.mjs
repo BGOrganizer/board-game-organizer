@@ -11,7 +11,12 @@ if (!version || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/.test(ver
   process.exit(1);
 }
 
-const files = ["apps/api/package.json", "apps/web/package.json", "apps/mobile/package.json"];
+const files = [
+  "apps/api/package.json",
+  "apps/web/package.json",
+  "apps/mobile/package.json",
+  "apps/mcp/package.json",
+];
 
 for (const file of files) {
   const pkg = JSON.parse(readFileSync(file, "utf8"));

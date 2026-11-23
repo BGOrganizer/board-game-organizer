@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { InviteCardView } from "@/components/invites/InviteCardView";
 import { messages as en } from "../../../../messages/en.js";
 import { messages as it } from "../../../../messages/it.js";
+import manifest from "../../package.json" with { type: "json" };
 import { CatalogResults, supportsCatalogResult } from "./CatalogResults";
 import { GroupCreated, groupResult } from "./GroupCreated";
 import { GroupCreation } from "./GroupCreation";
@@ -56,7 +57,7 @@ function WidgetResponse() {
   const [app] = useState(
     () =>
       new App(
-        { name: "Board Game Organizer", version: "1.0.0" },
+        { name: "Board Game Organizer", version: manifest.version },
         { availableDisplayModes: ["inline", "fullscreen"] },
       ),
   );

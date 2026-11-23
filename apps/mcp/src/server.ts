@@ -8,6 +8,7 @@ import {
   McpError,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import manifest from "../package.json" with { type: "json" };
 
 export interface McpTool {
   name: string;
@@ -33,7 +34,7 @@ const widgetMimeType = "text/html;profile=mcp-app";
 
 export async function handleMcp(request: Request, options: ServerOptions): Promise<Response> {
   const server = new Server(
-    { name: "board-game-organizer", version: "1.0.0" },
+    { name: "board-game-organizer", version: manifest.version },
     {
       capabilities: { tools: {}, resources: {} },
       instructions:
