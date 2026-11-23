@@ -1,3 +1,32 @@
+## [1.9.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.8.1...v1.9.0) (2026-11-23)
+
+### ✨ Features
+
+* add group and global OpenSkill leaderboards ([c996c0a](https://github.com/BGOrganizer/board-game-organizer/commit/c996c0aef156221f080a69924120356b0194d48e))
+* organize vote summaries and contact section guides ([c7e4c7e](https://github.com/BGOrganizer/board-game-organizer/commit/c7e4c7e4faed23974c48133ffe1df57583b9f79f))
+* refine leaderboards and event section help ([2ca8951](https://github.com/BGOrganizer/board-game-organizer/commit/2ca895176d3957783ba52abf92d5382fec5f26ea))
+* show OpenSkill changes in finished table results ([752ba00](https://github.com/BGOrganizer/board-game-organizer/commit/752ba00491b8c7ab7ec6a6af92fb90cf08f2558b))
+* unify section help across groups and table lists ([7cf70ae](https://github.com/BGOrganizer/board-game-organizer/commit/7cf70aea157a5c31fbb290d3f02062bbb5d9d9da))
+
+### 🐛 Bug Fixes
+
+* align compact vote controls and move game info into accordions ([7601f98](https://github.com/BGOrganizer/board-game-organizer/commit/7601f98b32583b2a90bacde32e5d18cf41bf5dc7))
+* label the compact vote summary control ([c7ecad1](https://github.com/BGOrganizer/board-game-organizer/commit/c7ecad10275a34f491b21857fb49663ef0aee4ea))
+* label vote accordions and verify contact guides ([e41c654](https://github.com/BGOrganizer/board-game-organizer/commit/e41c6548fbf428b4169c0ce5a36ab6e172dc8769))
+* place vote summary chevron after the vote action ([7c6f439](https://github.com/BGOrganizer/board-game-organizer/commit/7c6f439a7e826ce1964f376b09fd0c2049484c16))
+* retain venue addresses for accessible vote accordions ([2c56671](https://github.com/BGOrganizer/board-game-organizer/commit/2c56671c010cd63bd5a98874f6d60235de2f520d))
+
+### 🧪 Tests
+
+* align mobile policy checks with section cards ([fedfb81](https://github.com/BGOrganizer/board-game-organizer/commit/fedfb81fcacc23925bed5857c8a8988d761f7eeb))
+* cover offscreen games and metadata without votes ([f11ffe9](https://github.com/BGOrganizer/board-game-organizer/commit/f11ffe9414e05386f0ca7f02c04d2f5ee9b6e0bb))
+* reuse seeded users in global leaderboard fixture ([055796a](https://github.com/BGOrganizer/board-game-organizer/commit/055796aeee23c9ba9020d87c70b0720a7ac3b7e1))
+* wait for the venue vote control after closing the sheet ([678b034](https://github.com/BGOrganizer/board-game-organizer/commit/678b034485ff39528b6667c505eb7fea0085beb0))
+
+### 🧹 Chores
+
+* sync main and preserve vote summary checks ([0f9d4ff](https://github.com/BGOrganizer/board-game-organizer/commit/0f9d4ff228fa7cee9c772b941ede21beafbcb6cc))
+
 ## [1.8.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.8.0...v1.8.1) (2026-11-21)
 
 ### 🐛 Bug Fixes
