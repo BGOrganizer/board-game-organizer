@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 import { MCP_METADATA_PATH, MCP_PATH } from "./src/developmentGateway";
 
 const output = resolve(process.argv[2] ?? ".vercel/output");
+const target = process.argv[3] ?? "development";
+if (target !== "development" && target !== "production")
+  throw new Error("Unknown MCP gateway target");
 const paths = [MCP_PATH, MCP_METADATA_PATH];
 const functions = paths.map((path) => resolve(output, `functions${path}.func`));
 for (const directory of functions) {
@@ -22,6 +25,8 @@ execFileSync(
     fileURLToPath(new URL("./development-gateway.mts", import.meta.url)),
     "--outfile",
     resolve(first, "index.mjs"),
+    "--define",
+    `BGO_GATEWAY_TARGET=${JSON.stringify(target)}`,
   ],
   { cwd: dirname(fileURLToPath(import.meta.url)), stdio: "inherit" },
 );

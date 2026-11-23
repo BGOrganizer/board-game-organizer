@@ -22,6 +22,16 @@ const responseHeaders = [
   "www-authenticate",
 ];
 const privateCache = { "Cache-Control": "private, no-store" };
+const productionApi = "https://api.board-game-organizer.com";
+const developmentApi =
+  /^https:\/\/api-development-pr-[1-9]\d*-board-game-organizers-projects\.vercel\.app$/;
+
+export type GatewayEnvironment = "development" | "production";
+type GatewayConfiguration = {
+  target: GatewayEnvironment;
+  upstream: string | undefined;
+  previewBypass: string | undefined;
+};
 
 function forwardHeaders(source: Headers, names: string[]): Headers {
   const headers = new Headers();
@@ -32,10 +42,9 @@ function forwardHeaders(source: Headers, names: string[]): Headers {
   return headers;
 }
 
-export async function forwardDevelopmentMcp(
+export async function forwardMcpGateway(
   request: Request,
-  upstream: string | undefined,
-  previewBypass: string | undefined,
+  { target, upstream, previewBypass }: GatewayConfiguration,
   send = fetch,
 ): Promise<Response> {
   const path = new URL(request.url).pathname;
@@ -49,23 +58,30 @@ export async function forwardDevelopmentMcp(
   }
   if (
     !upstream ||
-    !previewBypass ||
-    !/^https:\/\/api-development-pr-[1-9]\d*-board-game-organizers-projects\.vercel\.app$/.test(
-      upstream,
-    )
+    (target === "production"
+      ? upstream !== productionApi || previewBypass
+      : !previewBypass || !developmentApi.test(upstream))
   ) {
     return new Response(null, { status: 503, headers: privateCache });
   }
 
   try {
-    const response = await send(withProtectionBypass(`${upstream}${path}`, previewBypass), {
-      method: request.method,
-      headers: forwardHeaders(request.headers, requestHeaders),
-      body: request.method === "POST" ? await request.arrayBuffer() : undefined,
-      redirect: "error",
-      signal: request.signal,
-    });
-    if (response.headers.get("content-type")?.includes("text/html")) {
+    const destination = `${upstream}${path}`;
+    const response = await send(
+      previewBypass ? withProtectionBypass(destination, previewBypass) : destination,
+      {
+        method: request.method,
+        headers: forwardHeaders(request.headers, requestHeaders),
+        body: request.method === "POST" ? await request.arrayBuffer() : undefined,
+        redirect: "manual",
+        signal: request.signal,
+      },
+    );
+    // Vercel Edge needs manual redirect mode for requests to a protected Preview.
+    if (
+      (response.status >= 300 && response.status < 400) ||
+      response.headers.get("content-type")?.includes("text/html")
+    ) {
       return new Response(null, { status: 502, headers: privateCache });
     }
     const headers = forwardHeaders(response.headers, responseHeaders);

@@ -1,21 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { forwardDevelopmentMcp, MCP_METADATA_PATH, MCP_PATH } from "../developmentGateway";
+import { forwardMcpGateway, MCP_METADATA_PATH, MCP_PATH } from "../developmentGateway";
 
 const gateway = "https://mcp-dev.example.test";
 const upstream = "https://api-development-pr-33-board-game-organizers-projects.vercel.app";
 const bypass = "test bypass";
+const development = { target: "development", upstream, previewBypass: bypass } as const;
 
-describe("the public Development MCP gateway", () => {
+describe("the public MCP gateway", () => {
   it.each(["/", "/mcp/", "/mcp/anything", "/api/groups", "/invite/demo"])(
     "refuses to forward %s",
     async (path) => {
       const send = vi.fn();
-      const result = await forwardDevelopmentMcp(
-        new Request(gateway + path),
-        upstream,
-        bypass,
-        send,
-      );
+      const result = await forwardMcpGateway(new Request(gateway + path), development, send);
       expect(result.status).toBe(404);
       expect(send).not.toHaveBeenCalled();
     },
@@ -23,12 +19,7 @@ describe("the public Development MCP gateway", () => {
 
   it("allows only the transport and metadata methods", async () => {
     const send = vi.fn();
-    const result = await forwardDevelopmentMcp(
-      new Request(gateway + MCP_PATH),
-      upstream,
-      bypass,
-      send,
-    );
+    const result = await forwardMcpGateway(new Request(gateway + MCP_PATH), development, send);
     expect(result.status).toBe(405);
     expect(result.headers.get("allow")).toBe("POST");
     expect(send).not.toHaveBeenCalled();
@@ -42,14 +33,33 @@ describe("the public Development MCP gateway", () => {
     [`${upstream}/api`, bypass],
   ])("fails closed with a missing or invalid upstream", async (target, credential) => {
     const send = vi.fn();
-    const result = await forwardDevelopmentMcp(
+    const result = await forwardMcpGateway(
       new Request(gateway + MCP_METADATA_PATH),
-      target,
-      credential,
+      { ...development, upstream: target, previewBypass: credential },
       send,
     );
     expect(result.status).toBe(503);
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("forwards Production discovery only to the production API without a bypass", async () => {
+    const production = {
+      target: "production",
+      upstream: "https://api.board-game-organizer.com",
+      previewBypass: undefined,
+    } as const;
+    const request = new Request(gateway + MCP_METADATA_PATH);
+    const send = vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json({}));
+    expect((await forwardMcpGateway(request, production, send)).status).toBe(200);
+    expect(send.mock.calls[0][0]).toBe(`https://api.board-game-organizer.com${MCP_METADATA_PATH}`);
+
+    for (const invalid of [
+      { ...production, upstream },
+      { ...production, previewBypass: bypass },
+    ]) {
+      expect((await forwardMcpGateway(request, invalid, send)).status).toBe(503);
+    }
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("forwards the MCP body, OAuth and protocol headers over a fixed route", async () => {
@@ -76,10 +86,10 @@ describe("the public Development MCP gateway", () => {
         "X-Forwarded-Host": "attacker.example.test",
       },
     });
-    const result = await forwardDevelopmentMcp(request, upstream, bypass, send);
+    const result = await forwardMcpGateway(request, development, send);
     const [url, options] = send.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(`${upstream}${MCP_PATH}?x-vercel-protection-bypass=test%20bypass`);
-    expect(options).toMatchObject({ method: "POST", redirect: "error", signal: request.signal });
+    expect(options).toMatchObject({ method: "POST", redirect: "manual", signal: request.signal });
     expect(new TextDecoder().decode(options.body as ArrayBuffer)).toBe('{"method":"tools/list"}');
     expect(Object.fromEntries(new Headers(options.headers))).toEqual({
       accept: "application/json, text/event-stream",
@@ -115,10 +125,9 @@ describe("the public Development MCP gateway", () => {
           },
         }),
       );
-    const discovery = await forwardDevelopmentMcp(
+    const discovery = await forwardMcpGateway(
       new Request(gateway + MCP_METADATA_PATH, { method: "OPTIONS" }),
-      upstream,
-      bypass,
+      development,
       send,
     );
     expect(discovery.status).toBe(204);
@@ -126,10 +135,9 @@ describe("the public Development MCP gateway", () => {
     expect(send.mock.calls[0][1]?.body).toBeUndefined();
     vi.stubGlobal("fetch", send);
     try {
-      const result = await forwardDevelopmentMcp(
+      const result = await forwardMcpGateway(
         new Request(gateway + MCP_PATH, { method: "POST" }),
-        upstream,
-        bypass,
+        development,
       );
       expect(result.status).toBe(401);
       expect(result.headers.get("www-authenticate")).toContain(`${gateway}${MCP_METADATA_PATH}`);
@@ -138,21 +146,24 @@ describe("the public Development MCP gateway", () => {
     }
   });
 
-  it("keeps upstream login pages and failed request details out of public responses", async () => {
+  it("keeps upstream redirects, login pages and request errors out of public responses", async () => {
     const send = vi
       .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(null, { status: 302, headers: { Location: "https://login.example.test" } }),
+      )
       .mockResolvedValueOnce(
         new Response("Vercel login", { headers: { "Content-Type": "text/html" } }),
       )
       .mockRejectedValueOnce(new Error(`Failed upstream request with ${bypass}`));
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const result = await forwardDevelopmentMcp(
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await forwardMcpGateway(
         new Request(gateway + MCP_METADATA_PATH),
-        upstream,
-        bypass,
+        development,
         send,
       );
       expect(result.status).toBe(502);
+      expect(result.headers.get("location")).toBeNull();
       expect(await result.text()).toBe("");
     }
   });
