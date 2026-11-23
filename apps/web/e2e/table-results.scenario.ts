@@ -209,14 +209,31 @@ test("owned admin saves editable scores across reloads; excluded Tables never bl
   await expect(page.getByRole("link", { name: labels.register, exact: true })).toHaveCount(0);
   await page.getByRole("tab", { name: labels.results, exact: true }).click();
   await expect(page.getByRole("tab", { name: "Ranking", exact: true })).toHaveCount(0);
-  await page
-    .getByRole("button", {
-      name: `${it ? "Ranking globale" : "Global ranking"}: ${firstRatingName}`,
-      exact: true,
-    })
-    .click();
-  await expect(
-    page.getByRole("dialog").getByText(it ? "Ranking globale" : "Global ranking", { exact: true }),
-  ).toBeVisible();
+  const ratings = page.getByRole("region", { name: labels.results, exact: true });
+  const resultRow = ratings.getByRole("listitem").filter({
+    has: page.getByText(firstRatingName, { exact: true }),
+  });
+  const details = resultRow.getByRole("button");
+  const global = resultRow.getByText(it ? "Globale" : "Global", { exact: true });
+  await expect(details).toHaveAttribute("aria-expanded", "false");
+  await expect(global).toBeHidden();
+  await details.click();
+  await expect(details).toHaveAttribute("aria-expanded", "true");
+  await expect(global).toBeVisible();
+  const rated = await read<PlannedTableResponse>(page, `events/${eventId}/tables/${tableId}`);
+  const globalRating = rated.ratingChanges?.find((row) => row.userId === first.userId);
+  if (!globalRating) throw new Error("Expected a recorded global rating for the first finisher");
+  const rank = rated.results?.entries.find((row) => row.userId === first.userId)?.rank;
+  if (rank == null) throw new Error("Expected a recorded position for the first finisher");
+  await expect(resultRow.getByRole("img", { name: `${position}: #${rank}` })).toBeVisible();
+  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+  const globalRow = global.locator("..");
+  await expect(globalRow).toContainText(number.format(globalRating.score - globalRating.delta));
+  await expect(globalRow).toContainText(number.format(globalRating.score));
+  if (rated.groupId) {
+    await expect(resultRow.getByText(it ? "Gruppo" : "Group", { exact: true })).toBeVisible();
+  }
   await page.screenshot({ path: `test-results/table-results-${locale}.png`, fullPage: true });
+  await details.press("Enter");
+  await expect(global).toBeHidden();
 });

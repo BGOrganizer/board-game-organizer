@@ -6,23 +6,24 @@ import {
   formatUsername,
   useTableLeaderboard,
 } from "@board-game-organizer/shared";
+import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { ListOrdered, Trophy } from "lucide-react-native";
+import { Dices, Trophy } from "lucide-react-native";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
-import { IconBadge } from "@/components/common/ui/IconBadge";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
+import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 import { useListActivity } from "@/lib/listActivity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventFinishedPlayerResult } from "./EventFinishedPlayerResult";
 import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
 
 export function EventTableResults({
@@ -38,6 +39,9 @@ export function EventTableResults({
     o = useCommunityApi(),
     insets = useSafeAreaInsets();
   const terminated = table.eventStatus === "TERMINATED";
+  const game = terminated
+    ? table.gamesDetail.find((row) => row.id === table.confirmed?.gameId)
+    : undefined;
   const q = useTableLeaderboard(
     {
       ...o,
@@ -94,7 +98,24 @@ export function EventTableResults({
   return (
     <FlatList
       ListHeaderComponent={
-        header === undefined || header === null || header === false ? null : <View>{header}</View>
+        header || game ? (
+          <View style={{ gap: 16 }}>
+            {header}
+            {game ? (
+              <SectionHeaderCard
+                title={game.name}
+                leading={
+                  <Avatar size="md" alt={game.name} accessible={false} className="rounded-lg">
+                    {game.imageUrl ? <Avatar.Image source={{ uri: game.imageUrl }} /> : null}
+                    <Avatar.Fallback>
+                      <Dices size={18} color={muted} accessible={false} />
+                    </Avatar.Fallback>
+                  </Avatar>
+                }
+              />
+            ) : null}
+          </View>
+        ) : null
       }
       key={owner}
       data={rows}
@@ -150,51 +171,19 @@ export function EventTableResults({
           item.username,
           item.profileLoaded && item.name ? item.name : t("Username unavailable"),
         );
+        if (terminated)
+          return <EventFinishedPlayerResult table={table} player={item} name={name} />;
         return (
           <GroupedList>
-            <UserListRow
-              name={name}
-              avatarUrl={item.avatarUrl}
-              avatarContent={item.guestName ? <GuestAvatar name={item.guestName} /> : undefined}
-              badgeContent={
-                terminated ? (
-                  <IconBadge
-                    icon={item.rank === 1 ? Trophy : ListOrdered}
-                    color={item.rank === 1 ? "success" : "default"}
-                    label={`${t("Position")}: ${item.rank === null || item.rank === undefined ? t("ND") : `#${item.rank}`}`}
-                    title={t("Position")}
-                  >
-                    <Typography className="text-foreground">
-                      {item.rank === null || item.rank === undefined ? t("ND") : `#${item.rank}`}
-                    </Typography>
-                  </IconBadge>
-                ) : undefined
-              }
-              actions={
-                terminated ? (
-                  <Typography
-                    numberOfLines={1}
-                    accessibilityLabel={`${t("Score")}: ${item.score ?? t("ND")}`}
-                    className="font-semibold text-foreground"
-                    style={{ maxWidth: 132 }}
-                  >
-                    {item.score ?? t("ND")}
-                  </Typography>
-                ) : undefined
-              }
-            >
-              {item.guestName ? null : (
-                <View style={{ alignSelf: "flex-start" }}>
-                  <EventPlayerRatingPopover
-                    table={table}
-                    userId={item.userId}
-                    name={name}
-                    current={
-                      !terminated ? q.items.find((row) => row.userId === item.userId) : undefined
-                    }
-                  />
-                </View>
-              )}
+            <UserListRow name={name} avatarUrl={item.avatarUrl}>
+              <View style={{ alignSelf: "flex-start" }}>
+                <EventPlayerRatingPopover
+                  table={table}
+                  userId={item.userId}
+                  name={name}
+                  current={q.items.find((row) => row.userId === item.userId)}
+                />
+              </View>
             </UserListRow>
           </GroupedList>
         );

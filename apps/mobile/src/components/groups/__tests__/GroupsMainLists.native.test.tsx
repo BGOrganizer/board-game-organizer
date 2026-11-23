@@ -1,6 +1,18 @@
 import { groupRecordsPageQuery } from "@board-game-organizer/shared";
-import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import { expect, it } from "vitest";
+import {
+  installNativePopoverMeasurements,
+  pressMeasuredPopover,
+} from "@/test/nativePopoverGeometry";
 import {
   listApi,
   listBoundary,
@@ -219,4 +231,52 @@ it("pages from actual native end geometry and retains a scoped retry after next-
   listFixture.statuses.delete("/api/groups");
   await listPress("Could not load groups. Retry");
   expect(await screen.findByText("Next group")).toBeVisible();
+});
+
+it.each([
+  ["private", "Private groups", "Private groups help", /Private groups you manage/],
+  ["public", "Public groups", "Public groups help", /may still be awaiting approval/],
+  ["search", "Search", "Group search help", /Search for approved public groups by name/],
+] as const)(
+  "describes the %s Group list in the section popover",
+  async (initialSection, title, label, description) => {
+    await installNativePopoverMeasurements();
+    await render(
+      <MainListFixture>
+        <Groups initialSection={initialSection} />
+      </MainListFixture>,
+    );
+    const heading = screen.getByRole("heading", { name: title });
+    expect(heading).toBeVisible();
+    expect(within(heading.parent!).getByText("Section guide")).toBeVisible();
+    expect(screen.queryByText(description)).toBeNull();
+    await pressMeasuredPopover(screen.getByRole("button", { name: label }));
+    expect(screen.getByText(description)).toBeVisible();
+  },
+);
+
+it("centers both discovery empty states and keeps the input accessible", async () => {
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  const prompt = "Enter at least 4 characters to search";
+  const input = screen.getByLabelText("Search groups");
+  expect(input).toHaveDisplayValue("");
+  expect(screen.queryByText("Search groups")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Search groups: Search help" })).toBeNull();
+  expect(screen.getByText(prompt).parent).toHaveStyle({ alignItems: "center" });
+  await fireEvent.changeText(input, "abc");
+  expect(screen.getAllByText(prompt)).toHaveLength(1);
+  expect(
+    listFixture.reads.filter((url) => url.searchParams.get("scope") === "public"),
+  ).toHaveLength(0);
+  await fireEvent.changeText(input, "missing");
+  const empty = await screen.findByText("No groups found");
+  expect(empty.parent).toHaveStyle({ alignItems: "center" });
+  expect(screen.queryByText(prompt)).toBeNull();
+  await listPress("Clear search");
+  expect(screen.getByText(prompt)).toBeVisible();
+  expect(screen.queryByText("No groups found")).toBeNull();
 });

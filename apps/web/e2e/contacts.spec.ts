@@ -25,15 +25,14 @@ async function signIn(page: import("@playwright/test").Page, emailAddress: strin
 
 async function findTarget(page: import("@playwright/test").Page) {
   await page.getByRole("tab", { name: "Search" }).click();
-  const searchInput = page.getByRole("searchbox", { name: /search users by name or email/i });
+  const panel = page.getByRole("tabpanel", { name: "Search" });
+  await expect(panel.getByText("Section guide", { exact: true })).toBeVisible();
+  const searchInput = panel.getByRole("searchbox", { name: /search users by name or email/i });
   await expect(searchInput).toBeVisible();
   await searchInput.fill(E2E_EMAIL_2);
-  await expect(
-    page
-      .getByRole("heading", { name: "Search results" })
-      .locator("xpath=following-sibling::ul[1]")
-      .getByText("E2E Target"),
-  ).toBeVisible({ timeout: 90_000 });
+  await expect(panel.getByRole("listitem").getByText("E2E Target")).toBeVisible({
+    timeout: 90_000,
+  });
 }
 
 function waitForRelationshipResponse(
@@ -109,10 +108,16 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   );
   await page.reload();
   await page.getByRole("tab", { name: "Contacts", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Device Contacts" })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "Contacts", exact: true })).toBeVisible({
     timeout: 90_000,
   });
-  const deviceContacts = page.locator("#device-contacts-title").locator("..");
+  await expect(page.getByText("Section guide", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Contacts help" }).click();
+  const guide = page.getByRole("dialog");
+  await expect(guide.getByText(/Sync your address book from the mobile app/)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(guide).toBeHidden();
+  const deviceContacts = page.getByRole("region", { name: "Device Contacts" });
   await expect(deviceContacts.getByText("E2E Target")).toBeVisible({ timeout: 90_000 });
   await expect(deviceContacts.getByText(/^@\S+$/)).toBeVisible();
 

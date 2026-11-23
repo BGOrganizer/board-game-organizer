@@ -70,6 +70,7 @@ import {
 } from "../groupOptimisticCreation";
 import { isGroupManagerRole } from "../groupPolicy";
 import { groupRecordSeed } from "../groupRecordSeed";
+import { globalLeaderboardKey } from "./useLeaderboard";
 export type GroupRecordScope = "mine" | "public" | "moderation";
 export type GroupPeopleScope = "accepted" | "pending" | "bans";
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
@@ -837,6 +838,7 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         }
       });
       // Acknowledged deletion already reconciles cached rows; refresh remaining lists in background.
+      void client.invalidateQueries({ queryKey: globalLeaderboardKey(owner.apiUrl, owner.userId) });
       void client.invalidateQueries({
         queryKey: ["profile", owner.apiUrl, owner.userId],
         refetchType: "active",

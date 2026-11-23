@@ -107,10 +107,10 @@ it("shares labeled search, help, conditional inline clear and compact selected i
   expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
   view.rerender(<ListSearch {...props} mode="filter" query="a" />);
   expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Search things: Filter help" }));
-  expect(screen.getByText("Filter this list by name. No minimum length.")).toBeTruthy();
-  fireEvent.click(screen.getAllByRole("button", { name: "Dismiss" })[0]);
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(screen.getByRole("searchbox", { name: "Search things" })).toBeTruthy();
+  expect(screen.getByText("Search things").closest("label")).toHaveClass("sr-only");
+  expect(screen.queryByRole("button", { name: /help/i })).toBeNull();
+  expect(screen.getByRole("button", { name: "Admin" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Clear filter" }));
   expect(change).toHaveBeenLastCalledWith("");
 });

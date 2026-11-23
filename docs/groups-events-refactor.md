@@ -121,6 +121,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   never historical statistics or an incomplete roster cache; former/pending members receive no role
   badge. Older cached responses without role metadata remain unbadged until refreshed. Only enabled
   physical tables with at least two scoring finishers contribute games, wins, withdrawals and rating statistics.
+  Group Rankings share the sorting controls and OpenSkill rank display described in
+  [Community](community.md#global-rankings), using the Group's authorized standings and GROUP rating.
 
 ## Events and Tables
 
@@ -149,11 +151,14 @@ exceptions retain their explicit authorization boundaries throughout this contra
   or current authorized manager. Excluded Tables never enter History, even for managers; they remain in
   their parent Event. Loss of management preserves only actual player/demonstrator history. Legacy explicit
   mine/waiting API sections retain their existing behavior and distinct caches.
-- Main Events' three sections and History have no state-filter chips. Their Filter / Filtra inputs retain
-  clear actions, no character minimum and 300 ms debounce. Escaped name filtering and section eligibility
-  run before source pagination. Group-context Events remain one contextual list with Confirmed / Planning /
-  Terminated chips, initially all enabled; owned Private/Public Groups retain their existing filters.
-  Group Search remains separate discovery with its four-character minimum. Current lifecycle comes from
+- Main Event, Group and History lists use section Cards with help that explains what each list
+  contains. Main Events' three sections and History have no state-filter chips. Name filters have an
+  accessible label, a clear action, no character minimum and a 300 ms debounce. Escaped name
+  filtering and section eligibility run before source pagination. Group-context Events have
+  Confirmed / Planning / Terminated chips, initially all enabled. Owned Private/Public Groups have
+  role filters.
+  Group Search uses a four-character minimum, with centered prompts before searching and when the
+  results are empty. Its guidance lives in the section Card. Current lifecycle comes from
   persisted Event state, never guessed from dates. Legacy API period parameters remain supported.
   Retained Query pages remain authoritative while local presentation reveals bounded pages progressively.
   Main Event/Group tab strips and Group detail contents retain compact platform-owned spacing and a single
@@ -356,8 +361,15 @@ exceptions retain their explicit authorization boundaries throughout this contra
   retain explicit consent and source-complete request attention. Public/Private has its own icon/help;
   only PUBLIC Groups show approval/review status, retaining rejection reasons and the distinction
   between pending changes and an already approved revision. Local drafts do not fabricate server roles.
-- Parent Group references in Event detail reuse the actual `GroupCard`; parent Event references in
-  personal-entry Table Overview reuse the actual `EventCard`. They consume existing owner-scoped
+- Event Details, Participants and Tables use the same section Card as leaderboards. Their help
+  explains registration and roster eligibility during planning, and confirmed seats after
+  confirmation. Details also explains the active planning mode, player-count priority and enabled
+  date/time and location voting and proposal options. Table Details uses the same Card for game
+  voting and enabled proposals, while Table Participants explains registration and the waiting list.
+- Group Details, Members and Events use the same help Card. Details includes the venue help when a
+  verified venue is present, while Members and Events explain the actions relevant to the group.
+- Parent Group references follow the schedule and locations in Event Details and reuse the actual `GroupCard`; parent Event references in
+  personal-entry Table Overview reuse the actual `EventCard` after the games and proposals. They consume existing owner-scoped
   detail/cache reads, not per-card network readers. Missing fields keep known identity with partial
   skeletons and explicit retry; authorization loss never retains forbidden metadata. Matching Group/
   Event entry context still omits the redundant parent section; Back, shared-results guards and
@@ -494,7 +506,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   email stays in server-only contact storage and is omitted from registration receipts and reads.
 - Both clients show grouped games and places in Table details. Places start at the maximum capacity;
   occupied capacity retains an additional queue entry. A separate Waiting list section always follows
-  Seats list, each with its own explanation popover. While primary places remain available, Waiting list
+  Seats list. The Participants section Card contains their shared icon legend and help, also
+  available while editing seats. While primary places remain available, Waiting list
   shows a centered non-interactive empty state; its existing queue action appears only at full capacity.
   Anonymous/unloaded primary
   reservations precede queued people too, including across render pages. Local saving intent is never
@@ -511,8 +524,9 @@ exceptions retain their explicit authorization boundaries throughout this contra
   can interchange; NO is disabled when it would remove the final positive choice. The API enforces
   the same condition under the Event transaction lock, including concurrent game rejections. Removed
   options and another Table's game votes never qualify. In planning, a category with multiple
-  options shows voter avatars under each option, grouped by explicit preference. Event date and
-  location ballots are visible to current managers and accepted Event participants, counted once
+  options shows voter avatars grouped by explicit preference in an initially collapsed accordion
+  for each option with recorded votes. The vote action remains separate from the accordion
+  trigger. Event date and location ballots are visible to current managers and accepted Event participants, counted once
   per Event. Game ballots are visible to current managers and accepted players of that Table.
   Accepted players in the queue are included. The compact view uses decorative avatars overlapped by
   a quarter of their width, with a dot between populated preferences. Each populated preference
@@ -946,12 +960,13 @@ there are no repeated identical notifications or player reminders to change vote
   The same roster reader stays mounted across Details/Participants; hidden UI never advances paging.
   Exact invitation-attention links start on Participants without accepting or reading invitations.
   Shared final access exposes Details/Results only, with no private roster or GROUP ranking scope.
-  Results rows contain avatar, one @username/known fallback and adjacent, nonwrapping ranking icons:
-  GLOBAL uses a Globe/accent glyph; authorized GROUP uses UsersRound/success and is absent for
-  personal/shared-final access. Each opens only its own scope's complete details. Confirmed rows
-  expose current ratings without inventing final standings or scores. Terminated rows preserve immutable classified
-  order, shared ties, bottom-right #n avatar badges, unranked ND and exact far-right scores. Popups
-  use recorded before/after/delta, semantic direction icons and scope labels, never live replacement.
+  Confirmed Results rows show avatar, one @username/known fallback and a popover per current rating
+  scope, with no final standings or scores. Terminated Results identify the frozen game when known
+  and preserve immutable classified order, shared ties, bottom-right position badges, unranked ND
+  and exact far-right scores. The podium uses a warning trophy, an accent medal and a default
+  medal in order. Other ranked positions use #n. Each account player's row expands to show recorded
+  before → after and delta, with semantic direction icons. GLOBAL uses a Globe/accent glyph. Authorized GROUP uses
+  UsersRound/success and is absent for personal/shared-final access. Guest rows show physical results.
   Disabled/all-ND/fewer-than-two-finisher outcomes say Ranking not updated; genuinely missing history
   says Historical ranking unavailable. Current authenticated source paging uses genuine frozen-player
   snapshots/statistics; pending players and management-only actors never gain seats. Cache identity
@@ -1092,6 +1107,8 @@ Contacts navigation is Connections / Requests / Contacts / Search. Contacts owns
 including existing social connections, local unregistered rows, permission/synchronization feedback and paging.
 Web shows the authenticated synced registered contacts available to that client; it does not request a browser
 address book. Search owns only its query and remote results, initially empty and cleared below four characters.
+Each tab has a section guide card. The guide includes the connection or request legend, address
+book guidance, or the search rules for that tab.
 Registered-user rows show the real @username below the display name in every Contacts section.
 Unregistered address-book rows have no invented handle. Contacts derives attention from its loaded actor
 rows without inventing a server read subsection.

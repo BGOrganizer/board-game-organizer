@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { GroupLeaderboard } from "@/components/groups/GroupLeaderboard";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { renderWithI18n } from "@/test-utils";
 
 const picker = vi.fn();
@@ -9,7 +9,7 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 vi.mock("@board-game-organizer/shared", async (original) => ({
   ...(await original<typeof import("@board-game-organizer/shared")>()),
-  useGroupLeaderboard: (args: unknown) => picker(args),
+  useLeaderboard: (args: unknown) => picker(args),
 }));
 const games = [
   { id: 1, name: "Azul", imageUrl: "data:image/svg+xml,%3Csvg/%3E" },
@@ -35,6 +35,7 @@ beforeEach(() => {
                 gamesWon: 1,
                 nd: 1,
                 rating: 510.4,
+                position: 4,
                 provisional: true,
                 left: true,
               },
@@ -57,7 +58,7 @@ it("shows empty group text without select", () => {
     games: { data: { games: [] }, isPending: false, isError: false },
     players: { data: undefined, hasNextPage: false },
   });
-  renderWithI18n(<GroupLeaderboard groupId="test" />);
+  renderWithI18n(<Leaderboard groupId="test" />);
   expect(screen.getByText("No rated tables played in this group yet")).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Board game/ })).toBeNull();
 });
@@ -67,13 +68,13 @@ it("keeps load failures observable and retryable", () => {
     games: { isPending: false, isError: true, refetch: refresh },
     players: { data: undefined, hasNextPage: false },
   });
-  renderWithI18n(<GroupLeaderboard groupId="test" />);
+  renderWithI18n(<Leaderboard groupId="test" />);
   fireEvent.click(screen.getByRole("button", { name: "Could not load leaderboards. Retry" }));
   expect(refresh).toHaveBeenCalledOnce();
 });
 
 it("filters by selected game and identifies provisional former members", async () => {
-  renderWithI18n(<GroupLeaderboard groupId="test" />);
+  renderWithI18n(<Leaderboard groupId="test" />);
   expect(screen.queryByRole("grid")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
   const azul = await screen.findByRole("option", { name: "Azul" });
@@ -82,7 +83,7 @@ it("filters by selected game and identifies provisional former members", async (
   expect(picker).toHaveBeenLastCalledWith(expect.objectContaining({ gameId: 1 }));
   expect(screen.getByRole("grid")).toBeTruthy();
   expect(screen.getByRole("columnheader", { name: "ND" })).toBeTruthy();
-  expect(screen.getByRole("columnheader", { name: "Ranking" })).toBeTruthy();
+  expect(screen.getByRole("columnheader", { name: "OpenSkill" })).toBeTruthy();
   const trigger = screen.getByRole("button", { name: /Azul Board game/ });
   expect(trigger.querySelector("img")).toBeTruthy();
   expect(trigger.querySelector('[data-slot="selected-game-name"]')?.textContent?.trim()).toBe(
@@ -134,7 +135,7 @@ it.each([
         },
       },
     });
-    renderWithI18n(<GroupLeaderboard groupId="test" />);
+    renderWithI18n(<Leaderboard groupId="test" />);
     fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
     fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
     expect(screen.getByText("@grace")).toBeTruthy();
@@ -159,7 +160,7 @@ it.each([null, undefined])(
         data: { pages: [{ players: [{ ...original, username: null, groupRole, left: false }] }] },
       },
     });
-    renderWithI18n(<GroupLeaderboard groupId="test" />);
+    renderWithI18n(<Leaderboard groupId="test" />);
     fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
     fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
     expect(screen.getByText("Username unavailable")).toBeTruthy();
@@ -191,7 +192,7 @@ it("bounds retained web leaderboard rows on entry and reveals cached rows before
       },
     },
   });
-  const view = renderWithI18n(<GroupLeaderboard groupId="test" />);
+  const view = renderWithI18n(<Leaderboard groupId="test" />);
   fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
   fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
   expect(screen.getAllByRole("row")).toHaveLength(26);
@@ -200,7 +201,7 @@ it("bounds retained web leaderboard rows on entry and reveals cached rows before
   expect(screen.getAllByRole("row")).toHaveLength(51);
   expect(more).not.toHaveBeenCalled();
   view.unmount();
-  renderWithI18n(<GroupLeaderboard groupId="test" />);
+  renderWithI18n(<Leaderboard groupId="test" />);
   fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
   fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
   expect(screen.getAllByRole("row")).toHaveLength(26);
@@ -216,7 +217,7 @@ it("keeps the selected game label when closing search restores an option window 
       selectedGame: args.gameId === 2 ? games[1] : undefined,
     },
   }));
-  renderWithI18n(<GroupLeaderboard groupId="test" />);
+  renderWithI18n(<Leaderboard groupId="test" />);
   fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
   fireEvent.click(await screen.findByRole("option", { name: "Cascadia" }));
   const selected = screen.getByRole("button", { name: /Cascadia Board game/ });
@@ -224,4 +225,44 @@ it("keeps the selected game label when closing search restores an option window 
     "Cascadia",
   );
   expect(screen.queryByText("Unknown")).toBeNull();
+});
+
+it("expands compact player statistics while keeping rank and sorting controls visible", async () => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    media: query,
+    matches: query === "(max-width: 639px)",
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  try {
+    renderWithI18n(<Leaderboard groupId="test" groupName="Game night" />);
+    expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+    fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
+    const list = screen.getByRole("list", { name: "Group leaderboard" });
+    const card = within(list).getByTestId("group-ranking-player-former");
+    expect(within(card).getByText("@grace")).toBeVisible();
+    expect(within(card).getByText("Former group member")).toBeVisible();
+    expect(within(card).getByText("OpenSkill")).toBeVisible();
+    const row = within(card);
+    const position = row.getByRole("img", { name: "Position: #4" });
+    expect(position).toHaveTextContent("#4");
+    expect(position.compareDocumentPosition(row.getByText("@grace"))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    const statistics = row.getByRole("button", { name: /Game statistics: @grace/ });
+    expect(statistics).toHaveAttribute("aria-expanded", "false");
+    for (const label of ["Played", "Wins", "ND"]) expect(row.queryByText(label)).toBeNull();
+    fireEvent.click(statistics);
+    expect(statistics).toHaveAttribute("aria-expanded", "true");
+    for (const label of ["Played", "Wins", "ND"]) expect(row.getByText(label)).toBeVisible();
+    fireEvent.click(statistics);
+    expect(statistics).toHaveAttribute("aria-expanded", "false");
+    expect(row.queryByText("ND")).toBeNull();
+    expect(screen.queryByRole("grid")).toBeNull();
+    expect(screen.getByTestId("ranking-sort-metric")).toBeVisible();
+    expect(screen.getByTestId("ranking-sort-direction")).toBeVisible();
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

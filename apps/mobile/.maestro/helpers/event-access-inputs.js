@@ -82,6 +82,12 @@ output.access = {
   participants: exact(it ? "Partecipanti" : "Participants"),
   overview: exact(it ? "Dettagli" : "Details"),
   tables: exact(it ? "Tavoli" : "Tables"),
+  tablesHelp: exact(it ? "Aiuto sui tavoli dell’evento" : "Event tables help"),
+  confirmedSeatsRule: exact(
+    it
+      ? "Partecipa solo chi ha un posto confermato a un tavolo che ha raggiunto il minimo di giocatori e soddisfatto le condizioni dell’evento."
+      : "Only players with confirmed seats at tables that reached the minimum player count and met the event requirements take part.",
+  ),
   events: exact(it ? "Eventi" : "Events"),
   seats: exact(it ? "Lista posti" : "Seats list"),
   openGroup: exact((it ? "Apri gruppo: " : "Open group: ") + (p.groupName || "")),
@@ -102,8 +108,10 @@ output.access = {
   tableFilter: p.tableName,
   results: exact(it ? "Risultati" : "Results"),
   ranking: "^Ranking$",
-  player: exact(p.playerName || ""),
-  nd: exact(p.ndName || ""),
+  player: `${exact(p.playerName || "").slice(0, -1)}(?:, .+)?$`,
+  nd: `${exact(p.ndName || "").slice(0, -1)}(?:, .+)?$`,
+  globalRatingScope: exact(it ? "Globale" : "Global"),
+  groupRatingScope: exact(it ? "Gruppo" : "Group"),
   join: exact(it ? "Iscriviti al tavolo" : "Join table"),
   entry: it ? "^(Posto libero|Mettiti in coda)$" : "^(Free place|Join waiting list)$",
   leave: exact(it ? "Abbandona tavolo" : "Leave table"),

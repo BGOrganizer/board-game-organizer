@@ -137,6 +137,23 @@ test("manager adds an unregistered guest and later records a ballot without a pr
   await page.getByRole("tab", { name: labels.details, exact: true }).click();
   const title = it ? "Voti" : "Votes";
   const tally = page.getByRole("list", { name: `${title}: ${input.game}` });
+  const gameInfo = page.getByRole("button", {
+    name: `${it ? "Informazioni sul gioco" : "Game information"}: ${input.game}`,
+    exact: true,
+  });
+  await expect(tally).toHaveCount(0);
+  await expect(gameInfo).toHaveCount(0);
+  await page
+    .getByRole("button", {
+      name: `${it ? "Riepilogo voti" : "Vote summary"}: ${input.game}`,
+      exact: true,
+    })
+    .click();
+  await gameInfo.click();
+  const gamePopover = page.getByRole("dialog", { name: input.game, exact: true });
+  await expect(gamePopover).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(gamePopover).toBeHidden();
   await expect(tally.getByRole("button", { name: `${input.name} (${labels.yes})` })).toHaveCount(0);
   await tally
     .getByRole("button", {

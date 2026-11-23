@@ -20,9 +20,14 @@ const m = vi.hoisted(() => ({
   calls: vi.fn(),
   more: vi.fn(),
   refetch: vi.fn(),
+  rankings: vi.fn(),
 }));
 vi.mock("@board-game-organizer/shared", async (original) => ({
   ...(await original<typeof import("@board-game-organizer/shared")>()),
+  useLeaderboard: (options: unknown) => {
+    m.rankings(options);
+    return { games: { data: { games: [] } }, players: {} };
+  },
   useCommunityActivities: (...args: unknown[]) => {
     m.calls(...args);
     return {
@@ -33,6 +38,7 @@ vi.mock("@board-game-organizer/shared", async (original) => ({
     };
   },
 }));
+vi.mock("@clerk/nextjs", () => ({ useAuth: () => m.options }));
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => m.options }));
 vi.mock("@/lib/useInfiniteScroll", () => ({ useInfiniteScroll: () => () => undefined }));
 const row = (
@@ -62,9 +68,14 @@ beforeEach(() => {
     isFetchNextPageError: false,
   };
 });
-it("keeps Activities/Marketplace and the activity-type filter scoped while navigating", async () => {
+it("orders Activities, Rankings and Marketplace and retains the activity filter", async () => {
   renderWithI18n(<Community />);
   expect(screen.getByRole("heading", { name: "Community" })).toBeTruthy();
+  expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+    "Activities",
+    "Rankings",
+    "Marketplace",
+  ]);
   for (const tab of screen.getAllByRole("tab")) {
     expect(tab.className).toContain("flex-row");
     expect(tab.className).toContain("whitespace-nowrap");
@@ -73,6 +84,12 @@ it("keeps Activities/Marketplace and the activity-type filter scoped while navig
   fireEvent.click(screen.getByRole("tab", { name: "Marketplace" }));
   expect(screen.getByText("Coming soon")).toBeTruthy();
   expect(screen.getByText(/A place to buy, sell/)).toBeTruthy();
+  expect(m.rankings).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("tab", { name: "Rankings" }));
+  expect(screen.getByText("No rated tables played yet")).toBeVisible();
+  expect(m.rankings).toHaveBeenLastCalledWith(
+    expect.objectContaining({ groupId: null, gameId: null }),
+  );
   fireEvent.click(screen.getByRole("tab", { name: "Activities" }));
   fireEvent.click(screen.getByRole("button", { name: /Activity type/ }));
   fireEvent.click(await screen.findByRole("option", { name: "Game played" }));

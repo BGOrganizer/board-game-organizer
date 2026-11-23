@@ -8,9 +8,18 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarCheck2, CalendarClock, CalendarDays, Flag, Plus } from "lucide-react";
+import {
+  CalendarCheck,
+  CalendarCheck2,
+  CalendarClock,
+  CalendarDays,
+  CalendarSearch,
+  Flag,
+  Plus,
+} from "lucide-react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { WindowedList } from "@/components/common/ui/WindowedList";
@@ -52,6 +61,26 @@ export function EventList({
   useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
     "admin",
   ]);
+  const sectionHelp = {
+    mine: {
+      title: t`Scheduled`,
+      label: t`Scheduled events help`,
+      icon: CalendarCheck,
+      description: t`Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included.`,
+    },
+    available: {
+      title: t`Available events`,
+      label: t`Available events help`,
+      icon: CalendarSearch,
+      description: t`Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too.`,
+    },
+    terminated: {
+      title: t`Terminated events`,
+      label: t`Terminated events help`,
+      icon: Flag,
+      description: t`Finished events where you played or demonstrated at a confirmed table, or that you still manage.`,
+    },
+  }[section];
   return (
     <NotificationAttentionScope
       options={o}
@@ -60,6 +89,15 @@ export function EventList({
         .map((row) => ({ kind: "event", id: row.id }))}
     >
       <ListPage hasFloatingActions={canCreate}>
+        {groupId ? null : (
+          <HelpSectionCard
+            title={sectionHelp.title}
+            label={sectionHelp.label}
+            icon={sectionHelp.icon}
+          >
+            <p>{sectionHelp.description}</p>
+          </HelpSectionCard>
+        )}
         <ListSearch
           query={filters.query}
           onQueryChange={filters.setQuery}

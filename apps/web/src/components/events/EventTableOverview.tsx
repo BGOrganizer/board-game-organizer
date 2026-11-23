@@ -4,6 +4,7 @@ import {
   communityAccessDenied,
   eventAvailabilityVoteIsAllowed,
   eventOptionsRequireVote,
+  hasOptionVoters,
   hasOtherAcceptedTable,
   tableCardGames,
   useEventCutoff,
@@ -14,10 +15,12 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Info } from "lucide-react";
 import { useState } from "react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -28,7 +31,7 @@ import { EventProposalSection } from "./EventProposalSection";
 import { EventTableScheduleCard } from "./EventTableScheduleCard";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
-import { EventVoteLegend } from "./EventVoteLegend";
+import { EventVoteLegendContent } from "./EventVoteLegendContent";
 import { OptionVoteVoters } from "./OptionVoteVoters";
 export function EventTableOverview({
   eventId,
@@ -91,6 +94,13 @@ export function EventTableOverview({
   };
   const gameVotes = table.myRegistration?.gameVotes ?? {};
   const votableGames = table.eventStatus === "PLANNING" && eventOptionsRequireVote(table.games);
+  const canExplainGameProposals =
+    table.eventStatus === "PLANNING" &&
+    table.allowParticipantGames === true &&
+    !table.readOnly &&
+    event.data?.status === "PLANNING" &&
+    !event.data.readOnly &&
+    event.data.groupType !== "PUBLIC";
   const canVote =
     votableGames &&
     table.eventStatus === "PLANNING" &&
@@ -100,42 +110,19 @@ export function EventTableOverview({
   return (
     <div className="mx-auto max-w-4xl space-y-5 pb-24">
       <div hidden={section === "participants"} className="space-y-5">
+        <HelpSectionCard title={t`Details`} label={t`Table details help`} icon={Info}>
+          {votableGames ? <EventVoteLegendContent scope="table" /> : null}
+          {canExplainGameProposals ? (
+            <p>{t`Players seated at this table can propose other games for a manager to approve.`}</p>
+          ) : null}
+          {!votableGames && !canExplainGameProposals ? (
+            <p>{t`See the schedule and board games for this table below.`}</p>
+          ) : null}
+        </HelpSectionCard>
         <EventTableScheduleCard
           table={table}
           timeZone={event.data?.timeZone ?? table.eventSchedule?.location?.timeZone}
         />
-        {context === "personal" ? (
-          <section className="space-y-2" aria-label={t`Event`}>
-            <h2 className="font-semibold">{t`Event`}</h2>
-            {event.data?.id === table.eventId &&
-            typeof event.data.tableCount === "number" &&
-            Array.isArray(event.data.myRegistrations) ? (
-              <EventCard event={event.data} />
-            ) : (
-              <LinkedListCard
-                artworkLayout="cover"
-                href={`/events/${table.eventId}`}
-                notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
-                label={`${t`Open event`}: ${table.eventName}`}
-                artwork={
-                  <AnimatedDicebearArtwork
-                    seed={table.eventId}
-                    variant="events"
-                    presentation="cover"
-                  />
-                }
-              >
-                <span className="flex min-w-0 flex-1 self-center items-center gap-2">
-                  <span className="min-w-0 truncate font-medium">{table.eventName}</span>
-                  <NotificationUnreadDot
-                    active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
-                  />
-                </span>
-                <Skeleton className="h-4 w-28 rounded" />
-              </LinkedListCard>
-            )}
-          </section>
-        ) : null}
         {q.isError ? (
           <div role="alert">
             <p className="text-danger">{t`Could not load complete table details`}</p>
@@ -144,10 +131,7 @@ export function EventTableOverview({
         ) : null}
         <section className="space-y-3" aria-label={t`Board games`}>
           <NotificationItem itemId={notificationItemId(table.id, "games")}>
-            <div className="flex items-center gap-1">
-              <h2 className="font-semibold">{t`Board games`}</h2>
-              {votableGames ? <EventVoteLegend label={t`Board games`} scope="table" /> : null}
-            </div>
+            <h2 className="font-semibold">{t`Board games`}</h2>
           </NotificationItem>
           <GroupedList>
             {tableCardGames(table).map((game) => {
@@ -161,12 +145,19 @@ export function EventTableOverview({
                   titleAccessory={
                     <NotificationItem itemId={notificationItemId(table.id, "game", game.id)} />
                   }
-                  metadata={
-                    voters ? <OptionVoteVoters label={game.name} voters={voters} /> : undefined
+                  disclosure={
+                    hasOptionVoters(voters)
+                      ? {
+                          label: `${t`Vote summary`}: ${game.name}`,
+                          triggerText: t`Votes`,
+                          content: <OptionVoteVoters label={game.name} voters={voters} />,
+                        }
+                      : undefined
                   }
                   actions={
                     canVote || voters ? (
                       <EventVoteButtons
+                        compact
                         label={game.name}
                         value={gameVotes[String(game.id)]}
                         voters={voters}
@@ -201,6 +192,38 @@ export function EventTableOverview({
             />
           ) : null}
         </section>
+        {context === "personal" ? (
+          <section className="space-y-2" aria-label={t`Event`}>
+            <h2 className="font-semibold">{t`Event`}</h2>
+            {event.data?.id === table.eventId &&
+            typeof event.data.tableCount === "number" &&
+            Array.isArray(event.data.myRegistrations) ? (
+              <EventCard event={event.data} />
+            ) : (
+              <LinkedListCard
+                artworkLayout="cover"
+                href={`/events/${table.eventId}`}
+                notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
+                label={`${t`Open event`}: ${table.eventName}`}
+                artwork={
+                  <AnimatedDicebearArtwork
+                    seed={table.eventId}
+                    variant="events"
+                    presentation="cover"
+                  />
+                }
+              >
+                <span className="flex min-w-0 flex-1 self-center items-center gap-2">
+                  <span className="min-w-0 truncate font-medium">{table.eventName}</span>
+                  <NotificationUnreadDot
+                    active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
+                  />
+                </span>
+                <Skeleton className="h-4 w-28 rounded" />
+              </LinkedListCard>
+            )}
+          </section>
+        ) : null}
       </div>
       {event.isError ? (
         <div role="alert">

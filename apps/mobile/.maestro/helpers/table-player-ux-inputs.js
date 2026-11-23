@@ -46,6 +46,7 @@ output.ux = {
   join: literal(it ? "Mettiti in coda" : "Join waiting list"),
   waitingHelp: literal(it ? "Lista d'attesa: Guida al campo" : "Waiting list: Field help"),
   seatsHelp: literal(it ? "Lista posti: Guida al campo" : "Seats list: Field help"),
+  participantsHelp: literal(it ? "Aiuto sui partecipanti al tavolo" : "Table participants help"),
   seatsText: literal(
     it
       ? "Gli inviti in attesa non contano per l'accordo."
@@ -53,10 +54,13 @@ output.ux = {
   ),
   acceptedLegend: literal(it ? "Giocatore accettato" : "Accepted player"),
   pendingLegend: literal(it ? "Invito in attesa" : "Invitation pending"),
+  waitingLegend: literal(it ? "Giocatore in lista d'attesa" : "Player on the waiting list"),
+  demonstratorLegend: literal(it ? "Dimostratore" : "Demonstrator"),
+  guestLegend: literal(it ? "Ospite" : "Guest"),
   waitingText: literal(
     it
-      ? "I giocatori accettati in lista d'attesa possono votare. Possono partecipare se l'amministratore o l'app li seleziona secondo le regole del tavolo."
-      : "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
+      ? "I giocatori accettati in lista d’attesa possono votare. Un organizzatore o l’app può assegnare loro un posto secondo le regole del tavolo."
+      : "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules.",
   ),
   player: literal(it ? "Giocatore" : "Player"),
   win: literal(it ? "% di vittorie" : "Win %"),

@@ -171,9 +171,15 @@ it("uses stable non-mutating roster cache identity and supports the legacy facto
   expect(data.pages[0].items[0].userId).toBe("alpha");
 });
 
-it.each([1, 2, null])(
-  "keeps historical position %s visible and opens its avatar explanation",
-  async (rank) => {
+it.each([
+  { rank: 1, icon: "trophy", tone: "warning" },
+  { rank: 2, icon: "medal", tone: "accent" },
+  { rank: 3, icon: "medal", tone: "default" },
+  { rank: 4, icon: null, tone: "default" },
+  { rank: null, icon: null, tone: "default" },
+])(
+  "keeps historical position $rank on the avatar without another control",
+  ({ rank, icon, tone }) => {
     const { wrapper: Wrapper } = setup();
     renderWithI18n(
       <Wrapper>
@@ -202,12 +208,15 @@ it.each([1, 2, null])(
     );
     const label = `Position: ${rank === null ? "ND" : `#${rank}`}`;
     expect(screen.queryByText(label)).toBeNull();
-    const badge = screen.getByRole("button", { name: label });
-    expect(
-      badge.querySelector(rank === 1 ? ".lucide-trophy" : ".lucide-list-ordered"),
-    ).toBeTruthy();
-    fireEvent.click(badge);
-    expect(await screen.findByRole("dialog", { name: "Position" })).toBeTruthy();
+    const badge = screen.getByRole("img", { name: label });
+    const chip = badge.matches(".chip") ? badge : badge.querySelector(".chip");
+    expect(chip).toHaveClass(`chip--${tone}`);
+    if (icon) expect(badge.querySelector(`.lucide-${icon}`)).not.toBeNull();
+    else expect(badge.textContent).toBe(rank === null ? "ND" : `#${rank}`);
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(Boolean(screen.queryByText("Winner"))).toBe(rank === 1);
+    expect(screen.getByRole("heading", { name: "Chess" }).closest(".card")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "How OpenSkill works" })).toBeNull();
   },
 );
 
@@ -243,7 +252,7 @@ it("shows a winning guest by name with the physical score, without a rating cont
   );
   const guestRow = screen.getByText("Ada").closest("li");
   expect(guestRow?.textContent).toContain("14");
-  expect(guestRow?.querySelector("button[aria-label='Position: #1']")).toBeTruthy();
-  expect(guestRow?.querySelectorAll("button")).toHaveLength(1);
+  expect(guestRow?.querySelector("[role='img'][aria-label='Position: #1']")).toBeTruthy();
+  expect(guestRow?.querySelectorAll("button")).toHaveLength(0);
   expect(screen.queryByText(guest.participantId)).toBeNull();
 });

@@ -545,7 +545,14 @@ it.each([
     expect(fetcher.mock.calls.some(([url]) => url.includes("/leaderboard?"))).toBe(false);
     fireEvent.click(screen.getByRole("tab", { name: "Results" }));
     expect(await screen.findByText("Current owner")).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Global ranking: Current owner" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name:
+          eventStatus === "CONFIRMED"
+            ? "Global ranking: Current owner"
+            : /Rating details.*Current owner/,
+      }),
+    );
     expect(
       await screen.findByText(eventStatus === "CONFIRMED" ? "42" : "Ranking not updated"),
     ).not.toBeNull();
@@ -631,7 +638,7 @@ it("hides immutable deltas when Table ranking was disabled even if stale cache c
   mount();
   fireEvent.click(await screen.findByRole("tab", { name: "Results" }));
   expect(await screen.findByText("2")).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Global ranking: Owner" }));
+  fireEvent.click(screen.getByRole("button", { name: /Rating details.*Owner/ }));
   expect(await screen.findByText("Ranking not updated")).toBeTruthy();
   expect(screen.queryByText("99")).toBeNull();
   expect(screen.queryByText("+1")).toBeNull();
@@ -644,6 +651,7 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
       IF_NEEDED: [],
       NO: [],
     },
+    "2": { YES: [], IF_NEEDED: [], NO: [] },
   };
   mount();
   await screen.findByRole("heading", { name: "First table" });
@@ -651,9 +659,32 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
   expect(screen.queryByRole("link", { name: "Back to event" })).toBeNull();
   expect(screen.getByText("Chess").closest("li")?.parentElement?.tagName).toBe("UL");
   expect(screen.getByRole("button", { name: "Rating enabled" })).not.toBeNull();
-  expect(screen.getByLabelText("Votes: Chess").closest("li")).toBe(
-    screen.getByText("Chess").closest("li"),
-  );
+  const summary = screen.getByRole("button", { name: "Vote summary: Chess" });
+  expect(within(summary).getByText("Votes")).toBeVisible();
+  expect(summary).toHaveClass("flex-col", "min-h-11", "pointer-fine:min-h-8");
+  const action = screen.getByRole("button", { name: /^Chess: (Yes|Choose your vote|Show votes)$/ });
+  expect(summary.closest(".flex.shrink-0.items-center")).toContainElement(action);
+  expect(action.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(action).toHaveClass("button--sm");
+  expect(screen.queryByRole("list", { name: "Votes: Chess" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Game information: Chess" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Game information: Second game" })).toBeVisible();
+  expect(screen.getAllByRole("button", { name: /^Vote summary:/ })).toEqual([summary]);
+  fireEvent.click(summary);
+  const tally = screen.getByRole("list", { name: "Votes: Chess" });
+  const gameInfo = screen.getByRole("button", { name: "Game information: Chess" });
+  expect(gameInfo.querySelector(".chip")).toHaveClass("size-7");
+  expect(gameInfo.compareDocumentPosition(tally) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.click(gameInfo);
+  const gamePopover = await screen.findByRole("dialog", { name: "Chess" });
+  expect(within(gamePopover).getByText("BGG rating:")).toBeVisible();
+  fireEvent.keyDown(gamePopover, { key: "Escape", code: "Escape" });
+  expect(tally.closest("li")).toBe(screen.getByText("Chess").closest("li"));
+  fireEvent.click(within(tally).getByRole("button", { name: "Chess: Show votes — Yes" }));
+  const voters = await screen.findByRole("dialog", { name: "Votes" });
+  expect(within(voters).getByRole("tab", { name: "Yes", selected: true })).toBeVisible();
+  fireEvent.click(within(voters).getByRole("button", { name: "Close" }));
+  expect(summary).toHaveAttribute("aria-expanded", "true");
   fireEvent.click(
     within(screen.getByRole("region", { name: "Settings" })).getByRole("button", {
       name: "Planning",
@@ -913,8 +944,8 @@ it("always shows an empty, non-interactive waiting list after seats while places
   expect(empty.parentElement?.className).toContain("items-center");
   expect(empty.parentElement?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
   expect(within(waiting).queryByRole("list")).toBeNull();
-  expect(within(waiting).getAllByRole("button")).toHaveLength(1);
-  expect(within(waiting).getByRole("button", { name: "Waiting list: Field help" })).not.toBeNull();
+  expect(within(waiting).queryByRole("button")).toBeNull();
+  expect(screen.getAllByRole("button", { name: "Table participants help" })).toHaveLength(1);
   expect(screen.queryByRole("button", { name: "Join waiting list" })).toBeNull();
   expect(within(seats).getAllByRole("button", { name: "Free place" }).length).toBeGreaterThan(0);
 });
@@ -962,7 +993,7 @@ it("retains a queue entry beyond capacity and shows pending, accepted and waitin
   expect(screen.getAllByRole("button", { name: "Confirmed player" })).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Roles and participation" })).not.toBeNull();
   expect(screen.getByRole("button", { name: "Join waiting list" })).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Seats list: Field help" }));
+  fireEvent.click(screen.getByRole("button", { name: "Table participants help" }));
   expect(
     await screen.findByText("Pending invitations do not count toward agreement."),
   ).not.toBeNull();
@@ -1214,44 +1245,25 @@ it("retains immutable exact scores, ND, profiles and both rating scopes, includi
   mount(client);
   await screen.findByText("Could not load complete table details");
   fireEvent.click(screen.getByRole("tab", { name: "Results" }));
-  expect(screen.getByText("ND")).toBeTruthy();
-  expect(screen.queryByText("Position: ND")).toBeNull();
-  expect(screen.getByRole("button", { name: "Position: ND" })).toBeTruthy();
+  expect(screen.getByRole("img", { name: "Position: ND" })).toBeTruthy();
   expect(screen.getByText("1.50")).not.toBeNull();
-  fireEvent.click(
-    screen.getAllByRole("button", { name: "Global ranking: Username unavailable" })[0],
-  );
-  expect(
-    await screen.findByRole("dialog", { name: "Global ranking: Username unavailable" }),
-  ).toBeTruthy();
+  const [ownerRating, otherRating] = screen.getAllByRole("button", {
+    name: /Rating details.*Username unavailable/,
+  });
+  expect(ownerRating.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(ownerRating);
+  expect(ownerRating.getAttribute("aria-expanded")).toBe("true");
   expect(screen.getByText("+5")).toBeTruthy();
-  expect(screen.queryByText("-3")).toBeNull();
-  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  fireEvent.click(
-    screen.getAllByRole("button", { name: "Group ranking: Username unavailable" })[0],
-  );
-  expect(
-    await screen.findByRole("dialog", { name: "Group ranking: Username unavailable" }),
-  ).toBeTruthy();
   expect(screen.getByText("-3")).toBeTruthy();
+  expect(screen.getAllByRole("img", { name: "Provisional rating" })).toHaveLength(2);
+  fireEvent.click(ownerRating);
   expect(screen.queryByText("+5")).toBeNull();
-  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  fireEvent.click(
-    screen.getAllByRole("button", { name: "Global ranking: Username unavailable" })[1],
-  );
-  expect(await screen.findByText("0")).toBeTruthy();
-  expect(screen.queryByText("+7")).toBeNull();
-  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  fireEvent.click(
-    screen.getAllByRole("button", { name: "Group ranking: Username unavailable" })[1],
-  );
-  expect(await screen.findByText("+7")).toBeTruthy();
+  fireEvent.click(otherRating);
+  expect(screen.getByText("0")).toBeTruthy();
+  expect(screen.getByText("+7")).toBeTruthy();
+  expect(otherRating.closest("li")?.querySelector(".lucide-minus")).toBeTruthy();
+  fireEvent.click(otherRating);
   expect(screen.queryByText("0")).toBeNull();
-  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   broken = false;
   table = {
     ...table,

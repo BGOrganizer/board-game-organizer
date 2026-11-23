@@ -1,5 +1,5 @@
 appId: com.bgo.boardgameorganizer.dev
-name: Category voting legends for multiple options only
+name: Details voting and Table participation help
 # Read-only, authenticated Development. Run for EN/IT and light/dark.
 # VOTE_HELP_ACK=owned-development-resources; VOTE_HELP_LOCALE=en|it
 # VOTE_HELP_FIXTURES=[{eventId,tableId,eventName,tableName,multiple:false},
@@ -18,6 +18,29 @@ tags: [manual, events, voting]
       - extendedWaitUntil:
           visible: ${output.voteHelp.current.name}
           timeout: 120000
+      - runFlow:
+          when:
+            true: ${output.voteHelp.current.dates && output.voteHelp.current.multiple}
+          commands:
+            - tapOn: ${output.voteHelp.eventDetailsHelp}
+            - scrollUntilVisible:
+                element: ${output.voteHelp.combined}
+                direction: DOWN
+                timeout: 20000
+            - assertVisible: ${output.voteHelp.combined}
+            - back
+      - runFlow:
+          when:
+            true: ${output.voteHelp.current.table}
+          commands:
+            - tapOn:
+                id: table-participants-tab
+            - tapOn: ${output.voteHelp.tableParticipantsHelp}
+            - assertVisible: ${output.voteHelp.queueRule}
+            - back
+            - tapOn:
+                id: table-overview-tab
+            - assertNotVisible: ${output.voteHelp.current.oldTrigger}
       - scrollUntilVisible:
           element: ${output.voteHelp.current.heading}
           direction: DOWN
@@ -26,6 +49,10 @@ tags: [manual, events, voting]
           when:
             true: ${output.voteHelp.current.multiple}
           commands:
+            - scrollUntilVisible:
+                element: ${output.voteHelp.current.trigger}
+                direction: UP
+                timeout: 20000
             - tapOn: ${output.voteHelp.current.trigger}
             - assertVisible: ${output.voteHelp.yes}
             - assertVisible: ${output.voteHelp.needed}
@@ -35,6 +62,14 @@ tags: [manual, events, voting]
             - assertNotVisible: ${output.voteHelp.obsolete}
             - takeScreenshot: vote-help-${output.voteHelp.index}
             - back
+            - runFlow:
+                when:
+                  true: ${output.voteHelp.current.table}
+                commands:
+                  - scrollUntilVisible:
+                      element: ${output.voteHelp.current.heading}
+                      direction: DOWN
+                      timeout: 20000
             - tapOn:
                 text: ${output.voteHelp.voteAction}
                 below:
@@ -61,7 +96,18 @@ tags: [manual, events, voting]
             - back
       - runFlow:
           when:
-            true: ${!output.voteHelp.current.multiple}
+            true: ${!output.voteHelp.current.multiple && !output.voteHelp.current.table}
           commands:
             - assertNotVisible: ${output.voteHelp.current.trigger}
+      - runFlow:
+          when:
+            true: ${!output.voteHelp.current.multiple && output.voteHelp.current.table}
+          commands:
+            - scrollUntilVisible:
+                element: ${output.voteHelp.current.trigger}
+                direction: UP
+                timeout: 20000
+            - tapOn: ${output.voteHelp.current.trigger}
+            - assertNotVisible: ${output.voteHelp.current.participation}
+            - back
       - evalScript: ${output.voteHelp.index = output.voteHelp.index + 1}

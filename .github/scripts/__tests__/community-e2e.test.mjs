@@ -352,13 +352,19 @@ test("fresh native launch preserves real contacts and notification permission pr
   );
 });
 test("native help and legends wait for visible portal content without dropping assertions", () => {
-  for (const name of ["05-contacts-follow-block", "06-match-wizard", "12-organizations"]) {
+  for (const name of ["06-match-wizard", "12-organizations"]) {
     const steps = journey(name);
     assert(contains(steps, "extendedWaitUntil", { visible: "Search help", timeout: 30000 }));
     assert(contains(steps, "assertVisible", "Type at least 4 characters to search"));
     assert(contains(steps, "assertNotVisible", "Search help"));
   }
   const contacts = journey("05-contacts-follow-block");
+  const searchGuide =
+    "Find people on Board Game Organizer by entering their name or email address.";
+  assert(contains(contacts, "tapOn", "Contact search help"));
+  assert(contains(contacts, "extendedWaitUntil", { visible: searchGuide, timeout: 30000 }));
+  assert(contains(contacts, "assertVisible", "Type at least 4 characters to search"));
+  assert(contains(contacts, "assertNotVisible", searchGuide));
   for (const title of ["Friendship accepted.", "Requests awaiting your reply."])
     assert(contains(contacts, "extendedWaitUntil", { visible: title, timeout: 30000 }));
   for (const text of [
@@ -561,7 +567,7 @@ test("contact searches wait for API results, not an already-visible address-book
   const target = "${CONTACT_ACTIONS}";
   assert(contains(steps, "extendedWaitUntil", { visible: target, timeout: 90000 }));
   assert(contains(steps, "assertVisible", target));
-  assert(contains(steps, "assertNotVisible", "Device Contacts"));
+  assert(contains(steps, "assertNotVisible", "Contacts help"));
   assert(contains(steps, "tapOn", { id: "contact-search-input" }));
   assert(!contains(steps, "tapOn", "^Search users by name or email$"));
   const cleared = steps.findIndex((step) => step.assertNotVisible === "Clear search");

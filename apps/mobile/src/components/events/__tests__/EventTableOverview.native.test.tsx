@@ -176,6 +176,15 @@ beforeEach(() => {
             tableStatus,
           )
         );
+      if (path.endsWith("/proposals"))
+        return json({
+          eventId: event.id,
+          groupId: event.groupId,
+          eventVersion: event.version,
+          mode: "mine",
+          items: [],
+          nextCursor: null,
+        });
       if (path.endsWith("/seats/order"))
         return json({
           version: 1,
@@ -233,6 +242,56 @@ it("renders the canonical parent event, singleton game and preserved detail head
   expect(screen.queryByRole("button", { name: "Board games: Voting legend" })).toBeNull();
   expect(writes).toHaveLength(0);
 });
+
+it("moves the games legend and allowed proposals to Details and ends with the parent event", async () => {
+  multipleGames();
+  table.allowParticipantGames = true;
+  await installNativePopoverMeasurements();
+  await render(<Fixture />);
+  await ready();
+  await screen.findByText("Proposed games");
+  const labels = screen
+    .getAllByText(/^(Board games|Proposed games|Event)$/)
+    .map((node) => node.props.children);
+  expect(labels).toEqual(["Board games", "Proposed games", "Event"]);
+  expect(screen.queryByRole("button", { name: "Board games: Voting legend" })).toBeNull();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Table details help" }));
+  expect(
+    screen.getByText("You can vote only if you are an accepted participant at this table."),
+  ).toBeVisible();
+  expect(screen.getByText(/can propose other games for a manager to approve/)).toBeVisible();
+});
+
+it.each(["PLANNING", "CONFIRMED"] as const)(
+  "explains Table participation during %s",
+  async (status) => {
+    table.eventStatus = status;
+    await installNativePopoverMeasurements();
+    await render(<Fixture section="participants" />);
+    const trigger = await screen.findByRole("button", { name: "Table participants help" });
+    expect(screen.queryByRole("button", { name: "Waiting list: Field help" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Seats list: Field help" })).toBeNull();
+    await pressMeasuredPopover(trigger);
+    for (const label of [
+      "Accepted player",
+      "Invitation pending",
+      "Player on the waiting list",
+      "Demonstrator",
+      "Guest",
+    ])
+      expect(screen.getByText(label)).toBeVisible();
+    if (status === "PLANNING") {
+      expect(screen.getByText(/select a free place or the waiting list/)).toBeVisible();
+      expect(screen.getByText(/Accepted players on the waiting list can vote/)).toBeVisible();
+      expect(screen.getByText("Pending invitations do not count toward agreement.")).toBeVisible();
+    } else {
+      expect(
+        screen.getByText("Only players with a confirmed seat take part at this table."),
+      ).toBeVisible();
+      expect(screen.queryByText(/select a free place or the waiting list/)).toBeNull();
+    }
+  },
+);
 
 it("keeps context-local table details concise without rendering a second parent-event card", async () => {
   await render(<Fixture context="event" />);
@@ -330,8 +389,40 @@ it("removes cached game/roster details after server authorization is revoked", a
 
 it("opens one game-vote dialog for an accepted participant and prevents removal of its last positive preference", async () => {
   multipleGames();
+  await installNativePopoverMeasurements();
+  table = {
+    ...table,
+    gameVoteVoters: {
+      "1": {
+        YES: [{ userId: "owner", name: "Owner", username: null, avatarUrl: null }],
+        IF_NEEDED: [],
+        NO: [],
+      },
+      "2": { YES: [], IF_NEEDED: [], NO: [] },
+    },
+  };
   await render(<Fixture />);
   await ready();
+  expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Game information: Chess" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Game information: Strategy game" })).toBeVisible();
+  const summary = screen.getByRole("button", { name: "Vote summary: Chess" });
+  expect(within(summary).getByText("Votes")).toBeVisible();
+  expect(summary).toHaveStyle({
+    minWidth: 44,
+    minHeight: 44,
+    flexDirection: "column",
+    justifyContent: "center",
+  });
+  const vote = screen.getByRole("button", { name: "Chess: Yes" });
+  expect(vote).toHaveStyle({ width: 40, height: 40 });
+  const buttons = screen.getAllByRole("button");
+  expect(buttons.indexOf(vote)).toBeLessThan(buttons.indexOf(summary));
+  expect(screen.queryByRole("button", { name: "Vote summary: Strategy game" })).toBeNull();
+  await press("Vote summary: Chess");
+  expect(screen.getByLabelText("Votes: Chess")).toBeVisible();
+  await press("Vote summary: Chess");
+  expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
   await press("Chess: Yes");
   const dialog = within(screen.getByTestId("confirmation-dialog"));
   expect(dialog.getByRole("button", { name: "No" })).toBeDisabled();
@@ -342,6 +433,11 @@ it("opens one game-vote dialog for an accepted participant and prevents removal 
     path: `/api/events/${event.id}/votes`,
     input: { kind: "game", tableId: table.id, gameId: 1, vote: "IF_NEEDED" },
   });
+  await press("Vote summary: Chess");
+  const gameInfo = screen.getByRole("button", { name: "Game information: Chess" });
+  expect(gameInfo).toHaveStyle({ width: 28, height: 28 });
+  await pressMeasuredPopover(gameInfo);
+  expect(screen.getByText("BGG rating:")).toBeVisible();
 });
 
 it.each(["pending", "cannot-vote", "event-confirmed", "table-confirmed"] as const)(

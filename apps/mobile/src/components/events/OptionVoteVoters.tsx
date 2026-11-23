@@ -47,7 +47,7 @@ export function OptionVoteVoters({ label, voters }: { label: string; voters: Vot
                 style={{ width: 28, height: 28, paddingHorizontal: 0, justifyContent: "center" }}
                 onPress={() => setSelection(id)}
               >
-                <Icon size={16} color={color} accessible={false} />
+                <Icon size={20} color={color} accessible={false} />
               </Button>
               <View
                 pointerEvents="none"
@@ -65,7 +65,7 @@ export function OptionVoteVoters({ label, voters }: { label: string; voters: Vot
                       key={person.userId}
                       alt={name}
                       accessible={false}
-                      style={{ width: 16, height: 16, marginStart: -4 }}
+                      style={{ width: 20, height: 20, marginStart: -5 }}
                     >
                       {person.guestName ? (
                         <GuestAvatar name={person.guestName} />

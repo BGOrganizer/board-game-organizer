@@ -39,14 +39,14 @@ export function OptionVoteVoters({ label, voters }: { label: string; voters: Vot
                 variant="ghost"
                 aria-label={`${label}: ${t`Show votes`} — ${text}`}
                 aria-haspopup="dialog"
-                className="size-7 min-h-7 min-w-7 shrink-0 justify-center p-0 pointer-fine:size-5 pointer-fine:min-h-5 pointer-fine:min-w-5"
+                className="size-7 min-h-7 min-w-7 shrink-0 justify-center p-0 pointer-fine:size-6 pointer-fine:min-h-6 pointer-fine:min-w-6"
                 onPress={() => setSelection(id)}
               >
-                <Icon size={16} className={color} aria-hidden />
+                <Icon size={20} className={`size-5 ${color}`} aria-hidden />
               </Button>
               <div aria-hidden className="pointer-events-none flex min-w-0 flex-wrap ps-1">
                 {voters[id].map((person) => (
-                  <Avatar key={person.userId} className="-ms-1 size-4 shrink-0">
+                  <Avatar key={person.userId} className="-ms-[5px] size-5 shrink-0">
                     {person.guestName ? (
                       <GuestAvatar name={person.guestName} />
                     ) : (

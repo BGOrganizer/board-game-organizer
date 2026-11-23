@@ -209,6 +209,41 @@ for (const width of [390, 1280])
       expect(await labels(card)).toEqual(expectedLabels);
       return card;
     };
+    await page.goto("/groups");
+    for (const [tab, label] of it
+      ? [
+          ["Privati", "Aiuto sui gruppi privati"],
+          ["Pubblici", "Aiuto sui gruppi pubblici"],
+          ["Ricerca", "Aiuto sulla ricerca dei gruppi"],
+        ]
+      : [
+          ["Private groups", "Private groups help"],
+          ["Public groups", "Public groups help"],
+          ["Search", "Group search help"],
+        ]) {
+      await page.getByRole("tab", { name: tab, exact: true }).click();
+      await expect(page.getByRole("heading", { name: tab, exact: true })).toBeVisible();
+      await page.getByRole("button", { name: label, exact: true }).click();
+      const help = page.getByRole("dialog");
+      await expect(help.locator("p")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(help).toHaveCount(0);
+    }
+    const searchGroups = it ? "Cerca gruppi" : "Search groups";
+    await expect(page.getByRole("searchbox", { name: searchGroups, exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: `${searchGroups}: ${it ? "Aiuto ricerca" : "Search help"}`,
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("status").filter({
+        hasText: it
+          ? "Inserisci almeno 4 caratteri per cercare"
+          : "Enter at least 4 characters to search",
+      }),
+    ).toBeVisible();
     const group = await open("/groups", groupName, "group");
     await inspectFrame(group);
     const groupLabels = await labels(group);
@@ -221,8 +256,50 @@ for (const width of [390, 1280])
     await expect(
       page.getByRole("tab", { name: it ? "Dettagli" : "Details", exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Ranking", exact: true })).toBeVisible();
-    await page.getByRole("tab", { name: it ? "Membri" : "Members", exact: true }).click();
+    await expect(
+      page.getByRole("tab", { name: it ? "Classifiche" : "Rankings", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: it ? "Aiuto sulla sede del gruppo" : "Group venue help",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    for (const [tab, help, copy] of it
+      ? [
+          [
+            "Dettagli",
+            "Aiuto sui dettagli del gruppo",
+            "Nei gruppi privati si entra solo su invito.",
+          ],
+          [
+            "Eventi",
+            "Aiuto sugli eventi del gruppo",
+            "Gli eventi di un gruppo privato sono riservati ai suoi membri.",
+          ],
+          [
+            "Membri",
+            "Aiuto sui membri del gruppo",
+            "Qui trovi i membri del gruppo e i loro ruoli.",
+          ],
+        ]
+      : [
+          ["Details", "Group details help", "Private groups are invitation-only."],
+          ["Events", "Group events help", "Events in a private group are for its members."],
+          [
+            "Members",
+            "Group members help",
+            "See who belongs to the group and what role each person has.",
+          ],
+        ]) {
+      await page.getByRole("tab", { name: tab, exact: true }).click();
+      await expect(page.getByRole("heading", { name: tab, exact: true })).toBeVisible();
+      await page.getByRole("button", { name: help, exact: true }).click();
+      const popover = page.getByRole("dialog");
+      await expect(popover.getByText(copy, { exact: true })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(popover).toHaveCount(0);
+    }
     const groupPerson = page.getByText(handle, { exact: true });
     await expect(groupPerson).toBeVisible();
     const groupRole =

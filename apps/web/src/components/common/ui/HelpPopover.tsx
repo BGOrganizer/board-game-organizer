@@ -7,6 +7,7 @@ import type { ComponentProps, ReactNode } from "react";
 export function HelpPopover({
   label,
   title,
+  titleIcon,
   className,
   triggerClassName = "",
   triggerVariant = "ghost",
@@ -20,6 +21,7 @@ export function HelpPopover({
 }: {
   label: string;
   title?: string;
+  titleIcon?: ReactNode;
   icon?: LucideIcon;
   tone?: "muted" | "warning" | "success" | "accent" | "danger";
   size?: "default" | "compact";
@@ -83,7 +85,12 @@ export function HelpPopover({
           aria-label={title ? undefined : label}
           className="whitespace-normal break-words p-3 text-sm"
         >
-          {title ? <Popover.Heading>{title}</Popover.Heading> : null}
+          {title ? (
+            <Popover.Heading className={titleIcon ? "flex items-center gap-2" : undefined}>
+              {titleIcon}
+              {title}
+            </Popover.Heading>
+          ) : null}
           {children}
         </Popover.Dialog>
       </Popover.Content>

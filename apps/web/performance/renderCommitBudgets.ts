@@ -9,7 +9,7 @@ export const renderCommitBudgets: Readonly<Record<string, number>> = {
   "EventCard window: twelve cached planning events": 1,
   "EventCard: actual planning-event card and indicators": 1,
   "EventCardIndicators: open real event privacy explanation": 4,
-  "EventSeatListHeading: open waiting-list explanation": 4,
+  "EventTableParticipantsHelp: open participant legend": 4,
   "EventTableCard window: twelve cached planning tables": 1,
   "EventTableCard: actual planning-table card and indicators": 1,
   "EventTableCardIndicators: open real rating explanation": 4,

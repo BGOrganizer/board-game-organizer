@@ -101,11 +101,11 @@ it("overlaps decorative avatars and separates only the choices that have votes",
   const view = renderWithI18n(<VoterList label="Game" voters={voters} />);
   const summary = screen.getByRole("list", { name: "Votes: Game" });
   const yes = within(summary).getByRole("listitem", { name: "Yes: Ella Reed, @jon" });
-  expect(yes.querySelector("svg")).toHaveAttribute("width", "16");
-  const avatars = yes.querySelectorAll(".avatar.size-4");
+  expect(yes.querySelector("svg")).toHaveAttribute("width", "20");
+  const avatars = yes.querySelectorAll(".avatar.size-5");
   expect(avatars).toHaveLength(2);
   for (const avatar of avatars) {
-    expect(avatar).toHaveClass("-ms-1");
+    expect(avatar).toHaveClass("-ms-[5px]");
     expect(avatar.parentElement).toHaveAttribute("aria-hidden", "true");
   }
   fireEvent.click(avatars[0]);

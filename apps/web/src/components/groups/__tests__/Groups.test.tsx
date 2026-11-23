@@ -1,7 +1,7 @@
 import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { groupRecordsPageQuery } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
@@ -201,4 +201,48 @@ it("reuses the exact private startup page and fetches the public member page onl
   fireEvent.click(screen.getByRole("tab", { name: "Public groups" }));
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
   expect(new URL(fetcher.mock.calls[1][0]).searchParams.get("type")).toBe("PUBLIC");
+});
+
+it.each([
+  ["private", "Private groups", "Private groups help", /Private groups you manage/],
+  ["public", "Public groups", "Public groups help", /may still be awaiting approval/],
+  ["search", "Search", "Group search help", /Search for approved public groups by name/],
+] as const)(
+  "describes the %s Group list in the section popover",
+  async (section, title, button, description) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+    );
+    renderGroups(section);
+    const heading = screen.getByRole("heading", { name: title });
+    expect(heading).toBeVisible();
+    expect(heading.nextElementSibling).toHaveTextContent("Section guide");
+    expect(screen.queryByText(description)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: button }));
+    expect(within(await screen.findByRole("dialog")).getByText(description)).toBeVisible();
+  },
+);
+
+it("uses centered discovery prompts without a separate search field help", async () => {
+  const fetcher = vi.fn(async () => Response.json({ items: [], nextCursor: null }));
+  vi.stubGlobal("fetch", fetcher);
+  renderGroups("search");
+  const field = screen.getByRole("searchbox", { name: "Search groups" });
+  const prompt = "Enter at least 4 characters to search";
+  const empty = screen.getByText(prompt).closest('[role="status"]');
+  expect(empty).toHaveClass("items-center", "text-center");
+  expect(empty?.querySelector("svg.lucide-search")).not.toBeNull();
+  expect(screen.getByText("Search groups").closest("label")).toHaveClass("sr-only");
+  expect(screen.queryByRole("button", { name: "Search groups: Search help" })).toBeNull();
+  fireEvent.change(field, { target: { value: "abc" } });
+  expect(screen.getAllByText(prompt)).toHaveLength(1);
+  expect(fetcher).not.toHaveBeenCalled();
+  fireEvent.change(field, { target: { value: "missing" } });
+  const noResults = (await screen.findByText("No groups found")).closest('[role="status"]');
+  expect(noResults?.querySelector("svg.lucide-search-x")).not.toBeNull();
+  expect(screen.queryByText(prompt)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+  expect(screen.getByText(prompt)).toBeVisible();
+  expect(screen.queryByText("No groups found")).toBeNull();
 });

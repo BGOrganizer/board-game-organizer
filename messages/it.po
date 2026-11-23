@@ -3333,6 +3333,10 @@ msgstr "Pagine dei risultati dei giochi"
 msgid "Game selection"
 msgstr "Selezione giochi"
 
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Game statistics"
+msgstr "Statistiche di gioco"
+
 #: apps/web/src/components/matches/Matches.tsx
 msgid "Game unavailable"
 msgstr "Gioco non disponibile"
@@ -5069,9 +5073,9 @@ msgstr "In pianificazione"
 msgid "Planning mode"
 msgstr "Modalità di pianificazione"
 
-#: apps/web/src/components/profile/Profile.tsx
-#~ msgid "Played"
-#~ msgstr "Giocate"
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Played"
+msgstr "Giocate"
 
 #: apps/web/src/components/groups/GroupLeaderboard.tsx
 #: apps/web/src/components/profile/Profile.tsx
@@ -5408,6 +5412,10 @@ msgstr "Variazione ranking"
 #: apps/web/src/components/ratings/GameRating.tsx
 msgid "Rating decreased"
 msgstr "Rating diminuito"
+
+#: apps/web/src/components/events/EventFinalResultRow.tsx
+msgid "Rating details"
+msgstr "Dettagli del rating"
 
 #: apps/web/src/components/events/EventTableRatingInfo.tsx
 msgid "Rating disabled"
@@ -6241,8 +6249,8 @@ msgid "Sync with BoardGameGeek"
 msgstr "Sincronizza con BoardGameGeek"
 
 #: apps/web/src/components/contacts/Contacts.tsx
-#~ msgid "Sync your address book from the mobile app to see friend suggestions here."
-#~ msgstr "Sincronizza la rubrica dall'app mobile per vedere suggerimenti di amici qui."
+msgid "Sync your address book from the mobile app to see friend suggestions here."
+msgstr "Sincronizza la rubrica dall’app mobile per trovare qui i tuoi contatti già iscritti."
 
 #: apps/web/src/components/profile/ProfileBggCard.tsx
 msgid "Synced collection games will be removed from your profile. Existing matches remain unchanged."
@@ -7523,3 +7531,270 @@ msgstr "Proponi giochi da fare votare ai partecipanti."
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data."
 msgstr "Scegli il numero minimo e massimo di giocatori. L'intervallo è limitato dai giochi scelti, secondo i dati di BGG."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Choose a game to see the leaderboard"
+msgstr "Scegli un gioco per vedere la classifica"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Global"
+msgstr "Globale"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Global leaderboard"
+msgstr "Classifica globale"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "How OpenSkill works"
+msgstr "Come funziona OpenSkill"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "No leaderboard for this game yet"
+msgstr "Non c’è ancora una classifica per questo gioco"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "No rated tables played yet"
+msgstr "Non ci sono ancora tavoli con rating"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "OpenSkill estimates your skill separately for each game. After a rated match, it uses your finish and the other players’ ratings to update your score. The displayed score accounts for uncertainty, which decreases as you play."
+msgstr "OpenSkill stima la tua abilità per ogni gioco. Dopo ogni partita classificata aggiorna il tuo punteggio in base al piazzamento e al rating degli altri giocatori. Il punteggio tiene conto dell’incertezza, che diminuisce man mano che giochi."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "OpenSkill position {0}"
+msgstr "Posizione OpenSkill {0}"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort ascending"
+msgstr "Ordina in ordine crescente"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort by"
+msgstr "Ordina per"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort by {0}"
+msgstr "Ordina per {0}"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort descending"
+msgstr "Ordina in ordine decrescente"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "The clock marks a provisional rating until you have five rated results. ND means you did not finish and is counted separately from completed games."
+msgstr "L’orologio indica un rating provvisorio fino al quinto risultato classificato. ND indica una partita non terminata e viene conteggiato a parte."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "For each game, the global leaderboard includes all rated matches from private and public events."
+msgstr "Per ogni gioco, la classifica globale conta tutte le partite classificate, sia negli eventi privati sia in quelli pubblici."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "This leaderboard only includes rated results from this group’s events."
+msgstr "Questa classifica usa solo i risultati classificati degli eventi del gruppo."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Wins"
+msgstr "Vinte"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Event details help"
+msgstr "Aiuto sui dettagli dell’evento"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Event participants help"
+msgstr "Aiuto sui partecipanti all’evento"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Event tables help"
+msgstr "Aiuto sui tavoli dell’evento"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "To join the event, open Tables, choose a table and sign up."
+msgstr "Per partecipare all’evento, apri Tavoli, scegli un tavolo e iscriviti."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Players with a seat or a waiting-list place at one or more event tables appear here."
+msgstr "Qui trovi chi ha un posto o è in lista d’attesa in almeno un tavolo dell’evento."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "To take part in the event, register for at least one table."
+msgstr "Per partecipare all’evento, iscriviti ad almeno un tavolo."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Only players with confirmed seats at tables that reached the minimum player count and met the event requirements take part."
+msgstr "Partecipa solo chi ha un posto confermato a un tavolo che ha raggiunto il minimo di giocatori e soddisfatto le condizioni dell’evento."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Dates, times and locations"
+msgstr "Date, orari e luoghi"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Players seated at an event table can propose other dates and times for a manager to approve."
+msgstr "Chi ha un posto a un tavolo dell’evento può proporre altre date e orari. Un organizzatore deve approvarli."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Players seated at an event table can propose other locations for a manager to approve."
+msgstr "Chi ha un posto a un tavolo dell’evento può proporre altri luoghi. Un organizzatore deve approvarli."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Table details help"
+msgstr "Aiuto sui dettagli del tavolo"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Players seated at this table can propose other games for a manager to approve."
+msgstr "Chi ha un posto a questo tavolo può proporre altri giochi. Un organizzatore deve approvarli."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "See the schedule and board games for this table below."
+msgstr "Qui trovi il programma e i giochi da tavolo."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Table participants help"
+msgstr "Aiuto sui partecipanti al tavolo"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "When registration is open, select a free place or the waiting list, complete any required votes and confirm."
+msgstr "Quando le iscrizioni sono aperte, scegli un posto libero o la lista d’attesa, esprimi i voti richiesti e conferma."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "If all seats are taken, new players join the waiting list."
+msgstr "Se tutti i posti sono occupati, i nuovi giocatori entrano in lista d’attesa."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Only players with a confirmed seat take part at this table."
+msgstr "A questo tavolo gioca solo chi ha un posto confermato."
+
+#: apps/web/src/components/events/EventVoteLegendContent.tsx
+msgid "Choose at least one \"Yes\" or \"If needed\" option in each category."
+msgstr "Scegli almeno un’opzione \"Sì\" o \"Se necessario\" per ogni categoria."
+
+#: apps/web/src/components/events/EventTableParticipantsHelp.tsx
+msgid "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules."
+msgstr "I giocatori accettati in lista d’attesa possono votare. Un organizzatore o l’app può assegnare loro un posto secondo le regole del tavolo."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group details help"
+msgstr "Aiuto sui dettagli del gruppo"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group members help"
+msgstr "Aiuto sui membri del gruppo"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group events help"
+msgstr "Aiuto sugli eventi del gruppo"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Approved public groups accept membership requests."
+msgstr "I gruppi pubblici approvati accettano richieste di iscrizione."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "See who belongs to the group and what role each person has."
+msgstr "Qui trovi i membri del gruppo e i loro ruoli."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Public events are open to everyone with an account. Private events are for group members."
+msgstr "Gli eventi pubblici sono aperti a chi ha un account. Quelli privati sono riservati ai membri del gruppo."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Events in a private group are for its members."
+msgstr "Gli eventi di un gruppo privato sono riservati ai suoi membri."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group managers can invite people and review membership requests."
+msgstr "Chi gestisce il gruppo può invitare persone e valutare le richieste di iscrizione."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group managers can invite people."
+msgstr "Chi gestisce il gruppo può invitare persone."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "To take part, choose an event that is accepting registrations and join at least one table."
+msgstr "Per partecipare, scegli un evento con le iscrizioni aperte e iscriviti ad almeno un tavolo."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Scheduled events help"
+msgstr "Aiuto sugli eventi schedulati"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Available events help"
+msgstr "Aiuto sugli eventi disponibili"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Terminated events help"
+msgstr "Aiuto sugli eventi terminati"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included."
+msgstr "Eventi in pianificazione o confermati che gestisci, a cui sei iscritto come giocatore o in cui fai da dimostratore. Sono inclusi i posti in lista d’attesa e gli inviti in sospeso."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too."
+msgstr "Eventi di gruppo in pianificazione a cui puoi iscriverti. Per quelli privati serve essere membri del gruppo. Quelli pubblici sono aperti anche a chi non è membro."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Finished events where you played or demonstrated at a confirmed table, or that you still manage."
+msgstr "Eventi conclusi in cui hai giocato o fatto da dimostratore a un tavolo confermato, oppure che gestisci ancora."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Group search help"
+msgstr "Aiuto sulla ricerca dei gruppi"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Private groups help"
+msgstr "Aiuto sui gruppi privati"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Public groups help"
+msgstr "Aiuto sui gruppi pubblici"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Search for approved public groups by name. Enter at least four characters."
+msgstr "Cerca per nome i gruppi pubblici approvati. Digita almeno quattro caratteri."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Private groups you manage, belong to or have a pending invitation to join."
+msgstr "Gruppi privati che gestisci, di cui sei membro o per i quali hai un invito in sospeso."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
+msgstr "Gruppi pubblici che gestisci, di cui sei membro o per i quali hai un invito in sospeso. I gruppi che gestisci possono anche essere in attesa di approvazione."
+
+#: apps/web/src/components/events/TableList.tsx
+msgid "Table history help"
+msgstr "Aiuto sullo storico dei tavoli"
+
+#: apps/web/src/components/events/TableList.tsx
+msgid "Confirmed tables from finished events where you played, were a demonstrator or are still a manager."
+msgstr "Tavoli confermati di eventi terminati in cui hai giocato o fatto da dimostratore, oppure che gestisci ancora."
+
+#: apps/web/src/components/common/ui/HelpSectionCard.tsx
+msgid "Section guide"
+msgstr "Guida alla sezione"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Vote summary"
+msgstr "Riepilogo voti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Contacts help"
+msgstr "Aiuto sui contatti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Contact search help"
+msgstr "Aiuto sulla ricerca dei contatti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Find people on Board Game Organizer by entering their name or email address."
+msgstr "Trova persone su Board Game Organizer inserendo il loro nome o indirizzo email."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Send a friend request to connect with a contact who already uses Board Game Organizer."
+msgstr "Invia una richiesta di amicizia a chi usa già Board Game Organizer."
+
+msgid "After you allow address book access, this tab shows your matched contacts and people you can invite."
+msgstr "Dopo aver consentito l’accesso alla rubrica, qui trovi i contatti già iscritti e quelli che puoi invitare."
+
+msgid "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."
+msgstr "Invia una richiesta di amicizia a chi usa Board Game Organizer o condividi un invito con chi non è ancora iscritto."

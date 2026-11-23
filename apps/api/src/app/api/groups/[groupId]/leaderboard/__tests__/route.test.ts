@@ -37,10 +37,28 @@ it("requires authentication and retains membership/private authorization failure
   m.rankings.mockRejectedValueOnce(new CommunityError(403, "GROUP_MEMBER_REQUIRED"));
   expect((await GET(new Request("https://api.test"), context)).status).toBe(403);
 });
-it.each(["gameId=0", "cursor=-1", "limit=51", "cursor=2&cursor=3", "unknown=true", "query=abc"])(
-  "rejects invalid group leaderboard query %s",
-  async (query) => {
-    expect((await GET(new Request("https://api.test?" + query), context)).status).toBe(400);
-    expect(m.rankings).not.toHaveBeenCalled();
-  },
-);
+it("passes a validated sort and direction to the repository service", async () => {
+  const request = new Request("https://api.test?gameId=1&sort=gamesWon&direction=asc");
+  expect((await GET(request, context)).status).toBe(200);
+  expect(m.rankings).toHaveBeenCalledWith("viewer", id, {
+    gameId: 1,
+    cursor: 0,
+    limit: 25,
+    sort: "gamesWon",
+    direction: "asc",
+  });
+});
+it.each([
+  "gameId=0",
+  "cursor=-1",
+  "limit=51",
+  "cursor=2&cursor=3",
+  "unknown=true",
+  "query=abc",
+  "sort=name",
+  "direction=ascending",
+  "sort=rating&sort=nd",
+])("rejects invalid group leaderboard query %s", async (query) => {
+  expect((await GET(new Request(`https://api.test?${query}`), context)).status).toBe(400);
+  expect(m.rankings).not.toHaveBeenCalled();
+});

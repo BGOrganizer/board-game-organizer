@@ -7,6 +7,7 @@ import {
   bggCollectionQuery,
   clearSessionQueryCache,
   contactSuggestionsKey,
+  globalLeaderboardKey,
   groupRecordKeys,
   profileViewKeys,
   relationshipListKey,
@@ -90,6 +91,45 @@ afterEach(() => {
   for (const client of clients.splice(0)) clearSessionQueryCache(client);
   vi.unstubAllGlobals();
 });
+
+it.each(["block", "unblock"] as const)(
+  "refreshes only the owned global rankings after %s",
+  async (action) => {
+    const { client, getToken, wrapper } = setup();
+    const keys = ["viewer", "another-user"].map((userId) => [
+      ...globalLeaderboardKey(API, userId),
+      null,
+      "players",
+      1,
+      "rating",
+      "desc",
+    ]);
+    for (const key of keys)
+      client.setQueryData(key, {
+        pages: [{ players: [target], games: [], nextCursor: null }],
+        pageParams: [0],
+      });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({})),
+    );
+    const hook = renderHook(() => useContactActions(API, null, getToken, undefined, "viewer"), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await hook.result.current[action].mutateAsync({
+        targetUserId: target.id,
+        targetUser: target,
+      });
+    });
+
+    if (action === "block") expect(client.getQueryData(keys[0])).toBeUndefined();
+    else expect(client.getQueryState(keys[0])?.isInvalidated).toBe(true);
+    expect(client.getQueryData(keys[1])).toMatchObject({ pages: [{ players: [target] }] });
+    expect(client.getQueryState(keys[1])?.isInvalidated).toBe(false);
+  },
+);
 
 it.each([undefined, true, false])(
   "normalizes the public suggestions adapter's optional hasContacts=%s without exposing a different credential",

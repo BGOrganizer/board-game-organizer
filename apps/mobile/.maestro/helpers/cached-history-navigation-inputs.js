@@ -31,4 +31,5 @@ output.history = {
   openTable: exact(`${NAVIGATION_LOCALE === "it" ? "Apri tavolo" : "Open table"}: ${p.tableName}`),
   terminated: exact(NAVIGATION_LOCALE === "it" ? "Terminata" : "Terminated"),
   winner: exact(p.winnerUsername),
+  resultWinner: `${exact(p.winnerUsername).slice(0, -1)}(?:, .+)?$`,
 };

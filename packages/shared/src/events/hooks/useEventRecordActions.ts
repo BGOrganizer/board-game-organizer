@@ -52,6 +52,7 @@ import {
 } from "../../community/queryCache";
 import { isGroupManagerRole } from "../../groups/groupPolicy";
 import { groupRecordDetailQuery, groupRecordKeys } from "../../groups/hooks/useGroupRecords";
+import { globalLeaderboardKey } from "../../groups/hooks/useLeaderboard";
 import { notificationFilters } from "../../notifications/notificationAttentionCache";
 import { beginNotificationItemRead } from "../../notifications/notificationReadOperation";
 import {
@@ -183,6 +184,9 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       queryKey: ["groups", owner.apiUrl, owner.userId],
       refetchType: "active",
     });
+    if (context?.action === "finalize_event" || context?.action === "delete_event") {
+      void client.invalidateQueries({ queryKey: globalLeaderboardKey(owner.apiUrl, owner.userId) });
+    }
     void client.invalidateQueries({ ...notificationFilters(owner), refetchType: "active" });
     void client.invalidateQueries({
       queryKey: ["profile", owner.apiUrl, owner.userId],

@@ -11,6 +11,10 @@ import { createContext, type ReactNode, useContext } from "react";
 import { Keyboard, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
+import {
+  installNativePopoverMeasurements,
+  pressMeasuredPopover,
+} from "@/test/nativePopoverGeometry";
 import { groupRecord, plannedEvent } from "../../../../../web/src/test-fixtures/eventRecords";
 import { GroupDetail } from "../GroupDetail";
 
@@ -206,6 +210,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(() => client.clear());
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -225,6 +230,25 @@ const select = async (name: string) => {
   await userEvent.setup().press(screen.getByRole("tab", { name }));
   expect(screen.getByRole("tab", { name })).toBeSelected();
 };
+
+it.each([
+  ["info", "Details", "Group details help", "The group's verified venue and full address."],
+  ["members", "Members", "Group members help", "Group managers can invite people."],
+  ["events", "Events", "Group events help", "Events in a private group are for its members."],
+] as const)(
+  "shows the %s group help in its own visible tab",
+  async (initialTab, title, label, copy) => {
+    group = { ...group, location: plannedEvent.locations[0] };
+    await installNativePopoverMeasurements();
+    await mount(true, initialTab);
+    expect(screen.getByRole("heading", { name: title })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Group venue help" })).toBeNull();
+    expect(screen.queryByText(copy)).toBeNull();
+    await pressMeasuredPopover(screen.getByRole("button", { name: label }));
+    expect(screen.getByText(copy)).toBeVisible();
+    expect(writes).toEqual([]);
+  },
+);
 
 it("dismisses the native keyboard only for an actual Group destination change, never reselection", async () => {
   const dismiss = vi.spyOn(Keyboard, "dismiss").mockImplementation(() => {});
@@ -246,7 +270,7 @@ it("dismisses the native keyboard only for an actual Group destination change, n
   }
 });
 
-it("retains real group Members/Events/Ranking panels while independent native headers stay reactive", async () => {
+it("retains real group Members, Events and Rankings panels while independent native headers stay reactive", async () => {
   await mount();
   expect(screen.getByRole("button", { name: "Edit group" })).toBeEnabled();
   await select("Members");
@@ -259,7 +283,7 @@ it("retains real group Members/Events/Ranking panels while independent native he
   expect(screen.getByText("@group-player")).toBe(person);
   await select("Events");
   expect(screen.getByText("Group games evening")).toBe(event);
-  await select("Ranking");
+  await select("Rankings");
   expect(await screen.findByTestId("rating-game-select-trigger")).toBeOnTheScreen();
   await select("Details");
   expect(screen.getByRole("button", { name: "Edit group" })).toBeEnabled();

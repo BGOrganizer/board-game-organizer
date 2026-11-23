@@ -43,6 +43,24 @@ output.eventPeople = {
   group: exact(p.groupName),
   people: exact(it ? "Partecipanti" : "Participants"),
   tables: exact(it ? "Tavoli" : "Tables"),
+  detailsHelp: exact(it ? "Aiuto sui dettagli dell’evento" : "Event details help"),
+  detailsRule: exact(
+    it
+      ? "Per partecipare all’evento, apri Tavoli, scegli un tavolo e iscriviti."
+      : "To join the event, open Tables, choose a table and sign up.",
+  ),
+  tablesHelp: exact(it ? "Aiuto sui tavoli dell’evento" : "Event tables help"),
+  tablesRule: exact(
+    it
+      ? "Per partecipare all’evento, iscriviti ad almeno un tavolo."
+      : "To take part in the event, register for at least one table.",
+  ),
+  peopleHelp: exact(it ? "Aiuto sui partecipanti all’evento" : "Event participants help"),
+  peopleRule: exact(
+    it
+      ? "Qui trovi chi ha un posto o è in lista d’attesa in almeno un tavolo dell’evento."
+      : "Players with a seat or a waiting-list place at one or more event tables appear here.",
+  ),
   edit: exact(it ? "Modifica evento" : "Edit event"),
   members: exact(it ? "Membri" : "Members"),
   target: exact(p.targetName),

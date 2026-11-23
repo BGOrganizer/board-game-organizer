@@ -6,8 +6,9 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Dices } from "lucide-react";
+import { Dices, History } from "lucide-react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { WindowedList } from "@/components/common/ui/WindowedList";
@@ -35,6 +36,9 @@ export function TableList() {
       }))}
     >
       <ListPage>
+        <HelpSectionCard title={t`History`} label={t`Table history help`} icon={History}>
+          <p>{t`Confirmed tables from finished events where you played, were a demonstrator or are still a manager.`}</p>
+        </HelpSectionCard>
         <ListSearch
           query={f.query}
           onQueryChange={f.setQuery}

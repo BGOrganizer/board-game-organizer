@@ -273,7 +273,7 @@ async function select(name: "Details" | "Tables" | "Participants") {
   await userEvent.setup().press(await screen.findByRole("tab", { name: tabName(name) }));
   expect(screen.getByRole("tab", { name: tabName(name) })).toBeSelected();
 }
-async function press(name: string) {
+async function press(name: string | RegExp) {
   await userEvent.setup().press(await screen.findByRole("button", { name }));
 }
 async function dialog(name: string) {
@@ -620,14 +620,18 @@ it("shows named votes and the breakdown action only for each eligible Event cate
   };
   await render(<Fixture />);
   await ready();
+  expect(screen.queryByLabelText("Votes: 2030-06-03 20:00")).toBeNull();
+  await press("Vote summary: 2030-06-03 20:00");
   expect(screen.getByLabelText("Votes: 2030-06-03 20:00")).toBeVisible();
   expect(screen.queryByLabelText("Votes: Club venue")).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Vote summary: Club venue/ })).toBeNull();
   expect(screen.queryByRole("button", { name: "Club venue: Show votes" })).toBeNull();
   await press("2030-06-03 20:00: Show votes");
   const hidden = { includeHiddenElements: true };
   expect(await screen.findByText("Username unavailable", hidden)).toBeOnTheScreen();
   expect(screen.queryByText("Voter Alice", hidden)).toBeNull();
   await userEvent.setup().press(screen.getByRole("button", { name: "Close", ...hidden }));
+  await waitFor(() => expect(screen.queryByText("Username unavailable", hidden)).toBeNull());
   await snapshot({
     ...event,
     locations: [
@@ -635,6 +639,7 @@ it("shows named votes and the breakdown action only for each eligible Event cate
       { ...event.locations[0], id: "other-place", name: "Second venue" },
     ],
   });
+  await press(/^Vote summary: Club venue,/);
   const venueVotes = await screen.findByLabelText("Votes: Club venue");
   expect(venueVotes).toBeVisible();
   await userEvent
@@ -652,6 +657,7 @@ it("shows named votes and the breakdown action only for each eligible Event cate
     myRegistrations: [],
   });
   expect(screen.queryAllByLabelText(/^Votes:/, hidden)).toHaveLength(0);
+  expect(screen.queryByRole("button", { name: /^Vote summary:/, ...hidden })).toBeNull();
   expect(screen.queryByRole("button", { name: /Show votes/, ...hidden })).toBeNull();
   expect(screen.queryByText("@alice", hidden)).toBeNull();
   expect(screen.queryByRole("tab", { name: "Yes", ...hidden })).toBeNull();

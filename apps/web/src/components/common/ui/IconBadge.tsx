@@ -9,18 +9,20 @@ type Props = {
   label: string;
   color?: "default" | "accent" | "success" | "warning" | "danger";
   multiple?: boolean;
+  size?: "sm" | "md";
 } & (
   | { onPress: () => void; isDisabled?: boolean; title?: never; children?: never }
   | { title: string; children: ReactNode; onPress?: never; isDisabled?: never }
   | { onPress?: never; title?: never; children?: never; isDisabled?: never }
 );
 
-/** A 22px visual badge; interactive modes retain a 44px target. */
+/** Compact visual badge with a 44px target for interactive modes. */
 export function IconBadge({
   icon: Icon,
   label,
   color = "default",
   multiple,
+  size = "sm",
   onPress,
   isDisabled,
   title,
@@ -30,10 +32,12 @@ export function IconBadge({
     <Chip
       color={color}
       variant="secondary"
-      className="relative size-[22px] min-h-0 min-w-0 justify-center overflow-hidden rounded-full p-0"
+      className={`relative min-h-0 min-w-0 justify-center overflow-hidden rounded-full p-0 ${size === "md" ? "size-7" : "size-[22px]"}`}
       aria-hidden="true"
     >
-      <Icon className={`m-0 size-[13px] shrink-0 ${isDisabled ? "opacity-50" : ""}`} />
+      <Icon
+        className={`m-0 shrink-0 ${size === "md" ? "size-4" : "size-[13px]"} ${isDisabled ? "opacity-50" : ""}`}
+      />
       {multiple ? (
         <Plus
           className={`absolute top-0.5 right-0.5 m-0 size-2 rounded-full bg-default ${isDisabled ? "opacity-50" : ""}`}

@@ -7,16 +7,17 @@ import {
   formatUsername,
   useTableLeaderboard,
 } from "@board-game-organizer/shared";
-import { Button, Skeleton } from "@heroui/react";
+import { Avatar, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ListOrdered, Trophy } from "lucide-react";
+import { Dices, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
-import { IconBadge } from "@/components/common/ui/IconBadge";
+import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventFinalResultRow } from "./EventFinalResultRow";
 import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
 
 export function EventTableResults({ table }: { table: PlannedTableResponse }) {
@@ -69,58 +70,59 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
   const more = count < rows.length || (!terminated && q.hasMore);
   if (!table.confirmed && (!terminated || !table.results))
     return <p>{t`Excluded from confirmation`}</p>;
+  const game = terminated
+    ? table.gamesDetail.find((game) => game.id === table.confirmed?.gameId)
+    : undefined;
+  const visibleRows = rows.slice(0, count).map((row) => {
+    const name = formatUsername(
+      row.username,
+      row.profileLoaded && row.name ? row.name : t`Username unavailable`,
+    );
+    if (terminated) {
+      return <EventFinalResultRow key={row.key} table={table} player={row} name={name} />;
+    }
+    return (
+      <UserListRow
+        key={row.key}
+        name={name}
+        avatarUrl={row.avatarUrl}
+        avatarContent={row.guestName ? <GuestAvatar name={row.guestName} /> : undefined}
+      >
+        {row.guestName ? null : (
+          <EventPlayerRatingPopover
+            table={table}
+            userId={row.userId}
+            name={name}
+            current={q.items.find((item) => item.userId === row.userId)}
+          />
+        )}
+      </UserListRow>
+    );
+  });
   return (
     <section aria-label={t`Results`} className="space-y-3">
-      <GroupedList>
-        {rows.slice(0, count).map((row) => {
-          const name = formatUsername(
-            row.username,
-            row.profileLoaded && row.name ? row.name : t`Username unavailable`,
-          );
-          return (
-            <UserListRow
-              key={row.key}
-              name={name}
-              avatarUrl={row.avatarUrl}
-              avatarContent={row.guestName ? <GuestAvatar name={row.guestName} /> : undefined}
-              badge={
-                terminated ? (
-                  <IconBadge
-                    icon={row.rank === 1 ? Trophy : ListOrdered}
-                    color={row.rank === 1 ? "success" : "default"}
-                    label={`${t`Position`}: ${row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}`}
-                    title={t`Position`}
-                  >
-                    <p>{row.rank === null || row.rank === undefined ? t`ND` : `#${row.rank}`}</p>
-                  </IconBadge>
-                ) : undefined
-              }
-              actions={
-                terminated ? (
-                  <span
-                    title={row.score ?? t`ND`}
-                    className="ml-auto max-w-full min-w-0 truncate text-right font-semibold tabular-nums"
-                  >
-                    <span className="sr-only">{t`Score`}: </span>
-                    {row.score ?? t`ND`}
-                  </span>
-                ) : null
-              }
-            >
-              {row.guestName ? null : (
-                <EventPlayerRatingPopover
-                  table={table}
-                  userId={row.userId}
-                  name={name}
-                  current={
-                    !terminated ? q.items.find((item) => item.userId === row.userId) : undefined
-                  }
-                />
-              )}
-            </UserListRow>
-          );
-        })}
-      </GroupedList>
+      {game && (
+        <SectionHeaderCard
+          title={game.name}
+          leading={
+            <Avatar size="md" className="shrink-0 rounded-xl">
+              <Avatar.Image src={game.imageUrl ?? undefined} alt="" />
+              <Avatar.Fallback>
+                <Dices aria-hidden className="size-4" />
+              </Avatar.Fallback>
+            </Avatar>
+          }
+        />
+      )}
+      {terminated ? (
+        visibleRows.length > 0 && (
+          <ol key={key} className="space-y-2">
+            {visibleRows}
+          </ol>
+        )
+      ) : (
+        <GroupedList>{visibleRows}</GroupedList>
+      )}
       {!terminated && (q.isPending || q.isFetchingNextPage || (!rows.length && q.isFetching)) ? (
         <Skeleton className="h-20 w-full rounded-xl" />
       ) : null}

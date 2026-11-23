@@ -3333,6 +3333,10 @@ msgstr "Game results pages"
 msgid "Game selection"
 msgstr "Game selection"
 
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Game statistics"
+msgstr "Game statistics"
+
 #: apps/web/src/components/matches/Matches.tsx
 msgid "Game unavailable"
 msgstr "Game unavailable"
@@ -5069,9 +5073,9 @@ msgstr "Planning"
 msgid "Planning mode"
 msgstr "Planning mode"
 
-#: apps/web/src/components/profile/Profile.tsx
-#~ msgid "Played"
-#~ msgstr "Played"
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Played"
+msgstr "Played"
 
 #: apps/web/src/components/groups/GroupLeaderboard.tsx
 #: apps/web/src/components/profile/Profile.tsx
@@ -5409,6 +5413,10 @@ msgstr "Rating change"
 #: apps/web/src/components/ratings/GameRating.tsx
 msgid "Rating decreased"
 msgstr "Rating decreased"
+
+#: apps/web/src/components/events/EventFinalResultRow.tsx
+msgid "Rating details"
+msgstr "Rating details"
 
 #: apps/web/src/components/events/EventTableRatingInfo.tsx
 msgid "Rating disabled"
@@ -6242,8 +6250,8 @@ msgid "Sync with BoardGameGeek"
 msgstr "Sync with BoardGameGeek"
 
 #: apps/web/src/components/contacts/Contacts.tsx
-#~ msgid "Sync your address book from the mobile app to see friend suggestions here."
-#~ msgstr "Sync your address book from the mobile app to see friend suggestions here."
+msgid "Sync your address book from the mobile app to see friend suggestions here."
+msgstr "Sync your address book from the mobile app to see friend suggestions here."
 
 #: apps/web/src/components/profile/ProfileBggCard.tsx
 msgid "Synced collection games will be removed from your profile. Existing matches remain unchanged."
@@ -7524,3 +7532,270 @@ msgstr "Suggest games for participants to vote on."
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data."
 msgstr "Choose the minimum and maximum number of players. The range is limited by the selected games according to BGG data."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Choose a game to see the leaderboard"
+msgstr "Choose a game to see the leaderboard"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Global"
+msgstr "Global"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Global leaderboard"
+msgstr "Global leaderboard"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "How OpenSkill works"
+msgstr "How OpenSkill works"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "No leaderboard for this game yet"
+msgstr "No leaderboard for this game yet"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "No rated tables played yet"
+msgstr "No rated tables played yet"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "OpenSkill estimates your skill separately for each game. After a rated match, it uses your finish and the other players’ ratings to update your score. The displayed score accounts for uncertainty, which decreases as you play."
+msgstr "OpenSkill estimates your skill separately for each game. After a rated match, it uses your finish and the other players’ ratings to update your score. The displayed score accounts for uncertainty, which decreases as you play."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "OpenSkill position {0}"
+msgstr "OpenSkill position {0}"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort ascending"
+msgstr "Sort ascending"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort by"
+msgstr "Sort by"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort by {0}"
+msgstr "Sort by {0}"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Sort descending"
+msgstr "Sort descending"
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "The clock marks a provisional rating until you have five rated results. ND means you did not finish and is counted separately from completed games."
+msgstr "The clock marks a provisional rating until you have five rated results. ND means you did not finish and is counted separately from completed games."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "For each game, the global leaderboard includes all rated matches from private and public events."
+msgstr "For each game, the global leaderboard includes all rated matches from private and public events."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "This leaderboard only includes rated results from this group’s events."
+msgstr "This leaderboard only includes rated results from this group’s events."
+
+#: apps/web/src/components/ratings/Leaderboard.tsx
+msgid "Wins"
+msgstr "Wins"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Event details help"
+msgstr "Event details help"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Event participants help"
+msgstr "Event participants help"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Event tables help"
+msgstr "Event tables help"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "To join the event, open Tables, choose a table and sign up."
+msgstr "To join the event, open Tables, choose a table and sign up."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Players with a seat or a waiting-list place at one or more event tables appear here."
+msgstr "Players with a seat or a waiting-list place at one or more event tables appear here."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "To take part in the event, register for at least one table."
+msgstr "To take part in the event, register for at least one table."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Only players with confirmed seats at tables that reached the minimum player count and met the event requirements take part."
+msgstr "Only players with confirmed seats at tables that reached the minimum player count and met the event requirements take part."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Dates, times and locations"
+msgstr "Dates, times and locations"
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Players seated at an event table can propose other dates and times for a manager to approve."
+msgstr "Players seated at an event table can propose other dates and times for a manager to approve."
+
+#: apps/web/src/components/events/EventSectionHeader.tsx
+msgid "Players seated at an event table can propose other locations for a manager to approve."
+msgstr "Players seated at an event table can propose other locations for a manager to approve."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Table details help"
+msgstr "Table details help"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Players seated at this table can propose other games for a manager to approve."
+msgstr "Players seated at this table can propose other games for a manager to approve."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "See the schedule and board games for this table below."
+msgstr "See the schedule and board games for this table below."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Table participants help"
+msgstr "Table participants help"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "When registration is open, select a free place or the waiting list, complete any required votes and confirm."
+msgstr "When registration is open, select a free place or the waiting list, complete any required votes and confirm."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "If all seats are taken, new players join the waiting list."
+msgstr "If all seats are taken, new players join the waiting list."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Only players with a confirmed seat take part at this table."
+msgstr "Only players with a confirmed seat take part at this table."
+
+#: apps/web/src/components/events/EventVoteLegendContent.tsx
+msgid "Choose at least one \"Yes\" or \"If needed\" option in each category."
+msgstr "Choose at least one \"Yes\" or \"If needed\" option in each category."
+
+#: apps/web/src/components/events/EventTableParticipantsHelp.tsx
+msgid "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules."
+msgstr "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group details help"
+msgstr "Group details help"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group members help"
+msgstr "Group members help"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group events help"
+msgstr "Group events help"
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Approved public groups accept membership requests."
+msgstr "Approved public groups accept membership requests."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "See who belongs to the group and what role each person has."
+msgstr "See who belongs to the group and what role each person has."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Public events are open to everyone with an account. Private events are for group members."
+msgstr "Public events are open to everyone with an account. Private events are for group members."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Events in a private group are for its members."
+msgstr "Events in a private group are for its members."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group managers can invite people and review membership requests."
+msgstr "Group managers can invite people and review membership requests."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "Group managers can invite people."
+msgstr "Group managers can invite people."
+
+#: apps/web/src/components/groups/GroupSectionHeader.tsx
+msgid "To take part, choose an event that is accepting registrations and join at least one table."
+msgstr "To take part, choose an event that is accepting registrations and join at least one table."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Scheduled events help"
+msgstr "Scheduled events help"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Available events help"
+msgstr "Available events help"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Terminated events help"
+msgstr "Terminated events help"
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included."
+msgstr "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too."
+msgstr "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too."
+
+#: apps/web/src/components/events/EventList.tsx
+msgid "Finished events where you played or demonstrated at a confirmed table, or that you still manage."
+msgstr "Finished events where you played or demonstrated at a confirmed table, or that you still manage."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Group search help"
+msgstr "Group search help"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Private groups help"
+msgstr "Private groups help"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Public groups help"
+msgstr "Public groups help"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Search for approved public groups by name. Enter at least four characters."
+msgstr "Search for approved public groups by name. Enter at least four characters."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Private groups you manage, belong to or have a pending invitation to join."
+msgstr "Private groups you manage, belong to or have a pending invitation to join."
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
+msgstr "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
+
+#: apps/web/src/components/events/TableList.tsx
+msgid "Table history help"
+msgstr "Table history help"
+
+#: apps/web/src/components/events/TableList.tsx
+msgid "Confirmed tables from finished events where you played, were a demonstrator or are still a manager."
+msgstr "Confirmed tables from finished events where you played, were a demonstrator or are still a manager."
+
+#: apps/web/src/components/common/ui/HelpSectionCard.tsx
+msgid "Section guide"
+msgstr "Section guide"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Vote summary"
+msgstr "Vote summary"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Contacts help"
+msgstr "Contacts help"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Contact search help"
+msgstr "Contact search help"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Find people on Board Game Organizer by entering their name or email address."
+msgstr "Find people on Board Game Organizer by entering their name or email address."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Send a friend request to connect with a contact who already uses Board Game Organizer."
+msgstr "Send a friend request to connect with a contact who already uses Board Game Organizer."
+
+msgid "After you allow address book access, this tab shows your matched contacts and people you can invite."
+msgstr "After you allow address book access, this tab shows your matched contacts and people you can invite."
+
+msgid "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."
+msgstr "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet."

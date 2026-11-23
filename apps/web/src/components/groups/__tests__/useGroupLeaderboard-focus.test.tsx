@@ -1,4 +1,4 @@
-import { useGroupLeaderboard } from "@board-game-organizer/shared";
+import { useLeaderboard } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -12,6 +12,8 @@ const options = {
   gameId: null,
   getToken: async () => "fresh-token",
   query: "",
+  sort: "rating" as const,
+  direction: "desc" as const,
 };
 afterEach(() => vi.unstubAllGlobals());
 it.each([
@@ -34,7 +36,7 @@ it.each([
             }),
       ),
     );
-    const hook = renderHook((p: typeof options) => useGroupLeaderboard(p), {
+    const hook = renderHook((p: typeof options) => useLeaderboard(p), {
       initialProps: options,
       wrapper: ({ children }: { children: ReactNode }) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -90,7 +92,7 @@ it("progressively reveals retained leaderboard games without scanning or fetchin
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
-  const mount = () => renderHook(() => useGroupLeaderboard({ ...options, getToken }), { wrapper });
+  const mount = () => renderHook(() => useLeaderboard({ ...options, getToken }), { wrapper });
   const first = mount();
   expect(first.result.current.games.data?.games).toHaveLength(25);
   expect(reads.slice(1).every((count) => count === 0)).toBe(true);
@@ -139,7 +141,17 @@ it("keeps selected-game metadata outside the visible options and across closing 
   });
   for (const id of [26, 99]) {
     client.setQueryData(
-      ["groups", options.apiUrl, options.userId, "rankings", groupId, "players", id],
+      [
+        "groups",
+        options.apiUrl,
+        options.userId,
+        "rankings",
+        groupId,
+        "players",
+        id,
+        "rating",
+        "desc",
+      ],
       {
         pages: [{ games: [], players: [], nextCursor: null }],
         pageParams: [0],
@@ -152,7 +164,7 @@ it("keeps selected-game metadata outside the visible options and across closing 
   );
   const hook = renderHook(
     (props: { userId: string; query: string; gameId: number | null }) =>
-      useGroupLeaderboard({ ...options, ...props, getToken }),
+      useLeaderboard({ ...options, ...props, getToken }),
     {
       wrapper,
       initialProps: { userId: options.userId, query: "", gameId: 26 as number | null },

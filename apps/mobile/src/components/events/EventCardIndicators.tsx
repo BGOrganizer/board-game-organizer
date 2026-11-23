@@ -24,6 +24,7 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { cardStateMessages } from "@/lib/eventCardMessages";
 import { useT } from "@/lib/i18n";
 import { EventCardTableSummaries } from "./EventCardTableSummaries";
+import { EventPlanningSettingsSummary } from "./EventPlanningSettingsSummary";
 import { EventRolePopover } from "./EventRolePopover";
 import { EventSchedulePopover } from "./EventSchedulePopover";
 
@@ -71,39 +72,7 @@ export const EventCardIndicators = memo(function EventCardIndicators({
           icon={Settings}
           triggerClassName="bg-default"
         >
-          <View style={{ gap: 8 }}>
-            <Typography className="text-foreground">
-              <Typography className="font-semibold">
-                {event.planningMode === "MANUAL" ? t("Manual") : t("Assisted")}
-              </Typography>
-              :{" "}
-              {event.planningMode === "MANUAL"
-                ? t(
-                    "Managers arrange seats and the waiting list. Confirmation requirements still apply.",
-                  )
-                : t(
-                    "The app seeks compatible players, dates, locations and games. A manager must still confirm.",
-                  )}
-            </Typography>
-            <Typography className="text-foreground">
-              <Typography className="font-semibold">
-                {event.playerPreference === "BEST" ? t("BGG Best") : t("More players")}
-              </Typography>
-              :{" "}
-              {event.playerPreference === "BEST"
-                ? t("Prefers the player count marked Best on BGG.")
-                : t(
-                    "Prefers the solution that seats more people, respecting votes and constraints.",
-                  )}
-            </Typography>
-            {event.playerPreference === "BEST" &&
-            event.planningMode !== "MANUAL" &&
-            event.allowBestReduction ? (
-              <Typography className="text-foreground">
-                {t("Assisted planning may seat fewer players to improve the BGG recommendation.")}
-              </Typography>
-            ) : null}
-          </View>
+          <EventPlanningSettingsSummary event={event} />
         </HelpPopover>
       ) : null}
       <HelpPopover

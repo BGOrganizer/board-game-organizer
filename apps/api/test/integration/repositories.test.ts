@@ -10,6 +10,7 @@ import { type Db, MongoClient, type ObjectId } from "mongodb";
 import { type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { importDirectCsv } from "../../scripts/import-boardgames-direct";
+import { recordServices } from "../../src/app/lib/community/record-services";
 import { ContactLinksRepository } from "../../src/app/lib/contacts/contacts.repository";
 import { RelationshipRepository } from "../../src/app/lib/contacts/relationship.repository";
 import { RelationshipService } from "../../src/app/lib/contacts/relationship.service";
@@ -19,7 +20,6 @@ import { BggAccountRepository } from "../../src/app/lib/games/bgg-account.reposi
 import { parseBggCollection } from "../../src/app/lib/games/bgg-collection";
 import { BoardGamesRepository } from "../../src/app/lib/games/boardGames.repository";
 import { GroupService } from "../../src/app/lib/groups/group.service";
-import { GroupLeaderboardRepository } from "../../src/app/lib/groups/group-leaderboard.repository";
 import { GroupsRepository } from "../../src/app/lib/groups/groups.repository";
 import { FavoriteLocationsRepository } from "../../src/app/lib/locations/favorite-locations.repository";
 import { type MatchError, MatchService } from "../../src/app/lib/matches/match.service";
@@ -31,6 +31,7 @@ import { NotificationChangesRepository } from "../../src/app/lib/notifications/n
 import { NotificationsRepository } from "../../src/app/lib/notifications/notifications.repository";
 import { PushSubscriptionsRepository } from "../../src/app/lib/notifications/push-subscriptions.repository";
 import { ProfileService } from "../../src/app/lib/profile/profile.service";
+import { LeaderboardRepository } from "../../src/app/lib/ratings/leaderboard.repository";
 import { RatingsRepository } from "../../src/app/lib/ratings/ratings.repository";
 import { UsersRepository } from "../../src/app/lib/users/users.repository";
 import { mongodbContainer } from "../../testing/mongodb-container";
@@ -3613,7 +3614,7 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
         selectedGameId: 99,
       },
     ]);
-    const standings = new GroupLeaderboardRepository(db);
+    const standings = new LeaderboardRepository(db);
     expect(await standings.games(groupId)).toEqual({ games: [], nextCursor: null });
     expect((await standings.players(groupId, 42, 0, 25)).rows).toEqual([]);
     const eventId = "1f454adb-43e3-47ad-8c29-57b97a55a230",
@@ -3664,7 +3665,134 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
       { _id: TARGET, gamesPlayed: 2, gamesWon: 1, nd: 1 },
       { _id: THIRD, gamesPlayed: 2, gamesWon: 0, nd: 1 },
     ]);
+    await db.collection(COLLECTIONS.PLAYER_RATINGS).insertMany([
+      {
+        userId: ACTOR,
+        gameId: 42,
+        groupId,
+        scope: "GROUP",
+        conservativeScore: 10,
+        gamesPlayed: 2,
+      },
+      {
+        userId: TARGET,
+        gameId: 42,
+        groupId,
+        scope: "GROUP",
+        conservativeScore: 90,
+        gamesPlayed: 2,
+      },
+    ]);
+    const played = await standings.players(groupId, 42, 0, 1, { sort: "gamesPlayed" });
+    expect(played).toMatchObject({ rows: [{ _id: ACTOR, position: 2 }], nextCursor: 1 });
+    const later = await standings.players(groupId, 42, 1, 2, { sort: "gamesPlayed" });
+    expect(later).toMatchObject({
+      rows: [
+        { _id: TARGET, position: 1 },
+        { _id: THIRD, position: null },
+      ],
+      nextCursor: null,
+    });
+    expect(await standings.players(groupId, 42, 0, 3, { direction: "asc" })).toMatchObject({
+      rows: [
+        { _id: ACTOR, position: 2 },
+        { _id: TARGET, position: 1 },
+        { _id: THIRD, position: null },
+      ],
+      nextCursor: null,
+    });
     expect(await db.collection(COLLECTIONS.MATCHES).countDocuments()).toBe(3);
+  });
+
+  it("publishes only visible aggregate rankings from private and standalone results", async () => {
+    const other = "user_other";
+    const players = [ACTOR, other, TARGET, THIRD, FOURTH];
+    await db.collection(COLLECTIONS.USERS).insertOne({
+      clerkId: other,
+      username: other,
+      name: `${other}@example.invalid`,
+      email: `${other}@example.invalid`,
+    });
+    await relationships.block(ACTOR, TARGET);
+    await relationships.block(THIRD, ACTOR);
+    const privateEvent = "3f454adb-43e3-47ad-8c29-57b97a55a250";
+    const standalone = "3f454adb-43e3-47ad-8c29-57b97a55a251";
+    const groupId = "3f454adb-43e3-47ad-8c29-57b97a55a252";
+    await db.collection(COLLECTIONS.GROUPS).insertOne({
+      id: groupId,
+      type: "PRIVATE",
+      adminUserId: TARGET,
+    });
+    await db.collection(COLLECTIONS.EVENTS).insertMany([
+      { id: privateEvent, groupId, visibility: "PRIVATE", status: "TERMINATED" },
+      { id: standalone, groupId: null, status: "TERMINATED" },
+    ]);
+    await db.collection(COLLECTIONS.EVENT_TABLES).insertMany(
+      [
+        { eventId: privateEvent, gameId: 42, ids: players },
+        { eventId: standalone, gameId: 42, ids: [other, ACTOR] },
+        { eventId: privateEvent, gameId: 74, ids: [TARGET, THIRD, FOURTH] },
+      ].map(({ eventId, gameId, ids }, index) => ({
+        id: `3f454adb-43e3-47ad-8c29-57b97a55a26${index}`,
+        eventId,
+        order: index,
+        rankingEnabled: true,
+        confirmed: { gameId, playerIds: ids },
+        results: {
+          entries: ids.map((userId, index) => ({
+            userId,
+            score: String(10 - index),
+            rank: index + 1,
+          })),
+        },
+      })),
+    );
+    await db.collection(COLLECTIONS.PLAYER_RATINGS).insertMany(
+      players.map((userId, index) => ({
+        userId,
+        gameId: 42,
+        scope: "GLOBAL",
+        groupId: null,
+        conservativeScore: index * 10,
+        gamesPlayed: 2,
+      })),
+    );
+    const { globalLeaderboard } = recordServices(db);
+    expect(await globalLeaderboard(ACTOR, { cursor: 0, limit: 1 })).toEqual({
+      games: [{ id: 42, name: "42", imageUrl: null }],
+      players: [],
+      nextCursor: null,
+    });
+    const page = { gameId: 42, cursor: 0, limit: 1 };
+    expect(await globalLeaderboard(ACTOR, page)).toEqual({
+      games: [],
+      players: [
+        {
+          userId: other,
+          name: other,
+          username: other,
+          avatarUrl: null,
+          gamesPlayed: 2,
+          gamesWon: 1,
+          nd: 0,
+          rating: 510,
+          position: 1,
+          provisional: true,
+          left: false,
+          groupRole: null,
+        },
+      ],
+      nextCursor: 1,
+    });
+    expect(await globalLeaderboard(ACTOR, { ...page, cursor: 1 })).toMatchObject({
+      players: [{ userId: ACTOR, position: 2, gamesPlayed: 2, gamesWon: 1, rating: 500 }],
+      nextCursor: null,
+    });
+    expect(await globalLeaderboard(ACTOR, { ...page, gameId: 74 })).toEqual({
+      games: [],
+      players: [],
+      nextCursor: null,
+    });
   });
 
   it("projects current creator, moderator and accepted-member ranking roles without restoring former or pending membership", async () => {
@@ -3702,7 +3830,7 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
         })),
       },
     });
-    const standings = new GroupLeaderboardRepository(db);
+    const standings = new LeaderboardRepository(db);
     const read = async () =>
       new Map(
         (await standings.players(groupId, 42, 0, 25)).rows.map((row) => [
@@ -3835,7 +3963,7 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     const ratings = new RatingsRepository(db);
     const global = await ratings.leaderboard(match.gameIds[0], "GLOBAL", null);
     const scoped = await ratings.leaderboard(match.gameIds[0], "GROUP", group.id);
-    const standings = new GroupLeaderboardRepository(db);
+    const standings = new LeaderboardRepository(db);
     // Historical Match outcomes remain stored, but unified group statistics read physical Tables only.
     expect(await standings.games(group.id)).toEqual({ games: [], nextCursor: null });
     const first = await standings.players(group.id, match.gameIds[0], 0, 1);

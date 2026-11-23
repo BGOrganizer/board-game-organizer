@@ -52,7 +52,7 @@ it("includes pending invitations in typed owned tabs, without treating requests 
     new URL("../../components/groups/GroupList.tsx", import.meta.url),
     "utf8",
   );
-  expect(list).toContain('useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4)');
+  expect(list).toContain("useListSearch(groupRecordMemberRoles, minimumLength)");
   expect(list).toContain("useGroupRecords(options, scope, filters.search, filters.selected, type)");
   expect(list).toContain('key: "invited"');
   expect(list).not.toContain('key: "requested"');

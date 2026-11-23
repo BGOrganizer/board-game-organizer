@@ -5,7 +5,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import { tableLeaderboardQuery } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { act, render, screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
 import { Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -198,21 +198,22 @@ it.each(["PLANNING", "CONFIRMED"] as const)(
 it("renders immutable completed standings from their frozen profiles without calling the current leaderboard", async () => {
   record = history();
   await render(<Fixture table={record} />);
+  const header = screen.getByText("Results header").parent;
+  if (!header) throw new Error("Expected the table results header");
+  expect(header).toHaveStyle({ gap: 16 });
+  expect(within(header).getByRole("heading", { name: "Chess" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "How OpenSkill works" })).toBeNull();
   expect(screen.getByText("@owner")).toBeVisible();
   expect(screen.getByText("@guest")).toBeVisible();
   expect(screen.getByLabelText("Score: 12.5")).toBeVisible();
   expect(screen.getByLabelText("Score: 10")).toBeVisible();
-  expect(screen.queryByText("Position: #1")).toBeNull();
-  expect(screen.queryByText("Position: #2")).toBeNull();
-  const badge = screen.getByRole("button", { name: "Position: #1" });
-  expect(badge).toHaveStyle({ width: 22, height: 22 });
-  const glyph = badge.queryAll(
-    (node) => node.type.startsWith("RNSVG") && Number(node.props.bbWidth) === 13,
-  )[0];
-  expect(glyph).toBeTruthy();
-  await pressMeasuredPopover(badge);
-  expect(screen.getByText("#1")).toBeVisible();
-  expect(screen.getByRole("heading", { name: "Position" })).toBeVisible();
+  expect(screen.getByRole("image", { name: "Position: #1" })).toBeVisible();
+  expect(screen.getByRole("image", { name: "Position: #2" })).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "@owner, Position: #1, Score: 12.5", expanded: false }),
+  ).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Position: #1" })).toBeNull();
+  expect(screen.queryByText("Global")).toBeNull();
   expect(reads).toHaveLength(0);
 });
 
@@ -236,17 +237,104 @@ it("keeps tied winners, ranked players and ND results distinct without duplicati
     },
   });
   await render(<Fixture table={record} />);
-  expect(screen.getAllByRole("button", { name: "Position: #1" })).toHaveLength(2);
-  expect(screen.getByRole("button", { name: "Position: ND" })).toBeVisible();
+  expect(screen.getAllByRole("image", { name: "Position: #1" })).toHaveLength(2);
+  expect(screen.getByRole("image", { name: "Position: ND" })).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Username unavailable, Position: ND, Score: ND" }),
+  ).toBeVisible();
   expect(screen.getByLabelText("Score: ND")).toBeVisible();
   expect(screen.getByText("Username unavailable")).toBeVisible();
   expect(screen.queryByText("Position: #1")).toBeNull();
 });
 
+it("expands and collapses immutable group and global rating transitions inline", async () => {
+  record = history({
+    groupId: "33333333-3333-4333-8333-333333333333",
+    ratingChanges: [
+      { userId: "owner", score: 1225, delta: 25, provisional: true },
+      { userId: "guest", score: 999, delta: 0, provisional: false },
+    ],
+    groupRatingChanges: [{ userId: "owner", score: 790, delta: -10, provisional: false }],
+  });
+  await render(<Fixture table={record} />);
+  const user = userEvent.setup();
+  const trigger = screen.getByRole("button", { name: /@owner, Position/, expanded: false });
+  expect(screen.queryByText("Group")).toBeNull();
+  expect(screen.queryByText("Global")).toBeNull();
+  await user.press(trigger);
+  expect(screen.getByRole("button", { name: /@owner, Position/, expanded: true })).toBeVisible();
+  expect(screen.getByText("Group")).toBeVisible();
+  expect(screen.getByText("Global")).toBeVisible();
+  expect(screen.getAllByText("→")).toHaveLength(2);
+  for (const label of [
+    "Rating before: 800",
+    "Rating after: 790",
+    "Rating change: -10",
+    "Rating before: 1,200",
+    "Rating after: 1,225",
+    "Rating change: +25",
+    "Provisional rating",
+  ]) {
+    expect(screen.getByLabelText(label)).toBeVisible();
+  }
+  expect(screen.queryByText("999")).toBeNull();
+  await user.press(trigger);
+  expect(screen.getByRole("button", { name: /@owner, Position/, expanded: false })).toBeVisible();
+  expect(screen.queryByText("Global")).toBeNull();
+  await user.press(screen.getByRole("button", { name: /@guest, Position/ }));
+  expect(screen.getByLabelText("Rating change: 0")).toBeVisible();
+  expect(reads).toHaveLength(0);
+});
+
+it("never exposes group ratings in shared results and gives guests a plain score row", async () => {
+  record = history({
+    sharedResultsOnly: true,
+    groupId: "33333333-3333-4333-8333-333333333333",
+    ratingChanges: [{ userId: "owner", score: 1225, delta: 25, provisional: false }],
+    groupRatingChanges: [{ userId: "owner", score: 790, delta: -10, provisional: false }],
+    resultProfiles: [
+      { userId: "owner", name: "Owner Player", username: "owner", email: null, avatarUrl: null },
+      {
+        userId: "guest",
+        name: "Guest Player",
+        guestName: "Guest Player",
+        username: null,
+        email: null,
+        avatarUrl: null,
+      },
+    ],
+  });
+  await render(<Fixture table={record} />);
+  expect(screen.getByText("Guest Player")).toBeVisible();
+  expect(screen.getByLabelText("Score: 10")).toBeVisible();
+  expect(screen.getByText("Guest")).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Guest Player/ })).toBeNull();
+  await press("@owner, Position: #1, Score: 12.5");
+  expect(screen.getByText("Global")).toBeVisible();
+  expect(screen.queryByText("Group")).toBeNull();
+  expect(screen.getByLabelText("Rating after: 1,225")).toBeVisible();
+  expect(screen.queryByText("790")).toBeNull();
+  expect(reads).toHaveLength(0);
+});
+
+it.each([
+  { rankingEnabled: false, expected: "Ranking not updated" },
+  { rankingEnabled: true, expected: "Historical ranking unavailable" },
+] as const)(
+  "presents missing inline ratings as $expected",
+  async ({ rankingEnabled, expected }) => {
+    await render(<Fixture table={history({ rankingEnabled })} />);
+    await press("@owner, Position: #1, Score: 12.5");
+    expect(screen.getByText(expected)).toBeVisible();
+    expect(screen.queryByText("→")).toBeNull();
+  },
+);
+
 it("keeps finalized results readable when a historical included table lacks a modern confirmed projection", async () => {
   record = history({ confirmed: undefined });
   await render(<Fixture table={record} />);
   expect(screen.getByText("@owner")).toBeVisible();
+  expect(screen.queryByText("Chess")).toBeNull();
   expect(screen.queryByText("Excluded from confirmation")).toBeNull();
   expect(reads).toHaveLength(0);
 });

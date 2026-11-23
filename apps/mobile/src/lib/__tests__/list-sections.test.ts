@@ -129,7 +129,7 @@ it.each(["mine", "available", "terminated", "foreign", undefined])(
   },
 );
 it.each(["mine", "public"])(
-  "native Group %s keeps its appropriate filtering/discovery help and minimum",
+  "native Group %s keeps its filter or discovery mode and minimum",
   (scope) => {
     const mode = runInNewContext(expression("groups/GroupList", "ListSearch", "mode"), { scope });
     expect(mode).toBe(scope === "mine" ? "filter" : "search");
@@ -137,7 +137,8 @@ it.each(["mine", "public"])(
       new URL("../../components/groups/GroupList.tsx", import.meta.url),
       "utf8",
     );
-    expect(text).toContain('useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4)');
+    expect(text).toContain('const minimumLength = scope === "public" ? 4 : 0');
+    expect(text).toContain("useListSearch(groupRecordMemberRoles, minimumLength)");
   },
 );
 it("native History has one terminated source list, no section tabs or chips", () => {

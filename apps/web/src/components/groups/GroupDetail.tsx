@@ -39,13 +39,14 @@ import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupIdentityCard } from "./GroupIdentityCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
 import { GroupJoinRequest } from "./GroupJoinRequest";
-import { GroupLeaderboard } from "./GroupLeaderboard";
 import { GroupMembers } from "./GroupMembers";
+import { GroupSectionHeader } from "./GroupSectionHeader";
 export function GroupDetail({
   groupId,
   initialTab = "info",
@@ -207,12 +208,13 @@ export function GroupDetail({
               </TabTrigger>
             ) : null}
             {group.canViewRankings ? (
-              <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Ranking`}</TabTrigger>
+              <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Rankings`}</TabTrigger>
             ) : null}
           </TabBar>
 
-          <Tabs.Panel id="info" className="pt-0">
-            <GroupDetailsCard group={group} identity={null} />
+          <Tabs.Panel id="info" className="space-y-4 pt-0">
+            <GroupSectionHeader group={group} section="info" />
+            <GroupDetailsCard group={group} identity={null} venueHelp={false} />
             {bodyActions.length ? (
               <GroupJoinRequest
                 pending={group.role === "requested"}
@@ -237,12 +239,14 @@ export function GroupDetail({
             ) : null}
           </Tabs.Panel>
           {group.canViewMembers ? (
-            <Tabs.Panel id="members" className="pt-0">
+            <Tabs.Panel id="members" className="space-y-4 pt-0">
+              <GroupSectionHeader group={group} section="members" />
               <GroupMembers group={group} />
             </Tabs.Panel>
           ) : null}
           {group.canViewEvents ? (
-            <Tabs.Panel id="events" className="pt-0">
+            <Tabs.Panel id="events" className="space-y-4 pt-0">
+              <GroupSectionHeader group={group} section="events" />
               <Events
                 groupId={group.id}
                 canCreate={isGroupManagerRole(group.role) && group.canInvite}
@@ -251,7 +255,7 @@ export function GroupDetail({
           ) : null}
           {group.canViewRankings ? (
             <Tabs.Panel id="rankings" className="px-4 pt-0 sm:px-5">
-              <GroupLeaderboard groupId={group.id} />
+              <Leaderboard key={group.id} groupId={group.id} groupName={group.name} />
             </Tabs.Panel>
           ) : null}
         </Tabs>

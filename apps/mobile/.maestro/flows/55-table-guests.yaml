@@ -94,6 +94,18 @@ tags: [manual, tables, guests]
 - tapOn:
     id: table-overview-tab
 - scrollUntilVisible:
+    element: ${output.tableGuest.summary}
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible: ${output.tableGuest.breakdown}
+- assertNotVisible: ${output.tableGuest.gameInfo}
+- tapOn: ${output.tableGuest.summary}
+- tapOn: ${output.tableGuest.gameInfo}
+- extendedWaitUntil:
+    visible: ${output.tableGuest.gameInfoFact}
+    timeout: 20000
+- back
+- scrollUntilVisible:
     element: ${output.tableGuest.breakdown}
     direction: DOWN
     timeout: 30000

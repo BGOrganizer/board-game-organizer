@@ -129,11 +129,17 @@ export default defineConfig({
           branches: 90,
           statements: 90,
         },
-        "src/app/lib/groups/group-leaderboard.repository.ts": {
-          lines: 90,
-          functions: 90,
-          branches: 90,
-          statements: 90,
+        "src/app/lib/ratings/leaderboard.repository.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/api/{groups/*,community}/leaderboard/route.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
         },
         "src/app/{api/bgg/picker/route,lib/games/bgg-picker,lib/events/event-results-projection,lib/events/event-personal-projection}.ts":
           {
@@ -204,10 +210,10 @@ export default defineConfig({
             statements: 90,
           },
         "src/app/lib/ratings/table-statistics.ts": {
-          lines: 90,
-          functions: 90,
-          branches: 90,
-          statements: 90,
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
         },
         "src/app/lib/events/event-list-filter.ts": {
           lines: 90,

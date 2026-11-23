@@ -33,7 +33,6 @@ describe("contactDeviceRows", () => {
         row.id,
       ]),
     ).toEqual([
-      ["device-header", "device-header"],
       ["bgo", "bgo:registered"],
       ["device", "device:device"],
     ]);

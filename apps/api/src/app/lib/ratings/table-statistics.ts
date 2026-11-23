@@ -1,15 +1,11 @@
 import type { Document } from "mongodb";
 import { COLLECTIONS } from "../db";
-/** Only rated physical tables count: all-ND and fewer than two finishers change no statistics. */
-export function tableStatisticsStages(
-  gameId: number,
-  groupId: string | null,
-  userIds?: readonly string[],
-): Document[] {
+/** Only rated physical tables with at least two registered finishers count. */
+export function ratedTableStages(groupId: string | null, gameId?: number): Document[] {
   return [
     {
       $match: {
-        "confirmed.gameId": gameId,
+        "confirmed.gameId": gameId ?? { $exists: true },
         rankingEnabled: true,
         results: { $exists: true },
         removedAt: { $exists: false },
@@ -47,7 +43,6 @@ export function tableStatisticsStages(
       },
     },
     { $match: { $expr: { $gte: [{ $size: "$registeredFinishers" }, 2] } } },
-    { $set: { winningRegisteredRank: { $min: "$registeredFinishers.rank" } } },
     {
       $lookup: {
         from: COLLECTIONS.EVENTS,
@@ -66,6 +61,17 @@ export function tableStatisticsStages(
       },
     },
     { $match: { "completedEvent.0": { $exists: true } } },
+  ];
+}
+
+export function tableStatisticsStages(
+  gameId: number,
+  groupId: string | null,
+  userIds?: readonly string[],
+): Document[] {
+  return [
+    ...ratedTableStages(groupId, gameId),
+    { $set: { winningRegisteredRank: { $min: "$registeredFinishers.rank" } } },
     { $unwind: "$results.entries" },
     ...(userIds ? [{ $match: { "results.entries.userId": { $in: userIds } } }] : []),
     {

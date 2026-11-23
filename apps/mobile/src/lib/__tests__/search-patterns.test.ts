@@ -10,7 +10,7 @@ it.each([
   "app/(tabs)/contacts.tsx",
   "app/mobile-number.tsx",
   "components/games/GamePicker.tsx",
-  "components/groups/GroupLeaderboard.tsx",
+  "components/ratings/Leaderboard.tsx",
   "components/locations/LocationPicker.tsx",
   "components/common/ui/ListSearch.tsx",
 ])("composes the shared search input without another SDK search-field tree: %s", (path) => {
@@ -19,13 +19,16 @@ it.each([
   expect(text).not.toContain("<SearchField");
 });
 
-it.each([
-  "components/common/ui/SearchHelpLabel.tsx",
-  "components/contacts/ContactLegend.tsx",
-  "components/events/EventVoteLegend.tsx",
-])("shares the help container while retaining feature content: %s", (path) => {
-  expect(source(path)).toContain("<HelpPopover");
-  expect(source(path)).not.toContain("<Popover.");
+it.each(["components/common/ui/SearchHelpLabel.tsx", "components/events/EventVoteLegend.tsx"])(
+  "shares the help container while retaining feature content: %s",
+  (path) => {
+    expect(source(path)).toContain("<HelpPopover");
+    expect(source(path)).not.toContain("<Popover.");
+  },
+);
+
+it("keeps the Contacts legend in the section guide", () => {
+  expect(source("components/contacts/ContactLegend.tsx")).toContain("<HelpSectionCard");
 });
 
 it.each(["components/common/ui/ListSearch.tsx", "components/games/GamePicker.tsx"])(

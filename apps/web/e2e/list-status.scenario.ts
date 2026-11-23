@@ -211,6 +211,23 @@ for (const width of [390, 1280])
         await page.getByRole("link", { name: labels.history, exact: true }).click();
         await expect(main.getByRole("list", { name: labels.history, exact: true })).toBeVisible();
       } else await page.getByRole("tab", { name: labels[current.section], exact: true }).click();
+      const sectionHelp = {
+        mine: it ? "Aiuto sugli eventi schedulati" : "Scheduled events help",
+        available: it ? "Aiuto sugli eventi disponibili" : "Available events help",
+        terminated: it ? "Aiuto sugli eventi terminati" : "Terminated events help",
+        history: it ? "Aiuto sullo storico dei tavoli" : "Table history help",
+      };
+      await expect(
+        main.getByRole("heading", { name: labels[current.section], exact: true }),
+      ).toBeVisible();
+      await expect(
+        main.getByText(it ? "Guida alla sezione" : "Section guide", { exact: true }),
+      ).toBeVisible();
+      await main.getByRole("button", { name: sectionHelp[current.section], exact: true }).click();
+      const sectionPopover = page.getByRole("dialog");
+      await expect(sectionPopover.locator("p")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(sectionPopover).toHaveCount(0);
       const filter = main.getByRole("searchbox", { name: labels.filter, exact: true });
       const matches = (url: string, text: string) => {
         const parsed = new URL(url);

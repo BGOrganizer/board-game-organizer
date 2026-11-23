@@ -179,9 +179,9 @@ Report unavailable kernel limits separately from the application limits actually
   must retain an accessible label. Section-level creation actions may keep a compact text label.
 - Discovery/search runs automatically after 300 ms, requires at least four characters, and has a clear
   button; do not add a submit button. Main Events/Tables, owned Private/Public Groups and Group-context
-  Events instead use labeled Filter inputs: no minimum length, 300 ms debounce, clear action and brief
-  filter help. Their escaped name query stays inside the selected authorized list before paging; it
-  never discovers unrelated resources. Group Search retains its four-character discovery minimum.
+  Events instead use Filter inputs with an accessible name, no visible label or inline help, no
+  minimum length, a 300 ms debounce and a clear action. Their escaped name query stays inside the
+  selected authorized list before paging. Group Search retains its four-character discovery minimum.
 - For every variable-length list, default to paginated data and virtualized rendering: use
   `FlatList` or `SectionList` on mobile and pagination (plus windowing when large) on web. Load
   further pages as the user scrolls; do not render an entire address book, search result set, or

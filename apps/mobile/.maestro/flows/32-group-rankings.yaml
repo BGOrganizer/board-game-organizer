@@ -1,8 +1,9 @@
 appId: com.bgo.boardgameorganizer.dev
-name: Owned Group ranking identity, role explanation and searchable game viewport
+name: Owned Group and global rankings, role explanation and sorting
 # Manual, signed-in accepted member/creator, verified Development/Preview APK.
 # Run once per ADMIN/MODERATOR/MEMBER fixture with real rated Table history.
-# The named game must be on the bounded initial game page; the player is source-paged.
+# The named game must have rated results in both group and global rankings, and
+# be searchable on their first source page. The Group player is source-paged.
 tags: [manual, groups, rankings]
 ---
 - runScript: ../helpers/group-ranking-inputs.js
@@ -17,6 +18,11 @@ tags: [manual, groups, rankings]
     visible:
       id: rating-game-select-trigger
     timeout: 120000
+- assertVisible: ${output.groupRanking.chooseGame}
+- tapOn: ${output.groupRanking.help}
+- assertVisible: "^OpenSkill .+"
+- assertVisible: ${output.groupRanking.groupHelp}
+- back
 - tapOn:
     id: rating-game-select-trigger
 - tapOn: ${output.groupRanking.search}
@@ -31,6 +37,21 @@ tags: [manual, groups, rankings]
 - takeScreenshot: group-ranking-search-with-keyboard
 - tapOn: ${output.groupRanking.game}
 - hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: ranking-sort-metric
+    timeout: 120000
+- tapOn:
+    id: ranking-sort-metric
+- tapOn: ${output.groupRanking.gamesWon}
+- assertVisible:
+    id: ranking-sort-direction
+    text: ${output.groupRanking.ascending}
+- tapOn:
+    id: ranking-sort-direction
+- assertVisible:
+    id: ranking-sort-direction
+    text: ${output.groupRanking.descending}
 - scrollUntilVisible:
     element:
       id: ${output.groupRanking.row}
@@ -54,3 +75,68 @@ tags: [manual, groups, rankings]
 - assertVisible: ${output.groupRanking.roles}
 - assertVisible: ${output.groupRanking.role}
 - takeScreenshot: group-ranking-current-role-explanation
+- back
+- assertNotVisible:
+    id: ranking-player-statistics
+- tapOn:
+    id: ranking-player-statistics-toggle
+    childOf:
+      id: ${output.groupRanking.row}
+- assertVisible:
+    id: ranking-player-statistics
+    childOf:
+      id: ${output.groupRanking.row}
+- tapOn:
+    id: ranking-player-statistics-toggle
+    childOf:
+      id: ${output.groupRanking.row}
+- assertNotVisible:
+    id: ranking-player-statistics
+- scrollUntilVisible:
+    element:
+      text: ${output.groupRanking.clear}
+    direction: UP
+    timeout: 60000
+- tapOn: ${output.groupRanking.clear}
+- assertVisible: ${output.groupRanking.chooseGame}
+- assertNotVisible:
+    id: ranking-sort-metric
+- openLink: bgo-dev:///community
+- extendedWaitUntil:
+    visible:
+      id: community-tab-ranking
+    timeout: 120000
+- tapOn:
+    id: community-tab-ranking
+- extendedWaitUntil:
+    visible: ${output.groupRanking.chooseGame}
+    timeout: 120000
+- tapOn: ${output.groupRanking.help}
+- assertVisible: ${output.groupRanking.globalHelp}
+- back
+- tapOn:
+    id: rating-game-select-trigger
+- tapOn: ${output.groupRanking.search}
+- inputText: ${output.groupRanking.query}
+- extendedWaitUntil:
+    visible: ${output.groupRanking.game}
+    timeout: 120000
+- tapOn: ${output.groupRanking.game}
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: ranking-sort-metric
+    timeout: 120000
+- tapOn:
+    id: ranking-sort-metric
+- tapOn: ${output.groupRanking.gamesWon}
+- tapOn:
+    id: ranking-sort-direction
+- assertVisible:
+    id: ranking-sort-direction
+    text: ${output.groupRanking.descending}
+- takeScreenshot: community-ranking-sorted
+- tapOn: ${output.groupRanking.clear}
+- assertVisible: ${output.groupRanking.chooseGame}
+- assertNotVisible:
+    id: ranking-sort-metric

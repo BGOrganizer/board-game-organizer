@@ -14,6 +14,7 @@ export function EventVoteButtons({
   busy,
   onChange,
   inline = false,
+  compact = false,
   disabledVotes = [],
   voters,
   readOnly = false,
@@ -23,6 +24,7 @@ export function EventVoteButtons({
   busy: boolean;
   onChange: (vote: Exclude<EventVote, "UNKNOWN">) => void;
   inline?: boolean;
+  compact?: boolean;
   disabledVotes?: readonly EventVote[];
   voters?: NonNullable<PlannedTableResponse["gameVoteVoters"]>[string];
   readOnly?: boolean;
@@ -75,7 +77,10 @@ export function EventVoteButtons({
         isIconOnly
         size="sm"
         variant="secondary"
-        style={{ minWidth: 44, minHeight: 44 }}
+        style={
+          compact ? { width: 40, height: 40, marginVertical: 2 } : { minWidth: 44, minHeight: 44 }
+        }
+        hitSlop={compact ? 2 : undefined}
         accessibilityLabel={`${label}: ${trigger.text}`}
         accessibilityState={{ expanded: panel !== null }}
         isDisabled={busy}

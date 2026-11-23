@@ -36,7 +36,7 @@ it.each(["en", "it"])(
     expect(new RegExp(result.cardPerson).test("@known.user")).toBe(true);
     expect(new RegExp(result.cardPerson).test("@knownXuser")).toBe(false);
     expect(result.cardOverview).toBe(language === "it" ? "^Dettagli$" : "^Details$");
-    expect(result.cardRankingTab).toBe("^Ranking$");
+    expect(result.cardRankingTab).toBe(language === "it" ? "^Classifiche$" : "^Rankings$");
     expect(
       new RegExp(result.cardEventRole).test(language === "it" ? "Moderatore" : "Moderator"),
     ).toBe(true);

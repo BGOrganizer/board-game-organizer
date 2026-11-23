@@ -37,14 +37,15 @@ import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationChangesPopover } from "@/components/notifications/NotificationChangesPopover";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
+import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupIdentityCard } from "./GroupIdentityCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
 import { GroupJoinRequest } from "./GroupJoinRequest";
-import { GroupLeaderboard } from "./GroupLeaderboard";
 import { GroupMembers } from "./GroupMembers";
+import { GroupSectionHeader } from "./GroupSectionHeader";
 export function GroupDetail({
   groupId,
   initialTab = "info",
@@ -170,7 +171,7 @@ export function GroupDetail({
               ["info", t("Details"), Info],
               ["members", t("Members"), UsersRound],
               ["events", t("Events"), CalendarDays],
-              ["rankings", t("Ranking"), ChartNoAxesCombined],
+              ["rankings", t("Rankings"), ChartNoAxesCombined],
             ] as const
           )
             .filter(
@@ -222,16 +223,33 @@ export function GroupDetail({
       </View>
     </View>
   );
-  const membersContent = <GroupMembers group={group} header={detailHeader} />;
+  const membersContent = (
+    <GroupMembers
+      group={group}
+      header={
+        <View style={{ gap: 12 }}>
+          {detailHeader}
+          <GroupSectionHeader group={group} section="members" />
+        </View>
+      }
+    />
+  );
   const eventsContent = (
     <Events
       groupId={group.id}
-      header={detailHeader}
+      header={
+        <View style={{ gap: 12 }}>
+          {detailHeader}
+          <GroupSectionHeader group={group} section="events" />
+        </View>
+      }
       canCreate={isGroupManagerRole(group.role) && group.canInvite}
     />
   );
-  const rankingsContent = <GroupLeaderboard groupId={group.id} header={detailHeader} />;
-  const detailsContent = <GroupDetailsCard group={group} identity={null} />;
+  const rankingsContent = (
+    <Leaderboard key={group.id} groupId={group.id} groupName={group.name} header={detailHeader} />
+  );
+  const detailsContent = <GroupDetailsCard group={group} identity={null} venueHelp={false} />;
   return (
     <NotificationAttentionScope
       options={o}
@@ -263,6 +281,7 @@ export function GroupDetail({
                       contentContainerStyle={{ paddingTop: 0 }}
                     >
                       <View>{detailHeader}</View>
+                      <GroupSectionHeader group={group} section="info" />
                       {detailsContent}
                       {bodyActions.length ? (
                         <GroupJoinRequest

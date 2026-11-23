@@ -211,10 +211,7 @@ it("ListSearch: filter mode edits and clears without a discovery minimum", async
       expect(input).toHaveDisplayValue("Chess");
       await userEvent.setup().press(screen.getByRole("button", { name: "Clear filter" }));
       expect(input).toHaveDisplayValue("");
-      await pressMeasuredPopover(
-        screen.getByRole("button", { name: "Filter members: Filter help" }),
-      );
-      expect(screen.getByText("Filter this list by name. No minimum length.")).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Filter members: Filter help" })).toBeNull();
     },
   });
   assertRenderMeasurement(result);

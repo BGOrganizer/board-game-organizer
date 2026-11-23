@@ -12,7 +12,7 @@ import {
   useReadNotificationAttention,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Card, Chip, Skeleton, Tabs } from "@heroui/react";
+import { Card, Chip, Label, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -29,10 +29,10 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
-import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { TabTrigger } from "@/components/common/ui/TabTrigger";
@@ -429,14 +429,11 @@ export function Contacts() {
           </TabBar>
 
           <Tabs.Panel id="device" className="space-y-3 pt-4">
-            <section className="space-y-2" aria-labelledby="device-contacts-title">
-              <h2
-                id="device-contacts-title"
-                className="flex items-center gap-2 text-sm font-semibold"
-              >
-                <BookUser className="size-4" aria-hidden="true" />
-                {t`Device Contacts`}
-              </h2>
+            <HelpSectionCard title={t`Contacts`} icon={BookUser} label={t`Contacts help`}>
+              <p>{t`Sync your address book from the mobile app to see friend suggestions here.`}</p>
+              <p>{t`Send a friend request to connect with a contact who already uses Board Game Organizer.`}</p>
+            </HelpSectionCard>
+            <section className="space-y-2" aria-label={t`Device Contacts`}>
               {contacts.suggestions.isLoading ? <ContactListSkeleton count={2} /> : null}
               {contacts.suggestions.isError ? (
                 <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
@@ -464,6 +461,10 @@ export function Contacts() {
           </Tabs.Panel>
 
           <Tabs.Panel id="search" className="space-y-3 pt-4">
+            <HelpSectionCard title={t`Search`} icon={Search} label={t`Contact search help`}>
+              <p>{t`Find people on Board Game Organizer by entering their name or email address.`}</p>
+              <p>{t`Type at least 4 characters to search`}</p>
+            </HelpSectionCard>
             <SearchInput
               value={query}
               onChange={(value) => {
@@ -471,12 +472,7 @@ export function Contacts() {
                 if (value.trim().length < 4) contacts.runSearch("");
               }}
               placeholder={t`Search users`}
-              label={
-                <SearchHelpLabel
-                  label={t`Search users by name or email`}
-                  help={t`Type at least 4 characters to search`}
-                />
-              }
+              label={<Label className="sr-only">{t`Search users by name or email`}</Label>}
             />
 
             {query.trim().length < 4 && (

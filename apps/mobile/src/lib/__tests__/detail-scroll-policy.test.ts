@@ -9,7 +9,7 @@ const source = (path: string) =>
   readFileSync(new URL(`../../components/${path}.tsx`, import.meta.url), "utf8");
 
 it.each([
-  ["groups/GroupDetail", "GroupIdentityCard", "<GroupMembers", "<GroupLeaderboard"],
+  ["groups/GroupDetail", "GroupIdentityCard", "<GroupMembers", "<Leaderboard"],
   ["events/EventDetail", "EventDetailsCard", "<EventParticipants", "ListHeaderComponent="],
   ["events/EventTable", "EventTableInfo", "<EventTableResults", "<EventTableOverview"],
 ])("places the %s identity and tab bar in the active scroll header", (path, card, ...consumers) => {
@@ -21,17 +21,27 @@ it.each([
     true,
     ts.ScriptKind.TSX,
   );
-  let header = "";
+  let header = "",
+    participantsHeader = "";
   const visit = (node: ts.Node) => {
-    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "detailHeader")
-      header = node.initializer?.getText(ast) ?? "";
+    if (ts.isVariableDeclaration(node)) {
+      const name = node.name.getText(ast);
+      if (name === "detailHeader") header = node.initializer?.getText(ast) ?? "";
+      if (name === "participantsHeader") participantsHeader = node.initializer?.getText(ast) ?? "";
+    }
     ts.forEachChild(node, visit);
   };
   visit(ast);
   expect(header).toContain(`<${card}`);
   expect(header).toContain("<TabBar");
   for (const consumer of consumers) expect(text).toContain(consumer);
-  expect(text).toContain("header={detailHeader}");
+  if (path === "events/EventDetail") {
+    expect(participantsHeader).toContain("{detailHeader}");
+    expect(participantsHeader).toContain("<EventSectionHeader");
+    expect(text).toContain("header={participantsHeader}");
+  } else {
+    expect(text).toContain("header={detailHeader}");
+  }
   expect(text).not.toMatch(/stickyHeaderIndices|nestedScrollEnabled|scrollEnabled=\{false\}/);
 });
 
@@ -116,7 +126,7 @@ it("isolates each retained Group panel's tab measurements and scopes its identit
     ["info", "ScreenScrollView"],
     ["members", "GroupMembers"],
     ["events", "Events"],
-    ["rankings", "GroupLeaderboard"],
+    ["rankings", "Leaderboard"],
   ]);
   const seen = new Set<string>();
   for (const panel of h.panels) {

@@ -484,7 +484,9 @@ it("shows frozen terminated standings while keeping canonical historical profile
   await ready();
   await select("results");
   expect(screen.getByLabelText("Score: 20")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Position: #1" })).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "@owner, Position: #1, Score: 20", expanded: false }),
+  ).toBeVisible();
   expect(screen.queryByRole("button", { name: "Register result" })).toBeNull();
   expect(reads.filter(({ url }) => url.pathname.endsWith("/leaderboard"))).toHaveLength(0);
 });

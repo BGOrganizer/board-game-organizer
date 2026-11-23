@@ -14,8 +14,8 @@ export function InfoSection({
   children,
 }: {
   label: string;
-  helpLabel: string;
-  help: string;
+  helpLabel?: string;
+  help?: string;
   icon: LucideIcon;
   headerAccessory?: ReactNode;
   children: ReactNode;
@@ -27,9 +27,11 @@ export function InfoSection({
           <Icon className="size-4 shrink-0" aria-hidden />
           {label}
         </h2>
-        <HelpPopover label={helpLabel} title={label}>
-          {help}
-        </HelpPopover>
+        {help && helpLabel ? (
+          <HelpPopover label={helpLabel} title={label}>
+            {help}
+          </HelpPopover>
+        ) : null}
         {headerAccessory ? <div className="ml-auto shrink-0">{headerAccessory}</div> : null}
       </div>
       <GroupedList>{children}</GroupedList>

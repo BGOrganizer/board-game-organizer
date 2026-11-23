@@ -18,7 +18,12 @@ onFlowComplete:
     timeout: 120000
 - assertVisible: ${output.status.available}
 - assertVisible: ${output.status.terminated}
-- tapOn: ${output.status.scheduled}
+- tapOn:
+    id: top-tab-mine
+- assertVisible: ${output.status.sectionGuide}
+- tapOn: ${output.status.scheduledHelp}
+- assertVisible: ${output.status.scheduledRule}
+- back
 - runFlow:
     file: ../helpers/check-list-status.yaml
     env:
@@ -31,7 +36,12 @@ onFlowComplete:
 - extendedWaitUntil:
     visible: ${output.status.available}
     timeout: 120000
-- tapOn: ${output.status.available}
+- tapOn:
+    id: top-tab-available
+- assertVisible: ${output.status.sectionGuide}
+- tapOn: ${output.status.availableHelp}
+- assertVisible: ${output.status.availableRule}
+- back
 - runFlow:
     file: ../helpers/check-list-status.yaml
     env:
@@ -44,7 +54,12 @@ onFlowComplete:
 - extendedWaitUntil:
     visible: ${output.status.terminated}
     timeout: 120000
-- tapOn: ${output.status.terminated}
+- tapOn:
+    id: top-tab-terminated
+- assertVisible: ${output.status.sectionGuide}
+- tapOn: ${output.status.terminatedHelp}
+- assertVisible: ${output.status.terminatedRule}
+- back
 - runFlow:
     file: ../helpers/check-list-status.yaml
     env:
@@ -75,5 +90,9 @@ onFlowComplete:
     visible: ${output.status.filter}
     timeout: 120000
 - assertVisible: ${output.status.history}
+- assertVisible: ${output.status.sectionGuide}
+- tapOn: ${output.status.historyHelp}
+- assertVisible: ${output.status.historyRule}
+- back
 - runFlow: ../helpers/check-table-status.yaml
 - takeScreenshot: event-sections-history

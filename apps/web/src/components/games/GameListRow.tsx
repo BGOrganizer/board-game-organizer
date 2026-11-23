@@ -5,6 +5,10 @@ import { gameMetadataMissing } from "@board-game-organizer/shared";
 import { Button } from "@heroui/react";
 import { Gamepad2 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  ExpandableGroupedRow,
+  type GroupedRowDisclosure,
+} from "@/components/common/ui/ExpandableGroupedRow";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { GameCatalogMetadata } from "./GameCatalogMetadata";
 
@@ -17,6 +21,7 @@ export function GameListRow({
   metadata,
   children,
   onPress,
+  disclosure,
 }: {
   game?: BggSearchItem;
   name: string;
@@ -26,12 +31,15 @@ export function GameListRow({
   metadata?: ReactNode;
   children?: ReactNode;
   onPress?: () => void;
+  disclosure?: GroupedRowDisclosure;
 }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const cover = useRef<HTMLDivElement>(null);
   const [visibleId, setVisibleId] = useState<number>();
   const id = game?.id;
+  const expandable = disclosure !== undefined;
   const needsMetadata = Boolean(game && gameMetadataMissing(game) && visibleId !== id);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Switching row layouts replaces the observed cover.
   useEffect(() => {
     if (
       !needsMetadata ||
@@ -47,7 +55,7 @@ export function GameListRow({
     });
     observer.observe(cover.current);
     return () => observer.disconnect();
-  }, [id, needsMetadata]);
+  }, [id, needsMetadata, expandable]);
 
   const image = (
     <div
@@ -83,6 +91,35 @@ export function GameListRow({
       {children}
     </div>
   );
+  if (disclosure) {
+    const renderRow = (badge?: ReactNode) => (
+      <ExpandableGroupedRow
+        disclosure={{
+          ...disclosure,
+          content: badge ? (
+            <div className="flex items-center gap-2">
+              {badge}
+              <div className="min-w-0 flex-1">{disclosure.content}</div>
+            </div>
+          ) : (
+            disclosure.content
+          ),
+        }}
+        summary={
+          <>
+            {image}
+            {identity}
+          </>
+        }
+        actions={actions}
+      />
+    );
+    return game ? (
+      <GameCatalogMetadata name={name} game={game} visible={id === visibleId} render={renderRow} />
+    ) : (
+      renderRow()
+    );
+  }
   return (
     <GroupedRow className="w-full flex-wrap">
       <div className="relative flex min-w-0 flex-1">

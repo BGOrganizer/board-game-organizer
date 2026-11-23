@@ -7,6 +7,7 @@ import {
   eventItemTargets,
   eventLocalToIso,
   eventOptionsRequireVote,
+  hasOptionVoters,
   useEventRecord,
   useEventRecordActions,
   useNotificationChanges,
@@ -34,6 +35,7 @@ import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { EmptyList } from "@/components/common/ui/EmptyList";
+import { ExpandableGroupedRow } from "@/components/common/ui/ExpandableGroupedRow";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -57,6 +59,7 @@ import { EventFinalizeAction } from "./EventFinalizeAction";
 import { EventGroupLink } from "./EventGroupLink";
 import { EventParticipants } from "./EventParticipants";
 import { EventProposalSection } from "./EventProposalSection";
+import { EventSectionHeader } from "./EventSectionHeader";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteLegend } from "./EventVoteLegend";
@@ -239,6 +242,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   };
   const header = (
     <View style={{ gap: 12 }}>
+      <EventSectionHeader
+        event={event}
+        section="details"
+        voteDates={voteDates}
+        voteLocations={voteLocations}
+      />
       <View style={{ gap: 8 }}>
         <NotificationItem itemId={notificationItemId(event.id, "overview")} />
         {event.readOnly ? (
@@ -251,9 +260,6 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           </Typography>
         ) : null}
       </View>
-      {event.groupId && fromGroup !== event.groupId ? (
-        <EventGroupLink groupId={event.groupId} name={event.groupName} />
-      ) : null}
       <View style={{ gap: 8 }}>
         <NotificationItem itemId={notificationItemId(event.id, "dates")}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -274,40 +280,58 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             .map((row) => {
               const voters = voteDates ? namedVotes?.dates[row.id] : undefined;
               const label = eventDateWall(event, row).replace("T", " ");
-              return (
-                <GroupedRow key={row.id}>
-                  <View style={{ flex: 1, gap: 8 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <View style={{ flexShrink: 1 }}>
-                        <DateTimeInfo
-                          startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                          timeZone={event.timeZone}
-                        />
-                      </View>
-                      <NotificationItem itemId={notificationItemId(event.id, "date", row.id)} />
-                    </View>
-                    {voters ? <OptionVoteVoters label={label} voters={voters} /> : null}
-                  </View>
-                  {(voteDates && event.canVote) || voters ? (
-                    <EventVoteButtons
-                      label={label}
-                      voters={voters}
-                      readOnly={!event.canVote}
-                      value={event.myVotes?.dateVotes[row.id]}
-                      disabledVotes={
-                        eventAvailabilityVoteIsAllowed(
-                          event.dates,
-                          event.myVotes?.dateVotes ?? {},
-                          row.id,
-                          "NO",
-                        )
-                          ? []
-                          : ["NO"]
-                      }
-                      busy={a.blocking || q.isPlaceholderData}
-                      onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
+              const schedule = (
+                <View
+                  key="schedule"
+                  style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
+                  <View style={{ flexShrink: 1 }}>
+                    <DateTimeInfo
+                      startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                      timeZone={event.timeZone}
                     />
-                  ) : null}
+                  </View>
+                  <NotificationItem itemId={notificationItemId(event.id, "date", row.id)} />
+                </View>
+              );
+              const voteAction =
+                (voteDates && event.canVote) || voters ? (
+                  <EventVoteButtons
+                    key="vote"
+                    compact
+                    label={label}
+                    voters={voters}
+                    readOnly={!event.canVote}
+                    value={event.myVotes?.dateVotes[row.id]}
+                    disabledVotes={
+                      eventAvailabilityVoteIsAllowed(
+                        event.dates,
+                        event.myVotes?.dateVotes ?? {},
+                        row.id,
+                        "NO",
+                      )
+                        ? []
+                        : ["NO"]
+                    }
+                    busy={a.blocking || q.isPlaceholderData}
+                    onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
+                  />
+                ) : null;
+              return hasOptionVoters(voters) ? (
+                <ExpandableGroupedRow
+                  key={row.id}
+                  summary={schedule}
+                  actions={voteAction}
+                  disclosure={{
+                    label: `${t("Vote summary")}: ${label}`,
+                    triggerText: t("Votes"),
+                    content: <OptionVoteVoters label={label} voters={voters} />,
+                  }}
+                />
+              ) : (
+                <GroupedRow key={row.id}>
+                  {schedule}
+                  {voteAction}
                 </GroupedRow>
               );
             })}
@@ -370,9 +394,19 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 }
                 name={row.name}
                 address={row.address}
+                disclosure={
+                  hasOptionVoters(voters)
+                    ? {
+                        label: `${t("Vote summary")}: ${row.name}`,
+                        triggerText: t("Votes"),
+                        content: <OptionVoteVoters label={row.name} voters={voters} />,
+                      }
+                    : undefined
+                }
                 actions={
                   (voteLocations && event.canVote) || voters ? (
                     <EventVoteButtons
+                      compact
                       voters={voters}
                       readOnly={!event.canVote}
                       label={row.name}
@@ -394,13 +428,14 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     />
                   ) : undefined
                 }
-              >
-                {voters ? <OptionVoteVoters label={row.name} voters={voters} /> : null}
-              </LocationListRow>
+              />
             );
           })}
       </GroupedList>
       <EventProposalSection event={event} kind="location" disabled={q.isPlaceholderData} />
+      {event.groupId && fromGroup !== event.groupId ? (
+        <EventGroupLink groupId={event.groupId} name={event.groupName} />
+      ) : null}
     </View>
   );
   const detailHeader = (
@@ -448,6 +483,12 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       </Tabs>
     </View>
   );
+  const participantsHeader = (
+    <View style={{ gap: 12 }}>
+      {detailHeader}
+      <EventSectionHeader event={event} section="participants" />
+    </View>
+  );
   return (
     <NotificationAttentionScope
       options={o}
@@ -479,7 +520,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               {panel === "participants" ? (
                 event.readOnly ? (
                   <ScreenScrollView hasFloatingActions={hasFloatingActions}>
-                    <View>{detailHeader}</View>
+                    {participantsHeader}
                     <Typography className="text-muted">
                       {t("Public event. Group membership is not required to participate.")}
                     </Typography>
@@ -489,7 +530,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     event={event}
                     actions={a}
                     disabled={q.isPlaceholderData}
-                    header={detailHeader}
+                    header={participantsHeader}
                     hasFloatingActions={hasFloatingActions}
                   />
                 )
@@ -520,7 +561,10 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                         {panel === "details" ? (
                           header
                         ) : (
-                          <NotificationItem itemId={notificationItemId(event.id, "tables")} />
+                          <>
+                            <EventSectionHeader event={event} section="tables" />
+                            <NotificationItem itemId={notificationItemId(event.id, "tables")} />
+                          </>
                         )}
                       </View>
                     }

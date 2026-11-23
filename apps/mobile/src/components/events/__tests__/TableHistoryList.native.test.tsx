@@ -2,6 +2,10 @@ import { recordTablesQuery } from "@board-game-organizer/shared";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { expect, it } from "vitest";
 import {
+  installNativePopoverMeasurements,
+  pressMeasuredPopover,
+} from "@/test/nativePopoverGeometry";
+import {
   listApi,
   listFixture,
   listId,
@@ -159,4 +163,16 @@ it("requests further history by user action and keeps an exhausted first page wh
       .at(-1)
       ?.searchParams.get("cursor"),
   ).toBe("next-tables");
+});
+
+it("describes the criteria for including a table in History", async () => {
+  await installNativePopoverMeasurements();
+  await render(
+    <MainListFixture>
+      <Tables />
+    </MainListFixture>,
+  );
+  expect(screen.getByRole("heading", { name: "History" })).toBeVisible();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Table history help" }));
+  expect(screen.getByText(/Confirmed tables from finished events/)).toBeVisible();
 });

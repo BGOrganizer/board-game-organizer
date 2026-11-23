@@ -383,8 +383,8 @@ and [operational gates](../../../docs/organizations-events-operations.md), not t
   account email in the API-backed profile. Setup uses existing app deep links;
   header navigation is separately exercised by `03-profile-logout`.
 - Stable existing IDs first, semantic text next. A contact can appear in both API
-  results and the address book: search completion is scoped below Search results
-  and above Device Contacts, never inferred from the already-visible suggestion.
+  results and the address book. Check search completion in the Search tab using
+  its input and result actions.
   Native date/time uses Android resource IDs. No coordinates, synthetic visibility
   markers or animation disabling.
 - Contact-search setup uses the existing `contacts?tab=search` route and waits for

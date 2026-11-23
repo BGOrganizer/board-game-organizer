@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { type ReactNode, useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Contacts } from "@/components/contacts/Contacts";
@@ -283,7 +283,7 @@ describe("Contacts tabs", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("shows one empty connections state and search guidance before typing", () => {
+  it("shows one empty connections state and search guidance before typing", async () => {
     mocks.following = false;
     renderWithI18n(<Contacts />);
     expect(screen.getByText("No connections yet")).toBeTruthy();
@@ -297,11 +297,30 @@ describe("Contacts tabs", () => {
       screen.getByRole("tab", { name: "Contacts" }).querySelector("svg.lucide-book-user"),
     ).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "Friends" })).toBeNull();
+    expect(screen.getByText("Section guide")).toBeVisible();
+    fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
+    expect(screen.getByText("Section guide")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Requests: Icon legend" })).toBeVisible();
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+    expect(screen.getByText("Section guide")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Search users by name or email: Search help" }),
+    ).toBeNull();
+    expect(screen.getByRole("searchbox", { name: "Search users by name or email" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Search results" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Device Contacts" })).toBeNull();
     expect(screen.getByText("Type at least 4 characters to search")).toBeTruthy();
+    const searchGuide =
+      "Find people on Board Game Organizer by entering their name or email address.";
+    expect(screen.queryByText(searchGuide)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Contact search help" }));
+    const popover = await screen.findByRole("dialog");
+    expect(within(popover).getByText(searchGuide)).toBeVisible();
+    fireEvent.keyDown(popover, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByText(searchGuide)).toBeNull());
     fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
+    expect(screen.getByText("Section guide")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Contacts help" })).toBeVisible();
     expect(screen.getByText("No contacts to invite")).toBeTruthy();
   });
 
@@ -312,7 +331,7 @@ describe("Contacts tabs", () => {
 
     expect(screen.queryByRole("heading", { name: "Contacts on BGO" })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
-    const device = screen.getByRole("heading", { name: "Device Contacts" }).closest("section");
+    const device = screen.getByRole("region", { name: "Device Contacts" });
     expect(device).not.toBeNull();
     expect(within(device as HTMLElement).getByText("Target User")).toBeTruthy();
     expect(within(device as HTMLElement).getByText("@target-player")).toBeTruthy();

@@ -51,6 +51,7 @@ import { EventJoinSheet } from "./EventJoinSheet";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
+import { EventTableParticipantsHelp } from "./EventTableParticipantsHelp";
 export function EventTableSeats({
   table,
   header,
@@ -98,6 +99,12 @@ export function EventTableSeats({
     setChoose(false);
     setJoining(true);
   };
+  const participantsHeader = (
+    <View style={{ gap: 16, paddingBottom: 8 }}>
+      {header}
+      <EventTableParticipantsHelp planning={table.eventStatus === "PLANNING"} />
+    </View>
+  );
   return (
     <View style={{ flex: 1 }}>
       <RetainedTabPanel
@@ -131,7 +138,7 @@ export function EventTableSeats({
             {order.editing ? (
               <EventSeatOrderEditor
                 model={order}
-                header={header}
+                header={participantsHeader}
                 demonstratorUserId={table.demonstratorUserId}
               />
             ) : (
@@ -152,11 +159,7 @@ export function EventTableSeats({
                   paddingBottom: layout.paddingBottom,
                 }}
                 keyboardShouldPersistTaps="handled"
-                ListHeaderComponent={
-                  <View>
-                    <View style={{ gap: 16, paddingBottom: 8 }}>{header}</View>
-                  </View>
-                }
+                ListHeaderComponent={participantsHeader}
                 renderSectionHeader={({ section }) => (
                   <EventSeatListHeading waiting={section.key === "waiting"} />
                 )}

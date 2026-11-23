@@ -208,8 +208,10 @@ it("switches role chips independently and reports the search minimum only in dis
   );
   expect(screen.queryByText("Enter at least 4 characters to search")).not.toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Admin" })).not.toBeOnTheScreen();
-  await pressMeasuredPopover(screen.getByRole("button", { name: "Filter members: Filter help" }));
-  expect(screen.getByText("Filter this list by name. No minimum length.")).toBeVisible();
+  expect(screen.getByLabelText("Filter members")).toHaveDisplayValue("A");
+  expect(screen.queryByText("Filter members")).toBeNull();
+  expect(screen.queryByRole("button", { name: /help/i })).toBeNull();
+  expect(screen.getByRole("button", { name: "Clear filter" })).toBeVisible();
 });
 
 it("renders no empty chip container and prevents a disabled filter from dispatching", async () => {

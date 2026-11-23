@@ -37,6 +37,7 @@ import { EventJoinSheet } from "./EventJoinSheet";
 import { EventSeatListHeading } from "./EventSeatListHeading";
 import { EventSeatOrderEditor } from "./EventSeatOrderEditor";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
+import { EventTableParticipantsHelp } from "./EventTableParticipantsHelp";
 export function EventTableSeats({
   table,
   header,
@@ -74,19 +75,25 @@ export function EventTableSeats({
     setChoose(false);
     setJoining(true);
   };
+  const participantsHeader = (
+    <>
+      {header}
+      <EventTableParticipantsHelp planning={table.eventStatus === "PLANNING"} />
+    </>
+  );
   if (order.editing)
     return (
       <div hidden={!active}>
         <EventSeatOrderEditor
           model={order}
-          header={header}
+          header={participantsHeader}
           demonstratorUserId={table.demonstratorUserId}
         />
       </div>
     );
   return (
     <div className="space-y-3" hidden={!active}>
-      {header}
+      {participantsHeader}
       {table.canManage && table.eventStatus === "PLANNING" ? (
         <Button
           isIconOnly

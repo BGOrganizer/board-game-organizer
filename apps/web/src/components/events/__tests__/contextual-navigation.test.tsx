@@ -81,10 +81,16 @@ function setup(full = false) {
   );
   return { client, group, event, table, fetcher, wrap };
 }
-it.each([false, true])(
-  "shows table-specific game voting help only for multiple=%s",
-  async (multiple) => {
+it.each([
+  { multiple: false, proposals: false },
+  { multiple: true, proposals: false },
+  { multiple: false, proposals: true },
+  { multiple: true, proposals: true },
+])(
+  "puts the applicable game help in Table Details ($multiple, $proposals)",
+  async ({ multiple, proposals }) => {
     const s = setup();
+    s.table.allowParticipantGames = proposals;
     if (multiple) {
       s.table.games = [...s.table.games, { ...s.table.games[0], gameId: 99 }];
       s.table.gamesDetail = [
@@ -93,25 +99,56 @@ it.each([false, true])(
       ];
     }
     renderWithI18n(s.wrap(<EventTableOverview eventId={eventId} tableId={tableId} />));
-    await screen.findByRole("heading", { name: "Board games" });
-    const help = screen.queryByRole("button", { name: "Board games: Voting legend" });
-    if (!multiple) expect(help).toBeNull();
-    else {
-      fireEvent.click(help as HTMLElement);
-      const popover = await screen.findByRole("dialog");
+    const games = await screen.findByRole("heading", { name: "Board games" });
+    const parent = await screen.findByRole("heading", { name: "Event" });
+    expect(games.compareDocumentPosition(parent) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    if (proposals) {
+      const proposalsHeading = screen.getByRole("heading", { name: "Proposed games" });
       expect(
-        within(popover).getByText(
-          "You can vote only if you are an accepted participant at this table.",
-        ),
-      ).not.toBeNull();
-      expect(
-        within(popover).getByText(
-          'Choose at least one "Yes" or "If needed" option in this category.',
-        ),
-      ).not.toBeNull();
+        proposalsHeading.compareDocumentPosition(parent) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     }
+    expect(screen.queryByRole("button", { name: "Board games: Voting legend" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Table details help" }));
+    const help = within(await screen.findByRole("dialog"));
+    expect(
+      Boolean(
+        help.queryByText("You can vote only if you are an accepted participant at this table."),
+      ),
+    ).toBe(multiple);
+    expect(
+      Boolean(
+        help.queryByText('Choose at least one "Yes" or "If needed" option in this category.'),
+      ),
+    ).toBe(multiple);
+    expect(
+      Boolean(
+        help.queryByText(
+          "Players seated at this table can propose other games for a manager to approve.",
+        ),
+      ),
+    ).toBe(proposals);
+    expect(
+      Boolean(help.queryByText("See the schedule and board games for this table below.")),
+    ).toBe(!multiple && !proposals);
   },
 );
+
+it("explains Table registration and its waiting list from the Participants heading", async () => {
+  const s = setup();
+  renderWithI18n(
+    s.wrap(<EventTableOverview eventId={eventId} tableId={tableId} section="participants" />),
+  );
+  expect(await screen.findByRole("heading", { name: "Participants" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Table participants help" }));
+  const help = within(await screen.findByRole("dialog"));
+  expect(help.getByText(/select a free place or the waiting list/)).toBeVisible();
+  expect(
+    help.getByText("If all seats are taken, new players join the waiting list."),
+  ).toBeVisible();
+  expect(help.getByText(/Accepted players on the waiting list can vote/)).toBeVisible();
+});
+
 it.each([undefined, optionId, "different-group"])(
   "shows the separate Group card only outside its matching Group context (from=%s)",
   async (fromGroup) => {
@@ -192,10 +229,11 @@ it.each([false, true])(
       primary.compareDocumentPosition(waiting) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(within(waiting).getByRole("button", { name: "Join waiting list" })).toBeTruthy();
-    fireEvent.click(within(waiting).getByRole("button", { name: "Waiting list: Field help" }));
+    expect(within(waiting).queryByRole("button", { name: "Waiting list: Field help" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Table participants help" }));
     expect(
       await screen.findByText(
-        "Accepted players on the waiting list can vote. They may play if an administrator or the app selects them according to the table's rules.",
+        "Accepted players on the waiting list can vote. A manager or the app can assign them a seat under the table's rules.",
       ),
     ).toBeTruthy();
   },
