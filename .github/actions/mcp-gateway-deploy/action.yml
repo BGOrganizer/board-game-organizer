@@ -130,6 +130,7 @@ runs:
             '.id == $id and .accountId == $owner and .name == $name' >/dev/null
         jq -n --arg projectId "$PROJECT_ID" --arg orgId "$VERCEL_ORG_ID" --arg projectName "$project_name" \
           '{projectId: $projectId, orgId: $orgId, projectName: $projectName}' > "$STAGE/.vercel/project.json"
+        export VERCEL_PROJECT_ID="$PROJECT_ID"
 
         if [ "$TARGET" = development ]; then
           upstream="https://api-development-pr-$PR_NUMBER-board-game-organizers-projects.vercel.app"

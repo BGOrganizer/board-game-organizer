@@ -141,6 +141,7 @@ test("promotion checks source twice, verifies the linked Vercel project, and pin
         case "$1" in
           api) printf '{"id": "%s", "accountId": "%s", "name": "%s"}' "$PROJECT_ID" "$VERCEL_ORG_ID" "$REMOTE_NAME" ;;
           deploy)
+            [[ "$VERCEL_PROJECT_ID" == "$PROJECT_ID" ]] || return 32
             [[ " $* " == *' --prebuilt --prod --skip-domain --yes --json '* ]] || return 32
             [[ " $* " == *" --meta bgoGatewaySourceSha=$GITHUB_SHA "* ]] || return 32
             [[ " $* " == *" --env BGO_MCP_UPSTREAM_URL=$EXPECTED_UPSTREAM "* ]] || return 32
