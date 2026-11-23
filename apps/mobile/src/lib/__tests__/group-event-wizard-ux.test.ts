@@ -128,7 +128,8 @@ it("uses the live list-card layout and factual metadata for local drafts without
   const card = source("events", "EventDraftTableCard");
   expect(card).toContain("<ListCardCoverContent");
   expect(card).toContain("<ListCardBody");
-  expect(card).toContain("title={row.name}");
+  expect(card).toContain("title={title}");
+  expect(card).not.toContain("row.name");
   expect(card).toContain('presentation="cover"');
   expect(card).not.toContain("RecordIdentityCard");
   expect(source("common/ui", "LinkedListCard")).toContain("<ListCardCoverContent");

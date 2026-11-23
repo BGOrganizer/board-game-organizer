@@ -22,6 +22,7 @@ function run(change = {}, env = {}) {
   const output: {
     eventProposal?: {
       submitting: boolean;
+      accepting: boolean;
       review: string;
       select: string;
       pages: number;
@@ -52,6 +53,7 @@ it.each(["en", "it"])(
     ).toBe(true);
     const b = run({ mode: "accept" }, { EVENT_PROPOSAL_LOCALE: locale });
     expect(b.submitting).toBe(false);
+    expect(b.accepting).toBe(true);
     expect(b.pages).toBe(1);
     expect(
       new RegExp(b.review).test(
@@ -60,9 +62,11 @@ it.each(["en", "it"])(
     ).toBe(true);
     expect(b.rowId).toBe("event-proposal-" + input.proposalId);
     expect(b.actionId).toBe("confirmation-action-0");
-    expect(run({ mode: "reject" }).actionId).toBe("confirmation-action-1");
+    const rejected = run({ mode: "reject" }, { EVENT_PROPOSAL_LOCALE: locale });
+    expect(rejected.actionId).toBe("confirmation-action-1");
+    expect(rejected.accepting).toBe(false);
     expect(a.authors).toEqual([]);
-    expect(run({ mode: "reject" }, { EVENT_PROPOSAL_LOCALE: locale }).result).not.toBe(b.result);
+    expect(new RegExp(rejected.result).test(locale === "it" ? "Rifiutata" : "Rejected")).toBe(true);
   },
 );
 it("escapes every grouped proposer in the one collective decision selector", () => {

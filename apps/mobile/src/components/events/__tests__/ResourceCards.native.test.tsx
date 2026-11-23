@@ -94,6 +94,7 @@ function fixture(kind: Kind) {
     ...base[kind],
     id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
     name: `Resource ${index + 1}`,
+    ...(kind === "table" ? { order: index } : {}),
   }));
   const targets: NotificationAttentionTarget[] = records.map(({ id }) => ({ kind, id }));
   const options = {
@@ -192,11 +193,14 @@ it.each(["group", "event", "table"] as const)(
     await waitFor(() => expect(screen.getByLabelText("Unread updates")).toBeTruthy());
     expectSameHosts(navigationHosts(kind), originalNavigation);
     const changed = f.records.map((record, index) =>
-      index ? record : { ...record, name: "Updated name" },
+      index
+        ? record
+        : { ...record, name: "Updated name", ...(kind === "table" ? { order: 8 } : {}) },
     );
     await view.rerender(<f.Harness rows={changed} />);
-    expect(screen.getByText("Updated name")).toBeVisible();
-    expect(screen.queryByText("Resource 1")).toBeNull();
+    expect(screen.getByText(kind === "table" ? "Table #9" : "Updated name")).toBeVisible();
+    expect(screen.queryByText(kind === "table" ? "Table #1" : "Resource 1")).toBeNull();
+    if (kind === "table") expect(screen.queryByText("Updated name")).toBeNull();
     expectSameHosts(navigationHosts(kind), originalNavigation);
     await pressMeasuredPopover(indicatorHosts(kind)[0]);
     expect(
@@ -239,8 +243,19 @@ it.each(["group", "event", "table"] as const)(
       expectSameHosts(indicatorHosts(kind), stable);
       expect(screen.getByText(`Revision ${revision}`)).toBeVisible();
     }
-    await view.rerender(<f.Harness>{detail({ ...original, name: "Changed detail" })}</f.Harness>);
-    expect(screen.getByRole("header", { name: "Changed detail" })).toBeTruthy();
+    const changed =
+      kind === "table"
+        ? {
+            ...plannedTable,
+            eventStatus: "CONFIRMED" as const,
+            confirmedGameName: "Chess",
+            confirmed: { gameId: 1, playerIds: ["owner"], startsAt: "2030-06-03T18:00:00Z" },
+          }
+        : { ...original, name: "Changed detail" };
+    await view.rerender(<f.Harness>{detail(changed)}</f.Harness>);
+    expect(
+      screen.getByRole("header", { name: kind === "table" ? "Chess" : "Changed detail" }),
+    ).toBeTruthy();
     expectSameHosts(indicatorHosts(kind), stable);
   },
 );
