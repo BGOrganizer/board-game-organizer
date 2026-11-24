@@ -1,7 +1,8 @@
 import type { ProfileActivity } from "@board-game-organizer/schemas";
-import { screen } from "@testing-library/react";
-import { expect, it } from "vitest";
+import { fireEvent, screen } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
+import { BggAttribution } from "../BggAttribution";
 import { ProfileActivityRow } from "../ProfileActivityRow";
 import { ProfileRatingChart } from "../ProfileRatingChart";
 import { ProfileStats } from "../ProfileStats";
@@ -96,4 +97,16 @@ it("reuses three compact semantic-token stat cards without losing long labels", 
   expect(container.firstElementChild?.className).toContain("grid-rows-[auto_auto]");
   expect(container.querySelectorAll(".grid-rows-subgrid")).toHaveLength(6);
   expect(container.querySelectorAll(".h-full")).toHaveLength(3);
+});
+
+it("honors the host's BGG navigation callback while preserving the accessible attribution link", () => {
+  const open = vi.fn();
+  renderWithI18n(<BggAttribution onOpen={open}>Powered by BGG</BggAttribution>);
+  const link = screen.getByRole("link", { name: "Powered by BGG — open BoardGameGeek" });
+  expect(link).toHaveAttribute("href", "https://boardgamegeek.com");
+  expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+  fireEvent(link, click);
+  expect(click.defaultPrevented).toBe(true);
+  expect(open).toHaveBeenCalledOnce();
 });

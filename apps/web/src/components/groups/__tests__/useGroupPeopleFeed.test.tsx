@@ -308,3 +308,60 @@ it("finishes each source before loading pending invitations and exclusions, with
   await waitFor(() => expect(hook.result.current.items).toHaveLength(4));
   expect(hook.result.current.hasNextPage).toBe(false);
 });
+
+it("applies the active group search to pending invites without inventing missing identity fields", async () => {
+  const { client, options, wrapper } = setup();
+  const selected = "historic-player";
+  const writes: unknown[] = [];
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected a pending Group invitation");
+  };
+  const invitation = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      if (init?.method === "POST") {
+        expect(url.pathname).toBe(`/api/groups/${group.id}/members`);
+        writes.push(JSON.parse(String(init.body)));
+        return invitation;
+      }
+      if (url.pathname.endsWith("/members"))
+        return Response.json({ items: [], nextCursor: "later" });
+      if (url.pathname === `/api/groups/${group.id}`) return Response.json(group);
+      throw new Error(`Unexpected Group feed request: ${url.pathname}`);
+    }),
+  );
+  const view = renderHook(
+    ({ query }) => ({
+      feed: useGroupPeopleFeed(options, group, query),
+      actions: useGroupRecordActions(options, group.id),
+    }),
+    { wrapper, initialProps: { query: "historic" } },
+  );
+  await waitFor(() => expect(view.result.current.feed.hasNextPage).toBe(true));
+  act(() => view.result.current.actions.invite.mutate({ id: group.id, userId: selected }));
+  await waitFor(() => expect(writes).toEqual([{ userId: selected }]));
+  expect(view.result.current.feed.items).toMatchObject([
+    {
+      userId: selected,
+      name: null,
+      username: null,
+      avatarUrl: null,
+      membership: null,
+      optimisticInvited: true,
+    },
+  ]);
+  view.rerender({ query: "different" });
+  expect(view.result.current.feed.items).toEqual([]);
+  view.rerender({ query: "historic" });
+  expect(view.result.current.feed.items).toHaveLength(1);
+  await act(() => finish(Response.json({ error: "Invite rejected" }, { status: 422 })));
+  await waitFor(() => expect(view.result.current.actions.invite.isError).toBe(true));
+  expect(view.result.current.feed.items).toEqual([]);
+  expect(writes).toHaveLength(1);
+  view.unmount();
+  clearSessionQueryCache(client);
+});

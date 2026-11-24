@@ -30,12 +30,16 @@ it("dismisses the search keyboard only on explicit opening and displays real con
     { wrapper: NativeTestProviders },
   );
   expect(dismiss).not.toHaveBeenCalled();
+  expect(screen.getByRole("heading", { name: "Connections" })).toBeVisible();
   await pressMeasuredPopover(screen.getByRole("button", { name: "Connections: Icon legend" }));
   expect(dismiss).toHaveBeenCalledOnce();
-  expect(screen.getByRole("heading", { name: "Connections" })).toBeVisible();
+  expect(screen.getAllByRole("heading", { name: "Connections" })).toHaveLength(2);
   for (const text of ["Friend", "You accepted each other's invitations.", "Online", "Offline"])
     expect(screen.getByText(text)).toBeVisible();
   await act(() => DeviceEventEmitter.emit("hardwareBackPress"));
-  await waitFor(() => expect(screen.queryByRole("heading", { name: "Connections" })).toBeNull());
+  await waitFor(() =>
+    expect(screen.queryByText("You accepted each other's invitations.")).toBeNull(),
+  );
+  expect(screen.getByRole("heading", { name: "Connections" })).toBeVisible();
   expect(dismiss).toHaveBeenCalledOnce();
 });

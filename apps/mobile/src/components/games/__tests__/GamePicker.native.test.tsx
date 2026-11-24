@@ -18,7 +18,7 @@ const boundary = vi.hoisted(() => ({
   userId: "owner" as string | null,
   back: vi.fn(),
   token: "fixture-owner-token",
-  params: { slotId: "game-slot", exclude: "" },
+  params: { slotId: "game-slot", exclude: "" as string | undefined },
   getToken: vi.fn(),
 }));
 vi.mock("@clerk/expo", () => ({
@@ -322,6 +322,9 @@ it("reveals bounded cached windows through the real list accessibility action wi
   // Capture the native host while it offers increment. Once the last cached
   // window is revealed, removing that accessibility action is correct.
   const list = pickerScroll();
+  await fireEvent(list, "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
+  expect(screen.queryByText("Strategy game 9")).toBeNull();
+  expect(requests).toHaveLength(0);
   await fireEvent(list, "accessibilityAction", {
     nativeEvent: { actionName: "increment" },
   });
@@ -586,4 +589,14 @@ it("disconnects pending native accessibility and scroll delivery after actual un
   await render(<Fixture onSelect={onSelect} />);
   expect(mountedChoices()).toHaveLength(8);
   expect(screen.queryByText("Strategy game 9")).toBeNull();
+});
+
+it("makes all returned catalog choices selectable when the standalone route has no exclusions", async () => {
+  boundary.params.exclude = undefined;
+  await render(<Fixture />);
+  await search();
+  expect(await screen.findByRole("button", { name: "Select: Strategy game 1" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Select: Strategy game 2" })).toBeEnabled();
+  await select(2);
+  expect(boundary.back).toHaveBeenCalledOnce();
 });

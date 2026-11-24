@@ -582,3 +582,33 @@ it("renders a confirmed historical game cover and results when the caller suppli
   expect(screen.queryByText("Excluded from confirmation")).toBeNull();
   expect(reads).toHaveLength(0);
 });
+
+it("has no optional heading for an excluded table and does not request a leaderboard", async () => {
+  record = { ...plannedTable, eventStatus: "CONFIRMED" };
+  await render(<Fixture table={record} header={null} />);
+  expect(screen.getByText("Excluded from confirmation")).toBeVisible();
+  expect(screen.queryByText("Results header")).toBeNull();
+  expect(reads).toEqual([]);
+});
+
+it("scopes current rankings to registered identities when the confirmed roster also contains a guest", async () => {
+  const guest = "guest:33333333-3333-4333-8333-333333333333";
+  record = confirmed({
+    confirmed: {
+      gameId: 1,
+      playerIds: ["owner", guest],
+      guestPlayers: [{ participantId: guest, name: "Guest Alice" }],
+      startsAt: "2030-06-03T18:00:00Z",
+    },
+  });
+  await render(<Fixture table={record} header={null} />);
+  expect(await screen.findByText("@owner")).toBeVisible();
+  expect(screen.queryByText("Results header")).toBeNull();
+  expect(screen.queryByText("Guest Alice")).toBeNull();
+  expect(screen.getByRole("button", { name: "Global ranking: @owner" })).toBeEnabled();
+  const registered = tableLeaderboardQuery(options(), record.eventId, record.id, 1, ["owner"]);
+  const mixed = tableLeaderboardQuery(options(), record.eventId, record.id, 1, ["owner", guest]);
+  expect(client.getQueryData(registered.queryKey)).toMatchObject({ pages: [response] });
+  expect(client.getQueryData(mixed.queryKey)).toBeUndefined();
+  expect(reads).toHaveLength(1);
+});

@@ -356,15 +356,19 @@ it("releases the total splash deadline and preserves a newer network receipt whe
 });
 
 it("ignores a late encrypted-storage failure once a different owner is ready", async () => {
-  const stale = Promise.withResolvers<CacheStorage>();
-  boundary.open.mockReturnValueOnce(stale.promise);
+  let rejectStale: (error: Error) => void = () => {};
+  boundary.open.mockReturnValueOnce(
+    new Promise<CacheStorage>((_resolve, reject) => {
+      rejectStale = reject;
+    }),
+  );
   const view = await render(<Fixture />);
   await waitFor(() => expect(boundary.open).toHaveBeenCalledOnce());
   const replacement = { ...initialAuth, userId: "new-owner", sessionId: "new-session" };
   await view.rerender(<Fixture auth={replacement} />);
   await ready();
   await act(async () => {
-    stale.reject(new Error("Retired native account storage failed"));
+    rejectStale(new Error("Retired native account storage failed"));
   });
   expect(screen.getByText("Cache lifecycle ready")).toBeOnTheScreen();
   expect(

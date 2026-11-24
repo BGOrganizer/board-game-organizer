@@ -1,6 +1,6 @@
 import { globalLeaderboardKey, useLeaderboard } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -79,5 +79,63 @@ it("issues neither the collection nor the player request when the account or gro
   expect(hook.result.current.players.isEnabled).toBe(false);
   expect(requests).not.toHaveBeenCalled();
   hook.unmount();
+  client.clear();
+});
+
+it("loads the initial catalog without a search and searches retained page metadata without expanding its presentation", async () => {
+  const { client, wrapper } = setup();
+  const root = [...globalLeaderboardKey(apiUrl, owner.userId), null, "games"];
+  const requests: URL[] = [];
+  client.getQueryCache().build(client, { queryKey: [...root, "Pending source"] });
+  client.setQueryData([...root, "Retained options"], {
+    pages: [
+      { games: [azul], players: [], nextCursor: 25 },
+      { games: [chess], players: [], nextCursor: null },
+    ],
+    pageParams: [0, 25],
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer ranking-token");
+      requests.push(url);
+      return Response.json({ games: [], players: [], nextCursor: null });
+    }),
+  );
+  const view = renderHook(() => useLeaderboard({ ...owner, gameId: chess.id }), { wrapper });
+  await waitFor(() =>
+    expect(view.result.current.games.isSuccess && view.result.current.players.isSuccess).toBe(true),
+  );
+  expect(view.result.current.games.items).toEqual([]);
+  expect(view.result.current.games.selectedGame).toEqual(chess);
+  expect(requests).toHaveLength(2);
+  expect(
+    requests.every(
+      (url) => !url.searchParams.has("query") && url.searchParams.get("cursor") === "0",
+    ),
+  ).toBe(true);
+  view.unmount();
+  client.clear();
+});
+
+it("rejects an explicit stale leaderboard refresh without even asking for credentials after sign-out", async () => {
+  const { client, wrapper } = setup();
+  const getToken = vi.fn(async () => "unused-token");
+  const request = vi.fn();
+  vi.stubGlobal("fetch", request);
+  const view = renderHook(
+    () => useLeaderboard({ ...owner, userId: undefined, gameId: chess.id, getToken }),
+    { wrapper },
+  );
+  expect(view.result.current.games.isEnabled).toBe(false);
+  expect(view.result.current.players.isEnabled).toBe(false);
+  await act(async () => view.result.current.games.refetch());
+  expect(view.result.current.games.error).toMatchObject({ status: 401 });
+  expect(view.result.current.games.items).toEqual([]);
+  expect(view.result.current.games.selectedGame).toBeUndefined();
+  expect(getToken).not.toHaveBeenCalled();
+  expect(request).not.toHaveBeenCalled();
+  view.unmount();
   client.clear();
 });

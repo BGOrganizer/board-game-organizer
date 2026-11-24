@@ -216,3 +216,21 @@ it("shows progress while an older activity page loads and keeps existing links u
   expect(screen.queryByRole("alert")).toBeNull();
   expect(reads.map((url) => url.searchParams.get("cursor"))).toEqual([null, cursor]);
 });
+
+it("withdraws formerly visible recent activity links after access is revoked without claiming the list is empty", async () => {
+  mount(true);
+  expect(await screen.findByRole("link", { name: "Current table" })).toBeVisible();
+  status = 403;
+  await act(() =>
+    client.invalidateQueries({
+      queryKey: profileActivitiesQuery(options, "subject", undefined, 5).queryKey,
+      exact: true,
+    }),
+  );
+  const recent = within(screen.getByRole("region", { name: "Recent activities" }));
+  expect(await recent.findByText("Could not load activities")).toBeVisible();
+  expect(recent.queryByRole("link", { name: "Current table" })).toBeNull();
+  expect(recent.queryByText("No activities yet")).toBeNull();
+  expect(recent.getByRole("button", { name: "Try again" })).toBeVisible();
+  expect(boundary.push).not.toHaveBeenCalled();
+});

@@ -288,3 +288,40 @@ it("keeps the first private Group visible while retrying a failed next authorize
   expect(await screen.findByRole("link", { name: "Open group: Second group" })).toBeVisible();
   expect(cursorReads).toEqual(["second-group", "second-group"]);
 });
+
+it("applies and restores a role chip within the current authorized group source", async () => {
+  const reads: URL[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const url = new URL(input);
+      reads.push(url);
+      const roles = url.searchParams.get("roles")?.split(",") ?? [];
+      return Response.json({
+        items: roles.includes("admin") ? [groupRecord] : [],
+        nextCursor: null,
+      });
+    }),
+  );
+  renderGroups("private");
+  await screen.findByRole("link", { name: `Open group: ${groupRecord.name}` });
+  const admin = screen.getByRole("button", { name: "Admin", pressed: true });
+  fireEvent.click(admin);
+  expect(await screen.findByText("No groups found")).toBeVisible();
+  expect(screen.queryByRole("link", { name: `Open group: ${groupRecord.name}` })).toBeNull();
+  expect(screen.getByRole("button", { name: "Invited", pressed: true })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Accepted", pressed: true })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Admin", pressed: false }));
+  expect(
+    await screen.findByRole("link", { name: `Open group: ${groupRecord.name}` }),
+  ).toBeVisible();
+  expect(reads.map((url) => url.searchParams.get("roles"))).toContain("invited,accepted");
+  expect(
+    reads.every(
+      (url) =>
+        url.pathname === "/api/groups" &&
+        url.searchParams.get("type") === "PRIVATE" &&
+        url.searchParams.get("scope") === "mine",
+    ),
+  ).toBe(true);
+});

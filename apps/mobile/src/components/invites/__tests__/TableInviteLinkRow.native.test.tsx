@@ -372,3 +372,23 @@ it("guards existing-link sharing during disabled and suspended sessions and remo
   expect(Share.share).toHaveBeenCalledTimes(1);
   expect(writes).toHaveLength(1);
 });
+
+it("does not surface a native share rejection after the user has switched tables", async () => {
+  let rejectShare: (error: Error) => void = () => {};
+  vi.mocked(Share.share).mockReturnValueOnce(
+    new Promise((_, reject) => {
+      rejectShare = reject;
+    }),
+  );
+  const view = await render(<Fixture />);
+  await generate();
+  expect(await screen.findByTestId("table-invite-link-value")).toHaveTextContent(created.link);
+  expect(Share.share).toHaveBeenCalledExactlyOnceWith({ message: created.link });
+
+  await view.rerender(<Fixture tableId="88888888-8888-4888-8888-888888888888" />);
+  await act(async () => rejectShare(new Error("Previous native share failed")));
+  expect(screen.queryByText("Could not share the invite. Try again.")).toBeNull();
+  expect(screen.queryByTestId("table-invite-link-value")).toBeNull();
+  expect(screen.getByRole("button", { name: "Generate invite" })).toBeEnabled();
+  expect(writes).toHaveLength(1);
+});

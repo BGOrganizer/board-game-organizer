@@ -20,6 +20,7 @@ export default defineProject({
       "src/components/events/__tests__/EventFormFields.interactions.test.tsx",
       "src/components/events/__tests__/EventProposalEditor.flows.test.tsx",
       "src/components/events/__tests__/EventProposalSection.decisions.test.tsx",
+      "src/components/events/__tests__/removed-invitees.test.tsx",
       "src/components/contacts/__tests__/Contacts.additional-actions.test.tsx",
       "src/components/profile/__tests__/ProfileAccessTransitions.test.tsx",
       "src/components/profile/__tests__/ProfileCollection.pagination.test.tsx",

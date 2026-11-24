@@ -526,3 +526,38 @@ it("serializes an account switch behind an in-flight server receipt and updates 
   expect(await screen.findByText("Other account notification")).toBeVisible();
   expect(registrations).toHaveLength(2);
 });
+
+it("reports a native foreground permission failure while keeping the current inbox available", async () => {
+  await render(<Fixture />);
+  await waitFor(() => expect(boundary.readPermission).toHaveBeenCalledOnce());
+  await openBell();
+  expect(await screen.findByText("No notifications yet")).toBeVisible();
+  boundary.readPermission.mockRejectedValueOnce(new Error("Native permissions unavailable"));
+  await act(async () => {
+    for (const listener of appListeners) listener("background");
+  });
+  expect(boundary.readPermission).toHaveBeenCalledOnce();
+  await act(async () => {
+    for (const listener of appListeners) listener("active");
+  });
+  expect(await screen.findByText("Could not enable push notifications")).toBeVisible();
+  expect(screen.getByText("No notifications yet")).toBeVisible();
+  expect(registrations).toEqual([]);
+});
+
+it("allows the current account to register after the previous account's in-flight registration fails", async () => {
+  boundary.permission = "granted";
+  let reply: (response: Response) => void = () => {};
+  oldRegistration = new Promise<Response>((resolve) => {
+    reply = resolve;
+  });
+  const view = await render(<Fixture />);
+  await waitFor(() => expect(registrations.map(({ owner }) => owner)).toEqual(["owner"]));
+  await view.rerender(<Fixture owner="other" />);
+  expect(registrations.map(({ owner }) => owner)).toEqual(["owner"]);
+  await act(async () => reply(json({ error: "PUSH_UNAVAILABLE" }, 503)));
+  await waitFor(() => expect(registrations.map(({ owner }) => owner)).toEqual(["owner", "other"]));
+  await openBell();
+  expect(await screen.findByText("Other account notification")).toBeVisible();
+  expect(screen.queryByText("Could not enable push notifications")).toBeNull();
+});

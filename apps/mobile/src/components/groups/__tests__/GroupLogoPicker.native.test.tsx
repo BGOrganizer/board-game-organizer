@@ -461,3 +461,52 @@ it("keeps a non-Error native picker failure local and gives the same explicit re
   await waitFor(() => expect(onChange).toHaveBeenCalledOnce());
   expect(screen.queryByText("Could not upload logo")).toBeNull();
 });
+
+it("offers settings when foreground refresh discovers permanently revoked camera permission", async () => {
+  await render(<Fixture />);
+  boundary.permission = { granted: false, canAskAgain: false };
+  await foreground();
+  expect(await screen.findByRole("button", { name: "Open settings" })).toBeEnabled();
+  expect(boundary.permissions).toHaveBeenCalledOnce();
+  expect(boundary.requestPermission).not.toHaveBeenCalled();
+  expect(boundary.camera).not.toHaveBeenCalled();
+  expect(writes).toEqual([]);
+});
+
+it("rereads camera permission after cancellation and offers settings if capture access was revoked", async () => {
+  boundary.permission = { granted: true, canAskAgain: true };
+  let closeCapture: (result: PickerResult) => void = () => {};
+  pendingImage = new Promise((resolve) => {
+    closeCapture = resolve;
+  });
+  const change = vi.fn();
+  await render(<Fixture onChange={change} />);
+  await choose("Camera");
+  expect(boundary.camera).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button", { name: "Open settings" })).toBeNull();
+  boundary.permission = { granted: false, canAskAgain: false };
+  await act(async () => closeCapture({ canceled: true, assets: [] }));
+  expect(await screen.findByRole("button", { name: "Open settings" })).toBeEnabled();
+  expect(boundary.permissions).toHaveBeenCalledTimes(2);
+  expect(change).not.toHaveBeenCalled();
+  expect(writes).toEqual([]);
+});
+
+it("suppresses rejected camera-library callbacks and feedback after the editor closes", async () => {
+  let rejectPicker: (error: Error) => void = () => {};
+  pendingImage = new Promise((_, reject) => {
+    rejectPicker = reject;
+  });
+  const change = vi.fn(),
+    busy = vi.fn();
+  const view = await render(<Fixture onChange={change} onBusyChange={busy} />);
+  await choose();
+  expect(boundary.library).toHaveBeenCalledOnce();
+  expect(busy).toHaveBeenCalledExactlyOnceWith(true);
+  await view.unmount();
+  await act(async () => rejectPicker(new Error("Android picker closed")));
+  expect(change).not.toHaveBeenCalled();
+  expect(boundary.feedback.onError).not.toHaveBeenCalled();
+  expect(busy.mock.calls).toEqual([[true], [false]]);
+  expect(writes).toEqual([]);
+});

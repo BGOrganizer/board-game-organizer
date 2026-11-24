@@ -8,13 +8,22 @@ import {
   notificationAttentionQuery,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+} from "@testing-library/react-native";
 import { createRef, type ReactNode } from "react";
 import { type NativeMethods, ScrollView, StyleSheet, Text } from "react-native";
 import { afterEach, beforeEach, expect, it, type MockInstance, vi } from "vitest";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
 import { ListActivityContext } from "@/lib/listActivity";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
+import { NotificationAttentionScope } from "../NotificationAttentionScope";
 import { NotificationItem } from "../NotificationItem";
 
 const ITEM = notificationItemId("11111111-1111-4111-8111-111111111111", "overview");
@@ -239,4 +248,40 @@ it("preserves children directly when no item identity is supplied", async () => 
     [],
   );
   expect(measure).not.toHaveBeenCalled();
+});
+
+it("retries a visible attention read failure without acknowledging any notices", async () => {
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  let status = 503;
+  const load = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(
+      typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+    );
+    expect(url.origin).toBe(options.apiUrl);
+    expect(url.pathname).toBe("/api/notifications/attention");
+    expect(init?.method ?? "GET").toBe("GET");
+    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer fixture-token");
+    return Response.json(status === 200 ? attention(2) : { error: "Attention unavailable" }, {
+      status,
+    });
+  });
+  vi.stubGlobal("fetch", load);
+  await render(
+    <QueryClientProvider client={client}>
+      <NotificationAttentionScope options={options} targets={[target]}>
+        <Text>Source remains usable</Text>
+      </NotificationAttentionScope>
+    </QueryClientProvider>,
+    { wrapper: NativeTestProviders },
+  );
+  expect(await screen.findByText("Could not load notifications")).toBeVisible();
+  expect(screen.getByText("Source remains usable")).toBeVisible();
+  expect(load).toHaveBeenCalledTimes(1);
+  status = 200;
+  await userEvent.setup().press(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(screen.queryByText("Could not load notifications")).toBeNull());
+  expect(screen.getByText("Source remains usable")).toBeVisible();
+  expect(load).toHaveBeenCalledTimes(2);
 });

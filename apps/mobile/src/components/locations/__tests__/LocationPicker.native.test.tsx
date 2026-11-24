@@ -706,3 +706,35 @@ it("switches the native map style with the app theme without dropping a verified
     await act(() => Uniwind.setTheme("light"));
   }
 });
+
+it("does not replace a manually verified address with a slower GPS lookup", async () => {
+  boundary.permission = { granted: true, canAskAgain: true };
+  const onSelect = vi.fn();
+  let finish!: (value: Response) => void;
+  pendingReverse = new Promise((resolve) => {
+    finish = resolve;
+  });
+  await render(<Fixture onSelect={onSelect} />);
+  await userEvent.setup().press(screen.getByTestId("location-map-locate"));
+  await waitFor(() =>
+    expect(searches.find(({ query }) => query === "12.5000000,41.9000000")).toBeDefined(),
+  );
+  const reverse = searches.find(({ query }) => query === "12.5000000,41.9000000");
+  await search("Manual target address");
+  await choose(1);
+  expect(reverse?.signal?.aborted).toBe(true);
+
+  await act(() => finish(json({ items: [places[0]] })));
+  expect(screen.getByTestId("location-address-input")).toHaveDisplayValue(places[1].address);
+  expect(screen.queryByText("Could not search addresses")).toBeNull();
+  await fireEvent.changeText(screen.getByLabelText("Location name"), "Manual location");
+  await confirm();
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      name: "Manual location",
+      address: places[1].address,
+      longitude: places[1].longitude,
+      latitude: places[1].latitude,
+    }),
+  );
+});

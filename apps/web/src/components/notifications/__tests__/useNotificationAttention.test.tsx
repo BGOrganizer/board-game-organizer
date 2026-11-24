@@ -556,3 +556,49 @@ it("refetches a cold read and leaves an unconfirmed write observable", async () 
   expect(requests.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
   expect(client.getQueryData(notificationAttentionQuery(options, [table]).queryKey)).toBeDefined();
 });
+
+it.each(["disabled", "missing API", "signed out"] as const)(
+  "does not use existing attention data to acknowledge notifications when %s",
+  (state) => {
+    const { client, wrapper } = setup();
+    const requests = vi.fn();
+    vi.stubGlobal("fetch", requests);
+    const owner =
+      state === "disabled"
+        ? { ...options, enabled: false }
+        : state === "missing API"
+          ? { ...options, apiUrl: "" }
+          : { ...options, userId: "" };
+    const snapshot = original();
+    const { result } = renderHook(() => useReadNotificationAttention(owner), { wrapper });
+    act(() => result.current.read(table, snapshot));
+    expect(requests).not.toHaveBeenCalled();
+    expect(client.getMutationCache().getAll()).toEqual([]);
+  },
+);
+
+it("discards a cold attention read after account replacement instead of acknowledging it", async () => {
+  const { client, wrapper } = setup();
+  client.removeQueries({ queryKey: notificationAttentionQuery(options, targets).queryKey });
+  const response = Promise.withResolvers<Response>();
+  const requests = vi.fn(async (_input: string, _init?: RequestInit) => response.promise);
+  vi.stubGlobal("fetch", requests);
+  const { result } = renderHook(() => useReadNotificationAttention(options), { wrapper });
+  act(() => result.current.read(table));
+  await waitFor(() => expect(requests).toHaveBeenCalledOnce());
+  const [[, transport]] = requests.mock.calls;
+  const replacement = { ...options, userId: "replacement" };
+  const replacementKey = notificationAttentionQuery(replacement, [table]).queryKey;
+  const existing = { ...original(), targets: [row(table, 4)] };
+  await act(async () => {
+    clearSessionQueryCache(client);
+    client.setQueryData(replacementKey, existing);
+    response.resolve(Response.json({ ...original(), targets: [row(table, 2)] }));
+  });
+  expect(transport?.signal?.aborted).toBe(true);
+  expect(requests).toHaveBeenCalledOnce();
+  expect(
+    client.getQueryData(notificationAttentionQuery(options, [table]).queryKey),
+  ).toBeUndefined();
+  expect(client.getQueryData(replacementKey)).toEqual(existing);
+});

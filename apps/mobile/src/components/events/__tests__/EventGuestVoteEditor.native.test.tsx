@@ -26,7 +26,7 @@ const table = {
 const close = vi.fn();
 const hidden = { includeHiddenElements: true };
 
-function fixture() {
+function fixture(currentTable = table) {
   return (
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -35,7 +35,7 @@ function fixture() {
         <EventGuestVoteEditor
           name="Guest Alice"
           registrationId={registrationId}
-          table={table}
+          table={currentTable}
           onClose={close}
         />
       </NativeTestProviders>
@@ -191,4 +191,34 @@ it("retries the failed guest ballot read and keeps a rejected staged ballot reco
   await waitFor(() => expect(close).toHaveBeenCalledOnce());
   const input = { votes: [{ kind: "game", tableId: table.id, gameId: 1, vote: "IF_NEEDED" }] };
   expect(writes).toEqual([input, input]);
+});
+
+it("retains the exact game vote when its display metadata is temporarily unavailable", async () => {
+  const writes: unknown[] = [];
+  const current = { guestName: "Guest Alice", dateVotes: {}, locationVotes: {}, gameVotes: {} };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const route = new URL(input).pathname;
+      if (route === `/api/events/${plannedEvent.id}`)
+        return Response.json({ ...plannedEvent, canManage: true });
+      if (route === path) return Response.json(current);
+      if (route === `${path}/votes` && init?.method === "POST") {
+        writes.push(JSON.parse(String(init.body)));
+        return Response.json({ ...current, gameVotes: { "2": "YES" } });
+      }
+      throw new Error(`Unexpected guest vote request ${route}`);
+    }),
+  );
+  await render(fixture({ ...table, gamesDetail: plannedTable.gamesDetail }));
+  expect(await screen.findByRole("button", { name: "Chess: Yes", ...hidden })).toBeEnabled();
+  const fallback = screen.getByRole("button", { name: "Unknown game: Yes", ...hidden });
+  await fireEvent.press(fallback);
+  expect(screen.getByRole("button", { name: "Unknown game: Yes", ...hidden })).toBeSelected();
+  expect(writes).toEqual([]);
+  await fireEvent.press(screen.getByRole("button", { name: "Vote", ...hidden }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(writes).toEqual([
+    { votes: [{ kind: "game", tableId: table.id, gameId: 2, vote: "YES" }] },
+  ]);
 });

@@ -393,3 +393,113 @@ it("retains observable failures, supports retry, and never requests disabled/pri
   });
   await waitFor(() => expect(hook.result.current.isError).toBe(false));
 });
+
+it("keeps an eligible friend selectable while inviting them to a different group", async () => {
+  const { options, client, wrapper } = setup();
+  const reply = Promise.withResolvers<Response>();
+  const candidate = {
+    id: "friend",
+    name: "Friend",
+    username: "friend",
+    email: null,
+    avatarUrl: null,
+    presence: { online: false, lastActiveAt: null },
+  };
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      if (url.pathname === "/api/groups/group/invitees" && init?.method === "GET")
+        return Response.json({ items: [candidate], nextCursor: null });
+      if (url.pathname === "/api/groups/other-group/members" && init?.method === "POST") {
+        writes.push(JSON.parse(String(init.body)));
+        return reply.promise;
+      }
+      throw new Error(`Unexpected group picker request ${url.pathname}`);
+    }),
+  );
+  const { result, unmount } = renderHook(
+    () => ({
+      picker: usePeoplePicker(options, "", true, "group"),
+      invite: useGroupRecordActions(options, "other-group").invite,
+    }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.picker.items).toEqual([candidate]));
+  let request: Promise<unknown> | undefined;
+  act(() => {
+    request = result.current.invite
+      .mutateAsync({ id: "other-group", userId: candidate.id })
+      .catch((error: unknown) => error);
+  });
+  await waitFor(() => expect(writes).toEqual([{ userId: candidate.id }]));
+  expect(result.current.invite.isPending).toBe(true);
+  expect(result.current.picker.items).toEqual([candidate]);
+  await act(async () => {
+    reply.resolve(Response.json({ error: "MEMBERSHIP_ALREADY_ACTIVE" }, { status: 409 }));
+    await request;
+  });
+  expect(result.current.picker.items).toEqual([candidate]);
+  unmount();
+  client.clear();
+});
+
+it("keeps invitation eligibility unchanged while a matching table’s seat order is being saved", async () => {
+  const { options, client, wrapper } = setup();
+  const reply = Promise.withResolvers<Response>();
+  const candidate = {
+    id: "friend",
+    name: "Friend",
+    username: "friend",
+    email: null,
+    avatarUrl: null,
+    invitationBlockReason: null,
+  };
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      const path = `/api/events/${plannedEvent.id}/tables/${target.tableId}`;
+      if (url.pathname === `${path}/invitations` && init?.method === "GET")
+        return Response.json({ items: [candidate], nextCursor: null, eventVersion: 1 });
+      if (url.pathname === `${path}/seats/order` && init?.method === "PATCH") {
+        writes.push(JSON.parse(String(init.body)));
+        return reply.promise;
+      }
+      throw new Error(`Unexpected table picker request ${url.pathname}`);
+    }),
+  );
+  const target = { eventId: plannedEvent.id, tableId: "44444444-4444-4444-8444-444444444444" };
+  const order = {
+    allocationKey: "a".repeat(64),
+    version: 1,
+    seatedCount: 0,
+    registrations: [],
+  };
+  const { result, unmount } = renderHook(
+    () => ({
+      picker: usePeoplePicker(options, "", false, undefined, target),
+      reorder: useEventRecordActions(options, target.eventId).reorderSeats,
+    }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.picker.items).toEqual([candidate]));
+  let request: Promise<unknown> | undefined;
+  act(() => {
+    request = result.current.reorder
+      .mutateAsync({ tableId: target.tableId, input: order })
+      .catch((error: unknown) => error);
+  });
+  await waitFor(() => expect(writes).toEqual([order]));
+  expect(result.current.reorder.isPending).toBe(true);
+  expect(result.current.picker.items).toEqual([candidate]);
+  await act(async () => {
+    reply.resolve(Response.json({ error: "SEAT_ORDER_CHANGED" }, { status: 409 }));
+    await request;
+  });
+  expect(result.current.picker.items).toEqual([candidate]);
+  unmount();
+  client.clear();
+});

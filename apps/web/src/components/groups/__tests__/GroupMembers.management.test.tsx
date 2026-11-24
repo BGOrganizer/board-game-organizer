@@ -379,3 +379,51 @@ it("uses the roster fallback for an unavailable identity without making a member
   expect(screen.queryByText("deleted-account")).toBeNull();
   expect(screen.queryByRole("button", { name: /Manage member/ })).toBeNull();
 });
+
+it("blocks a previously opened removal after the viewer loses Group moderator authority", async () => {
+  const myMembership = member.membership;
+  if (!myMembership) throw new Error("Expected the accepted membership fixture");
+  const moderator: GroupRecordResponse = {
+    ...groupRecord,
+    adminUserId: "creator",
+    role: "moderator",
+    myMembership: { ...myMembership, userId: "owner", role: "MODERATOR" },
+  };
+  const requests: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      if (init?.method && init.method !== "GET") requests.push(init.method);
+      return boundary(input, moderator) ?? members(input, [member]);
+    }),
+  );
+  const view = mount(moderator);
+  fireEvent.click(await screen.findByRole("button", { name: "Manage member: accepted-player" }));
+  fireEvent.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Remove member" }),
+  );
+  const title = "Remove member: @accepted-player";
+  await screen.findByRole("dialog", { name: title });
+  view.rerender({
+    ...moderator,
+    role: "accepted",
+    version: moderator.version + 1,
+    canInvite: false,
+    canEdit: false,
+    myMembership: {
+      ...myMembership,
+      userId: "owner",
+      role: "MEMBER",
+      version: myMembership.version + 1,
+    },
+  });
+  const dialog = within(screen.getByRole("dialog", { name: title }));
+  fireEvent.click(dialog.getByRole("button", { name: "Remove member" }));
+  expect(requests).toEqual([]);
+  expect(mocks.feedback.onOptimisticUpdate).not.toHaveBeenCalled();
+  fireEvent.click(dialog.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("dialog", { name: title })).toBeNull();
+  expect(screen.getByText("@accepted-player")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Manage member: accepted-player" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Invite friends" })).toBeNull();
+});

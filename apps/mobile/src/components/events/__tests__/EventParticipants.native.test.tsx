@@ -390,3 +390,32 @@ it("ignores hidden list end events then requests the next page only after active
   expect(await screen.findByText("@next-player")).toBeVisible();
   expect(reads.filter((url) => url.searchParams.has("cursor"))).toHaveLength(1);
 });
+
+it("keeps the roster usable when a redacted participant and a section without a header are returned", async () => {
+  people = [
+    participant("unavailable", {
+      username: null,
+      name: "",
+      accepted: false,
+      canRemove: false,
+    }),
+  ];
+  await render(<Fixture header={false} />);
+  expect(await screen.findByText("Username unavailable")).toBeVisible();
+  expect(screen.queryByText("Participants header")).toBeNull();
+  expect(screen.queryByText("Accepted participant")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Manage participant: Username unavailable" }),
+  ).toBeNull();
+  expect(writes).toEqual([]);
+});
+
+it("cancels the actual participant action menu without issuing a removal", async () => {
+  await render(<Fixture />);
+  await press("Manage participant: @target");
+  expect(await screen.findByRole("button", { name: "Remove from event" })).toBeOnTheScreen();
+  await press("Cancel");
+  expect(screen.queryByTestId("confirmation-dialog")).toBeNull();
+  expect(screen.getByRole("button", { name: "Manage participant: @target" })).toBeEnabled();
+  expect(writes).toEqual([]);
+});

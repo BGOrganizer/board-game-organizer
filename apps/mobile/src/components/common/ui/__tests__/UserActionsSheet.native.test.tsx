@@ -1,5 +1,6 @@
 import type { ContactUser } from "@board-game-organizer/shared";
 import { act, fireEvent, render, screen, userEvent, within } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { afterEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { UserActionsSheet } from "../UserActionsSheet";
@@ -244,5 +245,25 @@ it.each([
     await userEvent.setup().press(confirm.getByRole("button", { name: intent.confirmation }));
     expect(callbacks.onAction).toHaveBeenCalledExactlyOnceWith(intent.key);
     expect(callbacks.onClose).toHaveBeenCalledOnce();
+  },
+);
+
+it.each([true, false])(
+  "honors a real native backdrop dismissal only when the user action is idle (busy=%s)",
+  async (busy) => {
+    const callbacks = make();
+    await render(<UserActionsSheet visible user={user} busy={busy} {...callbacks} />, {
+      wrapper: NativeTestProviders,
+    });
+    const overlays = screen.container.queryAll(
+      (node) =>
+        typeof node.props.onStartShouldSetResponder === "function" &&
+        StyleSheet.flatten(node.props.style)?.position === "absolute",
+    );
+    expect(overlays).toHaveLength(1);
+    await userEvent.setup().press(overlays[0]);
+    expect(callbacks.onClose).toHaveBeenCalledTimes(busy ? 0 : 1);
+    expect(callbacks.onAction).not.toHaveBeenCalled();
+    expect(io.push).not.toHaveBeenCalled();
   },
 );

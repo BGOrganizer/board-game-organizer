@@ -4,7 +4,7 @@ import type {
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { act, render, screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import { type ComponentProps, type RefObject, useContext, useLayoutEffect } from "react";
 import { type ScrollView, Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -511,3 +511,34 @@ it.each([false, true])(
     expect(writes).toEqual([]);
   },
 );
+
+it("lets the organizer move an unnamed pending request upward without granting it a role", async () => {
+  const request: TableSeatResponse = { ...pending[0], kind: "SELF", username: null, name: null };
+  pending = [request];
+  snapshot.registrations = snapshot.registrations.map((row) =>
+    row.id === request.id ? request : row,
+  );
+  await render(<Fixture />);
+  await ready();
+  expect(await screen.findByText("Participation requested")).toBeVisible();
+  await startOrder();
+  const entry = within(screen.getByTestId(`seat-order-row-${request.id}`));
+  expect(entry.getByText("Username unavailable")).toBeVisible();
+  expect(entry.queryByText("Confirmed player")).toBeNull();
+  expect(entry.queryByText("Player with pending invitation")).toBeNull();
+  const up = screen.getByTestId(`seat-order-up-${request.id}`);
+  expect(up).toBeEnabled();
+  await userEvent.setup().press(up);
+  expect(up).toBeDisabled();
+  expect(writes).toEqual([]);
+  await press("Save seat order");
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].input).toMatchObject({
+    version: 1,
+    registrations: expect.arrayContaining([
+      { id: request.id, locked: false, seatIndex: 0, version: 1 },
+      { id: bobId, locked: true, seatIndex: 1, version: 1 },
+    ]),
+  });
+  await waitFor(() => expect(screen.queryByTestId("seat-order-list")).toBeNull());
+});

@@ -3,10 +3,15 @@
 // animation here. Content assertions establish rendering, not physical visibility;
 // native opening, voting and touch acceptance belong to the Maestro invite flow.
 import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-organizer/schemas";
-import { CommunityApiError, eventRecordKeys } from "@board-game-organizer/shared";
+import {
+  CommunityApiError,
+  eventRecordKeys,
+  recordTablesQuery,
+} from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
+import { StyleSheet } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
@@ -464,4 +469,103 @@ it("keeps the pending invitation eligible for a new explicit attempt after optim
   expect(await screen.findByText("Could not accept invitation")).toBeOnTheScreen();
   await ready();
   expect(writes).toHaveLength(1);
+});
+
+it("verifies an ambiguous table registration through explicit reads without repeating consent", async () => {
+  const error = new CommunityApiError(503, "Registration outcome unresolved");
+  client.getMutationCache().build(
+    client,
+    { mutationKey: [...eventRecordKeys.mutation(options(), event.id), "register"] },
+    {
+      context: undefined,
+      data: undefined,
+      error,
+      failureCount: 1,
+      failureReason: error,
+      isPaused: false,
+      status: "error",
+      submittedAt: Date.now(),
+      variables: {
+        tableId: table.id,
+        version: event.version,
+        gameVotes: {},
+        availability: { version: event.version, dateVotes: {}, locationVotes: {} },
+      },
+    },
+  );
+  await render(<Fixture />);
+  expect(await screen.findByText("Checking saved changes")).toBeOnTheScreen();
+  expect(await screen.findByText("Club venue")).toBeOnTheScreen();
+  expect(screen.getByTestId("table-consent-submit")).toBeDisabled();
+  const calls = () => vi.mocked(fetch).mock.calls;
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  const initial = calls().length;
+  await press("Check saved changes");
+  await waitFor(() =>
+    expect(
+      calls()
+        .slice(initial)
+        .map(([url]) => new URL(String(url)).pathname),
+    ).toEqual(
+      expect.arrayContaining([
+        `/api/events/${event.id}`,
+        `/api/events/${event.id}/tables/${table.id}`,
+      ]),
+    ),
+  );
+  expect(writes).toEqual([]);
+});
+
+it("withholds a placeholder game's name and consent until the canonical table details arrive", async () => {
+  const gameName = "Canonical live table game";
+  client.setQueryData(recordTablesQuery(options(), event.id).queryKey, {
+    pageParams: [undefined],
+    pages: [
+      {
+        items: [
+          {
+            ...table,
+            gameVoteCounts: undefined,
+            gamesDetail: table.gamesDetail.map((row) => ({ ...row, name: "Stale game preview" })),
+          },
+        ],
+        nextCursor: null,
+      },
+    ],
+  });
+  let finish!: (response: Response) => void;
+  pendingTable = new Promise((resolve) => {
+    finish = resolve;
+  });
+  await render(<Fixture />);
+  expect(await screen.findByText("Club venue")).toBeOnTheScreen();
+  expect(screen.queryByText("Stale game preview")).toBeNull();
+  expect(screen.getByTestId("table-consent-submit")).toBeDisabled();
+  expect(writes).toEqual([]);
+  await act(() => {
+    pendingTable = undefined;
+    table = {
+      ...table,
+      gamesDetail: table.gamesDetail.map((row) => ({ ...row, name: gameName })),
+    };
+    finish(json(table));
+  });
+  expect(await screen.findByText(gameName)).toBeOnTheScreen();
+  await ready();
+  expect(writes).toEqual([]);
+});
+
+it("dismisses the actual table-consent backdrop without attempting registration", async () => {
+  const onClose = vi.fn();
+  await render(<Fixture onClose={onClose} />);
+  await ready();
+  const overlays = screen.container.queryAll(
+    (node) =>
+      typeof node.props.onStartShouldSetResponder === "function" &&
+      StyleSheet.flatten(node.props.style)?.position === "absolute",
+  );
+  expect(overlays).toHaveLength(1);
+  await userEvent.setup().press(overlays[0]);
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(writes).toEqual([]);
 });

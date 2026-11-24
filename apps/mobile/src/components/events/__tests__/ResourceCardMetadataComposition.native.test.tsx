@@ -223,3 +223,25 @@ it.each(["group", "event"] as const)(
     });
   },
 );
+
+it("reveals a late group name in a table card while keeping its available event and navigation", async () => {
+  const table = { ...plannedTable, groupId: groupRecord.id, groupName: null };
+  const fixture = (groupName: string | null) => (
+    <NativeTestProviders>
+      <EventTableCard table={{ ...table, groupName }} />
+    </NativeTestProviders>
+  );
+  const view = await render(fixture(null));
+  const pending = screen.getByLabelText("Group: Loading…");
+  expect(pending).toBeVisible();
+  expect(screen.getByLabelText(`Event: ${table.eventName}`)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Open table: Table #1" })).toBeEnabled();
+  await view.rerender(fixture(groupRecord.name));
+  expect(screen.queryByLabelText("Group: Loading…")).toBeNull();
+  expect(screen.getByLabelText(`Group: ${groupRecord.name}`)).toBeVisible();
+  await userEvent.setup().press(screen.getByRole("button", { name: "Open table: Table #1" }));
+  expect(sdk.push).toHaveBeenCalledExactlyOnceWith({
+    pathname: "/event/table",
+    params: { eventId: table.eventId, tableId: table.id },
+  });
+});

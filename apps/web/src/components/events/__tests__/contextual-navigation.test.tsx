@@ -293,3 +293,26 @@ it("passes origin only on contextual Event/Table links; main feeds and direct en
     `/events/${eventId}/tables/${tableId}`,
   );
 });
+
+it("uses the authorized public Group card and artwork for an associated public event", async () => {
+  const s = setup();
+  const publicGroup = {
+    ...s.group,
+    type: "PUBLIC" as const,
+    approved: { name: s.group.name, location: plannedEvent.locations[0], logoAssetId: optionId },
+    location: plannedEvent.locations[0],
+    logoAssetId: optionId,
+  };
+  s.event.groupType = "PUBLIC";
+  s.event.visibility = "PUBLIC";
+  s.event.endsAt = "2030-06-03T23:00:00.000Z";
+  s.event.bookingClosesAt = "2030-06-02T23:00:00.000Z";
+  s.client.setQueryData(groupRecordKeys.detail(options, publicGroup.id), publicGroup);
+  renderWithI18n(s.wrap(<EventDetail eventId={eventId} />));
+  const group = within(await screen.findByRole("region", { name: "Group" }));
+  const link = group.getByRole("link", { name: `Open group: ${publicGroup.name}` });
+  expect(link).toHaveAttribute("href", `/groups/${publicGroup.id}`);
+  expect(group.getByRole("button", { name: "Public" })).toBeVisible();
+  expect(group.queryByRole("button", { name: "Private" })).toBeNull();
+  expect(link.closest(".card")?.querySelector("img")).toHaveAttribute("src", logo);
+});

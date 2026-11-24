@@ -7,11 +7,13 @@ import type {
   GroupPersonResponse,
   GroupRecordResponse,
 } from "@board-game-organizer/schemas";
+import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   clearSessionQueryCache,
   eventRecordKeys,
   groupPeopleQuery,
   groupRecordKeys,
+  notificationAttentionQuery,
   useGroupCreationDraft,
   useGroupPeople,
   useGroupRecordActions,
@@ -518,6 +520,9 @@ it.each([true, false])(
     client.setQueryData(activeKey, active);
     client.setQueryData(frozenKey, frozen);
     client.setQueryData(groupRecordKeys.detail(options, id), groupRecord);
+    const roster = groupRecordKeys.people(options, id, "accepted", "");
+    const unaffected = person("unrelated");
+    client.setQueryData(roster, pages([person("guest"), unaffected]));
     const response = deferred();
     vi.stubGlobal(
       "fetch",
@@ -538,6 +543,9 @@ it.each([true, false])(
     await waitFor(() => expect(hook.result.current.isPersonBusy(id, "guest")).toBe(true));
     expect(client.getQueryData(activeKey)).toMatchObject({ items: [] });
     expect(client.getQueryData(frozenKey)).toBe(frozen);
+    expect(client.getQueryData(roster)).toMatchObject({
+      pages: [{ items: [{ userId: "guest", membership: { status: "LEFT" } }, unaffected] }],
+    });
     await act(async () => {
       response.resolve(
         saved ? Response.json(ban) : Response.json({ error: "BAN_REFUSED" }, { status: 400 }),
@@ -573,7 +581,7 @@ it("chooses the newest acknowledged creation only from eligible active name/type
             ? [newer]
             : query || type || roles === "accepted"
               ? []
-              : [saved],
+              : [{ ...groupRecord, id: otherId, name: "Existing unrelated group" }, saved],
         nextCursor: null,
       });
     }),
@@ -703,4 +711,225 @@ it("keeps an acknowledged creation from leaking into a denied detail refresh", a
   expect(client.getQueryData(canonicalKey)).toBeUndefined();
   expect(client.getQueryData(otherOwner)).toBe(groupRecord);
   expect(fetcher.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+});
+
+it("acknowledges a Group creation once while keeping a failed matching filtered refresh observable", async () => {
+  const { client, options, wrapper } = setup();
+  const saved = { ...groupRecord, name: "Alpha club", version: 2 };
+  const filtered = "Alpha";
+  const reads: (string | null)[] = [];
+  const writes: unknown[] = [];
+  let accepted = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = request(input);
+      if (init?.method === "POST") {
+        expect(url.pathname).toBe("/api/groups");
+        accepted = true;
+        writes.push(JSON.parse(String(init.body)));
+        return Response.json(saved);
+      }
+      if (url.pathname === `/api/groups/${id}`) return Response.json(saved);
+      expect(url.pathname).toBe("/api/groups");
+      const query = url.searchParams.get("query");
+      reads.push(query);
+      if (accepted && query === filtered)
+        return Response.json({ error: "Filtered refresh unavailable" }, { status: 503 });
+      return Response.json({ items: accepted ? [saved] : [], nextCursor: null });
+    }),
+  );
+  const view = renderHook(
+    () => ({
+      visible: useGroupRecords(options, "mine", filtered, ["admin"], "PRIVATE"),
+      actions: useGroupRecordActions(options),
+    }),
+    { wrapper },
+  );
+  await waitFor(() => expect(view.result.current.visible.isSuccess).toBe(true));
+  act(() =>
+    view.result.current.actions.create.mutate({
+      type: "PRIVATE",
+      name: saved.name,
+      invitedUserIds: [],
+    }),
+  );
+  await waitFor(() =>
+    expect(options.feedback.onError).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 503 }),
+      "refresh_saved_changes",
+    ),
+  );
+  expect(reads).toContain(null);
+  expect(reads.filter((query) => query === filtered).length).toBeGreaterThan(1);
+  expect(writes).toEqual([
+    expect.objectContaining({ name: saved.name, clientRequestId: expect.any(String) }),
+  ]);
+  expect(client.getQueryData(groupRecordKeys.detail(options, id))).toMatchObject({
+    name: saved.name,
+    version: saved.version,
+  });
+});
+
+it("ignores an already acknowledged Group creation refresh when the session closes during readback", async () => {
+  const { client, options, wrapper } = setup();
+  const saved = { ...groupRecord, version: 2 };
+  let signal: AbortSignal | undefined | null;
+  const send = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    expect(request(input).pathname).toBe("/api/groups");
+    if (init?.method === "POST") return Response.json(saved);
+    signal = init?.signal;
+    return new Promise<Response>((_, reject) => {
+      signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    });
+  });
+  vi.stubGlobal("fetch", send);
+  const view = renderHook(() => useGroupRecordActions(options), { wrapper });
+  act(() =>
+    view.result.current.create.mutate({ type: "PRIVATE", name: saved.name, invitedUserIds: [] }),
+  );
+  await waitFor(() => expect(signal).toBeInstanceOf(AbortSignal));
+  expect(client.getQueryData(groupRecordKeys.detail(options, id))).toMatchObject({
+    version: saved.version,
+  });
+  view.unmount();
+  await act(() => clearSessionQueryCache(client));
+  expect(signal?.aborted).toBe(true);
+  expect(client.getQueryData(groupRecordKeys.detail(options, id))).toBeUndefined();
+  expect(options.feedback.onError).not.toHaveBeenCalled();
+  expect(send.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+});
+
+it("acknowledges a cached group invitation only for the actor's explicit acceptance and pins the read cutoff", async () => {
+  const { client, options, wrapper } = setup();
+  const detail = groupRecordKeys.detail(options, id);
+  const pending = membership({ status: "PENDING" });
+  const accepted = membership({ status: "ACCEPTED", version: 2 });
+  const invite = {
+    ...groupRecord,
+    adminUserId: "creator",
+    role: "invited" as const,
+    myMembership: pending,
+    canInvite: false,
+    canEdit: false,
+    canViewEvents: false,
+    canViewRankings: false,
+  };
+  const live = {
+    ...invite,
+    role: "accepted" as const,
+    myMembership: accepted,
+    version: 2,
+    canViewEvents: true,
+  };
+  const target = { kind: "item", id: notificationItemId(id, "invitation") } as const;
+  const summary = {
+    tables: 0,
+    events: 0,
+    groups: 1,
+    contacts: 0,
+    sections: { connections: 0, requests: 0, search: 0 },
+  };
+  const through = "2026-11-22T18:00:00.000Z";
+  const item = { target, count: 1, direct: 1, events: 0 };
+  const attention = notificationAttentionQuery(options, [target]).queryKey;
+  client.setQueryData(detail, invite);
+  client.setQueryData(attention, {
+    asOf: through,
+    unreadCount: 1,
+    summary,
+    targets: [
+      {
+        ...item,
+        groupId: id,
+        sections: summary.sections,
+        readEffect: { unread: 1, summary, targets: [item] },
+      },
+    ],
+  });
+  const write = deferred();
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = request(input);
+      if (init?.method === "PATCH") {
+        expect(url.pathname).toBe(`/api/groups/${id}/members/${options.userId}`);
+        writes.push(JSON.parse(String(init.body)));
+        return write.promise;
+      }
+      expect(url.pathname).toBe(`/api/groups/${id}`);
+      return Response.json(live);
+    }),
+  );
+  const view = renderHook(() => useGroupRecordActions(options, id), { wrapper });
+  expect(client.getQueryData(attention)).toMatchObject({ unreadCount: 1 });
+  expect(writes).toEqual([]);
+  act(() =>
+    view.result.current.membership.mutate({
+      id,
+      userId: options.userId,
+      input: { action: "accept", version: 1 },
+    }),
+  );
+  await waitFor(() =>
+    expect(writes).toEqual([{ action: "accept", version: 1, attentionThrough: through }]),
+  );
+  expect(client.getQueryData(attention)).toMatchObject({ unreadCount: 0 });
+  expect(client.getQueryData(detail)).toMatchObject({ role: "invited" });
+  await act(() => write.resolve(Response.json(accepted)));
+  await waitFor(() => expect(view.result.current.membership.isSuccess).toBe(true));
+  expect(client.getQueryData(detail)).toMatchObject({ role: "accepted", canViewEvents: true });
+  expect(writes).toHaveLength(1);
+});
+
+it("does not restore accepted group permissions after the member signs out during readback", async () => {
+  const { client, options, wrapper } = setup();
+  const key = groupRecordKeys.detail(options, id);
+  const pending = membership({ status: "PENDING" });
+  const accepted = membership({ status: "ACCEPTED", version: 2 });
+  client.setQueryData(key, {
+    ...groupRecord,
+    adminUserId: "creator",
+    role: "invited",
+    myMembership: pending,
+  });
+  let signal: AbortSignal | null | undefined;
+  const readback = deferred();
+  const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = request(input);
+    if (init?.method === "PATCH") {
+      expect(url.pathname).toBe(`/api/groups/${id}/members/${options.userId}`);
+      return Response.json(accepted);
+    }
+    expect(url.pathname).toBe(`/api/groups/${id}`);
+    signal = init?.signal;
+    return readback.promise;
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const view = renderHook(() => useGroupRecordActions(options, id), { wrapper });
+  act(() =>
+    view.result.current.membership.mutate({
+      id,
+      userId: options.userId,
+      input: { action: "accept", version: 1 },
+    }),
+  );
+  await waitFor(() => expect(signal).toBeInstanceOf(AbortSignal));
+  expect(client.getQueryData(key)).toMatchObject({ role: "accepted", myMembership: accepted });
+  view.unmount();
+  await act(() => clearSessionQueryCache(client));
+  expect(signal?.aborted).toBe(true);
+  const otherOwner = groupRecordKeys.detail({ ...options, userId: "different-viewer" }, id);
+  const replacement = { ...groupRecord, name: "Group from the new session" };
+  client.setQueryData(otherOwner, replacement);
+  await act(() =>
+    readback.resolve(
+      Response.json({ ...groupRecord, version: 2, myMembership: accepted, role: "accepted" }),
+    ),
+  );
+  expect(client.getQueryData(key)).toBeUndefined();
+  expect(client.getQueryData(otherOwner)).toBe(replacement);
+  expect(options.feedback.onError).not.toHaveBeenCalled();
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
 });

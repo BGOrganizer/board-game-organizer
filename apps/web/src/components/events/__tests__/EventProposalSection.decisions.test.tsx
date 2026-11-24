@@ -435,7 +435,9 @@ it("keeps an interrupted proposal in verification when its correlated receipt an
   fireEvent.click(screen.getByRole("button", { name: "Add date" }));
   expect(await screen.findByText("Checking saved changes")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Review unsent proposal" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Add date" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Add date" })).toBeNull();
+  expect(screen.getByText("Could not load proposals")).toBeVisible();
+  expect(screen.queryByText("No proposals")).toBeNull();
   expect(submissions).toHaveLength(1);
   expect(receiptReads).toEqual([submissions[0].clientRequestId]);
   expect(reviews).toEqual([]);

@@ -356,3 +356,30 @@ it("keeps portal-owned external keyboard avoidance outside the actual InputFlatL
   expect(StyleSheet.flatten(avoidance.props.style)?.paddingBottom).toBeUndefined();
   expect(screen.getByText("Portal field")).toBeOnTheScreen();
 });
+
+it.each(kinds)(
+  "%s uses only the active viewport to establish the native content range",
+  async (kind) => {
+    const active = { current: false };
+    await render(<Fixture kind={kind} active={active} />);
+    const content = scrollHost().children.find(
+      (node) => typeof node !== "string" && typeof node.props.onLayout === "function",
+    );
+    if (!content || typeof content === "string") throw new Error("Expected native input content");
+    const height = () => StyleSheet.flatten(content.props.style)?.minHeight;
+    const layout = (height: number) =>
+      fireEvent.layout(viewportHost(), { x: 0, y: 0, width: 390, height });
+
+    const original = height();
+    await layout(250);
+    expect(height()).toBe(original);
+
+    active.current = true;
+    await layout(360);
+    expect(height()).toBe(360);
+    active.current = false;
+    await layout(500);
+    expect(height()).toBe(360);
+    expect(screen.getByText("First row")).toBeOnTheScreen();
+  },
+);

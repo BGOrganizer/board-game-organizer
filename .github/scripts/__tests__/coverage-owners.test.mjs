@@ -57,7 +57,7 @@ for (const [workspace, pattern, uncovered, large] of [
 ]) {
   test(`actual ${workspace} gate ${pattern} rejects a missed owner despite passing global coverage`, async () => {
     const { directory, coverage } = configs[workspace];
-    const minimum = workspace === "web" ? 98 : 90;
+    const minimum = 98;
     for (const metric of metrics) assert.equal(coverage.thresholds[pattern]?.[metric], minimum);
     const provider = await v8.getProvider();
     assert.equal(provider.version, require("vitest/package.json").version);

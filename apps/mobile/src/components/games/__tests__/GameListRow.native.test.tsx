@@ -4,6 +4,7 @@ import { fireEvent, render, screen, userEvent, waitFor } from "@testing-library/
 import type { ReactNode } from "react";
 import { type NativeMethods, Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { InputScrollView } from "@/components/common/ui/InputScrollView";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   installNativePopoverMeasurements,
@@ -156,4 +157,49 @@ it("preserves row identity and metadata when the cover fails, and separates disc
   expect(screen.getByText("Pat voted yes")).toBeOnTheScreen();
   expect(open).toHaveBeenCalledOnce();
   expect(http).not.toHaveBeenCalled();
+});
+
+it("hydrates an uncached game only when its mounted cover enters the parent's measured scroll viewport", async () => {
+  const native = await vi.importActual<{
+    default: { prototype: Pick<NativeMethods, "measureInWindow"> };
+  }>("react-native/Libraries/Components/View/ViewNativeComponent");
+  let top = 600;
+  let rowMeasured = 0;
+  vi.spyOn(native.default.prototype, "measureInWindow").mockImplementation(function (
+    this: { props?: { collapsable?: boolean } },
+    callback,
+  ) {
+    if (this.props?.collapsable === false) {
+      rowMeasured += 1;
+      callback(0, top, 48, 48);
+    } else {
+      callback(0, 0, 320, 500);
+    }
+  });
+  await render(
+    <InputScrollView testID="catalog-scroll">
+      <GameListRow game={game} name={game.name} />
+    </InputScrollView>,
+    { wrapper: Providers },
+  );
+  await waitFor(() => expect(rowMeasured).toBeGreaterThan(0));
+  expect(http).not.toHaveBeenCalled();
+
+  top = 200;
+  await fireEvent.scroll(screen.getByTestId("catalog-scroll"), {
+    nativeEvent: {
+      contentOffset: { x: 0, y: 400 },
+      contentSize: { width: 320, height: 1040 },
+      layoutMeasurement: { width: 320, height: 500 },
+      zoomScale: 1,
+    },
+  });
+  await waitFor(() =>
+    expect(http).toHaveBeenCalledExactlyOnceWith(expect.anything(), expect.anything()),
+  );
+  await pressMeasuredPopover(
+    screen.getByRole("button", { name: `Game information: ${game.name}` }),
+  );
+  expect(await screen.findByText("Strategy")).toBeVisible();
+  expect(http).toHaveBeenCalledTimes(1);
 });

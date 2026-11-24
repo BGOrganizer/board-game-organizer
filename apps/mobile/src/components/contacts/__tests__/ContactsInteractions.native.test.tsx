@@ -297,3 +297,22 @@ it("debounces real user discovery, distinguishes failures and empty results, and
       ?.status,
   ).toBe("success");
 });
+
+it("omits redacted pending and sent profiles without exposing an action, while retaining visible requests", async () => {
+  const known = fixtureUser({ id: "known", name: "Known Friend", username: "known" });
+  contactsFixture.relationships.set("pending", [
+    { fromUserId: "redacted-incoming", toUserId: "owner", profile: null },
+  ]);
+  contactsFixture.relationships.set("sent", [
+    { fromUserId: "owner", toUserId: "redacted-outgoing", profile: null },
+  ]);
+  relationship("pending", known);
+  contactsBoundary.parameter = "requests";
+  await renderContacts();
+  await contactsReady();
+  expect(await screen.findByText("@known")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Actions: Known Friend" })).toBeEnabled();
+  expect(screen.getAllByRole("button", { name: /^Actions:/ })).toHaveLength(1);
+  expect(screen.queryByText(/redacted-(incoming|outgoing)/)).toBeNull();
+  expect(socialWrites()).toEqual([]);
+});

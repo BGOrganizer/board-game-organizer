@@ -674,3 +674,24 @@ it("keeps a foreign published collection usable when the viewer's own BGG compar
     collectionReads.every((url) => url.searchParams.get("snapshot") === `snapshot-${subject}`),
   ).toBe(true);
 });
+
+it("shows sign-out failure and permits a fresh explicit login boundary request", async () => {
+  const user = userEvent.setup();
+  seed();
+  boundary.signOut.mockRejectedValueOnce(new Error("Local Clerk session could not be ended"));
+  await render(<Fixture />);
+  await user.press(screen.getByRole("button", { name: "Sign out of your account" }));
+  await user.press(screen.getByRole("button", { name: "Sign out" }));
+  const failure = "Could not sign out. Try again.";
+  expect(await screen.findByText(failure)).toBeVisible();
+  expect(boundary.replace).not.toHaveBeenCalled();
+  expect(boundary.cacheSignOut).toHaveBeenCalledOnce();
+  expect(boundary.signOut).toHaveBeenCalledOnce();
+
+  await user.press(screen.getByRole("button", { name: "Sign out of your account" }));
+  await user.press(screen.getByRole("button", { name: "Sign out" }));
+  await waitFor(() => expect(boundary.replace).toHaveBeenCalledExactlyOnceWith("/"));
+  expect(boundary.cacheSignOut).toHaveBeenCalledTimes(2);
+  expect(boundary.signOut).toHaveBeenCalledTimes(2);
+  expect(screen.queryByText(failure)).toBeNull();
+});

@@ -566,3 +566,29 @@ it("toggles the saved venue favorite without changing the event draft", async ()
   await waitFor(() => expect(favoriteWrites).toEqual(["POST", "DELETE"]));
   expect(currentDraft()).toEqual(before);
 });
+
+it("requires a valid public local start time across a daylight-saving gap", async () => {
+  seedGroups();
+  await render(
+    <Fixture
+      initial={draft({
+        groupId: publicGroup.id,
+        timeZone: "Europe/Rome",
+        dates: [{ ...plannedEvent.dates[0], day: "2030-03-31" }],
+        startTime: "02:30",
+        endsWall: "2030-03-31T21:00",
+        cutoffWall: "2030-03-30T18:00",
+      })}
+    />,
+  );
+  await press("Validate current step");
+  await press("Validate current step");
+  const message = "Choose exactly one valid date and time.";
+  expect(screen.getAllByText(message)).toHaveLength(2);
+  await press("Start time");
+  await nativeChoice("2030-03-31T03:30:00Z");
+  expect(currentDraft()).toMatchObject({
+    dates: [expect.objectContaining({ day: "2030-03-31", startTime: "03:30" })],
+  });
+  expect(screen.queryByText(message)).toBeNull();
+});
