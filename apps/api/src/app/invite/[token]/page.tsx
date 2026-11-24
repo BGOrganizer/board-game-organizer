@@ -1,5 +1,5 @@
 import { ClerkProvider } from "@clerk/nextjs";
-import { isProductionInviteDeployment } from "@/app/lib/invites/app-link-association";
+import { isProductionInviteDeployment } from "../../lib/invites/app-link-association";
 import { InviteAppLink } from "./InviteAppLink";
 import { InviteLanding } from "./InviteLanding";
 import { InviteProviders } from "./InviteProviders";
