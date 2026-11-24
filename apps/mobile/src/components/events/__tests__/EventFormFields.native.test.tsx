@@ -622,5 +622,6 @@ it("lets a manager repair a missing start time in a retained public event draft"
   expect(currentDraft()).toMatchObject({
     dates: [expect.objectContaining({ day: "2030-06-03", startTime: "20:30" })],
   });
+  await press("Validate current step");
   expect(screen.queryByText("Choose exactly one valid date and time.")).toBeNull();
 });

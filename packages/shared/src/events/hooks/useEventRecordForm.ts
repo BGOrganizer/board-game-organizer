@@ -115,6 +115,7 @@ export function useEventRecordForm(
       return patchEventDraft(
         old,
         {
+          startTime: old.startTime || wall.slice(11, 16),
           tables: old.tables.map((row) => ({
             ...row,
             startsWall: row.startsWall

@@ -76,6 +76,29 @@ it("keeps the standalone draft private and moves public tables only with a valid
   });
 });
 
+it("repairs the required fallback when a saved public draft only has the event day", async () => {
+  const { client, wrapper } = setup();
+  const publicGroup = { ...groupRecord, type: "PUBLIC" as const };
+  client.setQueryData(groupRecordKeys.detail(options, publicGroup.id), publicGroup);
+  const recovered = {
+    ...eventDraft(undefined, publicGroup.id),
+    startTime: "",
+    dates: [{ ...plannedEvent.dates[0], startTime: undefined }],
+  };
+  const { result } = renderHook(
+    () => useEventRecordForm(options, undefined, undefined, recovered),
+    {
+      wrapper,
+    },
+  );
+  await waitFor(() => expect(result.current.publicGroup).toBe(true));
+  act(() => result.current.setStartDate("2030-06-03T20:30"));
+  expect(result.current.draft.startTime).toBe("20:30");
+  expect(result.current.draft.dates).toEqual([
+    expect.objectContaining({ day: "2030-06-03", startTime: "20:30" }),
+  ]);
+});
+
 it("restores missing table order from the authoritative page without restoring a removed row", async () => {
   const { client, wrapper } = setup();
   const event = { ...plannedEvent, groupId: groupRecord.id, groupType: "PRIVATE" as const };

@@ -48,6 +48,9 @@ notification bell requests it directly; do not add a second enable button.
 HeroUI Native Skeleton has no intrinsic size. Give each skeleton explicit width, height, and border
 radius, and keep parent rows stretched to full width.
 
+A restored public event draft can have a day without a start time. Keep the native date control
+usable while the form still requires a valid time before submission.
+
 Do not add a custom mobile Babel configuration. React Native's Babel/runtime combination and
 worklets previously caused release builds to crash at launch. Mobile localization intentionally uses
 runtime helpers instead of Lingui Babel macros.

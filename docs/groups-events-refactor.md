@@ -172,7 +172,8 @@ exceptions retain their explicit authorization boundaries throughout this contra
   the limit. PUBLIC Group Events use a date-only field (tomorrow for a new draft), followed by
   side-by-side start/end time-only controls on that same day, then a combined registration deadline
   on an earlier day and the verified Location. New public drafts have no preset venue. Native
-  Android time pickers reject out-of-range selections rather than clamping them.
+  Android time pickers reject out-of-range selections rather than clamping them. A restored draft
+  with only the event day keeps that day visible and requires an explicit start time to proceed.
 - Creation/edit has four stages: Event, Dates / Locations, Tables, Review. Public/Private radio
   cards always remain visible; Public is available only in an approved PUBLIC Group. Changing Group
   resets visibility to PRIVATE and never publishes implicitly. Switching to a PUBLIC Group requires
