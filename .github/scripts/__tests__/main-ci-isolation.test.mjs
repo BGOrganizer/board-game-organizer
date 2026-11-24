@@ -230,6 +230,13 @@ test("production smoke selects a complete current deployment after both provider
   assert.doesNotMatch(site.steps.at(-1).run, /--header "x-vercel-protection-bypass/);
   assert(!jobs["publish-release"].needs.includes("select-production-site"));
   assert(jobs["deploy-production-mcp-gateway"]["continue-on-error"]);
+  for (const id of ["publish-release", "notify-telegram"]) {
+    assert.match(jobs[id].if, /!cancelled\(\)/);
+    assert.doesNotMatch(jobs[id].if, /\bsuccess\(\)/);
+    for (const dependency of jobs[id].needs) {
+      assert(jobs[id].if.includes(`needs.${dependency}.result == 'success'`));
+    }
+  }
 });
 test("unit and integration Codecov uploads fail closed and retain coverage reports", () => {
   for (const id of ["coverage", "integration-tests"]) {

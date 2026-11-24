@@ -182,6 +182,7 @@ test("PR E2E hooks remain explicitly disabled; approved Main/manual E2E workflow
 test("Development publication ignores Internal results but requires every common/Development gate", () => {
   const release = jobs["draft-release"];
   const expression = release.if
+    .replace(/^\$\{\{\s*|\s*\}\}$/g, "")
     .replace(/needs\.([\w-]+)\.result/g, (_, key) => `results["${key}"]`)
     .replaceAll("needs.context.outputs.mode", "mode")
     .replaceAll("needs.context.outputs.trusted", "trusted");
@@ -191,8 +192,6 @@ test("Development publication ignores Internal results but requires every common
       results,
       mode,
       trusted,
-      always: () => true,
-      success: () => !cancelled && release.needs.every((name) => results[name] === "success"),
       cancelled: () => cancelled,
     });
   assert.equal(allowed(success), true);
@@ -208,6 +207,9 @@ test("Development publication ignores Internal results but requires every common
     "build-mobile-internal",
     "deploy-preview-api",
     "deploy-preview-web",
+    "deploy-development-api",
+    "deploy-development-web",
+    "deploy-netlify-development",
     "cleanup-e2e-user",
     "cleanup-e2e-db",
   ])
@@ -485,4 +487,29 @@ test("webhook alias rejects production, missing inputs and unverified or unexpec
   const failedAlias = runWebhookAlias({ fail: "alias" });
   assert.match(failedAlias.error.message, /Vercel webhook alias command failed/);
   assert.ok(!failedAlias.error.message.includes("private-test-token"));
+});
+
+test("selected PR deployments can build APKs and publish after the alternate provider fails", () => {
+  // A successful selection can still have a failed ancestor. Require direct results explicitly.
+  for (const id of [
+    "initialize-preview",
+    "provision",
+    "sync-e2e-users",
+    "e2e-maestro",
+    "e2e-playwright",
+    "build-mobile-internal",
+    "build-mobile-development",
+  ]) {
+    assert.match(jobs[id].if, /!cancelled\(\)/, id);
+    assert.doesNotMatch(jobs[id].if, /\bsuccess\(\)/, id);
+    for (const dep of jobs[id].needs) {
+      assert(jobs[id].if.includes(`needs.${dep}.result == 'success'`), `${id} must require ${dep}`);
+    }
+  }
+  const publication = jobs["draft-release"].if;
+  assert.match(publication, /!cancelled\(\)/);
+  assert.doesNotMatch(publication, /\bsuccess\(\)/);
+  for (const dependency of jobs["draft-release"].needs) {
+    assert(publication.includes(`needs.${dependency}.result == 'success'`));
+  }
 });

@@ -640,7 +640,12 @@ jobs:
       - release
       - build-apk
       - select-production-deployment
-    if: needs.release.outputs.published == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.release.result == 'success'
+        && needs.build-apk.result == 'success'
+        && needs.select-production-deployment.result == 'success'
+        && needs.release.outputs.published == 'true' }}
     runs-on: ubuntu-latest
     concurrency:
       group: production-publication-${{ needs.release.outputs.sha }}
@@ -751,7 +756,12 @@ jobs:
   notify-telegram:
     name: Notify Telegram
     needs: [release, publish-release, select-production-deployment]
-    if: needs.release.outputs.published == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.release.result == 'success'
+        && needs.publish-release.result == 'success'
+        && needs.select-production-deployment.result == 'success'
+        && needs.release.outputs.published == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout

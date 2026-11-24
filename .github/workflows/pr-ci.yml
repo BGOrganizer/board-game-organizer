@@ -389,7 +389,11 @@ jobs:
     name: "APK (CI): build or reuse"
     environment: development
     needs: [context, select-preview]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.select-preview.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -507,7 +511,11 @@ jobs:
   provision:
     name: Create E2E users
     needs: [context, initialize-preview]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.initialize-preview.result == 'success'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.initialize-preview.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -800,7 +808,11 @@ jobs:
   initialize-preview:
     name: Prepare selected CI fixtures
     needs: [context, select-preview]
-    if: needs.select-preview.outputs.fixtures == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.select-preview.result == 'success'
+        && needs.select-preview.outputs.fixtures == 'true' }}
     runs-on: ubuntu-latest
     environment: development
     steps:
@@ -858,7 +870,13 @@ jobs:
   sync-e2e-users:
     name: Mirror E2E users
     needs: [context, provision, select-preview, initialize-preview]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.provision.result == 'success'
+        && needs.select-preview.result == 'success'
+        && needs.initialize-preview.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     runs-on: ubuntu-latest
     environment: development
     steps:
@@ -912,7 +930,14 @@ jobs:
   e2e-maestro:
     name: E2E (mobile)
     # Explicit operator policy; disabled does not establish native acceptance.
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.context.outputs.e2e-enabled == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.build-mobile-internal.result == 'success'
+        && needs.sync-e2e-users.result == 'success'
+        && needs.provision.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+        && needs.context.outputs.e2e-enabled == 'true' }}
     needs: [context, build-mobile-internal, sync-e2e-users, provision]
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -1096,7 +1121,14 @@ jobs:
   e2e-playwright:
     name: E2E (web)
     # Explicit operator policy; disabled does not establish web acceptance.
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.context.outputs.e2e-enabled == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.select-preview.result == 'success'
+        && needs.sync-e2e-users.result == 'success'
+        && needs.provision.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+        && needs.context.outputs.e2e-enabled == 'true' }}
     needs: [context, select-preview, sync-e2e-users, provision]
     runs-on: ubuntu-latest
     environment: development
@@ -1442,7 +1474,11 @@ jobs:
     name: Build APK (Development)
     environment: development
     needs: [context, select-development]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.select-development.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     permissions:
@@ -1532,7 +1568,20 @@ jobs:
       group: development-publication
       cancel-in-progress: false
     # Common quality + Development only. Internal/E2E cannot block publication.
-    if: success() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.commitlint.result == 'success'
+        && needs.lint.result == 'success'
+        && needs.typecheck.result == 'success'
+        && needs.unit-tests.result == 'success'
+        && needs.integration-tests.result == 'success'
+        && needs.native-tooling.result == 'success'
+        && needs.build-api.result == 'success'
+        && needs.build-web.result == 'success'
+        && needs.select-development.result == 'success'
+        && needs.build-mobile-development.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     environment: development
     needs:
       - context
