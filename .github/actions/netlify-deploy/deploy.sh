@@ -145,7 +145,7 @@ bun build apps/mcp/netlify-gateway.mts --target=node --format=esm \
   --outfile="$gateway_stage/functions/mcp.mjs"
 require_current_source
 gateway_result=$(cd "$gateway_stage" && netlify deploy --no-build --dir public \
-  --functions functions --site "$gateway_id" --prod --context production --json --message "$SOURCE_SHA" \
+  --functions functions --site "$gateway_id" --prod --json --message "$SOURCE_SHA" \
   --env "BGO_NETLIFY_STAGE=$target" --env "BGO_MCP_UPSTREAM_URL=$api_origin")
 gateway_deploy=$(attest_deploy "$gateway_result" "$gateway_id" "$gateway_site" production)
 curl --fail --silent --show-error --retry 3 --max-time 30 \

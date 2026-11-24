@@ -37,6 +37,17 @@ test("Netlify previews scope their origin per deployment with no Vercel bypass",
   assert.doesNotMatch(script, /VERCEL_PROTECTION_BYPASS|\/api\/admin\/ci-db/);
 });
 
+test("the prebuilt MCP gateway publishes without a build-only context flag", () => {
+  const script = read(".github/actions/netlify-deploy/deploy.sh");
+  const command = script.slice(
+    script.indexOf("gateway_result="),
+    script.indexOf("gateway_deploy="),
+  );
+  assert.match(command, /netlify deploy --no-build/);
+  assert.match(command, /--prod/);
+  assert.doesNotMatch(command, /--context/);
+});
+
 test("Netlify verifies the branch alias and returns the immutable deploy URL", () => {
   const id = "6b05554dbff23da685a43266";
   const site = "test-site-id";
