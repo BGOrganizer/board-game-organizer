@@ -32,7 +32,7 @@ export function assertRenderMeasurement(
   expect(Number.isFinite(result.meanCount)).toBe(true);
   expect(result.meanCount).toBeGreaterThanOrEqual(1);
   expect(
-    withinRenderCommitBudget(scenario, result.counts, result.meanCount, maximumCommits),
+    withinRenderCommitBudget(result.counts, result.meanCount, maximumCommits),
     `Render regression in ${scenario}: ${result.counts.join(", ")} exceeds ${maximumCommits}`,
   ).toBe(true);
   for (const deviation of [result.stdevDuration, result.stdevCount]) {

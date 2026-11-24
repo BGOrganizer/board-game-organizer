@@ -30,7 +30,7 @@ it("rejects an extra commit even if an aggregate mean hides it", () => {
   expect(() => assertRenderMeasurement(measurement, scenario)).toThrow(/Render regression/);
 });
 
-it("accepts one extra scheduled commit in the measured async route and rejects a recurring excess", () => {
+it("accepts up to two single-commit variations in the measured route and rejects a recurring excess", () => {
   const route =
     "EventDetail: cached Participants and Tables entry and reentry keeps the event header";
   const measurement = {
@@ -40,8 +40,10 @@ it("accepts one extra scheduled commit in the measured async route and rejects a
   };
   expect(() => assertRenderMeasurement(measurement, route)).not.toThrow();
   measurement.counts[8] = 28;
+  expect(() => assertRenderMeasurement(measurement, route)).not.toThrow();
+  measurement.counts[7] = 28;
   expect(() => assertRenderMeasurement(measurement, route)).toThrow(/Render regression/);
-  measurement.counts[8] = 26;
+  measurement.counts[7] = measurement.counts[8] = 26;
   measurement.counts[9] = 29;
   expect(() => assertRenderMeasurement(measurement, route)).toThrow(/Render regression/);
 });

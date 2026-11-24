@@ -116,9 +116,11 @@ reported by the comparison jobs.
 
 Calibrate commit-count ceilings from repeated runs with the same fixtures. Both suites record
 explicit scenario ceilings in `apps/{web,mobile}/performance/renderCommitBudgets.ts` and reject
-additional commits, unknown scenarios and invalid samples. Five calibrated asynchronous journeys
-allow one of ten samples to exceed its ceiling by one commit. The mean may increase by at most
-0.1 in those cases. Repeated or larger excesses still fail. Recheck a changed scenario before updating its
+additional commits, unknown scenarios and invalid samples. Portable multi-commit budgets allow
+one extra commit in at most two of ten samples, with a maximum mean increase of 0.2. Four hosted
+comparisons of unchanged application code observed that spread in real list, popover and wrapper
+transitions. Single-commit scenarios keep a strict ceiling on every sample. Larger or recurring
+excesses still fail. Recheck a changed scenario before updating its
 ceiling; do not raise budgets merely to obtain a passing run. Duration samples remain recorded
 separately: a deterministic commit-count contract is not a native latency guarantee.
 

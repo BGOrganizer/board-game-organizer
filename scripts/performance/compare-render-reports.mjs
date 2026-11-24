@@ -189,7 +189,7 @@ function measurements(file, expectedRef, budgets) {
     if (budgets)
       ensure(
         Object.hasOwn(budgets, row.name) &&
-          withinRenderCommitBudget(row.name, row.counts, row.meanCount, budgets[row.name]),
+          withinRenderCommitBudget(row.counts, row.meanCount, budgets[row.name]),
         `Unknown scenario or render-count regression: ${row.name}`,
       );
   }
